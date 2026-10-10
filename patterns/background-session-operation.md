@@ -319,7 +319,8 @@ full verify on each retry. The concern is now bounded by a **code-enforced** adm
   (`bin/lib/worktree.py`, SPEC-0132): before it runs the verify it computes a per-verify
   worker cap and a concurrency-slot count from the LIVE multi-resource host headroom —
   `_bound = _verify_worker_bound` (the MIN across cores/memory/fd-PID/disk-inode headroom),
-  `_admitted_workers = min(_bound, _VERIFY_WORKER_CEILING)`, and
+  `_admitted_workers = min(_bound, _verify_worker_ceiling)` (the machine setting
+  `lib.worktree._VERIFY_WORKER_CEILING`, its built-in default the code constant), and
   `_admitted_slots = max(1, _bound // _admitted_workers)`. The
   slot is a crash-safe `fcntl` flock semaphore (`_verify_admission`) held for the verify phase, so
   instantaneous workers across ALL concurrent lands **IN ONE REPO** ≤ `slots × W ≤` the host bound — a
@@ -329,23 +330,19 @@ full verify on each retry. The concern is now bounded by a **code-enforced** adm
   - **WHAT THIS POOL DOES NOT BOUND — read this BEFORE sizing a wave.** The pool is keyed
     **PER REPO** (`_verify_slot_dir` hashes `realpath(main_wt)`), so it has **NEVER** bounded
     **CROSS-PROJECT** land concurrency. Each project landing concurrently gets its OWN full pool. A low
-    per-verify ceiling used to mask this by accident — it made every repo's verify smaller — and
-    raising the ceiling back to 13, then to **26** (owner-directed and TEMPORARY
-    while this host runs one project — it reverts to 13 when the `YITC_VERIFY_WORKERS` hatch
-    ships), removes that accidental protection and then doubles what one landing project draws. The
-    arithmetic a controller needs, in two DISTINCT numbers — do not mix them:
-    - **Pool CAPACITY per repo** — `slots × W = 1 × 26 = 26` workers on a 32-core box (it was
-      `2 × 13 = 26` — the same ceiling, reached with ONE slot instead of two). This is the most one
+    per-verify ceiling masks this by accident — it makes every repo's verify smaller — and a raised
+    one removes that protection. The ceiling is a MACHINE SETTING (`lib.worktree._VERIFY_WORKER_CEILING`): read THIS host's value with `bin/yitc-v2 config list` before sizing, never a number
+    remembered from another host. The width a verify actually runs at is
+    `W = min(host bound, ceiling setting)` — the governor's resource bound still caps a larger setting.
+    The arithmetic a controller needs, in two DISTINCT numbers — do not mix them:
+    - **Pool CAPACITY per repo** — `slots × W`, where `slots = bound // W`. This is the most one
       repo's pool would ever admit; it is what the per-repo bound guarantees, not what a project
       normally draws.
-    - **EXPECTED load per landing project** — **26 workers** (was 13), because per-project
-      serialization holds each repo to ONE land inside `merge → verify → ff`, i.e. one occupied slot —
-      and that one slot is now the WHOLE pool. This is the number to size a wave with: **2 projects
-      landing at once ≈ 52/32 cores, 3 ≈ 78/32 — over-subscription now bites from TWO projects
-      upward, where at W=13 it began at three.**
-    Worst case no longer differs from the expected case the way it used to: with a single slot per
-    repo the bounded-park degrade path has no second slot to hand a waiter, so a repo's own peak is
-    26 and the cross-project sum is what a controller must watch.
+    - **EXPECTED load per landing project** — **W workers**, because per-project
+      serialization holds each repo to ONE land inside `merge → verify → ff`, i.e. one occupied slot.
+      This is the number to size a wave with: N projects landing at once draw about N × W against the
+      host's cores, so over-subscription begins at the first N whose N × W exceeds them.
+    (The figures that stood here — 13, then 26 — were / history of the built-in default.)
     **Nothing in the code stops any of this** —
     the only bound on cross-project lands is the controller's own wave pacing below, which is why the
     disclosure lives here rather than only in a code comment.

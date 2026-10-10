@@ -1,0 +1,329 @@
+id: SPEC-1023
+title: Context epoch reading — a per-provider completed-compaction marker, and cannot-tell
+  as a reading of its own
+status: active
+created_at: 2026-10-08 11:46:56+00:00
+travels: kernel
+consumed: false
+implements:
+- bin/lib/session.py#context_epoch_reading
+- bin/lib/session.py#reading_mark
+- bin/lib/cli.py#PROVIDER_TRANSCRIPT_DESCRIPTORS
+- bin/lib/cli.py#_context_epoch_reading
+- bin/lib/cli.py#_session_epoch_reading
+- bin/lib/gates.py#_require_seed_read
+- bin/lib/gates.py#seed_stamp_credits
+- bin/lib/gates.py#_receipt_stamp
+- bin/lib/dispatch.py#_worker_seed_bootstrap_events
+- bin/lib/events.py#_emit_cli_invoked
+amends:
+- SPEC-0050 §8 «Epoch-scoping» — the DERIVATION of the context epoch and the «best-efforts
+  to 0» fail-safe move HERE (a stable-surface split, SPEC-0005 rule 6/7 — the precedent
+  of SPEC-0083 out of SPEC-0036). §8 keeps the stale-epoch refusal; its COMPARE changes
+  from a count to the newest-marker identity the receipt records (rule 6), and it
+  gains a pointer. The split is not editorial — rule 4 below reverses the direction
+  of that fail-safe for a governed verb, which is why it rides a new proposed spec
+  and not an in-place edit.
+- SPEC-0007 §5b «already holds» — the last-compaction test of the start-block proof
+  uses this spec's marker predicate instead of its own copy of one provider's record
+  shape.
+- SPEC-0050 §4 «a stage contract is delivered once per context epoch» — «a receipt
+  with an epoch not older than the current one» becomes «a receipt naming the reading's
+  newest marker (or NONE)»; on CANNOT TELL the contract is delivered in full, as today.
+  Edited by card (4).
+- SPEC-0050 §8 «Receipt» co-producer — the dispatch bootstrap receipt, which records
+  epoch 0 today, records the reading NONE (a Worker's transcript holds no marker before
+  its own start). Edited by card (4).
+- SPEC-0007 §5b post-compaction re-fold block — «a context epoch newer than the session's
+  previous start» becomes «a newest marker other than the one the session's previous
+  start recorded». Edited by card (4).
+body: "## Scenario\n\nA provider may compact a session's context at any moment — on\
+  \ the user's command, at a context\nlimit, or while the session sits idle. The session\
+  \ is not told in a way the engine can rely on: the\nonly durable trace is a record\
+  \ in the provider's own transcript. Whenever the engine needs to know\n«has this\
+  \ session's context been compacted since X?», it asks ONE reader, and the answer\
+  \ is one of\nthree: the LAST COMPACTION (which marker, or none), NO TRANSCRIPT EXPECTED,\
+  \ or CANNOT TELL. «Cannot tell»\nis never quietly turned into «none»: a governed\
+  \ verb is not credited on it, and the session is told\nat startup when its provider\
+  \ is one the engine cannot read compactions from at all.\n\n## Internal\n\nTHE CONTEXT-EPOCH\
+  \ READING. One instrument with many consumers — the seed-read gate (SPEC-0050 §8),\n\
+  the stage-contract deliverer, the start-block repeat check (SPEC-0007 §5b), the\
+  \ per-session caches\nkeyed on the epoch, and the recovery brief (SPEC-1024). It\
+  \ adds no store, journal, parser path or\nevent type: it reads the provider transcript\
+  \ the engine already locates, through the descriptor\ntable the engine already has.\
+  \ Seven rules.\n\n### 1. One reader, one marker per provider\nThe context epoch\
+  \ of a session is read by ONE function, from ONE per-provider definition of what\
+  \ a\ncompleted compaction looks like. That definition — the **marker**: a predicate\
+  \ over a single\ntranscript record — lives on the provider's row of the transcript\
+  \ descriptor table, beside the\ntranscript location and the env carrier already\
+  \ there. The location honours the provider's own\nhome override where it has one\
+  \ (§Parameters, provider bindings): a row that names only a default\ndirectory reads\
+  \ an empty legacy root on a host whose provider is configured elsewhere, and every\n\
+  reading under that provider becomes a false «no transcript». No other code tests\
+  \ a transcript record for\n«is this a compaction»: a consumer that needs «since\
+  \ the last compaction» asks the reader or\napplies the row's marker, never a literal\
+  \ of one provider's record shape.\n\n### 2. The marker names a COMPLETED compaction\n\
+  A marker matches only a record the provider writes AFTER the compaction finished\
+  \ and the new,\nsmaller context is in force. A record written when a compaction\
+  \ STARTS does not qualify: a receipt\nrefreshed between start and completion would\
+  \ be stamped with the new epoch and then lose the\ncontext it attests. Where a provider\
+  \ writes both, the row names the completion record; where it\nwrites only a start\
+  \ record, the provider has no marker (rule 3).\n\n### 3. A marker is admitted on\
+  \ a live observation, never on reading the provider's code\nA provider row carries\
+  \ a marker only after a live compaction under that provider was observed on a\n\
+  real session and its transcript examined. The row records what was observed (§Parameters:\
+  \ provider\nkind, the provider versions observed, the marker, the evidence reference,\
+  \ the trigger kinds seen).\nA provider with no admitted marker is **detection: not\
+  \ observed**. Reading a provider's binary,\nsource or documentation is a reason\
+  \ to run the observation, not a substitute for it.\nA provider update may change\
+  \ the record shape, and a marker that no longer matches cannot be seen\nby looking\
+  \ for markers. The engine does not build a guard for that; it states it. When a\
+  \ session's\ntranscript names a provider version the row has not observed, `session\
+  \ start` prints ONE line —\ncompaction detection is unverified for that version\
+  \ — and records a deviation once per version, so\nthe version gets observed and\
+  \ admitted. Nothing is refused on it. STATED LIMIT: a format change in\nan unobserved\
+  \ version goes unseen until that observation.\n\n### 4. Three readings — «cannot\
+  \ tell» is not «no compaction»\nThe reader returns exactly one of:\n  - **(a) LAST\
+  \ COMPACTION** — the session's transcript was located and read to its end and its\n\
+  \    provider has an admitted marker: the reading is the identity of the NEWEST\
+  \ completed-compaction\n    marker in it (rule 5), or NONE when it holds no marker.\n\
+  \  - **(b) NO TRANSCRIPT EXPECTED** — treated as NONE. Only an engine run outside\
+  \ any AI session: the\n    process carries no provider carrier AND no record of\
+  \ the resolved session names a provider (no\n    `session_started` row naming a\
+  \ provider tool, no dispatch launch row, no runtime record holding\n    provider\
+  \ data — §Parameters). The hermetic verify box is this case: its children's environment\n\
+  \    scrubs the carriers. Anything else without a transcript is (c), a dispatched\
+  \ Worker included.\n    The provider KIND comes from the first of: the carrier in\
+  \ the process, a start row's tool, the\n    launch row, the runtime record (§Parameters).\n\
+  \  - **(c) CANNOT TELL** — every other case: the provider has no admitted marker;\
+  \ the transcript\n    should exist and was not found; it was found and could not\
+  \ be opened or read to its end; a\n    candidate record could not be parsed in a\
+  \ way that leaves the reading in doubt.\nCallers that only need a value for a cache\
+  \ key or a report MAY map (c) to their own neutral value\nand MUST NOT present it\
+  \ as «no compaction». A caller that CREDITS something on the reading — the\nseed-read\
+  \ gate, the «already holds» proof, the stage deliverer's withholding of a contract\
+  \ body,\nthe «re-fold block already shown since the compaction» check adds — treats\
+  \ (c) as «not\nestablished»: it does not credit, does not withhold, does not skip\
+  \ — with exactly TWO stated\nexceptions, both chosen by the owner: under a provider\
+  \ whose detection is NOT OBSERVED governed\nverbs proceed (rule 6), and the seed-read\
+  \ gate's «epoch unknown» receipt credits within the limits\nrule 6a states.\n\n\
+  ### 5. Which marker is the newest — identity, not a count\nThe reading names the\
+  \ newest completed-compaction record by the provider's own record identity\n(§Parameters);\
+  \ a repeated or replayed record of the same compaction has the same identity. The\
+  \ files\nthat belong to a session are every file the provider row's location pattern\
+  \ matches for the\nsession's provider id; a copy read alongside adds nothing. Nothing\
+  \ is counted: a receipt is compared\nby identity (rule 6), so a new compaction,\
+  \ lost history and an old receipt revived all show the same\nway — the newest marker\
+  \ is not the one the receipt recorded. STATED LIMIT: a marker REMOVED from the\n\
+  transcript by an outside rewrite is not detectable.\n\n### 6. What a governed verb\
+  \ does on each reading\n  - on (a): the stamping run records the reading (a marker\
+  \ identity, or NONE) on the seed receipt;\n    the receipt credits only while the\
+  \ reading names that same marker; otherwise the stale-epoch\n    refusal. This REPLACES\
+  \ the count compare of SPEC-0050 §8 (amended in place by the card that\n    ships\
+  \ it). EVERY receipt producer records the reading: the stamping run, and the dispatch\n\
+  \    bootstrap co-producer (SPEC-0050 §8), which records NONE — so a Worker's first\
+  \ verbs before its\n    own start credit while its transcript holds no marker, and\
+  \ stop crediting at its first\n    compaction. The record is compared by identity,\
+  \ never ordered: the newest marker's identity,\n    NONE, or UNKNOWN (rule 6a's\
+  \ receipt — also what a provider whose detection is not observed\n    records).\
+  \ A receipt that records nothing reads NONE: the bootstrap was the only producer\
+  \ that\n    never recorded one, and no such `session start` receipt lies inside\
+  \ the receipt window. Only the\n    session's NEWEST receipt counts — the later\
+  \ of the newest one in the journal of the checkout the\n    verb runs from and the\
+  \ newest one in the main checkout's (two of the same second must agree) —\n    so\
+  \ a receipt a later stamping run superseded, in either checkout, never credits again,\
+  \ whatever\n    the reading returns to (a truncated or a repaired transcript). Under\
+  \ a provider whose detection is not\n    observed that newest receipt credits whatever\
+  \ it records, unless it is a pre-change number. EVERY caller that compared epoch\
+  \ numbers compares identities instead: this gate, the\n    stage deliverer's «already\
+  \ holds» (SPEC-0050 §4) and the re-fold block's «newer than the previous\n    start»\
+  \ (SPEC-0007 §5b). The same newest-decides rule binds every «already holds / already\n\
+  \    shown» record those callers read: a delivery written before a seed receipt\
+  \ of the session that\n    records another reading proves nothing afterwards, whatever\
+  \ the reading returns to. A receipt stamped with a number before the change never\
+  \ equals an\n    identity and credits under no reading: one recovery after the release,\
+  \ never a credit.\n    The reading these producers and compares use is taken from\
+  \ what the run itself carries — its\n    provider carrier, the dispatch contract,\
+  \ its runtime record — never from a walk of the journal's\n    history, so a governed\
+  \ verb pays no journal read for it. STATED LIMIT: a run carrying none of\n    them\
+  \ reads CANNOT TELL with no provider kind and proceeds as under a provider whose\
+  \ detection is\n    not observed; such a run has no conversation of its own to compact\
+  \ (`session context` still\n    reads the history and may name the provider an earlier\
+  \ row records).\n  - on (b): as NONE.\n  - on (c), for a provider whose detection\
+  \ is OBSERVED: the verb is REFUSED with a reason of its\n    own (`context_epoch_unknown`),\
+  \ distinct from the stale-epoch reason, naming what could not be\n    read and where\
+  \ it was looked for. Nothing is credited. The refusal is recorded as the\n    read-gate\
+  \ refusals already are. Read-only verbs are not refused.\n  - on (c), for a provider\
+  \ whose detection is NOT OBSERVED: governed verbs PROCEED; the session\n    was\
+  \ told at startup that compactions are not tracked under its provider (rule 7).\
+  \ Refusing\n    every governed verb of such a provider would make it unusable with\
+  \ the engine.\n  - the bounded read-tolerant observers of SPEC-0050 §8a keep their\
+  \ tolerance on (c) exactly as on\n    the other refusal reasons: a visible warning\
+  \ naming the reason, then proceed.\n  - ONE (c) cause never reaches this rule: the\
+  \ session's OWN transcript, present but unreadable,\n    stops every engine invocation\
+  \ — read-only verbs and both runs of `session start` included — at\n    the existing\
+  \ fail-closed journal auto-sync (SPEC-0004 / SPEC-0010), which names the file. This\n\
+  \    spec leaves that stop as it is: nothing is credited, and rule 6a step 5 is\
+  \ its recovery.\n\n### 6a. What a session does on a `context_epoch_unknown` refusal\
+  \ — no dead end\nThe refusal names this procedure, and the session follows it on\
+  \ its own; it is not an owner\nquestion:\n  1. treat the context as compacted —\
+  \ an unneeded recovery costs minutes, a missed one costs work;\n  2. recover exactly\
+  \ as after a detected compaction (SPEC-1024): the print-only brief, a re-read of\n\
+  \     every part of its audience seed, then the stamping `session start` once per\
+  \ checkout;\n  3. that stamping run writes a receipt stamped «epoch unknown», which\
+  \ credits governed verbs for\n     as long as the reading STAYS cannot-tell. Its\
+  \ limits, stated rather than hidden: while the\n     reading stays unknown, compaction\
+  \ detection is LOST for that session — a further compaction\n     in that time is\
+  \ not seen; every governed verb credited on such a receipt prints one warning\n\
+  \     line saying so and naming the cause; the stamping run that wrote it is the\
+  \ recorded evidence\n     of the recovery (rule 6a step 2);\n  4. when the reading\
+  \ names a marker again, a receipt stamped «unknown» does not credit it —\n     the\
+  \ session recovers once more, because what happened while the reading was blind\
+  \ cannot be\n     known;\n  5. when the named cause is a broken setting (a wrong\
+  \ transcript location, an unreadable file —\n     the latter stopped earlier by\
+  \ the auto-sync, rule 6), the session records a deviation at once\n     and the\
+  \ cause is fixed as a defect — for an unreadable own transcript by restoring read\n\
+  \     access, since no engine verb runs until then — rather than recovered from\
+  \ on every occasion.\n\n### 7. The session is told at startup which case it is in\n\
+  `session start` states, for the session's provider, one line: detection OBSERVED\
+  \ (nothing printed —\nthe normal case) or detection NOT OBSERVED («a context compaction\
+  \ cannot be detected under this\nprovider» and what that means for the session).\
+  \ The line is a start echo; its post-compaction\nre-delivery rides the same sanctioned\
+  \ receipt-refresh run as the other start lines (SPEC-0007 §5b).\n\n## Parameters\n\
+  \nNot `consumed` — the table below is the admission record of rule 3, read by people\
+  \ and audits.\n\n| provider kind | detection | marker (completed compaction) | provider\
+  \ version observed | trigger kinds seen | evidence |\n|---|---|---|---|---|---|\n\
+  | the AI provider-code | OBSERVED | one record with `type: system` and `subtype:\
+  \ compact_boundary`, matched on those two fields ONLY (its metadata's key set differs\
+  \ between versions) | 2.1.283–2.1.294 | `manual`, `auto` — the field does NOT tell\
+  \ an idle compaction from a user-issued one (idle was recorded `manual` on 2.1.289\
+  \ and `auto` on 2.1.292); an idle compaction adds an informational record «Compacted\
+  \ while idle» | trial runs R-retro `events.jsonl#ts=` (41 recorded compactions,\
+  \ 14 real), R-live-1/2, R-brief-2 `events.jsonl#ts=` |\n| <external-auditor> | OBSERVED\
+  \ | one record with top-level `type: compacted`, written when the compaction finished;\
+  \ its payload carries `window_number` (1, 2, … — a provider-given ordinal) and `window_id`,\
+  \ which give rule 5 its distinct identity | 0.142.5–0.159.2, `codex_exec` and `<external-auditor>-tui`\
+  \ | user-issued `/compact` (live); the record names no trigger, and the 9 `codex_exec`\
+  \ compactions are automatic by inference only (an exec run issues no `/compact`)\
+  \ — detection does not depend on the trigger, the record type is the same | trial\
+  \ run R-live-<external-auditor> `events.jsonl#ts=` — one live compaction run by\
+  \ the owner + 10 recorded in 9 sessions, one session holding two |\n\n**Provider\
+  \ bindings** (the names the rules above keep out of their text — CHARTER §Principle\
+  \ 4b):\n\n| provider kind | carrier | home override | record identity (rule 5) |\
+  \ start-row tool | launch-row value | runtime record | versions observed (rule 3)\
+  \ |\n|---|---|---|---|---|---|---|---|\n| the AI provider-code | `<provider-session-env>`\
+  \ | — | the record's `uuid` | `session_config: AI_AGENT=the AI provider-code_<version>_agent`\
+  \ (the `provider` field holds the vendor, `the provider`) | `provider: the AI provider`\
+  \ | `provider_session_id` / `provider_meta` | 2.1.283–2.1.294 (each record's `version`)\
+  \ |\n| <external-auditor> | `CODEX_THREAD_ID` | `CODEX_HOME` | payload `window_id`\
+  \ | not observed (no <external-auditor> session has written a `session_started`\
+  \ row on this host — 0 in 10 project journals) | not launched by the dispatcher\
+  \ | `provider_session_id` / `provider_meta` | 0.142, 0.146, 0.159 (`cli_version`\
+  \ in the rollout's first record) |\n\nThe unknown value of rule 4(b): a carrier-less\
+  \ engine run writes `provider: unknown` and\n`session_config: unknown` (live in\
+  \ a scratch clone; 562 scheduled runs since 2026-10-01, 561 with no\ntranscript).\n\
+  \n**Measurements behind the rules** (trial runs R-live-<external-auditor>, R-reader-2,\
+  \ R-closed-design `events.jsonl#ts=`\nand cycles 16 and 19): rule 1's home override\
+  \ — the engine's default <external-auditor> root was empty on this\nhost while <external-auditor>\
+  \ wrote under its home override (R-live-<external-auditor>); the `isolated_verify`\
+  \ runtime marker is never written (0 of 6932 runtime\nrecords; wont-do); 422 of\
+  \ 625 dispatched Workers ran their first governed verb on the bootstrap\nreceipt\
+  \ (2026-10-01..08); the AI provider-code continues a resumed session in the same\
+  \ file (0 of 4901 files hold\nanother session's records; 40 compacted sessions have\
+  \ a copy in the transcript archive with the same\nmarker `uuid`); <external-auditor>\
+  \ names each rollout file after its thread (0 of 15080 threads span two files);\n\
+  a live transcript's earlier bytes were unchanged when re-read later in the same\
+  \ session (cycle 19) —\nthe provider appends; of 562 sessions whose start rows record\
+  \ no provider, 561 have no runtime\nrecord and the one that has names a provider\
+  \ (cycle 24).\n\nRule 4(b): one case, stated in rule 4; evidence measured in trial\
+  \ runs R-reader-2 and R-closed-design\n(`events.jsonl#ts=`), which also corrected\
+  \ R-reader-2's «1425 of 1425 start rows\nrecord the provider» — that count read\
+  \ the field's presence; 562 of those rows record `unknown`.\n\n## Rationale\n\n\
+  The rule this spec re-homes read the epoch off one provider's record shape and returned\
+  \ 0 whenever\nit could not read at all — deliberately, so that a transcript hiccup\
+  \ would never break a governed\nverb. That direction was safe while a refusal was\
+  \ the only thing at stake. It is not safe as the\nbasis of an attestation: under\
+  \ a provider the reader does not understand, the epoch stays 0 before\nand after\
+  \ a compaction, the stale-receipt refusal never fires, and a receipt goes on attesting\
+  \ a\nseed the context no longer holds. The three-valued reading keeps the old behaviour\
+  \ exactly where\nits premise holds — no transcript is expected — and stops crediting\
+  \ where it does not.\nA separate carrier for «could not count» already exists on\
+  \ the reader (a caller may ask for it\ninstead of 0); this spec makes it the reading\
+  \ every crediting caller uses, rather than adding a\nsecond way to say it.\n\n##\
+  \ Verification\n\nProbe CONTRACTS (each must be seen failing on the pre-change tree\
+  \ or on the named broken variant):\n- **V1 — the newest marker, by identity.** For\
+  \ each provider row with an admitted marker, on a\n  recorded real transcript: k\
+  \ compactions read the identity of the k-th; the transcript truncated\n  before\
+  \ its last completion record reads the (k−1)-th, so a receipt stamped after the\
+  \ k-th does NOT\n  credit; a start-only record appended changes nothing; a replayed\
+  \ copy of the last record changes\n  nothing. A receipt stamped earlier (an older\
+  \ marker) never credits while a newer marker is the\n  reading — the revived-receipt\
+  \ case. Pinned limit: a marker removed by an outside rewrite while an\n  older receipt\
+  \ names the marker now newest credits. Differential: a count compare credits the\n\
+  \  revived receipt.\n- **V2 — cannot-tell is not zero.** At the reader, an unreadable\
+  \ transcript, a transcript of a\n  provider with no admitted marker, and a transcript\
+  \ whose marker record is corrupt each read\n  CANNOT TELL — never NONE. Through\
+  \ the CLI, by detection state (rule 6): for a provider whose\n  detection is OBSERVED,\
+  \ the corrupt case refuses the governed verb `context_epoch_unknown` and\n  nothing\
+  \ is credited; the session's own transcript made unreadable stops the verb — and\
+  \ a\n  `session start` — at the auto-sync with the file named, and nothing is credited\
+  \ (pinned, so a\n  change to that stop is visible); for a provider whose detection\
+  \ is NOT OBSERVED, the verb\n  proceeds with the startup statement (rule 6) — and\
+  \ in no case is it credited as if a compaction\n  had been ruled out. Differential:\
+  \ the pre-change reader returns 0 and the verb is credited.\n- **V2b — an unobserved\
+  \ version is said, not guarded.** A transcript naming a provider version the\n \
+  \ row has not observed: `session start` prints the one line and records the deviation\
+  \ once; the\n  reading is still taken; nothing is refused. Pinned limit: that transcript\
+  \ with its markers renamed\n  reads NONE.\n- **V2d — «epoch unknown» has stated\
+  \ limits.** On a CANNOT TELL reading after the rule-6a recovery,\n  a governed verb\
+  \ is credited and prints the one warning line; a further compaction while the\n\
+  \  reading stays unknown is NOT detected (the stated limit — the test pins it, so\
+  \ a change to it is\n  visible); when the reading names a marker again, the «unknown»\
+  \ receipt is not credited and the verb\n  is refused until the session recovers\
+  \ again.\n- **V3 — no-transcript-expected is closed.** A carrier-less run whose\
+  \ session has no dispatch\n  launch row, no row naming a tool and no runtime record\
+  \ holding provider data reads NONE and its\n  governed verb proceeds; the same\n\
+  \  run for a session with an earlier row naming its tool, for a dispatched Worker\
+  \ with a launch row\n  and no located transcript, and for a carrier-bearing session\
+  \ whose transcript is missing, reads\n  CANNOT TELL; the kind follows rule 4's order\
+  \ (a carrier wins over a row; a row's tool, never its\n  vendor field).\n- **V4\
+  \ — one marker.** No code outside the descriptor row and the reader tests a transcript\
+  \ record\n  for a compaction (a source scan that fails on a second literal of a\
+  \ provider's record shape).\n- **V6 — startup statement.** Under a provider with\
+  \ no admitted marker `session start` prints the\n  statement; under one with a marker\
+  \ it prints nothing for this rule.\n- **V7 — tolerance kept.** Each SPEC-0050 §8a\
+  \ observer on a CANNOT TELL reading warns and proceeds.\n- **V8 — every producer\
+  \ and every compare on identity.** A dispatched Worker's first governed verb\n \
+  \ before its own start credits on the bootstrap receipt (NONE) while its transcript\
+  \ holds no marker,\n  and is refused after a marker appears; the stage deliverer\
+  \ re-delivers a contract after a new\n  marker and not before; the re-fold block\
+  \ prints after a new marker and not on a second start\n  without one; a receipt\
+  \ stamped with a pre-change number does not credit. Differential: a numeric\n  compare\
+  \ credits the bootstrap receipt after a compaction (0 = 0 when the reader yields\
+  \ no count).\n"
+cites:
+- SPEC-0050
+- SPEC-0007
+- SPEC-0137
+- SPEC-0115
+- SPEC-1024
+- CHARTER.md#principle-1
+- CHARTER.md#principle-4
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: provider-neutral-compaction-survival-restoration-b
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#PROVIDER_TRANSCRIPT_DESCRIPTORS: ee124a3e67bd221d5dc041679be409ff2d51c46c09d567c3d7f0d5a998cb85f4
+  bin/lib/cli.py#_context_epoch_reading: 69bcb0dae5e86de343149fd4fc995122d94ced49f04624cb110e18ea71ed03a7
+  bin/lib/cli.py#_session_epoch_reading: 7b824ff186def65176e07c9bd657a8d6247d0e41a95fd33a34d0fbff3c4626d6
+  bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
+  bin/lib/events.py#_emit_cli_invoked: 623edbb57a9b533417faa4069b968f28c6dbf66bf6a44b1355292019be59c49b
+  bin/lib/gates.py#_receipt_stamp: 16f59f33227b06611ecf98e9d307a45c0e27d208db3b97120c30a9296029de73
+  bin/lib/gates.py#_require_seed_read: 8e2bc919f11fd0a983c40f71648c985f28828c0bd6d59d95d66d2abd1c57baac
+  bin/lib/gates.py#seed_stamp_credits: da9780a76a68522e579b9b8f3bc44d9870ddd20b939624966170e45a6a5ad0bc
+  bin/lib/session.py#context_epoch_reading: cab058fe7ee78baf89c61ff845a109988642895e70ceada05d6e3f40bf60507d
+  bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0

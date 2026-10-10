@@ -1042,8 +1042,8 @@ def declared_checks(ops_path, *, _check_rows_from_carrier=None) -> list:
     identity of the definition AS IT STANDS NOW. Never raises: a missing / unreadable / malformed / non-
     mapping carrier yields `[]`.
 
-    A REPO WITH NO CARRIER DECLARES NOTHING, AND THAT IS WHAT MAKES HISTORY SAFE. The engine kernel itself
-    has no yitc-ops.yaml, so this returns `[]` there and the whole view stays silent — no retro-charge. It
+    A REPO WITH NO CARRIER DECLARES NOTHING, AND THAT IS WHAT MAKES HISTORY SAFE. A file with none of these
+    checks (the engine kernel's own) reads the same: `[]`, and the whole view stays silent — no retro-charge. It
     is the same property the sibling proof-obligation fold had to buy with a disproof: a fold-side default
     over the real journals retro-created 39 debt lines across 3 consumers (SPEC-0149 §1). Debt is what a
     project DECLARED and has not PROVEN — never what it never declared.
@@ -1419,7 +1419,7 @@ def unexecuted_subject_files(ops_path, repo_root=None, *, _is_waived=None, _unex
       ops_path: this repo's `yitc-ops.yaml`. Missing / unreadable / non-mapping / no `verify:` section
         / a section waiver / no executable layer / no declared `subject_globs:` ⇒ a clean zero-count
         result. A repo that declares nothing owes nothing, so history is never retro-charged (the
-        SPEC-0149 lesson) and the engine kernel — which has no carrier at all — folds to 0 ⇒ suppressed.
+        SPEC-0149 lesson) and the engine kernel — whose own file declares none of it — folds to 0 ⇒ suppressed.
       repo_root: the checkout the declarations are read against; defaults to the carrier's directory.
 
     Returns `{"lens", "count", "files", "next"}` — the shape every sibling returns. Pure: reads files,
@@ -1500,7 +1500,7 @@ def _unexecuted_subject_result(files: list) -> dict:
                 "narrowing) and holds no input through which it could. Silent on a waived section/layer, on "
                 "a layer with no declared subject, and on a DISCOVERY runner whose executed set cannot be "
                 "read file-by-file. DERIVED at read time from the carrier + the checkout — zero stored "
-                "state; a repo with no carrier (the engine kernel itself) folds to 0 → suppressed. "
+                "state; a repo declaring none of these subjects (the engine kernel itself) folds to 0 → suppressed. "
                 "Report-only, never a gate.",
         "count": len(files),
         "files": files,

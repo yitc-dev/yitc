@@ -383,7 +383,7 @@ implements_signature:
   bin/lib/git_env.py#_git_child_env: 89dfccef69566d938d60f19ca3b5eb2477054b90f7057659cced1b323c82afaf
   bin/lib/worktree.py#_await_land_tail_marker: 4c5ae49e9f12a36fb6fb9b7a96d4b426e2b51fac4a37ce1fb659b7a6d4bf1f72
   bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
-  bin/lib/worktree.py#_land_integrate: 632b348ecdbb2ba5f20071fa6615d68b3279e838536b4a0bece9e9af907f4e00
+  bin/lib/worktree.py#_land_integrate: 63b008725c210ab7f05eddaa1137f72af52ab9157ec7c5dbcac1eb28ef25dd87
   bin/lib/worktree.py#_land_tail_marker_clear: 85489248e561e106b0438265d508544048970b2d70fb9fa6933319d478984622
   bin/lib/worktree.py#_land_tail_marker_live_covering: c78923ecb142409a171904f32dd3a256c86c3eb0458a0fc84d4071337a6f8f66
   bin/lib/worktree.py#_land_tail_marker_path: f67d3b61e2ed71a18bc0342bae34ac04b0fb0f69cbcf6c2ec93469e3dc692b9e

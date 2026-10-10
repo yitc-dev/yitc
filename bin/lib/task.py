@@ -3048,6 +3048,20 @@ _AWAITS_REPAIR_EXCLUSIVE_ARGS = (
 )
 
 
+def _note_stands_alone(args) -> bool:
+    """T-13815 — is this `task update` invocation a `--note` and nothing else?
+
+    Asked of the WHOLE parsed namespace rather than of a list of the other modes' flags: every key
+    outside the small set a note-alone call carries must be empty, so a mode flag added later
+    disqualifies the call by default instead of slipping past the deferred main-write guard."""
+    carried = ("task", "note", "from_stdin", "cmd", "task_action", "func", "directory",
+               "cli_invoked_receipt", "cli_invoked_derived", "cli_invoked_verb")
+    return bool((getattr(args, "note", None) or "").strip()
+                or getattr(args, "from_stdin", False)) and all(
+        key in carried or value in (None, False, "") or value == []
+        for key, value in vars(args).items())
+
+
 def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_event, _author_post_verification, _commit_worktree, _die, _in_writing_worktree, _load_task_for_transition, _post_verification_gap, _require_writing_worktree, _utc_now_iso, _worktree_dirty_paths, _write_task_state, write_text_atomic, _run_git_cap=None, _live_probe_settled_unresolved=None, _selfcommit_posture=None, _scoped_selfcommit_preflight=None, _scoped_selfcommit=None, _claim_task=None, _cross_overlap_inputs=None, _auto_cross_pick_for_file=None, _qj_take_land_reservation=None) -> None:
     """`task update T-XXXX [--status ready|parked|wont-do] [--reason] [--return-trigger] [--note]`
     (T-0368). Two modes:
@@ -3065,7 +3079,10 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
       - AMENDMENT (--note without --status): append a timestamped entry to `amend_notes:` and emit
         `task_amended` — verb-validated (the SPEC-0001 self-test round-trips the WHOLE file, so an
         accompanying prose hand-edit that broke the YAML dies here) + journal-marked, the two gaps
-        the capture named (audit-pre p1 F2).
+        the capture named (audit-pre p1 F2). On a TERMINAL card (done / wont-do) the note commits
+        its own record, the card + the journal only (T-13815): on the branch inside a writing
+        worktree, directly to `main` from the primary checkout on `main`. A note on a live card
+        commits nothing and rides that card's next commit.
       - FIELD-EDIT (--old/--new, T-1164 — closes E-0024's no-verb-to-edit-a-filed-card gap): an
         exact-string in-place replacement of the card body (scope / acceptance / requires / any
         field), mirroring `spec edit` (single match unless --replace-all; 0 or >1 dies BEFORE any
@@ -3106,8 +3123,9 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         behavior, and cost a hand-edit of T-0209 that SPEC-0046 §A3 forbids).
     D-0050 rubric: ease (one call = validate+write+event), error-reduction (owns field placement +
     atomic write + self-test), journal-marking (deterministic emit), chokepoint (hand-edit for these
-    classes is no longer needed). A WRITE → requires a writing worktree (D-0051 parity) — with the ONE
-    posture-total QUEUE-JUMP carve-out below (T-11834)."""
+    classes is no longer needed). A WRITE → requires a writing worktree (D-0051 parity) — with the
+    posture-total QUEUE-JUMP carve-out below (T-11834) and, beside it, a note standing alone on a
+    terminal card run from `main` (T-13815)."""
     # ── T-11834: the QUEUE-JUMP mode is POSTURE-TOTAL — exactly two admitted postures, all else refuses
     # BEFORE any write. Decided HERE, at the door, because `_require_writing_worktree()` is this verb's
     # very first statement and the decision must precede every write path it guards.
@@ -3172,7 +3190,20 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 _write_task_state=_write_task_state, _append_event=_append_event,
                 _claim_task=_claim_task)):
         return
-    if not _qj_on_main:
+    # T-13815 (X-1902) — the TERMINAL-CARD NOTE on `main`. A `done` / `wont-do` card whose own
+    # worktree is gone can still take an amendment note (the route the wont-do WARN below names), so
+    # from the primary checkout on `main` that note owns its scoped direct-to-main commit — the
+    # `task refuse` pair (`_refuse_selfcommit_plan` / `_refuse_selfcommit_finish`, T-11679), reused.
+    # The guard is DEFERRED here, never dropped: the card's status is unknown until it is loaded, so
+    # the decision is finished right after the load, which re-applies the guard to everything that is
+    # not a note standing alone on a terminal card.
+    _tn_main = False
+    if not _qj_mode and _qj_wired and _note_stands_alone(args):
+        try:
+            _tn_main = _selfcommit_posture() == "main"
+        except Exception:                       # noqa: BLE001 — undeterminable posture → the guard runs
+            _tn_main = False
+    if not _qj_on_main and not _tn_main:
         _require_writing_worktree()
     # T-11165 (E-0054): the `--from-stdin` INGEST, hoisted to the top of the verb. It reads the WHOLE
     # stdin mapping ONCE (stdin is not re-readable) and folds the six PROSE values back onto `args`,
@@ -3211,6 +3242,33 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     target = (getattr(args, "status", None) or "").strip() or None
     reason = (getattr(args, "reason", None) or "").strip() or None
     note = (getattr(args, "note", None) or "").strip() or None
+    # T-13815 — a note on a TERMINAL card commits its own record (below, after the write). On
+    # `main` the stands-alone question is re-asked AFTER the stdin fold, so a mapping that carried
+    # more than the note takes the guard.
+    _tn = target is None and note is not None and task.get("status") in ("done", "wont-do")
+    _tn_rel = None
+    if _tn_main and not (_tn and _note_stands_alone(args)):
+        _tn_main = False
+        _require_writing_worktree()             # the deferred guard: refuses on `main`, as before
+    elif _tn_main:
+        # The PLAN half, BEFORE any write: a refusal (a merge in progress, preexisting dirt on the
+        # card, a journal delta that is not a valid append) leaves the card byte-identical.
+        _tn_rel = _refuse_selfcommit_plan("task update --note", path, REPO_ROOT,
+                                          _selfcommit_posture, _scoped_selfcommit_preflight)
+        if _tn_rel is None:
+            _die(f"task update: this checkout stopped answering as the primary checkout on `main` "
+                 f"between two reads, so {tid}'s amendment note has no commit to ride — refusing "
+                 f"BEFORE any write (T-13815). Re-run `yitc-v2 task update {tid} --note <text>`.")
+    elif _tn and _in_writing_worktree():
+        # The same question inside a writing worktree, asked by PATHSPEC of the card alone (the
+        # queue-jump leg's guard, T-11790): the note's commit must never sweep a pending edit of
+        # the card into a commit labelled as the note.
+        if _worktree_dirty_paths(pathspecs=[str(path.relative_to(REPO_ROOT))]):
+            _die(f"task update: {tid}'s card already carries UNCOMMITTED changes, so its amendment "
+                 f"note cannot commit without sweeping them into a commit labelled as the note — "
+                 f"refusing BEFORE any write (the card is byte-identical, T-13815). Commit the "
+                 f"pending card edit first (`yitc-v2 work commit --from <ref> -m <message>`), then "
+                 f"re-run `yitc-v2 task update {tid} --note <text>`.")
     return_trigger = (getattr(args, "return_trigger", None) or "").strip() or None
     old = getattr(args, "old", None)
     new = getattr(args, "new", None)
@@ -5180,7 +5238,9 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
             f"  → already transitioned? the field is frozen, but the ANSWER is still recordable: "
             f"`yitc-v2 task update {tid} --note \"post_verification: <criterion / signal, or why "
             f"none>\"` — a governed amendment (amend_notes + task_amended) that is admitted on a "
-            f"terminal card and does NOT refuse.\n")
+            f"terminal card and commits its own record (the card + the journal, T-13815): on the "
+            f"branch when run inside a writing worktree, to `main` when run from the main "
+            f"checkout.\n")
 
     # T-12644 — printed BEFORE the freeze, next to the sibling WARN (see the computation above).
     # STDOUT, not stderr: this is a REPORT of a consequence the transition creates, not a warning
@@ -5212,6 +5272,39 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     else:
         _append_event("task_amended", tid, {"note": note})
 
+    # T-13815 (X-1902) — a note on a TERMINAL card commits its own record, for the reason the
+    # wont-do leg below does (T-0614): no later stage commits a `done` / `wont-do` card,
+    # `task commit` refuses a bookkeeping-only commit (T-11405) and `land` refuses the dirty card —
+    # so the route the WARN above names ended in a hand revert. Staged set: the card + the journal
+    # ONLY (the queue-jump leg's set, T-11790), never `git add -A`; preexisting dirt on the card
+    # was refused before the write, in both postures. A checkout that is neither (detached,
+    # non-git, a primary checkout off `main`) commits nothing, as before. NO `commit_landed` row in
+    # either posture: `task_amended` was appended before the commit and is swept into it, and a
+    # kinded row on a terminal card would move the card's recorded commit off its ship
+    # (`_recorded_commit_sha`) under a kind the custody re-pin does not admit
+    # (`_BOOKKEEPING_COMMIT_KINDS`).
+    if _tn:
+        _tn_msg = f"chore({tid}): amendment note on a {cur} card"
+        if _tn_main:
+            _refuse_selfcommit_finish(
+                "task update --note", _tn_rel, path, REPO_ROOT, _scoped_selfcommit, _tn_msg,
+                rationale=(
+                    "Sanctioned direct-to-main self-commit (T-13815): a terminal card's own writing\n"
+                    "worktree is gone once it landed, so no batch carries an amendment note written\n"
+                    "on `main`; left uncommitted it would sit in land's non-bookkeeping set and wedge\n"
+                    "every later land (the X-0274 class). Scoped to the card + its journal receipt\n"
+                    "ONLY.\n\n"
+                    "from: AGENTS §Writes-happen-in-a-worktree EXCEPTION (the scoped self-commit\n"
+                    "family; precedents: task refuse T-11679 / task update --queue-jump T-11834)."))
+        elif _in_writing_worktree():
+            _tn_rel_task = str(path.relative_to(REPO_ROOT))
+            _, _tn_short = _commit_worktree(
+                _tn_rel_task, _tn_msg,
+                pathspecs=[_tn_rel_task,
+                           *events.journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT)])
+            print(f"  amendment note committed {_tn_short} on this branch (T-13815) — the card + "
+                  f"the journal only, never `git add -A`")
+
     # T-0614 — a TERMINAL wont-do leaves the worktree LAND-CLEAN by committing its own abandon
     # record, mirroring cmd_task_close's E-0007/T-0228 self-commit. wont-do is the OTHER terminal
     # transition (the corpus's only two: close + wont-do), so it has the same need: there is no
@@ -5231,8 +5324,9 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     # above) + this task's OWN audit records (T-11543, the fold detailed at the call site below) ONLY
     # — leaving unrelated working-tree dirt untouched. The trailing commit_landed
     # re-dirties events.jsonl by one line, which land step-1 folds (allowlist) — so the staged set
-    # is land-clean (T-0106: a real commit leaves an event). park/unpark/amend are NON-terminal
-    # (they may ride a later/batch commit) and are intentionally NOT committed here.
+    # is land-clean (T-0106: a real commit leaves an event). park/unpark and a note on a LIVE card
+    # are NON-terminal (they may ride a later/batch commit) and are intentionally NOT committed here;
+    # a note on a TERMINAL card has no later commit and takes its own leg just below (T-13815).
     if target == "wont-do" and _in_writing_worktree():
         rel_task = str(path.relative_to(REPO_ROOT))
         # T-11543 — the staged set ALSO folds this task's OWN dirty audit records, the third caller of
@@ -5509,8 +5603,8 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
               f"— which heads the worker's task-specific brief with the resume contract recorded above.")
     # T-9320 — a pause is a HALT (the session stops here), so it leaves the worktree LAND-CLEAN by
     # committing its own pause record, mirroring cmd_task_close's E-0007/T-0228 self-commit and
-    # `task update --status wont-do`'s T-0614 self-commit. Unlike park/unpark/amend (NON-terminal,
-    # may ride a later/batch commit) there is no later commit to ride — a BOOKKEEPING-ONLY pause lands
+    # `task update --status wont-do`'s T-0614 self-commit. Unlike park/unpark and a note on a live
+    # card (NON-terminal, may ride a later/batch commit) there is no later commit to ride — a BOOKKEEPING-ONLY pause lands
     # this record so a fresh session sees it (the pause-shape fork above, SPEC-0103 §5). Critically, this
     # is the ONLY governed commit path for a paused task whose audit-post is RED: `task commit` trips
     # the `_audit_commit_shift_hazard` foot-gun guard (a dirty audit-post.yaml pinned to the recorded
@@ -8071,8 +8165,8 @@ def _project_is_deploying(repo_root) -> bool:
     """True iff this project DECLARES a deploy command in its yitc-ops.yaml carrier (SPEC-0093/0094 §1).
     "Deploying" = the `deploy:` section carries a non-empty `command:` — NOT merely that the carrier file
     or a born-WAIVED deploy section exists (a waived deploy = "no deploy command yet", explicitly not
-    deploying). A repo with no carrier (the kernel itself) is never deploying, so its closes are
-    UNCHANGED (SPEC-0094 §Amends). Fail-closed-NARROW: a malformed/unreadable carrier reads as
+    deploying). A repo that declares none (a missing carrier; the kernel's own file) is never deploying,
+    so its closes are UNCHANGED (SPEC-0094 §Amends). Fail-closed-NARROW: a malformed/unreadable carrier reads as
     not-deploying (the SPEC-0093 init/sweep is the fail-closed guard for carrier malformedness, not the
     close-gate). Self-contained read — no host deps."""
     try:
@@ -11029,7 +11123,8 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
                 # meant to land on), so the T-12564 resolver above — transparent to KINDED rows only —
                 # keeps custody there. Below the ceiling that is right: the mandated re-audit pins the
                 # GREEN to the repair commit and the gate below matches. AT the ceiling the only pass is
-                # `--on-decisions` (SPEC-0204 rule 3), and there the T-12614 redirect audits the SHIP the
+                # `--on-decisions` (SPEC-0204 rule 3), and there the T-12614 redirect
+                # (SPEC-1014 «Rule 2 — recording a decision») audits the SHIP the
                 # record-only revision contains and pins the record's `commit:` to the SHIP — so the gate
                 # read its own GREEN as «for another commit», and the only exit was a further pass the
                 # engaged ceiling refuses (<project>, 2026-09-17). ONE containment computation, never a
@@ -12835,6 +12930,57 @@ def _stage6_selection_note(summary) -> str:
     return line
 
 
+def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: str = "task test --run"):
+    """T-13806 (SPEC-0203 rule 4's Stage-6 count, applied on the LOCAL host) — the admission a
+    local Stage-6 run takes when the host SET `YITC_VENUE_STAGE6_MAX_CONCURRENT`.
+
+    `limits` is `remote_verify.local_stage6_limits()`. Unset (`max_concurrent` None) → a no-op context:
+    the local arm takes no admission, exactly as before this card. Set to N → one of N flock slots in
+    the `stage6` sub-pool of this repo's verify slot directory (`worktree._verify_admission`, the land
+    semaphore reused — a separate pool, so a Stage-6 never takes or waits on a land's slot). Keyed by
+    the MAIN checkout, so every task worktree of one repo shares the count. While every slot is held
+    the wait prints one line, then one a minute, so a waiting run never reads as a hang."""
+    n = limits.get("max_concurrent")
+    if not n:
+        return contextlib.nullcontext()
+    from lib import worktree as _wt           # lazy: the circular-import idiom used in this module
+    key = root
+    if _main_worktree is not None:
+        try:
+            key = _main_worktree(root) or root
+        except Exception:                      # an unresolvable main checkout: key on the run's root
+            key = root
+    said = [-60.0]
+
+    def _on_wait(waited):
+        if waited - said[0] >= 60.0:
+            said[0] = waited
+            print(f"{label}: waiting for a local Stage-6 slot — all {n} held "
+                  f"(YITC_VENUE_STAGE6_MAX_CONCURRENT={n}); waited {int(waited)}s", file=sys.stderr,
+                  flush=True)
+    return _wt._verify_admission(Path(key), n, on_wait=_on_wait, pool="stage6")
+
+
+def _stage6_local_run_width(governor, limits: dict):
+    """T-13806 — the `workers=` the local Stage-6 suite run is handed, or None for the runner's own
+    default (today's). None unless a fraction is SET and the governor gives a POSITIVE width: an
+    exhausted host's 0 is left to the runner's own handling, never turned into a forced width of 1."""
+    if limits.get("workers_fraction") is None or governor is None:
+        return None
+    w = governor()
+    return _stage6_local_workers(w, limits) if w and w > 0 else None
+
+
+def _stage6_local_workers(workers, limits: dict):
+    """T-13806 — the local Stage-6 width: `workers` scaled by the host's SET
+    `YITC_VENUE_STAGE6_WORKERS_FRACTION` (floored at 1, the `remote_verify.stage6_workers` arithmetic),
+    or `workers` unchanged when the host set none — today's full governor width."""
+    frac = limits.get("workers_fraction")
+    if frac is None or not workers:            # 0 is the governor's «exhausted» — published as is
+        return workers
+    return max(1, int(int(workers) * frac))
+
+
 def _stage6_inert_paths(diff_paths, _classify_inert_paths):
     """T-12496 — the SPEC-0064 inert subset of the Stage-6 diff, derived EXACTLY as land derives
     `_sel_inert` (bin/lib/worktree.py, per-path call to the one injected authority), so the omission
@@ -13212,7 +13358,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             _sel_metrics: dict = {}
             _sel_diff = None
 
-            def _local_verify(only=None, presel=None):
+            def _local_verify(only=None, presel=None, workers=None):
                 """THE LOCAL RUNNER CALL — and, per T-12199, the ONLY thing the `except TypeError`
                 compatibility degradation wraps.
 
@@ -13227,7 +13373,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
 
                 `only` is rule 8's narrow local-probe leg (passed by `route`). A selection is never
                 ALSO applied to an explicitly named set, so `select` is off whenever `only` is given.
+
+                `workers` (T-13806) is the local Stage-6 width when the host set
+                `YITC_VENUE_STAGE6_WORKERS_FRACTION`; None leaves the runner's governor default.
                 """
+                _wk = {"workers": workers} if workers is not None else {}
                 nonlocal _sel_metrics, _sel_diff
                 if presel is not None:
                     # T-12221 — RUN THE ALREADY-RESOLVED SELECTION, do not resolve it again. The
@@ -13243,7 +13393,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     _names = {f.name for f in presel["test_files"]}
                     _out = list(_run_verify_tests(
                         _present, root, fail_fast=False, select=False, only=_names,
-                        journal_path=root / "events.jsonl", metrics_out=_sel_metrics))
+                        journal_path=root / "events.jsonl", metrics_out=_sel_metrics, **_wk))
                     _sel_metrics.update({
                         "selection_would_select": len(presel["run"] or []),
                         "selection_would_omit": len(presel["omit"] or []),
@@ -13266,7 +13416,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                         selection_diff_error=(None if _sel_diff is not None
                                               else "stage6-changed-paths-undeterminable"),
                         journal_path=root / "events.jsonl",
-                        metrics_out=_sel_metrics,
+                        metrics_out=_sel_metrics, **_wk,
                         **({"only": set(only)} if only is not None else {})))
                 except TypeError:
                     if only is not None:
@@ -13425,7 +13575,13 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     # no second catalog (CHARTER §P1 F1/F2).
                     _venue_metrics = dict(_venue_result.get("metrics") or {})
             if _venue_result is None:
-                bad = _local_verify(presel=_stage6_presel)
+                # T-13806 — the LOCAL arm reads the Stage-6 knobs the box reads, but only those the
+                # host SET (unset = no admission, full width — the arm as it was).
+                _s6_limits = remote_verify.local_stage6_limits()
+                with _stage6_local_admission(root, _s6_limits, _main_worktree=_main_worktree):
+                    # measured AFTER the slot is held: a wait cannot hand the run a stale width
+                    _s6_w = _stage6_local_run_width(_verify_worker_governor, _s6_limits)
+                    bad = _local_verify(presel=_stage6_presel, workers=_s6_w)
             # T-12271 — a ROUTED pass reports off its PARTITION, never off the rule-8 probe leg's
             # metrics (which are all `_sel_metrics` holds on that branch). `partition=None` on the
             # unrouted path keeps that reading byte-identical.
@@ -13454,8 +13610,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             print(f"{tid} task test --run: subject_globs skip NOT applied — {_s6_why}; every declared "
                   f"verify layer runs (fail-closed, SPEC-0152 rule 16)")
         _guard_kw: dict = {}
-        if _verify_worker_governor is not None:
-            _guard_kw["workers"] = _verify_worker_governor()
+        # T-13806 — a CONSUMER's Stage-6 load is its layers: they run under the same local Stage-6
+        # knobs as the kernel's suite (unset = unchanged), the width scaled before it is published —
+        # and measured INSIDE the admission below, so a slot wait cannot hand them a stale width.
+        _s6_glimits = ({} if (_venue_metrics or not (_is_consumer_build and _is_consumer_build()))
+                       else remote_verify.local_stage6_limits())
         # T-13635 (GitHub #55): a failing layer's WHOLE output is kept the way land keeps it (T-12758) —
         # in the main checkout's `.yitc/land-logs/` (this worktree is removed at land), under this
         # branch and a `stage6` attempt, so the first attempt's log survives beside the re-run's
@@ -13467,10 +13626,13 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             except Exception:                  # an unresolvable main checkout: keep it beside the run
                 _s6_log_root = root
             _guard_kw["layer_log_ctx"] = {"root": _s6_log_root, "branch": f"task/{tid}", "attempt": "stage6"}
-        if _s6_base:
-            cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True, **_guard_kw)
-        else:
-            cguard = _consumer_zero_probe_guard(root, **_guard_kw)
+        with _stage6_local_admission(root, _s6_glimits, _main_worktree=_main_worktree):
+            if _verify_worker_governor is not None:
+                _guard_kw["workers"] = _stage6_local_workers(_verify_worker_governor(), _s6_glimits)
+            if _s6_base:
+                cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True, **_guard_kw)
+            else:
+                cguard = _consumer_zero_probe_guard(root, **_guard_kw)
         _stage6_guard = cguard   # T-13533: the `--evidence` recorder below reads the rows this run produced
         # T-13545 (SPEC-0152 rule 16): the guard re-ran a sole failed layer once, alone — the SAME
         # decision `land` takes, by the same function. Its record becomes this run's `verify_metrics`
@@ -17041,7 +17203,7 @@ def _governance_surface_globs(*, verify_globs=(), declared_check_paths=(), canon
                            `backend/tests/`) matched NOTHING and rule 3 never took those files back for
                            audit-post (T-11293). Resolved from the DECLARATION READER, never from a
                            second hardcoded directory name — that re-spelling is what rule 3 forbids.
-                           A project with no ops contract (the ENGINE itself) passes an empty member and
+                           A project that declares none of these paths (the ENGINE itself) passes an empty member and
                            composes byte-identically to before. Each path contributes BOTH itself and
                            `<path>/**`, so a file AT the declared path and anything under it both match
                            under the fnmatch idiom below. ADDITIVE-only, so the member can only ever
@@ -17180,9 +17342,10 @@ def _audit_scrutiny_cases(repo_root, *, ops_contract) -> list:
     the declared case entries as a list; TOTAL and tolerant — never raises, never gates.
 
     THE FAIL-CLOSED DEFAULT IS THE EMPTY LIST (rule 1): an ABSENT `audit_scrutiny` section — the state
-    every project starts in and the one the kernel itself is permanently in (it declares no ops
-    contract) — yields `[]`, i.e. every substantive task takes audit-post, byte-identical to the
-    behaviour before this card. An unreadable or mis-shaped carrier resolves the SAME way, deliberately:
+    every project starts in and the one the kernel itself is permanently in (its own file holds the
+    verify policy and nothing else, SPEC-0186 rule 6) — yields `[]`, i.e. every substantive task takes
+    audit-post, byte-identical to the behaviour before this card. An unreadable or mis-shaped carrier
+    resolves the SAME way, deliberately:
     a contract nobody can parse must not be able to widen an exemption.
 
     RETURNS EVERY DECLARED ENTRY, UNJUDGED — this reader adds no adjudication of its own, and that is
@@ -17841,9 +18004,10 @@ def _spec_is_active(spec_id: str, *, spec_dirs) -> bool:
     RESOLUTION ORDER — own repo FIRST, then the engine, deduped: the `_kernel_content_file` idiom
     (bin/yitc-v2), reused rather than reinvented. The engine leg is NOT optional polish — a CONSUMER
     carries no kernel spec of its own (SPEC-0092: a bare id resolves consumer-own, else kernel), and
-    consumers are precisely who this mechanism is FOR (the kernel declares no ops contract and can
-    host no case at all). Without it the exemption would be dead for its entire audience. Own-wins
-    keeps a consumer that owns a spec at the same id reading ITS spec, unchanged.
+    consumers are precisely who this mechanism is FOR (the kernel's own file holds its verify policy and
+    nothing else, SPEC-0186 rule 6, so it hosts no case at all). Without it the exemption would be dead
+    for its entire audience. Own-wins keeps a consumer that owns a spec at the same id reading ITS spec,
+    unchanged.
 
     FAIL-CLOSED: an absent id, an unreadable or mis-shaped spec file, an unreadable directory, or no
     `spec_dirs` at all ⇒ False ⇒ audit-post is taken. Not-provably-active is treated as not-active."""

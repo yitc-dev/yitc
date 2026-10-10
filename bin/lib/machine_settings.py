@@ -245,7 +245,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        "on ccx63) at nice 19 and alone moves load1 to 1-11, so four fit inside the box a single land "
        "peaks at 25-45 for two or three minutes. Admissible 1..16 — 0 would DISABLE Stage-6 "
        "admission rather than slow it, and past 16 the headroom test does all the work anyway; "
-       "anything else is ignored and the default stands. PERFORMANCE: it changes WHEN a Stage-6 pass "
+       "anything else is ignored and the default stands. ON THE LOCAL HOST TOO WHEN SET (T-13806): with no venue published, a value set "
+       "in the environment or this file also bounds the local Stage-6 arm; UNSET, the local arm keeps "
+       "its built-in behaviour (no Stage-6 cap, full width) — the default shown here is the BOX's. PERFORMANCE: it changes WHEN a Stage-6 pass "
        "is admitted, never which files run or how they conclude",
        bounds=(1, 16)),
     _p("YITC_VENUE_PRESHIP_MAX_CONCURRENT", "int", 1,
@@ -292,7 +294,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        "declared as the inclusive pair 0.0..1.0 because `coerce` already refuses any numeric knob "
        "<= 0 BEFORE the bounds test, so the pair IS the exclusive-at-zero interval and no second "
        "validation path is added for it; above 1 a Stage-6 pass would be asking for MORE width than "
-       "the land it must yield to. PERFORMANCE: it changes how fast a Stage-6 pass finishes, never "
+       "the land it must yield to. ON THE LOCAL HOST TOO WHEN SET (T-13806): with no venue published, a value set "
+       "in the environment or this file also bounds the local Stage-6 arm; UNSET, the local arm keeps "
+       "its built-in behaviour (no Stage-6 cap, full width) — the default shown here is the BOX's. PERFORMANCE: it changes how fast a Stage-6 pass finishes, never "
        "which files run or how they conclude — the leg records the width it actually ran at",
        bounds=(0.0, 1.0)),
     _p("YITC_VERIFY_WORKER_NICE", "int", 19, "bin/lib/verify_runner.py#_verify_child_nice",
@@ -395,8 +399,8 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("YITC_VERIFY_WORKERS", "int", None, "bin/lib/remote_verify.py#remote_workers_override",
        "the OVERRIDE CEILING on the DERIVED REMOTE verify width (SPEC-0203 rule 5, T-12195). The "
        "venue derives W per pass from the duration table and the box's cores; this only ever LOWERS "
-       "it. REMOTE-ONLY BY DESIGN: the local width stays the code constant _VERIFY_WORKER_CEILING, "
-       "because a second LOCAL knob would make the shared host's width machine-dependent. (Until "
+       "it. REMOTE-ONLY BY DESIGN: the LOCAL width's ceiling is its own row, "
+       "lib.worktree._VERIFY_WORKER_CEILING (T-13806), so this key never reads on the local path. (Until "
        "T-12195 this row named a read site in bin/lib/worktree.py that never existed — the card that "
        "was to build it, T-11436, is wont-do — so it read nowhere: T-12183 F2.) PERFORMANCE: it "
        "changes how fast the suite finishes, not which files it runs or how they conclude. "
@@ -550,6 +554,16 @@ INVENTORY: "tuple[Knob, ...]" = (
        "at"),
     _p("lib.worktree._VERIFY_HEARTBEAT_DEFAULT_SECS", "float", 20.0, "bin/lib/worktree.py",
        "the built-in default behind YITC_VERIFY_HEARTBEAT_SECS — same cadence nature"),
+    _p("lib.worktree._VERIFY_WORKER_CEILING", "int", 13, "bin/lib/worktree.py#_verify_worker_ceiling",
+       "T-13806 — the per-verify worker CEILING on the LOCAL host: a verify's width is "
+       "min(host resource bound, this value), and the SPEC-0132 admission slots follow from it "
+       "(bound // width). The module constant stays the built-in default, so an unset machine runs "
+       "exactly as before; a host or a fork with a different core count sets its own. PERFORMANCE: "
+       "it changes how wide (and so how fast) a verify runs and how many run at once, never which "
+       "files run or how they conclude — the governor's resource bound still caps it, so no value "
+       "can oversubscribe the host. Distinct from YITC_VERIFY_WORKERS, which lowers the DERIVED "
+       "REMOTE width only. Owner directive events.jsonl#ts=2026-10-09T13:28:02Z. Admissible 1..1024",
+       bounds=(1, 1024)),
 
     # ---- GATE: everything else. Unclassifiable is GATE by construction, not by omission. ----
 
@@ -590,6 +604,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        "which auditor binary runs — a refuse-before-spawn input"),
     _g("YITC_CODEX_WORKER_BIN", "str", None, "bin/lib/audit.py",
        "which worker binary runs — a refuse-before-spawn input"),
+    _g("YITC_COMPACTION_ENTRY", "str", None, "bin/lib/cli.py#cmd_session_start",
+       "set by the in-repository post-compaction entry (T-13790, SPEC-1024 rule 12); when present the "
+       "stamping `session start` REFUSES — a refusal input, not a tunable"),
     _g("YITC_CONVERGENCE_BUDGET_S", "int", 120, "bin/lib/deploy.py",
        "a BUDGET whose exhaustion is a failure verdict"),
     _g("YITC_CORPUS_GUARD_ROOT", "str", None, "bin/lib/state.py",

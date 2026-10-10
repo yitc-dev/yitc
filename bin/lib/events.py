@@ -2482,8 +2482,8 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
     honest label for a direct/synthetic caller supplying a ref of undeclared provenance.
 
     `content_sha` + `epoch` (T-13510) ride a `graph query` POINT-LOOKUP receipt only. `epoch` is the
-    context-epoch stamp the seed receipt already carries (SPEC-0050 §8): the caller's value when it
-    established one, else `_session_epoch()`. `content_sha` is the sha256 of the bytes the lookup
+    context-epoch stamp the seed receipt already carries (SPEC-0050 §8; since T-13789 the reading's mark,
+    SPEC-1023 rule 6): the caller's value when it established one, else `_session_epoch()`. `content_sha` is the sha256 of the bytes the lookup
     rendered, recorded ONLY when the caller measured it (the stage deliverer does) — it is what lets
     that deliverer tell "this epoch already holds this exact render" from "deliver it". Both are
     additive, D-0009 P5-safe keys: no gate reads either, and read-gate credit stays session-scoped."""
@@ -2624,8 +2624,9 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
         if carried_ref and bootstrap_sref and bootstrap_sref != carried_ref:
             data["carried_session_ref_unbacked"] = carried_ref
         # T-13510: the point-lookup receipt gains the epoch stamp the seed receipt already has (a
-        # receipt without one reads as epoch 0), plus the render's fingerprint when the caller took it.
-        data["epoch"] = (epoch if isinstance(epoch, int) and not isinstance(epoch, bool)
+        # receipt without one reads `none`), plus the render's fingerprint when the
+        # caller took it. T-13789: the stamp is the reading's MARK (SPEC-1023 rule 6), a string.
+        data["epoch"] = (epoch if isinstance(epoch, (int, str)) and not isinstance(epoch, bool)
                          else _session_epoch())
         if content_sha:
             data["content_sha"] = content_sha
@@ -2635,11 +2636,12 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
     # --help fetch-receipt just above). Emitted from the cmd_session_start residue AFTER seed delivery.
     if verb_label == "session start":
         data["node_id"] = gates.SEED_READ_NODE_ID
-        # T-10082 (SPEC-0050 §8): stamp the seed receipt with the CURRENT context epoch (the transcript's
-        # `/compact` count) so `_require_seed_read` can reject a pre-compact receipt. Best-effort by
-        # construction (`_session_epoch` fail-safes to 0); ADDITIVE key, D-0009 P5-safe (unknown key
-        # ignored by consumers). A pre-change receipt lacks this key → normalized to epoch 0 by the reader.
-        data["epoch"] = _session_epoch()
+        # T-10082 (SPEC-0050 §8): stamp the seed receipt with the CURRENT context epoch so
+        # `_require_seed_read` can reject a pre-compact receipt. T-13789 (SPEC-1023 rule 6): the stamp is
+        # the reading's MARK — `marker:<identity>` / `none` / `unknown` (this run's «epoch unknown»
+        # receipt, rule 6a; also what a provider whose detection is not observed records — its verbs
+        # proceed on any receipt) — compared by identity. A pre-change NUMBER equals no mark.
+        data["epoch"] = _session_epoch() or "unknown"
         # T-10149 (SPEC-0137 Rule 1 bootstrap-exemption): this seed receipt is the very evidence that BACKS
         # a carried self-ref (`_carried_ref_backed`), so resolving its OWN session_ref through the
         # fail-closed rediscovery resolver would be chicken-and-egg (the receipt is not there yet → _die).

@@ -2855,7 +2855,10 @@ python3 <dest>/bin/yitc-v2 release update <dest> --into <engine-dir> --anchor SH
 `<dest>` is the clone you installed from, `<old-tag>` the release you run today, `<new-tag>` this
 release, `<engine-dir>` your existing install. Keep `<dest>-<old-tag>` until the update is settled:
 it is the merge base and your way back. Afterwards move the `kernel:` pin in each project's
-`yitc-ops.yaml` to `<new-tag>` and run `yitc-v2 -C <project> init`, which adds only what is missing.
+`yitc-ops.yaml` to `<new-tag>`, run `yitc-v2 -C <project> session start` (the new engine needs a
+fresh session receipt; one written by the old engine does not count, SPEC-1023 rule 6, the same
+restart `release update` asks for), then run `yitc-v2 -C <project> init`, which adds only what is
+missing.
 
 What the version digits tell you (SPEC-0195 rule 10): LAST digit (v2.1.0 -> v2.1.1) = fixes only,
 you do nothing on update; MIDDLE digit (v2.0.6 -> v2.1.0) = behaviour or what `init` writes changes,

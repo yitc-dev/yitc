@@ -2082,51 +2082,136 @@ def _delegated_tests_execution_gap(worktree: Path, layer: str, *, _read_yaml, CO
     return out
 
 
-def _run_layer_command(cmd, worktree, timeout, env):
+def _group_runqueue_wait_seconds(pgid: int, *, _proc: "Path | None" = None) -> "float | None":
+    """T-13811 — the LONGEST time any ONE live task (a thread of a member) of process group `pgid`
+    has spent RUNNABLE BUT NOT RUNNING, in seconds: the largest second field of the kernel's per-task
+    `/proc/<pid>/task/<tid>/schedstat` over the group. None when nothing could be read (no such
+    group, no schedstat on this kernel), so a caller never mistakes "unmeasured" for "did not wait".
+
+    It is the evidence that a lowered-priority group is being DENIED the CPU, as opposed to not asking
+    for it: a command that waits on a container or a remote service sleeps and accumulates none, while
+    a CPU-bound task outranked by foreign load accumulates nearly its whole wall. The LONGEST task, never
+    the sum: many tasks that each waited briefly and then sleep add up to a long total while no task was
+    held off the CPU for the attempt, and a sum read against one wall would call that starvation. A LOWER
+    BOUND — the wait of a task that has already exited is gone with its /proc entry — so it can
+    under-read starvation, never over-read it. `comm` may hold spaces and parentheses, hence the split
+    after the LAST ')' (the `_process_group_cpu_seconds` parsing). `_proc` is the /proc root (a test
+    hands in a fabricated tree)."""
+    try:
+        longest = None
+        for entry in (_proc or Path("/proc")).iterdir():
+            if not entry.name.isdigit():
+                continue
+            try:
+                raw = (entry / "stat").read_text(encoding="utf-8", errors="replace")
+                fields = raw[raw.rfind(")") + 2:].split()
+                if int(fields[2]) != pgid:
+                    continue
+                tasks = list((entry / "task").iterdir())
+            except (OSError, ValueError, IndexError):
+                continue          # the process exited between the listing and the read
+            for task in tasks:
+                try:
+                    waited = int((task / "schedstat").read_text(encoding="utf-8").split()[1])
+                except (OSError, ValueError, IndexError):
+                    continue
+                longest = waited if longest is None else max(longest, waited)
+        return None if longest is None else longest / 1e9
+    except Exception:
+        return None
+
+
+def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None):
     """T-12589 — run ONE verify layer command on the terms `subprocess.run(cmd, shell=True, cwd,
     capture_output=True, text=True, timeout, env)` had, but reap it with `os.wait4` so the reading is
     the command's OWN rusage (the shell plus every descendant it waited for) — not the process-wide
     RUSAGE_CHILDREN, which also carries the CPU sampler's docker calls and any sibling child (audit-post
     fp1:c9c00b16712f099c). Returns `(CompletedProcess, process_cpu_ms)`, or `(None, process_cpu_ms)`
-    when the bound expired and the command was killed."""
+    when the bound expired and the command was killed.
+
+    T-13806 (public issue #74) — `nice` > 0 starts the command AT that scheduler nice (the caller's
+    `_verify_child_nice` decision: a dispatched worker's Stage-6 layer, never a land's): a TARGET, not
+    an increment, so a parent already at 5 does not push a setting of 7 to 12. A parent already above
+    the target keeps its own (an unprivileged process can only lower its priority). Every descendant
+    inherits it. 0 (every land, every caller predating this) spawns byte-identically.
+
+    T-13811 (SPEC-0071 rule 1) — `starved`, given with a `nice` > 0 and a bound, is the kernel
+    runner's own decision (`verify_runner._priority_starved`, bound to its readers by the caller),
+    asked as `starved(pgid, wall_s) -> (bool, cpu_s)` every fifth of the bound. A true answer kills
+    the command's process group, prints one stderr line, and runs the command ONCE more at normal
+    priority in the time LEFT of the same bound — that run is never probed, and its result is the
+    invocation's (a hang is still killed at the first attempt's deadline and still returns None).
+    The deadline is read again after the first attempt is reaped and its streams are collected: once
+    it has passed, no second run starts and the invocation returns None as a timeout does.
+    The CPU reading is the sum of both attempts; the captured stream is the first attempt's, one
+    line saying it was restarted, then the second's. A probe that raises restarts nothing."""
     import signal
     import subprocess
     import threading
-    p = subprocess.Popen(cmd, shell=True, cwd=str(worktree), stdout=subprocess.PIPE,
-                         stderr=subprocess.PIPE, text=True, env=env, start_new_session=True)
-    box = {}
-    readers = [threading.Thread(target=lambda k=k, s=s: box.__setitem__(k, s.read()), daemon=True)
-               for k, s in (("out", p.stdout), ("err", p.stderr))]
-    for t in readers:
-        t.start()
     deadline = None if timeout is None else time.monotonic() + timeout
-    timed_out = False
-    while True:
-        pid, status, ru = os.wait4(p.pid, os.WNOHANG)
-        if pid:
+    proc_ms, streams = 0, []
+    while True:     # at most twice: the attempt, and (T-13811) its ONE restart at normal priority
+        _nice_kw = {"preexec_fn": (lambda: os.nice(max(0, nice - os.nice(0))))} if nice else {}
+        p = subprocess.Popen(cmd, shell=True, cwd=str(worktree), stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, text=True, env=env, start_new_session=True, **_nice_kw)
+        box = {}
+        readers = [threading.Thread(target=lambda k=k, s=s, b=box: b.__setitem__(k, s.read()), daemon=True)
+                   for k, s in (("out", p.stdout), ("err", p.stderr))]
+        for t in readers:
+            t.start()
+        began = time.monotonic()
+        # T-13811: the next priority probe of a lowered attempt (None: not lowered, no decision
+        # handed in, or no bound — the wait below is then the one it always was).
+        probe_at = (began + timeout / 5) if (nice and starved is not None and timeout) else None
+        timed_out = restart = False
+        while True:
+            pid, status, ru = os.wait4(p.pid, os.WNOHANG)
+            if pid:
+                break
+            now = time.monotonic()
+            if probe_at is not None and now >= probe_at and now < deadline:
+                probe_at += timeout / 5
+                try:
+                    restart, probe_cpu = starved(p.pid, now - began)
+                except Exception:
+                    restart = False     # a probe that cannot answer restarts nothing
+            if restart or (deadline is not None and now >= deadline):
+                # T-12849: signal the layer's whole process GROUP (its own session, above) — `sh` forks a
+                # simple command, so killing the shell alone leaves the grandchild holding the reader pipes
+                # open and the wall runs past the layer's own timeout.
+                try:
+                    os.killpg(p.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    p.kill()
+                _, status, ru = os.wait4(p.pid, 0)
+                timed_out = not restart
+                break
+            time.sleep(0.02)
+        p.returncode = os.waitstatus_to_exitcode(status)
+        for t in readers:
+            t.join(timeout=5 if (timed_out or restart) else None)   # a surviving grandchild may hold a pipe open
+        proc_ms += int(round((ru.ru_utime + ru.ru_stime) * 1000))
+        streams.append((box.get("out", "") or "") + (box.get("err", "") or ""))
+        if not restart:
             break
-        if deadline is not None and time.monotonic() >= deadline:
-            # T-12849: signal the layer's whole process GROUP (its own session, above) — `sh` forks a
-            # simple command, so killing the shell alone leaves the grandchild holding the reader pipes
-            # open and the wall runs past the layer's own timeout.
-            try:
-                os.killpg(p.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                p.kill()
-            _, status, ru = os.wait4(p.pid, 0)
+        if time.monotonic() >= deadline:
+            # The first attempt's clean-up (a descendant outside the killed group can hold a reader
+            # for seconds) used up the time left: the bound has passed, so nothing more is started
+            # and the invocation is the timeout it would have been.
             timed_out = True
             break
-        time.sleep(0.02)
-    p.returncode = os.waitstatus_to_exitcode(status)
-    for t in readers:
-        t.join(timeout=5 if timed_out else None)   # a surviving grandchild may hold a pipe open
-    proc_ms = int(round((ru.ru_utime + ru.ru_stime) * 1000))
+        note = (f"yitc-v2: verify: layer command {str(cmd)[:120]!r} is starved at nice {nice} "
+                f"(wall={now - began:.1f}s cpu={probe_cpu or 0.0:.1f}s) — restarting it ONCE at normal "
+                f"priority within the same {timeout:g}s budget (T-13811).")
+        print(note, file=sys.stderr, flush=True)
+        streams.append(note)
+        nice = 0            # the restarted run is at normal priority, and so is never probed
     # T-12758 (X-1478 item 8): the WHOLE captured stream, returned as a THIRD element on BOTH arms.
     # The timeout arm used to discard it entirely — `r is None` was the only thing the caller got, so a
     # layer KILLED BY ITS BOUND left no record of what it had printed before the kill. The caller
     # persists this as a land-log artifact on a failing outcome; the `r is None` timeout sentinel and
     # the exit-code gate are untouched.
-    captured = (box.get("out", "") or "") + (box.get("err", "") or "")
+    captured = "\n".join(streams)
     if timed_out:
         return None, proc_ms, captured
     return (subprocess.CompletedProcess(cmd, p.returncode, box.get("out", ""), box.get("err", "")),

@@ -344,17 +344,18 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ where the full leg's inputs\n  are provably that plain sweep — no project ops\
   \ carrier at last-green or on the candidate, whose\n  extra sweep directories or\
   \ timing lanes could move its guard; with one, the file is selected\n  as before.\
-  \ The venue routes kernel lands only, and the kernel declares no carrier.\n  **FOUR\
-  \ BOUNDS, each of which the arm would be wrong without:**\n  (i) **FAIL-OPEN, inherited\
-  \ not re-decided** — an unresolvable diff, an unreadable last-green blob\n     \
-  \ or an acquisition that could not be ESTABLISHED all read as ADMIT, and the land\
-  \ proceeds into\n      the full verify on a byte-identical path. This arm may make\
-  \ a refusal EARLIER and CHEAPER; it\n      may never invent one from an unestablished\
-  \ fact (the rule, unchanged).\n  (ii) **THE A-PRIME AUTHORITY BELOW IS UNTOUCHED**\
-  \ — nothing is auto-declared. The refusal PASTES a\n      command the operator must\
-  \ choose to run; `--rebaseline` remains the only waiver and still\n      requires\
-  \ its kind, its MECHANICALLY-TIED `>=30-char` reason and a fresh audit-post. What\
-  \ moves\n      is WHEN the operator learns what to declare, never WHO may declare\
+  \ The venue routes kernel lands only, and the engine's own verify-policy declaration\n\
+  \  (SPEC-0186 rule 6) counts as a carrier here, so on an engine land the file is\
+  \ selected as before.\n  **FOUR BOUNDS, each of which the arm would be wrong without:**\n\
+  \  (i) **FAIL-OPEN, inherited not re-decided** — an unresolvable diff, an unreadable\
+  \ last-green blob\n      or an acquisition that could not be ESTABLISHED all read\
+  \ as ADMIT, and the land proceeds into\n      the full verify on a byte-identical\
+  \ path. This arm may make a refusal EARLIER and CHEAPER; it\n      may never invent\
+  \ one from an unestablished fact (the rule, unchanged).\n  (ii) **THE A-PRIME AUTHORITY\
+  \ BELOW IS UNTOUCHED** — nothing is auto-declared. The refusal PASTES a\n      command\
+  \ the operator must choose to run; `--rebaseline` remains the only waiver and still\n\
+  \      requires its kind, its MECHANICALLY-TIED `>=30-char` reason and a fresh audit-post.\
+  \ What moves\n      is WHEN the operator learns what to declare, never WHO may declare\
   \ it, and a refusal that\n      arrives sooner must not read as permission that\
   \ came easier.\n  (iii) **THE REFUSAL IS DECIDED ON THE FAILING ENTRIES, NEVER ON\
   \ TOKEN AVAILABILITY** — a failure\n      that binds no waive token is refused just\
@@ -1420,5 +1421,5 @@ implements_signature:
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions: e285282f55cfe142d1c927721d9fbf9052815cc94de7dd850394ce05abc29598
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row: d8834898170438d70c4f77711a2e66b1e15350a70068edca203c05dd8cc22cb5
   bin/lib/verify_runner.py#_verify_failure_excerpt: 63bcb17f33bf87e3e053a4001fc27722638af4ffbf87b78bbe3d930213f26031
-  bin/lib/worktree.py#_land_integrate: 632b348ecdbb2ba5f20071fa6615d68b3279e838536b4a0bece9e9af907f4e00
+  bin/lib/worktree.py#_land_integrate: 63b008725c210ab7f05eddaa1137f72af52ab9157ec7c5dbcac1eb28ef25dd87
   bin/lib/worktree.py#_run_pinned_verify: 181c3193b7ea1d623bef9cd420829435a04ba0b43971ea5ea11db6c844d1a152

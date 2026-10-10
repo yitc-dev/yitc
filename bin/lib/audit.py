@@ -4479,7 +4479,7 @@ def on_decisions_residuals(*a, **kw):
 
 
 def decision_names_subject(data) -> bool:
-    """T-12383 (SPEC-0204 rule 2, amended) — a stored `ceiling_decision` whose `subject_revision`
+    """T-12383 (SPEC-1014 «Rule 2 — recording a decision») — a stored `ceiling_decision` whose `subject_revision`
     is null/blank is NOT a decision. It binds to no revision, so rule 3's subject arm can never be
     satisfied by it: `--on-decisions` refuses `decisions-not-for-this-revision` forever, and under
     rule 4 the row cannot be edited. Measured on <project> T-0552 (X-1371): `audit decide` run from
@@ -9184,7 +9184,7 @@ CEILING_ROW_RESET_KEY = "ceiling_row_reset_for"
 
 def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_sha,
                                  resolve_sha) -> "str | None":
-    """T-12444 (SPEC-0204 rules 3-4, T-12038) — does THIS audit-post open a NEW ceiling row?
+    """T-12444 (SPEC-1014 «Rule 4 — custody», T-12038) — does THIS audit-post open a NEW ceiling row?
 
     Returns `subject_sha` when the revision being audited is a `task commit --reship` ship that opens
     a new ceiling row (so its audit-post is pass 1 of that row and the ordinary SPEC-0124 2-pass
@@ -11611,7 +11611,7 @@ def _ship_contained_record_only(tid: str, sha: str, *, _bookkeeping_commit_autho
                                _prior_audit_record, _git_resolve_sha, REPO_ROOT,
                                _card_record_cause=None,
                                _task_commit_landed_chain=None) -> "str | None":
-    """T-12614 (SPEC-0204 rules 2-3) — is `sha` a RECORD-ONLY revision that provably CONTAINS this
+    """T-12614 (SPEC-1014 «Rule 2 — recording a decision») — is `sha` a RECORD-ONLY revision that provably CONTAINS this
     card's audited ship? Returns THE SHIP's resolved sha when it is, else None.
 
     THE CLASS, measured independently by two consumers. A `fix` disposition whose only honest
@@ -13603,7 +13603,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 settlement_commits = _require_settlement_sweep(
                     verb="audit post", stage="Audit-post", tid=tid,
                     settled_tasks=getattr(args, "settled_task", None))
-            # T-12614 (SPEC-0204 rules 2-3) — THE RECORD-ONLY `fix` SUBJECT REDIRECT, placed HERE
+            # T-12614 (SPEC-1014 «Rule 2 — recording a decision») — THE RECORD-ONLY `fix` SUBJECT REDIRECT, placed HERE
             # because this is the last point before the diff is taken. A `--on-decisions` pass whose
             # subject is a record-only revision that provably CONTAINS this card's audited ship is
             # audited AT THE SHIP: `_get_audit_post_diff` below sends `merge-base(sha, main)..sha`,
@@ -13653,7 +13653,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 if _t12614_ship:
                     print(f"# {tid} audit-post: the on-decisions subject {sha[:12]} is a RECORD-ONLY "
                           f"revision containing this card's audited ship — auditing the SHIP "
-                          f"{_t12614_ship[:12]} instead (T-12614, SPEC-0204 rules 2-3).",
+                          f"{_t12614_ship[:12]} instead (T-12614, SPEC-1014 «Rule 2 — recording a decision»).",
                           file=sys.stderr)
                     sha = _t12614_ship
 
@@ -13902,7 +13902,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # The ONE admitted continuation is `--on-decisions` (rules 2-3), decided at its own seam below.
     owner_reset = False
     prior_passes = _count_audit_passes(tid, stage)
-    # T-12444 (SPEC-0204 rules 3-4) — A RESHIP SHIP OPENS A NEW CEILING ROW, so its REQUIRED
+    # T-12444 (SPEC-1014 «Rule 4 — custody») — A RESHIP SHIP OPENS A NEW CEILING ROW, so its REQUIRED
     # follow-up audit-post is pass 1 of that row rather than a pass the ceiling has no room for.
     # MEASURED (T-12038 phase 2): a GREEN row AT the ceiling with ZERO residuals left `--reship`'s own
     # contracted next step unreachable — the ceiling blocked it and rule 3's `--on-decisions` had no
@@ -14266,7 +14266,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # re-uses it instead of folding the journal a second time on the ceiling path (SPEC-0190 rule 10).
     _od_view = None
     _od_stage_rows: list = []
-    # T-13169 (SPEC-0204 rule 3) — an AUDIT-CURRENCY re-audit whose ceiling row carries BOUND
+    # T-13169 (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass reports») —
+    # an AUDIT-CURRENCY re-audit whose ceiling row carries BOUND
     # decisions: the record seam runs the closed matrix over its findings (see the currency arm below).
     currency_decisions_bound = False
 
@@ -14680,7 +14681,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                       f"finding(s), no `fix` residual open); running the ONE bounded mode-a re-audit "
                       f"(pass {prior_passes + 1}) under the same ceiling row. A NEW finding here is "
                       f"terminal (T-12376, SPEC-0204 rule 3).", file=sys.stderr)
-            # (e) T-13169 — THE CURRENCY ARM (SPEC-0204 rule 3; <project> T-0752 / X-1549). An ORDINARY
+            # (e) T-13169 — THE CURRENCY ARM (SPEC-1014
+            # «Rule 3 — admission of the one bounded pass, and what the pass reports»; <project> T-0752 / X-1549). An ORDINARY
             # audit-currency re-audit (`--reaudit-after-close`, no `--on-decisions`, not the absorption
             # re-audit) at a stage whose ceiling row carries BOUND decisions used to show the auditor
             # none of them and run no matrix — so a decided `accept`/`defer` residual it re-raised,
@@ -14714,7 +14716,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     print(f"# audit-currency re-audit at {_cur_ref}: {len(_cur_by_fp)} recorded "
                           f"ceiling decision(s) GOVERN this check — rendered in the packet, and a "
                           f"re-raised `accept`/`defer` residual is recorded `overruled_by_decision` "
-                          f"(T-13169, SPEC-0204 rule 3). No pass is spent.", file=sys.stderr)
+                          f"(T-13169, SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass "
+                          f"reports»). No pass is spent.", file=sys.stderr)
     elif on_decisions:
         # AT/PAST-CEILING is rule 3's own precondition, and the guard above is where it is decided.
         # Reaching here means the flag was passed below the ceiling (or with no journal reader wired).
@@ -17453,7 +17456,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         **({"abort_cause_text": _cause}
            if _cause and str(verdict or "").strip().upper() == "ABORT" else {}),
         **({"commit": recorded_sha(sha, repo_root=REPO_ROOT)} if sha else {}),
-        # T-12383 (SPEC-0204 rule 2) — the PRE row's own audited subject, the sibling of `commit`
+        # T-12383 (SPEC-1014 «Rule 2 — recording a decision») — the PRE row's own audited subject, the sibling of `commit`
         # above: the SAME value the saved record writes (one source, two homes — the T-11580 shape),
         # so `audit decide` run from MAIN resolves it through the SPEC-0168 fold instead of the
         # worktree-only verdict file (X-1371). Absent when the run asserts no fingerprint.

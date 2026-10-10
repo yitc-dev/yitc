@@ -11278,7 +11278,7 @@ def _land_known_broken_reproduce_admitted(branch, main_wt, pairs, *, _append_eve
     bound = _verify_worker_bound()
     if bound <= 0:
         raise RuntimeError("verify-resource-exhausted")
-    workers = min(bound, _VERIFY_WORKER_CEILING)
+    workers = min(bound, _verify_worker_ceiling())
     return _verify_under_admission(
         main_wt, branch, max(1, bound // workers),
         lambda: _land_known_broken_merged_reproduction(
@@ -13965,7 +13965,7 @@ def _unit_retry_lines(record, prefix: str) -> list:
     return out
 
 
-def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, _is_consumer_build, _read_yaml, _verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT, _run_git_cap=None, _live_land_frontier=None, _load_avg=None, _cpu_count=None, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None) -> dict:   # T-13675: `stage6_credit_layers` / `stage6_rerun_layers` from the land's step 4d only; T-12758: {root,branch,attempt} from the LAND call site (T-13635: and Stage-6 `task test --run`) — every other caller passes None and writes no artifact; T-13533: `working_tree` from the Stage-6 call site only
+def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, _is_consumer_build, _read_yaml, _verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT, _run_git_cap=None, _live_land_frontier=None, _load_avg=None, _cpu_count=None, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None, _timeout_class=None, _process_group_cpu_seconds=None) -> dict:   # T-13811: the SPEC-0071 classifier + group-CPU reader for the lowered-priority restart of a Stage-6 layer invocation — absent, nothing probes; T-13675: `stage6_credit_layers` / `stage6_rerun_layers` from the land's step 4d only; T-12758: {root,branch,attempt} from the LAND call site (T-13635: and Stage-6 `task test --run`) — every other caller passes None and writes no artifact; T-13533: `working_tree` from the Stage-6 call site only
     """The consumer zero-probe land gate. Returns `{'mode': <str>, 'bad': [<reason>, ...],
     'layers': [{'layer','outcome'}, ...]}` where `bad` is the SAME `[] == pass` shape as
     `_run_verify_tests` (land aborts iff non-empty), folded by `_land_integrate` into `bad`. `mode` is
@@ -14345,6 +14345,28 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # verify, read ONCE and only when some layer carries an adapter. A missing or unreadable
     # carrier lists nothing, and every unit then runs in its layer's batch.
     _lanes = land_verify_legs._unit_lane_set(worktree) if adapters else {}
+    # T-13806 (public issue #74) — THE PRIORITY a project-authored layer runs at: the kernel runner's
+    # own two-sided rule (`_verify_child_nice`), so a dispatched worker's Stage-6 layer yields to a land
+    # at YITC_VERIFY_WORKER_NICE and a land's layer is NEVER lowered. Stage-6 is read off the two things
+    # only its call site passes (`working_tree`, or the `stage6` log attempt); any other caller reads as
+    # a land → 0. At 0 nothing is bound, so a land's spawn stays byte-identical.
+    _layer_nice = _verify_child_nice(
+        land_verify=not (working_tree or (layer_log_ctx or {}).get("attempt") == "stage6"))
+    # T-13811 — a lowered invocation that its priority starves is restarted ONCE at normal priority
+    # inside the same bound (SPEC-0071 rule 1): the launcher is handed the kernel runner's own
+    # decision, `_priority_starved`, bound to the classifier and the two readers. Bound on the same
+    # partial as the priority, so it reaches the layer `command:`, the adapter's commands and the
+    # per-unit re-runs alike and never a land's (nice 0 binds nothing). Without the classifier or
+    # the CPU reader (a caller that wires neither) nothing probes.
+    _layer_starved = (functools.partial(
+        _priority_starved, _timeout_class=_timeout_class,
+        _process_group_cpu_seconds=_process_group_cpu_seconds,
+        _runqueue_wait_seconds=lambda pgid: land_verify_legs._group_runqueue_wait_seconds(pgid))
+        if _timeout_class is not None and _process_group_cpu_seconds is not None else None)
+    _nice_kw = {"_run_layer_command": functools.partial(
+        _run_layer_command, nice=_layer_nice,
+        **({"starved": _layer_starved} if _layer_starved is not None else {}))} \
+        if _layer_nice else {}
     bad: list = []
     outcomes: list = []
     preps: list = []   # T-10021: verify_layer_prep records ({layer, lockfile_hash, package_manager,
@@ -14570,7 +14592,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 worktree, name, _adapter, outer=outer, _load_avg=_load_avg,
                 change=_shadow_change if _adapter["selection"] == "shadow" else None,
                 credit=_credit_bases.get(id(ly)),
-                lane=_lanes.get(name), **kw)
+                lane=_lanes.get(name), **_nice_kw, **kw)
             _after = (None if outer else
                       land_verify_legs._adapter_sources_snapshot(worktree, _adapter, _run_git_cap=_run_git_cap))
             return land_verify_legs._adapter_stamp_identity(_rec, _adapter, _before, _after)
@@ -14701,7 +14723,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 _first = _adapter_first_attempt(_pre[0])
                 _proc_ms = _sink.get("proc_ms")
             if _first == "command":
-                r, _cmd_ms, _captured = _run_layer_command(cmd, worktree, effective_timeout, _layer_env)
+                r, _cmd_ms, _captured = _nice_kw.get("_run_layer_command", _run_layer_command)(
+                    cmd, worktree, effective_timeout, _layer_env)
                 _proc_ms = _cmd_ms if _proc_ms is None else _proc_ms + (_cmd_ms or 0)
         finally:
             _cpu_fields = _cpu.finish(_proc_ms)   # REPORT-ONLY reading, read by nothing that decides
@@ -14975,7 +14998,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
               f"each attempt records the host load) — SPEC-1006 rule 10.")
         _printed: list = []
         with _layer_progress(_uname):   # T-13653: the unit re-runs are a stretch of layer commands too
-            _rows = _layer_unit_reruns(worktree, _uname, _todo["decl"], _entities, timeout=_todo["timeout"],
+            _rows = _layer_unit_reruns(worktree, _uname, _todo["decl"], _entities, **_nice_kw, timeout=_todo["timeout"],
                                        env=_todo["env"], _load_avg=_load_avg, attempts=_UNIT_RERUN_ATTEMPTS,
                                        outputs=_printed)
         # What the re-run attempts printed is kept whenever one of them did not pass — under its own
@@ -17607,13 +17630,29 @@ _REAL_STORE_ALLOWLIST: "frozenset[str]" = frozenset({
 #     the T-11119 paragraphs are the live ones again. The env hatch this revert was once meant to
 #     wait for (T-11436, YITC_VERIFY_WORKERS) is WONT-DO (owner decision 2026-08-24): the revert had
 #     already landed by another route, and the hatch shape it proposed to copy was found defective
-#     (re-carded as T-11487 / T-11488). There is NO env knob for this width — it is tuned only by
-#     editing this constant, and the value is a CEILING, not the sole determinant: the actual width
-#     is `min(_verify_worker_bound(), _VERIFY_WORKER_CEILING)` (the SPEC-0132 governor's multi-resource
+#     (re-carded as T-11487 / T-11488). There is NO env knob for this width; since T-13806 a host
+#     tunes it in MACHINE SETTINGS (`config set lib.worktree._VERIFY_WORKER_CEILING N`, resolved by
+#     `_verify_worker_ceiling()`), and this constant is the built-in default an unset host runs at.
+#     The value is a CEILING, not the sole determinant: the actual width
+#     is `min(_verify_worker_bound(), _verify_worker_ceiling())` (the SPEC-0132 governor's multi-resource
 #     min) and the crash-safe slot semaphore (`slots = bound // width`) bounds how many verifies run
 #     that wide at once. Recorded dissent on the raise, both positions journaled
 #     (events.jsonl#ts=2026-08-22T07:19:44Z).
-_VERIFY_WORKER_CEILING = 13         # per-verify upper bound within the resource bound (26→13, T-11456: the T-11437 raise was OWNER-DIRECTED and DECLARED TEMPORARY — this restores the value T-11119 shipped, and the second admission slot with it, 32//13 = 2; a CEILING, not the sole determinant — the governor min + slot semaphore stay the true bound. A TUNING VALUE, deliberately NOT tripwired: it is chartered to move (a deliberate edit of this constant — the T-11436 env hatch is wont-do; the deferred physical-core accounting re-derives it), so a pinned assertion would fire on a deliberate CHANGE rather than on a MISTAKE — its correctness is carried by the live `verify_metrics.worker_count` a real land records, not by a test.)
+_VERIFY_WORKER_CEILING = 13         # per-verify upper bound within the resource bound (26→13, T-11456: the T-11437 raise was OWNER-DIRECTED and DECLARED TEMPORARY — this restores the value T-11119 shipped, and the second admission slot with it, 32//13 = 2; a CEILING, not the sole determinant — the governor min + slot semaphore stay the true bound. A TUNING VALUE, deliberately NOT tripwired: it is chartered to move (per host via machine settings since T-13806, or as a built-in by a deliberate edit of this constant), so a pinned assertion would fire on a deliberate CHANGE rather than on a MISTAKE — its correctness is carried by the live `verify_metrics.worker_count` a real land records, not by a test.)
+
+def _verify_worker_ceiling() -> int:
+    """T-13806 — the per-verify worker ceiling in effect on THIS host: the machine-settings value of
+    `lib.worktree._VERIFY_WORKER_CEILING` when one is set, else the module constant above (read at call
+    time, so a test that patches the constant is honoured). The `lib.journal.max_fleet_width` shape
+    (T-12219): resolved per call, so a `config set` is observed without a restart, and any fault in the
+    settings stack yields the constant (SPEC-0193 rule 6 — the file is never a prerequisite)."""
+    try:
+        from lib import machine_settings      # deferred: keeps the hot import graph unchanged
+        return int(machine_settings.resolve("lib.worktree._VERIFY_WORKER_CEILING",
+                                            _VERIFY_WORKER_CEILING))
+    except Exception:                          # noqa: BLE001 — never a caller's problem
+        return _VERIFY_WORKER_CEILING
+
 # T-11456 — the OTHER half of the SAME verify-budget claim: the ceiling above bounds HOW MANY workers a
 # verify asks for; this bounds how HARD a background one competes for them. MEASURED: a dispatched
 # worker's Stage-6 `task test --run` takes NO SPEC-0132 admission slot (admission is taken at the land
@@ -17721,7 +17760,7 @@ def _verify_worker_governor(*a, **kw):
     Host collaborators/globals (and moved siblings, via their own residue) are read HERE,
     at call time, so `-C` rebinds and `monkeypatch.setattr(yitc, ...)` stay honoured."""
     for _k, _v in (
-                       ("_VERIFY_WORKER_CEILING", _VERIFY_WORKER_CEILING),
+                       ("_VERIFY_WORKER_CEILING", _verify_worker_ceiling()),
                        ("_verify_worker_bound", _verify_worker_bound),
     ):
         kw.setdefault(_k, _v)
@@ -17741,6 +17780,12 @@ def _verify_child_nice(*a, **kw):
     ):
         kw.setdefault(_k, _v)
     return verify_runner._verify_child_nice(*a, **kw)
+
+
+@functools.wraps(verify_runner._priority_starved)
+def _priority_starved(*a, **kw):
+    """T-13811 host residue — the body lives in `bin/lib/verify_runner.py#_priority_starved`."""
+    return verify_runner._priority_starved(*a, **kw)
 
 
 def _verify_slot_dir(main_wt: Path) -> Path:
@@ -18287,7 +18332,7 @@ class _LandWithdrawn(Exception):
 
 
 @contextlib.contextmanager
-def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None):
+def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, pool: "str | None" = None):
     """SPEC-0132 Rule 1 — the crash-safe VERIFY-ADMISSION SEMAPHORE (the TRUE cross-land shared bound,
     audit-pre P2-F1). Acquire ONE of `slots` exclusive flock slots (`slot-0..slot-{slots-1}`) for the
     duration of ONE verify phase. Try NON-BLOCKING in slot order 0,1,2,… (concurrent lands PACK onto low
@@ -18311,9 +18356,17 @@ def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None):
     `verify_duration_ms` (queue-INCLUSIVE) could not be split into QUEUED vs COMPUTED after the fact and
     every slots/cores remedy was a guess. The span deliberately starts at the first LOCK_NB attempt, so it
     covers BOTH the blocking and the polling acquisition paths and reads ~0 (a sub-ms scan) on an
-    UNCONTENDED land. `wait_out=None` (every existing caller/test) → byte-identical behaviour."""
+    UNCONTENDED land. `wait_out=None` (every existing caller/test) → byte-identical behaviour.
+
+    T-13806 — OPTIONAL `pool`: a named sub-pool beside the land pool (`<slot dir>/<pool>/slot-N`), so a
+    second class of verify — the LOCAL Stage-6 arm under `YITC_VENUE_STAGE6_MAX_CONCURRENT` — is
+    bounded by its own count and never takes, or waits on, a land's slot. `pool=None` (every land
+    caller) → the land pool, byte-identical."""
     slots = max(1, int(slots))
     d = _verify_slot_dir(main_wt)
+    if pool:
+        d = d / pool
+        d.mkdir(parents=True, exist_ok=True)
     held = None   # the acquired slot's fd (an int; `None` = not yet acquired)
     _acq_t0 = time.monotonic()   # T-10972: the admission-wait baseline (real clock, both acquire paths)
     try:
@@ -20605,6 +20658,7 @@ def _run_verify_tests(*a, **kw):
                        ("_VERIFY_SANDBOX_PREFIX", _VERIFY_SANDBOX_PREFIX),
                        ("_load_verify_duration_table", _load_verify_duration_table),
                        ("_per_file_duration_record", _per_file_duration_record),
+                       ("_priority_starved", _priority_starved),
                        ("_reap_own_sandbox_residents", _reap_own_sandbox_residents),
                        ("_reclaim_sandbox_worktrees", _reclaim_sandbox_worktrees),
                        ("_selection_enumerated_relpaths", _selection_enumerated_relpaths),
@@ -26109,7 +26163,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                      "worker fits within the memory/fd/PID/disk/inode bound). Worktree intact, main "
                      "untouched; re-land when host pressure clears.",
                      abort_class="verify-resource-exhausted")
-            _admitted_workers = min(_bound, _VERIFY_WORKER_CEILING)
+            _admitted_workers = min(_bound, _verify_worker_ceiling())
             _admitted_slots = max(1, _bound // _admitted_workers)
             # T-0678: per-file timeout bound (never hang) + journal_path = MAIN's events.jsonl so a
             # timeout-kill's durable deviation lands on main (D-0049) even though THIS land aborts.

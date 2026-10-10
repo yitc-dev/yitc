@@ -103,5 +103,5 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/worktree.py#_consumer_pending_migrations: 2b597c8dc26954b7b14b1b2d27f6981bb747b937ed9f4d8af90f0a726da532ff
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 9542691d47d78d8f0dc7a6aeef34f3f48e326e0783dccd87de7316eb433c0920
+  bin/lib/worktree.py#_consumer_zero_probe_guard: bb52696e54d6883668d4db7a75290fd7dc6d8d21e92c639c3958d16ded2695e4
   bin/lib/worktree.py#_render_consumer_migration_plan: 5bcf0db938d0ff0adcd779b27a9cf19c15b8121146ae9926253c737f9929fbf4

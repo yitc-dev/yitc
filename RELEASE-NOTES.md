@@ -1,6 +1,6 @@
-# Release v2.7.0
+# Release v2.8.0
 
-Source commit: `d88c11b867657214d72bc904c30259f93725fce7`
+Source commit: `63f933eee5987ef006e3993b92d835e9d343c82e`
 
 ## Proposals this release answers
 
@@ -76,6 +76,7 @@ answers:
   - 'yitc-dev/yitc#71'
   - 'yitc-dev/yitc#72'
   - 'yitc-dev/yitc#73'
+  - 'yitc-dev/yitc#74'
   - 'yitc-dev/yitc#8'
   - 'yitc-dev/yitc#9'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
@@ -131,28 +132,38 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag.
+2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1023 — Context epoch reading — a per-provider completed-compaction marker, and cannot-tell as a reading of its own
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1023`
+- SPEC-1024 — Compaction recovery — the restoration brief, its print-only delivery, the plain backstop and the per-provider cue declaration
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1024`
 
 ## What changed
 
-16 task(s) closed since the previous release tag, in close order:
+19 task(s) closed since the previous release tag, in close order:
 
-- T-13773 — Move the non-acting text out of the Analysis, Filing and Commit specs' delivered bodies (refactor) — events.jsonl#ts=2026-10-09T03:21:11Z
-- T-13723 — Sweep the corpus for retired audit-ceiling routes still presented as live and correct each (docs) — events.jsonl#ts=2026-10-09T03:57:46Z
-- T-13772 — Move the non-acting text out of the Plan, Execution, Tests and Closure specs' delivered bodies (refactor) — events.jsonl#ts=2026-10-09T04:03:07Z
-- T-13771 — Move the non-acting text out of SPEC-0036's delivered body (refactor) — events.jsonl#ts=2026-10-09T04:30:12Z
-- T-13775 — Move the non-acting text out of the floor-trigger, seed-bound and at-trigger audit specs' delivered bodies (refactor) — events.jsonl#ts=2026-10-09T04:58:36Z
-- T-13777 — Move the non-acting text out of the plan-stage and spec-authoring specs' delivered bodies (carry of) (refactor) — events.jsonl#ts=2026-10-09T05:02:15Z
-- T-13776 — Retag Controller-only seed passages and move the non-acting text out of the seed handbook parts (docs) — events.jsonl#ts=2026-10-09T05:28:25Z
-- T-13765 — Name the patch-on-patch loop in CHARTER Failure trigger and cue it where correction loops run (docs) — events.jsonl#ts=2026-10-09T06:05:49Z
-- T-13778 — Print a project's own stage-bound spec without the kernel prefix in the claim's stage sequence (fix) — events.jsonl#ts=2026-10-09T06:30:41Z
-- T-13781 — Let a project declare, in its own contract, the words of its context home that the drift check leaves alone (feature) — events.jsonl#ts=2026-10-09T07:39:16Z
-- T-13780 — Move the non-acting text out of the seven most-read on-demand specs' bodies (refactor) — events.jsonl#ts=2026-10-09T07:43:12Z
-- T-13779 — Re-point the live references to the superseded SPEC-0200 at their current homes (fix) — events.jsonl#ts=2026-10-09T07:50:23Z
-- T-13782 — Add a context-home content lens to the inspection roster that reads each project's home for entries Rule 1a says it never holds (docs) — events.jsonl#ts=2026-10-09T08:21:39Z
-- T-13785 — Front-load two or three small tasks or a short chain into one warm worker by default in the launch policy (docs) — events.jsonl#ts=2026-10-09T08:46:20Z
-- T-13784 — Reword the SPEC-0025 sentence that grounds a live constraint on the superseded SPEC-0200 rule 7 (fix) — events.jsonl#ts=2026-10-09T08:49:28Z
-- T-13795 — Put the SPEC-1019 change hand-in text into the dispatch-composed worker brief of every task dispatch (feature) — events.jsonl#ts=2026-10-09T09:39:39Z
+- T-13792 — Add the rule-level delivery-timing check and the reference-move conditions to SPEC-0005, and their cue to the T7 review lens (docs) — events.jsonl#ts=2026-10-09T11:20:02Z
+- T-13787 — Report the three-valued context-epoch reading per provider (infra) — events.jsonl#ts=2026-10-09T11:35:17Z
+- T-13793 — Deliver the closure-contract rules that today arrive after the action they govern at their own moment (fix) — events.jsonl#ts=2026-10-09T12:33:34Z
+- T-13794 — Reconcile the two different «three sanctioned exceptions» lists and drop the retired ceiling-consult wording from SPEC-0036 (fix) — events.jsonl#ts=2026-10-09T13:20:17Z
+- T-13802 — Make a worktree-rooted `audit decide` keep its own card's plan instead of main's stale one (fix) — events.jsonl#ts=2026-10-09T14:33:44Z
+- T-13801 — Make session start survive an unreadable scaffold and heal kernel-born files left at legacy 0600 (fix) — events.jsonl#ts=2026-10-09T15:31:59Z
+- T-13788 — Print the restoration brief from a print-only session start (feature) — events.jsonl#ts=2026-10-09T15:53:24Z
+- T-13806 — Move the hard-coded load-sizing parameters into machine settings so a host or fork sets its own values (feature) — events.jsonl#ts=2026-10-09T22:45:40Z
+- T-13789 — Credit seed receipts by marker identity and refuse on cannot-tell (infra) — events.jsonl#ts=2026-10-09T22:52:45Z
+- T-13790 — Deliver the post-compaction cue inside the repository per provider (infra) — events.jsonl#ts=2026-10-10T00:20:03Z
+- T-13791 — Rewrite AGENTS.md After-compact around the restoration brief (docs) — events.jsonl#ts=2026-10-10T01:47:18Z
+- T-13814 — Make the release notes' update recipe run `session start` before `init`, so an adopter following it after an update does not hit seed_read_stale_epoch (fix) — events.jsonl#ts=2026-10-10T05:54:31Z
+- T-13807 — Make the eight verify-runner tests that stall under host load since 2026-10-08 tolerate that load again (fix) — events.jsonl#ts=2026-10-10T05:58:05Z
+- T-13815 — Let an amendment note on a terminal card reach main (fix) — events.jsonl#ts=2026-10-10T07:35:07Z
+- T-13821 — Re-verify and re-sign the drifted implements anchors of active specs (hygiene) — events.jsonl#ts=2026-10-10T08:36:52Z
+- T-13816 — Restate engine-exclusion sentences that ground on the absence of yitc-ops.yaml (docs) — events.jsonl#ts=2026-10-10T10:38:48Z
+- T-13817 — Re-point the pointers to the removed CHARTER Success criteria section (docs) — events.jsonl#ts=2026-10-10T11:25:36Z
+- T-13818 — Point the pointers to blocks moved out of SPEC-0204 at SPEC-1014 (docs) — events.jsonl#ts=2026-10-10T13:06:23Z
+- T-13811 — Make the niced-timeout normal-priority re-run of hold for consumer projects' Stage-6 runs too (fix) — events.jsonl#ts=2026-10-10T14:26:21Z
 
 ## Trust surfaces
 
@@ -248,7 +259,10 @@ python3 <dest>/bin/yitc-v2 release update <dest> --into <engine-dir> --anchor SH
 `<dest>` is the clone you installed from, `<old-tag>` the release you run today, `<new-tag>` this
 release, `<engine-dir>` your existing install. Keep `<dest>-<old-tag>` until the update is settled:
 it is the merge base and your way back. Afterwards move the `kernel:` pin in each project's
-`yitc-ops.yaml` to `<new-tag>` and run `yitc-v2 -C <project> init`, which adds only what is missing.
+`yitc-ops.yaml` to `<new-tag>`, run `yitc-v2 -C <project> session start` (the new engine needs a
+fresh session receipt; one written by the old engine does not count, SPEC-1023 rule 6, the same
+restart `release update` asks for), then run `yitc-v2 -C <project> init`, which adds only what is
+missing.
 
 What the version digits tell you (SPEC-0195 rule 10): LAST digit (v2.1.0 -> v2.1.1) = fixes only,
 you do nothing on update; MIDDLE digit (v2.0.6 -> v2.1.0) = behaviour or what `init` writes changes,

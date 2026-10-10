@@ -3977,8 +3977,8 @@ def _declared_delivery(ops_path) -> tuple:
     only for a HUMAN-authored waiver: a BORN placeholder waiver is an unanswered question wearing a
     waiver's clothes (the X-0088 class) and does not silence this view.
 
-    Never raises: a missing / unreadable / malformed carrier yields `(None, False)` — the engine kernel
-    itself has no carrier, and arm (a) still needs evidence to fire, so a carrier-less repo stays silent.
+    Never raises: a missing / unreadable / malformed carrier yields `(None, False)`, and so does a carrier with
+    no such section (the engine kernel's own file); arm (a) still needs evidence to fire, so both stay silent.
     """
     try:
         carrier = state.load_ops(Path(ops_path))
@@ -4029,7 +4029,7 @@ def runtime_delivery_coherence(ops_path, repo_root, not_adopted=None, now=None) 
 
     Args:
       ops_path: this repo's `yitc-ops.yaml` (missing/unreadable ⇒ no declaration — arm (a) then needs
-        evidence to fire, so a carrier-less repo like the engine kernel stays silent).
+        evidence to fire, so a repo declaring none of it, like the engine kernel, stays silent).
       repo_root: the repo to scan for source-mount evidence.
       not_adopted: the ALREADY-COMPUTED `_view_not_adopted` dict (injected — one derivation, no second git
         path). None ⇒ arm (b) cannot be judged and contributes nothing (never a guess).
@@ -4131,7 +4131,8 @@ def _delivery_result(now, *, status, kind, count, model, evidence=None, commits=
                 "(dev overlays say nothing about prod — T-10905/X-0711), and a "
                 "DECLARED bypassable model whose live revision has fallen behind `main`. DERIVED at read "
                 "time from the carrier + the existing not-adopted view — zero stored state, no second git "
-                "path; a repo with no carrier (the engine kernel itself) owes nothing. Report-only, never "
+                "path; a repo that declares none of it and bind-mounts nothing (the engine kernel itself) owes "
+                "nothing. Report-only, never "
                 "a gate.",
         "now": now.isoformat().replace("+00:00", "Z"),
         "status": status,
@@ -4182,8 +4183,9 @@ EXECUTION_REQUIRED_FIELDS = debt_adoption.EXECUTION_REQUIRED_FIELDS   # T-12707 
 def _declared_test_classes(ops_path) -> list:
     """The declared `tests.classes[]` entries this repo's carrier names (SPEC-0093 rule 10) →
     `[{class, moment}]`. Reuses the `_is_waived` discipline: an absent / waived / non-mapping `tests:`
-    section, or a single waived entry, declares no class. Never raises — a carrier-less repo (the engine
-    kernel itself) declares nothing → [], so history is never retro-charged (the SPEC-0149 lesson)."""
+    section, or a single waived entry, declares no class. Never raises — a repo without a carrier or without
+    a `tests:` section (the engine kernel's own file) yields [], so history is never retro-charged (the
+    SPEC-0149 lesson)."""
     try:
         carrier = state.load_ops(Path(ops_path))
     except (OSError, UnicodeDecodeError, yaml.YAMLError, TypeError):
@@ -4253,8 +4255,8 @@ def undeclared_class_remedy(ops_path, given) -> str:
     exact translation the author needed. The caller refuses the APPEND (so no false coverage row is ever
     written) using this text; the improvement is the message, not the verdict.
 
-    IT ABSTAINS WHEREVER THE DECLARATION CANNOT BE READ — "" for a carrier-less repo (the engine kernel
-    itself), a waived/absent `tests:` section, zero declared classes, or any parse failure. The judgement
+    IT ABSTAINS WHEREVER THE DECLARATION CANNOT BE READ — "" for a repo without a carrier, a waived/absent
+    `tests:` section (the engine kernel's case), zero declared classes, or any parse failure. The judgement
     belongs to the READER, and a project that has declared no vocabulary has authorised no refusal
     (`lessons/fail-closed-belongs-to-the-reader-not-the-parser.md`). The declaration is read in FULL —
     the UNION of declared classes, never a first-match (SPEC-0185 §1b).
@@ -4351,8 +4353,8 @@ def _unexecuted_result(*a, **kw):
 # it is the safe default. This fold is therefore an OPPORTUNITY prompt, never owed debt: it names each
 # EXECUTABLE layer (a real `command:`, not a waiver) that has not yet been subject-scoped, so a consumer
 # whose long layers dominate its land time can see which ones are candidates for diff-relevant scoping.
-# Same report-only discipline as every sibling: suppressed-when-clean, engine-kernel (no yitc-ops.yaml)
-# → count 0 → suppressed, never retro-charges history, never gates. Silent on a WAIVED layer (a layer
+# Same report-only discipline as every sibling: suppressed-when-clean, engine-kernel (declares none of
+# these layers) → count 0 → suppressed, never retro-charges history, never gates. Silent on a WAIVED layer (a layer
 # that never runs cannot be scoped) and on a layer that already DECLARES subject_globs (answered).
 
 
@@ -4803,7 +4805,7 @@ def declared_outcome_invariants(ops_path) -> list:
 
     ONLY THE DECLARED SET (`lessons/scope-the-trigger-not-the-view`). This is the TRIGGER half of the card's
     contract: the debt echo may fold broadly, but what may INTERRUPT is scoped to what this project actually
-    declared and did not waive. A repo with no carrier declares nothing — the engine kernel itself — so the
+    declared and did not waive. A repo declaring none — the engine kernel itself — interrupts nothing, so the
     whole view stays silent and history is never retro-charged (the SPEC-0149 fold-side-default lesson: a
     default over the real journals once retro-created 39 debt lines across 3 consumers).
 
@@ -9081,7 +9083,7 @@ def profile_gap_register(*, resolution, ops_path, rows=(), now=None, resolvable=
     mechanism rule 10 forbids.
 
     A REPO WITH NO OPS CARRIER REGISTERS NOTHING, and that is what keeps history safe. The engine
-    kernel itself has no `yitc-ops.yaml`, so this folds to 0 there and the line never renders — the
+    kernel itself is withheld at the seam by identity (SPEC-0186 rule 6), so the line never renders there — the
     same discipline `declared_checks` states, and the same one SPEC-0149 §1 had to buy back after a
     fold-side default retro-created 39 debt lines across 3 consumers. Debt is what a project's own
     profile REQUIRES and its own carrier does not answer — never what it never had.
@@ -10167,7 +10169,7 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # its yitc-ops.yaml carrier with no journaled RED demonstration of their current definition.
                 # Injected at this ONE shared residue, so it rides all three debt seams (session-start /
                 # land-tail / the `-C <repo> debt` re-fold) and they cannot drift apart — the rule-11 /
-                # rule-12 wiring precedent. The engine kernel has no yitc-ops.yaml → declares no check →
+                # rule-12 wiring precedent. The engine kernel's own file declares none of these checks →
                 # count 0 → suppressed, so this never retro-charges history (the SPEC-0149 lesson).
                 _unproven_checks=lambda: debt_mod.unproven_checks(
                     REPO_ROOT / "yitc-ops.yaml", EVENTS_PATH),
@@ -10175,7 +10177,7 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # `tests.classes` THIS repo carries with no recorded successful execution (never / stale). The
                 # EXECUTION axis of the SPEC-0156 unproven-check line above, injected at this SAME shared residue
                 # so it rides all three debt seams (session-start / land-tail / the `-C <repo> debt` re-fold) and
-                # they cannot drift apart. The engine kernel has no yitc-ops.yaml → declares no class → count 0 →
+                # they cannot drift apart. The engine kernel's own file declares none of these classes → count 0 →
                 # suppressed, so history is never retro-charged (the SPEC-0149 lesson).
                 _unexecuted_test_classes=lambda: debt_mod.unexecuted_test_classes(
                     REPO_ROOT / "yitc-ops.yaml", EVENTS_PATH, _debt_test_class_stale_floor_days()),
@@ -10185,8 +10187,8 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # to trim land time via diff-relevant real skipping — a disjoint diff REMOVES the layer's run and its
                 # prep at land, recording a {layer, outcome: skipped-disjoint-subject} row (T-10573). Injected at this SAME shared residue
                 # so it rides all three debt seams (session-start / land-tail / the `-C <repo> debt` re-fold) and
-                # they cannot drift apart — the rule-11 / rule-12 / rule-24 wiring precedent. The engine kernel has
-                # no yitc-ops.yaml → declares no executable layer → count 0 → suppressed, never retro-charged.
+                # they cannot drift apart — the rule-11 / rule-12 / rule-24 wiring precedent. The engine kernel's
+                # own file declares none of these layers → count 0 → suppressed, never retro-charged.
                 _undeclared_subject_layers=lambda: debt_mod.undeclared_subject_layers(
                     REPO_ROOT / "yitc-ops.yaml"),
                 # T-11886 (SPEC-0119 rule 35 / SPEC-0152 rule 16 subject_globs, X-0860): the EXECUTION
@@ -10195,7 +10197,7 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # as its two siblings so all three ride the three debt seams (session-start / land-tail /
                 # the `-C <repo> debt` re-fold) from ONE site and cannot drift apart. Bound to this
                 # repo's carrier AND its checkout, because the question spans both (what is declared vs
-                # what the commands name). The engine kernel has no yitc-ops.yaml → count 0 → suppressed,
+                # what the commands name). The engine kernel's own file declares none of it → count 0 → suppressed,
                 # so history is never retro-charged (the SPEC-0149 lesson).
                 _unexecuted_subject_files=lambda: debt_mod.unexecuted_subject_files(
                     REPO_ROOT / "yitc-ops.yaml", REPO_ROOT),
@@ -10238,7 +10240,7 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # they cannot drift apart. It is the only collaborator here that takes an ARGUMENT: the
                 # not-adopted view the render helper ALREADY computed, so the forward and reverse readings of
                 # that delta come from ONE derivation (no second git ancestry walk, no second live-revision
-                # source — CHARTER §P5). The engine kernel has no yitc-ops.yaml and bind-mounts nothing → count
+                # source — CHARTER §P5). The engine kernel declares none of this and bind-mounts nothing → count
                 # 0 → suppressed, so history is never retro-charged.
                 _runtime_delivery=lambda _na: debt_mod.runtime_delivery_coherence(
                     REPO_ROOT / "yitc-ops.yaml", REPO_ROOT, _na),
@@ -10248,8 +10250,8 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # three debt seams (session-start / land-tail / the `-C <repo> debt` re-fold) and they cannot
                 # drift apart — the rule-11 / rule-12 / rule-16 wiring precedent. It is what retires the
                 # owner-as-monitor role for a covered subsystem: adoption evidence is framed on the DIFF, so a
-                # subsystem no card owns is otherwise unobservable (X-0419). The engine kernel has no
-                # yitc-ops.yaml → declares no invariant → count 0 → suppressed, so history is never
+                # subsystem no card owns is otherwise unobservable (X-0419). The engine kernel's own
+                # file declares none of these invariants → count 0 → suppressed, so history is never
                 # retro-charged, and only the DECLARED set can interrupt.
                 _broken_outcome_invariants=lambda: debt_mod.broken_outcome_invariants(
                     REPO_ROOT / "yitc-ops.yaml", EVENTS_PATH, REPO_ROOT),

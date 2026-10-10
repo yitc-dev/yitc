@@ -474,12 +474,12 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ defect`).\n"
 implements_signature:
   bin/lib/inspection.py#cmd_inspect_record: 9b2bfc85a880af9f178cc1df1a54d0629c2a6318110df16a8cc10cb4115fb532
-  bin/lib/task.py#_audit_scrutiny_cases: 93b55012af9ecc8c96732ea52e945bd1de03d56cc1ecd0bb49bcfd848639a013
+  bin/lib/task.py#_audit_scrutiny_cases: 0018ff3946d76e03188f6fc1f12c21bd495c5f5f6c2f3bb4ecc12df10b33e60d
   bin/lib/task.py#_case_exempt_refusal: 85308d8da223a74ec9362761325864f8ca71dcb5d89750b9cbdb31d616fa277c
   bin/lib/task.py#_case_match: 5002cea43d867fd7d3ac1e31118115d81fe18da504fdd187b070b9d776634aa0
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: 2661e1333919943615819f7cb295fd84b760b8d0d55d2182fcf3bd5fbaa053be
+  bin/lib/task.py#cmd_task_close: a8bb6bca61efc36cf2481454df900ed630e4589a36107af2fccffb024c18fb60
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
   bin/lib/task_closure_evidence.py#_case_closure_index: a68a8461d86f6fa975f4c5d523e5c081c7e724a2fa7015bc781e15ead3561103
   bin/lib/task_closure_evidence.py#_case_covered_share: bf05701807cfd853476788117b2cbaa470923898841f3a423ae5ce59b273ba8d

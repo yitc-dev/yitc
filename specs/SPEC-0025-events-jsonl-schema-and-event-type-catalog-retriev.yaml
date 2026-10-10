@@ -798,15 +798,15 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ emits\n`node_id: cli:seed` (`SEED_READ_NODE_ID`) AFTER it delivers the audience\
   \ seed — the seed READ\nreceipt read by `_require_seed_read` (the BROAD anti-Forgetting\
   \ floor, SPEC-0050 §8). The `cli:seed`\nreceipt ALSO carries an ADDITIVE `data.epoch`\
-  \ (int) = the CONTEXT EPOCH at emit (the provider\ntranscript's `/compact` count;\
-  \ `session.session_epoch`) — the gate credits it only when epoch >= the\ncurrent\
-  \ epoch, so a pre-compact receipt goes stale (a missing/pre-change `epoch` normalizes\
-  \ to 0).\n`session start`\nOWNS the `cli:seed` primitive (producer-owns-primitive),\
-  \ so downstream probes may reference it. These\nsentinel receipts are the gates'\
-  \ evidence, NOT read-verb observability rows — a consumer counting the\n6-read-verb\
-  \ footprint filters them out by their sentinel `node_id`.\n\n**session_started**\
-  \ (emitted by `session start` — `--type` is optional: omit => interactive\nController,\
-  \ `--type build` => dispatched Worker, so the payload `type` value is `controller|build`,\
+  \ = the CONTEXT EPOCH at emit, the SPEC-1023\nreading's mark (newest compaction\
+  \ marker / NONE / UNKNOWN); the gate credits it only while the reading\nnames that\
+  \ mark (SPEC-0050 §8) — no `epoch` reads NONE, a pre-change number never credits.\n\
+  `session start`\nOWNS the `cli:seed` primitive (producer-owns-primitive), so downstream\
+  \ probes may reference it. These\nsentinel receipts are the gates' evidence, NOT\
+  \ read-verb observability rows — a consumer counting the\n6-read-verb footprint\
+  \ filters them out by their sentinel `node_id`.\n\n**session_started** (emitted\
+  \ by `session start` — `--type` is optional: omit => interactive\nController, `--type\
+  \ build` => dispatched Worker, so the payload `type` value is `controller|build`,\
   \ NOT\nthe retired `build|review` choice, retired) — the durable\nsession-activation\
   \ marker. `data: {type, project, session_config, resolved_session_ref, source_kind}`\
   \ — `resolved_session_ref` + `source_kind` (collapse-forensic) are the resolved\

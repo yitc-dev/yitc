@@ -9,7 +9,8 @@ implements:
 - bin/lib/gates.py#_session_started_lower_bound
 - bin/lib/gates.py#_require_seed_read
 - bin/lib/gates.py#_seed_receipt_epochs
-- bin/lib/session.py#session_epoch
+- bin/lib/gates.py#seed_stamp_credits
+- bin/lib/session.py#reading_mark
 - bin/lib/events.py#_emit_cli_invoked
 - bin/lib/cli.py#_deliver_stage_bundle_contracts
 - bin/lib/cli.py#_stage_contract_view
@@ -221,89 +222,90 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ EPOCH.** The stage deliverer — ONE helper\nbehind both seams, `stage <NAME>` and\
   \ the in-worktree `session start` — renders a contract as ONE\nPOINTER LINE (its\
   \ id, its title, the command that re-reads it) instead of its body when ALL THREE\n\
-  hold, and in full in every other state:\n(a) the current context epoch (§8's counter)\
-  \ can be ESTABLISHED — the provider transcript was\n    actually read to the end.\
-  \ A session with no provider transcript, or one whose transcript\n    exists but\
-  \ cannot be read, reads epoch 0 before AND after a `/compact` (§8's fail-safe\n\
-  \    floor), so \"this epoch already holds it\" cannot be asserted of it — such\
+  hold, and in full in every other state:\n(a) the current context epoch (§8) can\
+  \ be ESTABLISHED — the SPEC-1023 reading is a LAST\n    COMPACTION: the provider\
+  \ transcript was actually read to the end. A session with no provider\n    transcript,\
+  \ or one whose reading cannot tell, cannot be told apart before and after a\n  \
+  \  `/compact`, so \"this epoch already holds it\" cannot be asserted of it — such\
   \ a session is never\n    shown a pointer;\n(b) this session holds a crediting receipt\
-  \ for that contract, inside §2's own window, stamped with\n    an epoch not older\
-  \ than the current one and carrying the FINGERPRINT of what was rendered (and,\n\
+  \ for that contract, inside §2's own window, stamped with\n    the SAME epoch reading\
+  \ (by identity), written after the session's last seed receipt of\n    another reading\
+  \ (SPEC-1023 rule 6), and carrying the FINGERPRINT of what was rendered (and,\n\
   \    under `-C`, the realm the contract requires);\n(c) the contract rendered NOW\
   \ has that same fingerprint — a spec edited between two deliveries is\n    delivered\
   \ again, whatever its length.\nA pointer writes NO receipt: the earlier delivery\
   \ is what credits. To make (b) decidable, a\npoint-lookup receipt carries the epoch\
-  \ stamp the seed receipt already has (an absent stamp reads as\nepoch 0), and a\
-  \ stage-delivered one also carries the fingerprint; a hand `graph query` receipt\
-  \ has\nnone and therefore never suppresses a body. NOTHING ABOVE CHANGES: §2's credit\
-  \ stays SESSION-scoped\nand reads neither field — the epoch decides RE-RENDERING,\
-  \ never credit — and every doubt (no anchor,\nan unreadable journal, a comparison\
-  \ that fails) falls toward delivering the body. A `/compact`\nadvances the epoch,\
-  \ so the SPEC-0007 §5a re-run of `stage <current_stage>` delivers in full again.\n\
-  The pointer is an EMISSION optimization that ASSUMES the earlier delivery was consumed\
-  \ complete:\ncondition (b) reads an emission receipt, and a filtered run writes\
-  \ the same receipt (HONEST BOUND\nabove). So after a stage bundle piped through\
-  \ `| tail`, a re-entry in the same epoch prints the\npointer for a body the reader\
-  \ never received. That is a named residual of this rule, not a promise\nit makes;\
-  \ the recovery is the re-read command the pointer names.\n\n**THE BEFORE-RULE-CHANGE\
-  \ CONTRACTS RIDE THE SAME DELIVERER.** Two more callers hand a\ncontract set to\
-  \ that helper: `spec edit` and `spec new`, each with the before-rule-change set\n\
-  bound to its own surface, after the verb's own result lines. Everything this section\
-  \ says of the\nstage deliverer applies to these two calls as it stands, the contract\
-  \ view included: the first\nsuch call in a context epoch prints each contract and\
-  \ writes its receipt, a later call in the\nsame epoch prints the pointer line and\
-  \ writes none, and the next call after a\n`/compact` or after a change to a contract's\
-  \ text prints that body again — which is also how this\ndelivery returns after a\
-  \ `/compact`, with no step of its own in the post-compact re-read. The\nreceipt\
-  \ is the ordinary point-lookup receipt of §2, the one the `spec edit --bless` read\
-  \ check\nreads, so a delivering `spec edit` satisfies that check and output sent\
-  \ to the null device does\nnot. Neither verb gains a read check: the plain `spec\
-  \ edit` and the non-draft `spec new` still\nproceed with no receipt, and a delivery\
-  \ that fails leaves the verb's result as it was.\n\n**THE PLAN-STAGE BUNDLE RIDES\
-  \ THE SAME DELIVERER.** Two further callers hand a contract\nset to that helper:\
-  \ `plan file` and `plan stage <NAME>`, each with the set bound to the plan stage\n\
-  it enters, after the line that reports the entry. Everything this section says of\
-  \ the stage\ndeliverer applies to these two calls as it stands, the contract view\
-  \ included: a contract this\ncontext epoch does not yet hold is printed and its\
-  \ receipt written, one it already holds\nunchanged is printed as the pointer line\
-  \ with no receipt, and after a `/compact` or a change to\na contract's text that\
-  \ body is printed again. The receipt is the ordinary point-lookup receipt of\n§2,\
-  \ the one the plan-axis read check of §1 reads, so a delivering `plan file` satisfies\
-  \ the check\nthat `plan draft --finalize` and `plan stage specs` make, and output\
-  \ sent to the null device does\nnot. No read check is added or changed. An empty\
-  \ set keeps its own line naming where the\nplan-stage doctrine lives, and a delivery\
-  \ that fails leaves the entry recorded and each contract\none `graph query` away.\
-  \ A plan stage is entered once, so the verb is not what returns its\ncontracts after\
-  \ a `/compact`: there they are re-read by `graph query`, as the pointer line names.\n\
-  \n**THE FILING CONTRACTS RIDE IT AT `task file`.** `task file` hands its Filing\n\
-  stage-entry set — the doc-set of its own read check — to the same deliverer, around\
-  \ that check\nand without changing it: when the check refuses, the set is delivered\
-  \ and the refusal stands, so a\nsession's first filing still stops before any write\
-  \ and its re-run is admitted by the delivery's\nreceipt with no hand fetch; when\
-  \ the check admits, the set is delivered too, as the pointer line\ninside the epoch\
-  \ that already holds it and as the body after a `/compact` or a changed contract.\n\
-  `task file --skeleton` runs no check and delivers nothing.\n\n**A STAGE ENTRY DELIVERS\
-  \ THE CONTRACT VIEW.** The same deliverer hands the reader each\ncontract's body\
-  \ and routing fields — what an agent acting in the stage reads — and leaves out\
-  \ what\ntools and explicit lookups read: the derived index header the point-lookup\
-  \ opens with, the code\nanchors and their signatures, the born concern, and the\
-  \ provenance and activation bookkeeping. The\nexact set is the deliverer's own field\
-  \ list (`_stage_contract_view`); a field it does not name is\ndelivered. An explicit\
-  \ `graph query <SPEC>` stays the full render, so every omitted field is one\ncommand\
-  \ away. The fingerprint in (b) and (c) is taken over the bytes DELIVERED, and a\
-  \ hand lookup's\nreceipt carries none, so a full lookup neither suppresses nor forces\
-  \ a delivered body. Credit (§2)\nis unchanged.\nThe view also leaves out the body\
-  \ sections a spec's maintainer reads rather than an agent\nacting in the stage —\
-  \ its rationale, its verification contract, its implementation\nnotes, and its drift\
-  \ review, the record of past amendments and re-verifications — and\nsays so inside\n\
-  the body, once per contract, where the first of them stood: one line naming each\
-  \ section left out\nand the command that prints the full text. A rule an agent applies\
-  \ at a stage belongs in the\nspec's rule text; one found only in such a section\
-  \ is re-homed there, never left behind the\nomission. How a section is recognised\
-  \ is the deliverer's own reading\n(`_stage_view_without_maintainer_sections`); a\
-  \ body holding a line that reading does not decide\nis delivered whole, those sections\
-  \ included. What the external auditor is handed is not built\nfrom this view and\
-  \ keeps the whole spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
+  \ stamp the seed receipt already has (an absent stamp reads as\nNONE), and a stage-delivered\
+  \ one also carries the fingerprint; a hand `graph query` receipt has\nnone and therefore\
+  \ never suppresses a body. NOTHING ABOVE CHANGES: §2's credit stays SESSION-scoped\n\
+  and reads neither field — the epoch decides RE-RENDERING, never credit — and every\
+  \ doubt (no anchor,\nan unreadable journal, a comparison that fails) falls toward\
+  \ delivering the body. A `/compact`\nadvances the epoch, so the SPEC-0007 §5a re-run\
+  \ of `stage <current_stage>` delivers in full again.\nThe pointer is an EMISSION\
+  \ optimization that ASSUMES the earlier delivery was consumed complete:\ncondition\
+  \ (b) reads an emission receipt, and a filtered run writes the same receipt (HONEST\
+  \ BOUND\nabove). So after a stage bundle piped through `| tail`, a re-entry in the\
+  \ same epoch prints the\npointer for a body the reader never received. That is a\
+  \ named residual of this rule, not a promise\nit makes; the recovery is the re-read\
+  \ command the pointer names.\n\n**THE BEFORE-RULE-CHANGE CONTRACTS RIDE THE SAME\
+  \ DELIVERER.** Two more callers hand a\ncontract set to that helper: `spec edit`\
+  \ and `spec new`, each with the before-rule-change set\nbound to its own surface,\
+  \ after the verb's own result lines. Everything this section says of the\nstage\
+  \ deliverer applies to these two calls as it stands, the contract view included:\
+  \ the first\nsuch call in a context epoch prints each contract and writes its receipt,\
+  \ a later call in the\nsame epoch prints the pointer line and writes none, and the\
+  \ next call after a\n`/compact` or after a change to a contract's text prints that\
+  \ body again — which is also how this\ndelivery returns after a `/compact`, with\
+  \ no step of its own in the post-compact re-read. The\nreceipt is the ordinary point-lookup\
+  \ receipt of §2, the one the `spec edit --bless` read check\nreads, so a delivering\
+  \ `spec edit` satisfies that check and output sent to the null device does\nnot.\
+  \ Neither verb gains a read check: the plain `spec edit` and the non-draft `spec\
+  \ new` still\nproceed with no receipt, and a delivery that fails leaves the verb's\
+  \ result as it was.\n\n**THE PLAN-STAGE BUNDLE RIDES THE SAME DELIVERER.** Two further\
+  \ callers hand a contract\nset to that helper: `plan file` and `plan stage <NAME>`,\
+  \ each with the set bound to the plan stage\nit enters, after the line that reports\
+  \ the entry. Everything this section says of the stage\ndeliverer applies to these\
+  \ two calls as it stands, the contract view included: a contract this\ncontext epoch\
+  \ does not yet hold is printed and its receipt written, one it already holds\nunchanged\
+  \ is printed as the pointer line with no receipt, and after a `/compact` or a change\
+  \ to\na contract's text that body is printed again. The receipt is the ordinary\
+  \ point-lookup receipt of\n§2, the one the plan-axis read check of §1 reads, so\
+  \ a delivering `plan file` satisfies the check\nthat `plan draft --finalize` and\
+  \ `plan stage specs` make, and output sent to the null device does\nnot. No read\
+  \ check is added or changed. An empty set keeps its own line naming where the\n\
+  plan-stage doctrine lives, and a delivery that fails leaves the entry recorded and\
+  \ each contract\none `graph query` away. A plan stage is entered once, so the verb\
+  \ is not what returns its\ncontracts after a `/compact`: there they are re-read\
+  \ by `graph query`, as the pointer line names.\n\n**THE FILING CONTRACTS RIDE IT\
+  \ AT `task file`.** `task file` hands its Filing\nstage-entry set — the doc-set\
+  \ of its own read check — to the same deliverer, around that check\nand without\
+  \ changing it: when the check refuses, the set is delivered and the refusal stands,\
+  \ so a\nsession's first filing still stops before any write and its re-run is admitted\
+  \ by the delivery's\nreceipt with no hand fetch; when the check admits, the set\
+  \ is delivered too, as the pointer line\ninside the epoch that already holds it\
+  \ and as the body after a `/compact` or a changed contract.\n`task file --skeleton`\
+  \ runs no check and delivers nothing.\n\n**A STAGE ENTRY DELIVERS THE CONTRACT VIEW.**\
+  \ The same deliverer hands the reader each\ncontract's body and routing fields —\
+  \ what an agent acting in the stage reads — and leaves out what\ntools and explicit\
+  \ lookups read: the derived index header the point-lookup opens with, the code\n\
+  anchors and their signatures, the born concern, and the provenance and activation\
+  \ bookkeeping. The\nexact set is the deliverer's own field list (`_stage_contract_view`);\
+  \ a field it does not name is\ndelivered. An explicit `graph query <SPEC>` stays\
+  \ the full render, so every omitted field is one\ncommand away. The fingerprint\
+  \ in (b) and (c) is taken over the bytes DELIVERED, and a hand lookup's\nreceipt\
+  \ carries none, so a full lookup neither suppresses nor forces a delivered body.\
+  \ Credit (§2)\nis unchanged.\nThe view also leaves out the body sections a spec's\
+  \ maintainer reads rather than an agent\nacting in the stage — its rationale, its\
+  \ verification contract, its implementation\nnotes, and its drift review, the record\
+  \ of past amendments and re-verifications — and\nsays so inside\nthe body, once\
+  \ per contract, where the first of them stood: one line naming each section left\
+  \ out\nand the command that prints the full text. A rule an agent applies at a stage\
+  \ belongs in the\nspec's rule text; one found only in such a section is re-homed\
+  \ there, never left behind the\nomission. How a section is recognised is the deliverer's\
+  \ own reading\n(`_stage_view_without_maintainer_sections`); a body holding a line\
+  \ that reading does not decide\nis delivered whole, those sections included. What\
+  \ the external auditor is handed is not built\nfrom this view and keeps the whole\
+  \ spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
   \ analog — `patterns/emergency-mode.md`\nentry). No dedicated `--force` flag.\n\n\
   ### 6. Pilot scope — NORMATIVE = kind=stage only; seed/action RESERVED\nNORMATIVE:\
   \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
@@ -452,60 +454,63 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ verb, not\n  just `land` ( generalized the carve-out) so a receipt recorded only\
   \ on MAIN (a Controller's, or\n  the launcher's §Receipt co-producer) credits a\
   \ NON-land verb run from a worktree, removing the\n  per-worktree `session start`\
-  \ for this gate — and the same single-snapshot + bounded-retry\n  read-consistency\
-  \ belt (§2). Refusal `reason`: `no_session_started_anchor` (no valid window in any\n\
-  \  candidate), `seed_read_unfetched` (window present, receipt absent), or `seed_read_stale_epoch`\
-  \ (receipt\n  present but pre-compact — §epoch below). It proves FETCH of the seed\
-  \ (the receipt), NEVER comprehension (§4).\n- **Summary-window lookback bound.**\
-  \ The receipt gates' (seed + `--help`) evidence\n  window is anchored at the EARLIEST\
-  \ `session_started` of THIS ref the preamble walk finds; the walk never\n  opens\
-  \ an ARCHIVE segment wholly older than the SPEC-0190 summary window (`READ_SUMMARY_WINDOW_DAYS`),\
-  \ for\n  a refusal and a credit alike, whatever the anchor's shape. The bound is\
-  \ SEGMENT-level: the LIVE segment is\n  read whole (rotation keeps it <=7 days in\
-  \ production); only an archive segment straddling the window\n  floor drops its\
-  \ rows older than the floor instant. A session (or a reused ref's earlier run) older\
-  \ than\n  the window is not credited — it re-anchors via `session start` / `--help`\
-  \ (fail-closed, cheap). An\n  unreadable window value falls back to the whole-history\
-  \ walk (fail-safe). Two runs of one reused ref\n  both inside the window still share\
-  \ the earliest anchor (out of scope, fu_2c91525fccd1).\n- **Coverage — GATE-BY-DEFAULT\
-  \ at ONE central chokepoint.** `main` calls the gate for EVERY resolved\n  verb,\
-  \ AFTER `_auto_sync` and BEFORE the verb runs, UNLESS the verb is in the small SEMANTIC\
-  \ allowlist:\n  (a) `session start` (PRODUCES the receipt — gating it would deadlock\
-  \ the floor); (b) `event --type\n  deviation_captured` (the from-anywhere capture\
-  \ reflex — unconditional by design); (c) pure\n  READ-ONLY verbs, identified by\
-  \ the EXISTING `cli_invoked_verb` marker (no mutating verb sets it).\n  `--help`\
-  \ exits pre-dispatch and never reaches the chokepoint. FAIL-SAFE DIRECTION: forgetting\
-  \ to\n  allowlist a read-only verb only OVER-gates it (harmless friction — the seed\
-  \ is one `session start`\n  away); a NEW/unlisted MUTATING verb is gated by default,\
-  \ so coverage never silently regresses. This is\n  the BROAD floor the 3-verb `--help`\
-  \ gate is NOT — it covers every governed/mutating verb + `dispatch`\n  + the `audit`\
-  \ paths.\n- **Relation to `kind=seed` (§1).** This realizes the seed floor via a\
-  \ standalone gate on the\n  `_require_help_read` precedent, so `_require_reads`\
-  \ `kind=seed` stays RESERVED/unwired — no duplicate\n  mechanism (P1 F1/F3).\n-\
-  \ **Epoch-scoping — post-`/compact` freshness.** The gate proves the seed was read\
-  \ for the\n  CURRENT CONTEXT EPOCH, not merely once this session. A `/compact` evicts\
-  \ the seed from context but\n  emits NO `session_started`, so a session-scoped receipt\
-  \ would keep crediting after the compaction —\n  the receipt LIES (the seed-floor\
-  \ consult's finding #2). The CONTEXT EPOCH is the count of `/compact`\n  boundaries\
-  \ in the provider transcript (`session.session_epoch`, the `compact_boundary` records\
-  \ the\n  SAME best-effort log `session context` reads): 0 at a fresh session, +1\
-  \ per compaction — a monotonic\n  integer, NOT a timestamp. `session start` STAMPS\
-  \ its seed receipt with the epoch at emit\n  (`data.epoch`); `_require_seed_read`\
-  \ reads the CURRENT epoch and credits a receipt only when its\n  stamped epoch >=\
-  \ current — else refuses `seed_read_stale_epoch` (distinct from the missing-receipt\n\
-  \  `seed_read_unfetched`). This is a receipt-STAMP compare, ORTHOGONAL to the §2\
-  \ window origin (it does\n  NOT shift the `session_started` lower-bound; the window\
-  \ still selects same-session receipts, the\n  epoch check then rejects the pre-compact\
-  \ ones). A receipt with NO epoch stamp normalizes to **0** —\n  so pre-change historical\
-  \ receipts + test seeds credit while current_epoch==0 (a fresh session / a\n  hermetic-HOME\
-  \ test with no transcript) but go stale once a compact advances it; NOT exempt-always\n\
-  \  (which would re-open the hole). FAIL-SAFE: `session_epoch` best-efforts to 0\
-  \ on any transcript\n  quirk (a log hiccup must never break a governed verb; 0 can\
-  \ only under-count → fail toward crediting\n  a present receipt, never toward a\
-  \ spurious refusal). **Producer / refresh:** the epoch-REFRESH producer stays `session\
-  \ start` (the §Receipt dispatch\n  CO-PRODUCER emits an epoch-0 bootstrap receipt,\
-  \ credited by the normalize-to-0 rule above and\n  going stale post-`/compact` like\
-  \ any other); post-`/compact` the receipt goes stale and the AI re-runs `session\
+  \ for this gate (: every candidate is read, and the session's\n  newest receipt\
+  \ across them decides — SPEC-1023 rule 6) — and the same single-snapshot + bounded-retry\n\
+  \  read-consistency belt (§2). Refusal `reason`: `no_session_started_anchor` (no\
+  \ valid window in any\n  candidate), `seed_read_unfetched` (window present, receipt\
+  \ absent), `seed_read_stale_epoch` (receipt\n  present but pre-compact — §epoch\
+  \ below), or `context_epoch_unknown` (the context epoch cannot be read\n  under\
+  \ a provider whose detection is observed — §epoch below, SPEC-1023 rule 6). It proves\
+  \ FETCH of the\n  seed (the receipt), NEVER comprehension (§4).\n- **Summary-window\
+  \ lookback bound.** The receipt gates' (seed + `--help`) evidence\n  window is anchored\
+  \ at the EARLIEST `session_started` of THIS ref the preamble walk finds; the walk\
+  \ never\n  opens an ARCHIVE segment wholly older than the SPEC-0190 summary window\
+  \ (`READ_SUMMARY_WINDOW_DAYS`), for\n  a refusal and a credit alike, whatever the\
+  \ anchor's shape. The bound is SEGMENT-level: the LIVE segment is\n  read whole\
+  \ (rotation keeps it <=7 days in production); only an archive segment straddling\
+  \ the window\n  floor drops its rows older than the floor instant. A session (or\
+  \ a reused ref's earlier run) older than\n  the window is not credited — it re-anchors\
+  \ via `session start` / `--help` (fail-closed, cheap). An\n  unreadable window value\
+  \ falls back to the whole-history walk (fail-safe). Two runs of one reused ref\n\
+  \  both inside the window still share the earliest anchor (out of scope, fu_2c91525fccd1).\n\
+  - **Coverage — GATE-BY-DEFAULT at ONE central chokepoint.** `main` calls the gate\
+  \ for EVERY resolved\n  verb, AFTER `_auto_sync` and BEFORE the verb runs, UNLESS\
+  \ the verb is in the small SEMANTIC allowlist:\n  (a) `session start` (PRODUCES\
+  \ the receipt — gating it would deadlock the floor); (b) `event --type\n  deviation_captured`\
+  \ (the from-anywhere capture reflex — unconditional by design); (c) pure\n  READ-ONLY\
+  \ verbs, identified by the EXISTING `cli_invoked_verb` marker (no mutating verb\
+  \ sets it).\n  `--help` exits pre-dispatch and never reaches the chokepoint. FAIL-SAFE\
+  \ DIRECTION: forgetting to\n  allowlist a read-only verb only OVER-gates it (harmless\
+  \ friction — the seed is one `session start`\n  away); a NEW/unlisted MUTATING verb\
+  \ is gated by default, so coverage never silently regresses. This is\n  the BROAD\
+  \ floor the 3-verb `--help` gate is NOT — it covers every governed/mutating verb\
+  \ + `dispatch`\n  + the `audit` paths.\n- **Relation to `kind=seed` (§1).** This\
+  \ realizes the seed floor via a standalone gate on the\n  `_require_help_read` precedent,\
+  \ so `_require_reads` `kind=seed` stays RESERVED/unwired — no duplicate\n  mechanism\
+  \ (P1 F1/F3).\n- **Epoch-scoping — post-`/compact` freshness.** The gate proves\
+  \ the seed was read for the\n  CURRENT CONTEXT EPOCH, not merely once this session.\
+  \ A `/compact` evicts the seed from context but\n  emits NO `session_started`, so\
+  \ a session-scoped receipt would keep crediting after the compaction —\n  the receipt\
+  \ LIES (the seed-floor consult's finding #2). The CONTEXT EPOCH is the SPEC-1023\
+  \ reading\n  of the provider transcript : the identity of the newest completed-compaction\
+  \ marker, NONE,\n  or UNKNOWN — its derivation, its three readings, the retirement\
+  \ of the former «best-efforts to 0»\n  floor and which receipt counts are homed\
+  \ in SPEC-1023 rule 6 (`graph query SPEC-1023`).\n  `session start` STAMPS its seed\
+  \ receipt with the reading at emit (`data.epoch`);\n  `_require_seed_read` credits\
+  \ only while the session's NEWEST receipt — the latest across the\n  candidate journals\
+  \ — names the CURRENT reading (`seed_stamp_credits`, by identity, never an\n  order)\
+  \ — else refuses `seed_read_stale_epoch` (distinct from the missing-receipt\n  `seed_read_unfetched`),\
+  \ and on CANNOT TELL under a provider whose detection is observed refuses\n  `context_epoch_unknown`\
+  \ naming what could not be read, until the SPEC-1023 rule-6a recovery stamps an\n\
+  \  «epoch unknown» receipt (credited, with one warning line per verb). This is a\
+  \ receipt-STAMP compare,\n  ORTHOGONAL to the §2 window origin (it does NOT shift\
+  \ the `session_started` lower-bound; the window\n  still selects same-session receipts,\
+  \ the epoch check then rejects the pre-compact ones). A receipt\n  stamped with\
+  \ a pre-change NUMBER credits under no reading (one recovery after the release).\n\
+  \  **Producer / refresh:** the epoch-REFRESH producer stays `session start` (the\
+  \ §Receipt dispatch\n  CO-PRODUCER records NONE — its Worker's transcript holds\
+  \ no marker before its own start — and goes\n  stale at the Worker's first compaction\
+  \ like any other); post-`/compact` the receipt goes stale and the AI re-runs `session\
   \ start` ONCE to\n  re-stamp the fresh epoch — SANCTIONED + SAFE (EARLIEST-anchor\
   \ keeps the window origin), the narrow\n  exception co-designed in SPEC-0007 §5b\
   \ (§At-session-start \"re-read seed CONTENT by re-reading files\"\n  is unchanged\
@@ -532,11 +537,11 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   verbs — **`debt`**, **`followup list`** and **`profile`** — TOLERATE a\nstale/unbacked/absent\
   \ session ref instead of refusing: they resolve through the NON-DYING keyer twin\n\
   (`_try_resolve_session_ref_with_source`), and on ANY would-be refusal (`session_ref_unresolved`\
-  \ /\n`no_session_started_anchor` / `seed_read_unfetched` / `seed_read_stale_epoch`)\
-  \ they emit a visible\nfallback WARNING and PROCEED (exit 0) rather than `_die`.\
-  \ All three are **pure durable-state folds** —\nread-only observers (`cmd_debt`\
-  \ / `cmd_followup_list` / `cmd_profile`: no worktree, no mutation, no\nevent of\
-  \ their own — `debt` and `profile` leave only the dispatch seam's `cli_invoked`\n\
+  \ /\n`no_session_started_anchor` / `seed_read_unfetched` / `seed_read_stale_epoch`\
+  \ /\n`context_epoch_unknown`) they emit a visible\nfallback WARNING and PROCEED\
+  \ (exit 0) rather than `_die`. All three are **pure durable-state folds** —\nread-only\
+  \ observers (`cmd_debt` / `cmd_followup_list` / `cmd_profile`: no worktree, no mutation,\
+  \ no\nevent of their own — `debt` and `profile` leave only the dispatch seam's `cli_invoked`\n\
   INVOCATION RECEIPT, the very row every clause-(c) read verb already emits past this\
   \ floor\nwith no gate at all, so it is not a write the floor guards) of state\n\
   the journal already owns — so waving them through grants no write the floor was\
@@ -582,7 +587,7 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ a strict verb.\n- **BOUND 3 — visibly auditable.** That warning carries the machine-readable\
   \ telemetry\n  `selected_source=` (the selector that produced the ref — `expected_contract`\
   \ / `env:<CARRIER>` /\n  `worktree_stamp` / `runtime_record`, or `unresolved`) and\
-  \ `fallback_reason=` (which of the four\n  gate reasons WOULD have refused), reusing\
+  \ `fallback_reason=` (which of the five\n  gate reasons WOULD have refused), reusing\
   \ the resolution-telemetry vocabulary.\n\n**No new event type.** A tolerated PASS\
   \ is deliberately NOT recorded as `read_gate_refused`: that\nevent is the refusal\
   \ umbrella whose `kind` enum is LOCKED (SPEC-0025 / SPEC-0059 §enforcement-split\n\
@@ -691,21 +696,22 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 3aaf4c45925d4811865381c97ed6bab9b6e127d798540bbc2a43f22effc02bc2
+  bin/lib/audit.py#cmd_audit: 13c3dd9123d5887638928060963c680f90187b2f58200f0db493506f4505fcb3
   bin/lib/cli.py#_deliver_before_rule_change: 573ce96bb9e3783f197876ff294700e47d6c2772db5b7b466721cbfa5c40c0f2
-  bin/lib/cli.py#_deliver_stage_bundle_contracts: 4a53ca12399252bd8417913971cb3930339af705332004bf858f5db833358aaf
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: 5d5d61ebc3b2f3a8a7e8f1d012a352d333e27be341a8760c90a53ea7cc221b4a
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
   bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
-  bin/lib/dispatch.py#_worker_seed_bootstrap_events: 6f683183058b1c1ba78be8273c04443e65c8f16ef948614dfc463e5e10738a78
-  bin/lib/events.py#_emit_cli_invoked: 83fa38666a44a4f694dbb219f4863e661550d724cd3c0eb31aecac56f774854e
-  bin/lib/gates.py#_fetched_spec_ids: 739bdb4d1c6f702735873fccd51a1a608ed0ce17813d77f6865a4a2015dc1778
+  bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
+  bin/lib/events.py#_emit_cli_invoked: 623edbb57a9b533417faa4069b968f28c6dbf66bf6a44b1355292019be59c49b
+  bin/lib/gates.py#_fetched_spec_ids: bd89d532c1caa100984be88c08658b59bd2971c829b1ad13690030bb5f7d9f46
   bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
-  bin/lib/gates.py#_require_seed_read: 292b1449203336794117a301111a9e76a8b866d2f6097846c4ddf423151c6f3d
-  bin/lib/gates.py#_seed_receipt_epochs: 1fd06ce74f223c807742191c68e5d737d7cb07406effeb8cee3d396335b80779
-  bin/lib/gates.py#_session_started_lower_bound: f2eac62476e2d36ae1007d2b2cb612e21f44b12a8c19b02ea3704c01b6508d65
+  bin/lib/gates.py#_require_seed_read: 8e2bc919f11fd0a983c40f71648c985f28828c0bd6d59d95d66d2abd1c57baac
+  bin/lib/gates.py#_seed_receipt_epochs: 37ced50b43ae720c9bf3d9eb0e44db5c8eb16e6b5469c92313103b4a6a336978
+  bin/lib/gates.py#_session_started_lower_bound: b33e13a47bcb5aa7ad4cb3671878fdce453aa448bbdf3f75d09ff6e6ad359265
+  bin/lib/gates.py#seed_stamp_credits: da9780a76a68522e579b9b8f3bc44d9870ddd20b939624966170e45a6a5ad0bc
   bin/lib/plan.py#_print_plan_stage_delivery: 870582bbd7b6b762af54e2458caa50825266b353b261fe86e1a5a2d207a676e5
   bin/lib/plan.py#cmd_plan_check: 4f48a3ade13764afe1b5e49c54c5346d4b43884199491d6c5659428722642a34
-  bin/lib/session.py#session_epoch: 09738dbd94ed367566655e76f73370e87e2775a935acc00a6c40df3edc7d15d0
+  bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: 2661e1333919943615819f7cb295fd84b760b8d0d55d2182fcf3bd5fbaa053be
+  bin/lib/task.py#cmd_task_close: a8bb6bca61efc36cf2481454df900ed630e4589a36107af2fccffb024c18fb60
   bin/lib/task.py#cmd_task_commit: 4e1faf09cda4125d35c3164453b8e3089272756def99a8932c74d31d0fadd68f

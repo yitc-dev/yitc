@@ -192,46 +192,47 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ (the executable GET runs at the DEPLOY seam, SPEC-0094 §4). Scope = EVERY task\n\
   in a deploying project (a non-user-facing change still declares, via a one-line\
   \ `none` waiver;\n`user_facing` lives inside the waiver and only governs whether\
-  \ `recheck_by` is required). A project\nwith NO `deploy:` command (no carrier, or\
-  \ a waived deploy — including the kernel itself) is\nUNCHANGED: this precondition\
-  \ is purely ADDITIVE-conditional and alters no other closure rule.\n**This HONORS\
-  \ CHARTER §Principle 3 — the P3 text is UNCHANGED.** For deploy work the EXECUTABLE\n\
-  adoption proof lives at the DEPLOY seam, and any non-adoption is DECLARED + VISIBLE\
-  \ + DATED (the\n`none + reason + recheck_by` debt). Full rule + grammar + amend\
-  \ map: SPEC-0094 §3/§Amends (one home).\n\n### Post-verification authoring at close\
-  \ (pointer — rule home SPEC-0038)\nClosure is the authoring moment for the task's\
-  \ `post_verification`: fill it, or waive explicitly\n(`post_verification: {none:\
-  \ <reason>}`). A non-hygiene `task close` with NEITHER is REFUSED; supply `--pv-criterion`\
-  \ +\n`--pv-signal` or `--pv-waive <reason>` on the close invocation. `class: hygiene`\
-  \ auto-waives. The\n`task update --status wont-do` path keeps the non-blocking WARN\
-  \ + the `post_verification_gap`\nmarker. Field grammar, class selector, the carve-outs,\
-  \ and the reading lens live in SPEC-0038 (one\nhome — not restated here).\n\n###\
-  \ Forward-propagation disposition at infra close (pointer — rule home SPEC-0053)\n\
-  For a `class: infra` task, Closure ALSO requires a forward-propagation disposition\
-  \ — the recorded\nanswer to «now that this exists, where ELSE must it be applied?».\
-  \ `task close` REFUSES an infra\nclosure that records NONE of the three outcomes\
-  \ (`--prop-follow-up` / `--prop-deferred-idea` /\n`--prop-nowhere`): a STRUCTURAL\
-  \ presence-gate of the SAME false-positive-free shape as the empty\nprobe-set rejection\
-  \ above (a DECISION must be present, never a completeness check). This is the\n\
-  HORIZONTAL «apply elsewhere?» axis, distinct from the VERTICAL P8 `adoption_evidence_seen`\
-  \ WARN\nbelow — both fire at infra close, answer different questions, satisfied\
-  \ independently. The rule, the\nthree-outcome grammar, the infra-FLOOR scope, and\
-  \ the <workshop-spec> require-reads co-ship live in\nSPEC-0053 (one home — not restated\
-  \ here).\n\n### Infrastructure-class adoption strength (per CHARTER §Principle 8)\n\
-  For format-migration / generator / event / graph / audit / parser / hook work, closure\
-  \ requires\nconsumer-read OR live-trigger evidence (an event captured) — NOT only\
-  \ probe + green tests. Without\nadoption evidence the task remains `in-progress`\
-  \ or a blocking follow-up is filed. `task close`\nenforces this as a VISIBILITY\
-  \ WARN for `class: infra` (E-0005): the code auto-detects a\nSUBSTANTIVE `consumer_read_evidence`\
-  \ / `live_trigger_evidence` event for the task (the ADDITION\ncarrier, per §The\
-  \ EVENT carrier must resolve machine evidence + a differential) — or, for a REMOVAL\n\
-  task, a probe key naming the verified absence (the REMOVAL carrier: adoption IS\
-  \ the absence)\n— and if neither is seen it WARNs and records `adoption_evidence_seen:\
-  \ false`\nin `task_closed`. Closure PROCEEDS (non-blocking: semantic evidence can't\
-  \ be a false-positive-free\nhard gate — the WARN makes the gap visible, not silent).\n\
-  \n**A TRUE FLAG NAMES ITS CARRIER.** When `adoption_evidence_seen` is true, `task_closed`\n\
-  also records which carrier satisfied it — the EVENT carrier (with the materialized\
-  \ locator and type\nof the substantive row the verdict rests on: the first row carrying\
+  \ `recheck_by` is required). A project\nwith NO `deploy:` command (a missing carrier,\
+  \ a carrier that holds no `deploy:` section — the\nkernel's own file is one — or\
+  \ a waived deploy) is UNCHANGED: this precondition is purely\nADDITIVE-conditional\
+  \ and alters no other closure rule.\n**This HONORS CHARTER §Principle 3 — the P3\
+  \ text is UNCHANGED.** For deploy work the EXECUTABLE\nadoption proof lives at the\
+  \ DEPLOY seam, and any non-adoption is DECLARED + VISIBLE + DATED (the\n`none +\
+  \ reason + recheck_by` debt). Full rule + grammar + amend map: SPEC-0094 §3/§Amends\
+  \ (one home).\n\n### Post-verification authoring at close (pointer — rule home SPEC-0038)\n\
+  Closure is the authoring moment for the task's `post_verification`: fill it, or\
+  \ waive explicitly\n(`post_verification: {none: <reason>}`). A non-hygiene `task\
+  \ close` with NEITHER is REFUSED; supply `--pv-criterion` +\n`--pv-signal` or `--pv-waive\
+  \ <reason>` on the close invocation. `class: hygiene` auto-waives. The\n`task update\
+  \ --status wont-do` path keeps the non-blocking WARN + the `post_verification_gap`\n\
+  marker. Field grammar, class selector, the carve-outs, and the reading lens live\
+  \ in SPEC-0038 (one\nhome — not restated here).\n\n### Forward-propagation disposition\
+  \ at infra close (pointer — rule home SPEC-0053)\nFor a `class: infra` task, Closure\
+  \ ALSO requires a forward-propagation disposition — the recorded\nanswer to «now\
+  \ that this exists, where ELSE must it be applied?». `task close` REFUSES an infra\n\
+  closure that records NONE of the three outcomes (`--prop-follow-up` / `--prop-deferred-idea`\
+  \ /\n`--prop-nowhere`): a STRUCTURAL presence-gate of the SAME false-positive-free\
+  \ shape as the empty\nprobe-set rejection above (a DECISION must be present, never\
+  \ a completeness check). This is the\nHORIZONTAL «apply elsewhere?» axis, distinct\
+  \ from the VERTICAL P8 `adoption_evidence_seen` WARN\nbelow — both fire at infra\
+  \ close, answer different questions, satisfied independently. The rule, the\nthree-outcome\
+  \ grammar, the infra-FLOOR scope, and the <workshop-spec> require-reads co-ship\
+  \ live in\nSPEC-0053 (one home — not restated here).\n\n### Infrastructure-class\
+  \ adoption strength (per CHARTER §Principle 8)\nFor format-migration / generator\
+  \ / event / graph / audit / parser / hook work, closure requires\nconsumer-read\
+  \ OR live-trigger evidence (an event captured) — NOT only probe + green tests. Without\n\
+  adoption evidence the task remains `in-progress` or a blocking follow-up is filed.\
+  \ `task close`\nenforces this as a VISIBILITY WARN for `class: infra` (E-0005):\
+  \ the code auto-detects a\nSUBSTANTIVE `consumer_read_evidence` / `live_trigger_evidence`\
+  \ event for the task (the ADDITION\ncarrier, per §The EVENT carrier must resolve\
+  \ machine evidence + a differential) — or, for a REMOVAL\ntask, a probe key naming\
+  \ the verified absence (the REMOVAL carrier: adoption IS the absence)\n— and if\
+  \ neither is seen it WARNs and records `adoption_evidence_seen: false`\nin `task_closed`.\
+  \ Closure PROCEEDS (non-blocking: semantic evidence can't be a false-positive-free\n\
+  hard gate — the WARN makes the gap visible, not silent).\n\n**A TRUE FLAG NAMES\
+  \ ITS CARRIER.** When `adoption_evidence_seen` is true, `task_closed`\nalso records\
+  \ which carrier satisfied it — the EVENT carrier (with the materialized locator\
+  \ and type\nof the substantive row the verdict rests on: the first row carrying\
   \ evidence the SPEC-0177 preference\nadmits, never an exit-only row beside it),\
   \ the REMOVAL carrier, or the FOLLOW-UP carrier (with the\nfollowup id). A false\
   \ flag records no carrier. A reader joining closures to P8 evidence reads that\n\

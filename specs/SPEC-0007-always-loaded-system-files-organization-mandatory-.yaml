@@ -219,8 +219,8 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ refuses `seed_read_stale_epoch` until a FRESH receipt exists. Its\nSOLE producer\
   \ is `session start`, so the route-(a) co-design is: post-`/compact` the AI re-runs\n\
   `bin/yitc-v2 session start` ONCE to re-stamp the receipt for the new epoch (the\
-  \ refusal message\nself-delivers this). This is the ONE sanctioned case where `session\
-  \ start` IS re-run post-`/compact`,\nand it is a NARROW exception to the \"`session\
+  \ refusal message\nself-delivers this). This is the ONE sanctioned STAMPING re-run\
+  \ of `session start` post-`/compact`,\nand it is a NARROW exception to the \"`session\
   \ start` is NOT re-run\" rule above, NOT a reversal:\n(i) it refreshes the RECEIPT\
   \ only — restoring seed CONTENT is still done by re-reading the seed FILES\n(§At-session-start),\
   \ never by `session start` (which only echoes pointers); (ii) it is SAFE — the\n\
@@ -235,31 +235,45 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ as at session start, a seed body is read\nwhen its surface becomes relevant, before\
   \ the governed action (§5a). The separately-required STATE\nre-folds (`cross outbox`/`cross\
   \ inbox`, `debt`, `session handoff list`, `frontend-errors`, `audit\nstatus`) are\
-  \ unchanged — they restore start-time state, not seed rules.\n**The re-run prints\
-  \ the post-compact re-fold steps.** A `session start` whose context\nepoch is newer\
-  \ than an earlier start of the same session — a `cli:seed` receipt of that ref,\
-  \ in this\ncheckout's journal or the main checkout's, stamped with an older epoch\
-  \ — prints ONE re-fold block: a\nhead naming both epochs, then one row per step\
-  \ that APPLIES to the session's state: the audience\nseed + floor trigger-map re-read\
-  \ and the two anchors; the session-tied `--help` rescan; the seed cues\nand when\
-  \ to read a seed body; the in-progress card of this checkout's own `task/` worktree\
-  \ with its\nresume contract and stage bundle; each plan this session's own `plan_stage_entered`\
-  \ rows took into\n`decomposition` and that is still there (`plan show` + SPEC-0070,\
-  \ never a re-run of `plan stage`,\nnever a `plans/` scan); for the Controller the\
-  \ open hand-offs and, on a worktree start, the cross /\ndebt re-folds; for a `-C`\
-  \ consumer the engine invocation form, `graph query --kernel` retrieval and\nthe\
-  \ frontend-error and kernel-signaling re-folds; `audit status`; and for a Worker\
-  \ refreshing in its\ntask worktree the second refresh in the main checkout before\
-  \ `land`. No block is printed when the\nepoch cannot be counted or is 0, at a session's\
-  \ first start, or when this conversation was already\nshown a block since its last\
-  \ compaction (read off the provider transcript the way the\nproof reads the start\
-  \ block) — so the same-epoch refresh in a second checkout prints it once, and a\n\
-  start whose output never reached the conversation leaves it due. It adds no state,\
-  \ gate or event:\nthe rows are derived from the journal, the card and the transcript\
-  \ at each start. `AGENTS.md\n§After /compact` keeps the pre-command cue (re-read\
-  \ the seed, then the receipt refresh) and one index\nline per step the block can\
-  \ name; startup content co-designed under route (a) may be wired into this\nblock\
-  \ as well as into that section. Code home: `bin/lib/session.py#post_compact_refold_lines`\
+  \ unchanged — they restore start-time state, not seed rules.\n**A second sanctioned\
+  \ post-`/compact` run comes FIRST — the PRINT-ONLY run (SPEC-1024 rule 8).**\nBefore\
+  \ the seed re-read, `bin/yitc-v2 session start --print-only` prints the restoration\
+  \ brief\n(what the session was, what it holds, what was pending, the ordered recovery\
+  \ steps) and stops. It\nstamps NOTHING: no seed receipt, no `session_started` anchor,\
+  \ no runtime record, no task, plan,\nworktree or receipt state; it writes only what\
+  \ every engine invocation writes (its invocation\nreceipt and the journal auto-sync)\
+  \ plus one delivery row when its output was delivered. A governed\nverb after it\
+  \ is still refused for the stale epoch. The order is fixed: the print-only run,\
+  \ then the\nseed re-read, then the stamping re-run above — which stays the session's\
+  \ only receipt producer and\nis unchanged by this case.\n**The re-run prints the\
+  \ post-compact re-fold steps.** A `session start` whose reading names\na compaction\
+  \ marker other than the one an earlier start of the same session recorded — a `cli:seed`\n\
+  receipt of that ref, in this checkout's journal or the main checkout's, stamped\
+  \ with another reading\n(by identity, SPEC-1023 rule 6; a pre-change numeric stamp\
+  \ names none) — prints ONE re-fold\nblock: a head naming both epochs, then one row\
+  \ per step that APPLIES to the session's state: the audience\nseed + floor trigger-map\
+  \ re-read and the two anchors; the session-tied `--help` rescan; the seed cues\n\
+  and when to read a seed body; the in-progress card of this checkout's own `task/`\
+  \ worktree with its\nresume contract and stage bundle; each plan this session's\
+  \ own `plan_stage_entered` rows took into\n`decomposition` and that is still there\
+  \ (`plan show` + SPEC-0070, never a re-run of `plan stage`,\nnever a `plans/` scan);\
+  \ for the Controller the open hand-offs and, on a worktree start, the cross /\n\
+  debt re-folds; for a `-C` consumer the engine invocation form, `graph query --kernel`\
+  \ retrieval and\nthe frontend-error and kernel-signaling re-folds; `audit status`;\
+  \ and for a Worker refreshing in its\ntask worktree the second refresh in the main\
+  \ checkout before `land`. No block is printed when the\nreading names no compaction\
+  \ marker (none, no transcript, or cannot tell), under a provider whose\ntool-result\
+  \ records the «already shown» proof below does not read (the block would repeat\
+  \ at every\nstart; the SPEC-1024 restoration brief carries the same steps there),\
+  \ at a session's first start, or when this conversation was already\nshown a block\
+  \ since its last compaction (read off the provider transcript the way the\nproof\
+  \ reads the start block) — so the same-epoch refresh in a second checkout prints\
+  \ it once, and a\nstart whose output never reached the conversation leaves it due.\
+  \ It adds no state, gate or event:\nthe rows are derived from the journal, the card\
+  \ and the transcript at each start. `AGENTS.md\n§After /compact` keeps the pre-command\
+  \ cue (re-read the seed, then the receipt refresh) and one index\nline per step\
+  \ the block can name; startup content co-designed under route (a) may be wired into\
+  \ this\nblock as well as into that section. Code home: `bin/lib/session.py#post_compact_refold_lines`\
   \ (what\nthe rows say) and `bin/lib/cli.py#_post_compact_refold_due` (when the block\
   \ is due). Verification:\ntests/test_t13687_post_compact_refold.py.\n**A receipt-only\
   \ start repeats nothing the same context epoch already holds.** A `session\nstart`\
@@ -284,9 +298,10 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ compaction, a tool result\nholding the whole output of a main-checkout `session\
   \ start` of this repository (its head line, the\nseed line, the filing-doctrine\
   \ line and the startup-done line — never the head line alone), and the newest seed\
-  \ receipt of the session on the\nmain checkout's journal is stamped with an epoch\
-  \ not older than the current — and every other state prints the full block: a session's\n\
-  first start (in a worktree or not), a dispatched Worker's first worktree start (the\
+  \ receipt of the session on the\nmain checkout's journal names the established reading\
+  \ (by identity, SPEC-1023 rule 6), and so does the\nsession's newest receipt in\
+  \ either checkout — and every other state prints the full block: a session's\nfirst\
+  \ start (in a worktree or not), a dispatched Worker's first worktree start (the\
   \ launcher's\npre-recorded receipt delivered nothing to its context), a start whose\
   \ output was discarded, a ref carried into\nanother conversation, and every main-checkout\
   \ start. Post-`/compact` (route (a)): a\n`/compact` advances the epoch, so the sanctioned\

@@ -324,6 +324,69 @@ def _classify_cc_entry(e: dict, *, _extract_text) -> str | None:
     return "owner_directive"
 
 
+# T-13788 (SPEC-1024 rule 6, §Parameters «Session-log adapter coverage»): the providers whose
+# conversation records this adapter reads. A provider outside it has a transcript the engine can
+# locate but not read as a conversation — the restoration brief shows that as a named gap.
+ADAPTER_PROVIDER_KINDS = ("claude-code", "codex")
+# What codex injects as `role: user` text that the owner never typed (R-live-codex, trial cycle 30):
+# the project instruction file, the environment block and the other harness-tagged blocks.
+_CODEX_INJECTED_PREFIXES = ("# AGENTS.md instructions for", "<environment_context>", "<user_instructions>",
+                            "<INSTRUCTIONS>", "<turn_aborted>", "<user_shell_command>", "<skills_instructions>",
+                            "<permissions instructions>", "<collaboration_mode>")
+
+
+def conversation_entry(e: dict) -> dict:
+    """T-13788: a codex conversation record in the claude-code entry shape this adapter classifies, else
+    `e` unchanged. A codex `response_item` / `message` with role `user` or `assistant` becomes a `user` /
+    `assistant` entry whose `uuid` is the record's message id. A user message's content is ONE STRING —
+    its owner-typed text items joined, the injected blocks (`_CODEX_INJECTED_PREFIXES`) left out — so
+    the classifier's list-content length heuristic (a claude-code context-injection shape) never turns a
+    long owner turn into an injection; a user message made only of injected blocks is flagged `isMeta`,
+    which the classifier already drops — injected environment / instruction blocks are not owner turns.
+    An assistant message keeps its text items as a list. Developer messages, reasoning, tool calls and
+    events stay as they were (no `uuid`, no `user`/`assistant` type), so nothing reads them as
+    conversation. Pure."""
+    if not isinstance(e, dict) or e.get("type") != "response_item":
+        return e
+    p = e.get("payload")
+    if not isinstance(p, dict) or p.get("type") != "message" or p.get("role") not in ("user", "assistant"):
+        return e
+    texts = [c.get("text") for c in (p.get("content") or [])
+             if isinstance(c, dict) and isinstance(c.get("text"), str)]
+    out = {"type": p["role"], "timestamp": e.get("timestamp"),
+           "uuid": p.get("id") or (f"ordinal-{e['ordinal']}" if e.get("ordinal") is not None else None)}
+    if p["role"] == "assistant":
+        out["message"] = {"role": "assistant", "content": [{"type": "text", "text": t} for t in texts]}
+        return out
+    owned = [t for t in texts if not t.lstrip().startswith(_CODEX_INJECTED_PREFIXES)]
+    out["message"] = {"role": "user", "content": "\n\n".join(owned)}
+    if texts and not owned:
+        out["isMeta"] = True
+    return out
+
+
+def conversation_turn(e: dict, *, _extract_text) -> "tuple[str, str, str] | None":
+    """T-13788 (SPEC-1024 rule 6): `(kind, text, uuid)` for a CONVERSATION turn — `owner` (the owner's
+    own turn, as `_classify_cc_entry` reads one: owner_directive or slash_command) or `reply` (a session
+    message carrying text) — else None. Tool calls, tool results, harness notifications and injected
+    blocks are None, so a caller counting turns never counts them. Both providers of
+    ADAPTER_PROVIDER_KINDS, through `conversation_entry`."""
+    e = conversation_entry(e)
+    if not isinstance(e, dict):
+        return None
+    if e.get("type") == "user":
+        if _classify_cc_entry(e, _extract_text=_extract_text) not in ("owner_directive", "slash_command"):
+            return None
+        return "owner", _extract_text((e.get("message") or {}).get("content")).strip(), e.get("uuid") or ""
+    if e.get("type") == "assistant":
+        content = (e.get("message") or {}).get("content")
+        texts = [b.get("text") for b in (content if isinstance(content, list) else [])
+                 if isinstance(b, dict) and b.get("type") == "text" and isinstance(b.get("text"), str)]
+        text = "\n".join(t for t in texts if t.strip()).strip()
+        return ("reply", text, e.get("uuid") or "") if text else None
+    return None
+
+
 # ---------------------------------------------------------------------------------------------
 # The dispatch CLASS vocabulary — the SINGLE carrier (T-10253).
 #
@@ -10308,7 +10371,8 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
         if not line:
             continue
         try:
-            entries.append(json.loads(line))
+            # T-13788: a codex conversation record is read in the claude-code entry shape (SPEC-1024 rule 6).
+            entries.append(conversation_entry(json.loads(line)))
         except json.JSONDecodeError:
             continue                        # lossy per-line skip
 

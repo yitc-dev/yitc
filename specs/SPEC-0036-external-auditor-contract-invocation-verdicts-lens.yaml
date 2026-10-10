@@ -125,23 +125,24 @@ body: "## Scenario\n\nBefore the AI runs an audit it must hold the audit contrac
   \ change stays routine); this is a\n  behavioral discipline, NEVER an auto-classifier\
   \ or gate (non-goal #7). Rationale: a weaker model\n  relitigates settled doctrine,\
   \ so a doctrine gate starts at the tier where doctrine is adjudicated.\n\n- **(a)\
-  \ No relitigation after a FULL consult settles a point.** Once a FULL consult (the\n\
-  \  ceiling-convergence consult, or a FULL ad-hoc) has SETTLED a point — a FRESH\
-  \ single-survivor\n  GREEN/YELLOW on the CURRENT subject — a subsequent ROUTINE\
-  \ re-audit MUST NOT relitigate that\n  settled point. The FULL consult is the authoritative\
-  \ adjudication; a routine RED that merely\n  RE-ASSERTS what the fresh FULL consult\
-  \ resolved is treated as DOCTRINE-INCONSISTENT and is NOT\n  relitigated — it is\
-  \ dispositioned in the audit YAML `session_disposition` citing the consult. SAME\
-  \ freshness guard binds BOTH: only a consult matching the CURRENT\n  subject (pre\
-  \ = plan_fingerprint, post = commit SHA) settles a point — a STALE / multi-survivor\
-  \ /\n  ABORT consult settles NOTHING, and a routine RED with no settling consult\
-  \ governs normally.\n\n### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)\n\
-  **CEILING CONTRACTS → SPEC-0124, SPEC-0204, SPEC-1018, SPEC-1014 (index).** No stage\
-  \ entry\nrenders them; fetch each at its trigger (`bin/yitc-v2 graph query <id>`):\
-  \ SPEC-0124 when a\nre-audit's pass charge is in question (ledger-skip axes, trend\
-  \ grant); SPEC-0204 when `audit\npre|post` halts at the ceiling; SPEC-1018 / SPEC-1014\
-  \ when a verb's help head names them.\n\nMaximum 2 absorption passes per TASK target\
-  \ per audit stage (a PLAN gate has NO pass-count\nceiling — its budget is decision-bounded,\
+  \ No relitigation after a FULL consult settles a point.** Once a FULL consult (a\
+  \ FULL\n  ad-hoc, or a ceiling-convergence consult recorded before SPEC-0204 rule\
+  \ 6 retired that route) has SETTLED a point — a FRESH single-survivor\n  GREEN/YELLOW\
+  \ on the CURRENT subject — a subsequent ROUTINE re-audit MUST NOT relitigate that\n\
+  \  settled point. The FULL consult is the authoritative adjudication; a routine\
+  \ RED that merely\n  RE-ASSERTS what the fresh FULL consult resolved is treated\
+  \ as DOCTRINE-INCONSISTENT and is NOT\n  relitigated — it is dispositioned in the\
+  \ audit YAML `session_disposition` citing the consult. SAME freshness guard binds\
+  \ BOTH: only a consult matching the CURRENT\n  subject (pre = plan_fingerprint,\
+  \ post = commit SHA) settles a point — a STALE / multi-survivor /\n  ABORT consult\
+  \ settles NOTHING, and a routine RED with no settling consult governs normally.\n\
+  \n### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)\n**CEILING CONTRACTS\
+  \ → SPEC-0124, SPEC-0204, SPEC-1018, SPEC-1014 (index).** No stage entry\nrenders\
+  \ them; fetch each at its trigger (`bin/yitc-v2 graph query <id>`): SPEC-0124 when\
+  \ a\nre-audit's pass charge is in question (ledger-skip axes, trend grant); SPEC-0204\
+  \ when `audit\npre|post` halts at the ceiling; SPEC-1018 / SPEC-1014 when a verb's\
+  \ help head names them.\n\nMaximum 2 absorption passes per TASK target per audit\
+  \ stage (a PLAN gate has NO pass-count\nceiling — its budget is decision-bounded,\
   \ SPEC-0204 rule 9(f), patterns/methodology-lessons.md\nLesson 11). The ceiling\
   \ counts RE-AUDIT passes — so HOW a finding is absorbed decides whether it\ncosts\
   \ a pass (E-0008): a PASSABLE finding (YELLOW / cosmetic / evidence-only — does\

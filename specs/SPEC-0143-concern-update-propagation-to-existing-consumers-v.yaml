@@ -228,7 +228,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#_surface_concern_drift: 729dc80316889d0ccf2fd83efe08bf113633ac7dcab8d8972101e8aca2b25615
+  bin/lib/cli.py#_surface_concern_drift: 54a58ec3163e339356092bf2505d84be9c8bebaf127ba7629cb2c68bbf2ae76c
   bin/lib/cross.py#auto_file_concern_drift_escalations: 7505f186ebf3949bcfc6672ee1d0efcece8a4e781b74b447e37fcb8658253464
   bin/lib/init.py#_adopt_concerns: 4b1b4585e06a331be3d18a914df9e73d072216d8f9ccd78947e61bcdcdb56ec7
   bin/lib/init.py#_adoption_stance_violations: a5793115f8a67253aab5ebcf47267d0f9b012e1e3925fa2053ab125e3fa3fced

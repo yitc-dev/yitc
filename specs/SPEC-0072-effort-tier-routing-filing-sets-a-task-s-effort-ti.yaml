@@ -235,7 +235,7 @@ binding:
 implements_signature:
   bin/effort-routing-config.yaml: 0a8a96b1caea36e3da7effdb489ce2fe4e43e7ca08adc188370d45159c562150
   bin/lib/cli.py#_resolve_config_model: d0f349afb9f3372a9804fa2207a17416e64790201f6d3d780a20c68ef5a8369d
-  bin/lib/cli.py#_resolve_effort_reserve: ab4275aeaa40693b9a3a3364c6e1d8ee2a8d016726721f2fd3f19fad4d821ec1
+  bin/lib/cli.py#_resolve_effort_reserve: 9f71d9d17fa86fd094501b9af3fcdbc1ac3779b30f41245608ee506a2676030a
   bin/lib/cli.py#_resolve_effort_routing: 82c34dc05fc3d7fc9bbb4ea4d06e8970ca952b96c6cdebd31193d85e2b2c81c8
   bin/lib/cli.py#_resolve_warm_worker_cap: aefc2e51cad053ff361818be4b28cb3b5b7363c4587db66edb4affd05ac53b1a
   bin/lib/cli.py#_resolve_worker_binary: 15c4e30a31bd509a9705a546ea7375b1e361aad288e59649d23d26f889e1fa3e
@@ -244,5 +244,5 @@ implements_signature:
   bin/lib/dispatch.py#cmd_dispatch: 0b41aad5d1b2c91dc6217bd18b923c2a5233eaf7a4223cbddc73c06ee73fe89e
   bin/lib/dispatch.py#launch_worker_with_pair: 4330b00e18ebeb5505ee8333455c912b877d4e6d86f2d61e86a3ff03b2bc84d6
   bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
-  bin/lib/task.py#cmd_task_update: 7812d9b7ec3313602f8e068192f6ac45811392f565d28efaf94a4832f0992ea2
+  bin/lib/task.py#cmd_task_update: 225ebc824e9674e816575ab125c131cf7c81c3ac35b7e0261627ebf5b8c1d3be
   bin/lib/vocab.py#EFFORT_TIERS: b38096233a832463132e624e5584a84690132664d8aa4ba813179b39320ded0d

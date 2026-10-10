@@ -406,8 +406,8 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ to this echo's output (the host residue that computes the debt\n   lines also\
   \ appends `session.startup_check_lines`). It therefore inherits rules 2/3/5 verbatim\
   \ —\n   the same seams (session-start / `debt` re-fold) verbatim, SUPPRESSED-WHEN-CLEAN,\
-  \ report-only,\n   no new store/mechanism (P1). The kernel's own sessions have no\
-  \ `yitc-ops.yaml`, so this appends\n   nothing there.\n8. **Per-consumer born-schema-skew\
+  \ report-only,\n   no new store/mechanism (P1). The kernel's own file declares none\
+  \ of these checks, so this appends\n   nothing there.\n8. **Per-consumer born-schema-skew\
   \ SELF-check (SPEC-0123; supersedes engine-side\n   sweep).** A report-only line\
   \ APPENDED to this echo (host residue `session.born_skew_check_line`,\n   after\
   \ the startup-check line): whether THIS repo's OWN `yitc-ops.yaml` carrier is BEHIND\
@@ -934,7 +934,7 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ append + one library reader; P1). BEST-EFFORT / fail-safe: an absent\n    carrier/section,\
   \ a malformed entry, an unparseable command, or a resolver error is SKIPPED — a\n\
   \    report-only surface must never break startup (the rule-7 fail-safe posture).\
-  \ The engine's own repo\n    has no `yitc-ops.yaml`, so only the injected auditor\
+  \ The engine's own file\n    declares none of them, so only the injected auditor\
   \ binary is preflighted there; a user for whom\n    every declared command resolves\
   \ ⇒ nothing collected ⇒ suppressed.\n\n16. **Runtime-delivery coherence — the REVERSE\
   \ reading of not-adopted (X-0370).** An OPTIONAL\n    injected report-only view\
@@ -1034,29 +1034,30 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ the carrier + the journal + git, nothing else). NO new store / event / verb /\n\
   \    knob (one more OPTIONAL injected collaborator; P1). UNFLOORED, on the same\
   \ ground as rules 11/12/13:\n    one commit live behind no gate is exactly the debt\
-  \ this view exists to name. A repo with no carrier\n    (the engine kernel itself)\
-  \ ⇒ count 0 ⇒ suppressed, so history is never retro-charged.\n    The init seam\
-  \ gets the SAME question at bootstrap, report-only\n    (`init._render_init_runtime_delivery_prompt`\
-  \ — the `_render_init_source_layer_prompt` twin): it\n    appends NOTHING to the\
-  \ fail-closed `unanswered` list, so no `init` can ever fail on it.\n\n17. **Broken\
-  \ outcome-invariants — does the PRODUCT still work? (X-0419).** An OPTIONAL\n  \
-  \  injected report-only view (`debt.broken_outcome_invariants`, collaborator of\
-  \ `_render_debt_echo`)\n    over THIS repo's declared `outcome_invariants:` (SPEC-0093\
-  \ rule 24) + the journal + the declared\n    read-only probes. Every other view\
-  \ in this echo reports debt ABOUT THE PROCESS — what was,\n    declared, owed, watched.\
-  \ This one reports whether the thing the process exists to produce is still\n  \
-  \  WORKING.\n    **The gap it closes.** Adoption evidence (CHARTER §P3/§P8) is framed\
-  \ on the DIFF: every card proves\n    that ITS OWN change was adopted. Nothing in\
-  \ that frame ever asks whether a long-lived SUBSYSTEM —\n    one that no current\
-  \ card owns — still does its job. So an unowned subsystem has NO outcome probe and\n\
-  \    CANNOT be observed broken. X-0419 (<project>, 2026-07-15) is that gap cashing\
-  \ in: five remediation\n    tasks closed GREEN over three days while the product\
-  \ stayed broken; 34 cards rode that one surface\n    and not one owned \"does it\
-  \ still work?\"; and the OWNER remained the only monitor. SPEC-0093 rule 24\n  \
-  \  makes the standing outcome SAYABLE; this view is what READS it, so a covered\
-  \ subsystem that breaks\n    surfaces ITSELF at the next seam. That is the retirement\
-  \ this line buys (§P1 F3): the\n    owner-as-monitor role for a covered subsystem.\n\
-  \    **The trigger is ENUMERATED, never prose** (`lessons/report-only-advisory-never-exempts-a-contradiction`\n\
+  \ this view exists to name. A repo that declares\n    none of this section and bind-mounts\
+  \ nothing in production (the engine kernel itself) ⇒ count 0 ⇒\n    suppressed,\
+  \ so history is never retro-charged.\n    The init seam gets the SAME question at\
+  \ bootstrap, report-only\n    (`init._render_init_runtime_delivery_prompt` — the\
+  \ `_render_init_source_layer_prompt` twin): it\n    appends NOTHING to the fail-closed\
+  \ `unanswered` list, so no `init` can ever fail on it.\n\n17. **Broken outcome-invariants\
+  \ — does the PRODUCT still work? (X-0419).** An OPTIONAL\n    injected report-only\
+  \ view (`debt.broken_outcome_invariants`, collaborator of `_render_debt_echo`)\n\
+  \    over THIS repo's declared `outcome_invariants:` (SPEC-0093 rule 24) + the journal\
+  \ + the declared\n    read-only probes. Every other view in this echo reports debt\
+  \ ABOUT THE PROCESS — what was,\n    declared, owed, watched. This one reports whether\
+  \ the thing the process exists to produce is still\n    WORKING.\n    **The gap\
+  \ it closes.** Adoption evidence (CHARTER §P3/§P8) is framed on the DIFF: every\
+  \ card proves\n    that ITS OWN change was adopted. Nothing in that frame ever asks\
+  \ whether a long-lived SUBSYSTEM —\n    one that no current card owns — still does\
+  \ its job. So an unowned subsystem has NO outcome probe and\n    CANNOT be observed\
+  \ broken. X-0419 (<project>, 2026-07-15) is that gap cashing in: five remediation\n\
+  \    tasks closed GREEN over three days while the product stayed broken; 34 cards\
+  \ rode that one surface\n    and not one owned \"does it still work?\"; and the\
+  \ OWNER remained the only monitor. SPEC-0093 rule 24\n    makes the standing outcome\
+  \ SAYABLE; this view is what READS it, so a covered subsystem that breaks\n    surfaces\
+  \ ITSELF at the next seam. That is the retirement this line buys (§P1 F3): the\n\
+  \    owner-as-monitor role for a covered subsystem.\n    **The trigger is ENUMERATED,\
+  \ never prose** (`lessons/report-only-advisory-never-exempts-a-contradiction`\n\
   \    rule 1). ONE row per declared invariant, in ONE of THREE states, precedence\
   \ highest first — worded\n    and rendered APART because their remedies differ,\
   \ and a merged count would be unactionable:\n    (a) `broken` — the probe RAN and\
@@ -1117,11 +1118,11 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ NO new store / event type / verb / knob (one more OPTIONAL injected collaborator;\
   \ P1).\n    UNFLOORED, on the same ground as rules 11/12/13/14: ONE broken product\
   \ outcome is real debt, and\n    count-hiding it would restore the exact silence\
-  \ this view exists to end. A repo with no carrier (the\n    engine kernel itself)\
-  \ ⇒ count 0 ⇒ suppressed, so history is never retro-charged (the SPEC-0149\n   \
-  \ fold-side-default lesson). BEST-EFFORT / fail-safe: an unreadable/malformed carrier,\
-  \ a malformed\n    journal line, or a probe runner that RAISES is contained — never\
-  \ fatal to the seam it rides.\n\n18. **Unresolved worker halts — dispatch/worker\
+  \ this view exists to end. A repo that declares none\n    of these invariants (the\
+  \ engine kernel itself) ⇒ count 0 ⇒ suppressed, so history is never retro-charged\n\
+  \    (the SPEC-0149 fold-side-default lesson). BEST-EFFORT / fail-safe: an unreadable/malformed\
+  \ carrier, a malformed\n    journal line, or a probe runner that RAISES is contained\
+  \ — never fatal to the seam it rides.\n\n18. **Unresolved worker halts — dispatch/worker\
   \ TERMINAL-ATTENTION debt.** An OPTIONAL\n    injected report-only view (`debt.unresolved_worker_halts`,\
   \ collaborator of `_render_debt_echo`)\n    over the dispatch journal: the worker\
   \ halts whose CAUSE the journal has NOT recorded as cleared.\n    The SIBLING of\
@@ -2438,21 +2439,21 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ forever).\n- **Concern-conformance :** a synthetic carrier with an unanswered/contradictory\
   \ stance OR a\n  lapsed-`expiry:` waiver surfaces ONE report-only `concern-conformance`\
   \ line at `bin/yitc-v2 debt`\n  (both seams) AND flags on the nightly runner; a\
-  \ conformant carrier (and the no-carrier engine kernel)\n  prints nothing (suppressed-when-clean).\
-  \ Unit tests: the render-helper line + `init.concern_conformance`\n  stance/currency\
-  \ verdict + the nightly `_check_concern_conformance` verdict.\n- **Unratified adoptions\
-  \ on the nightly (rule 13's nightly leg):** DIFFERENTIAL over a fixture\n  carrier\
-  \ that is LEVEL on every sibling check — a registry consumer whose `adoption:` record\
-  \ reads\n  `adopt` while still stamped `owner: init` over a DECLARED section is\
-  \ REPORTED by a `nightly --dry-run`\n  with NO session EVER opened in it (a bare\
-  \ dir + a carrier: no git, no events, no session): the report\n  names the project\
-  \ + the concern, counts the item, grades it `alert`, and NAMES the owner's ratify\
-  \ exit\n  without ever performing it. The SAME carrier with that one record re-recorded\
-  \ under a NAMED owner\n  reports NOTHING (verdict `ok`, count 0) — the only byte\
-  \ that changes between debt and clean is the\n  owner, so the arm fails if the check\
-  \ fires on the record rather than on the birth sentinel.\n  Level-on-the-siblings\
-  \ is load-bearing: a carrier that alerts on concern-drift/conformance anyway would\n\
-  \  make the verdict unattributable. Per-CLASS arms\n  (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`\
+  \ conformant carrier, and a repo without a carrier,\n  print nothing (suppressed-when-clean);\
+  \ the engine kernel is not judged at all (rule 9).\n  Unit tests: the render-helper\
+  \ line + `init.concern_conformance`\n  stance/currency verdict + the nightly `_check_concern_conformance`\
+  \ verdict.\n- **Unratified adoptions on the nightly (rule 13's nightly leg):** DIFFERENTIAL\
+  \ over a fixture\n  carrier that is LEVEL on every sibling check — a registry consumer\
+  \ whose `adoption:` record reads\n  `adopt` while still stamped `owner: init` over\
+  \ a DECLARED section is REPORTED by a `nightly --dry-run`\n  with NO session EVER\
+  \ opened in it (a bare dir + a carrier: no git, no events, no session): the report\n\
+  \  names the project + the concern, counts the item, grades it `alert`, and NAMES\
+  \ the owner's ratify exit\n  without ever performing it. The SAME carrier with that\
+  \ one record re-recorded under a NAMED owner\n  reports NOTHING (verdict `ok`, count\
+  \ 0) — the only byte that changes between debt and clean is the\n  owner, so the\
+  \ arm fails if the check fires on the record rather than on the birth sentinel.\n\
+  \  Level-on-the-siblings is load-bearing: a carrier that alerts on concern-drift/conformance\
+  \ anyway would\n  make the verdict unattributable. Per-CLASS arms\n  (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`\
   \ — \"enumerate the entry CLASSES... assert\n  each class's answer in its own probe\"\
   ): an ABSENT carrier stays `skip` (never alert — the SPEC-0093\n  init sweep owns\
   \ not-yet-initialized), while an UNREADABLE carrier ALERTS with the parse error\
@@ -2537,7 +2538,7 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ kind / bad argv / non-zero exit\n  / non-JSON / no boolean `ok` / a runner that\
   \ RAISES) folds `DEGRADED` — never silently green, the arm\n  that forbids hiding\
   \ a broken subsystem behind a broken probe. A SECTION-level waiver, a single waived\n\
-  \  ENTRY, and a repo with NO carrier (the engine kernel itself) each print NOTHING\
+  \  ENTRY, and a repo declaring NONE (the engine kernel itself) each print NOTHING\
   \ — only the DECLARED,\n  non-waived set can interrupt (`lessons/scope-the-trigger-not-the-view`),\
   \ so history is never\n  retro-charged. A missing/malformed carrier and a malformed\
   \ journal line both fold to a clean zero-count\n  without raising — the seam is\
@@ -3467,22 +3468,22 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ carrier, a\n    section or layer waiver, no declared subject, no candidate, any\
   \ swallowed exception) resolves to\n    the reading that does NOT accuse (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate.md`):\n\
   \    one false accusation gets the whole echo skimmed, while a missed detection\
-  \ only leaves the\n    silence that already existed. A repo with no carrier — the\
-  \ engine kernel itself — folds to 0, so\n    history is never retro-charged (the\
-  \ SPEC-0149 lesson).\n    **ROLLOUT IS REPORT-ONLY BY CONSTRUCTION, answering the\
-  \ consult's finding 2** (an immediate hard\n    gate would redden the whole fleet\
-  \ at once): a debt view returns a dict rendered into an echo that\n    nothing reads\
-  \ for a verdict, so NO consumer's PASS can become a FAIL through this rule. Promotion\n\
-  \    to enforcement, if ever, is a separate decision with its own evidence.\n  \
-  \  **POSTURE.** Rides rules 2/3/5 verbatim: suppressed-when-clean, ZERO stored state,\
-  \ NO new event\n    type, no new store, no new verb, no new seam, no knob, no exit\
-  \ code, no gate. UNFLOORED — one\n    declared-but-unexecuted file is already the\
-  \ whole defect. Names the FILES, not a bare count: the\n    remedy is per-file.\n\
-  \    **CHARTER §P1 FILTER 3, STATED PLAINLY.** What this removes is N consumer-local\
-  \ reimplementations\n    of the same comparison (<project> already carries one)\
-  \ and the blind spot in false-PASS verdicts on\n    the subject_globs axis; it also\
-  \ removes a duplicated naming predicate by extracting it. No further\n    deletion\
-  \ is invented to make the filter look stronger.\n    Unit tests (`tests/test_t11886_unexecuted_subject_files.py`):\
+  \ only leaves the\n    silence that already existed. A repo that declares none of\
+  \ these subjects — the engine kernel\n    itself — folds to 0, so history is never\
+  \ retro-charged (the SPEC-0149 lesson).\n    **ROLLOUT IS REPORT-ONLY BY CONSTRUCTION,\
+  \ answering the consult's finding 2** (an immediate hard\n    gate would redden\
+  \ the whole fleet at once): a debt view returns a dict rendered into an echo that\n\
+  \    nothing reads for a verdict, so NO consumer's PASS can become a FAIL through\
+  \ this rule. Promotion\n    to enforcement, if ever, is a separate decision with\
+  \ its own evidence.\n    **POSTURE.** Rides rules 2/3/5 verbatim: suppressed-when-clean,\
+  \ ZERO stored state, NO new event\n    type, no new store, no new verb, no new seam,\
+  \ no knob, no exit code, no gate. UNFLOORED — one\n    declared-but-unexecuted file\
+  \ is already the whole defect. Names the FILES, not a bare count: the\n    remedy\
+  \ is per-file.\n    **CHARTER §P1 FILTER 3, STATED PLAINLY.** What this removes\
+  \ is N consumer-local reimplementations\n    of the same comparison (<project> already\
+  \ carries one) and the blind spot in false-PASS verdicts on\n    the subject_globs\
+  \ axis; it also removes a duplicated naming predicate by extracting it. No further\n\
+  \    deletion is invented to make the filter look stronger.\n    Unit tests (`tests/test_t11886_unexecuted_subject_files.py`):\
   \ the DIFFERENTIAL is in the file, not\n    a story about it — a red leg (two suites\
   \ inside a declared subject, one named) and its green twin\n    differing by exactly\
   \ ONE line, plus the AC2 adequacy boundary proved twice (a thin-but-executed\n \
@@ -4124,7 +4125,7 @@ implements_signature:
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
   bin/lib/debt.py#_debt_echo_compact: e941b54796a1c92b203449ea1e153015f223f0c9f572028e8609f1021d6a11fa
-  bin/lib/debt.py#_debt_echo_lines: 80ed97c75cb4edf2efe647449912d6eae6f6e1c0cb9bdacf7518cbbb1f72afae
+  bin/lib/debt.py#_debt_echo_lines: 8991b06c7108331c7ed6f5370622a178b83a4f3abc0d98f805ff87154e78e008
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
@@ -4144,7 +4145,7 @@ implements_signature:
   bin/lib/debt.py#debt_row_class: 523ae1660cfcc5f724ec5ed418bf4c29c4ff869422266f7cb0d9c13ae4f1270f
   bin/lib/debt.py#debt_row_count: 0a05acb80ffe2d51dcf17d4926b0cb4309e7d7b48d202e4888c8a48db8bb4721
   bin/lib/debt.py#debt_row_verb: ca9f0835c8b2c4f611ec33e8002a7a8b3a8f39bb7dd94eba2598e79c24f6ee6c
-  bin/lib/debt.py#declared_outcome_invariants: 6403345f9db56dc3df67a97976c2ae9510406cbe8fb481a92ac2c68eba96d747
+  bin/lib/debt.py#declared_outcome_invariants: 9594d38181a31a793ef59d36967ff941af57c3abb0eab84872041c7738188de6
   bin/lib/debt.py#late_findings_per_pass: 5e45863430cb1c0bd3d50731a2f4d9d926e75586aa9955fe302573823bb1f0d1
   bin/lib/debt.py#load_sensitive_carded: 7a1d5555ed45ecd299ca1d9f97d361c38f7012cce622983ba54f99900209f19f
   bin/lib/debt.py#load_sensitive_fingerprint: 136fee48b1b0dab262584ed8976538bb0ad08525529b4a29fc4e89ca1f37667a
@@ -4154,9 +4155,9 @@ implements_signature:
   bin/lib/debt.py#nonterminal_plan_census: 90a7ab1c1ec320c616ecc84f0a8ecaeef2c758d51d3a95599d0ffa4fc439d704
   bin/lib/debt.py#prequeue_known_broken_refusals: 650d18dd78a57e07aede37209820c72e1e3e4da30857eb99c266a2fa2ce8144d
   bin/lib/debt.py#probes_awaiting_first_check: a76519dd660e599af512d66e10493f79ddf90e384de8e7963f542392c7994741
-  bin/lib/debt.py#profile_gap_register: 048350b595ecc4860da381d824136a8b5d50b6f7dc7e1e5cc7ae69437f7d86ee
+  bin/lib/debt.py#profile_gap_register: 773348a13ad46781d8d9d47762ccaf06e19522329c155b8e557e8c55c9a08c38
   bin/lib/debt.py#recorded_measurement_drift: b57170981a1e350f30749860d2e6056531fdc15d4b552527b71f1f1dcf905111
-  bin/lib/debt.py#runtime_delivery_coherence: fb80f6b00e81fefc55ed64e2b5e6e757e70a771bc3016a1c05e3f57b6efe2825
+  bin/lib/debt.py#runtime_delivery_coherence: 498101f5aa3c01403defbf34246d95193f67ec50396e7584fb1f8d6697c9e0cd
   bin/lib/debt.py#selection_rollback: 873068ffcd3c7f45d3de1314cb5866964f1797704c8d677dbaa569603693a214
   bin/lib/debt.py#source_mount_evidence: 74a23e0a40baf495c15743b110a887a86c4174c39dadd9a846d5804180aad704
   bin/lib/debt.py#unmonitored_dispatches: cf84cb437afea4b677956328d86553151c008132c72f83f394391d47127af6b0
@@ -4169,15 +4170,15 @@ implements_signature:
   bin/lib/debt_adoption.py#_p8_card_declares_carrier: d4a9168a3a693f4b24f6547e845b577a106127f8990688103b6d1a0ad826b0b9
   bin/lib/debt_adoption.py#_p8_carrier_task_ids: d60373be00e49264dad2c1ff2c61a885c13c278f8b79b7c95fc0b35c9592d3b7
   bin/lib/debt_adoption.py#_p8_later_evidence_clears: 8d5bfb423f22eab2ae3873f1f76134ce0786038d688b122c05b468ab5e79e27a
-  bin/lib/debt_adoption.py#_unexecuted_subject_result: 1edf3d0b8fb0e99828ff2977d1e40164919facd9e9fa1056219e8cb3c882c0a0
+  bin/lib/debt_adoption.py#_unexecuted_subject_result: 9e1562fb7fabdf70bda9927276d4db11c1f07ced6a125fd5738e55d8d9f08eea
   bin/lib/debt_adoption.py#gap_dedupe_key: e34d3f3484f0662a969ab50d26dac636d65c17726842a402f21655c07003a378
   bin/lib/debt_adoption.py#gap_rank: 5651fb1e12cebea4d99c2f3f9c809aab69101edb4017d60082f0c277d739d67c
   bin/lib/debt_adoption.py#gap_task_linked: 3893e4f233a183b709d8e9d941484900586687c673663afdef13dc927f8166e6
-  bin/lib/debt_adoption.py#open_known_broken: 5a228dbc90e35fa3e0f6f646f3a06e47ad27fc1984cb1df531a4b3743738e965
+  bin/lib/debt_adoption.py#open_known_broken: 3beeeef7fbde6d285ca279d3d420d01053530d14182645f81f0a50408b915025
   bin/lib/debt_adoption.py#open_subcritical_findings: 0305df9e23683084a6d3967440e6482f7ae01900459800b54126e8d9a8647a4a
   bin/lib/debt_adoption.py#p8_carrier_followups: e2698a024c0101d29e9d11452007fa35c3aa71ed30a5a1f9e26026d25282b8c7
   bin/lib/debt_adoption.py#uncarried_p8_warns: c2dc1a937f341b1a116a8ea0f2f8fe757b7d8e3d01853c62eaaa017dd0004305
-  bin/lib/debt_adoption.py#unexecuted_subject_files: acfff1c279962fc968ee9e494ba3d7e64a7cf4e161ca2dc00f873b53b8768335
+  bin/lib/debt_adoption.py#unexecuted_subject_files: a1ea354b46ac32ac9747fdb5943ee566c1bb41678c4e9eb786748071ca3ec78a
   bin/lib/debt_adoption.py#unresolved_worker_halts: a14fcd9a6710ec8109c2bc1e169883a9e6aae1080fae9793401d4a0c9399243b
   bin/lib/debt_landing.py#ABORT_CLASS_PARK_LIMIT_EVICTION: 9e95d5f31ba6804f9532e78cff031ba18806fb99d68dd18a67a2b7a6eee36990
   bin/lib/debt_landing.py#ABORT_COST_MATERIAL_MS: 64a2c55d7e9524685d42f99be9b89ae556e08ccc965a590986bfbff4e11870d7
@@ -4200,7 +4201,7 @@ implements_signature:
   bin/lib/debt_landing.py#_is_corpus_guard_assertion: 88aabf7068bcb5175629bdd4234c610023e27af032ec0e769f6f4de7114b6c26
   bin/lib/debt_landing.py#_is_layer_timeout_assertion: f95d6a601e386023ed5a607a004a2f56cb586fe3fef6289116729ebbcc4f82df
   bin/lib/debt_landing.py#_row_has_timed_out_layer: 14ff928a5583f7086b1e0610846c3c0909768a9faaf5c4412b342b39963cbe7f
-  bin/lib/debt_landing.py#_slowest_records: 6479f3079a83e06bbd4af5b0982f448c28498c775801c150ad50268715c62a25
+  bin/lib/debt_landing.py#_slowest_records: e4394d5cddf13c85b4ac2b1f6564fe12423c573babcccf0cf179961c28dbf094
   bin/lib/debt_landing.py#abort_arm_is_caught_defect: dd87a29f0e39679d99183b4d79a801507db49e6e1ad15949964d8d2f49620e5f
   bin/lib/debt_landing.py#abort_class_is_park_limit_eviction: 3a59788ddad30fb353de7f904e63288dd00cb363c77046be893508aed0d96e80
   bin/lib/debt_landing.py#aborted_land_cost: f1134d0e377dc03b35a3ad2d5344b1864b562691a3515639d434febbabfef6a8
@@ -4209,11 +4210,11 @@ implements_signature:
   bin/lib/debt_landing.py#branch_unlanded_attempt_burn: 2f65d49b234e8e17a853a2524348e78796355d0bf92772d9561876925b281533
   bin/lib/debt_landing.py#dead_lands: 4e05d52f06ecaa95f7734fed48b31e8ffad6b3383fa24215d26fdffc1e5db11f
   bin/lib/debt_landing.py#holder_liveness: da5915e8f4908e6d781b874a737c028c8af184f82fca1b1b8fa0db7fc119b4e8
-  bin/lib/debt_landing.py#land_abort_cause_breadth: aad1870b9809322b13f1783fe48eea6bb3f653b7c8d8d40235cce0a8d84009e0
+  bin/lib/debt_landing.py#land_abort_cause_breadth: a98dc06aa0d5e133f2f034dd0f93280a2b4500d8f276c86784c1cc362f90223a
   bin/lib/debt_landing.py#remote_lag: 9598c29685d65d9f341d5c2aa4b9b3a7a821abaf967b2bcfbe48053dcfe5af11
   bin/lib/debt_landing.py#slowest_decile_changes: 96df46981ba22005df72ac808aa219a8a27782d0d4bcc46a09a83912a1306491
   bin/lib/debt_spec0161.py#spec0161_declared_types: ddc8eb623d7a6747516f3ec2834a01a2f686b0188b6b0b21f9fe7bbbc136bfa7
-  bin/lib/debt_spec0161.py#spec0161_payload_key_coverage: 25c4f577145c18148f90600f8d1392ff097353eefefa0e6c27a71411df466986
+  bin/lib/debt_spec0161.py#spec0161_payload_key_coverage: e3f6cdb3eeafaea3728b84e9f5824f6989a9124949e50ff1675b450f6c141159
   bin/lib/init.py#_born_comment_anchors: 3f4eae930fd26f47af10d39bfe858ff638673a0fe27e80a6c3b59b28e47d7e5e
   bin/lib/init.py#_carrier_comment_contract_gaps: 9fbdac8d0e984e4907f01d85807465259730890a1bc2c4f6c1d118846388e761
   bin/lib/init.py#_carrier_comment_contract_verdict: 23c72510340439a511796636fd8bb0e1f82cf797321d50da2d5f008e358d1a4c
@@ -4229,16 +4230,16 @@ implements_signature:
   bin/lib/nightly.py#_check_unratified_adoptions: 2da20549af6874ea9b0cfbc9b53a191e5159c78027986bfeeb826f8bc16908be
   bin/lib/session.py#_capability_executable: 28d9fbc1871fddaea9dbc1c3edc4a952566b26160cb5b56b55500eb7b160bee0
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
-  bin/lib/session.py#born_skew_check_line: 6c2d6c6f268f600c92431291932c807dd706ddb844c1b6271fc58447c3fdd822
-  bin/lib/session.py#capability_preflight_lines: 860121ce25b78e33b384361819ca9f313739ac1ad6cc1233e32acd18fb49500b
-  bin/lib/session.py#cmd_session_start: 55b803addbb3526bfd95d2870ea129a26adae9b1c165d8649f27a8b44fd56653
+  bin/lib/session.py#born_skew_check_line: 01c8dd8bcee9171140b41bfcfa3573bba4caa561492c708b1f7318b54be777a8
+  bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
+  bin/lib/session.py#cmd_session_start: ff5ccade440c951dd10e6aa899e14373bed71eeb27d96ddfaa47e5b1b1764bbe
   bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
-  bin/lib/task.py#cmd_task_update: 7812d9b7ec3313602f8e068192f6ac45811392f565d28efaf94a4832f0992ea2
+  bin/lib/task.py#cmd_task_update: 225ebc824e9674e816575ab125c131cf7c81c3ac35b7e0261627ebf5b8c1d3be
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: f74108dcabe4d877ecec89cdfb1910c02b6c415e832e4087c71007e6618452a1
+  bin/lib/views.py#_render_debt_echo: 2eaf888c6f234272a1674b14418484762bcbcb9594f372d75149ad9b8095df99
   bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

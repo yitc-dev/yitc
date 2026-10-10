@@ -152,71 +152,73 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ cue (X-0246) —** would this criterion still pass if the thing under test were\n\
   \   BROKEN? If yes it is a smoke check, not a probe — name the input that must make\
   \ it FAIL (rule home\n   → CHARTER §P3 done=adopted). An authoring PROMPT only:\
-  \ no card is refused for omitting it.\n   **Cohort-complement cue (X-0419) —** does\
-  \ this card REMEDIATE a cohort its fix SELECTS (a filter, a\n   fence, a WHERE clause,\
-  \ an id list)? Then probe the COMPLEMENT, not only the selected set: name what\n\
-  \   the selector EXCLUDES and why that exclusion is right. A card that probes only\
-  \ its own selector is\n   green by construction — it cannot see the rows its own\
-  \ fence silently dropped (rule home → CHARTER\n   §P3 done=adopted: what is adopted\
-  \ is the OUTCOME, not the selector). An authoring PROMPT only: no\n   card is refused\
-  \ for omitting it.\n   **Cited-desired-exclusion cue (X-0419) —** does a criterion\
-  \ assert an exclusion is DESIRED (a\n   NEGATIVE probe — \"these stay excluded\"\
-  \ / \"this stays absent\")? Then CITE the artifact or\n   owner-decision that DECIDED\
-  \ that exclusion. An uncited negative probe encodes the AUTHOR'S\n   ASSUMPTION\
-  \ as an executable green guarantee — and the assumption outlives the author (rule\
-  \ home →\n   CHARTER §P3 + SPEC-0005 rule 3 content-boundary: a claim resolves to\
-  \ the home that decided it, or\n   it is not a decided claim yet). An authoring\
-  \ PROMPT only: no card is refused for omitting it.\n   **Test-or-waive cue —** does\
-  \ each criterion NAME the executable test that verifies it (a\n   test path or a\
-  \ pinned-suite test id) OR carry an explicit waive `test-not-applicable:` when the\n\
-  \   criterion is genuinely verified another way (a `graph query` state-check, an\
-  \ event emit)? An AC\n   that names NEITHER is a claim with no named verifier —\
-  \ \"done\" is asserted with nothing that runs\n   to prove it. The waive's form\
-  \ and fields are SPEC-0165 item 4's (one home); a bare marker with no\n   reason\
-  \ still counts as unnamed. `task file` surfaces the per-AC status as the report-only\n\
-  \   `AC test/waive status (advisory — filing not blocked)` line, and a waive missing\
-  \ an item-4 key on\n   the `AC waive fields (advisory — filing not blocked)` line\
-  \ (registry row 9 in `## Implementation notes`). An authoring PROMPT only: no card\
-  \ is\n   refused for omitting it (rule home → this item + CHARTER §P3 done=adopted).\n\
-  \   **Born-armed-carrier cue —** does a criterion defer work to a FOLLOW-UP (a CHARTER\
-  \ §P8\n   adoption carrier, a staged dodelka) whose firing moment is a NAMEABLE\
-  \ artifact — a task or\n   coordination id whose closure IS that moment? Then capture\
-  \ it BORN ARMED, `followup add --trigger\n   '<the moment>' --awaits <T-NNNN|X-NNNN>`,\
-  \ never with the wait written as prose: a prose wait lands\n   in the actionable\
-  \ headline and reads as do-now for as long as it is open. Leave it ACTIONABLE only\
-  \ when nothing resolvable names the moment — an event class fires\n   on MEMBERSHIP,\
-  \ so a «next occurrence of <type>» wait has no artifact at all. `followup\n   add`\
-  \ surfaces this itself as a report-only advisory when the capture text names a still-open\n\
-  \   reference. **First ask WHOSE journal the moment lands in (owner ruling 2026-09-04):**\
-  \ a\n   KERNEL-side moment takes the armed followup above, while a CONSUMER-side\
-  \ one — the next deploy,\n   run or reading in ANOTHER project — cannot be carried\
-  \ by a followup here at all and routes as a\n   `cross request --kind task --to\
-  \ <consumer>` asking that project to arm its own followup and\n   report the reading\
-  \ back, with at most ONE followup on this side armed on the resulting `X-NNNN`.\n\
-  \   An authoring PROMPT only: no card is refused for omitting it (rule home → SPEC-0095\
-  \ §Armed).\n   **How a named test is RECOGNIZED is not this item's rule —** a project\
-  \ that declares where its\n   test files live is read from that declaration, and\
-  \ the kernel's own filename pattern is only\n   the fail-open default for a project\
-  \ that declares none (rule home → SPEC-0185 half (c) + §2a;\n   the declarable carrier\
-  \ is `tests.classes[].globs`, shape owned by SPEC-0160 rule 10).\n   **The named\
-  \ verifier is NOT the P8 adoption-evidence payload —** the test this cue asks\n\
-  \   you to NAME is the criterion's VERIFIER: what RUNS to prove the AC. That is\
-  \ a DIFFERENT slot from\n   the CHARTER §P8 adoption-evidence event a `class: infra`\
-  \ closure composes, whose payload has its\n   own admissibility contract — SPEC-0015\
-  \ §\"The EVENT carrier must resolve machine evidence + a\n   differential\" owns\
-  \ it, and the test run's journal trace is not among what it admits (not restated\n\
-  \   here — P5). So naming a test path in an AC is always legitimate, but do NOT\
-  \ write a criterion that\n   DEMANDS the P8 payload REFERENCE that test's run: it\
-  \ is unsatisfiable by construction, green\n   nowhere, and reads at audit-post as\
-  \ an unmet AC rather than an authoring defect. When a criterion needs\n   adoption\
-  \ evidence, point the payload at the MECHANISM's own production event; the named\
-  \ test stays\n   the verifier alongside it.\n   **Conforming-run satisfiability\
-  \ cue (X-1054) —** does a criterion constrain the SHAPE OF THE DIFF\n   (\"the diff\
-  \ touches only `<file>`\" / \"any file outside `<path>` fails this\")? Then ask\
-  \ whether a\n   CONFORMING 9-stage run could satisfy it AS WRITTEN. As a bare shape\
-  \ it cannot → worked example in\n   the reference.\n   **Deferred-proof ordering\
-  \ cue —** can this criterion's proof exist BEFORE\n   this card's OWN land? Ask\
-  \ it of every criterion whose evidence is a live reading, an adoption\n   trace,\
+  \ no card is refused for omitting it.\n   **Adoption-probe cue —** does an adoption\
+  \ probe stop at the producer emit, or\n   need a consumer whose `requires:` names\
+  \ this card before it closes? Both fail (→ SPEC-0015\n   §Infra adoption probe,\
+  \ §Work-first).\n   **Cohort-complement cue (X-0419) —** does this card REMEDIATE\
+  \ a cohort its fix SELECTS (a filter, a\n   fence, a WHERE clause, an id list)?\
+  \ Then probe the COMPLEMENT, not only the selected set: name what\n   the selector\
+  \ EXCLUDES and why that exclusion is right. A card that probes only its own selector\
+  \ is\n   green by construction — it cannot see the rows its own fence silently dropped\
+  \ (rule home → CHARTER\n   §P3 done=adopted: what is adopted is the OUTCOME, not\
+  \ the selector). An authoring PROMPT only: no\n   card is refused for omitting it.\n\
+  \   **Cited-desired-exclusion cue (X-0419) —** does a criterion assert an exclusion\
+  \ is DESIRED (a\n   NEGATIVE probe — \"these stay excluded\" / \"this stays absent\"\
+  )? Then CITE the artifact or\n   owner-decision that DECIDED that exclusion. An\
+  \ uncited negative probe encodes the AUTHOR'S\n   ASSUMPTION as an executable green\
+  \ guarantee — and the assumption outlives the author (rule home →\n   CHARTER §P3\
+  \ + SPEC-0005 rule 3 content-boundary: a claim resolves to the home that decided\
+  \ it, or\n   it is not a decided claim yet). An authoring PROMPT only: no card is\
+  \ refused for omitting it.\n   **Test-or-waive cue —** does each criterion NAME\
+  \ the executable test that verifies it (a\n   test path or a pinned-suite test id)\
+  \ OR carry an explicit waive `test-not-applicable:` when the\n   criterion is genuinely\
+  \ verified another way (a `graph query` state-check, an event emit)? An AC\n   that\
+  \ names NEITHER is a claim with no named verifier — \"done\" is asserted with nothing\
+  \ that runs\n   to prove it. The waive's form and fields are SPEC-0165 item 4's\
+  \ (one home); a bare marker with no\n   reason still counts as unnamed. `task file`\
+  \ surfaces the per-AC status as the report-only\n   `AC test/waive status (advisory\
+  \ — filing not blocked)` line, and a waive missing an item-4 key on\n   the `AC\
+  \ waive fields (advisory — filing not blocked)` line (registry row 9 in `## Implementation\
+  \ notes`). An authoring PROMPT only: no card is\n   refused for omitting it (rule\
+  \ home → this item + CHARTER §P3 done=adopted).\n   **Born-armed-carrier cue —**\
+  \ does a criterion defer work to a FOLLOW-UP (a CHARTER §P8\n   adoption carrier,\
+  \ a staged dodelka) whose firing moment is a NAMEABLE artifact — a task or\n   coordination\
+  \ id whose closure IS that moment? Then capture it BORN ARMED, `followup add --trigger\n\
+  \   '<the moment>' --awaits <T-NNNN|X-NNNN>`, never with the wait written as prose:\
+  \ a prose wait lands\n   in the actionable headline and reads as do-now for as long\
+  \ as it is open. Leave it ACTIONABLE only when nothing resolvable names the moment\
+  \ — an event class fires\n   on MEMBERSHIP, so a «next occurrence of <type>» wait\
+  \ has no artifact at all. `followup\n   add` surfaces this itself as a report-only\
+  \ advisory when the capture text names a still-open\n   reference. **First ask WHOSE\
+  \ journal the moment lands in (owner ruling 2026-09-04):** a\n   KERNEL-side moment\
+  \ takes the armed followup above, while a CONSUMER-side one — the next deploy,\n\
+  \   run or reading in ANOTHER project — cannot be carried by a followup here at\
+  \ all and routes as a\n   `cross request --kind task --to <consumer>` asking that\
+  \ project to arm its own followup and\n   report the reading back, with at most\
+  \ ONE followup on this side armed on the resulting `X-NNNN`.\n   An authoring PROMPT\
+  \ only: no card is refused for omitting it (rule home → SPEC-0095 §Armed).\n   **How\
+  \ a named test is RECOGNIZED is not this item's rule —** a project that declares\
+  \ where its\n   test files live is read from that declaration, and the kernel's\
+  \ own filename pattern is only\n   the fail-open default for a project that declares\
+  \ none (rule home → SPEC-0185 half (c) + §2a;\n   the declarable carrier is `tests.classes[].globs`,\
+  \ shape owned by SPEC-0160 rule 10).\n   **The named verifier is NOT the P8 adoption-evidence\
+  \ payload —** the test this cue asks\n   you to NAME is the criterion's VERIFIER:\
+  \ what RUNS to prove the AC. That is a DIFFERENT slot from\n   the CHARTER §P8 adoption-evidence\
+  \ event a `class: infra` closure composes, whose payload has its\n   own admissibility\
+  \ contract — SPEC-0015 §\"The EVENT carrier must resolve machine evidence + a\n\
+  \   differential\" owns it, and the test run's journal trace is not among what it\
+  \ admits (not restated\n   here — P5). So naming a test path in an AC is always\
+  \ legitimate, but do NOT write a criterion that\n   DEMANDS the P8 payload REFERENCE\
+  \ that test's run: it is unsatisfiable by construction, green\n   nowhere, and reads\
+  \ at audit-post as an unmet AC rather than an authoring defect. When a criterion\
+  \ needs\n   adoption evidence, point the payload at the MECHANISM's own production\
+  \ event; the named test stays\n   the verifier alongside it.\n   **Conforming-run\
+  \ satisfiability cue (X-1054) —** does a criterion constrain the SHAPE OF THE DIFF\n\
+  \   (\"the diff touches only `<file>`\" / \"any file outside `<path>` fails this\"\
+  )? Then ask whether a\n   CONFORMING 9-stage run could satisfy it AS WRITTEN. As\
+  \ a bare shape it cannot → worked example in\n   the reference.\n   **Deferred-proof\
+  \ ordering cue —** can this criterion's proof exist BEFORE\n   this card's OWN land?\
+  \ Ask it of every criterion whose evidence is a live reading, an adoption\n   trace,\
   \ or anything a RUN produces. When the answer is NO — the proof is produced by a\
   \ LATER\n   land, by production traffic, or by this card's own closure — the criterion\
   \ is not a bare\n   deferred probe and must not be written as one: audit-post reads\
@@ -748,6 +750,6 @@ proposed_by: lifecycle-path-and-verb-sequencing-coherence-who-a
 binding:
 - stage-entry:Filing
 implements_signature:
-  bin/lib/session.py#cmd_session_start: 55b803addbb3526bfd95d2870ea129a26adae9b1c165d8649f27a8b44fd56653
+  bin/lib/session.py#cmd_session_start: ff5ccade440c951dd10e6aa899e14373bed71eeb27d96ddfaa47e5b1b1764bbe
   bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
   bin/lib/triage.py#cmd_triage_run: f57196a9735297320ef155672de165b4f6a2e50a2c879a8f25a46ba3337ae139

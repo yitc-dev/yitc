@@ -119,26 +119,57 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ the kept sentence a duplicate names is not in the shipped body. **Grandfathering:**\
   \ text placed in a rule body\nbefore this split stays valid where it is; it is moved\
   \ when a card next reshapes that passage, or\nby a migration card. Editing a spec\
-  \ does not require backfilling its older text first.\n**FORBIDDEN** — these\nbelong\
-  \ in the PLAN: full rejected-alternatives narratives / \"why X over Y\" debate;\
-  \ approval or\nratification history / who-signed-off / dates of agreement; deliberation\
-  \ chronology. **Probe:** a\nbody sentence that would have to CHANGE if a *different*\
-  \ option had been chosen — while the rule\nitself stayed the same — is misplaced\
-  \ deliberation → move it to the plan. (The line: a note that\ninterprets the rule\
-  \ may stay; the debate that produced the rule may not.)\n\n### 4. FSM (adds `draft`\
-  \ below `proposed`)\n`draft → proposed → active → superseded → retired` (terminal\
-  \ `withdrawn` / `rejected`).\n  - `draft` — exploratory, lives in a plan-draft,\
-  \ in the graph for plan-local reasoning, governs\n    NOTHING, triggers NO currency/staleness.\n\
-  \  - `proposed` — committed staged direction; currency/staleness tracks it; non-authoritative;\n\
-  \    `consumed:` MUST be false; has an `activation_owner_task` (rule 5).\n  - `active`\
-  \ — realized; the **ONLY** normative status.\n  - `superseded` / `retired` / `withdrawn`\
-  \ / `rejected` — non-normative history, kept + indexed.\n`proposed → active` is\
-  \ GATED by an adoption probe (CHARTER §P3/§P8); on activation any `supersedes:`\n\
-  target flips atomically (`active` target → `superseded`; a still-`proposed` target\
-  \ being replaced →\n`withdrawn`/`rejected`, since it never governed).\n**Draft tooling\
-  \ — SHIPPED ( Part A).** The `draft` stage is now live: `spec new --draft\n--proposed-by\
-  \ <plan>` births a plan-local draft; `graph build` indexes drafts (status-agnostic\n\
-  walk); default `graph query --projected` EXCLUDES all drafts; `graph query --projected\n\
+  \ does not require backfilling its older text first.\n**Delivery-timing review —\
+  \ an authoring recommendation for a change that adds, moves or re-binds a\nrule\
+  \ of a delivered body, and for a review of one.** This is a recommendation, as rule\
+  \ 6's\nrare-case option is: it adds no recording duty and no pass condition, and\
+  \ an edit that met this\nrule before still meets it; the mandatory check is the\
+  \ T7 review lens\n(`patterns/inspection-criteria-roster.md`). For each rule, or\
+  \ each group of rules with one audience,\none condition and one first action, it\
+  \ helps to know: its home; its audience (the Controller, a\nWorker, any session);\
+  \ its condition; the FIRST governed action it applies to, counting the\npreparation\
+  \ of evidence for that action (an acceptance probe designed, a proof carrier composed);\n\
+  and the delivery that reaches that audience BEFORE that action. A delivery counts\
+  \ only if the agent\nmeets it first: an always-loaded seed line, the stage bundle\
+  \ of that stage or of an earlier one, a\nfloor trigger, a verb's help head or print\
+  \ met before the act, or a refusal that blocks that very\naction. A refusal or a\
+  \ warning met after the action, or one that blocks a different action, is not\n\
+  such a delivery. Keep an agent duty apart from mechanics the engine applies itself:\
+  \ an\nengine-applied rule needs no delivery to the agent, and it does not deliver\
+  \ the agent duties beside\nit. How rare the case is, which stage needs the rule\
+  \ and which route delivers it are three separate\nquestions: answer each, and treat\
+  \ a rate nobody has counted as not counted, never as rare. Tell\napart a rule with\
+  \ no delivery before its action and a rule delivered in time to this agent but\n\
+  needed again by another agent, or in a new context, after closure: the second needs\
+  \ a delivery on\nthat later route itself. Where a note of the result helps, put\
+  \ it in the existing carriers — the\ncard's analysis record, the rule inventory,\
+  \ the spec's own binding — never in a second normative\ntable of rules. A rule with\
+  \ no delivery before its first action reads as a timing gap. The moment of\ndelivery\
+  \ costs as well as the size: a rule in the context is read again on every later\
+  \ agent turn\nafter it is delivered. A review of a trim or a move of a rule reads\
+  \ best in this order: the rule's\nmeaning, its first governed action and its delivery\
+  \ to its audience; then that every constraint is\npreserved (the rule-preservation\
+  \ check above); then a real application probe of the rule where it\nnow stands;\
+  \ then the net saving (rule 6).\n**FORBIDDEN** — these\nbelong in the PLAN: full\
+  \ rejected-alternatives narratives / \"why X over Y\" debate; approval or\nratification\
+  \ history / who-signed-off / dates of agreement; deliberation chronology. **Probe:**\
+  \ a\nbody sentence that would have to CHANGE if a *different* option had been chosen\
+  \ — while the rule\nitself stayed the same — is misplaced deliberation → move it\
+  \ to the plan. (The line: a note that\ninterprets the rule may stay; the debate\
+  \ that produced the rule may not.)\n\n### 4. FSM (adds `draft` below `proposed`)\n\
+  `draft → proposed → active → superseded → retired` (terminal `withdrawn` / `rejected`).\n\
+  \  - `draft` — exploratory, lives in a plan-draft, in the graph for plan-local reasoning,\
+  \ governs\n    NOTHING, triggers NO currency/staleness.\n  - `proposed` — committed\
+  \ staged direction; currency/staleness tracks it; non-authoritative;\n    `consumed:`\
+  \ MUST be false; has an `activation_owner_task` (rule 5).\n  - `active` — realized;\
+  \ the **ONLY** normative status.\n  - `superseded` / `retired` / `withdrawn` / `rejected`\
+  \ — non-normative history, kept + indexed.\n`proposed → active` is GATED by an adoption\
+  \ probe (CHARTER §P3/§P8); on activation any `supersedes:`\ntarget flips atomically\
+  \ (`active` target → `superseded`; a still-`proposed` target being replaced →\n\
+  `withdrawn`/`rejected`, since it never governed).\n**Draft tooling — SHIPPED ( Part\
+  \ A).** The `draft` stage is now live: `spec new --draft\n--proposed-by <plan>`\
+  \ births a plan-local draft; `graph build` indexes drafts (status-agnostic\nwalk);\
+  \ default `graph query --projected` EXCLUDES all drafts; `graph query --projected\n\
   --include-draft=<plan>` is the plan-scoped what-if. Draft→proposed is NOT a spec\
   \ verb — that\npromotion is Part B's `plan accept` (one promotion route only). **Currency/staleness\
   \ is NOT yet\nbuilt (Part G):** when it ships it MUST start at `proposed` and NEVER\
@@ -173,75 +204,90 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ at the reference; and a new edge case of that branch is authored in\nthe reference.\
   \ This recommendation adds no gate and no read credit of its own: a gate on the\
   \ verb\nis added only when a rule is shown to be lost without one (`patterns/methodology-lessons.md`\n\
-  Lesson 13). Worked example: SPEC-0015 §Settling with its reference SPEC-1011.\n\n\
-  ### 7. How to create / split / reshape\n  - **Create:** `bin/yitc-v2 spec new --title\
-  \ …`; fill anchors + body sections + `proposed_by`.\n  - **A spec that changes the\
-  \ graph itself** — a node type, an edge type or a graph layer:\n    read SPEC-0031\
-  \ §Graph schema bounds before authoring it (`graph query SPEC-0031`).\n  - **Declare\
-  \ the binding (MANDATORY when creating OR correcting a spec — closes the dangling\
-  \ door):**\n    every spec MUST declare HOW it reaches the AI as a non-empty `binding:`\
-  \ (the binding contract\n    SPEC-0013): a gating verb/stage that FETCHES it before\
-  \ acting (`commit` / `close` / `audit-pre` /\n    `audit-post` / `spec-new` / `plan-close`,\
-  \ or a `stage-entry:` token), OR a reserved residency\n    token — `floor` (always-loaded,\
-  \ not verb-fetched), `seed`, `query-only`, or `code-enforced` (a\n    code-enforced\
-  \ contract: its `implements:` anchors ARE the enforcement). A non-empty\n    `implements:`\
-  \ ALONE is NOT a delivery declaration: the implicit implements excuse was removed\n\
-  \    from the dangling check, so a code-enforced contract declares `code-enforced`.\
-  \ A spec\n    left ACTIVE with an EMPTY `binding:` — whatever its `implements:`\
-  \ — is a **dangling spec** the AI\n    is never pointed to. This step is an AUTHORING\
-  \ DISCIPLINE (the author declares the binding because\n    this doctrine requires\
-  \ it — NOT a code gate on `spec new`; a gate is non-goal #2). The structural\n \
-  \   backstop is the `graph build` bidirectional report (SPEC-0013), which CATCHES\
-  \ any dangling spec\n    that slips — prevention by discipline, detection by the\
-  \ report. ORDERING : the card\n    that authors or amends a spec declares its binding\
-  \ on the proposed head before audit-post, so the\n    declaration is part of what\
-  \ that card's audits judge; a declaration made only after audit-post is\n    the\
-  \ accepted recovery for a missed step, never the ordering this rule asks for.\n\
-  \  - **Split:** by stable surface/boundary (rule 6) — never to mirror a code-file\
-  \ layout or a\n    narrative perspective.\n  - **Reshape (correct / supersede):**\
-  \ author a NEW `proposed` spec with `supersedes:` the old; the\n    activation step\
-  \ flips the old atomically (rule 4). During Execution a task may CONFIRM\n    (proposed→active)\
-  \ / CORRECT (new proposed +) / CANCEL (withdraw) / BIRTH a spec.\n    Cross-refs\
-  \ reuse EXISTING fields — `proposed_by` (provenance field, NOT a 7th edge), `cites`,\n\
-  \    `supersedes`, `closed_into`; the 6-edge bound holds.\n  - **In-place amend\
-  \ vs supersede — the boundary (the line is NORMATIVITY, not edit size):**\n    -\
-  \ **IN-PLACE amend ALLOWED** — edit the ACTIVE spec body directly for a typo / clarification\
-  \ /\n      non-normative editorial correction that does NOT change what the rule\
-  \ REQUIRES or FORBIDS (a\n      concise interpreting note per rule 3, a cross-ref\
-  \ fix, disambiguating prose the rule was silent\n      on). No new id, no `supersedes:`,\
-  \ no FSM transition. A multi-line / full-section in-place\n      amend rides the\
-  \ verb via `spec edit --from-file`/`--from-stdin` (a YAML mapping {old, new,\n \
-  \     replace_all?}) — NOT a hand-edit of the YAML (which skips the `spec_edited`\
-  \ emit).\n      PEP/ADR analog: living docs take errata in-place.\n    - **SUPERSEDE\
-  \ via a NEW `proposed` spec + `supersedes:` REQUIRED** — for a NORMATIVE reshape:\
-  \ any\n      change to what the rule REQUIRES / FORBIDS / its behaviour or scope\
-  \ (the thing a consumer acts\n      on differently). Routed through the FSM (rule\
-  \ 4); never reshaped normatively in place.\n    - **ADDITIVE EXTENSION to an ACTIVE\
-  \ spec is IN-PLACE (the recurring fork):** ADDING a\n      NEW case to an active\
-  \ rule — a new exemption / carve-out / permitted-state / ceiling-extension\n   \
-  \   — that leaves EVERY already-covered case's required behaviour UNCHANGED is an\
-  \ in-place amend,\n      NOT a supersede: it enlarges coverage without reshaping\
-  \ any existing obligation, so no\n      consumer's PRIOR compliance changes; only\
-  \ a situation the rule did not previously address gains\n      an explicit additive\
-  \ answer. Contrast a RESHAPE of an already-covered case (e.g. ceiling 2->3 for the\n\
-  \      existing absorption loop, or REMOVING an exemption) — that alters existing\
-  \ compliance →\n      supersede.\n    - **The discriminating probe:** \"does the\
-  \ edit change what a consumer must DO to comply IN AN\n      ALREADY-COVERED case?\"\
-  \ YES → supersede; NO (it only clarifies / interprets / corrects, OR adds\n    \
-  \  a NEW case while leaving every already-covered case's compliance unchanged) →\
-  \ in-place. (Mirror\n      of rule 3's content-boundary probe.) The \"already-covered\"\
-  \ qualifier is what keeps a purely\n      ADDITIVE extension from reading as a spurious\
-  \ YES.\n    - **Internal-basis change under PRESERVED rule-text — text-preservation\
-  \ is NOT the discriminator\n      (E-0025):** when a spec's internal BASIS / derivation\
-  \ / mechanism changes while the rule's WORDS\n      stay identical, the boundary\
-  \ is STILL consumer-observable normativity, NOT the unchanged text —\n      run\
-  \ the discriminating probe on BEHAVIOUR, not the words. A basis change that alters\
-  \ what a\n      consumer OBSERVES or relies on in an already-covered case → NORMATIVE\
-  \ reshape → SUPERSEDE\n      (preserved wording is incidental, not exculpatory).\
-  \ A basis\n      change that is only a more-honest RESTATEMENT of the SAME obligation,\
-  \ with NO consumer-observable\n      difference → IN-PLACE (e.g. correcting an interpreting/provenance\
-  \ note per rule 3 — \"the byte-cap\n      counts pre-normalization\" — sharpens\
-  \ the basis without changing what any consumer must DO). The\n      two E-0025 fingerprints\
+  Lesson 13). Worked example: SPEC-0015 §Settling with its reference SPEC-1011.\n\
+  **Reading these conditions at a move of a rule to a reference spec** (a recommendation\
+  \ like the\noption itself, no added pass condition). Each is shown by the delivery-timing\
+  \ review of rule 3. Recognising the case stays available before the action. The\
+  \ signal\nand the pointer to the reference reach the right agent before the action,\
+  \ not only some agent at\nsome stage. A refusal counts as that signal only when\
+  \ it blocks that very action, not a later or a\ndifferent one. Check the move against\
+  \ three cases: a task without the label the cue keys on (work\nof an infra kind\
+  \ on a card of another class), a new context epoch, and another agent acting after\n\
+  closure; a case none of these reaches before the action is a sign to keep the rule\
+  \ where it is. Count the\nsaving net: the bytes no longer delivered, minus the full\
+  \ renders of the reference on its real\ntriggers and the pointers and cues added.\
+  \ For a spec read on demand through `graph query`, a move\ninside the spec saves\
+  \ nothing, because that read prints the whole spec; only a split into a\nreference\
+  \ spec shrinks it. Where an existing mechanism already delivers the rule in time,\
+  \ add no new\ncheck.\n\n### 7. How to create / split / reshape\n  - **Create:**\
+  \ `bin/yitc-v2 spec new --title …`; fill anchors + body sections + `proposed_by`.\n\
+  \  - **A spec that changes the graph itself** — a node type, an edge type or a graph\
+  \ layer:\n    read SPEC-0031 §Graph schema bounds before authoring it (`graph query\
+  \ SPEC-0031`).\n  - **Declare the binding (MANDATORY when creating OR correcting\
+  \ a spec — closes the dangling door):**\n    every spec MUST declare HOW it reaches\
+  \ the AI as a non-empty `binding:` (the binding contract\n    SPEC-0013): a gating\
+  \ verb/stage that FETCHES it before acting (`commit` / `close` / `audit-pre` /\n\
+  \    `audit-post` / `spec-new` / `plan-close`, or a `stage-entry:` token), OR a\
+  \ reserved residency\n    token — `floor` (always-loaded, not verb-fetched), `seed`,\
+  \ `query-only`, or `code-enforced` (a\n    code-enforced contract: its `implements:`\
+  \ anchors ARE the enforcement). A non-empty\n    `implements:` ALONE is NOT a delivery\
+  \ declaration: the implicit implements excuse was removed\n    from the dangling\
+  \ check, so a code-enforced contract declares `code-enforced`. A spec\n    left\
+  \ ACTIVE with an EMPTY `binding:` — whatever its `implements:` — is a **dangling\
+  \ spec** the AI\n    is never pointed to. This step is an AUTHORING DISCIPLINE (the\
+  \ author declares the binding because\n    this doctrine requires it — NOT a code\
+  \ gate on `spec new`; a gate is non-goal #2). The structural\n    backstop is the\
+  \ `graph build` bidirectional report (SPEC-0013), which CATCHES any dangling spec\n\
+  \    that slips — prevention by discipline, detection by the report. ORDERING :\
+  \ the card\n    that authors or amends a spec declares its binding on the proposed\
+  \ head before audit-post, so the\n    declaration is part of what that card's audits\
+  \ judge; a declaration made only after audit-post is\n    the accepted recovery\
+  \ for a missed step, never the ordering this rule asks for.\n  - **Split:** by stable\
+  \ surface/boundary (rule 6) — never to mirror a code-file layout or a\n    narrative\
+  \ perspective.\n  - **Reshape (correct / supersede):** author a NEW `proposed` spec\
+  \ with `supersedes:` the old; the\n    activation step flips the old atomically\
+  \ (rule 4). During Execution a task may CONFIRM\n    (proposed→active) / CORRECT\
+  \ (new proposed +) / CANCEL (withdraw) / BIRTH a spec.\n    Cross-refs reuse EXISTING\
+  \ fields — `proposed_by` (provenance field, NOT a 7th edge), `cites`,\n    `supersedes`,\
+  \ `closed_into`; the 6-edge bound holds.\n  - **In-place amend vs supersede — the\
+  \ boundary (the line is NORMATIVITY, not edit size):**\n    - **IN-PLACE amend ALLOWED**\
+  \ — edit the ACTIVE spec body directly for a typo / clarification /\n      non-normative\
+  \ editorial correction that does NOT change what the rule REQUIRES or FORBIDS (a\n\
+  \      concise interpreting note per rule 3, a cross-ref fix, disambiguating prose\
+  \ the rule was silent\n      on). No new id, no `supersedes:`, no FSM transition.\
+  \ A multi-line / full-section in-place\n      amend rides the verb via `spec edit\
+  \ --from-file`/`--from-stdin` (a YAML mapping {old, new,\n      replace_all?}) —\
+  \ NOT a hand-edit of the YAML (which skips the `spec_edited` emit).\n      PEP/ADR\
+  \ analog: living docs take errata in-place.\n    - **SUPERSEDE via a NEW `proposed`\
+  \ spec + `supersedes:` REQUIRED** — for a NORMATIVE reshape: any\n      change to\
+  \ what the rule REQUIRES / FORBIDS / its behaviour or scope (the thing a consumer\
+  \ acts\n      on differently). Routed through the FSM (rule 4); never reshaped normatively\
+  \ in place.\n    - **ADDITIVE EXTENSION to an ACTIVE spec is IN-PLACE (the recurring\
+  \ fork):** ADDING a\n      NEW case to an active rule — a new exemption / carve-out\
+  \ / permitted-state / ceiling-extension\n      — that leaves EVERY already-covered\
+  \ case's required behaviour UNCHANGED is an in-place amend,\n      NOT a supersede:\
+  \ it enlarges coverage without reshaping any existing obligation, so no\n      consumer's\
+  \ PRIOR compliance changes; only a situation the rule did not previously address\
+  \ gains\n      an explicit additive answer. Contrast a RESHAPE of an already-covered\
+  \ case (e.g. ceiling 2->3 for the\n      existing absorption loop, or REMOVING an\
+  \ exemption) — that alters existing compliance →\n      supersede.\n    - **The\
+  \ discriminating probe:** \"does the edit change what a consumer must DO to comply\
+  \ IN AN\n      ALREADY-COVERED case?\" YES → supersede; NO (it only clarifies /\
+  \ interprets / corrects, OR adds\n      a NEW case while leaving every already-covered\
+  \ case's compliance unchanged) → in-place. (Mirror\n      of rule 3's content-boundary\
+  \ probe.) The \"already-covered\" qualifier is what keeps a purely\n      ADDITIVE\
+  \ extension from reading as a spurious YES.\n    - **Internal-basis change under\
+  \ PRESERVED rule-text — text-preservation is NOT the discriminator\n      (E-0025):**\
+  \ when a spec's internal BASIS / derivation / mechanism changes while the rule's\
+  \ WORDS\n      stay identical, the boundary is STILL consumer-observable normativity,\
+  \ NOT the unchanged text —\n      run the discriminating probe on BEHAVIOUR, not\
+  \ the words. A basis change that alters what a\n      consumer OBSERVES or relies\
+  \ on in an already-covered case → NORMATIVE reshape → SUPERSEDE\n      (preserved\
+  \ wording is incidental, not exculpatory). A basis\n      change that is only a\
+  \ more-honest RESTATEMENT of the SAME obligation, with NO consumer-observable\n\
+  \      difference → IN-PLACE (e.g. correcting an interpreting/provenance note per\
+  \ rule 3 — \"the byte-cap\n      counts pre-normalization\" — sharpens the basis\
+  \ without changing what any consumer must DO). The\n      two E-0025 fingerprints\
   \ resolve thus: an ADDITIVE ceiling-extension → IN-PLACE (the ADDITIVE\n      EXTENSION\
   \ bullet above); an internal-basis edit → run the BEHAVIOUR probe (supersede iff\
   \ it shifts\n      observable behaviour, else in-place).\n  - **Floor coverage of\
@@ -386,48 +432,57 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ finding-3 `rule-change-keyed-to-spec-new`,\n  reproduced N=2 — an ungated in-place\
   \ edit left NO journal trace at all, so the bypass was\n  invisible, not merely\
   \ lineage-less).\n- From «8. Homing a standing rule»: (This is the THIRD home the\
-  \ spec/plan/task-field split\n  omitted.)\n\n## Verification\n\n- **VP1 (content\
-  \ boundary, dogfood):** grep this body — no full rejected-alternatives narrative,\n\
-  \  no approval/ratification chronology, no dated audit-finding refs; only concise\
-  \ interpreting\n  provenance notes remain (rule 3 ALLOWED set).\n- **VP2 (one activation\
-  \ owner):** a `proposed`/`active` (non-grandfathered) spec resolves to exactly\n\
-  \  one `activation_owner_task`; other implementing tasks only `cite` it.\n- **VP3\
-  \ (non-authoritative):** `status: proposed` + `consumed: false` — governs nothing;\
-  \ removing\n  this pilot changes no live behavior.\n- **VP4 (amendment honesty,\
-  \ P7):** the `amends:` block names every canonical surface this doctrine\n  changes\
-  \ (the plan's one-task rule) and flags rule 8 as NEW.\n- **VP5 (one home, P5):**\
-  \ no rule stated in this spec is also duplicated as a standing rule in\n  handbook/pattern\
-  \ prose; a handbook-homed rule is referenced (`cites`), never restated.\n- **VP6\
-  \ (verification routing):** this spec's `## Verification` holds probe CONTRACTS\
-  \ (VP1–VP7), not\n  one-time results — no `verified_at` / evidence lists live in\
-  \ the body.\n- **VP7 (declare-the-binding step + own binding):** §7 carries the\
-  \ MANDATORY\n  declare-the-binding authoring step (grep); and this doctrine declares\
-  \ its OWN `binding: [spec-new]`\n  (it is the read-before-spec-authoring rule),\
-  \ so `graph build` no longer lists SPEC-0005 in\n  `binding_report.dangling_specs`\
-  \ (RED-GREEN: drop the binding → it reappears).\n- **VP8 (in-place vs supersede\
-  \ boundary + floor coverage; floor-coverage decision REVERSED):** §7 names BOTH\
-  \ the in-place\n  clarification path AND the supersede-reshape path with the \"\
-  does compliance change?\" discriminator,\n  AND records that the `before-rule-change`\
-  \ floor coverage now spans BOTH `spec-new` AND `spec-edit`\n  (the reversal — in-place\
-  \ edits are gated + journal-observable, no longer spec-new-only).\n  Probe = the\
-  \ AC1/AC2/AC3 grep (`in-place` + `supersede` + `before-rule-change` present in this\n\
-  \  spec) — no new artifact; reuses the existing acceptance probes.\n- **VP9 (additive-extension\
-  \ carve-out):** §7 names the ADDITIVE-EXTENSION-to-an-active-spec\n  case as IN-PLACE,\
-  \ distinct from a normative reshape, with the \"already-covered case\" qualifier\
-  \ on\n  the discriminating probe AND a CONCRETE prior-art citation (commit 965af137\
-  \ — the\n  plan-freshness re-audit ledger-skip added in-place to the active SPEC-0036\
-  \ ceiling). Probe = grep\n  this spec for `ADDITIVE EXTENSION` + `already-covered`\
-  \ + ``; a future additive\n  ceiling-extension cites this carve-out instead of drawing\
-  \ a spurious supersede-RED.\n- **VP10 (internal-basis-under-preserved-text discriminator\
-  \ / E-0025):** §7 names the\n  INTERNAL-BASIS-change-under-PRESERVED-rule-text case\
-  \ — text-preservation is NOT itself the\n  discriminator; the BEHAVIOUR probe decides\
-  \ (supersede iff it shifts observable behaviour, else\n  in-place) — with a mirror\
-  \ IN-PLACE example AND both E-0025 fingerprints explicitly dispositioned\n  (additive\
-  \ ceiling-extension → in-place; internal-basis edit → behaviour probe). Probe =\
-  \ grep this\n  spec for `Internal-basis change under PRESERVED rule-text` + `E-0025`;\
-  \ a future internal-basis edit\n  runs the behaviour probe instead of treating preserved\
-  \ wording as automatically in-place.\n- **VP11 (single identifier/storage form /\
-  \ X-0195):** §1 Identity states the SOLE spec\n  identifier shape is `SPEC-XXXX`\
+  \ spec/plan/task-field split\n  omitted.)\n\n### Delivery timing\nThe rule-level\
+  \ analysis of SPEC-0036 and SPEC-0015 (2026-10-09) found acting rules delivered\
+  \ after\nthe action they govern: the SPEC-0015 acceptance-design rules reach the\
+  \ agent at Closure, after the\nprobes were designed. The external consult on it\
+  \ (YELLOW, 5 findings) showed that rarity, the right\nstage and the delivery route\
+  \ are separate questions, that a refusal after the action is not a\ntrigger, and\
+  \ that a cue keyed on the infra class label misses infra work on a card without\
+  \ that\nlabel. Measured in October 2026 with the token-rollup lens: 98 percent of\
+  \ this project's input tokens\nare cache reads, so a rule in the context costs again\
+  \ on every turn after its delivery.\nshowed that a move inside an on-demand spec\
+  \ does not shrink its full lookup.\n\n## Verification\n\n- **VP1 (content boundary,\
+  \ dogfood):** grep this body — no full rejected-alternatives narrative,\n  no approval/ratification\
+  \ chronology, no dated audit-finding refs; only concise interpreting\n  provenance\
+  \ notes remain (rule 3 ALLOWED set).\n- **VP2 (one activation owner):** a `proposed`/`active`\
+  \ (non-grandfathered) spec resolves to exactly\n  one `activation_owner_task`; other\
+  \ implementing tasks only `cite` it.\n- **VP3 (non-authoritative):** `status: proposed`\
+  \ + `consumed: false` — governs nothing; removing\n  this pilot changes no live\
+  \ behavior.\n- **VP4 (amendment honesty, P7):** the `amends:` block names every\
+  \ canonical surface this doctrine\n  changes (the plan's one-task rule) and flags\
+  \ rule 8 as NEW.\n- **VP5 (one home, P5):** no rule stated in this spec is also\
+  \ duplicated as a standing rule in\n  handbook/pattern prose; a handbook-homed rule\
+  \ is referenced (`cites`), never restated.\n- **VP6 (verification routing):** this\
+  \ spec's `## Verification` holds probe CONTRACTS (VP1–VP7), not\n  one-time results\
+  \ — no `verified_at` / evidence lists live in the body.\n- **VP7 (declare-the-binding\
+  \ step + own binding):** §7 carries the MANDATORY\n  declare-the-binding authoring\
+  \ step (grep); and this doctrine declares its OWN `binding: [spec-new]`\n  (it is\
+  \ the read-before-spec-authoring rule), so `graph build` no longer lists SPEC-0005\
+  \ in\n  `binding_report.dangling_specs` (RED-GREEN: drop the binding → it reappears).\n\
+  - **VP8 (in-place vs supersede boundary + floor coverage; floor-coverage decision\
+  \ REVERSED):** §7 names BOTH the in-place\n  clarification path AND the supersede-reshape\
+  \ path with the \"does compliance change?\" discriminator,\n  AND records that the\
+  \ `before-rule-change` floor coverage now spans BOTH `spec-new` AND `spec-edit`\n\
+  \  (the reversal — in-place edits are gated + journal-observable, no longer spec-new-only).\n\
+  \  Probe = the AC1/AC2/AC3 grep (`in-place` + `supersede` + `before-rule-change`\
+  \ present in this\n  spec) — no new artifact; reuses the existing acceptance probes.\n\
+  - **VP9 (additive-extension carve-out):** §7 names the ADDITIVE-EXTENSION-to-an-active-spec\n\
+  \  case as IN-PLACE, distinct from a normative reshape, with the \"already-covered\
+  \ case\" qualifier on\n  the discriminating probe AND a CONCRETE prior-art citation\
+  \ (commit 965af137 — the\n  plan-freshness re-audit ledger-skip added in-place to\
+  \ the active SPEC-0036 ceiling). Probe = grep\n  this spec for `ADDITIVE EXTENSION`\
+  \ + `already-covered` + ``; a future additive\n  ceiling-extension cites this carve-out\
+  \ instead of drawing a spurious supersede-RED.\n- **VP10 (internal-basis-under-preserved-text\
+  \ discriminator / E-0025):** §7 names the\n  INTERNAL-BASIS-change-under-PRESERVED-rule-text\
+  \ case — text-preservation is NOT itself the\n  discriminator; the BEHAVIOUR probe\
+  \ decides (supersede iff it shifts observable behaviour, else\n  in-place) — with\
+  \ a mirror IN-PLACE example AND both E-0025 fingerprints explicitly dispositioned\n\
+  \  (additive ceiling-extension → in-place; internal-basis edit → behaviour probe).\
+  \ Probe = grep this\n  spec for `Internal-basis change under PRESERVED rule-text`\
+  \ + `E-0025`; a future internal-basis edit\n  runs the behaviour probe instead of\
+  \ treating preserved wording as automatically in-place.\n- **VP11 (single identifier/storage\
+  \ form / X-0195):** §1 Identity states the SOLE spec\n  identifier shape is `SPEC-XXXX`\
   \ (`specs/SPEC-XXXX.yaml`) and that an invariant/config/FSM is spec\n  CONTENT,\
   \ never a parallel `INVARIANT-*`/`CONFIG-*`/`FSM-*` prefix (graph-invisible otherwise).\n\
   \  Probe = grep this spec for `INVARIANT-*` + `SOLE spec identifier` + `X-0195`;\
@@ -444,7 +499,13 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ home there.\n- **VP14 (delivered-body classes + rule-preservation check):** §3\
   \ defines the six line\n  classes, sends MECH and REF to `## Implementation notes`,\
   \ and requires the rule inventory with\n  PRESENT / MOVED / REMOVED and its light\
-  \ form. Probe = the `spec edit` delivery of this spec\n  shows each clause (tests/test_t13769_delivered_body_rule.py).\n"
+  \ form. Probe = the `spec edit` delivery of this spec\n  shows each clause (tests/test_t13769_delivered_body_rule.py).\n\
+  - **VP15 (delivery timing + reference-move reading):** §3 states the delivery-timing\n\
+  \  review as a recommendation (no recording duty, no pass condition) (home, audience,\
+  \ condition, first governed action, the delivery before it) and the review\n  order;\
+  \ §6 states how its conditions are read at a move of a rule to a reference spec.\
+  \ Probe:\n  tests/test_t13792_delivery_timing_rule.py drives `spec edit` and finds\
+  \ each clause in the\n  delivered SPEC-0005.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

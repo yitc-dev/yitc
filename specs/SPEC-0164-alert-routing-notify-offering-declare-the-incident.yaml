@@ -194,7 +194,7 @@ concern:
     \ — both (SPEC-0164 rule 2).\"\n"
 init_concern: null
 implements_signature:
-  bin/lib/debt.py#profile_gap_register: 048350b595ecc4860da381d824136a8b5d50b6f7dc7e1e5cc7ae69437f7d86ee
+  bin/lib/debt.py#profile_gap_register: 773348a13ad46781d8d9d47762ccaf06e19522329c155b8e557e8c55c9a08c38
   bin/lib/debt_adoption.py#_gap_declaration_incomplete: 96f72318072860ab920909213331c38787b61ce686a1eaed502380eaeb641825
   bin/lib/init.py#_alert_routing_slo_missing: ea2d7e538d5c56a2003ef5f4b35bc241064b6736290c115a29de0315c6bdace3
   bin/lib/init.py#_hook_alert_routing: a48dd5bfbfdeadf70178b87e22a2970c3d20e98b7031ef9c8b6fa7d00d773782

@@ -199,4 +199,4 @@ implements_signature:
   bin/lib/deploy.py#cmd_deploy: 2d127fae902a74c4cf0426561b30389eda1aa9d37e8a87f6791685535c56adba
   bin/security-audit: 56d4a827beb18fbc3d062fdd2872ad74e9e94e8d656445d0f0fb62387bb7be76
   bin/v2-security-gate#_publish_verdict: a2cb16b9a68474c8ad6e9e916343d7b025fcf56187fda41d2fdda3ea9adaaa3f
-  bin/v2-security-gate#evaluate_report: fbb86ae2786d0b327bf4d814780aa339239f8ba728ccf991aa65bfcd1774799c
+  bin/v2-security-gate#evaluate_report: 2c79abb02db5af2aacba5b8fe30dd6eea1ef7d6c769a3d094dbea34f9b35ef53

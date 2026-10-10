@@ -567,7 +567,7 @@ and the null ≠ clean line: the lens table is in part 2 (`patterns/inspection-c
 specs trimmed since the last T7 run, every line of the trimming card's committed rule inventory checked
 against the current delivered body and every MOVED home (the check: SPEC-0005 §3, `bin/yitc-v2 graph
 query SPEC-0005`); a miss is a `deviation_captured` — and **P11 RANKING** — the top 5 specs by
-`stage_entered` deliveries × current contract-view bytes, the heaviest labelled by the SPEC-0005 §3 classes.
+`stage_entered` deliveries × current contract-view bytes, the heaviest labelled by the SPEC-0005 §3 classes. **TIMING** (mandatory) — per rule trimmed or moved since the last T7 run: meaning, first governed action, delivery to its audience before it; then constraints kept, a real application probe, the net saving (reading: SPEC-0005 §3, §6); a timing gap is a `deviation_captured`.
 
 **T7 sub-probe — hand-executed-procedure-should-be-a-verb (report-only candidate; per the 2026-07-04 kernel prose-vs-verb meta-analysis).**
 A large AUTHORED-PROSE procedure the AI RE-READS and HAND-EXECUTES (a multi-step checklist / runbook /

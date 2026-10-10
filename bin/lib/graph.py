@@ -5706,7 +5706,7 @@ def _coverage_admission_warnings(repo_root, code_to_specs) -> list:
 
     OPT-IN / fail-OPEN (the `extensions:` rule-13 model): an absent/malformed carrier, an
     absent/waived/non-mapping `coverage:` section, or an empty `load_bearing:` returns [] (no admission
-    tracking — a clean default, never a build failure). The kernel's own repo has no `yitc-ops.yaml`, so
+    tracking — a clean default, never a build failure). The kernel's own file declares none of this section, so
     this no-ops there (zero false positives). The carrier read + admission filter is the SHARED
     `_coverage_opt_in` (reused by the rule-16 verify-layer check, P5)."""
     res = _coverage_opt_in(repo_root)
@@ -5864,8 +5864,8 @@ def _verify_layer_skip_off_warnings(repo_root) -> list:
     OPT-IN / fail-OPEN, but on the LAYER set rather than the rule-15 file universe: unlike its two
     siblings this check does NOT go through `_coverage_opt_in`, because what it reasons about is the
     DECLARED LAYERS, not load-bearing FILES. Gating it on a `coverage:` section would silence it on
-    exactly the measured population. A repo with no carrier / no `verify.layers` declares no layer → []
-    (the kernel's own repo has no yitc-ops.yaml, so this no-ops there). Malformed / unnamed layers are
+    exactly the measured population. A repo without a carrier or without `verify.layers` yields []
+    (the kernel's own file holds no `verify.layers`, so this no-ops there). Malformed / unnamed layers are
     skipped rather than guessed at (zero false positives, the family's discipline)."""
     names: list = []
     for ly in _verify_layers(repo_root):
@@ -5894,8 +5894,8 @@ def _coverage_zero_glob_warnings(repo_root) -> list:
     nothing) — so the mistake is invisible without this WARN. Report-only on the same exit-0 stderr channel
     as rules 15/16; NEVER a build failure (GRAPH «NOT a validation layer»).
 
-    OPT-IN / fail-open by construction: a repo with no `yitc-ops.yaml` (the kernel's own) or no
-    `coverage:`/`verify:` declaration declares no globs, so there is nothing to resolve → []."""
+    OPT-IN / fail-open by construction: a repo without a `yitc-ops.yaml`, or with neither a `coverage:` nor a
+    `verify:` declaration (the kernel's own file), yields no globs, so there is nothing to resolve → []."""
     zero: list = []
     _coverage_opt_in(repo_root, zero_globs=zero)                                    # load_bearing globs
     _coverage_glob_files(repo_root, _verify_layer_covers_globs(repo_root), zero_globs=zero)   # covers globs
@@ -6022,7 +6022,7 @@ def cmd_graph_build(args: argparse.Namespace, *, CANONICAL_DOCS, ENGINE_ROOT, RE
     # yitc-ops.yaml `coverage.load_bearing` that are NEITHER spec-covered (an `implements` edge) NOR
     # validly `admitted:` are candidate NEW orphans. REPORT-ONLY (same exit-0 stderr channel; GRAPH
     # «NOT a validation layer»). OPT-IN — no-ops unless the project declares `coverage.load_bearing`
-    # (the kernel's own repo has no yitc-ops.yaml → silent).
+    # (the kernel's own file declares none of it → silent).
     cov_orphans = _coverage_admission_warnings(REPO_ROOT, index.get("code_to_specs") or {})
     if cov_orphans:
         print(f"\nyitc-v2: {len(cov_orphans)} load-bearing surface(s) NEITHER spec-covered NOR admitted "

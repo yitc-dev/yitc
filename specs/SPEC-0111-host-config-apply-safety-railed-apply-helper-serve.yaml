@@ -70,94 +70,95 @@ body: "## Scenario\n\nThe owner/AI needs to make a HOST-level config change — 
   \ so you can deploy without me»)\n  resolves but names nothing, so it is REFUSED\
   \ **before any backup or write**, the refusal naming the\n  card id and the target\
   \ paths it looked for (`_directive_names_target`).\n  A SAME-SECOND locator is resolved\
-  \ on THIS axis, never by journal order ( — the SPEC-0204\n  rule 2 same-second rule,\
-  \ applied to the target test): among the `owner_directive` rows sharing\n  the named\
-  \ second, exactly one naming the target (the same words captured twice count once)\
-  \ is\n  the authorizing row wherever it sits in the journal; several naming it in\
-  \ different words are\n  REFUSED `directive-ambiguous`, each named, **before any\
-  \ backup or write**; none naming it is\n  the refusal above.\nThis TIGHTENS Fork-1(A)\
-  \ rather than reopening it — a background session still cannot self-authorize;\n\
-  it must now NAME the owner directive that authorized it, which the prior surface\
-  \ could not express.\nWithout this, the controller-dispatched owner-approved path\
-  \ (the path a deploying consumer actually\nruns) could satisfy the §5 three-evidence\
-  \ close-gate only by contradicting §1's literal wording.\n\n### 2. Safe-by-construction\
-  \ apply rails (ALL mandatory, in order — any failure ABORTS the apply)\nThe vetted\
-  \ helper MUST, for every host-config apply, in this order:\n- **(a) Auto-backup**\
-  \ the exact target file(s) before any write (a timestamped copy the rollback\n \
-  \ restores). No write without a recorded backup.\n- **(b) `nginx -t` gate over the\
-  \ EFFECTIVE config** — validate the proposed config BEFORE activating\n  it. **The\
-  \ `-t` MUST cover the config AS IT WILL ACTUALLY LOAD — the proposed conf ENABLED/included\
-  \ in\n  the active config set — never a config that still EXCLUDES the pending change**\
-  \ (trial finding,\n  2026-06-27: a NEW conf written but not yet included is INVISIBLE\
-  \ to `nginx -t`, so a syntactically\n  bad new vhost slips past the gate; the apply\
-  \ must enable/include the conf, then `-t`). A config that\n  fails `-t` is NEVER\
-  \ loaded (the running site keeps the old config); the apply ABORTS and the enable\n\
-  \  is undone (the pending conf + any new include link are removed) — nothing reloaded,\
-  \ nothing changed.\n- **(c) Shared/foreign-vhost collision REFUSAL** — the helper\
-  \ REFUSES to write a target file that is\n  shared with, or owned by, another site's\
-  \ vhost (a server_name / file the change does not exclusively\n  own). It writes\
-  \ ONLY a target the change provably owns. This is the direct guard against the X-0097\n\
-  \  overwrite-the-canonical-vhost failure; it is a hard REFUSE, never a warn.\n-\
-  \ **(d) Reversibility** — every applied change is reversible by a single recorded\
-  \ rollback (restore the\n  §2a backup + reload), AND the §3 sweep auto-fires that\
-  \ rollback on any regression. The residual risk\n  is bounded to a short DOWNTIME\
-  \ WINDOW (driven toward zero by §3), never permanent loss — these are\n  config\
-  \ changes, not data.\n\n### 3. Server-wide post-apply health sweep + AUTO-ROLLBACK\
-  \ (the collateral-blast-radius guard)\nBecause the host nginx is SHARED across ALL\
-  \ co-hosted projects, verification is NOT scoped to the\nchanged site. The helper:\n\
-  - **Baselines** the health of EVERY registered domain (`registry.yaml` `domains:`\
-  \ across all projects)\n  BEFORE the apply — using SPEC-0094's read-only live_probe\
-  \ GET (incl. the no-follow dialect for a 3xx).\n- Applies (under §2), then **re-checks**\
-  \ every domain AFTER.\n- **AUTO-ROLLS-BACK** (the §2a backup + reload) if ANY previously-live\
-  \ site regressed (a healthy→broken\n  transition on a domain that was healthy in\
-  \ the baseline). **\"Healthy\" = a 2xx OR 3xx response; \"broken\"\n  = 4xx / 5xx\
-  \ / connection-fail / timeout** (trial finding, 2026-06-27: a 3xx redirect IS healthy\
-  \ — the\n  health class MUST treat 3xx as healthy, else every intended redirect\
-  \ would false-trigger its own\n  rollback). A site already broken in the baseline\
-  \ does NOT block (no false rollback on pre-existing\n  breakage). The changed site\
-  \ must ALSO pass its own per-change live_probe (the INTENDED behaviour — e.g.\n\
-  \  a redirect asserting `expect_status: 301` — which is distinct from the sweep's\
-  \ \"not broken\" check).\nThis is the standing guard against \"fixed one site, silently\
-  \ broke a co-hosted one\" (X-0097).\n\n### 4. Repo-conf-vs-live reconciliation at\
-  \ the apply seam\nReconciliation evidence MUST be captured at the APPLY seam — where\
-  \ the helper CAN read live host state\n— NOT from the sandboxed worker (which cannot\
-  \ read `/etc/nginx`). At apply, the helper records a\nreconciliation result: the\
-  \ shipped repo conf MATCHES what is now live on the host (a recorded diff of\nshipped-conf\
-  \ vs the activated live-conf), and the §2c collision check confirms no shared resource\
-  \ was\nclobbered. This reconciliation record is one of the three evidences the §close-gate\
-  \ (SPEC-0094 §3)\nrequires before a host-config task may close.\n\n### 5. Seam split\
-  \ — apply/verify at the APPLY seam, declaration at CLOSE (mirrors SPEC-0094 §3/§4)\n\
-  The executable work (the §2 rails, the §3 sweep, the §4 reconciliation) runs at\
-  \ the APPLY seam, the\nmoment the change goes live — NEVER at `task close`. `task\
-  \ close` is a STATIC declaration/evidence\ncheck (SPEC-0094 §3 host-config extension):\
-  \ it REFUSES (fail-closed) an NGINX-VHOST task — the kind THIS\nspec's apply path\
-  \ serves — that has not RECORDED ALL THREE evidences — (1) an apply-confirmation,\
-  \ (2) a\nserver-wide health-sweep pass, (3) a repo-conf-vs-live reconciliation.\
-  \ This helper is nginx-only end-to-end,\nso it emits those three for that kind alone;\
-  \ a host change of another KIND (a cron entry, a systemd unit)\nhas no seam here\
-  \ and is gated on its own evidence by the per-kind matrix homed in SPEC-0094 §3\
-  \ (X-0257) — not restated here. The owner's explicit human-apply confirmation is\
-  \ the FORM\nevidence (1) takes on the MANUAL-apply path — it confirms the APPLY\
-  \ STEP ONLY and NEVER substitutes for\nevidence (2) or (3), which are ALWAYS required\
-  \ (the server-wide sweep + reconciliation are the safety\nguarantees and cannot\
-  \ be waived by an owner attestation). So close never calls the host live, yet real\n\
-  adoption is proven by the executed apply+sweep at the seam.\n\n### 6. Per-project\
-  \ values ride the carrier (SPEC-0093), never a new file\nA project's host-config\
-  \ values — which vhost file(s) the change owns, the host `live_base_url`, and the\n\
-  apply recipe — ride `yitc-ops.yaml` (SPEC-0093) as project ops config, declare-or-waive.\
-  \ The kernel\nowns the apply CONTRACT (the §2 rails + §3 sweep + §4 reconciliation\
-  \ — uniform for every consumer); the\nproject owns only its local VALUES. The `registry.yaml\
-  \ domains:` list the §3 sweep reads is existing\nserver inventory, reused — not\
-  \ duplicated onto the carrier.\n\n### 7. What this does NOT add (named retirements\
-  \ / non-goals — CHARTER §P1)\n- **Removed:** the ungoverned, invisible hand-apply-by-controller\
-  \ on `/etc/nginx` (the X-0097\n  workaround) and the false-green \"host change reached\
-  \ `done` unverified\" path. A real removal (F3).\n- **No autonomous hostapply /\
-  \ no system-held sudo** (the rejected Fork-1(B)).\n- **No new auto-trigger / autopilot**\
-  \ — the apply is an owner-approved action, the deploy-policy\n  autonomy boundary\
-  \ (SPEC-0097 §8) holds; landing a task never auto-applies a host change.\n- **No\
-  \ new store / parser / journal** — reuses the SPEC-0094 live_probe runner, the SPEC-0093\
-  \ carrier,\n  the existing events, and `registry.yaml` server inventory.\n\n## Parameters\n\
-  \nNone `consumed`. Per-project values (vhost file ownership, host `live_base_url`,\
+  \ on THIS axis, never by journal order ( — the same-second\n  rule of SPEC-1014\
+  \ «Rule 2 — recording a decision», applied to the target test): among the `owner_directive`\
+  \ rows sharing\n  the named second, exactly one naming the target (the same words\
+  \ captured twice count once) is\n  the authorizing row wherever it sits in the journal;\
+  \ several naming it in different words are\n  REFUSED `directive-ambiguous`, each\
+  \ named, **before any backup or write**; none naming it is\n  the refusal above.\n\
+  This TIGHTENS Fork-1(A) rather than reopening it — a background session still cannot\
+  \ self-authorize;\nit must now NAME the owner directive that authorized it, which\
+  \ the prior surface could not express.\nWithout this, the controller-dispatched\
+  \ owner-approved path (the path a deploying consumer actually\nruns) could satisfy\
+  \ the §5 three-evidence close-gate only by contradicting §1's literal wording.\n\
+  \n### 2. Safe-by-construction apply rails (ALL mandatory, in order — any failure\
+  \ ABORTS the apply)\nThe vetted helper MUST, for every host-config apply, in this\
+  \ order:\n- **(a) Auto-backup** the exact target file(s) before any write (a timestamped\
+  \ copy the rollback\n  restores). No write without a recorded backup.\n- **(b) `nginx\
+  \ -t` gate over the EFFECTIVE config** — validate the proposed config BEFORE activating\n\
+  \  it. **The `-t` MUST cover the config AS IT WILL ACTUALLY LOAD — the proposed\
+  \ conf ENABLED/included in\n  the active config set — never a config that still\
+  \ EXCLUDES the pending change** (trial finding,\n  2026-06-27: a NEW conf written\
+  \ but not yet included is INVISIBLE to `nginx -t`, so a syntactically\n  bad new\
+  \ vhost slips past the gate; the apply must enable/include the conf, then `-t`).\
+  \ A config that\n  fails `-t` is NEVER loaded (the running site keeps the old config);\
+  \ the apply ABORTS and the enable\n  is undone (the pending conf + any new include\
+  \ link are removed) — nothing reloaded, nothing changed.\n- **(c) Shared/foreign-vhost\
+  \ collision REFUSAL** — the helper REFUSES to write a target file that is\n  shared\
+  \ with, or owned by, another site's vhost (a server_name / file the change does\
+  \ not exclusively\n  own). It writes ONLY a target the change provably owns. This\
+  \ is the direct guard against the X-0097\n  overwrite-the-canonical-vhost failure;\
+  \ it is a hard REFUSE, never a warn.\n- **(d) Reversibility** — every applied change\
+  \ is reversible by a single recorded rollback (restore the\n  §2a backup + reload),\
+  \ AND the §3 sweep auto-fires that rollback on any regression. The residual risk\n\
+  \  is bounded to a short DOWNTIME WINDOW (driven toward zero by §3), never permanent\
+  \ loss — these are\n  config changes, not data.\n\n### 3. Server-wide post-apply\
+  \ health sweep + AUTO-ROLLBACK (the collateral-blast-radius guard)\nBecause the\
+  \ host nginx is SHARED across ALL co-hosted projects, verification is NOT scoped\
+  \ to the\nchanged site. The helper:\n- **Baselines** the health of EVERY registered\
+  \ domain (`registry.yaml` `domains:` across all projects)\n  BEFORE the apply —\
+  \ using SPEC-0094's read-only live_probe GET (incl. the no-follow dialect for a\
+  \ 3xx).\n- Applies (under §2), then **re-checks** every domain AFTER.\n- **AUTO-ROLLS-BACK**\
+  \ (the §2a backup + reload) if ANY previously-live site regressed (a healthy→broken\n\
+  \  transition on a domain that was healthy in the baseline). **\"Healthy\" = a 2xx\
+  \ OR 3xx response; \"broken\"\n  = 4xx / 5xx / connection-fail / timeout** (trial\
+  \ finding, 2026-06-27: a 3xx redirect IS healthy — the\n  health class MUST treat\
+  \ 3xx as healthy, else every intended redirect would false-trigger its own\n  rollback).\
+  \ A site already broken in the baseline does NOT block (no false rollback on pre-existing\n\
+  \  breakage). The changed site must ALSO pass its own per-change live_probe (the\
+  \ INTENDED behaviour — e.g.\n  a redirect asserting `expect_status: 301` — which\
+  \ is distinct from the sweep's \"not broken\" check).\nThis is the standing guard\
+  \ against \"fixed one site, silently broke a co-hosted one\" (X-0097).\n\n### 4.\
+  \ Repo-conf-vs-live reconciliation at the apply seam\nReconciliation evidence MUST\
+  \ be captured at the APPLY seam — where the helper CAN read live host state\n— NOT\
+  \ from the sandboxed worker (which cannot read `/etc/nginx`). At apply, the helper\
+  \ records a\nreconciliation result: the shipped repo conf MATCHES what is now live\
+  \ on the host (a recorded diff of\nshipped-conf vs the activated live-conf), and\
+  \ the §2c collision check confirms no shared resource was\nclobbered. This reconciliation\
+  \ record is one of the three evidences the §close-gate (SPEC-0094 §3)\nrequires\
+  \ before a host-config task may close.\n\n### 5. Seam split — apply/verify at the\
+  \ APPLY seam, declaration at CLOSE (mirrors SPEC-0094 §3/§4)\nThe executable work\
+  \ (the §2 rails, the §3 sweep, the §4 reconciliation) runs at the APPLY seam, the\n\
+  moment the change goes live — NEVER at `task close`. `task close` is a STATIC declaration/evidence\n\
+  check (SPEC-0094 §3 host-config extension): it REFUSES (fail-closed) an NGINX-VHOST\
+  \ task — the kind THIS\nspec's apply path serves — that has not RECORDED ALL THREE\
+  \ evidences — (1) an apply-confirmation, (2) a\nserver-wide health-sweep pass, (3)\
+  \ a repo-conf-vs-live reconciliation. This helper is nginx-only end-to-end,\nso\
+  \ it emits those three for that kind alone; a host change of another KIND (a cron\
+  \ entry, a systemd unit)\nhas no seam here and is gated on its own evidence by the\
+  \ per-kind matrix homed in SPEC-0094 §3 (X-0257) — not restated here. The owner's\
+  \ explicit human-apply confirmation is the FORM\nevidence (1) takes on the MANUAL-apply\
+  \ path — it confirms the APPLY STEP ONLY and NEVER substitutes for\nevidence (2)\
+  \ or (3), which are ALWAYS required (the server-wide sweep + reconciliation are\
+  \ the safety\nguarantees and cannot be waived by an owner attestation). So close\
+  \ never calls the host live, yet real\nadoption is proven by the executed apply+sweep\
+  \ at the seam.\n\n### 6. Per-project values ride the carrier (SPEC-0093), never\
+  \ a new file\nA project's host-config values — which vhost file(s) the change owns,\
+  \ the host `live_base_url`, and the\napply recipe — ride `yitc-ops.yaml` (SPEC-0093)\
+  \ as project ops config, declare-or-waive. The kernel\nowns the apply CONTRACT (the\
+  \ §2 rails + §3 sweep + §4 reconciliation — uniform for every consumer); the\nproject\
+  \ owns only its local VALUES. The `registry.yaml domains:` list the §3 sweep reads\
+  \ is existing\nserver inventory, reused — not duplicated onto the carrier.\n\n###\
+  \ 7. What this does NOT add (named retirements / non-goals — CHARTER §P1)\n- **Removed:**\
+  \ the ungoverned, invisible hand-apply-by-controller on `/etc/nginx` (the X-0097\n\
+  \  workaround) and the false-green \"host change reached `done` unverified\" path.\
+  \ A real removal (F3).\n- **No autonomous hostapply / no system-held sudo** (the\
+  \ rejected Fork-1(B)).\n- **No new auto-trigger / autopilot** — the apply is an\
+  \ owner-approved action, the deploy-policy\n  autonomy boundary (SPEC-0097 §8) holds;\
+  \ landing a task never auto-applies a host change.\n- **No new store / parser /\
+  \ journal** — reuses the SPEC-0094 live_probe runner, the SPEC-0093 carrier,\n \
+  \ the existing events, and `registry.yaml` server inventory.\n\n## Parameters\n\n\
+  None `consumed`. Per-project values (vhost file ownership, host `live_base_url`,\
   \ apply recipe) are\nproject ops config on the carrier (SPEC-0093 §Parameters),\
   \ NOT kernel-read governance scalars.\n\n## Rationale\n\nReal incident: X-0097 /\
   \ <project> — an nginx 301 redirect reached `status: done` through the\nfull lifecycle\

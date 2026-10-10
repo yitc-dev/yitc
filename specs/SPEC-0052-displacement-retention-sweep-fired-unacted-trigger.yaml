@@ -192,4 +192,4 @@ binding:
 implements_signature:
   bin/lib/audit.py#archive_terminal_nontask_audits: d9dd4e2d2d80c0589ac084215c446920be62edbec45c12f8b1dd32d9adfa0805
   bin/lib/cli.py#_displacement_retention_sweep: 0b595e744dbc5cdea8665697c3cab853ea552f9c7375f6a7a66b4f5890e09267
-  bin/lib/views.py#_view_displacement_retention: 3749db07a53bfca81648e3461945b29172c6c16ea20552e1b8cb75b9762f4d4f
+  bin/lib/views.py#_view_displacement_retention: 6c2c652c0d94883199e502141bc00a5ac7dae7eb86e14405b2e37672e2dbeced

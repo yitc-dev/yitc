@@ -23,9 +23,9 @@ body: "## Scenario\n\nThe owner/AI wants to know how the methodology, the AI (wo
   \ and\ncontinuously (on events that already fire); the KERNEL aggregates across\
   \ all projects rarely, at\nread-time, at revizia cadence — the 10th inspection theme.\
   \ The result is decision-useful NUMBERS,\nnever a scoring engine; the AI-usage data\
-  \ is a reusable byproduct (incl. marketing). This closes a\nmeasurement the CHARTER\
-  \ §Success-criteria already promises but nothing yet computes.\n\n## Internal\n\n\
-  THE REAL-WORK OBSERVATION-LOOP DOCTRINE. Seven rules. It adds NO new store / parser\
+  \ is a reusable byproduct (incl. marketing). This closes a\nmeasurement gap: V2's\
+  \ success was defined in measured terms that nothing yet computes.\n\n## Internal\n\
+  \nTHE REAL-WORK OBSERVATION-LOOP DOCTRINE. Seven rules. It adds NO new store / parser\
   \ / journal /\nevent-type / daemon (CHARTER §P1): it rides the EXISTING event-emit\
   \ path + `graph`-as-derived-view.\n\n### 1. Two modes — capture CHEAP+continuous,\
   \ analysis RARE+read-time\nCapture rides existing emit points (a few extra raw FIELDS\
@@ -72,22 +72,24 @@ body: "## Scenario\n\nThe owner/AI wants to know how the methodology, the AI (wo
   \ (`SPEC-0025` is AMENDED, not forked).\n\n### 7. Portable vocabulary\nThe field/view\
   \ vocabulary ALIGNS to OpenTelemetry GenAI semantic conventions for fork/tool\n\
   portability — as an export/naming aid ONLY; the SoT stays the journal events + the\
-  \ added fields.\n\n## Rationale\n\nCHARTER §Success-criteria defines success in\
-  \ measured terms («measurably lower friction than v1») but\nnothing computes it;\
-  \ anti-recurrence (CHARTER §P1 F4) needs real data on WHERE discipline breaks.\n\
-  Prior-art reused (extend, not create): `token-rollup` / `task-scorecard` / `trend-report`\
-  \ views, the\n`nightly` registry enumeration (SPEC-0105), the `inspection` construct\
-  \ (SPEC-0057), the bench\nworker×auditor pair benchmark (<workshop-spec>), the `debt`\
-  \ views (SPEC-0119). Gate-specs convergence\nconsult confirmed rule 3 (read-time-derived\
-  \ cost) as the sole coherent Single-SoT resolution.\n\n## Verification\n\n- Capture:\
-  \ each added field emits on the next real session/land/audit (state-check on `events.jsonl`).\n\
-  - SoT probe: `events.jsonl` carries NO journaled usage/cost field (grep-absent);\
-  \ cost resolves only\n  via `token-rollup` × `pricing-config`.\n- Aggregation: the\
-  \ kernel view returns real provider×model×effort PAIR slices over ≥ 2 real\n  project-weeks,\
-  \ with sample-size/confidence shown.\n- Theme-10: an `inspection_completed` (theme-10)\
-  \ event exists AND ≥ 1 `owner_action_linked`\n  (task/followup id) cites its findings.\n\
-  - Adoption: ≥ 1 decision links a deviation-fingerprint → fix → before/after recurrence\
-  \ → owner action.\n"
+  \ added fields.\n\n## Rationale\n\nThe CHARTER formerly defined success in measured\
+  \ terms (a production-project task with measurably\nlower session friction than\
+  \ its v1 equivalent) but nothing computed it; anti-recurrence (CHARTER §P1\nF4)\
+  \ needs real data on WHERE discipline breaks. History note: that definition stood\
+  \ in the CHARTER's\n«Success criteria» section, which retired from the CHARTER as\
+  \ history.\nPrior-art reused (extend, not create): `token-rollup` / `task-scorecard`\
+  \ / `trend-report` views, the\n`nightly` registry enumeration (SPEC-0105), the `inspection`\
+  \ construct (SPEC-0057), the bench\nworker×auditor pair benchmark (<workshop-spec>),\
+  \ the `debt` views (SPEC-0119). Gate-specs convergence\nconsult confirmed rule 3\
+  \ (read-time-derived cost) as the sole coherent Single-SoT resolution.\n\n## Verification\n\
+  \n- Capture: each added field emits on the next real session/land/audit (state-check\
+  \ on `events.jsonl`).\n- SoT probe: `events.jsonl` carries NO journaled usage/cost\
+  \ field (grep-absent); cost resolves only\n  via `token-rollup` × `pricing-config`.\n\
+  - Aggregation: the kernel view returns real provider×model×effort PAIR slices over\
+  \ ≥ 2 real\n  project-weeks, with sample-size/confidence shown.\n- Theme-10: an\
+  \ `inspection_completed` (theme-10) event exists AND ≥ 1 `owner_action_linked`\n\
+  \  (task/followup id) cites its findings.\n- Adoption: ≥ 1 decision links a deviation-fingerprint\
+  \ → fix → before/after recurrence → owner action.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

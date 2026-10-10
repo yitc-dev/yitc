@@ -356,7 +356,7 @@ the owner asked (`decisions/monolith-split-readiness-audit-adhoc.yaml` = YELLOW)
 recorded as an `inspection_completed` event carrying a **`run_ref`** (as its trial runs did —
 `run_ref=arch-drift-lens-trial-run-1`/`-run-2`), NOT via `inspect record --theme architecture-drift`:
 the `inspect record` theme guard's kernel allow-set is the fixed **T1..T10** roster (`bin/lib/inspection.py`
-`THEMES`), and the engine repo has no `yitc-ops.yaml` consumer-declared-theme escape hatch, so the
+`THEMES`), and the engine's own file declares none of the consumer-declared themes (the escape hatch), so the
 `architecture-drift` slug is REFUSED there — the `run_ref`-tagged event IS its sanctioned record path
 (the lens has no T-slot; it stays a run-ref-recorded report-only lens). NEVER a pre-commit gate /
 land blocker (SPEC-0080 P-A6; CHARTER non-goals #2/#7). Two refinements ride the SAME three surfaces:

@@ -2220,13 +2220,40 @@ SELF_REF_ENV = "YITC_SESSION_REF"
 # root stays a LIVE rebindable knob — `_session_log_path` resolves it fresh per lookup. This preserves
 # the long-standing SESSION_LOG_GLOB_ROOT reassignment seam (host-isolated tests redirect the claude
 # transcript root by rebinding that global) while still homing root+glob together per provider.
-CODEX_SESSION_LOG_ROOT = Path.home() / ".codex" / "sessions"   # codex rollout transcript root
+# T-13787 (SPEC-1023 rule 1): a row whose provider has a HOME OVERRIDE names it (`home_env` +
+# `home_subdir`): when that env var is set, the transcripts live under `<it>/<home_subdir>` and the root
+# global is NOT read (codex writes under $CODEX_HOME — R-live-codex); unset, the root global (the default
+# root) is. Each row also carries its provider's compaction `marker` — the ONE definition of a completed
+# compaction (SPEC-1023 rules 1-3, the live admission in its §Parameters; key meanings at
+# session.is_compaction_marker's block) — plus `start_row_tool`, the prefix a session_started row's
+# session_config carries for that provider, which names the provider in v2 state for rule 4(b) (None =
+# not observed for that provider).
+CODEX_SESSION_LOG_ROOT = Path.home() / ".codex" / "sessions"   # codex rollout transcript root (default)
 PROVIDER_TRANSCRIPT_DESCRIPTORS = (
     {"kind": "claude-code", "env": "CLAUDE_CODE_SESSION_ID",
-     "log_root_var": "SESSION_LOG_GLOB_ROOT", "log_glob": "*/{ref}.jsonl"},
+     "log_root_var": "SESSION_LOG_GLOB_ROOT", "log_glob": "*/{ref}.jsonl",
+     "marker": {"fields": {"type": "system", "subtype": "compact_boundary"},
+                "prefilter": '"compact_boundary"', "identity": ("uuid",),
+                "version": (None, ("version",)), "versions_observed": ("2.1.283", "2.1.294")},
+     "start_row_tool": "AI_AGENT=claude-code_"},
     {"kind": "codex", "env": "CODEX_THREAD_ID",
-     "log_root_var": "CODEX_SESSION_LOG_ROOT", "log_glob": "**/rollout-*{ref}.jsonl"},
+     "log_root_var": "CODEX_SESSION_LOG_ROOT", "log_glob": "**/rollout-*{ref}.jsonl",
+     "home_env": "CODEX_HOME", "home_subdir": "sessions",
+     "marker": {"fields": {"type": "compacted"}, "prefilter": '"compacted"',
+                "identity": ("payload", "window_id"),
+                "version": ("session_meta", ("payload", "cli_version")),
+                "versions_observed": ("0.142.5", "0.159.2")},
+     "start_row_tool": None},
 )
+# T-13788 (SPEC-1024 rule 12): the per-provider compaction-cue declaration, READ by the implementer from
+# SPEC-1024 §Parameters and held here as code (SPEC-1024 stays consumed: false — nothing parses its table):
+# per provider, the (launch, harness, compaction kind) combinations OBSERVED delivering the engine's cue
+# before the session's next action. Every other combination — a launch outside the repository included —
+# is cue NOT GUARANTEED, and `session start` says so in one line (`session.cue_not_guaranteed_line`).
+COMPACTION_CUE_DELIVERED = {
+    "claude-code": frozenset({("inside", "headless", "user-issued"), ("inside", "headless", "automatic")}),
+    "codex": frozenset({("inside", "interactive", "user-issued")}),
+}
 # Backward-compat DERIVED view (the SAME env names — NOT an independent literal / second truth surface):
 # the ordered carrier tuple readers reference, now derived from the descriptor (one source).
 PROVIDER_CARRIERS = tuple(d["env"] for d in PROVIDER_TRANSCRIPT_DESCRIPTORS)
@@ -2234,7 +2261,7 @@ PROVIDER_CARRIERS = tuple(d["env"] for d in PROVIDER_TRANSCRIPT_DESCRIPTORS)
 # verify box) must SHED from the launcher's env — the v2 identity carrier(s) `SESSION_REF_ENV_VARS` AND
 # the D-0030 provider transcript carriers `PROVIDER_CARRIERS`. Rule 8b removed the provider carriers from
 # the IDENTITY-resolution registry, but a stale inherited provider carrier must STILL be scrubbed: a fresh
-# worker/box has to compute its OWN context epoch (epoch-0, no inherited provider transcript) and join its
+# worker/box has to compute its OWN context epoch (no inherited provider transcript) and join its
 # OWN transcript, not the launcher's. Deriving this union (dedup-ordered) keeps ONE scrub SoT — the
 # registry collapse cannot silently weaken the dispatch/verify scrubs (byte-identical to the pre-collapse
 # scrub-ALL set: YITC_SESSION_REF + the two provider carriers).
@@ -2824,7 +2851,7 @@ def _ref_current_epoch_anchored(ref: str, *, bounded: bool = False) -> bool:
         lb = _session_started_lower_bound(ref, events=events)
         if lb is None:
             return False
-        return _session_epoch() in _seed_receipt_epochs(ref, lb, events=events)
+        return gates.seed_stamp_credits(_seed_receipt_epochs(ref, lb, events=events), _session_epoch())
 
     def _attempt(*, tail: bool):
         """One read attempt in the driver's `(credited, payload, bounded)` contract. `payload` is the
@@ -3009,10 +3036,11 @@ def _try_rediscover_session_ref(*, allow_locus_stamp: bool = True) -> "tuple[str
     return ref, reason
 
 
-def _carry_anchored_stale_epoch(ref: str) -> "tuple[int, int] | None":
-    """T-13720 — is an UNBACKED carried ref the POST-COMPACTION case? Returns `(receipt_epoch,
-    current_epoch)` when the journal the backing check reads holds `ref`'s own `session_started` anchor
-    AND seed-read receipts that ALL predate the current context epoch; else None.
+def _carry_anchored_stale_epoch(ref: str) -> "tuple | None":
+    """T-13720 — is an UNBACKED carried ref the POST-COMPACTION case? Returns `(receipt_stamp,
+    current_mark)` when the journal the backing check reads holds `ref`'s own `session_started` anchor
+    AND seed-read receipts none of which the gate's credit rule accepts for the current context-epoch
+    mark (`gates.seed_stamp_credits`, T-13789 — by identity); else None.
 
     That is the seed gate's `seed_read_stale_epoch` condition (`gates._require_seed_read`), reached here
     because a carry is BACKED only by a current-epoch receipt (`_ref_current_epoch_anchored`): right
@@ -3029,8 +3057,6 @@ def _carry_anchored_stale_epoch(ref: str) -> "tuple[int, int] | None":
         return None
     try:
         current = _session_epoch()
-        if not isinstance(current, int) or isinstance(current, bool) or current <= 0:
-            return None
         ev = EVENTS_APPEND_PATH if READ_ONLY_ROOT is not None else None
         rows, _bounded = gates._gate_snapshot(ev, tail=False, _iter_events=_iter_events,
                                               _iter_events_tail=_iter_events_tail, session_ref=ref)
@@ -3040,9 +3066,9 @@ def _carry_anchored_stale_epoch(ref: str) -> "tuple[int, int] | None":
         epochs = _seed_receipt_epochs(ref, lb, events=rows)
     except Exception:   # noqa: BLE001 — a diagnostic refinement must never replace the refusal itself
         return None
-    if not epochs or max(epochs) >= current:
+    if not epochs or gates.seed_stamp_credits(epochs, current):
         return None
-    return max(epochs), current
+    return epochs[-1], current
 
 
 _REDISCOVERY_SELECTORS_TRIED = (
@@ -3116,11 +3142,13 @@ def _resolve_session_ref(*, allow_locus_stamp: bool = True) -> str:
             msg = (
                 f"session_ref undetermined — the carried {SELF_REF_ENV}={carried!r} is UNBACKED for the "
                 "CURRENT context epoch: this journal holds its own `session_started` anchor, but its "
-                f"newest seed-read receipt is from context epoch {stale[0]} and the context is now at "
-                f"epoch {stale[1]} (SPEC-0137 Rule 2.1 / Rule 5 fail-closed; SPEC-0050 §8). CAUSE — the "
-                "context was COMPACTED after this session last ran `session start`: the carry is this "
+                f"newest seed-read receipt recorded context epoch {gates.mark_label(stale[0])} and the "
+                f"context is now at {gates.mark_label(stale[1])} (SPEC-0137 Rule 2.1 / Rule 5 fail-closed; "
+                "SPEC-0050 §8; SPEC-1023 rule 6 — by identity, UNKNOWN = the epoch cannot be read). CAUSE — the "
+                "context was COMPACTED (or cannot be told not to have been) after this session last ran `session start`: the carry is this "
                 "session's own, only its receipt is stale. RECOVERY — one step, and KEEP the carry: "
-                "re-read your whole audience seed (AGENTS.md §After /compact), then re-run "
+                "run `bin/yitc-v2 session start --print-only` (the restoration brief), re-read your whole "
+                "audience seed (AGENTS.md §After /compact), then re-run "
                 f"`bin/yitc-v2 session start` ONCE with {SELF_REF_ENV} still set, in the checkout you "
                 "run this verb from (a dispatched Worker: `bin/yitc-v2 session start --type build`). "
                 "That re-run resolves the SAME ref from the carry and stamps its receipt for the "
@@ -3728,13 +3756,150 @@ def _session_log_path(session_ref: str, *, provider_kind: "str | None" = None) -
         descriptors = ([d for d in descriptors if d["kind"] == provider_kind]
                        + [d for d in descriptors if d["kind"] != provider_kind])
     for desc in descriptors:
-        root = globals().get(desc["log_root_var"])   # resolve the LIVE root global each lookup
-        if root is None:
-            continue
-        matches = sorted(root.glob(desc["log_glob"].format(ref=session_ref)))
+        matches = _descriptor_log_matches(desc, session_ref)
         if matches:
             return matches[0]
     return None
+
+
+def _descriptor_log_root(desc) -> "Path | None":
+    """T-13787 (SPEC-1023 rule 1): the transcript root of ONE descriptor row — `<$home_env>/<home_subdir>`
+    when the row names a provider home override and it is set, else the row's LIVE root global."""
+    home = os.environ.get(desc.get("home_env") or "", "").strip() if desc.get("home_env") else ""
+    if home:
+        return Path(home) / desc["home_subdir"]
+    return globals().get(desc["log_root_var"])   # resolve the LIVE root global each lookup
+
+
+def _descriptor_log_matches(desc, session_ref) -> list:
+    """Every file the row's location pattern matches for `session_ref` (sorted) — the files that belong
+    to the session (SPEC-1023 rule 5). [] on an unset root or an empty ref."""
+    root = _descriptor_log_root(desc)
+    if root is None or not session_ref:
+        return []
+    return sorted(root.glob(desc["log_glob"].format(ref=session_ref)))
+
+
+def _descriptor_for(kind) -> "dict | None":
+    for desc in PROVIDER_TRANSCRIPT_DESCRIPTORS:
+        if desc["kind"] == kind:
+            return desc
+    return None
+
+
+def _claude_code_marker() -> dict:
+    """The claude-code row's marker — what the T-13580/T-13687 transcript walks (the «shown since the
+    last compaction» proofs) read; the context epoch itself is the reading's (`_session_epoch`)."""
+    return _descriptor_for("claude-code")["marker"]
+
+
+def _context_epoch_reading(transcript: "Path | None" = None, *, history: bool = True,
+                           own_start_config: "str | None" = None) -> dict:
+    """T-13787 (SPEC-1023 rule 4) — the context-epoch READING of the CURRENT session (or of an explicit
+    `transcript` file): LAST COMPACTION <identity>|NONE, NO TRANSCRIPT EXPECTED, or CANNOT TELL — never a
+    number. Its stamp (`_session_epoch`, T-13789) is what the seed gate and every crediting caller
+    compare.
+
+    The provider KIND comes from the first of (rule 4): the provider carrier in the process, a
+    session_started row of this session naming a provider tool (its session_config — never its vendor
+    `provider` field), the dispatcher's bootstrap start row (its launch row's twin under this session's
+    own ref), the runtime record's provider_meta. NO TRANSCRIPT EXPECTED is closed (rule 4b): no carrier AND none of those rows AND no
+    runtime record holding provider data. Anything else without a readable transcript is CANNOT TELL.
+    Never dies; an unexpected error reads CANNOT TELL with its cause.
+
+    The rows are this session's own (`_session_rows` over this checkout's and the main checkout's
+    journal): the tail walk first, stopping at the first row naming a tool; when it finds none, the
+    walk's whole-history answer, so a «no row names a provider» is never decided on a tail.
+
+    `history=False` + `own_start_config` is the `session start` form: the start report adds NO journal
+    read (the T-13303 / T-13371 start bounds), so it consults only what it knows in-process — the
+    session_config its OWN start row records (`own_start_config`), the dispatch contract
+    (EXPECTED_SESSION_REF_ENV — the launcher writes the launch row before it spawns the Worker) and the
+    runtime record. Without the earlier rows it cannot establish (b), so where those name nothing it
+    reads CANNOT TELL, naming that cause — never NO TRANSCRIPT EXPECTED."""
+    try:
+        if transcript is not None:
+            tp = Path(transcript).resolve()
+            for desc in PROVIDER_TRANSCRIPT_DESCRIPTORS:
+                root = _descriptor_log_root(desc)
+                if root is not None and Path(root).resolve() in tp.parents:
+                    return session.context_epoch_reading([tp], desc["kind"], desc["marker"])
+            return {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": None, "version": None,
+                    "cause": f"{transcript} is under no provider's transcript root"}
+        kind, ref = _current_provider_kind(), _provider_session_ref()
+        evidence = bool(kind)
+        if not kind:
+            # the session's own v2 ref, carry-first and never dying (the envelope resolver's precedence —
+            # a read of the session's own rows, not a keying decision)
+            v2_ref, _src, _why = _resolve_session_ref_for_envelope_with_source()
+            if _src == "unresolved" and _why != "absent":
+                # several live sessions and no selector: whose rows to read is not known
+                return {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": None,
+                        "version": None, "cause": f"this session cannot be told apart ({_why})"}
+            v2_ref = None if _src == "unresolved" else v2_ref
+            rec = None
+            for desc in PROVIDER_TRANSCRIPT_DESCRIPTORS:   # the start row THIS start writes
+                if own_start_config and desc["start_row_tool"] and desc["start_row_tool"] in own_start_config:
+                    kind, evidence = kind or desc["kind"], True
+            if EXPECTED_SESSION_REF_ENV in os.environ:     # a dispatched Worker: its launch row exists
+                evidence = True
+            if v2_ref:
+                # an ABSENT runtime record names nothing; one PRESENT but unreadable or invalid
+                # (`_read_runtime_record` answers None for both) may hold provider data — doubt
+                rec_path = _runtime_record_path(v2_ref)
+                rec = _read_runtime_record(rec_path)
+                if rec is None and os.path.lexists(rec_path):
+                    return {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": kind,
+                            "version": None,
+                            "cause": f"this session's runtime record {rec_path} could not be read"}
+                def _tool_kind(e):
+                    """The provider kind a start row of this session names through its session_config
+                    (never its vendor `provider` field), else None."""
+                    if e.get("type") != "session_started":
+                        return None
+                    cfg = str((e.get("data") or {}).get("session_config") or "")
+                    return next((d["kind"] for d in PROVIDER_TRANSCRIPT_DESCRIPTORS
+                                 if d["start_row_tool"] and d["start_row_tool"] in cfg), None)
+
+                def _launched(e):
+                    """The dispatcher's bootstrap start row — written under the Worker's own ref when it
+                    launches it, the launch row's own-ref twin."""
+                    return (e.get("type") == "session_started"
+                            and (e.get("data") or {}).get("bootstrap") == "dispatch")
+                rows = []
+                for full in ((False, True) if history else ()):
+                    rows = [e for path in _post_compact_journals()
+                            for e in _session_rows(path, v2_ref, full=full,
+                                                   settled=lambda snap: any(_tool_kind(x) for x in snap))]
+                    if any(_tool_kind(e) for e in rows):
+                        break                              # a tool row decides; else the full answer
+                tool = next((k for k in map(_tool_kind, rows) if k), None)
+                if tool or any(_launched(e) for e in rows):
+                    evidence, kind = True, kind or tool
+            if rec and (rec.get("provider_meta") or rec.get("provider_session_id")):
+                evidence = True
+                kind = kind or rec.get("provider_meta") or None
+                ref = (rec.get("provider_session_id") or "").strip() or None
+        if not evidence and not history:
+            return {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": None, "version": None,
+                    "cause": "no carrier, and this session's earlier rows are not read at session start "
+                             "(`session context` reads them)"}
+        if not evidence:
+            return {"reading": session.READING_NOT_EXPECTED, "marker": None, "kind": None, "version": None,
+                    "cause": None}
+        desc = _descriptor_for(kind) if kind else None
+        if desc is None:
+            descs = [d for d in PROVIDER_TRANSCRIPT_DESCRIPTORS if _descriptor_log_matches(d, ref)]
+            desc = descs[0] if descs else None
+        if desc is None:
+            return {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": kind, "version": None,
+                    "cause": "the provider of this session is not known" if not kind
+                    else f"no transcript descriptor for provider {kind}"}
+        return session.context_epoch_reading(_descriptor_log_matches(desc, ref), desc["kind"],
+                                             desc.get("marker"))
+    except Exception as e:   # noqa: BLE001 — a report never breaks the verb; doubt reads CANNOT TELL
+        return {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": None, "version": None,
+                "cause": f"the reading failed ({e.__class__.__name__})"}
 
 
 def _session_config_descriptor() -> str:
@@ -4222,8 +4387,9 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
           whose output went to the null device, the dispatch launcher's pre-recorded worker receipt
           and a start made in another conversation all leave no such record here;
       (J) THIS REF STARTED ON MAIN IN THIS EPOCH — the newest seed receipt of `ref` in the MAIN
-          checkout's journal is stamped with an epoch not older than the current one (an absent
-          stamp is epoch 0, the seed gate's own reading, SPEC-0050 section 8).
+          checkout's journal is stamped with the established reading's mark (T-13789, by identity;
+          a reading that is not established — no transcript, CANNOT TELL — proves nothing), and so is
+          the session's newest receipt read session-wide as the gate reads it (`_newest_seed_stamps`).
     A `/compact` fails both: the transcript proof is reset at the boundary and the receipt is from
     the earlier epoch — so the sanctioned post-compact re-run prints the full block.
     False in every other state, any exception included — the caller then prints the whole block,
@@ -4240,7 +4406,8 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
         if not ref or not prov or not main_events:
             return False
         if not session.start_block_in_context(prov, Path(main_events).parent,
-                                              _session_log_path=_session_log_path):
+                                              _session_log_path=_session_log_path,
+                                              marker=_claude_code_marker()):
             return False
 
         def _seed_rows(rows) -> list:
@@ -4254,17 +4421,27 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
         seeds = _seed_rows(rows)
         if not seeds:
             return False
-        ep = (max(seeds, key=lambda e: e.get("ts") or "").get("data") or {}).get("epoch")
-        return (ep if isinstance(ep, int) and not isinstance(ep, bool) else 0) >= _session_epoch()
+        # T-13789 (SPEC-1023 rule 6): the newest receipt names the reading's mark — by identity, and only
+        # on an established reading (CANNOT TELL / no transcript never proves «already holds»)
+        cur = _session_epoch_known()
+        if cur is None or not gates.seed_stamp_credits(
+                [gates._receipt_stamp(e.get("data") or {}) for e in seeds], cur):
+            return False
+        # and the session's NEWEST receipt — session-wide, as the gate reads it — names it too: a main
+        # receipt superseded by a newer one of another mark in a worktree proves nothing (T-13789)
+        newest = _newest_seed_stamps(ref)
+        return bool(newest) and all(st == cur for st in newest)
     except Exception:   # noqa: BLE001 — an echo trim never breaks a start; full block instead
         return False
 
 
-def _session_rows(events_path, ref: str, *, settled=None) -> list:
+def _session_rows(events_path, ref: str, *, settled=None, full: bool = False) -> list:
     """This session's own rows of ONE journal, walked newest first and stopped once `settled` holds —
-    the session-scoped tail walk the T-13580 receipt read uses (`gates._gate_snapshot`)."""
+    the session-scoped tail walk the T-13580 receipt read uses (`gates._gate_snapshot`). `full=True`
+    (T-13787) is that walk's own whole-history answer — the read a gate's refusal retry takes — for a
+    caller whose «not found» must be final."""
     rows, _bounded = gates._gate_snapshot(
-        Path(events_path), tail=True, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
+        Path(events_path), tail=not full, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
         session_ref=ref, settled=settled)
     return [e for e in rows if e.get("session_ref") == ref]
 
@@ -4283,34 +4460,42 @@ def _post_compact_root() -> str:
     return str(_main_worktree(REPO_ROOT) or REPO_ROOT)
 
 
-def _post_compact_refold_due(ref: "str | None") -> "tuple[int, int] | None":
+def _post_compact_refold_due(ref: "str | None") -> "tuple | None":
     """Is the post-compact re-fold block due at THIS start (T-13687, SPEC-0007 §5b)? DERIVED, never
-    declared. Returns `(epoch, previous_epoch)` when due, else None. Read BEFORE this start writes its
-    own `cli:seed` receipt (the residue emits it last).
+    declared. Returns `(epoch, previous_epoch)` — the two marks (T-13789) — when due, else None. Read
+    BEFORE this start writes its own `cli:seed` receipt (the residue emits it last).
 
     Due only when ALL hold:
-      - the current context epoch is KNOWN and > 0 (`_session_epoch_known` — a count actually taken;
-        a session that never compacted, or whose transcript cannot be read, gets no block);
-      - this ref STARTED IN AN OLDER EPOCH — a `cli:seed` receipt in THIS checkout's journal or the
-        MAIN checkout's stamped with an epoch older than the current one (a start's epoch is the stamp
-        on its receipt, `session_started` carries none; the dispatch launcher's pre-recorded worker
-        receipt counts, and an epoch-less receipt is epoch 0 — the seed gate's own reading);
+      - the reading names a compaction marker (a LAST COMPACTION reading — a transcript actually read;
+        a session that never compacted, or whose transcript cannot be read, gets no block), under the
+        provider whose tool-result records the delivery proof below reads (T-13789);
+      - this ref STARTED UNDER ANOTHER MARK — a `cli:seed` receipt in THIS checkout's journal or the
+        MAIN checkout's stamped with a mark other than the current one (a start's mark is the stamp on
+        its receipt, `session_started` carries none; the dispatch launcher's pre-recorded worker
+        receipt, `none`, counts; a pre-change NUMBER names no mark and does not — SPEC-1023 rule 6, by
+        identity);
       - this conversation was NOT already shown THIS ref's re-fold block for THIS epoch since its last
         compaction (`session.refold_block_in_context`; a block of another ref or epoch — a test
         fixture's output read as a tool result — does not count) — so the same-epoch refresh in a second checkout (a
         Worker's worktree start, then the main checkout before `land`) prints it once, while a start
         whose output never reached the conversation (sent to the null device) leaves it due.
-    The previous epoch reported is the newest of those older stamps.
+    The previous epoch reported is the newest of those receipts' marks.
     None on any exception: the start then prints exactly what it printed before this card.
 
-    reuses: `_session_epoch_known` (the counter the seed gate and the stage deliverer read), the
+    reuses: `_session_epoch_known` (the reading the seed gate and the stage deliverer read), the
     session-scoped journal tail walk T-13580 reads receipts with, and the transcript walk
-    `start_block_in_context` uses. None of it runs unless the epoch is known and > 0."""
+    `start_block_in_context` uses. None of it runs unless the reading names a marker."""
     try:
         if not ref:
             return None
-        epoch = _session_epoch_known()
-        if not isinstance(epoch, int) or isinstance(epoch, bool) or epoch <= 0:
+        epoch, reading = _session_epoch_reading()
+        if reading.get("reading") != session.READING_LAST or not (
+                isinstance(epoch, str) and epoch.startswith(session.MARK_PREFIX)):
+            return None
+        if reading.get("kind") != _descriptor_for("claude-code")["kind"]:
+            # the «already shown since the compaction» proof below reads THIS provider's tool-result
+            # records only — under another provider the block would repeat at every start, so it is
+            # not printed there; the restoration brief's section 6 carries the same steps (SPEC-1024)
             return None
 
         def _seeds(rows) -> list:
@@ -4318,19 +4503,19 @@ def _post_compact_refold_due(ref: "str | None") -> "tuple[int, int] | None":
                     and (e.get("data") or {}).get("node_id") == gates.SEED_READ_NODE_ID]
 
         def _older(rows) -> list:
-            eps = [(e.get("data") or {}).get("epoch") for e in _seeds(rows)]
-            return [ep if isinstance(ep, int) and not isinstance(ep, bool) else 0 for ep in eps
-                    if not (isinstance(ep, int) and not isinstance(ep, bool) and ep >= epoch)]
+            return [e for e in _seeds(rows) if isinstance(gates._receipt_stamp(e.get("data") or {}), str)
+                    and gates._receipt_stamp(e.get("data") or {}) != epoch]
 
-        older = []
-        for path in _post_compact_journals():
-            older += _older(_session_rows(path, ref, settled=lambda snap: bool(_older(snap))))
+        older = [e for path in _post_compact_journals()
+                 for e in _older(_session_rows(path, ref, settled=lambda snap: bool(_older(snap))))]
         if not older:
             return None
+        prev = gates._receipt_stamp(max(older, key=lambda e: e.get("ts") or "").get("data") or {})
         if session.refold_block_in_context(_provider_session_ref(), ref, _post_compact_root(), epoch,
-                                           _session_log_path=_session_log_path):
+                                           _session_log_path=_session_log_path,
+                                           marker=_claude_code_marker()):
             return None
-        return epoch, max(older)
+        return epoch, prev
     except Exception:   # noqa: BLE001 — a report line never breaks a start
         return None
 
@@ -4358,6 +4543,15 @@ def _post_compact_refold_plans(ref: str) -> list:
 def cmd_session_start(args: argparse.Namespace) -> None:
     # T-13303 (AC5): the verb's OWN wall-clock start — its seed receipt below is emitted IN-verb, so
     # `main`'s post-run `duration_ms` never reaches it; measured from here, as `main` measures a body.
+    if getattr(args, "print_only", False):
+        # T-13788 (SPEC-1024 rule 8): the PRINT-ONLY mode — the restoration brief, nothing stamped.
+        return _session_start_print_only(args)
+    if os.environ.get("YITC_COMPACTION_ENTRY"):
+        # T-13790 (SPEC-1024 rules 8/12): an automated post-compaction entry may run the print-only mode
+        # only — the stamping run is the session's own, after its seed re-read. Refused before any write.
+        _die("session start: refused — this run comes from the post-compaction entry (YITC_COMPACTION_ENTRY "
+             "is set), which may run the print-only mode only; the session itself stamps its receipt after "
+             "re-reading its seed. Run `bin/yitc-v2 session start --print-only` from the entry (SPEC-1024 rule 12)")
     _t0 = time.monotonic()
     # T-12208 (SPEC-0190 rule 10) — THE ONE REQUEST-SCOPED ReadScope FOR THE WHOLE SESSION-START
     # REQUEST, installed HERE, at the seam's WIRING SITE: the residue that COMPOSES every view this
@@ -4611,6 +4805,17 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         if getattr(args, "type", None) != "build":
             _onboarding_digest()
         _print_context_seam_tail()   # SPEC-0115 §7 seam tail (T-9707) — printed once at this clean seam
+        # T-13787 (SPEC-1023 rules 3/4/7): the context-epoch READING beside the occupancy line — report-only
+        # (the gate still reads `_session_epoch`; T-13789 switches it). Never breaks the start.
+        try:
+            for _ce_ln in _context_epoch_start_lines():
+                print(session.mark(_ce_ln, session.REPORT_ONLY))
+        except Exception:  # noqa: BLE001 — a report-only line never fails the start
+            pass
+        # T-13788 (SPEC-1024 rule 12): one line when this provider combination is not declared cue DELIVERED.
+        _cue_ln = _compaction_cue_start_line()
+        if _cue_ln:
+            print(session.mark(_cue_ln, session.REPORT_ONLY))
         # T-13258: the engine version THIS session runs (a release updated under a live session leaves it
         # on the old code). Report-only, engine and -C alike; post-/compact re-fold: `release check`.
         try:
@@ -4680,7 +4885,8 @@ def cmd_session_context(args: argparse.Namespace) -> None:
     # read at call time (so a -C REPO_ROOT rebind + any monkeypatch.setattr(yitc, …) stay honored).
     return session.cmd_session_context(
         args, _provider_session_ref=_provider_session_ref, _session_log_path=_session_log_path,
-        _kernel_content_file=_kernel_content_file, _read_yaml=_read_yaml, ENGINE_ROOT=ENGINE_ROOT)
+        _kernel_content_file=_kernel_content_file, _read_yaml=_read_yaml, ENGINE_ROOT=ENGINE_ROOT,
+        _context_epoch_reading=_context_epoch_reading)   # T-13787: the SPEC-1023 reading line
 
 
 def _context_seam_tail_line():
@@ -4698,6 +4904,686 @@ def _context_seam_tail_line():
             _kernel_content_file=_kernel_content_file, _read_yaml=_read_yaml, ENGINE_ROOT=ENGINE_ROOT)
     except Exception:
         return None
+
+
+def _record_unobserved_version_deviation(kind, version) -> bool:
+    """SPEC-1023 rule 3: record ONE deviation per (provider, unobserved version) — True when this call
+    recorded it, False when the journal already holds it (or the append failed: report-only, never fatal)."""
+    fp = f"context-epoch-unobserved-version:{kind}:{version}"
+    try:
+        if fp in _capture_fingerprint_counts(EVENTS_PATH):   # the existing capture-fingerprint reader
+            return False
+        _append_event("deviation_captured", None, {
+            "fingerprint": fp, "relates_to": "SPEC-1023",
+            "impact": (f"compaction detection is unverified for {kind} {version}: the marker was admitted "
+                       "on other versions — observe a live compaction under it and admit the version "
+                       "(SPEC-1023 rule 3)"),
+            "captured_via": "session-start"})
+        return True
+    except Exception:   # noqa: BLE001 — a report never breaks the start
+        return False
+
+
+def _context_epoch_start_lines() -> list:
+    """T-13787 (SPEC-1023 rules 3, 4, 7): the `session start` report lines for the context-epoch reading."""
+    own = " ".join(f"{k}={os.environ[k]}" for k in SESSION_CONFIG_ENV_KEYS if os.environ.get(k, "") != "")
+    r = _context_epoch_reading(history=False, own_start_config=own)
+    desc = _descriptor_for(r.get("kind")) if r.get("kind") else None
+    return session.context_epoch_start_lines(r, (desc or {}).get("marker"),
+                                             deviation_recorded=_record_unobserved_version_deviation)
+
+
+# ── T-13788: the restoration brief — `session start --print-only` (SPEC-1024 rules 1-9, 11, 13) ──────
+def _transcript_launch_shape(path, kind) -> "tuple[str | None, str | None]":
+    """SPEC-1024 rule 12 — `(launch, harness)` of the session whose transcript is `path`, read off its
+    first records: the launch directory ('inside' when it is a checkout of THIS project — the main
+    checkout or any of its worktrees, by git common dir — else 'outside') and the harness ('headless' /
+    'interactive') the provider recorded. (None, None) when it cannot be read."""
+    cwd = harness = None
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for n, line in enumerate(fh):
+                if n > 400:
+                    break
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if kind == "codex" and rec.get("type") == "session_meta":
+                    p = rec.get("payload") or {}
+                    cwd, orig = p.get("cwd"), str(p.get("originator") or "")
+                    harness = ("headless" if "exec" in orig else "interactive") if orig else None
+                    break
+                if kind == "claude-code" and rec.get("cwd") and rec.get("entrypoint"):
+                    cwd, ep = rec["cwd"], str(rec["entrypoint"])
+                    harness = "headless" if ep.startswith("sdk") else "interactive"
+                    break
+    except (OSError, TypeError):
+        return None, None
+    if not cwd:
+        return None, harness
+    try:
+        own = _git_common_dir(REPO_ROOT)
+        there = _git_common_dir(Path(cwd)) if Path(cwd).is_dir() else None
+    except Exception:   # noqa: BLE001 — unknown launch shape, never a guess
+        return None, harness
+    if own is None:
+        return None, harness
+    return ("inside" if there is not None and Path(there).resolve() == Path(own).resolve() else "outside"), harness
+
+
+def _compaction_cue_start_line() -> "str | None":
+    """SPEC-1024 rule 12 — the `session start` line for a provider combination the engine does not
+    declare cue DELIVERED (`COMPACTION_CUE_DELIVERED`), else None. Report-only; never fails a start."""
+    try:
+        kind = _current_provider_kind()
+        if not kind:
+            return None
+        path = _session_log_path(_provider_session_ref() or "", provider_kind=kind)
+        launch, harness = _transcript_launch_shape(path, kind) if path else (None, None)
+        line = session.cue_not_guaranteed_line(kind, launch, harness, COMPACTION_CUE_DELIVERED,
+                                               f"{_cli_invocation_form()} session start --print-only")
+        return _consumer_render(line) if line else None
+    except Exception:   # noqa: BLE001 — a report line never breaks the start
+        return None
+
+
+def _ref_anchored(ref: str) -> bool:
+    """Has `ref` a `session_started` anchor in this checkout's or the main checkout's journal (any epoch)?
+    The session-scoped tail walk first, then its whole-history answer (the T-13787 reading's pattern)."""
+    def _anch(rows):
+        return any(e.get("type") == "session_started" for e in rows)
+    for full in (False, True):
+        if any(_anch(_session_rows(p, ref, full=full, settled=_anch)) for p in _post_compact_journals()):
+            return True
+    return False
+
+
+def _brief_identity(args, start_refs) -> dict:
+    """SPEC-1024 rule 5 — whose brief, READ-ONLY (never a mint, never a record write): the existing
+    strict resolver's non-dying twin; else (a) a carried ref with a `session_started` anchor (a stale
+    receipt is the ordinary post-compaction state); else, with no carry, (b) exactly ONE anchored ref
+    among `start_refs()` — the refs this conversation's own stamping-run start reports name
+    (`session.transcript_scan`). Anything else is unresolved, with the reason."""
+    worker = getattr(args, "type", None) == "build" or EXPECTED_SESSION_REF_ENV in os.environ
+    ref, src = _try_resolve_session_ref_with_source()
+    if ref:
+        return {"ref": ref, "how": src or "resolver", "worker": worker}
+    carry = (os.environ.get(EXPECTED_SESSION_REF_ENV) or os.environ.get(SELF_REF_ENV) or "").strip()
+    if carry:
+        if _ref_anchored(carry):
+            return {"ref": carry, "how": "anchored carry with a stale receipt", "worker": worker}
+        return {"ref": None, "worker": worker,
+                "why": f"the carried ref {carry} has no session_started anchor in this project's journal"}
+    found = [r for r in start_refs() if _ref_anchored(r)]
+    if len(found) == 1:
+        return {"ref": found[0], "how": "this conversation's own start report", "worker": worker,
+                "recovered": True}
+    return {"ref": None, "worker": worker,
+            "why": ("no ref is carried and " + (f"this conversation's start reports name {len(found)} anchored "
+                                                 "refs" if found else "no start report of this conversation's "
+                                                 "own `session start` names an anchored ref"))}
+
+
+_BRIEF_LAND_TERMINAL = ("land_completed", "land_aborted")
+
+
+def _brief_journal_rows(ref: str, transcript, since=None, journals=None) -> list:
+    """SPEC-1024 rule 3 — the history the brief reads: ONE declared-type walk per journal (this checkout's,
+    then the main checkout's) through the segment-aware reader, keeping this session's own rows, the
+    `owner_directive` rows whose source_ref names its own transcript whatever ref they carry (rule 2 §4),
+    and every terminal land row (a land this session started may be finished under another ref).
+    Bounded below by `since` — the conversation's own start, less a margin: no row of this session
+    predates it, so older segments are never opened (SPEC-0190 rule 4). De-duplicated across the two
+    journals; oldest first by (ts, type). `journals` overrides the journal set (a test reads a fixture)."""
+    types = {"task_picked", "plan_stage_entered", "land_started", "bg_dispatch_launched",
+             "watch_process_group_escaped", "owner_directive", *_BRIEF_LAND_TERMINAL}
+    tprefix = f"{transcript}#" if transcript else None
+
+    def _keep(e):
+        if e.get("session_ref") == ref or e.get("type") in _BRIEF_LAND_TERMINAL:
+            return True
+        return (tprefix is not None and e.get("type") == "owner_directive"
+                and str(e.get("source_ref") or "").startswith(tprefix))
+    rows, seen = [], set()
+    for path in (journals if journals is not None else _post_compact_journals()):
+        for e in journal_mod.iter_rows(path, types=types, since=since, pred=_keep):
+            if since is not None and str(e.get("ts") or "") < since:
+                continue
+            key = json.dumps(e, sort_keys=True, default=str)   # the whole row: one journal's row read twice
+            if key not in seen:
+                seen.add(key)
+                rows.append(e)
+    return sorted(rows, key=lambda e: (str(e.get("ts") or ""), str(e.get("type") or "")))
+
+
+def _brief_floor(first_ts) -> "str | None":
+    """The journal floor of a conversation: its transcript's first timestamp less one hour (a launcher
+    writes a Worker's rows seconds before its transcript exists). None — the whole history — when unknown."""
+    m = re.match(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)", str(first_ts or ""))
+    if not m:
+        return None
+    t = _dt.datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S") - _dt.timedelta(hours=1)
+    return t.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _brief_card(tid: str, wts: dict) -> "tuple[dict | None, Path | None]":
+    """(card, live worktree) of a task — its live `task/` worktree's copy when one exists (a claim reaches
+    main only at land), else main's. Raises on an unreadable card, so the caller names the gap."""
+    main_path = _find_task_yaml(tid)
+    wt = wts.get(tid)
+    path = (Path(wt) / main_path.relative_to(REPO_ROOT)) if (wt and main_path) else main_path
+    if path is None or not Path(path).exists():
+        return None, wt
+    card = _read_yaml(path)
+    if not isinstance(card, dict):
+        raise ValueError(f"{path} is not a task card")
+    return card, wt
+
+
+_BRIEF_COMMAND_ONLY_ROWS = ("verbs", "seed cues", "hand-offs", "state", "consumer", "auditor")
+
+
+def _brief_compact_row(row: str) -> str:
+    """SPEC-1024 rule 7: section 6 names a re-fold step by its commands only — a re-fold row whose label
+    is one of `_BRIEF_COMMAND_ONLY_ROWS` becomes `  - <label>: `cmd` · `cmd``; the seed, stamp, task,
+    plan and land rows keep their text (they name what to read, not only what to run)."""
+    m = re.match(r"  - ([a-z -]+):", row)
+    cmds = list(dict.fromkeys(c for c in re.findall(r"`([^`]+)`", row) if "yitc-v2" in c))
+    if not m or m.group(1) not in _BRIEF_COMMAND_ONLY_ROWS or not cmds:
+        return row
+    return f"  - {m.group(1)}: " + " · ".join(f"`{c}`" for c in cmds)
+
+
+def _session_start_print_only(args) -> None:
+    """SPEC-1024 rule 8 — `session start --print-only`: print the restoration brief and STOP. It stamps
+    no seed receipt, writes no `session_started` anchor and no runtime record, and changes no task,
+    plan, worktree or receipt state. Its writes: its own invocation receipt (here) plus the auto-sync
+    `main` already ran (SPEC-0010), and ONE delivery row when its output was delivered (rule 9).
+    Reads: the SPEC-1023 reading (`_context_epoch_reading`) and ONE pass over the transcript
+    (`session.transcript_scan` — identity 5(b), section 5, the journal floor) — two passes, the reading's
+    own and the brief's; then ONE journal walk per journal (`_brief_journal_rows`)."""
+    t0 = time.monotonic()
+    out, nlines, ref, row = _restoration_brief(args, stream=sys.stdout, delivery_point="print-only")
+    try:
+        _emit_cli_invoked("session start --print-only", sys.argv[1:], len(out.encode("utf-8")), nlines, 0,
+                          session_ref=ref, duration_ms=int((time.monotonic() - t0) * 1000))
+    except Exception:   # noqa: BLE001 — the brief is already delivered
+        pass
+    _brief_delivery_row(row, ref)
+
+
+@contextlib.contextmanager
+def _compaction_backstop(args):
+    """SPEC-1024 rule 10 (T-13789) — the backstop: an engine verb, a read-only one included, run by a
+    session whose NEWEST seed receipt does not name the reading's mark prints ONE plain line FIRST and
+    repeats it LAST (on stderr, so a verb's machine-readable stdout stays whole); when it is a recovery
+    case and no delivered brief exists yet for that mark, the full brief follows the first line once
+    (`_backstop_brief_once`). The line tells three cases apart (`session.backstop_plain_line`): a
+    compaction DETECTED, a receipt in the OLD numeric format (refresh, no compaction claimed), and
+    CANNOT TELL. Silent for `session start` (the print-only run IS the brief; the stamping run IS the
+    recovery), for a run carrying no provider carrier (no conversation to tell — the gate alone
+    applies), under a provider whose detection is not observed, and for a session with no receipt.
+    Never fails the verb: any error leaves it silent."""
+    plain = None
+    try:
+        plain = _backstop_open(args)
+    except Exception:   # noqa: BLE001 — a cue never breaks the verb it rides on
+        plain = None
+    try:
+        yield
+    finally:
+        if plain:
+            try:
+                print(plain, file=sys.stderr)
+                sys.stderr.flush()
+            except Exception:   # noqa: BLE001
+                pass
+
+
+def _backstop_open(args) -> "str | None":
+    """The rule-10 decision and its first print; returns the plain line to repeat last, or None."""
+    if (getattr(args, "func", None) is cmd_session_start or not _provider_session_ref()
+            or READ_ONLY_ROOT is not None):   # a `--read-only` run reads another checkout's state
+        return None
+    mark, reading = _session_epoch_reading()
+    if mark is None:
+        return None
+    ref, src, _why = _resolve_session_ref_for_envelope_with_source()
+    if src == "unresolved" or not ref:
+        return None
+
+    stamps = _newest_seed_stamps(ref)
+    if not stamps or all(st == mark for st in stamps):
+        return None
+    stamp = next(st for st in stamps if st != mark)
+    worker = getattr(args, "type", None) == "build" or EXPECTED_SESSION_REF_ENV in os.environ
+    cli = _cli_invocation_form()
+    form = " --type build" if worker else ""
+    case = ("unknown" if mark == session.MARK_UNKNOWN
+            else "old-format" if not isinstance(stamp, str)
+            else "detected" if mark.startswith(session.MARK_PREFIX) else "mismatch")
+    plain = session.backstop_plain_line(case, mark, stamp,
+                                        print_cmd=f"{cli} session start --print-only{form}",
+                                        stamp_cmd=f"{cli} session start{form}",
+                                        cause=reading.get("cause"))
+    print(plain, file=sys.stderr)
+    sys.stderr.flush()
+    if case != "old-format":
+        _backstop_brief_once(args, ref, mark, reading)
+    return plain
+
+
+def _newest_seed_stamps(ref: str) -> list:
+    """The stamp(s) of `ref`'s NEWEST seed receipt as the gate reads it (T-13789): each of this
+    checkout's journal and the main checkout's gives its last-appended receipt, and the latest of those
+    by time is the session's (`gates.newest_seed_stamps` — two when both journals hold one of that same
+    second); [] when neither holds one. The session-scoped tail walk the gate's readers use."""
+    def _seeds(rows) -> list:
+        return [e for e in rows if e.get("type") == "cli_invoked"
+                and (e.get("data") or {}).get("node_id") == gates.SEED_READ_NODE_ID]
+    per_journal = []
+    for path in _post_compact_journals():
+        seeds = _seeds(_session_rows(path, ref, settled=lambda snap: bool(_seeds(snap))))
+        if seeds:
+            per_journal.append((seeds[-1].get("ts") or "", gates._receipt_stamp(seeds[-1].get("data") or {})))
+    return gates.newest_seed_stamps(per_journal)
+
+
+def _drop_superseded(ref: str, mark, rows: list, rows_path) -> list:
+    """T-13789 (SPEC-1023 rule 6) — `rows` (one journal's rows of `ref`, file order) without the
+    `cli_invoked` rows a seed receipt stamped with a mark OTHER than `mark` supersedes. A row that proves
+    «this context already holds it» under `mark` (a stage contract delivery, a brief-delivery row) counts
+    only while no such receipt of the session was appended after it: a mark that went A and back (a cut
+    or repaired transcript) must not let a row written before A vouch again — the rule the gate applies
+    to receipts, where only the newest decides. «After» is the file order within `rows_path` (the rows
+    already walked hold every later row) and a ts not earlier in the session's other journal (this
+    checkout's or the main checkout's — `_post_compact_journals`; a same-second receipt there supersedes:
+    the doubt falls toward delivering again), whose walk stops at the first such receipt or once it is
+    older than the oldest row in question."""
+    def _other(e) -> bool:
+        return (e.get("type") == "cli_invoked"
+                and (e.get("data") or {}).get("node_id") == gates.SEED_READ_NODE_ID
+                and gates._receipt_stamp(e.get("data") or {}) != mark)
+
+    last = max((i for i, e in enumerate(rows) if _other(e)), default=-1)
+    floor = min(((e.get("ts") or "") for e in rows[last + 1:] if e.get("type") == "cli_invoked"), default="")
+    later = ""
+    for path in _post_compact_journals():
+        if rows_path is not None and Path(path).resolve() == Path(rows_path).resolve():
+            continue
+        snap = _session_rows(path, ref, settled=lambda s: any(_other(e) for e in s) or bool(
+            floor and s and min((e.get("ts") or "") for e in s) < floor))
+        later = max([later] + [e.get("ts") or "" for e in snap if _other(e)])
+    return [e for i, e in enumerate(rows)
+            if e.get("type") != "cli_invoked" or (i > last and (e.get("ts") or "") > later)]
+
+
+def _brief_journal() -> Path:
+    """The ONE journal a brief-delivery row is written to and looked up in (T-13789): the MAIN
+    checkout's, which every checkout of the project reads — so two verbs of one session run from two
+    worktrees see each other's row."""
+    if READ_ONLY_ROOT is not None:
+        return Path(EVENTS_APPEND_PATH)   # SPEC-0078 §5: a read-only run writes its own journal only
+    return Path(_journal_locus_main_events(REPO_ROOT) or EVENTS_PATH)
+
+
+def _backstop_brief_once(args, ref: str, mark: str, reading: dict) -> None:
+    """SPEC-1024 rules 9-10 — the full brief once per context-epoch mark: under ONE lock, look up a
+    delivered brief-delivery row of `ref` stamped with `mark` (the tail-first session walk the gate's
+    readers use) in the main checkout's journal (`_brief_journal`); with none, print the brief to stderr
+    and write its row there. Two verbs of one session started together — from one checkout or from two
+    worktrees — therefore print one brief and write one row. A brief whose output went to the null
+    device writes no row, so the next verb prints it again."""
+    def _rows(snap) -> list:
+        return [e for e in snap if e.get("type") == "cli_invoked"
+                and (e.get("data") or {}).get("node_id") == session.BRIEF_DELIVERY_NODE_ID
+                and (e.get("data") or {}).get("epoch") == mark]
+    with _with_repo_lock_named(REPO_ROOT, "compaction-brief.lock"):
+        snap = _session_rows(_brief_journal(), ref, settled=lambda s: bool(_rows(s)))
+        # a row written before a seed receipt of ANOTHER mark is superseded (`_drop_superseded`)
+        if _rows(snap) and _rows(_drop_superseded(ref, mark, snap, _brief_journal())):
+            return
+        _out, _n, bref, row = _restoration_brief(args, stream=sys.stderr, delivery_point="backstop",
+                                                 reading=reading)
+        _brief_delivery_row(row, bref or ref)
+
+
+def _brief_delivery_row(row, ref) -> None:
+    """SPEC-1024 rule 9 — append the ONE delivery row a delivered brief earns (None: not delivered), to the
+    main checkout's journal (`_brief_journal`), where the backstop looks it up."""
+    if row is None:
+        return
+    try:
+        _append_event("cli_invoked", None, row, session_ref=ref or None, events_path=_brief_journal())
+    except Exception:   # noqa: BLE001 — a receipt never fails the brief
+        pass
+
+
+def _restoration_brief(args, *, stream, delivery_point: str, reading=None) -> "tuple[str, int, str | None, dict | None]":
+    """SPEC-1024 rules 1-7 — render the restoration brief ONCE and write it to `stream` (the print-only
+    run's stdout; the rule-10 backstop's stderr). Returns `(text, line count, resolved ref, the delivery
+    row's data — None when `stream` provably went to the null device)`; the caller writes the row
+    (`_brief_delivery_row`). `reading` — the SPEC-1023 reading the caller already took, else taken here."""
+    cli = _cli_invocation_form()
+    redact = journal_mod.redact_secrets
+    gaps_named = []
+    try:
+        reading = reading if reading is not None else _context_epoch_reading()
+    except Exception as e:   # noqa: BLE001 — a reading failure is a shown gap (rule 4)
+        reading = {"reading": session.READING_CANNOT_TELL, "marker": None, "kind": None, "cause": repr(e)}
+    kind = reading.get("kind") or _current_provider_kind()
+    desc = _descriptor_for(kind) if kind else None
+    scan_box = {}
+
+    def _scan(tref):
+        """The ONE transcript pass, taken at most once (`scan_box` holds its answer)."""
+        if "scan" not in scan_box:
+            path = _session_log_path(tref, provider_kind=kind) if tref else None
+            scan_box["path"] = path
+            scan_box["scan"] = (None if path is None or (kind and kind not in journal_mod.ADAPTER_PROVIDER_KINDS)
+                                else session.transcript_scan(
+                                    path, (desc or {}).get("marker"), extract_text=_extract_text,
+                                    turn=lambda rec: journal_mod.conversation_turn(rec, _extract_text=_extract_text)))
+        return scan_box["scan"]
+    ident = _brief_identity(args, lambda: (_scan(_provider_session_ref()) or {}).get("start_refs") or [])
+    ref, worker = ident.get("ref"), ident["worker"]
+    scan = _scan(_provider_transcript_ref(ref) if ref else _provider_session_ref())
+    transcript = scan_box.get("path")
+    carry = "" if worker else f"YITC_SESSION_REF={ref} " if ref else ""
+    print_cmd = f"{carry}{cli} session start --print-only" + (" --type build" if worker else "")
+    stamp_cmd = f"{carry}{cli} session start" + (" --type build" if worker else "")
+    marker_rec = (scan or {}).get("marker_rec") or {}
+    # ── section 1
+    head = ["1. what happened:"]
+    if reading.get("reading") == session.READING_LAST and reading.get("marker"):
+        head.append(f"  - the context was compacted: newest compaction marker {reading['marker']} "
+                    f"(provider {kind}; SPEC-1023 reading)")
+        trig = (marker_rec.get("compactMetadata") or {}).get("trigger")
+        head.append(f"  - trigger field as recorded: {json.dumps(trig) if trig is not None else 'none recorded'}"
+                    " (it does not tell an idle compaction from a user-issued one)")
+        note = marker_rec.get("content")
+        if isinstance(note, str) and note.strip() and note.strip() != "Conversation compacted":
+            head.append(f"  - provider note: {json.dumps(redact(note.strip())[:120], ensure_ascii=False)}")
+    elif reading.get("reading") in (session.READING_LAST, session.READING_NOT_EXPECTED):
+        head.append(f"  - no compaction on record (provider {kind or 'none'}; SPEC-1023 reading)")
+    else:
+        head.append(f"  - could not read the compaction state: {reading.get('cause') or 'no reading'} — "
+                    f"`{cli} session context`")
+        gaps_named.append("compaction-state")
+    # ── section 2 (identity line mandatory)
+    head.append("2. who you are:")
+    cuttable, tail = [], []
+    if ref:
+        stamp = _read_worktree_stamp(REPO_ROOT)
+        checkout = REPO_ROOT if (stamp or {}).get("session_ref") == ref else _post_compact_root()
+        head.append(f"  - session {ref} · {'worker' if worker else 'controller'} · anchored checkout {checkout}"
+                    f" · resolved by {ident.get('how')}")
+        if ident.get("recovered"):
+            head.append(f"  - carry it: YITC_SESSION_REF={ref} on every call (recovered from this "
+                        "conversation's own start report)")
+    else:
+        head.append(f"  - identity UNRESOLVED — {ident.get('why')}; this brief prints nothing that needs an "
+                    "identity (rule 5)")
+    if ref:
+        sec2 = {"title": "2b. worktrees stamped with this session:", "items": [], "gaps": [],
+                "list_cmd": "git worktree list"}
+        try:
+            for br, p in sorted(_live_worktree_journal_roots().items()):
+                if ((_read_worktree_stamp(Path(p)) or {}).get("session_ref")) == ref:
+                    sec2["items"].append({"pointer": f"worktree {p} (branch {br})"})
+        except Exception as e:   # noqa: BLE001 — a named gap (rule 4)
+            sec2["gaps"].append(f"could not read the worktree list: {e.__class__.__name__} — `git worktree list`")
+            gaps_named.append("worktrees")
+        sec3, sec4 = _brief_held_and_directives(ref, worker, cli, transcript, kind, redact, gaps_named,
+                                                since=_brief_floor((scan or {}).get("first_ts")))
+        cuttable += [sec2, sec3, sec4]
+        # ── section 5 (mandatory)
+        tail.append("5. what was pending (from the transcript; " + session.QUOTE_LABEL + "):")
+        cause = (f"no adapter for this provider ({kind})" if kind and kind not in journal_mod.ADAPTER_PROVIDER_KINDS
+                 else (scan or {}).get("cause") if scan else
+                 ("the transcript should exist and was not found" if kind else "no provider transcript is known"))
+        if cause:
+            tail.append(f"  - could not read the conversation: {cause} — `{cli} session context`")
+            gaps_named.append("adapter" if "no adapter" in cause else "transcript")
+        else:
+            loc = lambda uid: f"{transcript}#uuid:{uid}"   # noqa: E731
+            for label, t in (("the owner's last turn before the compaction", scan["owner_last"]),
+                             ("your last message to the owner", scan["reply_last"])):
+                if t is None:
+                    tail.append(f"  - {label}: absent (not in the transcript before the boundary)")
+                else:
+                    tail.append(f"  - {label}:")
+                    tail += session.quote_block(t[1], loc(t[2]), redact=redact)
+            for t in scan["owner_after"]:
+                tail.append("  - an owner turn after your last message:")
+                tail += session.quote_block(t[1], loc(t[2]), redact=redact)
+            n, first = scan["since_count"], scan["since_first"]
+            tail.append(f"  - → you sent {n} text message(s) after the owner's last turn"
+                        + (f", the first at {loc(first)} — read them in the transcript before acting"
+                           if first else "") + " (the brief does not judge which is an open question)")
+    # ── section 6 (mandatory) — the same derivation as the post-compact re-fold block
+    tail.append("6. what to do now (in order):")
+    consumer = _is_consumer_build()
+    hb = ENGINE_ROOT / RELEASE_VIEW_DIR if consumer else ENGINE_ROOT
+    parts = ([f"{graph.GRAPH_DIR}/{p}" for p in graph.worker_seed_part_files(hb / graph.GRAPH_DIR)] if worker
+             else [graph.release_view_name(f"{x[0]}.md") if consumer else f"{x[0]}.md" for x in HANDBOOK_READ_ORDER])
+    # (under -C the consumer render resolves each part to the engine's identity-agnostic release-view path)
+    s6_gaps = []
+    task = plans = None
+    if ref:
+        try:
+            task = _own_task_worktree_card()
+        except Exception as e:   # noqa: BLE001 — a named gap, never a silently missing step
+            s6_gaps.append(f"  - could not read this checkout's task card: {e.__class__.__name__} — `{cli} task list`")
+        try:
+            plans = _post_compact_refold_plans(ref)
+        except Exception as e:   # noqa: BLE001
+            s6_gaps.append(f"  - could not read this session's plans: {e.__class__.__name__} — `{cli} plan list`")
+    rows = session.post_compact_refold_lines(
+        ref=ref or "<your-session-ref>", root=_post_compact_root(), epoch=0, prev_epoch=0, worker=worker,
+        consumer=consumer, receipt_only=False, cli=cli,
+        help_cmd=f"YITC_SESSION_REF={ref or '<your-session-ref>'} {cli} --help", task=task,
+        stage_bundle=bool(task and task.get("current_stage")), plans=plans or [],
+        main_cli=session.main_checkout_cli(ENGINE_ROOT, _post_compact_root(), consumer),
+        own_floor_map=(session.consumer_own_floor_map(REPO_ROOT) if consumer else None),
+        seed_parts=parts, stamp_cmd=stamp_cmd if ref else None)[1:]
+    rows = [_brief_compact_row(r) for r in rows] + s6_gaps
+    gaps_named += ["section-6"] if s6_gaps else []
+    if not ref:
+        rows.insert(1, f"  - re-anchor: carry your session ref (YITC_SESSION_REF=<ref>) and re-run "
+                       f"`{cli} session start --print-only`; when you do not know it, `{cli} session start` "
+                       "starts a NEW session identity — then re-read the seed first")
+    tail += rows
+    lines, meta = session.render_compaction_brief(
+        plain=session.brief_plain_line(print_cmd, reading.get("reading"), reading.get("marker")), head=head,
+        cuttable=cuttable, tail=tail, render=_consumer_render if consumer else None)   # kernel ids qualified under -C
+    out = "\n".join(lines) + "\n"
+    stream.write(out)
+    stream.flush()
+    if _stdout_was_delivered(stream) is False:
+        return out, len(lines), ref, None
+    return out, len(lines), ref, {
+        "verb": "session start --print-only" if delivery_point == "print-only" else "compaction backstop",
+        "node_id": session.BRIEF_DELIVERY_NODE_ID,
+        "epoch": _reading_mark(reading), "marker": reading.get("marker"), "delivery_point": delivery_point,
+        "brief_bytes": meta["bytes"], "cut": meta["cut"], "overflow": meta["overflow"],
+        "gaps": sorted(set(gaps_named)), "stdout_delivered": True}
+
+
+def _brief_held_and_directives(ref, worker, cli, transcript, kind, redact, gaps_named, *,
+                               since=None) -> "tuple[dict, dict]":
+    """Sections 3 and 4 of the brief (SPEC-1024 rule 2): what this session STILL holds — ownership and
+    liveness READ now, never inferred from a history row (rule 3) — and its owner decisions as history.
+    Every reader that fails is a named gap with the command that shows the state (rule 4)."""
+    q = f"{cli} journal query"
+    sec3 = {"title": "3. what you hold (only what is still held):", "items": [], "gaps": [], "folded": [],
+            "list_cmd": f"{q} --session {ref}"}
+    d_cmd = f"{q} --type owner_directive --session {ref}" + (
+        f"` · `{q} --type owner_directive --grep {Path(str(transcript)).name}" if transcript else "")
+    sec4 = {"title": "4. owner decisions on record (history, newest first — check each against the "
+                     "artifact it names; " + session.QUOTE_LABEL + "):",
+            "items": [], "gaps": [], "folded": [], "list_cmd": d_cmd}
+
+    def gap(sec, what, why, cmd, name):
+        sec["gaps"].append(f"could not read {what}: {why} — `{cmd}`")
+        gaps_named.append(name)
+    try:
+        rows = _brief_journal_rows(ref, transcript, since=since)
+    except Exception as e:   # noqa: BLE001
+        gap(sec3, "the journal", e.__class__.__name__, f"{q} --session {ref}", "journal")
+        gap(sec4, "the journal", e.__class__.__name__, f"{q} --session {ref}", "journal")
+        return sec3, sec4
+    own = [e for e in rows if e.get("session_ref") == ref]
+    try:
+        wts = _live_task_worktrees()
+    except Exception as e:   # noqa: BLE001
+        wts = None
+        gap(sec3, "the live task worktrees", e.__class__.__name__, "git worktree list", "worktrees")
+    # tasks: held = in-progress AND its live task worktree stamped with THIS session (rule 3 — the claim row
+    # is history; the stamp is who holds it now)
+    gone, statuses = 0, {}
+    picked = {}
+    for e in own:
+        if e.get("type") == "task_picked" and e.get("task_id"):
+            picked[e["task_id"]] = e.get("ts")
+    for tid, ts in picked.items():
+        try:
+            card, wt = _brief_card(tid, wts or {})
+            stamp = _read_worktree_stamp(Path(wt)) if wt else None
+        except Exception as e:   # noqa: BLE001
+            gap(sec3, f"task {tid}", e.__class__.__name__, f"{cli} task show {tid}", "task")
+            continue
+        statuses[tid] = (card or {}).get("status")
+        if wts is not None and statuses[tid] == "in-progress" and (stamp or {}).get("session_ref") == ref:
+            sec3["items"].append({"pointer": f"task {tid} — in-progress, stage {(card or {}).get('current_stage') or 'unrecorded'}, "
+                                             f"worktree {wt}", "ts": ts})
+        elif wts is not None:
+            gone += 1
+    if gone:
+        sec3["folded"].append(f"{gone} claimed task(s) no longer held (closed, released or held by another "
+                              f"session) — `{q} --type task_picked --session {ref}`")
+    # plans this session advanced: held while not terminal
+    ended_p, plan_ts = 0, {}
+    for e in own:
+        slug = (e.get("data") or {}).get("slug")
+        if e.get("type") == "plan_stage_entered" and isinstance(slug, str) and PLAN_SLUG_RE.match(slug):
+            plan_ts[slug] = e.get("ts")
+    for slug, ts in plan_ts.items():
+        try:
+            p = _find_draft(slug)
+            status = (_split_frontmatter(p)[0] or {}).get("status") if p is not None else None
+        except Exception as e:   # noqa: BLE001
+            gap(sec3, f"plan {slug}", e.__class__.__name__, f"{cli} plan show {slug}", "plan")
+            continue
+        if status is None or status in vocab.PLAN_TERMINAL:
+            ended_p += 1
+        else:
+            sec3["items"].append({"pointer": f"plan {slug} — status {status} — `{cli} plan show {slug}`", "ts": ts})
+    if ended_p:
+        sec3["folded"].append(f"{ended_p} plan(s) this session advanced are finished or gone — "
+                              f"`{q} --type plan_stage_entered --session {ref}`")
+    # lands this session started (own branch rows only — rule 3); a terminal row of that branch ends it,
+    # whichever session wrote it
+    ended = 0
+    for e in own:
+        br = (e.get("data") or {}).get("branch") if e.get("type") == "land_started" else None
+        if not br:
+            continue
+        term = any(x.get("type") in _BRIEF_LAND_TERMINAL and (x.get("data") or {}).get("branch") == br
+                   and str(x.get("ts") or "") >= str(e.get("ts") or "") for x in rows)
+        if term:
+            ended += 1
+            continue
+        pid = (e.get("data") or {}).get("pid")
+        alive = dispatch._default_pid_alive(pid) if isinstance(pid, int) else None
+        sec3["items"].append({"pointer": f"land of {br} in flight since {e.get('ts')} (no terminal row; its "
+                                         f"process {pid} is {'alive' if alive else 'gone' if alive is False else 'unrecorded'}) — "
+                                         f"`{q} --type land_completed --grep {br}`", "ts": e.get("ts")})
+    if ended:
+        sec3["folded"].append(f"{ended} land(s) reached a terminal row — `{q} --type land_completed --grep task/`")
+    # workers this session dispatched: alive = a process running THAT worker's `--session-id` now
+    seen, done_w = set(), 0
+    for e in reversed(own):
+        if e.get("type") != "bg_dispatch_launched":
+            continue
+        d = e.get("data") or {}
+        key = (d.get("dispatch"), d.get("expected"))
+        if key in seen:
+            continue
+        seen.add(key)
+        if not d.get("expected") or d.get("session_id_argv") is False:
+            gap(sec3, f"the liveness of the worker on {d.get('dispatch')}",
+                "its launch recorded no session-id argv to identify its process", f"{q} --dispatch-status", "worker")
+        elif journal_mod._session_proc_alive(d.get("expected")):
+            sec3["items"].append({"pointer": f"worker {d.get('expected')} on {d.get('dispatch')} (its process is "
+                                             f"running) — `{q} --dispatch-status`", "ts": e.get("ts")})
+        else:
+            done_w += 1
+    if done_w:
+        sec3["folded"].append(f"{done_w} dispatched worker(s) finished (no process runs their session) — "
+                              f"`{q} --type bg_dispatch_launched --session {ref}`")
+    # watchers this session armed: alive = the recorded process identity (pid + start token)
+    armed = [e for e in own if e.get("type") == "watch_process_group_escaped"]
+    if armed:
+        live, unanswered = [], None
+        try:
+            live, unanswered = dispatch._live_watchers_over(
+                [], session_ref=ref, main_wt=_main_worktree(REPO_ROOT) or REPO_ROOT,
+                _dispatch_status_events=_dispatch_status_events, _pid_alive=dispatch._default_pid_alive)
+        except Exception as e:   # noqa: BLE001
+            unanswered = repr(e)
+        w_cmd = f"{q} --type watch_process_group_escaped --session {ref}"
+        if unanswered:
+            gap(sec3, "watcher liveness", unanswered, w_cmd, "watcher")
+        live_keys = {(x.get("ts"), (x.get("data") or {}).get("pid")) for x in live}
+        ended_w = 0
+        for e in armed:
+            d = e.get("data") or {}
+            if (e.get("ts"), d.get("pid")) in live_keys:
+                sec3["items"].append({"pointer": f"watcher pid {d.get('pid')} armed {e.get('ts')} over "
+                                                 f"{', '.join(map(str, d.get('watched_tasks') or [])) or 'the fleet'}",
+                                      "ts": e.get("ts")})
+            elif d.get("pid") is None or not d.get("pid_start"):
+                gap(sec3, f"the watcher armed at {e.get('ts')}", "its record names no process identity", w_cmd, "watcher")
+            elif not unanswered:
+                ended_w += 1
+        if ended_w:
+            sec3["folded"].append(f"{ended_w} watcher(s) ended — `{w_cmd}`")
+    # the anchored store's open hand-offs (never a Worker's — SPEC-1004 §5)
+    if not worker:
+        try:
+            entries, invalid = session.load_handoff_entries(session.handoff_store_dir(REPO_ROOT),
+                                                            split_frontmatter_text=split_frontmatter_text)
+        except Exception as e:   # noqa: BLE001
+            entries, invalid = [], [("store", repr(e))]
+        for h in entries:
+            sec3["items"].append({"pointer": f"hand-off {h['id']} «{' '.join(str(h['title']).split())[:80]}» — "
+                                             f"`{cli} session handoff list`", "ts": str(h.get("written") or "")})
+        for name, why in invalid:
+            gap(sec3, f"the hand-off store entry {name}", why, f"{cli} session handoff list", "handoff-store")
+    # section 4 — owner decisions as history
+    if kind and kind not in journal_mod.ADAPTER_PROVIDER_KINDS:
+        gap(sec4, "the owner decisions", f"no adapter for this provider ({kind})", d_cmd.split("` · `")[0], "adapter")
+        return sec3, sec4
+    for e in reversed([e for e in rows if e.get("type") == "owner_directive"]):
+        d = e.get("data") if isinstance(e.get("data"), dict) else {}
+        # a mid-turn row (SPEC-0204 rule 2) carries the owner's verbatim words in `owner_text`
+        text = str(d.get("owner_text") or d.get("text") or "")
+        loc = f"events.jsonl#ts={e.get('ts')}"
+        refs = []
+        for tid in dict.fromkeys(re.findall(r"\bT-\d{4,}\b", text)):
+            if tid not in statuses:
+                try:
+                    statuses[tid] = (_brief_card(tid, wts or {})[0] or {}).get("status")
+                except Exception:   # noqa: BLE001 — named in the pointer, never guessed
+                    statuses[tid] = "unreadable card"
+            refs.append(f"{tid}: {statuses[tid] or 'no card'}")
+        sec4["items"].append({"pointer": loc + (f" → card status now {', '.join(refs)}" if refs else ""),
+                              "quote": session.quote_block(text, loc, redact=redact), "ts": e.get("ts")})
+    return sec3, sec4
 
 
 def _print_context_seam_tail() -> None:
@@ -4875,8 +5761,8 @@ def _gap_ops_carrier():
     parse of the same file at every session start and every `debt` re-fold.
 
     IT NEVER ANSWERS `None`, and that is the fix rather than an incidental tidy. `None` conflated
-    "this repo HAS no carrier" with "the argument was not supplied", so a carrier-LESS repo — the
-    engine kernel itself — re-opened the file at every consumer, which is precisely the repeated
+    "this repo HAS no carrier" with "the argument was not supplied", so a carrier-LESS repo — at the
+    time the engine kernel itself — re-opened the file at every consumer, which is precisely the repeated
     read the one-carrier-read rule is about. The answers are now the three the reader actually
     needs, and they are `profile._load_ops`' OWN answers because this delegates to it rather than
     re-deriving them: `{}` = read successfully, declares nothing (ABSENT or empty);
@@ -4929,7 +5815,8 @@ def _gap_filed_rows_repo_wide(own_rows):
     filing sat in an unlanded sibling worktree's journal the second seam never read.
 
     A GENERATOR ON PURPOSE: `profile_gap_register` consumes `rows` only after its carrier-absent early
-    return, so a carrier-less repo (the kernel: 20+ worktrees of an 85MB journal) opens no sibling.
+    return, so a carrier-less repo opens no sibling; nor does the kernel (20+ worktrees of an 85MB journal),
+    whose register is withheld by identity (SPEC-0186 rule 6).
     De-duplicated by the write side's own identity (`_event_dedup_key`, SPEC-0168 rule 3) — a landed
     copy of an `added` row replayed after its `promoted` would otherwise re-open the item. An absent
     sibling journal is ordinary; an UNREADABLE one is named on stderr and skipped (fail-open, never
@@ -5486,8 +6373,8 @@ def _reads_exemptions() -> list:
     whose accepted risk is on record elsewhere. ABSENCE is the state every project starts in and
     reads as "this project exempts no seam" (the born-fully-commented carrier).
 
-    T-13467 — THE ENGINE'S ONE CARRIER. The engine carries no `yitc-ops.yaml` (SPEC-0077), so
-    SPEC-0190 rule 10 names `tests/read-contract-exemptions.yaml` as its one home — same
+    T-13467 — THE ENGINE'S ONE CARRIER. The engine's root `yitc-ops.yaml` holds its verify policy
+    only (SPEC-0186 rule 6), so SPEC-0190 rule 10 names `tests/read-contract-exemptions.yaml` as its one home — same
     `reads: exemptions:` shape, validated by the same shape hook (the tripwire runs it over that
     file). On the engine (the canonical `_is_consumer_build` test, so a linked worktree counts) this
     reads THAT file; a consumer reads its own `yitc-ops.yaml` and never a `tests/` file. Before this
@@ -6261,7 +7148,7 @@ def _surface_concern_drift() -> None:
     precedent)."""
     try:
         if not _is_consumer_build():
-            return   # drift is a consumer concept; the engine's own repo has no ops carrier anyway
+            return   # drift is a consumer concept: withheld on the engine by identity (SPEC-0186 rule 6)
         cd = init_mod.concern_drift(REPO_ROOT / "yitc-ops.yaml")
     except Exception:
         return
@@ -6953,12 +7840,21 @@ def _with_repo_lock(ref: Path):
     `ref` is any path inside the repo; the common-dir is resolved from it. Outside a git repo
     (`_reservation_dir` → None, the single-checkout fallback) there is no cross-worktree contention,
     so the lock is a no-op pass-through."""
+    with _with_repo_lock_named(ref, "repo.lock"):
+        yield
+
+
+@contextlib.contextmanager
+def _with_repo_lock_named(ref: Path, name: str):
+    """`_with_repo_lock` on the lock file `name` in the same git COMMON dir — a second, independent
+    short critical section (T-13789: the compaction backstop's once-per-epoch brief) that must not
+    queue behind a `land`."""
     resv = _reservation_dir(ref)
     if resv is None:
         yield
         return
     resv.mkdir(parents=True, exist_ok=True)
-    fd = _open_flock_target(resv / "repo.lock")
+    fd = _open_flock_target(resv / name)
     try:
         fcntl.flock(fd, fcntl.LOCK_EX)
         yield
@@ -13110,7 +14006,8 @@ def stage_output_tool_voice(out: str) -> str:
 def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> dict:
     """T-13510 — `{spec id: {content_sha, ...}}` for the bundle ids THIS session already holds in the
     CURRENT context epoch: the crediting `graph query` receipts of `ref`, inside the read-gate's own
-    window, stamped with an epoch >= `epoch`, carrying a content fingerprint and (under `-C`) the realm
+    window, stamped with the mark `epoch` (T-13789, by identity) and not superseded by a later seed
+    receipt of another mark (`_drop_superseded`), carrying a content fingerprint and (under `-C`) the realm
     the doc requires. Empty whenever that cannot be established — no ref, an unknown epoch (None), no
     `session_started` anchor, an unreadable journal — so the caller renders everything in full.
 
@@ -13133,7 +14030,7 @@ def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> di
         for sid in delivered:
             want = doc_realms.get(sid)
             shas = {d["content_sha"] for d in seen.get(sid, ())
-                    if d["content_sha"] and d["epoch"] >= epoch
+                    if d["content_sha"] and d["epoch"] == epoch
                     and (want is None or d["node_realm"] == want)}
             if shas:
                 out[sid] = shas
@@ -13144,13 +14041,15 @@ def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> di
         # taken this ref's rows from the seam's scan (`_task_file_session_rows`); a `_SessionWalk` here
         # folded the live segment a SECOND time. Take the same rows: every row naming the ref, so the
         # held set is the one a full read finds, and a None (no scope, another ref) walks as before.
-        scoped = _task_file_session_rows(ref, None)
-        if scoped is not None:
-            return _fold(scoped)
-        rows, _bounded = gates._gate_snapshot(
-            None, tail=True, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
-            session_ref=ref, settled=lambda snap: len(_fold(snap)) == len(delivered))
-        return _fold(rows)
+        rows = _task_file_session_rows(ref, None)
+        if rows is None:
+            rows, _bounded = gates._gate_snapshot(
+                None, tail=True, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
+                session_ref=ref, settled=lambda snap: len(_fold(snap)) == len(delivered))
+        held = _fold(rows)
+        # T-13789: a delivery written before a seed receipt of ANOTHER mark is superseded
+        # (`_drop_superseded`) — a mark that went A and back must not vouch for a lost body again.
+        return _fold(_drop_superseded(ref, epoch, rows, EVENTS_PATH)) if held else held
     except Exception:   # noqa: BLE001 — a delivery helper never breaks its verb; full render instead
         return {}
 
@@ -13563,10 +14462,12 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
     Analysis, ~335 kB at Audit-pre. A contract is now printed as ONE POINTER LINE (id, title, the
     re-read command) instead of its body when ALL THREE hold, and in every other state it is rendered
     in full exactly as before:
-      (a) the current context epoch is KNOWN (`_session_epoch_known`) — a session whose epoch cannot
-          be established never skips, so a `/compact` it cannot count still re-delivers every body;
-      (b) this session holds a crediting receipt for the id, in the gate's own window, stamped with an
-          epoch >= the current one AND carrying a `content_sha` (and, under `-C`, the required realm);
+      (a) the current context epoch is KNOWN (`_session_epoch_known`: a LAST COMPACTION reading) — a
+          session whose epoch cannot be established never skips, so a `/compact` it cannot see still
+          re-delivers every body;
+      (b) this session holds a crediting receipt for the id, in the gate's own window, stamped with
+          the SAME mark (T-13789, by identity) AND carrying a `content_sha` (and, under `-C`, the
+          required realm);
       (c) the contract rendered NOW hashes to that SAME `content_sha` — so a spec edited in the
           worktree between two deliveries is delivered again, whatever its length.
     A pointer writes NO new receipt: the earlier one is what credits, and the gate is untouched —
@@ -17133,8 +18034,8 @@ def _session_started_lower_bound(session_ref: str, events_path=None, events=None
     POST-/compact ORTHOGONALITY (SPEC-0050 §4): a `/compact` does NOT emit `session_started`, so this
     origin lower-bound is independent of post-compact freshness. Post-compact freshness for the SEED
     receipt is now handled ORTHOGONALLY by epoch-scoping (T-10082, SPEC-0050 §8): the seed_read receipt
-    is stamped with the CONTEXT EPOCH (`_session_epoch()`, the transcript's `compact_boundary` count)
-    and `_require_seed_read` refuses a receipt from an earlier epoch — a receipt-STAMP compare, NOT a
+    is stamped with the CONTEXT EPOCH (`_session_epoch()`, the newest compaction marker's identity —
+    T-13789) and `_require_seed_read` refuses a receipt from another epoch — a receipt-STAMP compare, NOT a
     lower-bound shift, so this window origin stays the earliest-anchor value (they compose: the window
     still selects same-session receipts; the epoch check then rejects the pre-compact ones).
 
@@ -17173,42 +18074,56 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, events_path=None, even
 
 
 def _seed_receipt_epochs(session_ref: str, lower_bound: str, events_path=None, events=None) -> list:
-    """Host wrapper (T-10082) → gates._seed_receipt_epochs with `_iter_events` bound — the epoch-aware
-    reader of the in-window seed_read receipts (mirror of `_fetched_spec_ids`). Each entry is a receipt's
-    stamped context epoch (missing/non-int → 0). Consumed only by `_require_seed_read`."""
+    """Host wrapper (T-10082) → gates._seed_receipt_epochs with `_iter_events` bound — the reader of the
+    in-window seed_read receipts' stamps (mirror of `_fetched_spec_ids`). Each entry is a receipt's
+    stamped context-epoch mark (SPEC-1023 rule 6; absent → `none`; a pre-change number never credits)."""
     return gates._seed_receipt_epochs(session_ref, lower_bound, _iter_events=_iter_events, events_path=events_path, events=events)
 
 
-def _session_epoch() -> int:
-    """Host wrapper (T-10082, SPEC-0050 §8) → session.session_epoch — the CURRENT context epoch of THIS
-    session: the count of `/compact` boundaries in its provider transcript (0 at a fresh session, +1 per
-    compaction). Transcript-derived + best-effort (no transcript / unreadable → 0), the SAME provider log
-    `session context` reads. The seed-read gate + the `session start` receipt stamp both key off this so
-    a pre-compact receipt no longer credits after a compaction.
+def _session_epoch_reading() -> "tuple[str | None, dict]":
+    """T-13789 (SPEC-1023 rule 6) — the CURRENT context epoch of THIS session as `(mark, reading)`: the
+    SPEC-1023 reading (`_context_epoch_reading`, the ONE reader) and its stamp (`session.reading_mark`) —
+    `marker:<identity>` / `none` / `unknown`, or None for CANNOT TELL under a provider whose detection
+    is NOT OBSERVED (its row carries no admitted marker, or no provider kind is known at all).
 
-    T-10137: the epoch is a PROVIDER-transcript property, so it keys on the PROVIDER session id
-    (`_provider_session_ref`), NOT the read-gate discriminator (`_resolve_session_ref` now returns the
-    minted/self ref, which names no transcript). None (provider-less env) → epoch 0 via session_epoch's
-    fail-safe — the same honest "no compaction observed" floor as a missing transcript."""
-    return session.session_epoch(_provider_session_ref(), _session_log_path=_session_log_path)
+    The reading is taken in its IN-PROCESS form (`history=False` — the form `session start` reports):
+    the provider kind comes from what this run carries — its carrier, the dispatch contract, the
+    runtime record — never from a walk of the journal's history, so the gate on every governed verb,
+    the stamp and every compare add no journal read. STATED LIMIT: a run carrying none of those (no
+    conversation of its own to compact) reads CANNOT TELL with no provider kind and proceeds as under a
+    provider whose detection is not observed, whatever earlier rows of its ref name."""
+    r = _context_epoch_reading(history=False)
+    return _reading_mark(r), r
 
 
-def _session_epoch_known() -> "int | None":
-    """T-13510 — the current context epoch when it can be ESTABLISHED, else None.
+def _reading_mark(r) -> "str | None":
+    """The stamp of reading `r` — `session.reading_mark` with «detection OBSERVED» read off the reading's
+    provider row (an admitted marker on it; an unknown provider kind is not observed)."""
+    desc = _descriptor_for(r.get("kind")) if r.get("kind") else None
+    return session.reading_mark(r, observed=bool(desc and desc.get("marker")))
 
-    `_session_epoch` fail-safes to 0, which is the right floor for a GATE (0 can only under-count, so it
-    fails toward crediting a present receipt) and the WRONG one for deciding to WITHHOLD a contract body:
-    a session with no provider id, or whose transcript cannot be found, reads 0 before AND after a
-    `/compact`, so "this epoch already holds it" would be asserted of a context that was just evicted.
-    So the stage deliverer asks THIS reader: an epoch is known only when a provider session id resolves
-    and its transcript was actually READ to the end — the SAME counter, asked to answer None instead of
-    its gate floor when the count could not be taken (a missing transcript, or one that exists but
-    cannot be opened or read). None means "cannot tell" and the deliverer renders in full."""
+
+def _session_epoch():
+    """Host wrapper (T-10082, SPEC-0050 §8; T-13789) — the CURRENT context epoch of THIS session as the
+    mark its seed receipt is stamped with and compared against BY EQUALITY: the identity of the newest
+    completed-compaction marker its provider transcript holds (`marker:<identity>`), `none`, `unknown`
+    (CANNOT TELL under an observed provider), or None (CANNOT TELL under a provider whose detection is
+    not observed). Never a count: a new compaction, lost history and a revived old receipt all show as
+    «the newest marker is not the one the receipt recorded» (SPEC-1023 rule 5)."""
+    return _session_epoch_reading()[0]
+
+
+def _session_epoch_known() -> "str | None":
+    """T-13510 / T-13789 — the current context epoch's mark when it can be ESTABLISHED, else None.
+
+    Established means a LAST COMPACTION reading — the provider transcript was located and read to its end
+    (a marker identity, or none). Every other reading — NO TRANSCRIPT EXPECTED (a session with no
+    transcript, which a `/compact` cannot be told apart in) and CANNOT TELL — answers None, so a caller
+    that WITHHOLDS something on "this epoch already holds it" (the stage deliverer, the re-fold block,
+    the start-block proof) never withholds on it (SPEC-1023 rule 4)."""
     try:
-        pref = _provider_session_ref()
-        if not pref:
-            return None
-        return session.session_epoch(pref, _session_log_path=_session_log_path, unknown=None)
+        mark, r = _session_epoch_reading()
+        return mark if r.get("reading") == session.READING_LAST else None
     except Exception:   # noqa: BLE001 — unknown, never a guess
         return None
 
@@ -18704,7 +19619,9 @@ def _require_seed_read(verb: str) -> None:
         _try_resolve_session_ref_with_source=_try_resolve_session_ref_with_source,
         _iter_events_tail=_iter_events_tail,   # T-10396: tail-first fast path, full read on a refusal
         _is_consumer_build=_is_consumer_build,   # T-13013: realm-qualify the printed spec ids under -C
-        _render_hint=_consumer_render)           # T-13176: the tolerated nudge's command resolves too
+        _render_hint=_consumer_render,           # T-13176: the tolerated nudge's command resolves too
+        # T-13789 (SPEC-1023 rule 6): what a CANNOT TELL reading could not read, named in its refusal
+        _epoch_unknown_cause=lambda: _session_epoch_reading()[1].get("cause"))
 
 
 def _stage_bundle_patterns(stage_name: str, *, include_kernel: bool = False) -> list:
@@ -24498,7 +25415,8 @@ _run_git_cap.lines = _run_git_lines
 # T-12594 (SPEC-0169 rule 11) — the foreign-owned-worktree seam. The carrier is re-read on EVERY call
 # (so removing a declaration revokes at the next invocation, rule 11f) and parsed only when its bytes
 # mention the key; the parse is memoised by CONTENT digest — a same-size, mtime-preserved rewrite still
-# changes the digest. Absent carrier (the kernel itself carries none) ⇒ nothing trusted, nothing parsed.
+# changes the digest. Absent carrier, or one that never mentions the key (the kernel's own file) ⇒
+# nothing trusted, nothing parsed.
 _FOREIGN_WORKTREE_OPS_MEMO: dict = {}
 
 # realpath(cwd) → True while that cwd's LATEST git result was git's ownership refusal. SET on such a
@@ -27149,7 +28067,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # load at the moment it expired) instead of reading as a bare timeout whose only named remedy is
     # raising the bound. Report-only — the gate is untouched (SPEC-0103). This ONE residue is the seam
     # every caller (`task test`, `_land_integrate`) funnels through, so injecting here reaches them all.
-    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers)   # T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
+    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds)   # T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
 
 
 def _consumer_tests_delegation(worktree: Path, routing_from: "Path | None" = None) -> "str | None":
@@ -27200,7 +28118,7 @@ def _declared_governance_check_paths() -> list:
     pinned overlay (`worktree_mod._pinned_declared_check_paths`, SPEC-0077 §3/§6b). No second hardcode
     and no second reader — the hardcoded `tests/**` alone matched nothing for the three of five
     registered consumers whose tests live under `backend/tests/`, so rule 3 never took those files back
-    for audit-post. Absent contract (the ENGINE's own case — it ships no `yitc-ops.yaml`), unreadable or
+    for audit-post. Absent contract, a contract declaring none of these paths (the ENGINE's own case), unreadable or
     unparseable carrier ⇒ EMPTY, i.e. exactly the pre-change set: fail-SAFE toward the WIDER classification
     is what the member itself gives, and never being able to NARROW the pre-change set is what this
     fallback gives."""
@@ -29689,7 +30607,9 @@ def main(argv: list[str] | None = None) -> None:
     # below, its body, its receipt emit); every other verb gets a null context here.
     # T-13368 — the mark a `_INVOCATION_SPAN_VERBS` receipt is measured from (see below).
     _invocation_mark = journal_mod.reads_mark()
-    with _invocation_read_scope(args):
+    # T-13789 (SPEC-1024 rule 10): the compaction backstop — its plain line first (before the gate, so a
+    # stale-epoch refusal carries it too) and last (on the way out, refusal included).
+    with _invocation_read_scope(args), _compaction_backstop(args):
         # T-10081 (SPEC-0042 §seed floor): the BROAD anti-Forgetting read-gate — ONE central chokepoint,
         # AFTER _auto_sync (so the receipt this session emitted at `session start` is synced in) and BEFORE
         # the verb runs. Gate-by-default + a small semantic allowlist (see `_require_seed_read_chokepoint`);

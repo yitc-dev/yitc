@@ -298,4 +298,4 @@ implements_signature:
   bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
   bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc
   bin/lib/task.py#_verify_policy_stage6_credit: c40c97aedbc5d0ef2b7d051528dce313b6c27284402d16107aef77673de3b74f
-  bin/lib/worktree.py#_land_integrate: 632b348ecdbb2ba5f20071fa6615d68b3279e838536b4a0bece9e9af907f4e00
+  bin/lib/worktree.py#_land_integrate: 63b008725c210ab7f05eddaa1137f72af52ab9157ec7c5dbcac1eb28ef25dd87

@@ -72,16 +72,16 @@ cwd-independent verbs), not by removing isolation. So:
   `work/<slug>` worktree→land; SPEC-0039 §5(b) / SPEC-0147 §7), `task claim-landed` (ONLY a card whose
   deliverable is derivably already on `main` — every ordinary card still claims via
   `worktree new --task`), `task refuse` (the SPEC-0133 pre-claim refusal), `task update --queue-jump`
-  (the SPEC-0184 rule-9 land-admission mark), and the `task close` settle arms `--settle-probe`
-  (SPEC-1011) / `--settle-observation`. From the **main checkout** each stages its one artifact
-  (MEMORY.md, or the card) + the journal receipt ONLY (never `git add -A`), refuses on preexisting
-  dirt in that artifact, and is idempotent on re-run. Inside a `task/` or `work/` **writing
-  worktree** none commits to `main`: each defers to the ordinary in-worktree path, so its write
-  reaches `main` only with that batch's `land` (`task claim-landed` refuses there and names the
-  ordinary claim). A settle arm writes NOTHING to git there — the batch's own `task commit` carries
-  it; the `--settle-live-probe` / `--live-probe-outcome` arms are not yet on that rule and still
-  make their own scoped commit. Each verb's admission detail is at the head of its `--help`, which
-  names its home.
+  (the SPEC-0184 rule-9 land-admission mark), `task update --note` on a terminal card, and the
+  `task close` settle arms `--settle-probe` (SPEC-1011) / `--settle-observation`. From the **main
+  checkout** each stages its one artifact (MEMORY.md, or the card) + the journal receipt ONLY (never
+  `git add -A`), refuses on preexisting dirt in that artifact, and is idempotent on re-run (a
+  terminal-card note appends one entry per run). Inside a `task/` or `work/` **writing worktree**
+  none commits to `main`: each defers to the ordinary in-worktree path, so its write reaches `main`
+  only with that batch's `land` (`task claim-landed` refuses there and names the ordinary claim). A
+  settle arm writes NOTHING to git there — the batch's own `task commit` carries it; the
+  `--settle-live-probe` / `--live-probe-outcome` arms are not yet on that rule and still make their
+  own scoped commit. Each verb's admission detail is at the head of its `--help`, which names its home.
 - **EXCEPTION (cont.) — `session handoff *` needs NO worktree.** It writes
   ONLY the anchored repo's `<git-common-dir>/yitc/handoffs/` (machine-local, never in the working tree,
   never committed) plus its journal rows — never a source/artifact file — so it runs from any checkout.
@@ -243,7 +243,7 @@ that task and the batch goes on — the route is stated in AGENTS-SESSIONS §Orc
 ## When NOT to add a mechanism
 
 If you find yourself wanting to add:
-- A new hook
+- A new hook (ONE named exception: the in-repository post-compaction entry — print-only brief, bounded time and output, never blocks a compaction)
 - A new pre-commit gate
 - A new file format
 - A new parser path

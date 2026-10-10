@@ -826,7 +826,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/debt_adoption.py#open_known_broken: 3beeeef7fbde6d285ca279d3d420d01053530d14182645f81f0a50408b915025
-  bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
+  bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0

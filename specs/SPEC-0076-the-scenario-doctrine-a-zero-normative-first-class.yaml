@@ -293,4 +293,4 @@ proposed_by: scenario-as-a-first-class-graph-entity-dogfood-on-
 binding:
 - query-only
 implements_signature:
-  bin/lib/scenario.py#scenario_step_proof_lines: 8c7759c1e09dcef003ac45422281695c597b8fe879c41920b8fcec6d80eb7206
+  bin/lib/scenario.py#scenario_step_proof_lines: 3d4b52648abcc20e1f4f4929459f3217fb32cc3f961d15e3b23a9880e3200d99

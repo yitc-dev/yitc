@@ -230,13 +230,13 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#auditor_breaker_state: 5b2f450f764c274f3b637b088e7181dd303099b269d5aec6f85b0206ca3d2ee8
-  bin/lib/audit.py#cmd_audit_status: 121286835030579d99f161b8d80008ac6e37b36568af162a796039d9ecb6fac4
+  bin/lib/audit.py#cmd_audit_status: 7847174111fe7d58470e2f819fb2d18a7975b1badcffab2bd781ddd7e7346f37
   bin/lib/audit.py#invoke_auditor_tiered: 54652afebb4e735edc99e11e462ecd6f905fad363ae35e36479746b0b33b1ff0
   bin/lib/audit.py#is_auditor_non_answer: 282c1f60c644dfad1ec00c5d2ec221f4e5bda0c7c5e9a6fa36143e07bca1d94c
   bin/lib/audit.py#resolve_audit_provider: 30abe5bd75660bb4925b7d9bdaf89deff28000a1e6cb4fdc77ffed1906ba228f
-  bin/lib/audit.py#resolve_audit_reserve: a9e4bd6661203aac6480b53cb8b29cf8b1afe981bdc17ecf1ea82f45d882882e
+  bin/lib/audit.py#resolve_audit_reserve: f12a4953da99d5d394b2556a94172754e7e4f5fd08af2b27f4f9770fcf4758c2
   bin/lib/audit.py#resolve_codex_binary: 1ff787172d8394d20c09ae5243ab89a77b024aa5dc88627b5eae0c940d804785
   bin/lib/audit.py#stamp_auditor_verdict: 92795c18be5fbe2f22cb43c8cc1608872679d7934fe4d365e77451b972e31695
-  bin/lib/cli.py#cmd_session_start: f369044416df3575c97dd3dbbcebc0fe18c43eb14fff64ef8c1f66ce02086575
-  bin/lib/machine_settings.py#INVENTORY: 58f09cc687bcee0d35e280a157f5a5e50e8a64aef53a686c3fd17a3166a5249b
+  bin/lib/cli.py#cmd_session_start: 7aebc162e49cd94797d70dbb21a7a60608de4123f8c666a3223568bfa5db70bf
+  bin/lib/machine_settings.py#INVENTORY: ca3334159c6a9b0c578030c3cb514d0198f42b38c9ed6d7d37f4ae0940e4b723
   bin/lib/observe.py#auditor_triple: 0b9260fb966c9a0e8113042276a9ded694e20b6c0ee2c5c6fc38143a9ef3c310

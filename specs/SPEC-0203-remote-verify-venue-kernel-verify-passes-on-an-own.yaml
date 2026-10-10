@@ -576,10 +576,14 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ it as a clobber. Grounds:, task/ aborted\nINDETERMINATE `venue-refs-clobbered`\
   \ naming two `refs/tags/archive/*` a peer's push had added.\nEvery non-`refs/venue/*`,\
   \ non-`refs/tags/*` ref — `refs/heads/main` above all — keeps the stated\nbehaviour\
-  \ UNCHANGED, including refusal (ii).\n\n### 5. W policy — local stays a constant;\
-  \ remote W is DERIVED per pass; the fd dimension is pinned\nThe LOCAL ceiling is\
-  \ UNCHANGED (`_VERIFY_WORKER_CEILING`, 13 — the host is shared; the SPEC-0132\n\
-  Rule-1 headroom reasoning holds). On the venue, W is derived per pass from the SPEC-0132\
+  \ UNCHANGED, including refusal (ii).\n\n### 5. W policy — local is a setting; remote\
+  \ W is DERIVED per pass; the fd dimension is pinned\nThe LOCAL ceiling is the machine\
+  \ setting `lib.worktree._VERIFY_WORKER_CEILING` (SPEC-0193\nperformance class; unset,\
+  \ the code constant): local W = min(the SPEC-0132 Rule-1 host bound, it).\nWith\
+  \ no venue published, `YITC_VENUE_STAGE6_MAX_CONCURRENT` / `_WORKERS_FRACTION` bound\
+  \ the local\nStage-6 arm only when SET (own slot pool; fraction of the local W),\
+  \ and a dispatched worker's\nStage-6 starts project verify-layer commands at `YITC_VERIFY_WORKER_NICE`,\
+  \ a land's at normal\npriority. On the venue, W is derived per pass from the SPEC-0132\
   \ §6\nduration table: **`W = clamp(per-file sum / longest file, 1, cores // legs)`**\
   \ — sum and longest over the files the POOL runs (files declared in `tests/load-sensitive.txt`\
   \ run serialized after the pool and are excluded; an unreadable carrier excludes\
@@ -592,17 +596,17 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ at `venue publish`, never discovered by a slow pass.\n`YITC_VERIFY_WORKERS` (declared\
   \ in `bin/lib/machine_settings.py`, read by nothing — F2)\nbecomes the OVERRIDE\
   \ CEILING on the derived REMOTE W ONLY, or is retired; it never reads on the\nlocal\
-  \ path (no second local knob).\n\n### 6. Box lifecycle — raised on one owner cue,\
-  \ published after a readiness probe, deleted on the idle condition\n**The venue\
-  \ is OPTIONAL, and its hosting provider is a CONFIG BINDING, never rule text (CHARTER\
-  \ §P4b).** These rules speak of a remote verify box; WHICH provider rents it — the\
-  \ API\nendpoint, the token secret name, the box class, the location and the ssh\
-  \ key — is declared in the\nmachine's venue binding (`bin/venue-config.yaml`, read\
-  \ at call time by `bin/lib/venue.py`), which\nstays with the workshop that wrote\
-  \ it and does not travel. A machine with NO complete binding has\nnot adopted the\
-  \ venue: `venue show` says so plainly and exits 0, every provider call refuses by\n\
-  name, and the routing seams IGNORE any record present, so every verify pass runs\
-  \ locally (rule 2's\nunpublished branch). When the venue pays and how to switch\
+  \ path, whose ceiling is the setting named above.\n\n### 6. Box lifecycle — raised\
+  \ on one owner cue, published after a readiness probe, deleted on the idle condition\n\
+  **The venue is OPTIONAL, and its hosting provider is a CONFIG BINDING, never rule\
+  \ text (CHARTER §P4b).** These rules speak of a remote verify box; WHICH provider\
+  \ rents it — the API\nendpoint, the token secret name, the box class, the location\
+  \ and the ssh key — is declared in the\nmachine's venue binding (`bin/venue-config.yaml`,\
+  \ read at call time by `bin/lib/venue.py`), which\nstays with the workshop that\
+  \ wrote it and does not travel. A machine with NO complete binding has\nnot adopted\
+  \ the venue: `venue show` says so plainly and exits 0, every provider call refuses\
+  \ by\nname, and the routing seams IGNORE any record present, so every verify pass\
+  \ runs locally (rule 2's\nunpublished branch). When the venue pays and how to switch\
   \ it on:\n`patterns/verify-venue-when-it-pays.md`.\nThe box is owned by the **compute-controller\
   \ session** — an ordinary interactive Controller the\nowner starts, whose owner-authorized\
   \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
@@ -811,8 +815,9 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ excused one. The count of local-probe files is reported in\n`verify_metrics` so\
   \ the narrow leg cannot grow unnoticed.\n\n## Parameters\n\nNone consumed. The idle\
   \ buffer and the remote-W override are machine-scoped tunables under\n`config` (SPEC-0193\
-  \ performance class), not spec-read params; `_VERIFY_WORKER_CEILING` stays a\ncode\
-  \ constant at its SPEC-0132 home.\n\n## Rationale\n\nMeasured, not projected (`dev-utilities/remote-verify-experiment-.md`):\
+  \ performance class), not spec-read params; so is the local worker ceiling\n(`lib.worktree._VERIFY_WORKER_CEILING`,\
+  \ rule 5), whose built-in default stays a code constant at\nits SPEC-0132 home.\n\
+  \n## Rationale\n\nMeasured, not projected (`dev-utilities/remote-verify-experiment-.md`):\
   \ the same\nfrozen tree ran one leg in 275 s at W=13 and 141 s at W=26 on an idle\
   \ 48-core box against a local\npopulation median of 652 s (p95 1196 s, n=196); both\
   \ legs in parallel took 192 s — a land's verify\nin ~3.2 min against ~22 min locally;\
@@ -896,9 +901,9 @@ implements_signature:
   bin/lib/remote_verify.py#venue_max_requests: 750fd2a701e6ee5f98f42f5e4d1e6ceef694655f18003b1166086332be48e87e
   bin/lib/remote_verify.py#venue_preship_max_concurrent: 7d6f1542ecb8f17569f3c970d94d539eddd512fbe955f3c6faf0a7779d728af2
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
-  bin/lib/remote_verify.py#venue_stage6_max_concurrent: d6c56faa11bf1eab22102d9c5ea48426418bff31c1232e73f2ed24f2c3f6ce40
+  bin/lib/remote_verify.py#venue_stage6_max_concurrent: dfac55993dc902c71631b899025885aa3646f70e0ea5cfdf337c094874ea8b6b
   bin/lib/remote_verify.py#wait_legs: ebad62a4b2551bae1e882200870e45fd8446bee8da7fdd791d66885089899a1e
-  bin/lib/task.py#cmd_task_test: e4fdbde3c66d84f8a1ca661f41455a354a3ecd4337239e19dca83351d86429cf
+  bin/lib/task.py#cmd_task_test: c60fa1000893cd2af743f2910b86ac8ded7d30dc3c8a8bb18f354c90d308ecd5
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 4bd62b68823f11da7089d91eb320d4b315b41f6da2a5d4a2499a0a1970c033f0
@@ -909,6 +914,6 @@ implements_signature:
   bin/lib/venue.py#resolve_record_path: 231f50071cfee672ad49319cf14cc522e92e7513c49953e5b588350662a0b64b
   bin/lib/venue.py#write_record: 4081dc2ee4b5a9e14c85d760564e3013d083bd364ac1a429951cc5ebadfcadc2
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
-  bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
+  bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: 632b348ecdbb2ba5f20071fa6615d68b3279e838536b4a0bece9e9af907f4e00
+  bin/lib/worktree.py#_land_integrate: 63b008725c210ab7f05eddaa1137f72af52ab9157ec7c5dbcac1eb28ef25dd87

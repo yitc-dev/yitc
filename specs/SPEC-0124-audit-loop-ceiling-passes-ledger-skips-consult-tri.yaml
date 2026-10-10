@@ -415,4 +415,4 @@ activation_owner_task: null
 proposed_by: doc-governance-kernel-english-only-per-doc-size-ca
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 3aaf4c45925d4811865381c97ed6bab9b6e127d798540bbc2a43f22effc02bc2
+  bin/lib/audit.py#cmd_audit: 13c3dd9123d5887638928060963c680f90187b2f58200f0db493506f4505fcb3

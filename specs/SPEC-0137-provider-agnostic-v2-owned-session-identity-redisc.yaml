@@ -137,8 +137,19 @@ body: "## Scenario\n\nA v2 session — an interactive Controller OR a dispatched
   \ 1 (the BOUNDED v2-own carry) resolves first WHEN backed by live v2 evidence; else\
   \ selectors 2–3\n(records) + the mandatory liveness prune of 4; selector 5 is forensic-only.\
   \ A backed carry, or exactly\none LIVE record, is the id. No backed carry AND zero/ambiguous\
-  \ record match → Rule 5 (fail-closed).\n\n**Two-role scope — GOVERNANCE-KEYING resolution\
-  \ (fail-closed) vs EVENT-ENVELOPE stamping (best-effort)\n[, external consult `t10149-emit-vs-keying-resolution-split`\
+  \ record match → Rule 5 (fail-closed).\n**Two READ-ONLY post-compaction cases —\
+  \ the print-only run only (SPEC-1024 rule 5).** To choose\nwhose restoration brief\
+  \ to print, and for nothing else, `session start --print-only` also reads:\n(a)\
+  \ a carried ref whose `session_started` anchor is in the journal but whose seed\
+  \ receipt is from an\nearlier context epoch — honoured as the session the brief\
+  \ is for; (b) with NO carry, the ONE session\nref with a `session_started` anchor\
+  \ that this conversation's own start report names in its provider\ntranscript (the\
+  \ transcript-join role of Rule 4) — zero or several such refs read as unresolved,\
+  \ and\nthe brief then prints nothing identity-bound. Neither case backs the ref\
+  \ for governed work, keys a\ngovernance decision, writes a record or mints an identity:\
+  \ the governance-keying chain above and\nits fail-closed Rule 5 are unchanged.\n\
+  \n**Two-role scope — GOVERNANCE-KEYING resolution (fail-closed) vs EVENT-ENVELOPE\
+  \ stamping (best-effort)\n[, external consult `t10149-emit-vs-keying-resolution-split`\
   \ YELLOW].** The fail-closed rediscovery\ncontract of this Rule (and the Rule-4\
   \ provider-free grep-probe) governs **governance-KEYING** resolution\n— `_resolve_session_ref`,\
   \ whose result KEYS a governance decision: the read-gate anchor/seed-receipt\nmatch\
@@ -251,66 +262,66 @@ body: "## Scenario\n\nA v2 session — an interactive Controller OR a dispatched
   \ / `SESSION_REF_ENV_VARS` **plus** the provider transcript\n  carriers `PROVIDER_CARRIERS`)\
   \ — and the frozen `YITC_EXPECTED_SESSION_REF` worker contract var. Scrubbing\n\
   \  the PROVIDER carriers too is what makes the box CURRENT-EPOCH anchored (no inherited\
-  \ provider transcript\n  ⇒ `_session_epoch` = 0, matching the box's own receipt);\
-  \ deriving the union from the registry keeps ONE\n  scrub SoT, so the Rule-8b registry\
-  \ collapse could not silently weaken it;\n- it MINTS a fresh v2-owned `YITC_SESSION_REF`\
-  \ for the box and SEEDS the box journal under it\n  (`session_started` + a `cli:seed`\
-  \ receipt), so the fail-closed keyer resolves the box's OWN backed id\n  (Rule 2\
-  \ selector 1), never the launcher's leaked one.\nResolution ALSO honors a v2-owned\
-  \ `isolated-verify` scenario ref (`YITC_ISOLATED_VERIFY`) the resolver\nchecks BEFORE\
-  \ probing any record (the runtime-record `isolated_verify` marker, Rule 1), so a\n\
-  genuinely-NESTED verify with no driven ref of its own can still own its scenario\
-  \ identity. **Honest status\nof that leg: it is a RESOLVER HOOK with no producer\
-  \ today** — nothing sets it per-box, deliberately (a\nper-box setter would override\
-  \ a test that drives its own ref, since the hook resolves before record\nprobing),\
-  \ and its intended setter task was merged/wont-done. The hook is dormant, not;\n\
-  hermeticity is delivered by the scrub + fresh backed mint above, which is what the\
-  \ probes verify.\n\n**Why targeted and not default-deny (the proportionality call,\
-  \ CHARTER §Principle 1).** Default-denying\nthe execution env the ~493-test suite\
-  \ legitimately depends on (PATH/HOME/XDG/git/LANG/…) is\ndisproportionate blast\
-  \ radius. The strength tradeoff is stated honestly: a FUTURE leaking identity carrier\n\
-  is covered ONLY by being added to the canonical carrier registry (the single scrubbed\
-  \ SoT — adding a\ncarrier there auto-flows into the scrub) + a regression test,\
-  \ NOT by a blanket allowlist. Note the box is\nnonetheless hermetic on the OTHER\
-  \ axes by construction (<workshop-spec> Rule 1: a private HOME / TMPDIR / XDG_*\
-  \ /\ngit-config + a quarantined default journal per box) — the \"no allowlist\"\
-  \ statement is scoped to the\nIDENTITY-carrier surface this rule owns. `_REAL_STORE_ALLOWLIST`\
-  \ boxes are the explicit exception (they\nkeep the launcher carriers + real journal\
-  \ to assert against the running session's ambient anchor). This is\nSTRONGER than\
-  \ the prior EXPECTED-only scrub (which left the identity CARRIERS intact, leaking\
-  \ the launcher\nid once the keyer became carrier-precedence-first + fail-closed).\
-  \ CLOSES `fu_54c5905adf9f` (the systemic\nverify identity leak) and ends the `test_t0860`\
-  \ / `test_t9755`→`test_t10116` false-RED class.\n\n### Rule 7 — Dispatch launch\
-  \ fast-path degrades to rediscovery\nWhere v2 OWNS launch (`dispatch.py` already\
-  \ sets the worker's frozen `expected` id), setting the v2 id at\nlaunch is a legitimate\
-  \ OPTIMIZATION — but it is never the source of truth: it MUST degrade to rediscovery\n\
-  (Rule 1) whenever launch control is absent (interactive provider harnesses, direct/IDE/CI\
-  \ invocation —\nthe common case: direnv no-ops in non-interactive shells, tmux panes\
-  \ go stale, system units start from a\nclean env). The launch-set id is Rule 2.1's\
-  \ frozen `expected`; nothing new is stored.\n\n### Rule 8 — Retirement (what this\
-  \ contract REMOVES) [finding 4, build order]\nOn activation this contract RETIRES:\
-  \ (a) the **FRAGILITY** of mint-and-carry — NOT the v2-own carry\nitself (option-A\
-  \ amendment 2026-07-06): the interactive agent STILL carries the v2-own `YITC_SESSION_REF`\n\
-  (provider-neutral, Rule 2 selector-1), but a MISSED/unbacked carry is now SAFE —\
-  \ the record + fail-closed\n(Rule 5) degrade it to rediscovery or refuse, never\
-  \ landing under a provider key (the retired X-0158\nfailure mode); (b) the **runtime\
-  \ precedence chain of PROVIDER carriers**\n(`<provider-session-env>`/`CODEX_THREAD_ID`)\
-  \ in `SESSION_IDENTITY_REGISTRY['env']` — removed from\nresolution; provider vars\
-  \ demoted to at-most Rule-4 birth metadata; (c) the **per-provider coupling**\n\
-  (hardcoded provider env-var names + the present-and-stable assumption in the resolution\
-  \ path) — restoring\nCHARTER §Principle 4b. Build order (the ordered task cut,\n\
-  finding 4): identity-record contract → resolver/rediscovery + records → verify hermeticity\
-  \ → dispatch\nfast-path → retire the mint-and-carry FRAGILITY + the provider precedence\
-  \ chain (the v2-own carry is KEPT — Rule 8a) → trial + postcheck.\n\n## Parameters\n\
-  \n| param | value | consumed | note |\n|---|---|---|---|\n| runtime record home\
-  \ | `$XDG_RUNTIME_DIR/yitc/<session-id>` | false | 0700, local FS, auto-cleared\
-  \ on logout/reboot; per-session-id subkey + recorded PID |\n| runtime record home\
-  \ (XDG unset) | `${TMPDIR:-/tmp}/yitc-<uid>/` (0700, per-uid) | false | fallback\
-  \ when `$XDG_RUNTIME_DIR` is unset (headless/cron/non-login); SAME closed schema\
-  \ + a staleness sweep prunes dead-PID records (no logout auto-clear there) |\n|\
-  \ write-phase record | `.git/worktrees/<name>/yitc-session-stamp.json` | false |\
-  \ the projection of the one identity into the write locus |\n| verify box identity\
-  \ scrub | the derived carrier UNION `_SUBENV_SCRUB_CARRIERS` (= `SESSION_IDENTITY_REGISTRY['env']`\
+  \ provider carrier\n  ⇒ the context epoch reads CANNOT TELL under no observed provider,\
+  \ which credits the box's own receipt —\n  SPEC-1023 rule 6); deriving the union\
+  \ from the registry keeps ONE\n  scrub SoT, so the Rule-8b registry collapse could\
+  \ not silently weaken it;\n- it MINTS a fresh v2-owned `YITC_SESSION_REF` for the\
+  \ box and SEEDS the box journal under it\n  (`session_started` + a `cli:seed` receipt),\
+  \ so the fail-closed keyer resolves the box's OWN backed id\n  (Rule 2 selector\
+  \ 1), never the launcher's leaked one.\nResolution ALSO honors a v2-owned `isolated-verify`\
+  \ scenario ref (`YITC_ISOLATED_VERIFY`) the resolver\nchecks BEFORE probing any\
+  \ record (the runtime-record `isolated_verify` marker, Rule 1), so a\ngenuinely-NESTED\
+  \ verify with no driven ref of its own can still own its scenario identity. **Honest\
+  \ status\nof that leg: it is a RESOLVER HOOK with no producer today** — nothing\
+  \ sets it per-box, deliberately (a\nper-box setter would override a test that drives\
+  \ its own ref, since the hook resolves before record\nprobing), and its intended\
+  \ setter task was merged/wont-done. The hook is dormant, not;\nhermeticity is delivered\
+  \ by the scrub + fresh backed mint above, which is what the probes verify.\n\n**Why\
+  \ targeted and not default-deny (the proportionality call, CHARTER §Principle 1).**\
+  \ Default-denying\nthe execution env the ~493-test suite legitimately depends on\
+  \ (PATH/HOME/XDG/git/LANG/…) is\ndisproportionate blast radius. The strength tradeoff\
+  \ is stated honestly: a FUTURE leaking identity carrier\nis covered ONLY by being\
+  \ added to the canonical carrier registry (the single scrubbed SoT — adding a\n\
+  carrier there auto-flows into the scrub) + a regression test, NOT by a blanket allowlist.\
+  \ Note the box is\nnonetheless hermetic on the OTHER axes by construction (<workshop-spec>\
+  \ Rule 1: a private HOME / TMPDIR / XDG_* /\ngit-config + a quarantined default\
+  \ journal per box) — the \"no allowlist\" statement is scoped to the\nIDENTITY-carrier\
+  \ surface this rule owns. `_REAL_STORE_ALLOWLIST` boxes are the explicit exception\
+  \ (they\nkeep the launcher carriers + real journal to assert against the running\
+  \ session's ambient anchor). This is\nSTRONGER than the prior EXPECTED-only scrub\
+  \ (which left the identity CARRIERS intact, leaking the launcher\nid once the keyer\
+  \ became carrier-precedence-first + fail-closed). CLOSES `fu_54c5905adf9f` (the\
+  \ systemic\nverify identity leak) and ends the `test_t0860` / `test_t9755`→`test_t10116`\
+  \ false-RED class.\n\n### Rule 7 — Dispatch launch fast-path degrades to rediscovery\n\
+  Where v2 OWNS launch (`dispatch.py` already sets the worker's frozen `expected`\
+  \ id), setting the v2 id at\nlaunch is a legitimate OPTIMIZATION — but it is never\
+  \ the source of truth: it MUST degrade to rediscovery\n(Rule 1) whenever launch\
+  \ control is absent (interactive provider harnesses, direct/IDE/CI invocation —\n\
+  the common case: direnv no-ops in non-interactive shells, tmux panes go stale, system\
+  \ units start from a\nclean env). The launch-set id is Rule 2.1's frozen `expected`;\
+  \ nothing new is stored.\n\n### Rule 8 — Retirement (what this contract REMOVES)\
+  \ [finding 4, build order]\nOn activation this contract RETIRES: (a) the **FRAGILITY**\
+  \ of mint-and-carry — NOT the v2-own carry\nitself (option-A amendment 2026-07-06):\
+  \ the interactive agent STILL carries the v2-own `YITC_SESSION_REF`\n(provider-neutral,\
+  \ Rule 2 selector-1), but a MISSED/unbacked carry is now SAFE — the record + fail-closed\n\
+  (Rule 5) degrade it to rediscovery or refuse, never landing under a provider key\
+  \ (the retired X-0158\nfailure mode); (b) the **runtime precedence chain of PROVIDER\
+  \ carriers**\n(`<provider-session-env>`/`CODEX_THREAD_ID`) in `SESSION_IDENTITY_REGISTRY['env']`\
+  \ — removed from\nresolution; provider vars demoted to at-most Rule-4 birth metadata;\
+  \ (c) the **per-provider coupling**\n(hardcoded provider env-var names + the present-and-stable\
+  \ assumption in the resolution path) — restoring\nCHARTER §Principle 4b. Build order\
+  \ (the ordered task cut,\nfinding 4): identity-record contract → resolver/rediscovery\
+  \ + records → verify hermeticity → dispatch\nfast-path → retire the mint-and-carry\
+  \ FRAGILITY + the provider precedence chain (the v2-own carry is KEPT — Rule 8a)\
+  \ → trial + postcheck.\n\n## Parameters\n\n| param | value | consumed | note |\n\
+  |---|---|---|---|\n| runtime record home | `$XDG_RUNTIME_DIR/yitc/<session-id>`\
+  \ | false | 0700, local FS, auto-cleared on logout/reboot; per-session-id subkey\
+  \ + recorded PID |\n| runtime record home (XDG unset) | `${TMPDIR:-/tmp}/yitc-<uid>/`\
+  \ (0700, per-uid) | false | fallback when `$XDG_RUNTIME_DIR` is unset (headless/cron/non-login);\
+  \ SAME closed schema + a staleness sweep prunes dead-PID records (no logout auto-clear\
+  \ there) |\n| write-phase record | `.git/worktrees/<name>/yitc-session-stamp.json`\
+  \ | false | the projection of the one identity into the write locus |\n| verify\
+  \ box identity scrub | the derived carrier UNION `_SUBENV_SCRUB_CARRIERS` (= `SESSION_IDENTITY_REGISTRY['env']`\
   \ + the `PROVIDER_CARRIERS`) + `YITC_EXPECTED_SESSION_REF` | false | Rule 6; targeted\
   \ identity-carrier SCRUB (there is NO default-deny env allowlist), applied per non-real-store\
   \ box + a fresh backed `YITC_SESSION_REF` minted and journal-seeded; the carrier\
@@ -370,9 +381,9 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#SESSION_IDENTITY_REGISTRY: 6871954af3879a6536873edd89c735ba1db6d150511a5e2ec16ef7e4d89b90a0
   bin/lib/cli.py#_append_event: dfd4fbf92cd58d252d526be9023ae5b16c606d6ad0ddeefcde792ef019c87d5a
-  bin/lib/cli.py#_resolve_session_ref: f296cd97463619878dcc72b5c49a72bfbc7292a366c6135c1f7012c915a4d0b7
+  bin/lib/cli.py#_resolve_session_ref: a032911b57a0d5c3e2d542ac99bfb288fa04374b2df0a6005e38a8294e911c55
   bin/lib/cli.py#_resolve_session_ref_for_envelope: 66160831484eeec9813b8ee54881d9dd7c150f300bf78e4730d5744ab2f1577b
   bin/lib/cli.py#_resolve_session_ref_with_source: 5199e4cf40f4304c77772d2514aab04c7a11f776ca733cdb75696caa9b4aefdb
   bin/lib/cli.py#_try_resolve_session_ref: a0b0c89d7a03dca5d501962473340f43ba896452422ca24d58ea59887ee44277
   bin/lib/dispatch.py#_dispatch_worker_env: 60eed2e226422524d44ccb66c37e0ee837ba0396dbdfb5a190836960351d6dd0
-  bin/lib/verify_wiring.py#_run_verify_tests: d54826568608f0d6e0ecf9ddc577e730d90bb7402aaad5ed035c635e14caf8d3
+  bin/lib/verify_wiring.py#_run_verify_tests: 25a00fffd6f467afa61fed30fbbd69131b180bf1a89a9120d5ad839b828ae296

@@ -2259,6 +2259,10 @@ def _render_pending_scaffold_refresh(pending: list, cli_form: str, *, kinds=None
             lines.append(f"  ↻ {rel}: DIVERGED from the kernel scaffold (carries local lines) — pending refresh; "
                          f"a refresh would DELETE them, so `--refresh-scaffolds` refuses it until you upstream "
                          f"them or pass `--accept-scaffold-loss {rel}` (T-10886)")
+        elif kind and kind.startswith("UNREADABLE"):
+            # T-13801: staleness was NOT checked — say so; the owner of the file fixes its mode.
+            lines.append(f"  ↻ {rel}: {kind} — this user cannot read it, so its staleness was not checked; "
+                         f"its owner can make it group-readable (`chmod g+r {rel}`)")
         elif kind == "BEHIND":
             lines.append(f"  ↻ {rel}: BEHIND the kernel scaffold (an older kernel release) — pending refresh")
         elif kind == "UNDETERMINED":
@@ -2293,7 +2297,18 @@ def scaffold_staleness(REPO_ROOT, ENGINE_ROOT, templates) -> "tuple[list, dict]"
         eng, dst = ENGINE_ROOT / rel, REPO_ROOT / rel
         if not (eng.exists() and dst.exists()):
             continue
-        local = dst.read_text(encoding="utf-8")
+        try:
+            local = dst.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            # T-13801 (X-1883): a scaffold this user cannot read (a legacy 0600 copy owned by another
+            # user) is NAMED, never an abort of the report-only view and of `session start` with it.
+            try:
+                _mode = f"{dst.stat().st_mode & 0o7777:04o}"
+            except OSError:
+                _mode = "unknown"
+            pending.append(rel)
+            kinds[rel] = f"UNREADABLE (mode {_mode})"
+            continue
         kernel = (_security_launcher_text(install) if rel == "bin/security-audit"
                   else eng.read_text(encoding="utf-8"))
         if local == kernel:
@@ -2319,6 +2334,77 @@ def scaffold_staleness(REPO_ROOT, ENGINE_ROOT, templates) -> "tuple[list, dict]"
     except (OSError, UnicodeDecodeError):
         pass
     return pending, kinds
+
+
+def heal_legacy_private_scaffolds(REPO_ROOT, *, apply: bool = True) -> "list[str]":
+    """T-13801 (X-1883) — heal kernel-born files still at the legacy 0600 the pre-T-10182 atomic write
+    left (mkstemp's mode, kept on every rewrite since write_text_atomic preserves an existing mode).
+
+    BOUNDED: a fixed set of paths the kernel itself writes into a consumer (init's born scaffolds and
+    the graph build's activation checklist). Each component is walked from the repo root with
+    O_NOFOLLOW (the T-13347 store-walk shape), so a symlinked directory or file is never followed out
+    of the checkout. Only a regular file at EXACTLY 0600 is a candidate; any other mode is a deliberate
+    choice and is left alone. A candidate owned by this user is fchmod-ed to the fresh-file mode
+    write_text_atomic gives (0o666 & ~umask); every candidate NOT healed — another owner, a umask that
+    keeps new files private, a failed chmod, or `apply=False` (a `--read-only` start writes nothing)
+    — is NAMED instead. Returns the report lines."""
+    import errno as _errno
+    import os
+    import stat as _stat
+    _cur = os.umask(0)
+    os.umask(_cur)
+    target = 0o666 & ~_cur
+    flags = os.O_RDONLY | os.O_NONBLOCK | getattr(os, "O_NOFOLLOW", 0)
+    lines = []
+    for rel in ("specs/_template.yaml", "tasks/_template.yaml", "lessons/README.md",
+                "graph/activation-checklist.md"):
+        parent, name = rel.split("/")
+        try:
+            root = os.open(REPO_ROOT, os.O_RDONLY | os.O_DIRECTORY)
+        except OSError:
+            return lines
+        try:
+            dfd = os.open(parent, os.O_RDONLY | os.O_DIRECTORY | getattr(os, "O_NOFOLLOW", 0), dir_fd=root)
+        except OSError:
+            continue
+        finally:
+            os.close(root)
+        fd = None
+        try:
+            st = os.stat(name, dir_fd=dfd, follow_symlinks=False)
+            if not (_stat.S_ISREG(st.st_mode) and _stat.S_IMODE(st.st_mode) == 0o600):
+                continue
+            left = f"{rel}: mode 0600 — a kernel-born file left private by a pre-T-10182 write; "
+            if st.st_uid != os.geteuid():
+                lines.append(left + f"owned by uid {st.st_uid}, so this user cannot heal it; its owner "
+                             f"can (`chmod 644 {rel}`)")
+                continue
+            if not target & 0o040:
+                lines.append(left + f"not healed: this user's umask {_cur:04o} makes new files private "
+                             f"too (`chmod 644 {rel}` to share it)")
+                continue
+            if not apply:
+                lines.append(left + f"not healed under --read-only (a writing start sets it to {target:04o})")
+                continue
+            try:
+                fd = os.open(name, flags, dir_fd=dfd)
+                fst = os.fstat(fd)   # re-checked on the opened file: a swap since the stat is not healed
+                if not (_stat.S_ISREG(fst.st_mode) and _stat.S_IMODE(fst.st_mode) == 0o600
+                        and fst.st_uid == os.geteuid()):
+                    continue
+                os.fchmod(fd, target)
+                lines.append(f"{rel}: healed 0600 → {target:04o} (a kernel-born file left private by a "
+                             f"pre-T-10182 write)")
+            except OSError as e:
+                lines.append(left + f"not healed: {_errno.errorcode.get(e.errno, e.errno)} "
+                             f"(`chmod {target:o} {rel}` by hand)")
+        except OSError:
+            continue
+        finally:
+            if fd is not None:
+                os.close(fd)
+            os.close(dfd)
+    return lines
 
 
 def _scaffold_is_init_written(REPO_ROOT, rel: str, consumer_text: str):

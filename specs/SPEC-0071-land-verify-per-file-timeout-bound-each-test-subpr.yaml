@@ -6,6 +6,8 @@ created_at: 2026-06-10 06:04:23+00:00
 consumed: false
 implements:
 - bin/lib/verify_runner.py#_run_verify_tests
+- bin/lib/verify_runner.py#_priority_starved
+- bin/lib/land_verify_legs.py#_run_layer_command
 - bin/lib/verify_runner.py#_reap_own_sandbox_residents
 - bin/lib/verify_runner.py#_sandbox_run_residents
 - bin/lib/verify_runner.py#_sandbox_residency_candidates
@@ -108,24 +110,60 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ or\n   names no land (so every local land is byte-identical to before this card),\
   \ it can never exceed\n   the file's own elapsed window, and a file nothing starved\
   \ is still killed on exactly the\n   deadline it always was — at BOTH ends of the\
-  \ §3 band.\n\n2. OWN PROCESS GROUP + GROUP-KILL. Every verify subprocess is launched\
-  \ with `start_new_session=True`\n   (its PID == its process-group id). On expiry\
-  \ `_terminate_process_group` `os.killpg(pid, SIGKILL)`s\n   the WHOLE group — the\
-  \ test AND every child it forked — then reaps, so a leaked grandchild\n   (tempdir-holder,\
-  \ server, sub-subprocess) cannot orphan and survive the kill. The same helper is\n\
-  \   reused on the existing fail-fast kill, so fail-fast kills also group-reap.\n\
-  \ THE BOUND IS CHARGED ONLY WHILE THE DIRECT CHILD IS ALIVE. A file's verdict is\
-  \ decided\n by its DIRECT CHILD's EXIT STATUS, never by whether some descendant\
-  \ still holds the inherited\n stdout pipe. So the runner WAITS ON THE CHILD (`proc.wait`)\
-  \ and drains stdout concurrently in a\n reader thread; it must NOT wait for EOF\
-  \ on the pipe (`communicate`), which every grandchild\n inherits. Pre- a test that\
-  \ spawned a background child and exited 0 left that pipe open, so\n the deadline\
-  \ kept being charged against an already-reaped, already-PASSING child until the\
-  \ bound\n tripped and killed it — aborting a land whose diff was innocent, with\
-  \ the cpu much-less-than-wall\n signature that §3's renderer reports as a starved\
-  \ host, hiding the cause in the message meant to\n explain it. Once the direct child\
-  \ exits, the runner group-kills whatever it leaked (so reaping\n here is strictly\
-  \ INCREASED — it now covers the clean-exit path too, not only timeout/fail-fast)\n\
+  \ §3 band.\n\n   **A STARVED LOWERED-PRIORITY ATTEMPT IS RESTARTED ONCE AT NORMAL\
+  \ PRIORITY, IN ONE BUDGET\n.** When the run spawns its children at a lowered priority\
+  \ (nice > 0: a dispatched\n   worker's Stage-6 run; a land, an interactive run and\
+  \ every nested or pinned driver spawn at\n   nice 0 and never take this branch),\
+  \ the attempt is classified every fifth of its bound by\n   the same §3 classifier\
+  \ the kill reads. When the host is oversubscribed (load1 above the CPUs\n   the\
+  \ run may use) and the reading is `stalled` or `starved`, the attempt is killed,\
+  \ one stderr line names\n   it, and the file is run ONCE more, in a fresh sandbox\
+  \ box, at normal priority, against the\n   FIRST attempt's deadline — the file keeps\
+  \ one budget, and its duration row spans both\n   attempts. That run's\n   verdict\
+  \ is the file's: a pass passes, a failure fails, a timeout takes this whole rule\n\
+  \   (credit, grace, kill, marker, the §4 deviation) and fails. The restarted run\
+  \ is never probed\n   or restarted, so a hang is still killed by the same deadline\
+  \ and still fails. A `long`\n   reading, no reading, or a host with spare CPU leaves\
+  \ the attempt running as before. The starved attempt emits no\n   deviation and\
+  \ records no row.\n\n   **THE SAME RESTART HOLDS FOR A PROJECT'S VERIFY-LAYER COMMANDS.**\
+  \ A dispatched\n   worker's Stage-6 run of a project starts every command of a declared\
+  \ verify layer at the same\n   lowered priority, under that command's own bound;\
+  \ a land starts a layer command at normal\n   priority and never takes this branch.\
+  \ A lowered layer command is read every fifth of its bound\n   by the same decision\
+  \ as a test file above — the §3 class is `stalled` or `starved` and the host\n \
+  \  is oversubscribed — with ONE more condition: some task of the command's process\
+  \ group has\n   spent the attempt waiting for a CPU, i.e. the longest run-queue\
+  \ wait of any one of its live\n   tasks, read by the same classifier against the\
+  \ same wall, reads `long`. Waits are never summed\n   across tasks: many tasks that\
+  \ each waited briefly are not one task that was held off the CPU.\n   A layer command\
+  \ whose work runs outside its process group (in a container, on a remote\n   service)\
+  \ uses no CPU of its own while nothing is withheld from it; that condition leaves\
+  \ it\n   running. When all three hold, the command's process group is killed, one\
+  \ stderr line names it,\n   and the command is run ONCE more at normal priority\
+  \ in the time left of the same bound. That\n   run is never read again, and its\
+  \ result is the command's: a pass passes, a failure fails, and\n   a command still\
+  \ running at the first attempt's deadline is killed there and the layer times\n\
+  \   out. When that deadline has already passed once the killed attempt is cleaned\
+  \ up, no second\n   run starts and the layer times out. No wait reading, any other\
+  \ class, a host with spare CPU,\n   or a command with no bound leaves the attempt\
+  \ running as before.\n\n2. OWN PROCESS GROUP + GROUP-KILL. Every verify subprocess\
+  \ is launched with `start_new_session=True`\n   (its PID == its process-group id).\
+  \ On expiry `_terminate_process_group` `os.killpg(pid, SIGKILL)`s\n   the WHOLE\
+  \ group — the test AND every child it forked — then reaps, so a leaked grandchild\n\
+  \   (tempdir-holder, server, sub-subprocess) cannot orphan and survive the kill.\
+  \ The same helper is\n   reused on the existing fail-fast kill, so fail-fast kills\
+  \ also group-reap.\n THE BOUND IS CHARGED ONLY WHILE THE DIRECT CHILD IS ALIVE.\
+  \ A file's verdict is decided\n by its DIRECT CHILD's EXIT STATUS, never by whether\
+  \ some descendant still holds the inherited\n stdout pipe. So the runner WAITS ON\
+  \ THE CHILD (`proc.wait`) and drains stdout concurrently in a\n reader thread; it\
+  \ must NOT wait for EOF on the pipe (`communicate`), which every grandchild\n inherits.\
+  \ Pre- a test that spawned a background child and exited 0 left that pipe open,\
+  \ so\n the deadline kept being charged against an already-reaped, already-PASSING\
+  \ child until the bound\n tripped and killed it — aborting a land whose diff was\
+  \ innocent, with the cpu much-less-than-wall\n signature that §3's renderer reports\
+  \ as a starved host, hiding the cause in the message meant to\n explain it. Once\
+  \ the direct child exits, the runner group-kills whatever it leaked (so reaping\n\
+  \ here is strictly INCREASED — it now covers the clean-exit path too, not only timeout/fail-fast)\n\
   \ and collects the drained output under a SHORT bounded join, so a descendant that\
   \ escaped the\n group via its own `setsid` cannot extend the file either. This does\
   \ NOT loosen §1: a file whose\n direct child never exits is still bounded by the\
@@ -381,7 +419,27 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ SPEC-0071's contract — the per-file\ntimeout bound, group-kill, `_VERIFY_TIMEOUT_MARKER`\
   \ non-retriable abort, and the durable\n`deviation_captured` trace are all preserved\
   \ verbatim. The timeout contract holds; last-touch\nrefreshed to clear the symbol-region\
-  \ possibly-stale heuristic.\n\n## Verification\n\n- tests/test_t0678_land_verify_timeout.py:\
+  \ possibly-stale heuristic.\n\n (2026-10-09): 20 of 69 Stage-6 runs on 2026-10-09\
+  \ failed, 50 of them on per-file\ntimeouts classed `stalled`, every task passing\
+  \ on a re-run. Reproduced on one tree under 40\nnice-0 CPU burners (load1 45-61\
+  \ on 32 cores): `test_per_unit_rerun.py` passed in 190 s at nice 0\n(39.9 s CPU)\
+  \ and reached 9.6 s CPU in 300 s at nice 19 (cpu/wall 0.032, `stalled`, no grace).\n\
+  Main before and after the lands of 2026-10-08 00:33-00:37 behaved the same, so the\
+  \ cause was the\nlowered priority meeting foreign nice-0 load, not a tree change\
+  \ (events.jsonl#ts=).\n\n (2026-10-10): a project's layer commands have run at the\
+  \ worker priority on a\ndispatched worker's Stage-6 run since, with a wall bound\
+  \ and no restart. Reproduced with\ntwo normal-priority CPU burners and the layer\
+  \ command pinned to the same two CPUs: at nice 19 the\ncommand read 0.0 s CPU at\
+  \ 3.0 s wall, was restarted and passed 4.5 s after its first launch\n(bound 15 s),\
+  \ three runs of three; with the restart off the same pinned run timed out three\
+  \ times\nof three, its last reading (0.17 s CPU at 12.0 s wall) classed `stalled`;\
+  \ a command that only\nwaits was not restarted (events.jsonl#ts=). Through the engine's\
+  \ own CLI\nentry on a consumer checkout, pinned the same way with nothing stubbed,\
+  \ the run passed three\ntimes of three in 6.0-6.3 s and timed out three times of\
+  \ three with the restart decision\nanswering no (events.jsonl#ts=). The run-queue\
+  \ condition exists\nbecause project layers often run their suites in containers:\
+  \ such a command's process group\nholds a waiting client and reads `stalled` for\
+  \ its whole run.\n\n## Verification\n\n- tests/test_t0678_land_verify_timeout.py:\
   \ AC1 a hung test is killed within ~timeout + an actionable\n  marker reason + the\
   \ call returns (non-hang); AC2 the killed test's spawned grandchild is reaped (no\n\
   \  orphan survives); AC3 structural — a verify-failure (incl. timeout) routes to\
@@ -407,9 +465,27 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ and the payload (`grace_extensions`) record it. The\n  PAIRED probe that the 300s\
   \ default, the marker, the resolver and the ordinary pass/fail verdicts\n  are unmoved.\
   \ Mutation-checked: making the grace unconditional turns the anti-probes RED.\n\
-  - Adoption (Principle 8): `_land_integrate` passes `journal_path=main_wt/\"events.jsonl\"\
-  ` to both verify\n  helpers on every land — the live land-verify path is the consumer\
-  \ (graph `implements:` edge).\n"
+  - tests/test_t13807_niced_timeout_priority_rerun.py: the §1 lowered-priority restart.\
+  \ A starved\n  niced attempt is restarted once at the runner's own priority and\
+  \ passes inside its bound (one\n  duration row spanning both attempts, no timeout\
+  \ deviation); the DIFFERENTIAL — the same file in\n  an un-niced run fails on its\
+  \ first timeout; a hang runs twice, never more, is killed by the\n  first attempt's\
+  \ deadline and fails with the marker and ONE deviation; an attempt the injected\n\
+  \  classifier reads `long`, or one on a host with spare CPU, is not restarted while\
+  \ one read\n  `starved` is; a failing file is not re-run by this rule.\n- tests/test_t13811_consumer_layer_priority_rerun.py:\
+  \ the §1 restart of a project's verify-layer\n  command, through the Stage-6 verb\
+  \ on a fixture project. A lowered command that is starved is\n  restarted once and\
+  \ passes inside its bound; the DIFFERENTIALS — the same run with the restart\n \
+  \ off, and the same command in a run that is not lowered, each time out; a command\
+  \ that is not\n  waiting for a CPU (no wait, an unreadable wait) is not restarted;\
+  \ a hang is restarted once,\n  killed at the first attempt's deadline and fails;\
+  \ a host with spare CPU, a land-shaped run and\n  a failing command are not restarted;\
+  \ many tasks whose waits only sum to a long one are not\n  starvation; a restart\
+  \ whose clean-up outlasts the bound starts nothing and times out. Two arms\n  run\
+  \ under real contention confined to two CPUs, one of them through the engine's own\
+  \ CLI entry\n  on a consumer checkout.\n- Adoption (Principle 8): `_land_integrate`\
+  \ passes `journal_path=main_wt/\"events.jsonl\"` to both verify\n  helpers on every\
+  \ land — the live land-verify path is the consumer (graph `implements:` edge).\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0041
@@ -426,8 +502,10 @@ implements_signature:
   bin/lib/cli.py#_terminate_process_group: 90db1795ef0f8286045789950b9435cfcca8639fe53970c608e575209a937849
   bin/lib/cli.py#_verify_test_timeout_seconds: d2f9a0910ef7d2d91b165e148082b6efec0238b5ec9683b753fba5351a25ed35
   bin/lib/cli.py#_verify_timeout_grace_seconds: 9c9bea45c85f2b5f43ed7080bf79afcd18be52b34d829c97c47aa9ec2599191e
+  bin/lib/land_verify_legs.py#_run_layer_command: ce9b7699db3fed48b79bb455c692a43463fba929744f92d7ba0fa69a5b2ebc33
   bin/lib/verify_runner.py#_path_at_or_under: e5a0791affdb82443073cc4a1468c9d99e9d4c27c141aeca7757776d5d1d6045
+  bin/lib/verify_runner.py#_priority_starved: e29b74b3648667386fb6f1e513098cbc1d7587b2a1a92da63c06b865a65d6ebe
   bin/lib/verify_runner.py#_reap_own_sandbox_residents: a8174d5760bb0068dc1b42690bd1b4be4c8d294b691324832fcc96c41386a05b
-  bin/lib/verify_runner.py#_run_verify_tests: 6e196d17b68ed68108e7488e006c964771454812a94295e84aa4608bd4364340
+  bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
   bin/lib/verify_runner.py#_sandbox_residency_candidates: 6a7217770cf9d6575fbf29f3ad13d6cfe2883bd16914c702a2b756e66d905362
   bin/lib/verify_runner.py#_sandbox_run_residents: 399e558a8f9a9bdaa64659a1577631a4e92b8bdfe4ee061868a4d74bc8aaab66

@@ -12,6 +12,6 @@ why: >-
   and is each security section declared or waived?" on demand — the at-a-glance gap-finder for the weekly
   review. Enumeration REUSES the read-only nightly._v2_projects registry scan (D-0019-safe, the same read
   the cross-peer set uses) and reads each consumer's yitc-ops.yaml carrier (SPEC-0093 rule 7 declared
-  config); the engine itself is excluded (not a deploy consumer, no yitc-ops.yaml). Membership + stance are
+  config); the engine itself is excluded by identity (not a deploy consumer — SPEC-0186 rule 6). Membership + stance are
   DERIVED fresh on read — no new store, no new node/edge, no gate, no event. Closing a gap (a per-project
   card / `cross request`) is the X-0187 FOLLOW-ON, deliberately OUT of this read-only lens.

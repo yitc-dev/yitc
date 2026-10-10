@@ -37,7 +37,7 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   (a `worktree_swept` item of kind `worktree` under the worktree root, i.e. a REGISTERED one, is a FINDING); **derived-artifact growth vs fixed-offset guards** (a generated artifact
   grows → an unrelated task's guard fires — the / class); session-identity integrity
   (SPEC-0137 ref carry, fail-closed rediscovery); integrity probes read the MAIN-checkout journal;
-  B5 declare-or-waive is CONSUMER-scoped (engine-self has no yitc-ops.yaml by design); **MCP external-mutation
+  B5 declare-or-waive is CONSUMER-scoped (engine-self is excluded by identity, SPEC-0186 rule 6); **MCP external-mutation
   capture** (SPEC-0118 — a substantive external write through any MCP tool must leave a journal line
   like a deploy does).
 - **Probes:** tests exit-0 (in a WRITABLE checkout); **journal tests_failed read PAIRED, never flat** — a
@@ -501,7 +501,7 @@ would tell us has anyone left making it**. Adds no store, no verb, no cadence of
 **Run it:** `bin/yitc-v2 inspect record --theme T8 --tracks primary,external` (or `--dry-run` to read the block without
 recording a run) — the `inspection_completed` event carries the report-only `case_review` block, one
 proposal per declared case. Under `-C <consumer>` it folds THAT consumer's carrier and journal; the
-kernel declares no ops contract, so its own run reports «0 declared» and that is the correct answer,
+kernel's own file declares none of these cases, so its own run reports «0 declared» and that is the correct answer,
 not an empty result.
 
 | Lens | Surfaces | Probes |

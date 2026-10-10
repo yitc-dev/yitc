@@ -33,6 +33,7 @@ import shutil
 from pathlib import Path
 
 from lib import state
+from lib import gates   # T-13789: `mark_label` — the one reading of a context-epoch stamp
 from lib import cross
 from lib import graph   # T-10219: `worker_seed_part_files` — the ONE home that derives the seed part chain
 from lib import views   # SPEC-0115 §1: the SINGLE transcript-usage parse home (usage_token_classes)
@@ -393,6 +394,10 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         # `init` re-run (<project>'s drifted bin/security-audit refused its cron 3/3 with nothing naming
         # it). Report-only: the same pending set + renderer init uses; nothing written, nothing gated.
         from lib.cli import _REMATERIALIZE_TEMPLATES   # noqa: PLC0415 — lazy, breaks the import cycle
+        # T-13801 (X-1883): heal (or name) kernel-born files left at the legacy 0600 first, so the
+        # staleness view below reads what it can; a --read-only start only names them.
+        for _healed in init.heal_legacy_private_scaffolds(REPO_ROOT, apply=_read_only_journal is None):
+            print(_kq(f"scaffold mode: {_healed} " + REPORT_ONLY))
         _stale, _stale_kinds = init.scaffold_staleness(REPO_ROOT, ENGINE_ROOT, _REMATERIALIZE_TEMPLATES)
         if _stale:
             print(_kq(init._render_pending_scaffold_refresh(_stale, _eng_cli, kinds=_stale_kinds,
@@ -1068,51 +1073,185 @@ def _context_occupancy(path):
     return {"occupied": occupied, "model": model}
 
 
-def session_epoch(session_ref, *, _session_log_path, unknown=0):
-    """The current CONTEXT EPOCH of a session (T-10082, SPEC-0050 §8): the count of `/compact`
-    boundaries recorded in the provider transcript so far — 0 at a fresh session, +1 per compaction.
-    A monotonic integer signal (NOT a timestamp) the seed-read gate compares against the epoch stamped
-    on a seed_read receipt at emit: a receipt from an EARLIER epoch (a pre-compact read) no longer
-    credits, forcing a post-compact re-read + `session start` refresh.
+# ── the context-epoch reading (SPEC-1023 rules 1-5, T-13787) ───────────────────────────────────────
+# The marker — SPEC-1023 rule 1's ONE definition of a completed compaction per provider — lives on the
+# provider's transcript descriptor row (cli.PROVIDER_TRANSCRIPT_DESCRIPTORS, `marker`); the functions here
+# APPLY the row's marker and hold no record-shape literal of their own (V4). Keys: `fields` — the top-level
+# values the record must carry (matched on those fields ONLY); `prefilter` — a raw substring every marker
+# line holds (a cheap skip); `identity` — the key path of the record's own identity (rule 5); `version` —
+# (the record type that names the provider version, or None when every record does; its key path);
+# `versions_observed` — the inclusive range the live admission observed (rule 3).
 
-    Derived from the SAME best-effort provider log `session context` reads (`_context_occupancy`): the
-    Claude Code transcript writes one `{"type":"system","subtype":"compact_boundary",...}` record per
-    compaction. Cheap: a substring pre-filter (`compact_boundary` is rare) then json-validate ONLY the
-    candidate lines (so a user message that merely contains the literal string is not miscounted).
+# The three readings of SPEC-1023 rule 4.
+READING_LAST = "last-compaction"          # (a) — `marker` is the newest identity, or None for NONE
+READING_NOT_EXPECTED = "no-transcript-expected"   # (b) — treated as NONE
+READING_CANNOT_TELL = "cannot-tell"       # (c)
 
-    FAIL-SAFE (mirrors `_context_occupancy`'s broad-except contract): no transcript / unreadable /
-    parse hiccup → 0. The gate must never break a governed verb on a provider-log quirk — 0 is the
-    honest "no compaction observed" floor (it can only UNDER-count, which fails toward crediting a
-    present receipt, never toward a spurious stale-refusal).
 
-    `unknown` (T-13510) is what a count that could NOT be taken returns — no transcript, an open or
-    read that raised. The default 0 is the gate floor above, so every existing caller is unchanged.
-    A caller that must tell "counted, and it is 0" from "could not count" passes `unknown=None`: the
-    stage deliverer does, because it may WITHHOLD a contract body only on a count it actually took."""
+def _dig(rec, path):
+    for k in path:
+        if not isinstance(rec, dict):
+            return None
+        rec = rec.get(k)
+    return rec
+
+
+def is_compaction_marker(rec, marker) -> bool:
+    """Does transcript record `rec` match `marker` (a descriptor row's marker)? Its fields only."""
+    return (isinstance(rec, dict) and bool(marker)
+            and all(rec.get(k) == v for k, v in marker["fields"].items()))
+
+
+def _version_tuple(v):
     try:
-        path = _session_log_path(session_ref)
-        if path is None or not Path(path).exists():
-            return unknown
-        n = 0
-        with open(path, encoding="utf-8", errors="replace") as fh:
-            for line in fh:
-                if '"compact_boundary"' not in line:
-                    continue
-                try:
-                    rec = json.loads(line)
-                except ValueError:
-                    continue
-                if rec.get("type") == "system" and rec.get("subtype") == "compact_boundary":
-                    n += 1
-        return n
-    except Exception:
-        return unknown
+        return tuple(int(x) for x in str(v).strip().split("."))
+    except ValueError:
+        return None
 
 
-def _tool_result_shown_since_compact(session_ref, prefilter: str, shown_in, *, _session_log_path) -> bool:
+def version_observed(version, marker) -> bool:
+    """Is `version` inside the marker's observed range (SPEC-1023 rule 3)? An unparseable one is not."""
+    lo, hi = (_version_tuple(x) for x in marker["versions_observed"])
+    v = _version_tuple(version)
+    return v is not None and lo <= v <= hi
+
+
+def context_epoch_reading(paths, kind, marker) -> dict:
+    """SPEC-1023 rule 4 (a)/(c) at the transcript: read every file in `paths` (the files the provider
+    row's location pattern matches for the session — rule 5) to its end and return
+    `{"reading", "marker", "kind", "version", "cause"}`:
+      - LAST COMPACTION: `marker` = the identity of the NEWEST completed-compaction record, or None (NONE).
+        Newest = the last identity first seen in record order, so a replayed copy of any earlier record
+        changes nothing (rule 5 — identity, never a count). Record order is the file's own (the provider
+        appends) for one file; across several files it is each identity's first record `timestamp`, and
+        a marker without one makes that order unknown — CANNOT TELL;
+      - CANNOT TELL: the provider has no admitted marker; no file to read; a file that could not be opened
+        or read to its end; a line carrying the marker prefilter that does not parse, or a matching record
+        without its identity (a corrupt marker leaves the reading in doubt).
+    `version` is the last provider version the transcript names (None when it names none). Reads only."""
+    out = {"reading": READING_CANNOT_TELL, "marker": None, "kind": kind, "version": None, "cause": None}
+    if not marker:
+        out["cause"] = f"no admitted compaction marker for provider {kind or 'unknown'}"
+        return out
+    if not paths:
+        out["cause"] = "the transcript should exist and was not found"
+        return out
+    vtype, vpath = marker["version"]
+    vneedle = f'"{vtype}"' if vtype else None
+    first_ts, newest, tail = {}, None, []
+
+    def _take_version(rec):
+        v = _dig(rec, vpath)
+        if isinstance(v, str) and v.strip():
+            out["version"] = v.strip()
+
+    for path in paths:
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                for line in fh:
+                    if vneedle is None:            # version on every record: read it off the tail only
+                        tail = (tail + [line])[-8:]
+                    want_version = vneedle is not None and vneedle in line
+                    if marker["prefilter"] not in line and not want_version:
+                        continue
+                    try:
+                        rec = json.loads(line)
+                    except ValueError:
+                        if marker["prefilter"] in line:
+                            out["cause"] = f"a candidate compaction record in {path} does not parse"
+                            return out
+                        continue
+                    if not isinstance(rec, dict):
+                        continue
+                    if want_version and rec.get("type") == vtype:
+                        _take_version(rec)
+                    if not is_compaction_marker(rec, marker):
+                        continue
+                    ident = _dig(rec, marker["identity"])
+                    if not isinstance(ident, str) or not ident.strip():
+                        out["cause"] = f"a compaction record in {path} carries no identity"
+                        return out
+                    if ident not in first_ts:
+                        first_ts[ident] = rec.get("timestamp")
+                        newest = ident
+        except OSError as e:
+            out["cause"] = f"{path} could not be read ({e.__class__.__name__})"
+            return out
+    for line in reversed(tail):
+        try:
+            rec = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(rec, dict) and isinstance(_dig(rec, vpath), str):
+            _take_version(rec)
+            break
+    if len(paths) > 1 and first_ts:
+        if not all(isinstance(t, str) and t for t in first_ts.values()):
+            out["cause"] = "the order of compaction records across the session's files is not known"
+            return out
+        newest = max(first_ts, key=lambda i: first_ts[i])
+    out.update(reading=READING_LAST, marker=newest)
+    return out
+
+
+def context_epoch_reading_line(r) -> str:
+    """The one report line for a reading (SPEC-1023 rule 4) — the state is always named, never a number."""
+    if r["reading"] == READING_LAST:
+        state = f"LAST COMPACTION {r['marker']}" if r["marker"] else "LAST COMPACTION NONE"
+    elif r["reading"] == READING_NOT_EXPECTED:
+        state = "NO TRANSCRIPT EXPECTED (treated as NONE)"
+    else:
+        state = f"CANNOT TELL — {r.get('cause') or 'unknown cause'}"
+    who = f" (provider {r['kind']})" if r.get("kind") else ""
+    return f"context epoch reading{who}: {state}"
+
+
+def context_epoch_start_lines(r, marker, *, deviation_recorded) -> list:
+    """SPEC-1023 rules 3 + 7 at `session start`: the reading line, then — for a provider with no admitted
+    marker — the not-observed statement (rule 7), else — for a transcript naming a version the marker
+    did not observe — the unverified-version line (rule 3). `deviation_recorded(kind, version)` records the
+    rule-3 deviation once per version (True when THIS call recorded it). Nothing here refuses."""
+    lines = [context_epoch_reading_line(r)]
+    kind = r.get("kind")
+    if kind and not marker:
+        lines.append(f"a context compaction cannot be detected under provider {kind}: detection NOT "
+                     "OBSERVED — a compaction of this session goes unseen by the engine, so re-read your "
+                     "seed yourself after one (SPEC-1023 rule 7)")
+    elif marker and r.get("version") and not version_observed(r["version"], marker):
+        deviation_recorded(kind, r["version"])
+        lines.append(f"compaction detection is unverified for {kind} version {r['version']} (observed "
+                     f"{marker['versions_observed'][0]}–{marker['versions_observed'][1]}); nothing is "
+                     "refused on it — the version needs a live observation (SPEC-1023 rule 3)")
+    return lines
+
+
+# The stamp a seed / point-lookup receipt records (SPEC-1023 rule 6, T-13789) — the reading as an
+# IDENTITY, compared by equality and never ordered: `marker:<identity>` (the newest completed-compaction
+# record), `none` (no marker, or NO TRANSCRIPT EXPECTED), `unknown` (CANNOT TELL under a provider whose
+# detection is OBSERVED — rule 6a's «epoch unknown»). A pre-change receipt stamped with a NUMBER equals
+# none of them, so it never credits: one recovery after the release; an UNSTAMPED one reads `none`
+# (`gates._receipt_stamp` — the dispatch bootstrap's shape).
+MARK_NONE = "none"
+MARK_UNKNOWN = "unknown"
+MARK_PREFIX = "marker:"
+
+
+def reading_mark(r, *, observed: bool) -> "str | None":
+    """The stamp of reading `r` (SPEC-1023 rules 4-6): `marker:<identity>` / `none` / `unknown` — or
+    None for CANNOT TELL under a provider whose detection is NOT OBSERVED (`observed` False): there is
+    no identity to compare, and rule 6 lets that provider's governed verbs proceed."""
+    if r.get("reading") == READING_LAST:
+        return f"{MARK_PREFIX}{r['marker']}" if r.get("marker") else MARK_NONE
+    if r.get("reading") == READING_NOT_EXPECTED:
+        return MARK_NONE
+    return MARK_UNKNOWN if observed else None
+
+
+def _tool_result_shown_since_compact(session_ref, prefilter: str, shown_in, *, _session_log_path,
+                                     marker) -> bool:
     """Was THIS conversation shown a tool result `shown_in(text)` accepts, since its last compaction?
     The one transcript walk `start_block_in_context` (T-13580) and `refold_block_in_context` (T-13687)
-    share — read the way `session_epoch` reads: one pass, a substring pre-filter (`prefilter` or a
+    share — read the way `context_epoch_reading` reads: one pass, a substring pre-filter (`prefilter` or a
     compact boundary), json-validate only the candidate lines. A compact boundary resets the answer.
     Only a TOOL RESULT is a delivery: a user record whose content carries a `tool_result` block (the
     Claude Code transcript format). Ordinary user text that quotes the text, the assistant's own records
@@ -1126,7 +1265,7 @@ def _tool_result_shown_since_compact(session_ref, prefilter: str, shown_in, *, _
         shown = False
         with open(path, encoding="utf-8", errors="replace") as fh:
             for line in fh:
-                if '"compact_boundary"' not in line and prefilter not in line:
+                if marker["prefilter"] not in line and prefilter not in line:
                     continue
                 try:
                     rec = json.loads(line)
@@ -1134,7 +1273,7 @@ def _tool_result_shown_since_compact(session_ref, prefilter: str, shown_in, *, _
                     continue
                 if not isinstance(rec, dict):
                     continue
-                if rec.get("type") == "system" and rec.get("subtype") == "compact_boundary":
+                if is_compaction_marker(rec, marker):
                     shown = False
                     continue
                 msg = rec.get("message") if rec.get("type") == "user" else None
@@ -1156,7 +1295,7 @@ def _tool_result_shown_since_compact(session_ref, prefilter: str, shown_in, *, _
         return False
 
 
-def start_block_in_context(session_ref, main_root, *, _session_log_path) -> bool:
+def start_block_in_context(session_ref, main_root, *, _session_log_path, marker) -> bool:
     """T-13580 — was THIS conversation shown a main-checkout `session start` of the repository whose
     main checkout is `main_root`, since its last compaction? A tool result counts when it carries the
     start report's first line — the `session_started emitted: ... anchored-in=<root> ...` line
@@ -1174,7 +1313,7 @@ def start_block_in_context(session_ref, main_root, *, _session_log_path) -> bool
                "startup done — open nothing else now")
     return _tool_result_shown_since_compact(
         session_ref, head, lambda text: all(m in text for m in markers),
-        _session_log_path=_session_log_path)
+        _session_log_path=_session_log_path, marker=marker)
 
 
 # T-13687 (SPEC-0007 §5b) — the post-compact re-fold block `session start` prints on a new context epoch.
@@ -1190,7 +1329,7 @@ def _refold_head_lead(ref, root, epoch) -> str:
     the same ref) names a different one, so none is taken for this session's delivered block. A
     worktree and the main checkout of one project share `root`, so the second-checkout refresh is
     recognised (T-13636)."""
-    return f"{REFOLD_HEAD} session {ref} in {root} — context epoch {epoch} is newer than"
+    return f"{REFOLD_HEAD} session {ref} in {root} — context epoch {gates.mark_label(epoch)} is newer than"
 
 
 _REFOLD_STEP_COUNT = re.compile(r"do each of the (\d+) steps below")
@@ -1217,7 +1356,7 @@ def _whole_refold_block_shown(text: str, lead: str) -> bool:
     return False
 
 
-def refold_block_in_context(session_ref, ref, root, epoch, *, _session_log_path) -> bool:
+def refold_block_in_context(session_ref, ref, root, epoch, *, _session_log_path, marker) -> bool:
     """T-13687 — was THIS conversation shown, since its last compaction, the WHOLE post-compact re-fold
     block of session `ref` in the project whose main checkout is `root`, at context epoch `epoch`? The
     same-epoch second-checkout refresh (a Worker's worktree start, then the main checkout before
@@ -1232,7 +1371,7 @@ def refold_block_in_context(session_ref, ref, root, epoch, *, _session_log_path)
     # head's dash as an escape, so the full lead is matched only on the decoded tool-result text.
     return _tool_result_shown_since_compact(
         session_ref, f"{REFOLD_HEAD} session {ref}", lambda text: _whole_refold_block_shown(text, lead),
-        _session_log_path=_session_log_path)
+        _session_log_path=_session_log_path, marker=marker)
 
 
 def consumer_own_floor_map(repo_root) -> "Path | None":
@@ -1256,10 +1395,10 @@ def main_checkout_cli(engine_root, main_root, consumer: bool) -> str:
     return f"cd {shlex.quote(str(main_root))} && bin/yitc-v2"
 
 
-def post_compact_refold_lines(*, ref: str, root, epoch: int, prev_epoch: int, worker: bool, consumer: bool,
+def post_compact_refold_lines(*, ref: str, root, epoch, prev_epoch, worker: bool, consumer: bool,
                               receipt_only: bool, cli: str, help_cmd: str, task=None,
                               stage_bundle: bool = False, plans=(), main_cli: "str | None" = None,
-                              own_floor_map=None) -> list:
+                              own_floor_map=None, seed_parts=None, stamp_cmd: "str | None" = None) -> list:
     """T-13687 (SPEC-0007 §5b) — the re-fold steps a session owes after a `/compact`, DERIVED from its
     state; only the steps that apply are returned. PURE: the caller decides WHETHER the block is due
     (`cli._post_compact_refold_due`) and supplies the state; this decides WHAT it says. Returns the head
@@ -1273,9 +1412,16 @@ def post_compact_refold_lines(*, ref: str, root, epoch: int, prev_epoch: int, wo
     the form that targets the MAIN checkout, named on the Worker's land row (defaults to `cli`); `ref`
     and `root` (the project's main checkout) are what the head names and `refold_block_in_context`
     later recognises. `own_floor_map` — a consumer's own floor map (`consumer_own_floor_map`), named
-    on the seed row beside the engine map (T-13757)."""
+    on the seed row beside the engine map (T-13757).
+
+    T-13788 (SPEC-1024 rule 2 §6 — one derivation, two print sites): the restoration brief prints these
+    rows too. `seed_parts` names every seed part on the seed row (one path list); `stamp_cmd` adds, after
+    it, the stamping run the brief itself never performs. Both default off, so the re-fold block is
+    unchanged."""
     seed = ("the worker-seed chain: graph/worker-seed.md AND every continuation part it chains to"
             if worker else "the SOURCE parts, directly, in the read-order")
+    if seed_parts:
+        seed = "every part: " + " · ".join(str(p) for p in seed_parts)
     gq = f"{cli} graph query --kernel" if consumer else f"{cli} graph query"
     rows = [
         f"  - seed: re-read your WHOLE audience seed ({seed}) + graph/floor-trigger-map.md"
@@ -1288,6 +1434,9 @@ def post_compact_refold_lines(*, ref: str, root, epoch: int, prev_epoch: int, wo
         f"`{cli} graph query capture-routing` (SPEC-0157); before the first MCP connect/use "
         f"`{gq} SPEC-0118`",
     ]
+    if stamp_cmd:
+        rows.insert(1, f"  - stamp: then `{stamp_cmd}` once per checkout your next governed verbs run from "
+                       "(the stamping run — this brief stamped nothing)")
     if task:
         tid, stage = task.get("id"), task.get("current_stage")
         nxt = task.get("next_action")
@@ -1295,8 +1444,9 @@ def post_compact_refold_lines(*, ref: str, root, epoch: int, prev_epoch: int, wo
                     + (f", next_action: {nxt}" if nxt else ""))
         if stage and stage_bundle:
             rows.append(f"  - task {tid}: re-read its card's resume contract (stage {stage}, {contract}) — "
-                        f"this start delivers its stage {stage} bundle below; later, "
-                        f"`{cli} stage {stage} --task {tid}` re-delivers it")
+                        + (f"the stamping run in its worktree delivers its stage {stage} bundle; "
+                           if stamp_cmd else f"this start delivers its stage {stage} bundle below; ")
+                        + f"later, `{cli} stage {stage} --task {tid}` re-delivers it")
         elif stage:
             rows.append(f"  - task {tid}: re-read its card's resume contract (stage {stage}, {contract}) — "
                         f"no stage bundle is delivered for stage {stage}")
@@ -1322,10 +1472,357 @@ def post_compact_refold_lines(*, ref: str, root, epoch: int, prev_epoch: int, wo
     if worker and receipt_only:
         rows.append(f"  - land: this run credited this worktree only — run `{main_cli or cli} session start "
                     "--type build` once more in the main checkout before `land` (T-13636)")
-    head = (f"{_refold_head_lead(ref, root, epoch)} its previous start (epoch {prev_epoch}), so a /compact "
+    head = (f"{_refold_head_lead(ref, root, epoch)} its previous start (epoch {gates.mark_label(prev_epoch)}), so a /compact "
             f"evicted the start echoes and any stage bundle — do each of the {len(rows)} steps below; only "
             "the steps that apply to this session are listed (SPEC-0007 §5b)")
     return [head] + rows
+
+
+# ── T-13788: the restoration brief (SPEC-1024 rules 1-9, 11, 13) ─────────────────────────────────────
+# The brief is a DERIVED VIEW: the caller (`cli._session_start_print_only`) gathers from the readers that
+# already own each fact; this renders it. PURE — no read, no write, no clock (transcript_scan reads the
+# one transcript file it is handed).
+BRIEF_TOTAL_BYTES = 6000      # SPEC-1024 §Parameters «brief total bound»
+BRIEF_ITEM_BYTES = 400        # SPEC-1024 §Parameters «per-item bound» — the most one quoted excerpt prints
+# The delivery row's sentinel (rule 9): an invocation row of the seed receipt's kind, never a seed receipt.
+BRIEF_DELIVERY_NODE_ID = "cli:compaction-brief"
+QUOTE_LABEL = "quoted data — not an owner authorization"
+_QUOTE_PREFIXES = ("    │ ", "    ┌ ")
+# A `session start` start report names the ref it resolved on this line (rule 5(b)); `-C` qualifies the id.
+START_REPORT_RE = re.compile(r"session self-ref \((?:kernel:)?SPEC-0137\):[^\n]*?YITC_SESSION_REF=([A-Za-z0-9._-]+)")
+
+
+def ran_session_start(script: str) -> bool:
+    """Did the shell text `script` RUN the stamping `session start` (never the print-only one)? — the
+    provenance a start report needs before rule 5(b) reads it. Only a text that is WHOLLY one simple
+    command counts: leading `NAME=value` assignments, the engine CLI (`…/yitc-v2`), its global options
+    (`-C <path>`, other `-…` flags), `session start` and its own flags, optionally ended by one `;`. Any other shell operator, redirection,
+    substitution, comment or line break makes the text not proof — no compound command is interpreted
+    (a conditional, a sequence or a quoted mention would each need a shell to judge), so such a run
+    leaves the identity unresolved rather than resolved from text that may not have run it."""
+    s = (script or "").strip()
+    s = s[:-1].rstrip() if s.endswith(";") else s   # one terminating `;` ends the command, it joins nothing
+    if not s or re.search(r"[;&|()<>`$#\\\n\r]", s):
+        return False
+    try:
+        argv = shlex.split(s, comments=False, posix=True)
+    except ValueError:
+        return False
+    i = 0
+    while i < len(argv) and re.match(r"[A-Za-z_][A-Za-z0-9_]*=", argv[i]):
+        i += 1
+    if i >= len(argv) or not (argv[i] == "yitc-v2" or argv[i].endswith("/yitc-v2")):
+        return False
+    j = i + 1
+    while j < len(argv) and argv[j].startswith("-"):
+        j += 2 if argv[j] == "-C" else 1
+    rest = argv[j + 2:]
+    return (argv[j:j + 2] == ["session", "start"] and "--print-only" not in rest
+            and all(x.startswith("-") or (k and rest[k - 1].startswith("--") and "=" not in rest[k - 1])
+                    for k, x in enumerate(rest)))
+
+
+def _call_script(arguments) -> str:
+    """The shell text a codex tool call ran: `arguments` (a JSON string or object) carrying `command` (or
+    `cmd`, the exec_command form) as a string, or as an argv list — `<shell> -c|-lc <script>` gives the script, any other list its shell join."""
+    if isinstance(arguments, str):
+        try:
+            arguments = json.loads(arguments)
+        except ValueError:
+            return arguments
+    cmd = None
+    if isinstance(arguments, dict):   # `command` (shell / local_shell_call), `cmd` (exec_command)
+        cmd = arguments.get("command") if arguments.get("command") is not None else arguments.get("cmd")
+    if isinstance(cmd, str):
+        return cmd
+    if isinstance(cmd, list) and all(isinstance(x, str) for x in cmd):
+        if len(cmd) >= 3 and cmd[-2] in ("-c", "-lc"):
+            return cmd[-1]
+        return shlex.join(cmd)
+    return ""
+
+
+def brief_plain_line(cli_cmd: str, reading: str, marker) -> str:
+    """The one plain line (rule 9 / rule 10), printed FIRST and LAST: the compaction state as the
+    SPEC-1023 reading states it (an unknown state is said, never read as «none») and the print-only command."""
+    if reading == READING_LAST:
+        what = f"context compacted (marker {marker})" if marker else "no compaction on record"
+    elif reading == READING_NOT_EXPECTED:
+        what = "no transcript expected — no compaction on record"
+    else:
+        what = "compaction state UNKNOWN (the reading cannot tell)"
+    return f"RESTORATION BRIEF — {what}; print it again: `{cli_cmd}` (SPEC-1024)"
+
+
+def backstop_plain_line(case: str, mark, stamp, *, print_cmd: str, stamp_cmd: str, cause=None) -> str:
+    """SPEC-1024 rule 10 (T-13789) — the backstop's ONE plain line, printed first and last. Three cases,
+    told apart from the reading and the receipt's stamp:
+      - `detected` — the reading's newest marker is not the one the receipt recorded: the context was
+        compacted (or the receipt is from another context — rule 5 shows both the same way);
+      - `old-format` — the receipt is stamped with a pre-change number: a refresh is required, and NO
+        compaction is claimed;
+      - `mismatch` — the reading names NO marker while the receipt recorded one (or UNKNOWN): the
+        transcript's history changed under the receipt — no compaction is claimed, the context is
+        recovered as after one;
+      - `unknown` — the reading CANNOT TELL under an observed provider: treated as compacted (rule 6a)."""
+    if case == "detected":
+        return (f"RESTORATION — context was compacted: the newest compaction marker "
+                f"{gates.mark_label(mark)} is not the one your seed receipt recorded "
+                f"({gates.mark_label(stamp)}). Run `{print_cmd}` (the restoration brief), re-read every "
+                f"part of your seed, then `{stamp_cmd}` (SPEC-1024 rule 10)")
+    if case == "mismatch":
+        return (f"RESTORATION — your seed receipt recorded {gates.mark_label(stamp)} but the reading now "
+                f"names {gates.mark_label(mark)}: the transcript's history changed under the receipt, so "
+                f"the context it attests cannot be assumed (no compaction is claimed). Run `{print_cmd}`, "
+                f"re-read every part of your seed, then `{stamp_cmd}` (SPEC-1024 rule 10)")
+    if case == "old-format":
+        return (f"RESTORATION — your seed receipt is in the OLD numeric format, so it no longer credits; no "
+                f"compaction is claimed (reading {gates.mark_label(mark)}). Refresh it: `{stamp_cmd}` "
+                "(SPEC-1024 rule 10)")
+    return (f"RESTORATION — the context epoch CANNOT TELL ({cause or 'cause not reported'}): treat the "
+            f"context as compacted — run `{print_cmd}`, re-read every part of your seed, then "
+            f"`{stamp_cmd}` (SPEC-1023 rule 6a, SPEC-1024 rule 10)")
+
+
+def _bounded(text: str, limit: int) -> str:
+    """`text` cut to at most `limit` UTF-8 bytes, on a character boundary, the cut said."""
+    b = text.encode("utf-8")
+    if len(b) <= limit:
+        return text
+    tail = " …[cut]"
+    return b[:max(0, limit - len(tail.encode()))].decode("utf-8", "ignore") + tail
+
+
+def quote_block(text: str, locator: str, *, redact, limit: int = BRIEF_ITEM_BYTES) -> list:
+    """Rule 6: a quoted excerpt printed as DATA — redacted (credential shapes), control characters
+    dropped, bounded to `limit` bytes, every line behind a `│` gutter, inside a delimited block naming
+    its locator and that it is no owner authorization. Nothing in it is ever made a command line."""
+    clean = "".join(ch if ch == "\n" or (ch.isprintable() and ch not in "\x1b") else " "
+                    for ch in redact(str(text or "")))
+    body = _bounded(clean.strip(), limit)
+    return ([f"    ┌ {QUOTE_LABEL} · {locator}"] + [f"    │ {ln}" for ln in body.splitlines() or [""]]
+            + ["    └"])
+
+
+def _tool_calls(rec) -> list:
+    """(call id, the shell text it ran) of every tool call in a transcript record — a claude-code
+    `tool_use` (its `input.command`), a codex `function_call` / `local_shell_call` (`_call_script`)."""
+    out = []
+    if rec.get("type") == "assistant":
+        content = (rec.get("message") or {}).get("content")
+        for b in (content if isinstance(content, list) else []):
+            if isinstance(b, dict) and b.get("type") == "tool_use" and b.get("id"):
+                cmd = (b.get("input") or {}).get("command") if isinstance(b.get("input"), dict) else None
+                out.append((b["id"], cmd if isinstance(cmd, str) else ""))
+    elif rec.get("type") == "response_item":
+        p = rec.get("payload") or {}
+        if str(p.get("type") or "").endswith("call") and p.get("call_id"):
+            out.append((p["call_id"], _call_script(p.get("arguments") or p.get("action") or {})))
+    return out
+
+
+def _tool_results(rec, extract_text) -> list:
+    """(call id, output text) of every tool result in a transcript record."""
+    out = []
+    if rec.get("type") == "user":
+        content = (rec.get("message") or {}).get("content")
+        for b in (content if isinstance(content, list) else []):
+            if isinstance(b, dict) and b.get("type") == "tool_result" and b.get("tool_use_id"):
+                out.append((b["tool_use_id"], extract_text(b.get("content"))))
+    elif rec.get("type") == "response_item":
+        p = rec.get("payload") or {}
+        if str(p.get("type") or "").endswith("call_output") and p.get("call_id"):
+            o = p.get("output")
+            out.append((p["call_id"], o if isinstance(o, str) else json.dumps(o, ensure_ascii=False)))
+    return out
+
+
+def transcript_scan(path, marker, *, turn, extract_text) -> dict:
+    """SPEC-1024 rules 5(b) and 6 — ONE pass over the transcript `path` collects everything the brief reads
+    from it: the conversation turns (`turn(record)` -> (kind 'owner'|'reply', text, id) or None; tool
+    calls, tool results, injected blocks and notifications are None and never counted), the newest
+    compaction marker record, the first recorded timestamp, and the session refs this conversation's
+    own start reports name — read ONLY from the output of a tool call that ran the stamping
+    `session start` (`ran_session_start`), never from a typed, quoted or otherwise-produced text.
+    Walking back from the boundary (the end of the file when there is none) it locates the owner's
+    last turn and the session's last text reply; a missing one is absent. Returns `owner_last`,
+    `reply_last`, `owner_after` (owner turns after the session's last reply), `since_count` /
+    `since_first` (the session's replies after the owner's last turn and the first of them),
+    `marker_rec`, `first_ts`, `start_refs` (first-appearance order) and `cause` (None, or why the file
+    could not be read — rule 4)."""
+    out = {"owner_last": None, "reply_last": None, "owner_after": [], "since_count": 0, "since_first": None,
+           "marker_rec": None, "first_ts": None, "start_refs": [], "cause": None}
+    turns, boundary, start_calls = [], None, set()
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                try:
+                    rec = json.loads(line)
+                except ValueError:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if out["first_ts"] is None and isinstance(rec.get("timestamp"), str):
+                    out["first_ts"] = rec["timestamp"]
+                if marker and is_compaction_marker(rec, marker):
+                    boundary, out["marker_rec"] = len(turns), rec
+                    continue
+                for cid, script in _tool_calls(rec):
+                    if ran_session_start(script):
+                        start_calls.add(cid)
+                for cid, text in _tool_results(rec, extract_text):
+                    if cid in start_calls:
+                        for m in START_REPORT_RE.finditer(text or ""):
+                            if m.group(1) not in out["start_refs"]:
+                                out["start_refs"].append(m.group(1))
+                t = turn(rec)
+                if t:
+                    turns.append((t[0], t[1][:4 * BRIEF_ITEM_BYTES], t[2]))
+    except OSError as e:
+        out["cause"] = f"{path} could not be read ({e.__class__.__name__})"
+        return out
+    pre = turns[:boundary] if boundary is not None else turns
+    oi = next((i for i in range(len(pre) - 1, -1, -1) if pre[i][0] == "owner"), None)
+    ri = next((i for i in range(len(pre) - 1, -1, -1) if pre[i][0] == "reply"), None)
+    out["owner_last"] = pre[oi] if oi is not None else None
+    out["reply_last"] = pre[ri] if ri is not None else None
+    after = [i for i in range((ri + 1) if ri is not None else 0, len(pre)) if pre[i][0] == "owner"]
+    out["owner_after"] = [pre[i] for i in after if i != oi]
+    since = [i for i in range((oi + 1) if oi is not None else 0, len(pre)) if pre[i][0] == "reply"]
+    out["since_count"] = len(since)
+    out["since_first"] = pre[since[0]][2] if since else None
+    return out
+
+
+def _nbytes(lines) -> int:
+    return sum(len(ln.encode("utf-8")) + 1 for ln in lines)
+
+
+def render_compaction_brief(*, plain: str, head: list, cuttable: list, tail: list,
+                            total: int = BRIEF_TOTAL_BYTES, render=None) -> "tuple[list, dict]":
+    """SPEC-1024 rule 7 — fit a brief to `total` bytes, measuring each part ONCE and building ONCE.
+    `head` (sections 1 and 2's identity line) and `tail` (sections 5 and 6) are the MANDATORY MINIMUM,
+    always printed whole. Each `cuttable` section is `{title, items: [{pointer, quote?, ts}], gaps,
+    folded, list_cmd}`; it prints at most 3 gap lines and then one counted line for the rest, its
+    folded lines, and a counted cut line per kind of cut, each naming `list_cmd`. Its items fill what
+    is left: excerpt text is cut before pointers, then whole items are dropped — oldest `ts` first in
+    both steps; a shown item keeps its pointer. When even the sections' fixed lines do not fit, every
+    cuttable section shrinks to ONE line — its title, how many lines it lost, its listing command — and
+    only if the minimum and those lines still exceed the bound does the brief state by how much. `render` (the `-C` consumer render) is applied to every line
+    outside a quoted block before anything is measured; quoted data is printed as it was read. The
+    plain line is first and last. Returns `(lines, meta)` with meta `{bytes, cut, overflow}`."""
+    def r(ln):
+        return ln if render is None or ln.startswith(_QUOTE_PREFIXES) else render(ln)
+
+    fixed_head, fixed_tail, pl = [r(x) for x in head], [r(x) for x in tail], r(plain)
+    secs = []
+    for si, sec in enumerate(cuttable):
+        items = sec.get("items") or []
+        gaps = list(sec.get("gaps") or [])
+        if len(gaps) > 3:
+            gaps = gaps[:3] + [f"{len(gaps) - 3} more gap(s) of the kinds above — `{sec['list_cmd']}`"]
+        ptr = [r(f"  - {it['pointer']}") for it in items]
+        ptr_cut = [r(f"  - {it['pointer']} [excerpt cut]") if it.get("quote") else p for it, p in zip(items, ptr)]
+        cut_tpl = (r(f"  - {len(items)} excerpt(s) cut by the brief's size bound — read them whole: `{sec['list_cmd']}`"),
+                   r(f"  - {len(items)} item(s) cut by the brief's size bound — list them whole: `{sec['list_cmd']}`"))
+        secs.append({"sec": sec, "items": items, "title": r(sec["title"]),
+                     "gaps": [r(f"  - {g}") for g in gaps], "folded": [r(f"  - {f}") for f in sec.get("folded") or []],
+                     "ptr": ptr, "ptr_cut": ptr_cut, "quote": [it.get("quote") or [] for it in items],
+                     "reserve": _nbytes(cut_tpl) if items else 0,
+                     "keep_text": [True] * len(items), "drop": [False] * len(items)})
+    fixed = _nbytes([pl, pl] + fixed_head + fixed_tail)
+    for s in secs:
+        fixed += _nbytes([s["title"]] + s["gaps"] + s["folded"])
+        if not s["items"] and not s["gaps"] and not s["folded"]:
+            fixed += _nbytes([r("  - nothing")])
+    cost = {(si, ii): _nbytes([s["ptr"][ii]]) + _nbytes(s["quote"][ii])
+            for si, s in enumerate(secs) for ii in range(len(s["items"]))}
+    used = sum(cost.values())
+    # the cut lines' room is set aside only once something has to be cut
+    avail = total - fixed if used <= total - fixed else total - fixed - sum(s["reserve"] for s in secs)
+    order = sorted(cost, key=lambda k: (str(secs[k[0]]["items"][k[1]].get("ts") or ""), k[0], -k[1]))
+    cut = False
+    for k in order:                                   # excerpt text first, oldest first
+        if used <= avail:
+            break
+        si, ii = k
+        if secs[si]["quote"][ii]:
+            new = _nbytes([secs[si]["ptr_cut"][ii]])
+            used, cost[k], cut = used - cost[k] + new, new, True
+            secs[si]["keep_text"][ii] = False
+    for k in order:                                   # then whole items, oldest first
+        if used <= avail:
+            break
+        si, ii = k
+        used, cut = used - cost[k], True
+        secs[si]["drop"][ii] = True
+    shrink = used > avail                             # even the fixed lines do not fit
+    lines = [pl] + fixed_head
+    for s in secs:
+        if shrink:   # ONE line per section: what it lost and where to read it whole
+            n = len(s["items"]) + len(s["sec"].get("gaps") or []) + len(s["sec"].get("folded") or [])
+            lines.append(r(f"{s['sec']['title']} {n} line(s) cut by the brief's size bound — "
+                           f"`{s['sec']['list_cmd']}`") if n else r(f"{s['sec']['title']} nothing"))
+            continue
+        lines.append(s["title"])
+        n_text = n_drop = 0
+        for ii in range(len(s["items"])):
+            if s["drop"][ii]:
+                n_drop += 1
+                continue
+            if s["keep_text"][ii]:
+                lines.append(s["ptr"][ii])
+                lines += s["quote"][ii]
+            else:
+                n_text += 1
+                lines.append(s["ptr_cut"][ii])
+        lines += s["gaps"]
+        lines += s["folded"]
+        if n_text:
+            lines.append(r(f"  - {n_text} excerpt(s) cut by the brief's size bound — read them whole: "
+                           f"`{s['sec']['list_cmd']}`"))
+        if n_drop:
+            lines.append(r(f"  - {n_drop} item(s) cut by the brief's size bound — list them whole: "
+                           f"`{s['sec']['list_cmd']}`"))
+        if not s["items"] and not s["gaps"] and not s["folded"]:
+            lines.append(r("  - nothing"))
+    lines += fixed_tail
+    over = 0
+    if shrink:
+        cut = True
+        over = max(0, _nbytes(lines + [pl]) - total)
+        if over:
+            minimum = _nbytes([pl, pl] + fixed_head + fixed_tail)
+
+            def _msg(n):
+                return r(f"brief bound exceeded: {n} B over the {total} B bound (the mandatory minimum alone "
+                         f"is {minimum} B, printed whole); every other section is cut to its one listing line")
+            for _ in range(3):   # the stated figure counts this line too: settle it on its own length
+                over = _nbytes(lines + [_msg(over), pl]) - total
+            lines.append(_msg(over))
+    lines.append(pl)
+    return lines, {"bytes": _nbytes(lines), "cut": cut, "overflow": over}
+
+
+# SPEC-1024 rule 12 — the compaction kinds a harness can meet: a headless run is never idle.
+_CUE_KINDS = {"headless": ("user-issued", "automatic"), "interactive": ("user-issued", "automatic", "idle")}
+
+
+def cue_not_guaranteed_line(kind, launch, harness, delivered, cli_cmd: str) -> "str | None":
+    """SPEC-1024 rule 12 — the ONE startup line «cue NOT GUARANTEED», or None. `delivered` is the
+    engine's per-provider declaration (`cli.COMPACTION_CUE_DELIVERED`: kind -> {(launch, harness,
+    compaction kind)} observed DELIVERED). A combination it does not list is NOT GUARANTEED, a launch
+    outside the repository included; an unknown launch or harness is not a listed one. None when every
+    compaction kind this harness can meet is DELIVERED."""
+    if not kind:
+        return None
+    kinds = _CUE_KINDS.get(harness or "", _CUE_KINDS["interactive"])
+    missing = [k for k in kinds if (launch, harness, k) not in (delivered.get(kind) or set())]
+    if not missing:
+        return None
+    return (f"compaction cue NOT GUARANTEED for {kind} (launched {launch or 'unknown'} the repository, "
+            f"{harness or 'unknown'} harness) on a {' / '.join(missing)} compaction — nothing puts the cue "
+            f"in your context before your next edit; after a compaction run `{cli_cmd}` first (SPEC-1024 rule 12)")
 
 
 def _context_measure(path, cfg):
@@ -1488,7 +1985,8 @@ def context_tail_for_current_session(*, _provider_session_ref, _session_log_path
 
 
 def cmd_session_context(args, *, _provider_session_ref, _session_log_path,
-                        _kernel_content_file, _read_yaml, ENGINE_ROOT=None) -> None:
+                        _kernel_content_file, _read_yaml, ENGINE_ROOT=None,
+                        _context_epoch_reading=None) -> None:
     """`session context [transcript]` — print the current session's (or an explicit transcript's)
     context-window occupancy + threshold verdict. Read-only, deterministic, PRINT-ONLY (no journal
     event — SPEC-0115 §8); exits 0. A LEAF — calls no seam verb (recursion guard, §7).
@@ -1499,6 +1997,8 @@ def cmd_session_context(args, *, _provider_session_ref, _session_log_path,
     explicit = getattr(args, "transcript", None)
     path = Path(explicit) if explicit else _session_log_path(_provider_session_ref())
     print(_context_line(_context_measure(path, cfg)))
+    if _context_epoch_reading is not None:   # T-13787: the SPEC-1023 reading — a state, never a number
+        print(context_epoch_reading_line(_context_epoch_reading(Path(explicit) if explicit else None)))
 
 
 def _default_startup_check_run(command, cwd) -> bool:
@@ -1528,7 +2028,7 @@ def startup_check_lines(repo_root, _read_yaml, *, _run_check=None, read_only=Fal
     TOKEN-FRUGAL: count + pointer only, never the checks' stdout. BEST-EFFORT / fail-safe: an absent
     carrier or section, a malformed entry, an unreadable file, or a command that errors/times-out is
     SKIPPED — a report-only surface must never break startup (SPEC-0152 rule 17 fail-safe reader). The
-    engine's own repo has no `yitc-ops.yaml`, so this returns `[]` there. `_run_check(command, cwd) ->
+    engine's own file declares none of these checks, so this returns `[]` there. `_run_check(command, cwd) ->
     bool` (True iff the check FLAGS) is injected for tests; the default is `_default_startup_check_run`.
 
     `read_only` (T-13009): under `--read-only` NO declared command is executed — a declared check is
@@ -1590,7 +2090,7 @@ def frontend_error_echo_lines(repo_root, _read_yaml, fe, *, as_of, cli_hint,
     into confirmed clusters and returns AT MOST ONE line. Three outcomes, and the middle one is the
     reason this is not a bare `if clusters` :
 
-      * not adopted / no carrier (the engine's own repo, every non-adopting consumer) → `[]`;
+      * not adopted / carrier missing (the engine's own file adopts nothing; every non-adopting consumer) → `[]`;
       * adopted over a source that does NOT qualify → the reason line, naming the failing properties
         (SPEC-0171 §Scenario: a non-adopting consumer must never be served the HEALTHY consumer's
         silence, because that silence would then read identically for "nothing is broken" and "I
@@ -1610,7 +2110,7 @@ def frontend_error_echo_lines(repo_root, _read_yaml, fe, *, as_of, cli_hint,
     try:
         ops_path = Path(repo_root) / "yitc-ops.yaml"
         if _read_yaml is None or not ops_path.exists():
-            return []                                   # no carrier (the engine's own repo) → silent
+            return []                                   # carrier missing → silent
         source, violations = fe.declared_source(_read_yaml(ops_path))
         if source is None and not violations:
             return []                                   # never adopted → owes nothing → silent
@@ -1882,7 +2382,7 @@ def capability_preflight_lines(repo_root, _read_yaml, *, _which=None, audit_bina
     TOKEN-FRUGAL: names the label + reason + pointer, never a command's output. BEST-EFFORT / fail-safe:
     an absent carrier/section, a malformed entry, an unparseable command, or an unreadable file is SKIPPED
     — a report-only surface must never break startup (the `startup_check_lines` fail-safe posture). The
-    engine's own repo has no `yitc-ops.yaml`, so only the injected auditor signals are checked there.
+    engine's own file declares none of these commands, so only the injected auditor signals are checked there.
     `_which(exe) -> str|None` is injected for tests; the default is `shutil.which`. It resolves PATH
     names + absolute paths only — a repo-relative command never reaches it (it is answered against
     `repo_root`, T-10587). `audit_auth_present`
@@ -2020,13 +2520,14 @@ def born_skew_check_line(repo_root, _read_yaml, _carrier_skew) -> list:
     — `init._consumer_carrier_skew`, the SAME detector the init UPDATE path uses to decide what to
     deliver — so the report can never claim a skew the update would not deliver (ONE SoT).
 
-    BEST-EFFORT / fail-safe: the engine's own repo has no `yitc-ops.yaml`, and a pre-init / unreadable /
-    non-mapping carrier is NOT a schema-skew row (fail-open) — all yield `[]` (a report-only surface must
-    never break startup). `_carrier_skew(ops) -> list[str]` is injected for tests + host-decoupling."""
+    BEST-EFFORT / fail-safe: a missing carrier and a pre-init / unreadable / non-mapping carrier are NOT a
+    schema-skew row (fail-open) — all yield `[]` (a report-only surface must never break startup). The
+    engine's own checkout does not reach this function: its one caller withholds the line there by identity
+    (SPEC-0186 rule 6). `_carrier_skew(ops) -> list[str]` is injected for tests + host-decoupling."""
     try:
         ops_path = Path(repo_root) / "yitc-ops.yaml"
         if _read_yaml is None or not ops_path.exists():
-            return []                                     # engine's own repo has no carrier → suppressed
+            return []                                     # carrier missing → suppressed
         ops = _read_yaml(ops_path)
         if not isinstance(ops, dict):
             return []                                     # pre-init / unreadable / non-mapping → not a skew row

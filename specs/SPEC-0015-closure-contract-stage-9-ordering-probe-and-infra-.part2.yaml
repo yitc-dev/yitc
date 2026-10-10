@@ -41,12 +41,12 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ a RECORD-ONLY revision that PROVABLY CONTAINS the ship the audit-post record covers\
   \ (<project> X-1482): a `--fix-red --card-repair` repair is kind-less by design,\
   \ so the resolver above keeps custody on it, and AT the ceiling the one `--on-decisions`\
-  \ pass (SPEC-0204 rule 3) is redirected to the SHIP (SPEC-0204 rules 2-3) and pins\
-  \ the GREEN there — closure then read its own GREEN as «for another commit» with\
-  \ no pass left to spend. The containment is asked of the SAME `_ship_contained_record_only`\
-  \ predicate the redirect asks (one computation, CHARTER §P1 F1), honoured only when\
-  \ the ship it names IS the record's `commit:`; an unverifiable or non-containing\
-  \ recorded revision leaves custody untouched and `_require_audit_post_for_commit`\
+  \ pass (SPEC-0204 rule 3) is redirected to the SHIP (SPEC-1014 «Rule 2 — recording\
+  \ a decision») and pins the GREEN there — closure then read its own GREEN as «for\
+  \ another commit» with no pass left to spend. The containment is asked of the SAME\
+  \ `_ship_contained_record_only` predicate the redirect asks (one computation, CHARTER\
+  \ §P1 F1), honoured only when the ship it names IS the record's `commit:`; an unverifiable\
+  \ or non-containing recorded revision leaves custody untouched and `_require_audit_post_for_commit`\
   \ refuses exactly as before. Below the ceiling nothing moves: the mandated re-audit\
   \ pins the GREEN to the repair commit itself and custody matches without this leg.\n\
   **AN AMBIGUOUS RECORDED PREFIX IS RESOLVED ONLY THROUGH A FULL SHA EXTENDING IT.**\n\
@@ -71,17 +71,21 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ non-fatal `git mv` of the task's committed\naudit YAMLs into `decisions/archive/`;\
   \ it does not change the ordering / probe / audit-post\nprecondition, and a failure\
   \ never blocks a valid closure. Homed in SPEC-0052.\n\nTHREE sanctioned exceptions\
-  \ carve out of the rule above — the Stage-8 mode-a absorption cycle\n, the Stage-8\
-  \ RED IN-SCOPE-FIX leg, and the ship-custody RE-PIN recovery ( —\n§Ship-custody\
-  \ re-pin, further down). All three are ADDITIVE, and each is gated on evidence the\
-  \ guard\nitself DERIVES, never asserted.\nFIRST sanctioned exception — the Stage-8\
-  \ mode-a absorption carve-out. When an audit-post\nfinding warrants an INLINE fix\
-  \ (mode-a: fix → second ship commit → re-audit), `task commit\n--absorb` declares\
-  \ that cycle explicitly: the superseded verdict YAML is folded INTO the\nabsorption\
-  \ commit (NEVER hand-deleted — deletion zeroes `_count_audit_passes` and silently\
-  \ loses\nthe trail, the 3x-in-one-day manual-fallback class), and the REQUIRED follow-up\
-  \ `audit post\n--commit <new>` re-pins custody (verdict.commit == recorded) and\
-  \ carries the prior pass into the\nnew verdict's `passes_trail:`. The carve-out\
+  \ carve out of the rule above, one per admitting audit-post verdict — the\nStage-8\
+  \ mode-a absorption cycle (`task commit --absorb` — YELLOW), the Stage-8 RED\nIN-SCOPE-FIX\
+  \ leg (`task commit --fix-red` — RED, with its `--card-repair` arm), and the\nStage-8\
+  \ GREEN SECOND-SHIP leg (`task commit --reship` — GREEN). LIFECYCLE §Stage 8 names\n\
+  the same three. All three are ADDITIVE, and each is gated on evidence the guard\
+  \ itself DERIVES,\nnever asserted. The ship-custody RE-PIN ( — §Ship-custody re-pin,\
+  \ further down) is not one\nof them: it is not a `task commit` cycle but an `audit\
+  \ post` recovery for custody that a\nself-commit displaced.\nFIRST sanctioned exception\
+  \ — the Stage-8 mode-a absorption carve-out. When an audit-post\nfinding warrants\
+  \ an INLINE fix (mode-a: fix → second ship commit → re-audit), `task commit\n--absorb`\
+  \ declares that cycle explicitly: the superseded verdict YAML is folded INTO the\n\
+  absorption commit (NEVER hand-deleted — deletion zeroes `_count_audit_passes` and\
+  \ silently loses\nthe trail, the 3x-in-one-day manual-fallback class), and the REQUIRED\
+  \ follow-up `audit post\n--commit <new>` re-pins custody (verdict.commit == recorded)\
+  \ and carries the prior pass into the\nnew verdict's `passes_trail:`. The carve-out\
   \ is gated PRECISELY: only the audit-POST hazard state\nqualifies (not audit-pre),\
   \ and the absorption commit is journal-marked (`commit_landed`\n`data.absorption:\
   \ true`). The INVARIANT is unchanged: `task close` still commits the GOVERNING\n\
@@ -210,61 +214,72 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ and widening it to a new leg is an owner-class decision this\nleg does not make\
   \ for itself. Nothing deadlocks by refusing there: the governed exit is the\nSPEC-0204\
   \ route — one `audit decide` per residual, then ONE `audit post --on-decisions`\
-  \ pass.\n\n### Reverify-at-close via author signal (`task close --reverify SPEC-XXXX`)\n\
-  When the closing task's own diff changes code an ACTIVE spec anchors, `task close`\
-  \ SURFACES the\npossibly-stale spec (the `spec_drift_unverified` WARN) and NEVER\
-  \ silently re-stamps it — only\nthe author can tell a cosmetic anchor-edit from\
-  \ a contract change. `task close --reverify SPEC-XXXX`\n(repeatable) asserts \"\
-  I re-read SPEC-XXXX against the changed code; its body still holds\" and\nre-blesses\
-  \ its durable `implements_signature:` (the `spec reverify` core / SPEC-0013), staged\n\
-  BY NAME into the closure-record commit, so the spec drops out of the WARN. FAIL-CLOSED\
-  \ scope: honoured\nONLY for a spec THIS task's diff left possibly-stale; a `--reverify`\
-  \ of any other spec is REFUSED up\nfront. A genuine BEHAVIOUR change is NOT --reverify's\
-  \ job — the author edits the spec body. The\nreverified ids are recorded in `task_closed`\
-  \ (`reverified_specs`, honest-only). No new gate, ledger,\nor FSM (CHARTER non-goal\
-  \ #7).\n\n### Reverify-at-commit (`task commit --reverify SPEC-XXXX`)\nThe SAME\
-  \ author signal, one seam earlier, so the re-stamp rides the PRODUCT commit instead\
-  \ of a\nseparate re-sign commit (and precedes audit-post by construction). `task\
-  \ commit --reverify SPEC-XXXX`\n(repeatable) is never automatic and asserts exactly\
-  \ what the close flag asserts. FAIL-CLOSED scope:\neligibility is the PRE-commit\
-  \ drift set — the Stage-6 touched set (merge-base..working tree +\nuntracked) fed\
-  \ to the one detector — narrowed PER ANCHOR to anchors whose content signature\n\
-  differs from their signature at merge-base(HEAD, main); any other id is REFUSED\
-  \ before anything\nis written, naming the eligible set. Only those moved anchors\
-  \ are re-signed (`only_anchors`,\nSPEC-0006 scope — every other anchor's baseline\
-  \ stays byte-identical), the re-stamp is\nwritten before staging so it ships in\
-  \ the same commit, and each sign emits `spec_reverified`\n(`via: task-commit`).\
-  \ The Stage-6 report names it as the one-commit route; the post-commit Stage-7\n\
-  WARN names it as the one-command recovery. No new gate, event, or store.\n\n**RECOVERY\
-  \ RECIPES → patterns/rare-task-recovery-recipes.md (index).** Two rare states have\
-  \ their\nrecipe in that how-to (`graph query rare-task-recovery-recipes`): a task\
-  \ the owner parks while its\naudit-post is RED — lead «Park-mid-audit land path»;\
-  \ and a task closed before its land-verify passed,\nwhose closure is still on its\
-  \ branch — lead «Prematurely-closed UNLANDED task» (rework in place, or\ndiscard\
-  \ + re-claim). Read it before acting in either state.\n\n### Ship-custody RE-PIN\
-  \ — the THIRD sanctioned exception (X-0422)\nThe guard above pins custody to `_recorded_commit_sha`\
-  \ = the LATEST `commit_landed`. THREE\ngoverned self-commits legitimately emit a\
-  \ `commit_landed` AFTER the ship — `task update --status\nparked`, `task pause`,\
-  \ and `task update --status wont-do` — and so SHIFT\nrecorded custody past the ship,\
-  \ wedging the task: `audit post --commit <ship>` refuses (ship ≠\nrecorded), a bare\
-  \ `audit post` audits the PARK diff (GREEN-BY-VACUITY), and `task close` stays\n\
-  RED-blocked.\n\nThe governed exit is `yitc-v2 audit post --task T-XXXX --commit\
-  \ <ship-sha> --repin-ship`. It re-pins\naudit custody to the DISPLACED SHIP, and\
-  \ it is NOT a weakening of the guard: every leg is DERIVED by\n`_require_ship_custody_repin`\
-  \ from durable task-linked journal + git state, never asserted by the\ncaller, and\
-  \ each refuses FAIL-CLOSED (same `read_gate_refused` kind=`verification-exists`\
-  \ channel, NO\nnew event/emit path).\n\n**THE ADMISSION LEGS AND THE AUDITED SUBJECT\
-  \ → SPEC-1022 (index).** The two paragraphs above say\nwhen custody counts as shifted\
-  \ and name the governed exit; the verb itself decides whether a re-pin\nis admitted.\
-  \ Its four legs — custody genuinely bookkeeping-shifted, the named commit equal\
-  \ to the\ndisplaced ship, every displacing self-commit diff-limited to bookkeeping,\
-  \ the ship\nintegrated-or-reachable — and the material the auditor is shown once\
-  \ a target is admitted (the span\nof the card's own ships, on the re-pin route and\
-  \ on the ordinary route of a multi-ship card) are\nthe reference SPEC-1022: `bin/yitc-v2\
-  \ graph query SPEC-1022`, heading «Ship-custody re-pin —\nadmission legs and the\
-  \ audited subject». Read it when a custody-mismatch refusal names the re-pin,\n\
-  before running it, and when a re-pin is refused. No stage entry renders it.\n\n\
-  JOURNAL-EVIDENCED + re-verified, never trusted: the completed `audit_post_completed`\
+  \ pass.\n\nTHIRD sanctioned exception — the Stage-8 GREEN SECOND-SHIP leg (`task\
+  \ commit --reship`).\nWhen an audit-post comes back GREEN and a further IN-SCOPE\
+  \ ship is still needed, `--reship` commits\nit with the `--fix-red` mechanics: the\
+  \ superseded verdict is folded INTO the commit (never\nhand-deleted) and the follow-up\
+  \ audit-post of the new commit is EQUALLY REQUIRED to re-pin custody\nand carry\
+  \ the passes trail. What differs is the ADMITTING EVIDENCE, and only that: the audit-POST\n\
+  hazard state, a superseded verdict that is exactly GREEN, the SAME positive proof\
+  \ that the commit\ncarries AUTHORED content (an unprovable answer refuses), and\
+  \ the required re-audit checked against\nthe ceiling BEFORE the commit, with NO\
+  \ owner-reset arm (SPEC-0204 rule 6). Nothing further to ship\nmeans the GREEN stands\
+  \ and Stage 9 is the route. It is mutually exclusive with `--absorb` and\n`--fix-red`,\
+  \ and the commit is journal-marked as a reship.\n\n### Reverify-at-close via author\
+  \ signal (`task close --reverify SPEC-XXXX`)\nWhen the closing task's own diff changes\
+  \ code an ACTIVE spec anchors, `task close` SURFACES the\npossibly-stale spec (the\
+  \ `spec_drift_unverified` WARN) and NEVER silently re-stamps it — only\nthe author\
+  \ can tell a cosmetic anchor-edit from a contract change. `task close --reverify\
+  \ SPEC-XXXX`\n(repeatable) asserts \"I re-read SPEC-XXXX against the changed code;\
+  \ its body still holds\" and\nre-blesses its durable `implements_signature:` (the\
+  \ `spec reverify` core / SPEC-0013), staged\nBY NAME into the closure-record commit,\
+  \ so the spec drops out of the WARN. FAIL-CLOSED scope: honoured\nONLY for a spec\
+  \ THIS task's diff left possibly-stale; a `--reverify` of any other spec is REFUSED\
+  \ up\nfront. A genuine BEHAVIOUR change is NOT --reverify's job — the author edits\
+  \ the spec body. The\nreverified ids are recorded in `task_closed` (`reverified_specs`,\
+  \ honest-only). No new gate, ledger,\nor FSM (CHARTER non-goal #7).\n\n### Reverify-at-commit\
+  \ (`task commit --reverify SPEC-XXXX`)\nThe SAME author signal, one seam earlier,\
+  \ so the re-stamp rides the PRODUCT commit instead of a\nseparate re-sign commit\
+  \ (and precedes audit-post by construction). `task commit --reverify SPEC-XXXX`\n\
+  (repeatable) is never automatic and asserts exactly what the close flag asserts.\
+  \ FAIL-CLOSED scope:\neligibility is the PRE-commit drift set — the Stage-6 touched\
+  \ set (merge-base..working tree +\nuntracked) fed to the one detector — narrowed\
+  \ PER ANCHOR to anchors whose content signature\ndiffers from their signature at\
+  \ merge-base(HEAD, main); any other id is REFUSED before anything\nis written, naming\
+  \ the eligible set. Only those moved anchors are re-signed (`only_anchors`,\nSPEC-0006\
+  \ scope — every other anchor's baseline stays byte-identical), the re-stamp is\n\
+  written before staging so it ships in the same commit, and each sign emits `spec_reverified`\n\
+  (`via: task-commit`). The Stage-6 report names it as the one-commit route; the post-commit\
+  \ Stage-7\nWARN names it as the one-command recovery. No new gate, event, or store.\n\
+  \n**RECOVERY RECIPES → patterns/rare-task-recovery-recipes.md (index).** Two rare\
+  \ states have their\nrecipe in that how-to (`graph query rare-task-recovery-recipes`):\
+  \ a task the owner parks while its\naudit-post is RED — lead «Park-mid-audit land\
+  \ path»; and a task closed before its land-verify passed,\nwhose closure is still\
+  \ on its branch — lead «Prematurely-closed UNLANDED task» (rework in place, or\n\
+  discard + re-claim). Read it before acting in either state.\n\n### Ship-custody\
+  \ RE-PIN — a custody recovery route, not a commit cycle (X-0422)\nThe guard above\
+  \ pins custody to `_recorded_commit_sha` = the LATEST `commit_landed`. THREE\ngoverned\
+  \ self-commits legitimately emit a `commit_landed` AFTER the ship — `task update\
+  \ --status\nparked`, `task pause`, and `task update --status wont-do` — and so SHIFT\n\
+  recorded custody past the ship, wedging the task: `audit post --commit <ship>` refuses\
+  \ (ship ≠\nrecorded), a bare `audit post` audits the PARK diff (GREEN-BY-VACUITY),\
+  \ and `task close` stays\nRED-blocked.\n\nThe governed exit is `yitc-v2 audit post\
+  \ --task T-XXXX --commit <ship-sha> --repin-ship`. It re-pins\naudit custody to\
+  \ the DISPLACED SHIP, and it is NOT a weakening of the guard: every leg is DERIVED\
+  \ by\n`_require_ship_custody_repin` from durable task-linked journal + git state,\
+  \ never asserted by the\ncaller, and each refuses FAIL-CLOSED (same `read_gate_refused`\
+  \ kind=`verification-exists` channel, NO\nnew event/emit path).\n\n**THE ADMISSION\
+  \ LEGS AND THE AUDITED SUBJECT → SPEC-1022 (index).** The two paragraphs above say\n\
+  when custody counts as shifted and name the governed exit; the verb itself decides\
+  \ whether a re-pin\nis admitted. Its four legs — custody genuinely bookkeeping-shifted,\
+  \ the named commit equal to the\ndisplaced ship, every displacing self-commit diff-limited\
+  \ to bookkeeping, the ship\nintegrated-or-reachable — and the material the auditor\
+  \ is shown once a target is admitted (the span\nof the card's own ships, on the\
+  \ re-pin route and on the ordinary route of a multi-ship card) are\nthe reference\
+  \ SPEC-1022: `bin/yitc-v2 graph query SPEC-1022`, heading «Ship-custody re-pin —\n\
+  admission legs and the audited subject». Read it when a custody-mismatch refusal\
+  \ names the re-pin,\nbefore running it, and when a re-pin is refused. No stage entry\
+  \ renders it.\n\nJOURNAL-EVIDENCED + re-verified, never trusted: the completed `audit_post_completed`\
   \ event carries\n`custody_repin` + the ship/from shas + the displacing kind, and\
   \ the verdict YAML records the same\n(`custody_repin`, `custody_repin_ship_commit`,\
   \ `custody_repin_from`, `custody_repin_from_kind`). That\nmarker is a TRAIL, not\

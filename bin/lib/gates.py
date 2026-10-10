@@ -239,8 +239,8 @@ def _session_started_lower_bound(session_ref: str, *, _iter_events, events_path=
     POST-/compact ORTHOGONALITY (SPEC-0050 §4): a `/compact` does NOT emit `session_started`, so this
     origin lower-bound is independent of post-compact freshness. Post-compact freshness for the SEED
     receipt is now handled ORTHOGONALLY by epoch-scoping (T-10082, SPEC-0050 §8): the seed_read receipt
-    is stamped with the CONTEXT EPOCH (`_session_epoch()`, the transcript's `compact_boundary` count)
-    and `_require_seed_read` refuses a receipt from an earlier epoch — a receipt-STAMP compare, NOT a
+    is stamped with the CONTEXT EPOCH (`_session_epoch()`, the newest compaction marker's identity —
+    T-13789) and `_require_seed_read` refuses a receipt from another epoch — a receipt-STAMP compare, NOT a
     lower-bound shift, so this window origin stays the earliest-anchor value (they compose: the window
     still selects same-session receipts; the epoch check then rejects the pre-compact ones).
 
@@ -321,8 +321,8 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
     `deliveries_out` (T-13510, additive OUT-param — the shape of `realms_out`): when a dict is passed it is
     filled `node_id -> [{"epoch", "content_sha", "node_realm"}]`, one entry per CREDITING receipt — the
     facts the stage deliverer needs to tell "this context epoch already holds this exact render" from
-    "deliver it". `epoch` is read as `_seed_receipt_epochs` reads it (an absent / non-int stamp = 0, the
-    pre-change receipt); `content_sha` / `node_realm` are the receipt's own values or None. A receipt
+    "deliver it". `epoch` is read as `_seed_receipt_epochs` reads it (`_receipt_stamp`: the stamped
+    context-epoch mark, T-13789 — an absent stamp reads `none`, a pre-change number equals no mark); `content_sha` / `node_realm` are the receipt's own values or None. A receipt
     this scan SKIPS (`stdout_delivered is False`) never enters it. It REPORTS, it grants nothing: the
     returned set still decides credit alone, and that credit stays SESSION-scoped — the epoch decides
     re-RENDERING only (SPEC-0050 §2). Default None keeps every existing caller byte-identical."""
@@ -349,27 +349,88 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
             if realms_out is not None and data.get("node_realm"):
                 realms_out.setdefault(nid, set()).add(data["node_realm"])
             if deliveries_out is not None:
-                ep = data.get("epoch")
                 deliveries_out.setdefault(nid, []).append({
-                    "epoch": ep if isinstance(ep, int) and not isinstance(ep, bool) else 0,
+                    "epoch": _receipt_stamp(data),
                     "content_sha": data.get("content_sha") or None,
                     "node_realm": data.get("node_realm") or None})
     return fetched
 
 
-def _seed_receipt_epochs(session_ref: str, lower_bound: str, *, _iter_events, events_path=None, events=None) -> list:
-    """The CONTEXT EPOCHS of the in-window seed_read receipts (T-10082, SPEC-0050 §8) — the epoch-aware
-    reader `_require_seed_read` uses in place of the boolean `SEED_READ_NODE_ID in _fetched_spec_ids`
-    check. Returns one entry per in-window seed receipt (a `cli_invoked` of THIS session_ref with
-    ts >= lower_bound whose data.node_id == SEED_READ_NODE_ID): `int(data.epoch)` when the receipt
-    carries an integer epoch stamp, ELSE **0**.
+def _receipt_stamp(data: dict):
+    """A receipt's context-epoch stamp (SPEC-1023 rule 6, T-13789): its `epoch` value when it is a mark
+    string (`marker:<identity>` / `none` / `unknown`) or a pre-change NUMBER — which equals no mark, so
+    a pre-change `session start` receipt (every one since T-10082 carries a number) never credits: one
+    recovery after the release. A receipt with NO `epoch` value reads `none`: the only producer that
+    never stamped one is the dispatch bootstrap, whose Worker's transcript holds no marker before its own
+    start (rule 6 — what it records is NONE), and no unstamped `session start` receipt is inside the
+    receipt window (they predate T-10082). Any other value (a bool, a list) reads 0 and credits nothing."""
+    ep = data.get("epoch")
+    if ep is None:
+        return "none"
+    return ep if isinstance(ep, (int, str)) and not isinstance(ep, bool) else 0
 
-    missing-epoch → 0 (NOT epoch-exempt): a receipt with no epoch stamp is a pre-change historical
-    receipt (or a test seed) = the ZEROTH epoch. So it credits ONLY while the current epoch is still 0
-    (a fresh session that never compacted); once a `/compact` advances the current epoch past 0, an
-    epoch-less pre-compact receipt goes stale like any other lower-epoch receipt — closing the hole an
-    exempt-always reading would leave (audit-pre f1). Same journal-only single-reader (`_iter_events`)
-    discipline + in-window predicate as `_fetched_spec_ids` (P5).
+
+def mark_label(mark) -> str:
+    """A context-epoch stamp as a person reads it (T-13789): the marker identity, NONE, UNKNOWN, a
+    pre-change number — or, for the current reading None, that this provider gives no identity."""
+    if mark is None:
+        return "NOT OBSERVED (no identity under this provider)"
+    if isinstance(mark, str) and mark.startswith("marker:"):
+        return mark[len("marker:"):]
+    if isinstance(mark, str):
+        return mark.upper()
+    return f"{mark} (a pre-change number)"
+
+
+def seed_stamp_credits(stamps, current) -> bool:
+    """THE credit rule of a seed receipt (SPEC-1023 rule 6, SPEC-0050 §8; T-13789) — the ONE predicate the
+    gate and every caller that asks "would the gate credit this ref?" share. `stamps` are ONE journal's
+    in-window receipts in FILE ORDER; only the NEWEST (the last appended) decides, so a receipt a later
+    stamping run superseded never credits again, whatever the reading later returns to (a truncated
+    transcript, a repaired one). It credits when it EQUALS the current mark — identity, never an
+    order; with `current` None (CANNOT TELL under a provider whose detection is not observed — rule 6)
+    when it is any mark at all. A pre-change NUMBER credits under no reading."""
+    stamps = list(stamps)
+    if not stamps:
+        return False
+    return isinstance(stamps[-1], str) if current is None else stamps[-1] == current
+
+
+def _newest_seed_receipt(session_ref: str, lower_bound: str, *, events) -> "tuple | None":
+    """`(ts, stamp)` of THIS journal snapshot's newest in-window seed receipt of `session_ref` — the last
+    appended (file order, never a ts sort) — or None (T-13789)."""
+    last = None
+    for e in events:
+        if (e.get("type") == "cli_invoked" and e.get("session_ref") == session_ref
+                and (e.get("ts") or "") >= lower_bound
+                and (e.get("data") or {}).get("node_id") == SEED_READ_NODE_ID):
+            last = e
+    return None if last is None else (last.get("ts") or "", _receipt_stamp(last.get("data") or {}))
+
+
+def newest_seed_stamps(per_journal) -> list:
+    """The session's NEWEST receipt across journals (T-13789, SPEC-1023 rule 6): from each journal's
+    newest `(ts, stamp)` (`_newest_seed_receipt`), the stamp(s) of the latest time. Two journals
+    holding a receipt of that same second both count, and a caller credits only when they agree —
+    order inside a second is known within one journal, never across two."""
+    per_journal = [x for x in per_journal if x is not None]
+    if not per_journal:
+        return []
+    top = max(ts for ts, _st in per_journal)
+    return [st for ts, st in per_journal if ts == top]
+
+
+def _seed_receipt_epochs(session_ref: str, lower_bound: str, *, _iter_events, events_path=None, events=None) -> list:
+    """The CONTEXT-EPOCH STAMPS of the in-window seed_read receipts (T-10082, SPEC-0050 §8) — the reader
+    `_require_seed_read` uses in place of the boolean `SEED_READ_NODE_ID in _fetched_spec_ids` check.
+    Returns one entry per in-window seed receipt (a `cli_invoked` of THIS session_ref with
+    ts >= lower_bound whose data.node_id == SEED_READ_NODE_ID): its stamp as `_receipt_stamp` reads it.
+
+    T-13789 (SPEC-1023 rule 6): a stamp is the reading's MARK, compared by equality
+    (`seed_stamp_credits`). A receipt stamped with a number keeps it — a pre-change receipt, which equals
+    no mark and so never credits; one with no stamp reads `none` (`_receipt_stamp`).
+    Same journal-only single-reader (`_iter_events`) discipline + in-window predicate as
+    `_fetched_spec_ids` (P5).
 
     `events` (T-10115, additive — mirror of `_fetched_spec_ids`): a pre-materialized snapshot to iterate
     instead of re-reading, so the anchor + receipt scans share ONE consistent read."""
@@ -382,19 +443,18 @@ def _seed_receipt_epochs(session_ref: str, lower_bound: str, *, _iter_events, ev
         data = e.get("data") or {}
         if data.get("node_id") != SEED_READ_NODE_ID:
             continue
-        ep = data.get("epoch")
-        out.append(ep if isinstance(ep, int) and not isinstance(ep, bool) else 0)
+        out.append(_receipt_stamp(data))
     return out
 
 
-def fresh_seed_receipt(events_path, session_ref: str, current_epoch: int, *, _iter_events,
+def fresh_seed_receipt(events_path, session_ref: str, current_epoch, *, _iter_events,
                        _iter_events_tail=None) -> bool:
     """Does `events_path` hold a FRESH seed_read receipt for `session_ref` (T-12116, SPEC-0050 §8)?
 
     "Fresh" is the credit rule `_require_seed_read` already applies to each candidate journal, and it is
     computed HERE from the SAME two readers rather than restated: an in-window `cli:seed` receipt (window
     origin = `_session_started_lower_bound`, the EARLIEST `session_started` of this ref in THIS journal)
-    whose stamped context epoch is >= `current_epoch`. There is deliberately NO second notion of
+    whose stamp the gate's own credit rule accepts (`seed_stamp_credits` — the current mark, T-13789). There is deliberately NO second notion of
     freshness — a divergence between this predicate and the gate would let a run skip work on a receipt
     the gate would then refuse to credit.
 
@@ -435,7 +495,7 @@ def fresh_seed_receipt(events_path, session_ref: str, current_epoch: int, *, _it
         if lower is None:
             return False, bounded
         epochs = _seed_receipt_epochs(session_ref, lower, _iter_events=_iter_events, events=events)
-        return (bool(epochs) and any(e >= current_epoch for e in epochs)), bounded
+        return seed_stamp_credits(epochs, current_epoch), bounded
 
     try:
         if _iter_events_tail is not None:
@@ -767,7 +827,7 @@ def _gate_pass_tail_first(attempt, *, _sleep, tail_enabled: bool) -> "tuple[bool
     needs to phrase its refusal (the help gate: `any_anchor`; the seed gate: `(any_anchor, epochs)`) —
     and because a refusal is only ever decided on a FULL pass, that payload is always computed from
     complete evidence, so the distinct refusal REASONS and their message values (e.g. the stale-epoch
-    line's `max(epochs)`) are chosen exactly as before.
+    line's newest stamp) are chosen exactly as before.
 
     WHY A TAIL CREDIT MAY BE TRUSTED (the soundness argument, stated once for both gates). A tail
     snapshot is a SUFFIX of the full one, so the earliest anchor it can find is >= the true earliest
@@ -977,12 +1037,12 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
                        _seed_receipt_epochs, _session_epoch, _emit_read_gate_refused, _die,
                        candidate_events_paths, _iter_events, _sleep=time.sleep,
                        _try_resolve_session_ref_with_source=None, _iter_events_tail=None,
-                       _is_consumer_build=None, _render_hint=None) -> None:
+                       _is_consumer_build=None, _render_hint=None, _epoch_unknown_cause=None) -> None:
     """The audience-seed read-gate (T-10081, SPEC-0042/0050 machinery reused). A governed/mutating verb
     REFUSES to act unless THIS session recorded a seed_read receipt FOR THE CURRENT CONTEXT EPOCH — the
     journal shows a `cli_invoked` row whose data.node_id == SEED_READ_NODE_ID (emitted by `session start`
-    after it delivers the audience seed; the emit analog of the --help fetch-receipt), stamped with an
-    epoch >= the current epoch. MIRRORS `_require_help_read` — same per-journal anchored evidence window
+    after it delivers the audience seed; the emit analog of the --help fetch-receipt), stamped with the
+    current epoch's mark (T-13789 — by identity, below). MIRRORS `_require_help_read` — same per-journal anchored evidence window
     (`_session_started_lower_bound`), same `read_gate_refused` emit, same multi-journal
     `candidate_events_paths` OR (NO raw union) — a fixed one-item sentinel doc-set (the seed sentinel).
     It is the BROAD-coverage anti-Forgetting floor: the central dispatch chokepoint (bin/yitc-v2 main)
@@ -990,15 +1050,23 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
 
     EPOCH-SCOPING (T-10082, SPEC-0050 §8). A `/compact` evicts the seed from context but emits NO
     `session_started`, so a session-scoped receipt would keep crediting after the compaction — the
-    receipt LIES (auditor finding #2). The CONTEXT EPOCH (`_session_epoch()`, the transcript's
-    `compact_boundary` count) fixes this: a receipt credits only when its stamped epoch >= the current
-    epoch. A pre-compact receipt (lower epoch) no longer credits, forcing a post-compact re-read +
-    `session start` refresh (the sole producer re-stamps the fresh epoch; safe by EARLIEST-anchor — the
-    window origin is unchanged). A receipt with NO epoch stamp normalizes to 0 (`_seed_receipt_epochs`),
-    so pre-change historical receipts + test seeds credit while current_epoch==0 but go stale once a
-    compact advances it — NOT exempt-always (audit-pre f1). Three refusal reasons, DISTINCT so the
+    receipt LIES (auditor finding #2). The CONTEXT EPOCH (`_session_epoch()`) fixes this: a receipt
+    credits only for the epoch it was stamped in. A pre-compact receipt no longer credits, forcing a
+    post-compact re-read + `session start` refresh (the sole producer re-stamps the fresh epoch; safe by
+    EARLIEST-anchor — the window origin is unchanged). Three refusal reasons, DISTINCT so the
     failure says exactly what is missing: `no_session_started_anchor`, `seed_read_unfetched` (no receipt
     at all), `seed_read_stale_epoch` (a receipt exists but predates the current epoch).
+
+    BY IDENTITY, AND «CANNOT TELL» IS NOT ZERO (T-13789, SPEC-1023 rules 6 / 6a). The epoch above is now
+    the reading's MARK (`_session_epoch()`: `marker:<identity>` / `none` / `unknown` / None), and a
+    receipt credits when its stamp EQUALS it (`seed_stamp_credits`) — so a new compaction, a transcript
+    truncated to before the receipt's marker and an old receipt revived against a newer one all refuse
+    stale-epoch, and a pre-change NUMBER never credits. A FOURTH reason: on CANNOT TELL under a provider
+    whose detection is OBSERVED (`unknown`) a receipt not itself stamped `unknown` is refused
+    `context_epoch_unknown`, naming what could not be read (`_epoch_unknown_cause`) and the rule-6a
+    recovery; a receipt stamped `unknown` (that recovery's stamping run) credits, and each verb so
+    credited prints ONE warning line saying compaction detection is lost. None (a provider whose detection
+    is not observed) credits any in-window receipt — rule 6 lets that provider proceed.
 
     CANDIDATE BREADTH + CONSISTENT READ (T-10115, mirror of `_require_help_read`). The candidate set is
     [current checkout, main checkout] for EVERY governed verb (the prior land-only carve-out was incident
@@ -1073,14 +1141,12 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
     semantics-unchanged clause this conversion was required to preserve. `_iter_events_tail=None` (the
     default) keeps the original full-read-only behavior for every existing caller/test.
 
-    CREDIT SHORT-CIRCUIT (T-11329). `_attempt` stops scanning candidates the moment one has yielded a
-    receipt for the current epoch, instead of always reading the whole candidate set. The verdict is
-    MONOTONE in the accumulated epoch list, so this changes WHEN reading stops, never WHICH receipts
-    are accepted; it fires only on a credit, so every refusal still reads every candidate and its
-    payload is unchanged. It halves the PASS cost of a call from a WORKTREE, where the candidate set is
-    two distinct paths holding near-identical journals (T-11327: 2.012s vs 0.937s from main) and the
-    existing path-dedup in `_gate_candidate_events_paths` cannot collapse them. The full argument sits
-    beside the code."""
+    SESSION-WIDE NEWEST RECEIPT (T-11329 → T-13789). `_attempt` reads EVERY candidate and credits only
+    on the session's newest receipt across them (SPEC-1023 rule 6 — a receipt superseded in either
+    journal never credits again). T-11329's credit short-circuit — it stopped at the first crediting
+    candidate, halving the PASS cost of a call from a WORKTREE (T-11327: 2.012s vs 0.937s from main,
+    before the session-scoped tail walk of T-13289 bounded each read) — is RETIRED: a later receipt in
+    the main checkout's journal is visible only by reading it."""
     ctx = {"action": "governed/mutating verb", "stage": None}
 
     # BOUND 1 — the closed allowlist. Kept LOCAL (inside the signed anchor) on purpose; see docstring.
@@ -1140,48 +1206,56 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
     current_epoch = _session_epoch()
 
     def _attempt(*, tail: bool = False) -> "tuple[bool, tuple, bool]":
-        """ONE consistent evaluation pass. Returns (credited, (any_anchor, epochs), bounded). Per candidate
+        """ONE consistent evaluation pass. Returns (credited, (any_anchor, stamps), bounded). Per candidate
         the anchor + receipt scans share a SINGLE snapshot (T-10115), so a concurrent rewrite cannot
-        interleave between them. Per-journal anchored windows, OR-ed — no raw union (mirror of
-        _require_help_read). `bounded` is True iff some candidate's snapshot was a genuinely narrowed tail
-        (T-10396), i.e. a refusal computed here is NOT final — the full read may still credit."""
+        interleave between them. Per-journal anchored windows — no raw union (mirror of
+        _require_help_read). `bounded` is True iff a candidate's snapshot was a genuinely narrowed tail
+        (T-10396), i.e. a refusal computed here is NOT final — the full read may still credit.
+
+        T-13789 (SPEC-1023 rule 6): the session's NEWEST receipt decides, session-wide — each
+        candidate journal's newest in-window receipt (the last appended), then the latest of those by
+        time (`newest_seed_stamps`) — so a receipt a later stamping run superseded, in this checkout or
+        in the main checkout, never credits again. Every candidate is therefore read. A narrowed
+        snapshot that shows no receipt has not shown that its candidate holds none: the pass is
+        undecided-and-bounded and the full read settles it."""
         anchored = False
         narrowed = False
-        found = []
+        per_journal = []
         for ev_path in candidate_events_paths:
-            def _credits(snap) -> bool:
+            def _decided(snap) -> bool:
                 lb = _session_started_lower_bound(sref, events=snap)
-                return lb is not None and any(e >= current_epoch
-                                              for e in _seed_receipt_epochs(sref, lb, events=snap))
+                return lb is not None and bool(_seed_receipt_epochs(sref, lb, events=snap))
             snapshot, was_bounded = _gate_snapshot(ev_path, tail=tail, _iter_events=_iter_events,
                                                    _iter_events_tail=_iter_events_tail,
-                                                   session_ref=sref, settled=_credits)
+                                                   session_ref=sref, settled=_decided)
             narrowed = narrowed or was_bounded
             lower_bound = _session_started_lower_bound(sref, events=snapshot)
-            if lower_bound is None:
-                continue   # no anchor in THIS journal -> not a valid window here (do not credit across journals)
-            anchored = True
-            found.extend(_seed_receipt_epochs(sref, lower_bound, events=snapshot))
-            # SHORT-CIRCUIT ON CREDIT (T-11329) — stop reading once the answer is SETTLED, never to
-            # settle it differently. The verdict `bool(found) and any(e >= current_epoch for e in
-            # found)` is MONOTONE in `found`: a later candidate can only APPEND epochs, and `any()`
-            # over a growing list never goes back to False. So once one candidate has yielded a
-            # fresh-epoch receipt, scanning the remaining candidates cannot change `credited` — it
-            # can only re-read the same near-identical journal (a call from a worktree scans TWO
-            # copies: T-11327 measured 2.012s against 0.937s from main). This fires ONLY on a credit,
-            # so the REFUSAL path is structurally unreachable from here and still scans EVERY
-            # candidate — its payload (`anchored`, `found`) is therefore byte-identical to a full
-            # loop, and every refusal reason and message value (the stale-epoch `max(epochs)`) is
-            # chosen exactly as before. `narrowed` is likewise irrelevant on this exit:
-            # `_gate_pass_tail_first` returns on a credit without consulting it.
-            if any(e >= current_epoch for e in found):
-                return True, (anchored, found), narrowed
-        credited = bool(found) and any(e >= current_epoch for e in found)
-        return credited, (anchored, found), narrowed
+            anchored = anchored or lower_bound is not None
+            newest = (None if lower_bound is None
+                      else _newest_seed_receipt(sref, lower_bound, events=snapshot))
+            if newest is not None:
+                per_journal.append(newest)
+            elif was_bounded:
+                return False, (anchored, []), True
+        stamps = newest_seed_stamps(per_journal)
+        return (bool(stamps) and all(seed_stamp_credits([st], current_epoch) for st in stamps),
+                (anchored, stamps), narrowed)
 
     credited, (any_anchor, epochs) = _gate_pass_tail_first(
         _attempt, _sleep=_sleep, tail_enabled=_iter_events_tail is not None)
+
+    def _unknown_cause() -> str:
+        try:
+            return (_epoch_unknown_cause() if _epoch_unknown_cause else None) or "cause not reported"
+        except Exception:   # noqa: BLE001 — the cause is a message detail, never a second failure
+            return "cause not reported"
     if credited:
+        if current_epoch == "unknown":
+            # SPEC-1023 rule 6a step 3 — the «epoch unknown» receipt credits, never silently.
+            print(_kq(f"yitc-v2: WARNING — {verb}: credited on an «epoch unknown» seed receipt — the "
+                      f"context epoch cannot be read ({_unknown_cause()}), so compaction detection is LOST "
+                      "for this session while that lasts: a further compaction is not seen (SPEC-1023 "
+                      "rule 6a)."), file=sys.stderr)
         return
     if not any_anchor:
         # FAIL-CLOSED (mirrors _require_help_read): no anchor in ANY candidate -> no valid window -> refuse.
@@ -1208,15 +1282,33 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
     _start = "bin/yitc-v2 session start"
     if os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip():
         _start += " --type build"
-    return _refuse("seed_read_stale_epoch", [
-        f"{verb}: your seed_read receipt is from an earlier context epoch — refusing (T-10082 / SPEC-0050 §8).",
-        f"A /compact advanced the context epoch (receipt epoch {max(epochs)} < current {current_epoch}); the",
-        "pre-compact seed is gone from context. Re-read your audience seed, then re-run `session start` ONCE",
-        "to refresh the receipt for this epoch (the sanctioned post-compact re-run — SPEC-0007 §5b),",
-        "in the checkout you run this verb from:",
+    _recover = [
+        f"  {_start} --print-only     (the restoration brief — it stamps nothing)",
+        "then re-read every part of your audience seed, then re-run `session start` ONCE to refresh the",
+        "receipt (the sanctioned post-compact runs — SPEC-0007 §5b), in the checkout you run this verb from:",
         f"  {_start}",
         "A refresh run in a task worktree is not seen by a verb run from the main checkout (e.g. `land`):",
         "run it once more in the main checkout before that verb.",
+    ]
+    if current_epoch == "unknown":
+        # T-13789 (SPEC-1023 rule 6): CANNOT TELL under an OBSERVED provider — never read as «no compaction».
+        return _refuse("context_epoch_unknown", [
+            f"{verb}: this session's context epoch cannot be read — refusing (SPEC-1023 rule 6).",
+            f"What could not be read: {_unknown_cause()}.",
+            "A compaction cannot be ruled out, so no seed receipt is credited. Recover as after a compaction",
+            "(SPEC-1023 rule 6a — treat the context as compacted):",
+            *_recover,
+            "That run stamps an «epoch unknown» receipt, which credits — with a warning on every verb — while",
+            "the reading stays unknown. A broken setting (a wrong transcript location) is a defect: record a",
+            "deviation for it at once.",
+        ])
+    newest = epochs[-1] if epochs else None
+    return _refuse("seed_read_stale_epoch", [
+        f"{verb}: your seed_read receipt is from an earlier context epoch — refusing (T-10082 / SPEC-0050 §8).",
+        f"The newest compaction marker the transcript holds is {mark_label(current_epoch)}; your receipt",
+        f"recorded {mark_label(newest)} (SPEC-1023 rule 6 — compared by identity). The seed it attests may",
+        "be gone from context. Recover:",
+        *_recover,
     ])
 
 

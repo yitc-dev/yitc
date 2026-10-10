@@ -301,7 +301,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
         return _git_resolve_sha(raw) or None
 
     def _ceiling_subject_plan_fp(ceiling_row, local_record) -> str | None:
-        """T-12383 (SPEC-0204 rule 2, amended) — THE AUDITED PLAN FINGERPRINT at pre, the exact
+        """T-12383 (SPEC-1014 «Rule 2 — recording a decision») — THE AUDITED PLAN FINGERPRINT at pre, the exact
         sibling of `_ceiling_subject_commit` above: the CEILING ROW's own `plan_fingerprint` first
         (stamped by every pre completion since T-12383, so it arrives through the SPEC-0168 fold and
         main answers exactly as the worktree does), the saved record's second — the LEGACY fallback
@@ -446,9 +446,16 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
         # TASK TARGETS ONLY by construction: this sits inside the `if not is_plan:` arm above, so a
         # plan-gate decision (whose `stage` slot is empty and whose `fix` evidence is the gate's own
         # signature) never reaches it — audit-post fp1:7480db32b9418474.
+        # T-13802 (X-1901): ONLY when the other instance is the task's own worktree, i.e. this verb runs
+        # on main. Run FROM the worktree, the other instance is main, whose card carries the STALE
+        # pre-pause plan and is never read by this checkout's `--on-decisions` pass — the local card keeps
+        # its plan. Main is told apart by its checkout shape (a `.git` DIRECTORY; a linked worktree has a
+        # `.git` file), read off the path the fold already located, so no second discovery runs.
         if stage == "pre" and disposition == "fix" and _cross_instance_path is not None:
             try:
                 _other = _cross_instance_path()
+                if _other and (Path(_other).parent / ".git").is_dir():
+                    _other = None
                 _matches = (sorted((Path(_other).parent / "tasks").glob(f"{tid}-*.yaml"))
                             if _other else [])
                 if len(_matches) == 1:
@@ -1245,7 +1252,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
 
 
 def maximal_evidence_revision(revisions, strict_descendant):
-    """T-13244 (SPEC-0204 rule 3) — the UNIQUE MAXIMAL revision of a NESTED `fix` set, or None.
+    """T-13244 (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass reports») —
+    the UNIQUE MAXIMAL revision of a NESTED `fix` set, or None.
 
     Returns the ONE revision of `revisions` that every OTHER one is a STRICT ANCESTOR of — the newest
     revision of a chain of fixes, which CONTAINS every earlier one and is therefore the one combined
@@ -1779,7 +1787,7 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
 
     named_revision = maximal if revisions else ceiling_subject_revision
 
-    # T-12614 (SPEC-0204 rules 2-3) — A RECORD-ONLY `fix` EVIDENCE NAMES ITS SHIP AS THE SUBJECT.
+    # T-12614 (SPEC-1014 «Rule 2 — recording a decision») — A RECORD-ONLY `fix` EVIDENCE NAMES ITS SHIP AS THE SUBJECT.
     # A `fix` whose only honest artifact is a bookkeeping / journal commit carries the change
     # truthfully (rule 2: «the revision that carries the change») but is NOT what the auditor should
     # be shown — its own diff holds none of the card's work. `ship_of_record_only` (the injected
@@ -1882,7 +1890,8 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
                 "message": (f"{tid} audit-{stage}: the ceiling row {ceiling_ref} has no residuals and "
                             f"the current plan fingerprint ({current_subject}) is the one it already "
                             f"audited — an unchanged plan has nothing new for a pass to judge, so none "
-                            f"is admitted (SPEC-0204 rule 3, T-13400). Amend `implementation_plan` "
+                            f"is admitted (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the "
+                            f"pass reports», T-13400). Amend `implementation_plan` "
                             f"first if the plan must change. No auditor was invoked and no pass was "
                             f"spent."),
                 "named_revision": named_revision,
@@ -3361,7 +3370,8 @@ def _accept_reason_quotes_directive(reason, directive_text) -> bool:
 
 
 def _currency_finding_index(stage_rows, tid, stage, *, repo_root=None, CURRENCY_BASIS, finding_key_of) -> dict:
-    """T-12422 (SPEC-0204 rule 3) — `{fingerprint: ts}` over the `findings[]` recorded on the
+    """T-12422 (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass reports») —
+    `{fingerprint: ts}` over the `findings[]` recorded on the
     (task, stage) rows whose `basis` is `CURRENCY_BASIS`: THE DECIDABLE FINDINGS OF AN
     AUDIT-CURRENCY CHECK.
 
@@ -3445,7 +3455,8 @@ def _directive_row_text(row) -> str:
 
 
 def residual_finding_records(stage_rows, keys, tid, stage, *, repo_root=None, finding_key_of) -> dict:
-    """T-13169 (SPEC-0204 rule 3) — `{fingerprint: recorded finding entry}` for the residual `keys`,
+    """T-13169 (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass reports») —
+    `{fingerprint: recorded finding entry}` for the residual `keys`,
     read off the `findings[]` + `late_findings[]` of the (task, stage) rows.
 
     What it is FOR: the rule-3 packet listed each decided residual by fingerprint alone, so the

@@ -83,8 +83,8 @@ yitc-v2 release update <clone> --into <engine> --anchor <fp> --from-release <clo
   shows you each conflict and asks — it does not pick a side.
 - Without `--from-release` a local edit cannot be told apart from an old file, so every differing
   path is reported and left untouched and nothing is removed — a useful read, but not an update.
-- **Afterwards:** move the pin in `yitc-ops.yaml` to the new tag, then `yitc-v2 -C <project> init`
-  back-fills any scaffold the new release added — it adds what is missing and leaves what you have.
+- **Afterwards:** move the pin in `yitc-ops.yaml` to the new tag, run `yitc-v2 -C <project> session start` (the
+  new engine needs a fresh session receipt), then `yitc-v2 -C <project> init` adds what is missing.
 
 ## Rolling back
 

@@ -1385,9 +1385,19 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "X-NNNN / events.jsonl#type=<t>; an unresolvable ref is refused before any "
                          "write. Session start lists a parked card once its awaited item has arrived "
                          "(UNPARKABLE). The prose --return-trigger stays the human-readable condition.")
-    tu.add_argument("--note", help="with --status ready: unpark note (→ unparked_note); without "
-                                   "--status: amendment note appended to amend_notes + task_amended "
-                                   "event. WHERE IT IS SEEN (T-11733): amend_notes is rendered to the "
+    tu.add_argument("--note", help="AMENDMENT NOTE (without --status): appended to amend_notes + a "
+                                   "task_amended event; on a TERMINAL card (done / wont-do) the "
+                                   "note also commits (T-13815). "
+                                   "SELF-COMMIT: from the main checkout it commits its own record "
+                                   "(the card + its journal receipt only); inside a writing worktree "
+                                   "it commits that record on the worktree's branch, which reaches "
+                                   "main with that batch's land — never hand-commit it (family rule: "
+                                   "AGENTS-SESSIONS §Writes happen in a worktree; this mode's "
+                                   "rule is stated here and in its refusals (T-13815) — no spec). "
+                                   "A note on a LIVE card commits nothing — it rides that card's "
+                                   "next commit, and from the main checkout it is refused. With "
+                                   "--status ready: unpark note (→ unparked_note). "
+                                   "WHERE IT IS SEEN (T-11733): amend_notes is rendered to the "
                                    "external auditor in the NEXT audit pass for this task and nowhere "
                                    "else in the packet — so this is the route for ANSWERING an audit "
                                    "finding, but a note written before a card's first pass is read by "
@@ -3125,6 +3135,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "T-9698); `build` is the dispatched Worker's 9-stage flow (set by "
                          "`bin/yitc-v2 dispatch`). The Build|Review interactive type choice was "
                          "retired (T-9697 / CHARTER §6).")
+    ss.add_argument("--print-only", dest="print_only", action="store_true",
+                    help="after a compaction, BEFORE re-reading your seed: print the restoration brief "
+                         "(what you were, what you hold, what was pending, what to do now — SPEC-1024) "
+                         "and stop. It stamps NOTHING — no seed receipt, no session_started anchor; the "
+                         "stamping `session start` still follows your seed re-read.")
     # T-13371: `cli_invoked_self` — the verb writes its OWN measured invocation record (the `cli:seed`
     # receipt, `cmd_session_start`), so `main` adds none; the read-contract tripwire reads the marker.
     ss.set_defaults(func=cmd_session_start, read_only_admit=RO_EVIDENCE,   # D-0049: auto-syncs (default-on)

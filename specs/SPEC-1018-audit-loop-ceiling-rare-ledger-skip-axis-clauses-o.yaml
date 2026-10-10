@@ -69,88 +69,89 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ that `_require_ship_custody_repin` has not already proven — it only stops the\
   \ ceiling\n  pre-block from refusing a pass that gate admitted; a displacement caused\
   \ by an AUTHORED commit is\n  still refused THERE, not here (that card's route is\
-  \ the SPEC-0204 rule-3 empty-set admission).\n  And it takes NO ledger skip: the\
-  \ pass advances `passes` like any other, which is what bounds it a\n  second time.\n\
-  - **Post-GREEN merge integration:** ONE-SHOT, DERIVED — once a merge-integration\
-  \ row carries a real\n  verdict (GREEN/YELLOW/RED) the axis never admits again;\
-  \ a no-verdict ABORT spends nothing and a retry\n  is admitted. Every guard is fail-closed\
-  \ and NAMES itself on the ceiling refusal: a missing or\n  inexact sync record,\
-  \ the GREEN commit as the SECOND parent, a commit between A and M or after M, a\n\
-  \  wrong main parent, a hand edit of ANY non-conflict path (no inert exemption —\
-  \ `merge-tree` already\n  applies the journal's `merge=union` driver), a recorded\
-  \ conflict set wider than git's, a non-GREEN\n  or superseded prior verdict, and\
-  \ no Stage-6 proof after the merge all leave the ceiling standing. The\n  auditor\
-  \ judges the WHOLE merged HEAD, with the prior GREEN and the resolution diff as\
-  \ context. The\n  pass is FINAL: a RED is TERMINAL for audit-post by the SPEC-0204\
-  \ rule-4 reading\n  (`terminal_ceiling_row`, reason `merge_integration_pass_returned_red`);\
-  \ after ANY verdict no\n  `--on-decisions` pass and no `audit decide` follow it\
-  \ (`merge_integration_pass_is_final`), so a\n  YELLOW takes only the ordinary Stage-8\
-  \ followup route. Bound, stated honestly: `worktree sync` folds\n  trailing bookkeeping\
-  \ into a commit BEFORE merging, so a merge taken over a journal-dirty worktree has\n\
-  \  that commit as its first parent and is NOT admitted by this axis as written.\n\
-  \n#### On-demand technical-fork consult — mechanics\n\n- **SCOPED TO TECHNICAL FORKS.**\
-  \ The prompt asks the auditor FIRST to classify the fork: a\n  TECHNICAL-MERIT fork\
-  \ (the better variant is decidable on engineering merit — correctness, simplicity,\n\
-  \  coherence, anti-complexity, reuse) → name survivors + one recommendation; a VALUE\
-  \ / DRAFT-AUTHORITY\n  fork (the choice turns on product value, owner preference,\
-  \ or scope authority) → return `verdict:\n  ABORT` with `survivors: []` and ESCALATE\
-  \ to the owner. The auditor judges technical merit ONLY — the\n  owner decides value/draft.\n\
-  - **DECOUPLED from the `--owner-reset` basis.** The on-demand consult saves to a\
-  \ DISTINCT key,\n  `decisions/<tid>-audit-consult-on-demand.yaml`, records `passes:\
-  \ 0`, and persists NO\n  `basis_fingerprint` — so `_consult_basis` (which reads\
-  \ `<tid>-audit-consult-{pre,post}.yaml`) NEVER\n  sees it and it can NEVER become\
-  \ a ceiling-continuation `--owner-reset` basis. The ceiling-driven\n  consult path\
-  \ above is structurally UNCHANGED — this is purely additive (the reason it depends\
-  \ on\n  : the shared consult continuation semantics must already be safe before\
-  \ this entry shares the\n  surface).\n- **A single-survivor outcome records the\
-  \ owner ratify/veto evidence as an event** —\n  `audit_on_demand_consult` (carrying\
-  \ the survivor variant + recommendation + `owner_disposition:\n  ratify-veto` +\
-  \ `fork_scope: technical`), the durable STATE probe (CHARTER §P2/P3). The auto-run\n\
-  \  consult ALSO emits its own `external_audit_completed` (target_kind: consult)\
-  \ via the shared engine.\n- **Retirement named (P1 F3):** the consult's ceiling-exhaust-ONLY\
-  \ precondition is NARROWED — it no\n  longer fires for this below-ceiling technical-fork\
-  \ entry. Scope: TASK only (a plan gate is a ceiling surface, not a design fork —\
-  \ `--on-demand`\n  REFUSES `--plan`/`--gate`).\n\n#### Late finding after the audit-post\
-  \ budget is spent — the commit-side door\n\n**Exhaustion-with-late-finding — the\
-  \ COMMIT-side owner-reset door (E-0030).** A distinct\nfailure mode (E-0030, DISTINCT\
-  \ from E-0008's premature false-block): a LEGITIMATE, non-deferrable\nfinding surfaces\
-  \ AFTER the audit-post budget is spent and its fix is NOT YET committed — so the\n\
-  in-CLI exits are blocked together: `task commit --absorb` REFUSES past the ceiling\
-  \ (the\ncarve-out interlock) unless the record it supersedes is the YELLOW-absorbable\
-  \ verdict SPEC-0204\nrule 3 admits, a standalone `task commit` trips the chain-of-custody\
-  \ guard, and `task close`\nrequires a non-RED audit-post. The door still admitted\
-  \ for that state is an OWNER-AUTHORIZED\n`task commit {tid} --absorb --owner-reset`:\
-  \ it COMMITS the late fix past the exhausted ceiling.\nIts sole purpose is to MATERIALIZE\
-  \ a committed subject — it is a BOOTSTRAP, never a verdict and\nnever a pass. OWNER-GATED\
-  \ (the session passes the flag only on explicit owner authorization) and\njournal-observable\
-  \ (the `commit_landed` event carries `owner_reset: true`). FAIL-CLOSED: WITHOUT\n\
-  the flag the exhausted-ceiling `--absorb` REFUSAL stands — the ceiling is never\
-  \ silently disabled.\nStructurally NON-STACKABLE (NOT a repeatable ceiling bypass):\
-  \ the escape commit folds the dirty\naudit-post YAML in (now clean) AND shifts the\
-  \ recorded commit, so the hazard the `--absorb`\ncarve-out REQUIRES — a DIRTY audit-post\
-  \ pinned to the recorded commit — is dissolved, and a SECOND\nescape is REFUSED\
-  \ until a further audit-post pass has re-pinned custody. It widens the COMMIT door\n\
-  ONLY: the AUDIT ceiling is untouched.\nCUSTODY RE-PIN (amended): the step this door\
-  \ was first paired with — `audit post --commit\n<new>` under the audit-side owner\
-  \ reset — no longer exists: SPEC-0204 rule 6 withdrew it and the\nflag refuses.\
-  \ A pass on the new commit is admitted ONLY by the SPEC-0204 route: the Controller\
-  \ records one `audit decide` per\nresidual, then the ONE bounded `audit post --on-decisions`\
-  \ pass runs — on that spec's own terms\n(its rules 3-4 bind each decision to its\
-  \ ceiling row and spend it on the pass). This door creates\nno pass of its own:\
-  \ where SPEC-0204 admits none, the commit stays un-re-pinned and closure stays\n\
-  blocked. The COMMIT-side refusal + its escape are co-homed in SPEC-0015 §\"Audit-stage\
-  \ YAMLs\ncommitted BY task close \" (the guard's home) — kept in sync, not duplicated\
-  \ (P7).\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nEach case above arises\
-  \ on a small minority of audit passes. Rendered inside SPEC-0124 this detail\nreached\
-  \ every session entering Audit-pre or Audit-post; as a reference behind one index\
-  \ paragraph\nand the head of the acting verb's help it is met by the session that\
-  \ has the case at hand\n(SPEC-0005 §6, the rare-case option).\n\n## Verification\n\
-  \n- VP1 (one home): every block of §Rare ceiling cases is present in this spec and\
-  \ absent from\n  SPEC-0124, and SPEC-0124 carries exactly one index paragraph naming\
-  \ this spec and the heading to\n  search.\n- VP2 (reachable from the verb): the\
-  \ first lines of the `audit pre`, `audit post`,\n  `audit consult` and `task commit`\
-  \ help name this spec.\n- VP3 (no stage render): no stage entry delivers this spec.\n\
-  The executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
+  \ the empty-set admission, SPEC-1014\n  «Rule 3 — admission of the one bounded pass,\
+  \ and what the pass reports»).\n  And it takes NO ledger skip: the pass advances\
+  \ `passes` like any other, which is what bounds it a\n  second time.\n- **Post-GREEN\
+  \ merge integration:** ONE-SHOT, DERIVED — once a merge-integration row carries\
+  \ a real\n  verdict (GREEN/YELLOW/RED) the axis never admits again; a no-verdict\
+  \ ABORT spends nothing and a retry\n  is admitted. Every guard is fail-closed and\
+  \ NAMES itself on the ceiling refusal: a missing or\n  inexact sync record, the\
+  \ GREEN commit as the SECOND parent, a commit between A and M or after M, a\n  wrong\
+  \ main parent, a hand edit of ANY non-conflict path (no inert exemption — `merge-tree`\
+  \ already\n  applies the journal's `merge=union` driver), a recorded conflict set\
+  \ wider than git's, a non-GREEN\n  or superseded prior verdict, and no Stage-6 proof\
+  \ after the merge all leave the ceiling standing. The\n  auditor judges the WHOLE\
+  \ merged HEAD, with the prior GREEN and the resolution diff as context. The\n  pass\
+  \ is FINAL: a RED is TERMINAL for audit-post by the SPEC-0204 rule-4 reading\n \
+  \ (`terminal_ceiling_row`, reason `merge_integration_pass_returned_red`); after\
+  \ ANY verdict no\n  `--on-decisions` pass and no `audit decide` follow it (`merge_integration_pass_is_final`),\
+  \ so a\n  YELLOW takes only the ordinary Stage-8 followup route. Bound, stated honestly:\
+  \ `worktree sync` folds\n  trailing bookkeeping into a commit BEFORE merging, so\
+  \ a merge taken over a journal-dirty worktree has\n  that commit as its first parent\
+  \ and is NOT admitted by this axis as written.\n\n#### On-demand technical-fork\
+  \ consult — mechanics\n\n- **SCOPED TO TECHNICAL FORKS.** The prompt asks the auditor\
+  \ FIRST to classify the fork: a\n  TECHNICAL-MERIT fork (the better variant is decidable\
+  \ on engineering merit — correctness, simplicity,\n  coherence, anti-complexity,\
+  \ reuse) → name survivors + one recommendation; a VALUE / DRAFT-AUTHORITY\n  fork\
+  \ (the choice turns on product value, owner preference, or scope authority) → return\
+  \ `verdict:\n  ABORT` with `survivors: []` and ESCALATE to the owner. The auditor\
+  \ judges technical merit ONLY — the\n  owner decides value/draft.\n- **DECOUPLED\
+  \ from the `--owner-reset` basis.** The on-demand consult saves to a DISTINCT key,\n\
+  \  `decisions/<tid>-audit-consult-on-demand.yaml`, records `passes: 0`, and persists\
+  \ NO\n  `basis_fingerprint` — so `_consult_basis` (which reads `<tid>-audit-consult-{pre,post}.yaml`)\
+  \ NEVER\n  sees it and it can NEVER become a ceiling-continuation `--owner-reset`\
+  \ basis. The ceiling-driven\n  consult path above is structurally UNCHANGED — this\
+  \ is purely additive (the reason it depends on\n  : the shared consult continuation\
+  \ semantics must already be safe before this entry shares the\n  surface).\n- **A\
+  \ single-survivor outcome records the owner ratify/veto evidence as an event** —\n\
+  \  `audit_on_demand_consult` (carrying the survivor variant + recommendation + `owner_disposition:\n\
+  \  ratify-veto` + `fork_scope: technical`), the durable STATE probe (CHARTER §P2/P3).\
+  \ The auto-run\n  consult ALSO emits its own `external_audit_completed` (target_kind:\
+  \ consult) via the shared engine.\n- **Retirement named (P1 F3):** the consult's\
+  \ ceiling-exhaust-ONLY precondition is NARROWED — it no\n  longer fires for this\
+  \ below-ceiling technical-fork entry. Scope: TASK only (a plan gate is a ceiling\
+  \ surface, not a design fork — `--on-demand`\n  REFUSES `--plan`/`--gate`).\n\n\
+  #### Late finding after the audit-post budget is spent — the commit-side door\n\n\
+  **Exhaustion-with-late-finding — the COMMIT-side owner-reset door (E-0030).** A\
+  \ distinct\nfailure mode (E-0030, DISTINCT from E-0008's premature false-block):\
+  \ a LEGITIMATE, non-deferrable\nfinding surfaces AFTER the audit-post budget is\
+  \ spent and its fix is NOT YET committed — so the\nin-CLI exits are blocked together:\
+  \ `task commit --absorb` REFUSES past the ceiling (the\ncarve-out interlock) unless\
+  \ the record it supersedes is the YELLOW-absorbable verdict SPEC-0204\nrule 3 admits,\
+  \ a standalone `task commit` trips the chain-of-custody guard, and `task close`\n\
+  requires a non-RED audit-post. The door still admitted for that state is an OWNER-AUTHORIZED\n\
+  `task commit {tid} --absorb --owner-reset`: it COMMITS the late fix past the exhausted\
+  \ ceiling.\nIts sole purpose is to MATERIALIZE a committed subject — it is a BOOTSTRAP,\
+  \ never a verdict and\nnever a pass. OWNER-GATED (the session passes the flag only\
+  \ on explicit owner authorization) and\njournal-observable (the `commit_landed`\
+  \ event carries `owner_reset: true`). FAIL-CLOSED: WITHOUT\nthe flag the exhausted-ceiling\
+  \ `--absorb` REFUSAL stands — the ceiling is never silently disabled.\nStructurally\
+  \ NON-STACKABLE (NOT a repeatable ceiling bypass): the escape commit folds the dirty\n\
+  audit-post YAML in (now clean) AND shifts the recorded commit, so the hazard the\
+  \ `--absorb`\ncarve-out REQUIRES — a DIRTY audit-post pinned to the recorded commit\
+  \ — is dissolved, and a SECOND\nescape is REFUSED until a further audit-post pass\
+  \ has re-pinned custody. It widens the COMMIT door\nONLY: the AUDIT ceiling is untouched.\n\
+  CUSTODY RE-PIN (amended): the step this door was first paired with — `audit post\
+  \ --commit\n<new>` under the audit-side owner reset — no longer exists: SPEC-0204\
+  \ rule 6 withdrew it and the\nflag refuses. A pass on the new commit is admitted\
+  \ ONLY by the SPEC-0204 route: the Controller records one `audit decide` per\nresidual,\
+  \ then the ONE bounded `audit post --on-decisions` pass runs — on that spec's own\
+  \ terms\n(its rules 3-4 bind each decision to its ceiling row and spend it on the\
+  \ pass). This door creates\nno pass of its own: where SPEC-0204 admits none, the\
+  \ commit stays un-re-pinned and closure stays\nblocked. The COMMIT-side refusal\
+  \ + its escape are co-homed in SPEC-0015 §\"Audit-stage YAMLs\ncommitted BY task\
+  \ close \" (the guard's home) — kept in sync, not duplicated (P7).\n\n## Parameters\n\
+  \nNone consumed.\n\n## Rationale\n\nEach case above arises on a small minority of\
+  \ audit passes. Rendered inside SPEC-0124 this detail\nreached every session entering\
+  \ Audit-pre or Audit-post; as a reference behind one index paragraph\nand the head\
+  \ of the acting verb's help it is met by the session that has the case at hand\n\
+  (SPEC-0005 §6, the rare-case option).\n\n## Verification\n\n- VP1 (one home): every\
+  \ block of §Rare ceiling cases is present in this spec and absent from\n  SPEC-0124,\
+  \ and SPEC-0124 carries exactly one index paragraph naming this spec and the heading\
+  \ to\n  search.\n- VP2 (reachable from the verb): the first lines of the `audit\
+  \ pre`, `audit post`,\n  `audit consult` and `task commit` help name this spec.\n\
+  - VP3 (no stage render): no stage entry delivers this spec.\nThe executable form\
+  \ of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
 cites:
 - SPEC-0124
 - SPEC-0204

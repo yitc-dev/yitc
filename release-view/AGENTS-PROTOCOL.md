@@ -57,7 +57,7 @@ that task and the batch goes on — the route is stated in AGENTS-SESSIONS §Orc
 <!--AUDIENCE:core-->
 
 If you find yourself wanting to add:
-- A new hook
+- A new hook (ONE named exception: the in-repository post-compaction entry — print-only brief, bounded time and output, never blocks a compaction)
 - A new pre-commit gate
 - A new file format
 - A new parser path

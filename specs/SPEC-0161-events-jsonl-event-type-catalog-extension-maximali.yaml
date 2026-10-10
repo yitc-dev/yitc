@@ -1933,11 +1933,12 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \  refusal, so a terminal-bearing pass that finds no Stage-6 proof can NAME the\
   \ subject, the latest\n  recorded `tests_passed` run and the commit that consumed\
   \ it. They decide nothing — the decision is\n  `stage6_evidence_covers_subject`'s\
-  \ alone.\n- `read_gate_refused.named_revision` — `bin/lib/audit.py` (SPEC-0204 rule\
-  \ 3): on\n  a `decisions-not-for-this-revision` refusal, the revision the recorded\
-  \ decisions NAME (the `fix`\n  evidence revision, or the ceiling row's own subject\
-  \ on an empty-set admission) beside the\n  `current_subject` this pass would audit,\
-  \ so the two-arm refusal is readable off the row.\n- `task_amended.audited_commit`\
+  \ alone.\n- `read_gate_refused.named_revision` — `bin/lib/audit.py` (SPEC-1014\n\
+  \  «Rule 3 — admission of the one bounded pass, and what the pass reports», and\n\
+  \  «Rule 2 — recording a decision»): on\n  a `decisions-not-for-this-revision` refusal,\
+  \ the revision the recorded decisions NAME (the `fix`\n  evidence revision, or the\
+  \ ceiling row's own subject on an empty-set admission) beside the\n  `current_subject`\
+  \ this pass would audit, so the two-arm refusal is readable off the row.\n- `task_amended.audited_commit`\
   \ — `bin/lib/task.py` : the `expected_touch` CORRECTION\n  record's own audited\
   \ sha, which makes the «the recorded audited commit does not move» claim\n  CHECKABLE\
   \ from the journal rather than asserted in a docstring.\n- `bg_dispatch_halted.audited_commit`\

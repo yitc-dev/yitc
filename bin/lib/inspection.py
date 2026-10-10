@@ -32,7 +32,7 @@ THEMES = tuple(f"T{n}" for n in range(1, 11))
 # CONSUMER-LOCAL themes a project grows ON TOP of the kernel T1–T10 roster — the source of truth for
 # the `--theme <declared-slug>` relaxation (T-10235 / plan K2, surfaced by trial DP-A). Under a `-C`
 # consumer session REPO_ROOT is the consumer, so REPO_ROOT / OPS_YAML_REL resolves the consumer's own
-# carrier; the engine's own repo has no yitc-ops.yaml, so a declared-theme lookup there simply misses.
+# carrier; the engine's own file declares none of these themes, so a declared-theme lookup there simply misses.
 OPS_YAML_REL = "yitc-ops.yaml"
 
 # ── Durable-doc governance probe (SPEC-0120, T-9775) — report-only, NEVER a gate ──────────────
@@ -604,8 +604,8 @@ def _iter_durable_docs(repo_root, engine_root, canonical_docs):
     realm-agnostic; the language bucket stays kernel-only in `durable_doc_metrics` (T-13050). A root
     `yitc-ops.yaml` (the SPEC-0093 ops-contract carrier) is likewise yielded in EVERY realm when present:
     it is read by the engine on every governed verb, so its SIZE is measured like any durable doc
-    instead of hiding in the `*.yaml unscanned` row (T-13051). The kernel has none, so kernel readings
-    are unchanged."""
+    instead of hiding in the `*.yaml unscanned` row (T-13051). The kernel's own root file — its verify-policy
+    declaration, SPEC-0186 rule 6 — is yielded on the same terms."""
     for sub, pat in _METHODOLOGY_DIRS:
         d = repo_root / sub
         if not d.exists():

@@ -1435,8 +1435,8 @@ def _view_displacement_retention(index: dict, *, DECISIONS_DIR=None, EVENTS_PATH
         CONSUMER TEST — the canonical `_is_consumer_build()` (T-0952), NOT a bare
         `REPO_ROOT != ENGINE_ROOT` (T-11027). A `-C` flag pointing at one of the engine's OWN linked
         worktrees rebinds REPO_ROOT while ENGINE_ROOT stays the main checkout, so the bare path
-        inequality mis-read an engine `work/`/`task/` worktree as a consumer and went looking for a
-        `yitc-ops.yaml` the engine has none of by design — making the recorded bounded DEFER
+        inequality mis-read an engine `work/`/`task/` worktree as a consumer and went looking in it for a
+        consumer ops contract, which the engine's file is not by design — making the recorded bounded DEFER
         invisible and flipping this row acted:true→false on the FIRST step of every ревизия (the
         launch runbook mandates the `-C <worktree>` form). A linked worktree of the engine IS the
         engine: same git common-dir == same repo. Same idiom class as the T-0952 graph-attribution
@@ -3568,7 +3568,7 @@ def _default_live_revision_adapter(repo_root) -> "dict | None":
 
     Returns:
       None                    — the section is ABSENT / WAIVED / names no usable adapter → the proxy is
-                                unchanged (the engine kernel has no carrier → never runs this).
+                                unchanged (the engine kernel's own file holds no such section → never runs this).
       {"revision": "<sha>"}   — the adapter reported the running revision.
       {"error": "<detail>"}   — EVERY failure mode (bad argv, spawn error, timeout, non-zero exit, non-JSON
                                 stdout, adapter-reported `error`, missing/empty revision) → a FAIL-CLOSED
@@ -5002,7 +5002,8 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             "is the only truthful reading, and DUE is the safe direction: it stays visible."),
         "deferred_probes_note": (
             "acceptance probes DEFERRED at closure and not yet SETTLED (T-11408 / SPEC-0119 rule 3 / "
-            "X-1066) — each is a proof the card itself recorded as owed. Settle one with `bin/yitc-v2 "
+            "X-1066) — each is a proof the card itself recorded as owed. Read the settle procedure "
+            "first (`bin/yitc-v2 graph query SPEC-1011`, T-13793), then settle one with `bin/yitc-v2 "
             "task close <T-XXXX> --settle-probe <AC>:pass --settle-evidence <locator>` (T-11107), which "
             "is the ONLY thing that clears it — time passing never does. Report-only: deferring stays "
             "the honest move, and nothing here gates a close."
@@ -5813,8 +5814,8 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     (`lessons/a-stance-mirror-is-only-sound-at-birth`). Same discipline as every view above: report-only,
     count-derived, suppressed-when-clean, NEVER gates, and it never auto-ratifies (ratification is the
     owner's act). UNFLOORED, on the same ground as rules 11/12: one unratified adoption is real debt, and
-    count-hiding it would restore the silence the view exists to end. A no-carrier repo (the engine kernel
-    itself) yields count 0 → suppressed.
+    count-hiding it would restore the silence the view exists to end. A repo without a carrier yields count
+    0 → suppressed; on the engine kernel the view is withheld by identity (SPEC-0186 rule 6).
 
     UNPROVEN-CHECKS view (SPEC-0156, T-10509): an OPTIONAL injected collaborator `_unproven_checks`
     (zero-arg, RETURNS `{count, checks, …}` — see `debt.unproven_checks`), the fold over this repo's ops
@@ -6124,11 +6125,15 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
         _def_due = _n(_def_due_raw) or 0
         _def_due_c = _n(_or_view.get("deferred_probe_criteria_due_count")) or 0
         _def_pend_c = _n(_or_view.get("deferred_probe_criteria_pending_count")) or 0
+        # T-13793 — the settle procedure (SPEC-1011) is named on the settlement route itself: in this
+        # text and in the session-start row label below. The settle command stays the FIRST
+        # backticked command, so the compact row keeps it as its verb (T-13754).
         _settle_how = (
             "settle each with `bin/yitc-v2 task close <T-XXXX> --settle-probe <AC>:pass "
             "--settle-evidence <locator>` (T-11107, T-11408), or — when the proof can NEVER arrive / "
             "the reading came back NEGATIVE — discharge it honestly with `--settle-probe "
-            "<AC>:unreachable|falsified --settle-reason <why>` (T-11657). See `bin/yitc-v2 graph "
+            "<AC>:unreachable|falsified --settle-reason <why>` (T-11657). Read the settle procedure "
+            "`bin/yitc-v2 graph query SPEC-1011` before you settle. See `bin/yitc-v2 graph "
             "query overdue-recheck`.")
         if _n(_def_due_raw) is None:
             # A view that predates the T-12076 split (or a caller supplying an old-shaped dict)
@@ -6144,7 +6149,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             lines.append(_actionable(
                 f"debt: {_def_due} card(s) carrying {_def_due_c} DUE deferred acceptance probe(s)"
                 f"{_pending_tail} — the card recorded the proof as owed and its moment has arrived; "
-                f"{_settle_how}", "cards with acceptance checks now due, to settle"))
+                f"{_settle_how}", "cards with acceptance checks now due, to settle per SPEC-1011"))
         else:
             lines.append(
                 f"debt: no deferred probe is due — {_def_pend_c} awaiting their moment, none "
@@ -6185,8 +6190,8 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             f"shipped change that someone may need to act on. It is the OPPOSITE of adoption "
             f"evidence, not a weaker form of it. See `bin/yitc-v2 graph query overdue-recheck`.")
     # CONCERN-CONFORMANCE view (SPEC-0119 rule 8 / SPEC-0128 Rule 2, T-10030): the OPTIONAL injected
-    # collaborator returns {count, stance_issues, expired_waivers} for THIS repo's ops carrier (a no-carrier
-    # repo — the engine kernel itself — yields count 0 → suppressed). Report-only, suppressed-when-clean,
+    # collaborator returns {count, stance_issues, expired_waivers} for THIS repo's ops carrier (a repo without
+    # one yields count 0 → suppressed; the engine kernel is withheld by identity). Report-only, suppressed-when-clean,
     # NEVER gates; best-effort (a None/absent collaborator or a non-dict return contributes nothing). The
     # SAME `concern_conformance` source feeds the nightly runner (SPEC-0105), so both surfaces agree.
     if _concern_conformance is not None:
@@ -7361,8 +7366,8 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # Same discipline as every sibling otherwise: report-only, suppressed-when-clean, UNFLOORED (one
     # unexecuted declared file is already the whole defect), never gates — nothing here reaches a `bad`
     # list or an exit status, so no consumer's PASS can become a FAIL through it (the card's AC3 rollout
-    # order). Names the files, not a bare count: the remedy is per-file. A repo with no carrier (the
-    # engine kernel itself) folds to 0 → suppressed, so history is never retro-charged.
+    # order). Names the files, not a bare count: the remedy is per-file. A repo declaring none of these
+    # subjects (the engine kernel itself) folds to 0 → suppressed, so history is never retro-charged.
     if _unexecuted_subject_files is not None:
         _us = _unexecuted_subject_files() or {}
         us = _n(_us.get("count")) if isinstance(_us, dict) else None
@@ -8619,7 +8624,7 @@ _CONSUMER_DEPLOY_POLICY_LENS = (
     "WAIVED (owner-gated every deploy), and the security section DECLARED (probes) vs WAIVED (with its "
     "compensating_control + expiry). DERIVED at read time from each consumer's yitc-ops.yaml carrier "
     "(SPEC-0093); zero stored state (P5). Read-only review lens — NO gate, NO event; the engine itself "
-    "is excluded (not a deploy consumer, no yitc-ops.yaml)."
+    "is excluded by identity (not a deploy consumer — SPEC-0186 rule 6)."
 )
 
 
@@ -8634,8 +8639,8 @@ def _view_consumer_deploy_policy(*, registry_path=None, engine_root=None, kernel
 
     Enumeration REUSES `_v2_projects(registry_path, engine_root, kernel_name)` (the read-only registry
     scan the nightly + cross-peer set already use, D-0019-safe) and EXCLUDES the engine/kernel itself
-    (name == kernel_name OR resolved path == engine_root): the engine is not a deploy consumer and owns
-    no yitc-ops.yaml, so it belongs in a note, never a table row (audit-pre finding 2). Reading a
+    (name == kernel_name OR resolved path == engine_root): the engine is not a deploy consumer — excluded by
+    identity (SPEC-0186 rule 6) — so it belongs in a note, never a table row (audit-pre finding 2). Reading a
     consumer's yitc-ops.yaml is read-only (territory-safe, like the `cross inbox` fold / nightly scan).
 
     Fail-OPEN per row (the test-orientation precedent): a missing / unreadable / non-mapping carrier
@@ -8748,7 +8753,7 @@ def _view_consumer_deploy_policy(*, registry_path=None, engine_root=None, kernel
     sec_waived = sum(1 for c in consumers if c["security"].get("stance") == "waived")
 
     if excluded:
-        notes.append("engine/kernel excluded (not a deploy consumer, no yitc-ops.yaml): "
+        notes.append("engine/kernel excluded by identity (not a deploy consumer, SPEC-0186 rule 6): "
                      + ", ".join(str(e) for e in excluded if e is not None))
     notes.append("stance is DECLARED-config only (SPEC-0093 rule 7) — the review surfaces divergence; "
                  "close a gap with a per-project card / `cross request` (NOT in this lens, X-0187 follow-on).")
@@ -8804,7 +8809,7 @@ def _view_mandatory_concern_gaps(*, registry_path=None, engine_root=None, kernel
     stores the QUERY, recomputes on read from state that already exists — no new store, no cache, no
     fourth concern, no parallel concern registry. Enumeration REUSES `_v2_projects` (the read-only
     registry scan the nightly + cross-peer set use, D-0019 territory-safe) and EXCLUDES the
-    engine/kernel itself (name == kernel_name OR resolved path == engine_root): it owns no yitc-ops.yaml.
+    engine/kernel itself by identity (name == kernel_name OR resolved path == engine_root; SPEC-0186 rule 6).
     Reading a peer's carrier is read-only; nothing is ever written to another repo.
 
     THREE PROPERTIES THAT ARE THE POINT, not incidental:
@@ -8907,7 +8912,7 @@ def _view_mandatory_concern_gaps(*, registry_path=None, engine_root=None, kernel
                   for c in concerns if owing.get(c["section"])]
 
     if excluded:
-        notes.append("engine/kernel excluded (owns no yitc-ops.yaml): "
+        notes.append("engine/kernel excluded by identity (SPEC-0186 rule 6): "
                      + ", ".join(str(e) for e in excluded if e is not None))
     notes.append("MANDATORY-ONLY by construction — an OPT-IN concern (sandbox_entry, coverage, "
                  "extensions, …) is never in the assessed set, so a project that genuinely owes nothing "
@@ -8999,7 +9004,7 @@ def _view_sandbox_family(members=None, *, registry_path=None, engine_root=None, 
 
     Same fleet shape as `mandatory-concern-gaps` (T-11016): enumeration REUSES the read-only
     `_v2_projects` registry scan (D-0019 territory-safe — peer carriers are READ, never written), the
-    engine/kernel is excluded (it owns no yitc-ops.yaml), and each row FAILS OPEN — a missing/unreadable/
+    engine/kernel is excluded by identity (SPEC-0186 rule 6), and each row FAILS OPEN — a missing/unreadable/
     non-mapping carrier becomes a `not_assessed` row carrying its reason, never a verdict and never a
     crash. The kernel registry itself is NOT fail-opened (`_load_concern_registry` is fail-closed by
     contract). Zero stored state; recomputed fresh on every run."""
@@ -9190,7 +9195,7 @@ def _view_sandbox_family(members=None, *, registry_path=None, engine_root=None, 
                  "scopes THIS lens's question and erases no debt: an unanswered mandatory concern stays "
                  "fully visible in `bin/yitc-v2 graph query mandatory-concern-gaps` and `bin/yitc-v2 debt`.")
     if excluded:
-        notes.append("engine/kernel excluded (owns no yitc-ops.yaml): "
+        notes.append("engine/kernel excluded by identity (SPEC-0186 rule 6): "
                      + ", ".join(str(e) for e in excluded if e is not None))
     if not_assessed:
         notes.append(f"{len(not_assessed)} project(s) not assessed (no or unreadable yitc-ops.yaml) — "
@@ -9230,8 +9235,8 @@ def _view_test_orientation(repo_root=None, *, _read_yaml=None) -> dict:
     Each section is declare-OR-WAIVE (SPEC-0093): a section-level `waiver:` is surfaced as a `waived`
     note (not an error — this is a reader, never the fail-closed sweep). A consumer-only surface:
     OPT-IN / fail-OPEN like the overdue-recheck / not-adopted precedent — an absent/malformed carrier,
-    or an absent/non-mapping section, yields clean-empty rows (the kernel's own repo has no
-    `yitc-ops.yaml`, so it no-ops there), NEVER a crash. Read-only: adds NO gate and NO event (running
+    or an absent/non-mapping section, yields clean-empty rows (the kernel's own file declares
+    neither section, so it returns no rows there), NEVER a crash. Read-only: adds NO gate and NO event (running
     the lens emits only the ambient cli_invoked P8 evidence, like every saved view)."""
     from pathlib import Path
     rows: list = []
@@ -9240,8 +9245,8 @@ def _view_test_orientation(repo_root=None, *, _read_yaml=None) -> dict:
     ops = _read_yaml(ops_path) if (ops_path is not None and ops_path.is_file()) else None
     if not isinstance(ops, dict):
         if ops_path is None or not ops_path.is_file():
-            notes.append("no yitc-ops.yaml carrier — no declared test taxonomy (the kernel's own repo "
-                         "has none; this is a consumer surface).")
+            notes.append("no yitc-ops.yaml carrier — no declared test taxonomy (this is a consumer "
+                         "surface).")
         else:
             notes.append("yitc-ops.yaml present but unreadable/non-mapping — nothing to orient.")
         return {

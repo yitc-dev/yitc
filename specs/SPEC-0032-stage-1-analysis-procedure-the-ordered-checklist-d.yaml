@@ -76,7 +76,11 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ — name it now, STAGE it\n   in Plan (it is NOT authored in Analysis).\n4. **Decomposition\
   \ check** — ONE provable claim per accept-unit (<workshop-spec>): if the unit proves\
   \ >1\n   claim, SPLIT (encode the order via `requires:`); a deferral MUST be a tracked\
-  \ task, never prose.\n5. **Spec-coverage reverse-lookup** — for EACH file/symbol\
+  \ task, never prose.\n   - **Amending a criterion here is acceptance design** —\
+  \ SPEC-0060 item 4 holds its authoring cues\n     (`graph query SPEC-0060`); among\
+  \ them, an adoption probe drives the consumer round-trip and\n     needs no consumer\
+  \ whose `requires:` names this card before it closes (SPEC-0015 §Infra\n     adoption\
+  \ probe, §Work-first).\n5. **Spec-coverage reverse-lookup** — for EACH file/symbol\
   \ this task EXPECTS TO TOUCH (its\n   `expected_touch`), run the reverse lookup\
   \ `bin/yitc-v2 graph query <file>` (code→specs, SPEC-0031)\n   → READ the governing\
   \ active spec(s) → DECLARE in `implementation_plan` one line PER DIRECTION: (1)\n\

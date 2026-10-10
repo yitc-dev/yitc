@@ -4041,11 +4041,16 @@ def _worker_seed_bootstrap_events(session_id: str, *, SEED_READ_NODE_ID: str,
     STAGE-verbs (`task analyze`/`audit`/`task commit`/`task close`) run `_require_reads`, which is
     CURRENT-JOURNAL-ONLY (SPEC-0050 §2) — the worker re-anchors THAT checkout with a per-worktree
     `session start` (the established §2 norm, surfaced in DISPATCH_WORKER_PREAMBLE); this launcher
-    bootstrap covers only the pre-worktree claim gates on MAIN."""
+    bootstrap covers only the pre-worktree claim gates on MAIN.
+
+    T-13789 (SPEC-1023 rule 6): the seed receipt records the reading NONE — the stamp `none`, compared
+    by identity — because a Worker's transcript holds no compaction marker before its own start. Its
+    first governed verbs credit while its transcript holds none, and stop crediting at its first
+    compaction (the newest marker is then not `none`); a pre-change epoch-0 stamp would never credit."""
     return [
         ("session_started", None, {"type": "build", "project": project, "bootstrap": "dispatch"}),
         ("cli_invoked", None,
-         {"verb": "session start", "node_id": SEED_READ_NODE_ID, "bootstrap": "dispatch"}),
+         {"verb": "session start", "node_id": SEED_READ_NODE_ID, "bootstrap": "dispatch", "epoch": "none"}),
         ("cli_invoked", None,
          {"verb": "--help", "node_id": HELP_INVENTORY_NODE_ID, "bootstrap": "dispatch"}),
     ]

@@ -586,4 +586,4 @@ implements_signature:
   bin/lib/graph.py#graph_cache_report_lines: f6531ec48ac729e790ee9020b118372b073deb54446b84c94c5b5d69633c1d24
   bin/lib/graph.py#index_cache_lookup: cbeab808408aae3ddc3bf0deb7a33d9e4aff6b9e601d71a04257213f7c2cb6ba
   bin/lib/graph.py#index_cache_store: 92c5c9bc9a8b8260f9cf13827d67f52514db4c3ef6b5902d820f6a72e5a6b1b2
-  bin/lib/graph.py#repo_state_fingerprint: ad8f95ea6f83b9eaba8ebdfce1b0a1d14c114e59259489712a0748fa8b88e7b9
+  bin/lib/graph.py#repo_state_fingerprint: 25461b04058bc29b7edac6b18dc74df25e4b5c0ae66d624a13611a0b7e8784df

@@ -244,4 +244,4 @@ implements_signature:
   bin/lib/cli.py#MAX_EVENT_BYTES: c5a4738563da50a1f8909155e6979cf521660c6a46f6c1f30f47986c9eda0998
   bin/lib/cli.py#SESSION_REF_ENV_VARS: cdc61f80a7f5d4a56f6abe0963af2ddf497b2a64eae6c4a55067e51fb9c681eb
   bin/lib/cli.py#_append_event: dfd4fbf92cd58d252d526be9023ae5b16c606d6ad0ddeefcde792ef019c87d5a
-  bin/lib/cli.py#_resolve_session_ref: f296cd97463619878dcc72b5c49a72bfbc7292a366c6135c1f7012c915a4d0b7
+  bin/lib/cli.py#_resolve_session_ref: a032911b57a0d5c3e2d542ac99bfb288fa04374b2df0a6005e38a8294e911c55

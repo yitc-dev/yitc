@@ -126,10 +126,12 @@ body: "## Scenario\n\nTwo SPEC-0025 event-schema sections, re-homed VERBATIM: (1
   \ (or there is no session anchor). `reason ∈ {no_session_started_anchor, contracts_unfetched}`.\n\
   \    The SIBLING seed-read floor (`_require_seed_read`, SPEC-0050 §8) emits the\
   \ SAME `read-check` kind with\n    `reason ∈ {no_session_started_anchor, seed_read_unfetched,\
-  \ seed_read_stale_epoch}` (—\n    `seed_read_stale_epoch` = a receipt exists but\
-  \ its stamped context epoch predates the current\n    `/compact` epoch); `--help`\
-  \ (`_require_help_read`) likewise emits `help_inventory_unfetched`. Additive\n \
-  \   reasons P5-safe.\n    `missing` = the unfetched contract spec ids (only on `contracts_unfetched`).\
+  \ seed_read_stale_epoch,\n    context_epoch_unknown}` (— `seed_read_stale_epoch`\
+  \ = a receipt exists but its\n    stamped context epoch is not the current one;\
+  \ — `context_epoch_unknown` = the context\n    epoch cannot be read under a provider\
+  \ whose detection is observed, SPEC-1023 rule 6); `--help` (`_require_help_read`)\
+  \ likewise emits `help_inventory_unfetched`. Additive\n    reasons P5-safe.\n  \
+  \  `missing` = the unfetched contract spec ids (only on `contracts_unfetched`).\
   \ `task_id` null (the\n    read-gate carries no task id at the refusal moment; the\
   \ envelope `session_ref` correlates it).\n    Reconciled from the interim `kind:\
   \ \"stage\"` literal by — historical rows carry\n    `\"stage\"` (append-only),\

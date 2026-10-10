@@ -148,19 +148,19 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ (measured : a decimal pair `4.00/20.00` in an evidence-gap finding lexed as an\n\
   authored path), leaving a pass-1 repair with no executable audit route. So the guard\
   \ ALSO admits a\nsubject when, all fail-closed: (1) it IS the custody commit and\
-  \ that row carries `card_repair: true`;\nAND (2) `_ship_contained_record_only` (SPEC-0204\
-  \ rules 2-3) proves it is record-only, that\nthe governed audit-post record names\
-  \ an authored ship, and that the subject reaches that ship along a\nTRANSPARENT\
-  \ first-parent chain. The pass audits AT the repair — the cumulative range carries\
-  \ the\nship — so the auditor still receives the whole shipped change, and the record\
-  \ pins `commit:` to the\nrepair. Everything else is unchanged: an unmarked bookkeeping\
-  \ subject, one riding on no recorded\nauthored ship, and any authored subject behave\
-  \ byte-identically to before.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\
-  \nBoth shapes are met by a small share of audits, and in both the verb decides from\
-  \ governed records\nwith nothing for the session to choose. Rendered inside the\
-  \ audit contract, their rules reached\nevery session entering Audit-pre or Audit-post;\
-  \ as a reference behind an index paragraph and the\nhead of the audit help they\
-  \ are met by the session that has the shape in front of it.\n\n## Verification\n\
+  \ that row carries `card_repair: true`;\nAND (2) `_ship_contained_record_only` (SPEC-1014\
+  \ «Rule 2 — recording a decision») proves it is record-only, that\nthe governed\
+  \ audit-post record names an authored ship, and that the subject reaches that ship\
+  \ along a\nTRANSPARENT first-parent chain. The pass audits AT the repair — the cumulative\
+  \ range carries the\nship — so the auditor still receives the whole shipped change,\
+  \ and the record pins `commit:` to the\nrepair. Everything else is unchanged: an\
+  \ unmarked bookkeeping subject, one riding on no recorded\nauthored ship, and any\
+  \ authored subject behave byte-identically to before.\n\n## Parameters\n\nNone consumed.\n\
+  \n## Rationale\n\nBoth shapes are met by a small share of audits, and in both the\
+  \ verb decides from governed records\nwith nothing for the session to choose. Rendered\
+  \ inside the audit contract, their rules reached\nevery session entering Audit-pre\
+  \ or Audit-post; as a reference behind an index paragraph and the\nhead of the audit\
+  \ help they are met by the session that has the shape in front of it.\n\n## Verification\n\
   \n- VP1 (one home): every sentence of the two families is present in this spec and\
   \ absent from\n  SPEC-0036, and SPEC-0036 carries exactly one index paragraph naming\
   \ this spec and the heading to\n  search.\n- VP2 (reachable from the verb): the\

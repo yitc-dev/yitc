@@ -967,13 +967,13 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ (a report-only surface must never nag on the unknown — the SPEC-0119 rule-1\n\
   principle). Because the section is un-swept, the kernel does NOT shape-validate\
   \ it — a malformed entry\nis silently skipped rather than an init ERROR (the price\
-  \ of zero-friction opt-in). The ENGINE ITSELF\nhas no `yitc-ops.yaml`, so this surface\
-  \ is a no-op in the kernel's own sessions.\n\n**Read-only sessions run NOTHING.**\
-  \ A declared check is arbitrary project code (measured:\none reaches a prod schema\
-  \ via `docker exec … psql`), which the `--read-only` promise cannot admit. So\n\
-  when `READ_ONLY_ROOT` is set no declared command is executed; the echo instead prints\
-  \ ONE report-only\nline counting the declared check(s) as skipped under read-only.\
-  \ The operating-mode path is unchanged.\n\n### 24. Test-class last-successful-execution\
+  \ of zero-friction opt-in). The ENGINE's own\nfile declares none of this section,\
+  \ so this surface is a no-op in the kernel's own sessions.\n\n**Read-only sessions\
+  \ run NOTHING.** A declared check is arbitrary project code (measured:\none reaches\
+  \ a prod schema via `docker exec … psql`), which the `--read-only` promise cannot\
+  \ admit. So\nwhen `READ_ONLY_ROOT` is set no declared command is executed; the echo\
+  \ instead prints ONE report-only\nline counting the declared check(s) as skipped\
+  \ under read-only. The operating-mode path is unchanged.\n\n### 24. Test-class last-successful-execution\
   \ — a declared class records that it actually RAN (X-0375)\nSPEC-0156 admits a declared\
   \ kernel-graded check on a recorded RED demonstration — proof it CAN fail. It\n\
   never asks whether the check has ever ACTUALLY RUN green. <project>'s e2e test class\
@@ -1030,56 +1030,56 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ silent accept is the defect this replaces; a BARE refusal\nwould be the weaker\
   \ fix, sending the author back to the same confusing file with no more information\
   \ than\nthey started with.\n\nIt ABSTAINS wherever the declaration cannot be read\
-  \ — no carrier (the engine kernel itself), a waived or\nabsent `tests:` section,\
-  \ zero declared classes, or any parse failure. A project that has declared no\n\
-  vocabulary has authorised no refusal, and history is never retro-charged (the SPEC-0149\
-  \ lesson, and the\nreader-owns-the-missing-value discipline). The declaration is\
-  \ read in FULL, the UNION of declared classes,\nnever a first match (SPEC-0185 §1b).\
-  \ This adds NO new verb, NO new flag, NO new gate class: it is one\nvocabulary check\
-  \ at the existing generic `event` write, in the same fail-closed family as the\n\
-  `deviation_captured` realm and `deviation_resolved` disposition checks that already\
-  \ live there. Contract\nhome `bin/lib/debt.py#undeclared_class_remedy`; the `event`\
-  \ verb is the call site.\n\n**The DEBT view (report-only, two surfaces).** For each\
-  \ declared `tests.classes[]` class (a waived section\nor a waived entry declares\
-  \ no class — rule 6, an ANSWERED question): a class with NO matching complete\n\
+  \ — a missing carrier, a waived or absent `tests:` section\n(the engine kernel's\
+  \ case), zero declared classes, or any parse failure. A project that has declared\
+  \ no\nvocabulary has authorised no refusal, and history is never retro-charged (the\
+  \ SPEC-0149 lesson, and the\nreader-owns-the-missing-value discipline). The declaration\
+  \ is read in FULL, the UNION of declared classes,\nnever a first match (SPEC-0185\
+  \ §1b). This adds NO new verb, NO new flag, NO new gate class: it is one\nvocabulary\
+  \ check at the existing generic `event` write, in the same fail-closed family as\
+  \ the\n`deviation_captured` realm and `deviation_resolved` disposition checks that\
+  \ already live there. Contract\nhome `bin/lib/debt.py#undeclared_class_remedy`;\
+  \ the `event` verb is the call site.\n\n**The DEBT view (report-only, two surfaces).**\
+  \ For each declared `tests.classes[]` class (a waived section\nor a waived entry\
+  \ declares no class — rule 6, an ANSWERED question): a class with NO matching complete\n\
   record surfaces `never`; one whose latest one has aged past the staleness floor\n\
   (`YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`, default 30 days) surfaces `stale`. NEVER-run\
   \ is unconditional\ndebt (unfloored); STALE surfaces only while the floor is active\
   \ (a non-positive floor disables the\nstaleness arm, the sibling-fold AGE-floor\
   \ discipline). Wired at the ONE shared debt residue\n(`bin/yitc-v2#_debt_echo_lines`)\
   \ so it rides every debt seam (session-start / `debt` re-fold),\nsuppressed-when-clean.\
-  \ A repo that declares no test class (the engine kernel itself, no yitc-ops.yaml)\n\
-  folds to zero, so history is never retro-charged (the SPEC-0149 lesson).\n\n###\
-  \ 25. Hermetic-class admission — a class declared HERMETIC is hermetic in TIME,\
-  \ not just DATA (X-0431)\nRules 10/16 let a project DECLARE a test class or verify-layer\
-  \ HERMETIC (the `tests.classes[]` taxonomy\n+ the rule-16 F-025 per-layer hermeticity\
-  \ contract — `land` runs it on the LIVE tree with no network /\nno shared fixture\
-  \ mutation). That contract is hermetic in DATA: no test sees another's rows, no\
-  \ external\nis really mutated. It says nothing about TIME. A declared-hermetic suite\
-  \ can still, per test, fire a\nprod code path that reaches out to an external infra\
-  \ dependency that the hermetic container does NOT\nprovide (a broker `.delay` with\
-  \ no Redis, a cache client with no cache, a third-party HTTP client) and\nthen WAIT\
-  \ OUT that dependency's connect/retry timeout — a hidden per-test stall that is\
-  \ invisible to\nevery DATA-hermeticity check. This rule is the TIME axis of the\
-  \ hermetic-class admission doctrine.\n\n**THE ADMISSION CRITERION (report-only authoring\
-  \ doctrine).** A suite/class declared hermetic MUST be\nhermetic in TIME: **every\
-  \ external infrastructure dependency it can reach (broker / queue / cache /\nthird-party\
-  \ API) is stubbed, run EAGER (in-process, e.g. celery `task_always_eager`), or mocked\
-  \ — OR it\nfails FAST** (a short connect timeout configured in the TEST environment,\
-  \ so an absent external errors in\nmilliseconds instead of waiting out a real ~15-20s\
-  \ connect/retry). **Waiting out a real connect timeout\nto an absent external is\
-  \ a DOCTRINE VIOLATION, not a slow test** — the class was never hermetic in time.\n\
-  The unmocked external is easy to miss precisely because the OBVIOUS externals (email,\
-  \ a bot API) are\nalready mocked: it takes only ONE prod code path firing ONE unmocked\
-  \ infra call to silently set a whole\nsuite's per-test floor (X-0431: <project>'s\
-  \ declared-hermetic backend suite carried a hidden\n~19.5s-per-test celery result-backend\
-  \ connect-retry stall — 7 tests ≈ 136s of a 145s file — that\nsurvived 990-test\
-  \ growth and pinned the whole suite's parallel floor, found only by a faulthandler\
-  \ stack\ndump; PuzzleBot + email were mocked, celery was the ONE unmocked external\
-  \ and no methodology rule asked\nthe question).\n\n**REPORT-ONLY — an authoring/declaration\
-  \ criterion, no gate, no scanner (the rule-16 subject-scoping\nsibling — X-0426).**\
-  \ The kernel does NOT time-profile a consumer's suite or scan for unmocked\nexternals\
-  \ — it judges STANCE + shape, never behaviour (rule 3). This criterion is the QUESTION\
+  \ A repo that declares none of these classes (the engine kernel itself)\nfolds to\
+  \ zero, so history is never retro-charged (the SPEC-0149 lesson).\n\n### 25. Hermetic-class\
+  \ admission — a class declared HERMETIC is hermetic in TIME, not just DATA (X-0431)\n\
+  Rules 10/16 let a project DECLARE a test class or verify-layer HERMETIC (the `tests.classes[]`\
+  \ taxonomy\n+ the rule-16 F-025 per-layer hermeticity contract — `land` runs it\
+  \ on the LIVE tree with no network /\nno shared fixture mutation). That contract\
+  \ is hermetic in DATA: no test sees another's rows, no external\nis really mutated.\
+  \ It says nothing about TIME. A declared-hermetic suite can still, per test, fire\
+  \ a\nprod code path that reaches out to an external infra dependency that the hermetic\
+  \ container does NOT\nprovide (a broker `.delay` with no Redis, a cache client with\
+  \ no cache, a third-party HTTP client) and\nthen WAIT OUT that dependency's connect/retry\
+  \ timeout — a hidden per-test stall that is invisible to\nevery DATA-hermeticity\
+  \ check. This rule is the TIME axis of the hermetic-class admission doctrine.\n\n\
+  **THE ADMISSION CRITERION (report-only authoring doctrine).** A suite/class declared\
+  \ hermetic MUST be\nhermetic in TIME: **every external infrastructure dependency\
+  \ it can reach (broker / queue / cache /\nthird-party API) is stubbed, run EAGER\
+  \ (in-process, e.g. celery `task_always_eager`), or mocked — OR it\nfails FAST**\
+  \ (a short connect timeout configured in the TEST environment, so an absent external\
+  \ errors in\nmilliseconds instead of waiting out a real ~15-20s connect/retry).\
+  \ **Waiting out a real connect timeout\nto an absent external is a DOCTRINE VIOLATION,\
+  \ not a slow test** — the class was never hermetic in time.\nThe unmocked external\
+  \ is easy to miss precisely because the OBVIOUS externals (email, a bot API) are\n\
+  already mocked: it takes only ONE prod code path firing ONE unmocked infra call\
+  \ to silently set a whole\nsuite's per-test floor (X-0431: <project>'s declared-hermetic\
+  \ backend suite carried a hidden\n~19.5s-per-test celery result-backend connect-retry\
+  \ stall — 7 tests ≈ 136s of a 145s file — that\nsurvived 990-test growth and pinned\
+  \ the whole suite's parallel floor, found only by a faulthandler stack\ndump; PuzzleBot\
+  \ + email were mocked, celery was the ONE unmocked external and no methodology rule\
+  \ asked\nthe question).\n\n**REPORT-ONLY — an authoring/declaration criterion, no\
+  \ gate, no scanner (the rule-16 subject-scoping\nsibling — X-0426).** The kernel\
+  \ does NOT time-profile a consumer's suite or scan for unmocked\nexternals — it\
+  \ judges STANCE + shape, never behaviour (rule 3). This criterion is the QUESTION\
   \ an author\nanswers when declaring a class hermetic, and the doctrine an audit/review\
   \ cites; it composes with the\nrule-24 last-successful-execution debt (a class that\
   \ RAN green) and the rule-16 hermeticity contract (a\nclass hermetic in DATA). The\
@@ -1305,9 +1305,9 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/debt.py#undeclared_class_remedy: ce313b003c5c9d62b16b42e0090c227fb99daf826cf61ec0bfee3d0e7b3ac3b8
+  bin/lib/debt.py#undeclared_class_remedy: 2d7d398a2b916a353698e8e68b96ad7991b086f9d1afb19d1df0c96677b7f9d7
   bin/lib/debt_adoption.py#unexecuted_test_classes: ae5effb2c811f59446051f7e3ec9e1c917dc9f44ea6feff8fc9924a06fcb493a
-  bin/lib/graph.py#_coverage_admission_warnings: a4a7cf5cbce6eeb61dfc67b8d10aba0f6168d55e7147b503b24737414414890d
+  bin/lib/graph.py#_coverage_admission_warnings: e48ca6cc24127c64608a7b84ad8f75e34ae0bb084b5360032b3b80c23136edb0
   bin/lib/graph.py#_verify_layer_boundary_warnings: c56ff639967669874bb428b6470cb18bd32bf097ddeffe45b799f87ed22a77d1
   bin/lib/graph.py#_verify_layer_coverage_warnings: bec29aeb8df5a536e0045b40215fec4afde7fbab98e79bcfd3deb0df1cba3c2a
   bin/lib/init.py#_migrate_legacy_verify_yaml: d569d33740b4779074f5c7fc4e556554f2393f37b40d132aa1bbf5d53e21eeb4
@@ -1317,10 +1317,10 @@ implements_signature:
   bin/lib/land_verify_legs.py#_delegated_tests_execution_gap: cba017264e89f4114726489b3f64c5800839860b0d6afe52faa0f4f51fce8574
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
-  bin/lib/session.py#startup_check_lines: f88dc029b52ef82ae732227899100b2bf50812c971a88b3a4a8a374bb6207288
-  bin/lib/task.py#cmd_task_test: e4fdbde3c66d84f8a1ca661f41455a354a3ecd4337239e19dca83351d86429cf
+  bin/lib/session.py#startup_check_lines: efb8a0955a10b9fea151ee7f3a98391e35d7c0de4d4c00085f0328a251489901
+  bin/lib/task.py#cmd_task_test: c60fa1000893cd2af743f2910b86ac8ded7d30dc3c8a8bb18f354c90d308ecd5
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 9542691d47d78d8f0dc7a6aeef34f3f48e326e0783dccd87de7316eb433c0920
+  bin/lib/worktree.py#_consumer_zero_probe_guard: bb52696e54d6883668d4db7a75290fd7dc6d8d21e92c639c3958d16ded2695e4
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279

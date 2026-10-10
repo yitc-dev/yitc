@@ -1468,7 +1468,7 @@ def governed_selection(test_files, *, select: bool = True, journal_path=None, te
 
 
 def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | None = None,
-                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None) -> list:
+                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, _timeout_class=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None, _priority_starved=None) -> list:
     """Run every `tests/test_*.py` as an isolated subprocess (canonical V2 test interface — exit 0 =
     pass, tests/README.md §Run all tests / T-0039) CONCURRENTLY (T-0274). Preserves the old serial
     loop's contract:
@@ -1846,7 +1846,8 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
             stop.set()
 
     def _run_one(tf: Path, _sink: "list | None" = None, _box: "str | None" = None,
-                 _isolated: bool = False):
+                 _isolated: bool = False, _nice: "int | None" = None,
+                 _deadline: "float | None" = None, _since: "float | None" = None):
         """T-12357 — the ONE subprocess-running body, now reused verbatim by the isolated retry and
         the resume. The three parameters are DEFAULTED, so a pool execution (`_run_one(tf)` — every
         pre-existing call, including the `ex.map` below) takes byte-identical branches:
@@ -1862,7 +1863,13 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
             verdict has its own record, `flaky_retry.rows[].isolated`, so dropping it here loses
             nothing and keeps `verify-durations --rebuild` from ever reading a retry as a baseline.
         Every other line of the body — the Popen, the hermetic env, the per-file timeout ladder, the
-        overlap credit, the grace, the group reap, the excerpt — is UNCHANGED and shared."""
+        overlap credit, the grace, the group reap, the excerpt — is UNCHANGED and shared.
+
+        T-13807 — the priority re-run (see the probe in the wait loop) passes three more: `_nice`
+        OVERRIDES the child priority for that one execution, `_deadline` is the FIRST attempt's
+        deadline (one budget for the file, never a fresh one) and `_since` the first attempt's real
+        start (its duration row covers both). All `None` on every other call: byte-identical."""
+        _eff_nice = _child_nice if _nice is None else _nice
         _fail_sink = failures if _sink is None else _sink
         if stop.is_set() and not _isolated:   # a sibling already failed → skip not-yet-started tests (fail-fast)
             return
@@ -1874,7 +1881,7 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # T-11124: this file's own wall, on the REAL clock — NEVER the T-10075 injectable deadline
         # clock, which a timing test may drive to 1e9. Same rule `verify_wall_ms` / `queue_wait_ms`
         # already follow, so a fake-clock test cannot fabricate a duration into the journal series.
-        _real_t0 = time.monotonic()
+        _real_t0 = time.monotonic() if _since is None else _since
 
         def _record(outcome: str):
             """Record THIS file's elapsed + outcome. Called on EVERY path a started file can leave by
@@ -1917,8 +1924,8 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
             proc = subprocess.Popen([sys.executable, str(tf)], cwd=str(cwd), env=_child_env,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                                     start_new_session=True,
-                                    **({"preexec_fn": (lambda _n=_child_nice: os.nice(_n))}
-                                       if _child_nice > 0 else {}))
+                                    **({"preexec_fn": (lambda _n=_eff_nice: os.nice(_n))}
+                                       if _eff_nice > 0 else {}))
         except OSError as e:
             with flock:
                 _fail_sink.append(f"test failed: {tf.name}\ncould not launch: {e}")
@@ -1938,7 +1945,12 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # the credit is monotone and idempotent, never a repeated grant.
         _t_start_epoch = time.time()
         _ov_credited = 0.0
-        deadline = _t_start + timeout      # T-0678: per-file wall clock (T-10075: injectable for tests)
+        deadline = _t_start + timeout if _deadline is None else _deadline   # T-0678: per-file wall clock (T-10075: injectable for tests); T-13807: a priority re-run keeps the first attempt's
+        # T-13807 — the next PRIORITY PROBE point of a lowered-priority attempt (None: not niced, or no
+        # classifier injected — the path is then byte-identical).
+        _probe_at = (_t_start + timeout / 5) if (_eff_nice > 0 and _timeout_class is not None
+                                                 and _process_group_cpu_seconds is not None
+                                                 and _priority_starved is not None) else None
         # T-10789 — the file's verdict is decided by the DIRECT CHILD's EXIT, never by whether some
         # descendant still holds the inherited stdout pipe. The old loop polled
         # `proc.communicate(timeout=1)`, which returns at EOF on stdout — and that pipe is inherited by
@@ -2009,6 +2021,39 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
                 # them) while the overlap window can still be expressed on the SAME timeline the
                 # deadline lives on.
                 _now = monotonic()
+                # ── T-13807 — A STARVED LOWERED-PRIORITY ATTEMPT IS RESTARTED AT NORMAL PRIORITY ──────
+                # A dispatched worker's Stage-6 children run at nice 19 (T-11456) so they yield to
+                # lands. Under FOREIGN nice-0 load such a child gets ~3% of a core (measured,
+                # events.jsonl#ts=2026-10-09T18:25:38Z: 9.6 s CPU in 300 s, killed `stalled`, while the
+                # same file under the same load passed in 190 s at nice 0), so its wall bound measures
+                # the host's priority split, not the file. Every fifth of the bound the attempt is
+                # read by `_priority_starved` (the ONE decision, shared with a consumer's verify
+                # layers — T-13811): the SAME §3 discriminator the kill uses, on an OVERSUBSCRIBED host
+                # (load1 above the CPUs this run may use — the only case where a lowered priority withholds CPU).
+                # Any reading but `long` (getting its CPU) means the priority, not the file, is the
+                # bottleneck: the attempt is killed and the file is run ONCE more at normal priority,
+                # in a fresh box, through this same body — against the FIRST attempt's deadline, so
+                # the file keeps ONE budget (credit,
+                # grace, kill, marker and deviation then apply to that run exactly as to any). The
+                # re-run carries `_nice=0`, so it never probes or restarts itself; a hang is still
+                # killed and still fails by the same deadline. A land, an interactive run and every
+                # nested or pinned driver spawn at nice 0 and never probe. The lowered attempt records
+                # no row and emits no deviation; the stderr line says it happened.
+                if _probe_at is not None and _now >= _probe_at and _now < deadline:
+                    _probe_at += timeout / 5
+                    _pw = _now - _t_start
+                    _starved, _pc = _priority_starved(
+                        proc.pid, _pw, _timeout_class=_timeout_class,
+                        _process_group_cpu_seconds=_process_group_cpu_seconds)
+                    if _starved:
+                        _terminate_process_group(proc)
+                        print(f"yitc-v2: verify: {tf.name} is starved at nice {_eff_nice} "
+                              f"(wall={_pw:.1f}s cpu={_pc:.1f}s) — restarting it ONCE at normal "
+                              f"priority within the same {timeout:g}s budget (T-13807).",
+                              file=sys.stderr, flush=True)
+                        return _run_one(tf, _sink=_sink, _box=f"{_box or _box_names[tf]}-prio",
+                                        _isolated=_isolated, _nice=0, _deadline=deadline,
+                                        _since=_real_t0)
                 if _now >= deadline:
                     # T-12260 — MEASURED CONTENTION IS NOT THIS FILE'S TIME, so it is given back
                     # BEFORE anything else at this deadline. On the venue box a Stage-6 leg runs at
@@ -4300,6 +4345,48 @@ def _verify_child_nice(*, land_verify: bool, env: "dict | None" = None, _VERIFY_
     lo, hi = _VERIFY_WORKER_NICE_RANGE
     return value if lo <= value <= hi else _VERIFY_WORKER_NICE_DEFAULT
 
+
+def _priority_starved(pgid: int, wall_s: float, *, _timeout_class, _process_group_cpu_seconds,
+                      _runqueue_wait_seconds=None) -> tuple:
+    """T-13807 / T-13811 — IS the lowered-priority attempt running as process group `pgid` being
+    denied CPU BY ITS PRIORITY? Returns `(starved, cpu_s)`; `cpu_s` is the group's CPU reading (None
+    when unmeasured), handed back for the caller's message.
+
+    THE ONE DECISION both lowered-priority launch sites read — the per-file runner (`_run_one`) and a
+    consumer's verify-layer invocation (`land_verify_legs._run_layer_command`). True only when BOTH hold:
+      * the SPEC-0071 §3 classifier reads the attempt `stalled` or `starved` on the wall + group CPU
+        sampled now (the same discriminator the timeout kill reads; `long` = it is getting its CPU);
+      * the host is OVERSUBSCRIBED — load1 above the CPUs this process may use — the only case where a
+        lowered priority withholds CPU.
+    An unusable reading (no CPU sample, a classifier that raises, an unreadable load or CPU set) is
+    never starvation: the attempt runs on to its own verdict.
+
+    `_runqueue_wait_seconds` (the layer site passes it; the per-file runner does not) adds a THIRD
+    condition. A layer's work may run OUTSIDE its process group — in a container, on a remote
+    service — and such a group reads `stalled` while nothing is withheld from it. So the group must
+    also hold a task that spent the attempt WAITING FOR A CPU: the longest run-queue wait of any one
+    of its live tasks, read by the same classifier against the same wall, must read `long` (the
+    caller's reader returns that longest wait — a sum over tasks would read many brief waits as one
+    long one). No reading, or any other class, is not starvation."""
+    _ps = _process_group_cpu_seconds(pgid)
+    cpu, members = _ps if isinstance(_ps, tuple) else (_ps, None)
+    try:
+        cls = _timeout_class(wall_s, cpu, members)
+    except Exception:
+        cls = None          # an unusable reading never restarts anything
+    try:                    # an unreadable load / CPU set never restarts anything
+        over = os.getloadavg()[0] > len(os.sched_getaffinity(0)) > 0
+    except (OSError, AttributeError):
+        over = False
+    starved = cls in ("stalled", "starved") and over
+    if starved and _runqueue_wait_seconds is not None:
+        try:
+            starved = _timeout_class(wall_s, _runqueue_wait_seconds(pgid)) == "long"
+        except Exception:
+            starved = False
+    return starved, cpu
+
+
 #: T-12357 — the outcomes that are a REAL VERDICT for a test file, i.e. the file was run and the run
 #: CONCLUDED about it. `killed-fail-fast` is deliberately ABSENT: a file the fail-fast stop killed
 #: mid-flight was never judged, so the resume must re-run it. This is the ledger's whole admission
@@ -5285,10 +5372,10 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
         # falls back to the hardcoded mirror only if unset) and MINT a fresh
         # v2-named uuid as the box's own YITC_SESSION_REF. Scrubbing the PROVIDER carriers is what makes
         # the box CURRENT-EPOCH ANCHORED: the box journal is seeded UNDER the fresh id (session_started +
-        # cli:seed receipt), and with NO inherited provider carrier `_session_epoch()` computes epoch 0,
-        # matching the receipt → the fail-closed keyer honors the backed carry (selector 1b) and never
+        # cli:seed receipt), and with NO inherited provider carrier the context epoch reads CANNOT TELL under
+        # no observed provider, which credits that receipt (SPEC-1023 rule 6, T-13789) → the fail-closed keyer honors the backed carry (selector 1b) and never
         # falls through to the ambient worktree stamp. (Rule 8b removed the provider carriers from the
-        # IDENTITY registry, so the union — not the bare registry tuple — is what preserves this epoch-0
+        # IDENTITY registry, so the union — not the bare registry tuple — is what preserves this current-epoch
         # hermeticity.) This is the hermetic-by-default generalization of the T-0579 EXPECTED-only scrub,
         # now that the keyer is carrier-precedence-first + fail-closed. ALLOWLISTED tests are UNTOUCHED
         # (they keep the launcher carriers + real journal and assert against the running session's own

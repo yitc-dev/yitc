@@ -1,0 +1,463 @@
+id: SPEC-1024
+title: Compaction recovery — the restoration brief, its print-only delivery, the plain
+  backstop and the per-provider cue declaration
+status: active
+created_at: 2026-10-08 11:48:28+00:00
+travels: kernel
+consumed: false
+implements:
+- bin/lib/session.py#render_compaction_brief
+- bin/lib/session.py#transcript_scan
+- bin/lib/session.py#post_compact_refold_lines
+- bin/lib/session.py#backstop_plain_line
+- bin/lib/session.py#cue_not_guaranteed_line
+- bin/lib/cli.py#_restoration_brief
+- bin/lib/cli.py#_session_start_print_only
+- bin/lib/cli.py#_compaction_backstop
+- bin/lib/cli.py#COMPACTION_CUE_DELIVERED
+- bin/lib/cli.py#cmd_session_start
+- bin/lib/journal.py#conversation_entry
+amends:
+- 'SPEC-0007 §5b «`session start` is re-run after a compaction ONCE, to refresh the
+  receipt» — gains a second sanctioned post-compaction run, the PRINT-ONLY one, placed
+  BEFORE the seed re-read. An ADDITIVE case (SPEC-0005 rule 7): the stamping run,
+  its once-per-checkout rule and everything it prints are unchanged. Edited in place
+  by card (3), which ships the print-only run, together with the AGENTS.md §After
+  /compact sentence below.'
+- 'AGENTS.md §After /compact — card (3) changes the one sentence that allows a single
+  post-compaction `session start` (in the same change as the print-only run); the
+  last card rewrites the section around the brief: the print-only run is step 1, then
+  the whole-seed re-read, then the stamping run once per checkout. Text the brief
+  prints and no other rule holds there is deleted; the one index line per re-fold
+  step that SPEC-0007 §5b keeps in that section, and each pointer an active spec names
+  it as carrying, stay as pointers.'
+- 'SPEC-0137 rule 2 «a carried ref is honoured only when backed by a live record or
+  a current-epoch anchor» — gains ONE additive, read-only case (rule 5 below): the
+  brief honours an anchored carry with a stale receipt, and recovers a lost carry
+  from the conversation''s own transcript. The governance-keying chain and its fail-closed
+  rule are unchanged; the print-only run never mints.'
+- 'AGENTS-PROTOCOL §When NOT to add a mechanism («a new hook → STOP») and the CHARTER
+  non-goal «NOT a hook-laden enforcement platform» — gain ONE named, owner-approved
+  exception (decision C6 / 1A, `events.jsonl#ts=`): the in-repository post-compaction
+  entry of rule 12, within its bounds; any other hook still takes the four filters
+  and owner approval. Edited by the card that ships the entry, in the same change.'
+- SPEC-1004 is NOT amended — its §4 content contract is reused as the brief's shape;
+  the fresh-session hand-off and its store are untouched, and no hand-off is written
+  for a compaction.
+body: "## Scenario\n\nA session's context has just been compacted. What the session\
+  \ still «knows» is whatever the\nprovider's summary happened to keep. Before it\
+  \ does anything else it can ask the engine one\nquestion — «what was I?» — and gets\
+  \ a short brief built from durable state: its own session ref and\ncheckout, the\
+  \ work it holds, what it launched, the owner's decisions it is working under, what\
+  \ it\nhad asked the owner and not yet been answered, and the ordered steps to get\
+  \ back to work. The brief\nis the same whatever the provider. Asking for it attests\
+  \ nothing: the session still re-reads its\nrules and only then refreshes its receipt.\
+  \ If the session does not ask, the first engine command it\nruns tells it, in one\
+  \ plain line, that its context was compacted and where the brief is.\n\n## Internal\n\
+  \nTHE COMPACTION-RECOVERY CONTRACT. It adds no store, no hand-off file, no new journal\
+  \ event type and\nno new verb: the brief is a DERIVED VIEW printed by a mode of\
+  \ `session start`, over readers the\nengine already has. When a compaction happened\
+  \ is decided by SPEC-1023 alone. Thirteen rules.\n\n### 1. One brief, one renderer,\
+  \ two delivery points\nThe brief is rendered by ONE function and shown at exactly\
+  \ two points: (i) the print-only run\n(rule 8), asked for by the session; (ii) the\
+  \ backstop (rule 10), at the first engine verb a session\nruns after a compaction\
+  \ it has not yet recovered from. Both print the same brief for the same state.\n\
+  \n### 2. Content — pointers first, in a fixed order\nThe shape is the SPEC-1004\
+  \ §4 content contract: ids, paths and commands FIRST, short text SECOND;\nthe brief\
+  \ points at durable state and never restates it. Sections, in this order, each present\
+  \ or\nexplicitly marked «nothing» / «could not read» (rule 4):\n  1. **What happened**\
+  \ — as the reading states it (SPEC-1023): the newest compaction marker it names\
+  \ —\n     no compaction is claimed where it names none, and a reading that cannot\
+  \ tell is said to be one\n     (rule 10's three cases) — and the\n     provider's\
+  \ trigger field quoted AS RECORDED, never restated as who started the compaction\
+  \ —\n     the field does not tell an idle compaction from a user-issued one; an\n\
+  \     idle note is shown when the provider wrote one.\n  2. **Who you are** — the\
+  \ session ref, the session type (controller / worker), the anchored\n     checkout\
+  \ — read from the session record or the worktree stamp (SPEC-0137); the\n     `session_started`\
+  \ row does not carry it — and the worktrees stamped\n     with this session.\n \
+  \ 3. **What you hold** — the in-progress tasks claimed by this session with their\
+  \ `current_stage`\n     and worktree; a plan this session's own journal rows show\
+  \ it advancing, with its status; lands\n     this session started that have not\
+  \ reached a terminal row; background workers this session\n     dispatched and watchers\
+  \ it armed whose process is alive NOW; the open hand-offs of the\n     anchored\
+  \ store. Only what is still held is listed: finished workers, terminal lands and\n\
+  \     closed tasks fold into one counted line per kind with the command that lists\
+  \ them.\n  4. **Owner decisions on record** — this session's `owner_directive` rows\
+  \ — those under its session\n     ref AND those whose `source_ref` names its own\
+  \ transcript, whatever ref they carry — newest\n     first, as journal\n     locators\
+  \ with a bounded excerpt, shown AS HISTORY: the brief does not judge which are still\
+  \ in\n     force. Where a durable artifact carries the current state of an obligation\
+  \ (a task card's\n     status, a plan's stage, a paused card's resume contract),\
+  \ the line points at it; a directive\n     a later directive in the list may have\
+  \ replaced or fulfilled is not merged or dropped — the\n     session reads them\
+  \ in order and checks the artifact.\n  5. **What was pending** — the owner's last\
+  \ turn before the compaction, the session's last\n     message to the owner and\
+  \ any owner turn after that message, as bounded quoted excerpts read\n     from\
+  \ the transcript (rule 6) — not from section 4, whose rows exist only once the journal\
+  \ has\n     materialized the turn; then ONE pointer line: how many text messages\
+  \ the session sent after\n     the owner's last turn and the transcript locator\
+  \ of the first of them, with the instruction to\n     read them before acting. The\
+  \ brief does not judge which message is an open question or a\n     proposal: whatever\
+  \ the session asked or proposed since the owner last spoke lies in that range.\n\
+  \  6. **What to do now** — the ordered recovery steps: read every part of your audience\
+  \ seed, each\n     part NAMED — for a Worker the whole worker-seed chain AND the\
+  \ floor trigger-map; then the\n     stamping run, once per checkout your next governed\
+  \ verbs run from, in\n     this session's own start form; then the re-fold steps\
+  \ that apply to this session's state.\nThe steps of section 6 are DERIVED by the\
+  \ same function that prints the post-compaction re-fold\nblock on the stamping run\
+  \ (the rule homed in SPEC-0007 §5b) — one derivation, two print sites.\n\n### 3.\
+  \ Sources — the journal for history, the state readers for state\nHistory and provenance\
+  \ come from the journal, through the segment-aware reader and ONE read scope\nfor\
+  \ the whole brief (SPEC-0190). CURRENT state comes from the reader that already\
+  \ owns it: the task\nand plan views, the worktree stamps, the hand-off store's shared\
+  \ entry loader, the dispatch and\nwatcher readers (SPEC-0133). A journal row that\
+  \ says something was started does not prove it is\nrunning: liveness is read, not\
+  \ inferred. A land is in flight only when ONE OF THIS SESSION'S OWN\nbranches has\
+  \ a land row and no terminal row for that branch; a batch row naming several branches\n\
+  is never a source of ownership or of state, since it lists other sessions' branches\
+  \ too.\n\n### 4. A gap is shown, never read as «nothing»\nA reader that fails, a\
+  \ record that should exist and does not, a transcript that cannot be read:\neach\
+  \ prints as a named gap in its section («could not read <what>: <why>») with the\
+  \ command that\nshows the state directly. A section is «nothing» only when its reader\
+  \ answered and the answer was\nempty. The brief never reconstructs what it could\
+  \ not read, and a failed section never aborts the\nrest of the brief or the verb\
+  \ that carries it.\nONE case stops earlier and is not this rule's: the session's\
+  \ OWN transcript, present but unreadable,\nstops every engine invocation — the print-only\
+  \ and the stamping run included — at the existing\nfail-closed journal auto-sync\
+  \ (SPEC-0004 / SPEC-0010), which names the file, before any brief is\nbuilt. This\
+  \ contract leaves that stop as it is: it credits nothing, and its recovery is restoring\n\
+  read access, recorded as a deviation (SPEC-1023 rule 6a step 5). STATED LIMIT: no\
+  \ brief is shown\nin that case.\n\n### 5. Own work only; identity is resolved, never\
+  \ minted and never guessed\nThe session ref and the anchored repository are resolved\
+  \ by the existing strict resolver\n(SPEC-0137) — never from the working directory\
+  \ alone and never from text in the provider's summary.\nTwo cases are specific to\
+  \ the moment after a compaction, and both are READ-ONLY for the brief:\n  - **(a)\
+  \ an anchored carry with a stale receipt.** A carried ref whose own `session_started`\n\
+  \    anchor is in the journal and whose receipt is from an earlier epoch is the\
+  \ ordinary state of a\n    just-compacted session. The print-only run and the backstop\
+  \ honour it as the session the brief\n    is for. That does not back the ref for\
+  \ governed work: only the stamping run does.\n  - **(b) no carry at all.** When\
+  \ the summary kept no ref, the print-only run looks for THIS\n    conversation's\
+  \ own start report in its provider transcript — the transcript-join role\n    SPEC-0137\
+  \ rule 4 already keeps for the context epoch — and, when exactly ONE session ref\
+  \ is\n    found there that also has its `session_started` anchor in the journal,\
+  \ uses that ref for the\n    brief and prints it as the ref to carry. Zero or several\
+  \ candidates is «unresolved».\nThe print-only run NEVER mints an identity. Sections\
+  \ 2–5 list only what is tied to the resolved\nref: a worktree stamp, a claim, a\
+  \ launch or arming row, a journal envelope. Work of other sessions\nsharing the\
+  \ journal is not shown. When the identity is unresolved, the brief says so, prints\n\
+  section 1 and the generic form of section 6 with the way to re-anchor, and prints\
+  \ nothing that\nwould need an identity to be true.\n\n### 6. Conversational residue\
+  \ comes from the transcript, bounded and quoted\nSection 5 is read from the session's\
+  \ provider transcript through the existing session-log\nadapter (SPEC-0004) — for\
+  \ a provider the adapter does not yet read (§Parameters), sections 4 and 5 show\
+  \ «could not read: no adapter for this\nprovider» until the adapter reads it — not\
+  \ from the provider's summary — walking back from the boundary over\nCONVERSATION\
+  \ turns only (the owner's own turns and the session's text replies; tool calls,\
+  \ tool\nresults and harness notifications are skipped and never counted) until it\
+  \ has located BOTH the\nowner's last turn and the session's last text reply, or\
+  \ reached the start of the transcript —\nwhichever of the two is missing is then\
+  \ shown as absent (rule 4). The same pass counts the\nsession's text replies after\
+  \ the owner's last turn and keeps the locator of the first (section 5's\npointer\
+  \ line). What is PRINTED is bounded by\nbytes (rule 7).\nOwner constraints older\
+  \ than that turn arrive through section 4's journal locators. Reasoning the session\
+  \ never voiced is not\nrecoverable and is not simulated. Everything quoted from\
+  \ the journal or the transcript is printed\nas DATA: inside a delimited block, with\
+  \ its locator, after the existing credential redaction —\nand a restored proposal\
+  \ or question is labelled as not an owner authorization (SPEC-0141).\n\n### 7. Bounded\
+  \ by total size — a guaranteed minimum, the rest cut visibly\nThe brief has a total\
+  \ byte bound and a per-item bound (§Parameters). A MANDATORY MINIMUM is always\n\
+  printed whole and is sized well inside the total bound: section 1, the session ref\
+  \ / type /\ncheckout line of section 2, section 5 (each quoted item within the per-item\
+  \ bound, or its «absent»\nline, and its pointer line) and section 6. Everything\
+  \ else fills the remainder: text is cut before\npointers, older items before newer\
+  \ ones; when pointers themselves do not fit, whole items are\ndropped, and each\
+  \ section that lost items says how many and prints the command that lists them\n\
+  whole. An item that is shown keeps its pointer. A count of items is never the only\
+  \ bound. The mandatory minimum is kept COMPACT by construction: section 6 names\
+  \ each\nseed part once, as a path list on one line per audience, and names the re-fold\
+  \ steps by their\ncommands only. If the mandatory minimum alone would exceed the\
+  \ total bound (a long consumer path, a\nlonger seed chain), it is STILL printed\
+  \ whole — the guarantee outranks the bound — every other\nsection is reduced to\
+  \ its one «cut» line with the listing command, and the brief says the bound\nwas\
+  \ exceeded and by how much.\n\n### 8. Print-only delivery attests nothing\n`session\
+  \ start` gains ONE mode that prints the brief and stops. That run does not stamp\
+  \ the\nseed-read receipt, does not write a `session_started` anchor and changes\
+  \ no task, plan, worktree or\nreceipt state. Its writes are exactly what EVERY engine\
+  \ invocation already writes — its own\ninvocation receipt and the mandatory journal\
+  \ auto-sync of SPEC-0010, i.e. the rows it materializes\n(which is how the owner\
+  \ turns section 4 reads reach the journal) and its sync checkpoint — plus the\n\
+  delivery row of rule 9; nothing else. It runs with a stale receipt — that is its\
+  \ purpose — and under\nthe same identity rules as rule 5. The recovery ORDER is\
+  \ fixed: print-only brief → the session\nreads every part of its audience seed →\
+  \ the stamping run, which stays the session's own receipt\nproducer and is unchanged\
+  \ here (the dispatch bootstrap co-producer of SPEC-0050 §8 is unchanged too;\nwhat\
+  \ both record is SPEC-1023 rule 6's); the print-only run produces no receipt. Nothing\
+  \ but the session itself, after its re-read, runs the stamping form: an\nautomated\
+  \ entry point of any provider may run the print-only mode only (rule 12).\n\n###\
+  \ 9. The delivery row\nEach time the full brief is shown — by rule 8 or rule 10\
+  \ — the engine writes ONE receipt row of the\nkind the seed receipt already is (an\
+  \ invocation row carrying a sentinel node id of its own), with\nthe epoch, the delivery\
+  \ point, the brief's size, whether it was cut, and the named gaps. It never\ncarries\
+  \ the brief's text. It is NOT a seed receipt and credits nothing at any gate. It\
+  \ is written\nONLY when the brief's output was delivered — the existing `stdout_delivered`\
+  \ record of the\ninvocation receipt is the test; a run whose output went to the\
+  \ null device writes no\ndelivery row, so it can never suppress a brief the context\
+  \ did not get. Its stated limit: that\ntest sees only the null device — a pipe that\
+  \ shows part of the output (a tail of it) counts as\ndelivered — so the plain line\
+  \ of rule 10 is printed both FIRST and LAST, and a view of the output's beginning\
+  \ or of its end still\ncarries the cue and the print-only command; a view of only\
+  \ the middle carries neither (stated\nlimit). It records a\nrestoration DELIVERED;\
+  \ a compaction DETECTED is the transcript's record (SPEC-1023), and a session\n\
+  that never runs an engine verb after its compaction leaves no delivery row.\n\n\
+  ### 10. The backstop speaks plainly, once\nAny engine verb — a read-only one included\
+  \ — run by a session whose newest seed receipt does not name\nthe reading's mark\
+  \ (SPEC-1023 rule 6) FIRST prints one plain line on stderr, so the verb's own\n\
+  stdout stays whole for a machine that reads it, and repeats it as its LAST line\
+  \ (rule 9). The line\ntells THREE cases apart, from the reading and the receipt's\
+  \ stamp: a compaction DETECTED — the\nnewest compaction marker is not the one the\
+  \ receipt recorded: «context was compacted» and the\nprint-only command; a receipt\
+  \ in the OLD NUMERIC format — a refresh is required and NO compaction is\nclaimed:\
+  \ the stamping command; CANNOT TELL under a provider whose detection is observed\
+  \ — treat the\ncontext as compacted (SPEC-1023 rule 6a): the cause and the print-only\
+  \ command. A receipt naming a\nmarker while the reading names none (a cut or rewritten\
+  \ transcript — SPEC-1023 rule 5) is said as\nthat mismatch and claims no compaction,\
+  \ and is recovered from as one. For every case but the old\nformat, if no delivery\
+  \ row exists yet for that reading — one written after the session's last seed\n\
+  receipt of another reading (SPEC-1023 rule 6) — the full brief follows the first\
+  \ line once,\ndecided under one lock, and the delivery row lives in the main checkout's\
+  \ journal, which every\ncheckout of the project reads — so two verbs of the session\
+  \ started together, from one checkout or\nfrom two, print one brief and write one\
+  \ row; later\nverbs in the same epoch print the line alone, until the stamping run.\
+  \ Silent: `session start` (its\nprint-only run IS the brief, its stamping run IS\
+  \ the recovery), a run carrying no provider carrier\n(no conversation of its own\
+  \ to tell — the gate alone applies to it), a provider whose detection is\nnot observed,\
+  \ and a session with no seed receipt. This rule ships together with\nthe receipt's\
+  \ marker-identity record (SPEC-1023 rule 6), never before it: without that record\
+  \ a\nrecovered session would still read as compacted. Only a delivery row whose\n\
+  output was delivered counts as «already shown» (rule 9). A gated verb's stale-epoch\n\
+  refusal (SPEC-0050 §8) carries the same line and the same once-per-epoch brief.\
+  \ Deciding «already\nshown» reads the delivery row through the tail-first session\
+  \ walk the gate already uses — no\nfull-history scan is added to a read-only verb.\n\
+  \n### 11. The brief authorizes nothing\nThe brief is orientation. Showing it does\
+  \ not take a hand-off, relaunch or adopt a worker, retry a\nland, resume a plan\
+  \ stage or a task, or turn a pending question into a go. Each of those keeps its\n\
+  own rule and, where it needs one, its own live owner cue (SPEC-0141, SPEC-1004 §6,\
+  \ SPEC-0126).\n\n### 12. The cue before the first edit — declared per provider\n\
+  File edits are not engine verbs, so rule 10 cannot reach a session that edits before\
+  \ it runs one.\nFor each provider the engine declares one of: **cue DELIVERED**\
+  \ — a named existing entry point of\nthat provider was observed, on a live compaction,\
+  \ to put the engine's cue into the session's\ncontext before its next action; or\
+  \ **cue NOT GUARANTEED**. Admission is by live observation, as in\nSPEC-1023 rule\
+  \ 3, and the two declarations are independent of each other and of SPEC-1023's\n\
+  detection state. Under «not guaranteed», `session start` says so in one line at\
+  \ startup. A\ndeclaration covers exactly the combinations observed — launch shape\
+  \ (inside / outside the\nrepository), harness (interactive window / headless run)\
+  \ and compaction kind (user-issued /\nautomatic / idle) — and §Parameters lists\
+  \ them; an unobserved combination is NOT GUARANTEED until a\nlive observation admits\
+  \ it.\nThe cue is carried ONLY by surfaces inside the\nproject's own repository\
+  \ — per provider, an entry point the repository holds and the provider runs\nor\
+  \ re-sends after a compaction (§Parameters names it for each provider). A session\
+  \ launched\noutside the repository (the interactive Controller launched from the\
+  \ home directory) is declared\ncue NOT GUARANTEED: it gets the cue at its first\
+  \ engine verb (rule 10). Host-level settings are not\ntouched. The entry is the\
+  \ ONE named, narrow exception to the no-hooks non-goal, and its bounds are\npart\
+  \ of THIS rule: fixed engine-authored text; a bounded run time and\noutput size;\
+  \ it never blocks, delays or fails a compaction; it has no side effect beyond the\
+  \ writes\nrule 8 names for the print-only run (the invocation receipt, the SPEC-0010\
+  \ auto-sync's rows and its\nsync checkpoint, the delivery row) and may run the\n\
+  print-only mode only; nothing quoted from a journal or transcript is interpolated\
+  \ into a shell or\nphrased as an instruction.\n\n### 13. Every session kind, every\
+  \ invocation form\nA dispatched Worker gets the same brief: its section 6 prints\
+  \ its own start form (the worker\ntype), and the hand-off line is absent because\
+  \ a Worker never takes one (SPEC-1004 §5). In a `-C`\nconsumer session every command\
+  \ the brief prints is in the engine `-C` form.\n\nThe print-only mode's flag name\
+  \ is chosen by the activating card; it is a name, not a rule.\n\n## Parameters\n\
+  \nNot `consumed`. Governed code constants — values are set by the `trial` runs of\
+  \ the authoring plan:\n\n| parameter | value | meaning |\n|---|---|---|\n| brief\
+  \ total bound | 6000 bytes (~1500 tokens) | the bound everything except the mandatory\
+  \ minimum is cut to; measured briefs were 1.0–1.5 kB (R-brief-1). Exceeded only\
+  \ when the mandatory minimum alone exceeds it, and then stated (rule 7) |\n| mandatory\
+  \ minimum | sections 1, 2 (identity line), 5 and 6 — sections 1, 2 and 6 measured\
+  \ 449 B (a controller) to 704 B (a Worker under `-C` with the longest project path);\
+  \ section 5 measured median 681 B, max 1185 B over 46 recorded compactions | always\
+  \ printed whole; normally far inside the total bound, past it only as rule 7 states\
+  \ |\n| per-item bound | 400 bytes | the most one quoted excerpt prints; the R-brief-2\
+  \ pending proposal fit in it whole |\n| residue scan | back from the boundary over\
+  \ conversation turns only, until both the owner's last turn and the session's last\
+  \ text reply are located, or the start of the transcript shows one absent (rule\
+  \ 6) | what section 5 reads (rule 6); one pass over the file, like the epoch reader;\
+  \ printed under the per-item and total bounds |\n\n**Measurements behind the rules**\
+  \ (the authoring plan's trial runs): a prototype brief was\n~1–1.5 kB for a real\
+  \ session and took ~3 s to build, so rule 10's build-once-per-epoch is a\nnecessity\
+  \ (R-brief-1); a land batch row named other sessions' branches and showed a finished\
+  \ land as\nin flight, hence rule 3's own-branch test (R-brief-1); the `session_started`\
+  \ row does not carry the\nanchored checkout (R-brief-1); the trigger field does\
+  \ not tell an idle compaction from a user-issued\none (R-brief-2); listing 57 exited\
+  \ workers made rule 7 cut the text of all 29 owner\ndecisions, folded 18 of 29 kept\
+  \ their text, hence section 3's held-only listing (R-closed-design);\ntwo owner\
+  \ turns after a compaction were materialized under `unresolved` by a call without\
+  \ the\ncarried ref, hence section 4's own-transcript `source_ref` (cycle 11, deviation\n\
+  `events.jsonl#ts=`); recorded Worker recoveries omitted the floor trigger-map in\n\
+  6 of 7, hence section 6 names every part (R-retro); a tail counted in raw records\
+  \ missed the owner's\nlast turn in 12 of 45 recorded compactions, up to 1028 records\
+  \ back, hence rule 6's scan over\nconversation turns (R-closed-design).\n\nSession-log\
+  \ adapter coverage (rule 6): the AI provider-code — read; <external-auditor> — read\
+  \ once the activating card\nextends the SPEC-0004 classifier to its conversation\
+  \ records (`response_item` / `message`, which it\ndoes not take today), so a <external-auditor>\
+  \ brief restores sections 4 and 5 (V3c). The «no adapter» gap of\nrule 6 remains\
+  \ for a provider the adapter has no reader for (V3b).\n\n| provider kind | cue before\
+  \ the first edit | delivered through | provider version observed | evidence |\n\
+  |---|---|---|---|---|\n| the AI provider-code, launched inside the repository |\
+  \ DELIVERED for a headless run with a user-issued or an automatic compaction; NOT\
+  \ GUARANTEED (not yet observed) for an interactive window and for an idle compaction\
+  \ | the project settings' session-start entry on source `compact` (rule 12, decision\
+  \ C6), observed live on a user-issued and an automatic compaction (R-live-1/2) —\
+  \ an IDLE compaction inside the repository is not observed (the one live idle compaction\
+  \ was launched outside; R-closed-design-4 checked every live record against this\
+  \ table); also the re-attached repository adapter (37 of 37 in-repo launches) |\
+  \ 2.1.294 | trial runs R-live-1 `events.jsonl#ts=`, R-live-2 `events.jsonl#ts=`\
+  \ |\n| the AI provider-code, launched outside it | NOT GUARANTEED (decision C6)\
+  \ | no route the project owns reaches it; observed live on an idle compaction of\
+  \ the interactive Controller: no session-start entry output, the adapter not re-attached\
+  \ — it arrived only when the session first read a file inside the repository, after\
+  \ its first shell reads (R-closed-design `events.jsonl#ts=`); the cue reaches it\
+  \ at its first engine verb (rule 10) | 2.1.294 | as stated |\n| <external-auditor>,\
+  \ working inside the project | DELIVERED for the interactive window with a user-issued\
+  \ compaction; NOT GUARANTEED (not yet observed) for a headless run and an automatic\
+  \ compaction | the project instruction file it re-sends every turn (rule 12, decision\
+  \ C6), observed live carrying a test cue after a `/compact` | 0.159.2 (`<external-auditor>-tui`)\
+  \ | trial run R-live-<external-auditor> `events.jsonl#ts=` |\n| <external-auditor>,\
+  \ working outside the project | NOT GUARANTEED (decision C6) | the re-sent instruction\
+  \ file is the working directory's, so a session outside the project does not get\
+  \ the project's cue; it reaches the session at its first engine verb (rule 10) |\
+  \ 0.159.2 | follows from R-live-<external-auditor> |\n\n## Rationale\n\nA compacted\
+  \ session used to learn what had happened to it from a refusal — or not at all,\
+  \ when its\nnext action was a file edit — and what it remembered of its own identity,\
+  \ its open question and the\nowner's constraints was whatever a summary kept. Every\
+  \ fact the brief prints already exists in\ndurable state; what was missing was one\
+  \ place that reads it back for THIS session, at the moment it\nis needed, without\
+  \ attesting that the session's rules were re-read. Keeping the print-only run\n\
+  apart from the stamping run is what makes an automated cue safe: the thing a provider\
+  \ entry point\nmay trigger can never refresh a receipt.\n\n## Verification\n\nProbe\
+  \ CONTRACTS (each must be seen failing on the pre-change tree or on the named broken\
+  \ variant):\n- **V1 — print-only attests nothing.** After a print-only run on a\
+  \ stale receipt, a governed verb\n  is still refused stale-epoch; the journal gained\
+  \ the run's invocation receipt, the SPEC-0010\n  auto-sync rows and exactly one\
+  \ delivery row (rule 9) — no anchor, no seed receipt, no epoch stamp.\n  Differential:\
+  \ the stamping run in its place makes the same verb pass.\n- **V2b — history, not\
+  \ a verdict.** With a directive later countermanded by another, both appear in\n\
+  \  order as history, and the task the countermand stopped is shown at its current\
+  \ card status.\n- **V2 — own work only.** With two sessions holding different in-progress\
+  \ tasks, workers and\n  directives on one journal, each session's brief lists its\
+  \ own and none of the other's.\n- **V3b — no adapter, a shown gap.** A readable\
+  \ transcript of a provider the session-log adapter has\n  no reader for (a test\
+  \ provider row with an owner turn and a reply): sections 4 and 5 print the\n  «no\
+  \ adapter» gap, the rest of the brief is unchanged, and no seed receipt is written.\n\
+  - **V3c — <external-auditor> residue restored.** On the recorded R-live-<external-auditor>\
+  \ rollout (an owner turn and the\n  session's reply before the compaction): section\
+  \ 5 quotes the owner turn and the reply, and section\n  4 lists the owner turn as\
+  \ materialized by the auto-sync. Differential: the pre-change classifier\n  reads\
+  \ none of its conversation records.\n- **V3 — gaps are shown.** With the hand-off\
+  \ store unreadable, a watcher record missing and the\n  transcript absent, the brief\
+  \ prints three named gaps, the remaining sections, and exits as the\n  carrying\
+  \ verb would have. Pinned limit (rule 4): with the session's own transcript present\
+  \ but unreadable,\n  the print-only run stops at the auto-sync with the file named\
+  \ — no brief, no delivery row, no seed\n  receipt.\n- **V4 — liveness is read.**\
+  \ A dispatched worker whose launch row exists and whose process is gone\n  is not\
+  \ listed as held: it is counted in section 3's folded line, with the command that\
+  \ lists it.\n- **V4c — a question followed by a progress message is not lost.**\
+  \ A transcript where the session\n  asked the owner a question, then sent a progress\
+  \ message, then was compacted with no owner turn\n  after: section 5 quotes the\
+  \ owner's last turn and the progress message, and its pointer line\n  counts 2 messages\
+  \ and names the question's locator. Differential: a brief quoting only the last\n\
+  \  reply does not reach the question.\n- **V4b — the owner's last turn is found.**\
+  \ A transcript whose owner turn lies behind 1000 tool\n  records before the boundary\
+  \ yields that turn in section 5; tool records are not counted.\n  Differential:\
+  \ a scan bounded by a count of raw records fails.\n- **V5 — bounded and honest.**\
+  \ A directive longer than the per-item bound and a state larger than\n  the total\
+  \ bound produce a brief within both bounds that holds the whole mandatory minimum,\
+  \ keeps\n  the pointer of every item it shows, and names in each affected section\
+  \ how many items were cut\n  and the command that lists them whole. A second case\
+  \ inflates the MANDATORY MINIMUM itself (a long\n  consumer path and a seed chain\
+  \ of many parts) past the total bound: the minimum is printed whole,\n  every other\
+  \ section shrinks to its cut line while section 5 keeps the owner's last turn and\
+  \ the\n  session's last reply as bounded quotes, and the overflow is stated. Differential:\
+  \ a renderer that\n  cuts the mandatory minimum — section 5 included — or drops\
+  \ items silently fails.\n- **V6 — once per epoch.** (Concurrency: two verbs of ONE\
+  \ session in ONE epoch started together\n  print exactly one full brief and write\
+  \ exactly one delivery row; both print the plain line.) The first read-only verb\
+  \ after a compaction prints the line and the full\n  brief; the second prints the\
+  \ line alone; after the stamping run neither prints. Differential:\n  without the\
+  \ delivery-row lookup the second verb prints the brief again. A second case discards\
+  \ the\n  first verb's output (redirected to the null device): no delivery row is\
+  \ written and the next\n  verb prints the full brief; and a third shows only the\
+  \ last lines of the output: they hold the\n  plain line. Differential: a delivery\
+  \ row written regardless suppresses it.\n  A fourth shows only the middle lines\
+  \ of a cut-free brief (its output delivered): the plain line is\n  absent — the\
+  \ stated limit of rule 9, pinned. The three cases of rule 10: a receipt stamped\
+  \ in the\n  old numeric format (epoch 0) against the reading NONE prints the refresh\
+  \ line and NO compaction\n  claim and no brief; a receipt naming marker U against\
+  \ the reading V prints «context was compacted»\n  first and last; CANNOT TELL prints\
+  \ its own line. Differential: a line keyed on «the stamp differs»\n  alone claims\
+  \ a compaction for the old-format receipt.\n- **V7 — quoted is data.** A directive\
+  \ and a transcript excerpt carrying shell metacharacters, an\n  imperative sentence\
+  \ and a credential shape are printed inside the delimited block, redacted, and\n\
+  \  change no command line the brief prints.\n- **V8 — identity.** (i) An anchored\
+  \ carry with a stale receipt gets its full brief, and a governed\n  verb run right\
+  \ after is still refused. (ii) With no carry and one start report in the\n  conversation's\
+  \ transcript, the brief names that ref; with two, or none, it prints sections 1\
+  \ and\n  6 in generic form and no identity-bound section. (iii) No print-only run\
+  \ ever writes a new\n  session record. Differential: a run that falls through to\
+  \ the minting path fails (iii).\n- **V9 — worker and consumer forms.** A Worker's\
+  \ brief prints the worker start form and no hand-off\n  line; a `-C` session's brief\
+  \ prints every command in the engine `-C` form.\n- **V10 — live recovery order (the\
+  \ plan's soak).** On a live compaction: the compaction named, the\n  print-only\
+  \ delivery row, every seed part DELIVERED, then the stamping run — in that order,\
+  \ under\n  an unchanged session ref. A part counts as delivered when the transcript\
+  \ shows the session read\n  it whole after the boundary, or the provider re-attached\
+  \ its full content after the boundary\n  (the source is named either way); a reference\
+  \ to a file without its content is not delivery.\n  «No edit before the re-read»\
+  \ is measured on the session's OWN writes, attributed and timed from\n  its transcript:\
+  \ every file-writing tool call AND every shell command that writes a tracked path,\n\
+  \  between the boundary and the re-read, excluding the engine's own writes (the\
+  \ journal, the engine\n  state directory, derived graph files) and excluding changes\
+  \ another session landed in the same\n  checkout. Never as a working-tree diff,\
+  \ which counts the recovery's own journal rows and a\n  concurrent land as «edits»;\
+  \ never as a count of edit-tool calls alone, which cannot see a write\n  made through\
+  \ the shell (trial run R-retro: the 2026-10-06 incident session changed files only\
+  \ that\n  way). A write the session made and then reverted before the re-read still\
+  \ counts.\n"
+cites:
+- SPEC-1023
+- SPEC-1004
+- SPEC-0007
+- SPEC-0050
+- SPEC-0137
+- SPEC-0004
+- SPEC-0133
+- SPEC-0190
+- SPEC-0141
+- SPEC-0126
+- CHARTER.md#principle-1
+- CHARTER.md#principle-4
+requires:
+- SPEC-1023
+supersedes: null
+activation_owner_task: null
+proposed_by: provider-neutral-compaction-survival-restoration-b
+binding:
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/cli.py#COMPACTION_CUE_DELIVERED: 45468c37dcfbc9d6ed7706dab43972278375b58cb09544075c21f05393d1372c
+  bin/lib/cli.py#_compaction_backstop: f1104515f4aec4ee2d2374603119beebfe20321757f8dd3790a5e5d695dfa4ab
+  bin/lib/cli.py#_restoration_brief: 4640c51d200d9cf52c08ce6305a526b412092336cf1b456444884549d5ecbba5
+  bin/lib/cli.py#_session_start_print_only: e1c27fa58b8afced470f7ceec831cbf98d1f6eaac51ff237c207ae02622787e8
+  bin/lib/cli.py#cmd_session_start: 7aebc162e49cd94797d70dbb21a7a60608de4123f8c666a3223568bfa5db70bf
+  bin/lib/journal.py#conversation_entry: 5a51900cba11b61ec9dcbbc3293996bf383f56e9ed4a83151169477b7f70b48b
+  bin/lib/session.py#backstop_plain_line: 86d3b5a98a8e9dd73cbafd85bba77a3e5f865be63777ffbf45c1a7ab33092a14
+  bin/lib/session.py#cue_not_guaranteed_line: 23d0e6876b59b5ad32d509fb676b1c7ed3c130e42d2971866a443308172bf861
+  bin/lib/session.py#post_compact_refold_lines: 45245810b06435cf7eaabb8b3c31cea869e455c4c29a18ee971b1dd36351af3b
+  bin/lib/session.py#render_compaction_brief: 93977d6fc705f9cc0554be750be2a4033524dcc6b961bb0fa8bbacc7f1c51828
+  bin/lib/session.py#transcript_scan: d1fe191ca50eb1c67a87e0cdb3d8d9764e98b9dcb80d73099eca8326952ee019

@@ -135,9 +135,8 @@ def remote_verify_workers() -> int:
 #: `bin/lib/machine_settings.py` naming a read site in `bin/lib/worktree.py` that never existed —
 #: the card that was to build it, T-11436, is `wont-do` — so it read NOWHERE (T-12183 F2). Rule 5
 #: offers read-or-retire and this is the READ: it caps the DERIVED REMOTE width and nothing else.
-#: It never reads on the local path, where the width stays the constant `_VERIFY_WORKER_CEILING`;
-#: a second LOCAL knob would make the shared host's width machine-dependent, which is exactly what
-#: rule 5 forbids.
+#: It never reads on the local path, whose ceiling is its own machine setting,
+#: `lib.worktree._VERIFY_WORKER_CEILING` (T-13806, rule 5 as amended).
 REMOTE_WORKERS_ENV = "YITC_VERIFY_WORKERS"
 
 #: The MACHINE-WIDE request cap's env name (SPEC-0203 rule 4, T-12241). Named beside
@@ -4412,7 +4411,7 @@ VENUE_STAGE6_WORKERS_FRACTION_ENV = "YITC_VENUE_STAGE6_WORKERS_FRACTION"
 VENUE_STAGE6_WORKERS_FRACTION_RANGE = (0.0, 1.0)
 
 
-def venue_stage6_workers_fraction() -> float:
+def venue_stage6_workers_fraction(default=VENUE_STAGE6_WORKERS_FRACTION_DEFAULT):
     """The fraction of the derived width a lower-priority (Stage-6) pass runs at — never a land.
 
     THE ONE READ SITE of `VENUE_STAGE6_WORKERS_FRACTION_ENV` (SPEC-0193 rule 1's read-site
@@ -4429,7 +4428,11 @@ def venue_stage6_workers_fraction() -> float:
     directions at once — a malformed value can neither starve a Stage-6 pass down toward width 1 nor
     let it claim the full width the land leg is entitled to. Being PERFORMANCE-class it can never
     travel into a verdict: `machine_settings.get_value` returns None for anything not
-    performance-class, so this site cannot become a door for a gate-class value even by mistake."""
+    performance-class, so this site cannot become a door for a gate-class value even by mistake.
+
+    T-13806 — `default` is what every fallback returns (the built-in 0.5 unless the caller says
+    otherwise). The LOCAL Stage-6 arm passes None, so it can tell «unset or invalid» from «set»:
+    `local_stage6_limits` applies a fraction on the local host only when one is set."""
     raw = os.environ.get(VENUE_STAGE6_WORKERS_FRACTION_ENV)
     if raw is None or not str(raw).strip():
         try:
@@ -4440,12 +4443,12 @@ def venue_stage6_workers_fraction() -> float:
     try:
         value = float(str(raw).strip())
     except (TypeError, ValueError, AttributeError):
-        return VENUE_STAGE6_WORKERS_FRACTION_DEFAULT
+        return default
     if value != value or value in (float("inf"), float("-inf")):     # NaN / inf
-        return VENUE_STAGE6_WORKERS_FRACTION_DEFAULT
+        return default
     lo, hi = VENUE_STAGE6_WORKERS_FRACTION_RANGE
     if value <= lo or value > hi:                 # (0, 1] — the open end is the `coerce` reading
-        return VENUE_STAGE6_WORKERS_FRACTION_DEFAULT
+        return default
     return value
 
 
@@ -4458,6 +4461,19 @@ def stage6_workers(workers: int) -> int:
     Stage-6 pass but can never reduce it to zero workers, which would not be a slower pass but a
     stalled one."""
     return max(1, int(int(workers) * venue_stage6_workers_fraction()))
+
+
+def local_stage6_limits() -> dict:
+    """T-13806 — the Stage-6 knobs as they apply on the LOCAL host (no venue published).
+
+    The SAME two settings the box reads — YITC_VENUE_STAGE6_MAX_CONCURRENT and
+    YITC_VENUE_STAGE6_WORKERS_FRACTION, through their one read site each — but applied locally ONLY
+    when the host has SET a valid value (environment or machine file). Unset, each key is None and the
+    local arm runs exactly as before this card: no Stage-6 admission and the full governor width. The
+    box's built-ins (4 / 0.5) are not the local host's defaults, so they are not imported here — the
+    owner's «defaults stay today's values» (events.jsonl#ts=2026-10-09T13:28:02Z)."""
+    return {"max_concurrent": venue_stage6_max_concurrent(default=None),
+            "workers_fraction": venue_stage6_workers_fraction(default=None)}
 
 
 # ── T-12259 — the two knobs the box-side STAGE-6 admission question is asked with (SPEC-0203 rule 4,
@@ -4485,7 +4501,8 @@ VENUE_STAGE6_MAX_CONCURRENT_ENV = "YITC_VENUE_STAGE6_MAX_CONCURRENT"
 VENUE_STAGE6_MAX_CONCURRENT_RANGE = (1, 16)
 
 
-def venue_stage6_max_concurrent(cores: "int | None" = None, width: "int | None" = None) -> int:
+def venue_stage6_max_concurrent(cores: "int | None" = None, width: "int | None" = None,
+                                default=VENUE_STAGE6_MAX_CONCURRENT_DEFAULT):
     """How many lower-priority (Stage-6) venue passes may hold the box at once.
 
     THE ONE READ SITE of `VENUE_STAGE6_MAX_CONCURRENT_ENV` (SPEC-0193 rule 1's read-site declaration
@@ -4507,7 +4524,10 @@ def venue_stage6_max_concurrent(cores: "int | None" = None, width: "int | None" 
     non-numeric or out-of-band value is IGNORED and the bound falls back to the derivation when both
     inputs are valid, otherwise to the built-in 4. Here that is the
     conservative end in BOTH directions at once — a malformed value can neither disable Stage-6
-    admission nor unbound it."""
+    admission nor unbound it.
+
+    T-13806 — `default` is what the last fallback returns (the built-in 4 unless the caller says
+    otherwise); the LOCAL Stage-6 arm passes None with no cores/width, so None means «not set»."""
     lo, hi = VENUE_STAGE6_MAX_CONCURRENT_RANGE
     raw = os.environ.get(VENUE_STAGE6_MAX_CONCURRENT_ENV)
     if raw is None:
@@ -4528,7 +4548,7 @@ def venue_stage6_max_concurrent(cores: "int | None" = None, width: "int | None" 
         c, w = 0, 0
     if c > 0 and w > 0:
         return min(hi, max(lo, c // w))
-    return VENUE_STAGE6_MAX_CONCURRENT_DEFAULT
+    return default
 
 
 #: The BUILT-IN load1 headroom, and the value every unresolvable derivation falls back to. It is the

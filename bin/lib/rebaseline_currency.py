@@ -1013,10 +1013,10 @@ def _pinned_leg_census_skips(W: Path, merged_base: str, keys, *, _run_git_cap,
     at last-green NOR on the candidate (audit-post fp1:a9ed9098ce33de89). A carrier can add sweep
     directories beyond `tests/` and timing-lane refusals, both of which move the full leg's guard;
     re-deriving them here would be a second copy of the driver's carrier reads. So with a carrier
-    present this returns `set()` — the file is run exactly as before this card. That bound gives up
-    nothing the defect needs: the venue routes KERNEL lands only (a consumer pass never routes,
-    `remote_verify.venue_decision`, SPEC-0203 rule 2) and the kernel declares no carrier, so every
-    land whose waive arm reads a routed full leg is inside it.
+    present this returns `set()` — the file is run exactly as before this card. The venue routes
+    KERNEL lands only (a consumer pass never routes, `remote_verify.venue_decision`, SPEC-0203 rule 2),
+    and the test is the file's PRESENCE, not what it declares: the engine's own verify-policy
+    declaration (SPEC-0186 rule 6) counts as a carrier here, so on an engine land this returns `set()` too.
 
     FAIL DIRECTION: `set()` — the file is run exactly as before this card. Never a new refusal, and
     never a run narrower than the full leg's. `CONSUMER_OPS_CONTRACT` is injected by the host residue;

@@ -455,31 +455,32 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ documenting which re-audits do NOT advance\n`passes`) is RE-HOMED to SPEC-0124\
   \ §Saved-result ledger-skip markers — fetch via\n`bin/yitc-v2 graph query SPEC-0124`.\n\
   \n**Consult verdict — `decisions/<tid>-audit-consult-<stage>.yaml`, `target_kind:\
-  \ consult`,\n`stage: consult-<pre|post>`.** The ceiling-convergence triage saves\
-  \ the canonical schema PLUS the\nstructured triage fields: `options` (the submitted\
-  \ candidate resolutions), `survivors` (a list of\n{option, text}, a SUBSET of `options`\
-  \ — fail-closed: an out-of-set survivor or a recommendation\nthat is not exactly\
-  \ one survivor → verdict ABORT, no usable basis), `recommendation` (the single\n\
-  surviving option number)\n— **and the RENDERINGS an option index may be named in,\
-  \ on the way back IN (X-0835).** The\nreader normalizes an index written as a plain\
-  \ integer (`survivors: [2]`), as a QUOTED string\n(`[\"2\"]` / `recommendation:\
-  \ \"2\"`), or as a MAPPING carrying an `option:` key (`- option: 2`, with or\nwithout\
-  \ its `text:` sibling) — the last being this very schema's OWN saved survivor shape.\
-  \ **This widens which RENDERING is recognised, never which\nINDICES are admissible:**\
-  \ the subset check, the exactly-one-survivor convergence requirement and\nevery\
-  \ fail-closed downgrade are unchanged, so an out-of-set index, a mapping naming\
-  \ no `option:`, a\nnon-list `survivors:` scalar, and a genuinely non-converged verdict\
-  \ (zero survivors, or more than\none) are all still refused and still escalate,\
-  \ and `basis_fingerprint` (the exact-match freshness\ncarrier — pre = plan_fingerprint,\
-  \ post = recorded commit SHA). A consult emits ONE audit-family event\nsurface (`external_audit_completed`\
-  \ with `target_kind: consult` + `stage: consult-<pre|post>`), never\na second parallel\
-  \ event.\n\n## Verification\n\n- Bound: `graph build` maps the Audit-pre + Audit-post\
-  \ stage-entries to this spec once active\n  (the ONE delivery axis — `binding:`);\
-  \ the plan gates carry NO plan-stage-entry binding: `plan\n  stage specs|trial`\
-  \ and the accept-gate `plan check` ASK the matching template themselves (the\n \
-  \ prompt builders consume the template text from its one home, SPEC-0083 since —;\
-  \ dissonance\n  spec-0036-verification-vs-binding-axis-contradiction resolved toward\
-  \ the binding carrier).\n- A saved plan-gate verdict YAML carries `stage_template:`\
-  \ + `gate_policy:` (state check).\n- A `--focus` text appears verbatim in a saved\
-  \ verdict (live-trigger, P8).\n- On activation <workshop-spec> flips `superseded`\
-  \ atomically (activation_owner_task close).\n"
+  \ consult`,\n`stage: consult-<pre|post>`.** A task consult (today the on-demand\
+  \ fork pick; the ceiling-convergence\ntriage that first wrote this record is retired\
+  \ by SPEC-0204 rule 6) saves the canonical schema PLUS the\nstructured triage fields:\
+  \ `options` (the submitted candidate resolutions), `survivors` (a list of\n{option,\
+  \ text}, a SUBSET of `options` — fail-closed: an out-of-set survivor or a recommendation\n\
+  that is not exactly one survivor → verdict ABORT, no usable basis), `recommendation`\
+  \ (the single\nsurviving option number)\n— **and the RENDERINGS an option index\
+  \ may be named in, on the way back IN (X-0835).** The\nreader normalizes an index\
+  \ written as a plain integer (`survivors: [2]`), as a QUOTED string\n(`[\"2\"]`\
+  \ / `recommendation: \"2\"`), or as a MAPPING carrying an `option:` key (`- option:\
+  \ 2`, with or\nwithout its `text:` sibling) — the last being this very schema's\
+  \ OWN saved survivor shape. **This widens which RENDERING is recognised, never which\n\
+  INDICES are admissible:** the subset check, the exactly-one-survivor convergence\
+  \ requirement and\nevery fail-closed downgrade are unchanged, so an out-of-set index,\
+  \ a mapping naming no `option:`, a\nnon-list `survivors:` scalar, and a genuinely\
+  \ non-converged verdict (zero survivors, or more than\none) are all still refused\
+  \ and still escalate, and `basis_fingerprint` (the exact-match freshness\ncarrier\
+  \ — pre = plan_fingerprint, post = recorded commit SHA). A consult emits ONE audit-family\
+  \ event\nsurface (`external_audit_completed` with `target_kind: consult` + `stage:\
+  \ consult-<pre|post>`), never\na second parallel event.\n\n## Verification\n\n-\
+  \ Bound: `graph build` maps the Audit-pre + Audit-post stage-entries to this spec\
+  \ once active\n  (the ONE delivery axis — `binding:`); the plan gates carry NO plan-stage-entry\
+  \ binding: `plan\n  stage specs|trial` and the accept-gate `plan check` ASK the\
+  \ matching template themselves (the\n  prompt builders consume the template text\
+  \ from its one home, SPEC-0083 since —; dissonance\n  spec-0036-verification-vs-binding-axis-contradiction\
+  \ resolved toward the binding carrier).\n- A saved plan-gate verdict YAML carries\
+  \ `stage_template:` + `gate_policy:` (state check).\n- A `--focus` text appears\
+  \ verbatim in a saved verdict (live-trigger, P8).\n- On activation <workshop-spec>\
+  \ flips `superseded` atomically (activation_owner_task close).\n"

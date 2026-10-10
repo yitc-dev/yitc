@@ -1002,7 +1002,7 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 3aaf4c45925d4811865381c97ed6bab9b6e127d798540bbc2a43f22effc02bc2
+  bin/lib/audit.py#cmd_audit: 13c3dd9123d5887638928060963c680f90187b2f58200f0db493506f4505fcb3
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
@@ -1014,7 +1014,7 @@ implements_signature:
   bin/lib/task.py#_host_config_evidence_missing: bb47f1985dc98581492cee6722750f3458f43a5226d5cce3218592a5f3ef41fd
   bin/lib/task.py#_host_config_kind_of: 4301a6e0ea93758189bbb8f820ec7017ceb07296bf051a1004c51a3ca97b6a97
   bin/lib/task.py#_host_config_refusal: 390f46d152484d9abb791acacdd9549f95e403cfd2022cbd3f39e60a29c97b63
-  bin/lib/task.py#_project_is_deploying: d6c9696adf435674d42328220df1d2711ac528705c44bd41e8bbebdd2191636a
+  bin/lib/task.py#_project_is_deploying: aa3f2fafe65c20f8f3eac7e6a75d290016c710034c498aa73fd91c794aec804b
   bin/lib/task_card_io.py#_parse_settle_live_probe_attested: 8ec94d04001efc8f8bec62bb28fb159575ac732d63a993808537ed07557c6b3c
   bin/lib/task_closure_evidence.py#_card_status_on_main: 640e895037c903cd0452ad3397822f2371d1d78f24710381a11d147ad98ce29e
   bin/lib/task_closure_evidence.py#_closure_is_on_main: b207a8bc1a3c78404466c750a791f0927cac8c78be2be0ef68809ae3d10006e8
@@ -1023,4 +1023,4 @@ implements_signature:
   bin/lib/task_closure_evidence.py#_live_probe_attested_result: d0752d82e0279b41b97d79698b0a141036e26a3d981bd298f0b2c8f1446cb230
   bin/lib/task_closure_evidence.py#_live_probe_declaration_error: 0bbe24cfd0f1c6ffa2064dcf6be52d4956c3153a819e92ca7eac036bba78860e
   bin/lib/views.py#_view_not_adopted: 309f72c535e94584a639d1a99b8be920d295dc856f7873a7f79a8291e3c290e1
-  bin/lib/views.py#_view_overdue_recheck: ec9ce07fe6a88601024a857315ad2f9665cd6698feb9fc8e2c111a682c53ebd4
+  bin/lib/views.py#_view_overdue_recheck: 778458e572afa464c78332f5b0ae2cd288993c2af0e26f462bb06357f8faa434
