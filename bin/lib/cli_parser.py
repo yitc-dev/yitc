@@ -302,6 +302,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                             "Without a confirmation the section is left ABSENT and reads fail-closed. "
                             "Repeat once per concern; refused for a concern with no permissive born "
                             "value.")
+    # T-13831 — the person's YES to the load settings `init` recommends for this host. Without it
+    # init only prints the recommendation; nothing is written to the machine settings.
+    initp.add_argument("--apply-load-settings", dest="apply_load_settings", action="store_true",
+                       help="write the load settings this init recommends for this host (how its cores "
+                            "are shared between a land and the Stage-6 test runs) to the MACHINE "
+                            "settings file. This flag is the person's yes: without it init only prints "
+                            "the recommended lines and writes none of them. A setting this host already "
+                            "set is kept as it is.")
     # T-10535 / X-0401 / SPEC-0093 rule 12 — the GOVERNED inspection-theme declare path: append a theme to
     # this consumer's yitc-ops.yaml `inspection.themes[]` as a SURGICAL TEXT edit that preserves every
     # existing byte, incl. the kernel contract delivered through the carrier's COMMENTS. It exists because

@@ -149,6 +149,9 @@ _PACKET_PROTECTED_PREFIXES = (
     "## ad-hoc overlay",
     "## Task:",
     "## Plan:",
+    "### Plan body",             # T-13824 — the text an aggregate plan audit grades the corpus AGAINST,
+                                 # the plan-target peer of the card fields below; measured unprotected
+                                 # on a real 87-text corpus it was the largest section and kept 9%.
     "## Ad-hoc request:",
     "## Consult target:",
     "## Focus questions",

@@ -1,6 +1,6 @@
-# Release v2.8.0
+# Release v2.9.0
 
-Source commit: `63f933eee5987ef006e3993b92d835e9d343c82e`
+Source commit: `0af74fa6cbcd9679325339f51f73d92c93616031`
 
 ## Proposals this release answers
 
@@ -77,6 +77,7 @@ answers:
   - 'yitc-dev/yitc#72'
   - 'yitc-dev/yitc#73'
   - 'yitc-dev/yitc#74'
+  - 'yitc-dev/yitc#77'
   - 'yitc-dev/yitc#8'
   - 'yitc-dev/yitc#9'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
@@ -132,38 +133,24 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
-
-- SPEC-1023 — Context epoch reading — a per-provider completed-compaction marker, and cannot-tell as a reading of its own
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1023`
-- SPEC-1024 — Compaction recovery — the restoration brief, its print-only delivery, the plain backstop and the per-provider cue declaration
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1024`
+No kernel spec became active since the previous release tag.
 
 ## What changed
 
-19 task(s) closed since the previous release tag, in close order:
+12 task(s) closed since the previous release tag, in close order:
 
-- T-13792 — Add the rule-level delivery-timing check and the reference-move conditions to SPEC-0005, and their cue to the T7 review lens (docs) — events.jsonl#ts=2026-10-09T11:20:02Z
-- T-13787 — Report the three-valued context-epoch reading per provider (infra) — events.jsonl#ts=2026-10-09T11:35:17Z
-- T-13793 — Deliver the closure-contract rules that today arrive after the action they govern at their own moment (fix) — events.jsonl#ts=2026-10-09T12:33:34Z
-- T-13794 — Reconcile the two different «three sanctioned exceptions» lists and drop the retired ceiling-consult wording from SPEC-0036 (fix) — events.jsonl#ts=2026-10-09T13:20:17Z
-- T-13802 — Make a worktree-rooted `audit decide` keep its own card's plan instead of main's stale one (fix) — events.jsonl#ts=2026-10-09T14:33:44Z
-- T-13801 — Make session start survive an unreadable scaffold and heal kernel-born files left at legacy 0600 (fix) — events.jsonl#ts=2026-10-09T15:31:59Z
-- T-13788 — Print the restoration brief from a print-only session start (feature) — events.jsonl#ts=2026-10-09T15:53:24Z
-- T-13806 — Move the hard-coded load-sizing parameters into machine settings so a host or fork sets its own values (feature) — events.jsonl#ts=2026-10-09T22:45:40Z
-- T-13789 — Credit seed receipts by marker identity and refuse on cannot-tell (infra) — events.jsonl#ts=2026-10-09T22:52:45Z
-- T-13790 — Deliver the post-compaction cue inside the repository per provider (infra) — events.jsonl#ts=2026-10-10T00:20:03Z
-- T-13791 — Rewrite AGENTS.md After-compact around the restoration brief (docs) — events.jsonl#ts=2026-10-10T01:47:18Z
-- T-13814 — Make the release notes' update recipe run `session start` before `init`, so an adopter following it after an update does not hit seed_read_stale_epoch (fix) — events.jsonl#ts=2026-10-10T05:54:31Z
-- T-13807 — Make the eight verify-runner tests that stall under host load since 2026-10-08 tolerate that load again (fix) — events.jsonl#ts=2026-10-10T05:58:05Z
-- T-13815 — Let an amendment note on a terminal card reach main (fix) — events.jsonl#ts=2026-10-10T07:35:07Z
-- T-13821 — Re-verify and re-sign the drifted implements anchors of active specs (hygiene) — events.jsonl#ts=2026-10-10T08:36:52Z
-- T-13816 — Restate engine-exclusion sentences that ground on the absence of yitc-ops.yaml (docs) — events.jsonl#ts=2026-10-10T10:38:48Z
-- T-13817 — Re-point the pointers to the removed CHARTER Success criteria section (docs) — events.jsonl#ts=2026-10-10T11:25:36Z
-- T-13818 — Point the pointers to blocks moved out of SPEC-0204 at SPEC-1014 (docs) — events.jsonl#ts=2026-10-10T13:06:23Z
-- T-13811 — Make the niced-timeout normal-priority re-run of hold for consumer projects' Stage-6 runs too (fix) — events.jsonl#ts=2026-10-10T14:26:21Z
+- T-13820 — Restate fused history clauses in delivered spec bodies (docs) — events.jsonl#ts=2026-10-10T14:43:57Z
+- T-13825 — State the code-enforced binding arm in the SPEC-0151 scope text and re-sign its anchor (docs) — events.jsonl#ts=2026-10-10T15:41:16Z
+- T-13827 — Make the security gate's completeness check and the SPEC-0145 section 5 field list agree (fix) — events.jsonl#ts=2026-10-10T16:56:17Z
+- T-13832 — Keep Stage-6 layer rows in the reduced P8 resolution corpus (fix) — events.jsonl#ts=2026-10-10T17:34:54Z
+- T-13831 — Recommend this host's starting load settings at first install, applied to the machine settings only on the owner's yes (feature) — events.jsonl#ts=2026-10-10T17:43:40Z
+- T-13824 — Put the plan, spec and card texts into the aggregate plan audit packet (fix) — events.jsonl#ts=2026-10-10T18:09:45Z
+- T-13828 — Name the broken-reference hard error in the SPEC-0031 fence bullet and re-sign cmd_graph_build (docs) — events.jsonl#ts=2026-10-10T19:00:05Z
+- T-13829 — State the placeholder-date exception in the SPEC-0112 seeded-expiry sentence and re-sign its anchor (docs) — events.jsonl#ts=2026-10-10T19:31:33Z
+- T-13823 — Stop a second `session start` in one shell leaving two live session records that make the next verb refuse (fix) — events.jsonl#ts=2026-10-10T19:47:13Z
+- T-13833 — Make the debt fold's later-evidence arm read adoption the way task close does (fix) — events.jsonl#ts=2026-10-10T20:24:07Z
+- T-13826 — Bring the SPEC-0119 rule 31 sentence on the resolution corpus in line with the one-pass fold and re-sign its anchor (docs) — events.jsonl#ts=2026-10-10T21:29:51Z
+- T-13835 — Let a green land clear a known-broken-on-main record for a consumer verify layer that ran the pair's file and passed (fix) — events.jsonl#ts=2026-10-10T23:34:59Z
 
 ## Trust surfaces
 

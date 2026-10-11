@@ -11176,7 +11176,8 @@ def _plan_target_scenarios_block(target, scenarios_dir, scenario_index_nodes=Non
 
 
 def _plan_realization_block(slug: str, *, SPEC_ABANDONED_TERMINAL, _find_task_yaml, _plan_retire_on_proof, _plan_specs, _plan_tasks,
-                            _find_draft=None, _plan_scenario_roles=None, SCENARIOS_DIR=None, _scenario_index_nodes=None, target_lines=None) -> str:
+                            _find_draft=None, _plan_scenario_roles=None, SCENARIOS_DIR=None, _scenario_index_nodes=None, target_lines=None,
+                            _find_spec_path=None) -> str:
     """audit post --plan (T-0193 + Part D/1 T-0209; re-keyed T-9152): realization corpus = the plan's
     proposed_by specs (each with status + an all-active line) AND its implementing tasks (linked by
     `decomposed_from:<plan>` OR `cites:<plan>` — the `_plan_tasks` union, so a decomposed-only cut card
@@ -11316,7 +11317,80 @@ def _plan_realization_block(slug: str, *, SPEC_ABANDONED_TERMINAL, _find_task_ya
     lines.extend(target_lines if target_lines is not None else plan_target_scenario_lines(
         slug, _find_draft=_find_draft, _plan_scenario_roles=_plan_scenario_roles,
         SCENARIOS_DIR=SCENARIOS_DIR, _scenario_index_nodes=_scenario_index_nodes))
+    # T-13824: the SUBJECT TEXTS, after every status section — the members listed above, so the
+    # auditor grades the corpus it is shown and not its status lines alone.
+    lines.extend(_plan_subject_text_lines(slug, specs, tasks, _find_draft=_find_draft,
+                                          _find_spec_path=_find_spec_path, _find_task_yaml=_find_task_yaml))
     return "\n".join(lines)
+
+
+def _plan_subject_text_lines(slug: str, specs, tasks, *, _find_draft, _find_spec_path, _find_task_yaml) -> list:
+    """T-13824 — the subject TEXTS of the aggregate plan packet: the plan body, every corpus spec file
+    and every implementing card file, each as its OWN `### ` section, in the order the status sections
+    list them. Until this card the packet carried status lines only, and the auditor answered ABORT
+    for lack of the texts (2026-10-10, plan provider-neutral-compaction-survival-restoration-b).
+
+    EVERY line of a text is indented by four spaces, so no line of a text can start a packet section
+    (`_packet_sections` cuts on a line that starts with a heading marker) or be read as the packet's
+    bound manifest, a diff header or this block's own target-scenario heading. A text is cut into
+    lines by `str.splitlines` — the splitter those readers use — so no kind of line break inside a
+    text leaves a line without the indent.
+
+    Each text is its own section, so a corpus over the packet ceiling is bounded by the ONE total
+    bound (`_bound_packet_total`), which names every section it cuts — there is no second budget
+    here. The plan body is the text the corpus is graded AGAINST, so its heading is in the protected
+    set (`audit_packet._PACKET_PROTECTED_PREFIXES`) and it is shown whole.
+
+    A text that cannot be shown is NAMED in its section, never left out: an absent section would read
+    as a member with no text. `specs` / `tasks` are the block's own `(id, status)` lists, so this
+    costs one file read per member and no corpus sweep. The plan body is read by the parse
+    `cmd_audit` signs (`state.split_frontmatter_text`); `cmd_audit` signs the body it loaded BEFORE
+    this read, so a body edited between the two is shown as edited and reads stale at the gate.
+    Pure read."""
+    no_finder = "this render was given no finder for it"
+
+    def _section(heading, text, absent=""):
+        out = [f"\n### {heading}"]
+        if text is None:
+            out.append(f"(text unavailable — {absent})")
+        elif not text.strip():
+            out.append("(the text is empty)")
+        else:
+            out.extend(("    " + ln) if ln else "" for ln in text.splitlines())
+        return out
+
+    def _file_section(kind, ident, st, path, absent):
+        if path is None:
+            return _section(f"{kind} — {ident} ({st})", None, absent)
+        heading = f"{kind} — {ident} ({st}) — {path.parent.name}/{path.name}"
+        try:
+            return _section(heading, path.read_text(encoding="utf-8"))
+        except Exception as exc:      # unreadable / undecodable => named, never dropped
+            return _section(heading, None, f"the file could not be read ({type(exc).__name__})")
+
+    lines = ["\n### Subject texts — the plan body, each corpus spec and each implementing card",
+             "(each section below carries one stored text line by line, every line indented by four "
+             "spaces; a text that could not be shown is named in its own section)"]
+    plan_path = _find_draft(slug) if _find_draft else None
+    plan_body, plan_absent = None, ("no plan file resolves for this slug" if _find_draft else no_finder)
+    if plan_path is not None:
+        try:
+            plan_body = state.split_frontmatter_text(plan_path.read_text(encoding="utf-8"))[1]
+        except Exception as exc:      # unreadable / malformed front matter => named, never dropped
+            plan_absent = f"the plan file could not be read ({type(exc).__name__})"
+    lines.extend(_section(f"Plan body — {slug}", plan_body, plan_absent))
+    for sid, st in specs:
+        base = _find_spec_path(sid) if _find_spec_path else None
+        if base is None:
+            lines.extend(_file_section("Spec text", sid, st, None,
+                                       "no spec file resolves for this id" if _find_spec_path else no_finder))
+            continue
+        for part in state.spec_part_paths(base):      # a split spec is ONE body across its part chain
+            lines.extend(_file_section("Spec text", sid, st, part, ""))
+    for tid, st in tasks:
+        lines.extend(_file_section("Card text", tid, st, _find_task_yaml(tid),
+                                   "no single card file resolves for this id"))
+    return lines
 
 
 def plan_target_scenario_lines(slug: str, *, _find_draft=None, _plan_scenario_roles=None, SCENARIOS_DIR=None,
@@ -13882,7 +13956,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # the render or after it refuse; targets vanishing after the signature only read as stale later.
             corpus_sig = _plan_corpus_signature(tid, plan_body or "")
             diff = _plan_realization_block(tid)
-            if tlines is not None and ("### Target scenarios" in diff or _plan_target_scenario_lines(tid)):
+            # T-13824: a LINE that starts the section, never a mention — the corpus now carries the
+            # subject texts, which may name the heading, and every line of a text is indented.
+            if tlines is not None and (any(ln.startswith("### Target scenarios") for ln in diff.splitlines())
+                                       or _plan_target_scenario_lines(tid)):
                 _die(f"{tid}: the plan's target scenarios changed while the audit packet was being read — "
                      "re-run `audit post --plan` (T-13126).")
     else:  # decision — gates per D-0055 (audit-pre gates Draft→Accepted; audit-post gates Accepted→Final)

@@ -1078,3 +1078,80 @@ def effective(name, env=None):
     `_verify_heartbeat_interval` — and is deliberately not restated here.)"""
     value = get_value(name, env)
     return BY_NAME[name].default if value is None else value
+
+
+# ── T-13831: the first-install LOAD RECOMMENDATION ───────────────────────────────────────────
+def recommend_load_settings(cores, mem_total_mb=None, *, per_worker_mem_mb=None):
+    """Starting values for how a host that has set NONE of them shares its cores between a land and
+    the Stage-6 runs (T-13831, owner directive events.jsonl#ts=2026-10-10T04:21:15Z). PURE: host
+    facts in, a recommendation out — it reads no file and writes nothing. `init` shows the result
+    and writes it through `set_value` only on the person's yes.
+
+    THE FORMULA (worked out with the owner for a 32-core host):
+      reserve      = max(2, cores // 8)           cores a land does not take. There is no reserve
+                                                  setting: it is the gap between the cores and the
+                                                  land ceiling.
+      land ceiling = cores - reserve              a land gets everything else, for land speed.
+      Stage-6 runs = clamp((cores + 5) // 10, 1, 4)   cores / 10 rounded half up.
+      Stage-6 share = 0.75 / runs                 so all simultaneous runs together take about 3/4
+                                                  of the land ceiling (one run's width is
+                                                  int(ceiling * share), floored at 1 — the
+                                                  arithmetic of `task._stage6_local_workers`).
+      Stage-6 nice = 19                           the lowest CPU priority, so a Stage-6 run yields
+                                                  the processor to a land (CPU only: it does not
+                                                  remove contention for memory or disk).
+      fleet width  = runs + 1                     one worker per Stage-6 run, plus one landing.
+    32 cores -> 4 / 28 / 3 / 0.25 / 19 / 4;  8 cores -> 2 / 6 / 1 / 0.75 / 19 / 2.
+
+    Returns None when `cores` is not an integer >= 3: below that the reserve of 2 leaves no core
+    for a land, so there is nothing to recommend and the built-in defaults stand.
+
+    MEMORY. `mem_total_mb` is the machine's INSTALLED memory, not the amount free at this moment:
+    the recommendation describes the machine, and the caller's output has to be the same on two runs
+    on one host (a figure that moves between runs would make it differ). `per_worker_mem_mb` is what
+    the caller's governor budgets per verify worker; the peak is a land at its ceiling plus every
+    Stage-6 run at its width, all five values being the recommended ones (the caller offers them
+    only as a whole set). `mem_short` is True only when both figures are known and the installed
+    memory is below that peak — an unknown figure is reported as unknown (None), never as enough.
+    """
+    try:
+        cores = int(cores)
+    except (TypeError, ValueError):
+        return None
+    if cores < 3:
+        return None
+    reserve = max(2, cores // 8)
+    ceiling = min(cores - reserve, BY_NAME["lib.worktree._VERIFY_WORKER_CEILING"].bounds[1])
+    runs = min(4, max(1, (cores + 5) // 10))
+    share = 0.75 / runs
+    stage6_width = max(1, int(ceiling * share))
+    peak_workers = ceiling + runs * stage6_width
+    try:
+        mem_needed_mb = peak_workers * int(per_worker_mem_mb) if per_worker_mem_mb else None
+    except (TypeError, ValueError):
+        mem_needed_mb = None
+    try:
+        mem_total_mb = None if mem_total_mb is None else int(mem_total_mb)
+    except (TypeError, ValueError):
+        mem_total_mb = None
+    mem_short = (None if mem_needed_mb is None or mem_total_mb is None
+                 else mem_total_mb < mem_needed_mb)
+    return {
+        "cores": cores, "reserve": reserve, "stage6_width": stage6_width,
+        "peak_workers": peak_workers, "mem_needed_mb": mem_needed_mb,
+        "mem_total_mb": mem_total_mb, "mem_short": mem_short,
+        "settings": [
+            ("lib.worktree._VERIFY_WORKER_CEILING", ceiling,
+             f"a land runs up to {ceiling} test workers on the {cores} cores, leaving {reserve} "
+             f"core(s) that a land does not take"),
+            ("YITC_VENUE_STAGE6_MAX_CONCURRENT", runs,
+             f"at most {runs} Stage-6 test run(s) at the same time"),
+            ("YITC_VENUE_STAGE6_WORKERS_FRACTION", share,
+             f"each Stage-6 run uses up to {stage6_width} test worker(s), so {runs} at once use up "
+             f"to {runs * stage6_width} against a land's {ceiling}"),
+            ("YITC_VERIFY_WORKER_NICE", 19,
+             "Stage-6 tests run at the lowest CPU priority, so they yield the processor to a land"),
+            ("lib.journal.MAX_FLEET_WIDTH", runs + 1,
+             "suggested number of workers at once: one per Stage-6 run plus one landing"),
+        ],
+    }

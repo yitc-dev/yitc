@@ -57,8 +57,8 @@ Tasks reference specs via `cites:` field. Build tool indexes these too — thoug
 ## What graph is NOT
 <!--AUDIENCE:core-->
 
-The design fence, in one line: no wider node or edge taxonomy, no validation layer (one narrow
-storage-format exception), no unconditional rebuild (the build's result cache), no reactive event
+The design fence, in one line: no wider node or edge taxonomy, no validation layer (two narrow
+named exceptions), no unconditional rebuild (the build's result cache), no reactive event
 service, no soft-delete or lifecycle store, no history versioning. The full fence is homed in SPEC-0031
 §Graph schema bounds — read it before proposing any such addition: `bin/yitc-v2 graph query SPEC-0031`.
 

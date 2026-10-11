@@ -2850,28 +2850,30 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ 7 of 11 rows were closures whose substantive evidence was\n    emitted 17-38 SECONDS\
   \ after the `task_closed` row (X-1170). The cause is structural, not\n    incidental\
   \ — the WARN is a HISTORICAL SNAPSHOT taken at close and is immutable once fired.\n\
-  \    So a surviving candidate whose task id carries a P8 adoption event stamped\
-  \ AT-OR-AFTER its\n    WARN, judged substantive, is dropped (`debt._p8_later_evidence_clears`).\
+  \    So a surviving candidate whose task id carries P8 adoption events stamped AT-OR-AFTER\
+  \ its\n    WARN, judged adoption, is dropped (`debt._p8_later_evidence_clears`).\
   \ At-or-after rather\n    than strictly after: the WARN's own firing proves close\
   \ did not see the evidence, and a\n    second-resolution stamp cannot separate \"\
   the same instant\" from \"just after\".\n    **THE STANDARD IS NOT WIDENED — IT\
-  \ IS THE CLOSE-TIME ONE, REUSED.** The judgement is\n    `task._p8_evidence_is_substantive`,\
-  \ the same predicate `task close` applies (SPEC-0015):\n    imported, never re-implemented,\
-  \ so the two cannot drift (CHARTER §P5), with its realm probe\n    `_is_consumer_build`\
+  \ IS THE CLOSE-TIME ONE, REUSED.** The judgement is the\n    verdict `task close`\
+  \ gives P8 adoption events: the predicate\n    `task._p8_evidence_is_substantive`\
+  \ (SPEC-0015) and, above it, the kernel reading that\n    exit-status evidence alone\
+  \ is not adoption (SPEC-0177 rule 2) —\n    imported, never re-implemented, so the\
+  \ two cannot drift (CHARTER §P5), with its realm probe\n    `_is_consumer_build`\
   \ INJECTED by the host caller exactly as `task close` injects it,\n    so a consumer\
-  \ ref is judged under the consumer arm; with no probe injected the predicate reads\n\
+  \ ref is judged under the consumer arm; with no probe injected the verdict reads\n\
   \    KERNEL, the stricter of its two readings. A prose-only or circular payload\
-  \ therefore still\n    fails and the row still reports.\n    No new store, field,\
-  \ event, verb or seam, and no second journal read: `segment_rows` already\n    materialises\
-  \ the whole logical journal as a list, so the fold HOLDS that list as the\n    resolution\
-  \ corpus and collects the P8 rows in the SAME pass that finds the WARNs, consulting\n\
-  \    the arm for SURVIVING candidates only.\n    **KERNEL SELF-TELEMETRY CLEARS\
-  \ NOTHING UNDER `-C`.** A P8 row the ENGINE stamped\n    `subject_realm: kernel`\
-  \ (e.g. dispatch's readiness / watch receipts) proves a KERNEL surface was read;\n\
-  \    in a consumer journal it is never a consumer card's proof, so under a consumer\
-  \ build the arm skips it\n    (an id collision with the kernel's own task ids cannot\
-  \ clear a consumer closure).\n    **IT FAILS TOWARD SILENCE, WHICH IS THE OPPOSITE\
-  \ OF A GATE**\n    (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate`).\
+  \ therefore still\n    fails and the row still reports, as does an exit-status-only\
+  \ one on the kernel.\n    No new store, field, event, verb or seam, and no second\
+  \ journal read: the ONE pass over the\n    journal that finds the WARNs also yields\
+  \ the P8 rows and the resolution corpus the predicate\n    resolves refs against\
+  \ (a reduced corpus, not the journal as a list), and the arm is\n    consulted for\
+  \ SURVIVING candidates only.\n    **KERNEL SELF-TELEMETRY CLEARS NOTHING UNDER `-C`.**\
+  \ A P8 row the ENGINE stamped\n    `subject_realm: kernel` (e.g. dispatch's readiness\
+  \ / watch receipts) proves a KERNEL surface was read;\n    in a consumer journal\
+  \ it is never a consumer card's proof, so under a consumer build the arm skips it\n\
+  \    (an id collision with the kernel's own task ids cannot clear a consumer closure).\n\
+  \    **IT FAILS TOWARD SILENCE, WHICH IS THE OPPOSITE OF A GATE**\n    (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate`).\
   \ This DESCRIBES what\n    a closing session did, so every state it cannot decide\
   \ — an absent or unparseable card, an\n    unparseable `ts`, a followup fold that\
   \ raises — reads as CARRIED and drops out. A false \"you\n    left this uncarried\"\
@@ -4169,15 +4171,15 @@ implements_signature:
   bin/lib/debt_adoption.py#_known_broken_full_enumeration: f5e80aafba8ea787ae0db3db10f1feffd93fde09b6a2c4ce82549bd1e982a771
   bin/lib/debt_adoption.py#_p8_card_declares_carrier: d4a9168a3a693f4b24f6547e845b577a106127f8990688103b6d1a0ad826b0b9
   bin/lib/debt_adoption.py#_p8_carrier_task_ids: d60373be00e49264dad2c1ff2c61a885c13c278f8b79b7c95fc0b35c9592d3b7
-  bin/lib/debt_adoption.py#_p8_later_evidence_clears: 8d5bfb423f22eab2ae3873f1f76134ce0786038d688b122c05b468ab5e79e27a
+  bin/lib/debt_adoption.py#_p8_later_evidence_clears: 26130fd9e2a24e2856c52b2f4f02d2f4e1da69a269735029dd540cc6a2cff792
   bin/lib/debt_adoption.py#_unexecuted_subject_result: 9e1562fb7fabdf70bda9927276d4db11c1f07ced6a125fd5738e55d8d9f08eea
   bin/lib/debt_adoption.py#gap_dedupe_key: e34d3f3484f0662a969ab50d26dac636d65c17726842a402f21655c07003a378
   bin/lib/debt_adoption.py#gap_rank: 5651fb1e12cebea4d99c2f3f9c809aab69101edb4017d60082f0c277d739d67c
   bin/lib/debt_adoption.py#gap_task_linked: 3893e4f233a183b709d8e9d941484900586687c673663afdef13dc927f8166e6
-  bin/lib/debt_adoption.py#open_known_broken: 3beeeef7fbde6d285ca279d3d420d01053530d14182645f81f0a50408b915025
+  bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
   bin/lib/debt_adoption.py#open_subcritical_findings: 0305df9e23683084a6d3967440e6482f7ae01900459800b54126e8d9a8647a4a
   bin/lib/debt_adoption.py#p8_carrier_followups: e2698a024c0101d29e9d11452007fa35c3aa71ed30a5a1f9e26026d25282b8c7
-  bin/lib/debt_adoption.py#uncarried_p8_warns: c2dc1a937f341b1a116a8ea0f2f8fe757b7d8e3d01853c62eaaa017dd0004305
+  bin/lib/debt_adoption.py#uncarried_p8_warns: 74e469fe3b704777d896e73981629e42e3369c0ceffa7213cc8e335768c21116
   bin/lib/debt_adoption.py#unexecuted_subject_files: a1ea354b46ac32ac9747fdb5943ee566c1bb41678c4e9eb786748071ca3ec78a
   bin/lib/debt_adoption.py#unresolved_worker_halts: a14fcd9a6710ec8109c2bc1e169883a9e6aae1080fae9793401d4a0c9399243b
   bin/lib/debt_landing.py#ABORT_CLASS_PARK_LIMIT_EVICTION: 9e95d5f31ba6804f9532e78cff031ba18806fb99d68dd18a67a2b7a6eee36990

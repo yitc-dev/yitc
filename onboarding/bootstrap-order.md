@@ -245,6 +245,14 @@ The order is fixed: **session start → init → recommended answers → first-s
    strict, its recommended answer, and the exact `--confirm-born-permissive <section>:<owner>` flag.
    Relay that block to the person, then re-run init with the flags they agree to. Nothing confirmed
    stays strict.
+   The same init output carries one more recommended answer, for the machine and not the project:
+   the **load settings for this host** — how its cores are shared between a land and the Stage-6
+   test runs, leaving a few cores that a land does not take. It names the cores and memory it
+   computed from, gives each setting as a ready `config set` line with the reason, and warns when
+   the host's memory is below what those numbers can reach. Nothing is written until the person
+   says yes: on a yes, re-run init with `--apply-load-settings`, or run only the lines they agree
+   to. A host that already set any of these settings is left as it is: init shows its values and
+   recommends nothing.
 3. **First-scenario interview.** The AI asks the person, in plain words, what the project should do
    for its first user, and writes that down as the first scenario.
 

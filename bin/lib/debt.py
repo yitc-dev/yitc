@@ -7411,7 +7411,8 @@ _residue_binds(_known_broken_blob_exists)
 
 @functools.wraps(debt_adoption.open_known_broken)
 def open_known_broken(*a, _inj=("KNOWN_BROKEN_CARRIER_EVENT", "KNOWN_BROKEN_CLEARING_SIDE",
-                                "KNOWN_BROKEN_ESTABLISHING_SIDE", "KNOWN_BROKEN_TEST_SUBDIR",
+                                "KNOWN_BROKEN_ESTABLISHING_SIDE", "KNOWN_BROKEN_LAYER_PASSED",
+                                "KNOWN_BROKEN_LAYER_ROWS_KEY", "KNOWN_BROKEN_TEST_SUBDIR",
                                 "KNOWN_BROKEN_VACATED_REASON", "_known_broken_blob_exists",
                                 "_known_broken_delegated_pass_files", "_known_broken_file",
                                 "_known_broken_full_enumeration", "_known_broken_pairs",

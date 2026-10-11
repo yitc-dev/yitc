@@ -44,7 +44,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ ONE task named as its activation owner (SPEC-0005 rule 5 homes\n  that carrier;\
   \ SPEC-0034 says how a plan's decomposition names the task). So this task's closure\n\
   \  activates a plan-born spec only when this task is that named owner.\n- Plan ~45\
-  \ lines is a **soft guideline, not a hard gate** : `task plan --finalize` **WARNs**\n\
+  \ lines is a **soft guideline, not a hard gate**: `task plan --finalize` **WARNs**\n\
   \  past it but proceeds. If the task is genuinely too big, decompose at Stage 2\
   \ — but that is a\n  judgement, and the ~45 measures plan verbosity, not task decomposability\
   \ (a single coherent artifact\n  may legitimately exceed it).\n- **REPEATED-WORK\
@@ -75,7 +75,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ stated task scope;\n   an adjacent edit becomes a SEPARATE filed task, never silent\
   \ scope-creep (CHARTER §1).\n4. **TEST EXERCISES THE CHANGE** — a negative / edge\
   \ case per AC, wired to the runner and observed\n   RED before the fix (a test green\
-  \ on un-fixed code is not a test — Slip 4).\n5. **ALL CONSUMERS** — grep every call-site\
+  \ on un-fixed code is not a test).\n5. **ALL CONSUMERS** — grep every call-site\
   \ / consumer of the changed surface (parsers / graph /\n   readers / validators)\
   \ and state per consumer how it is updated OR why it is unaffected.\n\n### Stage\
   \ 5 — Execution (detail)\n- Edit files per plan.\n- Stay in scope (CHARTER #1 filter\
@@ -104,7 +104,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ escape:** a big or contested spec design does NOT get crammed into the task —\n\
   \  escalate it to a `plans/` entry (Stage 3 / `patterns/plan-lifecycle.md`) and\
   \ let the plan carry it.\n\n### Stage 6 — Tests (detail)\n- Run the project's own\
-  \ test command (`pytest`, `bats`, `npm test`...).\n- **V2 convention :** plain Python\
+  \ test command (`pytest`, `bats`, `npm test`...).\n- **V2 convention:** plain Python\
   \ scripts in `tests/test_<area>.py`, runnable via\n  `python3 tests/test_<area>.py`;\
   \ exit 0 = pass. No pytest/bats overhead. See `tests/README.md`.\n- **The self-check\
   \ is `bin/yitc-v2 task test --run`, and it runs the SELECTED suite, not the whole\n\
@@ -120,8 +120,8 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ §Stage-6 seam): Stage 6 cannot read land's two optional refinement channels,\n\
   \  and their absence frees less and recovers more. **Unchanged:** a green here is\
   \ still NOT the land\n  verdict — `land` verifies TWO legs (SPEC-0077) and the pinned\
-  \ last-green leg is not run here\n   — and a bare `pytest tests/` still reads FALSE-GREEN\
-  \ on script-style `__main__` tests\n.\n- **A consumer project's run (`-C`).** There\
+  \ last-green leg is not run here\n  — and a bare `pytest tests/` still reads FALSE-GREEN\
+  \ on script-style `__main__` tests.\n- **A consumer project's run (`-C`).** There\
   \ `--run` executes the project's DECLARED\n  `verify.layers` (SPEC-0152 rule 16)\
   \ — each layer's command, one after another unless the project\n  names them under\
   \ `verify.independent_layers`, a layer whose `subject_globs` are disjoint from the\n\
@@ -131,7 +131,7 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ and the ones skipped or waived, and it states the\n  pinned-leg bound only where\
   \ the project's `verify_policy` has its `land` run that leg (SPEC-0186).\n- Output\
   \ must be visible (Evidence Rule — not «tests pass», but actual output).\n- **RED-GREEN\
-  \ — trust green only after seeing red** ( Slip 4 — failure class #8): a\n  behaviour-change\
+  \ — trust green only after seeing red** (failure class #8): a\n  behaviour-change\
   \ test MUST be observed FAILING without the fix before its green is trusted (or\
   \ it\n  asserts the negative case — e.g. the guard DOES block without the escape\
   \ hatch, as\n  `test_write_isolation_guard` does). A test that passes whether or\
@@ -194,66 +194,66 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \  surface list there; it is not restated here).\n- Anything touching `core/` or\
   \ `bin/lib/`, OR test LOGIC / behavioral assertions under `tests/`\n  (spec-bound\
   \ surfaces) → full lifecycle.\n- **Fixture-category carve-out** (resolves the `test_fixture_update`\
-  \ ↔ `tests/`-exclusion tension —\n, on N=2 deviations): a mechanical `test_fixture_update`\
-  \ / `regen_generated_code`\n  change CONFINED to `tests/` fixture or generated data\
-  \ — with NO change to the behavior under test —\n  STAYS fast-path eligible despite\
-  \ living in `tests/`. The `tests/` exclusion targets spec-bound test\n  *logic*,\
-  \ NOT fixture/data refreshes. The\n  non-blocking tests/-surface WARN emitted by\
-  \ `task close --hygiene-fast-path` is the designed safety\n  net ( artifacts-as-gate);\
-  \ a borderline assertion edit that shades into test logic is a\n  judgement call\
-  \ — when in doubt, take the full lifecycle.\n\n**Fast-path flow:** Analysis → Execution\
-  \ → Tests → Commit → Closure. Five stages, not nine.\n\n### Stage FSM per class\
-  \ — current_stage semantic names\n`current_stage:` (QUEUE schema) holds a **semantic\
-  \ stage NAME**, not a number — self-documenting,\nstable across stage-set changes\
-  \ (CHARTER §Principle 5). `class:` implies which stage-FSM applies:\n\n| class |\
-  \ stage-FSM (ordered) |\n|---|---|\n| `feature` / `fix` / `refactor` / `docs` /\
-  \ `infra` (standard) | Analysis → Filing → Plan → Audit-pre → Execution → Tests\
-  \ → Commit → Audit-post → Closure |\n| `hygiene` (fast-path) | Analysis → Execution\
-  \ → Tests → Commit → Closure |\n\nA future class defines its own FSM row here. `status:`\
-  \ (QUEUE coarse lifecycle: ready/in-progress/…)\nand `current_stage:` (within-Build\
-  \ FSM position) are **two distinct fields** — the 3 lifecycle\nvocabularies stay\
-  \ 3 (CHARTER §Decision lifecycle), no new one.\n\n**`class` is the SOLE Fast-Path\
-  \ eligibility key — and it is changed ONLY by a governed verb.**\nBecause `class`\
-  \ selects the stage-FSM row above (and whether `task close --hygiene-fast-path`\
-  \ /\n`--batch-close` is admissible), reclassifying a task is a journal-marked action,\
-  \ NOT an invisible\nYAML edit: `bin/yitc-v2 task update --class <class>` flips `class`\
-  \ and emits `task_reclassified`\n({from_class,to_class}). The ungoverned class hand-edit\
-  \ is\n**RETIRED** — the `task update` field-edit mode refuses any `--old/--new`\
-  \ change to the top-level\n`class` scalar, routing to `--class`. No second risk-judgement\
-  \ axis is added; `class` stays the one key.\n\nThe lifecycle CLI verbs ( — `worktree\
-  \ new --task` (claims: ready→in-progress, Analysis),\nthen `task execute/test/plan/commit/close`)\
-  \ do not advance `current_stage` by a per-verb SETTER (the 5 legacy setters stay\
-  \ retired). Since the pointer instead moves along the ordered row above, on the\
-  \ verb sequence itself — the **POINTER axis**, added beside the explicit stage-ENTRY\
-  \ verb, which is UNCHANGED: `stage <NAME>` remains the explicit entry and the **SOLE\
-  \ deliverer of a stage BUNDLE**, and the claim still sets Analysis. Three moves\
-  \ are admitted, and anything else REFUSES exactly as before:\n\n| move | condition\
-  \ | effect |\n|---|---|---|\n| `explicit` | `current_stage` already IS the verb's\
-  \ stage | proceed (unchanged) |\n| `advance` | the verb's stage is the SUCCESSOR\
-  \ of `current_stage` in this class's row | record the move, then proceed |\n| `absorb`\
-  \ | `current_stage` is an AUDIT stage (Audit-pre / Audit-post) and the verb's stage\
-  \ is EARLIER in the row | record the move, then proceed |\n| (refuse) | anything\
-  \ else — a forward SKIP, a backward move from a NON-audit stage, or an absent /\
-  \ numeric-legacy / unrecognized `current_stage` | the stage-correspondence refusal,\
-  \ unchanged |\n\nThe `absorb` move models the **mode-(a) absorption cycle** (LIFECYCLE\
-  \ §Stage 4 / §Stage 8) — a card legitimately returning to an earlier stage to absorb\
-  \ an audit finding — which the FSM previously had no edge for at all. It is bounded\
-  \ to a return FROM an audit seam, so backward movement is a modelled edge, not a\
-  \ free pointer.\n\nWhat does NOT change: the stage CONTRACT (which stage delivers\
-  \ what, and what each gates), every readiness precondition (notably the advance-out-of-Analysis\
-  \ gate / E-0043, which runs on the edge BEFORE the pointer is written, so a refusal\
-  \ leaves no half-entry), and the refusal itself. A pointer move emits the same `stage_entered`\
+  \ ↔ `tests/`-exclusion\n  tension): a mechanical `test_fixture_update` / `regen_generated_code`\n\
+  \  change CONFINED to `tests/` fixture or generated data — with NO change to the\
+  \ behavior under test —\n  STAYS fast-path eligible despite living in `tests/`.\
+  \ The `tests/` exclusion targets spec-bound test\n  *logic*, NOT fixture/data refreshes.\
+  \ The\n  non-blocking tests/-surface WARN emitted by `task close --hygiene-fast-path`\
+  \ is the designed safety\n  net ( artifacts-as-gate); a borderline assertion edit\
+  \ that shades into test logic is a\n  judgement call — when in doubt, take the full\
+  \ lifecycle.\n\n**Fast-path flow:** Analysis → Execution → Tests → Commit → Closure.\
+  \ Five stages, not nine.\n\n### Stage FSM per class — current_stage semantic names\n\
+  `current_stage:` (QUEUE schema) holds a **semantic stage NAME**, not a number —\
+  \ self-documenting,\nstable across stage-set changes (CHARTER §Principle 5). `class:`\
+  \ implies which stage-FSM applies:\n\n| class | stage-FSM (ordered) |\n|---|---|\n\
+  | `feature` / `fix` / `refactor` / `docs` / `infra` (standard) | Analysis → Filing\
+  \ → Plan → Audit-pre → Execution → Tests → Commit → Audit-post → Closure |\n| `hygiene`\
+  \ (fast-path) | Analysis → Execution → Tests → Commit → Closure |\n\nA future class\
+  \ defines its own FSM row here. `status:` (QUEUE coarse lifecycle: ready/in-progress/…)\n\
+  and `current_stage:` (within-Build FSM position) are **two distinct fields** — the\
+  \ 3 lifecycle\nvocabularies stay 3 (CHARTER §Decision lifecycle), no new one.\n\n\
+  **`class` is the SOLE Fast-Path eligibility key — and it is changed ONLY by a governed\
+  \ verb.**\nBecause `class` selects the stage-FSM row above (and whether `task close\
+  \ --hygiene-fast-path` /\n`--batch-close` is admissible), reclassifying a task is\
+  \ a journal-marked action, NOT an invisible\nYAML edit: `bin/yitc-v2 task update\
+  \ --class <class>` flips `class` and emits `task_reclassified`\n({from_class,to_class}).\
+  \ The ungoverned class hand-edit is\n**RETIRED** — the `task update` field-edit\
+  \ mode refuses any `--old/--new` change to the top-level\n`class` scalar, routing\
+  \ to `--class`. No second risk-judgement axis is added; `class` stays the one key.\n\
+  \nThe lifecycle CLI verbs ( — `worktree new --task` (claims: ready→in-progress,\
+  \ Analysis),\nthen `task execute/test/plan/commit/close`) do not advance `current_stage`\
+  \ by a per-verb SETTER (the 5 legacy setters stay retired). Since the pointer instead\
+  \ moves along the ordered row above, on the verb sequence itself — the **POINTER\
+  \ axis**, added beside the explicit stage-ENTRY verb, which is UNCHANGED: `stage\
+  \ <NAME>` remains the explicit entry and the **SOLE deliverer of a stage BUNDLE**,\
+  \ and the claim still sets Analysis. Three moves are admitted, and anything else\
+  \ REFUSES exactly as before:\n\n| move | condition | effect |\n|---|---|---|\n|\
+  \ `explicit` | `current_stage` already IS the verb's stage | proceed (unchanged)\
+  \ |\n| `advance` | the verb's stage is the SUCCESSOR of `current_stage` in this\
+  \ class's row | record the move, then proceed |\n| `absorb` | `current_stage` is\
+  \ an AUDIT stage (Audit-pre / Audit-post) and the verb's stage is EARLIER in the\
+  \ row | record the move, then proceed |\n| (refuse) | anything else — a forward\
+  \ SKIP, a backward move from a NON-audit stage, or an absent / numeric-legacy /\
+  \ unrecognized `current_stage` | the stage-correspondence refusal, unchanged |\n\
+  \nThe `absorb` move models the **mode-(a) absorption cycle** (LIFECYCLE §Stage 4\
+  \ / §Stage 8) — a card legitimately returning to an earlier stage to absorb an audit\
+  \ finding — which the FSM previously had no edge for at all. It is bounded to a\
+  \ return FROM an audit seam, so backward movement is a modelled edge, not a free\
+  \ pointer.\n\nWhat does NOT change: the stage CONTRACT (which stage delivers what,\
+  \ and what each gates), every readiness precondition (notably the advance-out-of-Analysis\
+  \ gate, which runs on the edge BEFORE the pointer is written, so a refusal leaves\
+  \ no half-entry), and the refusal itself. A pointer move emits the same `stage_entered`\
   \ event marked with its `from_stage` / `mode` / `advanced_by`, and carries NO `delivered`\
-  \ key — it delivers no bundle.\n\n\n\n**`task pick` is a read-only inspector** (option\
-  \ B) — the\nclaim moved into `worktree new --task` so it is written in the worktree\
-  \ and reaches `main` only via\n`land`; `task pick` no longer mutates. Because that\
-  \ claim is UNCOMMITTED in the worktree, a path-scoped `git checkout` of the card\
-  \ silently reverts it; the recovery is `bin/yitc-v2 task reclaim T-XXXX` (X-1008)\
-  \ — admitted only inside that task's own worktree, with the card still `ready` on\
+  \ key — it delivers no bundle.\n\n\n\n**`task pick` is a read-only inspector** (\
+  \ option B) — the\nclaim moved into `worktree new --task` so it is written in the\
+  \ worktree and reaches `main` only via\n`land`; `task pick` no longer mutates. Because\
+  \ that claim is UNCOMMITTED in the worktree, a path-scoped `git checkout` of the\
+  \ card silently reverts it; the recovery is `bin/yitc-v2 task reclaim T-XXXX` —\
+  \ admitted only inside that task's own worktree, with the card still `ready` on\
   \ `main` and no other live worktree holding it, idempotent on an intact claim. It\
   \ is a recovery ENTRY to the one claim path, never a second claim path, and hand-restoring\
   \ `status` / `current_stage` stays forbidden. `current_stage` carries a **stage-ENTRY\
-  \ correspondence precondition — it IS read in a\nrefusal path** : a task-bound work-verb\
+  \ correspondence precondition — it IS read in a\nrefusal path**: a task-bound work-verb\
   \ (`task plan`/`execute`/`test`/`commit`/`close`\n+ `audit pre`/`post`) REFUSES\
   \ when the pointer-move table above admits NO move to its stage — i.e.\n`current_stage`\
   \ neither IS its stage, nor its predecessor on this class's row, nor an audit seam\
@@ -266,33 +266,37 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ that return, so the special-case refusal is DELETED from `cmd_task_plan`. Unchanged\
   \ either way: `audit pre` re-fingerprints an edited plan and re-verifies it, and\
   \ an Audit-pre stage reached by a move the model does not admit still falls through\
-  \ to the generic stage-correspondence refusal.) The incident that the «transition-guard\n\
-  enforcement deferred to first incident» note awaited DID occur ( stage-skips), and\
-  \ **\nretired current_stage as a guard**: enforcement is by **artifacts-as-gates**\
-  \ (a verb validates its\ninput ARTIFACT exists + matches — the data — e.g. `task\
-  \ close` requires the recorded commit + an\naudit-post for it; `task execute` requires\
-  \ an audit-pre bound to the plan), NOT a stage counter (that\nwould be a second\
-  \ progress-truth — P5 — and drift toward a forbidden workflow-engine FSM, non-goal\n\
-  #7). Work-verbs carry no per-verb stage setter : `current_stage` is written at the\
-  \ claim, by the\n`stage` verb's explicit entry, and by the pointer move described\
-  \ above; each work-verb\nemits its stage event as a side-effect.\n\n## Rationale\n\
-  \nThese are NON-gated stages: consulted when ENTERING the stage, never before an\
-  \ irreversible\ncontrol-point — so they are stage-DELIVERED (the axis, a lighter\
-  \ mechanism) and NO\nfloor-trigger is added here. The real control-point stages\
-  \ (4/7/8/9) deliver via SPEC-0014 /\nSPEC-0015 / <workshop-spec> and are untouched.\n\
-  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
-  \ word out of the rule text of the section it names;\nthe rule it explains stays\
-  \ there.\n\n- From «Stage 3 — Plan (detail)»: The threshold is **telemetry-calibrated**\
-  \ (raised from the\n  unbacked size nudge of ~30) so it fires on the genuine long\
-  \ tail rather than on normal variance —\n  a real \"notably verbose, sanity-check\
-  \ decomposition\" nudge, not alarm fatigue.\n- From «Stage 6 — Tests (detail)»:\
-  \ (: tests went green because they ran from inside a\n  worktree, not because the\
-  \ fix worked — the fix was dead code)\n- From «Hygiene Fast-Path»: (established\
-  \ practice:)\n- From «Stage FSM per class»: (incidents)\n- From «Stage FSM per class»:\
-  \ Grounds (CHARTER §P1 filter 4): a refusal that fired on nearly every\n  real invocation\
-  \ of these verbs was measuring its own model, not catching an error.\n\n## Implementation\
-  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
-  \ rule text of the section\neach names.\n\n- From «Stage FSM per class»: Code: `bin/lib/gates.py#stage_pointer_move`\
+  \ to the generic stage-correspondence refusal.) **\nretired current_stage as a guard**:\
+  \ enforcement is by **artifacts-as-gates** (a verb validates its\ninput ARTIFACT\
+  \ exists + matches — the data — e.g. `task close` requires the recorded commit +\
+  \ an\naudit-post for it; `task execute` requires an audit-pre bound to the plan),\
+  \ NOT a stage counter (that\nwould be a second progress-truth — P5 — and drift toward\
+  \ a forbidden workflow-engine FSM, non-goal\n#7). Work-verbs carry no per-verb stage\
+  \ setter: `current_stage` is written at the claim, by the\n`stage` verb's explicit\
+  \ entry, and by the pointer move described above; each work-verb\nemits its stage\
+  \ event as a side-effect.\n\n## Rationale\n\nThese are NON-gated stages: consulted\
+  \ when ENTERING the stage, never before an irreversible\ncontrol-point — so they\
+  \ are stage-DELIVERED (the axis, a lighter mechanism) and NO\nfloor-trigger is added\
+  \ here. The real control-point stages (4/7/8/9) deliver via SPEC-0014 /\nSPEC-0015\
+  \ / <workshop-spec> and are untouched.\n\n### History moved from the rule body\n\
+  \nEach entry is a passage moved word for word out of the rule text of the section\
+  \ it names;\nthe rule it explains stays there.\n\n- From «Stage 3 — Plan (detail)»:\
+  \ The threshold is **telemetry-calibrated** (raised from the\n  unbacked size nudge\
+  \ of ~30) so it fires on the genuine long tail rather than on normal variance —\n\
+  \  a real \"notably verbose, sanity-check decomposition\" nudge, not alarm fatigue.\n\
+  - From «Stage 6 — Tests (detail)»: (: tests went green because they ran from inside\
+  \ a\n  worktree, not because the fix worked — the fix was dead code)\n- From «Hygiene\
+  \ Fast-Path»: (established practice:)\n- From «Stage FSM per class»: (incidents)\n\
+  - From «Stage FSM per class»: Grounds (CHARTER §P1 filter 4): a refusal that fired\
+  \ on nearly every\n  real invocation of these verbs was measuring its own model,\
+  \ not catching an error.\n\n### History moved from the rule body\n\nTags and history\
+  \ clauses moved word for word out of rule sentences, in body order; the rule\ninventory\
+  \ committed with names the sentence each stood in.\n\n · · · Slip 4 · · · ·\n· ·\
+  \ · · Slip 4 ·, on N=2 deviations /\n · · · · / E-0043 · · (X-1008) · ·\nThe incident\
+  \ that the «transition-guard enforcement deferred to first incident» note awaited\
+  \ DID\noccur ( stage-skips), and · ·\n\n## Implementation notes\n\nNotes for the\
+  \ maintainer of the code, moved word for word out of the rule text of the section\n\
+  each names.\n\n- From «Stage FSM per class»: Code: `bin/lib/gates.py#stage_pointer_move`\
   \ +\n  `#advance_stage_pointer`; verifier `tests/test_stage_pointer_advance.py`.\n\
   \n### Moved from the rule body\n\n- From «Stage 3 — Plan (detail) — REPEATED-WORK\
   \ STATEMENT»: The cue is where the cost is cheapest\n  to remove; the enforcement,\
@@ -369,7 +373,7 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 13c3dd9123d5887638928060963c680f90187b2f58200f0db493506f4505fcb3
+  bin/lib/audit.py#cmd_audit: 9e9b7d875d646e3c42b49c4beca465b4f45df415fc17156c17c4bcc76e1dbcec
   bin/lib/gates.py#advance_stage_pointer: 80d13c9bac15006a9028df1d6b8493d52f7dad17186fd3453ab3db831c6b3e9a
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da

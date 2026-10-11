@@ -4730,6 +4730,144 @@ def _render_born_permissive_sweep(confirmed: dict | None, *, entries: list | Non
     return "\n".join(out)
 
 
+def _host_memory_total_mb() -> "int | None":
+    """T-13831 — the machine's installed memory in MB, or None where the platform does not report
+    it. The installed figure, not the free one: it is the same on every run on one host, so what
+    init prints from it does not change between two runs."""
+    import os
+    try:
+        return int(os.sysconf("SC_PHYS_PAGES")) * int(os.sysconf("SC_PAGE_SIZE")) // (1024 * 1024)
+    except (ValueError, OSError, AttributeError, TypeError):
+        return None
+
+
+def _load_recommendation(env=None, *, _cores=None, _mem_mb=None) -> tuple:
+    """T-13831 — the load settings recommended for THIS host, and which of them it already set.
+
+    Returns `(rec, already)`: `rec` is `machine_settings.recommend_load_settings` over the host's
+    core count and installed memory (None when the host has fewer than 3 cores or the count cannot
+    be read); `already` maps each of those keys the host ALREADY set to `(value, source)` — a
+    non-blank environment value for an environment-named key (the layer above the file, SPEC-0193
+    rule 7), else a value in the machine settings file. The recommendation is one whole set, offered
+    only to a host that set NONE of the keys: when `already` is not empty the caller proposes and
+    writes nothing. A read-only look: it writes nothing. `_cores` / `_mem_mb` are the test seam for
+    the two host facts."""
+    import os
+    from lib import machine_settings
+    from lib import worktree as _wt
+    env = os.environ if env is None else env
+    cores = os.cpu_count() if _cores is None else _cores
+    mem_mb = _host_memory_total_mb() if _mem_mb is None else _mem_mb
+    rec = machine_settings.recommend_load_settings(
+        cores, mem_mb, per_worker_mem_mb=_wt._VERIFY_PER_WORKER_MEM_MB)
+    if rec is None:
+        return None, {}
+    in_file = machine_settings.load(env)
+    already = {}
+    for key, _value, _why in rec["settings"]:
+        if (env.get(key) or "").strip():
+            already[key] = (env[key].strip(), "environment")
+        elif key in in_file:
+            already[key] = (in_file[key], "machine-file")
+    return rec, already
+
+
+def _apply_load_recommendation(rec, _append_event, env=None, *, _set_value=None) -> tuple:
+    """T-13831 — write the whole recommended set through the one setter
+    (`machine_settings.set_value`, the declared `api` entrypoint), journalling each write as
+    `config_changed` (SPEC-0193 rule 8 — the row `config set` writes, plus `via`). Reached only
+    under the person's yes (`init --apply-load-settings`) on a host that set none of the keys.
+
+    Returns `(done, failure)`: `done` is `[(key, old, new), ...]` for the writes that happened;
+    `failure` is None, or `(key, value, error text)` for the first write that failed — the writes
+    before it stay (each has its journal row) and the ones after it are not attempted.
+    `_set_value` is the test seam for a failing write."""
+    from lib import machine_settings
+    setter = machine_settings.set_value if _set_value is None else _set_value
+    done = []
+    for key, value, _why in rec["settings"]:
+        try:
+            old, new, dropped = setter(key, value, env)
+        except (machine_settings.SettingsRefused, OSError) as exc:
+            return done, (key, value, str(exc))
+        _append_event("config_changed", None, {
+            "key": key, "old": old, "new": new,
+            "class": machine_settings.BY_NAME[key].cls,
+            "dropped": dropped,
+            "path": str(machine_settings.resolve_settings_path(env)),
+            "via": "init --apply-load-settings",
+        })
+        done.append((key, old, new))
+    return done, None
+
+
+def _render_load_recommendation(rec, already, engine_cli, *, asked: bool, applied=None,
+                                failure=None, dry: bool = False, withheld: bool = False) -> str:
+    """T-13831 — the load-settings part of init's recommended answers. `asked` is the person's yes
+    (`--apply-load-settings`); `applied` / `failure` are what `_apply_load_recommendation` returned;
+    `withheld` says the yes was given to a run that refused, so nothing was written.
+
+    Three shapes: (1) no recommendation for this host — "" unless a yes has to be answered; (2) the
+    host already set at least one of the keys — its values are shown and nothing is recommended;
+    (3) the host set none — the host facts, one ready `config set` line per setting with its reason,
+    and the memory statement, headed by what happened to them (shown only / would be applied /
+    applied / refused run / stopped part-way)."""
+    if rec is None:
+        return ("\nload settings: nothing applied — this host has too few cores for a recommendation "
+                "(fewer than 3); the built-in defaults stand." if asked else "")
+    if already:
+        out = ["", "load settings: this host already set "
+                   f"{len(already)} of the {len(rec['settings'])} — nothing is recommended over a "
+                   "host's own choice" + (", and --apply-load-settings wrote nothing:" if asked else ":")]
+        out.extend(f"    {k} = {already[k][0]}  [{already[k][1]}]"
+                   for k, _v, _w in rec["settings"] if k in already)
+        return "\n".join(out)
+    mem = rec["mem_total_mb"]
+    facts = f"{rec['cores']} cores, " + (f"{mem} MB of memory" if mem is not None
+                                         else "memory size could not be read")
+    out = ["", f"recommended load settings for this host ({facts}):",
+           f"  The land ceiling leaves {rec['reserve']} of the {rec['cores']} cores that a land does "
+           f"not take — the reserve for the system itself."]
+    lines = []
+    for k, v, w in rec["settings"]:
+        lines.append(f"    {engine_cli} config set {k} {v}")
+        lines.append(f"        why: {w}")
+    if failure is not None:
+        fkey, _fvalue, ferr = failure
+        out.append(f"  STOPPED PART-WAY — writing {fkey} failed: {ferr}")
+        out.append(f"  written before it ({len(applied or [])}): "
+                   + (", ".join(k for k, _o, _n in applied) if applied else "none"))
+        out.append("  NOT written — each line is ready to run once the cause is fixed:")
+        written = {k for k, _o, _n in (applied or [])}
+        for k, v, w in rec["settings"]:
+            if k not in written:
+                out.append(f"    {engine_cli} config set {k} {v}")
+    elif applied:
+        out.append("  APPLIED to the machine settings (the person's yes, --apply-load-settings):")
+        out.extend(f"    {k}: {old!r} -> {new!r}" for k, old, new in applied)
+    elif asked and dry:
+        out.append("  WOULD BE APPLIED by a writing run (this is a --dry-run; nothing is written):")
+        out.extend(lines)
+    elif asked and withheld:
+        out.append("  NOT applied — this init run refused (see above), so --apply-load-settings wrote "
+                   "nothing. Each line is ready to run:")
+        out.extend(lines)
+    else:
+        out.append("  NOT applied — nothing is written without the person's yes. Each line is ready to run:")
+        out.extend(lines)
+    if rec["mem_short"]:
+        out.append(f"  WARNING: memory — a land and the Stage-6 runs together can reach {rec['peak_workers']} "
+                   f"test workers, about {rec['mem_needed_mb']} MB by the engine's per-worker budget; this "
+                   f"host has {mem} MB of memory in all. The engine's own resource check may then run "
+                   f"fewer workers than these numbers.")
+    elif rec["mem_short"] is None:
+        out.append("  memory was NOT checked against these numbers (the memory size could not be read).")
+    if not asked:
+        out.append("  An AI running init: relay this to the person. On their yes, re-run init with "
+                   "--apply-load-settings (writes every line above), or run the lines they agree to.")
+    return "\n".join(out)
+
+
 def resolve_born_permissive_confirmations(flag_specs: list | None, *, interactive: bool,
                                           entries: list | None = None) -> tuple:
     """Resolve the confirmations for THIS birth: `{section: owner}` plus `{section: source}` provenance
@@ -10683,6 +10821,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # is exactly what the real body computes, because it IS the real body (see `_DryRunPlan`). Must precede
     # the `--adopt-concern` branch so that op previews too (it uses only these same seams).
     dry = bool(getattr(args, "dry_run", False))
+    _ls_asked = bool(getattr(args, "apply_load_settings", False))   # T-13831 — the person's yes
     plan = _DryRunPlan(REPO_ROOT) if dry else None
     if dry:
         write_text_atomic = plan.write_text_atomic
@@ -11658,6 +11797,13 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             _bp_sweep = _render_born_permissive_sweep(_bp_shown_confirmed)
             if _bp_sweep:
                 print(_bp_sweep)
+        # T-13831 — the load-settings recommendation, beside the born-permissive block on BOTH seams.
+        # A preview writes nothing, so a yes given here is only shown as what a writing run would do.
+        _ls_rec, _ls_already = _load_recommendation()
+        _ls_block = _render_load_recommendation(_ls_rec, _ls_already, f"{_engine_install}/bin/yitc-v2",
+                                                asked=_ls_asked, dry=True)
+        if _ls_block:
+            print(_ls_block)
         # T-12632 (X-1004) — the sandbox-runbook pointer rides the SAME two seams as the sweep
         # above, for the same T-12094/X-1267 reason: a read-only preview that disagrees with the
         # writing run is how a surface goes unread. Unconditional + report-only (see the renderer).
@@ -11908,6 +12054,19 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         bp_sweep = _render_born_permissive_sweep(_bp_shown_confirmed)
         if bp_sweep:
             print(bp_sweep)
+    # T-13831 — the load-settings recommendation (see `_render_load_recommendation`). Shown on every
+    # init; WRITTEN only under `--apply-load-settings`, only on a host that set none of the keys, and
+    # never by a run that refused above.
+    _ls_rec, _ls_already = _load_recommendation()
+    _ls_applied, _ls_failure = None, None
+    _ls_withheld = bool(diverged_scaffolds or registry_failed or bootstrap_refused)
+    if _ls_asked and _ls_rec is not None and not _ls_already and not _ls_withheld:
+        _ls_applied, _ls_failure = _apply_load_recommendation(_ls_rec, _append_event)
+    ls_block = _render_load_recommendation(_ls_rec, _ls_already, f"{_engine_install}/bin/yitc-v2",
+                                           asked=_ls_asked, applied=_ls_applied, failure=_ls_failure,
+                                           withheld=_ls_withheld)
+    if ls_block:
+        print(ls_block)
 
     # T-12632 (X-1004) — the sandbox-runbook pointer. Printed on every init (incl. the no-op
     # re-init), UNCONDITIONALLY: the project that has never declared a sandbox concern is exactly
@@ -11919,7 +12078,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # Placed LAST on purpose: everything additive above already ran, printed and committed, so the
     # non-zero exit reports the withheld half WITHOUT taking the safe half down with it. The notice
     # itself was printed with the other scaffold signals; this is only the exit code.
-    if diverged_scaffolds or registry_failed or bootstrap_refused:
+    if diverged_scaffolds or registry_failed or bootstrap_refused or _ls_failure:   # T-13831: a yes whose write failed is not a completed init
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
         sys.exit(1)
 

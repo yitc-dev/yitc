@@ -115,12 +115,13 @@ REQUIRED_FIELDS = (
                                      # env supplies the scope ( audit-pre high finding)
     "dependency_lockfile_hashes", # dependency-lockfile hash(es)
     "prior_baseline", # prior-baseline reference
+    "fingerprint_derivation", # the declared findings-fingerprint derivation
     FINDINGS_KEY, # the findings list (non-empty)
 )
-# Each `checks` entry MUST carry these (check-ID + exit code — SPEC-0145 §5).
-_REQUIRED_CHECK_FIELDS = ("id", "exit_code")
-# Each finding MUST carry these (findings-fingerprint derivation + triage fields — SPEC-0145 §5).
-_REQUIRED_FINDING_FIELDS = ("severity", "status", "fingerprint", "what")
+# Each `checks` entry MUST carry these (check-ID + exit code + per-check timestamp — SPEC-0145 §5).
+_REQUIRED_CHECK_FIELDS = ("id", "exit_code", "ran_at")
+# Each finding MUST carry these (the producing check's ID + triage fields + fingerprint — SPEC-0145 §5).
+_REQUIRED_FINDING_FIELDS = ("check_id", "severity", "status", "fingerprint", "what")
 
 _HASH_KEY = "report_hash"
 
@@ -372,8 +373,8 @@ def evaluate_report(
         if not isinstance(chk, dict):
             return _reject("incomplete", f"check[{i}] is not a mapping")
         for cf in _REQUIRED_CHECK_FIELDS:
-            if cf not in chk or chk.get(cf) is None:
-                return _reject("incomplete", f"check[{i}] missing '{cf}'")
+            if not _nonempty(chk.get(cf)):
+                return _reject("incomplete", f"check[{i}] missing or empty '{cf}'")
     findings = data.get(FINDINGS_KEY)
     if not isinstance(findings, list) or not findings:
         return _reject("incomplete", f"'{FINDINGS_KEY}' missing or empty")

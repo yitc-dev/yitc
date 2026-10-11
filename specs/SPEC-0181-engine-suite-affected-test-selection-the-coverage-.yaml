@@ -654,7 +654,7 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ `>=`, deliberately: there a recheck appended in the same second\nas its deploy\
   \ really did happen after it, while here \"later\" IS the whole claim.) A RE-OBSERVATION\n\
   re-stamps that instant — the record is a fact about the newest tree, so evidence\
-  \ must post-date the\nnewest observation, not the original one. Exactly two routes:\n\
+  \ must post-date the\nnewest observation, not the original one. Exactly five routes:\n\
   \  (a) PAIR-LEVEL. A later row lists that pair in `at_branch` — its merge-base run\
   \ did NOT reproduce\n      the failure, which is a direct observation of it passing\
   \ on main.\n  (b) FULL-ENUMERATION GREEN LAND. A later `status: ok` row whose verify\
@@ -673,42 +673,56 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ verify\n      layer PASSED and whose recorded delegated SURFACE contains that\
   \ pair's test file. A consumer\n      whose declared layer `covers:` its test dir\
   \ REPLACES the kernel's bare sweep (SPEC-0152 rule\n      16), so it runs no sweep,\
-  \ writes no selection, and (c) has nothing to read.\nWHY (d) EXISTS, AND THE DEADLOCK\
-  \ IT REMOVES. Routes (a), (b) and (c) ALL close under delegation,\nand they close\
-  \ on the repo that did exactly what the delegation contract (SPEC-0185 §1a) tells\
-  \ it\nto do. Measured twice on 2026-08-27 by an adopting consumer (X-1151, escalated\
-  \ by X-1164): a sweep\nwidening opened a known-broken record for a test that was\
-  \ NOT broken — it passed 18/18 in that\nrepo's own verify-layer venv — the repo\
-  \ delegated its test dir to the layer that runs the suite\nproperly, and from then\
-  \ on (a) needed a FAILING land, (b) needed a full enumeration the delegated\nsweep\
-  \ never runs, and (c) needed a selection the skipped sweep never records. The record\
-  \ therefore\ncould not clear BY CONSTRUCTION, and every governance-only branch (plan,\
-  \ spec, card) was refused\nPRE-QUEUE from then on. The block was invisible until\
-  \ it bit: code-bearing branches still reach the\nbreak and are admitted, so only\
-  \ paperwork was refused.\nWHAT (d) DOES NOT OPEN, and this is the reason it is a\
-  \ conjunction rather than a layer name. The\nreporting consumer identified a mechanical\
-  \ route to clear the record — revert the delegation and\npoint the sweep's python3\
-  \ at the layer venv, making all 47 files import and exit 0 WITHOUT\nexecuting a\
-  \ single assertion — and REFUSED to take it, because a full-enumeration green that\n\
-  asserts nothing is the precise false-green rule 2 exists to refuse. That judgement\
-  \ is upheld here,\nnot undone: (d) requires the delegated layer's own recorded outcome\
-  \ to be exactly `passed` (a\nfailed / timed-out / waived / skipped layer, or a DIFFERENT\
-  \ layer passing, is not evidence), the\nrow to SAY explicitly that it was green\
-  \ (never a default — the same finding that shaped (c)), and\nthe pair's file to\
-  \ be IN the recorded surface. That last conjunct is not decoration: clearing on\
-  \ a\nbare layer NAME would clear pairs the delegated layer never claimed, which\
-  \ is over-clearing, not\nevidence. A file outside the recorded surface is simply\
-  \ not evidence and the record stands.\nWHAT (d) DOES NOT CHANGE, each stated so\
-  \ a reader can check it: rule 1/1a are untouched — this\nchanges what counts as\
-  \ EVIDENCE FOR CLEARING, never what ESTABLISHES a record; rule 3's VACATE\ndisposition\
-  \ is untouched, because (d) makes no file-EXISTENCE claim and so route (b)'s historical\n\
-  blob probe has nothing to add here; rule 4 is untouched and the fold stays free\
-  \ of `now`, any\nwindow and any deadline — (d) reads a recorded NAME SET and an\
-  \ OUTCOME, never an age; rule 5 is\nuntouched, so a later `at_main` re-opens a pair\
-  \ (d) cleared; and rule 6 is untouched — the record\nstill gates nothing and excuses\
-  \ nothing, and the pre-queue refusal that reads it is unaffected in\nboth directions.\
-  \ HONEST BOUNDS: (d) is PROSPECTIVE (rows journaled before its keys existed carry\n\
-  neither and keep clearing by (a)/(b)/(c) alone), and it is a claim about the DELEGATED\
+  \ writes no selection, and (c) has nothing to read.\n  (e) LAYER GREEN. For a pair\
+  \ OPENED BY A LAYER RED — the newest row that established it shows\n      the consumer\
+  \ verify layer its first half names FAILED, and no other failing pair of that\n\
+  \      row carries the same first half — a later `status: ok` row on which THAT\
+  \ layer's own\n      outcome reads `passed`, the layer was not re-run to reach it,\
+  \ and no unit of its per-unit\n      report reads other than passed. The record\
+  \ opened on the layer failing again at the\n      merge-base, so the layer passing\
+  \ in a later green land is that same observation. The name\n      alone does not\
+  \ decide: a pair whose establishing row does not show this — a test file's\n   \
+  \   pair, or a first half that a test file and a layer both carry — is not cleared\
+  \ by this\n      route, whatever layer later passes under that name. A layer the\
+  \ land skipped, took from an\n      earlier run, waived, or ran to any other outcome\
+  \ is not evidence; neither is a different\n      layer passing, nor two rows under\
+  \ the layer's name. Route (e) adds evidence for clearing\n      only: routes (a)-(d)\
+  \ and rules 1, 1a and 3-7 read as before.\nWHY (d) EXISTS, AND THE DEADLOCK IT REMOVES.\
+  \ Routes (a), (b) and (c) ALL close under delegation,\nand they close on the repo\
+  \ that did exactly what the delegation contract (SPEC-0185 §1a) tells it\nto do.\
+  \ Measured twice on 2026-08-27 by an adopting consumer (X-1151, escalated by X-1164):\
+  \ a sweep\nwidening opened a known-broken record for a test that was NOT broken\
+  \ — it passed 18/18 in that\nrepo's own verify-layer venv — the repo delegated its\
+  \ test dir to the layer that runs the suite\nproperly, and from then on (a) needed\
+  \ a FAILING land, (b) needed a full enumeration the delegated\nsweep never runs,\
+  \ and (c) needed a selection the skipped sweep never records. The record therefore\n\
+  could not clear BY CONSTRUCTION, and every governance-only branch (plan, spec, card)\
+  \ was refused\nPRE-QUEUE from then on. The block was invisible until it bit: code-bearing\
+  \ branches still reach the\nbreak and are admitted, so only paperwork was refused.\n\
+  WHAT (d) DOES NOT OPEN, and this is the reason it is a conjunction rather than a\
+  \ layer name. The\nreporting consumer identified a mechanical route to clear the\
+  \ record — revert the delegation and\npoint the sweep's python3 at the layer venv,\
+  \ making all 47 files import and exit 0 WITHOUT\nexecuting a single assertion —\
+  \ and REFUSED to take it, because a full-enumeration green that\nasserts nothing\
+  \ is the precise false-green rule 2 exists to refuse. That judgement is upheld here,\n\
+  not undone: (d) requires the delegated layer's own recorded outcome to be exactly\
+  \ `passed` (a\nfailed / timed-out / waived / skipped layer, or a DIFFERENT layer\
+  \ passing, is not evidence), the\nrow to SAY explicitly that it was green (never\
+  \ a default — the same finding that shaped (c)), and\nthe pair's file to be IN the\
+  \ recorded surface. That last conjunct is not decoration: clearing on a\nbare layer\
+  \ NAME would clear pairs the delegated layer never claimed, which is over-clearing,\
+  \ not\nevidence. A file outside the recorded surface is simply not evidence and\
+  \ the record stands.\nWHAT (d) DOES NOT CHANGE, each stated so a reader can check\
+  \ it: rule 1/1a are untouched — this\nchanges what counts as EVIDENCE FOR CLEARING,\
+  \ never what ESTABLISHES a record; rule 3's VACATE\ndisposition is untouched, because\
+  \ (d) makes no file-EXISTENCE claim and so route (b)'s historical\nblob probe has\
+  \ nothing to add here; rule 4 is untouched and the fold stays free of `now`, any\n\
+  window and any deadline — (d) reads a recorded NAME SET and an OUTCOME, never an\
+  \ age; rule 5 is\nuntouched, so a later `at_main` re-opens a pair (d) cleared; and\
+  \ rule 6 is untouched — the record\nstill gates nothing and excuses nothing, and\
+  \ the pre-queue refusal that reads it is unaffected in\nboth directions. HONEST\
+  \ BOUNDS: (d) is PROSPECTIVE (rows journaled before its keys existed carry\nneither\
+  \ and keep clearing by (a)/(b)/(c) alone), and it is a claim about the DELEGATED\
   \ SURFACE at\nFILE granularity — the same granularity every other route here uses\
   \ — not a per-assertion one.\nWHY (c) EXISTS, AND WHAT IT REMOVES. Routes (a) and\
   \ (b) between them left a GREEN, NARROWED land\nunable to clear anything: (a) needs\
@@ -801,16 +815,28 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ script-run suite path, reusing its\nfail-closed edge set and its self-guard predicate\
   \ rather than authoring a parallel design. A consumer\nlayer that declares an adapter\
   \ records the same kind of fail-closed ladder per test file, in shadow,\nunder SPEC-1006.\n\
-  \n## Verification\n\n- VP1 (self-guard, differential): a diff touching `bin/**`\
-  \ yields an EMPTY would-omit set.\n  Failing input — remove rung R1 and the tripwire\
-  \ goes RED.\n- VP2 (governs nothing, differential): the executed test set equals\
-  \ the unfiltered enumeration\n  regardless of the recorded decision. Failing input\
-  \ — feed the would-run set into the executed\n  list and the tripwire goes RED.\n\
-  - VP3 (unknown mapping, differential): a changed path outside the coverage map yields\
-  \ an EMPTY\n  would-omit set. Failing input — have R3 return the mapped subset and\
-  \ the tripwire goes RED.\n- VP4 (the record exists): a land's `land_completed.verify_metrics`\
-  \ carries the selection fields,\n  with would-run plus would-omit equal to the full\
-  \ test-file count.\n"
+  \nRoute (e) of §Known-broken-on-main rule 2 (raised as issue 77 by an adopting consumer\
+  \ on\nrelease 2.8.0). A layer red has been recorded under the layer's name since,\
+  \ while routes\n(b), (c) and (d) each look a pair's first half up among test files,\
+  \ so on a consumer whose lands\nrun layers and no kernel sweep only route (a) —\
+  \ a later FAILING land — could clear such a record.\nAs reported on 2026-10-10:\
+  \ a record opened at 19:25:34Z, the fix landed, three green lands followed\nin which\
+  \ the layer ran and passed, the record stood, and plan-only branches of other sessions\
+  \ were\nrefused before the land queue.\n\n## Verification\n\n- VP1 (self-guard,\
+  \ differential): a diff touching `bin/**` yields an EMPTY would-omit set.\n  Failing\
+  \ input — remove rung R1 and the tripwire goes RED.\n- VP2 (governs nothing, differential):\
+  \ the executed test set equals the unfiltered enumeration\n  regardless of the recorded\
+  \ decision. Failing input — feed the would-run set into the executed\n  list and\
+  \ the tripwire goes RED.\n- VP3 (unknown mapping, differential): a changed path\
+  \ outside the coverage map yields an EMPTY\n  would-omit set. Failing input — have\
+  \ R3 return the mapped subset and the tripwire goes RED.\n- VP4 (the record exists):\
+  \ a land's `land_completed.verify_metrics` carries the selection fields,\n  with\
+  \ would-run plus would-omit equal to the full test-file count.\n- VP5 (layer green\
+  \ clears, differential): a record opened by a layer red is no longer listed after\n\
+  \  a later green land whose row for that layer reads passed. Failing input — the\
+  \ same land with that\n  layer's row removed, with one unit of its per-unit report\
+  \ failed, or with the layer skipped: the\n  record is listed again. So is a test\
+  \ file's record after a green land in which a layer of the\n  file's name passed.\n"
 cites:
 - SPEC-0077
 - SPEC-0132
@@ -825,7 +851,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/debt_adoption.py#open_known_broken: 3beeeef7fbde6d285ca279d3d420d01053530d14182645f81f0a50408b915025
+  bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
   bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e

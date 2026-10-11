@@ -59,17 +59,20 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ The revizia of 2026-09-27 measured this:\n<project> had 4 of 4 waives citing a\
   \ pre-code premise that its current state contradicts, and\n<project> had a waive\
   \ that stood for 68+ days while `deploy` ran 200 times. The init seeder\n(`_seed_catalog_waives`)\
-  \ writes one on every waive it seeds (90 days out). What a missing or lapsed\nexpiry\
-  \ means is REPORT-ONLY, on the SPEC-0119 concern-conformance view (`init.concern_conformance`):\n\
-  - **lapsed** (the date has passed) → listed in `expired_waivers`, the same reader\
-  \ and line every\n  concern waiver's lapsed expiry already uses;\n- **missing**\
-  \ (no expiry, or not a real ISO date) → listed in `waives_without_expiry`, named\
-  \ by path,\n  with its own debt line.\nNeither REFUSES `init`. The fail-closed completeness\
-  \ check (rule 1, and the reason-non-empty half of\nthis rule) is unchanged, so no\
-  \ carrier that complied before this paragraph fails now: a new fail-closed\nstance\
-  \ on existing carriers is an outage (SPEC-0152 rule 27). The remedy for either signal\
-  \ is to\nre-weigh the waive's premise, then declare the capability or give the waive\
-  \ a new date. Re-checking the\npremise itself against the project profile (SPEC-0198)\
+  \ writes one on every waive it seeds (90 days out). ONE exception: when the\n90-day\
+  \ date is the placeholder review date that `init` gives the born security waivers,\
+  \ the seeder\nwrites the day after it, so a seeded review date is never that placeholder\
+  \ date. What a missing or lapsed\nexpiry means is REPORT-ONLY, on the SPEC-0119\
+  \ concern-conformance view (`init.concern_conformance`):\n- **lapsed** (the date\
+  \ has passed) → listed in `expired_waivers`, the same reader and line every\n  concern\
+  \ waiver's lapsed expiry already uses;\n- **missing** (no expiry, or not a real\
+  \ ISO date) → listed in `waives_without_expiry`, named by path,\n  with its own\
+  \ debt line.\nNeither REFUSES `init`. The fail-closed completeness check (rule 1,\
+  \ and the reason-non-empty half of\nthis rule) is unchanged, so no carrier that\
+  \ complied before this paragraph fails now: a new fail-closed\nstance on existing\
+  \ carriers is an outage (SPEC-0152 rule 27). The remedy for either signal is to\n\
+  re-weigh the waive's premise, then declare the capability or give the waive a new\
+  \ date. Re-checking the\npremise itself against the project profile (SPEC-0198)\
   \ would catch a contradiction sooner, but it needs\na structured premise; it is\
   \ not part of this rule.\n\n### 3. Reuse existing declaration shapes — no new format\
   \ (anti-cx F1)\nThe declare/waive record REUSES the existing shapes — SPEC-0093's\
@@ -157,14 +160,19 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ monitor's\nevents), so a shared catalog \"wired\" status would DUPLICATE meaning,\
   \ not simplify it. Provenance: plan\n`extension-catalog-population-from-3-project-breadt`\
   \ §A. Predecessor vocabulary: SPEC-0093 rule-13\n(opt-in `extensions:`) + SPEC-0101\
-  \ (the catalog marker).\n\n## Verification\n\nAdoption probe (CHARTER §P3/§P8 —\
-  \ infra-class), BOTH paths required:\n- **negative path:** a real consumer MISSING\
-  \ a declare-or-waive entry for an active+adoptable catalog\n  member → `init --adopt-extension`\
-  \ / consumer-read HARD-FAILS (the fail-closed completeness fires);\n- **positive\
-  \ path:** a real consumer whose `extensions:` record covers the FULL current catalog\n\
-  \  enumeration (`graph query --type view`), with ≥1 entry exercising the forward-aware\
-  \ waive (a reason\n  naming the re-entry path).\nFAILURE-CHECK: a catalog member\
-  \ left silent that does NOT error (rule 1 not held).\n"
+  \ (the catalog marker).\n\nThe placeholder-date exception of rule 2 entered the\
+  \ seeder with (2026-10-02). On that day the\n90-day date fell on the born placeholder\
+  \ review date, which the nightly born-waiver freshness check\nreads as a placeholder\
+  \ nobody replaced, so a waive seeded then would have stayed flagged after a\nperson\
+  \ rewrote its reason. The rule text has stated the exception since (2026-10-10).\n\
+  \n## Verification\n\nAdoption probe (CHARTER §P3/§P8 — infra-class), BOTH paths\
+  \ required:\n- **negative path:** a real consumer MISSING a declare-or-waive entry\
+  \ for an active+adoptable catalog\n  member → `init --adopt-extension` / consumer-read\
+  \ HARD-FAILS (the fail-closed completeness fires);\n- **positive path:** a real\
+  \ consumer whose `extensions:` record covers the FULL current catalog\n  enumeration\
+  \ (`graph query --type view`), with ≥1 entry exercising the forward-aware waive\
+  \ (a reason\n  naming the re-entry path).\nFAILURE-CHECK: a catalog member left\
+  \ silent that does NOT error (rule 1 not held).\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
@@ -180,5 +188,5 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/init.py#_engine_catalog_members: c409ad8388ef6dc3ad044386372edc79a9ac8f99c23e6dce0f342a742c177b20
-  bin/lib/init.py#_seed_catalog_waives: 756262756578033c3cf072eb2f5928559615f4e02222ec203da382738001f2fa
+  bin/lib/init.py#_seed_catalog_waives: 713e4d8329f3346c30dbd0edabd78331ff2f56ff6e64876bd5e5ddbd03f807fb
   bin/lib/init.py#_sweep_extension_catalog_completeness: d175cf0951e6b19f0edda4274fe6da1d7a78393e83690de7332bc00f356f9335

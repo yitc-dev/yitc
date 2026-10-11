@@ -2524,7 +2524,8 @@ def _session_start_identity(arg_value: "str | None" = None) -> "tuple[str, str]"
     PROVIDER env carrier (those were removed from SESSION_IDENTITY_REGISTRY['env'] — Rule 8b), so v2
     depends on no provider harness's env-var name (CHARTER §Principle-4b).
 
-    Resolve-vs-mint precedence — MINT only when expected AND self-ref AND arg are ALL absent:
+    Resolve-vs-mint precedence — MINT only when expected AND self-ref AND arg are ALL absent, the
+    checkout carries no stamp, and this locus does not hold exactly one live record:
     - EXPLICIT `--session-ref` arg present → resolve via the untouched forensic reader
       `_resolve_session_ref_with_source(arg_value)` (source_kind `arg`, run through
       `_assert_modeled_source_kind`). Kept so an arg-sourced start is honored, not overridden by a mint.
@@ -2541,11 +2542,17 @@ def _session_start_identity(arg_value: "str | None" = None) -> "tuple[str, str]"
       and every read-gate keyed on the stamp while the agent carried the mint. Adopting makes this bootstrap
       agree with the resolver it bootstraps. It does NOT re-stamp: a re-stamp IS an adoption of the worktree
       and stays reserved to the explicit, confirmed-dead-gated `worktree adopt` (see `_foreign_hold_report`).
-    - No explicit identity (fresh interactive: no arg, no YITC_EXPECTED, no carried YITC_SESSION_REF) →
-      MINT a fresh uuid; source_kind `minted_self_ref` — a NON-carrier provenance value (a mint read no
+    - No explicit identity and no stamp, but this locus already holds exactly ONE live runtime record
+      (a carrier-less REPEAT start in the same shell) → RE-USE that record's id; source_kind
+      `runtime_record` (T-13823). It is the id Rule 2 selector 3 already gives every other carrier-less
+      verb in this locus; a second mint here made each of them refuse as ambiguous (Rule 5).
+    - No explicit identity (fresh interactive: no arg, no YITC_EXPECTED, no carried YITC_SESSION_REF),
+      no stamp, and ZERO or SEVERAL live records for this locus → MINT a fresh uuid; source_kind
+      `minted_self_ref` — a NON-carrier provenance value (a mint read no
       carrier), deliberately OUTSIDE the env:*/arg carrier taxonomy `_assert_modeled_source_kind`
       validates, so it is recorded verbatim on session_started, NEVER routed through that assert.
-      `worktree_stamp` is the same NON-carrier class and is likewise never routed through that assert.
+      `worktree_stamp` and `runtime_record` are the same NON-carrier class and are likewise never
+      routed through that assert.
     """
     if arg_value and arg_value.strip():
         return _resolve_session_ref_with_source(arg_value)
@@ -2580,6 +2587,18 @@ def _session_start_identity(arg_value: "str | None" = None) -> "tuple[str, str]"
                 "worktree explicitly via `bin/yitc-v2 worktree adopt`."
             )
         return stamp_ref, "worktree_stamp"
+    # T-13823: a carrier-less REPEAT start in a locus that already holds exactly ONE live record RE-USES
+    # that record's id; source_kind `runtime_record` (the resolver's own name for selector 3, the same
+    # NON-carrier class as the two around it). Rule 2 selector 3 makes the sole live record of this locus
+    # the id every other carrier-less verb here already resolves, so minting would give the shell a second
+    # live record and turn each of those verbs into the Rule-5 ambiguity refusal (measured on the release
+    # recipe `session start` then `init`, T-13813). `_live_runtime_records` is that selector's own reader —
+    # this locus only, dead records pruned — so nothing is re-used across login sessions or from a dead
+    # one. ZERO live records mints as before. TWO OR MORE also mints: the bootstrap never picks between
+    # distinct live identities, and the next carrier-less verb still fails closed (Rule 5).
+    live = sorted({r["session_id"] for r in _live_runtime_records()})
+    if len(live) == 1:
+        return live[0], "runtime_record"
     return _mint_session_id(), "minted_self_ref"
 
 
@@ -16122,7 +16141,7 @@ def _plan_open_citing_tasks(slug: str, exclude_tid: str | None = None) -> list:
 
 
 def _plan_realization_block(slug: str, target_lines=None) -> str:
-    return audit._plan_realization_block(slug, target_lines=target_lines, SPEC_ABANDONED_TERMINAL=SPEC_ABANDONED_TERMINAL, _find_task_yaml=_find_task_yaml, _plan_retire_on_proof=_plan_retire_on_proof, _plan_specs=_plan_specs, _plan_tasks=_plan_tasks, _find_draft=_find_draft, _plan_scenario_roles=_plan_scenario_roles, SCENARIOS_DIR=SCENARIOS_DIR, _scenario_index_nodes=_scenario_index_nodes)
+    return audit._plan_realization_block(slug, target_lines=target_lines, _find_spec_path=_find_spec_path, SPEC_ABANDONED_TERMINAL=SPEC_ABANDONED_TERMINAL, _find_task_yaml=_find_task_yaml, _plan_retire_on_proof=_plan_retire_on_proof, _plan_specs=_plan_specs, _plan_tasks=_plan_tasks, _find_draft=_find_draft, _plan_scenario_roles=_plan_scenario_roles, SCENARIOS_DIR=SCENARIOS_DIR, _scenario_index_nodes=_scenario_index_nodes)
 
 
 def _plan_target_scenario_lines(slug: str) -> list:

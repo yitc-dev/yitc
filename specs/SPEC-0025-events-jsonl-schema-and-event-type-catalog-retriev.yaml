@@ -1583,8 +1583,8 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ `verdict` — the adapter's `run` was the layer's first attempt and the `outcome`\
   \ was read\noff this record (`bin/lib/land_verify_legs.py#_adapter_first_attempt`);\
   \ `report-only` — the\nlayer's `command:` exit code decided and nothing reads this\
-  \ record to decide. Present ONLY on the\nrow of a layer that declares `adapter:`\
-  \ and whose `prep:`, adapter or command ran; every other row\nis byte-unchanged.\
+  \ record to decide that outcome. Present ONLY on the\nrow of a layer that declares\
+  \ `adapter:` and whose `prep:`, adapter or command ran; every other row\nis byte-unchanged.\
   \ Shape and\nsemantics are homed at the writer (`bin/lib/land_verify_legs.py#_layer_adapter_report_pass`,\
   \ rows\nby `#_classify_adapter_report`) and not restated; the registered keys are\
   \ `schema`, `mode`,\n`profile`, `usable`, `list`, `list_reason`, `required` (the\

@@ -1707,7 +1707,7 @@ def _known_broken_blob_exists(root, sha: str, relpath: str, *, _PROVENANCE_GIT_T
 
 
 
-def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN_CARRIER_EVENT=None, KNOWN_BROKEN_CLEARING_SIDE=None, KNOWN_BROKEN_ESTABLISHING_SIDE=None, KNOWN_BROKEN_TEST_SUBDIR=None, KNOWN_BROKEN_VACATED_REASON=None, _known_broken_blob_exists=None, _known_broken_delegated_pass_files=None, _known_broken_file=None, _known_broken_full_enumeration=None, _known_broken_pairs=None, _known_broken_ran_tests=None, _parse_stamped_deadline=None) -> dict:
+def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN_CARRIER_EVENT=None, KNOWN_BROKEN_CLEARING_SIDE=None, KNOWN_BROKEN_ESTABLISHING_SIDE=None, KNOWN_BROKEN_LAYER_PASSED=None, KNOWN_BROKEN_LAYER_ROWS_KEY=None, KNOWN_BROKEN_TEST_SUBDIR=None, KNOWN_BROKEN_VACATED_REASON=None, _known_broken_blob_exists=None, _known_broken_delegated_pass_files=None, _known_broken_file=None, _known_broken_full_enumeration=None, _known_broken_pairs=None, _known_broken_ran_tests=None, _parse_stamped_deadline=None) -> dict:
     """Fold the journal → the tests currently KNOWN BROKEN ON MAIN (SPEC-0181 §Known-broken-on-main).
 
     A test is known-broken when a land's attribution probe REPRODUCED its failure at the merge-base —
@@ -1723,7 +1723,7 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         The pair is corroborated by construction (see KNOWN_BROKEN_ESTABLISHING_SIDE): it failed in
         the candidate verify AND again at the merge-base, two runs on two trees. First sight
         establishes nothing.
-      * CLEAR — a LATER row is evidence for a pair by exactly one of four routes:
+      * CLEAR — a LATER row is evidence for a pair by exactly one of five routes:
           (a) that pair appears in the row's `at_branch` — the merge-base run did NOT reproduce it,
               which is a direct pair-level observation of it passing on main;
           (b) the row is a GREEN land that ran the whole discovered enumeration AND the pair's test
@@ -1738,6 +1738,12 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
               that delegates its tests sweep runs no sweep, so it writes no selection and (c) cannot
               see it: this is the same observation one granularity out, made by the layer that
               DECLARED the surface instead of by the kernel sweep that was skipped.
+          (e) the pair was OPENED BY A CONSUMER VERIFY-LAYER RED — the row that established it
+              shows the layer its first half names FAILED, and no other failing pair of that row
+              shares that first half — and the row is a GREEN land whose own row for THAT layer
+              reads `passed` with no failure of the layer on record (T-13835). The record was
+              established by re-running the LAYER at the merge-base, so the same layer passing in
+              a later green land is the same observation at the same granularity.
         A green full-enumeration land whose tree did NOT contain the file VACATES the record instead:
         reported as its own count, never as a pass.
       * RE-BREAK — a later `at_main` observation re-opens a cleared pair, because it is a new fact
@@ -1813,6 +1819,86 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         rec = open_records.get(pair)
         return rec is not None and event_ts > rec["established"]
 
+    def _layer_rows_by_name(data) -> "dict | None":
+        """The row's consumer verify-layer rows grouped under their stripped name, or None when
+        the row carries no list of them. An entry that is not a dict, or names no layer, is not a
+        layer row and is left out."""
+        layer_rows = data.get(KNOWN_BROKEN_LAYER_ROWS_KEY)
+        if not isinstance(layer_rows, list):
+            return None
+        by_name: dict = {}
+        for row in layer_rows:
+            name = row.get("layer") if isinstance(row, dict) else None
+            if isinstance(name, str) and name.strip():
+                by_name.setdefault(name.strip(), []).append(row)
+        return by_name
+
+    def _opened_by_layer_red(data, pair) -> bool:
+        """ROUTE (e), the ESTABLISHING side — does THIS establishing row show `pair` to be a
+        consumer verify-LAYER red, and nothing else? Only such a record may clear by route (e).
+
+        A pair's first half is a test file's name or a layer's name, and the two can coincide, so
+        the name alone decides nothing. Both limbs must hold ON THE ROW THAT ESTABLISHES THE PAIR:
+          * the row's own layer rows hold EXACTLY ONE row under that first half, and its `outcome`
+            is exactly `failed` — what the layer runner writes on the row of a layer that failed;
+          * EXACTLY ONE pair of the row's `failing` list carries that first half. A test file and
+            a layer of one name that both failed leave two, and neither is then told apart.
+        Every other shape — no layer rows, the layer passed or was skipped there, two rows under
+        the name, a `failing` list that is absent or names the half twice — answers False: the
+        record stands as a test-file record and route (e) never looks at it.
+        """
+        name = _known_broken_file(pair)
+        by_name = _layer_rows_by_name(data)
+        same = by_name.get(name) if by_name is not None else None
+        if not same or len(same) != 1 or same[0].get("outcome") != "failed":
+            return False
+        return sum(1 for p in _known_broken_pairs(data, "failing")
+                   if _known_broken_file(p) == name) == 1
+
+    def _layers_passed_clean(data) -> "frozenset | None":
+        """ROUTE (e), the CLEARING side — the consumer verify LAYERS this row shows passing with
+        no failure of that layer on record, or None = COULD NOT ANSWER (SPEC-0165 item 11: `None`
+        is not an empty set).
+
+        Closures, like the two above: one caller each, reading nothing but the row. Each limb is a
+        way a row could otherwise be read as evidence nobody wrote:
+          * `status` is EXPLICITLY `ok` — never a default, as on routes (c) and (d).
+          * the layer rows are a list, and a name counts only when EXACTLY ONE row carries it: two
+            rows under one name cannot both be that layer's verdict.
+          * that row's `outcome` is exactly `passed`. Every other outcome the writer has — failed,
+            timed-out, waived, malformed, prep-failed, skipped-disjoint-subject,
+            credited-stage6-run — means the layer did not run to a pass in THIS land.
+          * the row is not `retried`: a pass reached only by a re-run records a first-attempt
+            failure of this layer in this land.
+          * where the row carries the layer's per-unit report, EVERY unit row reads `passed` — the
+            reading the writer itself makes of a verdict record
+            (`land_verify_legs._adapter_first_attempt`). A report that is not a dict, units that
+            are not a list, or a unit that is not a dict fails closed.
+        """
+        if str(data.get("status") or "") != "ok":
+            return None
+        by_name = _layer_rows_by_name(data)
+        if by_name is None:
+            return None
+        clean = set()
+        for name, same in by_name.items():
+            if len(same) != 1:
+                continue
+            row = same[0]
+            if row.get("outcome") != KNOWN_BROKEN_LAYER_PASSED or row.get("retried"):
+                continue
+            if "adapter" in row:
+                report = row["adapter"]
+                if not isinstance(report, dict):
+                    continue
+                units = report.get("units")
+                if "units" in report and not (isinstance(units, list) and all(
+                        isinstance(u, dict) and u.get("status") == KNOWN_BROKEN_LAYER_PASSED
+                        for u in units)):
+                    continue
+            clean.add(name)
+        return frozenset(clean)
+
     for event_ts, data in rows:
         # CLEAR FIRST, then establish — a single row can legitimately do both (an attribution record
         # naming one pair at the merge-base and another on the branch), and a pair this row places on
@@ -1883,6 +1969,33 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
                     open_records.pop(pair, None)
                     cleared_count += 1
                     vacated.pop(pair, None)
+        # ROUTE (e) — T-13835. A record established by a consumer verify-LAYER red is keyed by the
+        # layer: the pair is `"<layer>: <assertion>"` and its first half is the layer's NAME, not a
+        # test file. Routes (b), (c) and (d) each look that half up among test FILES, so on a
+        # consumer whose lands run layers and no kernel sweep none of them could ever see it, and
+        # only route (a) — a later FAILING land — cleared such a record: the normal outcome after a
+        # fix, a green land, never did. This route reads the green land's own row for that layer.
+        #
+        # SAME GRANULARITY AS THE ESTABLISHING OBSERVATION, never finer and never coarser. The record
+        # opened because the LAYER failed again when re-run at the merge-base (the probe reads the
+        # layer's outcome, not an assertion), and route (a) already clears it when that re-run
+        # passes. A green land in which that same layer ran and passed is that observation again.
+        #
+        # PER NAMED LAYER, NEVER "SOME LAYER PASSED", AND NEVER ON THE NAME ALONE. Only a record
+        # its OWN establishing row showed to be that layer's red (`by_layer`, set where the record
+        # is opened or re-observed) is looked at, and only when its first half IS the name of a
+        # layer this row shows passing clean. A test file that happens to share a layer's name
+        # was never opened by that layer, so a pass of the layer says nothing about it.
+        #
+        # NOTHING TIME-BASED IS ADDED: `_clears` is the same strictly-later test every route uses.
+        clean_layers = _layers_passed_clean(data)
+        if clean_layers is not None:
+            for pair in list(open_records):
+                if (_clears(pair) and open_records[pair]["by_layer"]
+                        and _known_broken_file(pair) in clean_layers):
+                    open_records.pop(pair, None)
+                    cleared_count += 1
+                    vacated.pop(pair, None)
         sha = str(data.get("sha") or "").strip()
         # THE SHA GATE LIVES HERE, NOT IN THE PROBE. Route (b) is "the file was in the tree THIS row
         # produced", so a row that names no tree cannot answer it — and the guarantee must not rest
@@ -1909,22 +2022,26 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
             vacated.pop(pair, None)       # a re-observed pair is a live fact again, not a tombstone
             rec = open_records.get(pair)
             stamp = event_ts.isoformat().replace("+00:00", "Z")
+            by_layer = _opened_by_layer_red(data, pair)
             if rec is None:
                 open_records[pair] = {"pair": pair, "file": _known_broken_file(pair),
                                       "assertion": str(pair).partition(": ")[2].strip(),
                                       "since": stamp, "last_seen": stamp, "established": event_ts,
-                                      "branch": str(data.get("branch") or ""), "seen": 1}
+                                      "branch": str(data.get("branch") or ""), "seen": 1,
+                                      "by_layer": by_layer}
             else:
                 # A RE-OBSERVATION RE-STAMPS the establishing instant: the record is now a fact about
                 # THIS tree, so evidence must post-date THIS observation, not the original one.
                 rec["established"] = event_ts
+                rec["by_layer"] = by_layer        # the NEWEST observation decides, as for the instant
                 rec["last_seen"] = stamp
                 rec["seen"] += 1
                 rec["branch"] = str(data.get("branch") or rec["branch"])
 
     # `established` is the ORDERING datetime, an internal of the pass — the returned record carries
     # the same instant as the ISO `since` string every reader (and every citation by ts) uses.
-    broken = sorted((({k: v for k, v in r.items() if k != "established"})
+    # `by_layer` is route (e)'s internal mark and is not part of the returned record either.
+    broken = sorted((({k: v for k, v in r.items() if k not in ("established", "by_layer")})
                      for r in open_records.values()), key=lambda r: (r["since"], r["pair"]))
     vacated_rows = sorted(vacated.values(), key=lambda r: (r["at"], r["pair"]))
     return {
@@ -2061,7 +2178,7 @@ def _p8_card_declares_carrier(root, task_id) -> bool:
 
 
 def _p8_later_evidence_clears(task_id, warn_ts, p8_by_task, rows, *, with_reason=False,
-                              repo_root=None, _is_consumer_build=None):
+                              repo_root=None, events_path=None, _is_consumer_build=None):
     """T-11740 — was the adoption actually PROVED after the WARN fired?
 
     THE STRUCTURAL DEFECT THIS ENDS. The WARN is a HISTORICAL SNAPSHOT taken at `task close`: once
@@ -2077,13 +2194,29 @@ def _p8_later_evidence_clears(task_id, warn_ts, p8_by_task, rows, *, with_reason
     emitted 17-38 SECONDS after the `task_closed` row (X-1170).
 
     THE STANDARD IS NOT WIDENED — it is the close-time one, REUSED. The judgement is
-    `task._p8_evidence_is_substantive`, the same predicate `task close` applies (SPEC-0015): a
-    non-empty `failing_input` naming the differential AND an `evidence_events` ref that resolves to a
-    real, correlated, non-circular row. A prose-only or circular payload therefore still fails and the
-    row still reports. Re-implementing that judgement here is what would let the two drift (CHARTER
-    §P5), so it is imported, never copied. Its realm dep `_is_consumer_build` is INJECTED by the host
-    caller (T-12796) so a consumer ref is judged under the consumer arm, as at `task close`; absent,
-    the predicate reads KERNEL — the STRICTER of the two readings.
+    `task._p8_adoption_verdict`, the reading `task close` records as `adoption_evidence_seen`. It
+    applies the per-payload predicate `task._p8_evidence_is_substantive` (SPEC-0015): a non-empty
+    `failing_input` naming the differential AND an `evidence_events` ref that resolves to a real,
+    correlated, non-circular row. Above that predicate it applies the kernel reading that exit-status
+    evidence is not adoption by itself (SPEC-0177 rule 2). A prose-only or circular payload therefore
+    still fails and the row still reports, and so does a kernel payload whose only resolving refs are
+    exit-status differentials. Re-implementing either judgement here is what would let the two drift
+    (CHARTER §P5), so the verdict is imported, never copied. Its realm dep `_is_consumer_build` is
+    INJECTED by the host caller (T-12796) so a consumer ref is judged under the consumer arm, as at
+    `task close`; absent, the verdict reads KERNEL — the STRICTER of the two readings.
+
+    T-13833 — THE VERDICT, NOT THE PREDICATE ALONE. Until this card the arm called the predicate row
+    by row and cleared on the first substantive one, so the exit-status reading, which lives above the
+    predicate, never ran here: a closure whose WARN fired because its evidence was exit-status-only
+    dropped off the line as soon as such a payload was stamped at-or-after the close, while
+    `task close` read the same payload as not adoption (T-13826 audit-post, 2026-10-10). The verdict
+    is handed this arm's own inputs through its two read seams — the at-or-after rows as its
+    candidates, the fold's corpus as its resolution corpus — so it judges the rows this arm judged
+    before and makes no journal read of its own. `events_path` names the journal for the verdict's
+    task-horizon lookup, which asks the installed read scope about that path; the horizon bounds a
+    read the verdict does not make here. Absent (None — a harness driving this fn directly, with no
+    scope installed) there is no scope to ask; inside an installed scope a missing path makes that
+    lookup raise, which reads as NOT cleared like every other unreadable state of this arm.
 
     THIS ARM INVERTS THE MODULE'S FAIL-TOWARD-SILENCE DEFAULT, deliberately (audit-pre pass 1, high).
     Everywhere else here an unanswerable state reads as CARRIED, because those tests ask "is someone
@@ -2113,11 +2246,15 @@ def _p8_later_evidence_clears(task_id, warn_ts, p8_by_task, rows, *, with_reason
     the contract does not read, left both rows standing with no way to tell that from silence.
 
     THE LATEST ROW'S REASON, when several fail. That is the payload the author most recently wrote and
-    is looking at; reporting the oldest would answer about an attempt already superseded.
+    is looking at; reporting the oldest would answer about an attempt already superseded. The verdict
+    lists each distinct reason once, in candidate order, so the rows are handed to it NEWEST FIRST and
+    its first reason is taken: that is the latest row's also when an older row failed the same way.
+    When a row IS substantive for the predicate and the verdict still refuses (exit-status-only on the
+    kernel), the verdict gives that one reason and it is the one reported.
 
     THE FAIL-TOWARD-SILENCE INVERSION ABOVE IS UNCHANGED, and the reason obeys it: an import failure,
-    a raising predicate, an unplaceable row or an unusable `repo_root` (T-12106 — a `None` root simply
-    leaves the repo-reading ref forms dark, exactly as today) still returns NOT-cleared, with reason None. An
+    a raising predicate or verdict, an unplaceable row or an unusable `repo_root` (T-12106 — a `None`
+    root simply leaves the repo-reading ref forms dark) still returns NOT-cleared, with reason None. An
     unreadable state explains nothing — a reason invented there would be this module printing a
     diagnosis it did not make, on a surface whose only job is to be trustworthy enough to read.
 
@@ -2131,27 +2268,23 @@ def _p8_later_evidence_clears(task_id, warn_ts, p8_by_task, rows, *, with_reason
         return _verdict(False)
     try:
         from lib import task as _task    # local import: debt.py back-imports no host module
-        reason = None
-        for _ts, ev in later:
-            # T-12106 — `REPO_ROOT` IS INJECTED, because this arm's whole promise is that it reuses
-            # "the close-time `task._p8_evidence_is_substantive` so the two standards cannot drift"
-            # (rule 31's own words). Without the root, the `test:` ref form resolves NOWHERE here
-            # while resolving fine at `task close` — so the two standards ALREADY differed for the
-            # exact class rule 31 was written about (its text names that class: evidence that "could
-            # not RESOLVE for a structural reason"). Passing it RESTORES the reuse the rule claims;
-            # it is rule-PRESERVING, not a widening of what counts.
-            # T-12796 — `_is_consumer_build` rides the SAME injection: this module back-imports no
-            # host module that could answer the realm question, so the HOST caller passes its own
-            # probe in, and a consumer `test:<path>::<node>` ref (T-10914, no `&contrast=`) is judged
-            # under the consumer arm exactly as `task close` judges it. Absent (None — a harness
-            # driving this fn directly) the predicate still reads the STRICTER kernel arm: fail-closed.
-            ok, why = _task._p8_evidence_is_substantive(ev, task_id, rows, with_reason=True,
-                                                        REPO_ROOT=repo_root,
-                                                        _is_consumer_build=_is_consumer_build)
-            if ok:
-                return _verdict(True)
-            reason = why               # LATEST failing payload wins — see the docstring
-        return _verdict(False, reason)
+        reasons: list = []
+        # T-12106 — `REPO_ROOT` IS INJECTED, because this arm's whole promise is that it reuses the
+        # close-time reading "so the two standards cannot drift" (rule 31's own words). Without the
+        # root, the `test:` ref form resolves NOWHERE here while resolving fine at `task close`.
+        # T-12796 — `_is_consumer_build` rides the SAME injection: this module back-imports no host
+        # module that could answer the realm question, so the HOST caller passes its own probe in.
+        # Absent (None — a harness driving this fn directly) the verdict reads the STRICTER kernel arm.
+        # T-13833 — the two read seams carry this arm's own inputs: the rows it already holds
+        # (newest first — see the docstring) and the corpus the fold built in its one pass.
+        verdict = _task._p8_adoption_verdict(
+            task_id, EVENTS_PATH=events_path,
+            _p8_evidence_events_for=lambda _tid: [ev for _ts, ev in reversed(later)],
+            _folded_journal_events=lambda **_kw: rows,
+            _is_consumer_build=_is_consumer_build, REPO_ROOT=repo_root, reasons_out=reasons)
+        if verdict["substantive"]:
+            return _verdict(True)
+        return _verdict(False, reasons[0] if reasons else None)
     except Exception:                    # noqa: BLE001 — unreadable => NOT proved => clears nothing
         return _verdict(False)
 
@@ -2169,9 +2302,9 @@ def uncarried_p8_warns(events_path, *, root, window_hours: int = P8_WARN_WINDOW_
     A non-positive `window_hours` DISABLES the view (an operator switch, never a bar that hides a
     count); every unanswerable state resolves to CARRIED and drops out.
 
-    PURE READ. It opens the journal through the ONE shared parsed fold (so the T-11453
-    request-scoped memo still collapses it with its ~15 siblings at the debt residue) plus, for the
-    SURVIVING candidates only, their own task cards. It writes nothing.
+    PURE READ. It reads the journal in ONE walk — `journal.reduce_journal` feeding
+    `P8EvidenceReducer`, which inside the debt seam's scope is the reducer the seam's one pass
+    already fed — plus, for the SURVIVING candidates only, their own task cards. It writes nothing.
 
     DECLARED HORIZON: the WHOLE logical journal (SPEC-0190 rule 4, T-11590). The window this fold
     judges is EXACTLY P8_WARN_WINDOW_HOURS = 168 hours = 7 days — IDENTICAL to
@@ -2183,10 +2316,8 @@ def uncarried_p8_warns(events_path, *, root, window_hours: int = P8_WARN_WINDOW_
     exists to make an unproven CHARTER §Principle-8 adoption VISIBLE, and a closure whose WARN fired
     with no carrier drops off it the moment its `task_closed` row crosses the boundary — before the
     declared week is out. The view would go quiet at exactly the oldest, most-owed end of its own
-    window, and a debt that is not shown was, for every reader, discharged. So it takes the ARCHIVE
-    branch (`journal.segment_rows`), which reads each segment through the SAME `fold_rows` primitive
-    — one physical read path, one parse path, and the T-11453 `rows_memo` scope still serves each
-    segment. Same swap the sibling migration T-11589 made on `_abort_rows` in this file.
+    window, and a debt that is not shown was, for every reader, discharged. So the walk is given no
+    lower bound: it covers every segment of the logical journal, the archived ones included.
 
     ORDER-SENSITIVITY (SPEC-0190 rule 6, the reader-specific judgement). Segments concatenate in
     `segment_paths` order, not in `ts` order — but this reader is NOT order-sensitive: it collects
@@ -2202,13 +2333,16 @@ def uncarried_p8_warns(events_path, *, root, window_hours: int = P8_WARN_WINDOW_
 
     THE LATER-EVIDENCE ARM (T-11740, X-1170 / X-1190) is the FOURTH drop test, and it is the only one
     that reads a PROOF rather than a promise: a surviving candidate whose task id carries a P8
-    adoption event stamped at-or-after its WARN, judged substantive by the close-time predicate, is
+    adoption event stamped at-or-after its WARN, judged adoption by the close-time reading, is
     dropped. Its rationale, its reuse-not-reimplement bound and the one place it inverts this
     module's fail-toward-silence direction live on `_p8_later_evidence_clears` — not restated here.
-    It costs NO second journal read: `segment_rows` already materialises the whole logical journal as
-    a list, so this fold now HOLDS that list (it is the resolution corpus the predicate resolves refs
-    against) and collects the P8 rows in the SAME pass that finds the WARNs. The arm is consulted for
-    the SURVIVING candidates only, after all three existing tests.
+    It costs NO second journal read: the walk that yields the WARN rows yields the P8 adoption rows
+    and the resolution corpus the predicate resolves refs against. That corpus is REDUCED (T-13139),
+    never the journal as a list: the rows the typed ref forms read — land rows, nightly rows,
+    conformance-verb `cli_invoked` rows and Stage-6 run rows carrying a layer list (T-13832) — plus
+    an exact index of event type, `ts` and task id for the bare forms; `P8EvidenceReducer` is its
+    home. The arm is consulted for the SURVIVING candidates only, after all three existing tests,
+    and the corpus is built when the first one survives.
     """
     empty = {"count": 0, "window_hours": window_hours, "rows": []}
     try:
@@ -2299,6 +2433,7 @@ def uncarried_p8_warns(events_path, *, root, window_hours: int = P8_WARN_WINDOW_
                 return empty
         cleared, unproved_reason = _p8_later_evidence_clears(
             task_id, ts, p8_by_task, rows_corpus, with_reason=True, repo_root=root,
+            events_path=events_path,                 # T-13833 — the journal the close-time reading is told
             _is_consumer_build=_is_consumer_build)   # T-12796 — the host's realm probe, passed through
         if cleared:
             continue                       # T-11740 — the proof was emitted after the WARN fired
@@ -2394,7 +2529,11 @@ class P8EvidenceReducer:
         if t == "land_completed":
             self._entries.append(("row", row))
             self._src.append(["row"])
-        elif t == "nightly_run_completed":
+        elif t == "nightly_run_completed" or (
+                t == "tests_passed" and isinstance(row.get("data"), dict)
+                and isinstance(row["data"].get("consumer_verify_layers"), list)):
+            # T-13832 — a Stage-6 run row carrying a layer list: a land that credited the run
+            # answers a layer-row ref with it (`_land_layer_rows`, T-13643)
             self._entries.append(("line", line))
             self._src.append(["line", line])
         elif t == "cli_invoked":
@@ -2431,7 +2570,7 @@ class P8EvidenceReducer:
     # the type index of an instance whose older half already STOPPED is dropped — no row after the
     # first non-dict value ever reached it.
     def summary_key(self):
-        return {"v": 1, "skip": sorted(self._skip), "verbs": sorted(self._verbs),
+        return {"v": 2, "skip": sorted(self._skip), "verbs": sorted(self._verbs),
                 "keep": sorted(self._keep_types)}
 
     def summary(self):

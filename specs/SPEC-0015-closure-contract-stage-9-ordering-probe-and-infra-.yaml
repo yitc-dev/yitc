@@ -274,9 +274,9 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ BY\nITSELF is not infra adoption), and may not be the closure bookkeeping every\
   \ task earns for free (those\nprove the TASK closed, never that its MECHANISM ran).\n\
   \n**The REF GRAMMAR is part of this contract, and it is NOT the CHARTER §Principle-2\
-  \ locator\n.** Every accepted reference NAMES AN EVENT TYPE — that is what lets\
-  \ it be correlated to\nthis task, and what makes the non-circular test a property\
-  \ of the reference itself. The CHARTER\n§Principle-2 journal locator (the `<journal>#<key>=<value>`\
+  \ locator.**\nEvery accepted reference NAMES AN EVENT TYPE — that is what lets it\
+  \ be correlated to\nthis task, and what makes the non-circular test a property of\
+  \ the reference itself. The CHARTER\n§Principle-2 journal locator (the `<journal>#<key>=<value>`\
   \ form) is a DIFFERENT address space — how\na COMMIT's `from:` trailer cites a journal\
   \ entry — and resolves NOTHING here. It is deliberately NOT\nadmitted: it names\
   \ no event type, and a timestamp does not reliably map unambiguously to ONE row\n\
@@ -288,7 +288,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ close`\nE-0005 WARN, the Execution/Closure stage cue and the SPEC-0119 rule-31\
   \ debt remedy, so no surface\ncan spell the grammar differently from the resolver\
   \ that enforces it.\n\n**A reference may name a row in a REGISTERED CONSUMER's journal\
-  \ — the `<project>:<form>` spelling\n.** An engine mechanism whose only production\
+  \ — the `<project>:<form>`\nspelling.** An engine mechanism whose only production\
   \ run happens on a consumer leaves its proof\nin THAT project's journal, where no\
   \ reference could reach it. So a pinned event reference, or a land-row selector\
   \ reference, may be prefixed with the\nproject's KEY in the host registry. The named\
@@ -401,7 +401,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ adoption: the carrier is a real-subprocess test-probe, NOT a journal event\nA\
   \ REPORT-ONLY PRINT-CLASS mechanism is an advisory stdout prompt that emits NO journal\
   \ event BY\nDESIGN, so §The EVENT carrier is structurally unsatisfiable for it.\
-  \ The STANDING RULE :\n**for a report-only print-class mechanism the P8 adoption\
+  \ The STANDING RULE:\n**for a report-only print-class mechanism the P8 adoption\
   \ carrier is a NAMED TEST-PROBE that drives a\nREAL `-C <verb>` subprocess (e.g.\
   \ `-C <consumer> init`) and asserts the print APPEARS on stdout,\npaired with its\
   \ DIFFERENTIAL — a mutation that SILENCES or mis-emits the print flips the assertion\n\
@@ -427,13 +427,12 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ prose.\n\n**Condition (iv) has TWO proofs — the layer is NEW, or this ship REWIRED\
   \ it.** NOVELTY — no\nearlier land ran that layer; or REWIRE — the layer already\
   \ existed and THIS SHIP'S DIFF changed the\nDEFINITION behind its name. **The definition\
-  \ is the layer's command AND its declared time bound\n** — the bound the project's\
+  \ is the layer's command AND its declared time bound**\n— the bound the project's\
   \ ops contract declares for that layer: the layer's own, else the\nproject-level\
   \ default it inherits (SPEC-0152 rule 16 owns both declarations). So a ship whose\
   \ whole\nchange is a layer's declared bound is a rewire on the same terms as one\
-  \ that changes its command;\nbefore only the command counted, and such a ship had\
-  \ no resolvable reference. The per-host\nenvironment override of that bound is NOT\
-  \ part of the definition: it is a property of the machine a\nland ran on, never\
+  \ that changes its command.\nThe per-host\nenvironment override of that bound is\
+  \ NOT part of the definition: it is a property of the machine a\nland ran on, never\
   \ of the ship's diff. A layer that declares no bound at either level, on both sides\n\
   of the diff, is judged on its command alone, exactly as before.\n\n**A land that\
   \ credited the task's own Stage-6 run answers for that run's layers.** Such a\n\
@@ -444,7 +443,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ record and never taken from any other row. Conditions\n(i)-(iv) are otherwise\
   \ unchanged, and an earlier credited land counts toward condition (iv) the\nsame\
   \ way.\n**A land that took only SOME layers' verdicts from that run answers for\
-  \ those layers the same way\n.** Such a land ran its own candidate verify (SPEC-0065\
+  \ those layers the same\nway.** Such a land ran its own candidate verify (SPEC-0065\
   \ §Bound, the per-layer case), so its\nrecord carries its own outcome for every\
   \ layer it ran, and those are read from the land's record\nalone. For exactly the\
   \ layers its record names as taken from the run — each also showing that on\nits\

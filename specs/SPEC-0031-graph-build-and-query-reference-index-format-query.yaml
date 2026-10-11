@@ -399,15 +399,18 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ / 25-type ontology like v1 — stays bounded per §Schema)\n- **NOT** edge classification\
   \ beyond stated 4 edges (no `subsumes` / `replaces` / 9-type taxonomy like v1)\n\
   - **NOT** validation layer (no «check that all RULE-* have implements» — humans\
-  \ write specs correctly OR they don't, graph just indexes). **ONE narrow named exception\
-  \ (SPEC-0076 §3):** `graph build` deterministically REJECTS a scenario frontmatter\
-  \ that STORES an illegal `status` (only `retired` or absent is legal — `draft|building`\
-  \ are a computed view, and the now-retired `live` stays illegal to store). This\
-  \ is a storage-FORMAT contract check (a malformed field, like the YAML-parse fail-closed),\
-  \ NOT semantic/legality validation — the graph still never judges transition legality,\
-  \ never gates on suspicion (scenario staleness stays a read-only WARN; a dangling\
-  \ `covers` anchor is report-only here, hardened to a write-time error by its own\
-  \ card, not by `graph build`).\n- **NOT** an unconditional rebuild — the build consults\
+  \ write specs correctly OR they don't, graph just indexes). **TWO narrow named exceptions,\
+  \ each a check of FACT.** **The first (SPEC-0076 §3):** `graph build` deterministically\
+  \ REJECTS a scenario frontmatter that STORES an illegal `status` (only `retired`\
+  \ or absent is legal — `draft|building` are a computed view, and the now-retired\
+  \ `live` stays illegal to store). This is a storage-FORMAT contract check (a malformed\
+  \ field, like the YAML-parse fail-closed), NOT semantic/legality validation — the\
+  \ graph still never judges transition legality, never gates on suspicion (scenario\
+  \ staleness stays a read-only WARN). **The second (SPEC-0076 rule 6(b), the home\
+  \ of the rule — pointed at, not restated):** `graph build` also FAILS on a `building`\
+  \ scenario whose `covers` anchor does not resolve or whose cited spec does not exist;\
+  \ a `draft` or `retired` scenario is outside this check, and its dangling `covers`\
+  \ anchor stays report-only.\n- **NOT** an unconditional rebuild — the build consults\
   \ a result cache first; the cache contract is §Build tool step 0 of this spec. **The\
   \ cost it addresses is measured, not assumed** — folded from each repo's own recorded\
   \ build durations. Cost tracks CORPUS SIZE and so differs by orders of magnitude\
@@ -496,20 +499,25 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ control-point — so the\nalways-loaded GRAPH core stays small (node/edge schema\
   \ + Spec lifecycle FSM + What-a-spec-is-FOR). The\nbuild↔query contract (the `index.json`\
   \ format) is kept in ONE spec so the producer-doc and\nconsumer-doc do not drift\
-  \ apart (rule-1 merge: separating them would worsen change analysis).\n\n## Verification\n\
-  \n- **Fidelity (RED-GREEN):** substantive phrases (e.g. `keyed by the normalized\
-  \ FILE component` /\n  `it stores the QUERY, never a materialized output`) resolve\
-  \ in THIS spec and are ABSENT from\n  GRAPH.md after the demote. RED before strip,\
-  \ GREEN after.\n- **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0031`\
-  \ resolves; the GRAPH.md pointer-stub\n  names `SPEC-0031` + lookup command. NO\
-  \ floor-trigger.\n- **Non-dangling:** non-empty `implements:` (cmd_graph_build +\
-  \ cmd_graph_query) ⇒ excluded from\n  `dangling_specs` once active.\n- **Boundary:**\
-  \ the 7-node / 4-edge schema (post the 11->6 node / 6->3 edge cut, then the\n  SPEC-0076\
-  \ scenario node + covers edge re-grow to 7/4) + Spec lifecycle FSM stay MANDATORY\
-  \ in\n  GRAPH.md (grep).\n- **Re-verified current (refreshed):** the build-walk\
-  \ (specs/tasks/decisions/patterns/\n  plans/ideas/errors/scenarios + `from:` trailers\
-  \ + events + audits + rule-extraction) confirmed against `graph_build_index`; the\n\
-  \  `index.yaml` format and the `--projected` structural flags (`added`/`changed`/`superseded`/`stale`/\n\
+  \ apart (rule-1 merge: separating them would worsen change analysis).\n\nThe fence\
+  \ bullet «NOT validation layer» was written, when the stored-status check was\n\
+  the only one that failed a build and a dangling `covers` anchor was only reported.\
+  \ then\nput the broken-reference check into the build (June 2026) and added the\
+  \ cited-spec case,\nwhile the bullet kept its earlier wording. (2026-10-10) corrected\
+  \ the bullet to that\nshipped behaviour and counted the second exception; the build\
+  \ itself did not change.\n\n## Verification\n\n- **Fidelity (RED-GREEN):** substantive\
+  \ phrases (e.g. `keyed by the normalized FILE component` /\n  `it stores the QUERY,\
+  \ never a materialized output`) resolve in THIS spec and are ABSENT from\n  GRAPH.md\
+  \ after the demote. RED before strip, GREEN after.\n- **Delivery (query-only):**\
+  \ `bin/yitc-v2 graph query SPEC-0031` resolves; the GRAPH.md pointer-stub\n  names\
+  \ `SPEC-0031` + lookup command. NO floor-trigger.\n- **Non-dangling:** non-empty\
+  \ `implements:` (cmd_graph_build + cmd_graph_query) ⇒ excluded from\n  `dangling_specs`\
+  \ once active.\n- **Boundary:** the 7-node / 4-edge schema (post the 11->6 node\
+  \ / 6->3 edge cut, then the\n  SPEC-0076 scenario node + covers edge re-grow to\
+  \ 7/4) + Spec lifecycle FSM stay MANDATORY in\n  GRAPH.md (grep).\n- **Re-verified\
+  \ current (refreshed):** the build-walk (specs/tasks/decisions/patterns/\n  plans/ideas/errors/scenarios\
+  \ + `from:` trailers + events + audits + rule-extraction) confirmed against `graph_build_index`;\
+  \ the\n  `index.yaml` format and the `--projected` structural flags (`added`/`changed`/`superseded`/`stale`/\n\
   \  `multi-proposer-unordered`/`dangling`) confirmed all-present in code. `cmd_graph_query`\
   \ region is\n  IDENTICAL to the spec last-touch baseline (no code-drift). The only\
   \ freshness signal was the cosmetic\n   `cmd_graph_build` path-derivation refactor\
@@ -581,7 +589,7 @@ activation_owner_task: null
 proposed_by: null
 implements_signature:
   bin/lib/graph.py#_regen_manifest_managed_regions: 57c4a9252b57e07fdaaec5fc111ba3b675bc4edc23b6bad582a147a4f8e98e01
-  bin/lib/graph.py#cmd_graph_build: 6807128a31ce7d22d208da3219b23e1c9c0a76bad72fa3d2074d23bb669b493c
+  bin/lib/graph.py#cmd_graph_build: 61800845eae162d948ccceac985792753c5d41ff91134f0a14b48bcb3766a4a4
   bin/lib/graph.py#cmd_graph_query: ce730fab99c0c33e1904a12ebbc4aa64c114be0dfc57198f74be838b966e572e
   bin/lib/graph.py#graph_cache_report_lines: f6531ec48ac729e790ee9020b118372b073deb54446b84c94c5b5d69633c1d24
   bin/lib/graph.py#index_cache_lookup: cbeab808408aae3ddc3bf0deb7a33d9e4aff6b9e601d71a04257213f7c2cb6ba
