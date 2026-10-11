@@ -24446,7 +24446,7 @@ def _require_plan_postcheck_ready(slug: str, body: str, on_decisions: bool = Fal
 
 
 def _plan_finalization_on_decisions_pass(slug: str, admitted) -> None:
-    """T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e)) — run the ONE bounded pass of a plan's
+    """T-13844 (public issue #78; SPEC-0204 rule 9(e)) — run the ONE bounded pass of a plan's
     `finalization` gate: the aggregate `audit post --plan <slug>`, under the rule-3 admission
     `plan stage postcheck --on-decisions` has just taken on the plan-gate ladder.
 
@@ -24902,7 +24902,7 @@ def _plan_body_title(body: str) -> str:
 
 
 def cmd_plan_show(args: argparse.Namespace) -> None:
-    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml)
+    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build)
 
 
 def cmd_scenario_new(args: argparse.Namespace) -> None:

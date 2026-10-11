@@ -1,6 +1,6 @@
-# Release v2.9.1
+# Release v2.10.0
 
-Source commit: `eea0c4de7b74f37d0db7f10a03efd14d981803a5`
+Source commit: `7a166dd9397cc95483cd75d95cce63269f5b7ad9`
 
 ## Proposals this release answers
 
@@ -79,7 +79,9 @@ answers:
   - 'yitc-dev/yitc#74'
   - 'yitc-dev/yitc#77'
   - 'yitc-dev/yitc#78'
+  - 'yitc-dev/yitc#79'
   - 'yitc-dev/yitc#8'
+  - 'yitc-dev/yitc#80'
   - 'yitc-dev/yitc#9'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
   - 'yitc-dev/yitc-archive-2026-10-02#10'
@@ -134,20 +136,27 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag.
+2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1025 — Plan author self-check — re-read the plan before a plan gate, and check a trial run will count before launching it
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1025`
+- SPEC-1026 — Change hand-in with evidence - edges and chosen interleavings listed in the task plan before audit-pre; proxy checks and deferred proofs shown RED on a fault planted at the observable
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1026`
 
 ## What changed
 
 8 task(s) closed since the previous release tag, in close order:
 
-- T-13842 — Make the branch-burn debt fold count a batch-member landing as landed and one land run as one attempt (fix) — events.jsonl#ts=2026-10-11T00:51:34Z
-- T-13840 — Stop a test run in a scratch worktree from writing core.bare=true into the shared git config (fix) — events.jsonl#ts=2026-10-11T01:23:58Z
-- T-13838 — Stop a test run from deleting the live session scratch root it inherits through YITC_SCRATCH_DIR (fix) — events.jsonl#ts=2026-10-11T02:33:53Z
-- T-13830 — Read the whole window in the branch-burn debt fold when the window is set past the live journal window (fix) — events.jsonl#ts=2026-10-11T02:51:43Z
-- T-13839 — Make the land repeated-abort backstop count one abort once after `worktree sync` and reset on a fix commit (fix) — events.jsonl#ts=2026-10-11T03:26:15Z
-- T-13837 — Close the coverage-map gaps behind the selection tripwire hits that recurred after (fix) — events.jsonl#ts=2026-10-11T04:35:15Z
-- T-13841 — Make the dispatch watch loop read the journal once per tick — AC4 came back falsified and dispatch is now the worst seam (refactor) — events.jsonl#ts=2026-10-11T08:56:27Z
-- T-13844 — Let `plan stage postcheck --on-decisions` run the SPEC-0204 bounded pass for a plan's finalization gate at its ceiling (fix) — events.jsonl#ts=2026-10-11T10:34:27Z
+- T-13850 — Reword the four code comments that spell the public repo slug, so main stops failing the published account-name ceiling (hygiene) — events.jsonl#ts=2026-10-11T14:13:09Z
+- T-13848 — Stop the release publish step stripping `` from shell function definitions, and refuse a published shell script that does not parse (fix) — events.jsonl#ts=2026-10-11T14:49:35Z
+- T-13846 — Stop the journal reader re-walking main's window after every land, and reading a rewritten segment twice for a never-dispatched id (refactor) — events.jsonl#ts=2026-10-11T15:52:36Z
+- T-13859 — Stop correction-record classification findings from feeding themselves at plan gates (fix) — events.jsonl#ts=2026-10-11T17:32:59Z
+- T-13853 — Activate SPEC-1025 and put its cue in the plan verbs' next-action hint (feature) — events.jsonl#ts=2026-10-11T17:40:25Z
+- T-13852 — Activate SPEC-1026 and carry its edge list and weak-check evidence in the dispatch-composed brief (feature) — events.jsonl#ts=2026-10-11T18:05:54Z
+- T-13860 — Never read an info finding as a re-raised residual, and let a RED ceiling row that resolves no residual admit the next round (fix) — events.jsonl#ts=2026-10-11T18:17:55Z
+- T-13851 — Make every release publish run the published security programs once on sample data, refusing a build whose program parses but fails at run time (feature) — events.jsonl#ts=2026-10-11T18:23:20Z
 
 ## Trust surfaces
 

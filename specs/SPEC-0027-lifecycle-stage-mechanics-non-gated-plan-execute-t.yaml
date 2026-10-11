@@ -84,8 +84,8 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ / spec / pattern) — follow `patterns/doc-conventions.md`\n.\n- When the change\
   \ will bind a scenario step to a test, shape the code so the step's boundary exists\n\
   \  (a function LOADS or DECIDES, never both) — `patterns/choosing-a-bound-tests-boundary.md`\
-  \ §0.\n- The change hand-in self-check has its one home in SPEC-1019, delivered\
-  \ by `stage Execution`\n  (`bin/yitc-v2 graph query SPEC-1019`).\n\n**Spec mutation\
+  \ §0.\n- The change hand-in has its one home in SPEC-1026, delivered by `stage Plan`\
+  \ and `stage Execution`\n  (`bin/yitc-v2 graph query SPEC-1026`).\n\n**Spec mutation\
   \ during Execution — the EXISTING spec FSM edges, no new mechanism (per Part C narrow).**\n\
   If the task staged a `proposed` spec in Plan (Stage 3), Execution may act on it.\
   \ The four moves are\njust NAMES for transitions the spec FSM (GRAPH §Spec lifecycle)\

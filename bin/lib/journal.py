@@ -4004,6 +4004,38 @@ class _LineStore:
             yield from zip(seqs, segs, zlib.decompress(blob).decode("utf-8").split("\n"))
         yield from zip(self._seqs, self._segs, self._lines)
 
+    def packed(self):
+        """Each PACKED block in walk order as `(line count, its lines joined by a newline, utf-8)`
+        — the bytes a block was packed from. The lines not yet packed are not in it."""
+        for seqs, _segs, blob in self._blocks:
+            yield len(seqs), zlib.decompress(blob)
+
+    def lines(self, skip_blocks=0):
+        """The lines alone, in walk order — from the packed block `skip_blocks` on."""
+        for _seqs, _segs, blob in self._blocks[skip_blocks:]:
+            yield from zlib.decompress(blob).decode("utf-8").split("\n")
+        yield from self._lines
+
+    # T-13846 — the END of the store, for a scope that takes back the tail of what it read: the last
+    # block is brought back uncompressed when it is reached, and the next `_flush` packs what is left.
+    def last(self):
+        """The last `(seq, seg, line)`, or None when the store is empty."""
+        if not self._lines and self._blocks:
+            seqs, segs, blob = self._blocks.pop()
+            lines = zlib.decompress(blob).decode("utf-8").split("\n")
+            self._seqs, self._segs, self._lines = seqs, segs, lines
+            self._size = sum(len(line) for line in lines)
+        return (self._seqs[-1], self._segs[-1], self._lines[-1]) if self._lines else None
+
+    def pop(self):
+        """Remove and return the last `(seq, seg, line)`, or None when the store is empty."""
+        entry = self.last()
+        if entry is not None:
+            self._seqs.pop()
+            self._segs.pop()
+            self._size -= len(self._lines.pop())
+        return entry
+
 
 def _intern_row(obj, table, in_list=False, values=False):
     """A copy of a parsed row whose dict KEYS and list-held STRINGS are shared through `table` — the
@@ -5190,19 +5222,84 @@ def _resume_refusal(fh, start, ident):
     file's size on that same handle, so the caller reads `[start, size)` from the file it proved."""
     st = os.fstat(fh.fileno())
     size = st.st_size
-    tail = b""
-    if 0 < start <= size:
-        fh.seek(max(0, start - JournalScan._TAIL))
-        tail = fh.read(min(start, JournalScan._TAIL))
     if ident is None or ident[:2] != (st.st_dev, st.st_ino):
         return "rotated", size
     if size < start:
         return "shrunk", size
+    # T-13846 — the bytes are looked at only now: a replaced or shrunk file is refused on what
+    # `fstat` says, so the reader that then follows it is the first to read it.
+    tail = b""
+    if start > 0:
+        fh.seek(max(0, start - JournalScan._TAIL))
+        tail = fh.read(min(start, JournalScan._TAIL))
     if start > 0 and tail != ident[2]:
         return "rewritten", size
     if start > 0 and not tail.endswith(b"\n"):
         return "misaligned", size
     return None, size
+
+
+def _byte_lines(data):
+    """`(lines, lossy)` — the stripped non-empty lines of the bytes `data` in the fold family's own
+    reading (`_stream_fold_lines`: `bytes.splitlines`, `bytes.strip`, a strict utf-8 decode that
+    SKIPS an undecodable line), and whether a line was skipped."""
+    lines, lossy = [], False
+    for bline in data.splitlines():
+        bline = bline.strip()
+        if not bline:
+            continue
+        try:
+            lines.append(bline.decode("utf-8"))
+        except UnicodeDecodeError:
+            lossy = True
+    return lines, lossy
+
+
+class _ForwardBytes:
+    """T-13846 — the first `size` bytes of the open binary handle `fh`, read FORWARD and ONCE.
+    `take(n)` hands over the next `n` bytes (fewer at the end); `back(data)` puts bytes that were
+    taken but not used at the front again, so a span that was compared and found different is
+    handled a second time from memory, never read a second time; `whole_lines()` hands over the
+    next bytes up to and including their last newline. `read` counts every byte asked of the
+    handle, and the handle is never moved backward: `read` can never exceed `size`."""
+
+    def __init__(self, fh, size, *, block=_SHARED_PREFIX_BLOCK):
+        fh.seek(0)
+        self._fh, self._left, self._block = fh, size, block
+        self._buf, self._at = b"", 0
+        self.read = 0
+
+    def take(self, n) -> bytes:
+        have = len(self._buf) - self._at
+        if have < n and self._left:
+            data = self._fh.read(min(max(n - have, self._block), self._left))
+            self._left = self._left - len(data) if data else 0
+            self.read += len(data)
+            self._buf, self._at = self._buf[self._at:] + data, 0
+        out = self._buf[self._at:self._at + n]
+        self._at += len(out)
+        return out
+
+    def back(self, data) -> None:
+        self._buf, self._at = data + self._buf[self._at:], 0
+
+    def whole_lines(self) -> bytes:
+        """The next bytes up to and including their LAST newline — every whole line of at least one
+        block; b"" once no newline is left (what remains is the file's final part: `rest`)."""
+        data = self.take(self._block)
+        end = data.rfind(b"\n") + 1
+        while not end:
+            more = self.take(self._block)
+            if not more:
+                break
+            data += more
+            end = data.rfind(b"\n") + 1
+        self.back(data[end:])
+        return data[:end]
+
+    def rest(self) -> bytes:
+        """Everything not yet handed over."""
+        return self.take(len(self._buf) - self._at + self._left)
 
 
 class JournalScan:
@@ -5252,16 +5349,46 @@ class JournalScan:
     Each ARCHIVED segment of the walk whose summary covers this declaration is served from it (counted
     in `reads.segments_skipped`); every other one is folded in this same walk and its summary built
     from that fold. Refused with keep_all/extendable; a `task=` scope runs unindexed. `index_state`
-    reports served / folded / stored and why it is inert."""
+    reports served / folded / stored and why it is inert.
+
+    T-13846 — `follow_live`, OFF by default: the scope of a request that outlives REWRITES of the
+    live segment (a `dispatch --watch`: every land folds its branch's rows into main's journal and
+    leaves the result on a new inode — the old lines in their old order up to where the fold put the
+    branch's rows). Such a scope KEEPS EVERY LINE it reads from the live segment (compressed, beside
+    the window), and that buys two things:
+      * A RESUME POINT THE CATCH-UP CANNOT PROVE IS RE-PROVED AGAINST THOSE LINES, not answered by
+        going stale (`_follow_rewrite`). The file as it now is is read ONCE: while its lines are,
+        in order, the lines the scope read, nothing is parsed; from the first line that differs the
+        scope takes back what it read (`_unread_live`) and reads the file from there — one forward
+        pass, each byte asked of the file once (`_ForwardBytes`). Exact because
+        the scope is then what a walk of the journal as it now is would hold: the walked ARCHIVES
+        are still the files it read (`_segment_ids`), the segments its horizon admits are the ones
+        it walked, and the live segment's stores hold the file's lines in the file's order. A
+        rotation or a rewritten archive fails those two tests and turns the scope stale exactly as
+        before; its seam walks again.
+      * THE LIVE SEGMENT IS SERVED WHOLE (`live_lines`): the unbounded dispatch read takes its lines
+        from here, in the text reading it would have made itself (`text_mode_pieces`), and opens
+        the archives alone.
+    Only with `catch_up` and a horizon (`since`), and only for a window-only declaration: taking a
+    line back is defined for the all-types window and the kept lines, not for a typed projection, a
+    reducer or a needle; and "the segments a walk would take now" is asked through the horizon."""
 
     def __init__(self, path, *, keep=None, parsed=(), window_sec=None, reducers=None, needles=(),
                  since=None, remainder=False, keep_all=False, extendable=False, lock=False,
-                 catch_up=False, task=None, index=False, force_rows=True, window_all=False):
+                 catch_up=False, task=None, index=False, force_rows=True, window_all=False,
+                 follow_live=False):
         if (keep_all or extendable) and (reducers or window_sec or window_all or remainder or catch_up
                                          or index or not (keep_all and extendable)):
             raise ValueError("keep_all and extendable go together, and never with reducers, a window, "
                              "a remainder walk (an extension IS this scope's remainder), a catch-up "
                              "or the whole-history index")
+        if follow_live and (not catch_up or not since or keep or reducers or needles or remainder
+                            or task or index or keep_all or extendable):
+            raise ValueError("follow_live needs catch_up, a horizon (`since`) and a window-only "
+                             "declaration: a line read from a rewritten live segment can be taken "
+                             "back from the all-types window, not from a typed projection, a "
+                             "reducer, a needle or the index, and the segments a walk would take "
+                             "now are asked through the horizon")
         self._path = Path(path)
         self._key = JournalRowsMemo._key(path)
         self._keep = {}
@@ -5310,6 +5437,13 @@ class JournalScan:
         self._index_on = bool(index) and self._task is None
         self.index_state = {"served": 0, "folded": 0, "stored": 0,
                             "reason": None if self._index_on else ("task-scope" if index else "off")}
+        self._follow = bool(follow_live)   # T-13846 — see the class docstring
+        self._follow_idx = None      # T-13846 — the live segment's index once a follow_live walk ran
+        self._live_lines = None      # T-13846 — every line read from the live segment, in order
+        self._live_frag = b""        # T-13846 — its bytes past the last newline, as last seen
+        self._seg_ids = None         # T-13846 — `_segment_ids()` when the walk ended
+        self.resumed: list = []      # T-13846 — (segment, bytes kept, lines taken back, lines read,
+                                     #            bytes read) per rewrite followed
         self._seg_feeds = None       # archived seg index -> (reducer, nondict, line) feeds of THAT segment
         self._recs = None            # archived seg index -> _SegmentRecord while it is folded
         self._per_seg: dict = {}     # summarizable reducer name -> {archived seg index: its instance}
@@ -5389,17 +5523,22 @@ class JournalScan:
         self._stores: list = []      # T-13330 — keep_all: one compressed line store per walk
         self._walked: set = set()
         self._sources: list = []
+        if self._follow:
+            self._follow_idx = len(self._segs) - 1
+            self._live_lines = _LineStore()
         self._walk(walk, **(self._index_prepare(walk) if self._index_on else {}))
         live = len(self._segs) - 1
         if self._catchup_on and live in self._walked and live in self._src.ends:
             self._live = (live, self._src.ends[live])
             self._live_id = self._identity(self._segs[live], self._src.ends[live])
+            if self._follow:
+                self._seg_ids = self._segment_ids()
         if not self._catchup_on:
             for r, _allowed in self._reducer_list:
                 getattr(r, "finish", lambda: None)()
         if self._index_on:
             self._index_merge()
-        for store in list(self._rows.values()) + [self._window]:
+        for store in list(self._rows.values()) + [self._window, self._live_lines]:
             if isinstance(store, _LineStore):
                 store._flush()
         # The walk's feed lists are done with: `_reducers` alone holds each reducer now, so `release`
@@ -5424,8 +5563,8 @@ class JournalScan:
             self._stores.append(self._store)
         self._src = _FoldLineSource([self._segs[i] for i in indices], indices=indices,
                                     needles=self._needles,
-                                    on_line=(self._on_line if (self._line_reducers or self._task)
-                                             else None),
+                                    on_line=(self._on_line if (self._line_reducers or self._task
+                                                               or self._follow) else None),
                                     served=served, observe=observe, on_segment_end=on_segment_end,
                                     force_rows=self._force_rows)
         self._sources.append(self._src)
@@ -5476,6 +5615,8 @@ class JournalScan:
                 r.add(seq, seg, row, line)
 
     def _on_line(self, seg, line):
+        if seg == self._follow_idx:
+            self._live_lines.append(0, seg, line)     # T-13846 — every line of the live segment
         if self._task is not None:
             # T-13332 — the TEXT-mode admission `task_rows` serves: a non-dict value a legacy reader
             # would parse (and `.get` on, raising) makes this scope decline those readers.
@@ -5846,7 +5987,9 @@ class JournalScan:
     # ── T-13332 — live-segment catch-up ────────────────────────────────────────────────────────────
     def _catch_up(self):
         """Feed the bytes appended to the live segment since the walk (or the last catch-up) read it —
-        complete lines only, through the walk's own admission — into every store, needle and reducer."""
+        complete lines only, through the walk's own admission — into every store, needle and reducer.
+        T-13846 — a `follow_live` scope whose resume point cannot be proved is brought up to date
+        here too, from the lines it holds (`_follow_rewrite`), instead of going stale."""
         idx, start = self._live
         seg = self._segs[idx]
         # The resume point is PROVED on EVERY request, appended bytes or not (audit-post
@@ -5859,9 +6002,11 @@ class JournalScan:
                 with Path(seg).open("rb") as fh:
                     why, size = _resume_refusal(fh, start, self._live_id)
                     if why is not None:
-                        self._go_stale(why, seg)
+                        if not self._follow_rewrite(fh, size, idx, seg):
+                            self._go_stale(why, seg)
                         return
                     if size == start:
+                        self._live_frag = b""
                         return
                     fh.seek(start)
                     data = fh.read(size - start)
@@ -5869,21 +6014,20 @@ class JournalScan:
                 self._go_stale("unreadable", seg)
                 return
         cut = data.rfind(b"\n")
+        self._live_frag = data[cut + 1:]
         if cut < 0:
             return
         self._live = (idx, start + cut + 1)
         self._live_id = self._identity(seg, start + cut + 1)
-        lines = []
-        for bline in data[:cut + 1].splitlines():
-            bline = bline.strip()
-            if not bline:
-                continue
-            try:
-                lines.append(bline.decode("utf-8"))
-            except UnicodeDecodeError:
-                self._src.lossy.add(idx)
-        if not lines:
-            return
+        lines, lossy = _byte_lines(data[:cut + 1])
+        if lossy:
+            self._src.lossy.add(idx)
+        if lines:
+            self._feed(idx, lines)
+
+    def _feed(self, idx, lines) -> None:
+        """Run `lines` of segment `idx` (stripped, non-empty, in file order) through the walk's own
+        admission into every store, needle and reducer — the catch-up's feed."""
         self._reducer_list = [(r, self._reducer_allowed.get(n)) for n, r in self._reducers.items()]
         self._nondict_reducers = [(r, a) for r, a in self._reducer_list if hasattr(r, "nondict")]
         self._line_reducers = [(r, a) for r, a in self._reducer_list if hasattr(r, "line")]
@@ -5900,10 +6044,154 @@ class JournalScan:
             scan_journal(self._path, collector=_Shift(), lines=self._src.extend(idx, lines),
                          with_line=True, on_nondict=self._on_nondict)
         finally:
-            for store in list(self._rows.values()) + [self._window]:
+            for store in list(self._rows.values()) + [self._window, self._live_lines]:
                 if isinstance(store, _LineStore):
                     store._flush()
             self._reducer_list = self._nondict_reducers = self._line_reducers = ()
+
+    # ── T-13846 — a REWRITTEN live segment (see the class docstring) ───────────────────────────────
+    def _segment_ids(self) -> list:
+        """What `os.stat` says of each ARCHIVED segment this scope walked — device, inode, size and
+        mtime, None for one that cannot be read. Rotation writes an archive by replace, so a walked
+        archive that gained a row is another file."""
+        out = []
+        for i, seg in enumerate(self._segs[:-1]):
+            if i in self._walked:
+                try:
+                    st = os.stat(seg)
+                    out.append((st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns))
+                except OSError:
+                    out.append(None)
+        return out
+
+    def _follow_rewrite(self, fh, size, idx, seg) -> bool:
+        """`fh` is the live segment's path opened NOW, `size` bytes long, and the catch-up could not
+        prove its resume point in it (another inode — a land's fold; or the same file shrunk,
+        rewritten, or left inside a row by the walk). Bring this scope up to date from the lines it
+        holds, with ONE read of the file, and say True; or say False having touched nothing, and
+        the scope goes stale as it always did: not a `follow_live` scope, the segments its horizon
+        admits are not the ones walked (a rotation left an archive this scope never read), or a
+        walked archive is no longer the file it read. Both are asked AFTER `fh` was opened:
+        rotation writes its archives before it replaces the live segment, so a rotated live file is
+        never opened here beside an archive set that still looks like the walked one.
+
+        ONE READ, AND IT IS FORWARD (`_ForwardBytes`): every byte of the file is asked of the handle
+        once, in order — the comparison with the lines held (`_lines_still_there`), then the feed
+        of what differs, then the part past the last newline all draw on the same reader, and a
+        span that was compared and did not match is handed back to it, not read again. The new
+        resume identity is made from the bytes that passed, not by a look back at the file. The
+        bytes read are recorded beside the lines (`resumed`), so the one read is checkable: it
+        equals the file's size."""
+        if not self._follow or self._allowed(self._since, None, None) != self._walked \
+                or self._segment_ids() != self._seg_ids:
+            return False
+        t0 = time.monotonic()
+        src = _ForwardBytes(fh, size)
+        try:
+            keep, same, lossy, tail = self._lines_still_there(src)
+            taken = self._unread_live(idx, self._src.line_counts.get(idx, 0) - same)
+            state = {"end": keep, "lossy": lossy, "read": 0, "tail": tail}
+
+            def changed():
+                while True:
+                    data = src.whole_lines()
+                    if not data:
+                        return
+                    lines, bad = _byte_lines(data)
+                    state["end"] += len(data)
+                    state["lossy"] = state["lossy"] or bad
+                    state["read"] += len(lines)
+                    state["tail"] = (state["tail"] + data)[-self._TAIL:]
+                    yield from lines
+            self._feed(idx, changed())
+            self._live, self._live_frag = (idx, state["end"]), src.rest()
+            st = os.fstat(fh.fileno())
+            self._live_id = (st.st_dev, st.st_ino, state["tail"])    # `_resume_identity`'s value
+        except BaseException:
+            # Half taken back or half fed is neither the old file nor the new one: serve nothing.
+            self._live, self._stale = None, True
+            raise
+        (self._src.lossy.add if state["lossy"] else self._src.lossy.discard)(idx)
+        self.resumed.append((str(seg), keep, taken, state["read"], src.read))
+        note_fold(seg, same + state["read"], time.monotonic() - t0)     # the ONE read of the file
+        return True
+
+    def _lines_still_there(self, src):
+        """`(keep, same, lossy, tail)`: the first `same` lines this scope holds of its live segment
+        are, in order, exactly the lines of the first `keep` bytes `src` hands over (`keep` is 0 or
+        just past a newline, and as large as that stays true line by line); `lossy` says whether
+        those bytes hold a line the reading skips, `tail` is their last `_TAIL` bytes. `src` is left
+        AT byte `keep`: whatever was taken beyond it has been handed back.
+
+        Two steps, one answer. A PACKED block of held lines is `line, newline, line, …` in utf-8,
+        and where a journal is as its writers leave it (one row a line, nothing around it) those
+        are the file's own bytes: while the file's next bytes ARE a packed block and its closing
+        newline, that block's lines are the lines of those bytes — every held line is non-empty,
+        stripped, free of line breaks and valid utf-8, so the reading gives each one back — and a
+        byte comparison answers for the whole block. From the first block that is not found that
+        way, the bytes are read in the reading that produced the held lines (`_byte_lines`) and
+        compared line by line."""
+        keep = same = packed = 0
+        tail = b""
+        for count, raw in self._live_lines.packed():
+            got = src.take(len(raw) + 1)
+            if got != raw + b"\n":
+                src.back(got)
+                break
+            keep, same, packed, tail = keep + len(got), same + count, packed + 1, (tail + got)[-self._TAIL:]
+        lossy = False
+        held = self._live_lines.lines(packed)
+        while True:
+            data = src.whole_lines()
+            if not data:
+                return keep, same, lossy, tail
+            pieces = [p + b"\n" for p in data[:-1].split(b"\n")]
+            for i, piece in enumerate(pieces):
+                lines, bad = _byte_lines(piece)
+                if list(itertools.islice(held, len(lines))) != lines:
+                    src.back(b"".join(pieces[i:]))
+                    return keep, same, lossy, tail
+                keep, same, lossy = keep + len(piece), same + len(lines), lossy or bad
+                tail = (tail + piece)[-self._TAIL:]
+
+    def _unread_live(self, idx, count) -> int:
+        """Take back the last `count` lines this scope read from its live segment `idx`.
+
+        The all-types window holds a SUBSET of the segment's lines, in the same order, and whether a
+        line is in it is decided by the line's text alone (it parses to a row at or after the
+        scope's fixed window floor, or it does not). So, walking both from the end: a window entry
+        equal to the line being taken back IS that line's entry, and a line with no such entry was
+        never admitted."""
+        for _ in range(count):
+            line = self._live_lines.pop()[2]
+            last = self._window.last()
+            if last is not None and last[1] == idx and last[2] == line:
+                self._window.pop()
+        self._src.line_counts[idx] = self._src.line_counts.get(idx, 0) - count
+        return count
+
+    def live_lines(self):
+        """The lines of this scope's LIVE segment as a TEXT-mode `segment_lines` reader sees them
+        now: `text_mode_pieces` (T-13332) of each line read, then of whatever follows the last
+        newline — a reader meets that part too. None when this is not a `follow_live` scope (not
+        recorded: every other seam's reader reads as before), and — recorded — when it cannot answer
+        exactly: a stale scope, a live segment this walk did not stream, or bytes a strict text read
+        raises on (an undecodable line, a final part cut inside a character)."""
+        if not self._follow or not self._usable("live_lines"):
+            return None
+        if self._live is None:
+            self.fallbacks.append(("live_lines", "unheld"))
+            return None
+        try:
+            frag = self._live_frag.decode("utf-8")
+        except UnicodeDecodeError:
+            frag = None
+        if frag is None or self._live[0] in self._src.lossy:
+            self.fallbacks.append(("live_lines", "lossy"))
+            return None
+        self.served += 1
+        kept = (piece for line in self._live_lines.lines() for piece in text_mode_pieces(line))
+        return itertools.chain(kept, text_mode_pieces(frag) if frag else ())
 
     _TAIL = 64
 
@@ -5951,7 +6239,8 @@ class JournalScan:
     def fresh(self) -> bool:
         """T-13365 — True iff this scope may still serve the journal AS IT IS NOW: nothing walked yet, or
         a catch-up scope whose resume point is proved on this call (the pending catch-up runs HERE, so a
-        rewritten or rotated live segment turns it stale before a reader is handed it). A walked scope
+        rewritten or rotated live segment turns it stale before a reader is handed it — or, for a
+        `follow_live` scope, is read from where it changed, T-13846). A walked scope
         without catch-up proves nothing about later bytes, so it answers False. Lets a seam that holds a
         scope across journal rewrites (land: the merge, the ff) open a fresh one exactly when its own
         scope could no longer answer, instead of every reader falling back to its own whole walk."""
@@ -6474,6 +6763,12 @@ def scope_session_rows_complete(path, sref):
 
 def scan_scope_holds(path) -> bool:
     return _scope_for(path) is not None
+
+
+def scope_live_lines(path):
+    """T-13846 — `JournalScan.live_lines` of the installed scope holding `path`, else None."""
+    scope = _scope_for(path)
+    return scope.live_lines() if scope is not None else None
 
 
 def scope_live_rows_since(path, cutoff):
@@ -8943,9 +9238,22 @@ def _dispatch_status_events(task_id=None, since=None, until=None, *, DISPATCH_EX
             if cutoff is not None or until:
                 keep = set(events.segment_paths_since(p, cutoff, until=until))
                 skip = frozenset(skip) | {s for s in events.segment_paths(p) if s not in keep}
-            if live_empty or live_rows is not None:
+            # T-13846 (SPEC-0190 rule 10) — INSIDE A WATCH the UNBOUNDED read takes this journal's
+            # LIVE segment from the watch's scope. A watched id with no launch row in the wave window
+            # has its status re-decided on the whole history (T-11896) in every tick, and the scope
+            # that already holds main's live segment was passed by: the segment was folded again per
+            # tick, and twice in the tick after a land (measured on the T-13841 fixture: main 2 in
+            # that tick, 1 in every other). `scope_live_lines` hands over the lines this fold would
+            # read from that segment, in its own text reading and in file order — or None, and the
+            # fold reads it as before. The archives are still read here; the live segment is the last
+            # of the set, so its lines follow them exactly as they did.
+            scope_live = scope_live_lines(p) if cutoff is None and not until else None
+            if live_empty or live_rows is not None or scope_live is not None:
                 skip = frozenset(skip) | {events.segment_paths(p)[-1]}   # T-13311 — see the seek above
             lines_iter = segment_lines(p, skip=skip) if skip else segment_lines(p)
+            if scope_live is not None:
+                _READ_COUNTERS["segments_skipped"] -= 1     # read, by the scope: not a skip
+                lines_iter = itertools.chain(lines_iter, scope_live)
             if live_rows is not None:
                 # T-13311 — the live segment was READ (by the seek), not skipped: un-count it, then
                 # follow the archive lines with its rows, in the whole-set fold's segment order.
@@ -9690,7 +9998,14 @@ class WatchReads:
     asks the scope whether it may still serve (`JournalScan.fresh`, T-13365 — the pending catch-up
     runs there) and, when it may not, closes it and opens a new one: main is walked once more per
     rewrite, never once per reader per poll. `declare` is called per (re)walk, so each walk's window
-    is anchored at its own clock."""
+    is anchored at its own clock.
+
+    T-13846 — A LAND NO LONGER COSTS A WALK. Walking again per rewrite parsed the whole window once
+    per land (kernel receipts of 2026-10-06..10: about 0.15M more rows parsed per land inside one
+    watch, over a window of about 0.7M), though a land's fold leaves the old lines in place up to
+    its last few KB. The scope is opened `follow_live` (`JournalScan`): a rewritten live segment is
+    read once, parsed from where it changed, and stays the scope's. `renew()` still opens a new
+    scope for what that cannot prove (a rotation, a rewritten archive), counted in `rewalks`."""
 
     def __init__(self, path, declare):
         self._path = Path(path)
@@ -9702,7 +10017,7 @@ class WatchReads:
         self._prior_legs = None
 
     def _open(self):
-        self._cm = scan_scope(self._path, **self._declare())
+        self._cm = scan_scope(self._path, **{"follow_live": True, **self._declare()})
         self.scope = self._cm.__enter__()
 
     def _close(self):

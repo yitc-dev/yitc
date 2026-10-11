@@ -1,0 +1,114 @@
+id: SPEC-1025
+title: Plan author self-check — re-read the plan before a plan gate, and check a trial
+  run will count before launching it
+status: active
+created_at: 2026-10-08 18:30:41+00:00
+travels: null
+consumed: false
+implements: []
+binding:
+- plan-stage-entry:draft
+- plan-stage-entry:specs
+- plan-stage-entry:trial
+- plan-stage-entry:decomposition
+body: "## Scenario\nA plan author has finished a stage's work and is about to launch\
+  \ the audit that closes it, or is\nabout to launch one trial run. Before launching,\
+  \ the author reads the plan once more — against what\nthe owner asked, what this\
+  \ stage must have prepared, and the questions the coming audit will ask —\nand repairs\
+  \ what it finds. The auditor then meets a plan whose passages agree, whose numbers\
+  \ and\nboundaries are defined and whose claims about the system were checked; and\
+  \ a trial run, once\nlaunched, counts.\n\n## Internal\n\n### 1. Before a plan audit\
+  \ — the pre-gate re-read\n- **Before launching any plan gate or exit read** (gate-specs,\
+  \ gate-trial, the accept `plan check`,\n  gate-executing, the aggregate `audit post\
+  \ --plan`, a trial exit read), re-read the whole plan\n  ONCE, held against three\
+  \ anchors, and fix on the spot:\n  (a) **the original requirements** — the owner-directive\
+  \ rows the plan cites and its own done\n      criterion: every requirement covered,\
+  \ and no two passages of the plan disagreeing with each\n      other or with its\
+  \ declared dependencies and bounds;\n  (b) **what the coming stage requires prepared**\
+  \ — the entry requirements of the stage the gate\n      admits (SPEC-0034 §Per-stage\
+  \ mechanics) and the plan sections that stage reads: for the accept\n      gate\
+  \ the implementation plan, the realization-exit block and the spec route; before\n\
+  \      gate-executing one activation owner per proposed spec and the cut's dependencies;\n\
+  \  (c) **the questions the coming audit asks** — that gate's template in SPEC-0083\
+  \ (P2–P5),\n      answered in the plan before the auditor asks them.\n  Across all\
+  \ three, the re-read looks for the leading first-pass causes: a claim about the\
+  \ system\n  not checked against the system; a number not recounted with its window\
+  \ and exclusions; a\n  definition, boundary or sample size left open; a rule change\
+  \ whose route is not stated; a\n  correction line not classified by SPEC-0035 rule\
+  \ 5's semantic-effect test.\n- **Three disciplines, each read from its own home**\
+  \ in the same re-read (named here, not restated):\n  (i) one normative home per\
+  \ rule, across the plan AND its draft specs — SPEC-0005 rule 8; (ii) the\n  correction\
+  \ record, for every change made in answer to a gate, consult, review or owner row\
+  \ since the\n  last gate's read — SPEC-0083 «The record»; (iii) deferrals — SPEC-0046\
+  \ §B — and the order between\n  draft specs — GRAPH.md §Spec lifecycle (the concurrent-change\
+  \ invariant).\n- **No separate record line.** What the re-read changed is recorded\
+  \ where every correction already is —\n  the plan's correction record (SPEC-0083\
+  \ «The record»); a re-read that changes nothing writes nothing.\n\n### 2. Before\
+  \ a trial run — will the run count\n- **Before launching a trial run**, check in\
+  \ this order: (1) the harness works on a known case;\n  (2) the run can reach the\
+  \ branch or leg it is meant to answer; (3) its expectation is written\n  down before\
+  \ the run; (4) the design state or correction it answers is named; (5) the run row\
+  \ will\n  carry every field the trial protocol asks. A run that fails a step is\
+  \ fixed before it is launched,\n  not launched and then discarded. The order follows\
+  \ what most often voided a run: an unchecked\n  harness and a run that never reached\
+  \ its branch, ahead of a forgotten statement.\n\n### 3. One re-read, not a checklist\n\
+  The anchors are texts that already exist — the owner rows, SPEC-0034, the SPEC-0083\
+  \ templates, the\ntrial protocol. This rule adds none of its own and asks for no\
+  \ list to be filled in; only who reads\nthose texts, and when, changes. A re-read,\
+  \ not a gate: no verb reads it, nothing refuses on it.\n\n### 4. Scope\nEvery plan,\
+  \ in every project, that passes a plan gate. A plan that runs no trial meets §1\
+  \ only. The\nrule changes nothing about what a gate judges or when it passes.\n\n\
+  ### 5. Who executes it\nexecution: operator-owned — the session that authors the\
+  \ plan performs the re-read itself, at the\nmoments §1 and §2 name. The rule reaches\
+  \ the author at two points: the plan-stage-entry bundle at the\nstart of that stage's\
+  \ work, and a one-line cue in the next-action hint `plan stage` and `plan show`\
+  \ print\nwhere the author reads which gate comes next. No code performs the re-read\
+  \ and no code checks it.\n\n## Rationale\nMeasured on 2026-10-08 (plan `author-self-check-before-a-plan-gate-and-a-simpler`,\
+  \ its step-1\nsamples): about 85% of first-pass plan-gate defects were of a kind\
+  \ the author could have caught by\nre-reading the plan — two passages disagreeing\
+  \ (31%), a definition left open (24%), a claim not\nchecked against the system (23%)\
+  \ — and 20 of the 44 unchecked claims were the gate's own questions\nleft unanswered;\
+  \ the SPEC-0083 templates reach only the auditor. Of 342 trial runs, 97 were not\n\
+  credited and 77 of those for a cause checkable before the run, led by an unchecked\
+  \ harness and a run\nthat never reached its branch. The task-side analog, <workshop-spec>,\
+  \ showed the shape that works: one\nre-read of finished work against what it must\
+  \ match cut confirmed defects 16 → 9, while a long added\nchecklist raised first-pass\
+  \ RED. Known limit: nothing verifies that the re-read ran; the plan's guard\n(defects\
+  \ first found at a later gate) is what tells whether gates now pass on reassurance.\n\
+  Version boundary: the version trialled by plan author-self-check-before-a-plan-gate-and-a-simpler\
+  \ is this\nspec's blob at main 4ce16f63ca (that plan ended partial, its c15: the\
+  \ trial reached 4 of its 10 gates, too\nlittle to judge). This version, proposed\
+  \ by plan self-check-with-evidence-task-side-edges-and-async,\nreplaces the separate\
+  \ record line — on field-study arm B the line itself drew new findings (correction\n\
+  rows without class or keep / invalidate 8 of 13, deferrals as local labels 4 of\
+  \ 5) — with the three\nproperties of §1 checked against the schemas that already\
+  \ exist, and adds the next-action hint cue; every\nlater change is named in that\
+  \ plan's correction record.\n\n## Verification\n- **VP1 (delivery) — two parts,\
+  \ because a stage bundle lists ACTIVE specs only and this spec becomes\n  active\
+  \ only when its activation owner closes.** (a) Before closure: a hermetic test derives\
+  \ the\n  plan-stage-entry bundles for draft, specs, trial and decomposition from\
+  \ a corpus in which this spec\n  is active and finds it in each; the same test fails\
+  \ when the binding is removed or the status is\n  not active. (b) After activation:\
+  \ the first `plan_stage_entered` row of another plan whose\n  `delivered` lists\
+  \ this spec — a deferred probe of the activating card, settled by the Controller.\n\
+  \  The hint cue (§5) is checked beside them: a test drives `plan stage` and `plan\
+  \ show` and finds\n  the cue naming this spec in each next-action hint they print;\
+  \ its negative variant — a hint\n  without the cue — fails that test.\n- **VP2 (effect)**\
+  \ — read at the proposing plan's postcheck as a report to the owner: passes to\n\
+  \  acceptance per plan × gate of EXPOSED gates against baselines, with the record-created\n\
+  \  finding classes and the defects first found at a later gate (§Realization-exit\
+  \ there). §2 (the check\n  before a trial run) is reported only — not a criterion\
+  \ of that plan.\n- **VP3 (removal)** — the activating card's diff deletes item 1\
+  \ «Before the check» of\n  `patterns/big-plan-checklist.md` §«How to run a plan's\
+  \ gate audit (advisory)» and leaves a one-line\n  pointer to this spec.\n"
+cites:
+- SPEC-0034
+- SPEC-0035
+- SPEC-0043
+- SPEC-0083
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: self-check-with-evidence-task-side-edges-and-async
+init_concern: null

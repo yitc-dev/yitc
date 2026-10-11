@@ -1374,7 +1374,7 @@ def _require_plan_postcheck_ready(slug: str, body: str, *, on_decisions: bool = 
     # so requiring `active` at ENTRY deadlocks (the same model as the task exemption above, spec side).
     # The realized EXIT call (`_plan_close_core`) passes NO exemption → full specs-active at exit.
     if on_decisions:
-        # T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e), text in SPEC-1014) — THE FINALIZATION GATE'S
+        # T-13844 (public issue #78; SPEC-0204 rule 9(e), text in SPEC-1014) — THE FINALIZATION GATE'S
         # ONE BOUNDED PASS, carried by the FSM advance the gate blocks like every other plan gate's.
         # Until this arm the flag was dropped here: `audit decide --plan <slug> --gate finalization`
         # recorded the decisions and no verb could spend them, so a plan at that ceiling could not
@@ -1791,7 +1791,8 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
               f"— births a spec/verb/flow AND convergence can't honestly come from text-audit alone)? "
               f"YES → `yitc-v2 plan stage trial {slug}` (controlled real-data soak); NO (non-eligible "
               f"prose/docs, the skip) → `yitc-v2 plan check {slug}` then `yitc-v2 plan stage accepted "
-              f"{slug}`. Your judgement — no detector.")
+              f"{slug}`. Your judgement — no detector; "
+              f"{_plan_pre_gate_reread_cue(is_consumer=bool(_is_consumer_build and _is_consumer_build()))}.")
         _seam = _plan_seam_default_line(name, ("trial", "accepted"))
         if _seam:
             print(_seam)
@@ -1805,7 +1806,8 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         nxt = _plan_next_stage(name)
         if nxt is not None:
             print(f"next: `yitc-v2 plan stage {nxt} {slug}` — enter the {nxt} stage "
-                  f"(the FSM successor of {name}; LIFECYCLE §Plan lifecycle).")
+                  f"(the FSM successor of {name}; LIFECYCLE §Plan lifecycle); "
+                  f"{_plan_pre_gate_reread_cue(is_consumer=bool(_is_consumer_build and _is_consumer_build()))}.")
             _seam = _plan_seam_default_line(name, (nxt,))
             if _seam:
                 print(_seam)
@@ -2691,6 +2693,15 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                 _od_current = card_set_fp
             else:
                 _od_current = _plan_gate_recorded_signature(slug, gate_id)
+            if not _od_by_fp:
+                # T-13860 — A CEILING ROW WITH NO RESIDUAL ADMITS THE NEXT ROUND. Rule 9(f) admits a
+                # round once EVERY residual of the latest row carries a decision; over an EMPTY set
+                # that holds with none recorded. With no decision bound to this row, nothing names a
+                # revision the subject must match: the round is audited at the CURRENT subject and
+                # everything it raises counts NEW at its own severity. Only the resolved empty set
+                # reaches the subject check this way — an UNRESOLVABLE row and a row with an
+                # undecided residual are each refused on that cause first, by the admission below.
+                _od_ceiling_subject = _od_current
             _od_named, _od_refusal = audit_lib.on_decisions_admission(
                 tid=slug, stage=gate_id, residual_keys=_od_keys, decisions=_od_decisions,
                 ceiling_ref=_od_ref, ceiling_subject_revision=_od_ceiling_subject,
@@ -2748,19 +2759,25 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
             # rule-6 lesson). The two identifiers stay told apart: `{template}` is the audit-RECORD's
             # name, `{gate_id}` is the value `--gate` takes (SPEC-0124 gate identity).
             _fps = []
+            _no_residual = False      # T-13860 — the row RESOLVED and names no residual
             if gate_id:
                 _ceil = audit_lib._ceiling_row_of(_od_stage_rows) if _od_stage_rows else None
+                # T-13860 — the saved record answers for the read-time SYNTHETIC row only, exactly
+                # as in the admission above: a journal row is read from the row, so this refusal
+                # and that admission cannot disagree about which row is empty or unresolvable.
+                _ceil_record = None
                 if _ceil is None and isinstance(prior, dict) and prior:
+                    _ceil_record = prior
                     _ceil = audit_lib.plan_gate_synthetic_ceiling_row(
                         slug, gate_id, template, prior,
                         saved_to=str(audit_path.relative_to(REPO_ROOT)))
                 if _ceil is not None:
                     _r = audit_lib.on_decisions_residuals(
                         _ceil, _od_stage_rows, slug, gate_id, repo_root=[REPO_ROOT],
-                        decisions_dir=DECISIONS_DIR,
-                        record=(prior if isinstance(prior, dict) and prior else None))
+                        decisions_dir=DECISIONS_DIR, record=_ceil_record)
                     if not _r.get("unresolvable"):
                         _fps = list(_r.get("keys") or ())
+                        _no_residual = not _fps
             if _worker_ref:
                 _append_event("bg_dispatch_halted", None, {
                     "kind": "plan_gate_audit_ceiling", "plan_slug": slug, "gate": gate_id,
@@ -2773,14 +2790,20 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                  f"owner reset (rule 6, plan-gate arm).\n"
                  + (f"RESIDUAL FINGERPRINT(S) of this gate's ceiling row ({len(_fps)}): "
                     f"{', '.join(_fps)}\n" if _fps else
+                    "This gate's ceiling row names NO residual: there is nothing to decide, and the "
+                    "next round is admitted with no decision — re-run this command with "
+                    "`--on-decisions`.\n" if _no_residual else
                     "The residual fingerprints could not be resolved from this gate's ceiling row or "
                     "saved record — run the route below and it will name what is undecided.\n")
                  + _plan_gate_decision_route(slug, gate_id, template)
-                 + (f"\nA DISPATCHED WORKER STOPS HERE: a Worker never decides past the ceiling "
-                    f"(SPEC-0103 §3). The halt above names the fingerprints; the Controller records "
-                    f"one decision per residual and re-dispatches." if _worker_ref else ""))
+                 + (("\nA DISPATCHED WORKER STOPS HERE too (SPEC-0103 §3): the halt row carries no "
+                     "fingerprint because this row names no residual; the Controller re-runs this "
+                     "command with `--on-decisions`." if _no_residual else
+                     f"\nA DISPATCHED WORKER STOPS HERE: a Worker never decides past the ceiling "
+                     f"(SPEC-0103 §3). The halt above names the fingerprints; the Controller records "
+                     f"one decision per residual and re-dispatches.") if _worker_ref else ""))
     if admission_only:
-        # T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e)) — THE ADMISSION WITHOUT THE GATE-TEMPLATE
+        # T-13844 (public issue #78; SPEC-0204 rule 9(e)) — THE ADMISSION WITHOUT THE GATE-TEMPLATE
         # AUDITOR. The `finalization` gate is audited by the aggregate `audit post --plan` (its packet
         # is the plan's realization block; no gate template exists for it), so its rule-3 ADMISSION is
         # taken HERE — the ladder above, unchanged, with every refusal already made — and the admitted
@@ -3726,6 +3749,16 @@ def _plan_next_stage(cur: str, *, PLAN_STAGE_SEQUENCE) -> "str | None":
     return PLAN_STAGE_SEQUENCE[i + 1] if i + 1 < len(PLAN_STAGE_SEQUENCE) else None
 
 
+def _plan_pre_gate_reread_cue(*, is_consumer: bool = False) -> str:
+    """T-13853 — the cue every next-action hint of `plan stage` and `plan show` ends with: the
+    SPEC-1025 pre-gate re-read, named where the author reads which gate comes next. A discipline
+    cue plus a pointer to the rule's one home (SPEC-0005 rule 8) — never the rule text. The pointer
+    is rendered for the session's realm, as every printed spec pointer is (`--kernel` under `-C`:
+    SPEC-1025 is a kernel spec a consumer corpus does not hold)."""
+    return ("before the next plan gate: the SPEC-1025 pre-gate re-read "
+            f"(`{graph_lib.spec_query_hint('SPEC-1025', is_consumer=is_consumer, cli='yitc-v2')}`)")
+
+
 def _plan_seam_default_line(cur: str, nxts, *, spec_text=None) -> "str | None":
     """T-13752 — the SPEC-0126 §7 seam default (AUTO / STOP (owner) under an authorized plan-drive)
     for each `cur → nxt` seam a `plan stage` next-step line names, as ONE line pointing at §7. The
@@ -3768,7 +3801,7 @@ def _plan_body_title(body: str) -> str:
     return "(no title)"
 
 
-def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_SEQUENCE, TASKS_DIR, _load_draft, _plan_body_title, _plan_next_stage, _plan_stage_bundle_specs, _plan_cut_cards, _read_yaml) -> None:
+def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_SEQUENCE, TASKS_DIR, _load_draft, _plan_body_title, _plan_next_stage, _plan_stage_bundle_specs, _plan_cut_cards, _read_yaml, _is_consumer_build=None) -> None:
     """`plan show <slug>` (T-0682) — the read-only PLAN re-orientation surface; the plan analog of the
     task resume-contract print (`_print_task_resume` / SPEC-0027). A pure VIEW re-derived from the plan
     artifact + PLAN_STAGE_SEQUENCE + the plan-stage-entry bindings (CHARTER §P1 F2 — a view, not a new
@@ -3810,7 +3843,8 @@ def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_
         print("  next stage: FORK — `trial` (owner-invoked, trial-ELIGIBLE plans — SPEC-0035) OR "
               "`accepted` (the specs→accepted SKIP for non-eligible prose/docs plans). Eligibility is "
               "owner judgement (SPEC-0035 rules 1-2), not a detector.")
-        print(f"    next action: `yitc-v2 plan stage trial {slug}`  OR  `yitc-v2 plan stage accepted {slug}`")
+        print(f"    next action: `yitc-v2 plan stage trial {slug}`  OR  `yitc-v2 plan stage accepted {slug}` — "
+              f"{_plan_pre_gate_reread_cue(is_consumer=bool(_is_consumer_build and _is_consumer_build()))}")
         for nxt in ACCEPTED_PREDECESSORS[::-1]:   # trial, accepted (the two fork targets)
             b = _plan_stage_bundle_specs(nxt)
             print(f"    {nxt} delivers (read before acting — `yitc-v2 graph query <SPEC>`): "
@@ -3823,7 +3857,8 @@ def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_
         else:
             print(f"  next stage: {nxt} — entry-gate = completion of the current `{status}` stage, "
                   f"gated by `yitc-v2 plan stage {nxt} {slug}`.")
-            print(f"    next action: `yitc-v2 plan stage {nxt} {slug}`")
+            print(f"    next action: `yitc-v2 plan stage {nxt} {slug}` — "
+                  f"{_plan_pre_gate_reread_cue(is_consumer=bool(_is_consumer_build and _is_consumer_build()))}")
             b = _plan_stage_bundle_specs(nxt)
             print(f"    {nxt} delivers (read before acting — `yitc-v2 graph query <SPEC>`): "
                   f"{', '.join(b) if b else '(no bound spec)'}")

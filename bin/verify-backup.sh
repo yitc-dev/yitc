@@ -30,14 +30,14 @@ STORE="$(REPO_ROOT="$REPO_ROOT" python3 - <<'PY'
 import os, sys
 sys.path.insert(0, os.path.join(os.environ["REPO_ROOT"], "bin"))
 from lib import cross
-print(cross.resolve_log_path)
+print(cross.resolve_log_path())
 PY
 )"
 BACKUP_DIR="${YITC_CROSS_BACKUP_DIR:-$(dirname "$STORE")/backups}"
-RETAIN="${YITC_CROSS_BACKUP_RETAIN:-42}" # 7d × 6/day, matching offsite-backup.sh pg rotation
+RETAIN="${YITC_CROSS_BACKUP_RETAIN:-42}"   # 7d × 6/day, matching offsite-backup.sh pg rotation
 
 if [ ! -f "$STORE" ]; then
-    echo "ℹ️ no coordination store at $STORE — nothing to back up yet (pre-cutover); skipping."
+    echo "ℹ️  no coordination store at $STORE — nothing to back up yet (pre-cutover); skipping."
     exit 0
 fi
 mkdir -p "$BACKUP_DIR"
@@ -53,25 +53,25 @@ store = os.environ["STORE"]
 backup_dir = os.environ["BACKUP_DIR"]
 
 # 1. Atomic snapshot: read the whole store under a SHARED flock on its own fd. Writers append complete
-# lines under LOCK_EX (events.py), so a LOCK_SH read never observes a partial trailing line (the
-# torn-backup hazard) — the snapshot is a clean, complete-line prefix.
+#    lines under LOCK_EX (events.py), so a LOCK_SH read never observes a partial trailing line (the
+#    torn-backup hazard) — the snapshot is a clean, complete-line prefix.
 with open(store, "rb") as fh:
-    fcntl.flock(fh.fileno, fcntl.LOCK_SH)
+    fcntl.flock(fh.fileno(), fcntl.LOCK_SH)
     try:
-        data = fh.read
+        data = fh.read()
     finally:
-        fcntl.flock(fh.fileno, fcntl.LOCK_UN)
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 # 2. Write the backup atomically (tmp + os.replace). Collision-resistant name: ts + nanoseconds + pid,
-# so two invocations in the same second cannot collide / rotate the wrong artifact.
-stamp = time.strftime("%Y-%m-%d_%H-%M-%S") + "_%06d_%d" % (time.time_ns % 1_000_000, os.getpid)
+#    so two invocations in the same second cannot collide / rotate the wrong artifact.
+stamp = time.strftime("%Y-%m-%d_%H-%M-%S") + "_%06d_%d" % (time.time_ns() % 1_000_000, os.getpid())
 backup = os.path.join(backup_dir, "coordination_%s.jsonl" % stamp)
 fd, tmp = tempfile.mkstemp(dir=backup_dir, prefix=".bk-")
 try:
     with os.fdopen(fd, "wb") as out:
         out.write(data)
-        out.flush
-        os.fsync(out.fileno)
+        out.flush()
+        os.fsync(out.fileno())
     os.replace(tmp, backup)
 except BaseException:
     try:
@@ -86,17 +86,17 @@ if not os.path.exists(backup):
     sys.exit(1)
 
 # 3. ROUND-TRIP: RESTORE the backup into a fresh location (a disaster-recovery simulation) and verify
-# the recovered store yields the IDENTICAL status-fold as the backup. The fold is the canonical
-# per-id status (cross.fold), order-independent + dedup'd — so a faithful restore round-trips it.
+#    the recovered store yields the IDENTICAL status-fold as the backup. The fold is the canonical
+#    per-id status (cross.fold), order-independent + dedup'd — so a faithful restore round-trips it.
 def fold_of(path):
     items = cross.fold(cross.read_events(path))
     return {iid: {k: it.get(k) for k in ("status", "kind", "from", "to", "contested")}
-            for iid, it in sorted(items.items)}
+            for iid, it in sorted(items.items())}
 
-restored = os.path.join(backup_dir, ".restore-probe-%d.jsonl" % os.getpid)
+restored = os.path.join(backup_dir, ".restore-probe-%d.jsonl" % os.getpid())
 try:
     with open(backup, "rb") as b, open(restored, "wb") as r:
-        r.write(b.read)
+        r.write(b.read())
     fold_backup = fold_of(backup)
     fold_restored = fold_of(restored)
 finally:
@@ -107,7 +107,7 @@ finally:
 
 if fold_backup != fold_restored:
     print("ERROR round-trip MISMATCH: restored fold != backup fold")
-    print("backup: " + json.dumps(fold_backup, sort_keys=True, ensure_ascii=False))
+    print("backup:   " + json.dumps(fold_backup, sort_keys=True, ensure_ascii=False))
     print("restored: " + json.dumps(fold_restored, sort_keys=True, ensure_ascii=False))
     sys.exit(1)
 

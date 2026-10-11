@@ -268,7 +268,7 @@ implements_signature:
   bin/lib/host_paths.py#host_home: 3029bb1be8e3c1227b06a4c0e8489056bba383ec7c922afc27c0ff1ba5af55be
   bin/lib/release.py#abstract_project_identity: d7fd86fffe82d3526bf4363f2f09213a03bfe85bc2616c58ce40f3728854f985
   bin/lib/release.py#build_manifest: 107c52480dcb2305aa4a8c8bdee85d687b9742bf8f138ed449a965f2a68189ac
-  bin/lib/release.py#cmd_work_publish: 5a75ac540b3f3b0729222c454d96f062c5bf7365752cdc43d7534e8b30542010
+  bin/lib/release.py#cmd_work_publish: 4e0b02d192ef0dcfd19a64b0c4c5961c011b526b1bb778c6f9bc4715481cd6e8
   bin/lib/release.py#cut_release_tree: fe2d3ae82d7bc2f6aaa2fee68235a59624d691c9b95dbe1b4b7d3d4ab073aec9
   bin/lib/release.py#host_literal_violations: 3c9b17eedb6df57aff0af813c33da78f3da0719e66818c22bb2e1ad470adea83
   bin/lib/release.py#project_identity_operands: faa791e2cda98d729f26265f29e3260a3b107efb9d9970082c2b6e286738433a
@@ -276,5 +276,5 @@ implements_signature:
   bin/lib/release.py#published_metadata_identity: a02e90b898af0e5fcd1a52aafbdaf1f98455abaedc919a1d013bdd42e7d77a1c
   bin/lib/release.py#published_project_identity: a87ff50067d40df63a639c0f06c8156f8e3591d434444dbd4f38122b3ac38519
   bin/lib/release.py#reword_unpublished_spec_refs: 884f916899fac96f0462ff8fd763ae2e01835e4da5f95ba49c0da7fbef886b26
-  bin/lib/release.py#strip_published_text: 61ae52803c884f94a22e2a21b86d3947284dfbddca2b3687c8903cc3261b7af3
+  bin/lib/release.py#strip_published_text: 767efeb43f30090790b9f06639c7e900e44ea1a9fd43a9b4bef54993317e2a8c
   bin/lib/release.py#written_metadata_mismatches: dc6892a4bdd0ccae686827b8472eeb62dd61db32777618cbc4ebd71761275a7f

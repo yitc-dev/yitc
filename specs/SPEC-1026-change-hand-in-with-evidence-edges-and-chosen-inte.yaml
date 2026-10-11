@@ -1,0 +1,102 @@
+id: SPEC-1026
+title: Change hand-in with evidence - edges and chosen interleavings listed in the
+  task plan before audit-pre; proxy checks and deferred proofs shown RED on a fault
+  planted at the observable
+status: active
+created_at: 2026-10-11 12:34:48+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\nA worker plans a change. In the task plan, before audit-pre, it\
+  \ lists the edge cases the change will\nmeet and the few async interleavings it\
+  \ can actually meet, so audit-pre can say what is missing while\nit is cheap. When\
+  \ the edits are done it re-reads its diff against the audited plan and each acceptance\n\
+  criterion. Where a check is weakest — it reads a proxy instead of what the criterion\
+  \ is about, or the\nreal proof only exists after the land — it breaks the observable\
+  \ once on purpose and sees the check go\nRED. The auditor meets a change whose missing\
+  \ cases were named before the code, and whose weakest\nchecks are shown to catch\
+  \ a break.\n\n## Internal\n\n### 1. In the task plan — before audit-pre\nThe `implementation_plan`\
+  \ lists, beside what changes:\n- **the EDGE CASES the change meets** — empty or\
+  \ absent input, the boundary value, a failing read /\n  git / network call, a repeat\
+  \ run, a value of an unexpected shape — only the cases the change\n  really meets;\n\
+  - **the ASYNC INTERLEAVINGS the author chose** — the reachable ones the change can\
+  \ meet now or through\n  the call sequence its contract declares for future callers\
+  \ (a retry, a second concurrent run, another\n  writer between a read and the write\
+  \ that depends on it, UI state held across a user action that\n  changes its source),\
+  \ each with what the code does then. A chosen few, never a full state × event sweep.\n\
+  For each item: what the code does and which test or check will cover it, or the\
+  \ waive the test\ndoctrine admits (SPEC-0165).\n\n### 2. The change hand-in — before\
+  \ `stage Tests`\nRe-read the working diff against the audited plan and each acceptance\
+  \ criterion, and fix on the spot:\n(1) a departure from the plan — bring the code\
+  \ back to the plan, or handle it as a plan change (the\n re-fingerprint, SPEC-0027\
+  \ §Stage 5);\n(2) per acceptance criterion and per item listed under §1, the BROKEN\
+  \ VARIANT its check must fail on\n(the guard removed, the branch inverted, the boundary\
+  \ off by one, the wrong subject read) — a check that\nwould still pass on it is\
+  \ a smoke check: fix the check before hand-in;\n(3) **evidence where a check is\
+  \ weakest:** for a criterion whose check reads a PROXY rather than the\ncriterion's\
+  \ observable, and for a criterion whose real proof exists only after the land, plant\
+  \ the fault\nat the OBSERVABLE (the rendered config, the HTTP answer, the stored\
+  \ row — not the edited line), run the\nONE named check in the layer the Tests stage\
+  \ runs it, and see it go RED; revert and see it GREEN. A\ncheck that stays GREEN\
+  \ on the planted fault is a smoke check: fix it as in (2) and plant again. A\ndeferred\
+  \ item is a criterion whose named check only the land or a later event runs, declared\
+  \ as a\ndeferred probe before audit-post (SPEC-0015); its available check is shown\
+  \ sensitive this way on a\nnamed sample. One line per such item in the commit body:\
+  \ item → check → planted fault → RED seen, with\nthe time the runs took;\n(4) a\
+  \ missing CHARTER §P8 adoption carrier the change is meant to produce;\n(5) prose\
+  \ the diff adds states each rule only in its normative home and points at that home\
+  \ everywhere\nelse — which artifact is the home is SPEC-0005 rule 8's call, not\
+  \ this rule's.\nA «waive» here means only a waive the test doctrine admits (SPEC-0165);\
+  \ «covered by another test» is not\na waive — that test is the one the item names.\n\
+  The hand-in adds NO test obligation of its own: whether an item is covered by a\
+  \ test, a recorded waive\nor another check the Tests stage admits is decided by\
+  \ the test doctrine (SPEC-0165) and SPEC-0027\n§Stage 6. A re-read with evidence,\
+  \ not a gate: no verb reads it, nothing refuses on it.\n\n### 3. Scope\nA card that\
+  \ takes audit-post — the substantive flow. A hygiene fast-path card has no audited\
+  \ plan and\nno audit-post; nothing here is asked of it.\n\n### 4. Who executes it\n\
+  execution: operator-owned — the session that authors the change performs §1 while\
+  \ writing the task\nplan and §2 before `stage Tests`. The Plan and Execution stage\
+  \ bundles deliver this rule at the start\nof each, and the dispatch-composed brief\
+  \ carries its cue for a dispatched worker. No code performs it\nand no code checks\
+  \ it.\n\n## Rationale\nIt supersedes <workshop-spec> (the change hand-in), which\
+  \ asked the author to imagine the broken variant and\nto list edge cases in the\
+  \ commit body. Measured on field-study arm B, cards 2026-10-09..10-10 that\ncarried\
+  \ the <workshop-spec> cue in their brief: 55 of 58 wrote the list, yet the first\
+  \ audit-posts raised 41\nedge-case findings — 16 on LISTED cases (the listed handling\
+  \ was wrong or untested) and 25 on unlisted\nones, mostly async interleavings —\
+  \ and test-quality findings rose 3/46 → 12/58, because the packet\ncarries the commit\
+  \ body and the auditor refuted listed claims that were false. Listing earlier lets\n\
+  audit-pre catch the missing case; running the broken variant turns a claim into\
+  \ evidence. Planted-fault\nevidence is local: it shows the check is sensitive, not\
+  \ that the whole criterion holds. Proposed by plan\nself-check-with-evidence-task-side-edges-and-async,\
+  \ the remainder of plan\nauthor-passes-audit-on-the-first-try-give-the-auth (partial,\
+  \ its k33). Known limit, carried from\n<workshop-spec>: the audit packet's size\
+  \ limiter can cut a very long commit body; the rule rests no guarantee\non the evidence\
+  \ lines reaching the auditor — the audit judges the diff and the tests either way.\n\
+  \n## Verification\n- **VP1 (delivery, two moments) — two parts, because a stage\
+  \ bundle lists ACTIVE specs only.**\n  (a) Before closure of the activation owner:\
+  \ a hermetic test derives the Plan and the Execution bundles\n  from a corpus in\
+  \ which this spec is active and finds it in both; the same test fails when either\n\
+  \  binding is removed and when the status is not active. (b) After activation: the\
+  \ first `stage_entered`\n  rows of a Plan and of an Execution entry naming this\
+  \ spec — a deferred probe settled by the Controller\n  with `task close --settle-probe`.\n\
+  - **VP2 (brief cue).** The dispatch-composed brief carries the cue of §1 and §2\
+  \ (the carrier,\n  reworded): a test on the composed brief text, failing on the\
+  \ <workshop-spec>-only wording.\n- **VP3 (effect).** Read at the proposing plan's\
+  \ postcheck as a report to the owner (first-pass\n  audit-post GREEN, E and T findings\
+  \ per first audit-post, defects found later) — its §Realization-exit.\n"
+cites:
+- SPEC-0165
+- SPEC-0027
+- SPEC-0015
+- self-check-with-evidence-task-side-edges-and-async
+- author-passes-audit-on-the-first-try-give-the-auth
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: self-check-with-evidence-task-side-edges-and-async
+binding:
+- stage-entry:Plan
+- stage-entry:Execution
+init_concern: null

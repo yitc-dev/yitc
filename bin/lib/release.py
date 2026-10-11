@@ -300,6 +300,177 @@ def _strip_comment_lines(text: str, identity: "ProjectIdentity | None" = None) -
                    for line in text.splitlines(keepends=True))
 
 
+# Program text (T-13848). A published file an interpreter READS is not prose: the §5 tidy deletes every
+# empty `()` and collapses aligned spacing, so v2.2.0..v2.9.1 shipped bin/security-audit with
+# `_cleanup {` (a syntax error — adopter report, public issue #79) and the Python embedded in two other
+# shell scripts as `def gitdirs:` / `fh.read`, which `bash -n` cannot see. So a program is never
+# prose-stripped. A Python program gets the engine-code treatment (comments and docstrings, kept only
+# on an equal AST). A BASH program gets the strip on its full-line COMMENTS alone, and the rewrite is
+# KEPT ONLY WHEN bash's own parser prints the same program for both texts — its pretty-printed form
+# drops comments and keeps every heredoc body and quoted string, so a rewritten `#` line that was
+# DATA makes the two forms differ and the script then travels byte-identical. An `sh` program, and
+# one whose interpreter this module cannot name, has no such proof and travels byte-identical.
+# Whatever a line left as written still carries is refused by the whole-tree arms and fixed at the
+# source.
+def _program_kind(rel: str, blob: bytes) -> "str | None":
+    """What reads a published file as a PROGRAM: `python3`, `bash`, `sh`, `unjudged`, or None for a
+    file that is not a program.
+
+    A `#!` first line decides, and only two forms of it are read — the interpreter's absolute path
+    alone, or the absolute path of `env` followed by the interpreter's bare name alone — with the
+    interpreter being exactly `python3`, `bash` or `sh`. Every other interpreter line (another
+    interpreter, a versioned one, an option, an `env` option or assignment, a relative path, a
+    carriage return) is `unjudged`: this module stands in for no parser it cannot name exactly. Without a `#!` line a `.py` file is `python3` (an engine module), a
+    `.sh` / `.bash` file is `unjudged` (its suffix does not say which shell reads it), and any other
+    file is not a program."""
+    first = blob.split(b"\n", 1)[0]
+    if first.startswith(b"#!"):
+        words = [w for w in re.split(r"[ \t]+", first[2:].decode("utf-8", "replace")) if w]
+        if not words or not words[0].startswith("/"):
+            return "unjudged"
+        name = words[0].rsplit("/", 1)[-1] if len(words) == 1 else \
+            words[1] if len(words) == 2 and words[0].rsplit("/", 1)[-1] == "env" else ""
+        return name if name in ("python3", "bash", "sh") else "unjudged"
+    if rel.endswith(".py"):
+        return "python3"
+    return "unjudged" if rel.endswith((".sh", ".bash")) else None
+
+
+def _shell_shape(blob: bytes) -> "bytes | None":
+    """The program bash parses out of a bash script, as bash itself prints it — comments dropped,
+    heredoc bodies and quoted strings kept. None when bash cannot parse it or cannot be run. The
+    script is read on stdin, no startup file is read, and nothing of the script is executed."""
+    try:
+        run = subprocess.run(["bash", "--norc", "--noprofile", "--pretty-print"], input=blob,
+                             capture_output=True, timeout=60,
+                             env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"})
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return run.stdout if run.returncode == 0 else None
+
+
+def _bash_syntax_fault(blob: bytes) -> "str | None":
+    """What `bash -n` says against a bash script — None when it reads the whole script as valid
+    syntax. A bash that cannot be run is a fault too, never a pass. The script is read on stdin and
+    `-n` reads commands without running them."""
+    try:
+        run = subprocess.run(["bash", "--norc", "--noprofile", "-n"], input=blob, capture_output=True,
+                             timeout=60,
+                             env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"})
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"`bash -n` could not be run ({exc.__class__.__name__}: {exc}) — unchecked is refused"
+    if run.returncode == 0:
+        return None
+    said = run.stderr.decode("utf-8", "replace").strip().splitlines() or [f"exit {run.returncode}"]
+    return f"`bash -n` refuses it ({said[-1]})"
+
+
+def _sh_syntax_fault(blob: bytes) -> "str | None":
+    """What this host's `sh -n` says against an `sh` script — the interpreter the script names, not
+    bash, which accepts syntax `sh` does not. None when valid; an `sh` that cannot be run is a fault."""
+    try:
+        run = subprocess.run(["sh", "-n"], input=blob, capture_output=True, timeout=60,
+                             env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "LC_ALL": "C"})
+    except (OSError, subprocess.SubprocessError) as exc:
+        return f"`sh -n` could not be run ({exc.__class__.__name__}: {exc}) — unchecked is refused"
+    if run.returncode == 0:
+        return None
+    said = run.stderr.decode("utf-8", "replace").strip().splitlines() or [f"exit {run.returncode}"]
+    return f"`sh -n` refuses it ({said[-1]})"
+
+
+def _strip_shell_comments(text: str, identity: "ProjectIdentity | None" = None) -> str:
+    """Strip the full-line `#` comments of a BASH script (never its `#!` line); every other line is
+    returned unchanged. bash decides which `#` lines are comments and bash proves the result: the
+    rewrite is kept only when it parses the same program out of both texts, and without that proof
+    `text` comes back as written. The proof is over the program bash parses from the file — a script
+    that reads its own source text as data sees the stripped comments, as a Python module reading its
+    own comments does. One text is judged once per process under one identity and host home."""
+    return _once(_strip_shell_comments_once, text, identity, str(host_paths.host_home()))
+
+
+@functools.lru_cache(maxsize=None)
+def _strip_shell_comments_once(text: str, identity: "ProjectIdentity | None", host_home: str) -> str:
+    """The rewrite behind `_strip_shell_comments`. `host_home` is part of the key because the §5
+    ruleset reads it."""
+    parts = text.split("\n")               # bash ends a line at a line feed and nowhere else
+    lines = [part + "\n" for part in parts[:-1]] + ([parts[-1]] if parts[-1] else [])
+    candidates = [i for i, line in enumerate(lines)
+                  if line.lstrip(" \t").startswith("#") and not (i == 0 and line.startswith("#!"))]
+    shape = _shell_shape(text.encode("utf-8")) if candidates else None
+    if shape is None:
+        return text
+    # Which candidates are DATA (a heredoc body, a quoted string): each is swapped for a numbered
+    # marker, and a marker bash prints back is a line it read as data. This only CHOOSES the lines;
+    # the equal-shape test below is what admits the result.
+    probe = list(lines)
+    for i in candidates:
+        body = lines[i].rstrip("\r\n")
+        probe[i] = f"{body[:len(body) - len(body.lstrip(' \t'))]}#yitc-probe-{i}#{lines[i][len(body):]}"
+    printed = _shell_shape("".join(probe).encode("utf-8"))
+    if printed is None:
+        return text
+    data = {int(n) for n in re.findall(rb"#yitc-probe-(\d+)#", printed)}
+    out = list(lines)
+    for i in candidates:
+        if i in data:
+            continue
+        body = lines[i].rstrip("\r\n")       # one line in, one line out: the line ending never moves
+        stripped = abstract_project_identity(graph_lib._release_view_strip(body), identity).rstrip()
+        if stripped.lstrip(" \t").startswith("#") and "\n" not in stripped and "\r" not in stripped:
+            out[i] = stripped + lines[i][len(body):]
+    new = "".join(out)
+    return new if new != text and _shell_shape(new.encode("utf-8")) == shape else text
+
+
+def published_unparseable_programs(tree: dict, exec_paths=()) -> list:
+    """Programs in the FINAL published tree that do not parse — the refusal rows, each naming its file.
+
+    Each program is judged by the interpreter its `#!` line names (`_program_kind`): `python3` by
+    compiling it in this process, the code object discarded and nothing executed; `bash` by `bash -n`
+    and then by the same `bash --pretty-print` the strip proves its comment rewrite with, so a host
+    whose bash cannot give that proof publishes no bash script at all; `sh` by this host's `sh -n`.
+    Fail-closed on everything it cannot judge: an `unjudged` program, an executable file that is not
+    a program, and an interpreter that could not be run are all rows, never skips."""
+    import warnings
+
+    executable = set(exec_paths)
+    rows = []
+    for rel in sorted(tree):
+        blob = tree[rel]
+        kind = _program_kind(rel, blob)
+        if kind is None:
+            if rel in executable:
+                rows.append(f"{rel}: executable, with no `#!` interpreter line — no parser can be "
+                            "named for it")
+        elif kind == "unjudged":
+            first = blob.split(b"\n", 1)[0].decode("utf-8", "replace") if blob.startswith(b"#!") \
+                else "(no `#!` line)"
+            rows.append(f"{rel}: interpreter line {first!r} is not one this check reads — "
+                        "`#!<path>/python3`, `#!<path>/bash`, `#!<path>/sh`, or `#!<path>/env` and "
+                        "one of those names, with nothing after it; unjudged is refused")
+        elif kind == "python3":
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    compile(blob, rel, "exec", dont_inherit=True)
+            except (SyntaxError, ValueError, RecursionError, MemoryError, OverflowError) as exc:
+                rows.append(f"{rel}: python3 does not compile it ({exc.__class__.__name__}: {exc})")
+        elif kind == "sh":
+            fault = _sh_syntax_fault(blob)
+            if fault:
+                rows.append(f"{rel}: {fault}")
+        else:
+            fault = _bash_syntax_fault(blob)
+            if fault is None and _shell_shape(blob) is None:
+                fault = ("`bash --pretty-print` gives no program for it — the publish strip proves a "
+                         "bash comment rewrite with that form, so a bash without it (older than "
+                         "5.0) publishes no bash script")
+            if fault:
+                rows.append(f"{rel}: {fault}")
+    return rows
+
+
 def _strip_spec_values(text: str, identity: "ProjectIdentity | None" = None) -> str:
     """Strip a spec's PROSE per string value, keeping the YAML parseable (T-12942). The whole-text strip
     cut ids out of `- D-0030` / `proposed_by: T-0527` lines and multi-line scalars, so 23 published
@@ -369,8 +540,13 @@ def strip_published_text(tree: dict, identity: "ProjectIdentity | None" = None) 
         except UnicodeDecodeError:
             out[rel] = blob
             continue
-        if _is_engine_code(rel):
+        kind = _program_kind(rel, blob)
+        if _is_engine_code(rel) or kind == "python3":
             new = _abstract_code_provenance(text, identity)
+            out[rel] = blob if new == text else new.encode("utf-8")
+            continue
+        if kind:                          # T-13848: program text is never prose-stripped
+            new = _strip_shell_comments(text, identity) if kind == "bash" else text
             out[rel] = blob if new == text else new.encode("utf-8")
             continue
         if _is_machine_read(rel):
@@ -1423,12 +1599,26 @@ _SMOKE_INPUTS = ("bin/yitc-v2", "bin/lib/init.py", "graph/born-ops.yaml")
 # The adopter's own first calls, in order: `session start` backs the carried identity (a bare `init`
 # refuses «session_ref undetermined»), then `init` births the project.
 SMOKE_VERBS = (("session", "start"), ("init",))
+# T-13851 — the same smoke then RUNS the published security pair, once each, in the project `init` just
+# bore. v2.2.0..v2.9.1 shipped `bin/v2-security-gate` ending in `sys.exit(main)` (public issue #79): it
+# compiles, so the parse check above admits it, and it exits 1 on every report. The producer runs first,
+# launched as a born project's launcher launches it (`<install>/bin/security-audit --repo <project>`),
+# and must exit 0 AND leave exactly one report this run did not find there. The gate then judges THAT
+# report, launched as the deploy seam launches it, and must exit 0 AND print its own PASS line for that
+# report — an exit 0 that judged nothing is not a pass. The gate accepts no report whose lockfile
+# inventory is empty, so the sample project tracks one EMPTY lockfile of an ecosystem neither dependency
+# scanner covers: the run reaches no advisory service. A program missing from the cut cannot be
+# launched, which is refused like any other failed step.
+SMOKE_PROGRAMS = ("bin/security-audit", "bin/v2-security-gate")
+SMOKE_SAMPLE_LOCKFILE = "go.sum"
 
 
 def smoke_install_init(tree: dict, exec_paths=()) -> "dict | None":
     """Stage `tree` as an install, `git init` a fresh project, run `<install>/bin/yitc-v2 -C <project>
-    init` hermetically. Returns None when `tree` carries no init to smoke, else
-    `{"ok": bool, "returncode": int, "tail": str}`. Never raises for a failed init — the caller refuses."""
+    init` and then the published security pair (SMOKE_PROGRAMS) there, hermetically. Returns None when
+    `tree` carries no init to smoke, else `{"ok": bool, "returncode": int, "verb": str, "tail": str}`
+    — `verb` is the step that failed, a program step by its path in the tree — plus `"steps"`, every
+    step that ran, on a pass. Never raises for a failed step — the caller refuses."""
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     import os
     import sys
@@ -1455,23 +1645,56 @@ def smoke_install_init(tree: dict, exec_paths=()) -> "dict | None":
                "GIT_CONFIG_NOSYSTEM": "1",
                "GIT_AUTHOR_NAME": "publish-smoke", "GIT_AUTHOR_EMAIL": "smoke@invalid",
                "GIT_COMMITTER_NAME": "publish-smoke", "GIT_COMMITTER_EMAIL": "smoke@invalid"}
-        verb = ("git", "init")
+        def refused(returncode: int, tail: str) -> dict:
+            return {"ok": False, "returncode": returncode, "verb": step, "tail": tail}
+
+        def tail_of(run, lead: str = "") -> str:
+            lines = (run.stderr.strip() or run.stdout.strip()).splitlines()
+            return " | ".join(([lead] if lead else []) + lines[-6:]) or f"exit {run.returncode}"
+
+        step = "git init"
         try:
             subprocess.run(["git", "init", "-q", "-b", "main", str(proj)], check=True, env=_git_env._git_child_env(env),
                            capture_output=True, timeout=60)
             for verb in SMOKE_VERBS:
+                step = " ".join(verb)
                 run = subprocess.run([sys.executable, str(install / "bin" / "yitc-v2"), "-C",
                                       str(proj), *verb], cwd=str(proj), env=env,
                                      capture_output=True, text=True, timeout=600)
                 if run.returncode != 0:
-                    break
+                    return refused(run.returncode, tail_of(run))
+            # T-13851 — the security pair, in the born project (see SMOKE_PROGRAMS).
+            producer, gate = SMOKE_PROGRAMS
+            step = f"git add {SMOKE_SAMPLE_LOCKFILE}"
+            (proj / SMOKE_SAMPLE_LOCKFILE).write_bytes(b"")
+            subprocess.run(["git", "-C", str(proj), "add", "--", SMOKE_SAMPLE_LOCKFILE], check=True,
+                           env=_git_env._git_child_env(env), capture_output=True, timeout=60)
+            findings = proj / ".yitc" / "findings"
+            found = set(findings.glob("*-security.yaml"))
+            step = producer
+            run = subprocess.run([str(install / producer), "--repo", str(proj)], cwd=str(proj), env=env,
+                                 capture_output=True, encoding="utf-8", errors="replace", timeout=600)
+            if run.returncode != 0:
+                return refused(run.returncode, tail_of(run))
+            wrote = sorted(set(findings.glob("*-security.yaml")) - found)
+            if len(wrote) != 1:
+                return refused(run.returncode, tail_of(
+                    run, f"exit 0, but it left {len(wrote)} new report(s) at .yitc/findings/*-security.yaml "
+                         "in the sample project — exactly one is expected"))
+            step = gate
+            run = subprocess.run([sys.executable, str(install / gate), str(proj)], cwd=str(proj), env=env,
+                                 capture_output=True, encoding="utf-8", errors="replace", timeout=600)
+            if run.returncode != 0:
+                return refused(run.returncode, tail_of(run))
+            if not any(line.strip().startswith(f"PASS: {wrote[0].name} ") for line in run.stdout.splitlines()):
+                return refused(run.returncode, tail_of(
+                    run, f"exit 0, but it printed no `PASS: {wrote[0].name}` line for the report the "
+                         "producer had just written"))
         except (OSError, subprocess.SubprocessError) as exc:
-            # `verb` is the step that was running, so a timeout in `init` names `init`.
-            return {"ok": False, "returncode": -1, "verb": " ".join(verb),
-                    "tail": f"{exc.__class__.__name__}: {exc}"}
-        lines = (run.stderr.strip() or run.stdout.strip()).splitlines()
-        return {"ok": run.returncode == 0, "returncode": run.returncode, "verb": " ".join(verb),
-                "tail": " | ".join(lines[-6:]) or f"exit {run.returncode}"}
+            # `step` is the step that was running, so a timeout in `init` names `init`.
+            return refused(-1, f"{exc.__class__.__name__}: {exc}")
+        return {"ok": True, "returncode": 0, "verb": step, "tail": tail_of(run),
+                "steps": tuple(" ".join(v) for v in SMOKE_VERBS) + SMOKE_PROGRAMS}
 
 
 def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree, _is_consumer_build,
@@ -1687,15 +1910,47 @@ def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree,
              f"Occurrence(s):\n  {rows}")
         return
 
+    # T-13848 — every published program parses under the interpreter it names, judged over the same
+    # final tree; before the smoke, which is the costlier check.
+    unparseable = published_unparseable_programs(tree, exec_paths)
+    if unparseable:
+        rows = "\n  ".join(unparseable)
+        _die("work publish: a published PROGRAM is not shown to parse — an adopter who runs it could get "
+             "a syntax error instead of the tool. Each row below names its file and what refused it. "
+             "Where the row is about the script (a syntax error, an interpreter line this check does "
+             "not read), fix it at the source — the publish leaves program code as the tagged source "
+             "has it — land it, re-tag, then re-run "
+             f"`bin/yitc-v2 work publish --tag <new-tag> --dest {dest}`. Where the row is about this "
+             "host (an interpreter that could not be run, a bash without the printed form), repair "
+             "the host and re-run the same publish. Nothing was written. "
+             f"Refused:\n  {rows}")
+        return
+
     # T-12937 — the install smoke runs over the FINAL tree (strip, trust surfaces and index all in), so
     # what an adopter installs is what was smoked; still before the digest and every write.
     smoke = smoke_install_init(tree, exec_paths)
     if smoke is not None and not smoke["ok"]:
+        if smoke["verb"] in SMOKE_PROGRAMS:
+            # T-13851 — a published security program that did not do its job on the sample project.
+            _die(f"work publish: the pre-publish INSTALL SMOKE failed — the published program "
+                 f"`{smoke['verb']}`, run once on a sample project from the candidate installed into a "
+                 f"temp dir, did not do its job (exit {smoke['returncode']}): the producer must write "
+                 "one report and the gate must pass it. A program that parses and fails when it runs "
+                 "would reach every adopter that way (public issue #79). Where the output below is "
+                 "about the program, fix it at the source, land it, re-tag, then re-run "
+                 f"`bin/yitc-v2 work publish --tag <new-tag> --dest {dest}`. Where it is about this "
+                 "host (a tool the program needs is missing), repair the host and re-run the same "
+                 f"publish. Nothing was written. Last output: {smoke['tail']}")
+            return
         _die(f"work publish: the pre-publish INSTALL SMOKE failed — the candidate, installed into a temp "
              f"dir, could not run `-C <fresh project> {smoke['verb']}` (exit {smoke['returncode']}). "
              "Every adopter's first calls would fail the same way (the v2.0.4 class). Fix the source "
              f"and re-tag. Nothing was written. Last output: {smoke['tail']}")
         return
+    # What the smoke ran, said once: printed here, so a dry run shows it too, and journaled below.
+    install_smoke = ("skipped (no init in the cut)" if smoke is None
+                     else "passed: " + ", ".join(smoke["steps"]))
+    print(f"install smoke: {install_smoke}")
 
     # The digest is taken over the tree WITH the trust surfaces in it, so the signed manifest covers
     # them: a mirror whose trust root, revocation list, security policy or entrypoint inventory was
@@ -1798,8 +2053,7 @@ def cmd_work_publish(args, *, _append_event, _die, _run_git_cap, _main_worktree,
         "project_identity": {"names": len(identity.names), "domains": len(identity.domains),
                              "excluded": len(identity.excluded),
                              "fingerprint": project_identity_fingerprint(identity)},
-        "install_smoke": ("skipped (no init in the cut)" if smoke is None
-                          else "passed: " + ", ".join(" ".join(v) for v in SMOKE_VERBS)),
+        "install_smoke": install_smoke,
     })
     print(f"release_published: {tag} -> {source_sha[:12]} | {len(tree)} file(s) | "
           f"digest {digest[:12]} | dest {dest}")

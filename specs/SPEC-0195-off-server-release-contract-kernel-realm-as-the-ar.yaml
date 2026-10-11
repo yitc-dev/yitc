@@ -418,7 +418,7 @@ init_concern: null
 implements_signature:
   bin/lib/release.py#_add_trust_surfaces: 9aaaf073111ea2ff3e24cdea6627fcc29eaddbe4e374eff58cb1ff2c1eaaea2b
   bin/lib/release.py#cmd_release_update: 591047391c9872c824509383c77d8951114fa603cd08dca93bdd773f6063fdde
-  bin/lib/release.py#cmd_work_publish: 5a75ac540b3f3b0729222c454d96f062c5bf7365752cdc43d7534e8b30542010
+  bin/lib/release.py#cmd_work_publish: 4e0b02d192ef0dcfd19a64b0c4c5961c011b526b1bb778c6f9bc4715481cd6e8
   bin/lib/release.py#cut_release_tree: fe2d3ae82d7bc2f6aaa2fee68235a59624d691c9b95dbe1b4b7d3d4ab073aec9
   bin/lib/release.py#host_literal_violations: 3c9b17eedb6df57aff0af813c33da78f3da0719e66818c22bb2e1ad470adea83
   bin/lib/release.py#update: 40a61645bdc53c046a151753ae10948a28b71efa078bd452d5884289ce08613f

@@ -77,8 +77,8 @@ OUT="$REPO/.yitc/findings/${TODAY}-security.yaml"
 # ONE consolidated EXIT trap owns every run-scoped temp path — the run-scoped report temp (below) AND the
 # hook sandbox (the hook block registers into this list instead of setting its own clobbering trap). A
 # run killed at any point removes only its own temp artifacts; the last COMPLETED report is never touched.
-_CLEANUP_PATHS=
-_cleanup { local p; for p in "${_CLEANUP_PATHS[@]:-}"; do [ -n "$p" ] && rm -rf "$p"; done; }
+_CLEANUP_PATHS=()
+_cleanup() { local p; for p in "${_CLEANUP_PATHS[@]:-}"; do [ -n "$p" ] && rm -rf "$p"; done; }
 trap _cleanup EXIT
 
 # ── SPEC-0145 §9b — refuse to RUN over a foreign producer's report (fail CLOSED, before any write) ────
@@ -93,8 +93,8 @@ trap _cleanup EXIT
 # Fail-closed keeps its bite where the LATEST report is foreign or unattributable.
 _latest_report=""
 for _report in "$REPO"/.yitc/findings/*-security.yaml; do
-  [ -e "$_report" ] || continue # nullglob-less guard: greenfield has no reports
-  _latest_report="$_report" # glob expands sorted → last iteration = newest
+  [ -e "$_report" ] || continue                       # nullglob-less guard: greenfield has no reports
+  _latest_report="$_report"                           # glob expands sorted → last iteration = newest
 done
 if [ -n "$_latest_report" ]; then
   # UNREADABLE is a DISTINCT fault from FOREIGN, and must be reported as one. Without this
@@ -104,23 +104,23 @@ if [ -n "$_latest_report" ]; then
   # so the readability test has to come BEFORE it.
   if [ ! -r "$_latest_report" ]; then
     echo "security-audit: REFUSING to run — ${_latest_report} exists but is UNREADABLE by $(id -un 2>/dev/null || echo "uid $(id -u)")" >&2
-    echo " This is a file-MODE fault, NOT a foreign producer: the report's owner published it with a" >&2
-    echo " private mode (a 0600 report is unreadable to every other project user), so its produced_by" >&2
-    echo " cannot be read and ownership cannot be established. Refusing rather than guessing." >&2
-    echo " Nothing was written." >&2
-    echo " Remedy: as the report's owner, \`chmod 0664 ${_latest_report}\` (and \`chmod g+w\` its directory if" >&2
-    echo " needed). Reports published by THIS producer are born 0664 group-shared, so this is" >&2
-    echo " a one-time repair of a report left behind by the pre-fix producer." >&2
+    echo "  This is a file-MODE fault, NOT a foreign producer: the report's owner published it with a" >&2
+    echo "  private mode (a 0600 report is unreadable to every other project user), so its produced_by" >&2
+    echo "  cannot be read and ownership cannot be established. Refusing rather than guessing." >&2
+    echo "  Nothing was written." >&2
+    echo "  Remedy: as the report's owner, \`chmod 0664 ${_latest_report}\` (and \`chmod g+w\` its directory if" >&2
+    echo "  needed). Reports published by THIS producer are born 0664 group-shared (T-0115), so this is" >&2
+    echo "  a one-time repair of a report left behind by the pre-fix producer." >&2
     exit 3
   fi
   _pb="$(sed -n 's/^produced_by:[[:space:]]*//p' "$_latest_report" | head -1 | tr -d '"'\''' | tr -d '\r')"
   if [ "$_pb" != "$SCAFFOLD_ID" ]; then
     echo "security-audit: REFUSING to run — ${_latest_report} is owned by a foreign security producer" >&2
-    echo " produced_by: ${_pb:-<absent>} (expected ${SCAFFOLD_ID})" >&2
-    echo " The generic kernel scaffold never overwrites a findings path another producer owns" >&2
-    echo " (SPEC-0145 §9b, fail-closed). Nothing was written." >&2
-    echo " Remedy: keep your own producer (run IT on your cadence), or retire it and declare" >&2
-    echo " \`security.audit.runner: ${SCAFFOLD_ID}\` in yitc-ops.yaml." >&2
+    echo "  produced_by: ${_pb:-<absent>} (expected ${SCAFFOLD_ID})" >&2
+    echo "  The generic kernel scaffold never overwrites a findings path another producer owns" >&2
+    echo "  (SPEC-0145 §9b, fail-closed). Nothing was written." >&2
+    echo "  Remedy: keep your own producer (run IT on your cadence), or retire it and declare" >&2
+    echo "  \`security.audit.runner: ${SCAFFOLD_ID}\` in yitc-ops.yaml." >&2
     exit 3
   fi
 fi
@@ -136,8 +136,8 @@ fi
 LOCK_FILE="$REPO/.yitc/findings/.security-audit.lock"
 if ! command -v flock >/dev/null 2>&1; then
   echo "security-audit: REFUSING to run — flock is unavailable, cannot guarantee single-writer" >&2
-  echo " serialization (SPEC-0155 rule 2). A security producer never runs without its lock-guard." >&2
-  echo " Nothing was written. Remedy: install util-linux (flock) on this host." >&2
+  echo "  serialization (SPEC-0155 rule 2). A security producer never runs without its lock-guard." >&2
+  echo "  Nothing was written. Remedy: install util-linux (flock) on this host." >&2
   exit 2
 fi
 exec 9>"$LOCK_FILE" || { echo "security-audit: cannot open lock file $LOCK_FILE" >&2; exit 2; }
@@ -202,11 +202,11 @@ if isinstance(ops, dict):
     aud = sec.get("audit") if isinstance(sec, dict) else None
     if isinstance(aud, dict):
         sla = aud.get("freshness_sla")
-s = str(sla).strip if sla is not None else ""
+s = str(sla).strip() if sla is not None else ""
 days = 7
-mw = re.match(r"^P(\d)W$", s, re.IGNORECASE)
-md = re.match(r"^P(\d)D$", s, re.IGNORECASE)
-mb = re.match(r"^(\d)[dD]?$", s)
+mw = re.match(r"^P(\d+)W$", s, re.IGNORECASE)
+md = re.match(r"^P(\d+)D$", s, re.IGNORECASE)
+mb = re.match(r"^(\d+)[dD]?$", s)
 if mw:
     days = int(mw.group(1)) * 7
 elif md:
@@ -229,10 +229,10 @@ RUN_ID="${HOSTID}:$$:${HEAD_SHA}"
 if TRACKED="$(git ls-files 2>/dev/null)" && [ -n "$TRACKED" ]; then
   SCAN_SOURCE="git-ls-files"
 else
-  TRACKED="$(find. -type f -not -path '*/.git/*' -not -path '*/.yitc/*' 2>/dev/null | sed 's|^\./||')"
+  TRACKED="$(find . -type f -not -path '*/.git/*' -not -path '*/.yitc/*' 2>/dev/null | sed 's|^\./||')"
   SCAN_SOURCE="find"
 fi
-SCAN_COUNT="$(printf '%s\n' "$TRACKED" | grep -c.)"
+SCAN_COUNT="$(printf '%s\n' "$TRACKED" | grep -c . )"
 
 # --- archived corpora: NOT live source ---
 # A repo may carry a frozen predecessor corpus (`v1-archive/`) — archived reports, retros, ledgers whose
@@ -303,22 +303,22 @@ SECRET_TS="$(date -u +%FT%TZ)"
 # an evidence-honesty requirement (SPEC-0145 §5 scope honesty): a check must say what it actually read.
 SECRET_LIVE_FILES="$(printf '%s\n' "$TRACKED" \
   | grep -viE '\.(png|jpe?g|gif|pdf|lock|min\.js|map)$' \
-  | grep -vE "$ARCHIVED_CORPORA_RE")"
-SECRET_SCAN_COUNT="$(printf '%s\n' "$SECRET_LIVE_FILES" | grep -c.)"
+  | grep -vE "$ARCHIVED_CORPORA_RE" )"
+SECRET_SCAN_COUNT="$(printf '%s\n' "$SECRET_LIVE_FILES" | grep -c . )"
 SECRET_HITS="$(printf '%s\n' "$SECRET_LIVE_FILES" \
   | while IFS= read -r f; do [ -f "$f" ] && printf '%s\0' "$f"; done \
-  | xargs -0 -r grep -IHnE '^[[:space:]]*((export|const|let|var|public|private|protected|static|readonly|final|val)[[:space:]])*([A-Za-z_][A-Za-z0-9_]*\.)?["'"'"']?((password|secret|api[_-]?key|passwd)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"']{6,}|token["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][A-Za-z0-9_.+/=-]{16,}["'"'"'])' 2>/dev/null \
-  | grep -viE 'getenv|environ|os\.env|process\.env|example|sample|placeholder|xxx|<[a-z_]+>|test_|_test|^([^:]*)?tests?/|dummy|redacted' \
-  | grep -c.)"
+  | xargs -0 -r grep -IHnE '^[[:space:]]*((export|const|let|var|public|private|protected|static|readonly|final|val)[[:space:]]+)*([A-Za-z_][A-Za-z0-9_]*\.)?["'"'"']?((password|secret|api[_-]?key|passwd)["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][^"'"'"']{6,}|token["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"'][A-Za-z0-9_.+/=-]{16,}["'"'"'])' 2>/dev/null \
+  | grep -viE 'getenv|environ|os\.env|process\.env|example|sample|placeholder|xxx|<[a-z_]+>|test_|_test|^([^:]*/)?tests?/|dummy|redacted' \
+  | grep -c . )"
 SECRET_EXIT=$?
 SECRET_HITS=${SECRET_HITS:-0}
 
 # CHECK 2 — tracked env/secret files that must never be committed (.env, *.pem, id_rsa, *.p12/pfx).
 ENV_TS="$(date -u +%FT%TZ)"
 ENV_TRACKED="$(printf '%s\n' "$TRACKED" \
-  | grep -iE '(^|)(\.env(\..)?|.*\.pem|id_rsa|.*\.p12|.*\.pfx|.*\.key)$' \
+  | grep -iE '(^|/)(\.env(\..+)?|.*\.pem|id_rsa|.*\.p12|.*\.pfx|.*\.key)$' \
   | grep -viE '\.pub$|example|sample|\.enc$' \
-  | grep -c.)"
+  | grep -c . )"
 ENV_EXIT=$?
 ENV_TRACKED=${ENV_TRACKED:-0}
 
@@ -328,8 +328,8 @@ ENV_TRACKED=${ENV_TRACKED:-0}
 # (SPEC-0145 §5 pin — NOT the retired `dependency_lockfiles`-as-a-list spelling the gate never read).
 LOCK_TS="$(date -u +%FT%TZ)"
 LOCK_FILES="$(printf '%s\n' "$TRACKED" \
-  | grep -iE '(^|)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|uv\.lock|pdm\.lock|Pipfile\.lock|requirements\.txt|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock)$' \
-  | sort)"
+  | grep -iE '(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|poetry\.lock|uv\.lock|pdm\.lock|Pipfile\.lock|requirements\.txt|Cargo\.lock|go\.sum|composer\.lock|Gemfile\.lock)$' \
+  | sort )"
 LOCK_EXIT=0
 LOCK_YAML=""
 LOCK_COUNT=0
@@ -337,12 +337,12 @@ if [ -n "$LOCK_FILES" ]; then
   while IFS= read -r lf; do
     [ -f "$lf" ] || continue
     h="$(sha256sum "$lf" 2>/dev/null | cut -c1-16)"; h="${h:-unavailable}"
-    LOCK_YAML="${LOCK_YAML} \"${lf}\": \"${h}\"
+    LOCK_YAML="${LOCK_YAML}  \"${lf}\": \"${h}\"
 "
     LOCK_COUNT=$((LOCK_COUNT + 1))
   done <<< "$LOCK_FILES"
 else
-  LOCK_YAML=" {} # no dependency lockfiles found in scope
+  LOCK_YAML="  {}  # no dependency lockfiles found in scope
 "
 fi
 
@@ -369,7 +369,7 @@ fi
 # other probe's and is never treated as failure — only the parsed JSON decides the findings.
 # ---------------------------------------------------------------------------------------------------
 DEP_TS="$(date -u +%FT%TZ)"
-DEP_TIMEOUT="${YITC_SECURITY_DEP_AUDIT_TIMEOUT:-120}" # bounded like the hook's (advisory-DB fetch)
+DEP_TIMEOUT="${YITC_SECURITY_DEP_AUDIT_TIMEOUT:-120}"     # bounded like the hook's (advisory-DB fetch)
 DEP_CHECKS_YAML=""
 DEP_TOOLS_YAML=""
 DEP_FINDINGS_YAML=""
@@ -377,8 +377,8 @@ DEP_OPEN_COUNT=0
 
 NPM_APPLICABLE=0
 PY_APPLICABLE=0
-printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$' && NPM_APPLICABLE=1
-printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|)(poetry\.lock|uv\.lock|pdm\.lock|Pipfile\.lock|requirements\.txt)$' && PY_APPLICABLE=1
+printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$' && NPM_APPLICABLE=1
+printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|/)(poetry\.lock|uv\.lock|pdm\.lock|Pipfile\.lock|requirements\.txt)$' && PY_APPLICABLE=1
 
 # THE SCAN TARGET MUST BE THE REPO'S PINNED DEPS — NOT THE HOST ENVIRONMENT (audit-post finding).
 # `npm audit` reads the lockfile in its cwd, so running it from $REPO is already repo-scoped. But a BARE
@@ -391,11 +391,11 @@ printf '%s\n' "$LOCK_FILES" | grep -qiE '(^|)(poetry\.lock|uv\.lock|pdm\.lock|Pi
 # : a `uv.lock` / `poetry.lock` is EXPORTED to a temp requirements file (`uv export` / `poetry
 # export`) and audited with `-r`; a lock with no exporter on PATH (and every `pdm.lock` / `Pipfile.lock`)
 # lands in PY_UNEXPORTED and the check records 126 naming it — never NOT APPLICABLE, never a clean.
-PY_EXPORT_LOCKS="$(printf '%s\n' "$LOCK_FILES" | grep -iE '(^|)(uv\.lock|poetry\.lock|pdm\.lock|Pipfile\.lock)$' || true)"
+PY_EXPORT_LOCKS="$(printf '%s\n' "$LOCK_FILES" | grep -iE '(^|/)(uv\.lock|poetry\.lock|pdm\.lock|Pipfile\.lock)$' || true)"
 PY_UNEXPORTED=""
-PY_REQ_FILES="$(printf '%s\n' "$LOCK_FILES" | grep -iE '(^|)requirements\.txt$' || true)"
+PY_REQ_FILES="$(printf '%s\n' "$LOCK_FILES" | grep -iE '(^|/)requirements\.txt$' || true)"
 
-_dep_run { # $1 = tool, rest = argv — bounded; prints stdout, returns exit code
+_dep_run() {                      # $1 = tool, rest = argv — bounded; prints stdout, returns exit code
   if ! command -v "$1" >/dev/null 2>&1; then return 127; fi
   if command -v timeout >/dev/null 2>&1; then timeout "$DEP_TIMEOUT" "$@" 2>/dev/null; else "$@" 2>/dev/null; fi
 }
@@ -407,14 +407,14 @@ _dep_run { # $1 = tool, rest = argv — bounded; prints stdout, returns exit cod
 # python3+yaml parser — no new parser path (CHARTER §P5). It reads CONV_MODE (npm|pip) + the raw payload
 # (NPM_LOCKDIR for npm) from the environment, and prints "<count>\t<completed>" then a `---` sentinel
 # then the 2-space-indented canonical findings fragment.
-_dep_result { # $1 = tool, $2 = exit code, $3 = completed?(1/0), $4 = finding count
+_dep_result() {          # $1 = tool, $2 = exit code, $3 = completed?(1/0), $4 = finding count
   if [ "$2" = 127 ]; then echo "$1=unavailable (not installed)"
   elif [ "$2" = 126 ]; then echo "$1=unavailable (no repo-scoped target: ${PY_UNEXPORTED:-python lockfile} — no exporter available)"
   elif [ "$3" != 1 ]; then echo "$1=unavailable (did not complete; exit=$2)"
   else echo "vulnerable_dependencies=$4"; fi
 }
 
-_dep_convert {
+_dep_convert() {
   # The `VAR=val _dep_convert` caller-assignments are visible here (function-scope), and this `python3`
   # prefix RE-EXPORTS them into the subprocess so `os.environ` sees them.
   CONV_MODE="${CONV_MODE:-}" NPM_RAW="${NPM_RAW:-}" NPM_LOCKDIR="${NPM_LOCKDIR:-}" \
@@ -431,7 +431,7 @@ CHECK_ID = "SEC-DEP-VULN"
 
 # The MAPPING onto the report's EXISTING severity vocabulary — the load-bearing half of rule 6. The two
 # consumers pin that vocabulary between them: `bin/v2-security-gate` BLOCKS a deploy on an open
-# {critical, high} finding, and the SPEC-0119/ debt view counts an aged open {warning, info} one.
+# {critical, high} finding, and the SPEC-0119/T-10440 debt view counts an aged open {warning, info} one.
 # npm/pip speak a different dialect ("moderate", "low", unranked), which belongs to NEITHER set — so an
 # UNMAPPED severity would land in the gap and be silently uncountable by both. An unrecognized severity
 # therefore maps to `warning` (VISIBLE as debt), never to something that would drop it out of both.
@@ -441,29 +441,29 @@ SEVERITY_MAP = {
     "low": "info", "info": "info", "informational": "info", "none": "info",
 }
 UNRANKED = "warning"
-ADVISORY_RE = re.compile(r"(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|CVE-\d{4}-\d)", re.IGNORECASE)
+ADVISORY_RE = re.compile(r"(GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}|CVE-\d{4}-\d+)", re.IGNORECASE)
 
 
 def sha16(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest[:16]
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 def finding(ecosystem, package, advisory, raw_sev, summary, url, affected, fix, lockdir=""):
     # A NON-ROOT lockdir is folded into the ecosystem TAG, so the finding's title — and thus its
     # fingerprint sha256(check_id LF title) — is STABLE per dir+advisory AND distinct from a
     # same-advisory finding in another lockfile directory (X-0311). The ROOT lockfile ("" / ".") keeps
-    # the pre- tag VERBATIM, so a root-only repo's findings stay byte-identical (the regression
+    # the pre-T-10450 tag VERBATIM, so a root-only repo's findings stay byte-identical (the regression
     # contract): title, evidence and fingerprint are all unchanged there.
-    ld = (lockdir or "").strip
+    ld = (lockdir or "").strip()
     tag = f"{ecosystem}:{ld}" if ld and ld != "." else ecosystem
     title = f"Vulnerable dependency: {package} ({tag}, {advisory})"
-    raw = str(raw_sev or "").strip.lower
+    raw = str(raw_sev or "").strip().lower()
     return {
         "check_id": CHECK_ID,
         "severity": SEVERITY_MAP.get(raw, UNRANKED),
-        "status": "open", # a REPORTED vulnerability IS open; the scaffold re-derives
-        "fingerprint": sha16(f"{CHECK_ID}\n{title}"), # status from the live surface each run and never
-        "title": title, # carries one forward — a fixed dep just stops appearing.
+        "status": "open",                       # a REPORTED vulnerability IS open; the scaffold re-derives
+        "fingerprint": sha16(f"{CHECK_ID}\n{title}"),   # status from the live surface each run and never
+        "title": title,                         # carries one forward — a fixed dep just stops appearing.
         "what": (f"{ecosystem} dependency `{package}` is affected by {advisory}"
                  f" (reported severity: {raw or 'unranked'})."
                  + (f" {summary}" if summary else "")),
@@ -484,7 +484,7 @@ def npm_findings(raw, lockdir=""):
     if not isinstance(vulns, dict):
         return []
     out = []
-    for package, entry in vulns.items:
+    for package, entry in vulns.items():
         if not isinstance(entry, dict):
             continue
         pkg_sev = entry.get("severity")
@@ -496,10 +496,10 @@ def npm_findings(raw, lockdir=""):
             # own entry + its own advisories) — it names no advisory, so it is not a unit of its own.
             if not isinstance(via, dict):
                 continue
-            aid = str(via.get("source") or "").strip
+            aid = str(via.get("source") or "").strip()
             if not aid:
                 match = ADVISORY_RE.search(str(via.get("url") or ""))
-                aid = match.group(1).upper if match else ""
+                aid = match.group(1).upper() if match else ""
             advisories.append((aid or "unspecified", via.get("severity") or pkg_sev,
                                str(via.get("title") or ""), str(via.get("url") or "")))
         if not advisories:
@@ -533,8 +533,8 @@ def pip_findings(raw):
             fixes = vuln.get("fix_versions")
             out.append(finding(
                 "pip", package, aid,
-                vuln.get("severity"), # pip-audit advisories are UNRANKED → mapped to `warning`
-                " ".join(str(vuln.get("description") or "").split)[:180],
+                vuln.get("severity"),          # pip-audit advisories are UNRANKED → mapped to `warning`
+                " ".join(str(vuln.get("description") or "").split())[:180],
                 "", version, ", ".join(str(v) for v in fixes) if isinstance(fixes, list) and fixes else "none"))
     return out
 
@@ -544,7 +544,7 @@ def npm_completed(raw):
     it FINDS vulnerabilities and when it dies, and a timed-out/crashed scanner emits no (or an error)
     payload. The honest discriminator is therefore the OUTPUT — a payload carrying the
     `vulnerabilities` section IS a completed scan (an empty section = a clean scan); anything else
-    (empty stdout on a timeout, an `{"error":...}` object, garbage) is a scan that did not run."""
+    (empty stdout on a timeout, an `{"error": ...}` object, garbage) is a scan that did not run."""
     try:
         payload = json.loads(raw)
     except (ValueError, TypeError):
@@ -579,7 +579,7 @@ print(f"{len(findings)}\t{int(completed)}")
 print("---")
 if findings:
     text = yaml.safe_dump(findings, sort_keys=False, default_flow_style=False).rstrip("\n")
-    print("\n".join(" " + line for line in text.splitlines))
+    print("\n".join("  " + line for line in text.splitlines()))
 PY
 }
 
@@ -590,7 +590,7 @@ PY
 # load — emit the cached payload on stdout IFF it is BOUNDED-FRESH (age = NOW - cached_at, in whole
 # days, <= AC_SLA_DAYS); else exit nonzero (miss / stale / clock-anomaly) so the caller
 # degrades. The freshness bound is the declared freshness_sla days (passed in AC_SLA_DAYS).
-_advisory_cache { # AC_MODE=store|load AC_KEY=<unit> [AC_PAYLOAD=<raw> | AC_SLA_DAYS=<n>]
+_advisory_cache() {   # AC_MODE=store|load  AC_KEY=<unit>  [AC_PAYLOAD=<raw> | AC_SLA_DAYS=<n>]
   AC_MODE="${AC_MODE:-}" AC_KEY="${AC_KEY:-}" AC_PAYLOAD="${AC_PAYLOAD:-}" \
   AC_SLA_DAYS="${AC_SLA_DAYS:-7}" AC_DIR="$ADVISORY_CACHE_DIR" AC_NOW="$NOW" \
   python3 - <<'PY' 2>/dev/null
@@ -602,7 +602,7 @@ key = os.environ.get("AC_KEY", "")
 cdir = os.environ.get("AC_DIR", "")
 if not mode or not key or not cdir:
     sys.exit(1)
-path = os.path.join(cdir, hashlib.sha256(key.encode("utf-8")).hexdigest[:16] + ".json")
+path = os.path.join(cdir, hashlib.sha256(key.encode("utf-8")).hexdigest()[:16] + ".json")
 
 
 def _parse(ts):
@@ -616,7 +616,7 @@ if mode == "store":
             json.dump({"key": key, "cached_at": os.environ.get("AC_NOW", ""),
                        "payload": os.environ.get("AC_PAYLOAD", "")}, f)
     except OSError:
-        sys.exit(1) # best-effort prewarm — a write failure is not fatal to the run
+        sys.exit(1)   # best-effort prewarm — a write failure is not fatal to the run
     sys.exit(0)
 
 # load
@@ -628,7 +628,7 @@ try:
 except (OSError, ValueError, KeyError):
     sys.exit(1)
 if age < 0 or age > sla:
-    sys.exit(1) # stale (or a clock anomaly) → treat as NO cache (bounded-fresh contract)
+    sys.exit(1)       # stale (or a clock anomaly) → treat as NO cache (bounded-fresh contract)
 sys.stdout.write(str(rec.get("payload", "")))
 sys.exit(0)
 PY
@@ -648,17 +648,17 @@ NPM_RUNS_YAML=""; NPM_FINDINGS_YAML=""; NPM_TOTAL=0
 NPM_REP_EXIT=127; NPM_DIRS_TOTAL=0; NPM_DIRS_INCOMPLETE=0
 if [ "$NPM_APPLICABLE" = 1 ]; then
   NPM_VER="$(npm --version 2>/dev/null || echo unavailable)"
-  DEP_TOOLS_YAML="${DEP_TOOLS_YAML} npm: \"${NPM_VER}\"
+  DEP_TOOLS_YAML="${DEP_TOOLS_YAML}  npm: \"${NPM_VER}\"
 "
   NPM_DIRS="$(printf '%s\n' "$LOCK_FILES" \
-    | grep -iE '(^|)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$' \
+    | grep -iE '(^|/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml)$' \
     | while IFS= read -r lf; do [ -n "$lf" ] && dirname "$lf"; done \
     | awk 'NF' | sort -u)"
   while IFS= read -r nd; do
     [ -n "$nd" ] || continue
     NPM_DIRS_TOTAL=$((NPM_DIRS_TOTAL + 1))
-    npm_raw="$( (cd "$REPO/$nd" 2>/dev/null && _dep_run npm audit --json))"; npm_ex=$?
-    NPM_REP_EXIT=$npm_ex # representative exit for the check (per-dir truth in `runs:`)
+    npm_raw="$( (cd "$REPO/$nd" 2>/dev/null && _dep_run npm audit --json) )"; npm_ex=$?
+    NPM_REP_EXIT=$npm_ex                         # representative exit for the check (per-dir truth in `runs:`)
     npm_conv="$(CONV_MODE=npm NPM_RAW="$npm_raw" NPM_LOCKDIR="$nd" _dep_convert)"
     npm_head="$(printf '%s\n' "$npm_conv" | head -1)"
     npm_cnt="$(printf '%s' "$npm_head" | cut -f1)"; npm_cnt=${npm_cnt:-0}
@@ -694,7 +694,7 @@ if [ "$NPM_APPLICABLE" = 1 ]; then
         # this applicable lockdir was never scanned. Marked for the pinned blocking finding below.
         SCANNER_MISSING=1
         SCANNER_MISSING_NOTES="${SCANNER_MISSING_NOTES}npm[${nd}]=exit:127 (npm-ecosystem lockfile present); "
-        case " ${SCANNER_MISSING_TOOLS} " in *" npm "*);; *) SCANNER_MISSING_TOOLS="${SCANNER_MISSING_TOOLS}npm ";; esac
+        case " ${SCANNER_MISSING_TOOLS} " in *" npm "*) ;; *) SCANNER_MISSING_TOOLS="${SCANNER_MISSING_TOOLS}npm " ;; esac
       fi
     fi
     if [ "$npm_src" = cache ]; then
@@ -702,7 +702,7 @@ if [ "$NPM_APPLICABLE" = 1 ]; then
     else
       npm_res="$(_dep_result npm "$npm_ex" "$npm_done" "$npm_cnt")"
     fi
-    NPM_RUNS_YAML="${NPM_RUNS_YAML} - lockdir: \"${nd}\"
+    NPM_RUNS_YAML="${NPM_RUNS_YAML}      - lockdir: \"${nd}\"
         exit_code: ${npm_ex}
         result: \"${npm_res}\"
 "
@@ -711,7 +711,7 @@ fi
 
 PIP_RAW=""; PIP_EXIT=127; PIP_COUNT=0
 if [ "$PY_APPLICABLE" = 1 ]; then
-  PIP_ARGS=
+  PIP_ARGS=()
   if [ -n "$PY_REQ_FILES" ]; then
     while IFS= read -r rf; do [ -f "$rf" ] && PIP_ARGS+=(-r "$rf"); done <<< "$PY_REQ_FILES"
   fi
@@ -721,8 +721,8 @@ if [ "$PY_APPLICABLE" = 1 ]; then
       pd="$(dirname "$pl")"; ex_tmp="$(mktemp)"; _CLEANUP_PATHS+=("$ex_tmp"); ex_rc=1
       case "$(basename "$pl")" in
         uv.lock) _dep_run uv export --format requirements-txt --no-hashes --no-emit-project --frozen \
-                   --directory "$pd" > "$ex_tmp"; ex_rc=$?;;
-        poetry.lock) _dep_run poetry export -f requirements.txt --without-hashes -C "$pd" > "$ex_tmp"; ex_rc=$?;;
+                   --directory "$pd" > "$ex_tmp"; ex_rc=$? ;;
+        poetry.lock) _dep_run poetry export -f requirements.txt --without-hashes -C "$pd" > "$ex_tmp"; ex_rc=$? ;;
       esac
       if [ "$ex_rc" = 0 ]; then PIP_ARGS+=(-r "$ex_tmp"); else PY_UNEXPORTED="${PY_UNEXPORTED:+$PY_UNEXPORTED }$pl"; fi
     done <<< "$PY_EXPORT_LOCKS"
@@ -730,11 +730,11 @@ if [ "$PY_APPLICABLE" = 1 ]; then
   if [ "${#PIP_ARGS[@]}" -gt 0 ]; then
     PIP_RAW="$(_dep_run pip-audit "${PIP_ARGS[@]}" --format=json)"; PIP_EXIT=$?
   else
-    PIP_EXIT=126 # in scope but NO pip-audit-auditable target (no exporter for the lock): the
-    PIP_RAW="" # probe refuses to fall back to a host-environment scan (see the note above)
+    PIP_EXIT=126        # in scope but NO pip-audit-auditable target (no exporter for the lock): the
+    PIP_RAW=""          # probe refuses to fall back to a host-environment scan (see the note above)
   fi
   PIP_VER="$(pip-audit --version 2>/dev/null | head -1 | awk '{print $NF}' || echo unavailable)"
-  DEP_TOOLS_YAML="${DEP_TOOLS_YAML} pip-audit: \"${PIP_VER:-unavailable}\"
+  DEP_TOOLS_YAML="${DEP_TOOLS_YAML}  pip-audit: \"${PIP_VER:-unavailable}\"
 "
 fi
 
@@ -777,7 +777,7 @@ if [ "$PY_APPLICABLE" = 1 ]; then
     SCANNER_MISSING=1
     _pip_trigger="$(printf '%s' "$PY_REQ_FILES" | tr '\n' ' ' | sed 's/ *$//')"
     SCANNER_MISSING_NOTES="${SCANNER_MISSING_NOTES}pip-audit=exit:127 (applicable via ${_pip_trigger:-python lockfile}); "
-    case " ${SCANNER_MISSING_TOOLS} " in *" pip-audit "*);; *) SCANNER_MISSING_TOOLS="${SCANNER_MISSING_TOOLS}pip-audit ";; esac
+    case " ${SCANNER_MISSING_TOOLS} " in *" pip-audit "*) ;; *) SCANNER_MISSING_TOOLS="${SCANNER_MISSING_TOOLS}pip-audit " ;; esac
   fi
 fi
 
@@ -825,13 +825,13 @@ DEP_OPEN_COUNT=$((NPM_TOTAL + PIP_COUNT))
 if [ "$NPM_APPLICABLE" = 1 ]; then
   if [ "$NPM_DIRS_TOTAL" -eq 0 ] || [ -z "$NPM_RUNS_YAML" ]; then
     echo "security-audit: REFUSING to produce a report — empty per-dir derivation for the npm probe" >&2
-    echo " NPM_APPLICABLE=1 (an npm-ecosystem lockfile is tracked) but the per-dir derivation yielded" >&2
-    echo " 0 lockdir(s) and recorded 0 run(s) — the two reads of one lockfile set contradict." >&2
-    echo " Recording the check here would publish an EMPTY \`runs:\` trail with" >&2
-    echo " \`vulnerable_dependencies=0\`: a scan that never happened, reported as a clean bill of" >&2
-    echo " health. A never-run probe never degrades silently into thinner evidence." >&2
-    echo " Nothing was written. Remedy: the derivation pipeline (\`grep | dirname | awk | sort -u\`" >&2
-    echo " over the tracked npm lockfiles) failed on this host — check those tools, then re-run." >&2
+    echo "  NPM_APPLICABLE=1 (an npm-ecosystem lockfile is tracked) but the per-dir derivation yielded" >&2
+    echo "  0 lockdir(s) and recorded 0 run(s) — the two reads of one lockfile set contradict." >&2
+    echo "  Recording the check here would publish an EMPTY \`runs:\` trail with" >&2
+    echo "  \`vulnerable_dependencies=0\`: a scan that never happened, reported as a clean bill of" >&2
+    echo "  health (T-10973). A never-run probe never degrades silently into thinner evidence." >&2
+    echo "  Nothing was written. Remedy: the derivation pipeline (\`grep | dirname | awk | sort -u\`" >&2
+    echo "  over the tracked npm lockfiles) failed on this host — check those tools, then re-run." >&2
     exit 3
   fi
   if [ "$NPM_DIRS_INCOMPLETE" -eq 0 ]; then
@@ -841,7 +841,7 @@ if [ "$NPM_APPLICABLE" = 1 ]; then
   else
     NPM_AGG_RESULT="vulnerable_dependencies=${NPM_TOTAL} (${NPM_DIRS_INCOMPLETE} of ${NPM_DIRS_TOTAL} lockdir(s) unavailable)"
   fi
-  DEP_CHECKS_YAML="${DEP_CHECKS_YAML} - id: SEC-DEP-AUDIT-NPM
+  DEP_CHECKS_YAML="${DEP_CHECKS_YAML}  - id: SEC-DEP-AUDIT-NPM
     ran_at: \"${DEP_TS}\"
     exit_code: ${NPM_REP_EXIT}
     scanned_paths_count: ${SCAN_COUNT}
@@ -861,7 +861,7 @@ if [ "$PY_APPLICABLE" = 1 ]; then
   if [ -n "$PY_UNEXPORTED" ] && [ "$PIP_EXIT" != 126 ]; then
     PIP_RESULT="$(_dep_result pip-audit 126 0 0); scanned targets: ${PIP_RESULT}"; PIP_REC_EXIT=126
   fi
-  DEP_CHECKS_YAML="${DEP_CHECKS_YAML} - id: SEC-DEP-AUDIT-PIP
+  DEP_CHECKS_YAML="${DEP_CHECKS_YAML}  - id: SEC-DEP-AUDIT-PIP
     ran_at: \"${DEP_TS}\"
     exit_code: ${PIP_REC_EXIT}
     scanned_paths_count: ${SCAN_COUNT}
@@ -912,14 +912,14 @@ HOOK_CONVENTIONAL="bin/security-audit.local.sh"
 # The refusal idiom is the SPEC-0145 §9b foreign-report guard's, reused verbatim (same exit 3 = "refused,
 # nothing written"; no second exit-code taxonomy). Every branch fires from the seam below — ~200 lines
 # BEFORE the single `printf > "$OUT"` — so "NO accepted report" is literal: no file is written at all.
-_hook_refuse { # $1 = branch, $2 = detail
+_hook_refuse() {   # $1 = branch, $2 = detail
   echo "security-audit: REFUSING to produce a report — hook contract violated (${1})" >&2
-  echo " ${2}" >&2
-  echo " SPEC-0154 rule 3 (fail-closed): a declared-or-discovered hook that is malformed / timed-out /" >&2
-  echo " nonzero / declared-but-missing / present-but-undeclared yields NO accepted report. A broken" >&2
-  echo " contributor never degrades silently into thinner evidence. Nothing was written." >&2
-  echo " Remedy: fix the hook, or remove BOTH the file and its \`security.audit.hook\` declaration —" >&2
-  echo " absent-and-undeclared is the ONE legal degrade (generic-only evidence)." >&2
+  echo "  ${2}" >&2
+  echo "  SPEC-0154 rule 3 (fail-closed): a declared-or-discovered hook that is malformed / timed-out /" >&2
+  echo "  nonzero / declared-but-missing / present-but-undeclared yields NO accepted report. A broken" >&2
+  echo "  contributor never degrades silently into thinner evidence. Nothing was written." >&2
+  echo "  Remedy: fix the hook, or remove BOTH the file and its \`security.audit.hook\` declaration —" >&2
+  echo "  absent-and-undeclared is the ONE legal degrade (generic-only evidence)." >&2
   exit 3
 }
 
@@ -944,7 +944,7 @@ except (OSError, yaml.YAMLError):
 sec = ops.get("security") if isinstance(ops, dict) else None
 audit = sec.get("audit") if isinstance(sec, dict) else None
 hook = audit.get("hook") if isinstance(audit, dict) else None
-print(str(hook).strip if hook and str(hook).strip else "")
+print(str(hook).strip() if hook and str(hook).strip() else "")
 PY
 )"
 fi
@@ -966,7 +966,7 @@ fi
 if [ -n "$HOOK_DECL" ]; then
   HOOK_PATH="$REPO/$HOOK_DECL"
   HOOK_TMP="$(mktemp -d)"
-  _CLEANUP_PATHS+=("$HOOK_TMP") # consolidated EXIT cleanup (no second clobbering trap — SPEC-0155 r2)
+  _CLEANUP_PATHS+=("$HOOK_TMP")   # consolidated EXIT cleanup (no second clobbering trap — SPEC-0155 r2)
   HOOK_STDOUT="$HOOK_TMP/stdout"
   : > "$HOOK_STDOUT"
 
@@ -978,7 +978,7 @@ if [ -n "$HOOK_DECL" ]; then
     fi
     HOOK_EXIT=$?
   else
-    HOOK_EXIT=-1 # declared-but-missing / not executable — branch (4) below refuses it
+    HOOK_EXIT=-1        # declared-but-missing / not executable — branch (4) below refuses it
   fi
 
   # The EXIT-CODE branches run BEFORE the renderer below, and their order is load-bearing: a hook that
@@ -1034,12 +1034,12 @@ REQUIRED_FINDING_FIELDS = ("check_id", "severity", "status", "title", "what", "e
 
 def reject(reason: str) -> None:
     with open(reject_out, "w", encoding="utf-8") as f:
-        f.write(reason.strip + "\n")
-    sys.exit(0) # the REASON is the verdict; bash reads the file and refuses (branch 1)
+        f.write(reason.strip() + "\n")
+    sys.exit(0)          # the REASON is the verdict; bash reads the file and refuses (branch 1)
 
 
 def sha16(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest[:16]
+    return hashlib.sha256(data).hexdigest()[:16]
 
 
 def fingerprint(check_id: str, title: str) -> str:
@@ -1050,7 +1050,7 @@ def fingerprint(check_id: str, title: str) -> str:
 
 try:
     with open(hook_path, "rb") as f:
-        version_hash = sha16(f.read)
+        version_hash = sha16(f.read())
 except OSError:
     # Unreachable under rule 3 — bash refuses a declared-but-missing hook (branch 4) before this runs.
     # Kept as the fail-closed floor: an unresolvable version is RECORDED, never assumed.
@@ -1058,7 +1058,7 @@ except OSError:
 
 try:
     with open(stdout_path, "rb") as f:
-        raw = f.read
+        raw = f.read()
 except OSError:
     raw = b""
 stdout_hash = sha16(raw)
@@ -1071,9 +1071,9 @@ except (ValueError, UnicodeDecodeError):
            f"(stdout_hash={stdout_hash}, {len(raw)} byte(s)).")
 if not isinstance(payload, dict):
     reject(f"the hook {declared} emitted JSON of type {type(payload).__name__}, not the pinned "
-           f"object {{adapter_id, findings...}}.")
+           f"object {{adapter_id, findings, ...}}.")
 
-adapter_id = str(payload.get("adapter_id") or "").strip
+adapter_id = str(payload.get("adapter_id") or "").strip()
 if not adapter_id:
     reject(f"the hook {declared} omitted the pinned `adapter_id` — a contribution the report "
            f"cannot attribute is never folded in.")
@@ -1086,7 +1086,7 @@ if not isinstance(items, list):
 for pos, item in enumerate(items):
     if not isinstance(item, dict):
         reject(f"the hook {declared} emitted findings[{pos}] as {type(item).__name__}, not an object.")
-    missing = [k for k in REQUIRED_FINDING_FIELDS if not str(item.get(k) or "").strip]
+    missing = [k for k in REQUIRED_FINDING_FIELDS if not str(item.get(k) or "").strip()]
     if missing:
         reject(f"the hook {declared} emitted findings[{pos}] missing required contract field(s): "
                f"{', '.join(missing)} (only `fingerprint` is optional — the core derives it).")
@@ -1121,8 +1121,8 @@ for item in items:
         open_count += 1
 
 adapter = {"adapter": {
-    "adapter_id": adapter_id, # contract-validated above: non-empty by branch (1)
-    "command": declared, # the DECLARED string, verbatim — visible even when malformed
+    "adapter_id": adapter_id,            # contract-validated above: non-empty by branch (1)
+    "command": declared,                 # the DECLARED string, verbatim — visible even when malformed
     "version_hash": version_hash,
     "required_scope": required_scope,
     "exit_code": int(exit_code),
@@ -1135,7 +1135,7 @@ with open(adapter_out, "w", encoding="utf-8") as f:
 with open(findings_out, "w", encoding="utf-8") as f:
     if normalized:
         text = yaml.safe_dump(normalized, sort_keys=False, default_flow_style=False).rstrip("\n")
-        f.write("\n".join(" " + line for line in text.splitlines) + "\n")
+        f.write("\n".join("  " + line for line in text.splitlines()) + "\n")
 
 with open(open_out, "w", encoding="utf-8") as f:
     f.write(str(open_count))
@@ -1171,7 +1171,7 @@ fi
 # Fingerprint derivation (§5): sha256(check_id "\n" title)[:16] — STABLE across runs so a waiver keeps
 # matching. Recorded explicitly under `fingerprint_derivation` so the gate/validator can re-derive it.
 # ---------------------------------------------------------------------------------------------------
-fp { printf '%s\n%s' "$1" "$2" | sha256sum | cut -c1-16; }
+fp() { printf '%s\n%s' "$1" "$2" | sha256sum | cut -c1-16; }
 
 SECRET_TITLE="Hardcoded secret literal(s) in tracked source"
 ENV_TITLE="Secret/credential file tracked in git"
@@ -1247,7 +1247,7 @@ if [ "$SCANNER_MISSING" = 1 ]; then
     fingerprint: "${SCM_FP}"
     title: "${SCM_TITLE}"
     what: "This repo's committed lockfiles put the dependency-vulnerability probe IN SCOPE, but the scanner(s) ${SCM_TOOLS} are not installed on the audit host, so the probe never ran. A probe that never looked is NOT a clean scan: zero dependency findings here means no coverage, not no vulnerabilities. Remedy: install ${SCM_TOOLS} on the host that runs this audit, then re-run."
-    evidence: "scanner absent @ ${HEAD_SHA}; ${SCANNER_MISSING_NOTES}resolved from PATH (SPEC-0145 §5 scope honesty; / X-0724)"
+    evidence: "scanner absent @ ${HEAD_SHA}; ${SCANNER_MISSING_NOTES}resolved from PATH (SPEC-0145 §5 scope honesty; T-10900 / X-0724)"
 SCM
 )"
 fi
@@ -1293,7 +1293,7 @@ PS_TIMEOUT="${YITC_PROFILE_SNAPSHOT_TIMEOUT:-60}"
 # BROKEN YAML (measured: a declaration carrying `"` produced an unparseable report). Every value
 # derived from it is therefore emitted as a properly ENCODED scalar. JSON string syntax IS a valid YAML
 # double-quoted scalar, so `json.dumps` is the encoder — no new dependency, no hand-rolled escaping.
-_ps_scalar { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1" 2>/dev/null || printf '""'; }
+_ps_scalar() { python3 -c 'import json,sys; print(json.dumps(sys.argv[1]))' "$1" 2>/dev/null || printf '""'; }
 
 # Carrier read — RAW `yaml.safe_load` in a fresh `python3 -`, JUSTIFIED exactly as the HOOK_DECL and
 # freshness-SLA reads: no `bin/lib/state.py` is reachable from a byte-copied producer, so the
@@ -1315,14 +1315,14 @@ sec = ops.get("security") if isinstance(ops, dict) else None
 audit = sec.get("audit") if isinstance(sec, dict) else None
 snap = audit.get("profile_snapshot") if isinstance(audit, dict) else None
 cmd = snap.get("command") if isinstance(snap, dict) else None
-print(str(cmd).strip if cmd and str(cmd).strip else "")
+print(str(cmd).strip() if cmd and str(cmd).strip() else "")
 PY
 )"
 fi
 
 if [ -n "$PS_COMMAND" ]; then
   PS_TMP="$(mktemp -d)"
-  _CLEANUP_PATHS+=("$PS_TMP") # consolidated EXIT cleanup (no second clobbering trap — SPEC-0155 r2)
+  _CLEANUP_PATHS+=("$PS_TMP")   # consolidated EXIT cleanup (no second clobbering trap — SPEC-0155 r2)
   PS_STDOUT="$PS_TMP/stdout"
   : > "$PS_STDOUT"
   PS_REASON=""
@@ -1362,17 +1362,17 @@ cs = payload.get("check_set")
 if not (isinstance(cs, list) and cs):
     print("`check_set` is missing or is not a non-empty list")
     sys.exit(1)
-if not all(isinstance(x, str) and x.strip for x in cs):
+if not all(isinstance(x, str) and x.strip() for x in cs):
     print("`check_set` holds an entry that is not a non-empty string")
     sys.exit(1)
 # The two hashes are already pinned to 64-hex by the check above; `check_set` entries are project
 # strings, so they are JSON-encoded (valid YAML double-quoted scalars) rather than interpolated raw.
 out = ["profile_snapshot:",
-       " status: present",
-       ' snapshot_hash: "%s"' % payload["snapshot_hash"],
-       ' check_set_hash: "%s"' % payload["check_set_hash"],
-       " check_set:"]
-out += [" - %s" % json.dumps(c) for c in cs]
+       "  status: present",
+       '  snapshot_hash: "%s"' % payload["snapshot_hash"],
+       '  check_set_hash: "%s"' % payload["check_set_hash"],
+       "  check_set:"]
+out += ["    - %s" % json.dumps(c) for c in cs]
 print("\n".join(out))
 PY
 )" || PS_REASON="$PS_RENDER"
@@ -1395,7 +1395,7 @@ profile_snapshot:
 PSU
 )"
     PS_WHAT_Q="$(_ps_scalar "security.audit.profile_snapshot.command is DECLARED but did not yield a complete SPEC-0198 resolution, so this report carries no profile annotation. That is NOT the same as declining it: to opt out deliberately, replace the declaration with a 'waiver' whose 'reason' says why, in yitc-ops.yaml. Remedy: fix the declared command (${PS_REASON}).")"
-    PS_EVIDENCE_Q="$(_ps_scalar "declared command ${PS_COMMAND} @ ${HEAD_SHA}; ${PS_REASON} (SPEC-0198)")"
+    PS_EVIDENCE_Q="$(_ps_scalar "declared command ${PS_COMMAND} @ ${HEAD_SHA}; ${PS_REASON} (SPEC-0198 / T-12165)")"
     PROFILE_SNAPSHOT_FINDING_YAML="$(printf '\n'; cat <<PSF
   - check_id: SEC-PROFILE-SNAPSHOT
     severity: info
@@ -1520,5 +1520,5 @@ chmod 0664 "$TMP_OUT"
 mv -f "$TMP_OUT" "$OUT"
 
 echo "security-audit: wrote $OUT"
-echo " head=${HEAD_SHA} hash=${HASH} run_id=${RUN_ID} | secret=${SECRET_STATUS}(hits=${SECRET_HITS}) env=${ENV_STATUS}(hits=${ENV_TRACKED}) locks=${LOCK_COUNT} dep_vulns=${DEP_OPEN_COUNT} scanned=${SCAN_COUNT} adapter=${HOOK_DECL:-none} advisory_degraded=${ADVISORY_DEGRADED} scanner_missing=${SCANNER_MISSING}"
+echo "  head=${HEAD_SHA} hash=${HASH} run_id=${RUN_ID} | secret=${SECRET_STATUS}(hits=${SECRET_HITS}) env=${ENV_STATUS}(hits=${ENV_TRACKED}) locks=${LOCK_COUNT} dep_vulns=${DEP_OPEN_COUNT} scanned=${SCAN_COUNT} adapter=${HOOK_DECL:-none} advisory_degraded=${ADVISORY_DEGRADED} scanner_missing=${SCANNER_MISSING}"
 exit 0

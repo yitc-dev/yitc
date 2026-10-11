@@ -231,11 +231,7 @@ times in a row, and the later findings tend to sit in text written to answer the
 advice below aims at fewer, better-prepared full checks. It makes no claim of demonstrated savings or
 of preserved review quality.
 
-**1. Before the check.** Run the seven probes above first. When a finding could be answered either way,
-prefer narrowing or removing a promise over adding a mechanism. Compose the `implementation_plan` and the
-realization-exit body block BEFORE `plan check`, in the order SPEC-0034 §accepted «Work — ORDER» gives:
-editing the plan BODY after the check stales its verdict, while the `implementation_plan` frontmatter
-field does not.
+**1. Before the check.** Re-read the plan as SPEC-1025 sets out (`bin/yitc-v2 graph query SPEC-1025`).
 
 **2. After a RED.** Fix structural findings before local ones, using what you know about which findings
 interact — a structural fix often moves or retires local ones. Record a disposition for EVERY open

@@ -128,7 +128,7 @@ INJECTS = {
     'on_decisions_admission': ('on_decisions_bind',),
     'on_decisions_absorption_grant': ('ON_DECISIONS_ABSORPTION_BASIS', '_ceiling_row_of', 'on_decisions_row_absorbable'),
     'on_decisions_bind': ('decision_names_subject',),
-    'on_decisions_matrix': ('read_time_finding_key', 'verdict_excluding_late'),
+    'on_decisions_matrix': ('is_non_defect_finding', 'read_time_finding_key', 'verdict_excluding_late'),
     'on_decisions_packet_block': (),
     'on_decisions_projection': (),
     'on_decisions_residuals': ('_currency_finding_index', '_late_finding_index', 'row_residual_fingerprints'),
@@ -846,7 +846,11 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     f"audit-currency row ({len(currency_index)}). A decision binds to a "
                     f"residual of THIS ceiling row (SPEC-0204 rules 1 + 4). Run `audit decide` "
                     f"ONCE PER RESIDUAL, passing one of these engine keys verbatim: "
-                    + (", ".join(decidable) or "(none resolvable)") + ".",
+                    + (", ".join(decidable) or "(none resolvable)") + "."
+                    # T-13860 — a RESOLVED empty set is a different fact from an unresolvable one.
+                    + ("" if (decidable or residual.get("unresolvable") or not is_plan) else
+                       " This ceiling row has NO residual to decide, so the next round is admitted "
+                       "with no decision — run the gate's `plan stage <NEXT> --on-decisions`."),
                     {"ceiling_ref": ceiling_ref, "finding_fingerprint": finding_fp,
                      "residual_count": len(residual_keys), "late_count": len(late_index),
                      "currency_count": len(currency_index),
@@ -2049,7 +2053,7 @@ def on_decisions_bind(decisions, ceiling_ref, *, decision_names_subject) -> dict
 
 
 def on_decisions_matrix(findings, *, tid, stage, verdict, residual_keys, decisions_by_fp,
-                        repo_root=None, absorb_new=True, read_time_finding_key, verdict_excluding_late) -> dict:
+                        repo_root=None, absorb_new=True, is_non_defect_finding, read_time_finding_key, verdict_excluding_late) -> dict:
     """SPEC-0204 rule 3's CLOSED RESULT MATRIX over the rule-3 pass's response.
 
     Returns `{"verdict", "overruled", "fix_open", "new", "new_entries", "absorbable", "dropped_echo",
@@ -2126,7 +2130,16 @@ def on_decisions_matrix(findings, *, tid, stage, verdict, residual_keys, decisio
             overruled.append(echo)
             out_findings.append(f)
             continue
-        if disposition == "fix":
+        # T-13860 (public issue #80 item 2) — A NON-DEFECT ROW IS NEVER A `fix` RESIDUAL ECHOED OPEN.
+        # Rule 1: a row whose severity is in the closed non-defect set is no defect, so it cannot say
+        # that a defect is still open — by `echo_of` or by an equal engine key. Read as one, an `info`
+        # row saying «the earlier fix is closed» and naming the `fix` residual turned an auditor GREEN
+        # into a recorded RED (a consumer plan's gate-specs pass 8). Such a row falls through and is
+        # judged exactly as a non-defect row that names no residual always was, so the AUDITOR's own
+        # verdict stands — a RED stays RED. An unknown severity is not in the set and still forces
+        # RED (fail-closed); the `accept` / `defer` arm above is untouched, since a match there can
+        # only remove a driver.
+        if disposition == "fix" and not is_non_defect_finding(f):
             fix_open.append(echo)
             fix_open_findings.append(f)
             out_findings.append(f)
@@ -2135,7 +2148,9 @@ def on_decisions_matrix(findings, *, tid, stage, verdict, residual_keys, decisio
         # fingerprint on no residual of this row, or one whose decision carries no readable
         # disposition — and the field is DROPPED so the saved record never shows a claim the engine
         # refused to honour.
-        if echo:
+        # T-13860 — the one bound row that reaches here is the non-defect row naming a `fix`
+        # residual: its reference VERIFIED, so it stays on the record and is not reported as dropped.
+        if echo and disposition != "fix":
             f.pop("echo_of", None)
             dropped.append(echo)
         new.append(f)
@@ -2699,7 +2714,22 @@ def row_residual_fingerprints(row, *, repo_root=None, decisions_dir=None, record
                 # read time (see the shape-(a) block); 0 on every row whose stored keys are distinct.
                 "collapsed_rekeyed": int(collapsed_rekeyed)}
 
-    if isinstance(row_findings, list) and row_findings:
+    # T-13860 (public issue #80 item 2) — A PLAN-GATE ROW STATES ITS OWN FINDINGS, AN EMPTY LIST
+    # INCLUDED. The plan-gate writer puts `findings[]` on EVERY row it emits and never writes a
+    # non-defect row into it (T-12402), so a pass whose rows were all non-defect — or that listed
+    # none — leaves an explicit EMPTY list. That list is the row's statement that the pass recorded
+    # no defect finding: its residual set is EMPTY, exactly as a row LISTING only non-defect rows
+    # already reads through the loop below. Required non-empty, the same pass fell to shape (c),
+    # found no record at the task-shaped address a gate does not use, and read UNRESOLVABLE — with
+    # nothing to decide and no round admitted (a consumer plan had to be cancelled and re-filed).
+    # NO RECORD IS READ for such a row, so no record of another pass or checkout can answer for it.
+    # BOUNDED: `target_kind: plan` rows only (a task row's empty or absent list keeps shape (c)
+    # verbatim); a row under a real verdict only (an ABORT observed nothing and states nothing);
+    # and a row carrying NO `findings` key — the read-time synthetic row — keeps shape (c).
+    _plan_row_states_findings = (
+        isinstance(row_findings, list) and str(data.get("target_kind") or "") == "plan"
+        and str(data.get("verdict") or "").strip().upper() in ("GREEN", "YELLOW", "RED"))
+    if isinstance(row_findings, list) and (row_findings or _plan_row_states_findings):
         keys, degraded, skipped = [], 0, 0
         # T-12736 — the findings behind each stored `fp1:` key, so a COLLISION (one stored key carried
         # by more than one finding) can be told from the ordinary one-key-one-finding shape below.

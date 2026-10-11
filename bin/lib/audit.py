@@ -14803,7 +14803,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                    f"{AUDIT_PASS_CEILING}-pass ceiling — `--on-decisions` is the ONE pass PAST the "
                    f"ceiling, governed by decisions that only exist once the ceiling is reached "
                    f"(SPEC-0204 rules 2-3). Absorb inline instead (LIFECYCLE §Stage 4).")
-    # T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e)) — THE PLAN FINALIZATION GATE'S RULE-3 PASS.
+    # T-13844 (public issue #78; SPEC-0204 rule 9(e)) — THE PLAN FINALIZATION GATE'S RULE-3 PASS.
     # The seam above is the TASK arm. A plan gate takes its admission on the plan-gate ladder
     # (`bin/lib/plan.py#_run_plan_gate_audit`), and for the `finalization` gate — the one plan gate
     # THIS verb audits — `plan stage postcheck --on-decisions` hands the admitted context in on the

@@ -68,7 +68,8 @@
 # arm (the pre- behaviour); never set it in production.
 # YITC_GC_PRUNE_EXPIRE (default 7.days), YITC_GC_LOOSE_THRESHOLD (default 256 = one gc.auto quantum).
 # YITC_DISPATCH_LOG_RETENTION_DAYS (default 30) — REPORT-ONLY knob: files under
-# `<repo>/.yitc/dispatch-logs` older than this are removed each run and the value is printed (# measured 958 MB / 4105 files, 1876 past 30 days, 2026-09-13, with no retention rule at all).
+# `<repo>/.yitc/dispatch-logs` older than this are removed each run and the value is printed (
+# measured 958 MB / 4105 files, 1876 past 30 days, 2026-09-13, with no retention rule at all).
 set -uo pipefail
 
 SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -76,9 +77,9 @@ REPO=""
 EMIT_TO=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --repo) REPO="$2"; shift 2;;
-        --emit-to) EMIT_TO="$2"; shift 2;;
-        *) echo "git-maintenance: unknown argument: $1" >&2; exit 1;;
+        --repo)    REPO="$2"; shift 2 ;;
+        --emit-to) EMIT_TO="$2"; shift 2 ;;
+        *) echo "git-maintenance: unknown argument: $1" >&2; exit 1 ;;
     esac
 done
 [ -n "$REPO" ] || REPO="$SCRIPT_ROOT"
@@ -98,7 +99,7 @@ DISPATCH_LOG_DAYS = int(os.environ.get("YITC_DISPATCH_LOG_RETENTION_DAYS", "30")
 
 
 def git(*args, cwd=REPO):
-    return subprocess.run(("git") + args, cwd=cwd, capture_output=True, text=True)
+    return subprocess.run(("git",) + args, cwd=cwd, capture_output=True, text=True)
 
 
 def fail(msg):
@@ -111,21 +112,21 @@ def fail(msg):
 # gc.logs), so every path below is derived explicitly rather than assumed to be `<repo>/.git`.
 r = git("rev-parse", "--path-format=absolute", "--git-common-dir")
 if r.returncode != 0:
-    fail("not a git repository: %s (%s)" % (REPO, r.stderr.strip))
-common = Path(r.stdout.strip)
+    fail("not a git repository: %s (%s)" % (REPO, r.stderr.strip()))
+common = Path(r.stdout.strip())
 main_wt = common.parent
 
-# ── (a2) dispatch-log retention — plain files, no git objects, so it needs no lock ────────
+# ── (a2) dispatch-log retention (T-12502) — plain files, no git objects, so it needs no lock ────────
 dispatch_logs = main_wt / ".yitc" / "dispatch-logs"
-horizon = time.time - DISPATCH_LOG_DAYS * 86400
+horizon = time.time() - DISPATCH_LOG_DAYS * 86400
 pruned = 0
 pruned_bytes = 0
-if dispatch_logs.is_dir:
+if dispatch_logs.is_dir():
     for f in dispatch_logs.rglob("*"):
         try:
-            st = f.lstat
-            if f.is_file and not f.is_symlink and st.st_mtime < horizon:
-                f.unlink
+            st = f.lstat()
+            if f.is_file() and not f.is_symlink() and st.st_mtime < horizon:
+                f.unlink()
                 pruned += 1
                 pruned_bytes += st.st_size
         except OSError:
@@ -135,82 +136,82 @@ print("git-maintenance: dispatch-log retention=%d days (report-only knob YITC_DI
       % (DISPATCH_LOG_DAYS, pruned, pruned_bytes / 1048576.0, dispatch_logs))
 
 
-def gitdirs:
+def gitdirs():
     """The common dir plus every per-worktree gitdir — the complete set of places a gc.log can live."""
     dirs = [common]
     wt_root = common / "worktrees"
-    if wt_root.is_dir:
-        dirs.extend(sorted(p for p in wt_root.iterdir if p.is_dir))
+    if wt_root.is_dir():
+        dirs.extend(sorted(p for p in wt_root.iterdir() if p.is_dir()))
     return dirs
 
 
-def gc_logs:
-    return [d / "gc.log" for d in gitdirs if (d / "gc.log").exists]
+def gc_logs():
+    return [d / "gc.log" for d in gitdirs() if (d / "gc.log").exists()]
 
 
-def loose_state:
+def loose_state():
     """Loose object count + bytes by walking objects/??/ directly — no git subprocess, so the
     measurement cannot itself trip an auto-gc while we are measuring."""
     count = 0
     size = 0
     objects = common / "objects"
-    if objects.is_dir:
-        for d in objects.iterdir:
-            if not (d.is_dir and len(d.name) == 2):
+    if objects.is_dir():
+        for d in objects.iterdir():
+            if not (d.is_dir() and len(d.name) == 2):
                 continue
             try:
                 int(d.name, 16)
             except ValueError:
                 continue
-            for f in d.iterdir:
-                if f.is_file:
+            for f in d.iterdir():
+                if f.is_file():
                     count += 1
                     try:
-                        size += f.stat.st_size
+                        size += f.stat().st_size
                     except OSError:
                         pass
     return count, size
 
 
-def pack_state:
-    packs = sorted((common / "objects" / "pack").glob("*.pack")) if (common / "objects" / "pack").is_dir else []
-    return len(packs), sum(p.stat.st_size for p in packs)
+def pack_state():
+    packs = sorted((common / "objects" / "pack").glob("*.pack")) if (common / "objects" / "pack").is_dir() else []
+    return len(packs), sum(p.stat().st_size for p in packs)
 
 
-def loose_shas:
+def loose_shas():
     """Every loose object's sha — the same objects/??/ walk `loose_state` does, so the pack leg
     covers exactly the pile that measurement reports (reachable AND unreachable alike)."""
     shas = []
     objects = common / "objects"
-    if objects.is_dir:
-        for d in objects.iterdir:
-            if not (d.is_dir and len(d.name) == 2):
+    if objects.is_dir():
+        for d in objects.iterdir():
+            if not (d.is_dir() and len(d.name) == 2):
                 continue
             try:
                 int(d.name, 16)
             except ValueError:
                 continue
-            for f in d.iterdir:
-                if f.is_file and len(f.name) == 38:
+            for f in d.iterdir():
+                if f.is_file() and len(f.name) == 38:
                     shas.append(d.name + f.name)
     return shas
 
 
 def emit(payload):
     """Journal ONE `git_maintenance_run` row for this window (skipped for a fixture repo, with no
-    test-only knob). : EVERY window emits — ran, deferred or failed — so a starvation is read
+    test-only knob). T-13290: EVERY window emits — ran, deferred or failed — so a starvation is read
     off the journal instead of discovered, and an emit failure EXITS 1 (cron-notify surfaces it):
-    the silent-loss shape was exactly a warning with exit 0."""
-    emit_to = EMIT_TO or (str(main_wt) if (main_wt / "events.jsonl").exists
-                          and (main_wt / "bin" / "yitc-v2").exists else "")
+    the T-11693 silent-loss shape was exactly a warning with exit 0."""
+    emit_to = EMIT_TO or (str(main_wt) if (main_wt / "events.jsonl").exists()
+                          and (main_wt / "bin" / "yitc-v2").exists() else "")
     if not emit_to:
         return
     e = subprocess.run([str(Path(emit_to) / "bin" / "yitc-v2"), "-C", emit_to, "event",
-                        "git_maintenance_run", "--task", "",
+                        "git_maintenance_run", "--task", "T-11153",
                         "--data", json.dumps(payload)],
                        capture_output=True, text=True)
     if e.returncode != 0:
-        fail("could not journal git_maintenance_run (%s): %s" % (payload.get("outcome"), e.stderr.strip))
+        fail("could not journal git_maintenance_run (%s): %s" % (payload.get("outcome"), e.stderr.strip()))
     print("git-maintenance: git_maintenance_run (%s) journalled to %s" % (payload.get("outcome"), emit_to))
 
 
@@ -231,7 +232,7 @@ def state(count_size):
 
 # ── (b) THE LOCKS ─────────────────────────────────────────────────────────────────────────────
 # RESERVATION: the repo's existing land reservation, taken NON-BLOCKING — it decides WHICH leg runs.
-# COLLECTION LOCK : ONE non-blocking flock both legs take, so the unlocked loose-pack leg and
+# COLLECTION LOCK (T-13290): ONE non-blocking flock both legs take, so the unlocked loose-pack leg and
 # a full gc can never run at once (audit-pre fp1:c9fd6233e34b9d16 — a gc.pid check would be a
 # time-of-check race against a full run starting a moment later). Neither lock is ever WAITED on, so
 # maintenance never parks a land.
@@ -254,18 +255,18 @@ if not NO_LOCK:
             defer_reason = "collection lock HELD (%s) — a loose-pack leg is mid-flight" % COLLECT_LOCK
 
 if defer_reason is not None:
-    # ── (b2) THE DEFERRED WINDOW — the loose-pack leg, OUTSIDE the reservation ────────
-    # Before a held reservation was a pure no-op, and under back-to-back lands the
+    # ── (b2) THE DEFERRED WINDOW (T-13290) — the loose-pack leg, OUTSIDE the reservation ────────
+    # Before T-13290 a held reservation was a pure no-op, and under back-to-back lands the
     # reservation is almost never free at :25 — 2026-09-28..30 deferred every window and the loose
     # pile reached 36596 objects / 81.9 GiB. So a deferred window still packs EVERY loose object
     # (reachable and unreachable) into a new ORDINARY pack, then `git prune-packed`. That deletes NO
     # object and NO pack — prune-packed removes only a loose copy whose bytes are now in a pack — so
-    # it is safe beside a running land, and nothing unreachable can die earlier than under :
+    # it is safe beside a running land, and nothing unreachable can die earlier than under T-11153:
     # the next `gc --cruft` dates an object in an ordinary pack by that pack's mtime, which only
     # LENGTHENS its life. Memory is bounded (4 threads x 256m window) on a host that swaps under load.
     # The full cruft/prune collection still runs ONLY under the reservation.
     print("git-maintenance: %s — deferring the full collection; the next window retries." % defer_reason)
-    before = loose_state
+    before = loose_state()
     leg = {"ran": False}
     failure = None
     if os.environ.get("YITC_MAINTENANCE_NO_INCREMENTAL") == "1":
@@ -276,8 +277,8 @@ if defer_reason is not None:
             leg["skipped"] = "collection lock held — a peer collection is running"
         else:
             try:
-                shas = loose_shas
-                started = time.time
+                shas = loose_shas()
+                started = time.time()
                 if shas:
                     r = subprocess.run(["git", "-c", "pack.threads=4", "pack-objects", "-q",
                                         "--window-memory=256m",
@@ -285,17 +286,17 @@ if defer_reason is not None:
                                        cwd=REPO, input="\n".join(shas) + "\n",
                                        capture_output=True, text=True)
                     if r.returncode != 0:
-                        failure = "git pack-objects FAILED (rc=%d): %s" % (r.returncode, r.stderr.strip)
+                        failure = "git pack-objects FAILED (rc=%d): %s" % (r.returncode, r.stderr.strip())
                     else:
                         r = git("prune-packed")
                         if r.returncode != 0:
-                            failure = "git prune-packed FAILED (rc=%d): %s" % (r.returncode, r.stderr.strip)
+                            failure = "git prune-packed FAILED (rc=%d): %s" % (r.returncode, r.stderr.strip())
                 leg.update({"ran": failure is None, "packed": len(shas),
-                            "seconds": round(time.time - started, 1)})
+                            "seconds": round(time.time() - started, 1)})
             finally:
                 if cfd is not None:
                     os.close(cfd)
-    after = loose_state
+    after = loose_state()
     print("git-maintenance: loose-pack leg %s — loose %d -> %d objects (%.1f -> %.1f MiB)"
           % ("ran" if leg["ran"] else ("FAILED" if failure else "skipped (%s)" % leg.get("skipped")),
              before[0], after[0], before[1] / 1048576.0, after[1] / 1048576.0))
@@ -313,24 +314,24 @@ if defer_reason is not None:
 
 try:
     # ── (c) BEFORE state ──────────────────────────────────────────────────────────────────────
-    before_count, before_size = loose_state
-    before_packs, before_pack_size = pack_state
-    before_logs = [str(p) for p in gc_logs]
+    before_count, before_size = loose_state()
+    before_packs, before_pack_size = pack_state()
+    before_logs = [str(p) for p in gc_logs()]
     print("git-maintenance: repo=%s" % main_wt)
     print("git-maintenance: before loose=%d objects / %.1f MiB, packs=%d / %.1f MiB, gc.log files=%d"
           % (before_count, before_size / 1048576.0, before_packs,
              before_pack_size / 1048576.0, len(before_logs)))
 
     # ── (d) THE COLLECTION — foreground, so the lock spans the whole run ───────────────────────
-    started = time.time
+    started = time.time()
     r = git("-c", "gc.autoDetach=false", "gc", "--cruft", "--prune=%s" % PRUNE)
-    elapsed = time.time - started
+    elapsed = time.time() - started
     if r.returncode != 0:
         # gc.log files are left in place on failure — they are the evidence.
         print(r.stdout)
         print(r.stderr)
         msg = "git gc FAILED (rc=%d) after %.1fs — gc.log left in place as evidence" % (r.returncode, elapsed)
-        now = loose_state
+        now = loose_state()
         emit({"repo": str(main_wt), "outcome": "failed", "error": msg, "loose_threshold": THRESHOLD,
               "loose_objects": now[0], "loose_bytes": now[1],
               "before": state((before_count, before_size))})
@@ -339,9 +340,9 @@ try:
 
     # ── (e) clear gc.log in EVERY gitdir, on success ONLY ──────────────────────────────────────
     cleared = []
-    for log in gc_logs:
+    for log in gc_logs():
         try:
-            log.unlink
+            log.unlink()
             cleared.append(str(log))
         except OSError as exc:
             fail("could not remove %s: %s" % (log, exc))
@@ -349,10 +350,10 @@ try:
         print("git-maintenance: cleared %d gc.log file(s)" % len(cleared))
 
     # ── (f) EFFICACY, carried by the exit code ────────────────────────────────────────────────
-    after_count, after_size = loose_state
-    after_packs, after_pack_size = pack_state
-    remaining = [str(p) for p in gc_logs]
-    print("git-maintenance: after loose=%d objects / %.1f MiB, packs=%d / %.1f MiB, gc.log files=%d"
+    after_count, after_size = loose_state()
+    after_packs, after_pack_size = pack_state()
+    remaining = [str(p) for p in gc_logs()]
+    print("git-maintenance: after  loose=%d objects / %.1f MiB, packs=%d / %.1f MiB, gc.log files=%d"
           % (after_count, after_size / 1048576.0, after_packs,
              after_pack_size / 1048576.0, len(remaining)))
 
