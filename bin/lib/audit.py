@@ -14803,6 +14803,29 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                    f"{AUDIT_PASS_CEILING}-pass ceiling — `--on-decisions` is the ONE pass PAST the "
                    f"ceiling, governed by decisions that only exist once the ceiling is reached "
                    f"(SPEC-0204 rules 2-3). Absorb inline instead (LIFECYCLE §Stage 4).")
+    # T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e)) — THE PLAN FINALIZATION GATE'S RULE-3 PASS.
+    # The seam above is the TASK arm. A plan gate takes its admission on the plan-gate ladder
+    # (`bin/lib/plan.py#_run_plan_gate_audit`), and for the `finalization` gate — the one plan gate
+    # THIS verb audits — `plan stage postcheck --on-decisions` hands the admitted context in on the
+    # Namespace it builds for this call. It is not a CLI flag: no parser declares the attribute, so
+    # `audit post --plan --on-decisions` is still refused above and the FSM advance stays the one
+    # door (rule 9(e)). Nothing is re-decided here: the context carries the ceiling row's identity,
+    # its residual keys and the decisions bound to them, and from this point the pass is an ordinary
+    # admitted rule-3 pass — the ceiling refusal below steps aside, the packet renders the decisions,
+    # the record seam runs the closed matrix. «At the ceiling» was judged by that ladder (it refuses
+    # below it), so it is not judged a second time here. FAIL-CLOSED on shape: any other target or
+    # stage, a preview, or a value that is not the ladder's mapping leaves it inert and the ordinary
+    # ceiling arithmetic decides.
+    _plan_gate_od = getattr(args, "plan_gate_on_decisions", None)
+    plan_gate_on_decisions = (isinstance(_plan_gate_od, dict) and target_kind == "plan"
+                              and stage == "post" and not preview)
+    if plan_gate_on_decisions:
+        on_decisions_admitted = True
+        on_decisions_ceiling_ref = _plan_gate_od["ceiling_ref"]
+        on_decisions_residual_keys = list(_plan_gate_od["residual_keys"])
+        on_decisions_decidable_keys = list(on_decisions_residual_keys)
+        on_decisions_by_fp = dict(_plan_gate_od["by_fp"])
+        on_decisions_packet = _plan_gate_od["packet"]
     # SPEC-0204 rule 6 (T-12290) — the T-12234 TERMINAL-EPISODE owner-authorized PROCEED is REMOVED
     # with the episodes it re-entered and the `--owner-reset` it admitted. What it existed to unstick
     # (a card whose ceiling episode ended with work still to judge) is now the ordinary decision route.
@@ -14838,6 +14861,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         and not consult_reopen and not plan_freshness_reaudit and not unchanged_fp_reaudit
         and not concurrent_merge_reaudit and not task_lens_reaudit
         and not merge_integration_reaudit   # T-13260 — that axis, not a trend, admits this pass
+        and not plan_gate_on_decisions      # T-13844 — the recorded decisions admit this pass (the
+                                            # plan-gate ladder's own `not on_decisions`)
         and is_trend_convergence_grant(_trend_prior)
     )
     if trend_grant:
@@ -16681,7 +16706,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # bounded pass, so it earns no rule-3 absorption grant; its medium/low bound is
         # `currency_verdict_bound` below (mode-b absorb / followup), not `absorbable: true`.
         _od_matrix = on_decisions_matrix(
-            findings, tid=tid, stage=stage, verdict=verdict,
+            # T-13844 — a plan gate's residuals are keyed by its GATE ID (what `audit decide --plan
+            # --gate` wrote them under), never by this verb's `post`.
+            findings, tid=tid, stage=(_plan_gate_od["gate"] if plan_gate_on_decisions else stage),
+            verdict=verdict,
             # T-12422 — the DECIDABLE set, not the must-be-decided one: a decided currency finding
             # is a legitimate `echo_of` target. The admission above is unchanged.
             residual_keys=on_decisions_decidable_keys, decisions_by_fp=on_decisions_by_fp,
@@ -17315,7 +17343,20 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         _die(f"SPEC-0001 self-test failed: {e}")
 
     audit_path = REPO_ROOT / "decisions" / f"{tid}-audit-{stage}.yaml"
-    write_text_atomic(audit_path, content)
+    # T-13844 (SPEC-0204 rule 5 at the plan finalization gate) — A NO-ANSWER ON THE DECISIONS PASS
+    # LEAVES THE GATE'S RECORD IN PLACE. This gate's ceiling row is its saved record (resolved at
+    # read time — no journal row is keyed by the gate id), so a no-verdict ABORT written over it
+    # would erase the very residuals the recorded decisions are bound to, and the re-invocation
+    # rule 5 promises would run with nothing to match. The judgement is the ONE predicate the other
+    # plan-gate writers read (T-12739); the journal rows below still record the attempt as the
+    # no-data ABORT it was, and `passes` is unchanged either way (the no-data ledger skip).
+    _plan_gate_prior_kept = (no_data_abort_retains_prior(verdict, findings, prior_record_read)
+                             if plan_gate_on_decisions else None)
+    if _plan_gate_prior_kept:
+        print(no_data_abort_note(f"{tid} finalization gate", parse_notes, _plan_gate_prior_kept),
+              file=sys.stderr)
+    else:
+        write_text_atomic(audit_path, content)
 
     # Emit events
     # SPEC-0204 rule 6 (T-12290) — the `owner_reset` / `worker_auto_consult` / `inland_consult_grant`

@@ -154,7 +154,11 @@ def _window_segment_floor(now, *, days=None, hours=None) -> str:
     try:
         span = float(days) * 86400.0 if days is not None else float(hours or 0) * 3600.0
         floor = now.timestamp() - span - _WINDOW_SEGMENT_MARGIN_SECONDS
-        return datetime.fromtimestamp(floor, tz=timezone.utc).strftime("%Y-%m-%d")
+        # `isoformat`, not `strftime("%Y-%m-%d")` (T-13830): the label comparison downstream is on
+        # TEXT, and `%Y` leaves a year below 1000 unpadded, so a very wide window's floor could
+        # sort ABOVE the dated segment names, and the archive was then skipped (measured: a window
+        # of 10**7 hours gave `958-03-15`). The same text as before for any year from 1000 on.
+        return datetime.fromtimestamp(floor, tz=timezone.utc).date().isoformat()
     except (AttributeError, OSError, OverflowError, TypeError, ValueError):
         return None
 
@@ -6870,11 +6874,13 @@ _residue_binds(land_abort_cause_breadth)
 # (CHARTER P5). What IS shared with rule 26 is the definition of a REFUSAL SHAPE — the
 # `_ABORT_BREADTH_EVENTS` type set and the requeue verdict constant, reused rather than restated, so
 # the two projections can never disagree about which rows are refusals.
+# Since T-13842 it also shares rule 26's RESOLUTION predicate (`_abort_breadth_resolution`) for
+# what a LANDING is, so a batch-member landing ends a burn here exactly as it resolves a branch there.
 _BRANCH_BURN_MIN_ATTEMPTS = debt_landing._BRANCH_BURN_MIN_ATTEMPTS   # T-12698 host re-export alias — moved WITH its readers
 
 
 @functools.wraps(debt_landing._branch_burn_land_row)
-def _branch_burn_land_row(*a, _inj=("_ABORT_BREADTH_MEMBER_REQUEUE_VERDICT",), **kw):
+def _branch_burn_land_row(*a, _inj=("_ABORT_BREADTH_MEMBER_REQUEUE_VERDICT", "_abort_breadth_resolution",), **kw):
     """T-12698 host residue — body in `bin/lib/debt_landing.py#_branch_burn_land_row`; host names read HERE at call time."""
     for _k in _inj:
         kw.setdefault(_k, globals()[_k])
@@ -6884,7 +6890,7 @@ _residue_binds(_branch_burn_land_row)
 
 @functools.wraps(debt_landing.branch_unlanded_attempt_burn)
 def branch_unlanded_attempt_burn(*a, _inj=("_ABORT_BREADTH_EVENTS", "_branch_burn_land_row",
-                                           "_parse_stamped_deadline",), **kw):
+                                           "_parse_stamped_deadline", "_window_segment_floor",), **kw):
     """T-12698 host residue — body in `bin/lib/debt_landing.py#branch_unlanded_attempt_burn`; host names read HERE at call time."""
     for _k in _inj:
         kw.setdefault(_k, globals()[_k])

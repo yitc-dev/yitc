@@ -1,6 +1,6 @@
-# Release v2.9.0
+# Release v2.9.1
 
-Source commit: `0af74fa6cbcd9679325339f51f73d92c93616031`
+Source commit: `eea0c4de7b74f37d0db7f10a03efd14d981803a5`
 
 ## Proposals this release answers
 
@@ -78,6 +78,7 @@ answers:
   - 'yitc-dev/yitc#73'
   - 'yitc-dev/yitc#74'
   - 'yitc-dev/yitc#77'
+  - 'yitc-dev/yitc#78'
   - 'yitc-dev/yitc#8'
   - 'yitc-dev/yitc#9'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
@@ -137,20 +138,16 @@ No kernel spec became active since the previous release tag.
 
 ## What changed
 
-12 task(s) closed since the previous release tag, in close order:
+8 task(s) closed since the previous release tag, in close order:
 
-- T-13820 — Restate fused history clauses in delivered spec bodies (docs) — events.jsonl#ts=2026-10-10T14:43:57Z
-- T-13825 — State the code-enforced binding arm in the SPEC-0151 scope text and re-sign its anchor (docs) — events.jsonl#ts=2026-10-10T15:41:16Z
-- T-13827 — Make the security gate's completeness check and the SPEC-0145 section 5 field list agree (fix) — events.jsonl#ts=2026-10-10T16:56:17Z
-- T-13832 — Keep Stage-6 layer rows in the reduced P8 resolution corpus (fix) — events.jsonl#ts=2026-10-10T17:34:54Z
-- T-13831 — Recommend this host's starting load settings at first install, applied to the machine settings only on the owner's yes (feature) — events.jsonl#ts=2026-10-10T17:43:40Z
-- T-13824 — Put the plan, spec and card texts into the aggregate plan audit packet (fix) — events.jsonl#ts=2026-10-10T18:09:45Z
-- T-13828 — Name the broken-reference hard error in the SPEC-0031 fence bullet and re-sign cmd_graph_build (docs) — events.jsonl#ts=2026-10-10T19:00:05Z
-- T-13829 — State the placeholder-date exception in the SPEC-0112 seeded-expiry sentence and re-sign its anchor (docs) — events.jsonl#ts=2026-10-10T19:31:33Z
-- T-13823 — Stop a second `session start` in one shell leaving two live session records that make the next verb refuse (fix) — events.jsonl#ts=2026-10-10T19:47:13Z
-- T-13833 — Make the debt fold's later-evidence arm read adoption the way task close does (fix) — events.jsonl#ts=2026-10-10T20:24:07Z
-- T-13826 — Bring the SPEC-0119 rule 31 sentence on the resolution corpus in line with the one-pass fold and re-sign its anchor (docs) — events.jsonl#ts=2026-10-10T21:29:51Z
-- T-13835 — Let a green land clear a known-broken-on-main record for a consumer verify layer that ran the pair's file and passed (fix) — events.jsonl#ts=2026-10-10T23:34:59Z
+- T-13842 — Make the branch-burn debt fold count a batch-member landing as landed and one land run as one attempt (fix) — events.jsonl#ts=2026-10-11T00:51:34Z
+- T-13840 — Stop a test run in a scratch worktree from writing core.bare=true into the shared git config (fix) — events.jsonl#ts=2026-10-11T01:23:58Z
+- T-13838 — Stop a test run from deleting the live session scratch root it inherits through YITC_SCRATCH_DIR (fix) — events.jsonl#ts=2026-10-11T02:33:53Z
+- T-13830 — Read the whole window in the branch-burn debt fold when the window is set past the live journal window (fix) — events.jsonl#ts=2026-10-11T02:51:43Z
+- T-13839 — Make the land repeated-abort backstop count one abort once after `worktree sync` and reset on a fix commit (fix) — events.jsonl#ts=2026-10-11T03:26:15Z
+- T-13837 — Close the coverage-map gaps behind the selection tripwire hits that recurred after (fix) — events.jsonl#ts=2026-10-11T04:35:15Z
+- T-13841 — Make the dispatch watch loop read the journal once per tick — AC4 came back falsified and dispatch is now the worst seam (refactor) — events.jsonl#ts=2026-10-11T08:56:27Z
+- T-13844 — Let `plan stage postcheck --on-decisions` run the SPEC-0204 bounded pass for a plan's finalization gate at its ceiling (fix) — events.jsonl#ts=2026-10-11T10:34:27Z
 
 ## Trust surfaces
 

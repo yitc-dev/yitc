@@ -2630,10 +2630,11 @@ def cmd_worktree_park(args: argparse.Namespace, *, _append_event, _die, _main_wo
         print(f"  task {data['task']} is `wont-do` on main (its card died under the worker; the claim never "
               f"landed) → DISCARDED, not re-dispatchable; worktree removed + branch deleted, no orphan")
     # T-13203 AC3: a dispatched worker's scratch root dies with its park (fail-open; no-op without
-    # the dispatcher-exported YITC_SCRATCH_DIR).
+    # the dispatcher-exported YITC_SCRATCH_DIR). T-13838: only a park in the checkout that launched
+    # the worker reclaims it.
     try:
         from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy, leaf-order
-        _scratch = _dispatch.reclaim_worker_scratch_root()
+        _scratch = _dispatch.reclaim_worker_scratch_root(main_wt=main_wt)
     except ImportError:   # fail-open: a minimal engine copy without dispatch has no worker root
         _scratch = None
     if _scratch:

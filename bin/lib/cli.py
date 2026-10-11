@@ -17148,7 +17148,10 @@ def _cmd_audit_dispatch(args: argparse.Namespace, consult: bool = False) -> None
     # this site, so its packet fold, followup fold, breaker read and journal state each folded for
     # themselves (measured 2026-10-02: 615 folds over 246 segments, 10.4 GB). It takes post's scope.
     with contextlib.ExitStack() as _scope_stack:
-        if not consult and getattr(args, "plan", None) and getattr(args, "audit_action", None) == "post":
+        # T-13844 — not when `plan stage postcheck --on-decisions` runs this pass: that verb already
+        # holds this very scope for the same plan, and a second one would walk the journal again.
+        if (not consult and getattr(args, "plan", None) and getattr(args, "audit_action", None) == "post"
+                and getattr(args, "plan_gate_on_decisions", None) is None):
             _scope_stack.enter_context(plan_mod.plan_stage_read_scope(
                 argparse.Namespace(slug=args.plan), events_path=EVENTS_PATH, load_draft=_load_draft,
                 plans_dir=PLANS_DIR, session_refs=_carried_session_refs(), verb="audit post --plan"))
@@ -24438,8 +24441,34 @@ def _plan_postcheck_exempt_specs(slug: str) -> frozenset:
     return plan_mod._plan_postcheck_exempt_specs(slug, SPECS_DIR=SPECS_DIR, _plan_retire_on_proof=_plan_retire_on_proof, _plan_specs=_plan_specs, _read_yaml=_read_yaml)
 
 
-def _require_plan_postcheck_ready(slug: str, body: str) -> None:
-    return plan_mod._require_plan_postcheck_ready(slug, body, _die=_die, _plan_postcheck_exempt_specs=_plan_postcheck_exempt_specs, _plan_retire_on_proof=_plan_retire_on_proof, _plan_tasks=_plan_tasks, _postcheck_probe_block_declared=_postcheck_probe_block_declared, _require_plan_finalization_ready=_require_plan_finalization_ready, _require_verification_artifact=_require_verification_artifact)
+def _require_plan_postcheck_ready(slug: str, body: str, on_decisions: bool = False) -> None:
+    return plan_mod._require_plan_postcheck_ready(slug, body, on_decisions=on_decisions, _die=_die, _plan_postcheck_exempt_specs=_plan_postcheck_exempt_specs, _plan_retire_on_proof=_plan_retire_on_proof, _plan_tasks=_plan_tasks, _postcheck_probe_block_declared=_postcheck_probe_block_declared, _require_plan_finalization_ready=_require_plan_finalization_ready, _require_verification_artifact=_require_verification_artifact, _run_plan_gate_audit=_run_plan_gate_audit, _run_plan_finalization_pass=_plan_finalization_on_decisions_pass)
+
+
+def _plan_finalization_on_decisions_pass(slug: str, admitted) -> None:
+    """T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e)) — run the ONE bounded pass of a plan's
+    `finalization` gate: the aggregate `audit post --plan <slug>`, under the rule-3 admission
+    `plan stage postcheck --on-decisions` has just taken on the plan-gate ladder.
+
+    The Namespace is the production parser's own for `audit post --plan <slug>`, so the pass is the
+    audit a person would run, with one attribute added that no parser declares: the admitted
+    context. The audit verb always leaves by SystemExit; exit 0 (GREEN / YELLOW) returns to the
+    caller, whose readiness check then reads the record this pass wrote, and a nonzero exit is
+    re-raised after one line naming the next step, so the transition is held."""
+    ns = build_parser().parse_args(["audit", "post", "--plan", slug])
+    ns.plan_gate_on_decisions = admitted
+    try:
+        _cmd_audit_dispatch(ns)
+    except SystemExit as e:
+        if e.code in (0, None):
+            return
+        print(f"plan stage postcheck: {slug} — the finalization gate's on-decisions pass did not "
+              f"pass ({getattr(e, 'yitc_audit_verdict', None) or f'exit {e.code}'}); the plan stays "
+              f"where it is. A recorded RED is this gate's NEW ceiling row (SPEC-0204 rule 9(f)): "
+              f"decide each of its residuals with `yitc-v2 audit decide --plan {slug} --gate "
+              f"finalization ...`, then re-run `yitc-v2 plan stage postcheck {slug} --on-decisions`.",
+              file=sys.stderr)
+        raise
 
 
 def _require_plan_retire_on_proof_resolved(slug: str) -> None:
@@ -24627,14 +24656,15 @@ def _plan_gate_prior_passes(slug: str, gate: str) -> int:
 def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_policy: str,
                          *, blocking: bool, card_set_fp: "str | None" = None,
                          extra_context: "str | None" = None, owner_reset: bool = False,
-                         on_decisions: bool = False) -> str:
+                         on_decisions: bool = False, gate_id: "str | None" = None,
+                         admission_only: bool = False) -> str:
     # T-12335 — `_folded_events` is the SPEC-0168 cross-instance fold (this checkout's journal UNIONED
     # with main's), injected as a 0-arg callable. The plan-gate rule-3 admission MUST read it rather
     # than `_iter_events`: a `ceiling_decision` is a no-worktree append that lands on MAIN (D-0049), so
     # a worktree-only read would report every residual undecided and deadlock the very gates the route
     # exists to unblock. It REPLACES the `_iter_events`/`EVENTS_PATH` pair the retired auto-consult took,
     # along with the consult collaborators that retirement orphaned (CHARTER §P1 F3).
-    return plan_mod._run_plan_gate_audit(slug, fm, body, template, gate_policy, blocking=blocking, card_set_fp=card_set_fp, extra_context=extra_context, owner_reset=owner_reset, on_decisions=on_decisions, _folded_events=(lambda: task_mod._folded_journal_events(EVENTS_PATH=EVENTS_PATH, _event_dedup_key=_event_dedup_key, _main_events_path=_main_events_path(), needle=slug, since=plan_mod.plan_scope_horizon())), AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, DECISIONS_DIR=DECISIONS_DIR, REPO_ROOT=REPO_ROOT, _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _plan_content_hash=_plan_content_hash, _plan_fsm_line=_plan_fsm_line, _plan_gate_recorded_signature=_plan_gate_recorded_signature, _plan_gate_template_text=_plan_gate_template_text, _read_yaml=_read_yaml, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, finding_count_trend=_SELF._finding_count_trend, is_trend_convergence_grant=_SELF._is_trend_convergence_grant, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH)
+    return plan_mod._run_plan_gate_audit(slug, fm, body, template, gate_policy, blocking=blocking, card_set_fp=card_set_fp, extra_context=extra_context, owner_reset=owner_reset, on_decisions=on_decisions, gate_id=gate_id, admission_only=admission_only, _folded_events=(lambda: task_mod._folded_journal_events(EVENTS_PATH=EVENTS_PATH, _event_dedup_key=_event_dedup_key, _main_events_path=_main_events_path(), needle=slug, since=plan_mod.plan_scope_horizon())), AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, DECISIONS_DIR=DECISIONS_DIR, REPO_ROOT=REPO_ROOT, _PLAN_AUDIT_LENS=_PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT=_PLAN_CONSULT_GATE_AUDIT, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _invoke_auditor=_invoke_auditor, _parse_audit_verdict=_SELF._parse_audit_verdict, _plan_content_hash=_plan_content_hash, _plan_fsm_line=_plan_fsm_line, _plan_gate_recorded_signature=_plan_gate_recorded_signature, _plan_gate_template_text=_plan_gate_template_text, _read_yaml=_read_yaml, _resolve_audit_effort=_resolve_audit_effort, _resolve_audit_model=_resolve_audit_model, _resolve_audit_reserve=_resolve_audit_reserve, _resolve_audit_provider=_resolve_audit_provider, _strip_degenerate_tail=_SELF._strip_degenerate_tail, _utc_now_iso=_utc_now_iso, finding_count_trend=_SELF._finding_count_trend, is_trend_convergence_grant=_SELF._is_trend_convergence_grant, write_text_atomic=write_text_atomic, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH)
 
 
 def _build_draft_check_prompt(slug: str, fm: dict, body: str, large: bool,
@@ -27331,6 +27361,124 @@ def _dispatch_launch_window(task_ids):
             min(str(floor), tail))
 
 
+# T-13841 (SPEC-0190 rule 10) — the watch TICK's one request scope, at its wiring site.
+#
+# One tick runs 1 + N + D readers — the fleet verdict, one status per watched id, one premature-exit
+# finder per in-scope death — and each asks the dispatch union for itself. `journal.WatchReads`
+# (T-13396 / T-13462 / T-13530) makes that free while every leg is served from its cursor. A leg it
+# cannot serve this tick (a line its cursor cannot answer for, an unterminated final row, a leg read
+# as before) was read once PER READER: measured on the T-13530 sandbox with two watched ids, 3 folds
+# of one worktree leg in every tick; and on the kernel every watch receipt since T-13530 landed is
+# over its bound (events.jsonl#ts=2026-10-09T09:25:28Z — 53 folds over 21 artifacts, 13 ticks, no
+# land inside its window).
+#
+# So the readers of ONE tick share ONE `_dispatch_events_memo` scope (T-11438 — the request memo the
+# launch phase and the debt echo already hold; its exactness argument lives on
+# `journal.DispatchEventsMemo`): the fleet read takes the union once, each later reader of the tick
+# is filtered from that read, and the scope ends with the tick, so the NEXT tick reads the journal as
+# it then is. Nothing outlives a tick — this is a request scope, not a cache. A tick BEGINS at its
+# fleet read and ENDS at its sleep; `begin` also ends a tick whose sleep never ran, and the invocation
+# unwinding ends the last one.
+#
+# THE TICK DECLARES HOW FAR BACK ITS ONE READ GOES (`_watch_tick_floor`, the T-13366 memo floor). A
+# status read whose id has no launch in the wave window asks twice more: the watch scope's whole
+# window (T-13139), then the whole history (T-11896). Left to arrive after the fleet read, each is a
+# second union read of the same legs in the same tick.
+class _WatchTickReads:
+    def __init__(self, scope, declare=None):
+        self._scope = scope                     # a context-manager factory; None = no tick scope
+        self._declare = declare                 # called with each tick's scope before its first read
+        self._open = contextlib.ExitStack()
+        self._recorded = set()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.end()
+        return False
+
+    def begin(self) -> None:
+        self.end()
+        if self._scope is not None:
+            scope = self._open.enter_context(self._scope())
+            if self._declare is not None:
+                self._declare(scope)
+
+    def end(self) -> None:
+        self._open.close()
+        self._recorded.clear()
+
+    def fleet(self, read):
+        def _fleet():
+            self.begin()
+            return read()
+        return _fleet
+
+    def sleep(self, sleep):
+        def _sleep(secs):
+            self.end()
+            return sleep(secs)
+        return _sleep
+
+    def premature(self, find):
+        """`find`, reporting a task at most ONCE per tick. The finder's idempotence is a journal read
+        — it returns nothing for a task that already carries a halt — and inside the tick's scope a
+        second in-scope row naming the same task is judged on the read taken BEFORE the loop appended
+        that halt. A task whose append failed is found again by the next tick."""
+        def _find(row):
+            out = []
+            for tid, payload in (find(row) or []):
+                if tid not in self._recorded:
+                    self._recorded.add(tid)
+                    out.append((tid, payload))
+            return out
+        return _find
+
+
+def _watch_tick_floor(args):
+    """The floor one watch tick declares for its union read (see `_WatchTickReads`), as the callable
+    it runs on each tick's memo. COST STEERING ONLY: a memo base wider than a request is filtered
+    down to exactly that request, so the floor moves how often a leg is read and never an answer.
+
+    A `--watch` invocation: the watch scope's window — the widest BOUNDED read a tick makes — when
+    it is KNOWN that every watched id has a launch row on main inside that window; otherwise the
+    WHOLE history. A launch row on main at or after the window's floor is in every union read taken
+    from that floor, so such an id is answered inside the window and no wider read follows; an id
+    without one has its status re-decided on the whole history, and taking that read FIRST makes it
+    the tick's only one. The launch rows are asked of the installed watch scope itself, which
+    answers from the window it retains or not at all — no read of the journal is made for the
+    question, and not known (no scope, a scope that cannot serve, an error) is the whole history.
+    The self-armed tail of a launch watches what it has just launched: the window, no question.
+    A memo an enclosing seam holds keeps that seam's floor."""
+    watching = bool(getattr(args, "watch", False))
+    watched = [str(t).strip() for t in _as_list("--task", getattr(args, "task", None))
+               if str(t).strip()] if watching else []
+
+    def _declare(memo):
+        if memo.holders != 1:
+            return
+        wide = journal_mod.scan_window_floor()
+        if not watching:
+            if wide is not None:
+                memo.floor = wide
+            return
+        floor = None
+        try:
+            main_journal = (_main_worktree(REPO_ROOT) or REPO_ROOT) / "events.jsonl"
+            scope = journal_mod._scope_for(main_journal) if wide is not None else None
+            rows = scope.dispatch_rows({"bg_dispatch_launched"}, wide) if scope is not None else None
+            if rows is not None:
+                launched = {_SELF._dispatch_task_of(e) for e in rows
+                            if e.get("type") == "bg_dispatch_launched"}
+                if all(t in launched for t in watched):
+                    floor = wide
+        except Exception:                        # noqa: BLE001 — steering only: not known
+            floor = None
+        memo.floor = floor
+    return _declare
+
+
 @contextlib.contextmanager
 def _dispatch_launch_reads(args):
     """T-13366 (SPEC-0190 rules 4 + 10) — the ONE request scope of a dispatch LAUNCH, at its wiring site.
@@ -27376,11 +27524,14 @@ def _dispatch_launch_reads(args):
 
 def cmd_dispatch(args: argparse.Namespace) -> None:
     # T-13366 — the launch phase's one request scope (see `_dispatch_launch_reads`).
-    with _dispatch_launch_reads(args) as (_release, _refresh):
-        return _cmd_dispatch_scoped(args, _release, _refresh)
+    # T-13841 — and the watch tick's (see `_WatchTickReads`): it opens nothing before a watch's
+    # first tick, so a launch, a stop and the arming read are untouched.
+    with _dispatch_launch_reads(args) as (_release, _refresh), \
+            _WatchTickReads(_dispatch_events_memo, _watch_tick_floor(args)) as _tick:
+        return _cmd_dispatch_scoped(args, _release, _refresh, _tick)
 
 
-def _cmd_dispatch_scoped(args: argparse.Namespace, _release, _refresh) -> None:
+def _cmd_dispatch_scoped(args: argparse.Namespace, _release, _refresh, _tick) -> None:
     # Thin residue → dispatch.cmd_dispatch (T-9335). Injects host collaborators/globals read at call
     # time (so a -C rebind + any monkeypatch on these host names — incl. the DISPATCH_PROVIDERS dict
     # tests mutate — stay honored). argparse set_defaults(func=cmd_dispatch) stays on THIS residue.
@@ -27440,7 +27591,9 @@ def _cmd_dispatch_scoped(args: argparse.Namespace, _release, _refresh) -> None:
         # their `--json` line-oriented output captured and parsed as the class TOKEN the card mandates
         # (never a free-text grep). A monkeypatch or a `-C` rebind on those host names stays honored,
         # since they are resolved at call time.
-        _watch_fleet_rows=(lambda: _watch_read_json_lines(
+        # T-13841 — the fleet read BEGINS the tick's one request scope and the sleep ENDS it; the
+        # status reads and the finder between them are served from the fleet read's union.
+        _watch_fleet_rows=_tick.fleet(lambda: _watch_read_json_lines(
             cmd_journal_fleet_verdict,
             argparse.Namespace(json=True, since=None, until=None))),
         _watch_status_row=(lambda task: next(iter(_watch_read_json_lines(
@@ -27452,8 +27605,8 @@ def _cmd_dispatch_scoped(args: argparse.Namespace, _release, _refresh) -> None:
         # SAME `_dispatch_dead_but_unlanded` predicate the fleet reader already runs — one classifier
         # path, never a second (SPEC-0133 rule 5) — and hands the PURE predicate the bounded
         # dispatch-log tail reader. Returns [(task_id, payload)] for the rows it may record.
-        _watch_premature_findings=_watch_premature_findings,
-        _watch_sleep=time.sleep, _watch_now=time.monotonic,
+        _watch_premature_findings=_tick.premature(_watch_premature_findings),
+        _watch_sleep=_tick.sleep(time.sleep), _watch_now=time.monotonic,
         REPO_ROOT=REPO_ROOT,
         # T-10710 (X-0561): the worker preamble's in-worktree `session start` cue is TARGET-aware — a
         # `-C` consumer has no local bin/yitc-v2, so it must be told the engine-resolved `-C` form (the

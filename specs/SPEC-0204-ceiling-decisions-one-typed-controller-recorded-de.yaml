@@ -332,7 +332,7 @@ implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: 8e11fb5399e6d6a64801bdb55f5e234a7c5fc842a7779ffe1a94cb57c5c6b3a0
   bin/lib/audit.py#blocked_on_land_ceiling_disposition: dbfad51c3dbb452abda3fe580112d867ca4c8fc2155434a87de0a4d32657cf97
-  bin/lib/audit.py#cmd_audit: 9e9b7d875d646e3c42b49c4beca465b4f45df415fc17156c17c4bcc76e1dbcec
+  bin/lib/audit.py#cmd_audit: 949c402df72c1f19de1060a9fa30121ae68ddacf97a395fdadae8bd19d7bf54b
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -359,5 +359,5 @@ implements_signature:
   bin/lib/cli_parser.py#build_parser: 8908620eac714232e44c65cd510f00a5c0eb20044cbcb08b60c5b82191c81e5e
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
-  bin/lib/plan.py#_run_plan_gate_audit: cfd7195f1cccb33ba6492b77346669611f2877b775d22f9a5d465a9d51638238
+  bin/lib/plan.py#_run_plan_gate_audit: 3bdc9343c50709aa76aef06602080fb55d3db1cb8440e160bb138162e798e2f9
   bin/lib/plan.py#cmd_plan_check: 4f48a3ade13764afe1b5e49c54c5346d4b43884199491d6c5659428722642a34

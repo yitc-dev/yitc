@@ -211,7 +211,8 @@ def _scratch_user() -> str:
 # /tmp names for logs, clones and probes; nothing owned them, so nothing reclaimed them (~44 GB
 # measured 2026-09-28). One engine-named root per session, `<tempdir>/yitc-scratch-<session_ref>/`:
 # the session ref IS the owner stamp (a path view, no store). Reclaimed when the owner ends — a
-# dispatched worker's land/park (`reclaim_worker_scratch_root`), else `worktree sweep`'s scratch arm
+# dispatched worker's land/park in the checkout that launched it (`reclaim_worker_scratch_root`,
+# T-13838), else `worktree sweep`'s scratch arm
 # once the ref is not proc-alive and the root is past the age floor. The engine's detached land/test
 # log+pid stay OUTSIDE it by design (a poller reads them past land's own teardown); the sweep's
 # transport arm reclaims those.
@@ -249,12 +250,35 @@ def ensure_session_scratch_root(ref, base=None) -> "Path | None":
     return root
 
 
-def reclaim_worker_scratch_root(_env=None, base=None) -> "str | None":
+def worker_launch_logs(main_wt, ref) -> "list[Path]":
+    """The launch log(s) `dispatch` opened for worker `ref` under the main checkout `main_wt`:
+    `<main_wt>/.yitc/dispatch-logs/<task>-<ref>.log`, regular files only. `dispatch` creates that file
+    before it spawns the worker, in the main checkout it launched from, so its presence says THIS
+    checkout launched THIS worker. Empty for an unknown checkout, a ref that is not a plain id (no
+    glob metacharacters) or an unreadable directory; never raises."""
+    if main_wt is None or not ref or not _SCRATCH_REF_RE.fullmatch(str(ref)):
+        return []
+    try:
+        return [p for p in (Path(main_wt) / ".yitc" / "dispatch-logs").glob(f"*-{ref}.log")
+                if p.is_file()]
+    except Exception:   # noqa: BLE001 — an unreadable directory names no log
+        return []
+
+
+def reclaim_worker_scratch_root(_env=None, base=None, *, main_wt=None) -> "str | None":
     """Remove a DISPATCHED worker's own scratch root at its land/park teardown (T-13203 AC3).
 
     Acts ONLY when `YITC_SCRATCH_DIR` is set (dispatch exports it to workers only) AND is exactly the
     engine-shaped root for THIS worker's own `YITC_EXPECTED_SESSION_REF` — a direct child of the temp
     base, a real dir, not a symlink. A root naming any other ref (another session's) is left alone.
+
+    AND only for a land/park of the repository that LAUNCHED the worker (T-13838): `main_wt`, the
+    main checkout the caller is tearing down in, must hold this worker's launch log
+    (`worker_launch_logs`). Both variables are inherited by every child of the worker, so a test
+    file the worker starts by hand runs its fixture lands and parks under them; such a fixture
+    repository never launched the worker, holds no launch log for it, and reclaims nothing. With no
+    `main_wt`, or none of this worker's launch logs under it, nothing is removed — `worktree sweep`
+    reclaims the root once its session is dead.
     Returns the removed path; never raises."""
     import shutil
     env = os.environ if _env is None else _env
@@ -263,8 +287,11 @@ def reclaim_worker_scratch_root(_env=None, base=None) -> "str | None":
         p = Path(raw)
         if not raw:
             return None
-        want = session_scratch_root(env.get("YITC_EXPECTED_SESSION_REF"), base)
+        ref = env.get("YITC_EXPECTED_SESSION_REF")
+        want = session_scratch_root(ref, base)
         if want is None or str(p) != str(want) or p.is_symlink() or not p.is_dir():
+            return None
+        if not worker_launch_logs(main_wt, ref):
             return None
         shutil.rmtree(p, ignore_errors=True)
         return None if p.exists() else str(p)

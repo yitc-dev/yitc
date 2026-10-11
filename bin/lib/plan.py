@@ -1313,7 +1313,7 @@ def _plan_postcheck_exempt_specs(slug: str, *, SPECS_DIR, _plan_retire_on_proof,
     return frozenset(exempt)
 
 
-def _require_plan_postcheck_ready(slug: str, body: str, *, _die, _plan_postcheck_exempt_specs, _plan_retire_on_proof, _plan_tasks, _postcheck_probe_block_declared, _require_plan_finalization_ready, _require_verification_artifact) -> None:
+def _require_plan_postcheck_ready(slug: str, body: str, *, on_decisions: bool = False, _die, _plan_postcheck_exempt_specs, _plan_retire_on_proof, _plan_tasks, _postcheck_probe_block_declared, _require_plan_finalization_ready, _require_verification_artifact, _run_plan_gate_audit=None, _run_plan_finalization_pass=None) -> None:
     """The `postcheck` ENTRY gate (governing plan §Stage model): all implementing tasks `done` EXCEPT
     the retire-on-proof ones, + the aggregate `audit post --plan` GREEN/YELLOW. A RETIRE-ON-PROOF task
     that is currently `parked` (a task LINKED to the plan by EITHER carrier — `decomposed_from` or
@@ -1373,6 +1373,23 @@ def _require_plan_postcheck_ready(slug: str, body: str, *, _die, _plan_postcheck
     # retire-on-proof subset) from the specs-active demand — they activate DURING the soak by design,
     # so requiring `active` at ENTRY deadlocks (the same model as the task exemption above, spec side).
     # The realized EXIT call (`_plan_close_core`) passes NO exemption → full specs-active at exit.
+    if on_decisions:
+        # T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e), text in SPEC-1014) — THE FINALIZATION GATE'S
+        # ONE BOUNDED PASS, carried by the FSM advance the gate blocks like every other plan gate's.
+        # Until this arm the flag was dropped here: `audit decide --plan <slug> --gate finalization`
+        # recorded the decisions and no verb could spend them, so a plan at that ceiling could not
+        # leave `executing`.
+        # Two halves, both existing. (1) THE ADMISSION is the plan-gate ladder's, keyed
+        # (slug, `finalization`) over the gate's own saved record `<slug>-audit-post.yaml` — it
+        # refuses below the ceiling, on an undecided residual (naming it) and on every other rule-3
+        # axis, with no auditor invoked and no pass spent. (2) THE PASS is the aggregate
+        # `audit post --plan`, run under that admission: its record is what the readiness check below
+        # reads, so a GREEN/YELLOW advances the FSM in this same call and a RED holds it.
+        # Placed AFTER the tasks-done check above, so the pass is never spent on a plan whose
+        # implementing tasks are still open.
+        _run_plan_finalization_pass(slug, _run_plan_gate_audit(
+            slug, {}, body, "post", "mandatory-blocking", blocking=True, on_decisions=True,
+            gate_id="finalization", admission_only=True))
     _require_plan_finalization_ready(slug, body, exempt_specs=_plan_postcheck_exempt_specs(slug))
 
 
@@ -1477,6 +1494,9 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     # FSM ADVANCE the gate blocks: the ONE pass and the advance become the SAME act, so the pass cannot
     # be spent without the FSM moving, and there is no second door at which a plan-gate ceiling can be
     # argued. Additive-optional getattr shape, like `--owner-reset` above.
+    # T-13844 — the `postcheck` branch carries it too, for the `finalization` gate: the admission is
+    # the same ladder, and the pass it admits is the aggregate `audit post --plan` (see
+    # `_require_plan_postcheck_ready`).
     _on_decisions = bool(getattr(args, "on_decisions", False))
     if _on_decisions and _owner_reset:
         _die("plan stage: --on-decisions and --owner-reset are not combinable — each was a DIFFERENT "
@@ -1626,7 +1646,7 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                                              on_decisions=_on_decisions)
         msg = "(tasks run their own 9 stages — pure build; the cut is fidelity-audited)"
     elif name == "postcheck":
-        _require_plan_postcheck_ready(slug, body)
+        _require_plan_postcheck_ready(slug, body, on_decisions=_on_decisions)
         msg = "(real-data soak + monitoring; declare the postcheck probe block)"
     elif name == "realized":
         into = _split_into(args.into)
@@ -2480,7 +2500,7 @@ def _auditor_guard_note(full: bool) -> str:
 
 def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_policy: str,
                          *, blocking: bool, card_set_fp: "str | None" = None,
-                         extra_context: "str | None" = None, owner_reset: bool = False, on_decisions: bool = False, _folded_events=None, AUDIT_PASS_CEILING, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _die, _invoke_auditor, _parse_audit_verdict, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, finding_count_trend, is_trend_convergence_grant, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> str:
+                         extra_context: "str | None" = None, owner_reset: bool = False, on_decisions: bool = False, gate_id: "str | None" = None, admission_only: bool = False, _folded_events=None, AUDIT_PASS_CEILING, DECISIONS_DIR, REPO_ROOT, _PLAN_AUDIT_LENS, _PLAN_CONSULT_GATE_AUDIT, _append_event, _auto_rebuild_graph, _die, _invoke_auditor, _parse_audit_verdict, _plan_content_hash, _plan_fsm_line, _plan_gate_recorded_signature, _plan_gate_template_text, _read_yaml, _resolve_audit_effort, _resolve_audit_model, _resolve_audit_reserve=None, _resolve_audit_provider, _strip_degenerate_tail, _utc_now_iso, finding_count_trend, is_trend_convergence_grant, write_text_atomic, _iter_events=None, EVENTS_PATH=None) -> str:
     """T-0349 — the verb-asked plan-gate audit (SPEC-0083 §Plan-stage question templates, ex-SPEC-0036): `plan stage specs`
     asks P2 (auto-advisory), `plan stage trial` asks P3 (mandatory-blocking). FULL-capability
     auditor (SPEC-0034 plan-audit posture). Saves the canonical verdict (T-0348 schema +
@@ -2515,7 +2535,10 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     # the ceiling row's `stage`, `ceiling_ref`, the decision payload — so `_save` needs it too, not just
     # the ceiling block below. A template with no gate id (there is none today) yields None and the row
     # emit in `_save` is SKIPPED rather than written unkeyed: fail-closed.
-    gate_id = _PLAN_TEMPLATE_TO_GATE_ID.get(template)
+    # T-13844 — an EXPLICIT gate id wins: the `finalization` gate's record (`<slug>-audit-post.yaml`)
+    # is written by the aggregate `audit post --plan`, not from a gate template, so the table above
+    # holds no entry that could answer for it.
+    gate_id = gate_id or _PLAN_TEMPLATE_TO_GATE_ID.get(template)
     _sig_field = (_PLAN_CONSULT_GATE_AUDIT.get(gate_id) or (None, None))[1] if gate_id else None
     _od = None            # the admitted rule-3 context: {ceiling_ref, residual_keys, by_fp, named}
 
@@ -2686,7 +2709,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                             **{k: v for k, v in _od_refusal.items()
                                if k not in ("kind", "why", "message")}})
             _od = {"ceiling_ref": _od_ref, "residual_keys": _od_keys, "by_fp": _od_by_fp,
-                   "named": _od_named,
+                   "named": _od_named, "gate": gate_id,
                    "packet": audit_lib.on_decisions_projection(
                        tid=slug, stage=gate_id, ceiling_ref=_od_ref, residual_keys=_od_keys,
                        decisions_by_fp=_od_by_fp, degraded=_od_res.get("degraded"),
@@ -2756,6 +2779,14 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                  + (f"\nA DISPATCHED WORKER STOPS HERE: a Worker never decides past the ceiling "
                     f"(SPEC-0103 §3). The halt above names the fingerprints; the Controller records "
                     f"one decision per residual and re-dispatches." if _worker_ref else ""))
+    if admission_only:
+        # T-13844 (yitc-dev/yitc#78; SPEC-0204 rule 9(e)) — THE ADMISSION WITHOUT THE GATE-TEMPLATE
+        # AUDITOR. The `finalization` gate is audited by the aggregate `audit post --plan` (its packet
+        # is the plan's realization block; no gate template exists for it), so its rule-3 ADMISSION is
+        # taken HERE — the ladder above, unchanged, with every refusal already made — and the admitted
+        # context is handed back for that audit to run under. Nothing was invoked, recorded or spent
+        # on this path. None when the call carried no `--on-decisions`.
+        return _od
     tmpl = _plan_gate_template_text(template)
     #: The SPEC-0204 rule-3 extension keys of THIS pass's ceiling row, empty on every ordinary pass.
     #: Declared before `_save` closes over it and filled after the matrix runs, so the row is written

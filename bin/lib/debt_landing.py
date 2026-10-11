@@ -2778,9 +2778,9 @@ def land_abort_cause_breadth(events_path, *, _cause_identity,
 
 
 
-def _branch_burn_land_row(event: dict, *, _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT=None) -> "tuple | None":
-    """One journal row -> `(kind, branch, class_label, identity_absent)` where `kind` is
-    `"refusal"` or `"landed"`, else None (SPEC-0119 rule 34).
+def _branch_burn_land_row(event: dict, *, _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT=None, _abort_breadth_resolution=None) -> "tuple | None":
+    """One journal row -> `(kind, branch, class_label, identity_absent, run_seconds)` where `kind`
+    is `"refusal"` or `"landed"`, else None (SPEC-0119 rule 34).
 
     CAUSE-AGNOSTIC BY CONSTRUCTION — and that is the whole rule, not an omission. Unlike rule 26's
     `_abort_breadth_refusal`, this admits a refusal that carries NO cause identity: those rows are
@@ -2789,11 +2789,27 @@ def _branch_burn_land_row(event: dict, *, _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT=
 
     The REFUSAL SHAPES are rule 26's, reused: a `land_completed{status: abort}` row, and a
     `land_member_verdict{verdict: requeued-after-red-batch}` row — a red batch lands nobody and every
-    member paid a full verify that shipped nothing, which is an unlanded attempt in every way this
-    fold cares about.
+    member paid a full verify that shipped nothing, which is a refusal in every way this fold cares
+    about. Whether a refusal row is counted as an attempt of its own is the FOLD's question (one
+    land run is one attempt), never this classifier's.
 
-    `kind == "landed"` is a `land_completed{status: ok}` row. It is not an attempt; it is what ENDS
-    a burn, and the fold uses it to stop reporting a branch whose attempts reached main.
+    `kind == "landed"` is a row rule 26's own resolution predicate (`_abort_breadth_resolution`,
+    injected — the same predicate, not a second one) reads as a landing: a
+    `land_completed{status: ok}` row, or a `land_member_verdict{verdict: landed}` row (T-13842 — a
+    branch that reached main as a batch member can carry its landing in the member verdict alone).
+    It is not an attempt; it is what ENDS a burn, and the fold uses it to stop reporting a branch
+    whose attempts reached main.
+
+    `run_seconds` is the length of the land RUN the row ENDS, for the fold's one-run-one-attempt
+    rule (T-13842): an abort row carries the run's own `duration_ms`, read here in WHOLE seconds
+    ROUNDED UP. Journal stamps carry whole seconds, so a stamp is its true instant cut down by
+    less than a second; with the length rounded up, the computed start of a run is not later than
+    the whole-second stamp of a row written during it. The fold compares the start of a span in
+    whole seconds for that reason, and the end of a span as stamped. A value that is absent,
+    not a number, a bool, not finite as a number of seconds (an infinity, a NaN, an integer too
+    large for a float) or not above zero reads as `0.0` (the run then spans its own stamp alone).
+    `None` on a row that ends no run — a requeue row, which is written DURING a run, and a
+    landing.
 
     `identity_absent` records whether the row could have carried a refined cause key at all — the
     marker on an abort row, or the absence of `red_assertions` on a requeue. Carried as an
@@ -2805,43 +2821,60 @@ def _branch_burn_land_row(event: dict, *, _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT=
     """
     if not isinstance(event, dict):
         return None
+    landed_branch = _abort_breadth_resolution(event)
+    if landed_branch is not None:
+        return ("landed", landed_branch, None, False, None)
     etype = event.get("type")
     data = event.get("data") if isinstance(event.get("data"), dict) else {}
     if etype == "land_completed":
-        status = data.get("status")
-        if status == "ok":
-            kind, class_label, absent = "landed", None, False
-        elif status == "abort":
-            kind = "refusal"
-            class_label = data.get("abort_class") or "unclassified"
-            absent = bool(data.get("cause_identity_absent"))
-        else:
+        if data.get("status") != "abort":
             return None
+        class_label = data.get("abort_class") or "unclassified"
+        absent = bool(data.get("cause_identity_absent"))
+        duration = data.get("duration_ms")
+        run_seconds = 0.0
+        if isinstance(duration, (int, float)) and not isinstance(duration, bool):
+            try:
+                seconds = float(duration) / 1000.0
+            except OverflowError:                         # an integer too large for a float
+                seconds = 0.0
+            if 0.0 < seconds < float("inf"):              # a NaN fails both comparisons
+                run_seconds = -(-seconds // 1.0)          # whole seconds, rounded UP
     elif etype == "land_member_verdict":
         if data.get("verdict") != _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT:
             return None
-        kind = "refusal"
         class_label = _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT
         absent = not data.get("red_assertions")
+        run_seconds = None
     else:
         return None
     branch = data.get("branch")
     if not isinstance(branch, str) or not branch.strip():
         return None
-    return (kind, branch.strip(), class_label, absent)
+    return ("refusal", branch.strip(), class_label, absent, run_seconds)
 
 
 
 def branch_unlanded_attempt_burn(events_path, *,
                                  window_hours: int = _ABORT_BREADTH_WINDOW_HOURS,
-                                 min_attempts: int = _BRANCH_BURN_MIN_ATTEMPTS, now=None, _ABORT_BREADTH_EVENTS=None, _branch_burn_land_row=None, _parse_stamped_deadline=None) -> dict:
+                                 min_attempts: int = _BRANCH_BURN_MIN_ATTEMPTS, now=None, _ABORT_BREADTH_EVENTS=None, _branch_burn_land_row=None, _parse_stamped_deadline=None, _window_segment_floor=None) -> dict:
     """Fold the journal -> the BRANCHES that burned `min_attempts` or more UNLANDED land attempts
     inside `window_hours`, WHATEVER the cause each time (SPEC-0119 rule 34).
 
-    Pure: reads one file, writes nothing — the boundary every sibling fold in this module shares. A
-    missing or unreadable journal, a malformed line or an unparseable `ts` all yield a clean
-    zero-count result: a report-only surface never breaks the seam it rides and never nags on an
-    unknown.
+    Pure: reads the journal, writes nothing — the boundary every sibling fold in this module
+    shares. A missing or unreadable journal, a malformed line or an unparseable `ts` all yield a
+    clean zero-count result: a report-only surface never breaks the seam it rides and never nags on
+    an unknown.
+
+    THE WHOLE WINDOW IS READ, ACROSS JOURNAL SEGMENTS (T-13830, SPEC-0190 rule 4). The journal is
+    one history stored as an archive segment per day plus the live segment, and the window knob has
+    no upper bound: a window at or past the live journal window holds rows rotation already moved
+    out of the live segment. So the fold reads the segments its window can reach — the read its
+    rule-26 transpose makes, through the same reader and the same floor helper — and the window
+    test below still decides every row. A row the reader returns more than once (one row carried
+    by two segments, the state an interrupted rotation leaves until the next land collapses it) is
+    one row: an attempt is a land run, and the same row read twice is not two runs. An integer
+    window too large for a float is read as a window with no far edge.
 
     WHY THE WINDOW IS RULE 26'S AND NOT ITS OWN. `window_hours` defaults to
     `_ABORT_BREADTH_WINDOW_HOURS`, the horizon rule 26 already reads on (and the host binds the same
@@ -2865,13 +2898,31 @@ def branch_unlanded_attempt_burn(events_path, *,
 
     A LANDED BRANCH STOPS BEING REPORTED — this is what the word UNLANDED buys, and it is a fold
     predicate, never a gate. Attempts are counted only AFTER the branch's most recent SUCCESSFUL
-    land inside the window: a branch whose attempts reached main is provably not burning now. It is
-    the exact analog of rule 26's "the row drops by itself once the cause stops recurring", and it
-    leans the same way every other skip here does — toward silence.
+    land inside the window: a branch whose attempts reached main is provably not burning now. A
+    successful land is either shape rule 26's resolution predicate reads
+    (`_abort_breadth_resolution`, reached through `_branch_burn_land_row`): a
+    `land_completed{status: ok}` row or a `land_member_verdict{verdict: landed}` row. It leans the
+    same way every other skip here does — toward silence.
+
+    AN ATTEMPT IS A LAND RUN, NOT A ROW (T-13842). A land run of a branch that ended refused is one
+    attempt however many refusal rows journal it. Such a run is journaled as ONE abort row, and
+    that row carries the run's own length; a requeue row of the same branch stamped inside that
+    span — from the run's start (the abort row's stamp less the length, both taken in whole
+    seconds, the length rounded up) to the abort row's stamp as stamped, both ends included — was
+    written DURING that run (a red batch requeues its members, the head among them) and is not counted again. A
+    requeue row inside no abort row's span is counted as one attempt on its own: the fold can place
+    it in no run that ended refused (its run is still going, or ended with no abort row), so the
+    count is an upper bound there. Measured on this repo's journal 2026-10-10: 141 of 561 requeue
+    rows had an abort row of the same branch within 5 s, so the head of a red batch was counted
+    twice per run and two such runs reached the default threshold. The measurement behind the
+    default of 4 above was taken in refusal ROWS; a branch's runs never outnumber its rows, so the
+    floor still sits above that band.
 
     Returns `{lens, now, window_hours, min_attempts, count, branches, next}` — the shape the sibling
     views return. Each branch: `{branch, attempts, classes, class_count, incomparable, first_ts,
-    last_ts, elapsed_seconds}`, where `classes` is the sorted DISTINCT abort-class set (the
+    last_ts, elapsed_seconds}`, where `classes` is the sorted DISTINCT label set of the counted
+    attempts — an abort row's own `abort_class` (`unclassified` when it carries none), and the
+    verdict string for a requeue row counted on its own, which carries no `abort_class` (the
     annotation that says whether the burn is one wall or many), `elapsed_seconds` is the span from
     the first counted attempt to the last (the annotation that separates a three-hour burn from a
     three-minute one), and `incomparable` counts the attempts whose row carries no cause identity at
@@ -2883,12 +2934,22 @@ def branch_unlanded_attempt_burn(events_path, *,
     # Elapsed SECONDS, the idiom every sibling fold in this module already uses: SPEC-0149's
     # structural tripwire forbids duration vocabulary anywhere in this file, and there is no reason
     # for this fold to be the exception when the existing idiom expresses the same window exactly.
-    window_seconds = float(window_hours) * 3600.0
+    try:
+        window_seconds = float(window_hours) * 3600.0
+    except OverflowError:
+        # T-13830 — the knob is an integer with no upper bound; one too large for a float is a
+        # window no row falls outside of.
+        window_seconds = float("inf")
 
     per_branch: dict = {}
+    seen: set = set()
     try:
-        # T-13139 — declared: the two land row classes of THIS file (its live-segment horizon unchanged).
-        for event in journal.fold_rows(events_path, types=_ABORT_BREADTH_EVENTS):
+        # SPEC-0190 rule 4 (T-13830) — the segments this fold's window can REACH, exactly the read
+        # of the rule-26 transpose above: same reader, same floor helper, same declared row classes
+        # (T-13139), so inside the debt echo's scan both folds are served from one pass. The floor
+        # only selects FILES; the `window_seconds` test below still decides every row.
+        for event in journal.segment_rows_since(
+                events_path, _window_segment_floor(now, hours=window_hours), types=_ABORT_BREADTH_EVENTS):
             if not isinstance(event, dict) or event.get("type") not in _ABORT_BREADTH_EVENTS:
                 continue
             row = _branch_burn_land_row(event)
@@ -2897,8 +2958,19 @@ def branch_unlanded_attempt_burn(events_path, *,
             ts = _parse_stamped_deadline(event.get("ts"))
             if ts is None or (now - ts).total_seconds() > window_seconds:
                 continue          # undatable => unplaceable in the window; older => out of it
-            kind, branch, class_label, absent = row
-            per_branch.setdefault(branch, []).append((ts, kind, class_label, absent))
+            # ONE ROW IS READ ONCE (T-13830): the same row carried by two segments is not two runs.
+            # The key is the whole row, so two rows that differ anywhere stay two rows. A row that
+            # cannot be keyed is merged with nothing: it is counted, and the fold does not raise.
+            try:
+                row_key = json.dumps(event, sort_keys=True)
+            except (RecursionError, TypeError, ValueError):
+                row_key = None
+            if row_key is not None:
+                if row_key in seen:
+                    continue
+                seen.add(row_key)
+            kind, branch, class_label, absent, run_seconds = row
+            per_branch.setdefault(branch, []).append((ts, kind, class_label, absent, run_seconds))
     except (OSError, UnicodeDecodeError):
         per_branch = {}
 
@@ -2909,8 +2981,18 @@ def branch_unlanded_attempt_burn(events_path, *,
     for branch, rows in per_branch.items():
         rows.sort(key=lambda r: r[0])
         last_ok = max((r[0] for r in rows if r[1] == "landed"), default=None)
-        # Only the attempts that have NOT been resolved by a land are this view's subject.
-        attempts = [r for r in rows if r[1] == "refusal" and (last_ok is None or r[0] > last_ok)]
+        # Only the refusals that have NOT been resolved by a land are this view's subject.
+        unlanded = [r for r in rows if r[1] == "refusal" and (last_ok is None or r[0] > last_ok)]
+        # ONE LAND RUN IS ONE ATTEMPT (T-13842). An abort row ends a run and carries its length; a
+        # requeue row stamped inside that span is the same run's row and is not counted again.
+        # The END of the span is compared AS STAMPED: a requeue row stamped after the abort row is
+        # not that run's row. The START is compared in WHOLE SECONDS, the unit the length was
+        # rounded up to and the precision the journal stamps with.
+        run_ends = [(r[0], r[4]) for r in unlanded if r[4] is not None]
+        attempts = [r for r in unlanded if r[4] is not None or not any(
+            r[0] <= end
+            and (end.replace(microsecond=0) - r[0].replace(microsecond=0)).total_seconds() <= length
+            for end, length in run_ends)]
         if len(attempts) < min_attempts:
             continue
         classes = sorted({r[2] for r in attempts if r[2]})
@@ -2924,13 +3006,17 @@ def branch_unlanded_attempt_burn(events_path, *,
             "last_ts": _iso(attempts[-1][0]),
             "elapsed_seconds": int((attempts[-1][0] - attempts[0][0]).total_seconds()),
         })
-    branches.sort(key=lambda b: (-b["attempts"], b["last_ts"]))
+    # A TOTAL order (T-13830): the branch name breaks a tie, so the answer does not depend on which
+    # segment, or which line of one, a branch's first row was read from.
+    branches.sort(key=lambda b: (-b["attempts"], b["last_ts"], b["branch"]))
     return {
         "lens": f"stuck-branch unlanded attempts (SPEC-0119 rule 34) — ONE branch that burned "
                 f"{min_attempts}+ UNLANDED land attempts in the last {window_hours}h, WHATEVER the "
                 f"cause each time. The exact TRANSPOSE of rule 26 (one cause across many branches), "
                 f"over the same already-emitted rows and the same two refusal shapes: a land ABORT "
-                f"and a red-batch REQUEUE. Every other surface is keyed on the REPETITION OF A "
+                f"and a red-batch REQUEUE. One land run is ONE attempt: a requeue row written "
+                f"during a run that ended in an abort row is not counted again. Every other surface "
+                f"is keyed on the REPETITION OF A "
                 f"CAUSE — the repeated-abort backstop arms only on consecutive aborts sharing a "
                 f"cause key, the audit-loop ceiling counts audit passes per TASK, re-run-vs-resolve "
                 f"is per SESSION, and the aborted-land cost view groups BY CLASS so one branch's "
@@ -2940,7 +3026,8 @@ def branch_unlanded_attempt_burn(events_path, *,
                 f"merely different, and such a branch is structurally un-armable. The count of "
                 f"attempts is the key; the elapsed span and the distinct-class count are "
                 f"annotations that make the count actionable. A branch whose attempts reached main "
-                f"stops being reported. Folded from the journal; ZERO stored state, report-only, "
+                f"— by its own land or as a batch member — stops being reported. Folded from the "
+                f"journal; ZERO stored state, report-only, "
                 f"never a gate — a cause-agnostic GATE was rejected because it would confuse "
                 f"stuckness with legitimate iteration.",
         "now": _iso(now),

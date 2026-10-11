@@ -7411,6 +7411,19 @@ def _land_repeated_abort_count(events: list, branch: str, *, _LAND_BACKSTOP_ABOR
     waive-coverage refusal raised from the pinned run, so exempting that CLASS would disarm the streak
     on a genuinely expensive repeated abort. Class-listing stays for the causes where the class IS the
     proxy; nothing is exempted twice, and no heavy cause becomes exempt.
+
+    T-13839 — ONE RECORDED ATTEMPT IS READ ONCE. The tiers above classify land ATTEMPTS, and the
+    journal may hold the row of one attempt twice: the abort row is written to the landing checkout
+    and copied to main under the same `ts`, the next governed commit folds the worktree copy in, and
+    a `worktree sync` merge of main brings the second copy (SPEC-0002 «Union does not deduplicate»).
+    The land-time dedup collapses the pair only AFTER this reader has run, so one verify abort read
+    as «2× in a row» and refused the re-land (T-13806 and five more branches, 2026-10-04..09). A row
+    whose canonical object — SPEC-0002's land-time dedup identity, the whole JSON object with sorted
+    keys — was already read for this branch is therefore skipped BEFORE tiering: first copy kept,
+    later copies neither count nor reset. That identity never merges two distinct emits (any
+    differing field, `ts` included, is a different key). A row with no envelope `ts` is NEVER
+    collapsed: nothing separates one emit of it from the next, so it cannot be shown to be a second
+    copy rather than a second attempt, and it is counted as before — the arming direction.
     Returns (0, None) when there is no current run."""
     # Resolved ONCE, never per row. Production passes `_repo_root=REPO_ROOT` (the cli residue), which
     # is the TARGET repo and rebinds under `-C` — so the set is always resolved against the checkout the
@@ -7421,12 +7434,19 @@ def _land_repeated_abort_count(events: list, branch: str, *, _LAND_BACKSTOP_ABOR
                    else _known_flake_test_names(_repo_root))
     count = 0
     key: "str | None" = None
+    read: "set[str]" = set()   # T-13839: canonical objects of this branch's rows already read
     for e in events:
         if e.get("type") != "land_completed":
             continue
         d = e.get("data") or {}
         if d.get("branch") != branch:
             continue
+        if e.get("ts"):
+            # T-13839: a second copy of an already-read row is the SAME attempt — skipped whole.
+            ident = json.dumps(e, sort_keys=True, ensure_ascii=False)
+            if ident in read:
+                continue
+            read.add(ident)
         status = d.get("status")
         # ── TIER 1 — INVISIBLE: not a land ATTEMPT, so it neither forms nor breaks a streak.
         if status == "abort" and d.get("abort_class") == _LAND_BACKSTOP_ABORT_CLASS:
@@ -19546,6 +19566,17 @@ _HERMETIC_AUDITOR_ENV_OVERRIDES = ("YITC_AUDIT_PROVIDER", "YITC_AUDIT_MODEL", "Y
 # and thereby OVERRIDES a default that Rule 1 already sandboxes via HOME. This tuple is the
 # enumerated carrier of that class; a new member is admitted by the criterion, not by taste.
 _HERMETIC_HOME_ROOTED_OVERRIDES = ("CODEX_HOME", "PLAYWRIGHT_BROWSERS_PATH")
+# T-13840 — the git REPOSITORY-BINDING carriers: the names git itself declares local to ONE
+# repository and unsafe to hand to a process that works on another (`git rev-parse
+# --local-env-vars`, git 2.43). A launcher that is itself a git child (`git bisect run`, `rebase
+# --exec`, a hook, a `!` alias) exports them, and they outrank the `cwd` / `-C` of every git call a
+# test fixture makes. See §What is scrubbed and what is inherited, in `hermetic_child_env`'s
+# docstring below. NOT a blanket `GIT_*` list: a name that binds no repository stays inherited.
+_HERMETIC_GIT_REPO_BINDING_ENV = (
+    "GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_CONFIG", "GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT",
+    "GIT_IMPLICIT_WORK_TREE", "GIT_GRAFT_FILE", "GIT_NO_REPLACE_OBJECTS", "GIT_REPLACE_REF_BASE",
+    "GIT_PREFIX", "GIT_SHALLOW_FILE")
 
 
 @functools.wraps(verify_runner.hermetic_child_env)
@@ -19557,6 +19588,7 @@ def hermetic_child_env(*a, **kw):
                        ("_HELD_TURN_CLAIM_ENV", _HELD_TURN_CLAIM_ENV),
                        ("_HERMETIC_AUDITOR_ENV_OVERRIDES", _HERMETIC_AUDITOR_ENV_OVERRIDES),
                        ("_HERMETIC_HOME_ROOTED_OVERRIDES", _HERMETIC_HOME_ROOTED_OVERRIDES),
+                       ("_HERMETIC_GIT_REPO_BINDING_ENV", _HERMETIC_GIT_REPO_BINDING_ENV),
                        ("_HERMETIC_XDG_KEYS", _HERMETIC_XDG_KEYS),
                        ("_REAL_STORE_ALLOWLIST", _REAL_STORE_ALLOWLIST),
                        ("_live_journals", _live_journals),
@@ -29524,9 +29556,10 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         print(f"land: {branch} → main (ff to {landed_sha}); worktree removed, branch deleted")
         # T-13203 AC3: a dispatched worker's scratch root dies with its land (fail-open, no-op unless
         # the dispatcher exported YITC_SCRATCH_DIR). The land log/pid are outside it by design.
+        # T-13838: only a land in the checkout that launched the worker reclaims it.
         try:
             from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy, leaf-order
-            _scratch = _dispatch.reclaim_worker_scratch_root()
+            _scratch = _dispatch.reclaim_worker_scratch_root(main_wt=main_wt)
         except ImportError:   # fail-open: a minimal engine copy without dispatch has no worker root
             _scratch = None
         if _scratch:

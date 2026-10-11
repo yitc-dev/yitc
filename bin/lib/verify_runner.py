@@ -3816,6 +3816,13 @@ _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     ("specs/yitc-v2-rule-test-ledger.md", "test_worktree_sync.py"),
     ("tests/test_t12259_venue_class_admission.py", "test_t12220_venue_request_keyed_isolation.py"),
     ("tests/test_t12259_venue_class_admission.py", "test_t12241_venue_request_cap.py"),
+    # T-13837 — the same rule applied to three pairs that recurred after T-13670 landed. Verdict and
+    # evidence per pair: tests/test_t12497_selection_read_vs_mention_pairs.py.
+    ("specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
+     "test_audit_packet_touch_reconciliation_in_real_packet.py"),
+    ("specs/SPEC-0175-spike-sandbox-data-floor-a-restored-production-cop.yaml",
+     "test_t11964_followup_awaits_resolvable_shape.py"),
+    ("specs/yitc-v2-rule-test-ledger.md", "test_cross_mechanism.py"),
 })
 
 def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=None, *,
@@ -5093,7 +5100,7 @@ def cmd_verify_durations(args, *, REPO_ROOT, _run_verify_tests, _die, write_text
           f"(reported, NOT a gate on the write — a failing file's wall is real cost and is recorded).")
 
 def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
-                       expected_session_ref_env: str, scrub_carriers=None, _HELD_TURN_CLAIM_ENV=None, _HERMETIC_AUDITOR_ENV_OVERRIDES=None, _HERMETIC_HOME_ROOTED_OVERRIDES=None, _HERMETIC_XDG_KEYS=None, _REAL_STORE_ALLOWLIST=None, _live_journals=None) -> dict:
+                       expected_session_ref_env: str, scrub_carriers=None, _HELD_TURN_CLAIM_ENV=None, _HERMETIC_AUDITOR_ENV_OVERRIDES=None, _HERMETIC_HOME_ROOTED_OVERRIDES=None, _HERMETIC_GIT_REPO_BINDING_ENV=None, _HERMETIC_XDG_KEYS=None, _REAL_STORE_ALLOWLIST=None, _live_journals=None) -> dict:
     """SPEC-0131 Rule 1+2 — the ambient env for ONE test subprocess, built in ONE place.
 
     THE single home for "what a verify-runner child sees" (CHARTER §P5). The land-verify runner
@@ -5141,6 +5148,22 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
     sandbox every host-mutable env var the spawned code reads, not only the ones the current run
     happens to leave unset. That lesson NAMES `CODEX_HOME` as the var that leaked.
 
+    THE LAUNCHER'S REPOSITORY BINDING IS LAUNCHER STATE (T-13840). `GIT_DIR`, `GIT_WORK_TREE` and
+    the rest of `_HERMETIC_GIT_REPO_BINDING_ENV` are scrubbed under the same criterion: they name
+    the repository the LAUNCHING process was working in, and three of them (`GIT_CONFIG`,
+    `GIT_CONFIG_PARAMETERS`, `GIT_CONFIG_COUNT`) override the git config this builder writes. git
+    exports them to every child of `git bisect run`, `rebase --exec`, a hook or a `!` alias, and
+    they outrank the `cwd` and `-C` of each git call the child makes. Measured on a throwaway
+    repository: with `GIT_DIR` naming a linked worktree's git directory, a plain `git init <tmp
+    dir>` — the commonest call a test fixture makes — creates no repository there and instead
+    rewrites the config the worktree SHARES with its main checkout to `bare = true`, after which
+    every checkout of that repository fails "must be run in a work tree" (the 2026-10-08 capture).
+    The enumerated carrier is the set git itself declares local to one repository (`git rev-parse
+    --local-env-vars`). It is NOT every `GIT_*` name: `GIT_SSH_COMMAND`, `GIT_TERMINAL_PROMPT`,
+    `GIT_EXEC_PATH` and the like bind no repository and override nothing sandboxed, so they fall
+    in the inherited half below. BOUND: this covers a child the RUNNER spawns. A test file started
+    by hand under such a launcher never passes through this builder.
+
     WHY THE SECOND HALF — `PATH`, `PYTHONPATH` and the remaining ambient env stay. They override
     nothing HOME-rooted; they are how the child reaches `git`, `python` and the interpreter it runs
     under. Scrubbing them would not isolate a test, it would stop it running at all, so the sandbox
@@ -5168,6 +5191,7 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
     # LAUNCHING session. Rationale per variable is documented at the runner's call site below; the
     # membership CRITERION for the whole set is in this function's own docstring above.
     _scrubbed = (*_HERMETIC_AUDITOR_ENV_OVERRIDES, *_HERMETIC_HOME_ROOTED_OVERRIDES,
+                 *_HERMETIC_GIT_REPO_BINDING_ENV,
                  "YITC_EVENTS_SINK",
                  "YITC_EVENTS_PATH_DEFAULT", "YITC_EVENTS_GUARD_ROOT",
                  "YITC_SYNCHRONOUS_LAND", _HELD_TURN_CLAIM_ENV,

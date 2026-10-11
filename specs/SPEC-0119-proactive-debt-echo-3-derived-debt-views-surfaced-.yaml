@@ -2389,7 +2389,47 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ so the reader relayed three or four of them and the person never saw the\nrest,\
   \ some labels read as noise and one verb was cut mid-token. The owner ruled that\
   \ only what\ncan be taken into work prints at start, every row is relayed, and each\
-  \ row reads in plain words\n(events.jsonl#ts=).\n\n## Verification\n\n- **Deterministic:**\
+  \ row reads in plain words\n(events.jsonl#ts=).\n\nRule 34's land-run count and\
+  \ batch-member landing : read on this repository's journal\non 2026-10-10, 19 branches\
+  \ carried a batch-member landing and no successful land row of their\nown, and the\
+  \ fold still named `task/` with 8 attempts after it had landed. 141 of 561\nrequeue\
+  \ rows had an abort row of the same branch within 5 seconds: the fold counted refusal\n\
+  rows, so the head of a red batch was counted twice per run and two such runs reached\
+  \ the\ndefault threshold. Every abort row carried its run's length, and by it the\
+  \ 8 refusal rows of\n`task/` were 4 land runs. The band behind the default of 4\
+  \ was measured in refusal rows;\na branch's runs never outnumber its rows, so the\
+  \ default still sits above that band.\n\nRule 34's read horizon : before that card\
+  \ the fold read the live journal segment\nalone. At the default window of 24 hours\
+  \ that reading was complete; with the window set at 168\nhours or more, attempts\
+  \ inside the window that rotation had archived were not read, and a\nbranch meeting\
+  \ the rule's subject was not named. derived the gap from the code and\nSPEC-0190,\
+  \ and that card's audit flagged it; it was not reproduced on a journal. also\nfound\
+  \ that the segment floor of a window between about nine and eighteen million hours\
+  \ was\nwritten with fewer than four digits in its year; compared as text such a\
+  \ floor can sort above\nthe dated segment names, and the archive was then skipped\
+  \ in every fold that takes its floor\nfrom the helper.\n\n## Implementation notes\n\
+  \nNotes for the maintainer of the code.\n\n- Rule 34, a landing: the row classifier\
+  \ asks rule 26's resolution predicate first and holds no\n  landing test of its\
+  \ own; the host residue of the classifier injects that predicate.\n- Rule 34, a\
+  \ land run: the span of a run is read off its abort row — the row's stamp is the\
+  \ end\n  of the run, and the run length the row records, counted in whole seconds\
+  \ rounded up, gives its\n  start. Stamps carry whole seconds, so the rounding keeps\
+  \ a row written in the run's first\n  second inside the span; the start of the span\
+  \ is compared in whole seconds and its end as\n  stamped, so a requeue row stamped\
+  \ after the abort row is not that run's row. A requeue row of\n  the same branch\
+  \ whose stamp lies inside the span, both ends included, is that run's row. An abort\
+  \ row whose recorded length is absent, not a\n  number, not finite or not above\
+  \ zero spans its own stamp alone. A counted run takes its class\n  label, its identity-absent\
+  \ mark and its stamp from its abort row.\n- Rule 34, the read: the fold reads through\
+  \ the windowed segment reader of rule 26's fold,\n  with the floor the same host\
+  \ helper computes from the window; the host residue of the fold\n  injects the helper.\
+  \ The floor selects segment files only; the fold's window test decides\n  every\
+  \ row. The helper writes the floor's year with four digits, because segment names\
+  \ are\n  compared with it as text. A row the reader returns more than once is counted\
+  \ once (an\n  interrupted rotation leaves a row in two segments until the next land);\
+  \ rows that differ in\n  any field are separate rows. An integer window too large\
+  \ for a float is read as a window with\n  no far edge. Branches are listed by attempt\
+  \ count, then last stamp, then name.\n\n## Verification\n\n- **Deterministic:**\
   \ with synthetic non-zero debt (a repo with not_adopted>0 / an open followup / an\n\
   \  overdue recheck) session-start and the on-demand `debt` each print its line;\
   \ with a clean repo\n  NEITHER prints (suppressed-when-clean). A land prints NO\
@@ -3272,74 +3312,88 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ at the ONE shared host residue like every\n    sibling and riding all seams (session-start\
   \ / the `debt` re-fold).\n    **SUBJECT.** A BRANCH that recorded `min_attempts`\
   \ or more UNLANDED land attempts inside the\n    window, GROUPED ON THE BRANCH AND\
-  \ ON NOTHING ELSE. An attempt is a refusal of either shape\n    rule 26 already\
-  \ defines — a `land_completed{status: abort}` row or a\n    `land_member_verdict{verdict:\
+  \ ON NOTHING ELSE. A refusal row is either shape\n    rule 26 already defines —\
+  \ a `land_completed{status: abort}` row or a\n    `land_member_verdict{verdict:\
   \ requeued-after-red-batch}` row — and the `_ABORT_BREADTH_EVENTS`\n    type set\
   \ and requeue-verdict constant are REUSED, not restated, so the two projections\
-  \ can\n    never disagree about which rows are refusals.\n    **THE SECOND PROJECTION\
-  \ OF ONE FOLD, NOT A SECOND MECHANISM.** Rule 26 reads ONE CAUSE across\n    MANY\
-  \ BRANCHES; this reads ONE BRANCH across MANY CAUSES, over the same already-emitted\
-  \ rows at\n    the same seams. It is the CHARTER §P1 F1/F2 answer — extend the existing\
-  \ fold with another\n    view, rather than build a parallel surface.\n    **THE\
-  \ GAP IS A KEYING GAP, NOT A THRESHOLD GAP — and this is the whole reason the rule\n\
-  \    exists.** Every surface that could catch a stuck branch is keyed on the REPETITION\
-  \ OF A CAUSE:\n    the repeated-abort backstop is per BRANCH but arms only on N\
-  \ CONSECUTIVE aborts sharing\n    a cause key; the SPEC-0124 audit-loop ceiling\
-  \ is per TASK and counts audit passes, not land\n    aborts; the CHARTER §P7 re-run-vs-resolve\
-  \ discipline is per SESSION and behavioural; rule 27's\n    aborted-land cost view\
-  \ groups BY CLASS, so one branch's several classes scatter across several\n    rows\
-  \ and never sum. A branch that fails for a DIFFERENT reason each time trips none\
-  \ of them.\n    **MEASURED AT THE KEY LEVEL, 2026-08-28 — the premise is proven,\
-  \ not inferred.** Read directly\n    off this repo's journal: `task/` carried five\
-  \ aborts of five distinct classes, FOUR of\n    them `cause_identity_absent: true`\
-  \ with an empty failing-assertion list; `task/` carried\n    seven, and no two CONSECUTIVE\
-  \ aborts shared a refined cause key. The backstop never armed on\n    either — proven\
-  \ at the key level, not at the level of abort CLASSES.\n    **AND THE STATEMENT\
-  \ IS SHARPER THAN \"A DIFFERENT REASON EACH TIME\" — it must not be softened\n \
-  \   back to that.** A whole FAMILY of abort classes carries NO cause identity at\
-  \ all\n    (`concurrent-land-same-worktree`, `merge-non-union-conflict`, `audited-diff-stale`,\n\
-  \    `unexpected`): for those rows the refined key cannot be COMPUTED, so consecutive\
-  \ aborts within\n    that family are INCOMPARABLE rather than merely different.\
-  \ A branch cycling through\n    infrastructure aborts is structurally UN-ARMABLE,\
-  \ not unlucky — which is why the answer is a\n    cause-AGNOSTIC projection and\
-  \ not a threshold change: no threshold on a key that does not\n    exist will ever\
-  \ fire. The line reports that count of identity-absent attempts explicitly,\n  \
-  \  because it is what explains the backstop's silence to a reader.\n    **THE COUNT\
-  \ IS THE PRIMARY KEY; ELAPSED TIME AND DISTINCT-CLASS COUNT ARE ANNOTATIONS IN THE\n\
-  \    LINE.** The class is \"many unlanded attempts REGARDLESS of cause\", so the\
-  \ count of attempts is\n    what selects. But a bare count cannot tell a three-hour\
-  \ burn from a three-minute one, so the\n    elapsed span and the number of distinct\
-  \ abort classes are carried IN the rendered line —\n    annotations that make the\
-  \ count actionable, never better keys.\n    **NO CAUSE IDENTITY IS CONSULTED, COMPUTED\
-  \ OR BORROWED ANYWHERE IN THIS FOLD.** Rule 26 owns\n    that reading; a second\
-  \ opinion here would let the two disagree about what one cause is\n    (CHARTER\
-  \ §P5). The `class_count` annotation reads the coarse `abort_class` the row already\n\
-  \    carries and derives no key from it. **How cause keys are computed, and whether\
-  \ the\n    identity-absent classes should carry an identity, is a REAL and SEPARATE\
-  \ question this rule\n    MEASURED but deliberately does not absorb.**\n    **N\
-  \ DEFAULTS TO 4, AND IT IS NOT RULE 26's 2 — measured, not decreed.** Rule 26's\
-  \ floor is the\n    EARLIEST moment its fact exists, because each further miss costs\
-  \ ANOTHER branch a full verify.\n    Here the opposite pressure governs: retrying\
-  \ IS the normal shape of a converging build, so the\n    floor must sit ABOVE the\
-  \ ordinary iteration band. On this repo's journal over 2026-08-21..28 —\n    the\
-  \ FREEZE week, i.e. the unfavourable case — still-unlanded refusals per branch in\
-  \ a trailing\n    24h run: 106 branches never exceed 1, then 50 reach 2 or more,\
-  \ 28 reach 3 or more, 18 reach 4\n    or more. The three-attempt convergence band\
-  \ dominates; 4 is the first value clear of it and\n    one BELOW the smaller of\
-  \ the two shapes that proved the gap (five aborts, seven aborts), so\n    the line\
-  \ arrives while the burn is still worth interrupting rather than after it has\n\
-  \    completed. Exposed as `YITC_DEBT_BRANCH_BURN_MIN_ATTEMPTS`, FLOORED AT 2 (a\
-  \ single unlanded\n    attempt is not a repeat at all), so the knob can only ever\
-  \ make the line LESS eager.\n    **THE WINDOW IS RULE 26's, REUSED AND NOT RE-DECLARED**\
-  \ — `_ABORT_BREADTH_WINDOW_HOURS` /\n    `YITC_DEBT_ABORT_BREADTH_WINDOW_HOURS`\
+  \ can\n    never disagree about which rows are refusals.\n    **AN ATTEMPT IS A\
+  \ LAND RUN, NOT A ROW.** A land run of a branch that ended refused is one\n    attempt,\
+  \ however many refusal rows journal it: the run writes one abort row, and a requeue\n\
+  \    row of the same branch written during that run — from the run's start to its\
+  \ abort row,\n    both ends included — is that run's row and is not counted again.\
+  \ A requeue row the fold\n    places in no such run is counted as one attempt on\
+  \ its own.\n    **THE SECOND PROJECTION OF ONE FOLD, NOT A SECOND MECHANISM.** Rule\
+  \ 26 reads ONE CAUSE across\n    MANY BRANCHES; this reads ONE BRANCH across MANY\
+  \ CAUSES, over the same already-emitted rows at\n    the same seams. It is the CHARTER\
+  \ §P1 F1/F2 answer — extend the existing fold with another\n    view, rather than\
+  \ build a parallel surface.\n    **THE GAP IS A KEYING GAP, NOT A THRESHOLD GAP\
+  \ — and this is the whole reason the rule\n    exists.** Every surface that could\
+  \ catch a stuck branch is keyed on the REPETITION OF A CAUSE:\n    the repeated-abort\
+  \ backstop is per BRANCH but arms only on N CONSECUTIVE aborts sharing\n    a cause\
+  \ key; the SPEC-0124 audit-loop ceiling is per TASK and counts audit passes, not\
+  \ land\n    aborts; the CHARTER §P7 re-run-vs-resolve discipline is per SESSION\
+  \ and behavioural; rule 27's\n    aborted-land cost view groups BY CLASS, so one\
+  \ branch's several classes scatter across several\n    rows and never sum. A branch\
+  \ that fails for a DIFFERENT reason each time trips none of them.\n    **MEASURED\
+  \ AT THE KEY LEVEL, 2026-08-28 — the premise is proven, not inferred.** Read directly\n\
+  \    off this repo's journal: `task/` carried five aborts of five distinct classes,\
+  \ FOUR of\n    them `cause_identity_absent: true` with an empty failing-assertion\
+  \ list; `task/` carried\n    seven, and no two CONSECUTIVE aborts shared a refined\
+  \ cause key. The backstop never armed on\n    either — proven at the key level,\
+  \ not at the level of abort CLASSES.\n    **AND THE STATEMENT IS SHARPER THAN \"\
+  A DIFFERENT REASON EACH TIME\" — it must not be softened\n    back to that.** A\
+  \ whole FAMILY of abort classes carries NO cause identity at all\n    (`concurrent-land-same-worktree`,\
+  \ `merge-non-union-conflict`, `audited-diff-stale`,\n    `unexpected`): for those\
+  \ rows the refined key cannot be COMPUTED, so consecutive aborts within\n    that\
+  \ family are INCOMPARABLE rather than merely different. A branch cycling through\n\
+  \    infrastructure aborts is structurally UN-ARMABLE, not unlucky — which is why\
+  \ the answer is a\n    cause-AGNOSTIC projection and not a threshold change: no\
+  \ threshold on a key that does not\n    exist will ever fire. The line reports that\
+  \ count of identity-absent attempts explicitly,\n    because it is what explains\
+  \ the backstop's silence to a reader.\n    **THE COUNT IS THE PRIMARY KEY; ELAPSED\
+  \ TIME AND DISTINCT-CLASS COUNT ARE ANNOTATIONS IN THE\n    LINE.** The class is\
+  \ \"many unlanded attempts REGARDLESS of cause\", so the count of attempts is\n\
+  \    what selects. But a bare count cannot tell a three-hour burn from a three-minute\
+  \ one, so the\n    elapsed span and the number of distinct abort classes are carried\
+  \ IN the rendered line —\n    annotations that make the count actionable, never\
+  \ better keys.\n    **NO CAUSE IDENTITY IS CONSULTED, COMPUTED OR BORROWED ANYWHERE\
+  \ IN THIS FOLD.** Rule 26 owns\n    that reading; a second opinion here would let\
+  \ the two disagree about what one cause is\n    (CHARTER §P5). The `class_count`\
+  \ annotation counts the distinct labels of the counted\n    attempts and derives\
+  \ no key from them: a run that ended in an abort row is labelled with\n    that\
+  \ row's coarse `abort_class` (`unclassified` when the row carries none), and a requeue\n\
+  \    row counted on its own, which carries no abort class, with its verdict string.\
+  \ **How cause\n    keys are computed, and whether the\n    identity-absent classes\
+  \ should carry an identity, is a REAL and SEPARATE question this rule\n    MEASURED\
+  \ but deliberately does not absorb.**\n    **N DEFAULTS TO 4, AND IT IS NOT RULE\
+  \ 26's 2 — measured, not decreed.** Rule 26's floor is the\n    EARLIEST moment\
+  \ its fact exists, because each further miss costs ANOTHER branch a full verify.\n\
+  \    Here the opposite pressure governs: retrying IS the normal shape of a converging\
+  \ build, so the\n    floor must sit ABOVE the ordinary iteration band. On this repo's\
+  \ journal over 2026-08-21..28 —\n    the FREEZE week, i.e. the unfavourable case\
+  \ — still-unlanded refusals per branch in a trailing\n    24h run: 106 branches\
+  \ never exceed 1, then 50 reach 2 or more, 28 reach 3 or more, 18 reach 4\n    or\
+  \ more. The three-attempt convergence band dominates; 4 is the first value clear\
+  \ of it and\n    one BELOW the smaller of the two shapes that proved the gap (five\
+  \ aborts, seven aborts), so\n    the line arrives while the burn is still worth\
+  \ interrupting rather than after it has\n    completed. Exposed as `YITC_DEBT_BRANCH_BURN_MIN_ATTEMPTS`,\
+  \ FLOORED AT 2 (a single unlanded\n    attempt is not a repeat at all), so the knob\
+  \ can only ever make the line LESS eager.\n    **THE WINDOW IS RULE 26's, REUSED\
+  \ AND NOT RE-DECLARED** — `_ABORT_BREADTH_WINDOW_HOURS` /\n    `YITC_DEBT_ABORT_BREADTH_WINDOW_HOURS`\
   \ (24h). The two folds are transposes of ONE reading met\n    by the same reader\
   \ at the same seam, and a second horizon would mean a reader holding two.\n    Measured\
   \ free besides: at N=4 the reading barely moves between a 12h and a 24h horizon.\n\
-  \    **A LANDED BRANCH STOPS BEING REPORTED — this is what the word UNLANDED buys.**\
-  \ Attempts are\n    counted only AFTER the branch's most recent SUCCESSFUL land\
-  \ inside the window: a branch whose\n    attempts reached main is provably not burning\
-  \ now. A fold predicate, never a gate — the exact\n    analog of rule 26's \"the\
-  \ row drops by itself once the cause stops recurring\".\n    **POSTURE — the load-bearing\
+  \    **THE WHOLE WINDOW IS READ.** The window setting has no upper bound, and the\
+  \ fold reads\n    every journal segment its window reaches, as rule 26's fold does:\
+  \ a window set at or past\n    the live journal window (SPEC-0190 rule 2) is read\
+  \ whole.\n    **A LANDED BRANCH STOPS BEING REPORTED — this is what the word UNLANDED\
+  \ buys.** Attempts are\n    counted only AFTER the branch's most recent SUCCESSFUL\
+  \ land inside the window: a branch whose\n    attempts reached main is provably\
+  \ not burning now. A successful land is what rule 26's\n    resolution predicate\
+  \ reads as one, REUSED and not restated: the branch's own successful\n    land,\
+  \ or its landing as a member of a batch — A BATCH-MEMBER LANDING COUNTS AS LANDED.\
+  \ A\n    fold predicate, never a gate — the exact analog of rule 26's \"the row\
+  \ drops by itself once\n    the cause stops recurring\".\n    **POSTURE — the load-bearing\
   \ half.** Rides rules 2/3/5 verbatim: suppressed-when-clean,\n    report-only, ZERO\
   \ stored state, NO new event type, no new abort class, no new store, no new\n  \
   \  verb, no new seam, no exit code, no gate. A cause-agnostic GATE was REJECTED\
@@ -3359,63 +3413,67 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ a branch\n    solo after repeated rides, but it creates no explicit stuck signal,\
   \ preserves no cross-cause\n    evidence, and does not help notice a branch that\
   \ keeps failing SOLO for changing reasons.\n    Unit tests (`tests/test_stuck_branch_unlanded_attempts_surfacing.py`):\
-  \ two tripwires, one per\n    atom — the line-and-what-it-carries atom (AC1+AC2)\
+  \ five tripwires, one per\n    atom — the line-and-what-it-carries atom (AC1+AC2)\
   \ and the report-only atom (AC3), both\n    DIFFERENTIAL against a pre-change baseline\
-  \ copied INLINE, never a moving ref.\n\n36. **A `ready` CARD BLOCKED FOREVER BY\
-  \ A `wont-do` REQUIREMENT — the permanently-unpickable set\n.** An OPTIONAL injected\
-  \ report-only fold over `tasks/` alone\n    (`debt.unpickable_ready_cards`), wired\
-  \ at the ONE shared host residue like every sibling and\n    riding all seams (session-start\
-  \ / the `debt` re-fold).\n    **SUBJECT.** A card whose own status is `ready` and\
-  \ whose `requires:` names an id whose card,\n    in THIS checkout, is `wont-do`.\n\
-  \    **THE GAP.** `requires:` is the picker's BLOCKING edge — a card is pickable\
-  \ only once every id\n    it requires is DONE — and `wont-do` is the OTHER terminal\
-  \ status, terminal in the direction\n    that NEVER satisfies: the required work\
-  \ was decided against. Such a card can therefore never be\n    picked, while reading\
-  \ `ready` at every surface that folds card status; measured 2026-08-30, no\n   \
-  \ lens read `requires:` at all and `wont-do` appeared in this module only in\n \
-  \   `TERMINAL_CARD_STATUSES`.\n    **WHY THE PICKER'S OWN REFUSAL DOES NOT COVER\
-  \ IT — the load-bearing part.** The picker refuses\n    the card at SELECTION, correctly,\
-  \ and says so to whoever asked. But nobody asks: a card that is\n    never selected\
-  \ is never refused, so the refusal is reachable only along the path the blockage\n\
-  \    makes nobody take. The debt seam is the surface a controller passes ANYWAY,\
-  \ which is what makes\n    it the one that can say this unprompted.\n    **IT CLAIMS\
-  \ ONLY WHAT IT CAN PROVE — fail-closed toward SILENCE, and the asymmetry with rule\
-  \ 18\n    is deliberate.** A required id whose card is ABSENT, unreadable, malformed,\
-  \ not id-shaped, or\n    carrying any other status contributes NOTHING. Absence\
-  \ is the ORDINARY state of an id a\n    checkout has not got, and the claim this\
-  \ line makes is strong («this can never be picked»), so\n    it is made only where\
-  \ a `wont-do` card is sitting right there — otherwise every consumer repo\n    and\
-  \ every fixture tree would nag. Rule 18's opposite posture (every uncertainty KEEPS\
-  \ the row)\n    belongs to a view whose subject is a stopped worker awaiting a decision;\
-  \ here an uncertain read\n    would manufacture a permanence nobody can verify.\n\
-  \    **THE REMEDY IS A DECISION, NEVER A SWEEP, and the line says so.** Two honest\
-  \ exits — DROP the\n    dead `requires:` edge if the requirement turned out not\
-  \ to be needed, or CLOSE the card itself\n    `wont-do` if it was the point. Which\
-  \ one applies is a judgement about the WORK, so the view\n    names the pair and\
-  \ picks neither. It never suggests deleting the edge to make the row go away:\n\
-  \    that re-admits the card to a queue nothing has re-justified.\n    **SURFACING\
-  \ IS NOT PICKING** (SPEC-0085 §8): it names the STUCK cards — the opposite of naming\n\
-  \    a candidate — ranks nothing and selects nothing. Report-only, suppressed-when-clean,\
-  \ UNFLOORED\n    (one card stuck forever is debt at count 1, and count-hiding it\
-  \ restores the silence the rule\n    ends), zero stored state, NEVER gates. A repo\
-  \ with no `tasks/` folds to a clean zero, so\n    history is never retro-charged\
-  \ (SPEC-0149 §2 — pure: files in, no clock, no subprocess).\n\n35. **A DECLARED\
-  \ `subject_globs:` SUBJECT WHOSE SUITE FILE IS EXECUTED BY NOTHING — the EXECUTION\n\
-  \    axis of subject-scoping.** An OPTIONAL injected report-only fold over the ops\
-  \ CARRIER\n    plus the CHECKOUT (`debt.unexecuted_subject_files`), wired at the\
-  \ ONE shared host residue like\n    every sibling and riding all seams (session-start\
-  \ / the `debt` re-fold).\n    **SUBJECT.** A suite file that (a) is one of this\
-  \ consumer's DECLARED test probe files, (b) is\n    matched by some EXECUTABLE layer's\
-  \ declared `subject_globs:`, and (c) is named NOWHERE in the\n    UNION of those\
-  \ layers' execution registries. Declared, therefore believed covered; named by\n\
-  \    nothing, therefore run by nothing.\n    **THE MEASURED INCIDENT (X-0860, <project>,\
-  \ 2026-08-13).** `task test --run` printed PASS while\n    two declared test files\
-  \ were executed by NOTHING, and four mutation-verified tripwires shipped\n    through\
-  \ `land` believing they were gated. A false GREEN is the worst failure shape there\
-  \ is,\n    because its absence and its success are indistinguishable from outside.\n\
-  \    **THE REALM IS KERNEL, AND THE INVARIANT IS NARROWED TO THE PLACEMENT CONSULT'S\
-  \ WORDING**\n    (`decisions/verify-layer-execution-check-placement-audit-adhoc.yaml`,\
-  \ YELLOW, 2026-08-30, both\n    findings absorbed): the kernel DEFINES `verify.layers[].subject_globs`\
+  \ copied INLINE, never a moving ref; and the\n    batch-member-landing atom and\
+  \ the one-run-one-attempt atom, each DIFFERENTIAL against an\n    inline copy of\
+  \ the pre-change count; and the whole-window atom, DIFFERENTIAL against the\n  \
+  \  live segment's rows read alone, over a journal the test builds in more than one\
+  \ segment.\n\n36. **A `ready` CARD BLOCKED FOREVER BY A `wont-do` REQUIREMENT —\
+  \ the permanently-unpickable set\n.** An OPTIONAL injected report-only fold over\
+  \ `tasks/` alone\n    (`debt.unpickable_ready_cards`), wired at the ONE shared host\
+  \ residue like every sibling and\n    riding all seams (session-start / the `debt`\
+  \ re-fold).\n    **SUBJECT.** A card whose own status is `ready` and whose `requires:`\
+  \ names an id whose card,\n    in THIS checkout, is `wont-do`.\n    **THE GAP.**\
+  \ `requires:` is the picker's BLOCKING edge — a card is pickable only once every\
+  \ id\n    it requires is DONE — and `wont-do` is the OTHER terminal status, terminal\
+  \ in the direction\n    that NEVER satisfies: the required work was decided against.\
+  \ Such a card can therefore never be\n    picked, while reading `ready` at every\
+  \ surface that folds card status; measured 2026-08-30, no\n    lens read `requires:`\
+  \ at all and `wont-do` appeared in this module only in\n    `TERMINAL_CARD_STATUSES`.\n\
+  \    **WHY THE PICKER'S OWN REFUSAL DOES NOT COVER IT — the load-bearing part.**\
+  \ The picker refuses\n    the card at SELECTION, correctly, and says so to whoever\
+  \ asked. But nobody asks: a card that is\n    never selected is never refused, so\
+  \ the refusal is reachable only along the path the blockage\n    makes nobody take.\
+  \ The debt seam is the surface a controller passes ANYWAY, which is what makes\n\
+  \    it the one that can say this unprompted.\n    **IT CLAIMS ONLY WHAT IT CAN\
+  \ PROVE — fail-closed toward SILENCE, and the asymmetry with rule 18\n    is deliberate.**\
+  \ A required id whose card is ABSENT, unreadable, malformed, not id-shaped, or\n\
+  \    carrying any other status contributes NOTHING. Absence is the ORDINARY state\
+  \ of an id a\n    checkout has not got, and the claim this line makes is strong\
+  \ («this can never be picked»), so\n    it is made only where a `wont-do` card is\
+  \ sitting right there — otherwise every consumer repo\n    and every fixture tree\
+  \ would nag. Rule 18's opposite posture (every uncertainty KEEPS the row)\n    belongs\
+  \ to a view whose subject is a stopped worker awaiting a decision; here an uncertain\
+  \ read\n    would manufacture a permanence nobody can verify.\n    **THE REMEDY\
+  \ IS A DECISION, NEVER A SWEEP, and the line says so.** Two honest exits — DROP\
+  \ the\n    dead `requires:` edge if the requirement turned out not to be needed,\
+  \ or CLOSE the card itself\n    `wont-do` if it was the point. Which one applies\
+  \ is a judgement about the WORK, so the view\n    names the pair and picks neither.\
+  \ It never suggests deleting the edge to make the row go away:\n    that re-admits\
+  \ the card to a queue nothing has re-justified.\n    **SURFACING IS NOT PICKING**\
+  \ (SPEC-0085 §8): it names the STUCK cards — the opposite of naming\n    a candidate\
+  \ — ranks nothing and selects nothing. Report-only, suppressed-when-clean, UNFLOORED\n\
+  \    (one card stuck forever is debt at count 1, and count-hiding it restores the\
+  \ silence the rule\n    ends), zero stored state, NEVER gates. A repo with no `tasks/`\
+  \ folds to a clean zero, so\n    history is never retro-charged (SPEC-0149 §2 —\
+  \ pure: files in, no clock, no subprocess).\n\n35. **A DECLARED `subject_globs:`\
+  \ SUBJECT WHOSE SUITE FILE IS EXECUTED BY NOTHING — the EXECUTION\n    axis of subject-scoping.**\
+  \ An OPTIONAL injected report-only fold over the ops CARRIER\n    plus the CHECKOUT\
+  \ (`debt.unexecuted_subject_files`), wired at the ONE shared host residue like\n\
+  \    every sibling and riding all seams (session-start / the `debt` re-fold).\n\
+  \    **SUBJECT.** A suite file that (a) is one of this consumer's DECLARED test\
+  \ probe files, (b) is\n    matched by some EXECUTABLE layer's declared `subject_globs:`,\
+  \ and (c) is named NOWHERE in the\n    UNION of those layers' execution registries.\
+  \ Declared, therefore believed covered; named by\n    nothing, therefore run by\
+  \ nothing.\n    **THE MEASURED INCIDENT (X-0860, <project>, 2026-08-13).** `task\
+  \ test --run` printed PASS while\n    two declared test files were executed by NOTHING,\
+  \ and four mutation-verified tripwires shipped\n    through `land` believing they\
+  \ were gated. A false GREEN is the worst failure shape there is,\n    because its\
+  \ absence and its success are indistinguishable from outside.\n    **THE REALM IS\
+  \ KERNEL, AND THE INVARIANT IS NARROWED TO THE PLACEMENT CONSULT'S WORDING**\n \
+  \   (`decisions/verify-layer-execution-check-placement-audit-adhoc.yaml`, YELLOW,\
+  \ 2026-08-30, both\n    findings absorbed): the kernel DEFINES `verify.layers[].subject_globs`\
   \ and EMITS the verdict, so\n    it owns preventing a false GREEN over its own declared\
   \ contract — «a kernel PASS must not include\n    declared subject_globs with ZERO\
   \ observed execution». **Project-specific ADEQUACY thresholds —\n    how much coverage\
@@ -4198,7 +4256,7 @@ implements_signature:
   bin/lib/debt_landing.py#_abort_phase_split: 6084bf93669550e28c84e51a5f84a7e3cd25d91c8d09b51b188b133fd67c93b9
   bin/lib/debt_landing.py#_abort_reservation_wait: 03ab653aa88ab9dbaa627a0a8c391b00a01e44ac5f36e76a216773917385ce85
   bin/lib/debt_landing.py#_abort_trend: 7bd37f0989bef2e13714ba763a2d10952c8da1fbe32385fb0fac6ce068b1d02d
-  bin/lib/debt_landing.py#_branch_burn_land_row: 71e8dc312129d30c15bde8e93a09fd66b22ecfb7fc45dbe479a6b39ecd891fbd
+  bin/lib/debt_landing.py#_branch_burn_land_row: 441dc9d957768fec2c056a93a25ff6fd843c736becfc5df7b11798306e4ae65e
   bin/lib/debt_landing.py#_dead_land_tip_is_land_marker: 7a6384133235551d17d3c249e25c05b0e3eace57e7c36fc05dd0ebbc96d7d6db
   bin/lib/debt_landing.py#_is_corpus_guard_assertion: 88aabf7068bcb5175629bdd4234c610023e27af032ec0e769f6f4de7114b6c26
   bin/lib/debt_landing.py#_is_layer_timeout_assertion: f95d6a601e386023ed5a607a004a2f56cb586fe3fef6289116729ebbcc4f82df
@@ -4209,7 +4267,7 @@ implements_signature:
   bin/lib/debt_landing.py#aborted_land_cost: f1134d0e377dc03b35a3ad2d5344b1864b562691a3515639d434febbabfef6a8
   bin/lib/debt_landing.py#ahead_work_branches: 4916aafd55f490fb34fba716c362e584bd1b0e8c6437f68ce69e36f5b7ee63a4
   bin/lib/debt_landing.py#behind_work_branches: a9229e1639e44982fac4168785489353f6a552902965e35f18fea91c38074266
-  bin/lib/debt_landing.py#branch_unlanded_attempt_burn: 2f65d49b234e8e17a853a2524348e78796355d0bf92772d9561876925b281533
+  bin/lib/debt_landing.py#branch_unlanded_attempt_burn: 8f2a0c7d42ee81ad491a15e5d41463fae089375b7d1b1ba333b66f0238fe0805
   bin/lib/debt_landing.py#dead_lands: 4e05d52f06ecaa95f7734fed48b31e8ffad6b3383fa24215d26fdffc1e5db11f
   bin/lib/debt_landing.py#holder_liveness: da5915e8f4908e6d781b874a737c028c8af184f82fca1b1b8fa0db7fc119b4e8
   bin/lib/debt_landing.py#land_abort_cause_breadth: a98dc06aa0d5e133f2f034dd0f93280a2b4500d8f276c86784c1cc362f90223a

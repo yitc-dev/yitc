@@ -32,7 +32,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0027",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (9e9b7d875) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (949c402df) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#advance_stage_pointer",
@@ -72,7 +72,7 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_stage",
    "spec": "SPEC-0034",
-   "warn": "bin/lib/plan.py#cmd_plan_stage: content changed since last verified-accurate signature (ddf987b55) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_stage: content changed since last verified-accurate signature (02e4a5961) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
@@ -97,7 +97,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (9e9b7d875) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (949c402df) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
@@ -167,12 +167,12 @@
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0065",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0066",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
@@ -207,7 +207,7 @@
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0077",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#write_text_atomic",
@@ -227,7 +227,7 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_stage",
    "spec": "SPEC-0083",
-   "warn": "bin/lib/plan.py#cmd_plan_stage: content changed since last verified-accurate signature (ddf987b55) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_stage: content changed since last verified-accurate signature (02e4a5961) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/verify-backup.sh",
@@ -307,7 +307,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (9e9b7d875) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (949c402df) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#_DeployRunRecorder",
@@ -397,7 +397,7 @@
   {
    "anchor": "bin/lib/worktree_lifecycle.py#cmd_worktree_park",
    "spec": "SPEC-0103",
-   "warn": "bin/lib/worktree_lifecycle.py#cmd_worktree_park: content changed since last verified-accurate signature (2d831c236) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree_lifecycle.py#cmd_worktree_park: content changed since last verified-accurate signature (ddb52db48) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/nightly.py#cmd_nightly",
@@ -483,11 +483,6 @@
    "anchor": "bin/lib/debt_landing.py#behind_work_branches",
    "spec": "SPEC-0119",
    "warn": "bin/lib/debt_landing.py#behind_work_branches: content changed since last verified-accurate signature (a9229e163) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/debt_landing.py#branch_unlanded_attempt_burn",
-   "spec": "SPEC-0119",
-   "warn": "bin/lib/debt_landing.py#branch_unlanded_attempt_burn: content changed since last verified-accurate signature (2f65d49b2) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt_landing.py#dead_lands",
@@ -577,7 +572,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0124",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (9e9b7d875) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (949c402df) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
@@ -597,7 +592,7 @@
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0132",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_refresh_verify_duration_table",
@@ -812,7 +807,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0176",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (9e9b7d875) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (949c402df) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
@@ -842,7 +837,7 @@
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0184",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_land",
@@ -852,12 +847,12 @@
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0186",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0188",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#append_event",
@@ -892,7 +887,7 @@
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
    "spec": "SPEC-0203",
-   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (63b008725) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_land_integrate: content changed since last verified-accurate signature (d5ffd8e5a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
@@ -902,7 +897,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (9e9b7d875) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (949c402df) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#contentless_findings",
@@ -962,7 +957,7 @@
   {
    "anchor": "bin/lib/plan.py#_run_plan_gate_audit",
    "spec": "SPEC-0204",
-   "warn": "bin/lib/plan.py#_run_plan_gate_audit: content changed since last verified-accurate signature (cfd7195f1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#_run_plan_gate_audit: content changed since last verified-accurate signature (3bdc9343c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
@@ -15108,396 +15103,366 @@
   },
   {
    "content": "series made unparseable must yield `authority_source: \"unreadable\"` + an `authority_degrade` line",
-   "id": "rule:spec-0119:verification:1957:must",
+   "id": "rule:spec-0119:verification:1999:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 1957,
+   "source_line": 1999,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "finding must yield `older-report-promoted` + a degrade naming both files (the count stays 1 — the",
-   "id": "rule:spec-0119:verification:1959:must",
+   "id": "rule:spec-0119:verification:2001:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 1959,
+   "source_line": 2001,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "is PAID and one without it is EARLY (asserted on rows of the SAME class, so the split cannot quietly",
-   "id": "rule:spec-0119:verification:2003:must",
+   "id": "rule:spec-0119:verification:2045:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2003,
+   "source_line": 2045,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "group) partition the count is, so a correct count under a union trend cannot ship. A class outside",
-   "id": "rule:spec-0119:verification:2024:must",
+   "id": "rule:spec-0119:verification:2066:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2024,
+   "source_line": 2066,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "and disabling the floor makes the same fresh candidate FIRE — so the probe cannot pass for any",
-   "id": "rule:spec-0119:verification:2034:must",
+   "id": "rule:spec-0119:verification:2076:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2034,
+   "source_line": 2076,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "naming the ts its proof went stale. A probe that cannot answer (unknown kind / bad argv / non-zero exit",
-   "id": "rule:spec-0119:verification:2060:must",
+   "id": "rule:spec-0119:verification:2102:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2060,
+   "source_line": 2102,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "`-C <consumer-root>`, concrete rather than a form the reader must assemble. Printing a",
-   "id": "rule:spec-0119:verification:2109:must",
+   "id": "rule:spec-0119:verification:2151:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2109,
+   "source_line": 2151,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "routed that pair to the kernel as a `cross request` the kernel cannot execute — unclearable",
-   "id": "rule:spec-0119:verification:2120:must",
+   "id": "rule:spec-0119:verification:2162:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2120,
+   "source_line": 2162,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "declared. It is REQUIRED for correctness, not a convenience: the kernel record NAMES those keys,",
-   "id": "rule:spec-0119:verification:2134:must",
+   "id": "rule:spec-0119:verification:2176:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2134,
+   "source_line": 2176,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "for. **A DOT IS REQUIRED in shape 2, which is what makes it fail CLOSED:** SPEC-0025's own",
-   "id": "rule:spec-0119:verification:2137:must",
+   "id": "rule:spec-0119:verification:2179:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2137,
+   "source_line": 2179,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "opens a run, so it cannot carry the scan into prose; every run still ends at the ` — ` that opens",
-   "id": "rule:spec-0119:verification:2141:must",
+   "id": "rule:spec-0119:verification:2183:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2141,
+   "source_line": 2183,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "precisely because markup alone cannot tell a catalog DECLARATION from a formatted PROSE MENTION.",
-   "id": "rule:spec-0119:verification:2145:must",
+   "id": "rule:spec-0119:verification:2187:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2145,
+   "source_line": 2187,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "exclusion the reader cannot see is indistinguishable from a measurement bug.",
-   "id": "rule:spec-0119:verification:2148:must",
+   "id": "rule:spec-0119:verification:2190:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2148,
+   "source_line": 2190,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "the kernel cannot execute.",
-   "id": "rule:spec-0119:verification:2158:must",
+   "id": "rule:spec-0119:verification:2200:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2158,
+   "source_line": 2200,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "margin is a notice width, never a bar: it cannot make any measurement pass or fail anything.",
-   "id": "rule:spec-0119:verification:2164:must",
+   "id": "rule:spec-0119:verification:2206:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2164,
+   "source_line": 2206,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "Rule 26 stays: it answers a different question, and it answers it for causes this one cannot",
-   "id": "rule:spec-0119:verification:2211:must",
+   "id": "rule:spec-0119:verification:2253:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2211,
+   "source_line": 2253,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "and reads BOTH numbers back out of its own token, so this view cannot disagree with the rule that",
-   "id": "rule:spec-0119:verification:2241:must",
+   "id": "rule:spec-0119:verification:2283:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2241,
+   "source_line": 2283,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "as a GATE the governor must short-circuit on `YITC_SELECTION_GOVERN` before it counts, but a debt",
-   "id": "rule:spec-0119:verification:2243:must",
+   "id": "rule:spec-0119:verification:2285:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2243,
+   "source_line": 2285,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**ONLY THE ROLLBACK FIRES IT.** `switch-off` is an operator choice and `governor-cannot-count` /",
-   "id": "rule:spec-0119:verification:2246:must",
+   "id": "rule:spec-0119:verification:2288:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2246,
+   "source_line": 2288,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "evidence cannot be a false-positive-free hard gate, so closure proceeds and records the gap.",
-   "id": "rule:spec-0119:verification:2271:must",
+   "id": "rule:spec-0119:verification:2313:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2271,
+   "source_line": 2313,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "\"so the two standards cannot drift\"; it was calling that predicate WITHOUT the repo root",
-   "id": "rule:spec-0119:verification:2284:must",
+   "id": "rule:spec-0119:verification:2326:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2284,
+   "source_line": 2326,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**THE CARRIER MUST BE DECLARED, NEVER INFERRED — and `relates_to` is deliberately NOT the",
-   "id": "rule:spec-0119:verification:2290:must",
+   "id": "rule:spec-0119:verification:2332:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2290,
+   "source_line": 2332,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "cannot drift). `relates_to` is PROVENANCE — \"what this followup is ABOUT\" — so keying on it",
-   "id": "rule:spec-0119:verification:2293:must",
+   "id": "rule:spec-0119:verification:2335:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2293,
+   "source_line": 2335,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "reads the same constant, so the two cannot drift. Rendered ONCE per line, not per row, so the",
-   "id": "rule:spec-0119:verification:2307:must",
+   "id": "rule:spec-0119:verification:2349:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2307,
+   "source_line": 2349,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "second-resolution stamp cannot separate \"the same instant\" from \"just after\".",
-   "id": "rule:spec-0119:verification:2347:must",
+   "id": "rule:spec-0119:verification:2389:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2347,
+   "source_line": 2389,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "imported, never re-implemented, so the two cannot drift (CHARTER §P5), with its realm probe",
-   "id": "rule:spec-0119:verification:2352:must",
+   "id": "rule:spec-0119:verification:2394:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2352,
+   "source_line": 2394,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "(an id collision with the kernel's own task ids cannot clear a consumer closure).",
-   "id": "rule:spec-0119:verification:2364:must",
+   "id": "rule:spec-0119:verification:2406:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2364,
+   "source_line": 2406,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "a closing session did, so every state it cannot decide — an absent or unparseable card, an",
-   "id": "rule:spec-0119:verification:2367:must",
+   "id": "rule:spec-0119:verification:2409:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2367,
+   "source_line": 2409,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "`AHEAD_BRANCH_NAMESPACES` — SHARED with rule 24, never re-declared, so the subject bound cannot",
-   "id": "rule:spec-0119:verification:2441:must",
+   "id": "rule:spec-0119:verification:2483:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2441,
+   "source_line": 2483,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "sees at the land head is the identity `debt` prints, and the two cannot drift (P5).",
-   "id": "rule:spec-0119:verification:2499:must",
+   "id": "rule:spec-0119:verification:2541:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2499,
+   "source_line": 2541,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "so the two surfaces cannot disagree about what \"the same cause\" is (P5). CONSEQUENCE, stated because",
-   "id": "rule:spec-0119:verification:2566:must",
+   "id": "rule:spec-0119:verification:2608:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2566,
+   "source_line": 2608,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**NOT A NOISE GENERATOR (the design constraint).** N refusals of N DIFFERENT causes must produce",
-   "id": "rule:spec-0119:verification:2578:must",
+   "id": "rule:spec-0119:verification:2620:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2578,
+   "source_line": 2620,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "REQUIRED, not decorative: MEASURED on this repo's journal 2026-09-04, of 209 member `landed` rows,",
-   "id": "rule:spec-0119:verification:2601:must",
+   "id": "rule:spec-0119:verification:2643:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2601,
+   "source_line": 2643,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "should be reused rather than a new number decreed. That reuse is GIVEN UP, because the two",
-   "id": "rule:spec-0119:verification:2690:should",
+   "id": "rule:spec-0119:verification:2732:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2690,
+   "source_line": 2732,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "a refused land should be resumed at all, and by whom, is a SEPARATE question this rule does not",
-   "id": "rule:spec-0119:verification:2708:should",
+   "id": "rule:spec-0119:verification:2750:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2708,
+   "source_line": 2750,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "answer and must not appear to. A repo whose main has frozen nobody in the window ⇒ 0 ⇒",
-   "id": "rule:spec-0119:verification:2709:must",
+   "id": "rule:spec-0119:verification:2751:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2709,
+   "source_line": 2751,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "cheapness arm carries an inverted leg asserting a reservation WAS taken, which must FAIL; the",
-   "id": "rule:spec-0119:verification:2713:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 2713,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "**AND THE STATEMENT IS SHARPER THAN \"A DIFFERENT REASON EACH TIME\" — it must not be softened",
-   "id": "rule:spec-0119:verification:2744:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 2744,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "`unexpected`): for those rows the refined key cannot be COMPUTED, so consecutive aborts within",
-   "id": "rule:spec-0119:verification:2747:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 2747,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "what selects. But a bare count cannot tell a three-hour burn from a three-minute one, so the",
    "id": "rule:spec-0119:verification:2755:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
@@ -15507,39 +15472,39 @@
    "status": "active"
   },
   {
+   "content": "**AND THE STATEMENT IS SHARPER THAN \"A DIFFERENT REASON EACH TIME\" — it must not be softened",
+   "id": "rule:spec-0119:verification:2791:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 2791,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "`unexpected`): for those rows the refined key cannot be COMPUTED, so consecutive aborts within",
+   "id": "rule:spec-0119:verification:2794:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 2794,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "what selects. But a bare count cannot tell a three-hour burn from a three-minute one, so the",
+   "id": "rule:spec-0119:verification:2802:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 2802,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
    "content": "identity-absent classes should carry an identity, is a REAL and SEPARATE question this rule",
-   "id": "rule:spec-0119:verification:2762:should",
+   "id": "rule:spec-0119:verification:2812:should",
    "severity": "should",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 2762,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "floor must sit ABOVE the ordinary iteration band. On this repo's journal over 2026-08-21..28 —",
-   "id": "rule:spec-0119:verification:2767:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 2767,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "**DISTINCT FROM THE ROUTING HALF, which is out of scope.** Routing may send a branch",
-   "id": "rule:spec-0119:verification:2797:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 2797,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "that NEVER satisfies: the required work was decided against. Such a card can therefore never be",
-   "id": "rule:spec-0119:verification:2812:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
    "source_line": 2812,
@@ -15547,177 +15512,177 @@
    "status": "active"
   },
   {
-   "content": "is deliberate.** A required id whose card is ABSENT, unreadable, malformed, not id-shaped, or",
-   "id": "rule:spec-0119:verification:2822:must",
+   "content": "floor must sit ABOVE the ordinary iteration band. On this repo's journal over 2026-08-21..28 —",
+   "id": "rule:spec-0119:verification:2817:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2822,
+   "source_line": 2817,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "**DISTINCT FROM THE ROUTING HALF, which is out of scope.** Routing may send a branch",
+   "id": "rule:spec-0119:verification:2853:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 2853,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "that NEVER satisfies: the required work was decided against. Such a card can therefore never be",
+   "id": "rule:spec-0119:verification:2871:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 2871,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "is deliberate.** A required id whose card is ABSENT, unreadable, malformed, not id-shaped, or",
+   "id": "rule:spec-0119:verification:2881:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 2881,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "it owns preventing a false GREEN over its own declared contract — «a kernel PASS must not include",
-   "id": "rule:spec-0119:verification:2855:must",
+   "id": "rule:spec-0119:verification:2914:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2855,
+   "source_line": 2914,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "`_delegated_tests_execution_gap` so both X-0860 axes share ONE definition of «named» and cannot",
-   "id": "rule:spec-0119:verification:2873:must",
+   "id": "rule:spec-0119:verification:2932:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2873,
+   "source_line": 2932,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**WHAT IS ACTUALLY PROVABLE, and the wording that must not be laundered in EITHER direction.**",
-   "id": "rule:spec-0119:verification:2883:must",
+   "id": "rule:spec-0119:verification:2942:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2883,
+   "source_line": 2942,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "cannot be read file-by-file; a per-file claim there would accuse every suite in the repo. So that",
-   "id": "rule:spec-0119:verification:2895:must",
+   "id": "rule:spec-0119:verification:2954:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2895,
+   "source_line": 2954,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "seams no regression covers yet and for the drift a passing regression cannot. The two move",
-   "id": "rule:spec-0119:verification:2939:must",
+   "id": "rule:spec-0119:verification:2998:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2939,
+   "source_line": 2998,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**THE VIEW MUST ITSELF PASS THE BOUND IT REPORTS, and this is a construction requirement rather",
-   "id": "rule:spec-0119:verification:2952:must",
+   "id": "rule:spec-0119:verification:3011:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2952,
+   "source_line": 3011,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "line, which is how a signal in this repo actually dies. What 1.05 cannot absorb is a SECOND",
-   "id": "rule:spec-0119:verification:2971:must",
+   "id": "rule:spec-0119:verification:3030:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2971,
+   "source_line": 3030,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "constant beside the bound so this fold and the roster's T4.P6 probe cannot drift on the number;",
-   "id": "rule:spec-0119:verification:2974:must",
+   "id": "rule:spec-0119:verification:3033:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2974,
+   "source_line": 3033,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "genuinely cannot hold the bound declares it in `yitc-ops.yaml reads.exemptions[]` — all four of",
-   "id": "rule:spec-0119:verification:2978:must",
+   "id": "rule:spec-0119:verification:3037:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2978,
+   "source_line": 3037,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "entry for) and falling back to the default on any entry it cannot use — an unusable exemption",
-   "id": "rule:spec-0119:verification:2984:must",
+   "id": "rule:spec-0119:verification:3043:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2984,
+   "source_line": 3043,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "must never read as a wider bound. Absence reads as \"this project exempts no seam\".",
-   "id": "rule:spec-0119:verification:2985:must",
+   "id": "rule:spec-0119:verification:3044:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2985,
+   "source_line": 3044,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "corpus. A view about read amplification that itself required an archive walk would be its own",
-   "id": "rule:spec-0119:verification:2990:must",
+   "id": "rule:spec-0119:verification:3049:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 2990,
+   "source_line": 3049,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "line must never appear to suggest one. A repo whose seams are all within bound ⇒ 0 ⇒",
-   "id": "rule:spec-0119:verification:3006:must",
+   "id": "rule:spec-0119:verification:3065:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3006,
+   "source_line": 3065,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "rule 10, so this view must never appear to suggest one.",
-   "id": "rule:spec-0119:verification:3079:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3079,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "WHAT `failed` MEANS, AND WHAT THE LINE MAY CLAIM. `failed` is the lane's verdict for an",
-   "id": "rule:spec-0119:verification:3095:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3095,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "**SUBJECT — ONE DATED ROW per profile-required baseline item the project does not meet.** The",
-   "id": "rule:spec-0119:verification:3137:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3137,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "required set is DERIVED, never asked for: the lenses `profile.required_check_set` activates",
    "id": "rule:spec-0119:verification:3138:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
@@ -15727,57 +15692,17 @@
    "status": "active"
   },
   {
-   "content": "it, so the birth-time check and this register cannot disagree about what counts",
-   "id": "rule:spec-0119:verification:3152:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3152,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "vanished while the declaration was still broken. A concern that cannot be",
-   "id": "rule:spec-0119:verification:3156:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3156,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "its place. That direction is deliberate: a register whose rows may leave the count pointing at",
-   "id": "rule:spec-0119:verification:3170:may",
+   "content": "WHAT `failed` MEANS, AND WHAT THE LINE MAY CLAIM. `failed` is the lane's verdict for an",
+   "id": "rule:spec-0119:verification:3154:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3170,
+   "source_line": 3154,
    "source_section": "verification",
    "status": "active"
   },
   {
-   "content": "(SPEC-0198 rule 5 / CHARTER §6). Fail-open but NEVER silent — a writer that cannot write names",
-   "id": "rule:spec-0119:verification:3191:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3191,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "itself on stderr, because \"nothing was owed\" and \"the writer is broken\" must not read alike.",
-   "id": "rule:spec-0119:verification:3192:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
-   "source_domain": "spec",
-   "source_line": 3192,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "folds read the TARGET's, so a read-only fold must stay write-free.",
+   "content": "**SUBJECT — ONE DATED ROW per profile-required baseline item the project does not meet.** The",
    "id": "rule:spec-0119:verification:3196:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
@@ -15787,102 +15712,172 @@
    "status": "active"
   },
   {
-   "content": "**A HEAD MAY CARRY ITS FIGURES.** One square-bracketed span in the head holds what",
-   "id": "rule:spec-0119:verification:3220:may",
+   "content": "required set is DERIVED, never asked for: the lenses `profile.required_check_set` activates",
+   "id": "rule:spec-0119:verification:3197:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3197,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "it, so the birth-time check and this register cannot disagree about what counts",
+   "id": "rule:spec-0119:verification:3211:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3211,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "vanished while the declaration was still broken. A concern that cannot be",
+   "id": "rule:spec-0119:verification:3215:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3215,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "its place. That direction is deliberate: a register whose rows may leave the count pointing at",
+   "id": "rule:spec-0119:verification:3229:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3220,
+   "source_line": 3229,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "(SPEC-0198 rule 5 / CHARTER §6). Fail-open but NEVER silent — a writer that cannot write names",
+   "id": "rule:spec-0119:verification:3250:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3250,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "itself on stderr, because \"nothing was owed\" and \"the writer is broken\" must not read alike.",
+   "id": "rule:spec-0119:verification:3251:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3251,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "folds read the TARGET's, so a read-only fold must stay write-free.",
+   "id": "rule:spec-0119:verification:3255:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3255,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "**A HEAD MAY CARRY ITS FIGURES.** One square-bracketed span in the head holds what",
+   "id": "rule:spec-0119:verification:3279:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+   "source_domain": "spec",
+   "source_line": 3279,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "never renders a bare-form table on a consumer that cannot run it.",
-   "id": "rule:spec-0119:verification:3227:must",
+   "id": "rule:spec-0119:verification:3286:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3227,
+   "source_line": 3286,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "names, the reader must implement, and nothing else.",
-   "id": "rule:spec-0119:verification:3290:must",
+   "id": "rule:spec-0119:verification:3349:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3290,
+   "source_line": 3349,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "Exit (a) cannot do this by construction — it holds only while a card is open, so before this",
-   "id": "rule:spec-0119:verification:3304:must",
+   "id": "rule:spec-0119:verification:3363:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3304,
+   "source_line": 3363,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**THE NAMED CARD IS EXISTENCE-CHECKED, AND DELIBERATELY NOT STATUS-CHECKED.** It must be a real",
-   "id": "rule:spec-0119:verification:3307:must",
+   "id": "rule:spec-0119:verification:3366:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3307,
+   "source_line": 3366,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "must agree on it EXACTLY: this view's suppression and the land-tail filer's idempotency check.",
-   "id": "rule:spec-0119:verification:3317:must",
+   "id": "rule:spec-0119:verification:3376:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3317,
+   "source_line": 3376,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "it cannot — a line added by hand, a card closed `wont-do` without removing its line, and every",
-   "id": "rule:spec-0119:verification:3329:must",
+   "id": "rule:spec-0119:verification:3388:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3329,
+   "source_line": 3388,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "debt seams, and it stays the standing sweep for cards ALREADY stranded. What it cannot do is",
-   "id": "rule:spec-0119:verification:3344:must",
+   "id": "rule:spec-0119:verification:3403:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3344,
+   "source_line": 3403,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "a park may simply end, so the parked line names the `--return-trigger` instead of succession.",
-   "id": "rule:spec-0119:verification:3368:may",
+   "id": "rule:spec-0119:verification:3427:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3368,
+   "source_line": 3427,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "on-demand re-fold there may still name that worktree's own decided finding — erring toward",
-   "id": "rule:spec-0119:verification:3435:may",
+   "id": "rule:spec-0119:verification:3494:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3435,
+   "source_line": 3494,
    "source_section": "verification",
    "status": "active"
   },
