@@ -392,6 +392,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "SPEC-0094 §1) — resolved to a sha, passed positionally to the rollback: "
                           "command, and recorded as the live revision in deploy_completed. Ignored "
                           "by a plain deploy (which ships HEAD); supplying it without --rollback errs.")
+    # T-13874 / SPEC-0094 §6 — the revision a FORWARD deploy is EXPECTED to ship. A release card tests
+    # one commit and then calls the verb; without this the verb ships whatever HEAD is when it starts,
+    # so a land in between ships a commit nobody tested. A flag of its own, deliberately NOT the
+    # positional `rev` above: that one names where a rollback goes TO.
+    dep.add_argument("--expect-revision", dest="expect_revision", metavar="SHA", default=None,
+                     help="forward deploy only: the FULL commit id this deploy is expected to ship. "
+                          "The verb refuses, before the project command runs, unless HEAD of the "
+                          "checkout is exactly this commit; it asks again right before it launches "
+                          "the command, and once more after the command returns — a checkout that "
+                          "moved meanwhile fails the deploy (no deploy_completed). A ref name or an "
+                          "abbreviated id is refused. Refused together with --rollback, whose "
+                          "`<rev>` names the revision to roll back TO (SPEC-0094 §6).")
     # T-9415 / SPEC-0097 — the deploy-autonomy GATE. `--class` classifies the deploy at deploy time
     # (kernel-owned A/S/C1/C2 vocabulary); the gate reads the carrier `deploy.policy` + selects the
     # per-class evidence requirement. REQUIRED only on a project that opted into autonomous deploys
@@ -1455,7 +1467,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "implementation_plan (a string) or probe_moments (a mapping {ACn: {awaits|due_by: <moment>}}, "
                          "keys must name this card's criteria — T-13247) or resolves_cross (a YAML list of X-NNNN "
                          "ids — ADD-only; each added id must exist, be addressed to this project and not be "
-                         "linked to another live card — T-13339); every verb-owned field (status, class, "
+                         "linked to another live card — T-13339) or prototype_identical (a YAML list of {path, reason} "
+                         "entries: the files a card that names its prototype declares byte-identical to it BY "
+                         "CONSTRUCTION, each validated against that prototype and judged at audit pre; `[]` "
+                         "withdraws it — T-13856, SPEC-0205 rule 5); every verb-owned field (status, class, "
                          "effort_tier, id, …) is refused — host_config / host_config_kind too: their "
                          "route is the --old/--new superset above. Emits ONE task_amended(field_edit). Its own "
                          "mode; refused on done/wont-do cards EXCEPT for answers.")
@@ -4266,11 +4281,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="repo-relative ledger path (default: this repo's kernel ledger)")
     sl.set_defaults(func=cmd_spec_ledger_label, cli_invoked_receipt="spec ledger-label")  # T-12846: allocates — receipt, never a read marker
 
-    se = spec_sub.add_parser("edit", help="In-place edit of an EXISTING active/proposed spec — the "
+    se = spec_sub.add_parser("edit", help="In-place edit of an EXISTING spec whose status is active, "
+                                          "proposed, draft, withdrawn or rejected — the "
                                           "before-rule-change chokepoint (T-0273); mirrors the Edit primitive",
                              formatter_class=argparse.RawDescriptionHelpFormatter,
                              epilog=f"cue (T-10159): {_SELF.SPEC_BODY_EDIT_CUE}")
-    se.add_argument("id", help="SPEC-NNNN id of the spec to edit (must be active or proposed)")
+    se.add_argument("id", help="SPEC-NNNN id of the spec to edit. Admitted statuses: active, "
+                               "proposed, draft, withdrawn, rejected. Refused statuses: superseded, "
+                               "retired (frozen history). The verb is not a promotion route: on a "
+                               "draft a `status` change is admitted only to withdrawn or rejected, "
+                               "and a withdrawn or rejected spec keeps its status (SPEC-0005 §4)")
     se.add_argument("--old", help="exact existing text to replace, matched against the RAW file text "
                                   "first (0 or >1 match dies). Text that reads as the parsed body "
                                   "(what `graph query` prints, without the block indent) is found "

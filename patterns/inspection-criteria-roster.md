@@ -416,7 +416,7 @@ data mutations → background jobs).
   (`journal query --dispatch-plan`) appends only its receipt · execution-cue SPEC-0141 + batch-bounded
   autonomy SPEC-0126 — the launch's authorizing cue (the `owner_directive` classifier alone is not a
   carrier: a status question inside an authorized batch reads `question`) · held-turn detached land
-  SPEC-0180 — its admission. A fence whose carrier is ABSENT is a NO-DATA line AND one MEDIUM finding
+  <workshop-spec> — its admission. A fence whose carrier is ABSENT is a NO-DATA line AND one MEDIUM finding
   per missing carrier (fences sharing one missing carrier = one finding).
 - **Age-based terminal actions (G16):** a bulk or automated action that terminates a governed artifact
   (plan cancel, worktree removal) on AGE alone conforms only when a same-session `owner_directive`

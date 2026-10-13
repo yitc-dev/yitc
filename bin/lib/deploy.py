@@ -35,6 +35,7 @@ import fcntl
 import os
 import json
 import re
+import shlex
 import signal
 import subprocess
 import sys
@@ -289,6 +290,61 @@ def _classify_deploy_gate(policy, deploy_class, owner_approved) -> _GateDecision
                          f"cmd_deploy EXECUTES the runnable half before deploying: C1's `pg_dump` "
                          f"(T-10259) and S's `security_probe` (T-10279). C1's `restore_drill` + delayed "
                          f"re-check are NOT executed by this verb — they stay operator-owned.")
+
+
+def _expected_revision_precondition(raw) -> "tuple[str | None, str | None]":
+    """PURE — read the `--expect-revision` value (T-13874, SPEC-0094 §6). Returns `(sha, None)` for a
+    usable value, `(None, None)` when the flag was not given, `(None, why)` for a value that is refused.
+
+    ONLY A FULL COMMIT ID IS A PIN. A ref name (`main`, `HEAD`, a tag) and an abbreviated id are both
+    resolved at the moment the verb runs: the first follows the very movement this flag exists to
+    catch (`--expect-revision HEAD` would always match), the second can turn ambiguous. So neither is
+    handed to git to resolve — the value is compared with the sha the verb resolved, as text. A blank
+    value is a REFUSED value, never «the flag was not given»."""
+    if raw is None:
+        return None, None
+    value = str(raw)
+    if not re.fullmatch(r"[0-9a-fA-F]{40}|[0-9a-fA-F]{64}", value):
+        return None, (f"`--expect-revision` takes the FULL commit id the deploy is expected to ship "
+                      f"(40 or 64 hex characters), got {value!r}. A ref name or an abbreviated id is "
+                      f"refused: it is resolved when the verb runs, so it cannot pin the commit you "
+                      f"tested. Pass the output of `git rev-parse <the tested commit>`")
+    return value.lower(), None
+
+
+def _revision_recheck(expected, *, main_line_required, REPO_ROOT, _run_git_cap, _is_ignorable_dirt,
+                      _git_resolve_sha) -> str:
+    """Is the checkout STILL the expected revision (T-13874, SPEC-0094 §6)? `""` when it is, else why not.
+
+    Asked right before the project command is launched and once more after it returned. It is the
+    build-source assertion made again, plus the comparison of HEAD with the expected sha.
+
+    THE READ ORDER IS LOAD-BEARING: the working tree FIRST, HEAD LAST. A fast-forward of the checkout
+    rewrites the files, then the index, then the ref. So from the moment one has started changing
+    files, EITHER the tree still differs from the HEAD git reports (the first read sees un-landed
+    source) OR the ref has already moved (the last read sees another sha). Read the other way round,
+    a fast-forward that completes between the two reads shows an unmoved HEAD and then a tree that is
+    clean against the NEW one — and passes.
+
+    AN UNREADABLE ANSWER IS A FAILURE, NEVER A PASS — for the tree as for HEAD. The tree is therefore
+    read HERE, with the exit status in hand, and not through the shared dirty-path reader the
+    assertion above the gates uses: that one returns an empty list when `git status` fails, which
+    this check could not tell from a clean tree. The porcelain decode stays in its one home."""
+    from lib import textutil   # local import — the porcelain decode's one home (T-12014)
+    branch = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT).stdout.strip()
+    status = _run_git_cap(["status", "--porcelain"], REPO_ROOT)
+    dirty = textutil.git_porcelain_paths(status.stdout) if status.returncode == 0 else ()
+    problems = []
+    violation = _build_source_violation(branch, dirty, _is_ignorable_dirt=_is_ignorable_dirt,
+                                        require_main_line=main_line_required)
+    if violation:
+        problems.append(violation)
+    if status.returncode != 0:
+        problems.append("the working tree is UNREADABLE (`git status` failed) — that is not a clean tree")
+    head = _git_resolve_sha("HEAD")
+    if head != expected:
+        problems.append(f"HEAD is {head if head else 'UNREADABLE'}, not the expected {expected}")
+    return "; ".join(problems)
 
 
 def _build_source_violation(branch, dirty_paths, *, _is_ignorable_dirt, require_main_line=True) -> str:
@@ -3156,6 +3212,12 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     a usage error and emits NO event (the broken argless run the carrier's `REV=${1:?usage}` would reject).
     A plain deploy ships HEAD and takes no `<rev>` (supplying one is an error — it is rollback-only).
 
+    A forward deploy MAY be told the revision it is EXPECTED to ship (`--expect-revision <full sha>`,
+    T-13874, SPEC-0094 §6). The verb still ships HEAD; given the flag it REFUSES unless HEAD is that
+    commit — when it resolves the revision, again right before it launches the project command, and
+    once more after the command returned, where a checkout that moved fails the deploy with the run's
+    one `deploy_failed` row and no deploy_completed. Without the flag none of this runs.
+
     The project command's own stdout/stderr is INHERITED (not captured): its smoke/health output IS the
     gate's verdict, the owner/AI must see it live. A non-zero exit is propagated as the verb's exit code
     with NO deploy_completed (the broken revision is never recorded live) — and, once the command has
@@ -3178,6 +3240,24 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     if kind == "deploy" and rev:
         _die(f"deploy: a target revision (`{rev}`) is only accepted with --rollback — a plain deploy "
              f"ships HEAD. Did you mean `deploy --rollback {rev}`?")
+
+    # T-13874 / SPEC-0094 §6 — the EXPECTED revision of a FORWARD deploy, validated BEFORE anything is
+    # read or run. `is not None`, never truthiness: a blank value must refuse, not read as «not given».
+    # Refused with --rollback because the two revisions mean different things, and a rollback already
+    # names its own: silently ignoring the flag there would look like a check that ran.
+    if getattr(args, "expect_revision", None) is not None and kind == "rollback":
+        print("deploy: REFUSED — `--expect-revision` is not accepted with --rollback. They name "
+              "different revisions: `--expect-revision <sha>` is the commit a FORWARD deploy must find "
+              "at HEAD before it ships it; `--rollback <rev>` is the revision to roll back TO, and that "
+              "one is what the rollback's deploy_completed records. Drop --expect-revision. Nothing "
+              "was run; no deploy_completed emitted.", file=sys.stderr)
+        sys.exit(3)
+    expected_revision, expected_error = _expected_revision_precondition(
+        getattr(args, "expect_revision", None))
+    if expected_error:
+        print(f"deploy: REFUSED — {expected_error}. Nothing was run; no deploy_completed emitted.",
+              file=sys.stderr)
+        sys.exit(3)
 
     # SPEC-0155 rule 7 — the security-gate override flag PAIR, validated BEFORE anything runs: a
     # malformed pair must refuse up front, not after the producer has already run (and never by silently
@@ -3289,6 +3369,18 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         _die(f"deploy: cannot resolve HEAD revision at {REPO_ROOT} — is it a git repository with a "
              f"commit?")
     project = (_main_worktree(REPO_ROOT) or REPO_ROOT).name
+
+    # T-13874 / SPEC-0094 §6, moment (a) — the caller named the commit it tested; `revision` is the
+    # one this run would ship. Compared HERE, right after the resolve and above every gate, dump and
+    # probe below, so a mismatch refuses with nothing run and no row written.
+    if expected_revision is not None and revision != expected_revision:
+        print(f"deploy: REFUSED — this checkout is not at the expected revision (SPEC-0094 §6).\n"
+              f"  expected (--expect-revision): {expected_revision}\n"
+              f"  HEAD of {REPO_ROOT}: {revision}\n"
+              f"HEAD is not the commit this deploy was told to expect — the usual cause is a `land` "
+              f"after that commit was chosen. Nothing was run; no deploy_completed emitted. Test the "
+              f"commit that is now at HEAD and re-run naming it.", file=sys.stderr)
+        sys.exit(4)
 
     # EXPORT the governed-deploy RUN-MARKER (SPEC-0094 §1, X-0160): a consumer's hand-runnable deploy.sh
     # embeds DEPLOY_GUARD_SNIPPET, which refuses a raw hand-run unless this marker is present — so ONLY a
@@ -3670,6 +3762,23 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # (A5/T-11448), and it owns the per-segment write this guard must not invent.
             journal_snapshot = list(journal_mod.fold_lines(events_mod.live_segment(ev_path)))
 
+    # T-13874 / SPEC-0094 §6, moment (b) — the gates above can run for minutes (a Class-C1 dump, the
+    # security-audit producer), and a `land` in that time moves the tree the command is about to build.
+    # Ask again at the last moment before the launch: refusing HERE leaves production untouched, where
+    # the same finding after the command (moment (c) below) can only withhold the record. Still above
+    # the launch, so it writes no row (SPEC-0094 §1 bound (i)).
+    if expected_revision is not None:
+        moved = _revision_recheck(
+            expected_revision, main_line_required=main_line_required, REPO_ROOT=REPO_ROOT,
+            _run_git_cap=_run_git_cap, _is_ignorable_dirt=_is_ignorable_dirt,
+            _git_resolve_sha=_git_resolve_sha)
+        if moved:
+            print(f"deploy: REFUSED — the checkout stopped being the expected revision while the "
+                  f"pre-deploy gates ran (SPEC-0094 §6): {moved}. The project `deploy:` command was "
+                  f"NOT launched, so nothing was deployed; no deploy_completed emitted. Test the "
+                  f"commit that is now at HEAD and re-run naming it.", file=sys.stderr)
+            sys.exit(4)
+
     print(f"deploy: running `{kind}:` command for {project} @ {revision[:12]} — "
           f"the project command IS the smoke/health gate (non-zero ⇒ NO deploy_completed: the kernel "
           f"records nothing live and performs no rollback; a deploy_failed row records that it started "
@@ -3763,6 +3872,48 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         post_probe_evidence = _run_post_deploy_security_probe(
             down_surface, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
             deploy_env=deploy_env, _append_event=recorder.append)
+
+    # T-13874 / SPEC-0094 §6, moment (c) — the command exited 0, but was the tree it built still the
+    # expected commit when it ended? Asked AFTER the post-deploy security probe above (security
+    # evidence is never made contingent on another check) and BEFORE convergence: a checkout that
+    # moved has already refuted «this revision is live», so there is no claim left to verify against
+    # the services. The command STARTED, so this is one of the run's terminal endings: exactly one
+    # `deploy_failed` row, through the recorder's guard, naming this step and the command's own exit
+    # code. Exit 5, as the other applied-but-not-recorded ending (convergence) — never the pre-deploy
+    # 3/4, which promise that nothing ran. The recovery command it prints names BOTH the engine's CLI
+    # and the checkout by their ABSOLUTE paths, shell-quoted: a consumer has no `bin/yitc-v2` of its
+    # own, `-C` refuses a relative value (X-1176), and an instruction printed at the moment production
+    # may be serving an unrecorded tree must run as pasted, from whatever directory the reader is in.
+    if expected_revision is not None:
+        recorder.step = "revision_recheck"
+        moved = _revision_recheck(
+            expected_revision, main_line_required=main_line_required, REPO_ROOT=REPO_ROOT,
+            _run_git_cap=_run_git_cap, _is_ignorable_dirt=_is_ignorable_dirt,
+            _git_resolve_sha=_git_resolve_sha)
+        if moved:
+            try:
+                recorder.append("deploy_failed", None, recorder._failed(exit_code=result.returncode))
+                journal_line = (f"  JOURNAL: a deploy_failed row records that this {kind} STARTED and "
+                                f"ended at the expected-revision check (step {recorder.step}, command "
+                                f"exit {result.returncode}) — it is NOT a deploy_completed.\n")
+            except Exception as exc:  # noqa: BLE001 — the record must never change the verdict
+                journal_line = (f"  JOURNAL: the deploy_failed row could NOT be written ({exc!r}) — "
+                                f"this started-then-refused {kind} is UNRECORDED in the journal.\n")
+            engine_cli = Path(__file__).resolve().parent.parent / "yitc-v2"   # this engine's own CLI
+            print(f"deploy: `{kind}:` command exited 0, but the checkout is no longer the expected "
+                  f"revision (SPEC-0094 §6): {moved}.\n"
+                  f"{journal_line}"
+                  f"  RECORD (fact): no deploy_completed was emitted, so the kernel's live-revision "
+                  f"record is UNCHANGED — it still names the previous revision.\n"
+                  f"  RUNTIME (UNKNOWN — not checked): the command ran to the end, and when it "
+                  f"ended the checkout was not a clean {expected_revision[:12]} — so it may have "
+                  f"built and served another tree (the usual cause is a `land` while it ran). The "
+                  f"kernel did not observe what is serving and ran NO rollback.\n"
+                  f"  NEXT: check what is actually live, then either roll back — "
+                  f"`{shlex.quote(str(engine_cli))} -C {shlex.quote(str(REPO_ROOT))} deploy "
+                  f"--rollback <rev>` — or test the commit now at HEAD and re-run the deploy naming "
+                  f"it. Either way it must not be left live-but-unrecorded.", file=sys.stderr)
+            sys.exit(5)
 
     # Exit-0: the project's own smoke/health gate passed. That is NOT yet «the revision is live» — it is
     # only «the command reported success» (SPEC-0097 §11 / X-0374: <project>'s command exited 0 having

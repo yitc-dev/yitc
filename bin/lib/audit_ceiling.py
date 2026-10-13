@@ -930,6 +930,22 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
 
         # (viii) A `fix` NAMES THE REVISION THAT CARRIES THE CHANGE.
         if disposition == "fix":
+            def _audited_subject_now(what: str, current_fp, edit_first: str) -> str:
+                """T-13865 (public issue #81 item 2) — what the `evidence-is-audited-subject` refusal
+                says about the subject NOW. The audited value is the one every other surface shows
+                (the verdict record, the plan view), so a reader who edited the subject and typed
+                that value lands on this refusal. Whether the subject moved since the ceiling pass is
+                COMPARED here, never assumed, and the current value is named in both cases — the
+                neighbouring `evidence-not-plan-fingerprint` refusal already names it, but this
+                check runs first. `current_fp` is a real signature here: each arm refuses or words
+                an absent one itself. Pure f(args); reads nothing."""
+                if current_fp == subject_revision:
+                    return (f"The subject has not moved: the CURRENT {what} is {current_fp}, the "
+                            f"same value. {edit_first} first, then record the `fix` against the "
+                            f"NEW fingerprint.")
+                return (f"The subject is NO LONGER the audited one: the CURRENT {what} is "
+                        f"{current_fp}. A `fix` names the subject as it stands now, so `--evidence` "
+                        f"must be that CURRENT value, not the audited one.")
             if not evidence:
                 _refuse("evidence-missing", "evidence_revision_absent",
                         f"{target_id} — `--evidence <revision>` is REQUIRED for a `fix`: the revision "
@@ -1001,8 +1017,10 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     # forbids every correction — the card wedges (<project> T-0681).
                     _refuse("evidence-is-audited-subject", "evidence_is_the_audited_subject",
                             f"{plan_slug_arg} gate {gate}: `--evidence {evidence}` is the ceiling pass's OWN audited "
-                            f"`{_sig_field}` — the subject has not moved. Edit the plan body / filed card set first, then record "
-                            f"the `fix` against the NEW fingerprint. «Already in the audited subject» "
+                            f"`{_sig_field}`. "
+                            + _audited_subject_now(f"`{_sig_field}`", current_fp,
+                                                   "Edit the plan body / filed card set")
+                            + " «Already in the audited subject» "
                             f"is an `accept` with that reason, never a `fix` (SPEC-0204 rule 2).",
                             {"evidence_revision": evidence, "subject_revision": subject_revision})
                 if evidence != current_fp:
@@ -1026,8 +1044,14 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     # forbids every correction — the card wedges (<project> T-0681).
                     _refuse("evidence-is-audited-subject", "evidence_is_the_audited_subject",
                             f"{tid} audit-pre: `--evidence {evidence}` is the ceiling pass's OWN audited "
-                            f"plan fingerprint — the subject has not moved. Edit the `implementation_plan` first, then record "
-                            f"the `fix` against the NEW fingerprint. «Already in the audited subject» "
+                            f"plan fingerprint. "
+                            + (_audited_subject_now("plan fingerprint", current_fp,
+                                                    "Edit the `implementation_plan`")
+                               if current_fp else
+                               "The card carries NO `implementation_plan` now, so there is no "
+                               "current plan fingerprint to record a `fix` against. Write the "
+                               "plan first, then record the `fix` against its fingerprint.")
+                            + " «Already in the audited subject» "
                             f"is an `accept` with that reason, never a `fix` (SPEC-0204 rule 2).",
                             {"evidence_revision": evidence, "subject_revision": subject_revision})
                 if not current_fp or evidence != current_fp:

@@ -1253,7 +1253,8 @@ def _card_fields(cards) -> dict:
 
 
 def exempted_rework(rows, *, cards, repo_root=None, _run=None, _run_hunks=None,
-                    max_pairs: int = _EXEMPTED_REWORK_MAX_PAIRS) -> "dict | None":
+                    max_pairs: int = _EXEMPTED_REWORK_MAX_PAIRS,
+                    declared_cases=None) -> "dict | None":
     """SURFACE 2's detector (SPEC-0189 rules 1+2+6) — the OBSERVATION, or None when nothing fired.
 
     `rows` are this project's own journal events; `cards` is `{task_id: <parsed card>}`. Returns None
@@ -1296,10 +1297,22 @@ def exempted_rework(rows, *, cards, repo_root=None, _run=None, _run_hunks=None,
     file-granular one, unchanged. That is deliberate: it keeps every existing caller's answer exactly
     where it was, and it confines this card to narrowing where its evidence actually exists. It is
     NOT the failure path — a hunk source that IS present and cannot resolve a given path yields
-    silence for that path, inside `_reworked_overlap`, on the module's usual direction."""
+    silence for that path, inside `_reworked_overlap`, on the module's usual direction.
+
+    A CLOSURE WHOSE CASE IS NO LONGER DECLARED IS NOT WATCHED (T-13894, X-1948). `declared_cases` is
+    the set of case names the project's contract declares NOW. The proposal's tightening is "remove
+    or narrow the `<case>` case"; once that case is gone from the contract the act has been performed
+    and no contract change can discharge the line, so a closure recorded under it leaves the fold
+    BEFORE the pair walk — a pair under a still-declared case is reported exactly as before, and is
+    not hidden behind an earlier pair under a removed one. `None` — the default, and what a caller
+    that cannot read the contract passes — applies no narrowing: the answer is the one this fold
+    gave before the parameter existed."""
     exempted = exempted_closures(rows)
+    if declared_cases is not None:
+        declared = {name.strip() for name in declared_cases if isinstance(name, str)}
+        exempted = {tid: closure for tid, closure in exempted.items() if closure["case"] in declared}
     if not exempted:
-        return None                    # nothing was ever exempted — nothing to observe
+        return None                    # nothing (still) exempted — nothing to observe
     fields = _card_fields(cards)
     shas = _task_commit_shas(rows)
     diff_memo: dict = {}
@@ -1426,8 +1439,25 @@ def _surface2_exempted_rework_detector(root=None) -> "dict | None":
     of this fold from ever describing different projects."""
     journal_path = own_journal_path(root)
     root = journal_path.parent
+    # T-13894 (X-1948): the case names this repo's contract declares NOW, read out of the same root as
+    # the journal and the cards. A repo with no carrier, or a carrier declaring no case, declares
+    # none, so nothing recorded under a case is still watched. A carrier that cannot be READ is a
+    # different state: which cases it declares is unknown, so `None` is passed and the fold narrows
+    # nothing — a removal that cannot be shown does not silence a proposal.
+    declared: "set | None" = set()
+    try:
+        ops_path = root / "yitc-ops.yaml"
+        ops = state.load_ops(ops_path) if ops_path.exists() else None
+        scrutiny = ops.get("audit_scrutiny") if isinstance(ops, dict) else None
+        entries = scrutiny.get("cases") if isinstance(scrutiny, dict) else None
+        for entry in (entries if isinstance(entries, list) else ()):
+            name = entry.get("case") if isinstance(entry, dict) else None
+            if isinstance(name, str):
+                declared.add(name)
+    except Exception:                 # noqa: BLE001 — an unreadable carrier narrows nothing (above)
+        declared = None
     return exempted_rework(_own_journal_rows(journal_path, types=("task_closed", "commit_landed")),
-                           cards=_own_cards(root), repo_root=root)
+                           cards=_own_cards(root), repo_root=root, declared_cases=declared)
 
 
 # THE ONE REGISTRATION LINE. Exactly what T-11968's registry documents a later card doing: one entry,
@@ -1596,7 +1626,14 @@ _SURFACE4_DETECTOR = "declared-test-regime-false-skip"
 # `malformed` are excluded deliberately: neither ran the layer's command, so neither is evidence that
 # the layer had something real to catch. `skipped-disjoint-subject` is excluded for the same reason
 # and is the very thing under test.
-_SURFACE4_FAILED_OUTCOMES = frozenset({"failed", "timed-out", "prep-failed"})
+#
+# `timed-out` IS EXCLUDED TOO (T-13895 / <project> X-1947). A layer that ran out of wall-clock did not
+# report a failing check: it says the host or the limit was short, and nothing about the content
+# (the `layer-timeout` reading of the land-abort fold further down this module, T-12406, which keeps
+# reporting those rows on its own line). Measured on <project>: four of the six "proven false skips"
+# this detector printed were 2026-09-04 rows whose only non-passing layer was `frontend-unit` at
+# `timed-out` on backend-only diffs.
+_SURFACE4_FAILED_OUTCOMES = frozenset({"failed", "prep-failed"})
 
 
 class Surface4DetectorRefused(RuntimeError):
@@ -1900,22 +1937,29 @@ def surface4_repo_corpus(repo) -> dict:
         base = _merge_base(sha, base_sha)
         if not base or not failure_ts:
             return None
-        out = git("log", "--format=%H%x1f%cI%x1f%s", f"{base}..{sha}")
+        out = git("log", "--format=%H%x1f%cI%x1f%P%x1f%s", f"{base}..{sha}")
         if out is None:
             return None
         fixes = []
         for line in out.splitlines():
-            parts = line.split("\x1f")
-            if len(parts) != 3:
+            parts = line.split("\x1f", 3)
+            if len(parts) != 4:
                 continue
-            csha, cdate, subject = parts
+            csha, cdate, parents, subject = parts
             if cdate <= failure_ts:
                 continue
-            files = git("show", "--name-only", "--pretty=format:", csha) or ""
+            # T-13895 (<project> X-1947) — a repair is a commit the branch AUTHORED. A commit with
+            # more than one parent brings in other history (the update from main every land makes);
+            # the paths it lists are a conflict resolution, so it is not counted, whatever it lists.
+            if len(parents.split()) > 1:
+                continue
+            files = git("show", "--name-only", "--pretty=format:", csha)
+            if files is None:
+                return None               # a path list that cannot be READ is not an empty one
             touched = [f for f in (x.strip() for x in files.splitlines()) if f]
-            if touched and all(any(f == b or f.startswith(b) for b in _SURFACE4_BOOKKEEPING)
-                               for f in touched):
-                continue                  # bookkeeping only — not a repair
+            if not touched or all(any(f == b or f.startswith(b) for b in _SURFACE4_BOOKKEEPING)
+                                  for f in touched):
+                continue                  # nothing authored, or bookkeeping only — not a repair
             fixes.append(f"{csha[:7]} {subject[:60]}")
         return fixes
 

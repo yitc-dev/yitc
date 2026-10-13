@@ -403,6 +403,11 @@ existing card). It pays all nine stages like any other card. What the field buys
   NOT carry.
 - **At audit-post** a `prototype_identity` line shows how much of the ship is verbatim prototype —
   context for judging a derivation, never a verdict of its own.
+- **A file that must come out byte-identical to the prototype's** — a route list, a lockfile entry:
+  identical by construction, not by copy — is DECLARED on the card before audit-pre, per path and
+  with a reason: `task update <id> --set-field prototype_identical --from-file <yaml>`. The auditor
+  judges each entry there, and `land` then admits exactly those paths and nothing else. The rule and
+  its conditions: SPEC-0205 rule 5 (`graph query SPEC-0205`).
 - **Required once overlap exists:** if the pre-land preview reports overlap with a spike and the card
   has no `prototype_ref`, `audit post` REFUSES, naming the spike and the fix. A card with zero overlap
   is never asked to declare.

@@ -142,22 +142,34 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ selected suite,\n  not a whole-suite enumeration) ONCE, as the final run, after\
   \ the change and every spec re-sign are\n  done; a second such run is then paid\
   \ only when the first one comes back red. Land verification is\n  unchanged by this.\n\
-  - **Walk each criterion at its edges before the final run.** For each acceptance\
-  \ criterion, list\n  its edges (empty, absent, one, many, the boundary value, malformed\
-  \ input) and check each one\n  against the built change, by hand or with a targeted\
-  \ test, BEFORE that final self-check run. An\n  edge found broken after it costs\
-  \ a second run. This is the Plan pre-flight item 4 edge case,\n  checked against\
-  \ the change as built rather than as planned.\n\n### Resume contract\n**Scope clarification\
-  \ (per F3 absorption):** the Resume contract addresses **logical continuity** of\
-  \ a\ntask's progression across pause points — NOT process continuity of multiple\
-  \ pipeline stages or role\nhandoffs. CHARTER §Principle 6 (Build + Review only —\
-  \ no pipeline, no role-split) remains intact.\n\nResume metadata restores a **previously-authorized\
-  \ Build context** within the same AI session or a\nresumed Build session by the\
-  \ same AI agent. It does not create a new pipeline stage. It does not\nauthorize\
-  \ a role handoff. It restores prior state-of-work for continuing already-decomposed\
-  \ task\nlifecycle execution.\n\n**Allowed pause/resume boundaries:**\n- Same Build\
-  \ session pause (compact or break) → resume in same session.\n- Cross-session resume\
-  \ (owner returns next day) → new Build session reads task YAML state, re-runs\n\
+  \  A dispatched worker starts every test run it launches by hand — one test, one\
+  \ file, or the\n  project's own test command — at the scheduler priority a dispatched\
+  \ worker's Stage-6 run takes\n  when it runs on this host, so that a land's verification\
+  \ gets the processor first. That is the\n  local value, also where the Stage-6 run\
+  \ itself is routed to another host; it is read from this\n  host's machine setting,\
+  \ never written as a number:\n  `bin/yitc-v2 config get YITC_VERIFY_WORKER_NICE`\
+  \ (in a consumer session\n  `<engine>/bin/yitc-v2 -C <repo> config get YITC_VERIFY_WORKER_NICE`);\
+  \ pass it to the host's\n  lower-priority launcher for that one run. Set it per\
+  \ run, never for the session: a session\n  started at a lowered priority passes\
+  \ it to everything it starts, its own land verification\n  included, and an unprivileged\
+  \ process cannot raise its priority back. On a host with no such\n  launcher, run\
+  \ the test as it is. Leave the priority of `task test --run` and of `land` to the\n\
+  \  engine.\n- **Walk each criterion at its edges before the final run.** For each\
+  \ acceptance criterion, list\n  its edges (empty, absent, one, many, the boundary\
+  \ value, malformed input) and check each one\n  against the built change, by hand\
+  \ or with a targeted test, BEFORE that final self-check run. An\n  edge found broken\
+  \ after it costs a second run. This is the Plan pre-flight item 4 edge case,\n \
+  \ checked against the change as built rather than as planned.\n\n### Resume contract\n\
+  **Scope clarification (per F3 absorption):** the Resume contract addresses **logical\
+  \ continuity** of a\ntask's progression across pause points — NOT process continuity\
+  \ of multiple pipeline stages or role\nhandoffs. CHARTER §Principle 6 (Build + Review\
+  \ only — no pipeline, no role-split) remains intact.\n\nResume metadata restores\
+  \ a **previously-authorized Build context** within the same AI session or a\nresumed\
+  \ Build session by the same AI agent. It does not create a new pipeline stage. It\
+  \ does not\nauthorize a role handoff. It restores prior state-of-work for continuing\
+  \ already-decomposed task\nlifecycle execution.\n\n**Allowed pause/resume boundaries:**\n\
+  - Same Build session pause (compact or break) → resume in same session.\n- Cross-session\
+  \ resume (owner returns next day) → new Build session reads task YAML state, re-runs\n\
   \  Stage 1 verification, continues.\n- Owner-wait blocking → task stays in-progress\
   \ or moves to paused; resume after owner-input.\n\n**NOT allowed:**\n- Resume by\
   \ a different AI agent or different owner persona — task ownership stays singular.\n\
@@ -294,55 +306,71 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ committed with names the sentence each stood in.\n\n · · · Slip 4 · · · ·\n· ·\
   \ · · Slip 4 ·, on N=2 deviations /\n · · · · / E-0043 · · (X-1008) · ·\nThe incident\
   \ that the «transition-guard enforcement deferred to first incident» note awaited\
-  \ DID\noccur ( stage-skips), and · ·\n\n## Implementation notes\n\nNotes for the\
-  \ maintainer of the code, moved word for word out of the rule text of the section\n\
-  each names.\n\n- From «Stage FSM per class»: Code: `bin/lib/gates.py#stage_pointer_move`\
-  \ +\n  `#advance_stage_pointer`; verifier `tests/test_stage_pointer_advance.py`.\n\
-  \n### Moved from the rule body\n\n- From «Stage 3 — Plan (detail) — REPEATED-WORK\
-  \ STATEMENT»: The cue is where the cost is cheapest\n  to remove; the enforcement,\
-  \ such as it is, is the audit-pre lens question (SPEC-0036 §Universal\n  V2 evaluation\
-  \ lens).\n- From «Plan-entry pre-flight checklist (GREEN-first)»: Pre-flight self-check,\
-  \ NOT a new gate —\n  audit-pre (SPEC-0036) stays the enforcer.\n- From «Stage 5\
-  \ — Execution (detail) — Reopen boundary»: This adds no new guard and no new\n \
-  \ fingerprint of its own — it just reuses that rule.\n- From «Stage FSM per class\
-  \ — what does NOT change»: No new field, status, event type, verb or\n  state machine\
-  \ is added — the successor relation is a READ of the row this section already\n\
-  \  publishes, and the write goes through the same `_write_task_transition` the `stage`\
-  \ verb uses\n  (CHARTER non-goal #7 holds; this is not a workflow-engine FSM).\n\
-  \n## Verification\n\nProbe CONTRACTS (RED-GREEN — observed failing before the strip\
-  \ is trusted Slip 4; concrete\nresults live in tests/test_t0243_demote.py + the\
-  \ closure record):\n- **VP1 (fidelity, moved):** every moved section's sentinel\
-  \ phrase (\"Spec mutation during Execution\",\n  \"Auto-pause triggers\", \"Eligible\
-  \ categories\", \"regen_generated_code\", \"current_stage semantic\n  names\", \"\
-  mono-variable\") resolves in THIS spec body. Evidence: ## Internal above.\n- **VP2\
-  \ (fidelity, not-in-handbook):** each of those sentinels is ABSENT from LIFECYCLE.md\
-  \ after the\n  strip (the handbook keeps only the skeleton + pointer-stub). Evidence:\
-  \ the test's absence assertions.\n- **VP3 (stage-delivery + pointer, ratification):**\
-  \ the Plan + Tests mechanics reach moment-of-use by\n  STAGE-DELIVERY — `stage Plan`\
-  \ / `stage Tests` deliver SPEC-0027 from the `stage_to_specs` view,\n  i.e. `binding_report.stage_to_specs`\
-  \ lists SPEC-0027 under BOTH Plan and Tests and the `stage_entered`\n  event carries\
-  \ it; the remaining non-stage detail (Execution / resume / hygiene / FSM) reaches\
-  \ via the\n  LIFECYCLE pointer-stub naming SPEC-0027 + `bin/yitc-v2 graph query\
-  \ SPEC-0027`. Evidence: `binding:\n  [stage-entry:Plan, stage-entry:Tests]` + `graph\
-  \ build` binding report + the pointer-stubs.\n- **VP4 (no floor-trigger added):**\
-  \ `graph/floor-trigger-map.md` has NO before-plan / before-execute\n  entry — the\
-  \ lifecycle control-points are stage-delivered; the map carries stage-agnostic\n\
-  \  triggers only, and this spec adds none. Evidence: the binding carries\n  `stage-entry:`\
-  \ routing tokens (a stage-delivery class), NOT a `floor` token, so it adds no floor-trigger;\n\
-  \  the floor-map carries no entry naming this spec.\n- **VP5 (non-dangling, honest):**\
-  \ active SPEC-0027 has non-empty `implements:` (the three lifecycle\n  verbs, the\
-  \ stage-pointer pair, and the `cmd_audit` anchor — so the SIGNED set covers\n  the\
-  \ WHOLE surface the §Stage FSM per class text claims, audit half included, rather\
-  \ than the task\n  half only) ⇒ excluded from `binding_report.dangling_specs` (SPEC-0013\
-  \ code-enforced exclusion), without\n  falsely claiming a floor-trigger. Evidence:\
-  \ `graph build` binding report.\n- **VP6 (work-first activation):** the activation\
-  \ owner is, and this spec's `active` status is\n  carried by that task's closure\
-  \ ( deterministic side-effect). The probe reads the owner field\n  and that task's\
-  \ done state; no further activation is owed.\n\nDrift note : a `verb=` observability\
-  \ label on the existing\n`_require_stage_correspondence` entry-check call — NOT\
-  \ a change to this spec's governed\nmechanics. Co-anchor `possibly-stale` flag:\
-  \ false positive, refreshed last-touch.\n\nDrift note : `cmd_task_plan --finalize`\
-  \ gained an AC-COVERAGE PRECONDITION — it now\nREFUSES an `implementation_plan`\
+  \ DID\noccur ( stage-skips), and · ·\n\n### Priority of a hand-started test run\n\
+  \nThe last sentences of the «Iterate on one test by name» rule in «Stage 6 — Tests\
+  \ (detail)» were\nadded in place by on the owner's route decision of 2026-10-12,\
+  \ answering public issue #84.\nThe engine already lowered the children of a dispatched\
+  \ worker's Stage-6 run and never a land's;\nthe runs a worker starts by hand were\
+  \ the one load source that split did not reach. The rule names\nthe local setting\
+  \ because a hand run starts on the worker's own host, whatever host its Stage-6\n\
+  run is routed to (audit-pre finding, pass 1). Reported from\none installation (32\
+  \ cores, 4-5 dispatched workers side by side): host load 80-150, and on\n2026-10-11\
+  \ and 2026-10-12 lands aborted on unrelated timing-bound tests, each abort costing\
+  \ a\nre-verify of 10-15 minutes. A governed single-test run was kept as an idea:\
+  \ a rule first, a verb\nonly when the rule is shown to be lost without one.\n\n\
+  ## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
+  \ word out of the rule text of the section\neach names.\n\n- From «Stage FSM per\
+  \ class»: Code: `bin/lib/gates.py#stage_pointer_move` +\n  `#advance_stage_pointer`;\
+  \ verifier `tests/test_stage_pointer_advance.py`.\n\n### Moved from the rule body\n\
+  \n- From «Stage 3 — Plan (detail) — REPEATED-WORK STATEMENT»: The cue is where the\
+  \ cost is cheapest\n  to remove; the enforcement, such as it is, is the audit-pre\
+  \ lens question (SPEC-0036 §Universal\n  V2 evaluation lens).\n- From «Plan-entry\
+  \ pre-flight checklist (GREEN-first)»: Pre-flight self-check, NOT a new gate —\n\
+  \  audit-pre (SPEC-0036) stays the enforcer.\n- From «Stage 5 — Execution (detail)\
+  \ — Reopen boundary»: This adds no new guard and no new\n  fingerprint of its own\
+  \ — it just reuses that rule.\n- From «Stage FSM per class — what does NOT change»:\
+  \ No new field, status, event type, verb or\n  state machine is added — the successor\
+  \ relation is a READ of the row this section already\n  publishes, and the write\
+  \ goes through the same `_write_task_transition` the `stage` verb uses\n  (CHARTER\
+  \ non-goal #7 holds; this is not a workflow-engine FSM).\n\n## Verification\n\n\
+  Probe CONTRACTS (RED-GREEN — observed failing before the strip is trusted Slip 4;\
+  \ concrete\nresults live in tests/test_t0243_demote.py + the closure record):\n\
+  - **VP1 (fidelity, moved):** every moved section's sentinel phrase (\"Spec mutation\
+  \ during Execution\",\n  \"Auto-pause triggers\", \"Eligible categories\", \"regen_generated_code\"\
+  , \"current_stage semantic\n  names\", \"mono-variable\") resolves in THIS spec\
+  \ body. Evidence: ## Internal above.\n- **VP2 (fidelity, not-in-handbook):** each\
+  \ of those sentinels is ABSENT from LIFECYCLE.md after the\n  strip (the handbook\
+  \ keeps only the skeleton + pointer-stub). Evidence: the test's absence assertions.\n\
+  - **VP3 (stage-delivery + pointer, ratification):** the Plan + Tests mechanics reach\
+  \ moment-of-use by\n  STAGE-DELIVERY — `stage Plan` / `stage Tests` deliver SPEC-0027\
+  \ from the `stage_to_specs` view,\n  i.e. `binding_report.stage_to_specs` lists\
+  \ SPEC-0027 under BOTH Plan and Tests and the `stage_entered`\n  event carries it;\
+  \ the remaining non-stage detail (Execution / resume / hygiene / FSM) reaches via\
+  \ the\n  LIFECYCLE pointer-stub naming SPEC-0027 + `bin/yitc-v2 graph query SPEC-0027`.\
+  \ Evidence: `binding:\n  [stage-entry:Plan, stage-entry:Tests]` + `graph build`\
+  \ binding report + the pointer-stubs.\n- **VP4 (no floor-trigger added):** `graph/floor-trigger-map.md`\
+  \ has NO before-plan / before-execute\n  entry — the lifecycle control-points are\
+  \ stage-delivered; the map carries stage-agnostic\n  triggers only, and this spec\
+  \ adds none. Evidence: the binding carries\n  `stage-entry:` routing tokens (a stage-delivery\
+  \ class), NOT a `floor` token, so it adds no floor-trigger;\n  the floor-map carries\
+  \ no entry naming this spec.\n- **VP5 (non-dangling, honest):** active SPEC-0027\
+  \ has non-empty `implements:` (the three lifecycle\n  verbs, the stage-pointer pair,\
+  \ and the `cmd_audit` anchor — so the SIGNED set covers\n  the WHOLE surface the\
+  \ §Stage FSM per class text claims, audit half included, rather than the task\n\
+  \  half only) ⇒ excluded from `binding_report.dangling_specs` (SPEC-0013 code-enforced\
+  \ exclusion), without\n  falsely claiming a floor-trigger. Evidence: `graph build`\
+  \ binding report.\n- **VP6 (work-first activation):** the activation owner is, and\
+  \ this spec's `active` status is\n  carried by that task's closure ( deterministic\
+  \ side-effect). The probe reads the owner field\n  and that task's done state; no\
+  \ further activation is owed.\n- **VP7 (priority of a hand-started test run):**\
+  \ the «Iterate on one test by name» rule\n  states the priority as the local value,\
+  \ where it is read (both command forms), the per-run bound\n  with its reason and\
+  \ the no-launcher case, and the text reaches a worker at `stage Plan` and `stage\
+  \ Tests`\n  in the engine's own session and under `-C`. Probe: tests/test_t13875_hand_run_priority_rule.py.\n\
+  \nDrift note : a `verb=` observability label on the existing\n`_require_stage_correspondence`\
+  \ entry-check call — NOT a change to this spec's governed\nmechanics. Co-anchor\
+  \ `possibly-stale` flag: false positive, refreshed last-touch.\n\nDrift note : `cmd_task_plan\
+  \ --finalize` gained an AC-COVERAGE PRECONDITION — it now\nREFUSES an `implementation_plan`\
   \ that never NAMES one of the card's acceptance criteria (a\nwhole-word `ACn`, or\
   \ a range/list like `AC1-AC3`; a bare number does not count), and journals the\n\
   refusal as `plan_ac_coverage_refused`. This IS a change to the plan-finalize mechanics\
@@ -373,7 +401,7 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 949c402df72c1f19de1060a9fa30121ae68ddacf97a395fdadae8bd19d7bf54b
+  bin/lib/audit.py#cmd_audit: 744eb5e5ce9513e2b39dd5bfca02acf201b8e2c10169382a62c69eb1e9472805
   bin/lib/gates.py#advance_stage_pointer: 80d13c9bac15006a9028df1d6b8493d52f7dad17186fd3453ab3db831c6b3e9a
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da

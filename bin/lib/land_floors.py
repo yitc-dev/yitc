@@ -224,7 +224,7 @@ def _floor_tracked_inventory(worktree: Path, _run_git_cap) -> tuple:
     return [rel for rel in (p.strip() for p in r.stdout.split("\0")) if rel], []
 
 
-def _floor_changed_paths(worktree: Path, base_ref, _run_git_cap) -> "list | None":
+def _floor_changed_paths(worktree: Path, base_ref, _run_git_cap, *, working_tree: bool = False) -> "list | None":
     """The tracked paths this ship ADDED or MODIFIED against `base_ref`. `None` when the diff cannot
     be resolved — the caller then falls back to the whole tracked tree, never to an empty scan.
 
@@ -236,7 +236,25 @@ def _floor_changed_paths(worktree: Path, base_ref, _run_git_cap) -> "list | None
     through a scan that reported clean — the same attacker-selectable bypass the whole-tree scan's own
     NUL exclusion had one layer down (r2 finding 2), reintroduced through the diff renderer instead of
     through a content test. Asking git for the changed PATHS and then scanning their CONTENT at the
-    candidate makes the answer independent of how the diff renders."""
+    candidate makes the answer independent of how the diff renders.
+
+    `working_tree=True` (T-13896, the Stage-6 preview's read — `land` never passes it) asks about the
+    tree a commit made now COULD carry rather than about `HEAD`: every tracked path the index or the
+    working tree adds or modifies against `base_ref`, plus every untracked path git does not ignore.
+    Each name is returned exactly as git lists it — a name is never trimmed, because a trimmed name
+    is a different file and the content reader would skip it as absent. `None` when either listing
+    fails: the caller then says the read did not happen, never that it was clean."""
+    if working_tree:
+        if not base_ref or _run_git_cap is None:
+            return None
+        found: dict = {}                           # ordered, and one entry per path
+        for argv in (["diff", "--name-only", "--diff-filter=ACMR", "-z", str(base_ref), "--"],
+                     ["ls-files", "--others", "--exclude-standard", "-z"]):
+            r = _run_git_cap(argv, worktree)
+            if r.returncode != 0:
+                return None
+            found.update((rel, None) for rel in r.stdout.split("\0") if rel)
+        return list(found)
     if not base_ref or _run_git_cap is None:
         return None
     args = ["diff", "--name-only", "--diff-filter=ACMR", "-z"]
@@ -248,7 +266,7 @@ def _floor_changed_paths(worktree: Path, base_ref, _run_git_cap) -> "list | None
     return [rel for rel in (p.strip() for p in r.stdout.split("\0")) if rel]
 
 
-def _floor_added_line_numbers(worktree: Path, base_ref, _run_git_cap, *, _FLOOR_HUNK_HEADER=_FLOOR_HUNK_HEADER) -> "dict | None":
+def _floor_added_line_numbers(worktree: Path, base_ref, _run_git_cap, *, working_tree: bool = False, _FLOOR_HUNK_HEADER=_FLOOR_HUNK_HEADER) -> "dict | None":
     """`{rel: frozenset(line numbers this branch ADDED)}` for the diff-scoped secrets leg, or `None`
     when the diff cannot be rendered at all.
 
@@ -275,11 +293,18 @@ def _floor_added_line_numbers(worktree: Path, base_ref, _run_git_cap, *, _FLOOR_
     THE REFSPEC MIRRORS `_floor_changed_paths` — `<base>...HEAD` first, then the working-tree form
     `<base>` — so the two reads describe the same comparison. If they ever disagreed, the ONLY
     reachable consequence is a path present in `changed` and absent here, which is the widening
-    fallback again."""
+    fallback again.
+
+    `working_tree=True` (T-13896) mirrors `_floor_changed_paths(working_tree=True)`: the ONE
+    comparison read is the working-tree form `<base>`, so every line number it returns is a line of
+    the file AS IT IS ON DISK — the content the selector is applied to. (The committed form's
+    numbers are `HEAD`'s; applied to a file with uncommitted edits above the line they select a
+    different line.) An untracked path has no entry in that patch, so it is absent from the map and
+    scanned WHOLE — every line of it is new."""
     if not base_ref or _run_git_cap is None:
         return None
     out = None
-    for spec in (f"{base_ref}...HEAD", str(base_ref)):
+    for spec in ((str(base_ref),) if working_tree else (f"{base_ref}...HEAD", str(base_ref))):
         try:
             r = _run_git_cap(["diff", "--unified=0", "--diff-filter=ACMR", spec], worktree)
         except Exception:                          # noqa: BLE001 — an undecodable patch, a git fault

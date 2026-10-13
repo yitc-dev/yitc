@@ -326,13 +326,29 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ and the floor case (a share floors\nat one worker, so a small allotment with many\
   \ layers can make those floors sum above it) is the\nPROJECT's arithmetic, not the\
   \ kernel's. Shape, not value (rule 3): the kernel never judges whether a\ngiven\
-  \ fraction is the RIGHT one for a given layer.\n\nABSENT = every layer reads the\
-  \ whole allotment — unchanged, the default every existing carrier has.\nPRESENT-BUT-INVALID\
-  \ — not a mapping, a key that is not a non-empty string, a key matching no declared\n\
-  layer, or a value that is not a fraction in `(0, 1]` — FAILS CLOSED before any layer\
-  \ runs\n(`mode: malformed`, the `timeout_seconds:` / `independent_layers:` stance):\
-  \ a typo'd split must never\nsilently fall back to the unsplit default it was written\
-  \ to replace. The land runner's accepted set\n(`bin/lib/land_verify_legs.py#_declared_layer_worker_shares`)\
+  \ fraction is the RIGHT one for a given layer.\n\nTHE LOAD A DECLARATION ASKS FOR\
+  \ IS REPORTED, REPORT-ONLY. The sum stays unchecked, and a project\nis free to declare\
+  \ shares that sum above one; for such a declaration a change of the allotment —\
+  \ a\nmachine setting, another host, a changed default — multiplies the workers its\
+  \ layers ask for. Two\nseams say so. A land whose verify ran share-declaring layers\
+  \ prints ONE line naming three numbers\n— the sum of those layers' shares, the allotment\
+  \ that verify published, and the host's processor\ncount — whenever the sum times\
+  \ the allotment EXCEEDS that count, and records the same reading on\nthat land's\
+  \ row; at or under the count it prints and records nothing. And setting the machine's\n\
+  per-verify worker ceiling prints, when the value changes, what the new allotment\
+  \ means for a\nproject that declares shares — with that project's own numbers when\
+  \ the call runs in a project\nthat declares them, otherwise as the plain statement.\
+  \ The reading is an UPPER BOUND for layers\nthat run at the same time, not a measurement\
+  \ of load; the processor count is the bound because it\nis the one a project owner\
+  \ reads off the host and that stays the same from one land to the next.\nIt is a\
+  \ REPORT and nothing more: no share and no sum is judged, and no land, filing, init\
+  \ or\nsettings write is refused, delayed or changed on it.\n\nABSENT = every layer\
+  \ reads the whole allotment — unchanged, the default every existing carrier has.\n\
+  PRESENT-BUT-INVALID — not a mapping, a key that is not a non-empty string, a key\
+  \ matching no declared\nlayer, or a value that is not a fraction in `(0, 1]` — FAILS\
+  \ CLOSED before any layer runs\n(`mode: malformed`, the `timeout_seconds:` / `independent_layers:`\
+  \ stance): a typo'd split must never\nsilently fall back to the unsplit default\
+  \ it was written to replace. The land runner's accepted set\n(`bin/lib/land_verify_legs.py#_declared_layer_worker_shares`)\
   \ is EXACTLY the init shape hook's\n(`_hook_verify`), never looser.\n\nWhat the\
   \ kernel KEEPS under concurrency — none of this is relaxed by the declaration: EVERY\
   \ layer still\nruns; the land still FAILS on ANY failed / timed-out / prep-failed\
@@ -1196,14 +1212,26 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ owns 6 of the carrier's 7\n`implements:` anchors (the 7th, `init.py#cmd_init`,\
   \ is the generic seed/sweep and stays with the\ncore). Split under — its own card,\
   \ decomposed off because it re-homes rule->code\nanchors, not a plain doc relocation.\n\
-  \n## Verification\n\n- the `verify:` section (rule 16) is checked-if-present declare-or-waive:\
-  \ `init` on a fresh consumer\n  seeds it born WAIVED (section-level); a non-empty\
-  \ `layers:` list passes when EVERY layer is declared\n  (`command:`) or waived (`waiver:\
-  \ {reason}`); an UNANSWERED layer (neither), a layer carrying BOTH, a\n  layer missing\
-  \ its `layer:` name, and a `layers:` + section-`waiver:` together each FAIL closed;\
-  \ a\n  pre-`verify:` carrier still passes; the report-only verify-layer coverage\
-  \ WARN fires at `graph build`\n  for a load-bearing surface covered by no declared\
-  \ layer (rule-15 `coverage:` shape reused) — state\n  checks in tests/test_t9718_verify_layers_carrier.py.\
+  \nThe declared-share load reading of rule 16 was added by on the owner's decision\
+  \ of\n2026-10-12, answering a public report (GitHub issue 85). A project whose shares\
+  \ sum to 3.07 by its\nown decision went from about 40 to about 86 worker slots on\
+  \ a 32-core host when that host's\nper-verify ceiling was raised from 13 to 28;\
+  \ no line said so, and it was found three days later\nfrom the process table. The\
+  \ owner's design of 2026-09-16 — the sum is not checked — stays.\n\n## Verification\n\
+  \n- the declared-share load reading (rule 16): a land of a fixture project whose\
+  \ shares times the\n  published allotment exceed the processor count prints the\
+  \ one line and carries the same reading\n  on its row, a land within the bound or\
+  \ with no shares carries neither, the land's verdict and\n  its other row fields\
+  \ are the same with and without the reading, and setting the per-verify\n  ceiling\
+  \ prints the statement only on a change — checks in\n  tests/test_t12589_layer_worker_budget.py.\n\
+  - the `verify:` section (rule 16) is checked-if-present declare-or-waive: `init`\
+  \ on a fresh consumer\n  seeds it born WAIVED (section-level); a non-empty `layers:`\
+  \ list passes when EVERY layer is declared\n  (`command:`) or waived (`waiver: {reason}`);\
+  \ an UNANSWERED layer (neither), a layer carrying BOTH, a\n  layer missing its `layer:`\
+  \ name, and a `layers:` + section-`waiver:` together each FAIL closed; a\n  pre-`verify:`\
+  \ carrier still passes; the report-only verify-layer coverage WARN fires at `graph\
+  \ build`\n  for a load-bearing surface covered by no declared layer (rule-15 `coverage:`\
+  \ shape reused) — state\n  checks in tests/test_t9718_verify_layers_carrier.py.\
   \ A `tests.classes[].command` for\n  `moment: verify` is REJECTED once a `verify:`\
   \ section is present (the rule-10 forbiddance\n  enforcement — no second command\
   \ home; same test).\n- the `verify.layers[].prep` sub-field (rule 16 amend / X-0140)\
@@ -1317,7 +1345,7 @@ implements_signature:
   bin/lib/land_verify_legs.py#_delegated_tests_execution_gap: cba017264e89f4114726489b3f64c5800839860b0d6afe52faa0f4f51fce8574
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
-  bin/lib/session.py#startup_check_lines: efb8a0955a10b9fea151ee7f3a98391e35d7c0de4d4c00085f0328a251489901
+  bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
   bin/lib/task.py#cmd_task_test: c60fa1000893cd2af743f2910b86ac8ded7d30dc3c8a8bb18f354c90d308ecd5
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
   bin/lib/worktree.py#_consumer_zero_probe_guard: bb52696e54d6883668d4db7a75290fd7dc6d8d21e92c639c3958d16ded2695e4

@@ -555,6 +555,14 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   \ This is the only refusal in the verb that leaves prod\n**MUTATED**, which is why\
   \ it alone emits an event when it refuses, and why it exits **5** rather than the\n\
   pre-deploy 3/4: **APPLIED BUT NOT CONVERGED is an operator's call, not a retry.**\n\
+  \n**Both statements describe a deploy that was given NO expected revision** — the\
+  \ one above, that\nnon-convergence is the only refusal that leaves prod mutated,\
+  \ and §5's, that `deploy_completed`\nfires on the command's success and this verification.\
+  \ A forward deploy that WAS given an expected\nrevision (SPEC-0094 §6) has one more\
+  \ condition and one more refusal of the same kind: when its\ncheckout moved while\
+  \ the command ran, the verb refuses the claim before this verification is\nreached,\
+  \ records the refusal in a `deploy_failed` row, and exits with the status non-convergence\n\
+  uses. It answers the §5 objection as convergence does — the journal is not silent.\n\
   \n**Both kinds — but a rollback's reversal always RUNS.** A rollback is verified\
   \ too: one that leaves a\nservice on the bad code is the same false green as a deploy\
   \ that does. Convergence never gates whether the\nrollback command RUNS (a rollback\
@@ -863,5 +871,5 @@ implements_signature:
   bin/lib/deploy.py#_security_probe_precondition: eefa57dbc4bd4e4f3aff2ded61d768e293ddce4400ec5bbafab9d92f9542e645
   bin/lib/deploy.py#_service_sources_unchanged: 47adfc5cbc3579e717e737c32abee8ca60c37268891aaf627133cbdd9538ad2c
   bin/lib/deploy.py#_verify_convergence: 1f5d3c2f268f3bcf83d79ecdc4f125f279427b6ee6989c03ed253824e8185a09
-  bin/lib/deploy.py#cmd_deploy: 2d127fae902a74c4cf0426561b30389eda1aa9d37e8a87f6791685535c56adba
+  bin/lib/deploy.py#cmd_deploy: 1580b1b5dbf6e813f212f18781c1b41154ed313c70799d54d375e11b36ea1104
   bin/lib/init.py#_hook_deploy_policy: c57bb5dc865aaa77bbfe57fe5fccd1f963bd5dbb02895ef430137891263e2c1b

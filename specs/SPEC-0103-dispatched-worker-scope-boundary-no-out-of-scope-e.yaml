@@ -221,27 +221,27 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ (the preamble point 1 AND the just-in-time stage-entry reminder, cmd_stage). A\
   \ pressure sentence that did NOT carry its own carve-out would re-create the contradiction\n\
   the incident exposed (CHARTER §P7).**\n\n### 4a. What \"SYNCHRONOUS\" names is the\
-  \ HELD TURN, not the foreground process (SPEC-0180)\nThe pressure this spec bounds\
-  \ is stated as \"run every step in the FOREGROUND, blocking\". Read\nliterally,\
+  \ HELD TURN, not the foreground process (<workshop-spec>)\nThe pressure this spec\
+  \ bounds is stated as \"run every step in the FOREGROUND, blocking\". Read\nliterally,\
   \ that wording ALSO forbids the one compliant exit available to a worker whose `land`\n\
   legitimately cannot FIT the harness's hard per-call foreground cap — a third block\
   \ class that is\nneither out-of-scope nor environmental, but ARITHMETIC (the work\
-  \ is fine; the CALL is too short).\nSPEC-0180 rule 1 settles which property was\
-  \ ever load-bearing: **the worker HOLDS ITS TURN until the\nterminal token**, not\
-  \ that the land runs in the worker's own foreground process group. Those coincide\n\
+  \ is fine; the CALL is too short).\n<workshop-spec> rule 1 settles which property\
+  \ was ever load-bearing: **the worker HOLDS ITS TURN until the\nterminal token**,\
+  \ not that the land runs in the worker's own foreground process group. Those coincide\n\
   for every land that fits the cap, and come apart above it — where foreground-ness\
   \ buys nothing,\nbecause a foreground land killed at the cap reaches no token either.\n\
   \nTherefore, for the ARITHMETIC class ONLY, the worker's first move is NOT `blocked-on-land`:\
   \ it runs\nthe land as a DETACHED process under a verified held-turn claim while\
-  \ polling inline in the SAME turn\n(SPEC-0180 rules 2+3), and that sanctioned path\
-  \ is DELIVERED at the seam — inside the SYNC_TO_LAND_RULE\nsingle source itself,\
+  \ polling inline in the SAME turn\n(<workshop-spec> rules 2+3), and that sanctioned\
+  \ path is DELIVERED at the seam — inside the SYNC_TO_LAND_RULE\nsingle source itself,\
   \ for the same reason rule 4's carve-out is, so the worker is TOLD the\nexit instead\
   \ of discovering it as a refusal.\n\n**This RECONCILES the wording; it WEAKENS nothing.**\
   \ Rules 1, 2 and 3 above are untouched and keep\npriority: a genuine OUT-OF-SCOPE\
   \ or ENVIRONMENTAL block — including the repeated-abort backstop —\nstill STOPs\
   \ and ESCALATES via `blocked-on-land` with the worktree intact, and §3a's auditor-outage\n\
   auto-park is unchanged. No gate, test, assertion or guard may be weakened, skipped\
-  \ or deleted, and\nthe detached path grants no bypass of any of them (SPEC-0180\
+  \ or deleted, and\nthe detached path grants no bypass of any of them (<workshop-spec>\
   \ rule 4): the verify runs in FULL, both\npasses when SPEC-0077 fires. BACKGROUND-AND-YIELD\
   \ likewise stays FORBIDDEN — what may be detached is\nthe OS PROCESS, never the\
   \ TURN; a claiming worker that yields anyway has its land KILLED mid-flight by\n\

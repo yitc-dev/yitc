@@ -66,94 +66,98 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ card either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card\
   \ that does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
   \  disposition; and the owner card is `requires:`-ordered after every implementing\
-  \ card. The question is asked in the SPEC-0083 P5 template; no new gate, no validator.\n\
-  \n### 4. Card-set fingerprint freshness contract (the canonical home — F5)\n\"A\
-  \ fresh verdict exists\" alone is too weak — the cut could be edited AFTER the audit\
-  \ and still enter\n`executing`. So the fidelity verdict RECORDS a canonical **card-set\
-  \ fingerprint** and\n`plan stage executing` RECOMPUTES it and REQUIRES an EXACT\
-  \ match (REFUSE on mismatch → re-audit).\nThis is the direct analog of the existing\
-  \ `_plan_content_hash` / accept-freshness-hash mechanism —\nNO new machinery class.\n\
-  - **Fingerprint inputs (canonical, sorted/stable):** the sorted set of cut task\
-  \ ids; for EACH card\n  its content hash + its `requires:` list + its `activation_owner_task`\
-  \ + its acceptance/probe\n  fields. Editing any of these after the audit re-fingerprints\
-  \ → stale → REFUSE.\n- **This contract is homed HERE** (single source); SPEC-0034's\
-  \ `executing` entry-gate and the verb\n  POINT here, they do not restate it.\n\n\
-  ### 5. Claim-block — a card of an un-decomposed-and-verified plan is NOT claimable\n\
-  Cards exist in `decomposition` BEFORE `executing`; under parallel/background dispatch\
-  \ a\n`worktree new --task` could otherwise claim+build a card before the fidelity\
-  \ gate passes, defeating\n\"audit the cut, THEN build\". So: a task whose **`decomposed_from`**\
-  \ marker names a plan whose status is\nBELOW `executing` is **NOT claimable** —\
-  \ the `worktree new --task` claim chokepoint REFUSES while the\nparent plan is pre-`executing`.\
-  \ This EXTENDS the existing claim-validation in `worktree new --task` (it\nalready\
-  \ validates `ready` + unblocked); no new mechanism. The guard makes the cut fully\
-  \ audited before\nany card can be worked, even across concurrent sessions.\n\n**The\
-  \ carrier is `decomposed_from`, NOT `cites:`.**\nSo the block now reads the explicit\n\
-  **`decomposed_from: <plan-slug>`** marker — the NARROW structural relation \"member\
-  \ of the audited cut\",\nwritten ONLY by the decomposition cut (`task file --decomposed-from`,\
-  \ its SOLE authoritative writer). This\nmirrors `activation_owner_task` and the\
-  \ lesson: never derive a structural relation from\ninformational `cites:`. `cites:`\
-  \ reverts to purely informational.\n- **`decomposed_from` (cut-membership) vs the\
-  \ finalization corpus are NON-SUBSTITUTABLE** (one\n  direction must never be conflated):\
-  \ `decomposed_from` = the NARROW structural cut-membership (one plan;\n  the claim-block\
-  \ + the cut-fidelity member-set/fingerprint); the finalization corpus (`_plan_tasks`\
-  \ /\n  `_plan_task_carrier` — see SPEC-0034) = the BROAD \"tasks that implement\
-  \ the plan\" relation. The\n  NON-SUBSTITUTABILITY is ONE-WAY: the corpus is a SUPERSET\
-  \ — it recognizes BOTH `decomposed_from:<plan>`\n  AND `cites:<plan>` (the union);\
-  \ a decomposed cut card IS an implementing task, so it is in the\n  corpus. But\
-  \ the cut-fidelity member-set is `decomposed_from`-ONLY: future code MUST NOT re-derive\
-  \ cut\n  MEMBERSHIP from `cites` (that recreates the defect — an informational citer\
-  \ wrongly staling the\n  cut fingerprint). Net: corpus = `decomposed_from` ∪ `cites`;\
-  \ cut member-set\n  = `decomposed_from` alone.\n- **Reader contract — marker-authoritative\
-  \ ( claim-block; cut-fidelity member-set;\n  the DISPLAY):** the claim-block, the\
-  \ cut-fidelity member-set AND the reader-facing cut-card DISPLAY all\n  read `decomposed_from`.\
-  \ An\n  informational `cites:`-only citer is therefore NOT a cut member: it neither\
-  \ stales the fingerprint, nor is\n  shown to the auditor as a cut card, nor is listed\
-  \ to a reader as one.\n  **The display is BOUND to the gate's link ( — <project>\
-  \ X-0661/X-0662):** the cut-card set a\n  reader SEES is by contract the set the\
-  \ gate JUDGES, and the empty-state names `decomposed_from` (never\n  `cites:`),\
-  \ so an author repairs the field that actually unblocks the executing gate. A cut\
-  \ card need NOT\n  `cites:` its plan for the corpus — `decomposed_from` alone puts\
-  \ it in both the corpus and the member-set;\n  the fingerprint/member-set never\
-  \ depended on the cite.\n- **Sole-writer invariant + report-only backstop :** every\
-  \ card the cut emits MUST carry the\n  marker (the cut path sets it). A report-only\
-  \ advisory (`graph conformance`, `_unmarked_cut_card_flags`)\n  surfaces non-terminal\
-  \ cards that `cites:` a plan at `status: decomposition` but lack the marker, so\
-  \ a\n  forgotten cut-membership mark is visible at land. It is ADVISORY ( report-not-block),\
-  \ scoped to\n  `decomposition`-status plans (the only pre-`executing` stage where\
-  \ cards exist = the claim-block-relevant\n  window); plans at `executing`+ are claim-block-irrelevant,\
-  \ so they are not scanned (no perpetual noise on\n  legitimate informational cites).\
-  \ Completeness for FUTURE cuts rests on the sole-writer, not a perpetual scan.\n\
-  - **Governed POST-HOC EDITS of the marker — TWO directions, both verb-owned, NEITHER\
-  \ a second\n  FILING writer ( un-cut; repair).** `task file --decomposed-from` remains\
-  \ the cut's\n  SOLE authoritative writer AT FILING (above) — that is unchanged.\
-  \ Once the card EXISTS, the marker\n  is still not hand-editable: `task update --old/--new`\
-  \ owns both post-hoc directions below, each\n  enforcing the SAME dangling-plan\
-  \ check as the filing verb (a non-empty target must resolve to a\n  real `plans/<slug>.md`;\
-  \ a clear is always allowed — the marker is the claim-block carrier, so a\n  dangling\
-  \ marker would silently never block) and each emitting a journal-visible `task_amended`.\n\
-  \  - **UN-CUT (the TERMINAL direction).** When a card is `wont-do` (a cut member\
-  \ abandoned\n    without building — e.g. a consumer card dropped after the cut)\
-  \ it is terminal/frozen, so\n    the ordinary field-edit refuses it. The SOLE carve-out:\
-  \ `task update --old/--new` MAY change\n    `decomposed_from` **ALONE** on a terminal\
-  \ card — clearing it (un-cut from the decomposition) or\n    repointing it to another\
-  \ real plan — enforced by a strict single-field guard (`decomposed_from`\n    is\
-  \ the ONLY changed key; any other field-change refuses, the file untouched) plus\
-  \ the\n    dangling-plan check. Emits `task_amended` with `uncut: true`.\n  - **CUT-MEMBERSHIP\
-  \ REPAIR (the NON-TERMINAL direction — <project> X-0866).** A card cut\n    WITHOUT\
-  \ the marker is repaired IN PLACE on the ordinary (non-terminal) field-edit path:\
-  \ a\n    `--new` that SUPERSETS `--old` ADDS the absent key ( — the field-edit is\
-  \ not\n    replace-only). Re-filing an already-cut set is NOT the route and must\
-  \ not be prescribed as one.\n    Any non-terminal field-edit that CHANGES `decomposed_from`\
-  \ carries the dangling-plan check and\n    emits `task_amended` with `recut: true`\
-  \ + `decomposed_from` (the new slug) +\n    `decomposed_from_from` (the prior value),\
-  \ so the repair is findable by the plan slug across\n    sessions. NO `task update\
-  \ --decomposed-from` setter mode exists or is wanted — that would be\n    the parallel\
-  \ path CHARTER §P1 F1/F3 refuses, for a capability the field-edit already covers.\n\
-  \    The `plan stage executing` empty-member-set refusal names THIS route (§ reader\
-  \ contract above:\n    the empty-state must name a repair the author can actually\
-  \ reach).\n  Net: the marker's whole lifecycle is verb-owned — the cut WRITES it\
-  \ at filing, the repair ADDS or\n  repoints it on a live card, the un-cut CLEARS/repoints\
-  \ it on frozen history — never a silent\n  hand-edit.\n\n**Territory-aware cut (POINTER\
+  \ card. The question is asked in the SPEC-0083 P5 template; no new gate, no validator.\
+  \ How a cut meets this clause when a plan spec restates an ACTIVE spec and several\
+  \ cards build the change: the how-to `patterns/restating-an-active-spec-across-cards.md`\
+  \ (`bin/yitc-v2 graph query restating-an-active-spec-across-cards`), which adds\
+  \ no rule.\n\n### 4. Card-set fingerprint freshness contract (the canonical home\
+  \ — F5)\n\"A fresh verdict exists\" alone is too weak — the cut could be edited\
+  \ AFTER the audit and still enter\n`executing`. So the fidelity verdict RECORDS\
+  \ a canonical **card-set fingerprint** and\n`plan stage executing` RECOMPUTES it\
+  \ and REQUIRES an EXACT match (REFUSE on mismatch → re-audit).\nThis is the direct\
+  \ analog of the existing `_plan_content_hash` / accept-freshness-hash mechanism\
+  \ —\nNO new machinery class.\n- **Fingerprint inputs (canonical, sorted/stable):**\
+  \ the sorted set of cut task ids; for EACH card\n  its content hash + its `requires:`\
+  \ list + its `activation_owner_task` + its acceptance/probe\n  fields. Editing any\
+  \ of these after the audit re-fingerprints → stale → REFUSE.\n- **This contract\
+  \ is homed HERE** (single source); SPEC-0034's `executing` entry-gate and the verb\n\
+  \  POINT here, they do not restate it.\n\n### 5. Claim-block — a card of an un-decomposed-and-verified\
+  \ plan is NOT claimable\nCards exist in `decomposition` BEFORE `executing`; under\
+  \ parallel/background dispatch a\n`worktree new --task` could otherwise claim+build\
+  \ a card before the fidelity gate passes, defeating\n\"audit the cut, THEN build\"\
+  . So: a task whose **`decomposed_from`** marker names a plan whose status is\nBELOW\
+  \ `executing` is **NOT claimable** — the `worktree new --task` claim chokepoint\
+  \ REFUSES while the\nparent plan is pre-`executing`. This EXTENDS the existing claim-validation\
+  \ in `worktree new --task` (it\nalready validates `ready` + unblocked); no new mechanism.\
+  \ The guard makes the cut fully audited before\nany card can be worked, even across\
+  \ concurrent sessions.\n\n**The carrier is `decomposed_from`, NOT `cites:`.**\n\
+  So the block now reads the explicit\n**`decomposed_from: <plan-slug>`** marker —\
+  \ the NARROW structural relation \"member of the audited cut\",\nwritten ONLY by\
+  \ the decomposition cut (`task file --decomposed-from`, its SOLE authoritative writer).\
+  \ This\nmirrors `activation_owner_task` and the lesson: never derive a structural\
+  \ relation from\ninformational `cites:`. `cites:` reverts to purely informational.\n\
+  - **`decomposed_from` (cut-membership) vs the finalization corpus are NON-SUBSTITUTABLE**\
+  \ (one\n  direction must never be conflated): `decomposed_from` = the NARROW structural\
+  \ cut-membership (one plan;\n  the claim-block + the cut-fidelity member-set/fingerprint);\
+  \ the finalization corpus (`_plan_tasks` /\n  `_plan_task_carrier` — see SPEC-0034)\
+  \ = the BROAD \"tasks that implement the plan\" relation. The\n  NON-SUBSTITUTABILITY\
+  \ is ONE-WAY: the corpus is a SUPERSET — it recognizes BOTH `decomposed_from:<plan>`\n\
+  \  AND `cites:<plan>` (the union); a decomposed cut card IS an implementing task,\
+  \ so it is in the\n  corpus. But the cut-fidelity member-set is `decomposed_from`-ONLY:\
+  \ future code MUST NOT re-derive cut\n  MEMBERSHIP from `cites` (that recreates\
+  \ the defect — an informational citer wrongly staling the\n  cut fingerprint). Net:\
+  \ corpus = `decomposed_from` ∪ `cites`; cut member-set\n  = `decomposed_from` alone.\n\
+  - **Reader contract — marker-authoritative ( claim-block; cut-fidelity member-set;\n\
+  \  the DISPLAY):** the claim-block, the cut-fidelity member-set AND the reader-facing\
+  \ cut-card DISPLAY all\n  read `decomposed_from`. An\n  informational `cites:`-only\
+  \ citer is therefore NOT a cut member: it neither stales the fingerprint, nor is\n\
+  \  shown to the auditor as a cut card, nor is listed to a reader as one.\n  **The\
+  \ display is BOUND to the gate's link ( — <project> X-0661/X-0662):** the cut-card\
+  \ set a\n  reader SEES is by contract the set the gate JUDGES, and the empty-state\
+  \ names `decomposed_from` (never\n  `cites:`), so an author repairs the field that\
+  \ actually unblocks the executing gate. A cut card need NOT\n  `cites:` its plan\
+  \ for the corpus — `decomposed_from` alone puts it in both the corpus and the member-set;\n\
+  \  the fingerprint/member-set never depended on the cite.\n- **Sole-writer invariant\
+  \ + report-only backstop :** every card the cut emits MUST carry the\n  marker (the\
+  \ cut path sets it). A report-only advisory (`graph conformance`, `_unmarked_cut_card_flags`)\n\
+  \  surfaces non-terminal cards that `cites:` a plan at `status: decomposition` but\
+  \ lack the marker, so a\n  forgotten cut-membership mark is visible at land. It\
+  \ is ADVISORY ( report-not-block), scoped to\n  `decomposition`-status plans (the\
+  \ only pre-`executing` stage where cards exist = the claim-block-relevant\n  window);\
+  \ plans at `executing`+ are claim-block-irrelevant, so they are not scanned (no\
+  \ perpetual noise on\n  legitimate informational cites). Completeness for FUTURE\
+  \ cuts rests on the sole-writer, not a perpetual scan.\n- **Governed POST-HOC EDITS\
+  \ of the marker — TWO directions, both verb-owned, NEITHER a second\n  FILING writer\
+  \ ( un-cut; repair).** `task file --decomposed-from` remains the cut's\n  SOLE authoritative\
+  \ writer AT FILING (above) — that is unchanged. Once the card EXISTS, the marker\n\
+  \  is still not hand-editable: `task update --old/--new` owns both post-hoc directions\
+  \ below, each\n  enforcing the SAME dangling-plan check as the filing verb (a non-empty\
+  \ target must resolve to a\n  real `plans/<slug>.md`; a clear is always allowed\
+  \ — the marker is the claim-block carrier, so a\n  dangling marker would silently\
+  \ never block) and each emitting a journal-visible `task_amended`.\n  - **UN-CUT\
+  \ (the TERMINAL direction).** When a card is `wont-do` (a cut member abandoned\n\
+  \    without building — e.g. a consumer card dropped after the cut) it is terminal/frozen,\
+  \ so\n    the ordinary field-edit refuses it. The SOLE carve-out: `task update --old/--new`\
+  \ MAY change\n    `decomposed_from` **ALONE** on a terminal card — clearing it (un-cut\
+  \ from the decomposition) or\n    repointing it to another real plan — enforced\
+  \ by a strict single-field guard (`decomposed_from`\n    is the ONLY changed key;\
+  \ any other field-change refuses, the file untouched) plus the\n    dangling-plan\
+  \ check. Emits `task_amended` with `uncut: true`.\n  - **CUT-MEMBERSHIP REPAIR (the\
+  \ NON-TERMINAL direction — <project> X-0866).** A card cut\n    WITHOUT the marker\
+  \ is repaired IN PLACE on the ordinary (non-terminal) field-edit path: a\n    `--new`\
+  \ that SUPERSETS `--old` ADDS the absent key ( — the field-edit is not\n    replace-only).\
+  \ Re-filing an already-cut set is NOT the route and must not be prescribed as one.\n\
+  \    Any non-terminal field-edit that CHANGES `decomposed_from` carries the dangling-plan\
+  \ check and\n    emits `task_amended` with `recut: true` + `decomposed_from` (the\
+  \ new slug) +\n    `decomposed_from_from` (the prior value), so the repair is findable\
+  \ by the plan slug across\n    sessions. NO `task update --decomposed-from` setter\
+  \ mode exists or is wanted — that would be\n    the parallel path CHARTER §P1 F1/F3\
+  \ refuses, for a capability the field-edit already covers.\n    The `plan stage\
+  \ executing` empty-member-set refusal names THIS route (§ reader contract above:\n\
+  \    the empty-state must name a repair the author can actually reach).\n  Net:\
+  \ the marker's whole lifecycle is verb-owned — the cut WRITES it at filing, the\
+  \ repair ADDS or\n  repoints it on a live card, the un-cut CLEARS/repoints it on\
+  \ frozen history — never a silent\n  hand-edit.\n\n**Territory-aware cut (POINTER\
   \ — home is SPEC-0046 §A).** A card must be cut in the TERRITORY\nthat can LAND\
   \ it: an item whose deliverable lives in EXTERNAL territory (a `[host]` `<host-home>/…`\
   \ path,\nanother project's repo — outside `realpath <v2-root>/**`) must NOT be cut\
@@ -282,12 +286,18 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \  the SAME change (the mandatory coherence invariant; this spec is a startup/stage-delivered\n\
   \  surface). Each step is ONE accept-unit (SPEC-0046); steps 1-2 `requires:`-precede\
   \ step 3; the\n  SPEC edits (4-6) and the verifier of the whole cut are `requires:`-ordered\
-  \ after the code they\n  describe lands.\n\n## Implementation notes\n\n### Moved\
-  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
-  \ text of the section it names\n(its class per SPEC-0005 rule 3 in brackets); every\
-  \ acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity gate»\
-  \ [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From «5.\
-  \ Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
+  \ after the code they\n  describe lands.\n\n### The restatement how-to pointer\n\
+  \nThe pointer beside the §3 anchor-wiring clause was added by and leaves the clause\
+  \ as it\nwas. A consumer project reported (public issue #81, 2026-10-12) seven RED\
+  \ gate rounds over two\nplans that restated an active spec across several cards:\
+  \ a cut that activated the restatement\nwith its first card failed this gate, and\
+  \ a cut that activated it last landed behaviour the\nstill-active predecessor forbids.\
+  \ The recipe is in the pattern the pointer names.\n\n## Implementation notes\n\n\
+  ### Moved from the rule body\n\nEach entry is a passage moved word for word out\
+  \ of the rule text of the section it names\n(its class per SPEC-0005 rule 3 in brackets);\
+  \ every acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity\
+  \ gate» [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From\
+  \ «5. Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
   \  `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4), `_plan_card_set_context`\n\
   \  (the fidelity-audit prompt card-set) **and `cmd_plan_show`'s `status: decomposition`\
   \ cut-card\n  listing** enumerate the cut through it.\n- From «5. Claim-block» [MECH]:\

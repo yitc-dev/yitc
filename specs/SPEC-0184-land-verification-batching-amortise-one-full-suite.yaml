@@ -290,8 +290,8 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ are already on the rows this read parses.\n\n**Nor is the CLAIMANT'S KIND named\
   \ — an interactive Controller's land is an ordinary member** (owner\nquestion, 2026-08-16).\
   \ Everything motivating this spec is worker-framed: the deaths counted are\ndispatched\
-  \ workers', the metric segments dispatched workers, and the SPEC-0180 seam is a\
-  \ worker\nholding its turn. A reader can fairly conclude batching is a worker-only\
+  \ workers', the metric segments dispatched workers, and the <workshop-spec> seam\
+  \ is a worker\nholding its turn. A reader can fairly conclude batching is a worker-only\
   \ mechanism. It is NOT. A\nController landing a `work/<slug>` filing batch enters\
   \ the SAME serialized merge→verify→ff span\n and takes the SAME admission slot (SPEC-0132)\
   \ as any worker, so by this rule it is queued,\nand therefore batchable, on identical\
@@ -1054,28 +1054,28 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ naming a\nculprit requires the bisection this spec puts out of scope, so a verdict\
   \ vocabulary carrying it would\npromise an outcome nothing can produce. This is\
   \ not reporting garnish — it is what lets a member\nlearn its own fate without reconstructing\
-  \ the batch, and it is the seam SPEC-0180 needs (below).\n\n**THE OMISSION STANDS,\
-  \ BUT ITS REASON HAS MOVED.** Rule 4's isolation oracle CAN now name\na culprit,\
-  \ so \"nothing can produce that outcome\" is no longer why the value is absent.\
-  \ The\nvocabulary stays CLOSED at these four for a better reason: an evicted culprit\
-  \ IS\n`requeued-after-red-batch` — it goes back to the queue for its own solo land,\
-  \ which is exactly what\nthat value says — and it is the value rule 4's one-round\
-  \ ineligibility read consults, so a fifth\nvalue would need that mechanism taught\
-  \ a second name to keep the anti-livelock guarantee. The\neviction is carried instead\
-  \ by ADDITIVE keys on the same row (`evicted_as_culprit`,\n`red_isolation`), which\
-  \ is the growth SPEC-0025 / already sanction. What rule 4's change\naltered is WHO\
-  \ gets a row — the innocent peers no longer get one, because they are no longer\n\
-  requeued — never what a row may SAY.\n\n**EVERY DECLARED MEMBER ENDS THE LAND WITH\
-  \ EXACTLY ONE VERDICT ROW, AND THE FIFTH VALUE IS\n`unaccounted`.** The four values\
-  \ above are the OUTCOMES, and they are emitted from\nexplicit member lists at four\
-  \ call sites; nothing reconciled those lists against the set the\n`land_batch_formed`\
-  \ row DECLARED. Measured : a batch declared three members,\ntwo verdict rows were\
-  \ emitted, and `task/` received nothing at all — not landed, not\nevicted, not requeued,\
-  \ not dropped — and formed its own batch a minute later. A member that\nleaves the\
-  \ declared set with no row is indistinguishable from one that was never declared,\
-  \ which\nis the same silence the FORMATION-side `queue_dispositions` closed one\
-  \ step earlier on\nthe CANDIDATE axis. So the declared members are RECONCILED against\
-  \ the rows actually emitted, at\nthe one catch-all end (`cmd_land`'s `finally`,\
+  \ the batch, and it is the seam <workshop-spec> needs (below).\n\n**THE OMISSION\
+  \ STANDS, BUT ITS REASON HAS MOVED.** Rule 4's isolation oracle CAN now name\na\
+  \ culprit, so \"nothing can produce that outcome\" is no longer why the value is\
+  \ absent. The\nvocabulary stays CLOSED at these four for a better reason: an evicted\
+  \ culprit IS\n`requeued-after-red-batch` — it goes back to the queue for its own\
+  \ solo land, which is exactly what\nthat value says — and it is the value rule 4's\
+  \ one-round ineligibility read consults, so a fifth\nvalue would need that mechanism\
+  \ taught a second name to keep the anti-livelock guarantee. The\neviction is carried\
+  \ instead by ADDITIVE keys on the same row (`evicted_as_culprit`,\n`red_isolation`),\
+  \ which is the growth SPEC-0025 / already sanction. What rule 4's change\naltered\
+  \ is WHO gets a row — the innocent peers no longer get one, because they are no\
+  \ longer\nrequeued — never what a row may SAY.\n\n**EVERY DECLARED MEMBER ENDS THE\
+  \ LAND WITH EXACTLY ONE VERDICT ROW, AND THE FIFTH VALUE IS\n`unaccounted`.** The\
+  \ four values above are the OUTCOMES, and they are emitted from\nexplicit member\
+  \ lists at four call sites; nothing reconciled those lists against the set the\n\
+  `land_batch_formed` row DECLARED. Measured : a batch declared three members,\ntwo\
+  \ verdict rows were emitted, and `task/` received nothing at all — not landed, not\n\
+  evicted, not requeued, not dropped — and formed its own batch a minute later. A\
+  \ member that\nleaves the declared set with no row is indistinguishable from one\
+  \ that was never declared, which\nis the same silence the FORMATION-side `queue_dispositions`\
+  \ closed one step earlier on\nthe CANDIDATE axis. So the declared members are RECONCILED\
+  \ against the rows actually emitted, at\nthe one catch-all end (`cmd_land`'s `finally`,\
   \ where the rule-4 batch restoration already runs —\na per-outcome-seam pair would\
   \ be fail-open by enumeration and would miss exactly the ends this\nincident sits\
   \ in), and each member left silent is journaled `unaccounted`.\n\n**`unaccounted`\
@@ -1141,23 +1141,23 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ (OK|ABORT)` as the final stdout line). It is NOT a claim of byte-identical process\
   \ output in\ngeneral: timings, verify heartbeats and progress lines are free to\
   \ differ, and a probe that keys on\nthem is testing the wrong thing.\n\n### 6. A\
-  \ dead member is DROPPED; the batch is not — AMENDS SPEC-0180\n**This rule AMENDS\
-  \ an ACTIVE spec and must ship as an amendment, not as a contradiction left for\
-  \ a\nreader to reconcile** (plan-check finding 2, 2026-08-16). SPEC-0180 states\
-  \ that a detached land dies\nwith the worker that claimed it. Under batching that\
-  \ sentence, taken literally, lets ONE worker's\ndeath destroy a verify pass carrying\
-  \ up to three uninvolved peers — a safety property turned into a\ndenial of service.\
-  \ SPEC-0180's rule is therefore RESTATED there, by the card that builds this, as:\n\
-  *a detached land dies with its claimant when the land carries only that claimant's\
-  \ change; when the\nland carries a batch, the claimant's DEATH REMOVES ITS MEMBER,\
-  \ and the land continues for the\nothers.* Until that amendment lands, the two specs\
-  \ disagree and this one does not govern.\n\nThe protected property is unchanged:\
-  \ no land may outlive the turn that authorised it. What changes is\nthe unit the\
-  \ binding acts on — the member, not the pass.\n\nUnder batching the binding therefore\
-  \ changes SUBJECT, not strength: a dead member is EVICTED from the\nbatch and its\
-  \ change is not applied; the pass continues for everyone else.\n\nWHEN the death\
-  \ is detected decides what that costs, and the two cases are NOT symmetric:\n\n\
-  - **Before the verify starts** — the member is simply dropped from the candidate\
+  \ dead member is DROPPED; the batch is not — AMENDS <workshop-spec>\n**This rule\
+  \ AMENDS an ACTIVE spec and must ship as an amendment, not as a contradiction left\
+  \ for a\nreader to reconcile** (plan-check finding 2, 2026-08-16). <workshop-spec>\
+  \ states that a detached land dies\nwith the worker that claimed it. Under batching\
+  \ that sentence, taken literally, lets ONE worker's\ndeath destroy a verify pass\
+  \ carrying up to three uninvolved peers — a safety property turned into a\ndenial\
+  \ of service. <workshop-spec>'s rule is therefore RESTATED there, by the card that\
+  \ builds this, as:\n*a detached land dies with its claimant when the land carries\
+  \ only that claimant's change; when the\nland carries a batch, the claimant's DEATH\
+  \ REMOVES ITS MEMBER, and the land continues for the\nothers.* Until that amendment\
+  \ lands, the two specs disagree and this one does not govern.\n\nThe protected property\
+  \ is unchanged: no land may outlive the turn that authorised it. What changes is\n\
+  the unit the binding acts on — the member, not the pass.\n\nUnder batching the binding\
+  \ therefore changes SUBJECT, not strength: a dead member is EVICTED from the\nbatch\
+  \ and its change is not applied; the pass continues for everyone else.\n\nWHEN the\
+  \ death is detected decides what that costs, and the two cases are NOT symmetric:\n\
+  \n- **Before the verify starts** — the member is simply dropped from the candidate\
   \ and the pass runs\n  over the remaining set. Nothing is wasted.\n- **While the\
   \ verify is RUNNING** (plan-check finding 5, 2026-08-16) — the pass in flight is\
   \ over a\n  tree that includes the dead member, so its result cannot be applied\
@@ -2118,7 +2118,7 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ **`land_withdrawn`**, whose payload keys are named\nin SPEC-0161's recorded run\
   \ and NOT here (a rule body carries no payload shape — SPEC-0005 rule 8).\nNothing\
   \ else changes on the caller-facing surface: a withdrawn land is an ordinary refusal\
-  \ reported\nthrough the ONE shipped `^LAND: (OK|ABORT)` terminal token (SPEC-0180\
+  \ reported\nthrough the ONE shipped `^LAND: (OK|ABORT)` terminal token (<workshop-spec>\
   \ rule 2c), with no verify run,\nthe slot released or never taken, `main` untouched\
   \ and the worktree intact.\n\n**Bound, named.** The abort-only poll tick exists\
   \ only where the admission wait is POLLED. Where\nthe heartbeat is disabled the\
@@ -2127,29 +2127,29 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   path whenever a withdrawal is possible would silently change what that documented\
   \ switch does. The\ndegradation runs in this family's fail-closed direction throughout:\
   \ the worst outcome anywhere in\nthis rule is a withdrawal that does not happen,\
-  \ never an admitted land that is interrupted.\n\n### Interaction with SPEC-0180\
-  \ (the detached held-turn land)\nSPEC-0180 lets a dispatched worker hold its turn\
-  \ while its land runs detached, polling ITS OWN land\nprocess for `^LAND: (OK|ABORT)`\
+  \ never an admitted land that is interrupted.\n\n### Interaction with <workshop-spec>\
+  \ (the detached held-turn land)\n<workshop-spec> lets a dispatched worker hold its\
+  \ turn while its land runs detached, polling ITS OWN land\nprocess for `^LAND: (OK|ABORT)`\
   \ or process exit — token-or-exit, nothing else. Under batching a member\nhas NO\
   \ personal land process: there is one shared batch run. The terminality contract\
   \ therefore\nextends — a member's terminal signal becomes its OWN journaled verdict\
   \ (rule 5), including the case\nwhere the batch was red for someone else's change\
-  \ and this member will be re-batched. SPEC-0180 is a\nhard PREREQUISITE, not a companion:\
-  \ batching lengthens the wait (formation plus a verdict on other\npeople's changes),\
-  \ so without a survivable wait it kills workers faster than the status quo.\n\n\
-  ### Relationship to SPEC-0132 — a different axis, not a new rung\nSPEC-0132's escalation\
-  \ ladder is about SHARING THE HOST (serialize-ff → raise the verify worker cap →\n\
-  per-land core-sharing). This spec does not move along that ladder: it amortises\
-  \ the PASS across\nchanges rather than redistributing the machine. The two compose\
-  \ and must not be read as alternatives —\na host-sharing decision never substitutes\
-  \ for batching, and batching never licenses raising the cap.\n\n## Parameters\n\n\
-  | param | value | meaning | carrier |\n|---|---|---|---|\n| `BATCH_MAX` | **4**\
-  \ | upper bound on members per batch — bounds the COST OF DIAGNOSING a red batch,\
-  \ not formation | code constant in `bin/lib/worktree.py` CITING this spec; `consumed:\
-  \ false` |\n| `RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` | **3** | rule 13 — batch rides\
-  \ since the last completed verify after which a branch is routed SOLO | code constant\
-  \ `_LAND_RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` in `bin/lib/batch_landing.py` CITING\
-  \ this spec; `consumed: false` |\n\n**The value is 4, and it is a code constant,\
+  \ and this member will be re-batched. <workshop-spec> is a\nhard PREREQUISITE, not\
+  \ a companion: batching lengthens the wait (formation plus a verdict on other\n\
+  people's changes), so without a survivable wait it kills workers faster than the\
+  \ status quo.\n\n### Relationship to SPEC-0132 — a different axis, not a new rung\n\
+  SPEC-0132's escalation ladder is about SHARING THE HOST (serialize-ff → raise the\
+  \ verify worker cap →\nper-land core-sharing). This spec does not move along that\
+  \ ladder: it amortises the PASS across\nchanges rather than redistributing the machine.\
+  \ The two compose and must not be read as alternatives —\na host-sharing decision\
+  \ never substitutes for batching, and batching never licenses raising the cap.\n\
+  \n## Parameters\n\n| param | value | meaning | carrier |\n|---|---|---|---|\n| `BATCH_MAX`\
+  \ | **4** | upper bound on members per batch — bounds the COST OF DIAGNOSING a red\
+  \ batch, not formation | code constant in `bin/lib/worktree.py` CITING this spec;\
+  \ `consumed: false` |\n| `RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` | **3** | rule 13\
+  \ — batch rides since the last completed verify after which a branch is routed SOLO\
+  \ | code constant `_LAND_RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` in `bin/lib/batch_landing.py`\
+  \ CITING this spec; `consumed: false` |\n\n**The value is 4, and it is a code constant,\
   \ not a spec-consumed scalar** (plan-check finding 4,\n2026-08-16). `consumed: true`\
   \ is reserved for governance scalars an existing control-point READS\nfrom the spec;\
   \ a batch cap is ordinary tuning that belongs beside the code that enforces it,\
@@ -2370,7 +2370,6 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
 cites:
 - SPEC-0132
 - SPEC-0152
-- SPEC-0180
 - SPEC-0077
 - CHARTER.md#principle-1
 requires: []
@@ -2429,5 +2428,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: d5ffd8e5a39cded13030104603ce6aa00ac51205ae3ec8cca65badf3fbff3153
-  bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280
+  bin/lib/worktree.py#_land_integrate: c427c94a0ecb5245d1e5c1bfe0962827b9206f515cd5eeb7469cea0070f83a63
+  bin/lib/worktree.py#cmd_land: 36881ec62af3ce28846c15fd17d401dc0a62164618c3b491363a66038a27e8c9

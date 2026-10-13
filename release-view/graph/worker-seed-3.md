@@ -129,7 +129,7 @@ cwd-independent verbs), not by removing isolation. So:
   token `LAND: OK <sha>` / `LAND: ABORT <reason>` (match `^LAND: (OK|ABORT)\b`). Capture STDERR too
   (`2>&1`, match `^(LAND:|yitc-v2:)`): a refusal before verify prints only a `yitc-v2:` line and no
   token. **Terminal = the token or the land process exiting** — `yitc-v2:` also prefixes
-  ordinary progress, so never gate on that line alone (SPEC-0180 rule 2c). The verify runs for
+  ordinary progress, so never gate on that line alone (SPEC-1028 rule 2c). The verify runs for
   MINUTES, and how you wait SPLITS BY SESSION KIND:
   - **INTERACTIVE session:** PREFER running it in the background, keyed off the token or the
     journal; key recovery off the journal, NEVER off the wrapper's process lifetime. A non-worker land
@@ -140,7 +140,7 @@ cwd-independent verbs), not by removing isolation. So:
   - **DISPATCHED WORKER (headless one-shot):** run it **SYNCHRONOUSLY in the FOREGROUND**, with a
     generous timeout — NEVER background-and-await: a headless worker's process exits when it yields the
     turn, killing the land (SPEC-0103); when the land (or `task test --run`) cannot fit the per-call
-    cap, the held-turn exit is SPEC-0180's.
+    cap, the held-turn exit is SPEC-1028's.
   - The rest — timed-wrapper kill shapes, admission waits, telling a stopped land from a queued one,
     the opt-out knob, the worker heartbeat — is `patterns/background-session-monitoring.md`
     §Running land; `land --help` names it too.

@@ -475,7 +475,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         print(_kq("lifecycle-scoped content is delivered at STAGE-ENTRY (T-0289): run `yitc-v2 stage <NAME> "
               "--task T-XXXX` to receive that stage's bundle (specs + work-verbs); re-run after /compact" + " " + ON_DEMAND_STAGE))
     if not _seed_held:
-        print(_kq(_seed_howto()))
+        print(_seed_howto())   # T-13892: realm-qualified per item by `_seed_howto` — no whole-line `_kq`
     # T-0602 (SPEC-0059 Filing carve-out): the Filing-stage authoring-doctrine REFERENCE (availability,
     # no gate) — Filing has no `stage` entry verb, so its doctrine surfaces here for BOTH session types
     # (filing happens in Build decomposition AND Review). The `task file` read-check is the CHECK leg.
@@ -2021,7 +2021,8 @@ def startup_check_lines(repo_root, _read_yaml, *, _run_check=None, read_only=Fal
 
     Reads `<repo_root>/yitc-ops.yaml` `startup_checks:` (a list of {label, command, detail}), RUNS each
     declared cheap report-only command, and returns ONE aggregated REPORT-ONLY line — count + per-check
-    `label (detail)` — when any check FLAGS (non-zero exit), else `[]` (SUPPRESSED-WHEN-CLEAN). It is
+    `label (detail)` — when any check FLAGS (non-zero exit), else `[]` (SUPPRESSED-WHEN-CLEAN). The
+    FLAGGED line is marked for the session-start report (T-13901), its text unchanged. It is
     APPENDED to the SPEC-0119 debt-echo output by the host residue (`_debt_echo_lines`), so it inherits
     the 3 seams (session-start / land-tail / `debt` re-fold) + suppression verbatim — no new mechanism.
 
@@ -2072,9 +2073,13 @@ def startup_check_lines(repo_root, _read_yaml, *, _run_check=None, read_only=Fal
                 flagged.append(f"{label.strip()} ({ptr})")
         if not flagged:
             return []
-        return ["startup-check: " + str(len(flagged)) + " declared check(s) flagged — "
-                + "; ".join(flagged)
-                + ". Report-only (yitc-ops.yaml startup_checks; SPEC-0093 r17 / SPEC-0119)."]
+        # T-13901 (X-1950): the FLAGGED line is marked for the session-start report (SPEC-0152
+        # rule 17 surfaces it there); the text is unchanged, so bare `debt` prints it as before.
+        return [views._actionable(
+            "startup-check: " + str(len(flagged)) + " declared check(s) flagged — "
+            + "; ".join(flagged)
+            + ". Report-only (yitc-ops.yaml startup_checks; SPEC-0093 r17 / SPEC-0119).",
+            "project startup check flagged: " + "; ".join(flagged))]
     except Exception:
         return []
 

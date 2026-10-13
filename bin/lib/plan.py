@@ -804,6 +804,65 @@ def _birth_plan_draft_specs(plan_slug: str, *, SPECS_DIR, _decision_apply_field_
     return sorted(born)
 
 
+def _restore_withdrawn_draft_specs(written: list, *, write_text_atomic) -> None:
+    """T-13857 — put back, byte for byte, the files a `cancelled` / `rejected` transition started to
+    write and then could not complete. `written` = [(label, path, text before the write)] — every
+    file the transition STARTED on, whether or not its write happened. A file that already reads as
+    before is left alone. Each other file is put back with the atomic writer, so a restore that
+    cannot write leaves that file WHOLE, as the transition wrote it — never empty or partial. Such
+    a file is named on stderr; the caller re-raises the failure that brought it here either way,
+    and no failure of one restore stops the others."""
+    stuck = []
+    for label, p, before in written:
+        try:
+            if p.read_text(encoding="utf-8") == before:
+                continue
+        except BaseException:
+            pass   # unreadable now: try to put it back
+        try:
+            write_text_atomic(p, before)
+        except BaseException as e:
+            stuck.append(f"{label} ({p.name}: {e})")
+    if stuck:
+        print("⚠ plan stage: the transition failed AND these files could not be restored — each is "
+              "left on disk as the failed transition wrote it and is named by no journal row: "
+              + "; ".join(stuck), file=sys.stderr)
+
+
+def _withdraw_plan_draft_specs(plan_slug: str, *, _decision_apply_field_edits, _plan_draft_specs, write_text_atomic, then=None, then_path=None) -> list:
+    """T-13857 (SPEC-0005 §4) — the END of a plan's still-draft specs when the plan itself ends
+    `cancelled` / `rejected`: flip each one to status: withdrawn, in sorted-id order, then run `then`
+    (the plan's own terminal write, to the file `then_path`) as part of the same unit. Returns
+    [(spec id, path, text before the write)] for the specs THIS call flipped — the set the caller
+    records on the transition row and stages in the terminal-record commit, and no other file.
+
+    The set is `_plan_draft_specs` — the SAME selector the accept-gate audits and
+    `_birth_plan_draft_specs` births (status: draft AND proposed_by == plan_slug) — so a `proposed`
+    or `active` spec of the plan, a spec the plan withdrew earlier, and a work-first spec are never
+    in it. The write is the same comment-preserving line edit the birth uses.
+
+    ALL OR NOTHING on a failure: each file — every spec, then the plan file — is registered for the
+    restore BEFORE its write starts, so a failure raised before, during or after any one write puts
+    back every file the unit had started on, the one in flight included, and then propagates. So a
+    failed attempt leaves no spec withdrawn and the plan non-terminal, and the next attempt meets
+    every draft again and records all of them — there is never a spec withdrawn by an earlier
+    attempt that a later one would have to find."""
+    written, started = [], []
+    try:
+        for sid, p, raw in _plan_draft_specs(plan_slug):
+            started.append((sid, p, raw))
+            _decision_apply_field_edits(p, raw, [("status", "status: withdrawn")], {"status": "withdrawn"})
+            written.append((sid, p, raw))
+        if then is not None:
+            if then_path is not None:
+                started.append(("the plan file", then_path, then_path.read_text(encoding="utf-8")))
+            then()
+    except BaseException:
+        _restore_withdrawn_draft_specs(started, write_text_atomic=write_text_atomic)
+        raise
+    return written
+
+
 def _split_into(raw) -> list:
     """Flatten a repeatable+comma-separated `--into` arg into a clean id list (close/realized/partial)."""
     return [x.strip() for item in (raw or []) for x in str(item).split(",") if x.strip()]
@@ -1469,7 +1528,7 @@ def _plan_live_state(fm: dict, slug: str, _retire_on_proof_unresolved) -> list:
     return out
 
 
-def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_ROOT, PLAN_STAGE_SEQUENCE, PLAN_STATUSES, _append_event, _commit_worktree, _die, _emit_plan_stage_entered, _find_decision_yaml, _find_task_yaml, _in_writing_worktree, _load_draft, _plan_accept_core, _plan_close_core, _plan_draft_finalized_fresh, _plan_next_stage, _plan_stage_bundle_specs, _postcheck_probe_block_declared, _print_plan_stage_delivery, _read_yaml, _require_plan_decomposition_fidelity, _require_plan_decomposition_ready, _require_plan_postcheck_ready, _require_reads, _require_verification_artifact, _require_writing_worktree, _run_plan_gate_audit, _split_into, _write_draft, _is_consumer_build=None, _retire_on_proof_unresolved=None) -> None:
+def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_ROOT, PLAN_STAGE_SEQUENCE, PLAN_STATUSES, _append_event, _commit_worktree, _die, _emit_plan_stage_entered, _find_decision_yaml, _find_task_yaml, _in_writing_worktree, _load_draft, _plan_accept_core, _plan_close_core, _plan_draft_finalized_fresh, _plan_next_stage, _plan_stage_bundle_specs, _postcheck_probe_block_declared, _print_plan_stage_delivery, _read_yaml, _require_plan_decomposition_fidelity, _require_plan_decomposition_ready, _require_plan_postcheck_ready, _require_reads, _require_verification_artifact, _require_writing_worktree, _run_plan_gate_audit, _split_into, _write_draft, _withdraw_plan_draft_specs, _is_consumer_build=None, _retire_on_proof_unresolved=None) -> None:
     """`plan stage <NAME> <slug>` (T-0316) — the authoritative gated plan-lifecycle transition verb,
     mirroring `task stage` on ONE `status` field. On each call it (a) GATES the target stage's entry
     (= the prior stage's completion), (b) runs the stage's side-effects, (c) writes status=<NAME>,
@@ -1541,6 +1600,7 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         _die(f"{slug}: cannot enter {name!r} from {cur!r}.")
     # --- per-target gate + side-effects ---
     wrote = False
+    withdrawn_specs = []   # T-13857 — [(spec id, path, text before)] a `cancelled`/`rejected` transition withdrew
     legacy = None          # (event_type, data) — the legacy event the absorbed verb used to emit
     extra = {}             # extra fields folded into the plan_stage_entered event
     msg = ""
@@ -1692,12 +1752,26 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
             _die(f"plan stage cancelled {slug}: REFUSED — the plan is still LIVE, so age is not a reason to "
                  f"end it (SPEC-0034 §Terminals, T-12845): " + "; ".join(live) + ". Let the soak/trigger "
                  f"resolve, or pass --despite-live-state to cancel anyway (journaled).")
-        fm["status"] = name
-        fm["rejected_reason" if name == "rejected" else "cancelled_reason"] = reason
-        _write_draft(path, fm, body)
+        # T-13857 (SPEC-0005 §4) — a plan that ends without accepting its drafts ends them too: every
+        # spec of this plan still `draft` becomes `withdrawn` (it never governed). The specs are
+        # written BEFORE the plan's own terminal write, and both are one unit: a failure in either
+        # puts every file the unit started on back (the plan file too), so a failed attempt leaves
+        # the plan non-terminal with its drafts still drafts — re-runnable (a terminal plan takes
+        # no further `plan stage`), with nothing for the next attempt to find already withdrawn. The row (`specs_withdrawn` — the
+        # `specs_born` of the accept, mirrored) and the terminal-record commit below carry exactly
+        # the specs THIS call flipped.
+        def _write_terminal():
+            fm["status"] = name
+            fm["rejected_reason" if name == "rejected" else "cancelled_reason"] = reason
+            _write_draft(path, fm, body)
+
+        withdrawn_specs = _withdraw_plan_draft_specs(slug, then=_write_terminal, then_path=path)
         if name == "rejected":
             legacy = ("draft_rejected", {"slug": slug, "reason": reason})
-        extra = {"reason": reason}
+        extra = {"reason": reason, "specs_withdrawn": [sid for sid, _p, _raw in withdrawn_specs]}
+        if withdrawn_specs:
+            msg = (f"+ withdrew {len(withdrawn_specs)} draft spec(s) of this plan (draft→withdrawn, "
+                   f"SPEC-0005 §4): {', '.join(sid for sid, _p, _raw in withdrawn_specs)}")
         if name == "cancelled" and live:
             extra["despite_live_state"] = live
         wrote = True
@@ -1748,6 +1822,9 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                      else _find_decision_yaml(rid) if re.match(r"^D-\d{4,}$", rid) else None)
             if rpath and rpath.exists():
                 pathspecs.append(str(rpath.relative_to(REPO_ROOT)))
+        # T-13857 — the draft specs THIS transition withdrew are part of its own record; no other
+        # spec file is staged (one the plan withdrew earlier may carry someone's unrelated edit).
+        pathspecs.extend(str(sp.relative_to(REPO_ROOT)) for _sid, sp, _raw in withdrawn_specs)
         _, short = _commit_worktree(
             rel_plan,
             f"chore({slug}): plan {name} record — status:{name} (+ reverse-links)",
@@ -3290,7 +3367,11 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
                 sweep=getattr(args, "sweep", None))      # T-13632
         print(f"note: the accept-gate verdict / content_hash / accept_freshness_hash are UNCHANGED — "
               f"`plan stage accepted` still accepts this record, and no ceiling pass was burned.")
-        return
+        # T-13864 — hand the outcome line back instead of printing it here: the host wrapper prints it
+        # LAST, after its report-only seam tail, so the call's final stdout line says the absorption
+        # was recorded. This route prints no `AUDIT:` token (that grammar is `audit pre|post`'s).
+        return (f"plan check {slug}: RECORDED {len(absorb_texts)} absorption(s) in "
+                f"decisions/{audit_path.name} — the call succeeded; no check ran, no verdict this call.")
     n_lines = len([ln for ln in body.splitlines() if ln.strip()])
     large = _plan_is_large(body)   # the SHARED big-plan predicate (T-9350 — agrees with the finalize pre-pass)
     # T-0386 — `plan check` is a plan-lifecycle-transition audit, so the model posture is FULL,

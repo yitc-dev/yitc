@@ -153,4 +153,4 @@ binding:
 implements_signature:
   bin/lib/task.py#cmd_task_close: a8bb6bca61efc36cf2481454df900ed630e4589a36107af2fccffb024c18fb60
   bin/lib/task_closure_evidence.py#_post_verification_gap: 80836ae11dd9ceadd8a1fbc5a57cca0ea0f8b888e45b447f49c843aeed3df502
-  tasks/_template.yaml: b83bd8443360055a218a7293a18c2fc80cf23c286f6dfe8b33ae656ea57ec7a3
+  tasks/_template.yaml: ffeef8ff9dad39419ddb1a94bd7671944c818309b0d7a07c7b988fcf3491ebdd

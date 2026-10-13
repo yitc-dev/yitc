@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import shlex
 import sys
 import time
 
@@ -522,6 +523,32 @@ def _read_check_satisfied(docs, doc_realms, ctx, credited_out) -> None:
                          f"credited {named}.\n")
 
 
+def fetch_command(doc: str, *, consumer: bool, kernel: bool = False, REPO_ROOT, ENGINE_ROOT) -> str:
+    """The ONE composer of a read-gate refusal's READY fetch command (SPEC-0050 §4) — shared by the
+    stage read gate (`_require_reads`) and the `spec edit --bless` before-rule-change gate (T-13873),
+    so the two refusals cannot name different forms for one input.
+
+    Engine self-build → the bare `bin/yitc-v2 graph query <doc>`. A `-C` consumer has no local
+    `bin/yitc-v2`, and its receipt must land on the journal the gate reads (T-10564 / X-0416), so it
+    gets the engine-absolute `-C <this checkout>` form — with `--kernel` for a doc whose contract is
+    the KERNEL's (SPEC-0092, T-11077). Each path is shell-quoted, so the line stays copy-runnable from
+    any directory; a path with nothing to quote prints as it is. The `graph query` words themselves
+    are `graph.spec_query_hint`'s — this adds only the executable prefix a gate refusal needs."""
+    from lib import graph   # deferred: only a refusal pays the import
+    cli = (f"{shlex.quote(f'{ENGINE_ROOT}/bin/yitc-v2')} -C {shlex.quote(str(REPO_ROOT))}"
+           if consumer else "bin/yitc-v2")
+    return graph.spec_query_hint(doc, is_consumer=bool(consumer and kernel), cli=cli)
+
+
+def checkout_read_note(REPO_ROOT) -> str:
+    """The ONE sentence a read-gate refusal carries about WHICH journal it read (T-11888 / T-13349;
+    the bless gate too, T-13873): receipts are single-path, so a fetch run in another checkout of the
+    same repository does not credit here. Always its own line, never appended to a command line."""
+    return (f"(this gate read the journal of THIS checkout: {REPO_ROOT}. A fetch run in a "
+            f"DIFFERENT checkout records its receipt on THAT journal and does not credit "
+            f"here — run the command(s) above from this checkout, T-11888.)")
+
+
 def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consumer_build,
                    _stage_bundle_specs, _resolve_session_ref, _session_started_lower_bound,
                    _emit_read_gate_refused, _fetched_spec_ids, _die, REPO_ROOT, ENGINE_ROOT,
@@ -740,8 +767,8 @@ def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consum
         # instruction X-0416 fixed on the -C axis, now fixed on the REALM axis.
         # The printed line stays PURE + copy-runnable (a trailing inline comment would break a caller
         # that runs it verbatim — the X-0416 loop-closing contract); the explanation is its own line.
-        lines += [f"  {ENGINE_ROOT}/bin/yitc-v2 -C {REPO_ROOT} graph query "
-                  f"{'--kernel ' if doc_realms.get(d) == 'kernel' else ''}{d}"
+        lines += ["  " + fetch_command(d, consumer=True, kernel=doc_realms.get(d) == "kernel",
+                                       REPO_ROOT=REPO_ROOT, ENGINE_ROOT=ENGINE_ROOT)
                   for d in missing]
         if any(doc_realms.get(d) == "kernel" for d in missing):
             lines.append("(the `--kernel` ones are KERNEL contracts: under -C the BARE form resolves "
@@ -750,7 +777,8 @@ def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consum
                      f"checkout WITHOUT -C records its receipt on the KERNEL journal and will NOT "
                      f"credit this gate — X-0416.)")
     else:
-        lines += [f"  bin/yitc-v2 graph query {d}" for d in missing]
+        lines += ["  " + fetch_command(d, consumer=False, REPO_ROOT=REPO_ROOT, ENGINE_ROOT=ENGINE_ROOT)
+                  for d in missing]
     # T-11888: name the checkout whose journal this gate READ. The receipt lives on the journal of
     # the checkout the fetch RAN in, and a session crosses between main and its worktrees many
     # times a day — so a reader who fetched elsewhere is otherwise sent to re-read what they
@@ -758,9 +786,7 @@ def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consum
     # the printed commands stay PURE + copy-runnable (the X-0416 loop-closing contract).
     # T-13349: BOTH builds carry this ONE string — receipts are single-path by contract, and a
     # consumer (-C) Controller crossing main↔worktree needs the same reason (<project> X-1696).
-    lines.append(f"(this gate read the journal of THIS checkout: {REPO_ROOT}. A fetch run in a "
-                 f"DIFFERENT checkout records its receipt on THAT journal and does not credit "
-                 f"here — run the command(s) above from this checkout, T-11888.)")
+    lines.append(checkout_read_note(REPO_ROOT))
     lines.append("the gate checks delivery (fetch), not comprehension")
     # T-11576 (<project> X-1101) — DISCRIMINATE, so the refusal's own cure cannot loop. A doc whose only
     # in-window receipt was recorded `stdout_delivered: False` was ALREADY fetched this session; what is

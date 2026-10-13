@@ -163,6 +163,8 @@ _PACKET_PROTECTED_PREFIXES = (
                                       # (`task analyze --finalize` caps it at 40 lines). Trimming it
                                       # would re-open the very false-RED this section closes.
     "### Implementation plan",
+    "### Declared identical to the prototype",   # T-13856 — the card's own declaration, which this pass
+                                                 # judges: a bounded packet must never drop an entry
     "### Stage-6 test evidence",
     "### Session resolution options",
 )
@@ -1699,6 +1701,11 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             "— NOT whether the spec enumerates implementation artifacts the methodology forbids it to\n"
             "carry. (A spec MAY name a code anchor in its `implements:` field or a brief pointer; that\n"
             "is provenance, not the rule body — do not confuse a pointer with a demand for impl detail.)\n"
+            # T-13900 (X-1952) — the SPEC-0005 §3 stay clause. The SPEC-0036 content-boundary binding
+            # carries this same sentence; the rule itself is SPEC-0005 §3's and is only pointed at.
+            "A command, flag or refusal text that the reader acting under the rule applies is rule text,\n"
+            "not implementation detail: its presence in a spec is never flagged under the content\n"
+            "boundary (SPEC-0005 §3 names what stays in the rule text).\n"
             "\n"
             "THE CARD'S STAGE-1 ANALYSIS RECORD IS IN THE PACKET — READ IT BEFORE JUDGING THE SWEEP\n"
             "(T-11427, X-1097): the `### Analysis (Stage-1 record from the card)` section below carries\n"
@@ -2501,6 +2508,10 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
     # 1 -> 11) before being withdrawn whole by T-12168.
     # T-12571 (SPEC-0205 rules 5/6) — inert for every card without a prototype reading (byte-unchanged).
     if target_kind == "task" and stage == "pre" and prototype_diff and task.get("prototype_ref"):
+        from lib import spike_identity as _si   # noqa: PLC0415 — a lower leaf; this arm only
+        # T-13856 — the card's declared-identical paths, in a section of their own AHEAD of the diff
+        # (the diff section may be bounded; this one is protected). '' when the card declares nothing.
+        overlay += _si.declaration_packet_block(task)
         overlay += (f"\n### Prototype diff (the specification — prototype_ref: {task.get('prototype_ref')})\n"
                     f"```diff\n{prototype_diff}\n```\n\n" + PROTOTYPE_PRE_OVERLAY)
     if target_kind == "task" and stage == "post" and prototype_identity:
@@ -2509,7 +2520,9 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                     f"{', '.join(_pi.get('whole_file_hits') or []) or 'none'}; hunk-subset "
                     f"{_pi.get('hunk_subset')}; verbatim share {_pi.get('verbatim_share')}"
                     f"{' (best ' + str(_pi.get('best_spike')) + ')' if _pi.get('best_spike') else ''}"
-                    f"{'; not computed: ' + str(_pi.get('error')) if _pi.get('error') else ''} — "
+                    f"{'; not computed: ' + str(_pi.get('error')) if _pi.get('error') else ''}"
+                    f"{'; declared identical by construction and admitted (judged at audit-pre): ' + ', '.join(_pi.get('declared_identical')) if _pi.get('declared_identical') else ''}"
+                    f"{'; declared but NOT admitted: ' + '; '.join(str(n.get('file')) + ' (' + str(n.get('why')) + ')' for n in _pi.get('declared_not_admitted')) if _pi.get('declared_not_admitted') else ''} — "
                     f"cited from {_pi.get('source_type')} {_pi.get('source_row')} (a projection of that "
                     f"row, never recomputed; SPEC-0205 rule 6). Judge the derivation: the share is "
                     f"context, not a verdict.\n")

@@ -1743,6 +1743,92 @@ def _declared_layer_worker_shares(sec: dict, layers) -> dict:
     return out
 
 
+def _layer_share_load_record(rows, allotment, cores) -> "dict | None":
+    """T-13876 (SPEC-0152 rule 16 §layer_worker_shares) — the REPORT-ONLY reading of what a project's
+    declared shares ask for at the allotment one verify published: the sum of the shares of the
+    layers that verify RAN, times that allotment, against the host's processor count.
+
+    WHY IT EXISTS. The sum of the shares is deliberately unchecked (owner design, 2026-09-16) and
+    stays so: a project may declare a sum above one. For such a declaration a change of the
+    allotment — a machine setting, a new host, a changed default — multiplies the workers its layers
+    ask for, and nothing said so (GitHub issue 85: 3.07 x 13 became 3.07 x 28 on 32 cores, unseen
+    for three days). This returns the three numbers; it judges none of them.
+
+    `rows` are the verify's layer outcome rows. THE SUM IS OVER WHAT EXECUTED — the membership
+    `per_layer_durations` and `_layer_overlap_ratio_record` use, by the same predicate: a row with
+    no int `duration_ms` (waived / malformed / skipped-disjoint-subject) ran nothing and asks for
+    nothing. A row's `declared_worker_share` is read only when it is the shape the declaration
+    reader admits (a non-bool number in (0, 1]); anything else contributes nothing.
+
+    AN UPPER BOUND, NEVER A MEASUREMENT: `worker_slots` is what those layers would ask for if they
+    ran at the same time, each applying its share. Whether they overlap is the runner's fact
+    (`layer_overlap_ratio`), and what they consumed is `per_layer_cpu`.
+
+    ABSENT, NOT EMPTY: `None` when no executed row carries a share, when `allotment` or `cores` is
+    not a positive int (an unknown bound is not a bound — the reading is not fabricated), or when
+    the product does not EXCEED `cores` (equality is within the bound; a relative 1e-9 guard keeps
+    binary-fraction noise at exact equality from reading as an excess). So a land that declares no
+    shares, and one within the bound, carry a byte-unchanged `verify_metrics`.
+
+    Pure + total: no I/O, nothing raised. REPORT-ONLY: nothing consumes this to change an exit
+    code, a verdict or an admission decision."""
+    for value in (allotment, cores):
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            return None
+    shares = []
+    for row in rows or []:
+        if not isinstance(row, dict) or isinstance(row.get("duration_ms"), bool) \
+                or not isinstance(row.get("duration_ms"), int):
+            continue
+        share = row.get("declared_worker_share")
+        if isinstance(share, (int, float)) and not isinstance(share, bool) and 0 < share <= 1:
+            shares.append(float(share))
+    if not shares:
+        return None
+    share_sum = math.fsum(shares)
+    slots = share_sum * allotment
+    if not slots > cores * (1 + 1e-9):
+        return None
+    return {"share_sum": share_sum, "allotment": allotment, "cores": cores,
+            "worker_slots": slots, "layers": len(shares)}
+
+
+def _layer_share_load_line(record) -> "str | None":
+    """T-13876 — the operator-facing half of `_layer_share_load_record`. `None` (nothing printed)
+    whenever no record exists, so a land without the reading has a byte-unchanged stdout. Four
+    significant digits; the exact numbers are on the land row, which this line never replaces."""
+    if not isinstance(record, dict):
+        return None
+    try:
+        s, a, c, w, n = (float(record["share_sum"]), int(record["allotment"]), int(record["cores"]),
+                         float(record["worker_slots"]), int(record["layers"]))
+    except (KeyError, TypeError, ValueError):
+        return None
+    return (f"land: WARN the declared layer_worker_shares of the {n} layer(s) this verify ran sum to "
+            f"{s:.4g}; at the worker allotment in force ({a}) that is up to {w:.4g} worker slots if "
+            f"they run at the same time, and this host has {c} cores. Report-only: the sum stays the "
+            f"project's to choose and nothing is refused (SPEC-0152 rule 16).")
+
+
+def _fold_layer_share_load(verify_metrics, rows, allotment, cores, *, emit=print) -> "dict | None":
+    """T-13876 — the WHOLE effect of the declared-share load reading on a land, in one place: when
+    `_layer_share_load_record` yields a reading it is stored as `verify_metrics["layer_share_load"]`
+    and its line is passed once to `emit`; otherwise nothing happens. Returns the record or None.
+
+    The land calls this with ONE statement and reads nothing back, so «the reading changes nothing
+    else» is a property of this function alone: it writes that one key, never touches another key
+    of `verify_metrics` or any row, and has no other effect. A `verify_metrics` that is not a mapping
+    is left alone (None)."""
+    if not isinstance(verify_metrics, dict):
+        return None
+    record = _layer_share_load_record(rows, allotment, cores)
+    if record is None:
+        return None
+    verify_metrics["layer_share_load"] = record
+    emit(_layer_share_load_line(record))
+    return record
+
+
 _SHELL_ASSIGNMENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*=")
 _SHELL_CHDIR_WORD_RE = re.compile(r"(?<![\w./-])(?:cd|pushd|popd)(?![\w./-])")
 

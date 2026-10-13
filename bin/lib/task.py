@@ -151,6 +151,9 @@ _STDIN_VERB_OWNED_KEYS = {
     # refusal ever recorded (and so become undispatchable with nothing in the journal explaining it).
     "refused_at": "task refuse",
     "refused_reason": "task refuse",
+    # T-13856 (SPEC-0205 rule 5) — the declared-identical paths are written on an EXISTING card by the
+    # one route that validates them against the card's own prototype; filing authors none.
+    "prototype_identical": "task update --set-field prototype_identical --from-file <path>",
 }
 # (3) PASSTHROUGH — the schema-valid set is DERIVED from `tasks/_template.yaml` (the SPEC-0028-derived
 # single source the skeleton already prints, P5) UNION these three catalog fields that illustrative
@@ -413,8 +416,13 @@ STRUCTURED_EDIT_MAP_FIELDS = ("probe_moments",)
 # the work could not be linked). ADD-ONLY and validated fail-closed against the shared-log fold by
 # `_resolves_cross_link_error`.
 STRUCTURED_EDIT_LINK_FIELDS = ("resolves_cross",)
+# T-13856 (SPEC-0205 rule 5): `prototype_identical` — the per-path declaration a card that names its
+# prototype may carry (a YAML list of entries, each a path and a reason; an empty list withdraws it).
+# Validated fail-closed by `prototype_identical_error`, and this is its ONLY writer.
+STRUCTURED_EDIT_DECLARATION_FIELDS = ("prototype_identical",)
 STRUCTURED_EDIT_FIELDS = (STRUCTURED_EDIT_LIST_FIELDS + STRUCTURED_EDIT_PROSE_FIELDS
-                          + STRUCTURED_EDIT_MAP_FIELDS + STRUCTURED_EDIT_LINK_FIELDS)
+                          + STRUCTURED_EDIT_MAP_FIELDS + STRUCTURED_EDIT_LINK_FIELDS
+                          + STRUCTURED_EDIT_DECLARATION_FIELDS)
 
 
 def _resolves_cross_link_error(tid, value, current, items, self_name, tasks_dir):
@@ -1649,6 +1657,32 @@ def prototype_ref_error(repo_root, ref, events_path=None) -> "str | None":
     if not any(s["ref"] == ref and s["state"] == "parked" for s in fold["spikes"]):
         return f"`{ref}` is an annotated tag whose annotation names no declaring spike row" + contract
     return None
+
+
+def prototype_identical_error(repo_root, card, value) -> "tuple[list | None, str | None]":
+    """T-13856 (SPEC-0205 rule 5): (the declaration to store, None) or (None, why it is refused). An
+    empty list withdraws the declaration and is always storable. Anything else needs a card that names
+    its prototype, a well-formed value (`spike_identity.declaration_entries` — the same reading `land`
+    applies), and, per entry, a FILE of that prototype at the declared path."""
+    from lib import spike_identity as si   # noqa: PLC0415
+    contract = " — the prototype contract is the kernel spec SPEC-0205 (rule 5)"
+    if isinstance(value, list) and not value:
+        return [], None
+    entries, fault = si.declaration_entries({si.DECLARATION_FIELD: value})
+    if fault or not entries:
+        return None, (f"the value {fault or 'declares nothing'}: it must be a YAML list of entries, each exactly "
+                      f"`path:` (one literal repo-relative file path, never a pattern or a directory) and "
+                      f"`reason:` (why that file comes out byte-identical to the prototype's by construction); "
+                      f"an empty list `[]` withdraws the declaration" + contract)
+    ref = card.get("prototype_ref") if isinstance(card, dict) else None
+    if not (isinstance(ref, str) and _PROTOTYPE_REF_RE.match(ref.strip())):
+        return None, ("this card carries no `prototype_ref`, and only a card built on a prototype declares a "
+                      "file identical to it" + contract)
+    for entry in entries:
+        if si._blob_at(repo_root, f"refs/tags/{ref.strip()}", entry["path"]) is None:
+            return None, (f"the prototype {ref.strip()} holds no file at `{entry['path']}` — a declared path "
+                          f"names a file of the prototype, at the path this card will write it" + contract)
+    return entries, None
 
 
 def _name_created_card_on_failure(fn):
@@ -4533,6 +4567,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 if _merr:
                     _die(f"task update: --set-field {_field} {_merr}. Nothing was written. See "
                          f"`bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+            elif _field in STRUCTURED_EDIT_DECLARATION_FIELDS:
+                _value, _derr = prototype_identical_error(REPO_ROOT, task, _value)   # T-13856
+                if _derr:
+                    _die(f"task update: --set-field {_field} refused — {_derr}. Nothing was written. A card "
+                         f"with no prototype names it first: `bin/yitc-v2 task update {tid} --prototype-ref "
+                         f"spike/<slug>`. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
             elif not (isinstance(_value, str) and _value.strip()):
                 _die(f"task update: --set-field {_field} needs a non-empty YAML STRING (use a `|` "
                      f"block for multiline text). Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
@@ -4543,6 +4583,13 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         _append_event("task_amended", tid, {"field_edit": True, "field": _field, "fields": [_field],
                                             **_extra})
         print(f"task field set: {tid} `{_field}` via {_mode} — task_amended(field_edit) emitted")
+        if _field in STRUCTURED_EDIT_DECLARATION_FIELDS and _value:
+            # T-13856 — the cue for what makes the declaration count, at the moment it is written.
+            print(f"  {len(_value)} path(s) declared identical to {task.get('prototype_ref')} by construction. "
+                  f"`land` admits a declared path only when this card's audit-pre showed that entry to the "
+                  f"auditor: state the declared file(s) in the plan and run `bin/yitc-v2 audit pre --task "
+                  f"{tid}` AFTER this write (a re-run on an unchanged plan invokes no auditor). Every other "
+                  f"file stays refused on exact identity (SPEC-0205 rules 2 and 5).")
         # T-13339: the filing-seam auto-pick (T-9399), reused for a link ADDED to a live card, so a
         # still-`requested` item becomes reachable by the close-side auto cross_done. Fail-open: the
         # governed write already landed.
@@ -4766,6 +4813,22 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # field of frozen history. Compare the same-loader parse of the original vs the replaced text
         # (apples-to-apples, not the transition-loader `task`).
         orig_parsed = state.load_str(text)
+        # DECLARED-IDENTICAL guard (T-13856, SPEC-0205 rule 5): the per-path declaration has ONE
+        # writer, the --set-field route that validates it against the card's own prototype. A text
+        # edit that changes it, or that leaves it on a card which no longer names a prototype, is
+        # refused BEFORE any write — presence is compared beside the value, so a null is not an absence.
+        from lib import spike_identity as _si_fe   # noqa: PLC0415
+        _decl_key = _si_fe.DECLARATION_FIELD
+        _decl_seen = lambda _c: (_decl_key in _c, _c.get(_decl_key)) if isinstance(_c, dict) else (False, None)   # noqa: E731
+        if _decl_seen(rt) != _decl_seen(orig_parsed):
+            _die(f"field-edit must not change `{_decl_key}` — the declaration is written by `bin/yitc-v2 task "
+                 f"update {tid} --set-field {_decl_key} --from-file <path>`, which validates each entry "
+                 f"against the card's prototype (SPEC-0205 rule 5; an empty list `[]` withdraws it). Use the "
+                 f"verb (the file is untouched).")
+        if rt.get(_decl_key) and not (isinstance(rt.get("prototype_ref"), str) and rt.get("prototype_ref").strip()):
+            _die(f"field-edit would leave a `{_decl_key}` declaration on a card that names no `prototype_ref` "
+                 f"— withdraw the declaration first: `bin/yitc-v2 task update {tid} --set-field {_decl_key} "
+                 f"--from-file <path>` with a file holding `[]` (SPEC-0205 rule 5; the file is untouched).")
         # HOST-CONFIG MARKER guard (T-13573, SPEC-0028 / SPEC-0094 §3): this field-edit is the marker's
         # governed post-filing write-path, and until now it applied none of the three checks the
         # filing seam applies — so `host_config: "true"` or a kind with no marker was written, and the
@@ -6716,8 +6779,9 @@ def _bookkeeping_only_custody_shift(tid: str, *, _recorded_commit_sha, _worktree
 def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_yaml, _audited_custody_sha,
                               _worktree_dirty_paths, _path_tracked_at_head, _last_audit_post_event,
                               _record_fold_commit, _commit_landed_kind, _repin_ship_admissible=None):
-    """T-12719 — the FOLDED shape of the T-0275 hazard state, read for the `--fix-red` / `--absorb`
-    doors ONLY. Return the SAME `(rel, audited_full_sha)` tuple `_audit_commit_shift_hazard` returns
+    """T-12719 — the FOLDED shape of the T-0275 hazard state, read for the three Stage-8 cycle doors
+    ONLY (`--fix-red` / `--absorb`; `--reship` since T-13870). Return the SAME
+    `(rel, audited_full_sha)` tuple `_audit_commit_shift_hazard` returns
     when `decisions/<tid>-audit-post.yaml` is COMMITTED on this branch (tracked at HEAD, not dirty),
     its `commit:` resolves to the task's AUDITED CUSTODY commit, and it is still the STANDING verdict
     — the last `audit_post_completed` row for the task names that same commit with that same verdict.
@@ -12723,6 +12787,17 @@ def _stage6_land_floor_preview(root, cguard, *, _run_git_cap) -> list:
     calls the SAME floor functions `land` runs (`_any_author_land_floor`), READ-ONLY, against the
     working tree and the merge-base with `main`.
 
+    T-13896 (X-1949) — Stage 6 precedes Commit, and the floor's diff-scoped secrets read asks git
+    about committed content (`<base>...HEAD`): a credential in a file not committed yet read as
+    "would pass" here and aborted the land after the close, and on a file with uncommitted edits the
+    committed line numbers select other lines of the file on disk. So the preview REPLACES that one
+    read: it takes the floor's diff-scoped secrets messages out (recomputed, so they are matched by
+    equality and never by wording) and runs the SAME atom over the working tree against the
+    merge-base — the lines the tree adds to tracked files, numbered as on disk, and untracked
+    not-ignored files whole (`working_tree=True` on the atom's two readers). A listed path that is
+    not on disk under its listed name is reported NOT READ. The floor's whole-tree read
+    (`shared-repo-floor` lens) is kept as it is. The other atoms are not re-read; the pass line says so.
+
     Inert on the engine's own build (empty `cguard["mode"]`) — mirrors land, where the floor rides the
     consumer guard. On a branch that ADDS or ALTERS a declared `verify.floor.<atom>.command`, that
     candidate command is also run ONCE (shell-operator check included, program bytes from HEAD) — land
@@ -12746,6 +12821,20 @@ def _stage6_land_floor_preview(root, cguard, *, _run_git_cap) -> list:
                                                 if ops_path.exists() else None)
             except Exception:                     # noqa: BLE001 — a malformed carrier is land's refusal
                 cand_floor = {}
+            # T-13896 — the secrets atom over the working tree, in place of its committed-diff read.
+            pending = _wt._floor_changed_paths(Path(root), base, _run_git_cap, working_tree=True)
+            unfound = [p for p in pending or [] if not os.path.lexists(os.path.join(str(root), p))]
+            if pending is not None:
+                if bad:
+                    committed_read = _wt._floor_secrets_scan(Path(root), base, _run_git_cap,
+                                                             tree_wide=False, floor=cand_floor)
+                    bad = [m for m in bad if m not in committed_read]
+                if pending:
+                    bad.extend(_wt._floor_secrets_scan(
+                        Path(root), base, _run_git_cap, tree_wide=False, floor=cand_floor,
+                        _floor_changed_paths=lambda *_a, **_k: pending,
+                        _floor_added_line_numbers=lambda w, b, g, **_k: _wt._floor_added_line_numbers(
+                            w, b, g, working_tree=True)))
             base_floor = _wt._base_floor_section(Path(root), base, _run_git_cap)
             cand = _wt._floor_command_keys(cand_floor)
             base_cmds = _wt._floor_command_keys(base_floor)
@@ -12755,10 +12844,20 @@ def _stage6_land_floor_preview(root, cguard, *, _run_git_cap) -> list:
                     lambda v: v or _wt._FLOOR_COMMAND_TIMEOUT_S, "HEAD", _run_git_cap))
     except Exception as exc:                      # noqa: BLE001 — a preview never breaks the verb
         return [f"{tag}: skipped — {type(exc).__name__}: {exc}; the land floor still gates."]
-    if not bad:
+    lines = [f"{tag}: WOULD-FAIL — {msg}" for msg in bad]
+    if pending is None:
+        lines.append(f"{tag}: NOT READ — the uncommitted and untracked files could not be listed, so "
+                     f"the secrets scan did not read them; the land floor still gates.")
+    elif unfound:
+        lines.append(f"{tag}: NOT READ — {len(unfound)} listed path(s) are not on disk under the "
+                     f"listed name ({', '.join(repr(p) for p in unfound[:5])}), so the secrets scan "
+                     f"did not read them; the land floor still gates.")
+    if not lines:
         return [f"{tag}: the land floor would pass on this working tree (read against the merge-base "
-                f"with main; the land stays the gate)."]
-    return [f"{tag}: WOULD-FAIL — {msg}" for msg in bad]
+                f"with main; the secrets scan read the working tree, uncommitted and untracked "
+                f"files included; the other atoms did not read untracked files; the land stays "
+                f"the gate)."]
+    return lines
 
 
 def _stage6_leg_summary(tid, cguard, *, delegated, have_tests, tests_ran) -> str:
@@ -15843,12 +15942,20 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
     # input can reach, which is exactly what CHARTER §P1 F3 asks us not to add. The test pins BOTH
     # reaching refusals so a future reordering cannot silently open the hole.
     hazard = _audit_commit_shift_hazard(tid)
-    if hazard is None and (fix_red or absorb) and _folded_audit_post_hazard:
-        # T-12719 — the FOLDED shape of the same hazard state, for the two Stage-8 cycle doors ONLY:
+    # T-13870 — True when the hazard below came from the pause-FOLDED reader (the record is committed
+    # and clean), so the `--reship` texts can say what happens to the record on that shape.
+    hazard_is_folded = False
+    if hazard is None and (fix_red or absorb or reship) and _folded_audit_post_hazard:
+        # T-12719 — the FOLDED shape of the same hazard state, for the Stage-8 cycle doors ONLY:
         # a `task pause` self-commit (T-9320) folds the dirty RED/YELLOW record into git, so after
         # relaunch the dirty guard above answers None and both doors refused a verdict that is still
         # standing. Consulted after the dirty guard and only under a cycle flag, so the plain commit
         # path and the `elif hazard:` T-0275 refusal below never see it (see the predicate).
+        # T-13870 — `--reship` (GREEN) reads the same folded shape on the same terms (measured on a
+        # consumer card, public issue #83 item 3): a GREEN record a pause folded is still the standing
+        # verdict, and the leg's own evidence below (exactly GREEN, authored content, the ceiling) is
+        # asked of it unchanged. A LANDED pause is not this shape: the reader answers None there
+        # (custody narrows only for an unlanded ship), so T-12434's route stays the one for it.
         hazard = _folded_audit_post_hazard(tid)
         # T-13147 — a DIRTY record here is the re-pinned arm, admitted for `--fix-red` ONLY: the
         # `--absorb` door keeps its pre-T-13147 answer on that shape. T-13348 — so does a FOLDED
@@ -15857,6 +15964,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                                        or hazard[0] in (_worktree_dirty_paths(pathspecs=[hazard[0]]) or [])
                                        or _record_declares_repin(REPO_ROOT / hazard[0])):
             hazard = None
+        hazard_is_folded = hazard is not None
     if hazard and fix_red and hazard[0].endswith("-audit-post.yaml"):
         # T-11600 — the Stage-8 RED IN-SCOPE-FIX leg: the missing commit route the T-11573
         # `--absorb`-on-RED refusal ALREADY PRESCRIBES ("fix the RED cause in scope and re-audit the
@@ -16271,6 +16379,19 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # never open a carve-out (`lessons/carving-an-exception-into-a-fail-closed-gate` §1).
         # THE SAME PREDICATE, NOT A SECOND ONE (P5): there is one notion of "authored" in this verb.
         authored = _red_fix_authored_paths(tid) if _red_fix_authored_paths else []
+        # T-13870 — what happens to the superseded record differs by shape, and the two texts below
+        # say which: a DIRTY record is staged with this commit; a pause-FOLDED one is already
+        # committed on the branch and is read, never re-staged.
+        if hazard_is_folded:
+            _stage9_lead = ("go to Stage 9 — the audit YAML is already committed on this branch "
+                            "by the `task pause` record (T-13870):")
+            _stage9_effect = "closes on the audited ship"
+            _superseded_note = ("already committed on this branch by the `task pause` record and "
+                                "stays in the tree, not deleted (T-13870).")
+        else:
+            _stage9_lead = "leave the audit YAML DIRTY and go to Stage 9:"
+            _stage9_effect = "commits that YAML in its own closure-record commit"
+            _superseded_note = "folded IN, not deleted."
         if not authored:
             _die(f"--reship refused: this commit carries NO authored content — nothing here can be "
                  f"the further ship it declares. `--reship` commits a SECOND in-scope ship over a "
@@ -16283,9 +16404,9 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                  f"TWO routes, and this refusal names the one that fits — a refusal that named no "
                  f"reachable remedy is the defect this leg exists to end: (1) you genuinely have a "
                  f"further ship → stage it and re-run this leg; (2) you have NOTHING further to "
-                 f"ship and the GREEN stands → you are DONE with Stage 8, so leave the audit YAML "
-                 f"DIRTY and go to Stage 9: `yitc-v2 task close {tid} --commit {hazard[1][:7]} "
-                 f"--probe AC1:pass ...`, which commits that YAML in its own closure-record commit "
+                 f"ship and the GREEN stands → you are DONE with Stage 8, so {_stage9_lead} "
+                 f"`yitc-v2 task close {tid} --commit {hazard[1][:7]} "
+                 f"--probe AC1:pass ...`, which {_stage9_effect} "
                  f"WITHOUT re-shifting custody (LIFECYCLE §Stage 8 / T-0275, SPEC-0015 §Internal). "
                  f"Do NOT weaken the audit to get past this.")
         # VERIFY THE PROMISED REMEDY IS AVAILABLE BEFORE GRANTING THE RISK — this leg's whole custody
@@ -16318,8 +16439,8 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"deadlocks (E-0008).", file=sys.stderr)
         print(f"# --reship: committing a FURTHER in-scope ship for {tid} over its GREEN audit-post "
               f"({len(authored)} authored path(s): {', '.join(authored[:5])}"
-              f"{' …' if len(authored) > 5 else ''}). The superseded GREEN verdict is folded IN, "
-              f"not deleted. REQUIRED next: `yitc-v2 audit post --task {tid} --commit <new>` — the "
+              f"{' …' if len(authored) > 5 else ''}). The superseded GREEN verdict is "
+              f"{_superseded_note} REQUIRED next: `yitc-v2 audit post --task {tid} --commit <new>` — the "
               f"GREEN you hold covers the OLD commit, so until a fresh audit-post pins THIS one "
               f"`task close` fail-closes (chain of custody, D-0082).", file=sys.stderr)
     elif hazard and absorb and hazard[0].endswith("-audit-post.yaml"):
@@ -16536,7 +16657,10 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # flag would be a silent no-op that still journal-marked a second ship — a claim with nothing
         # behind it.
         _die(f"--reship is the Stage-8 GREEN second-ship leg (T-12410): it requires a dirty "
-             f"{tid}-audit-post.yaml pinned to the recorded commit (the T-0275 hazard state) — none "
+             f"{tid}-audit-post.yaml pinned to the recorded commit (the T-0275 hazard state) — "
+             f"OR that same record COMMITTED on this branch by a `task pause` self-commit fold "
+             f"(T-9320) and still the standing verdict, i.e. the last audit_post_completed for "
+             f"{tid} names that commit and verdict (T-13870; EITHER shape admits) — neither "
              f"found, so there is no GREEN verdict this commit would supersede. If audit-post has "
              f"not run for the recorded commit, run it first; if this is still the FIRST ship of "
              f"{tid}, no audit has pinned anything yet — commit normally without --reship.")

@@ -2751,7 +2751,18 @@ def _layer_worker_shares_reader_advisories(repo_root, ops) -> list:
     (`lessons/a-signal-about-a-reader-fails-safe-the-opposite-way-to-a-gate.md`): a partially
     resolved registry can only SHRINK the text, and shrinking text accuses more. The resolver's own
     bounds (depth / file-count / byte cap) are the existing delegation signal's and are not re-tuned
-    here. Pure + total over the carrier + the repo's files; every exception swallowed."""
+    here. Pure + total over the carrier + the repo's files; every exception swallowed.
+
+    TWO SENTENCES, ONE WARN PER LAYER (T-13869, GitHub issue 83). The line ends «a share nobody
+    reads divides nothing» only where that is what the read supports. Where the layer command NAMES
+    `npm` but is not the one form the resolver follows into `package.json` (`_npm_run_script`: in
+    full, one plain `npm run <script>`) — an `&&` chain of scripts, a bare `npm test` — the package
+    scripts it runs were never opened, so the line says the reader was NOT RESOLVED, names the form
+    that is followed, and does not say the share is unread. Wording only: the same layers WARN as
+    before, the token test above is unchanged, and nothing is credited or refused on it. A command
+    with no `npm` word, a waived or commandless layer, and a followed `npm run <script>` keep the
+    first sentence."""
+    import re
     from pathlib import Path
 
     sec = ops.get("verify") if isinstance(ops, dict) else None
@@ -2778,13 +2789,27 @@ def _layer_worker_shares_reader_advisories(repo_root, ops) -> list:
     # the depth / byte / file caps, so a `-C` rebind and a test monkeypatch stay honoured.
     from lib.worktree import _registry_text
 
+    # T-13869 — the package-script recogniser, read here only to WORD the line (never to credit a
+    # reader): pure, no injected caps, so it is imported from its home module.
+    from lib.land_verify_legs import _npm_run_script
+
     out = []
     for name in sorted(str(k).strip() for k in raw):
+        cmd = commands.get(name, "")
         try:
-            text = _registry_text(Path(repo_root), commands.get(name, ""))
+            text = _registry_text(Path(repo_root), cmd)
         except Exception:  # noqa: BLE001 — advisory, fail-open: an unresolvable layer accuses nobody
             continue
         if _LAYER_WORKER_SHARES_READER_TOKEN in (text or ""):
+            continue
+        # `npm` as a word of its own: not `pnpm`, `npm-run-all`, `./npm` or a path ending in it.
+        if re.search(r"(?<![\w./-])npm(?![\w./:-])", cmd) and _npm_run_script(cmd) is None:
+            out.append(f"WARN layer_worker_shares[{name}]: a share is declared and its reader of "
+                       f"{_LAYER_WORKER_SHARES_READER_TOKEN} was NOT RESOLVED — the layer command "
+                       "names npm in a form the resolver does not follow into package.json (it "
+                       "follows only a command that is, in full, one plain `npm run <script>`), and "
+                       "the token is not in the text it did read. This does not establish that the "
+                       "share is unread (SPEC-0152 rule 16)")
             continue
         out.append(f"WARN layer_worker_shares[{name}]: a share is declared but no reader of "
                    f"{_LAYER_WORKER_SHARES_READER_TOKEN} is named in its command/scripts "

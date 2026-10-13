@@ -2586,6 +2586,12 @@ _CAPTURE_ROUTING_ROWS = [
     ("a near-term, consume-once cross-session note",
      "the `MEMORY.md` buffer (non-authoritative; deleted after use)",
      "SPEC-0039", "NEVER a durable rule home — route by purpose (SPEC-0091)."),
+    ("about to save something to the assistant's OWN provider-side memory (kept by its tool, outside "
+     "the repository)",
+     "the corpus first — route it by the rows above to its governed home; what is left for that "
+     "memory is listed in the owning spec, §6",
+     "SPEC-0039", "pointer only, nothing restated here: that memory reaches no dispatched worker, no "
+                  "other provider's assistant and no review."),
 ]
 
 def _view_capture_routing(index: dict, *, engine_index: "dict | None" = None) -> dict:
@@ -4506,7 +4512,11 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
     (`user_facing` absent defaults TRUE — the same fail-closed read as the close-gate, SPEC-0094 §3)
     AND `recheck_by` is a valid ISO date that is STRICTLY BEFORE `today`. Report-not-block (D-0053): a
     non-empty surface is a SIGNAL for the weekly sweep, never a gate. Running this lens IS the P8
-    consumer-read adoption evidence (the `cli_invoked` emit on `graph query overdue-recheck`)."""
+    consumer-read adoption evidence (the `cli_invoked` emit on `graph query overdue-recheck`).
+
+    A past-due waiver on a `wont-do` card (T-13897 / X-1941) is NOT in `overdue`: it sits on its own
+    counted set `wont_do_waivers`, read at triage. The test is the card's status alone (rule home:
+    SPEC-0119 rule 3)."""
     import datetime as _dt
     # T-10750 — the settled-waiver predicate has ONE home (lib.task, beside the grammar it validates).
     # Imported function-locally, matching this file's existing local-import style and keeping the
@@ -4558,6 +4568,7 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
     # reading ARRIVED and came back negative (a real finding someone may need to act on).
     unreachable_waivers = []
     falsified_waivers = []
+    wont_do_waivers = []                 # T-13897 — past due, on a wont-do card (see the waiver leg)
     if TASKS_DIR is not None and TASKS_DIR.exists():
         for p in sorted(TASKS_DIR.glob("T-*.yaml")):
             d = _card(p)
@@ -4683,12 +4694,21 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             }
             if _settle_error is not None:
                 row["settle_error"] = _settle_error
-            overdue.append(row)
+            # T-13897 (X-1941) — a past-due waiver on a `wont-do` card leaves `overdue` for its OWN
+            # named, counted set. Neither settle route admits such a card (`task close
+            # --settle-live-probe-*` takes a done card only, `task update --live-probe-*` refuses a
+            # terminal one), so counted as overdue it was a row nobody could clear. MOVED, never
+            # dropped (the T-11657 rule), same row shape. The test is the STATUS ALONE: it does not
+            # read `commit` (a field only `task close` writes), so it says nothing about what
+            # shipped. It sits AFTER the settled branch above, so a grammar-valid discharge on a
+            # wont-do card still leaves the lens, or lands on its terminal set, exactly as before.
+            _on_wont_do_card = str(d.get("status") or "").strip() == "wont-do"
+            (wont_do_waivers if _on_wont_do_card else overdue).append(row)
     # Sort oldest-debt-first; a `failing` row has no meaningful date, so it sorts FIRST — a
     # recorded negative outranks every dated pending item (T-11674).
     overdue.sort(key=lambda r: ("" if r.get("state") == "failing" else (r.get("recheck_by") or "")))
     malformed_settles = [r for r in overdue if r.get("settle_error")]
-    for _wb in (unreachable_waivers, falsified_waivers):     # T-11748 — oldest-dated debt first
+    for _wb in (unreachable_waivers, falsified_waivers, wont_do_waivers):   # oldest-dated first
         _wb.sort(key=lambda r: (str(r.get("recheck_by") or ""), r["task"]))
 
     # T-10916 (SPEC-0036 / X-0710) — the SECOND dated-deferred-proof CARRIER folded by this SAME lens: a
@@ -4948,6 +4968,20 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             "it never satisfies CHARTER Principle 8."
             if falsified_waivers else
             "no live_probe waiver is discharged falsified — no negative-reading waiver debt."),
+        # T-13897 (X-1941) — past-due waivers on `wont-do` cards, on their OWN counted set. NOT folded
+        # into `overdue_count`: the echo reads that count alone, so it neither counts nor names them.
+        "wont_do_waivers": wont_do_waivers,
+        "wont_do_waivers_count": len(wont_do_waivers),
+        "wont_do_waivers_note": (
+            "user-facing live_probe WAIVERS past recheck_by on a `wont-do` card (T-13897 / X-1941) — "
+            "listed here, on their own counted set, instead of in `overdue`: neither settle route "
+            "admits a wont-do card (`task close --settle-live-probe-*` takes a done card only, `task "
+            "update --live-probe-*` refuses a terminal one), so in the overdue count each was a row "
+            "nobody could clear. Read them at triage. The test is the card's STATUS alone: it says "
+            "nothing about whether any of the card's work shipped. Never adoption evidence (CHARTER "
+            "Principle 8)."
+            if wont_do_waivers else
+            "no user-facing live_probe waiver past recheck_by sits on a wont-do card."),
         # T-11657 — the two terminals, as TWO SEPARATE counted sets. Deliberately NOT folded into
         # `deferred_probes*` (which means "still owed") nor into each other: three states, three
         # remedies. Own keys, so no existing consumer of this lens changes shape.
@@ -5089,7 +5123,10 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
                 "otherwise only sit on this lens forever. PLUS (T-13470) `wont_do_observations`: an "
                 "unsettled observation on a `wont-do` card that recorded no `commit` — nothing "
                 "shipped, nothing to observe, and no verb can settle it — counted on its own set and "
-                "never in the actionable observation counts. All three of the first group are deferred-proof "
+                "never in the actionable observation counts. PLUS (T-13897 / X-1941) "
+                "`wont_do_waivers`: a user-facing waiver past its recheck_by on a `wont-do` card, by "
+                "the card's status alone — counted on its own set and never in the actionable "
+                "`overdue` count. All three of the first group are deferred-proof "
                 "debts; the first two are dated, the third is not, which is why it could go quiet "
                 "forever. DERIVED at read time from the task-YAML live_probe / post_ship_observation / "
                 "probes carriers + today; "
@@ -5670,6 +5707,49 @@ def _actionable(text: str, label: str) -> str:
     line = _ActionableDebtLine(text)
     line.start_label = label
     return line
+
+
+def _holds_start_label(holders) -> str:
+    """The session-start label of the concurrent-holds line (SPEC-0119 rule 40), or '' when the
+    line is not to be marked.
+
+    It names what the foreign holders seen alive or of undetermined liveness hold — the task id of
+    a `task/T-…` branch, else the branch — grouped by the session that launched them where the fold
+    carries one (`launched_by`), else by the holder's own stamp. A stamp that is not one token (the
+    fold's unstamped marker) is printed whole and never grouped. A holder NOT seen
+    (`alive is False`) is left out and only counted in the tail, so the row's count column — every
+    foreign stamp, the head's own first integer — stays explained. No such holder at all ⇒ ''."""
+    cap = 3                     # groups named in the label, and items named per group
+    groups, not_seen = {}, 0
+    for i, h in enumerate(holders if isinstance(holders, list) else []):
+        if not isinstance(h, dict):
+            continue
+        if h.get("alive") is False:
+            not_seen += 1
+            continue
+        branches = h.get("branches")
+        what = [b[len("task/"):] if b.startswith("task/T-") else b
+                for b in (branches if isinstance(branches, list) else []) if isinstance(b, str)]
+        ref = str(h.get("session_ref") or "?")
+        launcher = h.get("launched_by")
+        if isinstance(launcher, str) and launcher.strip():
+            key, who = ("launcher", launcher.strip()), f"launched by session {launcher.strip()[:8]}"
+        elif len(ref.split()) == 1:
+            key, who = ("stamp", ref), f"session {ref[:8]}"
+        else:
+            key, who = ("holder", i), ref
+        groups.setdefault(key, {"who": who, "what": []})["what"] += what
+    if not groups:
+        return ""
+    named = []
+    for g in list(groups.values())[:cap]:
+        items = g["what"][:cap]
+        more = f" +{len(g['what']) - cap} more" if len(g["what"]) > cap else ""
+        named.append(f"{', '.join(items) or 'worktree(s)'}{more} ({g['who']})")
+    tail = f"; +{len(groups) - cap} more" if len(groups) > cap else ""
+    if not_seen:
+        tail += f"; {not_seen} more stamp(s) not seen alive, not listed"
+    return "other sessions hold live worktrees here: " + "; ".join(named) + tail
 
 
 def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followup_count,
@@ -8253,7 +8333,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                     f"bury the one holder you needed to see (T-11606). Attribution requires a launch "
                     f"record of YOUR OWN naming that exact ref — anything unattributable stays counted "
                     f"above, because a wrong attribution would hide a real holder.")
-            lines.append(
+            _holds_text = (
                 f"debt: {csc} OTHER session stamp(s) hold {_wt_n} live worktree(s) in this repo"
                 + (f" — {_named_cs}{_more_cs}" if _named_cs else "") +
                 f". You are not alone in this checkout, and no other seam says so: a claim "
@@ -8272,6 +8352,10 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"NORMAL here (D-0083); this makes them VISIBLE, not exclusive. It takes no lock, "
                 f"elects no owner, refuses no dispatch, and adopts or cleans up nothing "
                 f"(SPEC-0119 rule 25).")
+            # SPEC-0119 rule 40: marked for the start report only while a foreign holder is seen
+            # alive or its liveness is undetermined; the text is the same either way.
+            _holds_label = _holds_start_label(_hs)
+            lines.append(_actionable(_holds_text, _holds_label) if _holds_label else _holds_text)
     # OWN-EVIDENCE UNCITED-PATTERN view (SPEC-0119 rule 22, T-11211 / <project> X-0956 + X-0961): the
     # OPTIONAL injected fold over the KERNEL patterns catalog read against THIS repo. A kernel SPEC that
     # is active+adoptable reaches every consumer through its OWN fail-closed `init` (SPEC-0112); a

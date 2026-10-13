@@ -763,7 +763,10 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     DELIBERATE never-active terminals withdrawn/rejected (SPEC_ABANDONED_TERMINAL, T-0627) so a
     deliberately-abandoned spec's NON-normative metadata (e.g. a `proposed_by` provenance re-attach) can
     be corrected via the verb instead of a forbidden hand-edit (a withdrawn/rejected spec governs nothing,
-    so this is not a normative rule change — SPEC-0005 rule 7 in-place boundary). Performs
+    so this is not a normative rule change — SPEC-0005 rule 7 in-place boundary). It is NOT a
+    promotion route (T-13857, SPEC-0005 §4): a `status` change that would promote a draft, or move a
+    withdrawn/rejected spec off its terminal, is refused before the write; a draft may only be ended
+    (→ withdrawn / rejected). Performs
     an exact-string in-place replacement (mirrors the Edit
     primitive: single occurrence unless --replace-all; 0 or >1 matches die cleanly BEFORE any write),
     DELIVERS the before-rule-change contract (SPEC-0005) at the end of its output through the stage
@@ -1295,6 +1298,28 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
               f"edit was applied to the parsed body and the body is now stored as a literal `|` "
               f"block. Every other field reads as before; the diff of this edit is the whole "
               f"`body:` segment (T-13581).")
+    # T-13857 (SPEC-0005 §4) — `spec edit` is not a promotion route. A draft becomes `proposed` only
+    # through its plan's accept, and a withdrawn/rejected spec is a terminal, so a replacement whose
+    # RESULT carries another status is refused here, before the write: a draft may only be ENDED
+    # (→ withdrawn / rejected), and a terminal keeps its status. Judged on the parsed result against
+    # the status read from disk above, so it holds whichever reading the write would take. A part
+    # (T-12925) carries no status of its own; active/proposed are not this guard's subject.
+    if path == base_path:
+        new_status = updated_rec.get("status") if isinstance(updated_rec, dict) else None
+        if new_status != status and status in SPEC_ABANDONED_TERMINAL:
+            _die(f"`spec edit` does not change the status of a {status} spec — {sid} is "
+                 f"status={status!r}, a terminal that is not revived, and this edit would leave it "
+                 f"status={new_status!r} (SPEC-0005 §4). A rule that is still wanted is authored "
+                 f"again under its new carrier: `bin/yitc-v2 spec new --title <title> --travels "
+                 f"<realm>`. The file is untouched.")
+        if new_status != status and status == "draft" and new_status not in SPEC_ABANDONED_TERMINAL:
+            _die(f"`spec edit` does not promote a draft spec — {sid} is status='draft' and this edit "
+                 f"would leave it status={new_status!r}. A draft becomes `proposed` only when its "
+                 f"plan is accepted (`bin/yitc-v2 plan stage accepted <plan-slug>`) — the one "
+                 f"promotion route (SPEC-0005 §4). A draft whose plan has ended is ENDED, not "
+                 f"promoted: change its status to `withdrawn` with this verb, and author a rule that "
+                 f"is still wanted again with `bin/yitc-v2 spec new --title <title> --travels "
+                 f"<realm>`. The file is untouched.")
     write_text_atomic(path, updated)
     is_part = path != base_path
     # T-10298 (SPEC-0151) — report-only anchor-rule WARN on the POST-edit record (reusing the record the

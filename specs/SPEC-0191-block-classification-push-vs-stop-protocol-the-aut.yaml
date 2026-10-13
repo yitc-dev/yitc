@@ -412,4 +412,4 @@ implements_signature:
   bin/lib/grants.py#_authorization_refusal_message: 305e3098641c12e8cf38be3db6743b32903a9870ff9d5f99e722c9cb8cb2cd0f
   bin/lib/grants.py#cmd_grants_authorize: 3777cf3c7b3982cda1c0e1c811dbfd1d998bd04c60306afc52d09298079621e4
   bin/lib/grants.py#decide_authority_class_cause: 16b58912c5b105188c8bd26157b6d4869ab2f233383f9dfe66efa66dbda4104b
-  bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280
+  bin/lib/worktree.py#cmd_land: 36881ec62af3ce28846c15fd17d401dc0a62164618c3b491363a66038a27e8c9

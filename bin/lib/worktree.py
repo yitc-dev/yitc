@@ -2180,6 +2180,18 @@ def _descends_from(*a, **kw):
     return worktree_lifecycle._descends_from(*a, **kw)
 
 
+@functools.wraps(worktree_lifecycle._pipeline_peers)
+def _pipeline_peers(*a, **kw):
+    """T-13891 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_pipeline_peers`."""
+    return worktree_lifecycle._pipeline_peers(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._proc_pipes)
+def _proc_pipes(*a, **kw):
+    """T-13891 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_proc_pipes`."""
+    return worktree_lifecycle._proc_pipes(*a, **kw)
+
+
 @functools.wraps(worktree_lifecycle._live_path_holders)
 def _live_path_holders(*a, **kw):
     """T-11522 host residue — the body now lives in `bin/lib/worktree_lifecycle.py#_live_path_holders`.
@@ -4225,11 +4237,29 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
         _mep = None
         if _claim_raw is not None and str(_claim_raw).strip():
             _mep = _main_events_path() if callable(_main_events_path) else _main_events_path
+        # T-13888 (SPEC-1028 rule 2): the session ref on the CLAIM STAMP of the worktree this land
+        # integrates — the target's worktree, or this checkout when the land names no target. It is
+        # the tie a launch row needs when the row does not name the landing task. ONE place calls
+        # this reader — the row resolver, and only when no launch row names the landing task — so
+        # the stamp is read at most once in a land process and not at all for a task that has a
+        # launch row of its own. No worktree, no stamp reader and no stamp all answer None, and
+        # `_claim_stamp_ref` reads a failing read as None too; None ties nothing.
+        def _landing_worktree_holder_ref():
+            if target_task or target_branch:
+                _hw = _worktree_path_for_branch(
+                    f"task/{target_task}" if target_task else target_branch)
+            else:
+                _hw = Path(REPO_ROOT)
+            _stamp = None
+            if _hw is not None and callable(_read_worktree_stamp):
+                _stamp = _read_worktree_stamp(_hw)
+            return _stamp.get("session_ref") if isinstance(_stamp, dict) else None
+
         _claim = _resolve_held_turn_claim(
             claim_raw=_claim_raw, self_pid=os.getpid(),
             events_path=EVENTS_PATH, task_id=target_task,
             expected_ref=os.environ.get("YITC_EXPECTED_SESSION_REF"),
-            main_events_path=_mep)
+            main_events_path=_mep, worktree_holder_ref=_landing_worktree_holder_ref)
         if _claim is not None:
             if not _claim["admitted"]:
                 _append_event("land_synchronous_guard_refused", target_task,
@@ -4286,7 +4316,8 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
                 _sd_branch = target_branch or (f"task/{target_task}" if target_task else None)
                 _sd_worker_pid = _resolve_dispatch_worker_pid(
                     EVENTS_PATH, target_task, os.environ.get("YITC_EXPECTED_SESSION_REF"),
-                    (_main_events_path() if callable(_main_events_path) else _main_events_path))
+                    (_main_events_path() if callable(_main_events_path) else _main_events_path),
+                    worktree_holder_ref=_landing_worktree_holder_ref)
                 # The queue read is best-effort and FAIL-SAFE TO EMPTY: an unreadable journal must
                 # never manufacture a detach, and an empty queue is today's path. Same direction the
                 # decision itself takes — only a POSITIVE, provable signal detaches.
@@ -10762,6 +10793,8 @@ def _land_prequeue_known_broken_refusal(*a, **kw):
                        ("_git_rev", _git_rev),
                        ("_land_known_broken_establishing_sha", _land_known_broken_establishing_sha),
                        ("_shadow_select", _shadow_select),
+                       ("_diff_name_paths", _diff_name_paths),
+                       ("_land_merge_probe", _land_merge_probe),
     ):
         kw.setdefault(_k, _v)
     return batch_landing._land_prequeue_known_broken_refusal(*a, **kw)
@@ -16893,13 +16926,15 @@ def _newest_dispatch_row_in(events_path, task_id: "str | None", expected_ref: "s
 
 
 def _resolve_dispatch_worker_pid(events_path, task_id: "str | None", expected_ref: "str | None",
-                                 main_events_path=None) -> "int | None":
+                                 main_events_path=None, *, worktree_holder_ref=None) -> "int | None":
     """SERVER-SIDE resolution of the worker pid this land may bind to (SPEC-0180 §Claim PROVENANCE).
 
-    Reads the journal for the NEWEST `bg_dispatch_launched` row whose `data.expected` is THIS worker's
-    assigned session ref (and, when a target task is known, whose `task_id` matches it) and returns its
-    `data.pid`. The row is written by `dispatch` BEFORE the worker exists, so it is not something the
-    worker can author for itself — that is what makes it the server-issued side of the comparison.
+    Returns the `data.pid` of the `bg_dispatch_launched` row that GOVERNS this land: a row whose
+    `data.expected` is THIS worker's assigned session ref — WHICH such row is
+    `_resolve_dispatch_worker_row`'s rule (T-13888: the row that names the landing task, else the
+    session's newest row for a worktree whose claim stamp names the session). The row is written by
+    `dispatch` BEFORE the worker exists, so it is not something the worker can author for itself —
+    that is what makes it the server-issued side of the comparison.
 
     Fail-closed to None (⇒ no claim is admissible) on every unusable input: no journal path, an absent
     or unreadable file, an empty expected ref, no matching row, or an unparseable pid. An interactive
@@ -16923,23 +16958,57 @@ def _resolve_dispatch_worker_pid(events_path, task_id: "str | None", expected_re
     present in both. Fail-closed survives the widening: if the GOVERNING row's pid is unparseable the
     answer is None — it is never rescued by the other instance's older row, which would be exactly the
     superseded-dispatch fallback the per-instance rule already refuses."""
-    row = _resolve_dispatch_worker_row(events_path, task_id, expected_ref, main_events_path)
+    row = _resolve_dispatch_worker_row(events_path, task_id, expected_ref, main_events_path,
+                                       worktree_holder_ref=worktree_holder_ref)
     return None if row is None else row[1]
 
 
+def _claim_stamp_ref(worktree_holder_ref) -> "str | None":
+    """T-13888 — the session ref the landing worktree's claim stamp names, or None when that is not
+    KNOWN: no reader was given, the reader failed, or its answer is not a non-blank string. None ties
+    nothing, so every way of not knowing reads as a refusal."""
+    if not callable(worktree_holder_ref):
+        return None
+    try:
+        ref = worktree_holder_ref()
+    except Exception:
+        return None
+    return ref if isinstance(ref, str) and ref.strip() else None
+
+
 def _resolve_dispatch_worker_row(events_path, task_id: "str | None", expected_ref: "str | None",
-                                 main_events_path=None) -> "tuple | None":
+                                 main_events_path=None, *, worktree_holder_ref=None) -> "tuple | None":
     """The GOVERNING `(ts, pid_or_None)` row behind `_resolve_dispatch_worker_pid` — same rule, with
-    the row's `ts` kept, because the T-13214 adoption branch must ORDER a previous holder against it."""
+    the row's `ts` kept, because the T-13214 adoption branch must ORDER a previous holder against it.
+
+    T-13888 (SPEC-1028 rule 2) — WHICH launch row of the presented session governs. A row is used only
+    when a server-side record ties the session to what is being landed, and there are two such ties:
+      * the ROW ITSELF names the landing task (`task_id` given and a row of this session carries it):
+        the newest such row governs, usable or not — an unusable pid on it is a refusal and is never
+        replaced by another row of the session;
+      * otherwise — a later card of a warm batch, whose one launch row names the batch head, or a land
+        that names no task — the CLAIM STAMP of the landing worktree names this session
+        (`worktree_holder_ref()` returns `expected_ref`): the session's newest launch row governs.
+    With neither tie the answer is None. `worktree_holder_ref` is a zero-argument reader of that stamp
+    (`_claim_stamp_ref`), read only when no row names the task; absent (the default), no stamp is
+    known and the second tie never holds."""
     if not expected_ref or not str(expected_ref).strip():
         return None
-    candidates = [_newest_dispatch_row_in(p, task_id, expected_ref)
-                  for p in (events_path, main_events_path)]
-    candidates = [c for c in candidates if c is not None]
-    if not candidates:
+
+    def _newest(of_task):
+        candidates = [_newest_dispatch_row_in(p, of_task, expected_ref)
+                      for p in (events_path, main_events_path)]
+        candidates = [c for c in candidates if c is not None]
+        # max() over ts with the FIRST (primary) candidate winning a tie — `max` is first-wins on equals.
+        return max(candidates, key=lambda c: c[0]) if candidates else None
+
+    if task_id:
+        own = _newest(task_id)
+        if own is not None:
+            return own
+    if _claim_stamp_ref(worktree_holder_ref) != str(expected_ref):
         return None
-    # max() over ts with the FIRST (primary) candidate winning a tie — `max` is first-wins on equals.
-    return max(candidates, key=lambda c: c[0])
+    return _newest(None)
 
 
 def _prior_dispatch_pid_ts(events_path, main_events_path, task_id: "str | None",
@@ -17229,7 +17298,7 @@ def _start_detach_notice(*, child_pid: int, log_path, queue_depth: int, worker_p
 
 def _resolve_held_turn_claim(*, claim_raw: "str | None", self_pid: int, events_path,
                              task_id: "str | None", expected_ref: "str | None",
-                             main_events_path=None) -> "dict | None":
+                             main_events_path=None, worktree_holder_ref=None) -> "dict | None":
     """The held-turn ADMISSION PREDICATE (T-11101 / SPEC-0180 rules 2+3). Pure-ish decision: everything
     it needs is passed in except the two reads (`_pid_alive`, `_resolve_dispatch_worker_pid`).
 
@@ -17246,6 +17315,9 @@ def _resolve_held_turn_claim(*, claim_raw: "str | None", self_pid: int, events_p
       claim-liveness-unprovable · no-dispatch-record · claim-pid-mismatch
     Admissions: held-turn-claim-verified · held-turn-claim-adopted (T-13214 — a dead PREVIOUS holder of
     this task, re-bound to the live server-resolved worker; carries `adopted_from_pid`).
+    T-13888: `worktree_holder_ref` is the reader of the landing worktree's claim stamp; it reaches the
+    pid resolution ONLY (never the adoption lookup), and `no-dispatch-record` is the refusal of every
+    input for which no launch row of the presented session may be used.
     FORM checks run BEFORE the provenance check on purpose: otherwise every malformed claim on a host
     with no dispatch record would report `no-dispatch-record`, hiding which axis actually failed."""
     if claim_raw is None or not str(claim_raw).strip():
@@ -17299,12 +17371,27 @@ def _resolve_held_turn_claim(*, claim_raw: "str | None", self_pid: int, events_p
                        f"the liveness of the claimed pid {claimed} could NOT be established "
                        f"(unprovable, not dead). An unknowable answer is a refusal, never an admission.")
 
-    resolved = _resolve_dispatch_worker_pid(events_path, task_id, expected_ref, main_events_path)
+    # The stamp is read in ONE place — the row resolver, on the path where no launch row names the
+    # task. This predicate does not read it: it hands the resolver a reader that notes the answer, so
+    # the refusal below names what the resolver was answered, or says that it did not ask.
+    stamp_answers: list = []
+
+    def _noting_reader():
+        stamp_answers.append(_claim_stamp_ref(worktree_holder_ref))
+        return stamp_answers[-1]
+
+    resolved = _resolve_dispatch_worker_pid(events_path, task_id, expected_ref, main_events_path,
+                                            worktree_holder_ref=_noting_reader)
     if resolved is None:
+        holder = (stamp_answers[-1] or "none readable") if stamp_answers else "not consulted"
         return _refuse("no-dispatch-record",
                        f"no `{_DISPATCH_LAUNCH_EVENT}` record resolves a worker pid for this land "
-                       f"(task={task_id or '-'}, expected session ref={expected_ref or '-'}), so the "
-                       f"claimed pid {claimed} cannot be verified against a server-issued value.")
+                       f"(task={task_id or '-'}, expected session ref={expected_ref or '-'}, landing "
+                       f"worktree claim stamp={holder}), so the claimed pid {claimed} "
+                       f"cannot be verified against a server-issued value. A launch row that names this "
+                       f"task for this session resolves by itself; any other launch row of the session "
+                       f"resolves only for a worktree whose claim stamp names that session (SPEC-1028 "
+                       f"rule 2).")
     if claimed != resolved:
         return _refuse("claim-pid-mismatch",
                        f"the held-turn claim names pid {claimed}, but the dispatch record for this land "
@@ -22353,7 +22440,8 @@ def _mark_detached_worktree_leftover(W: Path, branch: str, landed_sha: str) -> "
             f"{note}")
 
 
-def _merge_conflict_recovery_pointer(W: Path, label: str, *, _run_git_cap) -> str:
+def _merge_conflict_recovery_pointer(W: Path, label: str, *, _run_git_cap,
+                                     merge_open: bool = False) -> str:
     """T-11264 — the non-union-conflict abort's recovery pointer, or `""` when there is none to give.
 
     THE MEASURED GAP. `worktree sync` (T-10821, shipped for X-0681) IS the verb that covers this
@@ -22380,14 +22468,15 @@ def _merge_conflict_recovery_pointer(W: Path, label: str, *, _run_git_cap) -> st
     genuinely conflicting SOURCE file afterwards is no longer unclaimed (T-12365 gave that seam its
     covering verb, `worktree sync --resolved`) — so the LAND caller's pointer now names that arm as
     its SECOND step, in one added sentence.
-    THE SYNC CALLER STILL GETS NOTHING, deliberately. T-11264 fixed exactly that: a pointer raised
+    A SYNC ABORT STILL GETS NOTHING, deliberately. T-11264 fixed exactly that: a pointer raised
     from a `worktree sync` abort advises re-running the verb that just aborted, and its own test is
-    the differential that keeps the pointer CONDITIONAL. `--resolved` does not change that — the sync
-    abort leaves NO merge in progress (`_update_from_main` aborts it), so `--resolved` is not the next
-    step from there either. The operator holding a HALF-FINISHED merge meets the arm at the surface
-    that is actually true for them: `cmd_worktree_sync`'s own merge-in-progress refusal names it.
+    the differential that keeps the pointer CONDITIONAL. An ABORTED sync leaves NO merge in progress,
+    so `--resolved` is not the next step from there either.
+    A SYNC STOP THAT LEFT THE MERGE OPEN (`merge_open`, T-13890) is the other state, and there
+    `--resolved` IS the next step: the stop names that arm and how to abandon the merge. It never
+    names the plain `worktree sync` form — that one refuses on top of the open merge.
     """
-    if label != "land":
+    if label != "land" and not merge_open:
         return ""
     try:
         # `_run_git_cap` is documented not to raise, but this is a COSMETIC lookup sitting on a
@@ -22403,10 +22492,21 @@ def _merge_conflict_recovery_pointer(W: Path, label: str, *, _run_git_cap) -> st
         elif branch.startswith("work/") and branch[len("work/"):]:
             selector = f"--work {branch[len('work/'):]}"
         else:
-            return ""
+            selector = ""
         form = f"yitc-v2 worktree sync {selector}"
-        resolved_form = f"yitc-v2 worktree sync --resolved {selector}"
+        resolved_form = f"yitc-v2 worktree sync --resolved {selector}".rstrip()
     except Exception:                          # noqa: BLE001 — a pointer that raises must not abort
+        selector, resolved_form = "", "yitc-v2 worktree sync --resolved"
+    if label != "land":
+        # T-13890 — the open-merge stop. An unaddressable branch still gets the arm's name (the
+        # merge IS open and this is how it is finished); only the selector is left out.
+        return (f"\nThe merge is LEFT OPEN in {W} so you can finish it without raw git: resolve every "
+                f"path named above, `git add` each one, then run `{resolved_form}` — it checks "
+                f"nothing is left half-resolved, commits the merge and records WHICH paths you "
+                f"resolved on a `merge_resolved_by_hand` row. A hand resolution is authored content, "
+                f"so the re-audit SPEC-0077 §3a requires still applies. To abandon the merge "
+                f"instead: `git merge --abort` in that worktree.")
+    if not selector:
         return ""
     # T-12365 — the SECOND step: what to do about the conflict itself. The land caller keeps its
     # existing first sentence verbatim and gains this one.
@@ -22516,7 +22616,8 @@ def _apply_land_merge_resolution(W: Path, unmerged, resolved, *, _run_git_cap,
 
 def _update_from_main(W: Path, *, label: str, _run_git_cap, _die, _DERIVED_MERGE_ARTIFACTS,
                       _dedup_events, write_text_atomic,
-                      _anchor_signature_of_text=None, _resolved_out=None, source=None) -> None:
+                      _anchor_signature_of_text=None, _resolved_out=None, source=None,
+                      _leave_conflict_open: bool = False) -> None:
     """THE update-from-main step — `git merge --no-edit main` into the writing worktree `W`, with the
     fail-closed per-path auto-resolve classification, else a clean `merge --abort`. Extracted VERBATIM
     from `_land_integrate` step 2 by T-10821 (X-0681) so `worktree sync` can run the SAME step
@@ -22538,6 +22639,14 @@ def _update_from_main(W: Path, *, label: str, _run_git_cap, _die, _DERIVED_MERGE
     merge, which is the defect the card exists to remove). It is written only on the branch that
     actually applied a resolution; no gate, no ordering and no exit code depends on it, and `land`
     passes nothing, so its behaviour is untouched.
+
+    `_leave_conflict_open` (T-13890) — DEFAULT False, which is every caller's pre-existing
+    behaviour: a non-union conflict is aborted and the branch is left as it was found (a land must
+    do that). `worktree sync` passes True: when the merge STARTED and at least one path could not be
+    resolved, the merge is LEFT IN PROGRESS — every conflicted path still unmerged, nothing resolved
+    or staged by this step — so the operator can resolve and run `worktree sync --resolved` with no
+    raw `git merge` in between. A merge that never started (git refused before merging) has nothing
+    to leave open and is cleaned up as before. Same `abort_class`, same message header either way.
 
     This function NEVER touches `main` — it merges main INTO `W`'s branch. Everything AROUND the step
     (land's optimistic-concurrency retry, its `merged_base` capture, the graph rebuild, the ff-only
@@ -22645,8 +22754,22 @@ def _update_from_main(W: Path, *, label: str, _run_git_cap, _die, _DERIVED_MERGE
             # a cosmetic lookup on a refusal path must not be able to sit between the conflict and
             # the cleanup. `merge --abort` restores HEAD to the same branch, so the answer is
             # identical either side of it — only the failure ordering differs.
-            _run_git_cap(["merge", "--abort"], W)
-            pointer = _merge_conflict_recovery_pointer(W, label, _run_git_cap=_run_git_cap)
+            # T-13890: the caller that asked for it keeps the merge IN PROGRESS — only when the merge
+            # really started (MERGE_HEAD) and a path is genuinely unresolved. Every conflicted path
+            # stays unmerged, the mechanically resolvable ones included (nothing was applied), so the
+            # note about those says they need resolving too instead of calling them non-blocking.
+            merge_open = bool(
+                _leave_conflict_open and unresolved
+                and _run_git_cap(["rev-parse", "-q", "--verify", "MERGE_HEAD"], W).returncode == 0)
+            if merge_open:
+                if resolved:
+                    extra = ("\n(also left unmerged in the open merge — `worktree sync` resolves these "
+                             "itself only when nothing else conflicts, so resolve and `git add` them "
+                             "too: " + ", ".join(sorted(resolved)) + ")")
+            else:
+                _run_git_cap(["merge", "--abort"], W)
+            pointer = _merge_conflict_recovery_pointer(W, label, _run_git_cap=_run_git_cap,
+                                                       merge_open=merge_open)
             _die(f"{label}: merge from main has non-union conflicts (worktree intact, main untouched):\n{conflicts}{extra}{pointer}",
                  abort_class="merge-non-union-conflict")
 
@@ -24177,9 +24300,16 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # inside the SPEC-0132 admission slot (`_land_known_broken_reproduce_admitted`, kept OUT of this
     # body so the candidate verify stays the first admission this function takes).
     _land_scope_use("main-preff", main_wt / "events.jsonl")   # T-13365 — main BEFORE the ff (+ the 2d spike check)
+    # T-13847 (SPEC-0181 rule 8) — a branch whose MERGED delta to main is inert is not judged by this
+    # refusal: the ONE inert authority, the journal writer and the merge oracle's collaborators (the
+    # same three the merge refusal above is handed) go in, and the admission row is written by the
+    # refusal itself, to main's journal, before it answers.
     _prequeue_known_broken = _land_prequeue_known_broken_refusal(
         branch, main_wt, _run_git_cap=_run_git_cap, EVENTS_PATH=main_wt / "events.jsonl",
         _VERIFY_IMPLEMENTATION_GLOBS=_VERIFY_IMPLEMENTATION_GLOBS,
+        _classify_inert_paths=_classify_inert_paths, _append_event=_append_event,
+        _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dedup_events,
+        _anchor_signature_of_text=_anchor_signature_of_text,
         _reproduce=(functools.partial(
             _land_known_broken_reproduce_admitted, branch, main_wt, _append_event=_append_event,
             _run_git_cap=_run_git_cap, _run_verify_tests=_run_verify_tests,
@@ -27436,6 +27566,14 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 _plc = _per_layer_cpu_record(consumer_verify_layers, _cguard.get("layer_worker_budget"))
                 if _plc:
                     verify_metrics["per_layer_cpu"] = _plc
+                # T-13876 (SPEC-0152 rule 16 §layer_worker_shares): what the declared shares of the
+                # layers this verify ran ask for at that budget, against the host's processor count —
+                # folded and printed at this SAME one read site, so the ok payload and the abort
+                # detail both carry it. ONE statement whose result is not read: the helper stores the
+                # reading and prints its line when the product exceeds the count, and does nothing
+                # otherwise. REPORT-ONLY — recorded, never branched on.
+                land_verify_legs._fold_layer_share_load(
+                    verify_metrics, consumer_verify_layers, _cguard.get("layer_worker_budget"), os.cpu_count())
                 # T-12757 (X-1478 item 5): the sum-over-wall concurrency reading, folded at this SAME
                 # one read site — so the ok payload and the abort detail both carry it with no second
                 # path, exactly as `per_layer_durations` above. The wall is passed UNROUNDED (a

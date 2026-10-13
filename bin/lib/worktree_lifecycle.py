@@ -104,7 +104,8 @@ def _dispatch_launcher_pid(environ=None) -> "int | None":
     return int(m.group(1)) if _journal._proc_start_time(m.group(1)) == m.group(2) else None
 
 
-def _live_path_holders(path, *, _ancestry=None, _self_proc_ancestry=None, _environ=None, _read_ppid=None) -> "list[dict]":
+def _live_path_holders(path, *, _ancestry=None, _self_proc_ancestry=None, _environ=None, _read_ppid=None,
+                       _peer_anchor=None, _read_pipes=None) -> "list[dict]":
     """LIVE processes whose working directory IS `path`, or lies UNDER it (T-10885). `[{pid, cwd}]`.
 
     THE INCIDENT THIS READS FOR (2026-08-10, T-10826): a worktree was torn down and RECREATED at the
@@ -125,7 +126,17 @@ def _live_path_holders(path, *, _ancestry=None, _self_proc_ancestry=None, _envir
 
     FAIL-OPEN by construction, and deliberately so: no `/proc` (non-Linux) or an unreadable entry
     yields NO holder, so the guard simply does not fire and the pre-existing gates (branch-existence,
-    own-stamp, card-status) still govern. This read only ever ADDS a refusal; it never removes one."""
+    own-stamp, card-status) still govern. This read only ever ADDS a refusal; it never removes one.
+
+    THE READER'S PIPELINE PEERS ARE NOT HOLDERS (T-13891, X-1942 — <project>, 2026-10-12). A harness
+    runs the verb as one command of a shell line, `<verb> ... | <filter>`, with the shell's cwd in the
+    worktree: the filter is a SIBLING of the reader — a child of the same shell, not on the reader's
+    ancestor chain — so it read as a foreign holder and two `dispatch --resume` launches of a
+    cleanly paused card were skipped. Which siblings are peers is decided by `_pipeline_peers`, on
+    positive proof of the link that joins them to the reader; a process that merely shares the
+    reader's parent or a pipe with it (an earlier background job of the same shell), and anything
+    a stage itself starts, stays a holder. An injected `_ancestry` replaces the reader's identity, so no peer is derived
+    from it (`_peer_anchor` injects one: `(reader pid, parent pid)`)."""
     p = str(path).rstrip(os.sep)
     if not p:
         return []
@@ -140,13 +151,18 @@ def _live_path_holders(path, *, _ancestry=None, _self_proc_ancestry=None, _envir
     ancestry_of = _self_proc_ancestry or globals()["_self_proc_ancestry"]
     if launcher:
         skip |= ancestry_of(launcher) - {1}
+    # T-13891: the reader's own (pid, parent pid), or None when there is no parent to have peers
+    # under. The peers are read off the SAME snapshot the launcher arm collects — one map, one traversal.
+    anchor = _peer_anchor if _peer_anchor is not None else ((os.getpid(), os.getppid()) if _ancestry is None else None)
+    if anchor is not None and int(anchor[1]) <= 1:
+        anchor = None
     holders: "list[dict]" = []
     try:
         pids = [d for d in os.listdir("/proc") if d.isdigit()]
     except OSError:
         return []
     for pid in pids:
-        if launcher:
+        if launcher or anchor:
             pp = read_ppid(pid)
             if pp is not None:
                 parent[int(pid)] = pp
@@ -163,7 +179,98 @@ def _live_path_holders(path, *, _ancestry=None, _self_proc_ancestry=None, _envir
             holders.append({"pid": int(pid), "cwd": real, "deleted": deleted})
     if launcher:
         holders = [h for h in holders if not _descends_from(h["pid"], launcher, parent)]
+    if anchor and holders:
+        peers = _pipeline_peers(int(anchor[0]), int(anchor[1]), parent, _read_pipes or _proc_pipes)
+        holders = [h for h in holders if h["pid"] not in peers]
     return holders
+
+
+def _pipeline_peers(me: int, shell: int, parent: "dict[int, int]", read_pipes) -> "set[int]":
+    """The STAGES of the pipeline that reader `me` runs in, as its parent `shell` built it (T-13891).
+
+    A shell that runs `a | b` joins the two by ONE pipe: `a` holds its write end as standard output,
+    `b` holds its read end as standard input, and the shell keeps neither. That link is the proof,
+    and all of it is required — a process is the reader's NEIGHBOUR only when:
+      - it is a DIRECT CHILD of the shell, other than the reader;
+      - the reader's standard output is the write end of a pipe whose read end is that process's
+        standard input (or the mirror: the reader's standard input, the process's standard output);
+      - the pipe is PRIVATE to the two: every process whose descriptors can be read and that holds
+        the pipe is one of the two, or hangs under one of them.
+    A neighbour's own links are followed the same way (`a | b | c`), to a fixed point.
+
+    Sharing a pipe is NOT the proof. An earlier job of the same shell can share a pipe with the
+    reader — the shell's inherited output, or an extra descriptor the shell opened for both and has
+    since closed — and it holds the SAME end as the reader, or the pipe has a third holder: it stays
+    a holder. So does whatever a stage STARTS (not a direct child of the shell), and so do the stages
+    themselves once a process outside the two holds their pipe, because the link is then not
+    provably theirs. Unreadable descriptors — the reader's, the shell's or a candidate's — prove
+    nothing, so that process is not a peer: sparing needs the positive match, and every doubt
+    leaves the holder LISTED. A process whose descriptors cannot be read is never spared itself."""
+    tables: "dict[int, dict | None]" = {}
+
+    def table(pid: int):
+        if pid not in tables:
+            tables[pid] = read_pipes(pid)
+        return tables[pid]
+
+    def std_end(pid: int, fd: int, mode: str) -> "str | None":
+        """The pipe `pid` holds at standard descriptor `fd`, open exactly in `mode`."""
+        for name, ends in (table(pid) or {}).items():
+            if (fd, mode) in ends:
+                return name
+        return None
+
+    holders_of: "dict[str, set[int]] | None" = None
+
+    def private(pipe: str, a: int, b: int) -> bool:
+        nonlocal holders_of
+        if holders_of is None:          # ONE pass over the snapshot, and only once a link is in question
+            holders_of = {}
+            for pid in parent:
+                for name in (table(pid) or {}):
+                    holders_of.setdefault(name, set()).add(pid)
+        return all(pid in (a, b) or _descends_from(pid, a, parent) or _descends_from(pid, b, parent)
+                   for pid in holders_of.get(pipe, ()))
+
+    if table(shell) is None or table(me) is None:
+        return set()
+    children = [pid for pid, pp in parent.items() if pp == shell and pid != me]
+    peers: "set[int]" = set()
+    frontier = [me]
+    while frontier:
+        s = frontier.pop()
+        for s_fd, s_mode, x_fd, x_mode in ((1, "w", 0, "r"), (0, "r", 1, "w")):
+            pipe = std_end(s, s_fd, s_mode)
+            if pipe is None:
+                continue
+            for x in children:
+                if x in peers or std_end(x, x_fd, x_mode) != pipe:
+                    continue
+                if private(pipe, s, x):
+                    peers.add(x)
+                    frontier.append(x)
+    return peers
+
+
+def _proc_pipes(pid) -> "dict[str, set] | None":
+    """The pipes `pid` holds open: `{<pipe name as the kernel prints it>: {(descriptor, mode)}}`,
+    mode `"r"` or `"w"` for an end open one way and `"rw"` otherwise; None when its descriptor table
+    cannot be read (gone / not ours to read)."""
+    try:
+        names = os.listdir(f"/proc/{pid}/fd")
+    except OSError:
+        return None
+    out: "dict[str, set]" = {}
+    for n in names:
+        try:
+            target = os.readlink(f"/proc/{pid}/fd/{n}")
+            bits = os.lstat(f"/proc/{pid}/fd/{n}").st_mode
+        except OSError:
+            continue
+        if target.startswith("pipe:[") and n.isdigit():
+            r, w = bool(bits & 0o400), bool(bits & 0o200)
+            out.setdefault(target, set()).add((int(n), "r" if r and not w else "w" if w and not r else "rw"))
+    return out
 
 
 def _proc_ppid(pid) -> "int | None":
@@ -3348,7 +3455,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     `worktree_synced{noop: true}`, exit 0, change nothing. Re-running the verb is always safe.
 
     `--resolved` — THE HAND-RESOLVED ARM (T-12365). The ordinary path above stops on a non-union
-    conflict (`_update_from_main` aborts the merge; `land` refuses on the same class BEFORE the
+    conflict (since T-13890 it leaves that merge OPEN for this arm, except when uncommitted changes
+    were set aside for the merge; `land` aborts its own and refuses on the same class BEFORE the
     queue), and the resolution itself was RAW GIT: open the merge, edit, `git add`, `git commit` —
     done by hand three times on 2026-09-10 alone, each leaving NO journal row naming what was
     resolved. AGENTS §Verb-execution discipline forbids hand-doing what a verb covers; nothing
@@ -3486,9 +3594,10 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
              f"does not START one. To get INTO the merge, run `yitc-v2 worktree sync "
              f"{('--task ' + task) if task else ('--work ' + str(work))}` — it folds the trailing "
              f"bookkeeping and runs the merge (no raw git needed for that either). If it stops on a "
-             f"non-union conflict, resolve the named files, `git add` them, and re-run this arm. A "
-             f"refusal over your UNCOMMITTED changes (merge-uncommitted-changes-conflict) leaves no "
-             f"merge behind, so this arm never applies to it.")
+             f"non-union conflict it leaves that merge open: resolve the named files, `git add` "
+             f"them, and re-run this arm. A stop that had to set your UNCOMMITTED changes aside, or "
+             f"a refusal over them (merge-uncommitted-changes-conflict), leaves no merge behind — "
+             f"commit those changes and run the plain sync again.")
     if in_merge and not resolved_arm:
         # The ordinary arm's own fail-closed guard: it would otherwise fold bookkeeping and merge on
         # TOP of an unfinished merge. It is also the arm's discovery surface — the operator holding a
@@ -3738,10 +3847,19 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                           _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
                           _dedup_events=_dedup_events, write_text_atomic=write_text_atomic,
                           _anchor_signature_of_text=_anchor_signature_of_text,
-                          _resolved_out=resolved_sink)
-    except SystemExit:
+                          _resolved_out=resolved_sink,
+                          # T-13890 — a non-union conflict stays OPEN for `--resolved`. Not when
+                          # changes were carried out: putting them back resets the worktree to its
+                          # pre-merge commit, which an open merge could not survive.
+                          _leave_conflict_open=carry is None)
+    except SystemExit as stop:
         if carry is not None:
             _put_back_carried(W, carry, _run_git_cap=_run_git_cap)
+            if getattr(stop, "yitc_abort_class", None) == "merge-non-union-conflict":
+                print(f"yitc-v2: worktree sync: the merge was NOT left open, because your uncommitted "
+                      f"changes ({', '.join(carry['paths'])}) had to be set aside for it and are now "
+                      f"back in place. Commit them, run `worktree sync` again, and the conflict will "
+                      f"be left open for `worktree sync --resolved`.", file=sys.stderr)
         raise
     if carry is not None:
         _carry_back_local_changes(W, carry, "worktree sync", _run_git_cap=_run_git_cap,
@@ -6384,7 +6502,7 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         # moment (replaces the 2 ad-hoc hint lines) + run the EXISTING structural pre-pass over the
         # claimed task's scope+acceptance — the decomposition step's mechanical half (reuse, NOT a
         # parallel validator — CHARTER §1 F1). Report-not-block: surfaces + reports, never gates.
-        print(_analysis_procedure_reminder(task))   # T-9741: pass the real tid so the per-stage sequence shows concrete commands
+        print(_analysis_procedure_reminder(task, card=claimed))   # T-9741: pass the real tid so the per-stage sequence shows concrete commands; T-13872: and the claimed card, so it lists the stages of the card's class
         # T-1050 (SPEC-0076 §6c): Analysis impact-WARN — scenarios passing through the specs this
         # task touches. Read-only, never blocks (the claim already happened above).
         _print_scenario_impact_warn(claimed)

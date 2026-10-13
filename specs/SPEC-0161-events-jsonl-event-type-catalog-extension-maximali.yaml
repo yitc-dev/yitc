@@ -463,14 +463,14 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ lets overuse be seen on the `debt` view without anyone running an audit (safeguard\
   \ c).\n- **`land_synchronous_guard_refused`** — `bin/lib/worktree.py` — a dispatched\
   \ worker's backgrounded `land` refused (the synchronous-to-LAND guard).\n- **`land_worker_liveness_lost`**\
-  \ — `bin/lib/worktree.py` — (SPEC-0180 rule 3 names THIS spec as the type's catalog\
-  \ home — corrected from the pre-split \"SPEC-0025\" address by before that spec\
-  \ activated; parent SPEC-0025 §Event-type catalog extension is the pointer stub,\
-  \ and the three sibling land-guard types below live here too) — an ADMITTED detached\
-  \ worker land was TERMINATED MID-FLIGHT because the worker process holding its turn\
-  \ stopped being alive; carries `worker_pid`/`liveness`/`reason` (SPEC-0180 rule\
-  \ 3). Deliberately **NOT** folded into `land_synchronous_guard_refused`: that type\
-  \ means \"admission REFUSED before anything ran\", this one means \"an admitted\
+  \ — `bin/lib/worktree.py` — (<workshop-spec> rule 3 names THIS spec as the type's\
+  \ catalog home — corrected from the pre-split \"SPEC-0025\" address by before that\
+  \ spec activated; parent SPEC-0025 §Event-type catalog extension is the pointer\
+  \ stub, and the three sibling land-guard types below live here too) — an ADMITTED\
+  \ detached worker land was TERMINATED MID-FLIGHT because the worker process holding\
+  \ its turn stopped being alive; carries `worker_pid`/`liveness`/`reason` (<workshop-spec>\
+  \ rule 3). Deliberately **NOT** folded into `land_synchronous_guard_refused`: that\
+  \ type means \"admission REFUSED before anything ran\", this one means \"an admitted\
   \ land was KILLED after it started\" — different facts, and merging them would leave\
   \ the fleet verdict (SPEC-0133) unable to tell a refusal from a kill. The kill is\
   \ journaled precisely so it is not a silent death (the class `blocked-on-land` (SPEC-0103\
@@ -487,8 +487,8 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   . The row is what makes the decoupling READABLE — it is the adoption evidence a\
   \ later session reads to know this land could not have died with its wrapper. Deliberately\
   \ scoped AWAY from the DISPATCHED WORKER, whose land must stay in its worker's group\
-  \ (SPEC-0103 / SPEC-0180): a worker land emits this type ZERO times, and that absence\
-  \ is meaningful, not missing data. `mechanism` is REPORTED rather than asserted\
+  \ (SPEC-0103 / <workshop-spec>): a worker land emits this type ZERO times, and that\
+  \ absence is meaningful, not missing data. `mechanism` is REPORTED rather than asserted\
   \ — the escape is a hardening and fails SOFT, so `unavailable` is a real value and\
   \ never an error.\n- **`watch_process_group_escaped`** — `bin/lib/dispatch.py` —\
   \ a `dispatch --watch` LEFT the process group of the shell that launched it, at\
@@ -575,7 +575,11 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ live journal at verdict time) · `unresolved` (projections not trusted) · `t1_hits`\
   \ / `t1_spikes` (changed-blob identity) · `spikes_matched` / `t3_verdict` (canonical\
   \ hunk-subset identity) · `verdict` (identity|report|none) · `share` · `ambiguous`\
-  \ · `exempt` (paths `yitc-generated` on MAIN) · `reservation_ts` · `fold_read_ts`\
+  \ · `exempt` (paths `yitc-generated` on MAIN) · `card_prototype_ref` / `declared_identical`\
+  \ / `declared_not_admitted` (SPEC-0205 rules 2/2a/5: the prototype the landing card\
+  \ names, the declared paths admitted against it, and per declared path not admitted\
+  \ a `file` + `why`; set only when the card was read, which happens only on a verdict\
+  \ that would otherwise be identity — else null / empty) · `reservation_ts` · `fold_read_ts`\
   \ (≥ reservation_ts) · `duration_ms` · `report_only: true` · `error` when the fold\
   \ failed (the land proceeds). Payload probe: `tests/test_t12567_spike_content_identity.py`\
   \ asserts one row per call with every key and `fold_read_ts >= reservation_ts`,\
@@ -1232,7 +1236,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ named BY ITS INTRODUCING CARD on identical terms :**\n`held_turn_claim_adopted.adopted_from_pid`\
   \ (and, since the row travels WHOLE, its sibling fields\n`held_turn_claim_adopted.rebound_to_pid`\
   \ + `held_turn_claim_adopted.reason`) — `land` journals the re-bind of a dead previous\n\
-  dispatched holder's held-turn claim to the live server-resolved worker (SPEC-0180\
+  dispatched holder's held-turn claim to the live server-resolved worker (<workshop-spec>\
   \ §Claim PROVENANCE,\nstale-previous-holder corollary). CANDIDATE standing like\
   \ every name here; the COUNT above is NOT inflated.\n`venue_published.ssh_user`\
   \ was missed here for exactly the reason this paragraph gives and then\ndid not\

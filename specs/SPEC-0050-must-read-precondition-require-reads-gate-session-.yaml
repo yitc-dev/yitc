@@ -696,22 +696,22 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 949c402df72c1f19de1060a9fa30121ae68ddacf97a395fdadae8bd19d7bf54b
-  bin/lib/cli.py#_deliver_before_rule_change: 573ce96bb9e3783f197876ff294700e47d6c2772db5b7b466721cbfa5c40c0f2
+  bin/lib/audit.py#cmd_audit: 744eb5e5ce9513e2b39dd5bfca02acf201b8e2c10169382a62c69eb1e9472805
+  bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
   bin/lib/cli.py#_deliver_stage_bundle_contracts: 5d5d61ebc3b2f3a8a7e8f1d012a352d333e27be341a8760c90a53ea7cc221b4a
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
   bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
   bin/lib/events.py#_emit_cli_invoked: 623edbb57a9b533417faa4069b968f28c6dbf66bf6a44b1355292019be59c49b
   bin/lib/gates.py#_fetched_spec_ids: bd89d532c1caa100984be88c08658b59bd2971c829b1ad13690030bb5f7d9f46
-  bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
+  bin/lib/gates.py#_require_reads: ac08593a04786f860a54d8edc2d123df7f47d5c28f6ac7e4c27fa3e8086c97ee
   bin/lib/gates.py#_require_seed_read: 8e2bc919f11fd0a983c40f71648c985f28828c0bd6d59d95d66d2abd1c57baac
   bin/lib/gates.py#_seed_receipt_epochs: 37ced50b43ae720c9bf3d9eb0e44db5c8eb16e6b5469c92313103b4a6a336978
   bin/lib/gates.py#_session_started_lower_bound: b33e13a47bcb5aa7ad4cb3671878fdce453aa448bbdf3f75d09ff6e6ad359265
   bin/lib/gates.py#seed_stamp_credits: da9780a76a68522e579b9b8f3bc44d9870ddd20b939624966170e45a6a5ad0bc
   bin/lib/plan.py#_print_plan_stage_delivery: 870582bbd7b6b762af54e2458caa50825266b353b261fe86e1a5a2d207a676e5
-  bin/lib/plan.py#cmd_plan_check: 4f48a3ade13764afe1b5e49c54c5346d4b43884199491d6c5659428722642a34
+  bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
   bin/lib/task.py#cmd_task_close: a8bb6bca61efc36cf2481454df900ed630e4589a36107af2fccffb024c18fb60
-  bin/lib/task.py#cmd_task_commit: 4e1faf09cda4125d35c3164453b8e3089272756def99a8932c74d31d0fadd68f
+  bin/lib/task.py#cmd_task_commit: be0d945a859e0f8af4fa4afa1b1695c28536dcdd398c1c3619ea2dc2d488f87c

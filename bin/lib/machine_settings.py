@@ -1081,6 +1081,43 @@ def effective(name, env=None):
 
 
 # ── T-13831: the first-install LOAD RECOMMENDATION ───────────────────────────────────────────
+def layer_share_allotment_note(key, old, new, cores, share_sum=None) -> "list[str]":
+    """T-13876 (SPEC-0152 rule 16 §layer_worker_shares) — what `config set` says when the per-verify
+    worker ceiling CHANGES, for projects that declare `verify.layer_worker_shares`.
+
+    The ceiling bounds the allotment every verify layer reads whole; a project that declares shares
+    scales its runners by it, and the sum of its shares is the project's own and unchecked. So a
+    change here multiplies what such a project asks for by new/old, and this is the one line that
+    says so at the moment of the change.
+
+    `share_sum` is the sum of the shares the project THIS CALL RUNS IN declares (None when it
+    declares none or the call cannot read it): with it the lines carry that project's numbers;
+    without it they carry the plain statement — machine settings are host-wide, and a `config set`
+    knows at most the one project it runs in. `old` None is an unset key, shown as its default.
+
+    Returns [] for any other key, for a value that did not change, and for a non-positive or
+    non-int `new`. Pure: no I/O, nothing raised. REPORT-ONLY — the caller prints the lines after
+    the write it has already made; nothing is refused on them."""
+    name = "lib.worktree._VERIFY_WORKER_CEILING"
+    if key != name or isinstance(new, bool) or not isinstance(new, int) or new <= 0:
+        return []
+    before = BY_NAME[name].default if old is None else old
+    if isinstance(before, bool) or not isinstance(before, int) or before == new:
+        return []
+    host = (f"this host has {cores} cores" if isinstance(cores, int) and not isinstance(cores, bool)
+            and cores > 0 else "this host's processor count could not be read")
+    lines = [f"  note: every verify layer reads the worker allotment whole — now up to {new}, before "
+             f"up to {before}. A project that declares `verify.layer_worker_shares` scales its runners "
+             f"by it, so shares that sum to S ask for up to S x {new} worker slots when those layers "
+             f"run at the same time; {host}."]
+    if isinstance(share_sum, (int, float)) and not isinstance(share_sum, bool) and share_sum > 0:
+        lines.append(f"  this project declares shares that sum to {share_sum:.4g}: up to "
+                     f"{share_sum * before:.4g} worker slots before, up to {share_sum * new:.4g} now.")
+    lines.append("  Report-only: the sum stays each project's to choose and nothing is refused "
+                 "(SPEC-0152 rule 16).")
+    return lines
+
+
 def recommend_load_settings(cores, mem_total_mb=None, *, per_worker_mem_mb=None):
     """Starting values for how a host that has set NONE of them shares its cores between a land and
     the Stage-6 runs (T-13831, owner directive events.jsonl#ts=2026-10-10T04:21:15Z). PURE: host

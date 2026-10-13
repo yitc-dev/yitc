@@ -108,6 +108,10 @@ expected_touch: []             # OPTIONAL dispatch-selection FORECAST — coarse
 
 prototype_ref: null            # OPTIONAL `spike/<slug>` — the annotated spike tag this card builds on (T-12571,
                                # SPEC-0205 rule 5; schema home SPEC-0028). `task file|update --prototype-ref`.
+prototype_identical: null      # OPTIONAL, only beside prototype_ref (T-13856, SPEC-0205 rule 5; schema home
+                               # SPEC-0028): the files this card declares byte-identical to the prototype's BY
+                               # CONSTRUCTION — a list of entries, each a path and a reason. NOT authored at
+                               # filing: `task update --set-field prototype_identical --from-file <path>`.
 decomposed_from: null          # OPTIONAL cut-membership marker (SPEC-0070 §5; schema home SPEC-0028).
                                # The plan-slug this card was cut FROM — NARROW structural relation read
                                # by the claim-block (refused while the plan is pre-executing). SOLE writer

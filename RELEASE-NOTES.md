@@ -1,6 +1,6 @@
-# Release v2.10.0
+# Release v2.11.0
 
-Source commit: `7a166dd9397cc95483cd75d95cce63269f5b7ad9`
+Source commit: `a836570155e2a20312e7614514926027dd8185e0`
 
 ## Proposals this release answers
 
@@ -82,6 +82,11 @@ answers:
   - 'yitc-dev/yitc#79'
   - 'yitc-dev/yitc#8'
   - 'yitc-dev/yitc#80'
+  - 'yitc-dev/yitc#81'
+  - 'yitc-dev/yitc#82'
+  - 'yitc-dev/yitc#83'
+  - 'yitc-dev/yitc#84'
+  - 'yitc-dev/yitc#85'
   - 'yitc-dev/yitc#9'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
   - 'yitc-dev/yitc-archive-2026-10-02#10'
@@ -136,27 +141,47 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
 
-- SPEC-1025 — Plan author self-check — re-read the plan before a plan gate, and check a trial run will count before launching it
+- SPEC-1028 — Dispatched-worker land under a hard per-call foreground cap — the protected property is the HELD TURN, not the foreground process
   turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1025`
-- SPEC-1026 — Change hand-in with evidence - edges and chosen interleavings listed in the task plan before audit-pre; proxy checks and deferred proofs shown RED on a fault planted at the observable
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1026`
+  read: `yitc-v2 graph query --kernel SPEC-1028`
 
 ## What changed
 
-8 task(s) closed since the previous release tag, in close order:
+31 task(s) closed since the previous release tag, in close order:
 
-- T-13850 — Reword the four code comments that spell the public repo slug, so main stops failing the published account-name ceiling (hygiene) — events.jsonl#ts=2026-10-11T14:13:09Z
-- T-13848 — Stop the release publish step stripping `` from shell function definitions, and refuse a published shell script that does not parse (fix) — events.jsonl#ts=2026-10-11T14:49:35Z
-- T-13846 — Stop the journal reader re-walking main's window after every land, and reading a rewritten segment twice for a never-dispatched id (refactor) — events.jsonl#ts=2026-10-11T15:52:36Z
-- T-13859 — Stop correction-record classification findings from feeding themselves at plan gates (fix) — events.jsonl#ts=2026-10-11T17:32:59Z
-- T-13853 — Activate SPEC-1025 and put its cue in the plan verbs' next-action hint (feature) — events.jsonl#ts=2026-10-11T17:40:25Z
-- T-13852 — Activate SPEC-1026 and carry its edge list and weak-check evidence in the dispatch-composed brief (feature) — events.jsonl#ts=2026-10-11T18:05:54Z
-- T-13860 — Never read an info finding as a re-raised residual, and let a RED ceiling row that resolves no residual admit the next round (fix) — events.jsonl#ts=2026-10-11T18:17:55Z
-- T-13851 — Make every release publish run the published security programs once on sample data, refusing a build whose program parses but fails at run time (feature) — events.jsonl#ts=2026-10-11T18:23:20Z
+- T-13857 — Give a draft spec whose proposing plan was cancelled a governed end, and make spec edit help name the statuses it admits (fix) — events.jsonl#ts=2026-10-11T21:06:17Z
+- T-13858 — Make the authored-before-audit-pre warning tell preparation from code, and count only code (fix) — events.jsonl#ts=2026-10-11T23:19:10Z
+- T-13861 — Inline a corpus file whose path ends a sentence in an audit adhoc request (fix) — events.jsonl#ts=2026-10-12T00:05:35Z
+- T-13856 — Give a prototype_ref card an exit it can take when its re-implemented file is byte-identical to the prototype's (fix) — events.jsonl#ts=2026-10-12T00:35:44Z
+- T-13865 — Name the CURRENT fingerprint in the `audit decide --disposition fix` refusal that today says «the subject has not moved» (fix) — events.jsonl#ts=2026-10-12T11:09:22Z
+- T-13870 — Admit a pause-folded GREEN audit-post record at `task commit --reship`, as its two sibling legs already do (fix) — events.jsonl#ts=2026-10-12T13:43:00Z
+- T-13875 — State that a worker's hand-started test run goes at the same lowered priority as its Stage-6 run (feature) — events.jsonl#ts=2026-10-12T15:07:31Z
+- T-13864 — End a successful audit field edit (`--absorb`, `--followup`) with a final line that cannot be read as a failed call (fix) — events.jsonl#ts=2026-10-12T15:48:14Z
+- T-13871 — Show a starting Controller the live worktrees other sessions hold, and settle the two SPEC-0119 rules that disagree about it (fix) — events.jsonl#ts=2026-10-12T16:29:07Z
+- T-13889 — Write land's receipt to the main journal when the worktree directory survives deregistration (fix) — events.jsonl#ts=2026-10-12T21:57:26Z
+- T-13874 — Let a forward `deploy` be told the revision it is expected to ship, and refuse when main is not at it (feature) — events.jsonl#ts=2026-10-12T22:36:24Z
+- T-13890 — Leave a non-union merge open when worktree sync stops on it, so the resolved arm is reachable without raw git (fix) — events.jsonl#ts=2026-10-12T23:05:42Z
+- T-13872 — Make the dispatch preamble and the claim-time stage sequence follow the card's class, so a hygiene card is not told to audit (fix) — events.jsonl#ts=2026-10-12T23:32:54Z
+- T-13894 — Silence the audit-scrutiny restoration proposal once the case it names is no longer declared (fix) — events.jsonl#ts=2026-10-13T00:01:39Z
+- T-13873 — Make the before-rule-change refusal of `spec edit` name a command a consumer session can run, and say which checkout it read (fix) — events.jsonl#ts=2026-10-13T00:59:08Z
+- T-13895 — Stop the false-skip detector counting a layer timeout and a merge from main as a content-borne failure (fix) — events.jsonl#ts=2026-10-13T01:29:18Z
+- T-13892 — Print a project's own seed-bound spec bare in the session-start seed line (fix) — events.jsonl#ts=2026-10-13T01:37:26Z
+- T-13888 — Let a warm worker's detached land be admitted for every card of its assigned batch, not only the head (fix) — events.jsonl#ts=2026-10-13T01:38:48Z
+- T-13891 — Stop the dispatch in-flight guard counting the dispatching command's own pipeline peers as worktree holders (fix) — events.jsonl#ts=2026-10-13T02:37:16Z
+- T-13901 — Show a flagged project startup check at session start (fix) — events.jsonl#ts=2026-10-13T02:48:20Z
+- T-13893 — Name the dispatch target's own detached log paths in the stage-entry worker reminder (fix) — events.jsonl#ts=2026-10-13T03:28:57Z
+- T-13896 — Make the Stage-6 land-floor preview read uncommitted and untracked files (fix) — events.jsonl#ts=2026-10-13T04:08:02Z
+- T-13898 — Name each corpus file audit adhoc --read-corpus truncates, before the auditor is invoked (fix) — events.jsonl#ts=2026-10-13T04:21:51Z
+- T-13899 — Say in the scratch-checkout rule what a session does when another OS user owns the repository (fix) — events.jsonl#ts=2026-10-13T04:58:10Z
+- T-13847 — Give the repair of a known-broken-on-main test a route to file its card while the record stands (fix) — events.jsonl#ts=2026-10-13T05:03:35Z
+- T-13900 — Make the audit-pre content-boundary overlay carry SPEC-0005 rule 3's stay-in-rule-text clause (fix) — events.jsonl#ts=2026-10-13T05:59:16Z
+- T-13869 — Make the layer_worker_shares reader advisory say «reader not resolved» when it could not follow the layer command (fix) — events.jsonl#ts=2026-10-13T06:17:45Z
+- T-13866 — Write the practice for cutting a plan that restates an active spec across several cards, and point the decomposition stage at it (docs) — events.jsonl#ts=2026-10-13T06:41:01Z
+- T-13897 — Stop the overdue-recheck lens counting a live_probe waiver on a card that never shipped (fix) — events.jsonl#ts=2026-10-13T08:26:05Z
+- T-13876 — Report, without refusing, when a project's declared layer shares times the worker allotment exceed the host's cores (feature) — events.jsonl#ts=2026-10-13T09:27:28Z
+- T-13867 — State what the primary AI's own provider-side memory may hold, and route such a capture to the corpus first (feature) — events.jsonl#ts=2026-10-13T09:29:37Z
 
 ## Trust surfaces
 

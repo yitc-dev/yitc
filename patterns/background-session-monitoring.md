@@ -31,7 +31,7 @@ long step and yield: a one-shot worker's process EXITS when it yields, so it die
 the task built but UNLANDED (incidents). **The contrast is persistence:** an
 interactive CONTROLLER may background a step and resume on its completion; a one-shot worker may NOT.
 
-**What this rule actually protects is the HELD TURN, not the foreground process (SPEC-0180 rule 1 —
+**What this rule actually protects is the HELD TURN, not the foreground process (<workshop-spec> rule 1 —
 reconciliation, NOT a relaxation).** The single failure the paragraph above exists to prevent is: the worker
 YIELDS its turn, its process exits, the step dies mid-flight. The property that prevents it is that **the
 worker holds its turn until the terminal outcome** — NOT that the step runs inside the worker's own
@@ -41,7 +41,7 @@ foreground land killed at the cap reaches no token either, so foreground-ness al
 **So: what may be detached is the OS PROCESS, never the TURN.** A step whose runtime exceeds the cap may run
 as a DETACHED process while the worker holds its turn in bounded, inline poll windows — the recipe +
 its applicability bound live at **§Long-command-exceeds-tool-timeout (`background-session-dispatch.md`)**,
-and for `land` specifically that shape is ADMISSIBLE only under the shipped held-turn claim (SPEC-0180 rule 2). **BACKGROUND-AND-YIELD STAYS FORBIDDEN, UNCHANGED** — a worker that launches
+and for `land` specifically that shape is ADMISSIBLE only under the shipped held-turn claim (<workshop-spec> rule 2). **BACKGROUND-AND-YIELD STAYS FORBIDDEN, UNCHANGED** — a worker that launches
 detached and then yields has not applied the recipe, it has committed the exact death this rule names, and
 under the claiming path its land is then KILLED mid-flight by the worker-liveness watchdog (`main`
 untouched; recover via the idempotent `worktree recover-land`). Nor is any of this a licence to force a
@@ -99,7 +99,7 @@ and stopped-land rules it builds on are in §Synchronous-to-LAND above.
   any guard upstream of `cmd_land`'s terminal-signal seam) never reaches the token: it prints as a
   plain `yitc-v2: …` line on **stderr** and exits nonzero, so a `^LAND:`-only watcher captures an
   EMPTY file (X-0843 — an instance of SPEC-0165 item 11).
-- **Terminality (SPEC-0180 rule 2c).** `yitc-v2:` is the tool's GENERIC message prefix — `land`
+- **Terminality (<workshop-spec> rule 2c).** `yitc-v2:` is the tool's GENERIC message prefix — `land`
   prints ordinary progress under it (the graph auto-rebuild notice, the verify heartbeat) — so a bare
   `yitc-v2:` line is terminal only WITH an exit. Collapsing the two is a measured false green.
   Capture wide; gate narrow.
@@ -121,7 +121,7 @@ and stopped-land rules it builds on are in §Synchronous-to-LAND above.
   naming the logs — so a kill of the wrapper, by pid, group, session or descendant walk, costs only
   the relay. Surviving shape: an un-timed background land or Monitor keyed off the journal
   (`setsid nohup … &` also survives). The DISPATCHED WORKER case is the opposite rule and is
-  deliberately untouched: a worker's land stays in its worker's process group (SPEC-0103 / SPEC-0180).
+  deliberately untouched: a worker's land stays in its worker's process group (SPEC-0103 / <workshop-spec>).
 - **Reading a stopped land.** Do not read a stale heartbeat as evidence that something killed your
   land. What you DO get is the discrimination that matters operationally — a land that stopped
   emitting never reads the same as a healthy queued one. Separating an uncatchable kill from a silent

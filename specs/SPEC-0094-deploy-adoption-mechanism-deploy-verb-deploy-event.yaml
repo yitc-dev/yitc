@@ -129,37 +129,44 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ from it — a command still running after the verb\n    was interrupted is the project's\
   \ to account for.\nThe verb's exit code, its exit disposition on a signal, and the\
   \ gate-failure message's RECORD / RUNTIME\n/ NEXT statements are unchanged; the\
-  \ message gains one line naming the row it wrote.\n\n**Named deploy TARGETS — one\
-  \ verb, many surfaces (X-1201).** A project that serves more than\none surface (a\
-  \ production stack AND a sandbox) declared only ONE `deploy.command`, so the ONLY\
-  \ governed\npath resolved to whatever that command addresses — in practice PRODUCTION.\
-  \ The consequence is not\ncosmetic: SPEC-0094 evidence existed for the surface deployed\
-  \ RARELY and carefully, and none for the one\ndeployed OFTEN and casually, which\
-  \ is also where a collaborator's change lands FIRST. The carrier\ntherefore admits\
-  \ an OPTIONAL named-target block on the `deploy:` section:\n\n    deploy:\n    \
-  \  command: <the default command — unchanged, still what a bare `deploy` runs>\n\
-  \      targets:\n        <name>:\n          command: <the command for this surface>\
-  \ # mandatory, non-blank\n          production: true|false # MANDATORY, an explicit\
-  \ boolean\n          convergence: {...} # OPTIONAL — this surface's OWN SPEC-0097\
-  \ §11\n                                                      # convergence block\
-  \ (same schema as the top-level\n                                              \
-  \        # one). The RULE — target-first resolution, and\n                     \
-  \                                 # why a non-production target with no block of\n\
-  \                                                      # its own SKIPs instead of\
-  \ falling back to the\n                                                      # production\
-  \ services — is homed in SPEC-0097 §11\n                                       \
-  \               # (X-1234), not restated here.\n\n`bin/yitc-v2 deploy --target <name>`\
-  \ resolves that entry and runs its command. Four properties, each\nload-bearing:\n\
-  1. **ABSENT `--target` never reads the block.** The default `command:` resolves\
-  \ exactly as before and\n   the record's shape does not move, so every existing\
-  \ consumer — and every consumer declaring no\n   `targets:` at all — is untouched.\
-  \ This is the back-compatibility guarantee, not a courtesy.\n2. **An unknown name\
-  \ REFUSES; it NEVER falls back to `command:`.** Resolution happens BEFORE any side\n\
-  \   effect (no gate, no dump, no probe, no command has run), so an unresolvable\
-  \ name emits no\n   `deploy_completed`. A fallback here would deploy PRODUCTION\
-  \ on a typo — the inverse of fail-closed.\n3. **`production:` is POSITIVELY DECLARED,\
-  \ never inferred.** A missing or non-boolean value REFUSES; a\n   target's NAME\
-  \ is a string, not a proof, and an absent stance is not read as non-production.\
+  \ message gains one line naming the row it wrote.\n\n**A deploy given an EXPECTED\
+  \ REVISION rides one more check after the command (§6).** The two\nchecks named\
+  \ at the head of this section, made after the command reports success, are the whole\n\
+  set only for a deploy that was given no expected revision; for one that was, §6's\
+  \ comparison after\nthe command is a third, and it withholds `deploy_completed`\
+  \ on the same terms. Its failure is one more ending that leaves a\n`deploy_failed`,\
+  \ beside the three named above, and one more last step that row can name; the row\n\
+  carries the command's own exit code. Bounds (i)-(iv) hold for it unchanged.\n\n\
+  **Named deploy TARGETS — one verb, many surfaces (X-1201).** A project that serves\
+  \ more than\none surface (a production stack AND a sandbox) declared only ONE `deploy.command`,\
+  \ so the ONLY governed\npath resolved to whatever that command addresses — in practice\
+  \ PRODUCTION. The consequence is not\ncosmetic: SPEC-0094 evidence existed for the\
+  \ surface deployed RARELY and carefully, and none for the one\ndeployed OFTEN and\
+  \ casually, which is also where a collaborator's change lands FIRST. The carrier\n\
+  therefore admits an OPTIONAL named-target block on the `deploy:` section:\n\n  \
+  \  deploy:\n      command: <the default command — unchanged, still what a bare `deploy`\
+  \ runs>\n      targets:\n        <name>:\n          command: <the command for this\
+  \ surface> # mandatory, non-blank\n          production: true|false # MANDATORY,\
+  \ an explicit boolean\n          convergence: {...} # OPTIONAL — this surface's\
+  \ OWN SPEC-0097 §11\n                                                      # convergence\
+  \ block (same schema as the top-level\n                                        \
+  \              # one). The RULE — target-first resolution, and\n               \
+  \                                       # why a non-production target with no block\
+  \ of\n                                                      # its own SKIPs instead\
+  \ of falling back to the\n                                                     \
+  \ # production services — is homed in SPEC-0097 §11\n                          \
+  \                            # (X-1234), not restated here.\n\n`bin/yitc-v2 deploy\
+  \ --target <name>` resolves that entry and runs its command. Four properties, each\n\
+  load-bearing:\n1. **ABSENT `--target` never reads the block.** The default `command:`\
+  \ resolves exactly as before and\n   the record's shape does not move, so every\
+  \ existing consumer — and every consumer declaring no\n   `targets:` at all — is\
+  \ untouched. This is the back-compatibility guarantee, not a courtesy.\n2. **An\
+  \ unknown name REFUSES; it NEVER falls back to `command:`.** Resolution happens\
+  \ BEFORE any side\n   effect (no gate, no dump, no probe, no command has run), so\
+  \ an unresolvable name emits no\n   `deploy_completed`. A fallback here would deploy\
+  \ PRODUCTION on a typo — the inverse of fail-closed.\n3. **`production:` is POSITIVELY\
+  \ DECLARED, never inferred.** A missing or non-boolean value REFUSES; a\n   target's\
+  \ NAME is a string, not a proof, and an absent stance is not read as non-production.\
   \ This is\n   SPEC-0097 §8 (classification is EXPLICIT, never an auto-detector)\
   \ applied to the target axis, and it\n   is what stops a broken declaration from\
   \ opening the lighter path.\n4. **A named ROLLBACK opens for a NON-PRODUCTION target\
@@ -377,7 +384,9 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ governed YAML:\n`task update --live-probe-settled-terminal/--live-probe-settled-reason`\
   \ before closure, and\n`task close --settle-live-probe-terminal/--settle-live-probe-reason`\
   \ on an already-done card. This\ndoes NOT weaken the `recheck_by` floor: a waiver\
-  \ with no discharge at all is judged exactly as before.\nThis ADDS a deploy-conditional\
+  \ with no discharge at all is judged exactly as before.\nONE CASE IS KEYED ON THE\
+  \ CARD'S STATUS: where the lens reports an undischarged waiver on a\n`wont-do` card\
+  \ is stated in SPEC-0119 rule 3, its rule home.\nThis ADDS a deploy-conditional\
   \ precondition to closure — see §Amends (it does NOT change closure for\na non-deploying\
   \ project).\n**The live_probe DEFAULT — derived from TOUCHED RUNTIME SURFACES.**\
   \ Requiring a hand waiver on\nEVERY deploying-project task erodes the gate (5 <project>\
@@ -720,39 +729,62 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ and with the\ndeployed-vs-main drift notion (§2). A `--rollback` is NEVER gated\
   \ (it redeploys a prior image —\nthe always-available reversal, §1), so the discipline\
   \ is forward-deploy-only. The governed path to\ndeploy un-landed work is to `land`\
-  \ it first — there is no override flag (CHARTER §P1, no new mechanism).\n\n**The\
-  \ MAIN-LINE half is scoped BY DEPLOY TARGET (X-1261) — the DIRT half is not.** The\n\
-  landed-`main`-line assertion above states a PRODUCTION discipline, and it is asserted\
-  \ for a\nPRODUCTION target and for a target-less deploy only. For a target positively\
-  \ declared\n`targets.<name>.production: false` (§1) it is SKIPPED, and the deploy\
-  \ may build the branch it exists\nto prove. This is not a licence: it is the resolution\
-  \ of a standing contradiction — a non-production\ntarget exists precisely to exercise\
-  \ code that is not yet on `main`, while <workshop-spec> rule 3 requires\nthat sandbox\
-  \ be deployed THROUGH this governed verb, so the two rules together made a change\n\
-  unprovable end-to-end before landing (measured on <project>: closed with both live\
-  \ probes\nDEFERRED for exactly this reason).\nThree bounds, all load-bearing:\n\
-  (i) The discriminator is POSITIVELY DECLARED and never inferred — `production:`\
-  \ is a mandatory\n    boolean on every target entry, so an absent or non-boolean\
-  \ value REFUSES at target resolution\n    rather than reading as non-production,\
-  \ and a deploy with no `--target` (stance undeclared) keeps\n    the assertion VERBATIM.\
-  \ Nothing that refused before this scoping is admitted by an omission.\n(ii) ONLY\
-  \ the main-line half is scoped. The un-landed-RUNTIME-SOURCE dirt half of this section\
-  \ still\n    refuses on a non-production target, as do every other gate (the SPEC-0155\
-  \ security-audit gate,\n    the SPEC-0097 §11 convergence verification, the close-gate\
-  \ of §3). An un-landed COMMIT is the\n    reviewable artifact a sandbox is meant\
-  \ to prove; an uncommitted working tree names nothing that\n.\n(iii) The record\
-  \ SAYS WHICH — `deploy_completed` carries `build_source: \"main\" | \"branch\"`\
-  \ on a\n    forward deploy that NAMED a target, beside that target's own declared\
-  \ stance in\n    `target.production` (§1). A scoped gate whose record could not\
-  \ be read for \"did this ship the\n    landed line?\" would trade a refusal for\
-  \ an invisible one. The field is present exactly where\n    the answer is not already\
-  \ implied: a rollback is never build-source gated, and a TARGET-LESS\n    deploy\
-  \ always takes the unscoped assertion, so it cannot have built anything but `main`\
-  \ or it\n    would have been refused. Stating that constant would move a record\
-  \ shape §1 deliberately holds\n    byte-identical for a consumer that declares no\
-  \ targets.\nThis is a per-target SCOPE of an existing discipline, reusing the same\
-  \ discriminator SPEC-0097 §12\nreads one block below — NOT an override flag, of\
-  \ which this section still has none.\nReal incident: the <project> gate-2 migration\
+  \ it first — there is no override flag (CHARTER §P1, no new mechanism).\n\n**An\
+  \ EXPECTED REVISION — a forward deploy MAY be told which commit it is expected to\
+  \ ship.** The\nassertion above says which LINE is built; the caller MAY add WHICH\
+  \ COMMIT of it, by an option the\nverb's own help names. The value is a FULL commit\
+  \ id: a ref name or an abbreviated id is REFUSED\nbefore anything runs, because\
+  \ either is resolved when the verb runs and so cannot pin the commit the\ncaller\
+  \ tested. Given one, the verb compares it with HEAD at three moments, and at the\
+  \ last two it\nmakes this section's assertion again:\n(a) when it resolves the revision,\
+  \ before any gate, dump or probe has run — a different HEAD REFUSES\n    as an unsafe\
+  \ build source does, naming both commits; nothing was run and no row is written;\n\
+  (b) immediately before it launches the project deploy command — a checkout that\
+  \ moved while the\n    pre-deploy gates ran REFUSES the same way, and the command\
+  \ is not launched;\n(c) after the command returned success — a checkout that moved\
+  \ while the command ran FAILS the\n    deploy: NO `deploy_completed`, the exit status\
+  \ of a deploy applied but not recorded (the one\n    non-convergence uses), and\
+  \ the run's one terminal row is a `deploy_failed` (§1). The command may\n    already\
+  \ have changed production, so the verb states the record as fact and the runtime\
+  \ as\n    unknown, as §1's gate-failure message does. The SPEC-0097 §2a post-deploy\
+  \ probe, where one is\n    owed, still runs first; the SPEC-0097 §11 convergence\
+  \ verification is not reached.\nA deploy that names NO expected revision makes none\
+  \ of these comparisons and behaves exactly as\nbefore. An expected revision is REFUSED\
+  \ on a rollback: a rollback already names the revision it goes\nTO, and that is\
+  \ the one its `deploy_completed` records. This is not an override: it admits nothing\n\
+  the assertion above refuses, and a non-production target keeps the scoping below.\n\
+  \n**The MAIN-LINE half is scoped BY DEPLOY TARGET (X-1261) — the DIRT half is not.**\
+  \ The\nlanded-`main`-line assertion above states a PRODUCTION discipline, and it\
+  \ is asserted for a\nPRODUCTION target and for a target-less deploy only. For a\
+  \ target positively declared\n`targets.<name>.production: false` (§1) it is SKIPPED,\
+  \ and the deploy may build the branch it exists\nto prove. This is not a licence:\
+  \ it is the resolution of a standing contradiction — a non-production\ntarget exists\
+  \ precisely to exercise code that is not yet on `main`, while <workshop-spec> rule\
+  \ 3 requires\nthat sandbox be deployed THROUGH this governed verb, so the two rules\
+  \ together made a change\nunprovable end-to-end before landing (measured on <project>:\
+  \ closed with both live probes\nDEFERRED for exactly this reason).\nThree bounds,\
+  \ all load-bearing:\n(i) The discriminator is POSITIVELY DECLARED and never inferred\
+  \ — `production:` is a mandatory\n    boolean on every target entry, so an absent\
+  \ or non-boolean value REFUSES at target resolution\n    rather than reading as\
+  \ non-production, and a deploy with no `--target` (stance undeclared) keeps\n  \
+  \  the assertion VERBATIM. Nothing that refused before this scoping is admitted\
+  \ by an omission.\n(ii) ONLY the main-line half is scoped. The un-landed-RUNTIME-SOURCE\
+  \ dirt half of this section still\n    refuses on a non-production target, as do\
+  \ every other gate (the SPEC-0155 security-audit gate,\n    the SPEC-0097 §11 convergence\
+  \ verification, the close-gate of §3). An un-landed COMMIT is the\n    reviewable\
+  \ artifact a sandbox is meant to prove; an uncommitted working tree names nothing\
+  \ that\n.\n(iii) The record SAYS WHICH — `deploy_completed` carries `build_source:\
+  \ \"main\" | \"branch\"` on a\n    forward deploy that NAMED a target, beside that\
+  \ target's own declared stance in\n    `target.production` (§1). A scoped gate whose\
+  \ record could not be read for \"did this ship the\n    landed line?\" would trade\
+  \ a refusal for an invisible one. The field is present exactly where\n    the answer\
+  \ is not already implied: a rollback is never build-source gated, and a TARGET-LESS\n\
+  \    deploy always takes the unscoped assertion, so it cannot have built anything\
+  \ but `main` or it\n    would have been refused. Stating that constant would move\
+  \ a record shape §1 deliberately holds\n    byte-identical for a consumer that declares\
+  \ no targets.\nThis is a per-target SCOPE of an existing discipline, reusing the\
+  \ same discriminator SPEC-0097 §12\nreads one block below — NOT an override flag,\
+  \ of which this section still has none.\nReal incident: the <project> gate-2 migration\
   \ left the live code on a non-`main` auto-session branch\nwhile `main` silently\
   \ drifted 186 commits, and `deploy` built the working tree with no branch guard.\n\
   \n### 7. Audit-post external-action path — owner-confirmation deferred to Closure\
@@ -911,28 +943,48 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ audit-post burned the audit ceiling on a deploy task (the X-0039 friction).\n\
   Design + 5 external consults: <project> `docs/deploy-adoption-concept.md`. Full\
   \ deliberation + the\ndecision to defer the autonomy policy: plan `seed-and-grow-kernel-capability-and-yitc-ops-carri`.\n\
-  \n## Verification\n\n- a real <project> deploy emits `deploy_completed` with the\
-  \ live SHA; a rollback emits a new one.\n- a journal interleaving a target-less\
-  \ record, `production: false` records and a `production: true`\n  record reads the\
-  \ latest PRODUCTION one as the current-live revision in BOTH readers — the\n  not-adopted\
-  \ baseline (with no adapter, and with a degraded one) and the SPEC-0097 §2a rollback\n\
-  \  target — while the pre-change readers return the non-production revision on the\
-  \ same journal\n  (§1, `tests/test_deploy_live_revision_production_only.py`).\n\
-  - `task close` on a deploying project REFUSES a user-facing task with no declared\
-  \ `live_probe` (the\n  fail-closed gate — state check); a NON-deploying project's\
-  \ close is unchanged (no new precondition).\n- the per-change `live_probe` GET (task\
-  \ YAML) passes against production using the carrier `live_base_url`;\n  the not-adopted\
-  \ surface reads 0 after deploy.\n- a serve/deploy task's audit-post does NOT RED-flag\
-  \ adoption-missing (the X-0039 path).\n- grep: no per-task probe stored in the carrier;\
-  \ no base_url/dialect re-declared on a task YAML (one SoT each).\n- a forward `deploy`\
-  \ from a non-`main` checkout OR with uncommitted SOURCE dirt REFUSES (exit non-zero,\
-  \ no `deploy_completed`); a deploy from clean `main` proceeds; journal/derived/`.yitc/`\
-  \ dirt alone does NOT block (the §6 build-source gate).\n- a STARTED deploy leaves\
-  \ exactly ONE terminal row: one whose command exits non-zero, dies by a signal,\
-  \ or whose verb is interrupted by a catchable signal before any other terminal row\
-  \ was written leaves exactly ONE `deploy_failed` (revision + exit code or signal)\
-  \ and NO `deploy_completed`; a signal inside a terminal write is deferred, never\
-  \ lost or doubled; a deploy refused before its launch leaves none (§1, `tests/test_t13398_deploy_failed_row.py`).\n"
+  The §6 expected revision (2026-10-12): a consumer's release card could not hold\
+  \ the commit it\nhad acceptance-tested against a `land` arriving between its own\
+  \ HEAD check and the verb — its\naudit-pre went RED on exactly that. The verb compared\
+  \ HEAD with nothing the caller named.\n\n## Implementation notes\n\n- The §6 expected\
+  \ revision. The option is `--expect-revision <full commit id>` on a forward `deploy`.\n\
+  \  Exit status: 3 for a refused value and for the option on a `--rollback`; 4 for\
+  \ a refusal at\n  moments (a) and (b); 5 for the failure at moment (c), whose `deploy_failed`\
+  \ row names the step\n  `revision_recheck`. The re-check of moments (b) and (c)\
+  \ reads the working tree first and HEAD\n  last: a fast-forward rewrites the files\
+  \ before it moves the ref, so read in that order one of the\n  two reads always\
+  \ sees it. An answer git could not give is a failure, never a pass.\n\n## Verification\n\
+  \n- a real <project> deploy emits `deploy_completed` with the live SHA; a rollback\
+  \ emits a new one.\n- a journal interleaving a target-less record, `production:\
+  \ false` records and a `production: true`\n  record reads the latest PRODUCTION\
+  \ one as the current-live revision in BOTH readers — the\n  not-adopted baseline\
+  \ (with no adapter, and with a degraded one) and the SPEC-0097 §2a rollback\n  target\
+  \ — while the pre-change readers return the non-production revision on the same\
+  \ journal\n  (§1, `tests/test_deploy_live_revision_production_only.py`).\n- `task\
+  \ close` on a deploying project REFUSES a user-facing task with no declared `live_probe`\
+  \ (the\n  fail-closed gate — state check); a NON-deploying project's close is unchanged\
+  \ (no new precondition).\n- the per-change `live_probe` GET (task YAML) passes against\
+  \ production using the carrier `live_base_url`;\n  the not-adopted surface reads\
+  \ 0 after deploy.\n- a serve/deploy task's audit-post does NOT RED-flag adoption-missing\
+  \ (the X-0039 path).\n- grep: no per-task probe stored in the carrier; no base_url/dialect\
+  \ re-declared on a task YAML (one SoT each).\n- a forward `deploy` from a non-`main`\
+  \ checkout OR with uncommitted SOURCE dirt REFUSES (exit non-zero, no `deploy_completed`);\
+  \ a deploy from clean `main` proceeds; journal/derived/`.yitc/` dirt alone does\
+  \ NOT block (the §6 build-source gate).\n- a forward deploy given an expected revision\
+  \ that is not HEAD refuses before any pre-deploy gate or the project command runs\
+  \ (no `deploy_completed`, no `deploy_failed`); given the one that is HEAD it records\
+  \ exactly that revision; a checkout that moves while the pre-deploy gates run refuses\
+  \ before the launch; one that moves while the command runs — the ref, or only the\
+  \ files a fast-forward has rewritten so far — fails the deploy with one `deploy_failed`\
+  \ and no `deploy_completed`, and the recovery command that failure prints runs as\
+  \ printed; a ref name, an abbreviated id, a blank value and an expected revision\
+  \ on a rollback are refused; a deploy given no expected revision is unchanged (§6,\
+  \ `tests/test_t13874_deploy_expected_revision.py`).\n- a STARTED deploy leaves exactly\
+  \ ONE terminal row: one whose command exits non-zero, dies by a signal, or whose\
+  \ verb is interrupted by a catchable signal before any other terminal row was written\
+  \ leaves exactly ONE `deploy_failed` (revision + exit code or signal) and NO `deploy_completed`;\
+  \ a signal inside a terminal write is deferred, never lost or doubled; a deploy\
+  \ refused before its launch leaves none (§1, `tests/test_t13398_deploy_failed_row.py`).\n"
 cites:
 - CHARTER.md#principle-3
 - CHARTER.md#principle-8
@@ -1002,12 +1054,12 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 949c402df72c1f19de1060a9fa30121ae68ddacf97a395fdadae8bd19d7bf54b
+  bin/lib/audit.py#cmd_audit: 744eb5e5ce9513e2b39dd5bfca02acf201b8e2c10169382a62c69eb1e9472805
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
   bin/lib/deploy.py#_resolve_rollback_target: 783479b12cb944fb6d24607a4fe5ebd926ee6e75d00a8732eedeed345a51e22b
-  bin/lib/deploy.py#cmd_deploy: 2d127fae902a74c4cf0426561b30389eda1aa9d37e8a87f6791685535c56adba
+  bin/lib/deploy.py#cmd_deploy: 1580b1b5dbf6e813f212f18781c1b41154ed313c70799d54d375e11b36ea1104
   bin/lib/deploy.py#is_production_live_record: d1d46285eb3e2f980f40a5b941ea0a9448a6408e7f83e19ef2b464c6c6229142
   bin/lib/live_probe.py#cmd_live_probe: e63237018f5d25654b86ff07dc741d8cbae85eb164d30077d30a3c5b932c4ef4
   bin/lib/task.py#_all_touched_non_runtime_surface: dd0302b43fedfff3b4325000a9c7a59b52e41d0c991ffed0e2488f284eedd2f9
@@ -1023,4 +1075,4 @@ implements_signature:
   bin/lib/task_closure_evidence.py#_live_probe_attested_result: d0752d82e0279b41b97d79698b0a141036e26a3d981bd298f0b2c8f1446cb230
   bin/lib/task_closure_evidence.py#_live_probe_declaration_error: 0bbe24cfd0f1c6ffa2064dcf6be52d4956c3153a819e92ca7eac036bba78860e
   bin/lib/views.py#_view_not_adopted: 309f72c535e94584a639d1a99b8be920d295dc856f7873a7f79a8291e3c290e1
-  bin/lib/views.py#_view_overdue_recheck: 778458e572afa464c78332f5b0ae2cd288993c2af0e26f462bb06357f8faa434
+  bin/lib/views.py#_view_overdue_recheck: 4ccd037979d67ecc954da4175ae11a25be4cb8b948402ed673d35484cba97c5b

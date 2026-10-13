@@ -414,7 +414,7 @@ implements_signature:
   bin/lib/cli.py#BINDING_VERB_SURFACES: 988ac2837365b45b3f56b754acf5b77cb22bfe0550691b0dba37255df527fb4d
   bin/lib/cli.py#STAGE_AXIS_NAMES: 3d4fd0eb5f7aef35c3dded92047f55346b57c14f3aed26be3b1bc4cf2c42617f
   bin/lib/cli.py#SURFACE_TO_STAGE: a29540cd76e9a3ab5c292e2b09ce7cf3007bcfd367130e9ad7107b03886ad07f
-  bin/lib/cli.py#_seed_howto: 5df617dba9e2095eed4abb94a003ccffb31d58f825b3e3f9cdd48d5f565cdaeb
+  bin/lib/cli.py#_seed_howto: 8da1093da02842d2b58429c1aeb49677aa5488d7b13270e2efeb09464b178357
   bin/lib/graph.py#_build_binding_views: 4c015297df752835fad12861da7070cd2845b388134357c4660932af76065463
   bin/lib/graph.py#_is_valid_plan_stage_entry: 43a7a97650e342a684a76ad6656d8a92a932ee9855f234f37fa19663356153c8
   bin/lib/graph.py#_is_valid_stage_entry: 50a523c1942de7d1f9d3999efc0ac22d9ad4fb482cedfc36fece9869e9664940

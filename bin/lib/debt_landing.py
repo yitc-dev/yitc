@@ -2229,7 +2229,10 @@ def concurrent_session_holds(_holders, own_ref, *, own_fleet_refs=None, now=None
 
     Args:
       _holders: `() -> [{"branch", "path", "session_ref", "started_at", "alive"}]` — one row per LIVE
-        non-main worktree. ONE `git worktree list --porcelain` parse at the caller, never one call per
+        non-main worktree. A row MAY carry `launched_by`: the session ref of the launch record that
+        names this row's stamp as its worker (the caller reads it; absent or not a non-empty string
+        ⇒ None). It is carried to the holder as `launched_by` and decides nothing here — not the
+        count, not the grouping, not own-versus-foreign. ONE `git worktree list --porcelain` parse at the caller, never one call per
         worktree. LOAD-BEARING: a reader that raises or yields a non-list ⇒ a clean, zero-count result
         (a report-only view must never break the seam it rides — rule 24's posture, verbatim).
       own_ref: the READING session's `session_ref`. Rows carrying it are DROPPED in the fold, so AC2's
@@ -2295,6 +2298,8 @@ def concurrent_session_holds(_holders, own_ref, *, own_fleet_refs=None, now=None
         # `alive` is the caller's ADVISORY probe and stays SEPARATE from presence: True / False /
         # None (could not tell). It is never folded into the presence count and never gates a row.
         alive = row.get("alive") if isinstance(row.get("alive"), bool) else None
+        launched_by = row.get("launched_by")
+        launched_by = launched_by.strip() if isinstance(launched_by, str) and launched_by.strip() else None
         entry = {"branch": branch, "task": _hold_task_of(branch),
                  "since": row.get("started_at") or None, "alive": alive}
         if ref is None:
@@ -2309,8 +2314,11 @@ def concurrent_session_holds(_holders, own_ref, *, own_fleet_refs=None, now=None
         # ATTRIBUTED rather than erased and never counts as evidence of another controller (T-11606).
         into = own_fleet if ref in fleet else grouped
         g = into.setdefault(ref, {"session_ref": ref, "held": 0, "alive": None,
-                                  "branches": [], "tasks": [], "since": None})
+                                  "branches": [], "tasks": [], "since": None,
+                                  "launched_by": None})
         g["held"] += 1
+        if launched_by and g["launched_by"] is None:
+            g["launched_by"] = launched_by
         g["branches"].append(branch)
         if entry["task"]:
             g["tasks"].append(entry["task"])

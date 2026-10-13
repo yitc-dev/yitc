@@ -260,9 +260,10 @@ The `bg_dispatch_*` family (code + this pattern, NOT the SPEC-0025 catalog) thus
 (the spawn receipt, above), `bg_dispatch_launched`
 (step 5), `bg_dispatch_halted` (incl. the launcher's own `launch_auth_failed` / `spawn_unrecordable` /
 bootstrap-phase `premature_exit` rows), and `bg_dispatch_skipped` (step 0 — the skip marker; schema:
-`task_id: T-XXXX`, `data: {dispatch, reason, held_by: <holder session_ref|null>[, worktree]}`, bound to
+`task_id: T-XXXX`, `data: {dispatch, reason, held_by: <holder session_ref|null>[, worktree, liveness_why]}`, bound to
 MAIN's journal). `reason` is one of two: `"in-flight"` (a live `task/T-XXXX` worktree already holds the
-id — carries `worktree`) or `"in-flight-dispatch"` ( — a sibling controller's recent
+id — carries `worktree` and `liveness_why`, the guard's own liveness read as printed on the SKIPPED line:
+the holder pids, the session they were attributed to and its verdict) or `"in-flight-dispatch"` ( — a sibling controller's recent
 `bg_dispatch_launched` is still in flight, worker not yet at a worktree — no `worktree` key).
 **Preflight REFUSALS (X-1547)** use the same row with `outcome: "refused"`, written just before
 the routing preflight's fail-closed `_die` so a refusal is no longer visible only on the command's own
@@ -578,7 +579,7 @@ rule rather than a note: **eight captures over four days, 2026-08-30..09-02.** T
   BEFORE launching the child and prints its poll **already anchored** —
   `tail -c +N <log> | grep -qE "^LAND: (OK|ABORT)"` (`_land_log_new_attempt_offset` /
   `_start_detach_notice`, `bin/lib/worktree.py`) — so use the form it prints. For a log YOU spell, `>`
-  rather than `>>` buys the same property by construction. **This does not relax SPEC-0180 rule 2c**:
+  rather than `>>` buys the same property by construction. **This does not relax <workshop-spec> rule 2c**:
   terminality is still token-or-exit and capture stays wide — what is scoped is only WHICH BYTES the
   token may be read from.
 - **A liveness poll uses the child PID, never `pgrep -f` carrying text from its own argv.**
@@ -592,7 +593,7 @@ rule rather than a note: **eight captures over four days, 2026-08-30..09-02.** T
   off the journal — never off a pattern that can match the process doing the asking.
 
 **CAPTURE and TERMINALITY are two DIFFERENT obligations — admit the diagnostic channel, gate on
-token-or-exit (RULE, SPEC-0180 rule 2c).** Both sentences, and they must never be collapsed into one
+token-or-exit (RULE, <workshop-spec> rule 2c).** Both sentences, and they must never be collapsed into one
 filter:
 - **CAPTURE — redirect `2>&1` and admit `^yitc-v2:`.** A pre-verify REFUSAL (a missing `-C` target, a
   fail-closed session identity, any guard upstream of the terminal-signal seam) never reaches the
@@ -613,7 +614,7 @@ gate-narrow: a widened CAPTURE filter reaching the TERMINALITY decision is a fal
 destroys the work it misread.
 
 **ADMISSIBLE FOR `land` — this recipe is no longer barred from the one command it cites as its prior
-art (SPEC-0180, shipped by).** The recipe was previously self-contradictory here: it
+art (<workshop-spec>, shipped by).** The recipe was previously self-contradictory here: it
 names `land`'s `^LAND: OK` token as its exemplar, while the shipped `YITC_SYNCHRONOUS_LAND` guard
 refused exactly this shape for a worker land (captured as `deviation_captured` fp
 `long-command-recipe-contradicts-synchronous-land-guard`). That P7 dissonance is resolved: a DISPATCHED

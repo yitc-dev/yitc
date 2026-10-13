@@ -2692,6 +2692,35 @@ def prototype_diff_text(repo_root, ref: str) -> "str | None":
     return _g("diff", f"{mb}..refs/tags/{ref}") if mb else None
 
 
+def prototype_identical_shown_fields(pass_shown, prior_record, *, no_verdict: bool) -> dict:
+    """T-13856 (SPEC-0205 rule 5) — the task audit-pre record's own statement of what its packet
+    showed the auditor of the card's `prototype_identical` declaration. `land` admits a declared path
+    only against this statement, so it is written ONLY by a pass that handed the auditor that text and
+    got a verdict back: `pass_shown` is a mapping on such a pass (empty = nothing declared, the key is
+    then absent) and None on a pass that built no packet — a carried verdict — where, as on a pass that
+    produced no verdict, the prior record's statement stands unchanged."""
+    from lib import spike_identity as si   # noqa: PLC0415
+    if pass_shown is None or no_verdict:
+        prior = prior_record.get(si.SHOWN_FIELD) if isinstance(prior_record, dict) else None
+        return {si.SHOWN_FIELD: prior} if isinstance(prior, dict) and prior else {}
+    return {si.SHOWN_FIELD: pass_shown} if pass_shown else {}
+
+
+def prototype_declaration_carry_note(task: dict, prior_record) -> "str | None":
+    """T-13856 — on a carried audit-pre verdict (no auditor ran): the line to print when the card's
+    declaration is not the one the carried record shows. None when they agree."""
+    from lib import spike_identity as si   # noqa: PLC0415
+    prior = prior_record.get(si.SHOWN_FIELD) if isinstance(prior_record, dict) else None
+    if (si.declaration_shown(task) or None) == (prior if isinstance(prior, dict) and prior else None):
+        return None
+    return (f"# prototype_identical: {task.get('id')}'s declaration is NOT the one the carried audit-pre "
+            f"record shows — this run invoked no auditor, so nobody has judged it and `land` will not admit "
+            f"it. The plan is unchanged; state the declared file(s) in the implementation_plan "
+            f"(`bin/yitc-v2 task update {task.get('id')} --set-field implementation_plan --from-file <path>`, "
+            f"then `bin/yitc-v2 task plan --finalize {task.get('id')}`) and re-run `bin/yitc-v2 audit pre "
+            f"--task {task.get('id')}` — a changed plan is a real pass (SPEC-0205 rule 5).")
+
+
 def _share_numerator(payload: dict) -> int:
     try:
         return int(str(payload.get("share") or "0").split("/")[0])
@@ -2706,6 +2735,9 @@ def prototype_identity_projection(row: dict) -> dict:
             "whole_file_spikes": list(d.get("t1_spikes") or []),
             "hunk_subset": d.get("t3_verdict"), "spikes_matched": list(d.get("spikes_matched") or []),
             "verbatim_share": d.get("share"), "best_spike": d.get("best_spike"), "error": d.get("error"),
+            # T-13856 — the card's declared paths the check admitted, and the ones it did not (with why)
+            "declared_identical": list(d.get("declared_identical") or []),
+            "declared_not_admitted": [n for n in (d.get("declared_not_admitted") or []) if isinstance(n, dict)],
             "source_row": f"events.jsonl#ts={row.get('ts')}", "source_type": row.get("type")}
 
 
@@ -10424,6 +10456,7 @@ def audit_post_range(sha: str, *, repo_root: Path) -> dict:
 def audit_terminal_token(verdict, reason: str = "") -> str:
     """T-13151 (SPEC-0180 rule 9) — the ONE machine-readable terminal line `audit pre|post` ends its
     stdout with: `AUDIT: GREEN|YELLOW|RED|ABORT`, the `LAND:` (T-0269) / `TEST:` (T-12431) shape.
+    A field edit that completed ends with `audit_recorded_token`'s line instead (T-13864).
 
     It REPORTS, it does not decide: rendered from a verdict the verb already reached, it moves no exit
     path and no gate. Anything that is not a canonical verdict — a refusal, an exception, a preview —
@@ -10433,6 +10466,30 @@ def audit_terminal_token(verdict, reason: str = "") -> str:
         return f"AUDIT: {v}"
     why = (str(reason or "").strip().splitlines() or [""])[0][:200]
     return f"AUDIT: ABORT {why}".rstrip()
+
+
+class FieldEditRecorded:
+    """T-13864 — what a FIELD-EDIT branch of `cmd_audit` hands back when it completed: the task
+    `--absorb`, the plan-gate `--absorb` and `--followup`. `what` names the record and what it now
+    holds. The outer wrapper (`cli.cmd_audit`) renders it as the fifth terminal value; every other
+    normal return stays an unmarked `None` and keeps `AUDIT: ABORT no verdict this call`."""
+    __slots__ = ("what",)
+
+    def __init__(self, what: str):
+        self.what = what
+
+
+def audit_recorded_token(what: str = "") -> str:
+    """T-13864 (SPEC-1028 rule 9) — the terminal line of a field edit that completed: `AUDIT: RECORDED
+    <what>`, the fifth value of the terminal grammar (`audit_terminal_token` renders the other four).
+
+    A value of its own, because the call succeeded and `ABORT` tells a reader to stop: two readers
+    took `AUDIT: ABORT no verdict this call` after a successful absorption for a failed call, and one
+    repeated the call and wrote a second entry. It REPORTS like `audit_terminal_token` — exit code,
+    record and gates are untouched — and is rendered ONLY from a `FieldEditRecorded` the branch that
+    completed the edit returned, never from a verdict slot, so no other exit prints it."""
+    line = (str(what or "").strip().splitlines() or [""])[0][:200]
+    return f"AUDIT: RECORDED {line}".rstrip()
 
 
 def verdict_exit_code(verdict: str) -> int:
@@ -10902,6 +10959,18 @@ def _forecast_touched_files(task: dict, *, _anchor_file, REPO_ROOT) -> list:
     return sorted(out)
 
 
+class InlinedCorpus(tuple):
+    """The `(inlined_block, [relative_paths], inlined_bytes)` triple `_inline_corpus_files` returns —
+    a plain 3-tuple PLUS one attribute, `truncated` (T-13898, X-1939).
+
+    A `tuple` SUBCLASS on purpose (the `cross.Events` move): every consumer unpacks three values and
+    the doubles tests inject into `cmd_audit_adhoc` return a bare 3-tuple, so the cut rides along
+    without changing the shape any of them reads. `truncated` holds, in inlining order, one
+    `{"path", "kept_bytes", "total_bytes"}` entry per file cut at the per-file cap. It is a RETURNED
+    signal: a value without the attribute (a bare tuple) reports no cut."""
+    truncated = ()
+
+
 def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS_MAX_FILES, INLINE_CORPUS_PATH_RE, REPO_ROOT) -> tuple[str, list[str], int]:
     """Scan `request` for referenced corpus file paths, read the existing ones (fail-closed under
     REPO_ROOT — a path that resolves outside the corpus is ignored), and return
@@ -10910,7 +10979,9 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
     BYTE count attached (post-truncation, NOT decoded char count — T-9328; positive proof that
     content — not just a file list — reached the prompt). Returns
     ("", [], 0) when nothing inlinable is found — the caller then falls back to the prior `-s
-    read-only` tooling path so behaviour is never worse than before."""
+    read-only` tooling path so behaviour is never worse than before. The triple returned when
+    something was inlined is an `InlinedCorpus`: its `truncated` attribute names every file the
+    per-file cap cut, with the bytes kept and the bytes read (T-13898)."""
     seen_tok: set[str] = set()
     candidates: list[str] = []
     for tok in INLINE_CORPUS_PATH_RE.findall(request):
@@ -10921,26 +10992,46 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
         candidates.append(tok)
 
     repo_root_real = REPO_ROOT.resolve()
+
+    def _corpus_file(spelling: str):
+        """The file `spelling` names under the corpus root, as (resolved path, relative path), else
+        None. Every spelling of a token goes through this one check, the fence included."""
+        p = Path(spelling)
+        cand = p if p.is_absolute() else (REPO_ROOT / spelling)
+        try:
+            real = cand.resolve()
+        except (OSError, RuntimeError):
+            return None
+        try:  # fail-closed: must live under the corpus root
+            rel = str(real.relative_to(repo_root_real))
+        except ValueError:
+            return None
+        if not real.is_file():
+            return None
+        return real, rel
+
     seen_real: set = set()
     inlined_paths: list[str] = []
     blocks: list[str] = []
     inlined_bytes = 0
+    cut: list[dict] = []   # T-13898 — one entry per file the per-file cap cut
     for tok in candidates:
         if len(inlined_paths) >= INLINE_CORPUS_MAX_FILES:
             break
-        p = Path(tok)
-        cand = p if p.is_absolute() else (REPO_ROOT / tok)
-        try:
-            real = cand.resolve()
-        except (OSError, RuntimeError):
+        found = _corpus_file(tok)
+        if found is None and tok.endswith("."):
+            # T-13861 — a path that ends a sentence carries the full stop into its token
+            # («Review docs/report.md.»). The token as written is tried first, so a file really
+            # named with a trailing stop keeps winning; only when it names no file is it retried
+            # ONCE without its trailing full stops, through the same check. A last component made
+            # of stops alone («docs/..») is a directory reference, not a sentence end: no retry.
+            bare = tok.rstrip(".")
+            if bare and not bare.endswith("/"):
+                found = _corpus_file(bare)
+        if found is None:
             continue
+        real, rel = found
         if real in seen_real:
-            continue
-        try:  # fail-closed: must live under the corpus root
-            rel = str(real.relative_to(repo_root_real))
-        except ValueError:
-            continue
-        if not real.is_file():
             continue
         try:
             raw = real.read_bytes()
@@ -10949,8 +11040,10 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
         seen_real.add(real)
         truncated = ""
         if len(raw) > INLINE_CORPUS_MAX_BYTES:
+            total_bytes = len(raw)   # the size of the one read above — no second stat of the file
             raw = raw[:INLINE_CORPUS_MAX_BYTES]
             truncated = f"\n... [truncated at {INLINE_CORPUS_MAX_BYTES} bytes]"
+            cut.append({"path": rel, "kept_bytes": len(raw), "total_bytes": total_bytes})
         data = raw.decode("utf-8", "replace")
         blocks.append(f"### {rel}\n```\n{data}{truncated}\n```")
         inlined_paths.append(rel)
@@ -10960,7 +11053,9 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
         return "", [], 0
     header = ("\n\n--- inlined corpus files (auto-attached for --read-corpus; the auditor has no "
               "file tooling — read these inline) ---\n")
-    return header + "\n\n".join(blocks), inlined_paths, inlined_bytes
+    inlined = InlinedCorpus((header + "\n\n".join(blocks), inlined_paths, inlined_bytes))
+    inlined.truncated = cut
+    return inlined
 
 
 def _inline_sweep_files(paths, *, INLINE_SWEEP_MAX_BYTES, INLINE_SWEEP_MAX_FILES) -> tuple[str, list[str], int, list[str]]:
@@ -12895,12 +12990,71 @@ def _scope_breaker_rows(events_path, fallback):
     return _rows
 
 
+def _preauthored_delta_split(paths, repo_root) -> "tuple[list, list, str | None]":
+    """T-13858 — split a pre-audit delta into CODE (product source, or a test path) and the REST, as
+    `(code, rest, stance)`. No path list lives here: product source is the kernel floor plus the
+    project's own `product_source:` declaration (`worktree._work_batch_product_paths`, SPEC-0152 rule
+    27 — `stance` is that declaration's); a test path is a match of the project's declared
+    `tests.classes[].globs` when it declares any (`task.declared_test_globs`, SPEC-0185 §1 half (c))
+    and, for a project that declares none, a path with the `tests` segment the product-source
+    recogniser itself sets aside (SPEC-0185 §2a(ii): a kernel default, on a report-only surface).
+    An untracked directory entry (trailing `/`, as `git status` collapses it) is judged by the files
+    under it (a directory that cannot be listed is a failure, not an empty one). ANY failure returns every path as code with stance None — today's warning, never silence.
+    That includes a carrier that EXISTS but cannot be read or parsed: both readers turn that into
+    «declares nothing», so the carrier is read strictly here first, and a declaration that strict
+    read shows (a `product_source:` section, a `tests.classes[].globs` value) while its reader
+    returns nothing is a failure too."""
+    try:
+        from lib import worktree as _wt   # lazy: the circular-import idiom `task` uses for this module
+        from lib import task as _task
+        root = Path(repo_root)
+        try:
+            ops = _wt._load_ops_carrier_text((root / _wt.CONSUMER_OPS_CONTRACT).read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            ops = {}
+        if ops is None:
+            raise ValueError("the ops carrier exists but does not parse to a mapping")
+        declared, stance = _wt._work_batch_declared_product_source(root)
+        if stance == "absent" and "product_source" in ops:
+            raise ValueError("a `product_source:` section is present but its reader returned no answer")
+        test_globs = _task.declared_test_globs(root, ops=ops)
+        classes = ops["tests"].get("classes") if isinstance(ops.get("tests"), dict) else None
+        if not test_globs and isinstance(classes, list) and \
+                any(isinstance(c, dict) and c.get("globs") for c in classes):
+            raise ValueError("a `tests.classes[].globs` value is present but its reader returned no glob")
+
+        def _is_code(p):
+            if _wt._work_batch_product_paths([p], declared):
+                return True
+            if test_globs:
+                return any(fnmatch.fnmatch(p, g) for g in test_globs)
+            return _wt._WORK_BATCH_TEST_SEGMENT in Path(p).parts
+
+        def _walk_error(exc):
+            raise exc
+
+        code = []
+        for p in paths:
+            members = [p]
+            if p.endswith("/"):
+                for here, _dirs, files in os.walk(root / p, onerror=_walk_error):
+                    members += [(Path(here) / f).relative_to(root).as_posix() for f in files]
+            if any(_is_code(m) for m in members):
+                code.append(p)
+        return code, [p for p in paths if p not in code], stance
+    except Exception:   # noqa: BLE001 — an unreadable classification must not silence the warning
+        return list(paths), [], None
+
+
 def _warn_preauthored_delta(tid, *, preview, prior_pre, _zero_ship_diff_extra_paths, _latest_event_for,
-                            _append_event) -> None:
+                            _append_event, repo_root=None) -> None:
     """T-13118 — REPORT-ONLY: at a task's FIRST audit-pre, warn when its worktree already carries authored
     product changes (the non-bookkeeping delta, T-10060's detector). Never refuses, never raises into the
     audit. Silent on a re-audit (a prior audit-pre record), after `execution_started`, or once this task's
-    `authored-before-audit-pre` row exists; an unprovable delta prints a NO-DATA line."""
+    `authored-before-audit-pre` row exists; an unprovable delta prints a NO-DATA line.
+    T-13858 — the warning and its row carry the CODE paths only (`_preauthored_delta_split`): a delta with
+    no product-source or test path prints one report-only line and writes no row, so the fingerprint
+    counts code written before the plan was audited and nothing else."""
     if _zero_ship_diff_extra_paths is None or _latest_event_for is None:
         return
     try:
@@ -12919,15 +13073,27 @@ def _warn_preauthored_delta(tid, *, preview, prior_pre, _zero_ship_diff_extra_pa
             return
         if not paths:
             return
+        code, rest, stance = _preauthored_delta_split(paths, repo_root)
+        if not code:
+            print(f"audit pre: {tid} — none of the {len(rest)} pre-audit path(s) is recognised as product "
+                  f"source or a test (report-only: not journaled, audit proceeds)"
+                  + ("; this repo has no `product_source:` answer, so only the kernel floor is recognised "
+                     "as product source here" if stance == "absent" else ""), file=sys.stderr)
+            return
         print(f"audit pre: WARNING — {tid} worktree already carries authored product changes before its first "
               f"audit-pre (report-only, audit proceeds):", file=sys.stderr)
-        for pth in paths:
+        for pth in code:
             print(f"  {pth}", file=sys.stderr)
+        if rest:
+            print(f"audit pre: {tid} — other pre-audit paths in the same delta (neither product source nor "
+                  f"tests; not counted, not journaled):", file=sys.stderr)
+            for pth in rest:
+                print(f"  {pth}", file=sys.stderr)
         if not preview:
             _append_event("deviation_captured", tid, {
                 "relates_to": "audit-pre", "impact": "low",
                 "fingerprint": "authored-before-audit-pre",
-                "captured_via": "audit-pre-check", "paths": list(paths)})
+                "captured_via": "audit-pre-check", "paths": list(code)})
             # T-13667 — printed only after the append above returned: never claims a row that was not written.
             print(f"audit pre: {tid} — this deviation is already journaled (fingerprint "
                   f"authored-before-audit-pre); do not capture it again", file=sys.stderr)
@@ -13170,7 +13336,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
                     write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for,
                     sweep=getattr(args, "sweep", None))
-            return
+            # T-13864 — hand the completed edit back; the outer wrapper ends the call `AUDIT: RECORDED`.
+            return FieldEditRecorded(
+                f"{len(absorb_texts_list)} absorption(s) in the {absorb_gate} gate record of plan "
+                f"{plan_slug} — the call succeeded; no auditor ran, no verdict this call")
         _require_reads("stage", {"stage": "Audit-pre", "verb": "audit pre --absorb",
                                  "action": "audit-pre-absorb"})
         for _text in absorb_texts_list:
@@ -13180,7 +13349,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 _die=_die, _append_event=_append_event, _utc_now_iso=_utc_now_iso,
                 write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for,
                 sweep=getattr(args, "sweep", None))
-        return
+        return FieldEditRecorded(
+            f"{len(absorb_texts_list)} absorption(s) in the audit-pre record of "
+            f"{(getattr(args, 'task', None) or '').strip()} — the call succeeded; no auditor ran, no "
+            f"verdict this call")
 
     # T-13542 (LIFECYCLE Stage 8 / SPEC-0036 §Saved audit result) — the FOLLOW-UP RECORD field-edit
     # route, the post-side sibling of the `--absorb` branch above and placed beside it for the same
@@ -13240,7 +13412,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             events_paths=[p for p in (EVENTS_PATH, _fu_main) if p],
             _die=_die, _append_event=_append_event,
             write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for)
-        return
+        # T-13864 — also when every id was already on the record (nothing written): the record holds
+        # what the call named, and the reader's next step is the same — proceed, do not repeat.
+        return FieldEditRecorded(
+            f"follow-up {', '.join(followup_ids_list)} in the audit-post record of {_fu_tid} — the "
+            f"call succeeded; no auditor ran, no verdict this call")
 
     if plan_slug:
         target_kind = "plan"
@@ -13417,7 +13593,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             _warn_preauthored_delta(tid, preview=preview, prior_pre=_prior_audit_record(tid, "pre"),
                                     _zero_ship_diff_extra_paths=_zero_ship_diff_extra_paths,
                                     _latest_event_for=_scoped_latest_event_for(EVENTS_PATH, _latest_event_for),
-                                    _append_event=_append_event)
+                                    _append_event=_append_event, repo_root=REPO_ROOT)
         if stage == "post":
             # T-11670 (<project> X-1124) — the POST-side implementation_plan fingerprint. The audit-post
             # packet renders `### Implementation plan` to the auditor and the auditor SCORES it (a RED
@@ -15334,6 +15510,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # None = "not stated": every SHORT-CIRCUIT branch below (consult-governed / unchanged-fp)
     # invokes no auditor, so nothing declares it and None is the honest value.
     findings_complete = None
+    # T-13856 — what THIS pass's packet shows the auditor of the card's `prototype_identical`
+    # declaration. None on every branch that builds no packet (the carried verdicts below).
+    _proto_shown_pass = None
     # T-12726 — the prior pass's saved record, captured on the REAL-auditor branch below from the SAME
     # `_prior_audit_record` read the monotonic prompt makes, BEFORE this pass overwrites the file. The
     # outcome of its findings is derived at the completion seam further down; None on every branch that
@@ -15411,6 +15590,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         print(f"# unchanged-fingerprint re-run: carrying verdict {verdict} from the prior audit-pre — "
               f"auditor NOT re-invoked, ledger NOT advanced (SPEC-0124 §Audit-loop ceiling, T-0544)",
               file=sys.stderr)
+        _decl_note = prototype_declaration_carry_note(artifact, unchanged_fp_prior)   # T-13856
+        if _decl_note:
+            print(_decl_note, file=sys.stderr)
         # NO `audit_prompt_sent` here (T-0544 audit-post absorption): no prompt was sent. The
         # carry-forward provenance lives in the saved audit YAML (unchanged_fp_reaudit: true +
         # parse_notes + the carried verdict/findings) and the closing audit_{stage}_completed event.
@@ -15471,6 +15653,17 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             if _proto_diff is None:
                 _die(f"audit pre: {tid} names prototype_ref {artifact.get('prototype_ref')}, which no longer "
                      f"resolves as a tag — the prototype diff (the ТЗ) cannot be read (SPEC-0205 rule 5).")
+        if target_kind == "task" and stage == "pre":
+            # T-13856 — the packet built below renders exactly these entries (an empty diff renders
+            # no prototype section at all, so then nothing is shown).
+            from lib import spike_identity as _si_decl   # noqa: PLC0415
+            _proto_shown_pass = (_si_decl.declaration_shown(artifact) if _proto_diff else None) or {}
+            if artifact.get("prototype_ref"):
+                print(f"# prototype_identical: this packet shows {len(_proto_shown_pass.get('declared') or [])} "
+                      f"path(s) declared identical to {artifact.get('prototype_ref')} by construction — a file that "
+                      f"will be byte-identical to the prototype's is refused at `land` unless it is declared "
+                      f"before this audit: `bin/yitc-v2 task update {tid} --set-field prototype_identical "
+                      f"--from-file <path>` (SPEC-0205 rule 5)", file=sys.stderr)
         if target_kind == "task" and stage == "post" and sha:
             from lib.task import prototype_main_journal as _pmj   # noqa: PLC0415
             _proto_identity, _proto_refusal = prototype_post_context(
@@ -16980,6 +17173,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # written before this task has no key and the next pass fails closed on that axis. `None` when
         # the card carries no acceptance at all — an honest absence, and equally non-admitting.
         audit["acceptance_fingerprint"] = acceptance_fingerprint(artifact.get("acceptance"))
+        if stage == "pre":
+            # T-13856 — what the packet of THIS pass showed of the card's declared-identical paths
+            # (absent when nothing was shown); a carried or verdict-less pass keeps the prior statement.
+            audit.update(prototype_identical_shown_fields(_proto_shown_pass, prior_record_read,
+                                                          no_verdict=no_data_abort))
         # T-12590 — the rendered rule-4 cross section's digest (the `cross_section` axis carrier).
         # Always present on a task record; None off task audit-post, which admits nothing.
         audit["cross_section_fingerprint"] = cross_section_fingerprint(cross_section_sink)
@@ -18051,9 +18249,14 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     # back to the prior tooling path so behaviour is never worse than before.
     inlined_corpus_files: list[str] = []
     inlined_corpus_bytes = 0
+    inlined_corpus_truncated: list[dict] = []   # T-13898 — files the per-file cap cut
     use_tooling = read_corpus
     if read_corpus:
-        inlined_block, inlined_corpus_files, inlined_corpus_bytes = _inline_corpus_files(request)
+        _inlined = _inline_corpus_files(request)
+        inlined_block, inlined_corpus_files, inlined_corpus_bytes = _inlined
+        # T-13898 (X-1939): the cuts ride on the returned value as an attribute (`InlinedCorpus`);
+        # a bare tuple — an injected double — carries none.
+        inlined_corpus_truncated = list(getattr(_inlined, "truncated", None) or [])
         if inlined_corpus_files:
             request = request + inlined_block
             use_tooling = False
@@ -18082,6 +18285,14 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     _payload_warn = _adhoc_payload_budget_warn(inlined_corpus_bytes, inlined_sweep_bytes)
     if _payload_warn:
         print(_payload_warn, file=sys.stderr)
+    # T-13898 (X-1939) — REPORT-ONLY, one line per corpus file the per-file cap cut, printed BEFORE
+    # the auditor is invoked: until now the cut was marked only inside the prompt, where the caller
+    # never looks, so a consult could be spent on a file whose tail the auditor never received. No
+    # verdict / exit / saved-artifact change, and the cap itself is unchanged (T-11806).
+    for _cut in inlined_corpus_truncated:
+        print(f"# NOTE ({slug}): --read-corpus cut {_cut['path']!r} at the per-file cap — the auditor "
+              f"receives its first {_cut['kept_bytes']} of {_cut['total_bytes']} bytes; the remaining "
+              f"{_cut['total_bytes'] - _cut['kept_bytes']} bytes are NOT in the prompt.", file=sys.stderr)
 
     provider = _resolve_audit_provider(full)   # T-12350: decides admission (SPEC-0201 rule 1)
     model = resolve_model_for_provider(_resolve_audit_model, full, provider)
@@ -18107,6 +18318,7 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         "read_corpus": read_corpus,   # T-0713 — journal which adhoc runs used corpus-read mode
         "inlined_corpus_files": inlined_corpus_files,   # T-9318 — files auto-inlined into the prompt
         "inlined_corpus_bytes": inlined_corpus_bytes,   # T-9318 — positive proof content was attached
+        "inlined_corpus_truncated": inlined_corpus_truncated,   # T-13898 — each cut file: path, kept, total
         "inlined_sweep_files": inlined_sweep_files,   # T-9637 — explicit --sweep-file sweeps inlined
         "inlined_sweep_bytes": inlined_sweep_bytes,   # T-9637 — positive proof sweep DATA reached the prompt
     })

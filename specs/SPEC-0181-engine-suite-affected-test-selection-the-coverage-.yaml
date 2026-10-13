@@ -15,6 +15,7 @@ implements:
 - bin/lib/verify_runner.py#_selection_recorded_misses
 - bin/lib/verify_runner.py#_selection_omission_tripwire
 - bin/lib/worktree.py#_land_known_broken_merged_reproduction
+- bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal
 - bin/lib/debt_adoption.py#open_known_broken
 body: "## Scenario\n\nA land runs the tests its diff can actually break, instead of\
   \ all of them. Which tests those are is\ndecided by a ladder whose default is RUN\
@@ -799,12 +800,24 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ and 82 s / 4.7 GB for the two census files, paid by a\nreaching branch only while\
   \ a record stands, against the 250-775 s verify plus reservation window\neach census\
   \ abort paid. The refusal's detail records `probe: merged-tree`, `reproduced`, `probe_s`.\n\
-  \n## Parameters\n\nNone consumed (`consumed: false`). The coverage map is a code\
-  \ constant, not a scalar read FROM\nthis spec; this body states the RULE the map\
-  \ must satisfy, never the map's contents (which would\ndrift between spec and code\
-  \ — the file-membership discipline SPEC-0077 section 1 already fixes for\nthe verify-surface\
-  \ constant). The known-broken fold consumes no parameter either — it has no\nwindow\
-  \ and no threshold to read.\n\n## Rationale\n\nBuilt on a fired trigger, not a forecast:\
+  \nRULE 8 — A BRANCH WHOSE WHOLE DIFF IS INERT IS NOT REFUSED BY THE PRE-QUEUE GUARD.\
+  \ While a record\nstands, a branch whose merge with `main` would change only paths\
+  \ the SPEC-0064 classifier calls\ninert is admitted by the pre-queue refusal on\
+  \ both grounds of rule 7: it is not judged for reach\nand its merged tree is not\
+  \ re-run. Each admission first writes one `land_known_broken_admitted`\nrow to `main`'s\
+  \ journal, naming the route and every standing pair. An admission whose row cannot\n\
+  be written is not made, and that branch is judged by rule 7. A branch whose merge\
+  \ would change any\npath the classifier calls observable, or whose merge cannot\
+  \ be computed, is judged by rule 7 as\nbefore. The admission waives nothing: the\
+  \ admitted land takes the verify decision every land takes\n(SPEC-0065 §Bound),\
+  \ and a land that runs the broken test and fails it still aborts (rule 6). So\n\
+  the branch that only files the card of the repair is not refused here.\n\n## Parameters\n\
+  \nNone consumed (`consumed: false`). The coverage map is a code constant, not a\
+  \ scalar read FROM\nthis spec; this body states the RULE the map must satisfy, never\
+  \ the map's contents (which would\ndrift between spec and code — the file-membership\
+  \ discipline SPEC-0077 section 1 already fixes for\nthe verify-surface constant).\
+  \ The known-broken fold consumes no parameter either — it has no\nwindow and no\
+  \ threshold to read.\n\n## Rationale\n\nBuilt on a fired trigger, not a forecast:\
   \ SPEC-0132 Rule 4 defers affected-test selection until\nmeasured land verify crosses\
   \ its thresholds, and on 2026-08-14 two of its three limbs crossed\n(p50 324.6s\
   \ against the 300s limb, p95 866.2s against the 720s limb, over 837 land_completed\n\
@@ -822,21 +835,46 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ a later FAILING land — could clear such a record.\nAs reported on 2026-10-10:\
   \ a record opened at 19:25:34Z, the fix landed, three green lands followed\nin which\
   \ the layer ran and passed, the record stood, and plan-only branches of other sessions\
-  \ were\nrefused before the land queue.\n\n## Verification\n\n- VP1 (self-guard,\
-  \ differential): a diff touching `bin/**` yields an EMPTY would-omit set.\n  Failing\
-  \ input — remove rung R1 and the tripwire goes RED.\n- VP2 (governs nothing, differential):\
-  \ the executed test set equals the unfiltered enumeration\n  regardless of the recorded\
-  \ decision. Failing input — feed the would-run set into the executed\n  list and\
-  \ the tripwire goes RED.\n- VP3 (unknown mapping, differential): a changed path\
-  \ outside the coverage map yields an EMPTY\n  would-omit set. Failing input — have\
-  \ R3 return the mapped subset and the tripwire goes RED.\n- VP4 (the record exists):\
-  \ a land's `land_completed.verify_metrics` carries the selection fields,\n  with\
-  \ would-run plus would-omit equal to the full test-file count.\n- VP5 (layer green\
-  \ clears, differential): a record opened by a layer red is no longer listed after\n\
-  \  a later green land whose row for that layer reads passed. Failing input — the\
-  \ same land with that\n  layer's row removed, with one unit of its per-unit report\
-  \ failed, or with the layer skipped: the\n  record is listed again. So is a test\
-  \ file's record after a green land in which a layer of the\n  file's name passed.\n"
+  \ were\nrefused before the land queue.\n\nRule 8 of §Known-broken-on-main. On 2026-10-11\
+  \ a test that depended on the length of the\ncheckout path opened a record. The\
+  \ branch carrying only the card filed for its repair could not\nreach the broken\
+  \ file and was refused before the queue twice, `land --no-tests --owner-authorized`\n\
+  included, so the card was put on `main` by hand in owner-authorized emergency mode;\
+  \ 28 refusals\nacross three branches followed that day. An adopting consumer reported\
+  \ the same shape the next day\nfor a land of a plan file, an audit record and journal\
+  \ rows. Rule 7's ground — the land is red\neither way — does not hold for such a\
+  \ branch: where SPEC-0065 §Bound proves the inert first-attempt\nskip, its land\
+  \ runs no test.\n\n## Implementation notes\n\nRule 8 of §Known-broken-on-main. The\
+  \ refusal takes the tree the land's merge would produce from\nthe land's one merge\
+  \ oracle (`_land_merge_probe`, called as the pre-queue merge refusal calls it;\n\
+  no ref is moved) and classifies that tree's delta to `main`, listed with renames\
+  \ off — the\nevaluation point SPEC-0064 §3 gives the classifier. A merge the oracle\
+  \ calls neither clean nor\nresolvable by the land admits nothing. The admission\
+  \ row carries `branch`, `route`\n(`inert-diff`), `pairs` (each `pair`, `file`, `since`,\
+  \ `established_by`, ordered by `since` then\n`pair`), `main`, `merge_base` and `paths`\
+  \ (the count of changed paths). The land hands the\nrefusal the classifier, the\
+  \ path lister, the merge oracle and the journal writer; with any of\nthem absent\
+  \ the route is off.\n\n## Verification\n\n- VP1 (self-guard, differential): a diff\
+  \ touching `bin/**` yields an EMPTY would-omit set.\n  Failing input — remove rung\
+  \ R1 and the tripwire goes RED.\n- VP2 (governs nothing, differential): the executed\
+  \ test set equals the unfiltered enumeration\n  regardless of the recorded decision.\
+  \ Failing input — feed the would-run set into the executed\n  list and the tripwire\
+  \ goes RED.\n- VP3 (unknown mapping, differential): a changed path outside the coverage\
+  \ map yields an EMPTY\n  would-omit set. Failing input — have R3 return the mapped\
+  \ subset and the tripwire goes RED.\n- VP4 (the record exists): a land's `land_completed.verify_metrics`\
+  \ carries the selection fields,\n  with would-run plus would-omit equal to the full\
+  \ test-file count.\n- VP5 (layer green clears, differential): a record opened by\
+  \ a layer red is no longer listed after\n  a later green land whose row for that\
+  \ layer reads passed. Failing input — the same land with that\n  layer's row removed,\
+  \ with one unit of its per-unit report failed, or with the layer skipped: the\n\
+  \  record is listed again. So is a test file's record after a green land in which\
+  \ a layer of the\n  file's name passed.\n- VP6 (inert diff admitted, differential):\
+  \ while a record stands, a branch whose diff is one new\n  task card and journal\
+  \ rows proceeds, and one `land_known_broken_admitted` row names the route\n  and\
+  \ the standing pair. Failing input — the same branch with the classifier not handed\
+  \ to the\n  guard, with a spec file added to its diff, with its card moved under\
+  \ `bin/` on `main` since the\n  branch was cut, or with a journal writer that raises:\
+  \ it is refused and no such row is written.\n"
 cites:
 - SPEC-0077
 - SPEC-0132
@@ -851,6 +889,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
+  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: bd3c2ae84e964b704241edc160204d3deb75c32da7fed351aaa6eba3215111da
   bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
   bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d

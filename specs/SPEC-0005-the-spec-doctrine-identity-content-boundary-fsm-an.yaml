@@ -174,7 +174,18 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ verb — that\npromotion is Part B's `plan accept` (one promotion route only). **Currency/staleness\
   \ is NOT yet\nbuilt (Part G):** when it ships it MUST start at `proposed` and NEVER\
   \ fire on `draft` — until then\nthere simply is no currency mechanism, so a draft\
-  \ triggers none.\n\n### 5. One activation OWNER per spec\nCarrier field: **`activation_owner_task:\
+  \ triggers none.\n**A draft whose plan ends without accepting it.** When the proposing\
+  \ plan reaches `cancelled` or\n`rejected`, each spec of that plan still in `draft`\
+  \ becomes `withdrawn` in the same transition,\nand the journal row of that transition\
+  \ names it; a `proposed` or `active` spec of that plan stays\nas it is. A rule still\
+  \ wanted afterwards is authored again with `spec new` under its new carrier —\n\
+  as a draft of another plan, or as a `proposed` spec whose `activation_owner_task`\
+  \ names the card\nthat activates it (rule 5); the withdrawn draft is not revived.\
+  \ `spec edit` is not a promotion\nroute: on a `draft` it refuses a `status` change\
+  \ to anything but `withdrawn` or `rejected`, and on\na `withdrawn` or `rejected`\
+  \ spec it refuses any `status` change. A draft left by a plan that had\nalready\
+  \ ended is ended by hand: `spec edit` its `status` from `draft` to `withdrawn`.\n\
+  \n### 5. One activation OWNER per spec\nCarrier field: **`activation_owner_task:\
   \ T-XXXX`** — the SINGLE task that carries closure, the\nadoption probe, and supersession\
   \ responsibility. Lifecycle: forbidden while `draft`; REQUIRED for\n`proposed →\
   \ active` (a `proposed` spec may sit briefly without one, but cannot activate without\n\
@@ -442,8 +453,16 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ that\nlabel. Measured in October 2026 with the token-rollup lens: 98 percent of\
   \ this project's input tokens\nare cache reads, so a rule in the context costs again\
   \ on every turn after its delivery.\nshowed that a move inside an on-demand spec\
-  \ does not shrink its full lookup.\n\n## Verification\n\n- **VP1 (content boundary,\
-  \ dogfood):** grep this body — no full rejected-alternatives narrative,\n  no approval/ratification\
+  \ does not shrink its full lookup.\n\n### A draft whose plan ends\nBefore neither\
+  \ this spec nor SPEC-0034 said what becomes of a plan's drafts when the plan\nis\
+  \ cancelled or rejected, and no verb ended one. On 2026-10-11 a consumer project\
+  \ reported two\ndrafts left by a cancelled plan (cross items X-1912 and X-1913):\
+  \ a worker adopting one found no\npromotion verb and halted, and one draft was moved\
+  \ to `proposed` by a `status` text replacement\nthrough `spec edit` — a route the\
+  \ one-promotion-route sentence of rule 4 already excluded, and\nwhich the verb admitted.\
+  \ The route consult recorded for that card kept the change in place, as a\ncase\
+  \ rule 4 had not addressed.\n\n## Verification\n\n- **VP1 (content boundary, dogfood):**\
+  \ grep this body — no full rejected-alternatives narrative,\n  no approval/ratification\
   \ chronology, no dated audit-finding refs; only concise interpreting\n  provenance\
   \ notes remain (rule 3 ALLOWED set).\n- **VP2 (one activation owner):** a `proposed`/`active`\
   \ (non-grandfathered) spec resolves to exactly\n  one `activation_owner_task`; other\
@@ -505,7 +524,15 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ condition, first governed action, the delivery before it) and the review\n  order;\
   \ §6 states how its conditions are read at a move of a rule to a reference spec.\
   \ Probe:\n  tests/test_t13792_delivery_timing_rule.py drives `spec edit` and finds\
-  \ each clause in the\n  delivered SPEC-0005.\n"
+  \ each clause in the\n  delivered SPEC-0005.\n- **VP16 (a draft whose plan ends):**\
+  \ §4 states that a plan reaching `cancelled` or\n  `rejected` ends its still-draft\
+  \ specs as `withdrawn`, names `spec new` as the route for a rule\n  still wanted,\
+  \ and says `spec edit` is not a promotion route. Probes: tests/test_plan_stage.py\n\
+  \  drives both transitions on a plan owning draft, proposed and active specs and\
+  \ reads the\n  statuses and the transition row; tests/test_t0332_accept_gate_draft_specs.py\
+  \ drives the\n  `spec new` route to a `proposed` spec with an `activation_owner_task`\
+  \ and finds both status\n  edits refused; tests/test_t0273_spec_edit.py compares\
+  \ the statuses `spec edit --help` names with\n  the statuses the verb admits.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

@@ -295,28 +295,39 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ the echo names the\n   group beside the observation line, and alone when the group\
   \ is all that is left. A `wont-do`\n   card that DID record a `commit` is a partial\
   \ ship with something to observe and stays counted;\n   every other status is counted\
-  \ exactly as before.\n   **DEFERRED ACCEPTANCE PROBES — a FIFTH clause, UNFLOORED,\
-  \ off the SAME `_view_overdue_recheck`\n   call (SPEC-0015 / <project> X-1066).**\
-  \ The overdue-recheck view folds a THIRD\n   deferred-proof carrier: a card's own\
-  \ `probes: {ACx: deferred}` — a proof the CLOSURE recorded as\n   owed. The state\
-  \ was first-class and its settle already existed (`task close --settle-probe`, fail-closed\
-  \ against a probe that was never deferred); what was missing was the RETURN, so\n\
-  \   <project> closed with both probes correctly deferred and nothing but the card\
-  \ remembered.\n   That is the shipped-but-not-adopted shape this echo exists to\
-  \ catch, arriving through the one door\n   left open — an HONEST deferral — and\
-  \ the incentive ran the wrong way: an overclaim is caught by the\n   auditor, a\
-  \ correct deferral got silence. It gets its OWN echo line, deliberately NOT folded\
-  \ into\n   the overdue-recheck count nor into the observations one: three deferred\
-  \ proofs, three remedies —\n   this one's is to settle the probe with its evidence\
-  \ — and a conflated count tells the reader none\n   of them. UNFLOORED, and **COUNTED\
-  \ from the moment the deferral is recorded, HEADLINED from the\n   moment it is\
-  \ DUE** ( — the split the FOURTH clause already carries, arriving here now\n   that\
-  \ a deferral records its firing moment). At closure `--probe-deferred <AC>:<moment>`\
-  \ records\n   WHAT FIRES the probe, in one of the two forms the corpus already has\
-  \ — a `due_by` ISO date (the\n   post_ship_observation shape) or an `awaits` ref\
-  \ (`T-NNNN` / `X-NNNN` /\n   `events.jsonl#type=<t>[@after=<ISO ts>]`, the SPEC-0095\
-  \ §Armed shape) — stored as the ONE\n   sibling mapping `probe_moments:` beside\
-  \ `probes:` (schema home SPEC-0028); a BARE key is\n   REFUSED at every close-time\
+  \ exactly as before.\n   **A WAIVER ON A `wont-do` CARD LEAVES THE OVERDUE-RECHECK\
+  \ COUNT AND IS REPORTED APART.** A\n   user-facing waiver past its `recheck_by`\
+  \ on a card whose status is `wont-do` is not counted in\n   the overdue-recheck\
+  \ line, and the echo does not name it: neither settle route admits such a\n   card\
+  \ (the settle arms of `task close` admit a `done` card only, and the live-probe\
+  \ arms of\n   `task update` refuse a terminal card). The overdue-recheck view reports\
+  \ it on its OWN named,\n   counted set, each row carrying its task id, and a triage\
+  \ reads it there with `bin/yitc-v2\n   graph query overdue-recheck`. It is MOVED,\
+  \ never dropped. The test is the card's status\n   alone: it says nothing about\
+  \ whether any of the card's work. A waiver on a card of\n   any other status is\
+  \ counted exactly as before, and the line stays unfloored: a row moves by\n   its\
+  \ card's status, never by the size of the count.\n   **DEFERRED ACCEPTANCE PROBES\
+  \ — a FIFTH clause, UNFLOORED, off the SAME `_view_overdue_recheck`\n   call (SPEC-0015\
+  \ / <project> X-1066).** The overdue-recheck view folds a THIRD\n   deferred-proof\
+  \ carrier: a card's own `probes: {ACx: deferred}` — a proof the CLOSURE recorded\
+  \ as\n   owed. The state was first-class and its settle already existed (`task close\
+  \ --settle-probe`, fail-closed against a probe that was never deferred); what was\
+  \ missing was the RETURN, so\n   <project> closed with both probes correctly deferred\
+  \ and nothing but the card remembered.\n   That is the shipped-but-not-adopted shape\
+  \ this echo exists to catch, arriving through the one door\n   left open — an HONEST\
+  \ deferral — and the incentive ran the wrong way: an overclaim is caught by the\n\
+  \   auditor, a correct deferral got silence. It gets its OWN echo line, deliberately\
+  \ NOT folded into\n   the overdue-recheck count nor into the observations one: three\
+  \ deferred proofs, three remedies —\n   this one's is to settle the probe with its\
+  \ evidence — and a conflated count tells the reader none\n   of them. UNFLOORED,\
+  \ and **COUNTED from the moment the deferral is recorded, HEADLINED from the\n \
+  \  moment it is DUE** ( — the split the FOURTH clause already carries, arriving\
+  \ here now\n   that a deferral records its firing moment). At closure `--probe-deferred\
+  \ <AC>:<moment>` records\n   WHAT FIRES the probe, in one of the two forms the corpus\
+  \ already has — a `due_by` ISO date (the\n   post_ship_observation shape) or an\
+  \ `awaits` ref (`T-NNNN` / `X-NNNN` /\n   `events.jsonl#type=<t>[@after=<ISO ts>]`,\
+  \ the SPEC-0095 §Armed shape) — stored as the ONE\n   sibling mapping `probe_moments:`\
+  \ beside `probes:` (schema home SPEC-0028); a BARE key is\n   REFUSED at every close-time\
   \ door onto that mapping, naming both accepted forms. DUE is decided\n   by the\
   \ SAME predicate the followup `armed → fired` fold reads (`followup.arrived_ids`\
   \ /\n   `event_after_arrived`), never a second one. So the headline names what a\
@@ -2389,100 +2400,130 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ so the reader relayed three or four of them and the person never saw the\nrest,\
   \ some labels read as noise and one verb was cut mid-token. The owner ruled that\
   \ only what\ncan be taken into work prints at start, every row is relayed, and each\
-  \ row reads in plain words\n(events.jsonl#ts=).\n\nRule 34's land-run count and\
-  \ batch-member landing : read on this repository's journal\non 2026-10-10, 19 branches\
-  \ carried a batch-member landing and no successful land row of their\nown, and the\
-  \ fold still named `task/` with 8 attempts after it had landed. 141 of 561\nrequeue\
-  \ rows had an abort row of the same branch within 5 seconds: the fold counted refusal\n\
-  rows, so the head of a red batch was counted twice per run and two such runs reached\
-  \ the\ndefault threshold. Every abort row carried its run's length, and by it the\
-  \ 8 refusal rows of\n`task/` were 4 land runs. The band behind the default of 4\
-  \ was measured in refusal rows;\na branch's runs never outnumber its rows, so the\
-  \ default still sits above that band.\n\nRule 34's read horizon : before that card\
-  \ the fold read the live journal segment\nalone. At the default window of 24 hours\
-  \ that reading was complete; with the window set at 168\nhours or more, attempts\
-  \ inside the window that rotation had archived were not read, and a\nbranch meeting\
-  \ the rule's subject was not named. derived the gap from the code and\nSPEC-0190,\
-  \ and that card's audit flagged it; it was not reproduced on a journal. also\nfound\
-  \ that the segment floor of a window between about nine and eighteen million hours\
-  \ was\nwritten with fewer than four digits in its year; compared as text such a\
-  \ floor can sort above\nthe dated segment names, and the archive was then skipped\
-  \ in every fold that takes its floor\nfrom the helper.\n\n## Implementation notes\n\
-  \nNotes for the maintainer of the code.\n\n- Rule 34, a landing: the row classifier\
-  \ asks rule 26's resolution predicate first and holds no\n  landing test of its\
-  \ own; the host residue of the classifier injects that predicate.\n- Rule 34, a\
-  \ land run: the span of a run is read off its abort row — the row's stamp is the\
-  \ end\n  of the run, and the run length the row records, counted in whole seconds\
-  \ rounded up, gives its\n  start. Stamps carry whole seconds, so the rounding keeps\
-  \ a row written in the run's first\n  second inside the span; the start of the span\
-  \ is compared in whole seconds and its end as\n  stamped, so a requeue row stamped\
-  \ after the abort row is not that run's row. A requeue row of\n  the same branch\
-  \ whose stamp lies inside the span, both ends included, is that run's row. An abort\
-  \ row whose recorded length is absent, not a\n  number, not finite or not above\
-  \ zero spans its own stamp alone. A counted run takes its class\n  label, its identity-absent\
-  \ mark and its stamp from its abort row.\n- Rule 34, the read: the fold reads through\
-  \ the windowed segment reader of rule 26's fold,\n  with the floor the same host\
-  \ helper computes from the window; the host residue of the fold\n  injects the helper.\
-  \ The floor selects segment files only; the fold's window test decides\n  every\
-  \ row. The helper writes the floor's year with four digits, because segment names\
-  \ are\n  compared with it as text. A row the reader returns more than once is counted\
-  \ once (an\n  interrupted rotation leaves a row in two segments until the next land);\
-  \ rows that differ in\n  any field are separate rows. An integer window too large\
-  \ for a float is read as a window with\n  no far edge. Branches are listed by attempt\
-  \ count, then last stamp, then name.\n\n## Verification\n\n- **Deterministic:**\
-  \ with synthetic non-zero debt (a repo with not_adopted>0 / an open followup / an\n\
-  \  overdue recheck) session-start and the on-demand `debt` each print its line;\
-  \ with a clean repo\n  NEITHER prints (suppressed-when-clean). A land prints NO\
-  \ debt line at all (rule 2(b) retired — tripwire tests/test_t13142_land_tail_debt_retired.py,\
-  \ RED if a debt fold is wired back\n  into the land tail or if either surviving\
-  \ seam loses the echo). Unit tests per call site + one render-helper test (the SPEC-0086\
-  \ echo tests\n  are the template).\n- **Real-data soak (≥3 owner-observed sessions\
-  \ with carried debt):** the counts track the debt as it\n  changes (each session\
-  \ start / `debt` re-fold re-derives the fresh total); a per-run postcheck row records\n\
-  \  {session-ref, seam that printed, count snapshot} — replayable via the journal,\
-  \ not owner memory.\n- **Open sub-critical security findings (rule 11):** DIFFERENTIAL\
-  \ over a fixture findings\n  series — an aged OPEN warning surfaces ONE report-only\
-  \ line at `bin/yitc-v2 debt` (and therefore\n  at all 3 seams, which share the one\
-  \ host residue); the SAME finding resolved in the latest report,\n  or younger than\
-  \ the floor, or carrying a CRITICAL severity (the deploy gate's business), or\n\
-  \  carrying an ABSENT/unknown severity (never nag on an unknown), prints NOTHING.\
-  \ An open-run BROKEN\n  by a resolved report restarts the clock (the regressed finding\
-  \ is new debt, not old). A missing\n  findings dir folds to a clean zero-count without\
-  \ raising — the seam is never broken. A malformed\n  report likewise never raises,\
-  \ but is a NAMED DEGRADE, not a clean zero, verified by a\n  CONTROL-FIRST differential:\
-  \ the healthy arm asserted at count 1 BEFORE the broken arm is built (a\n  mis-armed\
-  \ probe and a silent instrument are indistinguishable from output alone), then the\
-  \ SAME\n  series made unparseable must yield `authority_source: \"unreadable\"`\
-  \ + an `authority_degrade` line\n  rather than a clean 0; corrupting ONLY the latest\
-  \ report while an older one still carries the\n  finding must yield `older-report-promoted`\
-  \ + a degrade naming both files (the count stays 1 — the\n  seam holds — but the\
-  \ swap is stated); a never-audited repo stays `none` with NO degrade key (no\n \
-  \ false degrade). Unit tests: the `debt.open_subcritical_findings` fold verdict\
-  \ + the render-helper\n  line (incl. the degrade line firing at count 0, and clean\
-  \ still suppressed) + the\n  absent-collaborator no-op (the 3 base views' output\
-  \ is byte-identical without it).\n- **Unmonitored dispatches (rule 12):** DIFFERENTIAL\
-  \ over a synthetic fleet — an in-flight\n  dispatch launched past the floor with\
-  \ NO monitoring receipt surfaces ONE report-only line at\n  `bin/yitc-v2 debt` (and\
-  \ therefore at all 3 seams, which share the one host residue); the SAME state\n\
-  \  plus ONE `dispatch --watch` receipt NAMING that task prints NOTHING. The per-task\
-  \ grain is pinned\n  against regression: ONE worker row holding T-A + T-B with a\
-  \ receipt watching only T-A leaves T-B\n  STILL COUNTED (a row-level intersection\
-  \ would have silenced it). A task reading class=TERMINAL, a\n  task younger than\
-  \ the floor, a task with no `bg_dispatch_launched` (hand-claimed), an unreadable\n\
-  \  status, the reader's OWN worker row, and a dispatched-worker session all print\
-  \ NOTHING. An empty\n  fleet and a malformed journal line both fold to a clean zero-count\
-  \ without raising — the seam is\n  never broken. Unit tests: the `debt.unmonitored_dispatches`\
-  \ fold verdict + the render-helper line +\n  the absent-collaborator no-op (the\
-  \ base views' output is byte-identical without it) + a COUPLING PIN\n  driving the\
-  \ receipt payload `dispatch --watch` actually emits through the fold (so a rename\
-  \ of the\n  emitted surface fails RED instead of silently false-nagging every dispatch\
-  \ forever).\n- **Concern-conformance :** a synthetic carrier with an unanswered/contradictory\
-  \ stance OR a\n  lapsed-`expiry:` waiver surfaces ONE report-only `concern-conformance`\
-  \ line at `bin/yitc-v2 debt`\n  (both seams) AND flags on the nightly runner; a\
-  \ conformant carrier, and a repo without a carrier,\n  print nothing (suppressed-when-clean);\
-  \ the engine kernel is not judged at all (rule 9).\n  Unit tests: the render-helper\
-  \ line + `init.concern_conformance`\n  stance/currency verdict + the nightly `_check_concern_conformance`\
-  \ verdict.\n- **Unratified adoptions on the nightly (rule 13's nightly leg):** DIFFERENTIAL\
+  \ row reads in plain words\n(events.jsonl#ts=).\n\nRule 40's concurrent-holds start\
+  \ row : rule 25 placed that view at session start, and\ntwo things kept it from\
+  \ a starting Controller. The actionable-only start render dropped its\nline, which\
+  \ no producer had marked; and at a session's first start the fold ran before that\n\
+  start had resolved its own identity, so the view went silent by rule 25's uncertainty\n\
+  direction. Measured three times on two installations between 2026-10-09 and 2026-10-12\
+  \ (public\nissue #83 item 4; events.jsonl#ts=): a Controller started beside a live\n\
+  sibling Controller and its dispatched workers and was shown neither. The owner named\
+  \ the\nin-place route for this text (events.jsonl#ts=).\n\nRule 34's land-run count\
+  \ and batch-member landing : read on this repository's journal\non 2026-10-10, 19\
+  \ branches carried a batch-member landing and no successful land row of their\n\
+  own, and the fold still named `task/` with 8 attempts after it had landed. 141 of\
+  \ 561\nrequeue rows had an abort row of the same branch within 5 seconds: the fold\
+  \ counted refusal\nrows, so the head of a red batch was counted twice per run and\
+  \ two such runs reached the\ndefault threshold. Every abort row carried its run's\
+  \ length, and by it the 8 refusal rows of\n`task/` were 4 land runs. The band behind\
+  \ the default of 4 was measured in refusal rows;\na branch's runs never outnumber\
+  \ its rows, so the default still sits above that band.\n\nRule 34's read horizon\
+  \ : before that card the fold read the live journal segment\nalone. At the default\
+  \ window of 24 hours that reading was complete; with the window set at 168\nhours\
+  \ or more, attempts inside the window that rotation had archived were not read,\
+  \ and a\nbranch meeting the rule's subject was not named. derived the gap from the\
+  \ code and\nSPEC-0190, and that card's audit flagged it; it was not reproduced on\
+  \ a journal. also\nfound that the segment floor of a window between about nine and\
+  \ eighteen million hours was\nwritten with fewer than four digits in its year; compared\
+  \ as text such a floor can sort above\nthe dated segment names, and the archive\
+  \ was then skipped in every fold that takes its floor\nfrom the helper.\n\nRule\
+  \ 3's waiver on a `wont-do` card : a consumer project reported overdue-recheck rows\n\
+  it could not clear, one of them a waiver on a `wont-do` card (cross item X-1941).\
+  \ The owner\nruled that such a waiver is not shown among the debts at session start\
+  \ and is taken up at\ntriage (events.jsonl#ts=). The test reads the status alone\
+  \ because the card\ncorpus does not record whether a `wont-do` card's commits reached\
+  \ main: the card's `commit`\nfield is written only when a card closes as done, and\
+  \ on 2026-10-13 none of this repository's\n576 `wont-do` cards carried it while\
+  \ 13 of them had commits on main.\n\n## Implementation notes\n\nNotes for the maintainer\
+  \ of the code.\n\n- Rule 25, the reader at session start: `session start` resolves\
+  \ or mints its identity before\n  the debt fold is evaluated and notes it; inside\
+  \ a start the host view keys own-versus-foreign\n  on that noted ref, and outside\
+  \ a start on the read-tolerant keyer. A receipt-only start folds\n  no debt echo\
+  \ and resolves its identity where it did before.\n- Rule 34, a landing: the row\
+  \ classifier asks rule 26's resolution predicate first and holds no\n  landing test\
+  \ of its own; the host residue of the classifier injects that predicate.\n- Rule\
+  \ 34, a land run: the span of a run is read off its abort row — the row's stamp\
+  \ is the end\n  of the run, and the run length the row records, counted in whole\
+  \ seconds rounded up, gives its\n  start. Stamps carry whole seconds, so the rounding\
+  \ keeps a row written in the run's first\n  second inside the span; the start of\
+  \ the span is compared in whole seconds and its end as\n  stamped, so a requeue\
+  \ row stamped after the abort row is not that run's row. A requeue row of\n  the\
+  \ same branch whose stamp lies inside the span, both ends included, is that run's\
+  \ row. An abort row whose recorded length is absent, not a\n  number, not finite\
+  \ or not above zero spans its own stamp alone. A counted run takes its class\n \
+  \ label, its identity-absent mark and its stamp from its abort row.\n- Rule 34,\
+  \ the read: the fold reads through the windowed segment reader of rule 26's fold,\n\
+  \  with the floor the same host helper computes from the window; the host residue\
+  \ of the fold\n  injects the helper. The floor selects segment files only; the fold's\
+  \ window test decides\n  every row. The helper writes the floor's year with four\
+  \ digits, because segment names are\n  compared with it as text. A row the reader\
+  \ returns more than once is counted once (an\n  interrupted rotation leaves a row\
+  \ in two segments until the next land); rows that differ in\n  any field are separate\
+  \ rows. An integer window too large for a float is read as a window with\n  no far\
+  \ edge. Branches are listed by attempt count, then last stamp, then name.\n- Rule\
+  \ 3, a waiver on a `wont-do` card: the overdue-recheck view tests the card's status\
+  \ at the\n  one place a past-due waiver row is added, after the settled branch,\
+  \ so a discharge recorded on\n  such a card is read as before. The moved rows keep\
+  \ the shape of the overdue rows, under the\n  key `wont_do_waivers` with its count\
+  \ and its note.\n\n## Verification\n\n- **Deterministic:** with synthetic non-zero\
+  \ debt (a repo with not_adopted>0 / an open followup / an\n  overdue recheck) session-start\
+  \ and the on-demand `debt` each print its line; with a clean repo\n  NEITHER prints\
+  \ (suppressed-when-clean). A land prints NO debt line at all (rule 2(b) retired\
+  \ — tripwire tests/test_t13142_land_tail_debt_retired.py, RED if a debt fold is\
+  \ wired back\n  into the land tail or if either surviving seam loses the echo).\
+  \ Unit tests per call site + one render-helper test (the SPEC-0086 echo tests\n\
+  \  are the template).\n- **A waiver on a `wont-do` card (rule 3):** DIFFERENTIAL\
+  \ over fixture cards — a `done` card and\n  a `wont-do` card carry the same past-due\
+  \ user-facing waiver: the overdue-recheck count is 1,\n  the `wont-do` row is on\
+  \ its own set of the view and in no echo line; the same fixture read by\n  the view\
+  \ with its status test disabled counts 2\n  (tests/test_x1941_overdue_recheck_never_shipped.py).\n\
+  - **Real-data soak (≥3 owner-observed sessions with carried debt):** the counts\
+  \ track the debt as it\n  changes (each session start / `debt` re-fold re-derives\
+  \ the fresh total); a per-run postcheck row records\n  {session-ref, seam that printed,\
+  \ count snapshot} — replayable via the journal, not owner memory.\n- **Open sub-critical\
+  \ security findings (rule 11):** DIFFERENTIAL over a fixture findings\n  series\
+  \ — an aged OPEN warning surfaces ONE report-only line at `bin/yitc-v2 debt` (and\
+  \ therefore\n  at all 3 seams, which share the one host residue); the SAME finding\
+  \ resolved in the latest report,\n  or younger than the floor, or carrying a CRITICAL\
+  \ severity (the deploy gate's business), or\n  carrying an ABSENT/unknown severity\
+  \ (never nag on an unknown), prints NOTHING. An open-run BROKEN\n  by a resolved\
+  \ report restarts the clock (the regressed finding is new debt, not old). A missing\n\
+  \  findings dir folds to a clean zero-count without raising — the seam is never\
+  \ broken. A malformed\n  report likewise never raises, but is a NAMED DEGRADE, not\
+  \ a clean zero, verified by a\n  CONTROL-FIRST differential: the healthy arm asserted\
+  \ at count 1 BEFORE the broken arm is built (a\n  mis-armed probe and a silent instrument\
+  \ are indistinguishable from output alone), then the SAME\n  series made unparseable\
+  \ must yield `authority_source: \"unreadable\"` + an `authority_degrade` line\n\
+  \  rather than a clean 0; corrupting ONLY the latest report while an older one still\
+  \ carries the\n  finding must yield `older-report-promoted` + a degrade naming both\
+  \ files (the count stays 1 — the\n  seam holds — but the swap is stated); a never-audited\
+  \ repo stays `none` with NO degrade key (no\n  false degrade). Unit tests: the `debt.open_subcritical_findings`\
+  \ fold verdict + the render-helper\n  line (incl. the degrade line firing at count\
+  \ 0, and clean still suppressed) + the\n  absent-collaborator no-op (the 3 base\
+  \ views' output is byte-identical without it).\n- **Unmonitored dispatches (rule\
+  \ 12):** DIFFERENTIAL over a synthetic fleet — an in-flight\n  dispatch launched\
+  \ past the floor with NO monitoring receipt surfaces ONE report-only line at\n \
+  \ `bin/yitc-v2 debt` (and therefore at all 3 seams, which share the one host residue);\
+  \ the SAME state\n  plus ONE `dispatch --watch` receipt NAMING that task prints\
+  \ NOTHING. The per-task grain is pinned\n  against regression: ONE worker row holding\
+  \ T-A + T-B with a receipt watching only T-A leaves T-B\n  STILL COUNTED (a row-level\
+  \ intersection would have silenced it). A task reading class=TERMINAL, a\n  task\
+  \ younger than the floor, a task with no `bg_dispatch_launched` (hand-claimed),\
+  \ an unreadable\n  status, the reader's OWN worker row, and a dispatched-worker\
+  \ session all print NOTHING. An empty\n  fleet and a malformed journal line both\
+  \ fold to a clean zero-count without raising — the seam is\n  never broken. Unit\
+  \ tests: the `debt.unmonitored_dispatches` fold verdict + the render-helper line\
+  \ +\n  the absent-collaborator no-op (the base views' output is byte-identical without\
+  \ it) + a COUPLING PIN\n  driving the receipt payload `dispatch --watch` actually\
+  \ emits through the fold (so a rename of the\n  emitted surface fails RED instead\
+  \ of silently false-nagging every dispatch forever).\n- **Concern-conformance :**\
+  \ a synthetic carrier with an unanswered/contradictory stance OR a\n  lapsed-`expiry:`\
+  \ waiver surfaces ONE report-only `concern-conformance` line at `bin/yitc-v2 debt`\n\
+  \  (both seams) AND flags on the nightly runner; a conformant carrier, and a repo\
+  \ without a carrier,\n  print nothing (suppressed-when-clean); the engine kernel\
+  \ is not judged at all (rule 9).\n  Unit tests: the render-helper line + `init.concern_conformance`\n\
+  \  stance/currency verdict + the nightly `_check_concern_conformance` verdict.\n\
+  - **Unratified adoptions on the nightly (rule 13's nightly leg):** DIFFERENTIAL\
   \ over a fixture\n  carrier that is LEVEL on every sibling check — a registry consumer\
   \ whose `adoption:` record reads\n  `adopt` while still stamped `owner: init` over\
   \ a DECLARED section is REPORTED by a `nightly --dry-run`\n  with NO session EVER\
@@ -3897,7 +3938,13 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ it lists a\n    file, so the person sees how long the serialized test tail has\
   \ grown: its label states how many\n    files run one at a time after the parallel\
   \ pool, the seconds they add to each verify run, their share,\n    the files that\
-  \ entered in the last 7 days and any crossed bound. The mark carries a plain-words\
+  \ entered in the last 7 days and any crossed bound. The concurrent-holds line (rule\
+  \ 25) is marked too, whenever\n    a foreign holder is seen alive or its liveness\
+  \ is undetermined: its label names what those\n    holders hold — task ids, else\
+  \ work branches — beside the session that launched them where a\n    launch record\
+  \ read in rule 25's own pass names it, else the holder's own stamp; a holder not\n\
+  \    seen is left out of the label and only counted there, and when every foreign\
+  \ holder is not\n    seen the line is not marked. The mark carries a plain-words\
   \ label that stands in for\n    the derived class in that row, and the line's text\
   \ is unchanged, so bare `debt` and\n    `debt --explain` print every class exactly\
   \ as before; every other class prints only there. A\n    labelled row is never cut,\
@@ -4148,7 +4195,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#subscription_auth_present: 6d81b66d13b8d98ec5acf00b36fb125a8809e169721ede9eb5fe6335fbd3dcf2
-  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: 10f89c686b3d40066e04382c84f8aad548c2c9dde136f09a2e3fc1bcf0c83f6e
+  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: bd3c2ae84e964b704241edc160204d3deb75c32da7fed351aaa6eba3215111da
   bin/lib/cli.py#_abort_cause_breadth_head_lines: e8bb23412a2468dff2da834dcd8720b94a6c6e01c6454bd56f5a48d32bc945e5
   bin/lib/cli.py#_abort_cause_breadth_view: 0d177287e42cb92463bb40d35ea72711ee4c18137f51358a9ba5dba3c8cfb2cc
   bin/lib/cli.py#_ahead_branch_view: e21126ef27a20e765eab8736bcf4323434ef1cfdcd856ec96831af2160918694
@@ -4292,17 +4339,17 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 01c8dd8bcee9171140b41bfcfa3573bba4caa561492c708b1f7318b54be777a8
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
-  bin/lib/session.py#cmd_session_start: ff5ccade440c951dd10e6aa899e14373bed71eeb27d96ddfaa47e5b1b1764bbe
+  bin/lib/session.py#cmd_session_start: 0fa42d7c63179ed0308d1571395dc3cd3277b69cb328ae8da62e9e7ffb5bdcb2
   bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
-  bin/lib/task.py#cmd_task_update: 225ebc824e9674e816575ab125c131cf7c81c3ac35b7e0261627ebf5b8c1d3be
+  bin/lib/task.py#cmd_task_update: 47c0554613b4e9b7352fc713e5ef78d0b01c77b8d4bd6d76278903cf9136303a
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 2eaf888c6f234272a1674b14418484762bcbcb9594f372d75149ad9b8095df99
+  bin/lib/views.py#_render_debt_echo: 201ccb83dec2aeffc43716eaf670a25d21d990bd19b4f86ad4abf375adb68cd4
   bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_load_sensitive_file_card: e18678b2d56985f14fc3021ee4247db7c1eb3b6b61d58de0c19b13b23335b66a
-  bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280
+  bin/lib/worktree.py#cmd_land: 36881ec62af3ce28846c15fd17d401dc0a62164618c3b491363a66038a27e8c9

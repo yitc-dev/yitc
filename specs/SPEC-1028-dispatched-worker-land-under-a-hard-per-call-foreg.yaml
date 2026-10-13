@@ -1,8 +1,8 @@
-id: SPEC-0180
+id: SPEC-1028
 title: Dispatched-worker land under a hard per-call foreground cap — the protected
   property is the HELD TURN, not the foreground process
 status: active
-created_at: 2026-08-13 22:22:06+00:00
+created_at: 2026-10-12 21:24:53+00:00
 travels: null
 consumed: false
 extension: null
@@ -10,6 +10,7 @@ implements:
 - bin/lib/worktree.py#cmd_land
 - bin/lib/worktree.py#_resolve_held_turn_claim
 - bin/lib/worktree.py#_resolve_dispatch_worker_pid
+- bin/lib/worktree.py#_resolve_dispatch_worker_row
 - bin/lib/worktree.py#_pid_alive
 - bin/lib/land_reservation.py#_arm_worker_liveness_watchdog
 - bin/lib/batch_landing.py#_land_member_claim_held
@@ -44,34 +45,61 @@ body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green,
   \ land to kill. A reader who\nbelieves the claiming path is refused up front will\
   \ not implement the watchdog at all — and the\ntrial demonstrated this second path\
   \ live, unplanned, when a premature runner exit killed a\nhealthy land mid-verify.\n\
-  \n## Internal\n\nTHE WORKER LONG-LAND ADMISSIBILITY CONTRACT. It gives the already-shipped\
-  \ `YITC_SYNCHRONOUS_LAND`\nguard its spec home (the guard's code comments cite \"\
-  SPEC-0103 §1\", but SPEC-0103 §1 is the\nout-of-scope-EDIT rule — the guard has\
-  \ had no spec of its own), and it resolves a live P7\ncontradiction between two\
-  \ active corpus surfaces. It adds NO new store, verb, journal or gate: it\nRESHAPES\
-  \ the admission predicate of the existing guard and reuses the existing `^LAND:`\
-  \ token,\n`worktree recover-land`, and `blocked-on-land` channels.\n\n### 1. The\
-  \ protected property is the HELD TURN, not the foreground process\n**Scope note\
-  \ : this rule governs the dispatched worker's LONG COMMANDS as a class, of\nwhich\
-  \ the `land` is the first and the Stage-6 SUITE (`task test --run`) the second —\
-  \ see rule 8.\nWherever the text below says \"the land\", read \"the over-cap command\"\
-  ; the land is named because it\nis the case this spec was cut on, not because the\
-  \ held-turn property is peculiar to it.**\nSYNCHRONOUS-TO-LAND (`patterns/background-session-monitoring.md\
-  \ §Synchronous-to-LAND`) exists to\nprevent ONE failure: a one-shot worker YIELDS\
-  \ its turn, its process exits, and the land dies\nmid-flight leaving built-but-unlanded\
-  \ work. The property that prevents it is that **the worker\nholds its turn until\
-  \ the terminal token** — NOT that the land runs in the worker's own foreground\n\
-  process group. Those two were treated as the same thing because, for every land\
-  \ that fits the\ncap, they coincide. Over the cap they come apart, and only the\
-  \ first is load-bearing.\n\nTherefore: a dispatched worker's land MAY run as a DETACHED\
-  \ PROCESS when, and only when, the\nworker holds its turn across the whole land\
-  \ (rule 2). **Background-and-YIELD stays FORBIDDEN,\nunchanged** — what may be detached\
-  \ is the OS PROCESS, never the TURN.\n\n### 2. Admissibility bounds (all four, conjunctive\
-  \ — fail-closed)\nA detached worker land is admissible ONLY when ALL hold:\n- **(a)\
-  \ Self-verifying command.** The detached command commits + verifies its own work\
-  \ and emits a\n  contracted terminal token, OR rolls back cleanly on failure. `land`\
-  \ satisfies this by\n  construction: it verifies BEFORE its ff-only merge and emits\
-  \ `^LAND: (OK|ABORT)` as its final\n  stdout line. This is the `patterns/background-session-dispatch.md\n\
+  \n## Internal\n\n> **SUPERSEDES <workshop-spec>.** THE NORMATIVE CHANGE, in full\
+  \ — rule 2's Claim PROVENANCE: (1) a\n> held-turn claim for a task that no launch\
+  \ row of the presenting session names is ADMITTED on\n> that session's launch row\
+  \ when the claim stamp of the landing worktree names that session,\n> where <workshop-spec>\
+  \ refused it `no-dispatch-record`; (2) a claim on a land that names no task is\n\
+  > REFUSED unless that stamp names the presenting session, where <workshop-spec>\
+  \ admitted it on the\n> session ref alone. Everything else — the Scenario, rule\
+  \ 1, the rest of rule 2, rules 3 to 9,\n> Parameters, Rationale and Verification\
+  \ — is carried from <workshop-spec> word for word, the note\n> <workshop-spec> opened\
+  \ with among it (it follows this one and speaks for <workshop-spec>); the only other\n\
+  > added lines are this note, one Rationale subsection and one Verification item.\
+  \ Routed as a\n> SUPERSEDE because (1) and (2) each change the required result of\
+  \ a case <workshop-spec> already\n> covered (SPEC-0005 rule 7's discriminating probe).\n\
+  >\n> **SUPERSEDES <workshop-spec>.** THE NORMATIVE CHANGE, in full — rule 9's token\
+  \ paragraph: (1) the\n> terminal grammar of `audit pre|post` gains a fifth value,\
+  \ `RECORDED`; (2) a field edit of a saved\n> audit record that completes — `--absorb`\
+  \ on a task record or on a plan-gate record, `--followup`\n> — ends `AUDIT: RECORDED\
+  \ <what>`, where <workshop-spec> ended it `AUDIT: ABORT <why>`; (3) the paragraph\n\
+  > states that `plan check --absorb` is outside this grammar and ends with a line\
+  \ saying the\n> absorption was recorded; (4) after an `ABORT` on a field-edit call\
+  \ the saved record is read\n> before the call is repeated. Every other exit keeps\
+  \ `AUDIT: ABORT <why>`, and every exit code is\n> unchanged. Everything else — the\
+  \ Scenario, rules 1 to 8, the rest of rule 9, Parameters,\n> Rationale and Verification\
+  \ — is carried from <workshop-spec> word for word; the only other added lines\n\
+  > are this note, one Rationale subsection and one Verification item. Routed as a\
+  \ SUPERSEDE because\n> (2) changes the printed final line of a case <workshop-spec>\
+  \ already covered (SPEC-0005 rule 7's\n> discriminating probe).\n\nTHE WORKER LONG-LAND\
+  \ ADMISSIBILITY CONTRACT. It gives the already-shipped `YITC_SYNCHRONOUS_LAND`\n\
+  guard its spec home (the guard's code comments cite \"SPEC-0103 §1\", but SPEC-0103\
+  \ §1 is the\nout-of-scope-EDIT rule — the guard has had no spec of its own), and\
+  \ it resolves a live P7\ncontradiction between two active corpus surfaces. It adds\
+  \ NO new store, verb, journal or gate: it\nRESHAPES the admission predicate of the\
+  \ existing guard and reuses the existing `^LAND:` token,\n`worktree recover-land`,\
+  \ and `blocked-on-land` channels.\n\n### 1. The protected property is the HELD TURN,\
+  \ not the foreground process\n**Scope note : this rule governs the dispatched worker's\
+  \ LONG COMMANDS as a class, of\nwhich the `land` is the first and the Stage-6 SUITE\
+  \ (`task test --run`) the second — see rule 8.\nWherever the text below says \"\
+  the land\", read \"the over-cap command\"; the land is named because it\nis the\
+  \ case this spec was cut on, not because the held-turn property is peculiar to it.**\n\
+  SYNCHRONOUS-TO-LAND (`patterns/background-session-monitoring.md §Synchronous-to-LAND`)\
+  \ exists to\nprevent ONE failure: a one-shot worker YIELDS its turn, its process\
+  \ exits, and the land dies\nmid-flight leaving built-but-unlanded work. The property\
+  \ that prevents it is that **the worker\nholds its turn until the terminal token**\
+  \ — NOT that the land runs in the worker's own foreground\nprocess group. Those\
+  \ two were treated as the same thing because, for every land that fits the\ncap,\
+  \ they coincide. Over the cap they come apart, and only the first is load-bearing.\n\
+  \nTherefore: a dispatched worker's land MAY run as a DETACHED PROCESS when, and\
+  \ only when, the\nworker holds its turn across the whole land (rule 2). **Background-and-YIELD\
+  \ stays FORBIDDEN,\nunchanged** — what may be detached is the OS PROCESS, never\
+  \ the TURN.\n\n### 2. Admissibility bounds (all four, conjunctive — fail-closed)\n\
+  A detached worker land is admissible ONLY when ALL hold:\n- **(a) Self-verifying\
+  \ command.** The detached command commits + verifies its own work and emits a\n\
+  \  contracted terminal token, OR rolls back cleanly on failure. `land` satisfies\
+  \ this by\n  construction: it verifies BEFORE its ff-only merge and emits `^LAND:\
+  \ (OK|ABORT)` as its final\n  stdout line. This is the `patterns/background-session-dispatch.md\n\
   \  §Long-command-exceeds-tool-timeout` applicability bound, unchanged and inherited,\
   \ not re-cut.\n- **(b) Turn held by bounded in-turn polling.** Each poll window\
   \ is an ordinary foreground command\n  well under the cap, re-invoked INLINE in\
@@ -115,16 +143,42 @@ body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green,
   \ any process could name a long-lived unrelated\npid — a system daemon — then detach\
   \ and yield, leaving a land that outlives its worker, which is\nthe precise failure\
   \ this whole guard exists to prevent. So the land RESOLVES the worker pid from\n\
-  the DISPATCH RECORD (the `bg_dispatch_launched` row for this task, which already\
-  \ carries the task\nid, the expected session ref and the worker pid) and admits\
-  \ the claim only when the presented\nvalue MATCHES the resolved one. The worktree\
-  \ stamp independently binds that session to\nthis task's worktree. This is SPEC-0169\
-  \ rules 3+4 applied verbatim — server-issued, caller input\nrefused — and it adds\
-  \ NO new store, carrier or verb.\n**Fail-closed corollary:** when no dispatch record\
-  \ resolves — an interactive land, a hand-run, a\nworker launched outside `dispatch`\
-  \ — NO held-turn claim is admissible at all, and the pre-existing\nrefusal stands\
-  \ unchanged. The held-turn path is available to DISPATCHED workers, which are exactly\n\
-  the population the cap traps.\n**Stale-previous-holder corollary.** A worker RE-dispatched\
+  the DISPATCH RECORD (a `bg_dispatch_launched` row of the session the land presents,\
+  \ which carries\nthe task the worker was launched on, the expected session ref and\
+  \ the worker pid) and admits the\nclaim only when the presented value MATCHES the\
+  \ resolved one. This is SPEC-0169 rules 3+4 applied\nverbatim — server-issued, caller\
+  \ input refused — and it adds NO new store, carrier or verb.\n**Which launch row\
+  \ governs — a server-side record must TIE the presenting session to what is being\n\
+  landed.** There are exactly two such ties, and with neither the claim is refused\n\
+  `no-dispatch-record`:\n- **The row names the landing task.** When the land names\
+  \ its task and a launch row of the\n  presenting session carries that task, the\
+  \ newest such row governs. An unusable pid on that row\n  is a refusal: it is never\
+  \ replaced by another row of the same session.\n- **The claim stamp of the landing\
+  \ worktree names the presenting session.** When no launch row of\n  the presenting\
+  \ session names the landing task — a later card of a warm batch, which is launched\n\
+  \  once, on its head card — or when the land names no task, the newest launch row\
+  \ of that session\n  governs ONLY IF the claim stamp of the landing worktree names\
+  \ that same session.\n  The claim stamp is the session mark a worktree receives\
+  \ when it is created, and receives again\n  when another session takes the worktree\
+  \ over.\n  The landing worktree is the worktree of the named task or branch, or\
+  \ the checkout the land runs\n  in when it names neither; the main checkout carries\
+  \ no claim stamp, so a land started there\n  names its target. A stamp that names\
+  \ another session, an absent stamp and an unreadable stamp\n  each tie nothing.\n\
+  The rule-7 start-detach resolves the worker pid by this same rule. The adoption\
+  \ of a dead previous\nholder (the corollary below) reads only a launch row that\
+  \ names the landing task: a claim that\nrests on the stamp tie is never adopted.\n\
+  **What the stamp tie shows, and what it does not.** It shows that the session presenting\
+  \ the claim\nHOLDS the worktree being landed. It does NOT show that the card is\
+  \ a member of the batch the\nworker was assigned: every worktree that session holds\
+  \ is admitted on the same terms, and which\ncards a worker may take is settled where\
+  \ its work is assigned, not at this gate. Unchanged on\nboth ties: the land is admitted\
+  \ only against — and watchdog-bound to — the pid the governing\nlaunch row carries;\
+  \ a session with no launch row is refused; and a worker gains nothing for a\nworktree\
+  \ another session holds.\n**Fail-closed corollary:** when no dispatch record resolves\
+  \ — an interactive land, a hand-run, a\nworker launched outside `dispatch` — NO\
+  \ held-turn claim is admissible at all, and the pre-existing\nrefusal stands unchanged.\
+  \ The held-turn path is available to DISPATCHED workers, which are exactly\nthe\
+  \ population the cap traps.\n**Stale-previous-holder corollary.** A worker RE-dispatched\
   \ after its predecessor died\n(e.g. on the provider usage limit) stands in the preserved\
   \ worktree, whose journal carries the\nPREDECESSOR's dispatch row, so it may present\
   \ that dead pid. Such a claim is ADOPTED, not refused,\nONLY when the presented\
@@ -375,25 +429,37 @@ body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green,
   \ MAY run as a\nDETACHED PROCESS on rule 8's terms** — rule 2's bounds (b) and (c)\
   \ and rule 4's non-weakening apply\nUNCHANGED (no pass, lens, ceiling or verdict\
   \ rule moves; this is an exit from a call too LONG, never\nfrom a RED). Rule 5 applies\
-  \ verbatim.\n\n**`audit pre|post` satisfies bound (a) by printing `^AUDIT: (GREEN|YELLOW|RED|ABORT)`\
-  \ as its FINAL\nstdout line on EVERY exit path.** A verdict-carrying exit renders\
-  \ that verdict (the exit code is\nunchanged, GREEN 0 / YELLOW 1 / RED 2 / ABORT\
-  \ 3); every other exit — a refusal, an exception\nincluding an interrupt, a preview\
-  \ or an absorb that reaches no auditor verdict — renders `AUDIT:\nABORT <why>`,\
-  \ meaning NO verdict this call, never a verdict it did not earn. The in-process\n\
-  ceiling continuation is internal and prints no token of its own; only the outer\
-  \ call's\nfinal exit does. The saved `decisions/<id>-audit-<stage>.yaml` stays the\
-  \ durable verdict record.\n**One stream exception, `--preview`:** there STDOUT is\
-  \ the packet itself and must stay\nbyte-identical to what a real run hands the auditor,\
-  \ so the token is printed as the\nfinal STDERR line instead — a detached poll captures\
-  \ `2>&1` and still sees it.\n\n**The same TWO narrowings as rule 8:** no held-turn\
-  \ admission claim and no liveness watchdog. An\naudit writes its verdict into the\
-  \ worker's OWN worktree and journal and integrates nothing into\n`main`; a worker\
-  \ that yields mid-audit loses only that pass. So it is a RECIPE in the dispatch\n\
-  preamble's shared over-cap paragraph, not a gated arm in the verb.\n\nSurfaces:\
-  \ `bin/lib/audit.py#audit_terminal_token`, `bin/lib/audit.py#cmd_audit` (the verdict\
-  \ carried\non the SystemExit), `bin/lib/cli.py#cmd_audit` (the outermost wrapper\
-  \ that prints the token) and\n`bin/lib/dispatch.py#_build_over_cap_test_rule`.\n\
+  \ verbatim.\n\n**`audit pre|post` satisfies bound (a) by printing `^AUDIT: (GREEN|YELLOW|RED|ABORT|RECORDED)`\
+  \ as\nits FINAL stdout line on EVERY exit path.** A verdict-carrying exit renders\
+  \ that verdict (the exit\ncode is unchanged, GREEN 0 / YELLOW 1 / RED 2 / ABORT\
+  \ 3). A FIELD EDIT of a saved audit record that\ncompletes — `audit pre --task <id>\
+  \ --absorb`, `audit pre --plan <slug> --gate <id> --absorb`,\n`audit post --task\
+  \ <id> --followup`, the last also when every id it names is already on the record\n\
+  and nothing is written — renders `AUDIT: RECORDED <what>` with exit code 0: the\
+  \ call SUCCEEDED and\nthe record holds what it named. It carries NO auditor verdict:\
+  \ read the verdict in the saved\nrecord, and never repeat the call to obtain one\
+  \ — a repeated `--absorb` writes a second entry.\nEvery other exit — a refusal,\
+  \ a refused field edit among them, an exception including an\ninterrupt, a preview\
+  \ — renders `AUDIT: ABORT <why>`, meaning NO verdict this call, never a verdict\n\
+  it did not earn. An `ABORT` that ends a field-edit call does not say whether the\
+  \ entry was\nwritten: a call interrupted after its write has already recorded it,\
+  \ so read the saved record\nbefore repeating that call. The in-process ceiling continuation\
+  \ is internal and prints no token\nof its own; only the outer call's final exit\
+  \ does. The saved `decisions/<id>-audit-<stage>.yaml`\nstays the durable verdict\
+  \ record.\n**One stream exception, `--preview`:** there STDOUT is the packet itself\
+  \ and must stay\nbyte-identical to what a real run hands the auditor, so the token\
+  \ is printed as the final STDERR\nline instead — a detached poll captures `2>&1`\
+  \ and still sees it.\n**Outside this grammar:** `plan check --absorb` is not an\
+  \ `audit pre|post` call and prints no\n`AUDIT:` line. When it completes, its final\
+  \ stdout line says that the absorption was recorded;\nwhen it is interrupted, read\
+  \ the saved record before repeating it, as above.\n\n**The same TWO narrowings as\
+  \ rule 8:** no held-turn admission claim and no liveness watchdog. An\naudit writes\
+  \ its verdict into the worker's OWN worktree and journal and integrates nothing\
+  \ into\n`main`; a worker that yields mid-audit loses only that pass. So it is a\
+  \ RECIPE in the dispatch\npreamble's shared over-cap paragraph, not a gated arm\
+  \ in the verb.\n\nSurfaces: `bin/lib/audit.py#audit_terminal_token`, `bin/lib/audit.py#cmd_audit`\
+  \ (the verdict carried\non the SystemExit), `bin/lib/cli.py#cmd_audit` (the outermost\
+  \ wrapper that prints the token) and\n`bin/lib/dispatch.py#_build_over_cap_test_rule`.\n\
   \n## Parameters\n\nNone consumed. The cap is a harness property (provider-specific,\
   \ CHARTER §P4b) and is deliberately\nNOT a number in this body: the rule is \"a\
   \ hard per-call cap exists and a land may exceed it\", which\nholds whatever the\
@@ -439,12 +505,38 @@ body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green,
   \ NOT carried here** (SPEC-0005 rule 3 content boundary): the rejected alternatives\
   \ —\nsplitting the verify so no single call spans the cap, moving the admission\
   \ wait out of the timed\ncall as its own mechanism, and a sanctioned worker-side\
-  \ `recover-land` handoff — live in the\nproposing plan, not in this body.\n\n##\
-  \ Verification\n\n- **Negative control (must FAIL without the change):** a dispatched\
-  \ worker whose verify is forced\n  past the cap reaches NO terminal land outcome\
-  \ under today's rules — aimed at a case that\n  SUCCEEDS when the cap is generous,\
-  \ so the arm distinguishes the mechanism from the world. An arm\n  that fails for\
-  \ any other reason proves nothing\n  (`lessons/a-negative-control-must-fail-without-the-intervention`).\n\
+  \ `recover-land` handoff — live in the\nproposing plan, not in this body.\n\n###\
+  \ The fifth terminal value `RECORDED`\nUnder <workshop-spec> a completed absorption\
+  \ ended `AUDIT: ABORT no verdict this call`, while LIFECYCLE\nStage 4 reads `ABORT`\
+  \ as «STOP — auditor unavailable or output malformed». Two readers took that\nline\
+  \ for a failed call: a consumer Controller (public proposal #81, item 3), who repeated\
+  \ `audit\npre --plan <slug> --gate <id> --absorb` to see what had failed and so\
+  \ wrote a second `absorbed`\nentry on a governed record, and a kernel session on\
+  \ the same call (deviation of\n). Change-origin tags moved out of the rule-9 token\
+  \ paragraph when it was\nrestated: the in-process ceiling continuation is, the `--preview`\
+  \ stdout byte-identity is\n.\n\n### Which launch row governs a claim\n<workshop-spec>\
+  \ resolved the pid from «the `bg_dispatch_launched` row for this task». `dispatch`\
+  \ writes\none such row per launch, and a warm batch — several small cards handed\
+  \ to one worker in one launch\n(`patterns/background-session-operation.md`, launch\
+  \ policy) — is launched on its head card, so a\nlater card of the batch had no row.\
+  \ Measured 2026-10-12: worker ce17573f landed its head card\n, then built and closed,\
+  \ and its detached land was refused `no-dispatch-record`\nbefore anything ran; a\
+  \ foreground land did not fit the per-call cap (845 selected files, about 17\nminutes),\
+  \ the worker halted `blocked-on-land` and an interactive session landed the card.\
+  \ The\nsame reading found that a land naming no task resolved by the session ref\
+  \ alone, with no check\nthat the presenting session held the worktree being landed;\
+  \ the external consult on the route\n(`decisions/-route-audit-adhoc.yaml`) graded\
+  \ that as the open half of the guarantee, and\nthe stamp tie closes it on that form\
+  \ in the same change. The consult also named the bound rule 2\nnow states: the stamp\
+  \ shows who holds the worktree, not which cards the worker was assigned. The\nclaim\
+  \ stamp is the worktree owner stamp of; the sentence <workshop-spec> carried about\
+  \ it («The\nworktree stamp independently binds that session to this task's worktree»)\
+  \ described the\nstamp and conditioned nothing on it.\n\n## Verification\n\n- **Negative\
+  \ control (must FAIL without the change):** a dispatched worker whose verify is\
+  \ forced\n  past the cap reaches NO terminal land outcome under today's rules —\
+  \ aimed at a case that\n  SUCCEEDS when the cap is generous, so the arm distinguishes\
+  \ the mechanism from the world. An arm\n  that fails for any other reason proves\
+  \ nothing\n  (`lessons/a-negative-control-must-fail-without-the-intervention`).\n\
   - **Positive:** the same worker, unchanged in every other respect, reaches `^LAND:\
   \ OK` by itself;\n  `journal query --fleet-verdict` reads a real outcome rather\
   \ than `blocked-on-land` or\n  launch-stall; no interactive session re-ran the command.\n\
@@ -466,7 +558,21 @@ body: "## Scenario\n\nA dispatched worker finishes its task, its suite is green,
   \ liveness REFUSES, and `main` is untouched at the refusal.\n- **Gate-integrity\
   \ (rule 4):** the pinned double-verify still runs both passes; the admission slot\n\
   \  count is unchanged; `blocked-on-land` still fires for a genuine out-of-scope/environmental\
-  \ block.\n"
+  \ block.\n- **Terminal grammar of `audit pre|post` (rule 9):** the final line of\
+  \ a verdict call, of a\n  refused call and of a completed field edit each match\
+  \ the grammar rule 9 states, read from this\n  spec's text at test time; a completed\
+  \ `--absorb` or `--followup` ends `AUDIT: RECORDED`, a\n  refused one `AUDIT: ABORT\
+  \ <why>`; the dispatch preamble's poll pattern names the same set of\n  values;\
+  \ `plan check --absorb` ends with its own recorded line and no `AUDIT:` line\n \
+  \ (`tests/test_t13151_audit_terminal_token.py`).\n- **Which launch row governs a\
+  \ claim (rule 2, Claim PROVENANCE):** a claim for a task that no\n  launch row of\
+  \ the presenting session names, from a worktree whose claim stamp names that\n \
+  \ session, is admitted on the pid of that session's launch row; the same claim is\
+  \ refused when no\n  launch row carries the session, when the presented pid is another\
+  \ live pid, and when the stamp\n  names another session or cannot be read; a claim\
+  \ on a land that names no task is refused\n  unless the stamp names the presenting\
+  \ session; a launch row that names the task but carries an\n  unusable pid is never\
+  \ replaced by another row of the session\n  (`tests/test_t13888_warm_batch_non_head_land_claim.py`).\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0169
@@ -482,7 +588,7 @@ amends:
 requires: []
 supersedes: null
 activation_owner_task: null
-proposed_by: give-a-dispatched-worker-a-land-path-that-survives
+proposed_by: null
 binding:
 - code-enforced
 init_concern: null
@@ -495,8 +601,9 @@ implements_signature:
   bin/lib/land_reservation.py#_arm_worker_liveness_watchdog: b31ac9da7642afc5ce47d806a6a616881eb1db0684380adcf800620faf36d1a6
   bin/lib/worktree.py#_land_detached_signal: bbbe23ec6a11ee17f81a014d502513389bcd3a8f1b7c56f7c06191bf14d355fc
   bin/lib/worktree.py#_pid_alive: b15b2c77d8df2bd8662d2a19968e91bc9356d09d5ae14dbbbdfbb12c8afdb42d
-  bin/lib/worktree.py#_resolve_dispatch_worker_pid: 1f8347e7aa7000c7f10a7a7329c2678c2f065a1094ae89382f02b5b6e11369dd
-  bin/lib/worktree.py#_resolve_held_turn_claim: 268031acd79305b7dc5abea784c214217bb6ccef27ab8cec7d0e119d069ae5db
+  bin/lib/worktree.py#_resolve_dispatch_worker_pid: 7990d2a7b6b7404cf41c6a82b56e8da2c1d61994cd58db36dab0bf1318bcf28f
+  bin/lib/worktree.py#_resolve_dispatch_worker_row: 2d95f2a3e13271e653fe914f94edfc797109a21de942388a77d100a28f9fc850
+  bin/lib/worktree.py#_resolve_held_turn_claim: b869b1a03c17394be0c1b2d37242f9b40366bff4bf347c8a513c1a95e27a0c56
   bin/lib/worktree.py#_start_detached_worker_land: 45118db878f31f68137d4650eff65a344f5839bbda8079e4eca299290a2e200a
   bin/lib/worktree.py#_worker_start_detach_decision: ef7ce322f125c363ad2292b34f51ce94ee4ab33690602ae05eed063218e7dc1c
-  bin/lib/worktree.py#cmd_land: 09b2e03037492c3e90a969ac3ade6922c4de9678aa75380dd0e6dbbd4f451280
+  bin/lib/worktree.py#cmd_land: 36881ec62af3ce28846c15fd17d401dc0a62164618c3b491363a66038a27e8c9

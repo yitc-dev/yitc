@@ -612,37 +612,54 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ Readers: `audit pre`\n                               # (inlines the prototype\
   \ diff + overlay), `audit post` (prototype_identity\n                          \
   \     # line), spike_identity.consumed_prototype_ships. Absent = not built on a\
-  \ spike.\npremise: null # OPTIONAL premise-verify marker : one of\n            \
-  \                   # verified | already-done | stale | unclassifiable — the outcome\
-  \ of the SPEC-0166\n                               # premise check (`unclassifiable`\
-  \ = the card carries no premise markers;\n                               # recorded\
-  \ so the pass is idempotent). FAIL-CLOSED enum (an out-of-enum value is a\n    \
-  \                           # schema/type error — the SPEC-0165 named loud mechanism).\
-  \ Governed\n                               # write-path: `task update --old/--new`\
-  \ (the field-edit route validates\n                               # the enum), never\
-  \ a hand-edit. Absent = premise not yet recorded.\nproduct_dispatch_owner_ack: null\
-  \ # OPTIONAL product-dispatch owner-ack ref : a reference to the\n             \
-  \                  # owner acknowledgement the SPEC-0167 product-gate consumes.\
-  \ A FREE scalar\n                               # ref. Governed write-path: `task\
-  \ update --old/--new`. Absent = no ack\n                               # recorded\
-  \ (the common case). SCHEMA carrier only — the gate ships in SPEC-0167.\n\n# Resume\
-  \ contract fields ( — populated on task_paused):\n# — a transition to done / wont-do\
-  \ REMOVES resume_from / next_action / paused_at /\n# paused_reason / paused_awaits\
-  \ (task.py#PAUSE_BLOCK_FIELDS); the history stays in task_paused.\n# — a RESUME\
-  \ (`task resume`, or the `worktree new --task` orphan re-entry) ends the\n# pause\
-  \ the same way: paused_at / paused_reason / paused_awaits are nulled and resume_from\
-  \ /\n# next_action are REMOVED from the card, after the resume echo prints them.\
-  \ They describe the\n# ENDED pause, not the card's state, so a resumed card carries\
-  \ neither; current_stage stays.\ncurrent_stage: null # semantic stage NAME (e.g.\
-  \ Execution); class implies the FSM (LIFECYCLE §Stage FSM). Set by lifecycle CLI\
-  \ verbs / on pause.\n                               # ADVISORY ONLY — no verb gates\
-  \ on it (retired as a guard; enforcement is artifacts-as-gates, not a stage counter).\n\
-  resume_from: null # step within stage or «start»\nlast_verified: null # ISO ts —\
-  \ last verified artifact/state\nnext_action: null # one-line concrete next step\n\
-  paused_at: null # ISO ts when paused\npaused_reason: null # the trigger-typed halt\
-  \ reason (vocab.PAUSE_REASONS, the enum home):\n                               #\
-  \ owner-wait | audit-ceiling | auditor-abort | batch-remainder |\n             \
-  \                  # session-end | land-conflict | controller-wait | artifact-wait.\n\
+  \ spike.\nprototype_identical: null # OPTIONAL, only beside prototype_ref (SPEC-0205\
+  \ rule 5): the\n                               # files this card declares byte-identical\
+  \ to its prototype's BY\n                               # CONSTRUCTION — a list\
+  \ of entries, each exactly `path` (one literal\n                               #\
+  \ repo-relative file path, never a pattern or a directory) and `reason`\n      \
+  \                         # (one plain non-blank line); the entries' rendered lines\
+  \ together are\n                               # bounded (16000 bytes). ONE governed\
+  \ write-path: `task update --set-field\n                               # prototype_identical\
+  \ --from-file` (refused: a card naming no prototype,\n                         \
+  \      # a malformed, reasonless or over-size declaration, a path the prototype\n\
+  \                               # has no file at; `[]` withdraws; task_amended(field_edit)).\
+  \ NOT authored at `task file`\n                               # (a stdin key is\
+  \ not written, with a warning naming the verb), and the\n                      \
+  \         # --old/--new text edit refuses to change it. Readers: `audit pre` (shows\n\
+  \                               # each entry to the auditor and records what it\
+  \ showed), `land` (admits a\n                               # shown entry against\
+  \ the card's own prototype only),\n                               # spike_identity.landing_declaration.\
+  \ Absent / null / [] = nothing declared.\npremise: null # OPTIONAL premise-verify\
+  \ marker : one of\n                               # verified | already-done | stale\
+  \ | unclassifiable — the outcome of the SPEC-0166\n                            \
+  \   # premise check (`unclassifiable` = the card carries no premise markers;\n \
+  \                              # recorded so the pass is idempotent). FAIL-CLOSED\
+  \ enum (an out-of-enum value is a\n                               # schema/type\
+  \ error — the SPEC-0165 named loud mechanism). Governed\n                      \
+  \         # write-path: `task update --old/--new` (the field-edit route validates\n\
+  \                               # the enum), never a hand-edit. Absent = premise\
+  \ not yet recorded.\nproduct_dispatch_owner_ack: null # OPTIONAL product-dispatch\
+  \ owner-ack ref : a reference to the\n                               # owner acknowledgement\
+  \ the SPEC-0167 product-gate consumes. A FREE scalar\n                         \
+  \      # ref. Governed write-path: `task update --old/--new`. Absent = no ack\n\
+  \                               # recorded (the common case). SCHEMA carrier only\
+  \ — the gate ships in SPEC-0167.\n\n# Resume contract fields ( — populated on task_paused):\n\
+  # — a transition to done / wont-do REMOVES resume_from / next_action / paused_at\
+  \ /\n# paused_reason / paused_awaits (task.py#PAUSE_BLOCK_FIELDS); the history stays\
+  \ in task_paused.\n# — a RESUME (`task resume`, or the `worktree new --task` orphan\
+  \ re-entry) ends the\n# pause the same way: paused_at / paused_reason / paused_awaits\
+  \ are nulled and resume_from /\n# next_action are REMOVED from the card, after the\
+  \ resume echo prints them. They describe the\n# ENDED pause, not the card's state,\
+  \ so a resumed card carries neither; current_stage stays.\ncurrent_stage: null #\
+  \ semantic stage NAME (e.g. Execution); class implies the FSM (LIFECYCLE §Stage\
+  \ FSM). Set by lifecycle CLI verbs / on pause.\n                               #\
+  \ ADVISORY ONLY — no verb gates on it (retired as a guard; enforcement is artifacts-as-gates,\
+  \ not a stage counter).\nresume_from: null # step within stage or «start»\nlast_verified:\
+  \ null # ISO ts — last verified artifact/state\nnext_action: null # one-line concrete\
+  \ next step\npaused_at: null # ISO ts when paused\npaused_reason: null # the trigger-typed\
+  \ halt reason (vocab.PAUSE_REASONS, the enum home):\n                          \
+  \     # owner-wait | audit-ceiling | auditor-abort | batch-remainder |\n       \
+  \                        # session-end | land-conflict | controller-wait | artifact-wait.\n\
   \                               # artifact-wait = a wait on a DECLARED item whose\
   \ arrival a\n                               # reader can DECIDE; it REQUIRES paused_awaits\
   \ below.\npaused_awaits: null # — the awaited artifact whose arrival ENDS this pause,\
@@ -724,4 +741,4 @@ implements_signature:
   bin/lib/vocab.py#TASK_CLASSES: ee6f546d6976f100eb7a7210649b881cf0272a047ab1866ab54c4f3dd228c6dd
   bin/lib/vocab.py#TASK_FILING_STATUSES: a3f438ac70ae0ffb2c30813c12532aafe7e07a0af1396706e2a37bfcfb1ae44e
   bin/lib/vocab.py#TASK_PRIORITIES: c9e55aa7764415938acd55d1c1310d05aa36e285be560fde67a0dc1007093a7f
-  tasks/_template.yaml: b83bd8443360055a218a7293a18c2fc80cf23c286f6dfe8b33ae656ea57ec7a3
+  tasks/_template.yaml: ffeef8ff9dad39419ddb1a94bd7671944c818309b0d7a07c7b988fcf3491ebdd

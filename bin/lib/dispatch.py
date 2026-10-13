@@ -176,10 +176,10 @@ def _resolve_dispatch_briefs(args: argparse.Namespace, n: int, *, _as_list, _die
 # single-source sentence so it co-delivers wherever the "reach LAND or ABANDONMENT" pressure is shown
 # (preamble point 1 AND the cmd_stage stage-entry reminder) — a pressure sentence without its own
 # carve-out re-created the contradiction the T-9495 incident exposed (CHARTER §P7). Rule home: SPEC-0103.
-# It ALSO carries the SPEC-0180 OVER-CAP EXIT inline (T-11104), for the same single-source reason: the
+# It ALSO carries the SPEC-1028 OVER-CAP EXIT inline (T-11104), for the same single-source reason: the
 # worker meets the per-call cap AT this pressure sentence, so the sanctioned held-turn path has to be
 # DELIVERED here — beside "HOLD your turn and re-invoke `land`" — or the worker discovers it only as a
-# refusal, if at all. Mechanism home: SPEC-0180 (shipped by T-11101 + T-11102); recipe prose:
+# refusal, if at all. Mechanism home: SPEC-1028 (shipped by T-11101 + T-11102); recipe prose:
 # patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout (T-11103).
 # T-11294 (X-0994) — the detached-land LOG PATH is REPO-SCOPED, not host-global. Task ids are
 # allocated PER-REPO, so <project> T-0351 and <project> T-0351 are different cards that used to resolve
@@ -187,7 +187,7 @@ def _resolve_dispatch_briefs(args: argparse.Namespace, n: int, *, _as_list, _die
 # owned by another host user, the detached land got `Permission denied` and exited 1 WITHOUT EVER
 # STARTING, and the worker's `^LAND: (OK|ABORT)` poll then read the OTHER project's `LAND: OK` as its
 # own terminality — a false-GREEN land report with nothing failing closed before it (SPEC-0165 rule 1:
-# no mechanism to name, so the rule was SILENT). The token contract itself (SPEC-0180 rule 2c
+# no mechanism to name, so the rule was SILENT). The token contract itself (SPEC-1028 rule 2c
 # capture-wide/gate-narrow) is CORRECT and unchanged; the defect was the shared PATH.
 # The scope key is basename + a hash of the RESOLVED root: the basename alone collides again for two
 # checkouts named alike (a consumer clone, a worktree), and an mkstemp-style random name cannot be
@@ -220,9 +220,15 @@ SCRATCH_ROOT_PREFIX = "yitc-scratch-"
 # T-13594 — HOW a scratch checkout is made, spelled ONCE and read by both surfaces that name the
 # root (the session-start scratch line and the worker preamble), so the two cannot drift. Full clones
 # of this repository filled /tmp with ~118 GB in one day (2026-10-05).
+# T-13899 (X-1946) — the clause for a session whose OS user does not own the repository: git refuses
+# a --shared / --reference clone there (the ownership check on the source repository's `.git`), and
+# honours the trust setting only from that user's global or system config — a grant a person makes,
+# never this session (the posture `bin/lib/grants.py` prints its `safe.directory` lines under).
 SCRATCH_CLONE_RULE = ("a scratch checkout of this repository is made with `git worktree add` when a working "
                       "tree of a commit is enough, or `git clone --shared` / `git clone --reference <the main "
-                      "repository>` when a separate repository is needed — never a full clone (a --shared / "
+                      "repository>` when a separate repository is needed — never a full clone; in another OS "
+                      "user's repository use `git worktree add` only: a clone needs a person's trust grant — "
+                      "never change global git config (a --shared / "
                       "--reference clone borrows the main repository's objects, so it breaks if those are removed)")
 _SCRATCH_REF_RE = re.compile(r"[A-Za-z0-9._-]+")
 
@@ -365,7 +371,7 @@ def _build_over_cap_test_rule(test_log: str, test_pid: str) -> str:
     never receives. That is not hypothetical: this card's OWN dispatch is controller-lands, and its
     Controller had to hand-spell this recipe into the brief delta because the head carried none."""
     return (
-    "OVER-CAP EXIT FOR THE STAGE-6 SUITE (SPEC-0180) — the SAME held-turn rule for `task test --run`, "
+    "OVER-CAP EXIT FOR THE STAGE-6 SUITE (SPEC-1028) — the SAME held-turn rule for `task test --run`, "
     "which runs longer than the per-call FOREGROUND cap: run it DETACHED while you HOLD YOUR TURN. "
     f"Launch `: > {test_pid}; setsid bash -c 'echo $$ > {test_pid}; exec "
     "<the SAME `task test --run --evidence \"<summary>\"` invocation you would have run in the "
@@ -384,9 +390,9 @@ def _build_over_cap_test_rule(test_log: str, test_pid: str) -> str:
     "(`yitc-v2 journal query --type tests_passed --task T-XXXX`). Unlike the land this takes NO "
     "admission claim and NO liveness watchdog (the suite integrates nothing), and it is never an exit "
     "from a FAILING suite; what may be detached is the OS PROCESS, never the TURN. "
-    "The SAME recipe covers `audit pre|post` (SPEC-0180 rule 9): substitute the SAME `audit pre|post "
+    "The SAME recipe covers `audit pre|post` (SPEC-1028 rule 9): substitute the SAME `audit pre|post "
     "--task T-XXXX` invocation, name its log and pidfile with `audit` in place of `test`, and poll "
-    "`^AUDIT: (GREEN|YELLOW|RED|ABORT)` (its FINAL stdout line on EVERY exit; stderr under `--preview`) "
+    "`^AUDIT: (GREEN|YELLOW|RED|ABORT|RECORDED)` (its FINAL stdout line on EVERY exit; stderr under `--preview`) "
     "beside `kill -0` on its pid; confirm the verdict in the saved `decisions/T-XXXX-audit-<stage>.yaml`. "
     )
 
@@ -401,7 +407,7 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     T-12303 — `controller_lands` selects the OTHER land REGIME, and it exists here (a keyword on the
     existing single source) rather than as a second module constant BECAUSE the two regimes share
     their whole escalation tail. Under `False` (every pre-existing caller — the default renders
-    `SYNC_TO_LAND_RULE` BYTE-IDENTICALLY) the worker lands ITSELF and needs the SPEC-0180 over-cap
+    `SYNC_TO_LAND_RULE` BYTE-IDENTICALLY) the worker lands ITSELF and needs the SPEC-1028 over-cap
     detached-land recipe. Under `True` the worker STOPS after `task close` and the CONTROLLER lands
     from main, so that recipe is inapplicable and the HEAD is replaced. Only the HEAD differs: the
     SPEC-0103 EXCEPTION / auditor-outage SUBCLASS / PAUSE-SHAPE FORK TAIL below is ONE string both
@@ -419,7 +425,7 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "SILENT `land` is EXPECTED, NOT a hang: it may be waiting for a SPEC-0132 verify-admission slot "
     "(`waiting_for_verify_admission_slot` heartbeat) — HOLD your turn and re-invoke `land` inline "
     "until `LAND: OK`. "
-    "OVER-CAP EXIT (SPEC-0180) — when your `land` CANNOT FIT the per-call FOREGROUND cap (a `bin/**` / "
+    "OVER-CAP EXIT (SPEC-1028) — when your `land` CANNOT FIT the per-call FOREGROUND cap (a `bin/**` / "
     "`tests/**` / `yitc-ops.yaml` diff doubles the verify), run it DETACHED while you HOLD YOUR TURN. "
     "Present a held-turn CLAIM naming YOUR OWN dispatched-worker pid: `WPID=$(grep "
     "bg_dispatch_launched events.jsonl | grep \"$YITC_EXPECTED_SESSION_REF\" | tail -1 | python3 -c "
@@ -439,7 +445,7 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "the harness REFUSES a non-literal `-c` script (X-1857). The claim FAILS CLOSED on a wrong pid "
     "(`main` untouched); an admitted detached land KILLS ITSELF, journaling `land_worker_liveness_lost`, "
     "if you yield and die (recover with `worktree recover-land`). So BACKGROUND-AND-YIELD STAYS "
-    "FORBIDDEN — what may be detached is the OS PROCESS, never the TURN. Rule home SPEC-0180; recipe "
+    "FORBIDDEN — what may be detached is the OS PROCESS, never the TURN. Rule home SPEC-1028; recipe "
     "home `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout`. This covers "
     "ONLY the ARITHMETIC block (the CALL is too short); it is NOT a licence to force a BLOCKED land "
     "through, and the EXCEPTION below is unchanged. "
@@ -479,11 +485,12 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
 # T-12303 — the CONTROLLER-LANDS regime's HEAD (the only half that differs; the tail above is shared).
 # Rendered by `_build_sync_to_land_rule(controller_lands=True)` and delivered as
 # `DISPATCH_STOP_LAND_CONTRACT`, the ONE template the composed brief preamble's stop/land paragraph
-# comes from. It carries NO detached-land recipe: a worker that never lands cannot meet the SPEC-0180
+# comes from. It carries NO detached-land recipe: a worker that never lands cannot meet the SPEC-1028
 # per-call cap ON a land, so handing it that recipe would be an instruction it can only misapply.
 _CONTROLLER_LANDS_HEAD = (
-    "DO NOT LAND YOURSELF. Run EVERY stage — the test suite, the external audits, the commit, the "
-    "close — synchronously in the FOREGROUND, blocking, inline in your turn; run long commands "
+    "DO NOT LAND YOURSELF. Run EVERY stage of your card's flow — the test suite, its external audits "
+    "(a `class: hygiene` fast-path card has none — LIFECYCLE §Two flow "
+    "types), the commit, the close — synchronously in the FOREGROUND, blocking, inline in your turn; run long commands "
     "(tests, audits) synchronously/blocking and NEVER background-and-await an async notification. "
     "Then STOP: after `task close <task>` report the CLOSING SHA + the worktree PATH and yield. The "
     "CONTROLLER lands from main — you do NOT invoke `land`, and the `LAND: OK <sha>` token is the "
@@ -495,9 +502,23 @@ _CONTROLLER_LANDS_HEAD = (
 )
 
 
-# The ENGINE-self render (the builder at its default: THIS checkout's repo-scoped log path). Kept
-# under the historical name because it IS the single source both delivery points consume — the
-# preamble builder below AND cmd_stage's just-in-time stage-entry reminder (T-0687).
+def target_sync_to_land_rule(main_root, *, controller_lands: bool = False) -> str:
+    """The synchronous-to-LAND sentence rendered for ONE dispatch target (PURE) — T-13893 (X-1953).
+
+    `main_root` is the target's MAIN checkout root. The ONE expression every per-target delivery
+    point calls — `cmd_dispatch`'s standing preamble, its composed-brief STOP / LAND CONTRACT block,
+    and `cmd_stage`'s just-in-time stage-entry reminder — so the detached log/pid paths a worker
+    reads at launch and at each stage entry carry one scope key. A caller that passed its own
+    checkout root instead (a task worktree hashes to a different key than its main checkout) or the
+    import-time constants below (keyed by the root this module was loaded from) would name files the
+    other delivery points do not."""
+    return _build_sync_to_land_rule(_land_log_path(main_root), controller_lands=controller_lands)
+
+
+# The ENGINE-self render (the builder at its default: the repo-scoped log path of the checkout this
+# module was loaded from). Kept under the historical name as the default the preamble builder below
+# falls back to when no target is given; the per-target delivery points call
+# `target_sync_to_land_rule` above instead (T-11294 the preamble, T-13893 the rest).
 SYNC_TO_LAND_RULE = _build_sync_to_land_rule()
 
 # The long-command + land lifecycle stages where a DISPATCHED worker is re-reminded of the
@@ -589,12 +610,14 @@ def _build_point1(sync_rule: str, *, controller_lands: bool = False) -> str:
     token» and of the ff-race trailer, neither of which a worker that never lands can act on."""
     if controller_lands:
         return """\
-1. SYNCHRONOUS-TO-CLOSE. Run EVERY step — the test suite, the external audits, the commit, AND the
-   close — synchronously in the FOREGROUND, blocking, inline in your turn, all the way to the CLOSING
+1. SYNCHRONOUS-TO-CLOSE. Run EVERY step of your card's flow — the test suite, its external audits
+   (point 3), the commit, AND the close — synchronously in the FOREGROUND, blocking, inline in your
+   turn, all the way to the CLOSING
    SHA. The land contract for this dispatch is the STOP / LAND CONTRACT block in the composed preamble
    below — read it there; this point does not restate it."""
     return f"""\
-1. SYNCHRONOUS-TO-LAND. Run EVERY step — the test suite, external audits, commit, close, AND land —
+1. SYNCHRONOUS-TO-LAND. Run EVERY step of your card's flow — the test suite, its external audits
+   (point 3), commit, close, AND land —
    synchronously in the FOREGROUND, blocking, inline in your turn, all the way to the `LAND: OK <sha>`
    token. {sync_rule} `land` may need retries under concurrent
    landing (ff-race): re-invoke it inline until `LAND: OK`, never yielding between attempts."""
@@ -667,7 +690,9 @@ your life: when you yield the turn, your process EXITS. Therefore:
    Build-worker ROLE (claim / edit / commit / land) is NEVER an in-process subagent — if more build work
    is needed, file tasks and dispatch separate sub-sessions.
 
-3. LIFECYCLE ADHERENCE — run the FULL 9-stage Build lifecycle through a governed `land`; never hand-roll it:
+3. LIFECYCLE ADHERENCE — run the Build lifecycle of YOUR CARD'S FLOW through a governed `land`; never
+   hand-roll it (LIFECYCLE §Two flow types, in your seed: all 9 stages for a substantive card, the fast
+   path for a `class: hygiene` card):
    - SEED-READ RECEIPTS: the launcher has ALREADY recorded your `session_started` + `seed_read` +
      verb-inventory receipts on the MAIN journal for your session (governed — T-10083 / SPEC-0050 §8),
      so your first claim `worktree new` passes the anti-Forgetting read-gates WITHOUT you running
@@ -681,8 +706,13 @@ your life: when you yield the turn, your process EXITS. Therefore:
      the X-0044 incident worker called it, never claimed, and left the task `ready`).
    - WORKTREE-BEFORE-WRITE: every source/artifact edit happens INSIDE that worktree, never directly on the
      main checkout (journal `event` appends are the only no-worktree exception, D-0049).
-   - MANDATORY AUDIT: run the external `audit pre` (Stage 4) AND `audit post` (Stage 8) — do NOT skip them
-     because the change "looks correct" (X-0044 shipped correct-but-UNAUDITED code). At the audit-loop
+   - AUDIT — MANDATORY ON A SUBSTANTIVE CARD: run the external `audit pre` (Stage 4) AND `audit post`
+     (Stage 8) — do NOT skip them because the change "looks correct" (X-0044 shipped
+     correct-but-UNAUDITED code). The OTHER flow is the hygiene fast path: a `class: hygiene` card has
+     no Plan and no audit stage, so it runs neither audit (LIFECYCLE §Two flow types — the stage
+     sequence your claim prints is your card's). The label alone decides nothing: that same section's
+     eligibility rule holds — a change that touches a spec, a pinned-test surface or an always-loaded
+     seed is NEVER hygiene and takes all 9 stages with both audits. At the audit-loop
      CEILING the `audit post` verb ITSELF auto-drives the convergence consult (T-9712, SPEC-0036) and emits
      any needed `bg_dispatch_halted` — so FOLLOW the verb's exit (GREEN → proceed; nonzero + bg_dispatch_halted
      → escalate per point 4), and do NOT hand-emit `bg_dispatch_halted` out-of-band before letting `audit post`
@@ -768,16 +798,14 @@ names who may occupy it — being re-dispatched is not being granted the right).
 
 8. EVERY READ YOU MAKE ABOUT YOUR OWN RUN IS SCOPED TO **THIS** RUN (T-12010) — a log, token or
    process that is not provably YOUR run's is a FOREIGN or PAST run, read as a false GREEN:
-   - **SCRATCH LOGS — NEVER a bare `/tmp/<name>.log`** (host-global: the redirect is denied, the verb
-     never runs, a foreign verdict is read — T-11991, T-11981, T-11978, T-11647). Use YOUR SESSION SCRATCH ROOT `$YITC_SCRATCH_DIR`
-     (created by dispatch, T-13203) — e.g. `$YITC_SCRATCH_DIR/T-XXXX-<job>.log` — or your worktree's
-     `.yitc/` after `mkdir -p .yitc` (T-13536); a name outside both carries `<sessionref>-<task>`
+   - **SCRATCH LOGS — NEVER a bare `/tmp/<name>.log`** (host-global — T-11991, T-11981, T-11978, T-11647). Use YOUR SESSION SCRATCH ROOT
+     `$YITC_SCRATCH_DIR` — e.g. `$YITC_SCRATCH_DIR/T-XXXX-<job>.log` — or your worktree's `.yitc/` after `mkdir -p .yitc`; a name outside both carries `<sessionref>-<task>`
      (`$YITC_EXPECTED_SESSION_REF`). Clones and probes go under the scratch root too, and
      {SCRATCH_CLONE_RULE}. Your land/park REMOVES that root,
      and `worktree sweep` reclaims a dead session's. So NEVER redirect a `land`'s output into the
      scratch root: a successful land removes it BEFORE printing `LAND: OK` —
      use the engine-named land log below (T-13639). The engine's detached land/test log+pid
-     (`/tmp/yitc-land-u<euid>-<repo>-<key>-<task>.log`, T-11294) stay OUTSIDE it by design.
+     (`/tmp/yitc-land-u<euid>-<repo>-<key>-<task>.log`) stay OUTSIDE it by design.
    - **A RE-LAND POLL READS THIS ATTEMPT'S BYTES ONLY.** The start-detach land log
      (`.yitc/land-logs/<branch>.log`) is APPEND-ONLY, so a whole-file `grep` re-reads a previous
      attempt's token — USE THE ANCHORED poll the engine prints (`tail -c +N <log> | grep -qE ...`);
@@ -1553,7 +1581,8 @@ def _spec_hand_in(engine_root=None) -> "tuple[Path, str] | None":
 
 def _compose_brief_preamble(task_id: str, card: "dict | None", owner_rules, shipped,
                             venue_line: "str | None" = None,
-                            controller_lands: bool = False) -> str:
+                            controller_lands: bool = False,
+                            stop_land_contract: "str | None" = None) -> str:
     """Render the DERIVED half of a worker brief — everything a Controller used to retype. Pure
     apart from one file read (the change hand-in spec, T-13795 / T-13852).
 
@@ -1570,7 +1599,11 @@ def _compose_brief_preamble(task_id: str, card: "dict | None", owner_rules, ship
     (owner_directive events.jsonl#ts=2026-09-11T04:46:38Z), so appending it to a brief whose point 1
     already carries the WORKER-lands rule is what put BOTH regimes in every composed brief. The
     constant stays the single template this branch renders from — nothing about it is duplicated
-    here; what changed is only WHETHER it is appended."""
+    here; what changed is only WHETHER it is appended.
+
+    T-13893 (X-1953) — `stop_land_contract` is that block's text rendered for THIS dispatch target
+    (`target_sync_to_land_rule(<main checkout>, controller_lands=True)`, the same builder). None
+    keeps the module constant, whose detached-suite paths carry the engine checkout's scope key."""
     card = card if isinstance(card, dict) else {}
     L = [f"=== COMPOSED BRIEF PREAMBLE — DERIVED BY `dispatch` FROM DURABLE STATE (T-12303) ===",
          "Everything below this line was READ from the card, the journal and the venue record at "
@@ -1642,7 +1675,8 @@ def _compose_brief_preamble(task_id: str, card: "dict | None", owner_rules, ship
     # the worker two contradictory land contracts; under `--controller-lands` point 1 states NO regime
     # and this block is the only place the regime is stated. Exactly one of the two, either way.
     if controller_lands:
-        L.extend(["", "STOP / LAND CONTRACT:", DISPATCH_STOP_LAND_CONTRACT])
+        L.extend(["", "STOP / LAND CONTRACT:",
+                  DISPATCH_STOP_LAND_CONTRACT if stop_land_contract is None else stop_land_contract])
     # T-13795 / T-13852 — the change hand-in, VERBATIM from the active spec, in BOTH land regimes.
     # The full text of its sections 1 and 2, never a shortened cue: the full text placed in the brief
     # is what measured the effect (plan author-passes-audit-on-the-first-try-give-the-auth, k32).
@@ -5104,8 +5138,9 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
         # the same per-target seam T-10710/T-10717 already established. Two repos on one host with the
         # same task id no longer resolve to one /tmp file, so a worker cannot poll a foreign project's
         # LAND token and read it as its own terminality.
-        sync_rule=_build_sync_to_land_rule(_land_log_path(REPO_ROOT),
-                                          controller_lands=_controller_lands))
+        # T-13893 — the root is the target's MAIN checkout (`main_wt`), the root `cmd_stage` resolves
+        # for the stage-entry reminder, so a dispatch run from a linked worktree names the same files.
+        sync_rule=target_sync_to_land_rule(main_wt, controller_lands=_controller_lands))
     if _is_consumer:
         # T-13176: a consumer has no graph/worker-seed.md nor the kernel's patterns/ — every relative
         # kernel path the preamble names becomes an absolute engine path (release-view cut preferred).
@@ -5350,9 +5385,13 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                 # byte-identical). No new mechanism, flag, event or store — the launcher stays thin
                 # (CHARTER non-goal #7: nothing here touches parallelism/retry/ordering/selection).
                 print(msg, flush=True)
+                # T-13891 (X-1942): the row carries the liveness read's own verdict — the same
+                # string the line above prints — so a later report names the holders (pids, the
+                # attributed session, its verdict) without anyone having to re-run the guard.
                 _append_event("bg_dispatch_skipped", task,
                               {"dispatch": task, "reason": "in-flight",
-                               "worktree": str(live[task]), "held_by": holder},
+                               "worktree": str(live[task]), "held_by": holder,
+                               "liveness_why": _dead_why},
                               events_path=main_wt / "events.jsonl")
                 skipped += 1
                 outcomes.append((task, "skipped", "in-flight"))
@@ -5687,7 +5726,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                                        plan_slug=(_card or {}).get("decomposed_from")),
                     _brief_shipped_requires((_card or {}).get("requires") or [], _closure_rows,
                                             _wave_card_map.get),
-                    _venue_line, controller_lands=_controller_lands)
+                    _venue_line, controller_lands=_controller_lands,
+                    stop_land_contract=target_sync_to_land_rule(main_wt, controller_lands=True))
             except Exception as _bp_e:   # noqa: BLE001 — see the FAIL LOUD note above
                 _die(f"dispatch: could not compose the brief preamble for {task} ({_bp_e}) — "
                      f"refusing to launch a worker whose brief would silently omit the card's "

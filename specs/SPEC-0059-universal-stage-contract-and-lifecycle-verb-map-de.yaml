@@ -150,5 +150,5 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/cli.py#_require_verification_artifact: 3420a1beaf501dc1a76d2754fc3fdb4a665fd07ae0585f8a0d07bea8a5ba5333
-  bin/lib/gates.py#_require_reads: 7c75e01f09383aa98904f2a860a10897483fbb18b262b3fe86721a3b9f5166d8
+  bin/lib/gates.py#_require_reads: ac08593a04786f860a54d8edc2d123df7f47d5c28f6ac7e4c27fa3e8086c97ee
   bin/lib/gates.py#_require_stage_correspondence: 0bf0ebeebc0c56dcbc5a1a974707baf0691de09763b10929f17e5b82ffdb9670

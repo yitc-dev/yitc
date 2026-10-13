@@ -6152,7 +6152,9 @@ def _land_prequeue_currency_refusal(W: Path, branch: str, main_wt: Path, *, _run
 def _land_prequeue_known_broken_refusal(branch: str, main_wt: Path, *, _run_git_cap,
                                         EVENTS_PATH=None, _VERIFY_IMPLEMENTATION_GLOBS=None,
                                         _known_broken=None, _select=None, _git_rev=None, _land_known_broken_establishing_sha=None, _shadow_select=None,
-                                        _reproduce=None) -> "tuple | None":
+                                        _reproduce=None, _classify_inert_paths=None, _diff_name_paths=None,
+                                        _append_event=None, _land_merge_probe=None, _DERIVED_MERGE_ARTIFACTS=None,
+                                        _dedup_events=None, _anchor_signature_of_text=None) -> "tuple | None":
     """T-11469 — REFUSE, BEFORE THE QUEUE, a land whose verify would only rediscover a breakage main
     is ALREADY KNOWN to carry. Returns `(abort MESSAGE, abort DETAIL)`, or None to proceed — the
     two-part shape its sibling `_land_prequeue_currency_refusal` already returns (T-11799 widened it
@@ -6229,6 +6231,25 @@ def _land_prequeue_known_broken_refusal(branch: str, main_wt: Path, *, _run_git_
     merge, a runner that raised, an unreadable or mismatched run, a pass) PROCEEDS. `_reproduce=None`
     is today's behaviour exactly.
 
+    AN INERT-ONLY BRANCH IS NOT JUDGED HERE (T-13847, SPEC-0181 rule 8). Both grounds above rest on
+    «the land would run the broken file and go red». A branch whose merge with main would change
+    ONLY paths the ONE SPEC-0064 authority calls inert need not: where SPEC-0065 §Bound proves its
+    delta skippable, the land runs no test at all. It is also the branch that FILES the card of the
+    repair, so refusing it blocked the recovery this refusal itself names (2026-10-11: the card-only
+    branch was refused twice and the card was put on main by hand in emergency mode). The question
+    is asked at SPEC-0064 §3's own evaluation point — the delta to main of the tree the land's merge
+    would produce, taken from the ONE merge oracle `_land_merge_probe` (called as the pre-queue
+    merge refusal calls it; no ref moved) and listed exactly, renames off, by `_diff_name_paths` —
+    never of the branch's own diff: a card main has since moved under an observable dir merges into
+    that dir. Such a branch PROCEEDS, and the admission is journaled FIRST — one
+    `land_known_broken_admitted` row on main's journal naming the route and the standing pairs. A
+    merge the oracle does not call clean or land-resolvable, a list or an answer that could not be
+    read, or a row that could not be written admits nothing: the ordinary judgement below then
+    decides. Nothing is waived — the land's own verify decision stays the authority, and a land that
+    does run the broken file aborts as before — and a branch carrying any observable path is judged
+    exactly as before. With the route's seams absent (`_classify_inert_paths` / `_diff_name_paths` /
+    `_append_event` / `_land_merge_probe` None) the behaviour is the pre-T-13847 one exactly.
+
     `_known_broken` / `_select` are INTERNAL test seams (the fold and the ladder, injected) — never
     env gates and never an external control surface.
     """
@@ -6252,6 +6273,39 @@ def _land_prequeue_known_broken_refusal(branch: str, main_wt: Path, *, _run_git_
         diff_paths = [ln.strip() for ln in (dif.stdout or "").splitlines() if ln.strip()]
         if not diff_paths:
             return None                        # an empty diff is rung R2's fail-closed edge → proceed
+        # T-13847 (SPEC-0181 rule 8) — THE INERT-DIFF ROUTE, asked BEFORE reach: an inert-only branch
+        # is admitted on either refusal ground (see the docstring). The classifier's verdict is
+        # consumed, never re-derived (SPEC-0064 §4), at its §3 evaluation point: the exact renames-off
+        # delta to main of the MERGED tree, so a path main has moved since the branch was cut is
+        # judged where the merge puts it. That tree comes from the ONE merge oracle, handed the same
+        # collaborators the pre-queue merge refusal hands it — never a second merge-tree feed. The row
+        # is appended BEFORE the admission is returned; any failure on this arm (main unresolvable, a
+        # merge the oracle cannot use, a list that could not be read, an append that raised) falls
+        # through to the ordinary judgement below.
+        if _classify_inert_paths and _diff_name_paths and _append_event and _land_merge_probe:
+            try:
+                main_sha = _git_rev("main", main_wt, _run_git_cap=_run_git_cap)
+                outcome, tree, _merge_detail = (_land_merge_probe(
+                    main_sha, branch, main_wt, _run_git_cap=_run_git_cap,
+                    _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dedup_events,
+                    _anchor_signature_of_text=_anchor_signature_of_text)
+                    if main_sha else ("unevaluable", None, None))
+                exact_paths = (_diff_name_paths(main_wt, main_sha, tree, _run_git_cap=_run_git_cap)
+                               if tree and outcome in ("clean", "land-resolvable") else [])
+                if exact_paths and _classify_inert_paths(exact_paths)[0] == "inert":
+                    _tid = re.match(r"^task/(T-\d+)$", branch)
+                    _append_event(
+                        "land_known_broken_admitted", _tid.group(1) if _tid else None,
+                        {"branch": branch, "route": "inert-diff",
+                         "pairs": [{"pair": r.get("pair") or r.get("file"), "file": r.get("file"),
+                                    "since": r.get("since"), "established_by": r.get("branch")}
+                                   for r in sorted(broken, key=lambda r: (str(r.get("since") or ""),
+                                                                          str(r.get("pair") or "")))],
+                         "main": main_sha, "merge_base": base_sha, "paths": len(exact_paths)},
+                        events_path=events_path)
+                    return None
+            except Exception:                  # noqa: BLE001 — unrecorded → not admitted by this route
+                pass
         # THE REACH QUESTION, asked of the ladder rather than of a local rule. `test_files` is the
         # BROKEN set alone: `_shadow_select` answers "which of these could this diff break", and the
         # names it selects are the ones this branch might repair. A non-None reason is the ladder
@@ -6334,7 +6388,10 @@ def _land_prequeue_known_broken_refusal(branch: str, main_wt: Path, *, _run_git_
                      "the broken test file(s), so its verify could only rediscover main's red at the "
                      "420-570s a full verify costs.\n")
                   + "RECOVERY — this assumes a branch that carries no fix for the "
-                  "break: fix the named test on main and land THAT. A branch whose diff CAN reach "
+                  "break: fix the named test on main and land THAT. The branch that only FILES the "
+                  "repair's card is not refused here: a branch whose whole diff the SPEC-0064 "
+                  "classifier calls inert (task cards and journal rows among them) is admitted "
+                  "(SPEC-0181 rule 8). A branch whose diff CAN reach "
                   "a broken test file is refused here only when that file still FAILS on its own "
                   "merged tree (T-13318), so the repair path is never blocked, and "
                   "the record clears on that land's EVIDENCE — a later run observing the test pass "
