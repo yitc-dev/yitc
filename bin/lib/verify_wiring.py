@@ -2,7 +2,8 @@
 
 WHAT IS IN HERE. Four symbols, moved verbatim from cli.py, and nothing else:
   * `_VERIFY_IMPLEMENTATION_GLOBS` — the SPEC-0077 verifier-surface constant, still the ONE home of that
-    file set (SPEC-0077 §1 points here);
+    file set (SPEC-0077 §1 points here); `_verify_infrastructure_globs` beside it (T-13915) answers
+    which members hold in which repository, and every verify reader takes the set from that answer;
   * `_is_verify_implementation_touch` — the predicate bound to it (a SPEC-0181 selection root);
   * `_run_verify_tests` / `_run_pinned_verify` — the thin residues that bind the CLI's collaborators into
     the runner (`bin/lib/verify_runner.py`) and the pinned driver (`bin/lib/rebaseline_currency.py`),
@@ -102,7 +103,31 @@ from lib import worktree as worktree_mod
 # (`tests.classes[].globs`) that some scoped layers claim and others do not forces only the layers
 # claiming it (`land_verify_legs.py#_owned_test_verify_freed`). Again NOT in this tuple: the pinned-verify
 # TRIGGER keeps firing on ANY `tests/` change, and the engine's own land declares no layers to scope.
+# T-13915 (SPEC-0152 rule 16): this tuple is the set of the KERNEL'S OWN repository. No verify reader
+# takes it directly any more — each asks `_verify_infrastructure_globs` below, which drops the root
+# `bin/**` member for a project repository. The two readers that are not verify readers — the
+# SPEC-0178 rule-3 governance set (`cli.py#_governance_surface_globs_value`) and the SPEC-0136
+# dispatch advisor (`cli.py#_is_governance_surface`) — take the tuple WHOLE in the kernel's own
+# repository only (the advisor through the residue below); in a project they take the project answer
+# of that home plus the check surface the project's contract declares
+# (`cli.py#_governance_pinned_test_globs`, T-13933), and the whole tuple as well on any doubt.
 _VERIFY_IMPLEMENTATION_GLOBS = ("bin/**", "tests/**", "yitc-ops.yaml")
+
+
+def _verify_infrastructure_globs(*, kernel_repo: bool) -> tuple:
+    """T-13915 (SPEC-0152 rule 16) — THE ONE HOME of «the verify-infrastructure set of this repository».
+
+    `kernel_repo=True` — the kernel's own repository, where `bin/` IS the verifier: the whole fixed
+    set above, unchanged. `kernel_repo=False` — a project repository: the same set WITHOUT the root
+    `bin/**` member. A project's root `bin/` holds whatever the project keeps there; its verifier is
+    what its own contract names (a layer's `command:` path tokens, an adapter's `sources:`, its
+    `verify.infra_globs`), which the declaration-aware companion
+    (`land_verify_legs.py#_declared_check_surface_globs_of`) already unions with this set. Every reader
+    takes the set from here, so the skip decision, the false-skip replay and the failure attribution
+    cannot answer differently about one change. Pure."""
+    if kernel_repo:
+        return _VERIFY_IMPLEMENTATION_GLOBS
+    return tuple(g for g in _VERIFY_IMPLEMENTATION_GLOBS if g != "bin/**")
 
 
 def _is_verify_implementation_touch(changed_files) -> bool:
@@ -112,7 +137,7 @@ def _is_verify_implementation_touch(changed_files) -> bool:
 
 
 def _run_verify_tests(test_dir: Path, cwd: Path, workers: int | None = None,
-                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, monotonic=None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, _reap_sandbox_residents=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, land_verify: bool = False, _host_globals) -> list:
+                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, monotonic=None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, _reap_sandbox_residents=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, land_verify: bool = False, queue_jump: bool = False, _host_globals) -> list:
     # Thin residue → worktree_mod._run_verify_tests (T-9340 inject seam; host-deps injected at call time).
     # T-12438: MOVED verbatim from bin/lib/cli.py. The CLI collaborators it binds arrive in `_host_globals`
     # (the calling cli module's globals(), REQUIRED — see the module docstring), read at CALL time.
@@ -143,7 +168,12 @@ def _run_verify_tests(test_dir: Path, cwd: Path, workers: int | None = None,
     # None, so the pinned driver capability-probing THIS signature never passes it and a last-green
     # engine predating the parameter is never handed an unknown argument. Default None means the
     # verifier fence is judged by the path glob alone, i.e. exactly today's refusal.
-    return worktree_mod._run_verify_tests(test_dir, cwd, workers, timeout, journal_path, metrics_out, fail_fast, selection_diff_paths, selection_diff_error, selection_reachability_freed=selection_reachability_freed, selection_tripwire_inert_paths=selection_tripwire_inert_paths, _VERIFY_IMPLEMENTATION_GLOBS=_VERIFY_IMPLEMENTATION_GLOBS, _emit_verify_timeout_deviation=_host_globals["_emit_verify_timeout_deviation"], _terminate_process_group=_host_globals["_terminate_process_group"], _verify_test_timeout_seconds=_host_globals["_verify_test_timeout_seconds"], _process_group_cpu_seconds=_host_globals["_process_group_cpu_seconds"], _reap_sandbox_residents=_reap_sandbox_residents, _emit_sandbox_survivor_deviation=_host_globals["_emit_sandbox_survivor_deviation"], _timeout_timing_phrase=_host_globals["_timeout_timing_phrase"], _verify_timeout_grace_seconds=_host_globals["_verify_timeout_grace_seconds"], _timeout_class=_host_globals["_timeout_class"], EXPECTED_SESSION_REF_ENV=_host_globals["EXPECTED_SESSION_REF_ENV"], SESSION_REF_ENV_VARS=_host_globals["SESSION_REF_ENV_VARS"], SUBENV_SCRUB_CARRIERS=_host_globals["_SUBENV_SCRUB_CARRIERS"], _VERIFY_TIMEOUT_MARKER=_host_globals["_VERIFY_TIMEOUT_MARKER"], monotonic=monotonic, only=only, select=select, _selection_tripwire=_selection_tripwire, durations_out=durations_out, land_verify=land_verify)   # T-11462: forward the SPEC-0181 governing opt-in + its tripwire seam on the SAME keyword-only + defaulted-False terms — the pinned driver capability-probes THIS signature, so a last-green engine predating the parameter is never handed an unknown argument, and every caller that does not ask for it keeps the full enumeration; T-11456: forward the two-sided spawn-priority declaration on the SAME T-11316 terms — keyword-only + defaulted False, so the pinned driver capability-probing THIS signature never passes it and a last-green engine predating it is never handed an unknown argument. Default False is the SAFE default HERE: this residue is `task test --run`'s entry point (the path that SHOULD yield under the dispatched-worker marker), while the land declares itself True at its own call sites in worktree.py. T-11335: keyword-only + defaulted, on the T-11316 terms below — the red-batch isolation oracle's named subset; T-11316: keyword-only + defaulted, so the pinned driver capability-probing THIS signature never passes it and a last-green engine predating it is never handed an unknown argument
+    # T-13915 — which repository this run verifies decides the set (the one home above). A host that
+    # binds no `_is_consumer_build` (a test harness handing in a partial host) is read as the kernel's
+    # own repository: the WIDER set, so the unanswerable case runs more, never less.
+    _consumer = _host_globals.get("_is_consumer_build")
+    _kernel_repo = not (callable(_consumer) and _consumer())
+    return worktree_mod._run_verify_tests(test_dir, cwd, workers, timeout, journal_path, metrics_out, fail_fast, selection_diff_paths, selection_diff_error, selection_reachability_freed=selection_reachability_freed, selection_tripwire_inert_paths=selection_tripwire_inert_paths, _VERIFY_IMPLEMENTATION_GLOBS=_verify_infrastructure_globs(kernel_repo=_kernel_repo), _emit_verify_timeout_deviation=_host_globals["_emit_verify_timeout_deviation"], _terminate_process_group=_host_globals["_terminate_process_group"], _verify_test_timeout_seconds=_host_globals["_verify_test_timeout_seconds"], _process_group_cpu_seconds=_host_globals["_process_group_cpu_seconds"], _reap_sandbox_residents=_reap_sandbox_residents, _emit_sandbox_survivor_deviation=_host_globals["_emit_sandbox_survivor_deviation"], _timeout_timing_phrase=_host_globals["_timeout_timing_phrase"], _verify_timeout_grace_seconds=_host_globals["_verify_timeout_grace_seconds"], _timeout_class=_host_globals["_timeout_class"], EXPECTED_SESSION_REF_ENV=_host_globals["EXPECTED_SESSION_REF_ENV"], SESSION_REF_ENV_VARS=_host_globals["SESSION_REF_ENV_VARS"], SUBENV_SCRUB_CARRIERS=_host_globals["_SUBENV_SCRUB_CARRIERS"], _VERIFY_TIMEOUT_MARKER=_host_globals["_VERIFY_TIMEOUT_MARKER"], monotonic=monotonic, only=only, select=select, _selection_tripwire=_selection_tripwire, durations_out=durations_out, land_verify=land_verify, **({"queue_jump": True} if queue_jump else {}))   # T-13904: `queue_jump` — the Stage-6 verb's declaration of a live queue-jump mark, keyword-only + defaulted False on the T-11316 terms and forwarded only when set; T-11462: forward the SPEC-0181 governing opt-in + its tripwire seam on the SAME keyword-only + defaulted-False terms — the pinned driver capability-probes THIS signature, so a last-green engine predating the parameter is never handed an unknown argument, and every caller that does not ask for it keeps the full enumeration; T-11456: forward the two-sided spawn-priority declaration on the SAME T-11316 terms — keyword-only + defaulted False, so the pinned driver capability-probing THIS signature never passes it and a last-green engine predating it is never handed an unknown argument. Default False is the SAFE default HERE: this residue is `task test --run`'s entry point (the path that SHOULD yield under the dispatched-worker marker), while the land declares itself True at its own call sites in worktree.py. T-11335: keyword-only + defaulted, on the T-11316 terms below — the red-batch isolation oracle's named subset; T-11316: keyword-only + defaulted, so the pinned driver capability-probing THIS signature never passes it and a last-green engine predating it is never handed an unknown argument
 
 
 def _run_pinned_verify(W: Path, main_wt: Path, merged_base: str, branch: str, workers=None, admission_slots=None, admission_wait_out=None, only=None, excluded_out=None, skipped_out=None, layer_retry_out=None, *, _host_globals) -> list:

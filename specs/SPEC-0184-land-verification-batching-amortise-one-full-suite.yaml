@@ -1692,31 +1692,41 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ one, a blank reason and an unreadable tasks directory each answer «no precedence».\
   \ A\nreader that GUESSED a jump from something it could not parse would hand the\
   \ road away on noise —\nstrictly worse than the arrival-order lottery this exists\
-  \ to fix.\n\n**THE MAIN-ROUTE MARK IS WRITTEN UNDER THE LAND RESERVATION.** The\
-  \ mark set or cleared on\n`main` is a direct-to-main commit, and a `queue_jump`\
-  \ card delta is one a holder's in-lock re-check\ncannot fold (SPEC-0065), so committed\
-  \ between a holder's merge and its fast-forward it discarded that\nholder's whole\
-  \ verify. So the main route takes the land reservation — with the venue publisher's\n\
-  precedence (SPEC-0203 rule 6) — BEFORE it writes, re-decides every card-state question\n\
-  above (safeguard (b)'s inert refusal, the identical-mark no-op, the preflight) on\
-  \ the card as re-read\nunder it, and releases right after its one scoped commit:\
-  \ it never enters `main` between a holder's\nmerge and its fast-forward. Its issuer\
-  \ waits for the CURRENT holder's release within the EXISTING\npark bound and refuses\
-  \ with nothing written when that bound expires; while it waits it writes\nnothing\
-  \ and holds no journal lock. That wait delays no land: the mark is read only at\
-  \ a holder's\nyield seams and at batch formation, both of which the next holder\
-  \ runs after that release. The\nworktree route (a clear only) takes no reservation\
-  \ — its mark reaches `main` inside its own\nland.\n\n### 11. A candidate whose WORKTREE\
-  \ IS DIRTY does not consume a batch place\n\n**The rule.** At formation, a candidate\
-  \ whose own worktree holds UNCOMMITTED changes is\nbatch-INELIGIBLE for that attempt.\
-  \ Such a HEAD forms a batch of ONE; such a PEER is dropped BEFORE\nthe cap. Those\
-  \ are the same two decision points rules 4 and 8 already own, reused rather than\n\
-  duplicated — one mechanism, a fifth source of the answer.\n\n**THIS IS A PRECONDITION\
-  \ FAILURE, NOT A COUPLING RISK, and conflating the two is what made the\nfounding\
-  \ wave read as a batching defect.** Every other ineligibility source in this spec\
-  \ exists for\na CLEAN but suspect candidate that must not carry peers — a red-batch\
-  \ requeue (rule 4), a declared\nrebaseline, a recorded supersession notice, a supersession\
-  \ mark (rule 8). A dirty branch is a\ndifferent thing entirely: it aborts IDENTICALLY\
+  \ to fix.\n\n**THE MARK'S SECOND EFFECT — the marked card's own Stage-6 pass (the\
+  \ rule: SPEC-1029 rule 5).**\nWhile the mark is live, the Stage-6 pass of that card\
+  \ runs at normal priority and at the full\nwidth, where an unmarked dispatched worker's\
+  \ pass is lowered and narrowed. SPEC-1029 rule 5 is the\none home of that exception\
+  \ — what it lifts, how the mark is read there, what it leaves as it is.\nNothing\
+  \ stated in this rule changes with it: the rank between the rungs, the three safeguards,\n\
+  the expiry and the write route are as above; the Stage-6 pass reads the mark through\
+  \ this rule's\nown reader (the main checkout's card, the same «no precedence» answers);\
+  \ and safeguard (c)'s\nfiring record still records a land handover only — a Stage-6\
+  \ pass that took the second effect is\nrecorded on its own result row.\n\n**THE\
+  \ MAIN-ROUTE MARK IS WRITTEN UNDER THE LAND RESERVATION.** The mark set or cleared\
+  \ on\n`main` is a direct-to-main commit, and a `queue_jump` card delta is one a\
+  \ holder's in-lock re-check\ncannot fold (SPEC-0065), so committed between a holder's\
+  \ merge and its fast-forward it discarded that\nholder's whole verify. So the main\
+  \ route takes the land reservation — with the venue publisher's\nprecedence (<workshop-spec>\
+  \ rule 6) — BEFORE it writes, re-decides every card-state question\nabove (safeguard\
+  \ (b)'s inert refusal, the identical-mark no-op, the preflight) on the card as re-read\n\
+  under it, and releases right after its one scoped commit: it never enters `main`\
+  \ between a holder's\nmerge and its fast-forward. Its issuer waits for the CURRENT\
+  \ holder's release within the EXISTING\npark bound and refuses with nothing written\
+  \ when that bound expires; while it waits it writes\nnothing and holds no journal\
+  \ lock. That wait delays no land: the mark is read only at a holder's\nyield seams\
+  \ and at batch formation, both of which the next holder runs after that release.\
+  \ The\nworktree route (a clear only) takes no reservation — its mark reaches `main`\
+  \ inside its own\nland.\n\n### 11. A candidate whose WORKTREE IS DIRTY does not\
+  \ consume a batch place\n\n**The rule.** At formation, a candidate whose own worktree\
+  \ holds UNCOMMITTED changes is\nbatch-INELIGIBLE for that attempt. Such a HEAD forms\
+  \ a batch of ONE; such a PEER is dropped BEFORE\nthe cap. Those are the same two\
+  \ decision points rules 4 and 8 already own, reused rather than\nduplicated — one\
+  \ mechanism, a fifth source of the answer.\n\n**THIS IS A PRECONDITION FAILURE,\
+  \ NOT A COUPLING RISK, and conflating the two is what made the\nfounding wave read\
+  \ as a batching defect.** Every other ineligibility source in this spec exists for\n\
+  a CLEAN but suspect candidate that must not carry peers — a red-batch requeue (rule\
+  \ 4), a declared\nrebaseline, a recorded supersession notice, a supersession mark\
+  \ (rule 8). A dirty branch is a\ndifferent thing entirely: it aborts IDENTICALLY\
   \ whether it lands alone or in a batch, because what\nrefuses it is its own tree\
   \ and not its company. So \"give it its own slot\" is not the remedy here\nand never\
   \ was — COMMITTING is — and this rule is not a widening of rule 4`s family.\n\n\
@@ -2058,31 +2068,31 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ introduces no new ordering,\nno new lock and no new class of batch member: a land\
   \ that never parks is byte-identical to one\nwithout it.\n\n**A SECOND waiter activity,\
   \ on the same terms — the parked PRE-SHIP.** A ROUTED land parked\nhere may also\
-  \ ship its branch to the venue box (SPEC-0203 rule 3), so its verify push carries\
-  \ only\nwhat the hold adds. It obeys clause 7 verbatim — it never opens, writes\
-  \ or locks the reservation\npath and never takes a SPEC-0132 slot — and it runs\
-  \ OFF the poll: the poll only marks a pre-ship\npending (at park start, and after\
-  \ a tick that MERGED, so it rides the tick's own main-tip\nwatermark) and starts\
-  \ at most ONE background pre-ship per land. Its only lock is a machine-wide\npre-ship\
-  \ cap taken LOCK_NB-ONLY, beside a summed host-memory reservation; a refusal is\
-  \ retried on\na later poll and never waited for. So it introduces no ordering against\
-  \ reservation → slot →\nrepo lock and leaves rule 9 untouched. It stops at acquisition\
-  \ (the forced tick of clause 3 starts\nnone), and it is FAIL-OPEN: nothing it does\
-  \ changes a land's outcome. A land that never parks — or\nparks with no venue published\
-  \ — is still byte-identical.\n\n### 16. A QUEUED land observes a withdrawal request\
-  \ and withdraws ITSELF; an ADMITTED land is never interrupted\n**The rule, in one\
-  \ sentence.** A withdrawal request addressed to ONE land attempt (the\nmarker family)\
-  \ is observed at the VERIFY-SLOT ADMISSION SEAM and nowhere else: a land that is\
-  \ still\nQUEUED for a slot observes it and withdraws ITSELF, while a land that has\
-  \ already been ADMITTED\nnever observes it, is never signalled, and runs its verify\
-  \ to completion. The decision \"withdraw\"\nversus \"admitted, proceed\" is made\
-  \ ONCE, by ONE holder of ONE lock.\n\n**TWO OBSERVATION POINTS, AND ONLY ONE OF\
-  \ THEM MAY GRANT PROCEEDING.** The asymmetry IS the rule:\n1. **The in-flock seam\
-  \ — THE AUTHORITY.** Inside the verify-admission slot flock, immediately\n   before\
-  \ the verify runs. This is the last instant before the pass is PAID, and a land\
-  \ is admitted\n   only by getting past this read WHILE HOLDING the slot. Whatever\
-  \ any earlier read did or did not\n, nothing but this one grants proceeding.\n2.\
-  \ **The slot-wait poll tick — ABORT-ONLY.** On a tick at which the land is PROVABLY\
+  \ ship its branch to the venue box (<workshop-spec> rule 3), so its verify push\
+  \ carries only\nwhat the hold adds. It obeys clause 7 verbatim — it never opens,\
+  \ writes or locks the reservation\npath and never takes a SPEC-0132 slot — and it\
+  \ runs OFF the poll: the poll only marks a pre-ship\npending (at park start, and\
+  \ after a tick that MERGED, so it rides the tick's own main-tip\nwatermark) and\
+  \ starts at most ONE background pre-ship per land. Its only lock is a machine-wide\n\
+  pre-ship cap taken LOCK_NB-ONLY, beside a summed host-memory reservation; a refusal\
+  \ is retried on\na later poll and never waited for. So it introduces no ordering\
+  \ against reservation → slot →\nrepo lock and leaves rule 9 untouched. It stops\
+  \ at acquisition (the forced tick of clause 3 starts\nnone), and it is FAIL-OPEN:\
+  \ nothing it does changes a land's outcome. A land that never parks — or\nparks\
+  \ with no venue published — is still byte-identical.\n\n### 16. A QUEUED land observes\
+  \ a withdrawal request and withdraws ITSELF; an ADMITTED land is never interrupted\n\
+  **The rule, in one sentence.** A withdrawal request addressed to ONE land attempt\
+  \ (the\nmarker family) is observed at the VERIFY-SLOT ADMISSION SEAM and nowhere\
+  \ else: a land that is still\nQUEUED for a slot observes it and withdraws ITSELF,\
+  \ while a land that has already been ADMITTED\nnever observes it, is never signalled,\
+  \ and runs its verify to completion. The decision \"withdraw\"\nversus \"admitted,\
+  \ proceed\" is made ONCE, by ONE holder of ONE lock.\n\n**TWO OBSERVATION POINTS,\
+  \ AND ONLY ONE OF THEM MAY GRANT PROCEEDING.** The asymmetry IS the rule:\n1. **The\
+  \ in-flock seam — THE AUTHORITY.** Inside the verify-admission slot flock, immediately\n\
+  \   before the verify runs. This is the last instant before the pass is PAID, and\
+  \ a land is admitted\n   only by getting past this read WHILE HOLDING the slot.\
+  \ Whatever any earlier read did or did not\n, nothing but this one grants proceeding.\n\
+  2. **The slot-wait poll tick — ABORT-ONLY.** On a tick at which the land is PROVABLY\
   \ still parked\n   waiting for a slot, holding nothing and having paid nothing.\
   \ Its single reachable outcome is\n   withdrawal; it can never admit. It exists\
   \ because a withdrawal is wanted precisely WHILE a land\n   is queued: honouring\
@@ -2428,5 +2438,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: c427c94a0ecb5245d1e5c1bfe0962827b9206f515cd5eeb7469cea0070f83a63
-  bin/lib/worktree.py#cmd_land: 36881ec62af3ce28846c15fd17d401dc0a62164618c3b491363a66038a27e8c9
+  bin/lib/worktree.py#_land_integrate: 83543b1690cd90a17850a0704479158b165f118483439c1f29db32a88cfa2ebe
+  bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883

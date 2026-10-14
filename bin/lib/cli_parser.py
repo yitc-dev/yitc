@@ -1492,7 +1492,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "Gives THIS card an emergency "
                          "place at the FRONT of the land-admission order, naming the BLOCKAGE it "
                          "clears (the reason is required — it is what the firing record names). "
-                         "ORDER OF SERVICE ONLY: batch membership is untouched. It EXPIRES with the "
+                         "ORDER OF SERVICE ONLY: batch membership is untouched. SECOND EFFECT: while "
+                         "the mark is live, this card's Stage-6 test run takes normal priority and "
+                         "the full admitted width (SPEC-1029 rule 5). It EXPIRES with the "
                          "card (a terminal card grants no precedence), and each firing that actually "
                          "reorders admission is journaled and surfaced on `debt`. Its own mode.")
     tu.add_argument("--queue-jump-clear", dest="queue_jump_clear", action="store_true",

@@ -606,7 +606,8 @@ def scan_lessons(lessons_dir):
 
 # ── T-11663 (SPEC-0184 rule 9) — the `queue_jump` card field: ONE home for its two semantics ───────
 #
-# The field lifts ONE card to the front of the land-admission order and does nothing else. Its WRITE
+# The field lifts ONE card to the front of the land-admission order; since T-13904 the same live
+# reading also gives the card's own Stage-6 run normal priority and the full width. Its WRITE
 # side lives in `lib/task.py` (the `task update` verb) and its READ side in `lib/batch_landing.py`
 # (the yield ranking); both already import this module, so the semantics live HERE rather than being
 # spelled twice and drifting on exactly the question that decides who gets the road (CHARTER §P5).

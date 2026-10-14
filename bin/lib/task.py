@@ -3415,7 +3415,8 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     # `cmd_task_file` writes and `cmd_dispatch` fails closed on (CHARTER §P5 — never a second list).
     # Placed FIRST among the modes so an --effort-tier-only invocation routes here deterministically.
     # ── T-11663 (SPEC-0184 rule 9): QUEUE-JUMP mode — the opt-in emergency place in the land order ──
-    # `queue_jump` lifts ONE card to the front of the land-admission ORDER and nothing else. It is
+    # `queue_jump` lifts ONE card to the front of the land-admission ORDER; its one other effect is
+    # read by this card's own Stage-6 run (`_stage6_queue_jump`, T-13904) and writes nothing here. It is
     # written HERE, on the verb that already owns every «governed field with no writer after filing»
     # catch-22 (--class / --evidence / --live-probe-* / --pv-*), because the mark is set on an EXISTING
     # ready card that is stuck — not at filing time, when nobody yet knows the queue will congest.
@@ -3715,10 +3716,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                                                 "reason": str(_qj).strip(), "replaced": _replaced})
             print(f"queue-jump mark set: {tid} -> {str(_qj).strip()}"
                   f"{' (replaced the previous reason)' if _replaced else ''} — task_amended(field_edit) "
-                  f"emitted. It changes the land-admission ORDER only (SPEC-0184 rule 9): batch "
+                  f"emitted. It changes the land-admission ORDER (SPEC-0184 rule 9): batch "
                   f"membership is untouched, it expires with the card, and every firing that actually "
-                  f"reorders admission is journaled and shows on `bin/yitc-v2 debt`.")
-            _qj_self_commit(f"chore({tid}): queue-jump mark set — land-admission order only",
+                  f"reorders admission is journaled and shows on `bin/yitc-v2 debt`. While it is live "
+                  f"this card's Stage-6 run takes normal priority and the full admitted width "
+                  f"(SPEC-1029 rule 5).")
+            _qj_self_commit(f"chore({tid}): queue-jump mark set — land-admission order, Stage-6 priority",
                             "queue_jump")
         return
     if _effort_tier_arg is not None:
@@ -12626,6 +12629,15 @@ def _stage6_layer_scope(cguard) -> str:
     skipped = [str(r.get("layer")) for r in rows if r.get("outcome") == _STAGE6_SKIPPED_OUTCOME]
     waived = [str(r.get("layer")) for r in rows if r.get("outcome") == "waived"]
     parts = [f"layers ran: {', '.join(ran) if ran else 'none'}"]
+    # T-13907 (SPEC-1030 rules 5, 6): a layer that passed on a PARTIAL run is named apart — the
+    # line never lists it among the layers that ran, and says what such a run did not do. With no
+    # such row the clause is absent and the line is byte-identical.
+    partial = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed-partial"]
+    if partial:
+        parts[0] = f"layers ran in full: {', '.join(ran) if ran else 'none'}"
+        parts.append(f"ran IN PART: {', '.join(partial)} (a deciding selection ran only the units "
+                     f"this change reaches, and they passed; the units left out were NOT run, so "
+                     f"this run does not verify such a layer in full)")
     if skipped:
         parts.append(f"skipped: {', '.join(skipped)} (each one's subject_globs are disjoint from this "
                      f"working tree's changes against the merge-base with main — the skip `land` "
@@ -12687,6 +12699,13 @@ def _stage6_pass_claim(cguard, *, have_tests, suite_scope, pinned_leg_runs) -> s
                   for r in (cguard.get("layers") or []))
         layers = ("every declared verify layer that ran is green" if ran
                   else "no declared verify layer ran")
+        # T-13907 (SPEC-1030 rule 6): a PARTIAL run of a layer is neither «ran and is green» nor
+        # «did not run» — the claim says so; with no such row the sentence is the one above.
+        if any(isinstance(r, dict) and r.get("outcome") == "passed-partial"
+               for r in (cguard.get("layers") or [])):
+            layers = (("every declared verify layer that ran in full is green" if ran
+                       else "no declared verify layer ran in full")
+                      + ", and at least one ran only IN PART (the units that ran passed)")
         if have_tests:
             what = f"{suite_scope}, and {layers}" if ran else f"{suite_scope}; {layers}"
         else:
@@ -13080,6 +13099,277 @@ def _stage6_local_workers(workers, limits: dict):
     return max(1, int(int(workers) * frac))
 
 
+def _stage6_queue_jump(root, tid, *, _main_worktree=None, _reason=None):
+    """T-13904 — the LIVE queue-jump reason of card `tid` as the MAIN checkout's card states it, or
+    None. The second effect of the mark (SPEC-0184 rule 9): its card's Stage-6 run takes normal
+    priority and the full admitted width.
+
+    ONE reader, reused: the address lookup the land ranking uses (branch -> main checkout's card ->
+    `state.queue_jump_reason`, expiry included) is asked about `task/<tid>`; nothing here parses the
+    card or the field. The MAIN checkout's card and never the worktree's own copy, for the land
+    side's reason: that is where the mark is set, and a worktree branched before it does not carry it.
+    None on every unclear shape — no main-checkout resolver wired, an unresolvable main checkout, a
+    card the reader cannot read: the run is then exactly an unmarked one."""
+    if _main_worktree is None or not tid:
+        return None
+    try:
+        main = _main_worktree(root)
+        if not main:
+            return None
+        if _reason is None:
+            from lib import land_reservation as _lr   # lazy: the circular-import idiom of this module
+            _reason = _lr._land_queue_jump_reason
+        return _reason(Path(main), f"task/{tid}") or None
+    except Exception:                          # noqa: BLE001 — an unreadable mark is no mark
+        return None
+
+
+def _stage6_marked_limits(limits: dict, mark) -> dict:
+    """T-13904 — the local Stage-6 limits a run with a live mark takes: the width fraction is not
+    applied (full governor width), the slot pool and its cap are untouched. No mark: `limits` as is."""
+    if not mark or limits.get("workers_fraction") is None:
+        return limits
+    return {**limits, "workers_fraction": None}
+
+
+def _stage6_priority_record(mark, nice, *, workers=None, layer_nice=None, layer_workers=None) -> dict:
+    """T-13904 — what a Stage-6 run ran at, for its result row (`verify_metrics.stage6_priority`):
+    the OS priority and the width of the suite run (`nice`, `workers`) and of a project's verify
+    layers (`layer_nice`, `layer_workers`), each as the leg that applied it reported it and only
+    when that leg reported one, and how the queue-jump mark was read — live with its reason, or not
+    live. A reported priority is the one the leg's processes RAN at (the process's own nice
+    included), never the amount the leg added — so a marked run whose own process is lowered
+    records that process's nice, not 0."""
+    rec: dict = {"queue_jump_live": bool(mark)}
+    if mark:
+        rec["queue_jump_reason"] = str(mark)
+    for key, val in (("nice", nice), ("workers", workers),
+                     ("layer_nice", layer_nice), ("layer_workers", layer_workers)):
+        if isinstance(val, int) and not isinstance(val, bool):
+            rec[key] = val
+    return rec
+
+
+def _stage6_venue_nice(venue_metrics: dict):
+    """T-13904 — the priority a ROUTED pass's box leg RAN at: the nice that leg's own process read
+    of itself on the box (`venue_nice_in_effect`, kept per leg; a Stage-6 pass routes the candidate
+    leg), never the nice the caller asked for (`venue_nice` — an intent, which a leg that ran at
+    another priority would leave looking right). None when the leg reported none: the record then
+    carries no priority rather than the one asked for."""
+    got = venue_metrics.get("venue_nice_in_effect") if isinstance(venue_metrics, dict) else None
+    val = got.get("cand") if isinstance(got, dict) else None
+    return val if isinstance(val, int) and not isinstance(val, bool) else None
+
+
+def _stage6_lowered_mark_line(tid, mark, *local_nices):
+    """T-13904 — the ONE line a run with a LIVE mark prints when the process that ran it was itself
+    lowered, or None. `local_nices` are the priorities the legs that started processes ON THIS HOST
+    reported: the local runner's (the whole suite on a local pass, the local probe leg on a routed
+    one) and a project's layers'; a routed pass's box priority is not this process's and is not
+    passed. Under the mark a leg adds no lowering, so a reported nice above 0 is this process's
+    own — which the pass does not raise (an unprivileged process cannot raise its priority): the
+    line names the priority those processes really had instead of leaving «normal priority» to be
+    assumed. PURE; None for an unmarked run and for a marked run that ran at nice 0."""
+    if not mark:
+        return None
+    low = [n for n in local_nices if isinstance(n, int) and not isinstance(n, bool) and n > 0]
+    if not low:
+        return None
+    return (f"{tid} task test --run: this card carries a live queue-jump mark, but the process that "
+            f"ran this pass is itself at nice {max(low)}. Under the mark the pass adds no lowering "
+            f"of its own and raises nothing (an unprivileged process cannot raise its priority), so "
+            f"the test processes it started on this host ran at nice {max(low)}, NOT at nice 0. "
+            f"Start the pass from a process at nice 0 for the mark's priority effect "
+            f"(SPEC-1029 rule 5).")
+
+
+def _stage6_pid_alive(pid) -> bool:
+    """T-13905 — is process `pid` running on this host? A pid this user may not signal is running.
+    Only a positive whole number names a process: anything else (absent, a boolean, zero, a
+    negative number — which the signal call would read as a process group) is not running."""
+    if isinstance(pid, bool) or not isinstance(pid, int) or pid <= 0:
+        return False
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except (OSError, OverflowError):
+        return False
+    return True
+
+
+def _stage6_row_stamp(row):
+    """T-13905 — a journal row's stamp as `(t, width)`, both EXACT (rational epoch seconds, never a
+    rounded float): the row was written at some moment in `[t, t + width)`. The journal's stamp is
+    ISO-8601 UTC cut to the second or carrying a fraction (SPEC-0025), so `width` is one second for
+    a whole-second stamp and one unit of the last written digit for a fractional one; a stamp
+    written finer than the microsecond this reader resolves is given a microsecond either side.
+    None when the stamp cannot be read — and a stamp that carries no seconds field (a date alone, a
+    time cut to the minute) is not read: this reader does not guess what such a stamp was cut from."""
+    from fractions import Fraction
+    raw = row.get("ts") if isinstance(row, dict) else None
+    shape = (re.match(r"\s*\d{4}-?\d\d-?\d\d[T ]\d\d:?\d\d:?\d\d(?:[.,](\d+))?", raw)
+             if isinstance(raw, str) else None)
+    when = textutil.parse_iso_ts(raw) if shape else None
+    if when is None:
+        return None
+    if when.tzinfo is None:                    # the journal's stamps are UTC
+        when = when.replace(tzinfo=_dt.timezone.utc)
+    try:
+        since = when - _dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)
+    except (OverflowError, ValueError):
+        return None
+    micro = Fraction(1, 10 ** 6)
+    t = Fraction((since.days * 86400 + since.seconds) * 10 ** 6 + since.microseconds, 10 ** 6)
+    digits = len(shape.group(1) or "")         # the fraction written after the seconds, if any
+    if digits > 6:
+        return t - micro, 3 * micro
+    return t, Fraction(1, 10 ** digits)
+
+
+def _stage6_land_verifies_beside(journal_path, started_at, ended_at, *, _pid_alive=_stage6_pid_alive) -> dict:
+    """T-13905 — how many land verifies of this repository overlapped a Stage-6 run's wall time, read
+    from the land rows of the journal at `journal_path` (the MAIN checkout's: a land runs from there,
+    so a task worktree's own copy does not hold the rows of the lands that ran beside it).
+
+    `started_at` / `ended_at` are the run's wall-clock bounds in epoch seconds. Returns
+    `{"count": N, "undecided_lands": M}` — or `{"count": None, "unread": <why>}` when the bounds do
+    not make an interval (the clock moved back during the run), since nothing can then be placed.
+
+    WHAT A LAND'S RESULT ROW SAYS ABOUT ITS VERIFY. The row (`land_completed`, any status) is stamped
+    when the land ENDS — at a moment T in `[t, t + width)` (`_stage6_row_stamp`) — and carries the
+    verify wall V, the land's whole wall W and the time R it waited for the land reservation before
+    anything else. V is the row's own verify wall: the land's verify STEP, from the moment it asks
+    for a verify slot to the end of its verify — its wait for that slot, or for the verify box, is
+    inside V, and «a land verify» here means that step. It lasted V and lies between the end of the
+    reservation wait and T: it began at T - V less at most the SLACK, W - R - V.
+
+    EVERY RECORDED VALUE IS READ AT THE PRECISION IT IS WRITTEN AT. The three walls are written cut
+    down to the whole millisecond, so each true wall lies in `[recorded, recorded + 1 ms)`: the
+    verify lasted between V and V + 1 ms, and the slack is below `W - R - V + 1 ms` (and unbounded
+    when the row gives no usable W, or when W is below R + V — three cut-down walls of one land
+    cannot read so, so such a row places nothing). The step began no earlier than the end of the
+    reservation wait, so after `t - (W - R) - 1 ms` (one cut, shared by the verify wall and the
+    slack), and before `t + width - V`; it ended after `t - slack` and before `t + width`.
+
+    A RETRIED LAND. The verify wall is the closing attempt's, and the reservation wait is summed
+    over the attempts: the closing verify still follows every wait, so the proof above holds for
+    it, but an earlier attempt's verify lies anywhere in the land. So unless the row says the land
+    took exactly one attempt, the land is undecided whenever the LAND itself may have met the run
+    — after `t - W - 1 ms`, before `t + width` — and the closing verify is not proven.
+
+    The reading takes the row at its word — its stamp as the land's end, its walls as
+    measured — and claims nothing the rows do not record. All of it is computed in exact rational
+    arithmetic, so no comparison at a boundary is decided by a rounding.
+
+    - `count` — the lands whose row PROVES the overlap: for every moment and placement the row
+      admits, the verify met the run's interval.
+    - `undecided_lands` — the lands the rows cannot place: a finished land whose verify met the run
+      for some admitted placements and missed it for others, or whose row carries a verify wall and
+      a stamp that cannot be read; and a land that may have started by the run's end
+      (`land_started`), has no result row of its branch after that start, and whose recorded process
+      id is live at this reading — no row states yet whether it verified. «After» is by stamp where
+      the two stamps' own spans do not overlap, and by the order the rows are read in where they do.
+
+    Not counted and not undecided: a land whose row records no finite verify wall above zero
+    (refused or aborted before its verify), a land whose verify cannot have met the run on any
+    admitted placement, a started land whose process id is not live, a row read a second time (the
+    SAME row: the whole row in canonical form, the journal's own identity — never a subset of its
+    fields), and every row stamped more than one day before the run began. Report-only: the caller prints the
+    reading and writes it on the run's result row; nothing is decided on it."""
+    from fractions import Fraction
+    try:
+        lo, hi = Fraction(started_at), Fraction(ended_at)
+    except (TypeError, ValueError, OverflowError):     # a bound that is not a finite number
+        lo = hi = None
+    if lo is None or not lo <= hi:
+        return {"count": None, "unread": "the clock moved back during the run"}
+
+    def _ms(val):
+        """A recorded millisecond wall, exact, or None when the row holds no usable finite number."""
+        if isinstance(val, bool) or not isinstance(val, (int, float)) or not 0 <= val < float("inf"):
+            return None
+        return Fraction(val)
+
+    def _after(a, b):
+        """Was row `a` written after row `b`? Keys are `(t, width, read position)`. By stamp where
+        both are read and their spans `[t, t + width)` do not overlap, else by read order."""
+        if a[0] is not None and b[0] is not None:
+            if a[0] >= b[0] + b[1]:
+                return True
+            if a[0] + a[1] <= b[0]:
+                return False
+        return a[2] > b[2]
+
+    floor = lo - 86400
+    since = _dt.datetime.fromtimestamp(float(floor), _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    started, ended, seen, count, undecided = [], {}, set(), 0, 0
+    rows = journal_mod.segment_rows_since(journal_path, since, types=("land_started", "land_completed"))
+    for at, row in enumerate(rows):
+        data = row.get("data") if isinstance(row, dict) else None
+        if not isinstance(data, dict):
+            continue
+        kind = row.get("type")                 # one of the two declared types: the read is typed
+        stamp = _stage6_row_stamp(row)
+        if stamp is not None and stamp[0] < floor:
+            continue
+        branch = data.get("branch") if isinstance(data.get("branch"), str) else ""
+        same = json.dumps(row, sort_keys=True, ensure_ascii=False, default=repr)
+        if same in seen:                       # the SAME row served twice is one land; any differing field is two
+            continue
+        seen.add(same)
+        key = (stamp[0], stamp[1], at) if stamp else (None, None, at)
+        if kind == "land_started":
+            if stamp is None or stamp[0] <= hi:
+                started.append((key, branch, data.get("pid")))
+            continue
+        if branch:
+            ended.setdefault(branch, []).append(key)
+        verify = _ms(data.get("verify_duration_ms"))
+        if not verify:
+            continue
+        if stamp is None:
+            undecided += 1
+            continue
+        t, width = stamp
+        whole, waited = _ms(data.get("duration_ms")), _ms(data.get("reservation_wait_ms")) or 0
+        gap = whole - waited - verify if whole is not None else None
+        # each wall is cut down to the millisecond: the verify lasted at least `least` and the slack
+        # is below `slack` — None when the walls give no bound for it
+        least = verify / 1000
+        slack = (gap + 1) / 1000 if gap is not None and gap >= 0 else None
+        tries = data.get("attempt_count")
+        once = isinstance(tries, int) and not isinstance(tries, bool) and tries == 1
+        # the earliest a verify of this land can have begun: after the wait when the land took one
+        # attempt, anywhere in the land otherwise; None when the walls give no bound for it
+        reach = (whole - (waited if once else 0) + 1) / 1000 if slack is not None else None
+        if slack is not None and t + width - least <= hi and t - slack >= lo:
+            count += 1
+        elif (reach is None or t - reach < hi) and t + width > lo:
+            undecided += 1
+    undecided += sum(1 for key, branch, pid in started
+                     if not any(_after(end, key) for end in ended.get(branch, ())) and _pid_alive(pid))
+    return {"count": count, "undecided_lands": undecided}
+
+
+def _stage6_land_verifies_line(tid, reading) -> str:
+    """T-13905 — the ONE line a Stage-6 run prints about the land verifies beside it. PURE."""
+    head = f"{tid} task test --run: "
+    if (not isinstance(reading, dict) or isinstance(reading.get("count"), bool)
+            or not isinstance(reading.get("count"), int)):
+        why = (reading or {}).get("unread") if isinstance(reading, dict) else None
+        return (head + f"the land verifies beside this run could not be read ({why or 'no reading'}) "
+                       f"— report-only, the verdict is unaffected.")
+    n, m = reading["count"], reading.get("undecided_lands") or 0
+    said = ("no land verify" if n == 0 else "1 land verify" if n == 1 else f"{n} land verifies")
+    more = (f"; {m} more land(s) undecided and not counted — no result row yet and a live process "
+            f"id, or a row that does not place the verify inside or outside the run" if m else "")
+    return (head + f"{said} of this repository overlapped this run's wall time{more} (report-only: "
+                   f"read from the main checkout's land rows; it changes no verdict).")
+
+
 def _stage6_inert_paths(diff_paths, _classify_inert_paths):
     """T-12496 — the SPEC-0064 inert subset of the Stage-6 diff, derived EXACTLY as land derives
     `_sel_inert` (bin/lib/worktree.py, per-path call to the one injected authority), so the omission
@@ -13207,6 +13497,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     _stage6_guard = None
     _stage6_step_lines: list = []   # T-13645: the layer STEP lines this run printed (SPEC-0132 Rule 7)
     _stage6_retry_metrics: dict = {}   # T-13545: the guard's layer re-run record, as a verify_metrics fragment
+    _stage6_priority: dict = {}        # T-13904: what THIS invocation's run ran at, as a verify_metrics fragment
+    _stage6_lands: dict = {}           # T-13905: the land verifies beside THIS invocation's run, as a row fragment
     # T-13532 (SPEC-0065 §Bound) — what the `--run` branch learns about the tree it tested, read by the
     # `--evidence` recorder. Function-scoped for the same reason as the two above: a bare
     # `task test --evidence` ran nothing and must record no `stage6_run` mark at all.
@@ -13356,6 +13648,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # BEFORE the delegated-layer run and the tests/ sweep alike, so the measured wall covers
         # whichever leg this invocation actually ran (and the consumer zero-probe guard below it).
         _run_t0 = time.monotonic()
+        _s6_started_at = time.time()   # T-13905: the run's wall-clock start, to set land rows beside it
         # T-12324 (X-1352..X-1357) — INITIALISED ABOVE THE FORK, because the fork has a THIRD arm.
         # T-12221 introduced these two beside each other with exactly the right intent — "not inside
         # the routed branch ... an unrouted run must never raise a NameError on the way to its own
@@ -13374,6 +13667,14 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # foreign exception.
         _venue_result = None
         _venue_metrics: dict = {}
+        # T-13904 (SPEC-0184 rule 9, the mark's second effect) — the card's LIVE queue-jump mark, read
+        # ONCE for this run from the MAIN checkout's card. Live: the run's children start at normal
+        # priority and the width is not scaled by the Stage-6 fraction, on the local suite, on a
+        # project's layers and on the venue leg alike; the Stage-6 slot (local pool or box class) is
+        # taken exactly as without it. The keyword is passed only when the mark is live, so an
+        # unmarked run calls the runner, the guard and the route seam as before.
+        _s6_mark = _stage6_queue_jump(root, tid, _main_worktree=_main_worktree)
+        _s6_mark_kw = {"queue_jump": True} if _s6_mark else {}
         gap = None
         if delegated and _delegated_tests_execution_gap is not None:
             gap = _delegated_tests_execution_gap(root, delegated)
@@ -13476,7 +13777,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 `workers` (T-13806) is the local Stage-6 width when the host set
                 `YITC_VENUE_STAGE6_WORKERS_FRACTION`; None leaves the runner's governor default.
                 """
-                _wk = {"workers": workers} if workers is not None else {}
+                _wk = {**({"workers": workers} if workers is not None else {}), **_s6_mark_kw}
                 nonlocal _sel_metrics, _sel_diff
                 if presel is not None:
                     # T-12221 — RUN THE ALREADY-RESOLVED SELECTION, do not resolve it again. The
@@ -13524,7 +13825,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                         # INDETERMINATE `local-probe-fault` and the run fails naming it.
                         raise
                     _sel_metrics = {}
-                    return list(_run_verify_tests(_present, root, fail_fast=False))
+                    # T-13904: the declaration of a live mark rides the degraded call too — a runner
+                    # that cannot take it fails here, loudly, rather than run a marked card lowered.
+                    return list(_run_verify_tests(_present, root, fail_fast=False, **_s6_mark_kw))
 
             # ── T-12199 (SPEC-0203 rules 2-3, 7) — ROUTE THE FULL RUN, CANDIDATE LEG ONLY.
             # T-12221 LIFTED the interim Stage-6-local split: this block is now LIVE for Stage-6, so
@@ -13654,6 +13957,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                         root, kind=remote_verify.STAGE6_KIND, decision=_vdec, local=_local_verify,
                         test_dir=root / "tests", selection=_stage6_route_selection,
                         priority="low", legs=("cand",),
+                        **({"queue_jump": _s6_mark} if _s6_mark else {}),
                         on_wait=_stage6_venue_wait_relay(_append_event, tid, _vrec.get("box")))
                     if _venue_result["outcome"] == remote_verify.OUTCOME_INDETERMINATE:
                         # Rule 7 — never a pass, never a local re-run. The run FAILS naming the class.
@@ -13676,7 +13980,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             if _venue_result is None:
                 # T-13806 — the LOCAL arm reads the Stage-6 knobs the box reads, but only those the
                 # host SET (unset = no admission, full width — the arm as it was).
-                _s6_limits = remote_verify.local_stage6_limits()
+                _s6_limits = _stage6_marked_limits(remote_verify.local_stage6_limits(), _s6_mark)
                 with _stage6_local_admission(root, _s6_limits, _main_worktree=_main_worktree):
                     # measured AFTER the slot is held: a wait cannot hand the run a stale width
                     _s6_w = _stage6_local_run_width(_verify_worker_governor, _s6_limits)
@@ -13713,7 +14017,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # knobs as the kernel's suite (unset = unchanged), the width scaled before it is published —
         # and measured INSIDE the admission below, so a slot wait cannot hand them a stale width.
         _s6_glimits = ({} if (_venue_metrics or not (_is_consumer_build and _is_consumer_build()))
-                       else remote_verify.local_stage6_limits())
+                       else _stage6_marked_limits(remote_verify.local_stage6_limits(), _s6_mark))
+        _guard_kw.update(_s6_mark_kw)
         # T-13635 (GitHub #55): a failing layer's WHOLE output is kept the way land keeps it (T-12758) —
         # in the main checkout's `.yitc/land-logs/` (this worktree is removed at land), under this
         # branch and a `stage6` attempt, so the first attempt's log survives beside the re-run's
@@ -13729,7 +14034,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             if _verify_worker_governor is not None:
                 _guard_kw["workers"] = _stage6_local_workers(_verify_worker_governor(), _s6_glimits)
             if _s6_base:
-                cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True, **_guard_kw)
+                # T-13907 (SPEC-1030 rule 4): the Tests-stage run is the candidate run of ONE card.
+                cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True,
+                                                    one_card_candidate=True, **_guard_kw)
             else:
                 cguard = _consumer_zero_probe_guard(root, **_guard_kw)
         _stage6_guard = cguard   # T-13533: the `--evidence` recorder below reads the rows this run produced
@@ -13739,9 +14046,53 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         _stage6_retry_metrics = _stage6_layer_retry_metrics(cguard)
         for _line in _stage6_layer_retry_lines(tid, _stage6_retry_metrics):
             print(_line)
+        # T-13904 — WHAT THIS RUN RAN AT, on the row both writers below emit (one more mapping under
+        # the existing `verify_metrics` key; no new event type). Every value is the one the leg that
+        # APPLIED it reported — this verb reads no setting for the record: a routed pass reports the
+        # box leg's own record (the nice that leg measured of itself, the width it ran); a local
+        # suite run the priority and the width the runner reported in its metrics; a project's
+        # layers the priority and the width the guard reports in its result. Each priority is the
+        # one the processes RAN at. Never allowed to fail the run it only describes.
+        try:
+            # the local runner's own report: the whole suite on a local pass, the local probe leg
+            # on a routed one (absent when no file ran on this host)
+            _s6_run = _sel_metrics if (_have_tests and not delegated) else {}
+            if _venue_metrics:
+                _s6_nice, _s6_width = _stage6_venue_nice(_venue_metrics), _venue_metrics.get("venue_workers")
+            else:
+                _s6_nice, _s6_width = _s6_run.get("child_nice"), _s6_run.get("worker_count")
+            _stage6_priority = {"stage6_priority": _stage6_priority_record(
+                _s6_mark, _s6_nice, workers=_s6_width,
+                layer_nice=cguard.get("layer_nice"),
+                layer_workers=cguard.get("layer_worker_budget"))}
+            # … and SAID, when a marked run's processes on THIS host did not get normal priority
+            # because the process that ran it is itself lowered: the reports of the legs that
+            # started processes here — the local runner's (routed or not) and the layer guard's.
+            _s6_line = _stage6_lowered_mark_line(
+                tid, _s6_mark, _s6_run.get("child_nice"), cguard.get("layer_nice"))
+            if _s6_line:
+                print(_s6_line)
+        except Exception:                      # noqa: BLE001 — see the comment above
+            _stage6_priority = {}
         # T-12007 — the run is over; close the wall BEFORE the pass/fail fork so both rows are
         # written from the SAME measurement (a red run's minutes cost exactly what a green one's do).
+        _s6_ended_at = time.time()   # T-13905: the run's wall-clock end, read BEFORE the timer closes and before anything else follows
         _measured_run_ms = max(0, int((time.monotonic() - _run_t0) * 1000))
+        # T-13905 — HOW MANY LAND VERIFIES OF THIS REPOSITORY RAN BESIDE THIS RUN: one line here, on
+        # PASS and FAIL alike, and the same reading on the row both writers below emit. Read from the
+        # MAIN checkout's land rows (a land runs from there), against the run's own wall-clock
+        # bounds: both are read INSIDE the timed run (the start after the timer opens, the end
+        # before it closes), so nothing done here widens the interval. REPORT-ONLY: it is taken
+        # after the run is over, appends nothing to `bad`, moves no exit path and takes no part in
+        # admission; a reading that cannot be taken says so on the line and on the row.
+        try:
+            _s6_lands_main = (_main_worktree(root) if _main_worktree is not None else None) or root
+            _s6_lands = _stage6_land_verifies_beside(
+                events.scope_guarded_default(_s6_lands_main), _s6_started_at, _s6_ended_at)
+        except Exception as _e:                # noqa: BLE001 — a report never fails the run it describes
+            _s6_lands = {"count": None, "unread": type(_e).__name__}
+        _stage6_lands = {"land_verifies_beside": _s6_lands}
+        print(_stage6_land_verifies_line(tid, _s6_lands))
         # T-13532: was the pass ROUTED, and which tree does the box say it tested (`venue_cand_tree`,
         # the envelope's own identity). Both names are bound on every path to here (T-12324).
         _s6_routed = _venue_result is not None
@@ -13890,8 +14241,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     "counts_source": "harness_measured",
                     "leg": "candidate",
                     # T-13545: + the layer re-run record, so a run that failed BOTH attempts says so.
-                    **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics}}
-                       if (_venue_metrics or _stage6_retry_metrics) else {}),
+                    **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics,
+                                           **_stage6_priority}}
+                       if (_venue_metrics or _stage6_retry_metrics or _stage6_priority) else {}),
+                    **_stage6_lands,   # T-13905: the land verifies beside this run
                     # T-13606 (SPEC-1006 rule 13): + the per-layer rows of a run on which a layer
                     # carries an adapter record — the SAME two keys, in the SAME shape, the green
                     # row and `land_completed` carry — so a FAILED run keeps its per-unit report.
@@ -14019,6 +14372,13 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # guard recorded one; a hand-authored `--evidence` and a first-try green carry no key.
         if _stage6_retry_metrics:
             data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_stage6_retry_metrics}
+        # T-13904 — and what the run ran at (priority, width, the queue-jump mark's reading). Present
+        # only when THIS invocation ran the suite; a hand-authored `--evidence` measured nothing.
+        if _stage6_priority:
+            data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_stage6_priority}
+        # T-13905 — and the land verifies that ran beside it. Present only when THIS invocation ran
+        # the suite; a hand-authored `--evidence` measured nothing.
+        data.update(_stage6_lands)
         # T-12007 — the HARNESS-MEASURED wall of the run this same invocation just made
         # (`--run --evidence`). Written FIRST so the T-0375 author-reported group below still
         # overwrites it when the caller passed one explicitly. A hand-authored `--evidence` with no
@@ -17314,9 +17674,12 @@ def _governance_surface_globs(*, verify_globs=(), declared_check_paths=(), canon
     size, PLUS this mechanism's own operating contract. Each member therefore arrives from its
     EXISTING single-SoT carrier rather than being re-spelled here (CHARTER §P1 filter 1):
 
-      • `verify_globs`   — the SPEC-0077 **pinned-test surface**, i.e. the host's
-                           `_VERIFY_IMPLEMENTATION_GLOBS` (`bin/yitc-v2`), the one constant SPEC-0077 §1
-                           names as the verify-path. READ, never re-listed.
+      • `verify_globs`   — the SPEC-0077 **pinned-test surface** of the repository the host runs in,
+                           READ, never re-listed: in the kernel's own repository the fixed tuple
+                           `_VERIFY_IMPLEMENTATION_GLOBS` whole; in a project repository the project
+                           answer of `verify_wiring._verify_infrastructure_globs` (no root `bin/**`)
+                           plus the check surface the project's contract declares — the host resolves
+                           it in `cli.py#_governance_pinned_test_globs` (T-13933).
       • `declared_check_paths` — the SAME pinned-test surface's CONSUMER half: the check paths a
                            project's `yitc-ops.yaml` `verify.layers` DECLARES, resolved by the existing
                            reader `worktree._pinned_declared_check_paths` (T-11184, SPEC-0077 §3/§6b).
@@ -17360,7 +17723,9 @@ def _governance_surface_globs(*, verify_globs=(), declared_check_paths=(), canon
     wider set only ever takes MORE cards back into audit-post, never fewer — LIFECYCLE's "when in doubt,
     substantive") and because narrowing it would require inventing a definition of "pinned-test surface"
     that no constant expresses — precisely the judgement rule 3 forbids the guard from adding. The prose
-    is reconciled by the carrier card (T-11157), not here."""
+    is reconciled by the carrier card (T-11157), not here. Since T-13915 one home does express that
+    definition per repository, and since T-13933 the host passes its answer as `verify_globs`: the root
+    `bin/**` member arrives here in the kernel's own repository only."""
     declared: list = []
     for p in (declared_check_paths or ()):
         if isinstance(p, str) and p.strip():

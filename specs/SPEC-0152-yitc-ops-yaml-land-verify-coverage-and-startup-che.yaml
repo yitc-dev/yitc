@@ -32,6 +32,10 @@ implements:
 - bin/lib/worktree.py#_working_tree_delta_paths
 - bin/lib/land_verify_legs.py#_ops_carrier_freed_paths
 - bin/lib/land_verify_legs.py#_owned_test_freed_paths
+- bin/lib/verify_wiring.py#_verify_infrastructure_globs
+- bin/lib/land_verify_legs.py#_root_bin_aware_touch
+- bin/lib/land_verify_legs.py#_named_root_bin_touch
+- bin/lib/land_verify_legs.py#_adapter_sources_under_root_bin
 body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check facets\
   \ of a project's `yitc-ops.yaml`\nops-contract carrier (SPEC-0093). In the SAME\
   \ one carrier file a project declares which land-verify\nLAYERS the `land` gate\
@@ -764,55 +768,76 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ report-only + tests-sweep delegation — NOT retro-flipped into\nskip authority);\
   \ a declared `subject_globs` SHOULD be a superset of the layer's `covers:` globs\
   \ —\nan advisory shape note, never a validator. The kernel checks STANCE + structural\
-  \ SHAPE, never glob\n\"correctness\" (rule 3).\n\n**The ops-carrier member of that\
-  \ verify-infrastructure set is SECTION-AWARE at this skip, and only\nat this skip.**\
-  \ A `yitc-ops.yaml` change does NOT disable a layer's skip when the\ncarrier's PARSED\
-  \ `verify`, `verify_policy` and `tests` sections are equal at the merge-base and\
-  \ in\nthe candidate. Those three sections are everything a land reads from the carrier\
-  \ to decide which\nlayers exist, what they run and how they are bounded; a change\
-  \ confined to any OTHER section is then\njudged like any other path — by each layer's\
-  \ own `subject_globs`. So a layer that LISTS\n`yitc-ops.yaml` in its globs still\
-  \ runs, and a layer whose command reads another carrier section\nmust list the carrier:\
-  \ the exhaustiveness this sub-rule already asks of `subject_globs` now carries\n\
-  for the carrier what the whole-file rule used to carry for it. Measured basis: in\
-  \ two consumers, 35\nof 42 and 20 of 29 carrier commits over 30 days left those\
-  \ three sections unchanged, each paying a\nfull run of every declared layer.\n\n\
-  EQUALITY IS A PROOF, and every doubt is «changed» — the whole-file full run, exactly\
-  \ as before this\nparagraph: a carrier absent at either side (born, deleted, renamed\
-  \ away), unreadable or unparseable;\na duplicate key at ANY depth in either text\
-  \ (the loader keeps the last one, so an ambiguous text can\nparse equal to an unambiguous\
-  \ one); a working-tree carrier that is not BYTE-FOR-BYTE the committed\none (a line-ending\
-  \ difference included); values that differ in type or in order though a loose\n\
-  comparison would call them equal; a section built from anything but plain mappings,\
-  \ lists and\nscalars (a tagged construct such as `!!pairs`, `!!omap` or `!!set`\
-  \ is never compared, even against\nitself); an absent section against an explicit\
-  \ null. An anchor aliased INTO one of the three sections is compared as its\nresolved\
-  \ value, so moving the anchor moves the section. Only the carrier path is freed\
-  \ by this\nparagraph: any other verify-infrastructure path in the same diff still\
-  \ runs everything, unless the\nownership-aware paragraph below frees it.\n\nA PROJECT\
-  \ KEEPS THE WHOLE-FILE RULE BY DECLARING IT. A `verify.infra_globs` entry that covers\
-  \ the\ncarrier — or any refused entry of that key — withholds the freeing, on the\
-  \ same widen-only terms as\nthe paragraph below: a declaration can only make MORE\
-  \ lands run in full.\n\nONE ANSWER, THREE READERS. The land's attribution of a layer\
-  \ red the merge-base did not reproduce,\nand the false-skip replay that watches\
-  \ this skip (SPEC-0189), take the SAME answer from the SAME\nreader as the skip\
-  \ decision — so none of them can call a layer reachable, or skippable, that another\n\
-  judged otherwise for the same land.\n\nWHAT DOES NOT MOVE. The SPEC-0077 pinned\
-  \ last-green TRIGGER still fires on ANY carrier change,\nwhichever section moved,\
-  \ and where a project runs that leg (SPEC-0186) the leg still runs every\nlayer\
-  \ — it never skips. So the saving is the CANDIDATE leg's alone, and it is whole\
-  \ only for a\nproject whose `verify_policy` turns the pinned leg off. Also unchanged:\
-  \ the per-file selector of\nthe script-run suite (SPEC-0181), the any-author floor\
-  \ and `prep:`. The Stage-6 run is governed by\nthe paragraph below.\nThe skip stays\
-  \ NAMED: when a freed carrier touch let a layer skip, land says so on stdout beside\
-  \ the\nper-layer skip lines. Reader: `bin/lib/land_verify_legs.py#_ops_carrier_freed_paths`.\n\
-  \n**The `tests/**` member of that verify-infrastructure set is OWNERSHIP-AWARE at\
-  \ this skip, and only\nat this skip.** A changed path under `tests/` does NOT disable\
-  \ a layer's skip when it is\nPROVEN to be particular layers' own: it then forces\
-  \ exactly the layers whose `subject_globs` claim\nit, and every other layer is judged\
-  \ by its own globs, as for any other path. Measured basis: one\nconsumer spent 680\
-  \ of 1151 verify-minutes over 30 days on full runs this member forced, one of its\n\
-  layers running on 124 such lands whose diffs mostly did not touch that layer's globs.\n\
+  \ SHAPE, never glob\n\"correctness\" (rule 3).\n\n**Which members of that verify-infrastructure\
+  \ set hold in which repository.** In a PROJECT\nrepository the set is `tests/**`,\
+  \ the ops carrier `yitc-ops.yaml`, and what the project's own\ncontract names as\
+  \ its verifier — the declared check surface (the `verify.infra_globs` paragraph\n\
+  below; SPEC-0077 section 1 is the home of what it holds). The project's root `bin/`\
+  \ is NOT a\nmember: a file there that the contract does not name is judged by each\
+  \ layer's own\n`subject_globs`, like any other path, and does not arm the pinned\
+  \ re-run. A project keeps such a\nfile on the full run by listing it under `verify.infra_globs`;\
+  \ a layer whose checks exercise\nscripts kept there names those paths in its `subject_globs`.\
+  \ In the KERNEL'S OWN repository the\nroot `bin/` is the land/verify implementation\
+  \ and stays a member, beside `tests/**` and the\ncarrier.\nONE ANSWER PER REPOSITORY.\
+  \ Every reader of the set takes it from one place, for the repository it\nruns in.\
+  \ A root `bin/` file the contract names — a layer's `command:` path, an adapter's\n\
+  `sources:` entry at or under the root `bin/`, a `verify.infra_globs` entry — is\
+  \ a\nverify-infrastructure path for this skip and the pinned trigger, for the land's\
+  \ cost rank at\nbatch formation and its attribution of a layer red, and for the\
+  \ false-skip replay that watches\nthis skip (SPEC-0189); a replay that does not\
+  \ hold the carrier at the two replayed revisions\njudges such a path by the layers'\
+  \ globs alone, which can only report more. The per-file selector\nof the script-run\
+  \ suite (SPEC-0181) reads the set alone and never the declared check surface:\n\
+  there a project's root `bin/` path is selected like any other path of the project.\n\
+  \n**The ops-carrier member of that verify-infrastructure set is SECTION-AWARE at\
+  \ this skip, and only\nat this skip.** A `yitc-ops.yaml` change does NOT disable\
+  \ a layer's skip when the\ncarrier's PARSED `verify`, `verify_policy` and `tests`\
+  \ sections are equal at the merge-base and in\nthe candidate. Those three sections\
+  \ are everything a land reads from the carrier to decide which\nlayers exist, what\
+  \ they run and how they are bounded; a change confined to any OTHER section is then\n\
+  judged like any other path — by each layer's own `subject_globs`. So a layer that\
+  \ LISTS\n`yitc-ops.yaml` in its globs still runs, and a layer whose command reads\
+  \ another carrier section\nmust list the carrier: the exhaustiveness this sub-rule\
+  \ already asks of `subject_globs` now carries\nfor the carrier what the whole-file\
+  \ rule used to carry for it. Measured basis: in two consumers, 35\nof 42 and 20\
+  \ of 29 carrier commits over 30 days left those three sections unchanged, each paying\
+  \ a\nfull run of every declared layer.\n\nEQUALITY IS A PROOF, and every doubt is\
+  \ «changed» — the whole-file full run, exactly as before this\nparagraph: a carrier\
+  \ absent at either side (born, deleted, renamed away), unreadable or unparseable;\n\
+  a duplicate key at ANY depth in either text (the loader keeps the last one, so an\
+  \ ambiguous text can\nparse equal to an unambiguous one); a working-tree carrier\
+  \ that is not BYTE-FOR-BYTE the committed\none (a line-ending difference included);\
+  \ values that differ in type or in order though a loose\ncomparison would call them\
+  \ equal; a section built from anything but plain mappings, lists and\nscalars (a\
+  \ tagged construct such as `!!pairs`, `!!omap` or `!!set` is never compared, even\
+  \ against\nitself); an absent section against an explicit null. An anchor aliased\
+  \ INTO one of the three sections is compared as its\nresolved value, so moving the\
+  \ anchor moves the section. Only the carrier path is freed by this\nparagraph: any\
+  \ other verify-infrastructure path in the same diff still runs everything, unless\
+  \ the\nownership-aware paragraph below frees it.\n\nA PROJECT KEEPS THE WHOLE-FILE\
+  \ RULE BY DECLARING IT. A `verify.infra_globs` entry that covers the\ncarrier —\
+  \ or any refused entry of that key — withholds the freeing, on the same widen-only\
+  \ terms as\nthe paragraph below: a declaration can only make MORE lands run in full.\n\
+  \nONE ANSWER, THREE READERS. The land's attribution of a layer red the merge-base\
+  \ did not reproduce,\nand the false-skip replay that watches this skip (SPEC-0189),\
+  \ take the SAME answer from the SAME\nreader as the skip decision — so none of them\
+  \ can call a layer reachable, or skippable, that another\njudged otherwise for the\
+  \ same land.\n\nWHAT DOES NOT MOVE. The SPEC-0077 pinned last-green TRIGGER still\
+  \ fires on ANY carrier change,\nwhichever section moved, and where a project runs\
+  \ that leg (SPEC-0186) the leg still runs every\nlayer — it never skips. So the\
+  \ saving is the CANDIDATE leg's alone, and it is whole only for a\nproject whose\
+  \ `verify_policy` turns the pinned leg off. Also unchanged: the per-file selector\
+  \ of\nthe script-run suite (SPEC-0181), the any-author floor and `prep:`. The Stage-6\
+  \ run is governed by\nthe paragraph below.\nThe skip stays NAMED: when a freed carrier\
+  \ touch let a layer skip, land says so on stdout beside the\nper-layer skip lines.\
+  \ Reader: `bin/lib/land_verify_legs.py#_ops_carrier_freed_paths`.\n\n**The `tests/**`\
+  \ member of that verify-infrastructure set is OWNERSHIP-AWARE at this skip, and\
+  \ only\nat this skip.** A changed path under `tests/` does NOT disable a layer's\
+  \ skip when it is\nPROVEN to be particular layers' own: it then forces exactly the\
+  \ layers whose `subject_globs` claim\nit, and every other layer is judged by its\
+  \ own globs, as for any other path. Measured basis: one\nconsumer spent 680 of 1151\
+  \ verify-minutes over 30 days on full runs this member forced, one of its\nlayers\
+  \ running on 124 such lands whose diffs mostly did not touch that layer's globs.\n\
   \nOWNERSHIP IS A PROOF, and every doubt is «not owned» — the full run of every layer,\
   \ exactly as\nbefore this paragraph. A changed path is owned only when ALL of these\
   \ hold:\n- it is one of the project's DECLARED test files: it matches the union\
@@ -833,21 +858,23 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ the committed one, no refused `verify.infra_globs` entry),\n  every declared layer\
   \ is well-formed and uniquely named, and the layers' subjects are the same at\n\
   \  the merge-base and in the candidate.\nOnly an owned path is freed: any other\
-  \ verify-infrastructure path in the same diff — a `bin/**`\npath, a test path that\
-  \ is not owned, a carrier change that is not section-equal — still runs\neverything.\n\
-  \nHOW A PROJECT KEEPS A SHARED TEST FILE ON THE FULL RUN. A file no declared test-class\
-  \ glob names\n(a `conftest.py`, a fixtures directory, a helper module under an ordinary\
-  \ declaration) is never\nowned. A shared file that a class glob DOES name is listed\
-  \ under `verify.infra_globs`, or in the\n`subject_globs` of every layer that consumes\
-  \ it — the exhaustiveness this sub-rule already asks of\n`subject_globs`. Either\
-  \ lever can only make MORE lands run in full.\n\nONE ANSWER, THREE READERS, as for\
-  \ the carrier: the land's attribution of a layer red the merge-base\ndid not reproduce,\
-  \ and the false-skip replay that watches this skip (SPEC-0189), take the SAME\n\
-  answer from the SAME reader as the skip decision. A red in a layer that does not\
-  \ own the changed\ntest is therefore not attributed to the branch.\n\nWHAT DOES\
-  \ NOT MOVE. The SPEC-0077 pinned last-green TRIGGER still fires on ANY `tests/`\
-  \ change, and\nwhere a project runs that leg (SPEC-0186) the leg still runs every\
-  \ layer, so the saving is the\nCANDIDATE leg's. Also unchanged: `bin/**`; the declared-check-surface\
+  \ verify-infrastructure path in the same diff — a root\n`bin/` path the contract\
+  \ names, a test path that is not owned, a carrier change that is not\nsection-equal\
+  \ — still runs everything.\n\nHOW A PROJECT KEEPS A SHARED TEST FILE ON THE FULL\
+  \ RUN. A file no declared test-class glob names\n(a `conftest.py`, a fixtures directory,\
+  \ a helper module under an ordinary declaration) is never\nowned. A shared file\
+  \ that a class glob DOES name is listed under `verify.infra_globs`, or in the\n\
+  `subject_globs` of every layer that consumes it — the exhaustiveness this sub-rule\
+  \ already asks of\n`subject_globs`. Either lever can only make MORE lands run in\
+  \ full.\n\nONE ANSWER, THREE READERS, as for the carrier: the land's attribution\
+  \ of a layer red the merge-base\ndid not reproduce, and the false-skip replay that\
+  \ watches this skip (SPEC-0189), take the SAME\nanswer from the SAME reader as the\
+  \ skip decision. A red in a layer that does not own the changed\ntest is therefore\
+  \ not attributed to the branch.\n\nWHAT DOES NOT MOVE. The SPEC-0077 pinned last-green\
+  \ TRIGGER still fires on ANY `tests/` change, and\nwhere a project runs that leg\
+  \ (SPEC-0186) the leg still runs every layer, so the saving is the\nCANDIDATE leg's.\
+  \ Also unchanged: how a root `bin/` path is judged (the paragraph\n«Which members\
+  \ of that verify-infrastructure set hold in which repository» above);\nthe declared-check-surface\
   \ companion, so a test tree\noutside the root `tests/` keeps the full run; the per-file\
   \ selector of the script-run suite\n(SPEC-0181) and the engine's own land, which\
   \ declares no layers to scope; the any-author floor and\n`prep:`. The skip stays\
@@ -950,12 +977,15 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ a future extension of this key: it was refused on the merits (X-0884 —\nthe hardcoded\
   \ floor is what makes the pinned re-run fire on a verify-implementation touch, so\
   \ a\nconsumer must never hold the power to shrink the surface that guards it) and\
-  \ the ask was retracted\n(X-0893). Absent key → behaviour unchanged. The reader\
-  \ is `bin/lib/land_verify_legs.py#_declared_verify_infra_globs`.\n\n### 17. The\
-  \ `startup_checks:` section schema (rule-4 section-add — OPT-IN report-only startup\
-  \ surface; / X-0191)\nThe OPTIONAL `startup_checks:` top-level section lets a project\
-  \ declare its OWN cheap, report-only\nstartup checks — so a project-specific \"\
-  you have N things to look at\" (e.g. in-work proposals in a\nsubsystem, un-applied\
+  \ the ask was retracted\n(X-0893). The kernel set this key widens is the set of\
+  \ a PROJECT repository (the paragraph\n«Which members of that verify-infrastructure\
+  \ set hold in which repository» above): it holds no\nroot `bin/` member, so a root\
+  \ `bin/` helper a project wants on the full run is listed here.\nAbsent key → behaviour\
+  \ unchanged. The reader is `bin/lib/land_verify_legs.py#_declared_verify_infra_globs`.\n\
+  \n### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-IN report-only\
+  \ startup surface; / X-0191)\nThe OPTIONAL `startup_checks:` top-level section lets\
+  \ a project declare its OWN cheap, report-only\nstartup checks — so a project-specific\
+  \ \"you have N things to look at\" (e.g. in-work proposals in a\nsubsystem, un-applied\
   \ config) is SURFACED at session-start instead of being invisible (the X-0191\n\
   real incident: 3 in-work proposals in a ticket subsystem were invisible at session\
   \ start). It is\n**OPT-IN, like `extensions:` (rule 13) / `coverage:` (rule 15)**\
@@ -1217,18 +1247,29 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ sum to 3.07 by its\nown decision went from about 40 to about 86 worker slots on\
   \ a 32-core host when that host's\nper-verify ceiling was raised from 13 to 28;\
   \ no line said so, and it was found three days later\nfrom the process table. The\
-  \ owner's design of 2026-09-16 — the sum is not checked — stays.\n\n## Verification\n\
-  \n- the declared-share load reading (rule 16): a land of a fixture project whose\
-  \ shares times the\n  published allotment exceed the processor count prints the\
-  \ one line and carries the same reading\n  on its row, a land within the bound or\
-  \ with no shares carries neither, the land's verdict and\n  its other row fields\
-  \ are the same with and without the reading, and setting the per-verify\n  ceiling\
-  \ prints the statement only on a change — checks in\n  tests/test_t12589_layer_worker_budget.py.\n\
-  - the `verify:` section (rule 16) is checked-if-present declare-or-waive: `init`\
-  \ on a fresh consumer\n  seeds it born WAIVED (section-level); a non-empty `layers:`\
-  \ list passes when EVERY layer is declared\n  (`command:`) or waived (`waiver: {reason}`);\
-  \ an UNANSWERED layer (neither), a layer carrying BOTH, a\n  layer missing its `layer:`\
-  \ name, and a `layers:` + section-`waiver:` together each FAIL closed; a\n  pre-`verify:`\
+  \ owner's design of 2026-09-16 — the sum is not checked — stays.\n\nThe root `bin/`\
+  \ member of the verify-infrastructure set was limited to the kernel's own repository\n\
+  by on the owner's decision of 2026-10-13. The set had been written from the kernel's\
+  \ own\nlayout, where `bin/` is the verifier. A replay of the full-run lands of two\
+  \ projects found that\n5 of 10 on one and 2 of 2 on the other had fired on product\
+  \ and operations scripts under the root\n`bin/` alone, none of them a check, and\
+  \ no declaration let a project change that. Recorded cost:\nin the recorded corpus\
+  \ of a third project one more land becomes a false skip — a product script\nunder\
+  \ its root `bin/` that no declaration named broke a layer the blanket member used\
+  \ to run.\nAdapter `sources:` entries at or under the root `bin/` joined the declared\
+  \ check surface in the\nsame change: the blanket member had been the only thing\
+  \ keeping them on the full run.\n\n## Verification\n\n- the declared-share load\
+  \ reading (rule 16): a land of a fixture project whose shares times the\n  published\
+  \ allotment exceed the processor count prints the one line and carries the same\
+  \ reading\n  on its row, a land within the bound or with no shares carries neither,\
+  \ the land's verdict and\n  its other row fields are the same with and without the\
+  \ reading, and setting the per-verify\n  ceiling prints the statement only on a\
+  \ change — checks in\n  tests/test_t12589_layer_worker_budget.py.\n- the `verify:`\
+  \ section (rule 16) is checked-if-present declare-or-waive: `init` on a fresh consumer\n\
+  \  seeds it born WAIVED (section-level); a non-empty `layers:` list passes when\
+  \ EVERY layer is declared\n  (`command:`) or waived (`waiver: {reason}`); an UNANSWERED\
+  \ layer (neither), a layer carrying BOTH, a\n  layer missing its `layer:` name,\
+  \ and a `layers:` + section-`waiver:` together each FAIL closed; a\n  pre-`verify:`\
   \ carrier still passes; the report-only verify-layer coverage WARN fires at `graph\
   \ build`\n  for a load-bearing surface covered by no declared layer (rule-15 `coverage:`\
   \ shape reused) — state\n  checks in tests/test_t9718_verify_layers_carrier.py.\
@@ -1299,10 +1340,11 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ no layer claims, a shared test file, a test file both layers claim, the\n  same\
   \ file in a project declaring no test-file globs, a path the declaration matches\
   \ at one\n  revision only, a malformed layer declaration, a dirty or unparseable\
-  \ carrier and a `bin/**` path\n  beside it each run every layer — tests/test_subject_scoping_would_skip.py;\
-  \ the attribution takes\n  the same answer — tests/test_t11464_failure_attribution.py;\
-  \ the replay does —\n  tests/test_surface4_detector.py; the shared edge, the engine's\
-  \ own build and the pinned trigger\n  are unchanged — tests/test_t11112_shared_fail_closed_edge.py\
+  \ carrier and a root `bin/`\n  path the contract names beside it each run every\
+  \ layer —\n  tests/test_subject_scoping_would_skip.py; the attribution takes\n \
+  \ the same answer — tests/test_t11464_failure_attribution.py; the replay does —\n\
+  \  tests/test_surface4_detector.py; the shared edge, the engine's own build and\
+  \ the pinned trigger\n  are unchanged — tests/test_t11112_shared_fail_closed_edge.py\
   \ and\n  tests/test_verify_implementation_touch.py.\n- the isolated re-run of a\
   \ sole failed layer (rule 16 amend): in a sandbox consumer, a\n  layer that fails\
   \ its first run and passes its second lands `LAND: OK` with a `flaky_retry` row\n\
@@ -1312,9 +1354,25 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ row unchanged from the pre-amend shape; an all-green land\n  carries no `flaky_retry`\
   \ key; a Stage-6 run names the retried layer in its output and on its\n  `tests_passed`\
   \ row; a timeout, a prep failure, two failed layers and the attribution re-run each\n\
-  \  re-run nothing — tests/test_t13545_consumer_layer_flaky_retry.py.\n- AC2 aggregate-neutrality\
-  \ : the concatenated SPEC-0093-remaining + SPEC-0152 `### N.` rule\n  blocks reproduce\
-  \ the pre-split rule text byte-for-byte (a reconstruction check, not an eyeball).\n"
+  \  re-run nothing — tests/test_t13545_consumer_layer_flaky_retry.py.\n- which members\
+  \ of the verify-infrastructure set hold in which repository (rule 16 amend):\n \
+  \ the one place answers the whole set for the kernel's own repository and the set\
+  \ without the root\n  `bin/` member for a project, and no other module holds a copy\
+  \ of either —\n  tests/test_verify_implementation_touch.py; on a consumer with two\
+  \ layers of disjoint\n  `subject_globs`, a land whose change holds a root `bin/`\
+  \ file nothing names skips both layers and\n  takes no full-run edge (before the\
+  \ amend both ran), while a file named by a layer's `command:`,\n  by `verify.infra_globs`\
+  \ or by an adapter's `sources:` runs every layer, each beside a control on\n  the\
+  \ same carrier — tests/test_subject_scoping_would_skip.py; an adapter-backed layer's\
+  \ selection\n  record answers the same, and the land's own predicate answers for\
+  \ a named root `bin/` path at\n  the cost rank — tests/test_verify_implementation_touch.py;\
+  \ the attribution takes the same\n  answer — tests/test_t11464_failure_attribution.py;\
+  \ the replay does —\n  tests/test_surface4_detector.py; the SPEC-0178 governance\
+  \ set keeps the root `bin/**` member in\n  the kernel's own repository and holds,\
+  \ for a project, the root `bin/` files its contract names —\n  tests/test_spec0178_rule3_governance_guard.py.\n\
+  - AC2 aggregate-neutrality : the concatenated SPEC-0093-remaining + SPEC-0152 `###\
+  \ N.` rule\n  blocks reproduce the pre-split rule text byte-for-byte (a reconstruction\
+  \ check, not an eyeball).\n"
 cites:
 - SPEC-0093
 - SPEC-1006
@@ -1339,16 +1397,20 @@ implements_signature:
   bin/lib/graph.py#_verify_layer_boundary_warnings: c56ff639967669874bb428b6470cb18bd32bf097ddeffe45b799f87ed22a77d1
   bin/lib/graph.py#_verify_layer_coverage_warnings: bec29aeb8df5a536e0045b40215fec4afde7fbab98e79bcfd3deb0df1cba3c2a
   bin/lib/init.py#_migrate_legacy_verify_yaml: d569d33740b4779074f5c7fc4e556554f2393f37b40d132aa1bbf5d53e21eeb4
+  bin/lib/land_verify_legs.py#_adapter_sources_under_root_bin: d6cda257e938177d3542db489a0b35adc8fda9906b64ea9ff1b459dc80afb0c0
   bin/lib/land_verify_legs.py#_declared_independent_layers: 7356b06a808df509e8a996ae52cfdf319d4d47caf4ca52b3230455db13264df0
   bin/lib/land_verify_legs.py#_declared_layer_worker_shares: 570880f1904f70f04d92e3d54504eb9683c8b7995edeb29c2f25d60903d4cd18
-  bin/lib/land_verify_legs.py#_declared_verify_infra_globs: 12dd4d8f76d27860d1cc40599adc8d6cba7c8dd882a12eee0675dee92c4383b2
+  bin/lib/land_verify_legs.py#_declared_verify_infra_globs: 6a01477ca4038b25296d2d0ddb40f31a5a9f57b764bee6d3d4ab47d2cb1d3d59
   bin/lib/land_verify_legs.py#_delegated_tests_execution_gap: cba017264e89f4114726489b3f64c5800839860b0d6afe52faa0f4f51fce8574
+  bin/lib/land_verify_legs.py#_named_root_bin_touch: 1c507d77b89c3040569d1fabf6386d413104542e1394e77b8b0f8b89b440f5ef
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
+  bin/lib/land_verify_legs.py#_root_bin_aware_touch: cee2491a9e6f135d3f3d70c1ba4c2b125d57d7440a18a191d6608e6b66dcc39a
   bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
-  bin/lib/task.py#cmd_task_test: c60fa1000893cd2af743f2910b86ac8ded7d30dc3c8a8bb18f354c90d308ecd5
+  bin/lib/task.py#cmd_task_test: 62d72504b6d715313dca1f145321e944c5c5eeb3a938a7f1218cd1fb675980c6
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
-  bin/lib/worktree.py#_consumer_zero_probe_guard: bb52696e54d6883668d4db7a75290fd7dc6d8d21e92c639c3958d16ded2695e4
+  bin/lib/verify_wiring.py#_verify_infrastructure_globs: 24b9da17eacfdc1d6fa4bd2dcfa4dae66744eed2a379c0dfa2233fa8b1389099
+  bin/lib/worktree.py#_consumer_zero_probe_guard: edd7f705749eab2173453e15c2999f82fd31c33b99973adc1a23e2e2233b3186
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279

@@ -41,34 +41,38 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ `bin/**` and its own tripwires under `tests/**`, both inside that constant, so\
   \ this\n     rung is self-applying and cannot be escaped by editing the selector.\
   \ SPEC-0077 supremacy is\n     untouched — this rule never narrows the pinned last-green\
-  \ pass.\n     - THE `bin/**` HALF IS NARROWED TO AN EXPLICIT, FAIL-CLOSED ALLOWLIST.\
-  \ `bin/**` is\n     37 modules and ~126k lines treated as ONE atom, while the runner\
-  \ and this ladder live in two\n     of them. A changed path whose EXACT repo-relative\
-  \ spelling is one of the enumerated\n     periphery paths (`_SELECTION_PERIPHERY_FREED_PATHS`)\
-  \ no longer fires this rung. MEASURED: of\n     the recorded refusals carrying `selection_full_suite_globs`,\
-  \ 85.4% matched `bin/**` ALONE;\n     and of 235 first-parent commits touching `bin/`\
-  \ since 2026-08-11, 76 (32.3%) touch ONLY\n     allowlisted paths — `bin/yitc-v2`\
-  \ alone accounts for 69 of those touches and is a 22-line\n     import-and-dispatch\
-  \ shim whose emptiness tests/test_t11319_thin_shim.py already asserts.\n     THE\
-  \ DISCRIMINATOR IS POSITIVE, and that is the whole safety: the rule enumerates what\
-  \ is\n     FREED, by exact path — never a prefix, a filename shape, or an EXCLUDED\
-  \ set. A path under\n     `bin/` that nobody enumerated (a module added next month,\
-  \ a rename, a directory, a config\n     file) matches nothing and keeps forcing\
-  \ the full suite, so a new module is safe by DEFAULT.\n     The membership test,\
-  \ so a later editor applies it rather than guesses: a path belongs iff it\n    \
-  \ neither RUNS the land's test suite nor PARTICIPATES in the selection decision.\
-  \ What still\n     fires this rung: `bin/lib/verify_runner.py` (THE RUNNER ITSELF\
-  \ — see the re-pointing below),\n     `bin/lib/worktree.py` (the RESIDUE, which\
-  \ still holds this ladder's callers, its two freeing\n     classifiers and their\
-  \ constants — freed only at the finer def granularity, which\n     PROVES non-participation\
-  \ rather than asserting it),\n     `bin/lib/cli.py` (the glob constant and the verify\
-  \ wiring), `bin/lib/init.py` (writes a\n     consumer's verify-contract scaffolds),\
-  \ every non-`.py` path under `bin/`, and anything\n     unlisted. (`bin/lib/verifycache.py`\
-  \ — «decides whether verify runs at all» — was listed\n     here until DELETED it\
-  \ with the retired per-test verify cache, <workshop-spec> step 4.\n     It is dropped\
-  \ rather than left naming a path that no longer resolves; the rung is\n     unchanged,\
-  \ it simply has one fewer member.)\n     THE RULE NAMES THE RUNNER, AND THE RUNNER\
-  \ IS NO LONGER `bin/lib/worktree.py`.\n     extracted the verify runner into `bin/lib/verify_runner.py`\
+  \ pass. Which members of that\n     constant hold in the repository being verified\
+  \ is SPEC-0152 rule 16's: a project's root\n     `bin/` is not one — the selector's\
+  \ implementation does not live there — and a path there is\n     selected like any\
+  \ other path of that project.\n     - THE `bin/**` HALF IS NARROWED TO AN EXPLICIT,\
+  \ FAIL-CLOSED ALLOWLIST. `bin/**` is\n     37 modules and ~126k lines treated as\
+  \ ONE atom, while the runner and this ladder live in two\n     of them. A changed\
+  \ path whose EXACT repo-relative spelling is one of the enumerated\n     periphery\
+  \ paths (`_SELECTION_PERIPHERY_FREED_PATHS`) no longer fires this rung. MEASURED:\
+  \ of\n     the recorded refusals carrying `selection_full_suite_globs`, 85.4% matched\
+  \ `bin/**` ALONE;\n     and of 235 first-parent commits touching `bin/` since 2026-08-11,\
+  \ 76 (32.3%) touch ONLY\n     allowlisted paths — `bin/yitc-v2` alone accounts for\
+  \ 69 of those touches and is a 22-line\n     import-and-dispatch shim whose emptiness\
+  \ tests/test_t11319_thin_shim.py already asserts.\n     THE DISCRIMINATOR IS POSITIVE,\
+  \ and that is the whole safety: the rule enumerates what is\n     FREED, by exact\
+  \ path — never a prefix, a filename shape, or an EXCLUDED set. A path under\n  \
+  \   `bin/` that nobody enumerated (a module added next month, a rename, a directory,\
+  \ a config\n     file) matches nothing and keeps forcing the full suite, so a new\
+  \ module is safe by DEFAULT.\n     The membership test, so a later editor applies\
+  \ it rather than guesses: a path belongs iff it\n     neither RUNS the land's test\
+  \ suite nor PARTICIPATES in the selection decision. What still\n     fires this\
+  \ rung: `bin/lib/verify_runner.py` (THE RUNNER ITSELF — see the re-pointing below),\n\
+  \     `bin/lib/worktree.py` (the RESIDUE, which still holds this ladder's callers,\
+  \ its two freeing\n     classifiers and their constants — freed only at the finer\
+  \ def granularity, which\n     PROVES non-participation rather than asserting it),\n\
+  \     `bin/lib/cli.py` (the glob constant and the verify wiring), `bin/lib/init.py`\
+  \ (writes a\n     consumer's verify-contract scaffolds), every non-`.py` path under\
+  \ `bin/`, and anything\n     unlisted. (`bin/lib/verifycache.py` — «decides whether\
+  \ verify runs at all» — was listed\n     here until DELETED it with the retired\
+  \ per-test verify cache, <workshop-spec> step 4.\n     It is dropped rather than\
+  \ left naming a path that no longer resolves; the rung is\n     unchanged, it simply\
+  \ has one fewer member.)\n     THE RULE NAMES THE RUNNER, AND THE RUNNER IS NO LONGER\
+  \ `bin/lib/worktree.py`.\n     extracted the verify runner into `bin/lib/verify_runner.py`\
   \ and proved that extraction\n     complete in both directions, so the module this\
   \ rung exists to protect has MOVED. The runner's\n     refusal was correct but ACCIDENTAL\
   \ — it held only because nobody had enumerated the module in\n     the freed list,\
@@ -891,7 +895,7 @@ init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: bd3c2ae84e964b704241edc160204d3deb75c32da7fed351aaa6eba3215111da
   bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
-  bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
+  bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0

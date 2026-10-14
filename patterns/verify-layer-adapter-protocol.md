@@ -77,11 +77,14 @@ wanted. The key set is closed — an unknown key fails the declaration before an
 | `required` | Commands for the layer's non-test checks (typecheck, lint, build). They run before `run`; a failing one fails the layer. |
 | `modelled` | File-name suffixes (`.ts`, `.py`, …) the runner's dependency tracking resolves. Left out, it means JavaScript and TypeScript source modules only; a changed file of any other kind is recorded as reaching the full layer. |
 | `triggers` | Extra `globs` mapped to `units` or to `full: true` — files a test reads without importing them. |
-| `selection` | `off` (default) or `shadow`. `shadow` records what the change would select; the full layer still runs. |
-| `credit` | `off` (default) or `shadow`. `shadow` records which passes a fix attempt could reuse; the full layer still runs. |
+| `selection` | `off` (default), `shadow` or `deciding`. `shadow` records what the change would select; the full layer still runs. `deciding` runs only the test files the change reaches, and the whole layer wherever the kernel cannot place the change. |
+| `selection_deciding_reason` | Written with `selection: deciding`, and only with it: who accepted the risk of that mode, and why. |
+| `credit` | `off` (default), `shadow` or `deciding`. `shadow` records which passes a fix attempt could reuse; the full layer still runs. `deciding` reuses them: after a failed run and a fix, the next attempt runs the files that failed and the files the fix reaches. |
+| `credit_deciding_reason` | Written with `credit: deciding`, and only with it: who accepted the risk of that mode, and why. |
 | `rescue` | `on` (default) or `off`. Whether a file that fails and then passes alone keeps the verdict green. |
 
-What each key *means* for the verdict is SPEC-1006 rule 1 and the rules it names.
+What each key *means* for the verdict is SPEC-1006 rule 1 and the rules it names; the two
+`deciding` modes, their reasons and what makes such a declaration malformed are SPEC-1030.
 
 ## How the kernel calls your command
 
@@ -245,8 +248,160 @@ land(consumer): verify layer 'frontend' adapter report (vitest/1, first attempt)
 - `rows are diagnostics only (void: <reasons>)` — the report was dropped for the reasons listed;
   the commonest is a `report_id` that does not match the name in the runner's report.
 
+The void reason `unit-only-skipped` names a listed unit — a test file, within one runner project
+where the runner has several — whose every test was skipped in this run; SPEC-1006 rule 4 drops
+the report for it, and will on each run while the unit stays that way. Do not skip a whole file
+from inside it: take the file out of what the layer runs for that project, in the runner's own
+configuration, so that `list` no longer names the pair. Put it back when the file holds a test
+that runs there.
+
 The same record rides the layer's row on the `tests_passed` / `tests_failed` and `land_completed`
 journal rows, under `adapter`.
+
+## Making a layer narrow
+
+> **Plainly.** On a layer that declares `selection: shadow`, the record of each run names the
+> kernel's answer for that change. On most projects that answer is the whole layer nearly every
+> time, and most of those answers come from what the project itself declared. This section says how
+> to read the answer in your own rows and, for each name the answer can carry, which of your
+> declarations to look at — or that there is none and the kernel is right.
+
+This is a how-to, not a rule, and it adds none. It says in plain words what you are seeing when
+your row carries an answer, names the rule that holds the conditions, and says where to look. The
+rules it names:
+
+- the ladder, its steps and their order — SPEC-1006 rule 6;
+- what makes a changed path `unknown` — SPEC-1006 rule 3;
+- what a trigger does — SPEC-1006 rule 7;
+- when a layer is skipped whole, which changes run every layer and what a project may declare about
+  that — SPEC-0152 rule 16;
+- how to lay tests out so that a change reaches few of them — SPEC-0165 item 12.
+
+Read each with `yitc-v2 graph query --kernel <id>`. A description here is of your row, in a
+reader's words; the conditions are the rule's, and wherever this section and a rule differ, the
+rule holds.
+
+This section is about one number: how often your layer's ladder reaches its last answer. A
+`shadow` layer already records it, and what `shadow` does with the answer is SPEC-1006 rule 8. The
+modes in which the answer decides what runs are not part of that contract: the proposed contract
+SPEC-1030 will add them.
+
+### Read your own rows first
+
+The layer's row on every `tests_passed`, `tests_failed` and `land_completed` journal row carries
+the adapter record, and its `selection` entry is the ladder's answer for that run:
+
+| Field | What it tells you |
+|---|---|
+| `decision` | `full` — the whole layer. `units` — the ladder reached its last answer. |
+| `rung`, `reason` | Which step of the ladder answered, and the name of the answer. The tables below are keyed by `reason`. `rung` is `null` on an answer given outside the lettered steps. |
+| `changed`, `eligible` | How many paths the change holds, and how many of them this layer's `subject_globs` admit. |
+| `unknown`, `unknown_more` | On `unknown-path`: the first of those paths, each with its `why`, and the count of the rest. |
+| `related`, `related_reason` | Whether `related` was asked and how it ended, and the cause of a failed one. |
+| `units_total`, `would_run`, `would_omit` | The size of the inventory; on `units`, the files the ladder would run and the files it would leave out. |
+
+`yitc-v2 journal query --type land_completed --limit 30 --json` prints your last thirty lands, one
+JSON object a line. The run itself says the same in one line of its output:
+
+```
+land(consumer): verify layer 'frontend' shadow selection (recorded, never acted on — the full layer ran): rung (d) — unknown-path: the full layer
+```
+
+Count the `reason` values over those lands and start with the commonest. What clearing one answer
+earns while another still stands is the closing sentence of SPEC-1006 rule 6.
+
+A record that answers on rung (a) lists the paths of your change that produced the answer in
+`fired_paths` — at most 20 of them, with the count of the rest in `fired_paths_more`; SPEC-0025
+registers both. A record with neither key was written before the kernel recorded them, or answers
+for a reason that has no path: for such a land, list the change yourself — `git diff --name-only
+<base> <the landed commit>`, with the `base` the record carries. Hold the paths against «The two
+commonest answers» below.
+
+### Each full-layer answer
+
+The second column is the step of the ladder the answer belongs to. The third says what you are
+seeing in your row, and the fourth names the rule that holds the conditions.
+
+| `reason` | Rung | What you are seeing | The rule | What to look at |
+|---|---|---|---|---|
+| `no-base` | none | The run had no commit to compare your change with, so it had no list of changed paths. | SPEC-0152 rule 16, its fail-closed edges | Nothing to declare; the kernel is right. |
+| `diff-unresolvable` | none | The run could not read the list of paths your change holds. The recorded reason carries the error after a colon. | SPEC-0152 rule 16, its fail-closed edges | Nothing to declare; the kernel is right. A repeat is a fault to report, not a setting. |
+| `no-diff` | none | The change the run compared holds no path. | SPEC-1006 rule 6, its default | Nothing to declare; the kernel is right. |
+| `no-verify-globs` | (a) | The kernel's own verify-infrastructure set read as empty on this run. No layer row shows this today. | SPEC-0152 rule 16, which names that set | Nothing to declare. |
+| `verify-implementation-touch` | (a) | Your change holds a path of the verify infrastructure the kernel names for every project: a file under the root `tests/`, or `yitc-ops.yaml`. A file under your root `bin/` is not such a path. Every layer of the run carries the same answer. | SPEC-0152 rule 16; SPEC-1006 rule 6 (a) | Which path it was — the record's `fired_paths`; what to do about it — «The two commonest answers» below. |
+| `declared-check-surface` | (a) | Your change holds a file that one of your layers' `command:` names, a path your `verify.infra_globs` lists, or a file under an adapter's `sources:` entry kept under your root `bin/`. Every layer of the run carries the same answer. | SPEC-0152 rule 16, its `verify.infra_globs` paragraph | Which path it was — the record's `fired_paths`. What your cards edit there — «The two commonest answers» below. For an edit of the checks themselves the kernel is right. |
+| `owned-test-ownership` | (a) | A changed test file was taken as particular layers' own, and the layer list the run held did not bear that out. Every layer of the run carries the same answer. | SPEC-0152 rule 16, its ownership-aware paragraph | Nothing to declare; the kernel is right. Which test files they were — the record's `fired_paths`. A repeat is a fault to report. |
+| `adapter-sources` | (a) | Your change holds a path under this layer's `sources:`. | SPEC-1006 rules 1 and 6 (a) | Which path it was — the record's `fired_paths`. `sources:` — it lists what implements the adapter and the runner configuration, and for a change to one of those the kernel is right. Keep out of those files anything your cards edit for another reason. |
+| `dependency-manifest` | (b) | Your change holds a dependency manifest, a lockfile, or a toolchain or browser version pin. | SPEC-1006 rule 6 (b) | Nothing to declare; the kernel is right. |
+| `trigger-full` | (c) | One of your own `triggers:` entries that names the full layer covers a path of your change. | SPEC-1006 rules 6 (c) and 7 | That `triggers:` entry: whether it can name the `units:` that read those files instead. |
+| `trigger-unit-not-listed` | (c) | A `triggers:` entry that covers a path of your change names a test file this run's inventory does not hold. | SPEC-1006 rules 6 (c) and 7 | The `units:` of that `triggers:` entry — a test file renamed, moved or deleted since it was written. |
+| `no-inventory` | none | The run had no usable inventory from `list` for this layer. | SPEC-1006 rule 3, its safe fallback | The layer's line in the run's output — «Checking your adapter» above. |
+| `unrevealable-void` | none | The layer's report profile names a kind of failed run its report cannot show. No profile of this page does today. | SPEC-1006 rule 4, its limit clause | Nothing to declare. |
+| `related-absent` | (d) | The adapter declares no `related`. | SPEC-1006 rule 3, its safe fallback; rule 6 (d) | The adapter's `related` key: whether your runner can name the tests a change reaches without running them — the fourth habit of SPEC-0165 item 12 (a). |
+| `unknown-path` | (d) | At least one changed path this layer's `subject_globs` admit is `unknown`. The record lists them. | SPEC-1006 rules 3 and 6 (d) | The reason each listed path carries — «The `why` of an unknown path» below. |
+| `related-failed` | (d) | `related` was asked and gave no usable answer; `related_reason` names the cause. | SPEC-1006 rule 6 (d) | Your `related` command — «What `related` answers» above. |
+| `related-timed-out` | (d) | `related` was asked and did not finish in the time the run gave it. | SPEC-1006 rule 6 (d) | How long your `related` takes, and the layer's `timeout:`. |
+| `browser-layer-change` | (e) | On a layer that covers the `e2e` class: your change holds application, server or asset code for which the adapter declares no relation to its test files. | SPEC-1006 rule 6 (e) | `triggers:` that map application paths to the test files exercising them; and whether the layer should be split by product area — SPEC-0165 item 12 (b). |
+
+One more full-layer record is not the ladder's answer: `selection-error`, a fault in the
+selection itself. Its `error` field carries the cause, and it is a fault to report.
+
+### The `why` of an unknown path
+
+Each `unknown` path in the record carries a `why`. The columns read as in the table above.
+
+| `why` | What you are seeing | The rule | What to look at |
+|---|---|---|---|
+| `outside-modelled` | The path is of a kind your `modelled:` does not list, and no `triggers:` entry names it. | SPEC-1006 rule 3 (ii); rule 7 | Three declarations, in this order. First the layer's `subject_globs`: whether the layer's tests read that path at all. Then `triggers:`: an entry that names the test files reading it. Last `modelled:`: whether the runner's dependency tracking follows that kind of file. |
+| `deleted-or-renamed` | The path is no longer a file of the tree the run verified. | SPEC-1006 rule 3 (i) | Nothing to declare; the kernel is right. |
+| `not-in-runner-diff` | The runner's own diff — the form its profile names in the last column of the profiles table — does not hold the path. | SPEC-1006 rule 3 (iii) | Nothing to declare; the kernel is right. |
+| `runner-diff-unreadable` | The run could not read the runner's own diff. | SPEC-1006 rule 3 (iii) | Nothing to declare. A repeat is a fault to report. |
+
+### The two commonest answers
+
+Measured on the two projects that recorded a shadow selection before this section was written:
+78 lands, 141 layer decisions, 136 of them the full layer. One project answered
+`verify-implementation-touch` or `declared-check-surface` on 74 of its 101 decisions; the other
+answered `unknown-path` on 36 of its 40. Replaying those lands gave five causes. Four trace to
+the project's own declarations. The fifth was the kernel's own set, which has since changed:
+cause 4 says what it is now.
+
+1. **A per-file list inside the script a layer's `command:` names** — `declared-check-surface`.
+   The script listed its test files one by one, so every card that added a test added a line to
+   it. A script that finds its files by a pattern needs no edit for a new test.
+2. **A per-file list inside `subject_globs`** — `verify-implementation-touch`, through
+   `yitc-ops.yaml`. The globs named files one by one, so every card that added a file edited the
+   layer declarations. What an edit of the carrier means for the run, and for the test files
+   changed beside it, is SPEC-0152 rule 16 — its section-aware and ownership-aware paragraphs.
+   Globs written as a directory or a name pattern already admit the next file; how wide to write
+   them is the third habit of SPEC-0165 item 12 (a).
+3. **Files under `tests/` that the declarations give to no one layer** —
+   `verify-implementation-touch`. In the measured project they were fixtures, and a test file
+   changed in the same card as the layer declarations. Which test files are one layer's own, and
+   how a project keeps a shared one on the full run, is the ownership-aware paragraph of
+   SPEC-0152 rule 16.
+4. **Product or operations scripts kept under the root `bin/`** — `verify-implementation-touch`
+   on the measured lands, and no longer: your root `bin/` is not part of the kernel's set
+   (SPEC-0152 rule 16), so such a file is judged by each layer's `subject_globs` like any other
+   path. To keep a root `bin/` helper on the full run, list it under `verify.infra_globs`. If a
+   layer's tests exercise scripts kept under the root `bin/`, name those paths in that layer's
+   `subject_globs`. A root `bin/` file your contract already names — the path in a layer's
+   `command:`, an adapter's `sources:` entry — keeps the full run and answers
+   `declared-check-surface`.
+5. **Globs that admit what the runner does not place** — `unknown-path` with `outside-modelled`.
+   A frontend layer whose `subject_globs` admitted backend tests, specs and operations notes; a
+   one-script-per-file layer modelling `.py` whose globs admitted design files and frontend
+   sources. The three declarations of the table above, in that order.
+
+**What belongs in a card of its own.** Changing how a verify script finds its files, splitting a
+layer: each changes what your verify does, so each is a card with its
+own run and its own recorded answer. A wish for the kernel's own set to read differently is a
+proposal to the kernel, not a declaration.
+
+**Narrow on evidence.** Each declaration here trades width for trust. Which direction of a glob is
+the unsound one is the third habit of SPEC-0165 item 12 (a); what an unlisted kind of file means
+for a `related` answer is SPEC-1006 rule 3. Declare what the tests are known to read, and watch the
+record's `disagreements` (SPEC-1006 rule 9).
 
 ## Limits worth knowing
 
@@ -258,5 +413,7 @@ journal rows, under `adapter`.
 - A sample does not check what its runner prints. When the runner prints something unexpected the
   script stops with an error or lists nothing, and either way the kernel runs the layer's full
   `command:`.
-- `selection: shadow` and `credit: shadow` only record. Nothing in this protocol makes the
-  kernel skip a test file.
+- `selection: shadow` and `credit: shadow` only record: under them the kernel skips no test
+  file. `selection: deciding` and `credit: deciding` do leave test files unrun. A failure in
+  such a file is not seen on that run and can reach `main`, and the full run before a deploy
+  is yours to make (SPEC-1030 rule 7).

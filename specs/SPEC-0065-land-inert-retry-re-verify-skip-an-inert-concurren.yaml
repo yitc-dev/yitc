@@ -121,11 +121,15 @@ body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency r
   \ the run must\n      have swept ALL of it (a narrowed run records counts, not names,\
   \ so it is a PARTIAL run for this\n      purpose and is never credited); on a consumer\
   \ every declared layer must have passed in the run,\n      or have been subject-skipped\
-  \ there AND be skipped by the land's own decision.\n  (5) THE REST OF THE LAND STILL\
-  \ RUNS — the credit replaces the candidate leg and nothing else. The\n      SPEC-0163\
-  \ any-author floor runs over the same branch delta and its refusal aborts the land\
-  \ with\n      `main` untouched; the host-leak check runs; and the SPEC-0077 pinned\
-  \ leg runs exactly when its\n      trigger and the project's policy (SPEC-0186)\
+  \ there AND be skipped by the land's own decision. A layer whose\n      row in the\
+  \ run records a PARTIAL run (SPEC-1030: a deciding selection left units out, a\n\
+  \      deciding credit reused passes) is the one case with a rule of its own: when\
+  \ the land takes\n      such a row and when it refuses it is SPEC-1030 rule 6 (`bin/yitc-v2\
+  \ graph query SPEC-1030`),\n      not restated here.\n  (5) THE REST OF THE LAND\
+  \ STILL RUNS — the credit replaces the candidate leg and nothing else. The\n   \
+  \   SPEC-0163 any-author floor runs over the same branch delta and its refusal aborts\
+  \ the land with\n      `main` untouched; the host-leak check runs; and the SPEC-0077\
+  \ pinned leg runs exactly when its\n      trigger and the project's policy (SPEC-0186)\
   \ say so — the credit neither reads nor moves\n      either. Where the pinned leg\
   \ is due the head is verified ALONE (no batch is formed onto a\n      credited tree)\
   \ and a pinned failure refuses the land as on any other.\nA project MAY switch the\
@@ -289,6 +293,6 @@ proposed_by: speed-up-land-under-concurrency-inert-retry-re-ver
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/worktree.py#_land_integrate: c427c94a0ecb5245d1e5c1bfe0962827b9206f515cd5eeb7469cea0070f83a63
-  bin/lib/worktree.py#_land_stage6_credit: 5b7d6996349a46a33dc685c9556816e05e9b81ecc1d69bf50b7d1ad40b2cb2c2
+  bin/lib/worktree.py#_land_integrate: 83543b1690cd90a17850a0704479158b165f118483439c1f29db32a88cfa2ebe
+  bin/lib/worktree.py#_land_stage6_credit: c43cff9840cd7cedfeed8d4a51a473f484722a592fdbe770b5f65108db74ae84
   bin/lib/worktree.py#_stage6_run_record: 01a55bc7b202be3fdf2e2f6de6c0b28a6cafeda89088c6f73d70c6ec8e81cf8d

@@ -1,10 +1,10 @@
 ---
 name: compute-controller-session
 class: discipline
-sourced_from: SPEC-0203 rules 6+7 (box lifecycle + one executor), authored by under the plan [[remote-verify-venue-kernel-verify-passes-on-an-own]]. The measured numbers it quotes are (`dev-utilities/remote-verify-experiment-.md`) and the provider costs of the seed recipe — none is restated as a rule here.
-applies_to: the ORDINARY owner-started Controller session that OWNS the machine's verify venue for the length of one compute window — raise, publish, watch, delete. It is a POSTURE of the one interactive Controller (CHARTER §6), never a third session type and never a daemon. The verbs are `venue raise|publish|unpublish|delete` (SPEC-0203 rule 6, `bin/lib/venue.py`); the watching is done through the EXISTING views (`bin/yitc-v2 debt` SPEC-0119, `dispatch --watch` SPEC-0133) — this pattern adds no view, no verb and no store.
+sourced_from: <workshop-spec> rules 6+7 (box lifecycle + one executor), authored by under the plan [[remote-verify-venue-kernel-verify-passes-on-an-own]]. The measured numbers it quotes are (`dev-utilities/remote-verify-experiment-.md`) and the provider costs of the seed recipe — none is restated as a rule here.
+applies_to: the ORDINARY owner-started Controller session that OWNS the machine's verify venue for the length of one compute window — raise, publish, watch, delete. It is a POSTURE of the one interactive Controller (CHARTER §6), never a third session type and never a daemon. The verbs are `venue raise|publish|unpublish|delete` (<workshop-spec> rule 6, `bin/lib/venue.py`); the watching is done through the EXISTING views (`bin/yitc-v2 debt` SPEC-0119, `dispatch --watch` SPEC-0133) — this pattern adds no view, no verb and no store.
 cites:
-  - SPEC-0203
+  - <workshop-spec>
   - SPEC-0105
   - SPEC-0119
 ---
@@ -61,12 +61,12 @@ on EVERY raise; from the snapshot a raise is ~1 min. The bare image is for seedi
 
 **Publish is gated on the readiness probe, and that gate is the point.** An unpublished box costs
 money and changes nothing; a published one becomes the executor of every kernel verify pass on this
-machine (SPEC-0203 rule 2). Publishing a box whose environment was never measured would put a
+machine (<workshop-spec> rule 2). Publishing a box whose environment was never measured would put a
 verdict authority behind an unchecked host.
 
 **Publish also mirrors main, and may take minutes doing it.** Before the record is written,
 `venue publish` waits for the land reservation and pushes this host's `main` onto the box clone
-(the same fast-forward mirror every request makes — SPEC-0203 rule 6). A clone far behind costs a
+(the same fast-forward mirror every request makes — <workshop-spec> rule 6). A clone far behind costs a
 long push here instead of on somebody's land; a push that cannot fit the transport ceiling REFUSES
 the publish and writes nothing — raise from a fresher snapshot. A push past the refresh bound
 publishes with a WARN: refresh the snapshot at this window's teardown. There is no separate
@@ -97,7 +97,7 @@ journal, which the two views above already fold.
 
 ### 4. A venue fault is a CARD, not a workaround
 
-While a venue is published there is ONE executor (SPEC-0203 rule 7): a faulting venue is an
+While a venue is published there is ONE executor (<workshop-spec> rule 7): a faulting venue is an
 INDETERMINATE abort, not a silent fall-back to local. The compute-controller session resolves it one
 of exactly two ways:
 
@@ -143,7 +143,7 @@ completes, so keying on it never fires); the clone verification admits a WORKED 
 plus the stale commit-graph are cleared before the repack, else `fsck` reports a phantom missing
 object); and `fstrim -av` is REQUIRED before `create_image` — a snapshot images the block device, so
 the same content measured 27.0 GB / 106 s before the trim and 4.52 GB / 30 s after it. The ordered
-steps and their preconditions are homed in SPEC-0203 rule 6; this block is the operator's copy of
+steps and their preconditions are homed in <workshop-spec> rule 6; this block is the operator's copy of
 them, and the recipe (`dev-utilities/venue-seed-recipe.md` §4b) carries the executable detail.
 
 The buffer is a COST shape, not a safety margin. A started hour is billed whole, and a re-raise from
@@ -212,7 +212,7 @@ A real window, end to end:
 
 ## §Cites
 
-- **SPEC-0203** — the venue spec; rule 6 owns the box lifecycle (raise → probe → publish → the idle
+- **<workshop-spec>** — the venue spec; rule 6 owns the box lifecycle (raise → probe → publish → the idle
   delete condition + the buffer + the teardown snapshot-refresh leg) and rule 7 owns one-executor / the unpublish break-glass. Every
   normative sentence about the venue lives there; this pattern is the operator recipe.
 - **SPEC-0105** — the nightly runner that carries the report-only forgotten-box check (§6).

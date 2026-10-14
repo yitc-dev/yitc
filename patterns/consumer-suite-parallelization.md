@@ -177,8 +177,9 @@ run, or the whole diff is disjoint from every layer and you pay ~nothing.
 accepted by the kernel):
 
 - **The test leg.** The companion test lands under `tests/`, which hits the kernel's HARDCODED
-  verify-infra floor — `_SUBJECT_VERIFY_INFRA_GLOBS = ("bin/**", "tests/**", "yitc-ops.yaml")` in
-  `bin/lib/worktree.py`. A path matching the floor takes the SPEC-0077 supremacy edge: full run, no
+  verify-infra floor — for a project repository the root `tests/**` and `yitc-ops.yaml` (SPEC-0152
+  rule 16; a project's root `bin/` is not a member). A path matching the floor takes the SPEC-0077
+  supremacy edge: full run, no
   layer skipped, regardless of any `subject_globs` you declared. Two members are conditional (the
   rule is SPEC-0152 rule 16, `bin/yitc-v2 graph query SPEC-0152`): a `yitc-ops.yaml` change that
   leaves the carrier's verification sections equal is judged by your `subject_globs` like any other
@@ -262,13 +263,17 @@ that are not there. Before drawing ANY conclusion from per-land numbers:
    `_merged_tree_delta_paths` as `base_ref`, so the range sweeps in unrelated concurrent branches and
    **MANUFACTURES contamination that never existed**.
 2. **Replay the engine's own skip predicate over the reconstructed diffs** — `_subject_globs_would_skip`
-   (`bin/lib/worktree.py`) plus the `_SUBJECT_VERIFY_INFRA_GLOBS` supremacy edge — including the two
+   (`bin/lib/worktree.py`) plus the verify-infrastructure supremacy edge — including the two
    answers that decide whether a floor touch takes that edge at all, each computed by the ENGINE's own
    function over the carrier at the two revisions (SPEC-0152 rule 16): for a diff that lists
    `yitc-ops.yaml`, the section comparison (`_ops_carrier_freed_paths`); for a diff that lists a path
    under `tests/`, the ownership proof (`_owned_test_freed_paths`). Hand the UNION of the two freed
-   sets to the edge, as the land does. A replay that omits either one reconstructs a full run the
-   engine did not take, and cannot reach the 100% of step 3. Not a re-derivation of what the globs
+   sets to the edge, as the land does. For a diff that lists a path under your root `bin/`, ask a
+   third question the same way: does your contract name that file (`_named_root_bin_touch`, over
+   the carrier at the two revisions)? A named file is a full run, as it is at the land; one
+   nothing names is judged by the layers' globs. A replay that omits either freed set reconstructs
+   a full run the engine did not take, one that omits the third question reconstructs a skip it
+   did not take, and neither can reach the 100% of step 3. Not a re-derivation of what the globs
    "should" mean: the predicate the engine actually ran.
 3. **Pass condition: 100% reproduction of the recorded per-layer decisions.** Every layer, every land
    in the window. <project> reproduces **45/45**. Below 100%, you have not earned any conclusion yet —

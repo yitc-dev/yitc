@@ -120,14 +120,14 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ is being written and the card that ships it is still open: the classification\
   \ belongs\n   in the same card as the test, never in a later sweep by someone who\
   \ did not write it. What the\n   classes ARE, and what an unclassified file counts\
-  \ as, is **SPEC-0203 rule 8** — read it before you\n   answer: `yitc-v2 graph query\
-  \ SPEC-0203`. The class is RECORDED, never guessed: the local-probe class\n   is\
-  \ carried by `tests/local-probe-files.json`, whose per-file reasons live in\n  \
-  \ `dev-utilities/remote-verify-local-probe-classification.md`. A CUE plus a POINTER,\
-  \ per SPEC-0005\n   rule 8: rule 8 has exactly ONE home and this is not it.\n6.\
-  \ **Walk order** — rules are mapped/closed in order of the COST of silent breakage\n\
-  \   (money → outbound mutations → isolation/access → data mutations → background\
-  \ jobs).\n7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen\
+  \ as, is **<workshop-spec> rule 8** — read it before you\n   answer: `yitc-v2 graph\
+  \ query <workshop-spec>`. The class is RECORDED, never guessed: the local-probe\
+  \ class\n   is carried by `tests/local-probe-files.json`, whose per-file reasons\
+  \ live in\n   `dev-utilities/remote-verify-local-probe-classification.md`. A CUE\
+  \ plus a POINTER, per SPEC-0005\n   rule 8: rule 8 has exactly ONE home and this\
+  \ is not it.\n6. **Walk order** — rules are mapped/closed in order of the COST of\
+  \ silent breakage\n   (money → outbound mutations → isolation/access → data mutations\
+  \ → background jobs).\n7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen\
   \ specs are not rules and\n   need no tripwire.\n8. **Ledger role** — the per-project\
   \ ledger stores ONLY rule→tripwire/waive links and waive\n   contracts: derived\
   \ bookkeeping, re-derivable, never a parallel truth (the spec stays the\n   rule's\
@@ -398,23 +398,23 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ every other item here:\n`implements:` stays empty, `consumed:` stays false, and\
   \ nothing refuses on account of it.\n(j) for item 5's host-inspecting-test cue,\
   \ a DIFFERENTIAL with both legs held at once: item 5's own\ntext CARRIES the cue\
-  \ (the authoring question) AND a fetchable pointer naming SPEC-0203 rule 8 and the\n\
-  artifact that records the local-probe class, and it does NOT carry rule 8's normative\
-  \ sentences — the\nsecond leg goes RED if a later edit inlines them here, which\
-  \ is the P5 second-home drift the pointer\nexists to prevent. Both legs are held\
-  \ against negative fixtures built from the shipped body, so the\ncheck is shown\
-  \ to discriminate a stripped pointer from an inlined rule and to report them separately.\n\
-  Delivery is part of the probe: SPEC-0165 must still bind stage-entry:Filing and\
-  \ stage-entry:Tests, or\nthe cue reaches neither authoring moment. Wired to NO code,\
-  \ like every other item here.\n(k) for item 12's selection-friendly layout, a DIFFERENTIAL\
-  \ with three legs: item 12's own text\nCARRIES each of the five habits of (a) and\
-  \ the heavy-test split of (b); it CARRIES a pointer that\nresolves to the pattern\
-  \ section holding the split mechanics; and it does NOT carry that\nsection's own\
-  \ sentences — the third leg goes RED if a later edit inlines the mechanics here.\
-  \ Each\nleg is held against a negative fixture built from the shipped body (one\
-  \ habit removed, the\npointer removed, a pattern sentence pasted in, the whole item\
-  \ removed), and each is reported by\nits own name. Clause (c) is held the same way:\
-  \ its sentences are in item 12, it names the\npattern's §The WASTE lever beside\
+  \ (the authoring question) AND a fetchable pointer naming <workshop-spec> rule 8\
+  \ and the\nartifact that records the local-probe class, and it does NOT carry rule\
+  \ 8's normative sentences — the\nsecond leg goes RED if a later edit inlines them\
+  \ here, which is the P5 second-home drift the pointer\nexists to prevent. Both legs\
+  \ are held against negative fixtures built from the shipped body, so the\ncheck\
+  \ is shown to discriminate a stripped pointer from an inlined rule and to report\
+  \ them separately.\nDelivery is part of the probe: SPEC-0165 must still bind stage-entry:Filing\
+  \ and stage-entry:Tests, or\nthe cue reaches neither authoring moment. Wired to\
+  \ NO code, like every other item here.\n(k) for item 12's selection-friendly layout,\
+  \ a DIFFERENTIAL with three legs: item 12's own text\nCARRIES each of the five habits\
+  \ of (a) and the heavy-test split of (b); it CARRIES a pointer that\nresolves to\
+  \ the pattern section holding the split mechanics; and it does NOT carry that\n\
+  section's own sentences — the third leg goes RED if a later edit inlines the mechanics\
+  \ here. Each\nleg is held against a negative fixture built from the shipped body\
+  \ (one habit removed, the\npointer removed, a pattern sentence pasted in, the whole\
+  \ item removed), and each is reported by\nits own name. Clause (c) is held the same\
+  \ way: its sentences are in item 12, it names the\npattern's §The WASTE lever beside\
   \ the split section, and item 12 with (c) cut out fails. Wired to\nNO code, like\
   \ every other item here.\n"
 cites:
@@ -422,7 +422,6 @@ cites:
 - SPEC-0015
 - SPEC-0060
 - SPEC-0077
-- SPEC-0203
 requires: []
 supersedes: null
 activation_owner_task: null

@@ -615,7 +615,10 @@ def cmd_journal_dispatch_readiness(args: argparse.Namespace) -> None:
 
 # SPEC-0136 §2 governance-surface classifier for the dispatch-plan advisor: a change's blast-radius (not
 # its size) sets clash weight (LIFECYCLE §Two-flow-types / T-10058). REUSES the shipped mechanical
-# verifier/pinned-test classifier (_is_verify_implementation_touch, SPEC-0077) for the bin/tests surface,
+# verifier/pinned-test classifier (_is_verify_implementation_touch, SPEC-0077) for the bin/tests surface
+# — bound to the fixed tuple WHOLE in the kernel's own repository; in a project repository it is asked
+# over the pinned-test member the SPEC-0178 guard set holds there (`_governance_pinned_test_globs`,
+# T-13933: the root `bin/` files the project's contract names, not the whole root `bin/`) —
 # and adds the two other governance surfaces LIFECYCLE names — a SPEC (`specs/*.yaml`) and an always-
 # loaded handbook seed (the read-order docs + the generated seeds). NO new file-weighting scheme.
 _ALWAYS_LOADED_SEED_DOCS = frozenset({
@@ -635,6 +638,11 @@ def _is_governance_surface(path) -> bool:
     # so the bare suffix test would read a part edit as fast-path-ELIGIBLE — match the part suffix too.
     if p.endswith("-seed.md") or re.search(r"-seed-\d+\.md$", p) or p.endswith("controller-supplement.md"):
         return True
+    if _is_consumer_build():
+        # T-13933 — a project: the same pinned-test member the SPEC-0178 guard set takes, one answer
+        # for both readers, matched by the same carrier as the kernel's line below.
+        return worktree_mod._is_verify_implementation_touch(
+            [p], _VERIFY_IMPLEMENTATION_GLOBS=_governance_pinned_test_globs())
     return verify_wiring._is_verify_implementation_touch([p])   # SPEC-0077 verifier/pinned-test surface (reused)
 
 
@@ -1588,7 +1596,7 @@ def _stage6_governed_selection(*a, **kw):
     for _k, _v in (("_shadow_select", worktree_mod._shadow_select),
                    ("_selection_governs", worktree_mod._selection_governs),
                    ("_selection_omission_tripwire", worktree_mod._selection_omission_tripwire),
-                   ("_VERIFY_IMPLEMENTATION_GLOBS", verify_wiring._VERIFY_IMPLEMENTATION_GLOBS),
+                   ("_VERIFY_IMPLEMENTATION_GLOBS", verify_wiring._verify_infrastructure_globs(kernel_repo=not _is_consumer_build())),
                    ("EXPECTED_SESSION_REF_ENV", EXPECTED_SESSION_REF_ENV)):
         kw.setdefault(_k, _v)
     return worktree_mod.verify_runner.governed_selection(*a, **kw)
@@ -28334,7 +28342,7 @@ def _fold_main_journal_into_branch(main_wt, reset_main: bool = True) -> bool:
 CONSUMER_VERIFY_CONTRACT = "yitc-verify.yaml"
 
 
-def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None) -> dict:
+def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None, queue_jump: bool = False, one_card_candidate: bool = False) -> dict:
     # T-13675: `stage6_credit_layers` / `stage6_rerun_layers` (optional, the land's step 4d only) — after
     # a tree-differs refusal, the layers that take their verdict from the task's Stage-6 run and the
     # layers that did not pass there and so run whatever their subject (SPEC-0065 §Bound).
@@ -28351,7 +28359,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # load at the moment it expired) instead of reading as a bare timeout whose only named remedy is
     # raising the bound. Report-only — the gate is untouched (SPEC-0103). This ONE residue is the seam
     # every caller (`task test`, `_land_integrate`) funnels through, so injecting here reaches them all.
-    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds)   # T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
+    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds, **({"queue_jump": True} if queue_jump else {}), **({"one_card_candidate": True} if one_card_candidate else {}))   # T-13907: the candidate run of ONE card, passed on only when a caller says so; T-13904: `queue_jump` — the Stage-6 call site's declaration of a live queue-jump mark, forwarded only when set; T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
 
 
 def _consumer_tests_delegation(worktree: Path, routing_from: "Path | None" = None) -> "str | None":
@@ -28391,8 +28399,10 @@ def _uncommitted_layer_surface(worktree: Path) -> list:
 # ── SPEC-0178 rule 3 (T-11156) — the GOVERNANCE-SURFACE set, composed from the carriers above ─────────
 # Rule 3's set is EXACTLY LIFECYCLE §Two-flow-types' fast-path-INELIGIBLE classification plus the
 # declaration carrier, so it is COMPOSED here from the constants that already own each member rather
-# than re-spelled: `_VERIFY_IMPLEMENTATION_GLOBS` (the SPEC-0077 pinned-test surface, READ never edited)
-# and `CANONICAL_DOCS` (the always-loaded seed, itself derived from the ONE HANDBOOK_READ_ORDER carrier).
+# than re-spelled: the pinned-test member (`_governance_pinned_test_globs` below — the fixed tuple
+# `_VERIFY_IMPLEMENTATION_GLOBS` WHOLE in the kernel's own repository, READ never edited; in a project
+# repository the project answer of the one home plus the check surface the project's contract declares,
+# T-13933) and `CANONICAL_DOCS` (the always-loaded seed, itself derived from the ONE HANDBOOK_READ_ORDER carrier).
 # The composition + the remaining two members live in `task_mod._governance_surface_globs` — one home,
 # reachable by every reader (CHARTER §P5). Injected into `cmd_task_close`; a consumer's own handbook set
 # is empty by construction, which rule 3 names as the expected consumer shape, not an exception.
@@ -28416,6 +28426,47 @@ def _declared_governance_check_paths() -> list:
         return worktree_mod._pinned_declared_check_paths(ops)
     except Exception:
         return []
+
+
+@functools.lru_cache(maxsize=1)
+def _governance_pinned_test_globs() -> tuple:
+    """T-13933 (SPEC-0178 rule 3) — the PINNED-TEST member of THIS repository's governance set.
+
+    The kernel's own repository: the fixed tuple WHOLE (`verify_wiring._VERIFY_IMPLEMENTATION_GLOBS`)
+    — there the root `bin/` IS the verifier. A project repository: the verify-infrastructure set of a
+    project from its one home (`verify_wiring._verify_infrastructure_globs`, which holds no root
+    `bin/**` member) PLUS the check surface the project's own contract declares, taken WHOLE from the
+    one per-carrier reader (`land_verify_legs.py#_declared_check_surface_globs_of`: a layer's
+    `command:` path tokens, an adapter's `sources:` at or under the root `bin/`, every
+    `verify.infra_globs` entry). So on a contract read without doubt a root `bin/` file the contract
+    names is a governance surface and the rest of the root `bin/` is not. `subject_globs` and
+    `covers:` are not read: they name what a layer tests, not what verifies.
+
+    DOUBT ADDS THE WHOLE FIXED SET — the wider answer, this guard's fail-closed direction: where the
+    declaration reader refuses a `verify.infra_globs` value or entry, the globs the per-carrier
+    reader did return stay in the answer beside the whole fixed set. A carrier
+    that is present but does not load to a mapping, and a reader that raises, give the whole fixed
+    set (no reader answer exists to keep). A repository with no carrier declares nothing (and no case).
+
+    One read per process, as the composed set below is: the Closure seam, the two report seams and
+    the SPEC-0136 advisor (`_is_governance_surface`, once per forecast path) all take this answer."""
+    whole = verify_wiring._VERIFY_IMPLEMENTATION_GLOBS
+    if not _is_consumer_build():
+        return whole
+    try:
+        project = verify_wiring._verify_infrastructure_globs(kernel_repo=False)
+        carrier = REPO_ROOT / init_mod.CONSUMER_OPS_CONTRACT
+        if not carrier.exists():
+            return project
+        ops = state.load_ops(carrier)
+        if not isinstance(ops, dict):
+            return whole
+        doubt = bool(worktree_mod._declared_verify_infra_globs(ops)[1])
+        named = sorted(worktree_mod._declared_check_surface_globs_of(ops))
+    except Exception:                      # noqa: BLE001 — a doubt keeps the whole fixed set
+        return whole
+    base = whole if doubt else project
+    return base + tuple(g for g in named if g not in base)
 
 
 # NOT cached, deliberately (audit-post pass 1 RED): this reads the CURRENT footprint, the
@@ -28496,7 +28547,7 @@ def _governance_surface_globs_value():
     T-11293's declared-check-paths member — lib.worktree (18). Resolved on first read via the module
     __getattr__ below; the composed value and every caller are unchanged."""
     return task_mod._governance_surface_globs(
-        verify_globs=verify_wiring._VERIFY_IMPLEMENTATION_GLOBS, declared_check_paths=_declared_governance_check_paths(),
+        verify_globs=_governance_pinned_test_globs(), declared_check_paths=_declared_governance_check_paths(),
         canonical_docs=CANONICAL_DOCS, ops_contract=init_mod.CONSUMER_OPS_CONTRACT)
 
 
@@ -28509,7 +28560,9 @@ def _governance_surface_globs_value():
 # LOGIC + RUNNER) still apply to the NEW subject. Consumer-aware by REPO_ROOT (SPEC-0077 §6).
 def _materialize_pinned_engine_bin(W: Path, merged_base: str):
     # Thin residue → worktree_mod._materialize_pinned_engine_bin (T-9340 inject seam; host-deps injected at call time).
-    return worktree_mod._materialize_pinned_engine_bin(W, merged_base, _run_git_cap=_run_git_cap)
+    # T-13917: the identity rides with the call — a project is told by it, never by a file at `bin/yitc-v2`.
+    return worktree_mod._materialize_pinned_engine_bin(W, merged_base, _run_git_cap=_run_git_cap,
+                                                       _is_consumer_build=_is_consumer_build)
 
 
 
@@ -29033,6 +29086,11 @@ def _run_host_leak_canary(cwd: Path, journal_path=None) -> list:
     import importlib.util
     import subprocess
 
+    # T-13917: the canary is the ENGINE's own guard. A PROJECT (the kernel's identity, never a file at
+    # `bin/yitc-v2` or at the canary's path) has none to run and none to miss — the no-op the CLI-less
+    # arm below already answers for every project that keeps neither file.
+    if _is_consumer_build():
+        return []
     canary = cwd / "tests" / "test_t0402_host_leak_canary.py"
     if not canary.exists():
         if (cwd / "bin" / "yitc-v2").exists():
@@ -29732,7 +29790,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # (task/ AND work/ lands); a caller (test seam) may override it.
     if _land_frontier_count is None:
         _land_frontier_count = (lambda: (_live_land_frontier().get("total") or None))
-    return worktree_mod._land_integrate(W, main_wt, branch, run_tests, _after_verify_hook, t_start, no_tests_reason, owner_authorized, owner_rebaseline, rebaseline_reason, expect_rebaseline=expect_rebaseline, merge_invalid_acceptance=merge_invalid_acceptance, merge_invalid_assertions=merge_invalid_assertions, _VERIFY_IMPLEMENTATION_GLOBS=verify_wiring._VERIFY_IMPLEMENTATION_GLOBS, _anchor_signature_of_text=_anchor_signature_of_text, rebaseline_waive=rebaseline_waive, rebaseline_kind=rebaseline_kind, _context_seam_tail=_context_seam_tail, _scaling_signals_tail=_scaling_signals_tail, _land_bookkeeping_sha=_land_bookkeeping_sha, _land_frontier_count=_land_frontier_count, _auto_file_kernel_deviations=_auto_file_kernel_deviations, _auto_cross_done_for_landed_closes=_auto_cross_done_for_landed_closes, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _run_git_cap=_run_git_cap, _with_repo_lock=_with_repo_lock, EVENTS_PATH=EVENTS_PATH, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_MAX_RETRIES=_LAND_MAX_RETRIES, _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _VERIFY_TIMEOUT_MARKER=_VERIFY_TIMEOUT_MARKER, _change_is_audited=_change_is_audited, _classify_inert_paths=_classify_inert_paths, _consumer_zero_probe_guard=_consumer_zero_probe_guard, _dedup_events=_dedup_events, _fold_main_journal_into_branch=_fold_main_journal_into_branch, _is_foldable_journal=_is_foldable_journal, _is_yitc_session_state=_is_yitc_session_state, _land_content_confirmation=_land_content_confirmation, _land_retry_backoff_seconds=_land_retry_backoff_seconds, _merged_tree_delta_paths=_merged_tree_delta_paths, _pinned_failures_are_additive_layout_mismatch=_pinned_failures_are_additive_layout_mismatch, _reset_worktree_bookkeeping=_reset_worktree_bookkeeping, _run_decision_rule_body_guard=_run_decision_rule_body_guard, _run_pinned_verify=functools.partial(verify_wiring._run_pinned_verify, _host_globals=globals()), _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _surface_failing_assertions=_surface_failing_assertions, _verify_failing_test_names=_verify_failing_test_names, write_text_atomic=write_text_atomic, _consumer_tests_delegation=_consumer_tests_delegation, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _audience_view_paths=_audience_view_paths, _event_dedup_key=_event_dedup_key, member_claim_pid=member_claim_pid, batch_state=batch_state, _inland_audit_post=_inland_audit_post, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission, _is_consumer_build=_is_consumer_build, _regen_manifest_managed_regions=_regen_manifest_managed_regions, _regen_manifest_root=_regen_manifest_root, _id_alloc_lock=_id_alloc_lock, _dump_state_yaml=_dump_state_yaml)  # T-12359: the two host primitives the auto-filed load-sensitive card is composed with (the ONE T-id allocator + the ONE card-write serializer/chokepoint) — injected, never re-implemented in worktree.py.  # T-12236: the manifest §1/§2/§3 managed-region regen — the generator land re-derives beside `_auto_rebuild_graph`, injected (never re-implemented in worktree.py). # T-12199: the kernel/consumer predicate the SPEC-0203 rule-2 routing decision reads (a `-C` pass NEVER consults the venue record) — injected, never re-implemented in worktree.py. # T-11483: the in-land re-audit runner (the SAME `audit post` verb, re-exec'd over the merged tree) — injected, never re-implemented in worktree.py. # T-10731: the WRITE SIDE's dedupe identity, injected for the SPEC-0168 rule-5 custody check (rule 3 — never re-implemented)
+    return worktree_mod._land_integrate(W, main_wt, branch, run_tests, _after_verify_hook, t_start, no_tests_reason, owner_authorized, owner_rebaseline, rebaseline_reason, expect_rebaseline=expect_rebaseline, merge_invalid_acceptance=merge_invalid_acceptance, merge_invalid_assertions=merge_invalid_assertions, _VERIFY_IMPLEMENTATION_GLOBS=verify_wiring._verify_infrastructure_globs(kernel_repo=not _is_consumer_build()), _anchor_signature_of_text=_anchor_signature_of_text, rebaseline_waive=rebaseline_waive, rebaseline_kind=rebaseline_kind, _context_seam_tail=_context_seam_tail, _scaling_signals_tail=_scaling_signals_tail, _land_bookkeeping_sha=_land_bookkeeping_sha, _land_frontier_count=_land_frontier_count, _auto_file_kernel_deviations=_auto_file_kernel_deviations, _auto_cross_done_for_landed_closes=_auto_cross_done_for_landed_closes, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _run_git_cap=_run_git_cap, _with_repo_lock=_with_repo_lock, EVENTS_PATH=EVENTS_PATH, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_MAX_RETRIES=_LAND_MAX_RETRIES, _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _VERIFY_TIMEOUT_MARKER=_VERIFY_TIMEOUT_MARKER, _change_is_audited=_change_is_audited, _classify_inert_paths=_classify_inert_paths, _consumer_zero_probe_guard=_consumer_zero_probe_guard, _dedup_events=_dedup_events, _fold_main_journal_into_branch=_fold_main_journal_into_branch, _is_foldable_journal=_is_foldable_journal, _is_yitc_session_state=_is_yitc_session_state, _land_content_confirmation=_land_content_confirmation, _land_retry_backoff_seconds=_land_retry_backoff_seconds, _merged_tree_delta_paths=_merged_tree_delta_paths, _pinned_failures_are_additive_layout_mismatch=_pinned_failures_are_additive_layout_mismatch, _reset_worktree_bookkeeping=_reset_worktree_bookkeeping, _run_decision_rule_body_guard=_run_decision_rule_body_guard, _run_pinned_verify=functools.partial(verify_wiring._run_pinned_verify, _host_globals=globals()), _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _surface_failing_assertions=_surface_failing_assertions, _verify_failing_test_names=_verify_failing_test_names, write_text_atomic=write_text_atomic, _consumer_tests_delegation=_consumer_tests_delegation, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _audience_view_paths=_audience_view_paths, _event_dedup_key=_event_dedup_key, member_claim_pid=member_claim_pid, batch_state=batch_state, _inland_audit_post=_inland_audit_post, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission, _is_consumer_build=_is_consumer_build, _regen_manifest_managed_regions=_regen_manifest_managed_regions, _regen_manifest_root=_regen_manifest_root, _id_alloc_lock=_id_alloc_lock, _dump_state_yaml=_dump_state_yaml)  # T-12359: the two host primitives the auto-filed load-sensitive card is composed with (the ONE T-id allocator + the ONE card-write serializer/chokepoint) — injected, never re-implemented in worktree.py.  # T-12236: the manifest §1/§2/§3 managed-region regen — the generator land re-derives beside `_auto_rebuild_graph`, injected (never re-implemented in worktree.py). # T-12199: the kernel/consumer predicate the SPEC-0203 rule-2 routing decision reads (a `-C` pass NEVER consults the venue record) — injected, never re-implemented in worktree.py. # T-11483: the in-land re-audit runner (the SAME `audit post` verb, re-exec'd over the merged tree) — injected, never re-implemented in worktree.py. # T-10731: the WRITE SIDE's dedupe identity, injected for the SPEC-0168 rule-5 custody check (rule 3 — never re-implemented)
 
 
 

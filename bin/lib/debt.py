@@ -1657,7 +1657,7 @@ def _surface4_engine_predicate():
     try:
         from lib import worktree as _wt
         return (_wt._subject_globs_would_skip, _wt._verify_skip_fail_closed_edge,
-                _wt._SUBJECT_VERIFY_INFRA_GLOBS)
+                _wt._project_verify_infra_globs())
     except Exception as exc:  # noqa: BLE001 — every cause is the same fact to the caller
         raise Surface4DetectorRefused(
             f"REFUSING to run the {_SURFACE4_DETECTOR} detector — could not import the engine skip "
@@ -1685,6 +1685,24 @@ def _surface4_engine_carrier_freed():
             f"ops-carrier section comparison from bin/lib/worktree.py ({type(exc).__name__}: {exc}). A "
             f"replayed comparison that is not the engine's own measures the replay, not the engine "
             f"(SPEC-0189 rule 5)") from exc
+
+
+def _surface4_engine_named_root_bin():
+    """T-13915 — the engine's OWN «the project's contract names this root bin/ file» reader, or REFUSE.
+
+    Since T-13915 a project's root `bin/` path takes the full-run edge only when the declared check
+    surface names it (a layer's `command:`, an adapter's `sources:`, `verify.infra_globs`). A replay
+    that judged every root `bin/` path by layer globs alone would report a FALSE SKIP on lands the
+    engine runs in full. Imported on the same terms as its siblings (SPEC-0189 rule 5)."""
+    try:
+        from lib import worktree as _wt
+        return _wt._named_root_bin_touch
+    except Exception as exc:  # noqa: BLE001 — every cause is the same fact to the caller
+        raise Surface4DetectorRefused(
+            f"REFUSING to run the {_SURFACE4_DETECTOR} detector — could not import the engine's "
+            f"named-root-bin reader from bin/lib/worktree.py ({type(exc).__name__}: {exc}). A replay "
+            f"that judges a root bin/ path differently from the engine measures the replay, not the "
+            f"engine.") from exc
 
 
 def _surface4_engine_owned_test_freed():
@@ -1757,7 +1775,8 @@ _SURFACE4_BOOKKEEPING = ("events.jsonl", "graph/", "tasks/", "decisions/", "MEMO
 
 
 def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predicate=None,
-                              carrier_texts=None, _carrier_freed=None, _owned_test_freed=None) -> list:
+                              carrier_texts=None, _carrier_freed=None, _owned_test_freed=None,
+                              _named_root_bin=None) -> list:
     """THE ORACLE. Replay the engine's skip predicate over the content of every land that ABORTED on a
     structurally-named layer failure, and return the cases where a layer WOULD have been skipped on
     content that really broke something it covers. Each returned case is a dict carrying `verdict`.
@@ -1779,7 +1798,8 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
          row therefore contributes nothing, which is the honest reading: the field did not exist, so
          the journal does not say which layer failed, and guessing from prose is the refused move.
       2. The verify-infra fail-closed edge (`_verify_skip_fail_closed_edge` over
-         `_SUBJECT_VERIFY_INFRA_GLOBS`) did not force a full run on that content. T-13528 — the edge
+         the project's verify-infrastructure set, `_project_verify_infra_globs()`) did not force a
+         full run on that content. T-13528 — the edge
          is asked the way the land asks it: when the corpus supplies `carrier_texts(sha, base_sha)`
          (the `yitc-ops.yaml` text at the replayed land's merge-base and at its sha), the engine's own
          `_ops_carrier_freed_paths` decides whether a carrier touch is freed, and that set rides the
@@ -1810,10 +1830,11 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
     succeeds if its layers pass) and cleared every inconvenient one. That shape is recorded in the
     trial instrument for the same reason it is recorded here — it recurs."""
     would_skip, fail_closed_edge, infra_globs = _predicate or _surface4_engine_predicate()
-    carrier_freed = owned_test_freed = None
+    carrier_freed = owned_test_freed = named_root_bin = None
     if carrier_texts is not None:
         carrier_freed = _carrier_freed or _surface4_engine_carrier_freed()
         owned_test_freed = _owned_test_freed or _surface4_engine_owned_test_freed()
+        named_root_bin = _named_root_bin or _surface4_engine_named_root_bin()
 
     by_layer = {str(ly.get("layer") or "").strip(): ly for ly in (layers or []) if isinstance(ly, dict)}
     scoped = [ly for name, ly in by_layer.items() if name and ly.get("subject_globs") is not None]
@@ -1857,15 +1878,19 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
             cases.append(case)
             continue
         freed = None
+        named = False
         if carrier_freed is not None:
             texts = carrier_texts(sha, base)
             if isinstance(texts, (tuple, list)) and len(texts) == 2:
                 freed = (frozenset(carrier_freed(paths, texts[0], texts[1]) or ())
                          | frozenset(owned_test_freed(paths, texts[0], texts[1]) or ())) or None
+                # T-13915 — a root `bin/` file the project's own contract names (asked the way the
+                # land asks it, over the same two carrier texts) is a full run, as it is at the land.
+                named = bool(named_root_bin(paths, texts[0], texts[1]))
         # The kwarg is passed only when a freed set exists, so an injected edge stub that predates
         # the seam is called exactly as before.
-        if (fail_closed_edge(paths, infra_globs, diff_error=None, reachability_freed=freed)
-                if freed else fail_closed_edge(paths, infra_globs, diff_error=None)):
+        if named or (fail_closed_edge(paths, infra_globs, diff_error=None, reachability_freed=freed)
+                     if freed else fail_closed_edge(paths, infra_globs, diff_error=None)):
             case["verdict"] = "safe-full-run-fail-closed-edge"
             cases.append(case)
             continue
@@ -4586,6 +4611,10 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
     T-13675: a `credited-stage6-run` row (SPEC-0065 §Bound — the land took that layer's verdict from
     the task's Stage-6 run) is treated the same way and for the same reason: the layer did not run on
     that land and its subject was not what skipped it, so the row scores nothing at all.
+    T-13911 (SPEC-1030 rule 6): a PARTIAL-RUN row — the layer ran only some of its units on that
+    land (`land_verify_legs._layer_row_is_partial_run`) — is treated the same way: a run of a part
+    of the layer is not an observation that the layer ran, and nothing skipped it, so the row scores
+    nothing at all. At the run level such a land is counted apart (`_run_skip`, the class `partial`).
 
     ABSENT IS NOT NON-SKIP. A land whose payload carries no row for a layer does not score that layer at
     all — neither numerator nor denominator. Per-layer rows only start once a project declares its
@@ -4617,7 +4646,12 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
     where `layers` is a list of `{"layer", "observations"}`. Pure: reads one file, writes nothing
     (SPEC-0149 §2). FAITHFUL, never fail-closed: a malformed line is skipped, never fatal
     (`lessons/fail-closed-belongs-to-the-reader-not-the-parser.md`)."""
+    from lib import land_verify_legs as _legs   # lazy, as this module reaches the land engine (T-13911)
     lands: list = []
+    # T-13906: the land rows left OUT of the window, each as (qualifying lands read before it, class).
+    # They score nothing, as before; they are only COUNTED, so the run-level line can print them
+    # beside its rate instead of leaving the reader to guess where they went (see `_run_skip`).
+    left_out: list = []
     try:
         # T-11669 (X-1123) — the WHOLE logical journal, every segment (SPEC-0190 rule 4). Still the
         # ONE shared fold of T-11453: `segment_rows` resolves the segment SET and reads each member
@@ -4626,10 +4660,15 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
             if not isinstance(event, dict) or event.get("type") != "land_completed":
                 continue
             data = event.get("data")
-            if not isinstance(data, dict) or data.get("status") != "ok":
+            if not isinstance(data, dict):
+                continue
+            if data.get("status") != "ok":
+                if data.get("status") == "abort":
+                    left_out.append((len(lands), "aborted"))
                 continue                  # an ABORTed land proves nothing about a layer's subject
             rows = data.get("consumer_verify_layers")
             if not isinstance(rows, list) or not rows:
+                left_out.append((len(lands), "no_layer_rows"))
                 continue                  # no per-layer trail ⇒ this land scores no layer at all
             lands.append(rows)
     except (OSError, UnicodeDecodeError):
@@ -4638,12 +4677,21 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
         window = int(window_lands)
     except (TypeError, ValueError):
         window = ZERO_SKIP_WINDOW_LANDS
+    first_in_window = max(0, len(lands) - window) if window > 0 else 0
     if window > 0:
         lands = lands[-window:]               # the WINDOW: the most recent qualifying lands
+    # T-13906: the classes of land the run-level rate does NOT count (see `_run_skip`). The first
+    # three are lands of the window that ran no layer; the last two are the left-out land rows read
+    # AFTER the window's first land — the same stretch of the journal, so the counts sit beside it.
+    others = {"all_skipped": 0, "credited": 0, "unscored": 0, "no_layer_rows": 0, "aborted": 0}
+    for seen_before, kind in left_out:
+        if seen_before > first_in_window:
+            others[kind] += 1
     tally: dict = {}
+    ran_lands = 0                             # T-13906: the RUN-level denominator — ran >= 1 layer
     lands_with_a_skip = 0                     # T-11749: the RUN-level numerator (see `_run_skip` below)
     for rows in lands:
-        skipped_here = False
+        skipped_here = ran_here = credited_here = partial_here = False
         for row in rows:
             if not isinstance(row, dict):
                 continue
@@ -4652,15 +4700,31 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
                 continue                      # a row naming no layer scores none
             outcome = row.get("outcome")
             if outcome == _ZERO_SKIP_WAIVED or outcome == "credited-stage6-run":
+                credited_here = credited_here or outcome != _ZERO_SKIP_WAIVED
                 continue                      # waived ⇒ the layer neither ran nor skipped (see below);
                                               # T-13675: nor did a layer credited to a Stage-6 run
+            if _legs._layer_row_is_partial_run(row):
+                partial_here = True
+                continue                      # T-13911: a run of a PART of the layer is no observation
             seen = tally.setdefault(name.strip(), {"observations": 0, "skips": 0})
             seen["observations"] += 1
             if outcome == _ZERO_SKIP_OUTCOME:
                 seen["skips"] += 1
                 skipped_here = True           # THIS land skipped at least one layer
-        if skipped_here:
-            lands_with_a_skip += 1
+            else:
+                ran_here = True               # T-13906: THIS land ran at least one layer
+        if ran_here:
+            ran_lands += 1
+            if skipped_here:
+                lands_with_a_skip += 1
+        elif partial_here:
+            others["partial"] = others.get("partial", 0) + 1   # T-13911: ran none in full, one in part
+        elif skipped_here:
+            others["all_skipped"] += 1
+        elif credited_here:
+            others["credited"] += 1
+        else:
+            others["unscored"] += 1
     try:
         floor = int(min_observations)
     except (TypeError, ValueError):
@@ -4670,10 +4734,10 @@ def zero_skip_verify_layers(events_path, window_lands: int = ZERO_SKIP_WINDOW_LA
               if seen["observations"] >= floor and seen["skips"] == 0]
     layers.sort(key=lambda l: l["layer"])
     return _zero_skip_result(layers, window, len(lands), floor,
-                             _run_skip(len(lands), lands_with_a_skip))
+                             _run_skip(ran_lands, lands_with_a_skip, others))
 
 
-def _run_skip(observed_lands: int, lands_with_a_skip: int) -> dict:
+def _run_skip(ran_lands: int, lands_with_a_skip: int, others: dict = None) -> dict:
     """The RUN-level companion of the per-layer reading above (T-11749 / <project> X-1165, X-1160).
 
     THE QUESTION IT ANSWERS, which the per-layer view cannot. The sibling reading is per-LAYER: "which
@@ -4684,31 +4748,63 @@ def _run_skip(observed_lands: int, lands_with_a_skip: int) -> dict:
     advising four peer projects to NARROW globs and citing their own skip rate as the prize. Nobody was
     watching it, themselves included, because nothing printed it.
 
-    THE PREDICATE. Over the SAME window of qualifying lands the fold above already walked, a land counts
-    in the numerator iff at least ONE of its rows carries the `skipped-disjoint-subject` outcome — the one
-    outcome that is a REAL skip (T-10573); `waived` is not a skip here either, for the identical reason it
-    is not one per layer (a waived layer neither ran nor skipped, so it costs no land time and its land
-    bought nothing). No observation FLOOR applies: the floor above exists to stop nagging about a THINLY
-    OBSERVED LAYER, and this is not a per-layer nag — it is a rate over the window, reported with its own
-    denominator so a reader can see how much evidence stands behind it.
+    THE PREDICATE (T-13906). The DENOMINATOR is the lands of the window that RAN at least one layer — a
+    row whose outcome is neither `skipped-disjoint-subject`, `waived` nor `credited-stage6-run`, and
+    (T-13911) that is not a partial run, which
+    is exactly the row the per-layer reading above counts as an observation that is not a skip, so the
+    two readings of one fold cannot disagree about what a run is. Such a
+    land counts in the numerator iff at least ONE of its rows carries the `skipped-disjoint-subject`
+    outcome — the one outcome that is a REAL skip (T-10573); `waived` is not a skip here either, for the
+    identical reason it is not one per layer (a waived layer neither ran nor skipped, so it costs no land
+    time and its land bought nothing). No observation FLOOR applies: the floor above exists to stop
+    nagging about a THINLY OBSERVED LAYER, and this is not a per-layer nag — it is a rate over the
+    window, reported with its own denominator so a reader can see how much evidence stands behind it.
 
-    ZERO IS A READING; NO DENOMINATOR IS NOT. `rate_pct` is None — and the view stays silent — only when
-    the window holds no qualifying land at all: that is NO MEASUREMENT, not a rate of zero, and printing
+    THE LANDS IT DOES NOT COUNT ARE NAMED, EACH WITH ITS OWN COUNT (T-13906, a consumer's public
+    proposal). Before this, every land of the window sat in the denominator, so a land whose rows were
+    ONLY credited or waived read as a land that skipped nothing, and the complement of the rate was read
+    as "ran every layer" — which it never was. A land that ran no layer says nothing about how often a
+    RUN gets to skip, so it leaves the rate and is counted in `others` instead, one class per land:
+      all_skipped    a land of the window that ran no layer and skipped at least one;
+      credited       a land of the window that ran none, skipped none, and took at least one layer's
+                     verdict from a Stage-6 run;
+      unscored       a land of the window whose rows are all waived or name no layer;
+      no_layer_rows  an ok land with no per-layer trail (never in the window);
+      aborted        a land row whose status is `abort` (never in the window).
+    T-13911 (SPEC-1030 rule 6) — one more class, a key that is PRESENT ONLY WHEN IT IS NOT ZERO
+    (absent reads as none, so a window without a partial run answers the keys it answered before):
+      partial        a land of the window that ran no layer in full and at least one IN PART. It is
+                     read before `all_skipped`: a land that ran a part of a layer did run something,
+                     so it is never counted as a land that ran no layer.
+    The last two of the five above are counted over the stretch of the journal the window spans — the land rows read
+    after the window's first land — so they describe the same lands-in-time the rate does. A land row
+    whose status is neither `ok` nor `abort` (the oldest rows carry none) is in no class, as it was
+    counted nowhere before: the fold cannot say what it was, and a report must not guess. A caller
+    that passes no `others` (a reader that tallied only the two figures) gets every class at 0.
+
+    ZERO IS A READING; NO DENOMINATOR IS NOT. `rate_pct` is None when no land of the window ran a
+    layer: that is NO MEASUREMENT, not a rate of zero. The view then prints the classes without a rate
+    when the window holds lands, and stays silent only when it holds none at all — printing
     `0 of 0` on every land of a repo that records no per-layer trail (this engine kernel) would train its
     reader to skip the line, which is the same silent failure as having no surface. But a window in which
-    lands DID happen and none skipped reads 0% and PRINTS — the reporter's one stated requirement, and the
+    lands DID run layers and none skipped reads 0% and PRINTS — the reporter's one stated requirement, and the
     lesson our own graph-cache hit-rate line records (1135 markers written, none read across 1390 lands,
     invisible until someone went looking). A dead view and a working one must not look alike.
 
     Report-only, derived at read time from rows land already writes: no new event, no new store, no gate,
     no threshold, no alert (all four explicitly out of scope in the ask)."""
-    rate = round(100.0 * lands_with_a_skip / observed_lands, 1) if observed_lands > 0 else None
-    return {"lands": observed_lands, "skipped": lands_with_a_skip, "rate_pct": rate}
+    rate = round(100.0 * lands_with_a_skip / ran_lands, 1) if ran_lands > 0 else None
+    out = {"lands": ran_lands, "skipped": lands_with_a_skip, "rate_pct": rate}
+    for kind in ("all_skipped", "credited", "unscored", "no_layer_rows", "aborted"):
+        out[kind] = (others or {}).get(kind, 0)
+    if (others or {}).get("partial"):
+        out["partial"] = others["partial"]    # T-13911: present only when not zero
+    return out
 
 
 def _zero_skip_result(layers: list, window_lands: int, observed_lands: int,
                       min_observations: int, run_skip: dict = None) -> dict:
-    return {
+    result = {
         "lens": "zero-skip-verify-layers (SPEC-0119 / SPEC-0152 rule 16 subject_globs, T-11080) — the "
                 "executable verify layers that skipped 0% of the time over the last "
                 f"{window_lands} successful lands carrying a per-layer trail. Their `subject_globs` are "
@@ -4719,20 +4815,22 @@ def _zero_skip_result(layers: list, window_lands: int, observed_lands: int,
                 "that carry a row for it (rows begin only once the project declared its layers, so an "
                 "absent row is never read as a non-skip) and only once observed at least "
                 f"{min_observations} times — too little evidence stays silent. Carries alongside it the "
-                "RUN-level companion `run_skip` (T-11749 / a consumer's X-1165): over the SAME window, the "
-                "share of LANDS that skipped at least one layer — the figure a project actually pays for, "
-                "which the per-layer reading cannot state and which can halve unwatched as globs widen. "
+                "RUN-level companion `run_skip` (T-11749 / a consumer's X-1165): of the lands of the SAME "
+                "window that RAN at least one layer, the share that also skipped at least one — which the "
+                "per-layer reading cannot state. The lands it does not count (ran no layer, no layer "
+                "rows, aborted) are counted beside it, one class each (T-13906). "
                 "It reports AT ZERO rather than going silent (a dead view and a working one must not look "
-                "alike); only an empty window reads as no measurement. DERIVED at read time from "
+                "alike); a window where no land ran a layer reads as no measurement. DERIVED at read time from "
                 "the journal — zero stored state, no new event, no new store. Report-only, never a gate.",
         "count": len(layers),
         "layers": layers,
         "window_lands": window_lands,
         "observed_lands": observed_lands,
-        # T-11749 (X-1165 / X-1160): the RUN-level companion — {lands, skipped, rate_pct}, the share of
-        # lands in the SAME window that skipped at least one layer. Additive: every key above keeps its
-        # exact meaning, so the sibling readers pinned on this shape are untouched. `rate_pct` is None
-        # only when there is no denominator at all (see `_run_skip`).
+        # T-11749 (X-1165 / X-1160): the RUN-level companion — {lands, skipped, rate_pct} plus one
+        # count per class of land the rate leaves out (T-13906). `lands` is the lands of the SAME
+        # window that ran at least one layer, `skipped` those of them that also skipped one. Additive:
+        # every key above keeps its exact meaning, so the sibling readers pinned on this shape are
+        # untouched. `rate_pct` is None only when there is no denominator at all (see `_run_skip`).
         # An unsupplied `run_skip` reads as NO MEASUREMENT (`_run_skip(0, 0)`), never as a fabricated
         # "0 skips over `observed_lands` lands": this helper's callers pass the tally they actually
         # took, and inventing a numerator for a denominator nobody counted is the one dishonesty this
@@ -4749,6 +4847,14 @@ def _zero_skip_result(layers: list, window_lands: int, observed_lands: int,
                  if layers else
                  "every observed verify layer skips at least sometimes — nothing to narrow."),
     }
+    if result["run_skip"].get("partial"):
+        # T-13911 (SPEC-1030 rule 6): said only where the window holds such a land, so every other
+        # answer carries the lens it carried before.
+        result["lens"] += (" A land that ran a layer only IN PART — a partial run: some of the layer's "
+                           "test files, not all — is no observation of that layer here, neither a run "
+                           "of it nor a skip; a land that ran no layer in full and at least one in part "
+                           "is counted beside the rate as its own class, `partial`.")
+    return result
 
 
 # ── SPEC-0119 rule 17 (T-10554 / X-0419): broken outcome-invariants ─────────────────────────────────

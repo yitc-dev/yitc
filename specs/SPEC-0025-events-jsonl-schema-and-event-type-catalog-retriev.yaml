@@ -915,12 +915,20 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ step this run printed.** OPTIONAL, present ONLY on a\n`--run --evidence` row whose\
   \ run printed a SPEC-0132 Rule 7 layer step line: those lines, verbatim,\nas a list\
   \ of strings. ABSENT when no line printed and on a hand-authored `--evidence`. Report-only:\n\
-  nothing reads it to decide.\n\n**`stage6_run` — the RUNNER's mark: which tree this\
-  \ green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence` row: `{tree,\
-  \ base}` — the tree the run tested (the files on\ndisk when it started, which the\
-  \ run left unchanged apart from the journal) and the `main` commit that\ntree sat\
-  \ on. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever the\
-  \ runner\ncould not establish the tree (never a fabricated value — the discipline).\
+  nothing reads it to decide.\n**`land_verifies_beside` — the land verifies beside\
+  \ this run.** OPTIONAL, present on the row of an\ninvocation that RAN the suite\
+  \ — this row and `tests_failed` alike: how many lands of this\nrepository their\
+  \ own result rows prove were in their verify step (its wait for a verify slot\n\
+  included) during the run's wall time, and how many more those rows leave undecided\
+  \ (a land still\nrunning at the run's end included); where the reading was not taken,\
+  \ the field says so in place of\nthe numbers. Read from the MAIN checkout's land\
+  \ rows once the run is over. ABSENT on a\nhand-authored `--evidence`. Report-only:\
+  \ nothing reads it to decide.\n\n**`stage6_run` — the RUNNER's mark: which tree\
+  \ this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence` row:\
+  \ `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
+  \ which the run left unchanged apart from the journal) and the `main` commit that\n\
+  tree sat on. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever\
+  \ the runner\ncould not establish the tree (never a fabricated value — the discipline).\
   \ It is RESERVED at\nthe hand route: `event --data` refuses it, so only the runner\
   \ writes it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its\
   \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\n\n**`duration_ms` is REQUIRED\
@@ -1059,58 +1067,87 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ row's verdict and the\nnames of the layers this land executed itself, both read\
   \ off the per-layer outcome trail the\nverify wrote. Such a land RAN its candidate\
   \ verify — it is not a credited land — records no tested\ntree, and each layer that\
-  \ took the run's verdict reads `credited-stage6-run` on that trail.\nReading the\
-  \ bool as \"an inert\nretry\" is therefore\nwrong; key off the reason. An extinguished\
-  \ (lever-C) land additionally carries\n`superseded_extinguished: true` + `verify_slot_taken:\
-  \ false` + `land_reservation_taken` (bool) —\nthree keys rather than one because\
-  \ the boundaries saved are separate, and a land that skipped its\nverify but had\
-  \ already taken the land reservation saved one of them, not both. All ADDITIVE,\
-  \ present\nonly on that path, REPORT-ONLY. The OPPOSITE case has its own key (SPEC-0184\
-  \ rule 9):\n`rung0_paid: <reason>` rides the terminal row — `ok` or `abort` — of\
-  \ a land that RAN its test\nverify although the land-admission rank answered it\
-  \ as free: a kernel-suite land whose own delta\nwas all-inert. The value says why\
-  \ it paid — the inert first-attempt proof's own refusal (e.g.\n`observable-since-anchor:tests`),\
-  \ or `first-attempt-proof-not-open` where that proof was not open\nto the attempt\
-  \ (a declared rebaseline). It is a fact about the LAND, recorded once a candidate\n\
-  verify of it has run and kept across attempts, so it can sit beside a skip reason\
-  \ on a row whose\nlanding attempt skipped, and it rides an abort row only when the\
-  \ suite ran before the abort.\nWithout it such a row is indistinguishable from an\
-  \ ordinary paying land. ADDITIVE, present only\non that land, REPORT-ONLY.\n`verify_mode`\
-  \ (str) = the pinned LAST-GREEN both-must-pass verify signal (SPEC-0077 §Verification,\n\
-  the SOLE authoritative adoption signal): `\"pinned+candidate\"` iff this land touched\
-  \ the verifier surface\n(the verify-implementation-touch predicate fired) so the\
-  \ pinned last-green verifier re-ran IN ADDITION to\nthe candidate; `\"candidate\"\
-  ` otherwise (the negative/scope probe — no blanket-gate creep);\n`\"candidate_policy_off\"\
-  ` (SPEC-0186 rule 7) iff the land DID touch the verifier surface but the\nproject\
-  \ declares `verify_policy.pinned_last_green: never` in its `yitc-ops.yaml`, so the\
-  \ leg was SKIPPED\nBY POLICY rather than run. A THIRD value in this one set, never\
-  \ a reuse of `\"candidate\"`: \"did not run\"\nand \"ran and passed\" are different\
-  \ facts, and conflating them already misread 15 of 30 decisive cases in\nthe 2026-08-18\
-  \ analysis of this very layer, so a shared value would poison every future measurement\
-  \ at\nsource. Scoped to the SKIP: a land with no verifier-surface touch is plain\
-  \ `\"candidate\"` under either\npolicy, because nothing was skipped by policy there.\
-  \ (`\"rebaselined+candidate\"` remains the fourth.) ALWAYS present\non an ok land;\
-  \ a `land: verify_mode=<m>` stdout marker is operator convenience only (Single-SoT).\n\
-  `pinned_layout_excused` (list[str]) = the SPEC-0077 §3 additive engine-LAYOUT carve-out\
-  \ signal —\nPRESENT ONLY when the pinned re-run's failures were ALL excused as `No\
-  \ module named '<X>'` for\ncandidate-added `bin/` module(s) (a purely-additive layout\
-  \ change the stale last-green fixture could not\nprovision); ABSENT on every normal\
-  \ land (additive / P5-safe). It is the durable never-silent record (§P8)\n+ an operator\
-  \ stdout note; it is NOT mirrored as a `deviation_captured` (an excusal is expected,\
-  \ not a\nfriction). `pinned_cache_hit` (bool, SPEC-0077 §3-watch / SPEC-0132 §3)\
-  \ = PRESENT ONLY when the\npinned LAST-GREEN verdict was REUSED from the content-addressed\
-  \ cache (unchanged verifier×tree×engine key)\nand the ~full pinned re-run was SKIPPED\
-  \ — ABSENT on every fresh-run land (additive / P5-safe). The\nSPEC-0132 §3 cache-hit-rate\
-  \ watch-point signal (`grep pinned_cache_hit events.jsonl`).\nBOTH KEYS NOW ALSO\
-  \ RIDE THE `status: \"abort\"` ROW. Until the pinned leg ran FIRST they could\n\
-  arise only on an ok land, because a failing candidate leg meant the pinned leg never\
-  \ ran and there was\nno pinned result to carry. Pinned-first makes that state reachable\
-  \ — the pinned leg has already spoken\n(warm hit, or an EXCUSED additive-layout\
-  \ mismatch) by the time the candidate leg fails — and omitting\nits answer from\
-  \ the abort row would record a land that DID take the hit as having none, and one\
-  \ whose\nmismatch WAS excused as having no excusal: the same \"did not run\" vs\
-  \ \"ran and passed\" conflation\n`verify_mode` is scoped against above, one surface\
-  \ over. Same present-only shape on both rows; an\nabort with no pinned result carries\
+  \ took the run's verdict reads `credited-stage6-run` on that trail.\nBeside a `partial-units-differ…`\
+  \ or `partial-needs-unknown` refusal it is joined by\n`stage6_credit_partial` (dict\
+  \ — SPEC-1030 rule 6: only a land of a project whose\ncontract declares a deciding\
+  \ mode carries what this paragraph\nregisters). The refused Stage-6 row held a layer\
+  \ recorded as a\npartial run (`passed-partial`), and the land's own decision on\
+  \ its candidate did not need\nexactly the units that row ran or credited. Its reasons\
+  \ on `stage6_credit_refused`:\n`partial-units-differ-same-tree-and-base:<layer>`\
+  \ — the unit sets differ although `main` has\nnot moved since the run and the candidate\
+  \ tree is the run's apart from inert paths;\n`partial-units-differ:<layer>` — they\
+  \ differ and `main` advanced since the run by inert paths;\n`partial-needs-unknown:<layer>`\
+  \ — the land was not able to name the units it needs (its `list`\ngave no inventory,\
+  \ or the read faulted); `partial-record-unreadable:<layer>` — the row carries\n\
+  no well-formed `partial` record for the layer, or more than one row for it (this\
+  \ reason comes\nwithout `stage6_credit_partial`). A land whose own declaration reads\
+  \ no deciding mode for the\nlayer judges such a row as it judges any row: none of\
+  \ this is written. `<layer>` is the first such layer in declaration order. Keys:\
+  \ `task`\nand `ts` (the Stage-6 row, as on `stage6_credit`), `main_delta` (the inert\
+  \ advance, where\n`main` moved) and `layers` — one entry per layer that is not covered:\
+  \ `layer`, and either\n`only_run` (the units only the Stage-6 row holds) and `only_land`\
+  \ (the units only the land\nneeds) — lists of `file` / `project` entries, sorted,\
+  \ at most 100 a side, the rest counted as\n`only_run_more` / `only_land_more` —\
+  \ with `rung` and `reason`, the land's own ladder answer,\nand `run_rung` and `run_reason`,\
+  \ the answer the Stage-6 row recorded (null where it recorded\nnone) — both recorded\
+  \ as given, in the ladder's own tokens registered with `selection`;\nor `unknown`,\
+  \ why the land's units were not named. The two differ-reasons state what was\ncompared,\
+  \ never whose answer moved, and nothing is inferred from setting the two answers\n\
+  side by side. A CREDITED land that took such a layer on\nequal unit sets names it\
+  \ in `partial_layers` on `stage6_credit`: that layer was verified in\nfull neither\
+  \ by the run nor by the land. ADDITIVE, REPORT-ONLY. Writers:\n`bin/lib/worktree.py#_stage6_partial_run_covers`\
+  \ and `#_land_stage6_credit`.\nReading the bool as \"an inert\nretry\" is therefore\n\
+  wrong; key off the reason. An extinguished (lever-C) land additionally carries\n\
+  `superseded_extinguished: true` + `verify_slot_taken: false` + `land_reservation_taken`\
+  \ (bool) —\nthree keys rather than one because the boundaries saved are separate,\
+  \ and a land that skipped its\nverify but had already taken the land reservation\
+  \ saved one of them, not both. All ADDITIVE, present\nonly on that path, REPORT-ONLY.\
+  \ The OPPOSITE case has its own key (SPEC-0184 rule 9):\n`rung0_paid: <reason>`\
+  \ rides the terminal row — `ok` or `abort` — of a land that RAN its test\nverify\
+  \ although the land-admission rank answered it as free: a kernel-suite land whose\
+  \ own delta\nwas all-inert. The value says why it paid — the inert first-attempt\
+  \ proof's own refusal (e.g.\n`observable-since-anchor:tests`), or `first-attempt-proof-not-open`\
+  \ where that proof was not open\nto the attempt (a declared rebaseline). It is a\
+  \ fact about the LAND, recorded once a candidate\nverify of it has run and kept\
+  \ across attempts, so it can sit beside a skip reason on a row whose\nlanding attempt\
+  \ skipped, and it rides an abort row only when the suite ran before the abort.\n\
+  Without it such a row is indistinguishable from an ordinary paying land. ADDITIVE,\
+  \ present only\non that land, REPORT-ONLY.\n`verify_mode` (str) = the pinned LAST-GREEN\
+  \ both-must-pass verify signal (SPEC-0077 §Verification,\nthe SOLE authoritative\
+  \ adoption signal): `\"pinned+candidate\"` iff this land touched the verifier surface\n\
+  (the verify-implementation-touch predicate fired) so the pinned last-green verifier\
+  \ re-ran IN ADDITION to\nthe candidate; `\"candidate\"` otherwise (the negative/scope\
+  \ probe — no blanket-gate creep);\n`\"candidate_policy_off\"` (SPEC-0186 rule 7)\
+  \ iff the land DID touch the verifier surface but the\nproject declares `verify_policy.pinned_last_green:\
+  \ never` in its `yitc-ops.yaml`, so the leg was SKIPPED\nBY POLICY rather than run.\
+  \ A THIRD value in this one set, never a reuse of `\"candidate\"`: \"did not run\"\
+  \nand \"ran and passed\" are different facts, and conflating them already misread\
+  \ 15 of 30 decisive cases in\nthe 2026-08-18 analysis of this very layer, so a shared\
+  \ value would poison every future measurement at\nsource. Scoped to the SKIP: a\
+  \ land with no verifier-surface touch is plain `\"candidate\"` under either\npolicy,\
+  \ because nothing was skipped by policy there. (`\"rebaselined+candidate\"` remains\
+  \ the fourth.) ALWAYS present\non an ok land; a `land: verify_mode=<m>` stdout marker\
+  \ is operator convenience only (Single-SoT).\n`pinned_layout_excused` (list[str])\
+  \ = the SPEC-0077 §3 additive engine-LAYOUT carve-out signal —\nPRESENT ONLY when\
+  \ the pinned re-run's failures were ALL excused as `No module named '<X>'` for\n\
+  candidate-added `bin/` module(s) (a purely-additive layout change the stale last-green\
+  \ fixture could not\nprovision); ABSENT on every normal land (additive / P5-safe).\
+  \ It is the durable never-silent record (§P8)\n+ an operator stdout note; it is\
+  \ NOT mirrored as a `deviation_captured` (an excusal is expected, not a\nfriction).\
+  \ `pinned_cache_hit` (bool, SPEC-0077 §3-watch / SPEC-0132 §3) = PRESENT ONLY when\
+  \ the\npinned LAST-GREEN verdict was REUSED from the content-addressed cache (unchanged\
+  \ verifier×tree×engine key)\nand the ~full pinned re-run was SKIPPED — ABSENT on\
+  \ every fresh-run land (additive / P5-safe). The\nSPEC-0132 §3 cache-hit-rate watch-point\
+  \ signal (`grep pinned_cache_hit events.jsonl`).\nBOTH KEYS NOW ALSO RIDE THE `status:\
+  \ \"abort\"` ROW. Until the pinned leg ran FIRST they could\narise only on an ok\
+  \ land, because a failing candidate leg meant the pinned leg never ran and there\
+  \ was\nno pinned result to carry. Pinned-first makes that state reachable — the\
+  \ pinned leg has already spoken\n(warm hit, or an EXCUSED additive-layout mismatch)\
+  \ by the time the candidate leg fails — and omitting\nits answer from the abort\
+  \ row would record a land that DID take the hit as having none, and one whose\n\
+  mismatch WAS excused as having no excusal: the same \"did not run\" vs \"ran and\
+  \ passed\" conflation\n`verify_mode` is scoped against above, one surface over.\
+  \ Same present-only shape on both rows; an\nabort with no pinned result carries\
   \ neither key. `candidate_leg_run` (bool) = PRESENT ONLY on\na `status: \"abort\"\
   ` row, and only as `false` — the pinned/last-green leg refused this land BEFORE\
   \ the\ncandidate suite was started, so the candidate leg's result for that branch\
@@ -1135,20 +1172,20 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ SPEC-0132 §2 fields (tmp/inode usage, fd/process pressure, serial-lane time) are\
   \ DEFERRED\nadditive fields (\"the fuller payload MAY follow\") — they are OMITTED\
   \ until a real capture site exists,\nnever written as a fabricated 0 (the no-fabricated-0s\
-  \ discipline).\nA ROUTED land (SPEC-0203) FOLDS the venue pass + local-probe leg\
-  \ onto these SAME base keys\nwith the SAME meaning, from measured facts only (`bin/lib/remote_verify.py#fold_venue_base_metrics`);\n\
-  a base key the routed pass does not measure is ABSENT there, never a placeholder\
-  \ — which, and why,\nis named once beside the fold (`VENUE_ABSENT_BASE_KEYS`). Earlier\
-  \ routed rows are not backfilled.\nFour SELECTION fields ride alongside (SPEC-0181)\
-  \ — the per-land record of the affected-test\ndecision: `selection_rule_version`\
-  \ (str — the coverage-rule version the decision was made under, so\na later reading\
-  \ knows which rule produced it, and — since — which rows fall inside the\nauto-rollback's\
-  \ counting window), `selection_would_select` / `selection_would_omit` (int counts\
-  \ that\nSUM to `selection_discovered_count` — the decision accounts for the WHOLE\
-  \ enumeration, never a\nsubset) and `selection_full_suite_reason` (str or null —\
-  \ the ladder rung that forced a full-suite\ndecision; `null` ONLY when a real omission\
-  \ was earned, and an unmapped path is NAMED here as\n`unresolved-path:<path>` so\
-  \ the coverage map can be grown against evidence). PRESENT whenever\n`verify_metrics`\
+  \ discipline).\nA ROUTED land (<workshop-spec>) FOLDS the venue pass + local-probe\
+  \ leg onto these SAME base keys\nwith the SAME meaning, from measured facts only\
+  \ (`bin/lib/remote_verify.py#fold_venue_base_metrics`);\na base key the routed pass\
+  \ does not measure is ABSENT there, never a placeholder — which, and why,\nis named\
+  \ once beside the fold (`VENUE_ABSENT_BASE_KEYS`). Earlier routed rows are not backfilled.\n\
+  Four SELECTION fields ride alongside (SPEC-0181) — the per-land record of the affected-test\n\
+  decision: `selection_rule_version` (str — the coverage-rule version the decision\
+  \ was made under, so\na later reading knows which rule produced it, and — since\
+  \ — which rows fall inside the\nauto-rollback's counting window), `selection_would_select`\
+  \ / `selection_would_omit` (int counts that\nSUM to `selection_discovered_count`\
+  \ — the decision accounts for the WHOLE enumeration, never a\nsubset) and `selection_full_suite_reason`\
+  \ (str or null — the ladder rung that forced a full-suite\ndecision; `null` ONLY\
+  \ when a real omission was earned, and an unmapped path is NAMED here as\n`unresolved-path:<path>`\
+  \ so the coverage map can be grown against evidence). PRESENT whenever\n`verify_metrics`\
   \ is.\nSINCE THE DECISION GOVERNS THE CANDIDATE LAND VERIFY — it is no longer a\
   \ record-only field\nset, and the shadow-boundary reading above is RETIRED. Three\
   \ fields carry that, and they are what\nmake the omission auditable off ONE row:\
@@ -1298,54 +1335,54 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ present; the SOURCE key is ABSENT rather than fabricated\n when the ladder did\
   \ not run — an explicit caller-supplied `timeout=` was decided upstream\nand has\
   \ no rung, so the vocabulary stays exactly those three names. No land path supplies\
-  \ one.\n`per_file_outcomes` (dict, SPEC-0203 rule 4) = the LOCATOR of the COMPLETE\
-  \ per-file\noutcome list — `{path, sha256, count}`, and deliberately NOT the list\
-  \ itself. It is the answer to\nthe cost of the bound `per_file_durations` states\
-  \ below: that bound is right for the ROW, and it\nleft the whole system unable to\
-  \ NAME a failing file beyond the slowest ten (measured:\ncounted 92-94 failing files\
-  \ of 1387 on a rented box and could name ten, so its AC2 was discharged\nas unreachable).\
-  \ So the full list goes to a machine-readable sidecar on disk and the ROW carries\
-  \ a\nthree-field reference to it: `path` (absolute — the default is under the temp\
-  \ base, NEVER inside\nthe verified checkout, since an in-tree export is land-blocking\
-  \ dirt in any repo that does not\nignore it), `sha256` of the exported bytes (so\
-  \ a reader can prove the file it read is the file the\nrun wrote), and `count` (so\
-  \ completeness is assertable against the row rather than inferred). The\nrow's SIZE\
-  \ is therefore unchanged in kind — a locator is ~200 bytes, where the ~800-row list\
-  \ this\nspec's `per_file_durations` entry rejects would be ~45KB per land. PRESENT\
-  \ whenever the run\ndiscovered at least one test file AND the export succeeded;\
-  \ ABSENT — never empty, never fabricated\n — on a no-test-files run or when the\
-  \ export could not be written, because the export is\nfailure-INERT: it never raises\
-  \ into the run and never changes a verdict. The sidecar itself names\nevery DISCOVERED\
-  \ file (not only the started ones — a fail-fast tail is exported as `not-started`\n\
-  with a null wall) and carries its own outcome vocabulary, which is the runner's\
-  \ own `_record`\ntoken set: `passed` / `failed` / `timed-out` / `killed-fail-fast`\
-  \ / `launch-error` / `not-started`.\nReport-only, additive, on the `per_file_durations`\
-  \ precedent: no new event type, no second metrics\npath, no new store, and nothing\
-  \ gates on it.\n`flaky_retry` (dict|str, SPEC-0132 §Rule 2) = WHAT THE ISOLATED\
-  \ RE-RUN DID on this land.\nWhen a leg stopped on failures within `YITC_VERIFY_RETRY_MAX_FILES`,\
-  \ the runner re-ran each failing\nfile ONCE alone, on the same tree, outside the\
-  \ contended pool: `{rows: [{file, leg, isolated,\npool_tail, load1?}], resumed?}`,\
-  \ where `isolated` is `pass` / `fail` / `unrunnable` and `resumed`\n(the count of\
-  \ files the resume covered) is present ONLY when every named file passed and the\
-  \ leg\ntherefore resumed. When the plan DECLINED it records `{skipped: <reason>}`\
-  \ — `over-bound` (more\nfailing files than the bound, which is also how a bound\
-  \ of 0 disables the feature),\n`timeout-class` (SPEC-0071 makes a verify timeout\
-  \ non-retriable) or `no-failures`. A ROUTED land\nfolds the per-leg record onto\
-  \ this SAME unprefixed key from the venue envelope\n(`venue_flaky_retry` per leg),\
-  \ deliberately NOT under a `venue_` prefix — prefixing would put the\nrouted record\
-  \ on a different field from the local one and split the field in two. An envelope\n\
-  that never carried the key folds the STRING `\"unknown\"`, never `{}` and never\
-  \ absence, because\nboth of those read as \"no flakes anywhere\" (SPEC-0165 item\
-  \ 11). ABSENT — never an empty dict\n — when no retry was reached, so a green land\
-  \ never reports one it did not do and the\npre- payload of such a land is byte-unchanged\
-  \ (additive / P5-safe). Report-only, on the\n`per_file_durations` precedent: no\
-  \ new event type, no second metrics path, no new store. It gates\nNOTHING — a file\
-  \ is cleared only by PASSING alone, and this key merely records that it did.\n`flaky_retry`\
-  \ LAYER ROWS (SPEC-0152 rule 16 §THE ISOLATED RE-RUN) = the same field on a\nCONSUMER\
-  \ verify whose layer guard re-ran a sole failed verify layer. A row in `rows[]`\
-  \ then names a\n`layer` INSTEAD OF a `file`: `{layer, leg, isolated, load1?, first_exit,\
-  \ first_duration_ms?,\nfirst_failure_excerpt, first_output_log?, retry_outcome,\
-  \ retry_exit?, retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`.\
+  \ one.\n`per_file_outcomes` (dict, <workshop-spec> rule 4) = the LOCATOR of the\
+  \ COMPLETE per-file\noutcome list — `{path, sha256, count}`, and deliberately NOT\
+  \ the list itself. It is the answer to\nthe cost of the bound `per_file_durations`\
+  \ states below: that bound is right for the ROW, and it\nleft the whole system unable\
+  \ to NAME a failing file beyond the slowest ten (measured:\ncounted 92-94 failing\
+  \ files of 1387 on a rented box and could name ten, so its AC2 was discharged\n\
+  as unreachable). So the full list goes to a machine-readable sidecar on disk and\
+  \ the ROW carries a\nthree-field reference to it: `path` (absolute — the default\
+  \ is under the temp base, NEVER inside\nthe verified checkout, since an in-tree\
+  \ export is land-blocking dirt in any repo that does not\nignore it), `sha256` of\
+  \ the exported bytes (so a reader can prove the file it read is the file the\nrun\
+  \ wrote), and `count` (so completeness is assertable against the row rather than\
+  \ inferred). The\nrow's SIZE is therefore unchanged in kind — a locator is ~200\
+  \ bytes, where the ~800-row list this\nspec's `per_file_durations` entry rejects\
+  \ would be ~45KB per land. PRESENT whenever the run\ndiscovered at least one test\
+  \ file AND the export succeeded; ABSENT — never empty, never fabricated\n — on a\
+  \ no-test-files run or when the export could not be written, because the export\
+  \ is\nfailure-INERT: it never raises into the run and never changes a verdict. The\
+  \ sidecar itself names\nevery DISCOVERED file (not only the started ones — a fail-fast\
+  \ tail is exported as `not-started`\nwith a null wall) and carries its own outcome\
+  \ vocabulary, which is the runner's own `_record`\ntoken set: `passed` / `failed`\
+  \ / `timed-out` / `killed-fail-fast` / `launch-error` / `not-started`.\nReport-only,\
+  \ additive, on the `per_file_durations` precedent: no new event type, no second\
+  \ metrics\npath, no new store, and nothing gates on it.\n`flaky_retry` (dict|str,\
+  \ SPEC-0132 §Rule 2) = WHAT THE ISOLATED RE-RUN DID on this land.\nWhen a leg stopped\
+  \ on failures within `YITC_VERIFY_RETRY_MAX_FILES`, the runner re-ran each failing\n\
+  file ONCE alone, on the same tree, outside the contended pool: `{rows: [{file, leg,\
+  \ isolated,\npool_tail, load1?}], resumed?}`, where `isolated` is `pass` / `fail`\
+  \ / `unrunnable` and `resumed`\n(the count of files the resume covered) is present\
+  \ ONLY when every named file passed and the leg\ntherefore resumed. When the plan\
+  \ DECLINED it records `{skipped: <reason>}` — `over-bound` (more\nfailing files\
+  \ than the bound, which is also how a bound of 0 disables the feature),\n`timeout-class`\
+  \ (SPEC-0071 makes a verify timeout non-retriable) or `no-failures`. A ROUTED land\n\
+  folds the per-leg record onto this SAME unprefixed key from the venue envelope\n\
+  (`venue_flaky_retry` per leg), deliberately NOT under a `venue_` prefix — prefixing\
+  \ would put the\nrouted record on a different field from the local one and split\
+  \ the field in two. An envelope\nthat never carried the key folds the STRING `\"\
+  unknown\"`, never `{}` and never absence, because\nboth of those read as \"no flakes\
+  \ anywhere\" (SPEC-0165 item 11). ABSENT — never an empty dict\n — when no retry\
+  \ was reached, so a green land never reports one it did not do and the\npre- payload\
+  \ of such a land is byte-unchanged (additive / P5-safe). Report-only, on the\n`per_file_durations`\
+  \ precedent: no new event type, no second metrics path, no new store. It gates\n\
+  NOTHING — a file is cleared only by PASSING alone, and this key merely records that\
+  \ it did.\n`flaky_retry` LAYER ROWS (SPEC-0152 rule 16 §THE ISOLATED RE-RUN) = the\
+  \ same field on a\nCONSUMER verify whose layer guard re-ran a sole failed verify\
+  \ layer. A row in `rows[]` then names a\n`layer` INSTEAD OF a `file`: `{layer, leg,\
+  \ isolated, load1?, first_exit, first_duration_ms?,\nfirst_failure_excerpt, first_output_log?,\
+  \ retry_outcome, retry_exit?, retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`.\
   \ `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`; `load1` is the host\
   \ 1-minute load read just before the re-run (ABSENT when unmeasurable,\nnever a\
   \ fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
@@ -1629,47 +1666,120 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ homed at the writer\n(`bin/lib/land_verify_legs.py#_adapter_shadow_decision`;\
   \ the comparison with the full run by\n`#_layer_adapter_report_pass`) and not restated;\
   \ the registered keys are `schema`, `mode`,\n`decision`, `rung`, `reason`, `related`,\
-  \ `related_reason`, `base`, `changed`, `eligible`,\n`units_total`, `unknown`, `unknown_more`,\
-  \ `would_run`, `would_omit`, `would_credit`, `compared`,\n`disagreements` and `error`\
-  \ — an `unknown` entry carrying `path` and `why`; a `would_run` or `would_omit`\n\
-  entry `file` and `project`; a `disagreements` entry `file`, `project`, `would` and\
-  \ `status`.\n`reason` says what decided: `adapter-sources`, `dependency-manifest`,\
-  \ `trigger-full`,\n`trigger-unit-not-listed`, `no-inventory`, `unrevealable-void`,\
-  \ `related-absent`, `unknown-path`,\n`related-failed`, `related-timed-out`, `browser-layer-change`,\
+  \ `related_reason`, `base`, `changed`, `eligible`,\n`units_total`, `fired_paths`,\
+  \ `fired_paths_more`, `unknown`, `unknown_more`, `would_run`,\n`would_omit`, `would_credit`,\
+  \ `compared`,\n`disagreements` and `error` — an `unknown` entry carrying `path`\
+  \ and `why`; a `would_run` or `would_omit`\nentry `file` and `project`; a `disagreements`\
+  \ entry `file`, `project`, `would` and `status`.\n`fired_paths` (list of str) is\
+  \ written on a rung-(a) answer only: the changed paths that\nproduced the answer,\
+  \ in the order the change lists them — for `adapter-sources` the paths under\nthe\
+  \ layer's own `sources:`, for a reason of the SPEC-0152 rule-16 skip decision the\
+  \ paths that\ndecision reports for its answer (`bin/lib/worktree.py#_subject_scoping_skip_layers`).\
+  \ It holds at\nmost 20 paths; `fired_paths_more` (int) counts the rest and is written\
+  \ only when the list was cut.\nBoth keys are absent on every other rung, and on\
+  \ a rung-(a) answer for which that decision reported\nno path; a row written before\
+  \ carries neither, and a reader takes an absent key as «not\nrecorded».\n`reason`\
+  \ says what decided: `adapter-sources`, `dependency-manifest`, `trigger-full`,\n\
+  `trigger-unit-not-listed`, `no-inventory`, `unrevealable-void`, `related-absent`,\
+  \ `unknown-path`,\n`related-failed`, `related-timed-out`, `browser-layer-change`,\
   \ `related-and-triggers`,\n`selection-error`, or the reason the SPEC-0152 rule-16\
   \ skip decision ran every layer (its own\ntoken, recorded as given).\n`why` says\
   \ what made a path unknown: `deleted-or-renamed`, `outside-modelled`,\n`not-in-runner-diff`,\
   \ `runner-diff-unreadable`. The same record rides\n`tests_passed.consumer_verify_layers`\
   \ and the failed Stage-6 row, on the `adapter` terms above.\nOn a layer that also\
   \ declares `credit: shadow`, `would_credit` holds the would-credit units of\nthe\
-  \ `credit` record below; otherwise it is empty.\n\n`credit` on that `adapter` record\
-  \ (dict — SPEC-1006 rule 14) = THE WOULD-BE CREDIT OF A\nFIX ATTEMPT, RECORDED AND\
-  \ NEVER ACTED ON. Present only on a layer declaring `credit: shadow`\nwhose adapter\
-  \ pass ran to its end; the full layer ran whatever the record says, and no outcome,\n\
-  exit code or admission decision reads it. Shape and semantics are homed at the writers\n\
-  (`bin/lib/land_verify_legs.py#_adapter_credit_basis` and `#_adapter_credit_decision`;\
-  \ the\nprevious attempt is read from its journal row by `#_adapter_previous_attempt`\
-  \ through\n`bin/lib/worktree.py#_adapter_credit_bases`; the comparison with the\
-  \ full run by\n`#_layer_adapter_report_pass`) and not restated; the registered keys\
-  \ are `schema`, `mode`,\n`decision`, `reason`, `previous`, `changed`, `tree`, `units_total`,\
-  \ `rung`, `ladder_reason`,\n`related`, `related_reason`, `eligible`, `unknown`,\
-  \ `unknown_more`, `would_rerun`,\n`would_credit`, `compared`, `disagreements` and\
-  \ `error` — `previous` carrying `type`, `ts`,\n`outcome`, `tree` and `base`; a `would_rerun`\
-  \ entry `file`, `project` and `why`; a\n`would_credit` entry `file` and `project`;\
-  \ a `disagreements` entry `file`, `project`, `would`\nand `status`; an `unknown`\
-  \ entry `path` and `why`. `decision` is one of three. `units`\n(`reason` `failed-and-reached`):\
-  \ the units the run would re-run — each with `why` it would:\n`failed`, `not-recorded`,\
-  \ `reached` or `group` — and the units it would credit with their pass\nfrom the\
-  \ previous attempt. `none`: the run is no fix attempt (`no-previous-attempt` — the\
-  \ journal tail\nthat was read holds no earlier run of this layer on this branch\
-  \ — or `previous-attempt-passed`). `void`: nothing would be credited, `reason` saying\
-  \ why —\n`base-moved`, `previous-report-void`, `record-missing`, `record-incomplete`,\
-  \ `record-ambiguous`,\n`record-tree-unresolvable`, `full-layer` (the selection ladder\
-  \ answered the full layer for the\nfix's own changed paths; `rung` and `ladder_reason`\
-  \ are its answer), `no-base`,\n`candidate-tree-unreadable`, `diff-unreadable` or\
-  \ `credit-error`. `disagreements` lists every\nwould-credit unit that failed in\
-  \ this full run. The same record rides\n`tests_passed.consumer_verify_layers` and\
-  \ the failed Stage-6 row, on the `adapter` terms above.\n\n`verify_cache` (dict\
+  \ `credit` record below; otherwise it is empty.\n\nA DECIDING SELECTION on that\
+  \ `selection` key ( — SPEC-1030 rules 2, 4, 5: only a row of\na layer whose declaration\
+  \ reads the mode carries what this\nparagraph registers). On a layer whose parsed\
+  \ declaration reads\n`selection: deciding` every adapter record of a run of the\
+  \ layer carries `selection` with the\n`mode` `deciding`: `schema`, `mode`, `decision`,\
+  \ `rung`, `reason`, `related`, `related_reason`,\n`base`, `changed`, `eligible`,\
+  \ `fired_paths`, `fired_paths_more` (both as on the shadow record\nabove), `unknown`,\
+  \ `unknown_more`, `ladder_reason` and `error` — with\nno `units_total`, no unit\
+  \ list, no `compared` and no `disagreements`. `decision` says what the\nrun was:\
+  \ `units` on a NARROWED run (the ladder's last rung left at least one unit out),\
+  \ `full`\non every other. `reason` takes the ladder's tokens above, and — where\
+  \ no decision was taken —\n`not-one-card-candidate` (the run is not the candidate\
+  \ run of one card), `no-change`,\n`outer-failure`, `required-failed`, `pass-error`\
+  \ or `selection-error`; `full-command-ran` marks\na run whose first attempt was\
+  \ narrowed and whose full `command:` then ran, the ladder's own\nreason kept as\
+  \ `ladder_reason`. A narrowed run also carries `partial` on the `adapter` record\n\
+  (dict): `units_total` (int) and, by name, `ran` (the units of the `run` invocations\
+  \ that were\nstarted), `not_reached` (requested units whose invocation never started),\
+  \ `left_out` and\n`credited` — lists of `file` / `project` entries in inventory\
+  \ order, `credited` empty where no\ncredit acted. `partial` is ABSENT on every other\
+  \ run — a full layer, a full `command:` run\nwith no inventory — and so is any count.\
+  \ The row `outcome` of a layer that passed on a\nnarrowed run is `passed-partial`,\
+  \ on a first attempt and after a per-unit rescue alike: a\nvalue of its own, so\
+  \ a reader that matches `passed` does not match it. On such a layer\n`required`\
+  \ may carry `exit` null: the pass faulted before the check `failed` names had\n\
+  completed, which fails the layer; `ran` then counts the checks that had run and\
+  \ passed.\nWriters: `bin/lib/land_verify_legs.py#_adapter_deciding_record`,\n`#_adapter_run_plan`,\
+  \ `#_adapter_partial_record`, `#_adapter_passed_outcome` and\n`#_adapter_full_command_ran`.\n\
+  \n`credit` on that `adapter` record (dict — SPEC-1006 rule 14) = THE WOULD-BE CREDIT\
+  \ OF A\nFIX ATTEMPT, RECORDED AND NEVER ACTED ON. Present only on a layer declaring\
+  \ `credit: shadow`\nwhose adapter pass ran to its end; the full layer ran whatever\
+  \ the record says, and no outcome,\nexit code or admission decision reads it. Shape\
+  \ and semantics are homed at the writers\n(`bin/lib/land_verify_legs.py#_adapter_credit_basis`\
+  \ and `#_adapter_credit_decision`; the\nprevious attempt is read from its journal\
+  \ row by `#_adapter_previous_attempt` through\n`bin/lib/worktree.py#_adapter_credit_bases`;\
+  \ the comparison with the full run by\n`#_layer_adapter_report_pass`) and not restated;\
+  \ the registered keys are `schema`, `mode`,\n`decision`, `reason`, `previous`, `changed`,\
+  \ `tree`, `units_total`, `rung`, `ladder_reason`,\n`related`, `related_reason`,\
+  \ `eligible`, `unknown`, `unknown_more`, `would_rerun`,\n`would_credit`, `compared`,\
+  \ `disagreements` and `error` — `previous` carrying `type`, `ts`,\n`outcome`, `tree`\
+  \ and `base`; a `would_rerun` entry `file`, `project` and `why`; a\n`would_credit`\
+  \ entry `file` and `project`; a `disagreements` entry `file`, `project`, `would`\n\
+  and `status`; an `unknown` entry `path` and `why`. `decision` is one of three. `units`\n\
+  (`reason` `failed-and-reached`): the units the run would re-run — each with `why`\
+  \ it would:\n`failed`, `not-recorded`, `reached` or `group` — and the units it would\
+  \ credit with their pass\nfrom the previous attempt. `none`: the run is no fix attempt\
+  \ (`no-previous-attempt` — the journal tail\nthat was read holds no earlier run\
+  \ of this layer on this branch — or `previous-attempt-passed`). `void`: nothing\
+  \ would be credited, `reason` saying why —\n`base-moved`, `previous-report-void`,\
+  \ `record-missing`, `record-incomplete`, `record-ambiguous`,\n`record-tree-unresolvable`,\
+  \ `full-layer` (the selection ladder answered the full layer for the\nfix's own\
+  \ changed paths; `rung` and `ladder_reason` are its answer), `no-base`,\n`candidate-tree-unreadable`,\
+  \ `diff-unreadable` or `credit-error`. `disagreements` lists every\nwould-credit\
+  \ unit that failed in this full run. The same record rides\n`tests_passed.consumer_verify_layers`\
+  \ and the failed Stage-6 row, on the `adapter` terms above.\n\nA DECIDING CREDIT\
+  \ on that `credit` key ( — SPEC-1030 rules 3, 4, 5: only a row of\na layer whose\
+  \ declaration reads the mode carries what this\nparagraph registers). On a layer\
+  \ whose parsed declaration reads\n`credit: deciding` every adapter record of a run\
+  \ of the layer carries `credit` with the `mode`\n`deciding`, and `attempt` (or `attempt_unavailable`)\
+  \ as a `credit: shadow` layer's does:\n`schema`, `mode`, `decision`, `reason`, `previous`\
+  \ (`type`, `ts`, `outcome`, `tree`, `base`),\n`changed`, `tree`, `rung`, `ladder_reason`,\
+  \ `related`, `related_reason`, `eligible`, `unknown`\n(entries `path`, `why`), `unknown_more`\
+  \ and `error` — with no `units_total`, no unit list, no\n`compared` and no `disagreements`.\
+  \ `decision` says what the run did. `units` (`reason`\n`failed-and-reached`): the\
+  \ run CREDITED at least one unit. `none`: nothing to credit from —\n`no-previous-attempt`,\
+  \ or `previous-attempt-passed-whole` (the card's previous attempt, the\nnewest row\
+  \ of its branch, is not shown by its own row to have failed as a whole: a\n`tests_failed`\
+  \ row, or an aborted `land_completed` row that records, of its candidate leg, a\n\
+  layer that did not pass or `candidate_sweep_failures`). `candidate_sweep_failures`\
+  \ (int, on\n`land_completed`) is written by `bin/lib/worktree.py#_land_integrate`\
+  \ on an abort row that\ncarries `consumer_verify_layers`, only when the candidate\
+  \ leg's own test sweep returned at\nleast one failure, and holds their number; `failing_tests`\
+  \ is not that — it also names the\npinned last-green leg's failures — and an abort\
+  \ row without the count shows no sweep\nfailure. `void`: nothing credited, `reason`\
+  \ saying why — the tokens of the paragraph\nabove (`base-moved`, `previous-report-void`,\
+  \ `record-missing` — also a layer that attempt did\nnot run —, `record-incomplete`,\
+  \ `record-ambiguous`, `record-tree-unresolvable`, `full-layer`,\n`no-base`, `candidate-tree-unreadable`,\
+  \ `diff-unreadable`, `credit-error`), and\n`card-full-layer` (the selection ladder\
+  \ answered the full layer for the card's WHOLE change;\n`rung` and `ladder_reason`\
+  \ are its answer), `no-creditable-unit` (every unit the run needs\nruns), `not-one-card-candidate`,\
+  \ `no-change`, `no-basis`, `selection-shadow` (the layer's\nselection is `shadow`),\
+  \ `outer-failure`, `required-failed`, `pass-error`, `selection-error`\nand `full-command-ran`\
+  \ (a first attempt credited and the layer's full `command:` then ran). A\nrun that\
+  \ credited is a narrowed run: its record carries the `partial` key above — `credited`\n\
+  holding the credited units (`file` / `project`), none of which is in `ran` or has\
+  \ a row in\n`units` — with `previous` beside it, the previous attempt's reference\
+  \ (the same five keys),\npresent only where a unit is credited; the row `outcome`\
+  \ of a layer that passed so is\n`passed-partial`. `units_total`, `ran`, `not_reached`\
+  \ and `left_out` are as above. Writers:\n`bin/lib/land_verify_legs.py#_adapter_deciding_credit_record`,\
+  \ `#_adapter_run_plan`,\n`#_adapter_partial_record` and `#_adapter_full_command_ran`;\
+  \ the previous attempt is read by\n`#_adapter_previous_attempt` and `#_adapter_credit_basis`\
+  \ through\n`bin/lib/worktree.py#_adapter_credit_bases`.\n\n`verify_cache` (dict\
   \ / <workshop-spec>) = the CONTENT-KEYED PER-TEST result cache's own record\nfor\
   \ this run — `hit` / `miss` / `non_keyable` / `unkeyed` (ints, the four ways a test\
   \ file can be\ndispositioned, together accounting for the WHOLE enumeration), `saved_ms`\

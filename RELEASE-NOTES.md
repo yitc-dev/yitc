@@ -1,6 +1,6 @@
-# Release v2.11.0
+# Release v2.12.0
 
-Source commit: `a836570155e2a20312e7614514926027dd8185e0`
+Source commit: `e0e208fd52105e9c16c2cb1d8391c78c5f11d050`
 
 ## Proposals this release answers
 
@@ -87,7 +87,12 @@ answers:
   - 'yitc-dev/yitc#83'
   - 'yitc-dev/yitc#84'
   - 'yitc-dev/yitc#85'
+  - 'yitc-dev/yitc#86'
+  - 'yitc-dev/yitc#88'
+  - 'yitc-dev/yitc#89'
   - 'yitc-dev/yitc#9'
+  - 'yitc-dev/yitc#92'
+  - 'yitc-dev/yitc#94'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
   - 'yitc-dev/yitc-archive-2026-10-02#10'
   - 'yitc-dev/yitc-archive-2026-10-02#11'
@@ -141,47 +146,34 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
 
-- SPEC-1028 — Dispatched-worker land under a hard per-call foreground cap — the protected property is the HELD TURN, not the foreground process
+- SPEC-1029 — Remote verify venue — kernel verify passes on an owner-raised compute box behind a trust envelope: venue record, routing, transport, envelope, W policy, box lifecycle, one executor, host-sensitive coverage
   turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1028`
+  read: `yitc-v2 graph query --kernel SPEC-1029`
+- SPEC-1030 — Deciding selection and deciding credit on an adapter-backed verify layer — project-declared opt-ins with a reason, whose partial runs are recorded and never read as full breadth
+  turn on: yitc-ops.yaml `verify.layers[].adapter` — on an adapter-backed verify layer, `selection: deciding` with a `selection_deciding_reason:` (the layer runs only the test files a change reaches, the whole layer wherever the change cannot be placed) and `credit: deciding` with a `credit_deciding_reason:` (after a failed run and a fix, the next attempt reuses the other passes of the failed one); the full run before a deploy stays the project's own
+  read: `yitc-v2 graph query --kernel SPEC-1030`
 
 ## What changed
 
-31 task(s) closed since the previous release tag, in close order:
+15 task(s) closed since the previous release tag, in close order:
 
-- T-13857 — Give a draft spec whose proposing plan was cancelled a governed end, and make spec edit help name the statuses it admits (fix) — events.jsonl#ts=2026-10-11T21:06:17Z
-- T-13858 — Make the authored-before-audit-pre warning tell preparation from code, and count only code (fix) — events.jsonl#ts=2026-10-11T23:19:10Z
-- T-13861 — Inline a corpus file whose path ends a sentence in an audit adhoc request (fix) — events.jsonl#ts=2026-10-12T00:05:35Z
-- T-13856 — Give a prototype_ref card an exit it can take when its re-implemented file is byte-identical to the prototype's (fix) — events.jsonl#ts=2026-10-12T00:35:44Z
-- T-13865 — Name the CURRENT fingerprint in the `audit decide --disposition fix` refusal that today says «the subject has not moved» (fix) — events.jsonl#ts=2026-10-12T11:09:22Z
-- T-13870 — Admit a pause-folded GREEN audit-post record at `task commit --reship`, as its two sibling legs already do (fix) — events.jsonl#ts=2026-10-12T13:43:00Z
-- T-13875 — State that a worker's hand-started test run goes at the same lowered priority as its Stage-6 run (feature) — events.jsonl#ts=2026-10-12T15:07:31Z
-- T-13864 — End a successful audit field edit (`--absorb`, `--followup`) with a final line that cannot be read as a failed call (fix) — events.jsonl#ts=2026-10-12T15:48:14Z
-- T-13871 — Show a starting Controller the live worktrees other sessions hold, and settle the two SPEC-0119 rules that disagree about it (fix) — events.jsonl#ts=2026-10-12T16:29:07Z
-- T-13889 — Write land's receipt to the main journal when the worktree directory survives deregistration (fix) — events.jsonl#ts=2026-10-12T21:57:26Z
-- T-13874 — Let a forward `deploy` be told the revision it is expected to ship, and refuse when main is not at it (feature) — events.jsonl#ts=2026-10-12T22:36:24Z
-- T-13890 — Leave a non-union merge open when worktree sync stops on it, so the resolved arm is reachable without raw git (fix) — events.jsonl#ts=2026-10-12T23:05:42Z
-- T-13872 — Make the dispatch preamble and the claim-time stage sequence follow the card's class, so a hygiene card is not told to audit (fix) — events.jsonl#ts=2026-10-12T23:32:54Z
-- T-13894 — Silence the audit-scrutiny restoration proposal once the case it names is no longer declared (fix) — events.jsonl#ts=2026-10-13T00:01:39Z
-- T-13873 — Make the before-rule-change refusal of `spec edit` name a command a consumer session can run, and say which checkout it read (fix) — events.jsonl#ts=2026-10-13T00:59:08Z
-- T-13895 — Stop the false-skip detector counting a layer timeout and a merge from main as a content-borne failure (fix) — events.jsonl#ts=2026-10-13T01:29:18Z
-- T-13892 — Print a project's own seed-bound spec bare in the session-start seed line (fix) — events.jsonl#ts=2026-10-13T01:37:26Z
-- T-13888 — Let a warm worker's detached land be admitted for every card of its assigned batch, not only the head (fix) — events.jsonl#ts=2026-10-13T01:38:48Z
-- T-13891 — Stop the dispatch in-flight guard counting the dispatching command's own pipeline peers as worktree holders (fix) — events.jsonl#ts=2026-10-13T02:37:16Z
-- T-13901 — Show a flagged project startup check at session start (fix) — events.jsonl#ts=2026-10-13T02:48:20Z
-- T-13893 — Name the dispatch target's own detached log paths in the stage-entry worker reminder (fix) — events.jsonl#ts=2026-10-13T03:28:57Z
-- T-13896 — Make the Stage-6 land-floor preview read uncommitted and untracked files (fix) — events.jsonl#ts=2026-10-13T04:08:02Z
-- T-13898 — Name each corpus file audit adhoc --read-corpus truncates, before the auditor is invoked (fix) — events.jsonl#ts=2026-10-13T04:21:51Z
-- T-13899 — Say in the scratch-checkout rule what a session does when another OS user owns the repository (fix) — events.jsonl#ts=2026-10-13T04:58:10Z
-- T-13847 — Give the repair of a known-broken-on-main test a route to file its card while the record stands (fix) — events.jsonl#ts=2026-10-13T05:03:35Z
-- T-13900 — Make the audit-pre content-boundary overlay carry SPEC-0005 rule 3's stay-in-rule-text clause (fix) — events.jsonl#ts=2026-10-13T05:59:16Z
-- T-13869 — Make the layer_worker_shares reader advisory say «reader not resolved» when it could not follow the layer command (fix) — events.jsonl#ts=2026-10-13T06:17:45Z
-- T-13866 — Write the practice for cutting a plan that restates an active spec across several cards, and point the decomposition stage at it (docs) — events.jsonl#ts=2026-10-13T06:41:01Z
-- T-13897 — Stop the overdue-recheck lens counting a live_probe waiver on a card that never shipped (fix) — events.jsonl#ts=2026-10-13T08:26:05Z
-- T-13876 — Report, without refusing, when a project's declared layer shares times the worker allotment exceed the host's cores (feature) — events.jsonl#ts=2026-10-13T09:27:28Z
-- T-13867 — State what the primary AI's own provider-side memory may hold, and route such a capture to the corpus first (feature) — events.jsonl#ts=2026-10-13T09:29:37Z
+- T-13906 — Count only lands that ran a verify layer in the run-level skip rate, and print the other lands as their own classes (fix) — events.jsonl#ts=2026-10-13T16:14:15Z
+- T-13904 — Run the Stage-6 pass of a card carrying a live queue-jump mark at normal priority and full width, and record what it ran at (feature) — events.jsonl#ts=2026-10-13T18:02:53Z
+- T-13908 — Add the how-to «Making a layer narrow» to the adapter protocol pattern: what each full-layer answer means and what a project can declare about it (docs) — events.jsonl#ts=2026-10-13T18:51:36Z
+- T-13907 — Make a deciding selection act on an adapter-backed verify layer and record a partial run, while the declaration reader still refuses the name (infra) — events.jsonl#ts=2026-10-13T19:56:52Z
+- T-13905 — Say on a Stage-6 run's result how many land verifies ran beside it (feature) — events.jsonl#ts=2026-10-13T20:40:32Z
+- T-13917 — Decide «this repository is the engine» from the kernel's own identity, never from a file at bin/yitc-v2 or bin/lib/cli.py in the repository being landed (infra) — events.jsonl#ts=2026-10-13T20:43:14Z
+- T-13932 — Name the remedy for a report voided by a unit with only skipped records in the adapter how-to (docs) — events.jsonl#ts=2026-10-13T20:50:05Z
+- T-13916 — Name the paths that fired in a selection record that answers the full layer on rung (a) (infra) — events.jsonl#ts=2026-10-13T21:25:30Z
+- T-13911 — Keep every derived reading from counting a partial run as a full run of its layer, or a left-out or credited unit as run (infra) — events.jsonl#ts=2026-10-13T21:26:35Z
+- T-13909 — Make a deciding credit act after a failed attempt: run the units the fix reaches and those with no pass to reuse, credit the rest, and record it (infra) — events.jsonl#ts=2026-10-13T21:36:31Z
+- T-13915 — Stop treating a project's root bin/ as verify infrastructure: keep that member of the fixed set for the kernel's own repository only (infra) — events.jsonl#ts=2026-10-13T22:03:47Z
+- T-13910 — Let the land's Stage-6 credit take a partial Tests-stage run only when it would account for the same units, and record every refusal so it can be analysed (infra) — events.jsonl#ts=2026-10-13T22:48:15Z
+- T-13931 — Record a verify layer's CPU over its whole process tree and name which reading a row carries (infra) — events.jsonl#ts=2026-10-13T23:13:38Z
+- T-13933 — Let a project's declared audit-post exemption reach a card that touches its root bin/: keep that member of the guard's governance set for the kernel's own repository only (infra) — events.jsonl#ts=2026-10-14T00:24:48Z
+- T-13912 — Make `selection: deciding` and `credit: deciding` declarable with their reasons, amend the active texts, and prove the deciding modes end to end on a sandbox consumer (infra) — events.jsonl#ts=2026-10-14T00:35:51Z
 
 ## Trust surfaces
 

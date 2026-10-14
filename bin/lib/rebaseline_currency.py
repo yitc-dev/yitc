@@ -48,7 +48,7 @@ from lib import test_discovery   # stdlib-only leaf — the ONE `test_*.py` disc
 from lib import journal as journal_mod   # T-13138: the declared-read rule for an injected reader (`declared_read`)
 
 
-def _materialize_pinned_engine_bin(W: Path, merged_base: str, *, _run_git_cap):
+def _materialize_pinned_engine_bin(W: Path, merged_base: str, *, _run_git_cap, _is_consumer_build=None):
     """Materialize the LAST-GREEN (committed `main` HEAD = merged_base) engine `bin/` tree (yitc-v2 +
     lib/**) into a fresh temp dir so the pinned verify RUNNER can run in a SUBPROCESS with a CLEAN
     sys.modules — the only correct isolation across the layered bin/lib package (SPEC-0077 §1/§3; an
@@ -57,7 +57,15 @@ def _materialize_pinned_engine_bin(W: Path, merged_base: str, *, _run_git_cap):
     carries NO `bin/yitc-v2` (a `-C` consumer / a test repo): there the engine binary is the already-PINNED,
     consumer-immutable engine (§6b), so the current in-process runner IS the pinned verifier. Raises on a
     genuine git failure — the caller treats that fail-closed (a pinned gate that cannot be established must
-    abort the land, never silently skip)."""
+    abort the land, never silently skip).
+
+    T-13917: «a `-C` consumer» is read from the kernel's own identity (`_is_consumer_build`, injected by
+    the bin/lib/cli.py residue) BEFORE any tree of the landed repository — a project that keeps a file at
+    `bin/yitc-v2` is still a project, its `bin/` is never archived as the engine, and None is returned
+    with no git call. Uninjected (a harness calling this body directly), or under the engine's identity,
+    the `ls-tree` reading below is unchanged: there it tells the engine's tree from a test repo."""
+    if _is_consumer_build is not None and _is_consumer_build():
+        return None   # a PROJECT, by identity — the current runner IS the pinned engine (§6b).
     import shutil
     import tarfile
     import tempfile

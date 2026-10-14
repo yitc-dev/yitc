@@ -99,35 +99,38 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ draining the cohort or\n   to stretch the bound blindly for everyone. Every kill\
   \ — first-deadline or grace-exhausted — records\n   the windows it spent, in the\
   \ abort reason (`grace=N`) and in the §4 payload (`grace_extensions`).\n\n   **MEASURED\
-  \ LAND OVERLAP IS SUBTRACTED BEFORE ANY OF THE ABOVE.** On the SPEC-0203\n   venue\
-  \ a Stage-6 leg runs at nice 19 beside a nice-0 land and receives ~1% of contended\
-  \ CPU, so\n   it is effectively PAUSED while this wall bound keeps ticking; the\
-  \ leg therefore records the\n   intervals during which a foreign `land`-class lease\
-  \ was live on the box, and at each deadline\n   the runner pushes the deadline out\
-  \ by the part of THIS FILE'S OWN window that overlapped one —\n   before the grace\
-  \ consult above, which is unchanged. This is a DEFERRAL denominated in\n   MEASUREMENT\
-  \ rather than a raised bound: it is 0.0 whenever the sidecar is absent, unreadable\
-  \ or\n   names no land (so every local land is byte-identical to before this card),\
-  \ it can never exceed\n   the file's own elapsed window, and a file nothing starved\
-  \ is still killed on exactly the\n   deadline it always was — at BOTH ends of the\
-  \ §3 band.\n\n   **A STARVED LOWERED-PRIORITY ATTEMPT IS RESTARTED ONCE AT NORMAL\
-  \ PRIORITY, IN ONE BUDGET\n.** When the run spawns its children at a lowered priority\
-  \ (nice > 0: a dispatched\n   worker's Stage-6 run; a land, an interactive run and\
-  \ every nested or pinned driver spawn at\n   nice 0 and never take this branch),\
-  \ the attempt is classified every fifth of its bound by\n   the same §3 classifier\
-  \ the kill reads. When the host is oversubscribed (load1 above the CPUs\n   the\
-  \ run may use) and the reading is `stalled` or `starved`, the attempt is killed,\
-  \ one stderr line names\n   it, and the file is run ONCE more, in a fresh sandbox\
-  \ box, at normal priority, against the\n   FIRST attempt's deadline — the file keeps\
-  \ one budget, and its duration row spans both\n   attempts. That run's\n   verdict\
-  \ is the file's: a pass passes, a failure fails, a timeout takes this whole rule\n\
-  \   (credit, grace, kill, marker, the §4 deviation) and fails. The restarted run\
-  \ is never probed\n   or restarted, so a hang is still killed by the same deadline\
-  \ and still fails. A `long`\n   reading, no reading, or a host with spare CPU leaves\
-  \ the attempt running as before. The starved attempt emits no\n   deviation and\
-  \ records no row.\n\n   **THE SAME RESTART HOLDS FOR A PROJECT'S VERIFY-LAYER COMMANDS.**\
-  \ A dispatched\n   worker's Stage-6 run of a project starts every command of a declared\
-  \ verify layer at the same\n   lowered priority, under that command's own bound;\
+  \ LAND OVERLAP IS SUBTRACTED BEFORE ANY OF THE ABOVE.** On the <workshop-spec>\n\
+  \   venue a Stage-6 leg runs at nice 19 beside a nice-0 land and receives ~1% of\
+  \ contended CPU, so\n   it is effectively PAUSED while this wall bound keeps ticking\
+  \ (a leg sent at nice 0 under\n   SPEC-1029 rule 5's queue-jump exception is slowed\
+  \ rather than paused, and is read the same\n   way); the leg therefore records the\n\
+  \   intervals during which a foreign `land`-class lease was live on the box, and\
+  \ at each deadline\n   the runner pushes the deadline out by the part of THIS FILE'S\
+  \ OWN window that overlapped one —\n   before the grace consult above, which is\
+  \ unchanged. This is a DEFERRAL denominated in\n   MEASUREMENT rather than a raised\
+  \ bound: it is 0.0 whenever the sidecar is absent, unreadable or\n   names no land\
+  \ (so every local land is byte-identical to before this card), it can never exceed\n\
+  \   the file's own elapsed window, and a file nothing starved is still killed on\
+  \ exactly the\n   deadline it always was — at BOTH ends of the §3 band.\n\n   **A\
+  \ STARVED LOWERED-PRIORITY ATTEMPT IS RESTARTED ONCE AT NORMAL PRIORITY, IN ONE\
+  \ BUDGET\n.** When the run spawns its children at a lowered priority (nice > 0:\
+  \ a dispatched\n   worker's Stage-6 run, unless its card carries a live queue-jump\
+  \ mark — SPEC-1029 rule 5; a\n   land, an interactive run and every nested or pinned\
+  \ driver spawn at\n   nice 0 and never take this branch), the attempt is classified\
+  \ every fifth of its bound by\n   the same §3 classifier the kill reads. When the\
+  \ host is oversubscribed (load1 above the CPUs\n   the run may use) and the reading\
+  \ is `stalled` or `starved`, the attempt is killed, one stderr line names\n   it,\
+  \ and the file is run ONCE more, in a fresh sandbox box, at normal priority, against\
+  \ the\n   FIRST attempt's deadline — the file keeps one budget, and its duration\
+  \ row spans both\n   attempts. That run's\n   verdict is the file's: a pass passes,\
+  \ a failure fails, a timeout takes this whole rule\n   (credit, grace, kill, marker,\
+  \ the §4 deviation) and fails. The restarted run is never probed\n   or restarted,\
+  \ so a hang is still killed by the same deadline and still fails. A `long`\n   reading,\
+  \ no reading, or a host with spare CPU leaves the attempt running as before. The\
+  \ starved attempt emits no\n   deviation and records no row.\n\n   **THE SAME RESTART\
+  \ HOLDS FOR A PROJECT'S VERIFY-LAYER COMMANDS.** A dispatched\n   worker's Stage-6\
+  \ run of a project starts every command of a declared verify layer at the same\n\
+  \   lowered priority (with the same exception), under that command's own bound;\
   \ a land starts a layer command at normal\n   priority and never takes this branch.\
   \ A lowered layer command is read every fifth of its bound\n   by the same decision\
   \ as a test file above — the §3 class is `stalled` or `starved` and the host\n \
@@ -498,14 +501,14 @@ binding:
 implements_signature:
   bin/lib/cli.py#_emit_sandbox_survivor_deviation: 039f2902d1b60a6acc877672a9a5f52c821f7f4ec030806f6fa1eef13ad44e78
   bin/lib/cli.py#_emit_verify_timeout_deviation: aa81c2b62247a16203b627be1256e70fd440f41f0d460e3ecf07830efe88b220
-  bin/lib/cli.py#_run_host_leak_canary: b632a0414fa80c60e166c61f57536cb9d6e15cfa06398261b2916a65382a9dc6
+  bin/lib/cli.py#_run_host_leak_canary: 93d94b07821040ba203a1b754361ae1e42ef633a5b0cd01ab2f3850f5ca7ef0b
   bin/lib/cli.py#_terminate_process_group: 90db1795ef0f8286045789950b9435cfcca8639fe53970c608e575209a937849
   bin/lib/cli.py#_verify_test_timeout_seconds: d2f9a0910ef7d2d91b165e148082b6efec0238b5ec9683b753fba5351a25ed35
   bin/lib/cli.py#_verify_timeout_grace_seconds: 9c9bea45c85f2b5f43ed7080bf79afcd18be52b34d829c97c47aa9ec2599191e
-  bin/lib/land_verify_legs.py#_run_layer_command: ce9b7699db3fed48b79bb455c692a43463fba929744f92d7ba0fa69a5b2ebc33
+  bin/lib/land_verify_legs.py#_run_layer_command: 6531990748874ae936a5f98b252056ae4e69385b87759b717d3234aa51ff9e28
   bin/lib/verify_runner.py#_path_at_or_under: e5a0791affdb82443073cc4a1468c9d99e9d4c27c141aeca7757776d5d1d6045
   bin/lib/verify_runner.py#_priority_starved: e29b74b3648667386fb6f1e513098cbc1d7587b2a1a92da63c06b865a65d6ebe
   bin/lib/verify_runner.py#_reap_own_sandbox_residents: a8174d5760bb0068dc1b42690bd1b4be4c8d294b691324832fcc96c41386a05b
-  bin/lib/verify_runner.py#_run_verify_tests: 462e6f2616579945edbfda5e7dd66a65362f88b5ca5a884da93ae26eaf86191c
+  bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
   bin/lib/verify_runner.py#_sandbox_residency_candidates: 6a7217770cf9d6575fbf29f3ad13d6cfe2883bd16914c702a2b756e66d905362
   bin/lib/verify_runner.py#_sandbox_run_residents: 399e558a8f9a9bdaa64659a1577631a4e92b8bdfe4ee061868a4d74bc8aaab66

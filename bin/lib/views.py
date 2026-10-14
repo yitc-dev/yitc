@@ -5947,11 +5947,12 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     as a non-skip (rows begin only once a project declared its layers). A repo with no layered land — the
     engine kernel itself — folds to 0, so history is never retro-charged. It carries ONE companion line
     that is deliberately NOT suppressed-when-clean (T-11749 / <project> X-1165): the RUN-level skip rate,
-    the share of LANDS in the same window that skipped at least one layer, read off the same fold's
-    `run_skip`. A rate is not owed work, so for it silence and 0% would be indistinguishable — and an
-    unwatched rate halving from 40% to 18% while nothing printed it is precisely what produced the ask.
-    It stays silent only with NO denominator (no land in the window recorded a per-layer trail), which is
-    no measurement rather than a rate of zero.
+    read off the same fold's `run_skip` — of the lands of the same window that RAN at least one layer,
+    the share that also skipped at least one, with the lands it does not count printed beside it as
+    their own counted classes (T-13906). A rate is not owed work, so for it silence and 0% would be
+    indistinguishable — and an unwatched rate halving from 40% to 18% while nothing printed it is
+    precisely what produced the ask. It stays silent only when the window holds no land at all (no land
+    recorded a per-layer trail), which is no measurement rather than a rate of zero.
 
     BROKEN-OUTCOME-INVARIANTS view (SPEC-0119 rule 17, T-10554 / X-0419): an OPTIONAL injected collaborator
     `_broken_outcome_invariants` (zero-arg, RETURNS `{count, invariants, …}` — see
@@ -7499,10 +7500,17 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"at land (SPEC-0152 rule 16 subject_globs; T-10573). Opt-in — always safe to leave as "
                 f"is (the layer just always runs). See `bin/yitc-v2 debt`.")
         # RUN-LEVEL VERIFY SKIP RATE (T-11749, <project> X-1165 / X-1160): the same fold's `run_skip`
-        # companion — the share of LANDS in the window that skipped at least one layer. It is rendered
+        # companion — of the lands of the window that RAN at least one layer, the share that also
+        # skipped at least one. It is rendered
         # here, beside the per-layer line, because it is a second reading of ONE fold: standing a
         # separate surface next to the view we already print is the duplication CHARTER P5 forbids, and
         # is the reason this ask resolved as an EXTENSION rather than a new seam.
+        #
+        # T-13906 (a consumer's public proposal): the line NAMES ITS DENOMINATOR and prints every land
+        # it does not count as its own class. The earlier text gave the rate over every land of the
+        # window, so a land that ran no layer read as one that skipped nothing, and its reader took the
+        # complement for "ran every layer" and nearly narrowed every layer's subject on it. The line
+        # therefore also says what the complement is NOT.
         #
         # THIS IS THE ONE LINE IN THIS ECHO THAT IS NOT SUPPRESSED-WHEN-CLEAN, and that is the ask's one
         # stated requirement rather than an oversight. Every sibling here reports OWED WORK, so silence
@@ -7511,22 +7519,50 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
         # narrow their globs, citing their own skip rate as the prize, while their own rate quietly
         # halved from 40% to 18% because nothing printed it). Our own graph-cache hit-rate line prints at
         # 0% for the identical reason: 1135 markers written, none read across 1390 lands, invisible until
-        # someone went looking. It IS silent with no denominator — a window holding no land that recorded
+        # someone went looking. It IS silent with an empty window — a window holding no land that recorded
         # a per-layer trail (this engine kernel) has taken no measurement, which is not a rate of zero,
         # and printing `0 of 0` on every land would train the reader to skip the line. Report-only: no
         # gate, no threshold, no alert (all three explicitly out of the ask's scope).
         _rs = _zs.get("run_skip") if isinstance(_zs, dict) else None
-        _rs_lands = _n(_rs.get("lands")) if isinstance(_rs, dict) else None
-        if _rs_lands and _rs_lands > 0:
+        _rs = _rs if isinstance(_rs, dict) else {}
+        _rs_lands = _n(_rs.get("lands")) or 0
+        _rs_skipped = _n(_rs.get("skipped")) or 0
+        _rs_all, _rs_cred, _rs_unsc, _rs_norows, _rs_abort = (
+            _n(_rs.get(k)) or 0
+            for k in ("all_skipped", "credited", "unscored", "no_layer_rows", "aborted"))
+        # The WINDOW is the last completed lands that recorded layer rows — never "the last recorded
+        # lands": completed lands with no layer rows and aborted attempts lie between them and are
+        # counted apart, so the text names the window by what it holds.
+        # T-13911 (SPEC-1030 rule 6): the lands that ran no layer in full and at least one IN PART —
+        # a class of the window like the three above, present on the fold's answer only when it is
+        # not zero. With none, every string below is the string it was.
+        _rs_part = _n(_rs.get("partial")) or 0
+        _rs_full = " in full" if _rs_part else ""
+        _rs_window = _rs_lands + _rs_all + _rs_cred + _rs_unsc + _rs_part
+        if _rs_window > 0:
+            _rs_head = (
+                f"debt: run-level verify skip rate {_rs.get('rate_pct')}% of the {_rs_lands} land(s) "
+                f"that RAN at least one verify layer{_rs_full} — {_rs_skipped} of {_rs_lands} also skipped at "
+                f"least one; the other {_rs_lands - _rs_skipped} skipped none, which is NOT «ran every "
+                f"layer» (a layer credited or waived on a land is neither run nor skipped). The share "
+                f"is of those {_rs_lands} land(s) only, not of the window — the last {_rs_window} "
+                f"completed land(s) that recorded layer rows."
+                if _rs_lands > 0 else
+                f"debt: run-level verify skip rate has NO reading — none of the last {_rs_window} "
+                f"completed land(s) that recorded layer rows ran a verify layer{_rs_full}, so there is no "
+                f"land to take a share of.")
+            _rs_part_text = (
+                f"{_rs_part} land(s) ran no layer in full and at least one in part (a partial run — "
+                f"only some of the layer's test files — is not a run of its layer); "
+                if _rs_part else "")
             lines.append(
-                f"debt: run-level verify skip rate {_rs.get('rate_pct')}% over the last {_rs_lands} "
-                f"recorded land(s) — {_n(_rs.get('skipped')) or 0} of {_rs_lands} skipped at least one "
-                f"verify layer. This is the share of LANDS that got to skip anything, which the "
-                f"per-layer line beside it cannot state: layer-by-layer answers can all look fine while "
-                f"this halves underneath them as `subject_globs:` widen (each widening buys a little "
-                f"coverage and charges EVERY future land the whole layer). Report-only — no gate, no "
-                f"threshold; printed even at 0% so a dead view and a working one never look alike. "
-                f"See `bin/yitc-v2 debt`.")
+                f"{_rs_head} NOT counted in a share, each its own class: of the window, {_rs_part_text}"
+                f"{_rs_all} land(s) ran no layer and skipped at least one; {_rs_cred} ran no layer "
+                f"and took a layer's verdict from a Stage-6 run (credited); {_rs_unsc} carried only "
+                f"waived or unreadable rows; and, since the window's first land, "
+                f"{_rs_norows} completed land(s) recorded no layer rows and {_rs_abort} land "
+                f"attempt(s) aborted. Report-only — no gate, no threshold; printed even at 0% so a "
+                f"dead view and a working one never look alike. See `bin/yitc-v2 debt`.")
     # SLOWEST-TEST-FILE-CHANGES view (SPEC-0119 rule 19, T-11125): the OPTIONAL injected fold over the
     # JOURNAL — what MOVED in the recorded slowest test files (T-11124's per-file duration series)
     # between the latest land and the median of the previous window. It reports the DELTA and NEVER the

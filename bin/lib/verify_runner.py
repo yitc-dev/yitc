@@ -1468,7 +1468,7 @@ def governed_selection(test_files, *, select: bool = True, journal_path=None, te
 
 
 def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | None = None,
-                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, _timeout_class=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None, _priority_starved=None) -> list:
+                      timeout: "float | None" = None, journal_path=None, metrics_out: "dict | None" = None, fail_fast: bool = True, selection_diff_paths=None, selection_diff_error=None, *, selection_reachability_freed=None, selection_tripwire_inert_paths=None, only: "set[str] | None" = None, select: bool = False, _selection_tripwire=None, durations_out: "list | None" = None, outcomes_out: "Path | None" = None, _per_file_outcomes_export=None, _VERIFY_IMPLEMENTATION_GLOBS=None, _emit_verify_timeout_deviation, _terminate_process_group, _verify_test_timeout_seconds, _process_group_cpu_seconds=None, _reap_sandbox_residents=None, _emit_sandbox_survivor_deviation=None, _timeout_timing_phrase=None, _verify_timeout_grace_seconds=None, _timeout_class=None, EXPECTED_SESSION_REF_ENV, SESSION_REF_ENV_VARS=None, SUBENV_SCRUB_CARRIERS=None, _VERIFY_TIMEOUT_MARKER, monotonic=None, land_verify: bool = False, queue_jump: bool = False, _SELECTION_RULE_VERSION=None, _SKIP_EDGE_VERIFY_TOUCH=None, _VERIFY_DRAIN_TIMEOUT=None, _VERIFY_SANDBOX_PREFIX=None, _load_verify_duration_table=None, _per_file_duration_record=None, _reap_own_sandbox_residents=None, _reclaim_sandbox_worktrees=None, _selection_enumerated_relpaths=None, _selection_governs=None, _selection_omission_tripwire=None, _shadow_select=None, _verify_child_nice=None, _verify_dispatch_order=None, _verify_failing_test_names=None, _verify_failure_excerpt=None, _verify_heartbeat_interval=None, _verify_heartbeat_line=None, _verify_implementation_touch_globs=None, _verify_implementation_touch_pairs=None, _verify_worker_governor=None, hermetic_child_env=None, _flaky_retry_plan=None, _verify_retry_max_files=None, _priority_starved=None) -> list:
     """Run every `tests/test_*.py` as an isolated subprocess (canonical V2 test interface — exit 0 =
     pass, tests/README.md §Run all tests / T-0039) CONCURRENTLY (T-0274). Preserves the old serial
     loop's contract:
@@ -1658,8 +1658,11 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         workers = max(1, _verify_worker_governor())
     # T-11456 — the per-file spawn priority for THIS run, decided ONCE (the answer cannot change
     # mid-run) by the two-sided predicate beside the ceiling. 0 on every land / interactive / pinned /
-    # nested path, which keeps the `Popen` below byte-identical to the pre-T-11456 call.
-    _child_nice = _verify_child_nice(land_verify=land_verify)
+    # nested path, which keeps the `Popen` below byte-identical to the pre-T-11456 call. T-13904: a
+    # Stage-6 run whose caller declares a live queue-jump mark (`queue_jump=True`) is 0 as well; the
+    # keyword is forwarded only when set, so an injected decision that predates it is called as before.
+    _child_nice = _verify_child_nice(land_verify=land_verify,
+                                     **({"queue_jump": True} if queue_jump else {}))
     # ── T-12358 — THE DECLARED LOAD-SENSITIVE SET: PARTITION, NEVER EXCLUDE ─────────────────────
     # `test_files` stays the FULL set this run enumerated — the heartbeat total, `test_file_count`,
     # the box names, the outcomes sidecar and the metrics all keep reading it. What the carrier
@@ -2567,6 +2570,15 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
                             "verify_wall_ms": int((time.monotonic() - _run_start) * 1000),
                             "queue_wait_ms": int(max_queue_wait[0] * 1000),
                             "fail_class": _fail_class})
+        # T-13904 — the OS priority THIS run's test files were started AT, reported by the run that
+        # applied it, so a caller that records it never takes a second reading of the setting. It is
+        # the priority the files RUN at, not the amount this run added: the spawn above applies
+        # `_child_nice` as an INCREMENT on this process's own nice (saturating at 19), and a run that
+        # adds nothing (0) leaves its files at this process's own priority — a process cannot raise
+        # one. A land's run is normal priority by declaration and its payload is as it was: the key
+        # is written on a non-land run only.
+        if not land_verify:
+            metrics_out["child_nice"] = min(19, os.nice(0) + _child_nice)
         # T-11703 — the per-file wall bound that was actually in force, plus the rung that supplied
         # it (resolved at the top of this function). Two additive keys on the SAME payload the
         # dispatch / per_file_durations / selection_* records already ride (no new event type, no
@@ -4302,7 +4314,8 @@ def _shadow_select(diff_paths, test_files, verify_globs, coverage_map=None,
             selected.add(p[len(_LEAF_TEST_DIR):])
     return (sorted(selected), [n for n in names if n not in selected], None)    # R4
 
-def _verify_child_nice(*, land_verify: bool, env: "dict | None" = None, _VERIFY_WORKER_MARKER_ENV=None,
+def _verify_child_nice(*, land_verify: bool, queue_jump: bool = False, env: "dict | None" = None,
+                       _VERIFY_WORKER_MARKER_ENV=None,
                        _VERIFY_WORKER_NICE_DEFAULT=None, _VERIFY_WORKER_NICE_ENV=None,
                        _VERIFY_WORKER_NICE_RANGE=None) -> int:
     """T-11456 — the OS-priority increment this run's per-file test subprocesses are spawned at.
@@ -4319,6 +4332,13 @@ def _verify_child_nice(*, land_verify: bool, env: "dict | None" = None, _VERIFY_
         hermeticity scrub strips the marker from anyway) all read 0 and are unchanged.
     `os.environ` is read only when `env` is omitted, so BOTH legs stay directly testable.
 
+    T-13904 — a THIRD declared side: `queue_jump=True` is the Stage-6 run of a card whose MAIN-checkout
+    card carries a live queue-jump mark, and it is NORMAL priority. It is DECLARED by its caller (the
+    Stage-6 verb, which read the mark through the mark's one reader), for the reason a land declares
+    itself: nothing ambient tells such a run apart, and an ambient switch to normal priority would be
+    a door around the fail-safe direction below. Tested after the land and before the marker, so the
+    default `False` leaves every existing answer as it was.
+
     T-12224 — the lowered VALUE is a MACHINE-scoped tunable, resolved here; the two-sided RULE above
     is untouched (a land still returns 0 before anything is read, and a marker-absent run still
     returns 0 without consulting the knob at all). PRECEDENCE is SPEC-0193 rule 7 — environment >
@@ -4334,6 +4354,8 @@ def _verify_child_nice(*, land_verify: bool, env: "dict | None" = None, _VERIFY_
     prerequisite (rule 6): any fault in the settings stack resolves to the default rather than
     putting an infrastructure error on a path every verify pass runs through."""
     if land_verify:
+        return 0
+    if queue_jump:
         return 0
     _env = os.environ if env is None else env
     if not (_env.get(_VERIFY_WORKER_MARKER_ENV, "") or "").strip():

@@ -403,6 +403,10 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
             # today.
             if abort_detail.get("consumer_verify_layers"):
                 data["consumer_verify_layers"] = abort_detail["consumer_verify_layers"]
+            # T-13909 (SPEC-1030 rule 3): the candidate leg's own test-sweep failure count, written
+            # by `_land_integrate` beside that trail (SPEC-0025). Additive, guarded on presence.
+            if abort_detail.get("candidate_sweep_failures"):
+                data["candidate_sweep_failures"] = abort_detail["candidate_sweep_failures"]
             # T-11468 — PERSIST the T-11464 attribution record. `_land_failure_attribution_probe`
             # re-runs the failing files at `merged_base` and splits the failing (file, assertion)
             # pairs into `at_main` / `at_branch`, and `_land_integrate` assigns that record to

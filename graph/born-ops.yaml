@@ -314,7 +314,11 @@ audit_scrutiny:
   # `implements_signature` takes the exemption back, so a case reaches only cards whose diff
   # re-signs no anchored spec. The guard takes back GOVERNANCE
   # surfaces: specs, an always-loaded seed, this file, AND the SPEC-0077 pinned-test surface —
-  # `bin/**` + `tests/**` + `yitc-ops.yaml`. app/, backend/, frontend/, scripts/ are NOT guarded, so
+  # `tests/**` and what `verify:` here names (a layer's `command:` paths, an adapter's
+  # `sources:` under root `bin/`, every `verify.infra_globs` entry; a refused value or entry
+  # there guards all of root `bin/`). A root `bin/` file your verifier runs that this file does not
+  # name is NOT guarded — list it under `verify.infra_globs`. Outside those surfaces the rest
+  # of root `bin/`, app/, backend/, frontend/, scripts/ are NOT guarded, so
   # PREFER `paths:` over a class-only case.
   # see SPEC-0178 §Rule 2, §Rule 3, §Rule 6
   #

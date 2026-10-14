@@ -51,6 +51,7 @@ import math
 import os
 import re
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -200,7 +201,7 @@ def _declared_verify_infra_globs(ops: "dict | None", *, CONSUMER_OPS_CONTRACT, V
     """T-12587 — `(globs, refusals)` read from the carrier's OPTIONAL `verify.infra_globs` key.
 
     THE GAP THIS CLOSES (X-0938 class, SPEC-0185 §3(a)). The verify-infrastructure floor
-    (`_VERIFY_IMPLEMENTATION_GLOBS` / `_SUBJECT_VERIFY_INFRA_GLOBS`) is ROOT-relative, and the only
+    (`verify_wiring._verify_infrastructure_globs`) is ROOT-relative, and the only
     declaration-aware companion so far DERIVES a consumer's check surface from `verify.layers[].command`
     operands (`_pinned_declared_check_paths`). A layer whose command reveals no path (`make check`,
     `npm test`) with its verify implementation at `backend/tests/` therefore had NO key — in either
@@ -269,6 +270,28 @@ def _declared_verify_infra_globs(ops: "dict | None", *, CONSUMER_OPS_CONTRACT, V
     return sorted(globs), refusals
 
 
+def _adapter_sources_under_root_bin(ops: "dict | None") -> list:
+    """T-13915 — the `verify.layers[].adapter.sources` entries ONE parsed carrier declares at or
+    under the root `bin/`, normalised as the adapter declaration reader normalises them
+    (`posixpath.normpath`). Pure; any other shape — no carrier, no layers, a layer with no adapter
+    mapping, a `sources:` that is not a list, an entry that is not a non-empty string — contributes
+    nothing here (the declaration reader refuses it by name where the adapter is read)."""
+    import posixpath
+    out: set = set()
+    ver = ops.get("verify") if isinstance(ops, dict) else None
+    layers = ver.get("layers") if isinstance(ver, dict) else None
+    for ly in layers if isinstance(layers, list) else ():
+        adapter = ly.get("adapter") if isinstance(ly, dict) else None
+        sources = adapter.get("sources") if isinstance(adapter, dict) else None
+        for src in sources if isinstance(sources, list) else ():
+            if not (isinstance(src, str) and src.strip()):
+                continue
+            norm = posixpath.normpath(src.strip())
+            if norm == "bin" or norm.startswith("bin/"):
+                out.add(norm)
+    return sorted(out)
+
+
 def _declared_check_surface_globs_of(ops: "dict | None", *, _declared_verify_infra_globs, _pinned_declared_check_paths) -> set:
     """The check-surface globs ONE parsed carrier declares — the per-carrier half of
     `_declared_check_surface_globs` below, factored out by T-13531 so that the reader which decides
@@ -282,6 +305,20 @@ def _declared_check_surface_globs_of(ops: "dict | None", *, _declared_verify_inf
     # over-firing is the safe side (SPEC-0077 §1). Refused (subtractive) entries contribute nothing
     # here; they are REFUSED BY NAME at the declaration read (`_floor_declaration_refusals`).
     paths.update(_declared_verify_infra_globs(ops)[0])
+    # T-13915 — an adapter's `sources:` under the root `bin/`. The fixed set no longer names a
+    # project's root `bin/` (`verify_wiring._verify_infrastructure_globs`), and until then the
+    # blanket glob was the only thing that put such a runner or script on the full run: `sources:`
+    # is otherwise read inside its own layer only (`_adapter_shadow_decision`, rung (a)), after the
+    # skip decision. Named here for what it is — the layer's declared verifier — so a change to it
+    # runs every layer. Only the entries under the root `bin/`: what a `sources:` entry elsewhere
+    # does is unchanged by this card.
+    # Matched as the adapter ladder matches a `sources:` entry — the entry
+    # itself or anything under it, LITERALLY (`_adapter_shadow_decision`): a glob metacharacter in
+    # the name is escaped, never read as a pattern.
+    import glob as _glob
+    for src in _adapter_sources_under_root_bin(ops):
+        paths.add(_glob.escape(src))
+        paths.add(f"{_glob.escape(src)}/**")
     for p in _pinned_declared_check_paths(ops):
         if len(Path(p).parts) < 2:
             # The SAME root-level exclusion the overlay applies (see `_run_pinned_verify`): a
@@ -324,15 +361,25 @@ def _declared_check_surface_globs(W: Path, merged_base: str, *, _run_git_cap, CO
     return sorted(paths)
 
 
-def _declared_check_surface_touch(changed_files, W: Path, merged_base: str, *, _run_git_cap, _is_verify_implementation_touch, _declared_check_surface_globs) -> bool:
+def _declared_check_surface_touch(changed_files, W: Path, merged_base: str, *, _run_git_cap, _is_verify_implementation_touch, _declared_check_surface_globs, matched: "list | None" = None) -> bool:
     """True iff any changed path falls on a check surface the ops carrier DECLARES (the globs above).
     The declaration-derived EXTENSION of `_is_verify_implementation_touch`'s static root-level set —
     same fnmatch idiom, same REPO_ROOT-relative paths, evaluated only when the static set did not
     already fire. Best-effort: no declared surface (the engine's own land, a carrier-less repo) → False,
-    leaving the established predicate exactly as it was."""
+    leaving the established predicate exactly as it was.
+
+    `matched` (T-13916) — an OUT list for the one caller that records WHICH paths made the answer
+    (the per-layer skip decision, for the selection record of SPEC-1006 rule 6): when a list is
+    passed, the answer is taken path by path with the same matcher over the same globs — so it is
+    the answer the one call below gives — and every changed path that matched is appended, under
+    the name it was given. With `matched=None` (every other caller) nothing changes."""
     globs = _declared_check_surface_globs(W, merged_base, _run_git_cap=_run_git_cap)
     if not globs:
         return False
+    if matched is not None:
+        matched.extend(p for p in changed_files
+                       if _is_verify_implementation_touch([p], _VERIFY_IMPLEMENTATION_GLOBS=globs))
+        return bool(matched)
     return _is_verify_implementation_touch(changed_files, _VERIFY_IMPLEMENTATION_GLOBS=globs)
 
 
@@ -343,6 +390,89 @@ def _declared_check_surface_touch(changed_files, W: Path, merged_base: str, *, _
 _OPS_CARRIER_VERIFY_SECTIONS = ("verify", "verify_policy", "tests")
 _OPS_CARRIER_SECTION_ABSENT = ("absent",)   # distinct from an explicit null (`verify:` with no value)
 _YAML_MERGE_TAG = "tag:yaml.org,2002:merge"
+
+
+def _root_bin_paths(paths) -> list:
+    """T-13915 — the changed paths at or under the repository's root `bin/`, each spelled as the
+    verify-touch predicate spells a path (a leading `./` dropped). Pure; anything that is not a
+    string contributes nothing."""
+    out = []
+    for raw in paths or ():
+        if not isinstance(raw, str):
+            continue
+        p = raw
+        while p.startswith("./"):
+            p = p[2:]
+        if p == "bin" or p.startswith("bin/"):
+            out.append(p)
+    return out
+
+
+def _root_bin_aware_touch(bound_touch, worktree: Path, base_ref: str, *, _run_git_cap, _declared_check_surface_touch):
+    """T-13915 (SPEC-0152 rule 16) — the land's verify-implementation-touch predicate, made to answer
+    for a root `bin/` path the project's OWN CONTRACT names.
+
+    `bound_touch` is the predicate bound to the verify-infrastructure set of this repository (the one
+    home, `verify_wiring._verify_infrastructure_globs`). For a project that set holds no root `bin/**`
+    member, so a root `bin/` file the declared check surface names — a layer's `command:` path token,
+    an adapter's `sources:` entry under the root `bin/`, a `verify.infra_globs` entry — would be an
+    ordinary path to every reader of the land that asks the bound predicate ALONE (batch formation's
+    cost rank, the failure attribution), while the per-layer skip decision and the pinned trigger,
+    which ask the declared-check-surface companion beside it, run everything on that file. The
+    returned predicate closes that: it answers True where `bound_touch` does, and otherwise asks the
+    SAME companion about the changed paths at or under the root `bin/`, and about those only — so
+    what any reader answers for a declared check path ELSEWHERE is unchanged. Before T-13915 the
+    fixed set's root `bin/**` member gave this answer in every repository.
+
+    Read at CALL time, over `worktree`'s carrier and the carrier at `base_ref`, as the companion
+    reads them. Any doubt (the companion raises) is a touch: it arms more verification and exempts
+    no layer. In the kernel's own repository `bound_touch` already answers True for every root
+    `bin/` path, so the companion is never asked there. Keyword arguments pass through to
+    `bound_touch` unchanged."""
+    def _touch(changed_files, **kw):
+        if bound_touch(changed_files, **kw):
+            return True
+        try:
+            root_bin = _root_bin_paths(changed_files)
+            return bool(root_bin) and bool(_declared_check_surface_touch(
+                root_bin, worktree, base_ref, _run_git_cap=_run_git_cap))
+        except Exception:                  # noqa: BLE001 — a doubt is a touch
+            return True
+    return _touch
+
+
+def _named_root_bin_touch(diff_paths, base_text, cand_text, *, _declared_check_surface_globs_of, _is_verify_implementation_touch) -> bool:
+    """T-13915 (SPEC-0152 rule 16) — does THE PROJECT'S OWN CONTRACT name a changed root `bin/` path?
+
+    The fixed set no longer holds a project's root `bin/**`, so a root `bin/` file is verify
+    infrastructure there exactly when the declared check surface names it: a layer's `command:` path
+    token, an adapter's `sources:` entry, a `verify.infra_globs` entry. The per-layer skip decision
+    learns that from its declared-check-surface companion. The two readers that take the SAME answer
+    about a land but hold only the two carrier TEXTS — the failure attribution and the false-skip
+    replay — ask it here, through the same per-carrier reader (`_declared_check_surface_globs_of`),
+    so none of the three can call such a file ordinary while another runs every layer on it.
+
+    BOTH carriers are read and the union taken, as the companion does (a surface named at either side
+    arms it). True also on every DOUBT about a carrier that is present — text that does not parse to
+    a mapping, a reader that raises — because a doubt must never turn a named verifier file into an
+    ordinary path. False when the diff holds no root `bin/` path at all, or neither carrier names
+    one. Only root `bin/` paths are judged: what these two readers answer for a declared check path
+    ELSEWHERE is unchanged by this card."""
+    root_bin = _root_bin_paths(diff_paths)
+    if not root_bin:
+        return False
+    globs: set = set()
+    for text in (base_text, cand_text):
+        if text is None or (isinstance(text, str) and not text.strip()):
+            continue                      # no carrier at this side declares nothing
+        try:
+            ops = state.load_ops_str(text)
+            if not isinstance(ops, dict):
+                return True
+            globs.update(_declared_check_surface_globs_of(ops))
+        except Exception:                 # noqa: BLE001 — a doubt keeps the file on the full run
+            return True
+    return bool(globs) and bool(_is_verify_implementation_touch(root_bin, _VERIFY_IMPLEMENTATION_GLOBS=sorted(globs)))
 
 
 def _ops_carrier_duplicate_key(text: str) -> bool:
@@ -2207,6 +2337,202 @@ def _group_runqueue_wait_seconds(pgid: int, *, _proc: "Path | None" = None) -> "
         return None
 
 
+_layer_tree = threading.local()   # T-13931: `.reading` = the open `_LayerProcessTree` of the layer this
+                                  # THREAD is running, set and cleared by that layer's CPU sampler
+
+
+class _LayerProcessTree:
+    """T-13931 — the CPU a verify layer's commands burned in processes their reaped rusage never
+    receives, read from /proc while the commands run. REPORT-ONLY: nothing that decides reads it.
+
+    WHAT THE REAPED READING MISSES. `os.wait4` hands back the command's own CPU plus that of every
+    descendant that was WAITED FOR, link by link, up to the command. A process whose parent exits
+    without waiting for it drops out of that sum with everything it had itself reaped — a browser's
+    renderer and GPU processes when the browser is killed, a helper left in the background.
+
+    HOW THE TREE IS FOUND. A member is: a command (`start(pid)` names it, by pid AND start time,
+    and only when /proc shows it as this process's own child leading its own session); a process
+    whose parent is a member; a process in the session of a command that has not been reaped yet
+    (the runner starts each command as the leader of a new session, and while it is unreaped —
+    running or ended — its pid cannot be given to anything else, so that session holds its
+    descendants only). A member stays one after it is re-parented, and is always known by pid AND
+    start time, so a process that later gets a member's pid is not taken for it; and a child is
+    taken on its parent's word only when that parent, read again after the listing, is still the
+    same process. The parent rule finds a browser that a test driver started in a session of its
+    own; the session rule finds a helper that was re-parented before any sample saw its parent.
+
+    TWO RULES KEEP ANY CPU FROM BEING COUNTED TWICE.
+    (1) Every reading of the members is CONSISTENT (`_settled`): /proc is read one process at a time,
+        so a child may be read before its parent waited for it and the parent after — the child's CPU
+        would then stand in both. The members are therefore read twice in a row, and a reading is
+        used only when both passes hold the same processes with the same reaped-children times: no
+        member was waited for while it was taken. Otherwise it is taken again, a few times, and a
+        step with no consistent reading counts nothing. A member counts as gone only when /proc
+        says there is no such process: one that exists and cannot be read (a permission, a file
+        limit), or a command not yet reaped that reads as gone, leaves the step without a reading.
+    (2) A command is read for the LAST time by `ended(pid)`, which the runner calls when the command
+        has ended and is not yet reaped. Its figures are final then, and so are its session and its
+        pid; after that the command is dropped and never looked up again.
+    With those, per step: V = what the members that vanished since the previous reading held (own
+    CPU plus reaped-children CPU), A = the growth of the reaped-children time of every member still
+    there. What a vanished member held either moved into such a member or left the tree, so the tree
+    lost at least V - A, less two clock ticks per vanished member (each /proc field is rounded down
+    to a tick). A child that was waited for is in A and adds nothing. A command's own CPU, and what
+    it reaped, is the runner's rusage and is never added here. What a member still alive at
+    `close()` holds is in no rusage and is added as it stands.
+
+    A LOWER BOUND, never above the truth: CPU burned after a member's last reading, and a process
+    that lived and died between two samples, are not seen. `period` is the seconds between samples
+    (the caller's, so a layer has one cadence); `_proc` is the /proc root."""
+
+    def __init__(self, period, *, _proc: "Path | None" = None):
+        self._period, self._proc = period, (_proc or Path("/proc"))
+        self._held: dict = {}       # (pid, start) -> (own ticks, reaped-children ticks): one consistent reading
+        self._roots: dict = {}      # pid of a command started and not yet reaped -> its (pid, start)
+        self._lost = 0
+        self._due = time.monotonic() + period
+        self._started = False       # a command was started under this reading
+        self._answered = False      # a consistent reading was taken
+
+    def _read(self, pid) -> "tuple | None":
+        """(start, ppid, session, own, reaped) of one process; None when there is NO such process.
+        Raises when the process exists and its `stat` cannot be read or parsed. `comm` may hold
+        spaces and parentheses, hence the split after the LAST ')'."""
+        try:
+            raw = (self._proc / str(pid) / "stat").read_text(encoding="utf-8", errors="replace")
+        except (FileNotFoundError, ProcessLookupError):
+            return None
+        f = raw[raw.rfind(")") + 2:].split()
+        return (int(f[19]), int(f[1]), int(f[3]), int(f[11]) + int(f[12]), int(f[13]) + int(f[14]))
+
+    def _look(self, pid) -> "tuple | None":
+        """`_read` for a process that need not be this layer's: unreadable reads as not there."""
+        try:
+            return self._read(pid)
+        except Exception:
+            return None
+
+    def _members(self) -> "set | None":
+        """The (pid, start) of every member alive now (the rule: the class docstring), from one
+        listing of /proc; None when /proc cannot be listed."""
+        try:
+            pids = [int(n) for n in os.listdir(self._proc) if n.isdigit()]
+        except OSError:
+            return None
+        rows = {pid: row for pid in pids for row in (self._look(pid),) if row is not None}
+        kids: dict = {}
+        for pid, row in rows.items():
+            kids.setdefault(row[1], []).append(pid)
+        todo = [pid for pid, row in rows.items()
+                if (pid, row[0]) in self._held or self._roots.get(pid) == (pid, row[0])
+                or row[2] in self._roots]
+        seen: set = set()
+        while todo:
+            pid = todo.pop()
+            if (pid, rows[pid][0]) in seen:
+                continue
+            seen.add((pid, rows[pid][0]))
+            # The rows were read one after another. A child is this member's only if the member
+            # held its pid for the whole listing: read again now, it is still the same process.
+            again = self._look(pid)
+            if again is not None and again[0] == rows[pid][0]:
+                todo.extend(kids.get(pid, ()))
+        return seen
+
+    def _settled(self, keys) -> "dict | None":
+        """{(pid, start): (own, reaped)} of those of `keys` that still exist, taken CONSISTENTLY
+        (rule (1) of the class docstring), or None when five passes never agreed or a command not
+        yet reaped read as gone. Raises when a process of `keys` exists and cannot be read."""
+        def once():
+            got = {}
+            for pid, start in keys:
+                row = self._read(pid)
+                if row is not None and row[0] == start:
+                    got[(pid, start)] = (row[3], row[4])
+            return got
+        before = once()
+        for _ in range(4):
+            after = once()
+            if after.keys() == before.keys() and all(after[k][1] == before[k][1] for k in after):
+                return after if all(k in after for k in self._roots.values()) else None
+            before = after
+        return None
+
+    def _step(self) -> bool:
+        """One sample; False when no consistent reading could be taken (nothing is counted then)."""
+        self._due = time.monotonic() + self._period
+        try:
+            keys = self._members()
+            now = None if keys is None else self._settled(keys | set(self._held) | set(self._roots.values()))
+        except (OSError, ValueError, IndexError):
+            now = None      # a member exists and could not be read: it is not read as gone
+        if now is None:
+            return False
+        gone = [k for k in self._held if k not in now]
+        if gone:
+            absorbed = sum(max(0, c - self._held[k][1]) if k in self._held else c
+                           for k, (_own, c) in now.items())
+            lost = sum(sum(self._held[k]) for k in gone) - absorbed - 2 * len(gone)
+            if lost > 0:
+                self._lost += lost
+        self._held = now
+        self._answered = True
+        return True
+
+    def start(self, pid: int) -> bool:
+        """The runner started command `pid` and has not reaped it. False when the command cannot be
+        read here (no /proc or another one, no `os.waitid`): the runner then waits for it as it
+        always did and this reading learns nothing of it. Never raises."""
+        try:
+            row = self._read(pid) if hasattr(os, "waitid") else None
+            # What /proc shows under this pid must be the command itself: this process's own child,
+            # leading its own session. Under another /proc (another pid namespace) it would not be.
+            if row is None or row[1] != os.getpid() or row[2] != pid:
+                return False
+            self._roots[pid] = (pid, row[0])
+            self._started = True
+            return True
+        except Exception:
+            return False
+
+    def sample(self) -> None:
+        """Called by the runner while a command runs: one sample when one is due. Never raises."""
+        try:
+            if (self._roots or self._held) and time.monotonic() >= self._due:
+                self._step()
+        except Exception:
+            pass
+
+    def ended(self, pid: int) -> None:
+        """Command `pid` has ended and the runner is about to reap it: its last reading (rule (2) of
+        the class docstring). Without a consistent reading here, what the command took in from the
+        members it waited for is unknown, so everything held is forgotten rather than read, at the
+        next sample, as CPU that left the tree. Never raises."""
+        key = self._roots.get(pid)
+        try:
+            if key is not None and not self._step():
+                self._held = {}
+        except Exception:
+            self._held = {}
+        finally:
+            self._roots.pop(pid, None)
+            self._held.pop(key, None)
+
+    def close(self) -> "int | None":
+        """The CPU in milliseconds found outside every reaped rusage; None when no command was
+        started under this reading or no consistent reading was ever taken (no /proc)."""
+        try:
+            last = self._started and self._step()
+            if not (self._started and self._answered):
+                return None
+            # The members still alive are added only from a reading taken now, with every command
+            # reaped: an older one may hold a process that a command has since waited for.
+            alive = sum(own + kids for own, kids in self._held.values()) if (last and not self._roots) else 0
+            return (self._lost + alive) * 1000 // os.sysconf("SC_CLK_TCK")
+        except Exception:
+            return None
+
+
 def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None):
     """T-12589 — run ONE verify layer command on the terms `subprocess.run(cmd, shell=True, cwd,
     capture_output=True, text=True, timeout, env)` had, but reap it with `os.wait4` so the reading is
@@ -2236,6 +2562,7 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
     import threading
     deadline = None if timeout is None else time.monotonic() + timeout
     proc_ms, streams = 0, []
+    tree = getattr(_layer_tree, "reading", None)    # T-13931: the layer's process-tree reading, if one is open
     while True:     # at most twice: the attempt, and (T-13811) its ONE restart at normal priority
         _nice_kw = {"preexec_fn": (lambda: os.nice(max(0, nice - os.nice(0))))} if nice else {}
         p = subprocess.Popen(cmd, shell=True, cwd=str(worktree), stdout=subprocess.PIPE,
@@ -2250,8 +2577,21 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
         # handed in, or no bound — the wait below is then the one it always was).
         probe_at = (began + timeout / 5) if (nice and starved is not None and timeout) else None
         timed_out = restart = False
+        # T-13931: under a tree reading that can read this command, the command is read one last
+        # time when it has ended and is NOT YET REAPED (`waitid` with WNOWAIT sees the end and leaves
+        # the command in place), and only then reaped. Without one, the wait is the one it always was.
+        read = tree if (tree is not None and tree.start(p.pid)) else None
+
+        def reap(block: bool):
+            if read is None:
+                return os.wait4(p.pid, 0 if block else os.WNOHANG)
+            if os.waitid(os.P_PID, p.pid, os.WEXITED | os.WNOWAIT | (0 if block else os.WNOHANG)) is None:
+                return 0, 0, None
+            read.ended(p.pid)
+            return os.wait4(p.pid, 0)
+
         while True:
-            pid, status, ru = os.wait4(p.pid, os.WNOHANG)
+            pid, status, ru = reap(False)
             if pid:
                 break
             now = time.monotonic()
@@ -2269,9 +2609,11 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
                     os.killpg(p.pid, signal.SIGKILL)
                 except ProcessLookupError:
                     p.kill()
-                _, status, ru = os.wait4(p.pid, 0)
+                _, status, ru = reap(True)
                 timed_out = not restart
                 break
+            if read is not None:
+                read.sample()
             time.sleep(0.02)
         p.returncode = os.waitstatus_to_exitcode(status)
         for t in readers:
@@ -3113,6 +3455,20 @@ def _verify_duration_drift_signals(series: "list", *, window: int = _VERIFY_DRIF
     return signals
 
 
+def _payload_partial_layers(payload) -> "frozenset | None":
+    """T-13911 (SPEC-1030 rule 6) — the layers ONE projected land ran IN PART (`_partial_layers`,
+    put there by `_scaling_series_projection`). An empty set when the key is absent: the land ran
+    no layer in part. None when the key is present and is not a list of non-empty strings — which
+    layers ran in part is then unknown, and the caller observes NO layer on that land (the two
+    readings' own fail direction: silence). PURE."""
+    if "_partial_layers" not in payload:
+        return frozenset()
+    names = payload["_partial_layers"]
+    if not isinstance(names, list) or not all(isinstance(n, str) and n for n in names):
+        return None
+    return frozenset(names)
+
+
 def _verify_layer_duration_drift_signals(series: "list", *, window: int = _VERIFY_LAYER_DRIFT_WINDOW,
                                          growth_ratio: float = _VERIFY_LAYER_DRIFT_GROWTH_RATIO,
                                          min_growth_ms: int = _VERIFY_LAYER_DRIFT_MIN_GROWTH_MS) -> "list":
@@ -3143,6 +3499,10 @@ def _verify_layer_duration_drift_signals(series: "list", *, window: int = _VERIF
     part of the regime its duration was measured under, so durations under two budgets are not one
     series. A layer is judged ONLY over its observations that share the newest land's budget; rows
     under any other budget are never compared against them.
+
+    A PARTIAL RUN IS NOT AN OBSERVATION (T-13911, SPEC-1030 rule 6). A land that ran a layer IN PART
+    (`_partial_layers` of the projection) recorded the duration of a part of it: that land observes
+    the layer in no window, and as the newest land it leaves the layer silent.
 
     THE DELTA, NEVER THE LEVEL, and THE FAIL DIRECTION IS SILENCE — both inherited from the sibling,
     unchanged: no duration is judged, only movement of the recent-window median over the older-window
@@ -3195,8 +3555,9 @@ def _verify_layer_duration_drift_signals(series: "list", *, window: int = _VERIF
                 continue
             ok = not isinstance(ms, bool) and isinstance(ms, int) and ms > 0
             seen[name] = None if name in seen or not ok else ms   # twice in one land ⇒ ambiguous
-        observed = ({name: ms for name, ms in seen.items() if ms is not None}
-                    if budget is not None else {})
+        in_part = _payload_partial_layers(payload)
+        observed = ({name: ms for name, ms in seen.items() if ms is not None and name not in in_part}
+                    if budget is not None and in_part is not None else {})
         if ts > newest_ts:
             newest_ts, newest_observed, newest_budgets = ts, set(observed), {budget}
         elif ts == newest_ts:
@@ -3270,6 +3631,10 @@ def _verify_layer_duration_step_signals(series: "list", *, current=None,
     strictly older than it. `current={"budget": int, "layers": [guard rows]}` (the Stage-6 run, which
     is not a land): the run's own rows, and every land in `series` is baseline. Either way an
     observation is a layer named ONCE with a positive int `duration_ms`, under an int budget.
+    A PARTIAL RUN IS NOT ONE (T-13911, SPEC-1030 rule 6): a layer a land ran IN PART
+    (`_partial_layers`) is not observed on that land — in no baseline, and not as the newest
+    observation — and a Stage-6 row that is a partial run (`_layer_row_is_partial_run`) is no
+    observation of that run. So a full run after partial ones is never measured against them.
 
     THE BASELINE is that layer's last `window` observations under the observation's budget (SPEC-0208
     rule 5: rows under another budget are another series). Fewer than `window` ⇒ silent, so a budget
@@ -3334,6 +3699,9 @@ def _verify_layer_duration_step_signals(series: "list", *, current=None,
         record = metrics.get("per_layer_durations")
         budget = _budget(metrics.get("layer_worker_budget"))
         observed = _observed(record.get("layers") if isinstance(record, dict) else None)
+        in_part = _payload_partial_layers(payload)
+        observed = ({name: ms for name, ms in observed.items() if name not in in_part}
+                    if in_part is not None else {})
         units = payload.get("_slowest_units")
         lands.append((ts, budget, observed if budget is not None else {},
                       units if isinstance(units, dict) else {}))
@@ -3354,11 +3722,15 @@ def _verify_layer_duration_step_signals(series: "list", *, current=None,
             return []
         budget = _budget(current.get("budget"))
         rows = current.get("layers")
-        now_obs = _observed(rows)
+        # T-13911: a name is read only when it is a string — a partial row that names no layer
+        # (as `_observed` reads a name) names none here, and nothing unhashable reaches the set.
+        in_part = {row["layer"] for row in (rows if isinstance(rows, list) else [])
+                   if _layer_row_is_partial_run(row) and isinstance(row.get("layer"), str)}
+        now_obs = {name: ms for name, ms in _observed(rows).items() if name not in in_part}
         now_units = {}
         for row in rows if isinstance(rows, list) else []:
             unit = _layer_slowest_unit(row)
-            if unit is not None and row.get("layer") in now_obs:
+            if unit is not None and isinstance(row.get("layer"), str) and row["layer"] in now_obs:
                 now_units[row["layer"]] = unit
         baseline_lands = lands
         where = "on this run"
@@ -3438,6 +3810,13 @@ def _scaling_series_projection(d, ts=None):
                 slowest[r["layer"]] = unit
         if slowest:
             out["_slowest_units"] = slowest
+        # T-13911 (SPEC-1030 rule 6): the layers this land ran IN PART — the names the two layer
+        # duration readings leave out of every series. ABSENT when the land ran none in part, so a
+        # land without a partial run projects exactly as before.
+        in_part = sorted({r["layer"] for r in rows if _layer_row_is_partial_run(r)
+                          and isinstance(r.get("layer"), str) and r["layer"]})
+        if in_part:
+            out["_partial_layers"] = in_part
     if "verify_metrics" in d:
         vm = d["verify_metrics"]
         if isinstance(vm, dict):
@@ -3652,11 +4031,15 @@ def _pinned_recovery_hint(*, REBASELINE_KINDS) -> str:
 # several failed units share one invocation and a layer's setup is paid once per attempt. A first
 # attempt's manifest is byte-identical to the one above.
 _VERIFY_ADAPTER_MANIFEST_ENV = "YITC_VERIFY_ADAPTER_MANIFEST"
+# The reason key each DECIDING mode is declared with (SPEC-1030 rule 1): required IFF its mode
+# reads `deciding`, refused beside any other value of that mode.
+_ADAPTER_REASON_KEYS = {"selection": "selection_deciding_reason", "credit": "credit_deciding_reason"}
 _ADAPTER_KEYS = ("list", "related", "run", "report_profile", "sources", "required", "modelled",
-                 "triggers", "selection", "credit", "rescue")
-# The operating modes and their DEFAULT (first value). `deciding` is in neither set on purpose: a
-# mode that changes what runs is outside SPEC-1006 until an admission contract governs it.
-_ADAPTER_MODES = {"selection": ("off", "shadow"), "credit": ("off", "shadow"), "rescue": ("on", "off")}
+                 "triggers", "selection", "credit", "rescue", *_ADAPTER_REASON_KEYS.values())
+# The operating modes and their DEFAULT (first value). `deciding` is the mode in which the
+# decision SPEC-1006 records ACTS; its admission contract is SPEC-1030.
+_ADAPTER_MODES = {"selection": ("off", "shadow", "deciding"), "credit": ("off", "shadow", "deciding"),
+                  "rescue": ("on", "off")}
 # The versioned report profiles — how each runner's NATIVE report reads (SPEC-1006 rule 4). One
 # entry per runner family; `vitest/1` covers Vitest 4 and 5 (their JUnit reports matched on every
 # planted case of the trial). Per profile:
@@ -4038,10 +4421,20 @@ def _declared_layer_adapters(layers, *, repo_files) -> dict:
                       non-empty list of globs, matched as `subject_globs` are) and EXACTLY ONE of
                       `units` (a non-empty list of repo-relative unit files, canonical, no
                       duplicate) or `full: true` (the full layer);
-      selection, credit   `off` (default) | `shadow`;   rescue   `on` (default) | `off`.
-    `selection: deciding` / `credit: deciding` are refused BY NAME: a mode that changes what runs
-    is not part of this contract. YAML reads a bare `on` / `off` as a boolean, so `true` / `false`
-    are accepted as those two words and nothing else is coerced.
+      selection, credit   `off` (default) | `shadow` | `deciding`;   rescue   `on` (default) | `off`;
+      selection_deciding_reason, credit_deciding_reason   the reason a DECIDING mode is declared
+                      with (SPEC-1030 rule 1) — a non-empty string, required IFF its mode reads
+                      `deciding`.
+    YAML reads a bare `on` / `off` as a boolean, so `true` / `false` are accepted as those two
+    words and nothing else is coerced — `on` is no value of `selection` or `credit`, and its
+    refusal lists `deciding` among the values that are.
+
+    A DECIDING MODE (SPEC-1030 rule 1) is malformed, each with its cause named, when its reason is
+    absent, empty, blank or not a string; when a reason is present while its mode is not
+    `deciding`; and when one of the two keys reads `deciding` while the other reads `shadow` (a
+    shadow key promises the full run its record is compared against, a deciding key removes it).
+    The parsed record carries a deciding mode's reason as written, beside the mode; nothing in the
+    kernel reads it to decide anything — it is the project's own statement in its own contract.
 
     THE `sources:` CHECK. Every repo file a `list` / `related` / `run` / `required[]` command names
     (`_adapter_command_repo_paths`) must be listed under `sources:` — itself, or a directory above
@@ -4145,13 +4538,27 @@ def _declared_layer_adapters(layers, *, repo_files) -> dict:
             val = raw.get(key, allowed[0])
             if isinstance(val, bool):
                 val = "on" if val else "off"
-            if val == "deciding":
-                raise ValueError(f"{where} `{key}: deciding` is not part of this contract — a mode that "
-                                 f"changes what runs waits for an admission contract (SPEC-1006 rule 1); "
-                                 f"declare one of: {', '.join(allowed)}")
             if not (isinstance(val, str) and val in allowed):
                 raise ValueError(f"{where} `{key}:` = {raw.get(key)!r} is not one of: {', '.join(allowed)}")
             decl[key] = val
+        for key, reason_key in _ADAPTER_REASON_KEYS.items():
+            if decl[key] == "deciding":
+                reason = raw.get(reason_key)
+                if not (isinstance(reason, str) and reason.strip()):
+                    said = "is absent" if reason_key not in raw else f"= {reason!r} is not a non-empty string"
+                    raise ValueError(f"{where} declares `{key}: deciding` without its reason — `{reason_key}:` "
+                                     f"{said}; a deciding mode names, in the same `adapter:` block, who "
+                                     f"accepted the risk and why (SPEC-1030 rule 1)")
+                decl[reason_key] = reason
+            elif reason_key in raw:
+                raise ValueError(f"{where} carries `{reason_key}:` while `{key}:` reads `{decl[key]}`, not "
+                                 f"`deciding` — a reason is declared only with its mode (SPEC-1030 rule 1)")
+        for key, other in (("selection", "credit"), ("credit", "selection")):
+            if decl[key] == "deciding" and decl[other] == "shadow":
+                raise ValueError(f"{where} declares `{key}: deciding` beside `{other}: shadow` — a shadow key "
+                                 f"promises the full run its record is compared against and a deciding key "
+                                 f"removes that run; beside a deciding key the other key is `off` or "
+                                 f"`deciding` (SPEC-1030 rule 1)")
         if repo_files is None:
             raise ValueError(f"{where} cannot be checked — the repository's file set could not be read "
                              f"(`git ls-files` failed), so the `sources:` check cannot run")
@@ -4249,7 +4656,9 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
     `change` is what the kernel knows of the change: `paths` (its changed-path list, None when it
     has none — each path is judged under the EXACT name git gives it: a name is never trimmed or
     rewritten, since `a.sh ` and `a.sh` are two files), `edge` (the reason the SPEC-0152 rule-16 skip decision ran every layer, or None),
-    `base`, and `seen` from `_adapter_change_facts`. `inventory` is `list`'s unit list, or None
+    `edge_paths` (T-13916 — the changed paths that made that decision answer `edge`, as the
+    decision itself reports them; absent or None where it named none), `base`, and `seen` from
+    `_adapter_change_facts`. `inventory` is `list`'s unit list, or None
     when this run has none.
 
     THE ORDER. The default is RUN: every answer but the last is the full layer.
@@ -4282,13 +4691,20 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
     rung (e) read the eligible ones, a path outside the globs being no input of this layer.
 
     THE RECORD: `{schema: 1, mode: "shadow", decision: "full" | "units", rung, reason, related,
-    related_reason?, base?, changed?, eligible?, units_total?, unknown?, unknown_more?, would_run?,
-    would_omit?, would_credit}`. `decision: "full"` = every unit of the layer would run and none
+    related_reason?, base?, changed?, eligible?, units_total?, fired_paths?, fired_paths_more?,
+    unknown?, unknown_more?, would_run?, would_omit?, would_credit}`. `decision: "full"` = every unit of the layer would run and none
     would be omitted, so the two lists are written only for `units`, each entry `{file, project?}`
     in inventory order. `would_credit` is always empty here: a credit is the previous attempt's
     (rule 14), and this decision reads no previous attempt — on a layer that also declares
     `credit: shadow` the pass writes the would-credit units of `_adapter_credit_decision` into
-    it. `unknown` holds at most 20 `{path, why}` entries, the rest counted in `unknown_more`."""
+    it. `unknown` holds at most 20 `{path, why}` entries, the rest counted in `unknown_more`.
+    `fired_paths` (T-13916) is written on a rung-(a) answer ONLY, and names the changed paths that
+    produced it — the paths under the layer's own `sources:` for `adapter-sources`, the caller's
+    `edge_paths` for an edge — in the order the change lists them, never a path the change does
+    not hold. It holds at most 20 paths, the rest counted in `fired_paths_more` (the bound of
+    `unknown`). Where the answer has no path the kernel can name — an edge that reported none —
+    both keys are absent, never an empty list. It changes no answer: the rung and the reason are
+    decided before it is written."""
     sel = {"schema": 1, "mode": "shadow", "decision": "full", "rung": None, "reason": "",
            "related": "absent" if "related" not in decl else "not-run", "would_credit": []}
     if change.get("base"):
@@ -4309,9 +4725,21 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
     eligible = [p for p in paths if not _subject_globs_would_skip([p], layer.get("subject_globs"))]
     sel["eligible"] = len(eligible)
     # (a)
+    def _fired(named):
+        # only a list of names can name a path: any other report names none
+        named = {p for p in named if isinstance(p, str)} if isinstance(named, (list, tuple)) else set()
+        fired = [p for p in paths if p in named]
+        if fired:
+            sel["fired_paths"] = fired[:20]
+            if len(fired) > 20:
+                sel["fired_paths_more"] = len(fired) - 20
+
     if change.get("edge"):
+        _fired(change.get("edge_paths"))
         return _full("a", str(change["edge"]))
-    if any(p == s or p.startswith(s + "/") for p in paths for s in decl.get("sources") or ()):
+    under_sources = [p for p in paths if any(p == s or p.startswith(s + "/") for s in decl.get("sources") or ())]
+    if under_sources:
+        _fired(under_sources)
         return _full("a", "adapter-sources")
     # (b)
     prep_files = set(decl.get("prep_files") or ())
@@ -4399,7 +4827,7 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
 #                                rows it cannot order credit nothing;
 #   `_adapter_credit_basis`      what that row allows before any diff is read;
 #   `_adapter_credit_decision`   the decision — the rule-6 ladder over the fix's own diff.
-def _adapter_previous_attempt(journals, layer: str, branch) -> "dict | None":
+def _adapter_previous_attempt(journals, layer: str, branch, *, whole: bool = False) -> "dict | None":
     """SPEC-1006 rule 14 — the PREVIOUS attempt of ONE layer, read from its record alone.
     `journals` is one list of parsed rows PER JOURNAL FILE read, each in that file's own order (a
     journal is append-only, so the order of two rows inside one file is the order they were
@@ -4421,7 +4849,24 @@ def _adapter_previous_attempt(journals, layer: str, branch) -> "dict | None":
     there is the newest); when no single journal holds them all, or two such journals disagree,
     their order cannot be established and the answer is `{type: None, ts, outcome: None, adapter: None, ambiguous:
     True}`, which `_adapter_credit_basis` reads as a record nothing may be credited from. The
-    order in which the journals are handed over never changes the answer. PURE."""
+    order in which the journals are handed over never changes the answer. PURE.
+
+    `whole=True` (T-13909 — SPEC-1030 rule 3) is the reading a DECIDING
+    credit takes; without it the answer is the one described above, byte for byte. The previous
+    attempt is then the CARD's: the newest such row of `branch` that carries a layer trail,
+    WHICHEVER layers it holds (a row also belongs to the branch when any of its layers' `attempt`
+    records names it) — so a later attempt that did not run `layer` is not skipped over in favour
+    of an older one that did. The answer gains `attempt`: `failed` when the row itself shows the
+    attempt did not pass as a whole — a `tests_failed` row, or a `land_completed` row whose
+    `status` is `abort` and which records, of its CANDIDATE leg, a layer that did not pass
+    (`failed` / `timed-out` / `prep-failed` / `malformed` in its layer trail) or a failed test
+    sweep (`candidate_sweep_failures`, a count of at least 1, which the land writes beside the
+    trail) — and `passed` for every other row: a row that does not show its own failure is read
+    as a whole pass, after which nothing is credited. `failing_tests` is NOT read for it: that
+    list also names the pinned last-green leg's failures, so an aborted land whose layers are
+    green and which carries no sweep count (a row written before the count existed included)
+    credits nothing. `outcome` and `adapter` are `layer`'s in that row when it EXECUTED there
+    (`passed-partial` counts: a partial run executed), else both None."""
     if not (isinstance(branch, str) and branch):
         return None
     found: dict = {}             # the row's content -> (ts, what it says, {journal index: last position})
@@ -4438,19 +4883,34 @@ def _adapter_previous_attempt(journals, layer: str, branch) -> "dict | None":
             if not isinstance(layers, list):
                 continue
             row = next((r for r in layers if isinstance(r, dict) and r.get("layer") == layer), None)
-            if row is None or row.get("outcome") not in ("passed", "failed", "timed-out", "prep-failed"):
+            ran = row is not None and any(row.get("outcome") == o for o in (
+                ("passed", "passed-partial", "failed", "timed-out", "prep-failed") if whole
+                else ("passed", "failed", "timed-out", "prep-failed")))
+            if not (ran or whole):
                 continue
-            rec = row.get("adapter") if isinstance(row.get("adapter"), dict) else None
+            rec = row.get("adapter") if ran and isinstance(row.get("adapter"), dict) else None
             told = rec.get("attempt") if rec is not None and isinstance(rec.get("attempt"), dict) else {}
             tid = ev.get("task_id")
-            if not (data.get("branch") == branch or told.get("branch") == branch
+            named = whole and any(
+                isinstance(r, dict) and isinstance(r.get("adapter"), dict)
+                and isinstance(r["adapter"].get("attempt"), dict)
+                and r["adapter"]["attempt"].get("branch") == branch for r in layers)
+            if not (data.get("branch") == branch or told.get("branch") == branch or named
                     or (isinstance(tid, str) and tid and branch == f"task/{tid}")):
                 continue
             try:
                 same = json.dumps(ev, sort_keys=True, ensure_ascii=True, separators=(",", ":"), default=repr)
             except (TypeError, ValueError, RecursionError):
                 same = repr(ev)
-            says = {"type": ev["type"], "ts": ts, "outcome": row["outcome"], "adapter": rec}
+            says = {"type": ev["type"], "ts": ts, "outcome": row["outcome"] if ran else None, "adapter": rec}
+            if whole:
+                # T-13909: did the ATTEMPT pass as a whole — read off what the row itself records
+                swept = data.get("candidate_sweep_failures")
+                swept = isinstance(swept, int) and not isinstance(swept, bool) and swept >= 1
+                says["attempt"] = "failed" if ev["type"] == "tests_failed" or (
+                    ev["type"] == "land_completed" and data.get("status") == "abort" and (swept or any(
+                        isinstance(r, dict) and any(r.get("outcome") == o for o in (
+                            "failed", "timed-out", "prep-failed", "malformed")) for r in layers))) else "passed"
             found.setdefault(same, (ts, says, {}))[2][j] = n
     if not found:
         return None
@@ -4466,7 +4926,7 @@ def _adapter_previous_attempt(journals, layer: str, branch) -> "dict | None":
     return {"type": None, "ts": newest, "outcome": None, "adapter": None, "ambiguous": True}
 
 
-def _adapter_credit_basis(previous, base) -> dict:
+def _adapter_credit_basis(previous, base, *, deciding: bool = False) -> dict:
     """SPEC-1006 rule 14 — what the PREVIOUS attempt's record (`_adapter_previous_attempt`) allows
     a run on `base` (a full commit id) to credit, decided BEFORE any diff is read. Returns
     `{record, units, change}`: `record` is the credit record so far (`{schema: 1, mode: "shadow",
@@ -4491,8 +4951,20 @@ def _adapter_credit_basis(previous, base) -> dict:
                                      outer failure, a failed `required:` check, a faulted pass).
     A record that passes every check is returned as `void` / `diff-unreadable` WITH its `units`:
     it credits nothing until the caller has supplied the diff, so a caller that cannot read one
-    leaves a record that already says so. PURE."""
-    rec = {"schema": 1, "mode": "shadow", "decision": "none", "reason": "no-previous-attempt"}
+    leaves a record that already says so. PURE.
+
+    `deciding=True` (T-13909 — SPEC-1030 rule 3) is the basis of a credit
+    that ACTS; without it the answer is the one described above, byte for byte. `previous` is
+    then `_adapter_previous_attempt(..., whole=True)`'s answer, the record's `mode` reads
+    `deciding`, and the premise is the WHOLE attempt's, in place of the second line above:
+      none  previous-attempt-passed-whole  that attempt is not shown to have failed as a whole
+                                           (`attempt` is not `failed`) — after a whole pass
+                                           nothing is credited.
+    A layer that PASSED in an attempt that failed elsewhere therefore goes on to the same checks
+    a failed layer takes — the widened premise; a layer that attempt did not execute has no
+    record there and is `void` / `record-missing`. Every other line is unchanged."""
+    rec = {"schema": 1, "mode": "deciding" if deciding else "shadow", "decision": "none",
+           "reason": "no-previous-attempt"}
     out = {"record": rec, "units": None, "change": None}
     if not isinstance(previous, dict):
         return out
@@ -4500,7 +4972,11 @@ def _adapter_credit_basis(previous, base) -> dict:
     if previous.get("ambiguous"):
         rec.update({"decision": "void", "reason": "record-ambiguous"})
         return out
-    if previous.get("outcome") == "passed":
+    if deciding:
+        if previous.get("attempt") != "failed":
+            rec["reason"] = "previous-attempt-passed-whole"
+            return out
+    elif previous.get("outcome") == "passed":
         rec["reason"] = "previous-attempt-passed"
         return out
     rec["decision"] = "void"
@@ -5090,13 +5566,14 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                                max_output_bytes: int = 16 * 1024 * 1024, first_attempt: bool = False,
                                rerun=None, sink=None, max_kept_output_chars: int = 1024 * 1024,
                                change=None, _subject_globs_would_skip=None, credit=None,
-                               lane=None) -> dict:
+                               lane=None, one_card_candidate: bool = False) -> dict:
     """SPEC-1006 rules 3-4 — the REPORT-ONLY adapter pass of ONE layer: `list`, then `run`, inside
     the layer's prepared worktree, read through the layer's report profile. Returns the record that
     rides the layer's outcome row as `adapter` (registered in SPEC-0025):
 
       {schema: 1, mode: "report-only", profile, usable, list, list_reason?, outer?, outer_at?,
-       exit?, void?, load1?, duration_ms?, units?, error?, versions?, selection?, credit?, lane?}
+       exit?, void?, load1?, duration_ms?, units?, error?, versions?, selection?, credit?, lane?,
+       partial?}
     (the caller adds `identity` or `identity_unavailable` — `_adapter_stamp_identity` — and, on a
     layer declaring `credit: shadow`, `attempt` or `attempt_unavailable`)
 
@@ -5220,15 +5697,95 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     and feed the same `units` rows, so a listed unit's row decides exactly as any other row does;
     its row carries `lane: true`. The record then carries `lane: {units, unmatched}` — how many
     units ran in the lane and how many listed entries name no unit of this inventory. With no
-    listed entry for the layer nothing changes: no key, no second invocation."""
+    listed entry for the layer nothing changes: no key, no second invocation.
+
+    A DECIDING SELECTION (T-13907 — SPEC-1030 rules 2, 4, 5). Only a layer whose declaration reads
+    `selection: deciding` (SPEC-1030 rule 1) reaches this paragraph; under `off` and `shadow` the
+    pass is the one described above, byte for byte. With such a declaration, on a pass that is
+    not a re-run:
+      • THE `required:` CHECKS RUN ON EVERY FIRST ATTEMPT — after `list`, whatever it answered
+        (an unusable or absent `list` included) and whatever is then selected, a run of no unit
+        included. A failing one fails the layer where it stands, and so does a fault of the pass
+        before they had all run (`required: {ran: n, failed: n, exit: None}` — `n` checks had
+        passed and check `n` did not complete): on such a layer the full `command:` never
+        decides in place of a check that did not pass.
+      • THE DECISION IS TAKEN BEFORE `run` and recorded as `selection` with the mode `deciding`
+        (`_adapter_deciding_record`) on EVERY exit of the pass — an outer failure, a failed
+        `required:` check and a fault included, each under its own reason. `one_card_candidate`
+        says whether this run is the candidate run of ONE card (the Tests-stage run, the land's
+        candidate leg of one member). False, the default — or no `change` — the ladder is not
+        asked and nothing is narrowed (the pinned last-green leg, a batch's combined candidate,
+        the attribution re-run). True: the rule-6 ladder (`_adapter_shadow_decision`, unchanged)
+        decides and `_adapter_run_plan` — the ONE place that names a run's unit set — turns its
+        answer into the units `run` is invoked with. Rung (f) runs the selected units and no
+        other (a selection naming none invokes no `run`); every other answer, and a rung-(f)
+        answer naming every unit, runs the whole inventory. `decision` reads `units` only on a
+        narrowed run.
+      • WITH NO INVENTORY on a first attempt (`list` absent or unusable) `run` is not invoked:
+        the layer's full `command:` decides.
+      • A NARROWED run carries `partial` (`_adapter_partial_record`), written when the pass ENDS
+        from what it did: `ran` holds the units of the `run` invocations that were STARTED,
+        `not_reached` the selected units whose invocation never started (the bound passed
+        first), `left_out` the units the selection left out. Every other run carries no such key.
+    The lane split, the report check and the per-unit rows apply to the units requested: a unit
+    left out has no row, and on a narrowed run `lane.units` counts the listed units whose
+    invocation was started. A fault while the decision is taken is the full layer (`reason:
+    selection-error`). No comparison is recorded — there is no full run to compare with — and a
+    `credit: shadow` basis is not read on a narrowed run. A re-run pass takes no decision.
+
+    A DECIDING CREDIT (T-13909 — SPEC-1030 rules 3, 4, 5). With a declaration that reads
+    `credit: deciding`, on a pass that is
+    not a re-run, the two rules of the first two bullets above hold as for a deciding selection
+    (the `required:` checks on every first attempt; no `run` ahead of the full `command:` where
+    there is no inventory), and:
+      • THE `credit` RECORD carries the mode `deciding` on EVERY exit of the pass
+        (`_adapter_deciding_credit_record`). It is decided BEFORE `run`, where the selection is.
+        Nothing is credited, each under its own reason, when the run is not the candidate run of
+        one card or has no change; when the caller handed no basis; when the layer's selection is
+        `shadow`; and when the basis (`credit` — `_adapter_credit_basis(deciding=True)` with the
+        fix's diff) already credits nothing: no previous attempt, an attempt that passed as a
+        whole, and the rule-14 cases (i)-(iii).
+      • THE PRIORITY. Otherwise the rule-6 ladder is asked for the card's WHOLE change (`change`),
+        whatever the layer's `selection:`. Any answer but rung (f) credits nothing — `void` /
+        `card-full-layer`, with the ladder's `rung` and its reason as `ladder_reason` — and the
+        whole inventory runs.
+      • ON RUNG (f) `_adapter_credit_decision` decides over the fix's diff (`related` is invoked
+        once more for it, inside the same deadline; a rung (a)-(e) there is case (iv)), and
+        `_adapter_run_plan` turns the selection — where it acts — and that decision into the
+        units `run` is invoked with: of the units the run needs, the ones the decision would
+        re-run. The others are CREDITED: not requested, no row in `units`, named in
+        `partial.credited` beside `partial.previous`. A run that credits is a narrowed run in
+        every respect above, a run that requests no unit included.
+    A fault while the credit decision is taken credits nothing (`credit-error`); a fault of the
+    ladder is `selection-error` on both records."""
     import posixpath
     import shutil
     import tempfile
     rec = {"schema": 1, "mode": "report-only", "profile": decl["report_profile"], "usable": False,
            "list": "given" if rerun is not None else ("absent" if "list" not in decl else "not-run")}
+    # T-13907 (SPEC-1030 rule 5): EVERY run of a layer whose parsed declaration reads `selection:
+    # deciding` records the mode — `_no_decision` is that record where no decision was taken.
+    deciding = decl.get("selection") == "deciding" and rerun is None
+    # T-13909 (SPEC-1030 rules 3, 5): ... and so does every run of one that reads `credit: deciding`.
+    crediting = decl.get("credit") == "deciding" and rerun is None
+
+    def _no_decision(why):
+        return _adapter_deciding_record(None, why=why,
+                                        related="absent" if "related" not in decl else "not-run")
+
+    def _no_credit(why):
+        return _adapter_deciding_credit_record(None, why=why)
+
     if outer:
         rec.update({"outer": outer, "outer_at": outer_at})
+        if deciding:
+            rec["selection"] = _no_decision("outer-failure")
+        if crediting:
+            rec["credit"] = _no_credit("outer-failure")
         return rec
+    planned: dict = {}      # T-13907: `narrowed` (the run plan, when it leaves units out) and the
+    launched: list = []     # units of every `run` invocation that was STARTED
+    checks_passed: list = []    # ... and the index of every `required:` check that ran and passed
     prof = _ADAPTER_REPORT_PROFILES[decl["report_profile"]]
     clock = _monotonic or time.monotonic
     t0 = clock()
@@ -5393,7 +5950,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
             """Record the shadow selection (`change` given) and compare it with the full run. It
             cannot raise: a fault anywhere in it leaves the record's rows and `usable` flag as
             they are and is recorded as the full layer, no rung, `reason: selection-error`."""
-            if change is None:
+            if change is None or decl.get("selection") == "deciding" \
+                    or (crediting and decl.get("selection") != "shadow"):   # T-13909: handed for the credit alone
                 return
             try:
                 _select_into_record(inventory, rows)
@@ -5441,8 +5999,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
             """Record the would-be credit (`credit` given) and compare it with the full run. It
             cannot raise: a fault anywhere in it leaves the rows, the `usable` flag and the
             selection as they are and is recorded as `void` / `credit-error` — nothing credited."""
-            if credit is None:
-                return
+            if credit is None or "narrowed" in planned or decl.get("credit") == "deciding":
+                return                  # T-13909: a deciding credit was decided before `run` (`_decide`)
             try:
                 got = _adapter_credit_decision(
                     decl, credit, inventory, lambda: _ask_related(inventory, credit["change"]),
@@ -5477,6 +6035,105 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     "schema": 1, "mode": "shadow", "decision": "void", "reason": "credit-error",
                     "compared": False, "disagreements": [], "error": f"{type(e).__name__}: {e}"[:300]})
 
+        def _decide(inventory):
+            """T-13907 (SPEC-1030 rules 2, 5) — a DECIDING selection, taken BEFORE `run`. Records
+            `selection` and returns the inventory entries `run` is to be invoked with, or None
+            for the whole inventory. It cannot raise: a fault anywhere in it is the full layer,
+            no rung, `reason: selection-error`."""
+            if not (deciding or crediting):
+                return None
+            ladder, asked = None, []
+
+            def _credit_line():
+                got = rec.get("credit") or {}
+                print(f"land(consumer): verify layer {layer!r} deciding credit: nothing is credited "
+                      f"({got.get('decision')} — {got.get('reason')})")
+
+            basis = None    # T-13909: the previous attempt's reading, where it can be credited from
+            try:
+                if not (one_card_candidate and change is not None):
+                    why = "not-one-card-candidate" if not one_card_candidate else "no-change"
+                    if deciding:
+                        rec["selection"] = _no_decision(why)
+                        print(f"land(consumer): verify layer {layer!r} deciding selection not applied "
+                              f"({rec['selection']['reason']}) — nothing is narrowed")
+                    if crediting:
+                        rec["credit"] = _no_credit(why)
+                        _credit_line()
+                    return None
+                if crediting:
+                    # What the previous attempt's record allows is known before the ladder is asked.
+                    if decl.get("selection") == "shadow":
+                        rec["credit"] = _no_credit("selection-shadow")
+                    elif not (isinstance(credit, dict) and isinstance(credit.get("record"), dict)):
+                        rec["credit"] = _no_credit("no-basis")
+                    elif not (isinstance(credit.get("units"), dict) and isinstance(credit.get("change"), dict)):
+                        rec["credit"] = _adapter_deciding_credit_record(credit["record"])
+                    else:
+                        basis = credit
+                if not deciding and basis is None:
+                    _credit_line()      # nothing can be credited and no selection acts:
+                    return None         # the ladder is not asked and the whole inventory runs
+                ladder = _adapter_shadow_decision(
+                    decl, change, inventory,
+                    lambda: (asked.append(1), _ask_related(inventory, change))[1],
+                    exists=_still_a_file, _subject_globs_would_skip=_subject_globs_would_skip)
+                got = None
+                if basis is not None and ladder["decision"] != "units":
+                    # THE PRIORITY (SPEC-1030 rule 3): a full-layer answer for the card's own
+                    # change credits nothing, whatever the fix's diff alone would allow.
+                    rec["credit"] = _adapter_deciding_credit_record(
+                        {**basis["record"], "decision": "void", "reason": "card-full-layer",
+                         "rung": ladder["rung"], "ladder_reason": ladder["reason"]})
+                elif basis is not None:
+                    try:
+                        got = _adapter_credit_decision(
+                            decl, basis, inventory, lambda: _ask_related(inventory, basis["change"]),
+                            exists=_still_a_file, _subject_globs_would_skip=_subject_globs_would_skip)
+                    except Exception as e:                 # toward nothing credited
+                        got = None
+                        rec["credit"] = {**_no_credit("credit-error"), "error": f"{type(e).__name__}: {e}"[:300]}
+                plan = _adapter_run_plan(inventory, ladder if deciding else None, got)
+                if got is not None:
+                    rec["credit"] = _adapter_deciding_credit_record(got, acted=bool(plan.get("credited")))
+                sel = _adapter_deciding_record(ladder, narrowed=bool(plan["left_out"]))
+            except Exception as e:
+                planned.clear()
+                if crediting and (basis is not None or "credit" not in rec):
+                    rec["credit"] = {**_no_credit("selection-error"), "error": f"{type(e).__name__}: {e}"[:300]}
+                    _credit_line()
+                if not deciding:
+                    return None
+                sel = {**_no_decision("selection-error"), "error": f"{type(e).__name__}: {e}"[:300]}
+                if isinstance(ladder, dict):
+                    sel["related"] = ladder["related"]     # the ladder had answered: its own word
+                elif asked:
+                    del sel["related"]                     # asked, and what it answered is not known
+                rec["selection"] = sel
+                print(f"land(consumer): verify layer {layer!r} deciding selection could not be taken "
+                      f"({type(e).__name__}) — nothing is narrowed")
+                return None
+            if plan["units"] is not None:
+                planned["narrowed"] = {"inventory": inventory, **plan}
+            if deciding:
+                rec["selection"] = sel
+                told = (f"rung ({sel['rung']})" if sel["rung"] else "no rung") + f" — {sel['reason']}: "
+                if plan["left_out"]:
+                    told += (f"a PARTIAL run — {len(plan['units'])} of {len(inventory)} unit(s) "
+                             f"requested, {len(plan['left_out'])} left out and NOT run")
+                else:
+                    told += "nothing is narrowed"
+                print(f"land(consumer): verify layer {layer!r} deciding selection: {told}")
+            if crediting and plan.get("credited"):
+                was = plan["previous"]
+                print(f"land(consumer): verify layer {layer!r} deciding credit: a PARTIAL run — "
+                      f"{len(plan['credited'])} of {len(inventory)} unit(s) CREDITED with their pass in "
+                      f"the previous attempt ({was.get('type')} {was.get('ts')}) and NOT run, "
+                      f"{len(plan['units'])} requested")
+            elif crediting:
+                _credit_line()
+            return plan["units"]
+
         units = None
         if rerun is not None:
             units = list(rerun)                            # T-13607: the inventory is the first attempt's
@@ -5499,13 +6156,19 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 print(f"land(consumer): verify layer {layer!r} adapter `list` is unusable for this run "
                       f"({reason}) — no per-unit report; the layer's verdict is its `command:` exit code"
                       + (f"\n{tail}" if tail else ""))
-                _select(None, None)
-                _credit(None, None)
-                return rec
-            rec["list"] = "ok"
-            if sink is not None:
-                sink["inventory"] = units
-        if first_attempt and units is not None and rerun is None and decl.get("required"):
+                if not ((deciding or crediting) and first_attempt):
+                    _decide(None)
+                    _select(None, None)
+                    _credit(None, None)
+                    return rec
+                # T-13907 (SPEC-1030 rule 4): a deciding layer's first attempt goes on to its
+                # `required:` checks — they run whatever `list` answered.
+            else:
+                rec["list"] = "ok"
+                if sink is not None:
+                    sink["inventory"] = units
+        if first_attempt and rerun is None and decl.get("required") \
+                and (units is not None or deciding or crediting):
             # T-13607 (SPEC-1006 rule 5): the layer's mandatory non-test checks. They run on every
             # first attempt the adapter's `run` stands in for the full `command:`, and a failing
             # one fails the layer where it stands — `run` is not invoked and nothing re-runs it.
@@ -5518,14 +6181,30 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     rec.update({"outer": "timed-out", "outer_at": "required"})
                     print(f"land(consumer): verify layer {layer!r} `required:` check {j + 1} hit the "
                           f"layer's bound ({timeout}s) — the layer fails; no report is read")
+                    if deciding:        # T-13907: the layer failed before any decision
+                        rec["selection"] = _no_decision("outer-failure")
+                    if crediting:
+                        rec["credit"] = _no_credit("outer-failure")
                     return rec
                 if got[0].returncode != 0:
                     rec["required"] = {"ran": j + 1, "failed": j, "exit": got[0].returncode}
                     print(f"land(consumer): verify layer {layer!r} `required:` check {j + 1} FAILED "
                           f"(exit {got[0].returncode}) — the layer fails; `run` is not invoked and "
                           f"nothing re-runs a required check (SPEC-1006 rule 5)")
+                    if deciding:        # T-13907: the layer failed before any decision
+                        rec["selection"] = _no_decision("required-failed")
+                    if crediting:
+                        rec["credit"] = _no_credit("required-failed")
                     return rec
+                checks_passed.append(j)
             rec["required"] = {"ran": len(decl["required"])}
+        # T-13907 (SPEC-1030 rule 2): the units THIS run executes — None = the whole inventory.
+        to_run = _decide(units)
+        if (deciding or crediting) and first_attempt and units is None:
+            # No inventory on a deciding layer's first attempt (`list` absent or unusable): the
+            # full `command:` decides, and `run` is not invoked ahead of it.
+            _credit(None, None)
+            return rec
         try:
             load1 = round(float(_load_avg()[0]), 2) if _load_avg is not None else None
         except Exception:                                  # unmeasurable — recorded ABSENT
@@ -5547,15 +6226,24 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
         laned: list = []
         if lane and units is not None and rerun is None:
             in_batch, laned, unmatched = _adapter_lane_split(units, lane)
+            if to_run is not None:      # T-13907: the lane takes its units among the ones requested
+                asked = {(u["project"], u["file"]) for u in to_run}
+                in_batch = [u for u in in_batch if (u["project"], u["file"]) in asked]
+                laned = [u for u in laned if (u["project"], u["file"]) in asked]
+                planned["laned"] = laned
             rec["lane"] = {"units": len(laned), "unmatched": unmatched}
             batches = ([(p, b, False) for p, b in _batches(in_batch)] if in_batch else []) \
                 + ([(p, b, True) for p, b in _batches(laned)] if laned else [])
+        elif to_run is not None:        # T-13907: a selection naming no unit invokes no `run`
+            batches = [(p, b, False) for p, b in _batches(to_run)] if to_run else []
         else:
             batches = [(p, b, False) for p, b in _batches(units)]
         void: list = []
         rows: list = []
         for proj, batch, in_lane in batches:
             res, box, started = _invoke("run", batch, proj, in_lane=in_lane)
+            if box is not None:         # T-13907: this invocation was STARTED (a bound hit inside
+                launched.extend(batch or ())    # it included); one never started names no unit
             if res is None:
                 rec.pop("exit", None)                      # nothing of this pass is read
                 rec.update({"outer": "timed-out", "outer_at": "run"})
@@ -5612,9 +6300,29 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     except Exception as e:                                 # report-only: never raise into a verify
         rec["error"] = f"{type(e).__name__}: {e}"[:300]
         rec["usable"] = False
+        if deciding:                                       # T-13907: the mode is on every record
+            rec.setdefault("selection", _no_decision("pass-error"))
+        if crediting:
+            rec.setdefault("credit", _no_credit("pass-error"))
+        if deciding or crediting:
+            if first_attempt and decl.get("required") and "required" not in rec:
+                # The fault came before the layer's `required:` checks had all run. On a deciding
+                # layer they are owed on every first attempt (SPEC-1030 rule 4), so the layer
+                # FAILS here as on a failed check, and the full `command:` does not decide in
+                # their place. `ran` is the number of checks that had run and passed; `failed`
+                # names the first one that had not completed; `exit: None` — it has no exit code.
+                rec["required"] = {"ran": len(checks_passed), "failed": len(checks_passed), "exit": None}
         return rec
     finally:
         rec["duration_ms"] = int(round((clock() - t0) * 1000))
+        if "narrowed" in planned:
+            # T-13907 (SPEC-1030 rule 5): what a narrowed run DID, written once the pass ends —
+            # on every way out of it — from the `run` invocations that were started.
+            rec["partial"] = _adapter_partial_record(planned["narrowed"], launched)
+            if isinstance(rec.get("lane"), dict) and "laned" in planned:
+                # ... and the lane's count is the listed units whose invocation was started
+                begun = {(u["project"], u["file"]) for u in launched}
+                rec["lane"]["units"] = sum(1 for u in planned["laned"] if (u["project"], u["file"]) in begun)
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
 
@@ -5702,6 +6410,219 @@ def _adapter_lane_split(units, lane) -> tuple:
 # outcome off its record. Every reading that is not a usable report or a failed attempt answers
 # `command` — the layer's full `command:` then runs and decides exactly as on a layer with no
 # adapter (SPEC-0152 rule 16), and the per-unit rows stay diagnostics.
+#
+# ───────── T-13907 — a DECIDING selection ACTS (SPEC-1030 rules 2, 4, 5) ─────────────────────────
+#
+# A layer reaches this block by declaring `selection: deciding` with its reason (SPEC-1030 rule 1,
+# read by `_declared_layer_adapters`). On such a layer the rule-6 ladder
+# (`_adapter_shadow_decision`, unchanged) is asked BEFORE `run`, and on the candidate run of ONE
+# card its answer acts. The pure pieces:
+#   `_adapter_deciding_record`   the `selection` record of a deciding layer;
+#   `_adapter_run_plan`          THE ONE PLACE that names the units a run executes;
+#   `_adapter_partial_record`    what a narrowed run did, from the invocations it started;
+#   `_adapter_passed_outcome`    the row outcome of a layer whose adapter report passed;
+#   `_adapter_full_command_ran`  a narrowed first attempt the layer's full `command:` followed;
+#   `_one_card_candidate_kw`     the keyword the land's candidate leg hands the layer runner.
+#
+# ───────── T-13909 — a DECIDING credit ACTS (SPEC-1030 rules 3, 5) ───────────────────────────────
+#
+# A layer reaches this block by declaring `credit: deciding` with its reason. On such a layer, on
+# the candidate run of ONE card whose previous attempt failed as
+# a whole on the same recorded base, the rule-14 decision (`_adapter_credit_decision`, unchanged)
+# is taken BEFORE `run` — after the rule-6 ladder has answered rung (f) for the card's WHOLE change
+# — and `_adapter_run_plan` leaves the credited units out of what `run` is invoked with.
+#   `_adapter_previous_attempt(whole=True)`  the card's previous attempt and whether it failed;
+#   `_adapter_credit_basis(deciding=True)`   what its record allows — the widened premise;
+#   `_adapter_deciding_credit_record`        the `credit` record of a layer declaring the mode.
+def _adapter_deciding_record(ladder, narrowed: bool = False, *, why: str = "not-one-card-candidate",
+                             related: str = "not-run") -> dict:
+    """SPEC-1030 rule 5 — the `selection` record of ONE run of a layer whose parsed declaration
+    reads `selection: deciding` (registered in SPEC-0025). `ladder` is the rule-6 ladder's answer
+    for this run's change (`_adapter_shadow_decision`'s record) and `narrowed` whether the run
+    plan made of it leaves a unit out (`_adapter_run_plan`). `ladder` None = NO decision was taken
+    on this run, and `why` says which case: `not-one-card-candidate` (rule 4 — not the candidate
+    run of one card), `no-change` (no change to decide over), `outer-failure` and
+    `required-failed` (the layer failed before a decision), `pass-error`, `selection-error`;
+    `related` is then `absent` or `not-run` as the adapter has the command or not.
+
+    THE RECORD: `{schema: 1, mode: "deciding", decision: "full" | "units", rung, reason, related,
+    related_reason?, base?, changed?, eligible?, fired_paths?, fired_paths_more?, unknown?,
+    unknown_more?}`. `decision` says what
+    the RUN is: `units` only when it is narrowed, `full` on every other run — a rung-(f) answer
+    that names every unit included, which keeps its rung and reason. `rung` and `reason` are the
+    ladder's, as they are, with its diagnostic keys. The record carries NEITHER a total NOR a unit
+    list: what a narrowed run executed and left out is the `partial` record's
+    (`_adapter_partial_record`), so a run that is not narrowed states no count and no list (rule 5
+    — a field the kernel does not know is absent, never zero and never an empty list). PURE."""
+    if not isinstance(ladder, dict):
+        return {"schema": 1, "mode": "deciding", "decision": "full", "rung": None, "reason": str(why),
+                "related": str(related)}
+    sel = {"schema": 1, "mode": "deciding", "decision": "units" if narrowed else "full",
+           "rung": ladder["rung"], "reason": ladder["reason"], "related": ladder["related"]}
+    sel.update({k: ladder[k] for k in ("related_reason", "base", "changed", "eligible", "fired_paths",
+                                       "fired_paths_more", "unknown", "unknown_more") if k in ladder})
+    return sel
+
+
+def _adapter_deciding_credit_record(got, acted: bool = False, *, why: str = "not-one-card-candidate") -> dict:
+    """SPEC-1030 rule 5 — the `credit` record of ONE run of a layer whose parsed declaration reads
+    `credit: deciding` (registered in SPEC-0025). `got` is what was decided for this run — the
+    record of `_adapter_credit_basis(deciding=True)` or of `_adapter_credit_decision` — and
+    `acted` whether the run plan made of it credits at least one unit (`_adapter_run_plan`).
+    `got` None = NO decision was taken, and `why` says which case: `not-one-card-candidate`
+    (rule 4), `no-change`, `no-basis` (the caller handed no previous-attempt reading),
+    `selection-shadow` (the layer's selection is `shadow`, which needs the full run it is
+    compared with), `outer-failure` and `required-failed` (the layer failed before a decision),
+    `pass-error`, `selection-error` (the ladder for the card's whole change could not be taken),
+    `credit-error`.
+
+    THE RECORD: `{schema: 1, mode: "deciding", decision: "units" | "none" | "void", reason,
+    previous?, changed?, tree?, rung?, ladder_reason?, related?, related_reason?, eligible?,
+    unknown?, unknown_more?}`. `decision` says what the RUN did: `units` only when it credited a
+    unit; a decision that names units to credit of which the run needs none is `void` /
+    `no-creditable-unit`; every `none` and `void` of `got` stands with its reason. The record
+    carries NEITHER a total NOR a unit list — what a run executed and credited is the `partial`
+    record's (`_adapter_partial_record`) — and no comparison: there is no full run to compare
+    with. PURE."""
+    if not isinstance(got, dict):
+        return {"schema": 1, "mode": "deciding", "decision": "void", "reason": str(why)}
+    rec = {k: (dict(v) if isinstance(v, dict) else list(v) if isinstance(v, list) else v)
+           for k, v in got.items()
+           if k not in ("would_rerun", "would_credit", "units_total", "compared", "disagreements")}
+    rec.update({"schema": 1, "mode": "deciding"})
+    if rec.get("decision") == "units" and not acted:
+        rec.update({"decision": "void", "reason": "no-creditable-unit"})
+    elif rec.get("decision") not in ("units", "none", "void") or not isinstance(rec.get("reason"), str):
+        return {"schema": 1, "mode": "deciding", "decision": "void", "reason": "credit-error"}
+    return rec
+
+
+def _adapter_run_plan(inventory, ladder, credit=None) -> dict:
+    """SPEC-1030 rules 2, 3 — WHICH units ONE run of a layer executes: the ONE place that turns a
+    decision that ACTS into the unit set `run` is invoked with. A further deciding mode extends
+    THIS function; the pass asks it and holds no second branch. `inventory` is `list`'s unit list
+    (None = this run has none); `ladder` the rule-6 ladder's answer for a deciding selection that
+    acts on this run, or None where none acts; `credit` (T-13909) the rule-14 decision
+    (`_adapter_credit_decision`'s record) for a deciding credit that acts on this run, or None.
+
+    THE UNITS THE RUN NEEDS are the ladder's selection where it answered rung (f), every unit of
+    the inventory otherwise. Of those, a `credit` whose decision is `units` CREDITS the ones it
+    names as would-credit — units the previous attempt itself ran and passed and the fix does not
+    reach — and the run executes the others; a unit the run does not need is never credited.
+
+    Returns `{units, left_out}`. Both None — the run is NOT narrowed: `run` gets the whole
+    inventory (with no inventory, every unit the layer runs). Otherwise the run is NARROWED — it
+    leaves a unit out or credits one: `units` are the inventory entries to run, in inventory order
+    (possibly none), and `left_out` the units the selection left out, each `{file, project?}` in
+    inventory order (possibly none). A run that credits carries two more keys: `credited` — the
+    credited units, same shape and order — and `previous`, the previous attempt's reference as the
+    decision holds it. A rung-(f) answer that names EVERY unit, with nothing credited, is not
+    narrowed. PURE."""
+    whole = {"units": None, "left_out": None}
+    if inventory is None:
+        return whole
+    chosen = reuse = None
+    if isinstance(ladder, dict) and ladder.get("decision") == "units":
+        chosen = {(u.get("project") or "", u["file"]) for u in ladder.get("would_run") or ()}
+    if isinstance(credit, dict) and credit.get("decision") == "units":
+        reuse = {(u.get("project") or "", u["file"]) for u in credit.get("would_credit") or ()}
+    units, left_out, credited = [], [], []
+    for u in inventory:
+        key = (u.get("project") or "", u["file"])
+        name = {"file": u["file"], **({"project": u["project"]} if u.get("project") else {})}
+        if chosen is not None and key not in chosen:
+            left_out.append(name)
+        elif reuse is not None and key in reuse:
+            credited.append(name)
+        else:
+            units.append(u)
+    if not (left_out or credited):
+        return whole
+    plan = {"units": units, "left_out": left_out}
+    if credited:
+        plan.update({"credited": credited,
+                     "previous": dict(credit["previous"]) if isinstance(credit.get("previous"), dict) else {}})
+    return plan
+
+
+def _adapter_partial_record(narrowed: dict, launched) -> dict:
+    """SPEC-1030 rule 5 — what ONE narrowed run DID; rides the adapter record as `partial`
+    (registered in SPEC-0025). `narrowed` is `{inventory, units, left_out}` — the inventory and
+    its run plan (`_adapter_run_plan`); `launched` the units of every `run` invocation that was
+    STARTED (one that then hit the bound included).
+
+    `{units_total, ran, not_reached, left_out, credited, previous?}` — entries `{file,
+    project?}`, each list in inventory order: `ran` the requested units whose invocation was
+    started; `not_reached` the requested units whose invocation never started (the bound passed
+    before it); `left_out` the units the selection left out; `credited` (T-13909) the units the
+    plan credits — not run, and never in `ran` — empty where no credit acted, which the kernel
+    knows is none. Where a unit is credited `previous` is the previous attempt's reference
+    (`{type, ts, outcome, tree, base}`, as the plan holds it); absent otherwise. `ran` and
+    `not_reached` together are the units requested. PURE."""
+    begun = {(u.get("project") or "", u["file"]) for u in launched or ()}
+    ran, not_reached = [], []
+    for u in narrowed["units"]:
+        key = {"file": u["file"], **({"project": u["project"]} if u.get("project") else {})}
+        (ran if (u.get("project") or "", u["file"]) in begun else not_reached).append(key)
+    credited = [dict(u) for u in narrowed.get("credited") or ()]
+    return {"units_total": len(narrowed["inventory"]), "ran": ran, "not_reached": not_reached,
+            "left_out": [dict(u) for u in narrowed["left_out"]], "credited": credited,
+            **({"previous": dict(narrowed.get("previous") or {})} if credited else {})}
+
+
+def _one_card_candidate_kw(batch_members) -> dict:
+    """SPEC-1030 rule 4 — the keyword the land's candidate leg hands the layer runner:
+    `{"one_card_candidate": True}` when the candidate holds ONE member (no batch formed, or a
+    batch of one), `{}` for a combined candidate of several — which runs every layer in full.
+    `batch_members` is the land's member list at the moment the candidate is verified (None
+    before any batch formed). PURE."""
+    return {"one_card_candidate": True} if len(batch_members or ()) <= 1 else {}
+
+
+def _adapter_passed_outcome(rec) -> str:
+    """SPEC-1030 rule 5 — the row outcome of a layer whose adapter report PASSED: `passed-partial`
+    when the record is a narrowed run's (it carries `partial`), `passed` otherwise — a run that is
+    not narrowed, and every layer under `off` or `shadow`. PURE."""
+    return "passed-partial" if isinstance(rec, dict) and isinstance(rec.get("partial"), dict) else "passed"
+
+
+def _layer_row_is_partial_run(row) -> bool:
+    """SPEC-1030 rule 6 (T-13911) — is this `consumer_verify_layers[]` row the row of a PARTIAL run
+    of its layer: a run that executed fewer than all of the layer's units? True on EITHER mark the
+    writers leave (SPEC-0025): the row's `adapter` record carries the key `partial` (every narrowed
+    run — one that failed or timed out, whose outcome says nothing of breadth, included), or the
+    row `outcome` is `passed-partial`. The key counts whatever it holds: the writers remove it when
+    a run stops being narrowed, so its presence alone says the run was. A row with neither mark —
+    every row of a layer under `off` or `shadow`, a full run of a deciding layer, a run whose full
+    `command:` ran after a narrowed first attempt — is not one. The ONE predicate the derived
+    readings ask (the zero-skip fold, the layer duration creep and step readings). PURE."""
+    if not isinstance(row, dict):
+        return False
+    rec = row.get("adapter")
+    return row.get("outcome") == "passed-partial" or (isinstance(rec, dict) and "partial" in rec)
+
+
+def _adapter_full_command_ran(rec):
+    """SPEC-1030 rule 4 — the layer's full `command:` ran after a first attempt whose record is
+    `rec` (a void report with a zero exit, a faulted pass, the SPEC-0152 rule-16 isolated layer
+    re-run). The run as a whole is then NOT narrowed, whatever the first attempt requested: the
+    `partial` key is removed and a deciding `selection` reads `decision: full`, `reason:
+    full-command-ran`, its rung unchanged and the ladder's own reason kept as `ladder_reason`; a
+    deciding `credit` that had credited (`decision: units`) reads `void` / `full-command-ran`
+    (T-13909): every unit ran, so nothing is credited. A
+    record that carries no `partial` is returned as it is. Changes `rec` in place and returns it."""
+    if not (isinstance(rec, dict) and isinstance(rec.get("partial"), dict)):
+        return rec
+    del rec["partial"]
+    sel = rec.get("selection")
+    if isinstance(sel, dict) and sel.get("mode") == "deciding":
+        sel.update({"ladder_reason": sel.get("reason"), "decision": "full", "reason": "full-command-ran"})
+    cred = rec.get("credit")
+    if isinstance(cred, dict) and cred.get("mode") == "deciding" and cred.get("decision") == "units":
+        cred.update({"decision": "void", "reason": "full-command-ran"})
+    return rec
+
+
 def _adapter_first_attempt(rec) -> str:
     """SPEC-1006 rule 4 — what ONE first-attempt adapter record (`_layer_adapter_report_pass(...,
     first_attempt=True)`) says about its layer. PURE; first match wins:
@@ -5718,24 +6639,34 @@ def _adapter_first_attempt(rec) -> str:
                        exit code, exactly as a layer without an adapter fails;
       units-failed     the report is USABLE and at least one unit is not `passed` (whatever the
                        exit code says — a failed row is never overridden by a zero exit);
-      passed           the report is USABLE and every unit passed.
+      passed           the report is USABLE and every unit passed — or (T-13907, SPEC-1030
+                       rule 2) the record is a NARROWED run's that requested no unit: `run` was
+                       not invoked, the `required:` checks ran, and nothing failed.
     Anything this function does not recognise answers `command` — the reading errs toward the full
-    layer."""
-    if not isinstance(rec, dict) or rec.get("error"):
+    layer. A failed `required:` check is read BEFORE a fault of the pass and BEFORE the state of
+    `list` (T-13907): on a deciding layer the checks run whatever `list` answered, so one can fail
+    where `list` was unusable, and a pass that faulted before they had run records them as failed
+    (`exit: None`).
+    Under `off` and `shadow` a failed check ends the pass at once, after a usable `list`, so
+    there the order changes nothing."""
+    if not isinstance(rec, dict):
         return "command"
     if rec.get("outer") == "timed-out":
         return "timed-out"
-    if rec.get("outer") or rec.get("list") != "ok":
-        return "command"
     required = rec.get("required")
     if isinstance(required, dict) and "failed" in required:
         return "required-failed"
+    if rec.get("error") or rec.get("outer") or rec.get("list") != "ok":
+        return "command"
     units = rec.get("units")
     if not isinstance(units, list):
         return "command"
     if rec.get("void"):
         return "void-failed" if rec.get("exit") not in (0, None) else "command"
-    if rec.get("usable") is not True or not units:
+    partial = rec.get("partial")
+    none_requested = isinstance(partial, dict) and partial.get("ran") == [] \
+        and partial.get("not_reached") == [] and "exit" not in rec
+    if rec.get("usable") is not True or (not units and not none_requested):
         return "command"
     return "passed" if all(isinstance(u, dict) and u.get("status") == "passed" for u in units) \
         else "units-failed"

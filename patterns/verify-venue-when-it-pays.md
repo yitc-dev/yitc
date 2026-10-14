@@ -1,10 +1,10 @@
 ---
 name: verify-venue-when-it-pays
 class: runbook
-sourced_from: SPEC-0203 (the remote verify venue) rules 2 + 6, made an OPTIONAL adopter capability by (owner decision events.jsonl#ts=). The costs quoted are the ones `patterns/compute-controller-session.md` measured; none is restated as a rule here.
+sourced_from: <workshop-spec> (the remote verify venue) rules 2 + 6, made an OPTIONAL adopter capability by (owner decision events.jsonl#ts=). The costs quoted are the ones `patterns/compute-controller-session.md` measured; none is restated as a rule here.
 applies_to: deciding whether a project needs the remote verify venue at all, and switching it on when it does
 cites:
-  - SPEC-0203
+  - <workshop-spec>
 ---
 
 # The verify venue — when it pays, and how to switch it on

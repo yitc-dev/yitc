@@ -41,41 +41,44 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ a `report_profile` (rule 4),\n`sources:` — the repo paths that implement the adapter\
   \ (its own scripts) and the runner configuration its\ncommands read (rule 8) —\n\
   optional `required:` non-test commands (rule 5), an optional `modelled:` input domain\
-  \ (rule 3), optional\nadditive `triggers:` (rule 7), `selection:`\n`off | shadow`\
-  \ (default `off`, rule 8), `credit:` `off | shadow` (default `off`, rule 14)\nand\
-  \ `rescue:` `on | off` (default `on`, rule 10). A DECIDING mode — `selection: deciding`\
-  \ or `credit: deciding`,\nanything that would change what runs — is not part of\
-  \ this contract and fails the declaration closed, until an\nadmission contract governs\
-  \ it (plan admission-for-adapter-backed-consumer-verify-layer). Absent\n`adapter:`\
-  \ → the layer runs its `command:` exactly as SPEC-0152 rule 16 says. A malformed\
-  \ adapter declaration\nfails closed before any layer runs (the rule-16 `mode: malformed`\
-  \ stance) — so does a command that invokes a\ntracked repo file its `sources:` do\
-  \ not list.\n\n### 2. The unit\nThe selection and execution UNIT is a test FILE\
-  \ within a runner project: `(runner project, repo-relative\nfile)`. Case identities\
-  \ (file + suite/case title + parameterization) are recorded for diagnostics, re-run\
-  \ and\naccounting. An adapter declares any larger indivisible group (a serial suite\
-  \ whose cases depend on each other);\nsuch a group is selected, re-run and counted\
-  \ whole. Completeness and consistency are checked per UNIT, never per\ncase: a runner's\
-  \ enumeration and its run report do not name cases alike (a statically parsed `list`\
-  \ keeps a\nparameterized title as its template, the run expands it), so case identities\
-  \ come from the run report alone and\nare never cross-checked against `list`; and\
-  \ nothing selects or re-runs a single case (a title filter is a regular\nexpression\
-  \ over titles that carry its metacharacters). Where a runner's report does not name\
-  \ the runner project,\nthe adapter runs one `run` invocation per project, and a\
-  \ file declared in two projects fails the declaration\nclosed.\n\n### 3. The three\
-  \ commands\n- `list` — enumerates the units the LAYER runs and their cases WITHOUT\
-  \ executing any test body. It names what\n  the layer's `command:` runs, never whatever\
-  \ a runner can collect from a directory (<project>, trial run 7:\n  `pytest --collect-only\
-  \ tests/` found 588 cases with 82 collection errors from files the layers run as\
-  \ scripts\n  or only against a live stack). A `list` that exits nonzero or reports\
-  \ a collection error leaves the adapter\n  path unusable for that run: the layer's\
-  \ full `command:` decides (the safe fallback below).\n- `related` — ENUMERATION-ONLY:\
-  \ the kernel passes its comparison base and its changed paths; the adapter may let\n\
-  \  the runner diff the candidate tree against that base itself, and returns the\
-  \ units reached. A runner gives no\n  `unknown` of its own — it answers an empty\
-  \ set for a path it does not model — so `unknown` is DERIVED, never\n  trusted from\
-  \ the runner: the kernel's own path list stays authoritative for rungs (a)-(e),\
-  \ and `unknown` is\n  every changed path the layer's eligibility admits (its `subject_globs`,\
+  \ (rule 3), optional\nadditive `triggers:` (rule 7), `selection:`\n`off | shadow\
+  \ | deciding` (default `off`, rule 8), `credit:` `off | shadow | deciding` (default\
+  \ `off`, rule 14)\nand `rescue:` `on | off` (default `on`, rule 10). A DECIDING\
+  \ mode — `selection: deciding` or `credit: deciding`,\nthe mode in which a decision\
+  \ this contract records ACTS on what runs — is declared with its reason key in the\n\
+  same `adapter:` block (`selection_deciding_reason:`, `credit_deciding_reason:`)\
+  \ and is governed by its admission\ncontract, SPEC-1030: which declarations of it\
+  \ are malformed, what a deciding layer runs and what its row\nrecords are that contract's\
+  \ rules and are not restated here. Absent\n`adapter:` → the layer runs its `command:`\
+  \ exactly as SPEC-0152 rule 16 says. A malformed adapter declaration\nfails closed\
+  \ before any layer runs (the rule-16 `mode: malformed` stance) — so does a command\
+  \ that invokes a\ntracked repo file its `sources:` do not list.\n\n### 2. The unit\n\
+  The selection and execution UNIT is a test FILE within a runner project: `(runner\
+  \ project, repo-relative\nfile)`. Case identities (file + suite/case title + parameterization)\
+  \ are recorded for diagnostics, re-run and\naccounting. An adapter declares any\
+  \ larger indivisible group (a serial suite whose cases depend on each other);\n\
+  such a group is selected, re-run and counted whole. Completeness and consistency\
+  \ are checked per UNIT, never per\ncase: a runner's enumeration and its run report\
+  \ do not name cases alike (a statically parsed `list` keeps a\nparameterized title\
+  \ as its template, the run expands it), so case identities come from the run report\
+  \ alone and\nare never cross-checked against `list`; and nothing selects or re-runs\
+  \ a single case (a title filter is a regular\nexpression over titles that carry\
+  \ its metacharacters). Where a runner's report does not name the runner project,\n\
+  the adapter runs one `run` invocation per project, and a file declared in two projects\
+  \ fails the declaration\nclosed.\n\n### 3. The three commands\n- `list` — enumerates\
+  \ the units the LAYER runs and their cases WITHOUT executing any test body. It names\
+  \ what\n  the layer's `command:` runs, never whatever a runner can collect from\
+  \ a directory (<project>, trial run 7:\n  `pytest --collect-only tests/` found 588\
+  \ cases with 82 collection errors from files the layers run as scripts\n  or only\
+  \ against a live stack). A `list` that exits nonzero or reports a collection error\
+  \ leaves the adapter\n  path unusable for that run: the layer's full `command:`\
+  \ decides (the safe fallback below).\n- `related` — ENUMERATION-ONLY: the kernel\
+  \ passes its comparison base and its changed paths; the adapter may let\n  the runner\
+  \ diff the candidate tree against that base itself, and returns the units reached.\
+  \ A runner gives no\n  `unknown` of its own — it answers an empty set for a path\
+  \ it does not model — so `unknown` is DERIVED, never\n  trusted from the runner:\
+  \ the kernel's own path list stays authoritative for rungs (a)-(e), and `unknown`\
+  \ is\n  every changed path the layer's eligibility admits (its `subject_globs`,\
   \ rule 6 — a path outside them is not\n  this layer's input) that is (i) DELETED\
   \ or RENAMED (a runner answers nothing for a deleted module its tests\n  still import),\
   \ or (ii) outside the adapter's declared `modelled:` domain — the input kinds the\
@@ -352,24 +355,24 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ forces the full layer on a sandbox consumer; rung (f) selects only `related` ∪\n\
   \  triggers; a change with no path in an adapter-backed layer's `subject_globs`\
   \ skips it as on any layer (rule\n  6, eligibility first), and a changed input outside\
-  \ the `modelled:` domain no trigger names forces the full\n  layer.\n- `selection:\
-  \ deciding` or `credit: deciding` fails the declaration closed; a shadow land records\
-  \ the effective\n  would-run, would-omit and would-credit units, and a planted failure\
-  \ in a would-omitted unit is a recorded\n  disagreement.\n- A unit failing first\
-  \ and passing on re-run is rescued with `rescue: on` and blocks with `rescue: off`;\
-  \ the\n  first-attempt excerpt is recorded in both.\n- A unit rescued E times within\
-  \ W days enters the lane and still decides the verdict.\n- An outer layer timeout\
-  \ or a failed `prep:` fails the layer with no report fallback, re-run or rescue;\
-  \ a test's\n  own runner timeout reads as that unit's failure.\n- With no `list`,\
-  \ the layer's verdict is its full `command:`: no selection, no credit and no PER-UNIT\
-  \ re-run or\n  rescue acts, while the whole-layer re-run of SPEC-0152 rule 16 runs,\
-  \ where that rule admits it, under the\n  layer's `rescue:` setting; with\n  no\
-  \ `related`, report, per-unit re-run and rescue work and selection and credit run\
-  \ the full layer.\n- Under `credit: shadow` a fix attempt runs the full layer and\
-  \ records the would-be credit and each void case\n  (i)-(iv) with its reason; a\
-  \ would-credited unit failing there is a recorded disagreement.\n- A rescued unit's\
-  \ row names the failing case; the per-case view counts it against that case only.\n\
-  - A runner config with native retries on: `run` disables them, so a fail-then-pass\
+  \ the `modelled:` domain no trigger names forces the full\n  layer.\n- A `selection:\
+  \ deciding` or `credit: deciding` declaration is read as SPEC-1030 rule 1 says;\
+  \ a shadow land records the effective\n  would-run, would-omit and would-credit\
+  \ units, and a planted failure in a would-omitted unit is a recorded\n  disagreement.\n\
+  - A unit failing first and passing on re-run is rescued with `rescue: on` and blocks\
+  \ with `rescue: off`; the\n  first-attempt excerpt is recorded in both.\n- A unit\
+  \ rescued E times within W days enters the lane and still decides the verdict.\n\
+  - An outer layer timeout or a failed `prep:` fails the layer with no report fallback,\
+  \ re-run or rescue; a test's\n  own runner timeout reads as that unit's failure.\n\
+  - With no `list`, the layer's verdict is its full `command:`: no selection, no credit\
+  \ and no PER-UNIT re-run or\n  rescue acts, while the whole-layer re-run of SPEC-0152\
+  \ rule 16 runs, where that rule admits it, under the\n  layer's `rescue:` setting;\
+  \ with\n  no `related`, report, per-unit re-run and rescue work and selection and\
+  \ credit run the full layer.\n- Under `credit: shadow` a fix attempt runs the full\
+  \ layer and records the would-be credit and each void case\n  (i)-(iv) with its\
+  \ reason; a would-credited unit failing there is a recorded disagreement.\n- A rescued\
+  \ unit's row names the failing case; the per-case view counts it against that case\
+  \ only.\n- A runner config with native retries on: `run` disables them, so a fail-then-pass\
   \ case reads failed on the\n  first attempt; a report showing a native retry is\
   \ void.\n- A test failure and a separate run-level error in one invocation: the\
   \ profile's channel shows the error and a\n  passing re-run of the failed unit does\
@@ -408,11 +411,11 @@ init_concern: null
 implements_signature:
   bin/lib/land_verify_legs.py#_adapter_credit_decision: 0dce09c93705ed548d80642d06b6cb76e32f15f985225e0607b0d25aa108e430
   bin/lib/land_verify_legs.py#_adapter_lane_split: bf70597b1557d482e13844b149ef2121a06d701f6f7777844e1a2b94209fe285
-  bin/lib/land_verify_legs.py#_adapter_shadow_decision: 09a26fed29b4cefc61ae32f831ff24c33a4f522497579b45d1fe1ed70472cbc3
+  bin/lib/land_verify_legs.py#_adapter_shadow_decision: 1d2269a9523aff7af25d04c48a267984a9195abc32e228c1feb85345c75fe549
   bin/lib/land_verify_legs.py#_adapter_stamp_identity: f0f585104835bdc62a850a85d4205a22fcbdacd5f57b2f850a0acc2d6d965aa9
   bin/lib/land_verify_legs.py#_classify_adapter_report: c0bffdfe5e18845e1db20b613dffaeda5ce8532458d125847b9e734266b8a833
-  bin/lib/land_verify_legs.py#_declared_layer_adapters: 1d0f3c41e14e046d90e49a60f6b5b3e33a593804b6aa7c3cf906a716e5633e11
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 9887ca8589898c36efe8cb12c771b108fb52b2cf806b8ae874a618bf1cf54c45
+  bin/lib/land_verify_legs.py#_declared_layer_adapters: f23a16f9afb057d9f857fe8181bce56eec8255001b27c1f7683239d4b92cc5b3
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 23b1d6ea857203710a4e5c1bdb8688acdb2c45096cc839bb2e4a104cc7db0b36
   bin/lib/land_verify_legs.py#_layer_unit_reruns: 392195f4c277e1bc1296a4528985710b3d1564b010f42a165e60d00e15226313
   bin/lib/land_verify_legs.py#_per_case_rescued_failures: 7461f694edca5d2152190a764ef486a64c87ebf51d629c8edb07ae5c3cb7399f
   bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 708bb7b88916a92ec5f3748a19919ab4b9e76b4c6c496534fc64084bc0530911

@@ -578,7 +578,7 @@ implements_signature:
   bin/lib/spike_identity.py#refusal_message: 1cc76242268d27b3004503ca514f0a10069e84635e506ebeab5bf151e24660c6
   bin/lib/task.py#prototype_identical_error: ba0adb9f28a6b50ebefef840452f26e583a54885fe37a90e93aca7c1da43338d
   bin/lib/task.py#prototype_ref_error: 976fed2553c45f8cb9ebee95330ccf5cb85028b1cfd3aaee1e8c21a99238bc05
-  bin/lib/worktree.py#cmd_land: 36881ec62af3ce28846c15fd17d401dc0a62164618c3b491363a66038a27e8c9
+  bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
   bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a

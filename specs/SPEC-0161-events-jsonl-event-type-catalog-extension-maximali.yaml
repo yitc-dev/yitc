@@ -431,7 +431,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ land that queued, requeued and still did not get through. FAIL-CLOSED on an unresolvable\
   \ holder: `holders_seen` cannot then reach 2, so the land takes the stop.\n- **`waiting_for_venue_admission`**\
   \ — `bin/lib/worktree.py` (relayed from the box-side leg) — a land queued behind\
-  \ the MACHINE-WIDE venue request cap (`YITC_VENUE_MAX_REQUESTS`, default 1 — SPEC-0203\
+  \ the MACHINE-WIDE venue request cap (`YITC_VENUE_MAX_REQUESTS`, default 1 — <workshop-spec>\
   \ rule 4). Carries `request` / `leg` / `live` / `cap` / `waited_s` / `branch` /\
   \ `box`. It is a THIRD queue and reports as itself: it is deliberately NOT a member\
   \ of `journal.LAND_QUEUE_WAIT_TYPES`, because that tuple is the one source through\
@@ -1078,8 +1078,8 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ is where it belongs. This introduces NO new event type — the row is the\nexisting\
   \ `external_audit_completed` — so the event-catalog gate is untouched by that card.\n\
   \n**ONE MORE PAIR NAMED FORWARD, and it is a NESTED one (2026-09-08).** The venue\n\
-  ref-immutability guard (SPEC-0203 rule 4) puts **`venue_refs_moved`** — the per-leg\
-  \ moved-ref sets a\nclobbered pass reports, `{}` when none did — on `land_completed`,\
+  ref-immutability guard (<workshop-spec> rule 4) puts **`venue_refs_moved`** — the\
+  \ per-leg moved-ref sets a\nclobbered pass reports, `{}` when none did — on `land_completed`,\
   \ but NESTED inside\n`data.verify_metrics` rather than at the top level of `data`,\
   \ exactly like the three keys\nnamed just below. It is therefore named here on the\
   \ same terms and for the same reason: this\nmeasurement folds TOP-LEVEL `data` keys\
@@ -1087,8 +1087,8 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ back — and code does (`remote_verify.venue_verify_metrics`). The COUNT above is\n\
   NOT inflated for it. It introduces NO new event type: the row is the existing `land_completed`,\n\
   which is why the event-catalog gate is untouched by this card. Its meaning is spec-carried\
-  \ by\nSPEC-0203 rule 4, which is where it belongs.\n**AND ITS SIBLING, named on\
-  \ the same terms :** the same `verify_metrics` fragment carries\n**`venue_refs_clobber_retry`**\
+  \ by\n<workshop-spec> rule 4, which is where it belongs.\n**AND ITS SIBLING, named\
+  \ on the same terms :** the same `verify_metrics` fragment carries\n**`venue_refs_clobber_retry`**\
   \ — the boolean marking a pass that took the rule-4 bounded re-attempt,\nso a reader\
   \ of the row can tell a pass that refused from one that recovered. Same nesting,\
   \ same\ncarrier, same absence from the COUNT above, same spec home for its meaning.\
@@ -1117,19 +1117,20 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   reason they are invisible to the fold did not change with them. `venue_headroom_degraded`\
   \ carries\nTHREE states rather than a flag: the reason token (`loadavg-unreadable`\
   \ / `loadavg-malformed`)\nwhen the box's load could not be read and the pass was\
-  \ therefore admitted in the SPEC-0203 rule-4\ndegraded mode, `false` when the load\
-  \ WAS read, and absent/None when the leg's record predates the\nfield — the same\
-  \ «we did not» vs «we do not know» distinction the three figures beside it keep.\n\
-  This measurement folds TOP-LEVEL `data` keys only, so a nested key is invisible\
-  \ to it whether or\nnot any code reads it back — and code does read all three back.\
-  \ They are recorded here because the\nhonest form of \"the recomputation will not\
-  \ move\" is to say WHY, not to stay silent and let a later\nreader mistake a structural\
-  \ blind spot for a clean result. The blind spot is not new and is not\nwidened by\
-  \ this card; it is simply now written down at the one place a reader of this record\
-  \ would\nlook for it. Their meaning is spec-carried by SPEC-0203 rule 4, which is\
-  \ where they belong.\n\n**A FOURTH key joins them, on identical terms.**\n`land_completed.data.verify_metrics.pinned_excluded_not_pinned`\
-  \ — the test files the SPEC-0077\npinned last-green leg excluded because they did\
-  \ not exist at the last-green ref. Nested inside\n`verify_metrics`, so this measurement\
+  \ therefore admitted in the <workshop-spec> rule-4\ndegraded mode, `false` when\
+  \ the load WAS read, and absent/None when the leg's record predates the\nfield —\
+  \ the same «we did not» vs «we do not know» distinction the three figures beside\
+  \ it keep.\nThis measurement folds TOP-LEVEL `data` keys only, so a nested key is\
+  \ invisible to it whether or\nnot any code reads it back — and code does read all\
+  \ three back. They are recorded here because the\nhonest form of \"the recomputation\
+  \ will not move\" is to say WHY, not to stay silent and let a later\nreader mistake\
+  \ a structural blind spot for a clean result. The blind spot is not new and is not\n\
+  widened by this card; it is simply now written down at the one place a reader of\
+  \ this record would\nlook for it. Their meaning is spec-carried by <workshop-spec>\
+  \ rule 4, which is where they belong.\n\n**A FOURTH key joins them, on identical\
+  \ terms.**\n`land_completed.data.verify_metrics.pinned_excluded_not_pinned` — the\
+  \ test files the SPEC-0077\npinned last-green leg excluded because they did not\
+  \ exist at the last-green ref. Nested inside\n`verify_metrics`, so this measurement\
   \ cannot see it and the recomputation does NOT move; recorded\nhere for the same\
   \ reason the three above are, so a later reader meets the blind spot as a stated\n\
   property rather than as an omission. Its meaning is spec-carried by SPEC-0077 §3,\
@@ -1148,18 +1149,18 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ an omission.\nIt introduces NO new event type — the row is the existing `land_completed`.\
   \ It is `None` rather\nthan `0` when a leg could not tell (the «we did not» vs «we\
   \ do not know» distinction every venue\nfigure beside it keeps), and its meaning\
-  \ is spec-carried by SPEC-0203 rule 4 + SPEC-0071 rule 1 —\nthe specs that own the\
-  \ venue leg and the bound it uncharges, which is where it belongs.\n**A FIFTH NESTED\
-  \ KEY ON THE SAME CARRIER, on identical terms.**\n`land_completed.data.verify_metrics.venue_routing`\
+  \ is spec-carried by <workshop-spec> rule 4 + SPEC-0071 rule 1 —\nthe specs that\
+  \ own the venue leg and the bound it uncharges, which is where it belongs.\n**A\
+  \ FIFTH NESTED KEY ON THE SAME CARRIER, on identical terms.**\n`land_completed.data.verify_metrics.venue_routing`\
   \ — a CLOSED single-value marker whose only\nspelling is `skipped-sandbox-repo`,\
-  \ written ONLY when a land took SPEC-0203 rule 7's sandbox\ncarve-out (the pass\
-  \ ran in a repository the host registry names no project at, so it verified\nlocally\
-  \ though a venue was published). It is named HERE because rule 7 forbids a *silent*\
-  \ local\nfallback and this key is what makes the fallback non-silent: without it\
-  \ an exempt land and an\nordinary local one are indistinguishable in the journal.\
-  \ Its MEANING is spec-carried by SPEC-0203\nrule 7, which is where it belongs; this\
-  \ catalog carries only the name. It is NESTED inside\n`data.verify_metrics` like\
-  \ the three `venue_*` keys above and is therefore invisible to the\ntop-level-only\
+  \ written ONLY when a land took <workshop-spec> rule 7's sandbox\ncarve-out (the\
+  \ pass ran in a repository the host registry names no project at, so it verified\n\
+  locally though a venue was published). It is named HERE because rule 7 forbids a\
+  \ *silent* local\nfallback and this key is what makes the fallback non-silent: without\
+  \ it an exempt land and an\nordinary local one are indistinguishable in the journal.\
+  \ Its MEANING is spec-carried by <workshop-spec>\nrule 7, which is where it belongs;\
+  \ this catalog carries only the name. It is NESTED inside\n`data.verify_metrics`\
+  \ like the three `venue_*` keys above and is therefore invisible to the\ntop-level-only\
   \ recomputation for exactly the reason stated there — so the COUNT above does not\n\
   move, and that is a property of the measurement rather than an omission. Recorded\
   \ on ONE branch by\ndesign: a key written on every local land would restate what\
@@ -1177,8 +1178,8 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ a land that never parked, or parked with no venue, writes\nno key, so an absent\
   \ key reads as \"no pre-ship was attempted\". It is written by `_land_integrate`\n\
   beside the executor's own `venue_*` keys, never through the executor's row, because\
-  \ a pre-ship is\nnot an executor run; its meaning is spec-carried by SPEC-0203 rule\
-  \ 3, which is where it belongs.\n\n**The ONE pair this run names FORWARD, before\
+  \ a pre-ship is\nnot an executor run; its meaning is spec-carried by <workshop-spec>\
+  \ rule 3, which is where it belongs.\n\n**The ONE pair this run names FORWARD, before\
   \ the row carrying it lands.**\n`external_audit_completed.no_data_class` is added\
   \ to the recorded set above BEFORE the land that\nbrings its first row to `main`.\
   \ It is the verb-local diagnostic that classifies WHY an\n`audit adhoc` came back\
@@ -1200,7 +1201,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ journal, which is why\nthe reading is recorded on card rather than left to a probe\
   \ that cannot reach it.\n\n**FOUR pairs on ONE NEW row, named FORWARD by the introducing\
   \ card on identical terms.**\n`venue_seed_recorded.snapshot_id|clone_main_sha|recorded_at|recorded_by`\
-  \ — the seed record `venue seed`\nwrites (SPEC-0203 rule 1's sibling) is journaled\
+  \ — the seed record `venue seed`\nwrites (<workshop-spec> rule 1's sibling) is journaled\
   \ WHOLE, `venue raise` reads `snapshot_id` back off\nthe persisted record and the\
   \ bare `venue seed` renders the other three, so the readback conjunct is\nmet on\
   \ the same footing as `venue_published.snapshot_id`. Named here BEFORE the first\
@@ -1248,19 +1249,20 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ reads `ssh_user` back off the persisted record\n(`route` hands it to the executor\
   \ as the ssh user), so the readback conjunct is met on the same\nfooting as `snapshot_id`.\
   \ The COUNT above is NOT inflated for it, for the same reason. `venue publish` (the\
-  \ venue verbs, SPEC-0203 rules 1+6) journals the\npublication record WHOLE rather\
-  \ than as a hand-listed subset, so `snapshot_id` travels in the\npayload; `bin/lib/venue.py`\
-  \ reads the literal back off the persisted record, so the readback\nconjunct is\
-  \ met and the pair becomes governing the moment that row lands — which would refuse\n\
-  that land unnamed. Naming it here spends that refusal on the card that causes it,\
-  \ the ordering\nthe forward names above established. The COUNT above is deliberately\
-  \ NOT inflated, for the same\nreason it was not inflated for them: the recomputation\
-  \ cannot yet reproduce this pair on `main`'s\nown journal, and stating a higher\
-  \ figure would state something unverifiable. CANDIDATE standing —\nthe value is\
-  \ the provider snapshot the box was raised from, carried on the record and read\
-  \ back to\nrender it, with nothing branching on it (authoritative shape: `bin/lib/venue.py#build_record`).\n\
-  \n**TWO RETIRED PAIRS, and what stands in their place.** `external_audit_completed.owner_reopen`\n\
-  ( — the owner grant locator of a consult episode re-open) and `external_audit_completed.withdrawn`\n\
+  \ venue verbs, <workshop-spec> rules 1+6) journals the\npublication record WHOLE\
+  \ rather than as a hand-listed subset, so `snapshot_id` travels in the\npayload;\
+  \ `bin/lib/venue.py` reads the literal back off the persisted record, so the readback\n\
+  conjunct is met and the pair becomes governing the moment that row lands — which\
+  \ would refuse\nthat land unnamed. Naming it here spends that refusal on the card\
+  \ that causes it, the ordering\nthe forward names above established. The COUNT above\
+  \ is deliberately NOT inflated, for the same\nreason it was not inflated for them:\
+  \ the recomputation cannot yet reproduce this pair on `main`'s\nown journal, and\
+  \ stating a higher figure would state something unverifiable. CANDIDATE standing\
+  \ —\nthe value is the provider snapshot the box was raised from, carried on the\
+  \ record and read back to\nrender it, with nothing branching on it (authoritative\
+  \ shape: `bin/lib/venue.py#build_record`).\n\n**TWO RETIRED PAIRS, and what stands\
+  \ in their place.** `external_audit_completed.owner_reopen`\n( — the owner grant\
+  \ locator of a consult episode re-open) and `external_audit_completed.withdrawn`\n\
   ( — the ids a rule-4 WITHDRAWAL took out of the open set) were named FORWARD here\
   \ for rows that\nwere about to land. SPEC-0204 rule 6 retires both PRODUCERS: `audit\
   \ consult --reopen` no longer exists,\nand the `CUT to` / `WITHDRAWN … out-of-subject`\
@@ -1338,8 +1340,8 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ THE TWO COUNTS COUNT ON A ROUTED PASS (and the key roster is UNCHANGED — this\n\
   \  amends the SEMANTICS of the three names above, it adds none).** Since a Stage-6\
   \ pass may\n  run on the published venue, and there the run is TWO disjoint legs:\
-  \ the box leg, plus the\n  SPEC-0203 rule-8 narrow host-sensitive local PROBE leg.\
-  \ `remote_verify.route` invokes the local\n  runner exactly ONCE on that branch\
+  \ the box leg, plus the\n  <workshop-spec> rule-8 narrow host-sensitive local PROBE\
+  \ leg. `remote_verify.route` invokes the local\n  runner exactly ONCE on that branch\
   \ — for the probe leg — so the runner's `metrics_out` describes\n  the probe set\
   \ ALONE. `selection_discovered` and `selection_ran` therefore name the WHOLE routed\n\
   \  pass, sourced from the rule-8 PARTITION (`selection_discovered` = `partition.counts.discovered`,\n\
@@ -1364,34 +1366,37 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ at halved\n  width and nice 19\" are different claims, and `audit post` reads\
   \ this row as the Stage-6 proof.\n  It is the SAME fragment, under the SAME key,\
   \ that `land_completed.data.verify_metrics` has\n  carried since — no new type and\
-  \ no second catalog. CANDIDATE on both: `task.py` WRITES\n  them only when the invocation\
-  \ actually routed (a hand-authored `--evidence` measured no pass and\n  carries\
-  \ none, the discipline), and nothing in `bin/` branches on them — the routing\n\
-  \  decision is taken live from `venue_decision`, never from the emitted row.\n-\
-  \ `bg_dispatch_halted.confirmed_death_basis` and `bg_dispatch_halted.log_tail` —\
-  \ the\n  premature-exit death evidence: what CONFIRMED the worker is gone, and the\
-  \ tail of its dispatch log.\n  They exist because that halt is the one a worker\
-  \ did NOT author, so the cause is in the log rather\n  than in this journal, and\
-  \ a reader who had to re-grep for it would be re-deriving what the emitter\n  already\
-  \ knew. CANDIDATE on both, and the qualification matters: `journal.py` DOES read\
-  \ them back\n  (at the premature-exit arm, to compose the verdict basis line and\
-  \ its last non-empty log line) —\n  but that is RENDERING, not a branch. The routing\
-  \ decision is taken from the halt `detail`, not from\n  these two keys, so neither\
-  \ has the confirmed reader that promotion requires.\n- `plan_stage_entered.gate_disclosure`\
-  \ — the disclosure of what a soak-bounding plan gate\n  CHECKED and what it did\
-  \ not, carried on the transition row as the same dict the transition PRINTS\n  (P5\
-  \ — one object, two surfaces). It exists because an empty stage bundle should be\
-  \ disclosed rather\n  than left to be noticed in the journal row later (the X-1250\
-  \ rows read `delivered:[]`). CANDIDATE:\n  `plan.py` builds it and `_print_plan_gate_disclosure`\
-  \ prints it; the admission decision is settled\n  BEFORE the disclosure is computed,\
-  \ precisely so the disclosure cannot move it.\n- `analysis_finalized.analysis_fingerprint`\
-  \ and `task_amended.analysis_fingerprint` — the\n  fingerprint of the finalized\
-  \ analysis text, carried on the two rows a finalize can produce (the\n  first finalize,\
-  \ and the `task_amended` row a RE-run records instead of a second `analysis_finalized`).\n\
-  \  It exists so a re-run is legible AS a re-run rather than as an `--amend-expected-touch`\
-  \ invocation,\n  which it is not. CANDIDATE, and the closest of these eight to a\
-  \ genuine promotion — closer than\n  `worker_parked.discarded_commit_shas` was of\
-  \ the prior seven, and it should be read with that\n  caveat attached: `_prior_analysis_fingerprints`\
+  \ no second catalog. CANDIDATE on both: `task.py` WRITES\n  that fragment only when\
+  \ the invocation actually routed; beside it the same key carries the layer\n  re-run\
+  \ record of a run that made one (SPEC-0152 rule 16) and, on every invocation that\
+  \ ran the\n  suite, the `stage6_priority` mapping (SPEC-1029 rule 5). A hand-authored\
+  \ `--evidence` measured\n  no pass and carries none of the three, the discipline,\
+  \ and nothing in `bin/` branches on\n  them — the routing\n  decision is taken live\
+  \ from `venue_decision`, never from the emitted row.\n- `bg_dispatch_halted.confirmed_death_basis`\
+  \ and `bg_dispatch_halted.log_tail` — the\n  premature-exit death evidence: what\
+  \ CONFIRMED the worker is gone, and the tail of its dispatch log.\n  They exist\
+  \ because that halt is the one a worker did NOT author, so the cause is in the log\
+  \ rather\n  than in this journal, and a reader who had to re-grep for it would be\
+  \ re-deriving what the emitter\n  already knew. CANDIDATE on both, and the qualification\
+  \ matters: `journal.py` DOES read them back\n  (at the premature-exit arm, to compose\
+  \ the verdict basis line and its last non-empty log line) —\n  but that is RENDERING,\
+  \ not a branch. The routing decision is taken from the halt `detail`, not from\n\
+  \  these two keys, so neither has the confirmed reader that promotion requires.\n\
+  - `plan_stage_entered.gate_disclosure` — the disclosure of what a soak-bounding\
+  \ plan gate\n  CHECKED and what it did not, carried on the transition row as the\
+  \ same dict the transition PRINTS\n  (P5 — one object, two surfaces). It exists\
+  \ because an empty stage bundle should be disclosed rather\n  than left to be noticed\
+  \ in the journal row later (the X-1250 rows read `delivered:[]`). CANDIDATE:\n \
+  \ `plan.py` builds it and `_print_plan_gate_disclosure` prints it; the admission\
+  \ decision is settled\n  BEFORE the disclosure is computed, precisely so the disclosure\
+  \ cannot move it.\n- `analysis_finalized.analysis_fingerprint` and `task_amended.analysis_fingerprint`\
+  \ — the\n  fingerprint of the finalized analysis text, carried on the two rows a\
+  \ finalize can produce (the\n  first finalize, and the `task_amended` row a RE-run\
+  \ records instead of a second `analysis_finalized`).\n  It exists so a re-run is\
+  \ legible AS a re-run rather than as an `--amend-expected-touch` invocation,\n \
+  \ which it is not. CANDIDATE, and the closest of these eight to a genuine promotion\
+  \ — closer than\n  `worker_parked.discarded_commit_shas` was of the prior seven,\
+  \ and it should be read with that\n  caveat attached: `_prior_analysis_fingerprints`\
   \ READS this key off prior journal rows and\n  `cmd_task_analyze` BRANCHES on the\
   \ result (`rerun`), which is the confirmed-reader condition the\n  promotion trigger\
   \ names. It is recorded as CANDIDATE here rather than promoted because promotion\n\
