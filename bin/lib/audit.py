@@ -7055,6 +7055,33 @@ class WorkerCeilingContinuation(Exception):
 _TREND_SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3}
 
 
+def carry_restates_last_trail_entry(record: "dict | None") -> bool:
+    """T-13918 (X-1957) — True iff this saved record is an unchanged-fingerprint CARRY (SPEC-0124
+    §Ledger-skip axes: `unchanged_fp_reaudit: true`, no auditor invoked, no pass advanced) whose
+    passes_trail ALREADY ENDS with the pass it wrote back: the last entry holds the record's own
+    `passes`, `verdict` and finding count. The carry run appended that entry when it replaced the real
+    record, so listing the carry record too would list one pass twice - the trail then read 1,1,0
+    where the passes went 1,0, and the grant a real 1 -> 0 trend earns was refused.
+
+    Read by the trail writer in cmd_audit, on the record it is about to overwrite. Pure f(this one
+    record): no I/O and no state of the running audit. FAIL-CLOSED to «list it» on every other shape:
+    no marker, an empty or malformed trail, a last entry that differs in any of the three (the carry
+    the producerless bound recorded as ABORT differs in verdict), a non-int count."""
+    if not isinstance(record, dict) or record.get("unchanged_fp_reaudit") is not True:
+        return False
+    trail = record.get("passes_trail")
+    last = trail[-1] if isinstance(trail, list) and trail else None
+    if not isinstance(last, dict):
+        return False
+    fc = last.get("findings_count")
+    if not isinstance(fc, int) or isinstance(fc, bool):
+        return False
+    findings = record.get("findings")
+    return (last.get("verdict") == record.get("verdict")
+            and last.get("passes") == _passes_recorded(record)
+            and fc == len(findings if isinstance(findings, list) else []))
+
+
 def finding_count_trend(prior_record: "dict | None") -> "list[int]":
     """T-9682 — reconstruct the per-pass finding-count sequence (oldest→newest) from a saved audit
     record: each passes_trail entry's `findings_count` followed by the record's OWN finding count
@@ -16255,24 +16282,30 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 _pt = _prior.get("passes_trail")
                 if isinstance(_pt, list):
                     passes_trail.extend(_pt)
-                passes_trail.append({
-                    "passes": _passes_recorded(_prior),
-                    "verdict": _prior.get("verdict"),
-                    "findings_count": len(_prior.get("findings") or []),  # T-9682 — per-pass count the trend-aware ceiling reads
-                    # T-10742 (X-0587) — the per-pass CAUSE tag, computed from the prior record's OWN
-                    # findings at the moment they are superseded, so the trail says WHY each pass failed
-                    # and a ceiling case becomes clusterable by root cause. The superseded verdict BODY is
-                    # still NOT retained (the card's bound) — only this short tag survives the overwrite.
-                    "finding_class": pass_finding_class(_prior.get("findings")),
-                    "commit": _prior.get("commit"),
-                    "date": _prior.get("date"),
-                    # T-12422 — the prior record's OWN `basis` (the projection
-                    # `on_decisions_yaml_fields` writes), so the trail states PER PASS which kind of
-                    # pass it was: the counted rule-3 pass, its one absorption, or an audit-currency
-                    # check that consumed no pass at all. Absent on an ordinary pass, which is the
-                    # same additive-optional discipline the rest of this entry holds.
-                    **({"basis": _prior.get("basis")} if _prior.get("basis") else {}),
-                })
+                # T-13918 (X-1957) — A CARRY RECORD IS NOT LISTED AGAIN. When the record being
+                # overwritten is an unchanged-fingerprint carry whose trail already ends with the pass
+                # it wrote back, that pass is in the trail copied just above and a second entry would
+                # list it twice. Judged on this one record, never on this run's own carry flag. Every
+                # other record keeps its entry, the no-outcome ABORT of the T-10951 decision included.
+                if not carry_restates_last_trail_entry(_prior):
+                    passes_trail.append({
+                        "passes": _passes_recorded(_prior),
+                        "verdict": _prior.get("verdict"),
+                        "findings_count": len(_prior.get("findings") or []),  # T-9682 — per-pass count the trend-aware ceiling reads
+                        # T-10742 (X-0587) — the per-pass CAUSE tag, computed from the prior record's OWN
+                        # findings at the moment they are superseded, so the trail says WHY each pass failed
+                        # and a ceiling case becomes clusterable by root cause. The superseded verdict BODY is
+                        # still NOT retained (the card's bound) — only this short tag survives the overwrite.
+                        "finding_class": pass_finding_class(_prior.get("findings")),
+                        "commit": _prior.get("commit"),
+                        "date": _prior.get("date"),
+                        # T-12422 — the prior record's OWN `basis` (the projection
+                        # `on_decisions_yaml_fields` writes), so the trail states PER PASS which kind of
+                        # pass it was: the counted rule-3 pass, its one absorption, or an audit-currency
+                        # check that consumed no pass at all. Absent on an ordinary pass, which is the
+                        # same additive-optional discipline the rest of this entry holds.
+                        **({"basis": _prior.get("basis")} if _prior.get("basis") else {}),
+                    })
                 prior_plan_fp = _prior.get("plan_fingerprint")   # T-11266 — see the declaration above
                 prior_record_read = _prior   # T-11247
         except yaml.YAMLError:

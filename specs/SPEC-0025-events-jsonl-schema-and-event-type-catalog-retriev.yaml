@@ -1057,23 +1057,24 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   keeps it. ADDITIVE, REPORT-ONLY. Beside `main-moved` ONLY it is joined by `stage6_credit_main_delta`\n\
   \ = main's OWN advance between the run's recorded base and this land's merge base,\n\
   classified by the one SPEC-0064 authority as inert, observable or unknown, with\
-  \ its path count —\nunknown (no count) whenever that delta cannot be read, never\
-  \ inert — and, when an inert advance was\nrefused because a test names it, the first\
-  \ such test. Beside a `tree-differs:` refusal it\nis joined by `stage6_layer_credit`\
-  \ wherever the land took the SPEC-0065 §Bound per-layer\ncase (at least one declared\
-  \ layer took the run's verdict): which Stage-6 row the layers were\njudged against\
-  \ (identified as the credited-land record above identifies its row, an accepted\
-  \ inert\nadvance stated on the same terms), the names of the layers that took that\
-  \ row's verdict and the\nnames of the layers this land executed itself, both read\
-  \ off the per-layer outcome trail the\nverify wrote. Such a land RAN its candidate\
-  \ verify — it is not a credited land — records no tested\ntree, and each layer that\
-  \ took the run's verdict reads `credited-stage6-run` on that trail.\nBeside a `partial-units-differ…`\
-  \ or `partial-needs-unknown` refusal it is joined by\n`stage6_credit_partial` (dict\
-  \ — SPEC-1030 rule 6: only a land of a project whose\ncontract declares a deciding\
-  \ mode carries what this paragraph\nregisters). The refused Stage-6 row held a layer\
-  \ recorded as a\npartial run (`passed-partial`), and the land's own decision on\
-  \ its candidate did not need\nexactly the units that row ran or credited. Its reasons\
-  \ on `stage6_credit_refused`:\n`partial-units-differ-same-tree-and-base:<layer>`\
+  \ its path count and\nits first 20 paths by name (`moved`) —\nunknown (no count)\
+  \ whenever that delta cannot be read, never inert — and, when an inert advance was\n\
+  refused because a test names it, the first such test. Beside a `tree-differs:` refusal,\
+  \ or\na `main-moved` refusal over an advance that is readable and not inert, it\
+  \ is joined by\n`stage6_layer_credit` wherever the land took the SPEC-0065 §Bound\
+  \ per-layer\ncase (at least one declared layer took the run's verdict): which Stage-6\
+  \ row the layers were\njudged against (identified as the credited-land record above\
+  \ identifies its row, an accepted inert\nadvance stated on the same terms), the\
+  \ names of the layers that took that row's verdict and the\nnames of the layers\
+  \ this land executed itself, both read off the per-layer outcome trail the\nverify\
+  \ wrote. Such a land RAN its candidate verify — it is not a credited land — records\
+  \ no tested\ntree, and each layer that took the run's verdict reads `credited-stage6-run`\
+  \ on that trail.\nBeside a `partial-units-differ…` or `partial-needs-unknown` refusal\
+  \ it is joined by\n`stage6_credit_partial` (dict — SPEC-1030 rule 6: only a land\
+  \ of a project whose\ncontract declares a deciding mode carries what this paragraph\n\
+  registers). The refused Stage-6 row held a layer recorded as a\npartial run (`passed-partial`),\
+  \ and the land's own decision on its candidate did not need\nexactly the units that\
+  \ row ran or credited. Its reasons on `stage6_credit_refused`:\n`partial-units-differ-same-tree-and-base:<layer>`\
   \ — the unit sets differ although `main` has\nnot moved since the run and the candidate\
   \ tree is the run's apart from inert paths;\n`partial-units-differ:<layer>` — they\
   \ differ and `main` advanced since the run by inert paths;\n`partial-needs-unknown:<layer>`\

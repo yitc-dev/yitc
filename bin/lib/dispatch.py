@@ -815,7 +815,8 @@ names who may occupy it — being re-dispatched is not being granted the right).
    Rule home: `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout`.
 
 9. STAGE AND CONTRACT OUTPUT IS A DELIVERY — IT MUST REACH YOU WHOLE (T-13392). What `{invoke} stage
-   <NAME>` and `{invoke} graph query {kernel_flag}SPEC-XXXX` print IS the read the gated verbs check for, so:
+   <NAME>`, the in-worktree `session start --type build` of point 3, and `{invoke} graph query {kernel_flag}SPEC-XXXX` print IS the
+   read the gated verbs check for (T-13934: when contract bodies were printed, its LAST lines say so), so:
    - **NEVER send it to the null device.** A `stage` whose stdout is `/dev/null` exits 6, renders
      nothing and credits NOTHING (T-13028); a `graph query` whose stdout went nowhere is recorded
      undelivered and grants no pass (T-11411). The next gated verb (`audit pre|post`, `task commit`,
@@ -1327,13 +1328,20 @@ def _controller_wait_release(events: "list") -> "dict | None":
     predicate, asserted EXPLICITLY here rather than inherited from the full-list `cls` coincidence the
     surrounding comments warn against: the newest controller-wait pause is NEWER than the newest
     `bg_dispatch_launched`, and no `task_resumed` post-dates it (a resumed pause is over). Pure —
-    `events` is the ts-ASCENDING per-id list the guard already holds; no new reader."""
+    `events` is the ts-ASCENDING per-id list the guard already holds; no new reader.
+
+    T-13929 — a pause NOT newer than that launched row still releases when the launch's OWN worker
+    recorded it at/after that launch's spawn (`journal._launch_own_window`): the launched row is
+    written only after the launch probe, so a worker that stops inside the probe leaves its pause
+    older than its own launched row. A pause of any other session there is a past launch's stop."""
     pause = journal._controller_wait_pause(events)
     if pause is None:
         return None
     launched = next((e for e in reversed(events or [])
                      if e.get("type") == "bg_dispatch_launched"), None)
-    if launched is not None and (pause.get("ts") or "") <= (launched.get("ts") or ""):
+    if (launched is not None and (pause.get("ts") or "") <= (launched.get("ts") or "")
+            and not journal._in_launch_own_window(
+                pause, journal._launch_own_window(events, launched))):
         return None
     return pause
 

@@ -61,6 +61,7 @@ from lib import task_card_io as card_io  # noqa: E402  # T-12702 (C8b): the card
 # the identical names: `build_parser` reads them while constructing subparsers, and reading one off
 # this module imported the whole 16-module task graph on every CLI invocation. Single home moved, no
 # copy — `task.TASK_CLASSES` is the same object `vocab.TASK_CLASSES` is.
+from lib import vocab as _vocab   # noqa: E402  (T-13924: P8_EVIDENCE_REF_GRAMMAR re-export)
 from lib.vocab import (   # noqa: F401  (re-export — callers and tests read these names off `task`)
     TASK_ID_RE,
     TASK_CLASSES,
@@ -251,7 +252,6 @@ def _recompute_probe_passed(task: dict, current):
     if non_pass:
         return current, non_pass
     return True, []
-HYGIENE_EXCLUDED_SURFACES = ("core/", "bin/lib/", "tests/")
 # SPEC-0178 rule 3 (T-11156) — the two governance-surface members that have NO pre-existing carrier to
 # read: the SPEC member, spelled exactly as LIFECYCLE §Two-flow-types spells it, and the floor
 # trigger-map (the always-loaded seed file that is not a HANDBOOK_READ_ORDER member). Every OTHER member
@@ -7135,7 +7135,7 @@ def _card_repair_staged_card(tid: str, *, _worktree_dirty_paths, _zero_ship_diff
 
 
 # ── T-12021 (X-1245) — THE REF GRAMMAR, rendered where an author meets it ────────────────────────
-# `_resolve_evidence_ref` below accepts ELEVEN spellings (NINE when T-12021 wrote this) and, until that
+# `_resolve_evidence_ref` below accepts TWELVE spellings (NINE when T-12021 wrote this) and, until that
 # card, NO surface rendered
 # them. The two surfaces that PRESCRIBE writing a ref — the SPEC-0119 rule-31 debt remedy and the
 # `task close` E-0005 WARN — said only "refs to journal rows the MECHANISM emitted", and the cue
@@ -7165,62 +7165,9 @@ def _card_repair_staged_card(tid: str, *, _worktree_dirty_paths, _zero_ship_diff
 # E-0005 WARN and the `cmd_stage` Execution/Closure cue), the no-ref-resolves diagnostic in
 # `_p8_evidence_is_substantive`, and the SPEC-0119 rule-31 debt remedy in `views.py`. COMPLETE BY
 # CONSTRUCTION: a form added to the resolver without a line here re-creates the defect.
-P8_EVIDENCE_REF_GRAMMAR = (
-    "ACCEPTED `evidence_events` REF FORMS (this is the WHOLE grammar — one example each): "
-    "(1) `<event_type>` — a bare type, resolving only against a row of that type whose `task_id` is "
-    "THIS task, e.g. `deploy_completed`; "
-    "(2) `<event_type>@<iso-ts>` — the exact (type, ts) pin, for a mechanism row that carries no "
-    "`task_id`, e.g. `deploy_completed@2026-09-03T05:58:57Z`; "
-    "(3) `land_completed@<iso-ts>#<layer>` — a verify-LAYER row, e.g. "
-    "`land_completed@2026-09-03T05:58:57Z#verify:default`; "
-    "(4) `land_completed@<iso-ts>#branch=<branch>` — a land-time ABORT row, e.g. "
-    "`land_completed@2026-09-03T05:58:57Z#branch=task/T-1234`; "
-    "(5) `land_completed@<iso-ts>#refused=<test-node>&branch=<branch>` — a VERIFY-REFUSAL row (both "
-    "halves required), e.g. `land_completed@2026-09-03T05:58:57Z#refused=tests/test_x.py::test_y"
-    "&branch=task/T-1234`; "
-    "(6) `land_completed@<iso-ts>#metric=<key>` — a post-ship `verify_metrics` payload-key reading, "
-    "e.g. `land_completed@2026-09-03T05:58:57Z#metric=cache_hit_rate`; "
-    "(7) `nightly_run_completed@<iso-ts>#surface=<verb>` — the bounded nightly (SPEC-0105) "
-    "exercising a named surface, e.g. `nightly_run_completed@2026-09-03T05:58:57Z#surface=graph "
-    "conformance`; "
-    "(8) `exit:<verb>#seeded=<iso-ts>&clean=<iso-ts>` — an exit-status differential over a "
-    "read-only conformance surface, e.g. `exit:graph conformance#seeded=2026-09-03T05:58:57Z"
-    "&clean=2026-09-03T06:10:00Z`; "
-    "(9) `test:<repo-relative test path>::<node>` — for code that emits IN-PROCESS and never a "
-    "journal line, naming the executable test node that OBSERVED the emission. On a CONSUMER, one "
-    "node, which the surface must carry: `test:tests/test_alerts.py::test_emits_on_threshold`. On "
-    "the ENGINE the same form is admitted ONLY with a RED-CONTRAST node — "
-    "`test:<repo-relative test path>::<node>&contrast=<node>` — naming a SECOND, DISTINCT node, "
-    "where BOTH must be real "
-    "`def` DEFINITIONS in that one surface, e.g. `test:tests/test_view.py::test_clause_fires"
-    "&contrast=test_clause_silent_below_threshold`. It resolves for the ENGINE class that emits no "
-    "journal row at all (a report-only STDOUT view; a committed-artifact reading); it proves the two "
-    "nodes are DEFINED, never that they RAN or that the contrast failed — audit-post owns that. "
-    "(10) `land_completed@<iso-ts>#gate=<test-file>` — a kernel-side land-verify GATE that journals "
-    "nothing on PASS, proven by a REAL post-ship land on a branch OTHER than the citing task's own "
-    "and LATER than its own last land, e.g. "
-    "`land_completed@2026-09-03T05:58:57Z#gate=tests/test_event_catalog_completeness.py`. THREE "
-    "conditions make it a MEMBERSHIP claim: the path matches the verify runner's OWN discovery glob "
-    "`tests/test_*.py` (a file it would not discover never resolves); the file EXISTS AT THAT ROW'S "
-    "LANDED REVISION (not merely in your checkout); and the row is a FULL, fail-closed run — a "
-    "`verify_mode` saying the verify ran (never `candidate_policy_off`) and a `test_file_count` "
-    "EQUAL to the number of `tests/test_*.py` files discoverable at that revision, so every "
-    "discoverable file ran and the named one was among them. A SELECTED run, a count mismatch, a "
-    "missing `verify_mode`/`test_file_count`, or an unresolvable sha does NOT resolve it. "
-    "(11) `<project>:<form>` — ENGINE cards only: one of forms (2)-(6) read from the journal of a "
-    "REGISTERED consumer instead of this one, for an engine mechanism whose only production run is on "
-    "that consumer, e.g. `<project>:land_completed@2026-09-03T05:58:57Z#metric=cache_hit_rate`. "
-    "`<project>` is that project's KEY in the host registry (a `yitc_v2` entry) — never a path — and "
-    "the form keeps every condition it has without the prefix, applied to THAT journal's rows. Forms "
-    "(1) and (7)-(10) take no prefix, and the read is read-only. "
-    "NOT this grammar, and the look-alike that burns emissions (X-1245): the CHARTER §Principle-2 "
-    "COMMIT locator `events.jsonl#ts=<ISO>` / `events.jsonl#source_ref=<locator>`. That spelling is "
-    "correct for a `from:` trailer and resolves NOTHING here — it names no event type, so it can "
-    "carry none of the correlation above. Use form (2) for the same row. "
-    "Refs to the P8 types themselves, to tests_passed, or to closure bookkeeping "
-    "(commit_landed/task_closed/land_completed WITHOUT one of the selectors (3)-(6)) prove the task "
-    "closed, never that its mechanism ran — they do not resolve."
-)
+# T-13924 — the literal MOVED to the `lib.vocab` leaf so `event --help` prints the SAME object
+# without importing this hub at parser build; re-exported here under the identical name.
+P8_EVIDENCE_REF_GRAMMAR = _vocab.P8_EVIDENCE_REF_GRAMMAR
 
 
 # ── T-10486 (X-0342) — the P8 payload key contract, delivered AT evidence-composition time ────────
@@ -7765,6 +7712,8 @@ _METRIC_ROW_SELECTOR_PREFIX = closure_evidence._METRIC_ROW_SELECTOR_PREFIX  # re
 _resolve_metric_row_ref = closure_evidence._resolve_metric_row_ref  # re-export alias (T-12697)
 
 _GATE_ROW_SELECTOR_PREFIX = closure_evidence._GATE_ROW_SELECTOR_PREFIX  # re-export alias (T-12697): moved to task_closure_evidence.py
+_ADAPTER_ROW_SELECTOR_PREFIX = closure_evidence._ADAPTER_ROW_SELECTOR_PREFIX  # re-export alias (T-13924)
+_resolve_adapter_row_ref = closure_evidence._resolve_adapter_row_ref  # re-export alias (T-13924)
 
 _GATE_DISCOVERY_GLOB_RE = closure_evidence._GATE_DISCOVERY_GLOB_RE  # re-export alias (T-12697): moved to task_closure_evidence.py
 _GATE_POLICY_OFF_VERIFY_MODE = closure_evidence._GATE_POLICY_OFF_VERIFY_MODE  # re-export alias (T-12697): moved to task_closure_evidence.py
@@ -8130,7 +8079,7 @@ def _recover_close_tail(tid: str, task: dict, propagation_disposition: dict | No
         # T-10725 (E-0057) — the SPEC-0053 disposition supplied on THIS re-run, same key + same
         # honest-only shape as the forward path. Absent flag ⇒ omitted (no synthetic value).
         **({"propagation_disposition": propagation_disposition} if propagation_disposition else {}),
-        # Recovery cannot reconstruct activated_specs / hygiene_excluded_surfaces — they lived only in
+        # Recovery cannot reconstruct activated_specs — it lived only in
         # the lost original event (spec files are SoT for activation). Omitted (P5-safe). The payload is
         # the SAME canonical task_closed shape as the forward path (audit-post F1: no synthetic provenance
         # field) — recovery stays observable via the `task_close_recover` graph-rebuild trigger + the
@@ -11263,6 +11212,24 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     _pending_writes = _pending_governance_writes(tid, repo_root=REPO_ROOT) if _gov_globs else []
     _guard_paths = sorted(set(touched) | set(_pending_writes)) if _gov_globs else []
 
+    # T-13921 — the HYGIENE FAST-PATH REFUSAL. LIFECYCLE §Two-flow-types makes a change touching a
+    # governance surface fast-path INELIGIBLE, mechanically and fail-closed; this is where that is kept.
+    # It reads the ONE set (`_gov_globs`, SPEC-0178 rule 3 — the same set and the same diff boundary the
+    # takeback below records), never a list of its own, so a path the set stops naming stops refusing
+    # with no edit here. It runs before any write of this close, so a refused card stays in-progress.
+    # Un-injected (hermetic in-process callers) the set is empty and nothing is refused — the same
+    # posture as rule 3's guard; the host always injects it. It replaced the T-0202 WARN over the
+    # retired `HYGIENE_EXCLUDED_SURFACES` and its `tests/` fixture carve-out (SPEC-0027 §Hygiene Fast-Path).
+    if args.hygiene_fast_path:
+        _hygiene_hits = closure_evidence._governance_touched_paths(_guard_paths, _gov_globs)
+        if _hygiene_hits:
+            _die(f"{tid}: --hygiene-fast-path refused — the diff touches GOVERNANCE surface(s) "
+                 f"{', '.join(_hygiene_hits)}. LIFECYCLE §Two flow types: a change touching a spec, the "
+                 "pinned-test surface, an always-loaded seed or the project's operating contract is NOT "
+                 "hygiene, at any diff size (the set: SPEC-0178 rule 3). Route: the full lifecycle — "
+                 f"`yitc-v2 task update {tid} --class <non-hygiene class>`, then Plan, Audit-pre and Audit-post "
+                 "before `task close` without --hygiene-fast-path.")
+
     # IS AN EXEMPTION REACHABLE FOR THIS CLOSE AT ALL? ONE predicate, computed ONCE and read by BOTH
     # the rule-5 attribution fold and the exemption gate below (CHARTER §P5). Spelled twice, the two
     # WOULD drift — and that drift is precisely what the post-close re-audit caught on this card: the
@@ -11727,28 +11694,6 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     # the activation). The dangling-activated-spec WARN (T-0455) moved down with it — it reads the flipped
     # disk, so it must follow the activation.
 
-    # LIFECYCLE §Hygiene Fast-Path EXCLUDES spec-bound surfaces (core/ | bin/lib/ | tests/) — a
-    # hygiene close touching one shipped WITHOUT audit-pre/post (the T-0198 incident this task cites).
-    # Surface a NON-BLOCKING WARN (artifacts-as-gate per D-0082, mirror of the E-0005 visibility WARN
-    # above) — re-classifying the task / blocking closure are OUT OF SCOPE (P5 + non-goal #7: surface,
-    # don't enforce). Pin the lookup to the recorded-commit `sha` already resolved above (NOT HEAD), so
-    # the WARN + recorded flag match the exact closure commit. Record matched surfaces in task_closed.
-    # `touched` (the full task diff for the recorded sha) is computed ONCE above, at the SPEC-0178
-    # case-input hoist — the audit-post gate needs it, and re-reading it here would be a second git
-    # call for the identical answer (T-11157). Same pin, same sha, same value.
-    hygiene_excluded_surfaces: list[str] = []
-    if args.hygiene_fast_path:
-        hygiene_excluded_surfaces = sorted(
-            {surf for surf in HYGIENE_EXCLUDED_SURFACES if any(p.startswith(surf) for p in touched)})
-        if hygiene_excluded_surfaces:
-            sys.stderr.write(
-                f"WARN: {tid} closed via --hygiene-fast-path but its diff touches excluded "
-                f"surface(s) {', '.join(hygiene_excluded_surfaces)} (LIFECYCLE §Hygiene Fast-Path: "
-                "core/ / bin/lib/ / tests/ are spec-bound — fast-path skips Plan + Audit-pre + "
-                "Audit-post). Such changes warrant the FULL lifecycle (audit-pre catches scope "
-                "creep). Closure PROCEEDS (non-blocking visibility, artifacts-as-gate per D-0082); "
-                "prefer the full lifecycle for spec-bound surfaces (T-0202/T-0198).\n")
-
     # SPEC-0178 rule 6 (T-11155) — the OUT-OF-PATH observation, REPORT-ONLY. For a `paths:`-declared
     # audit_scrutiny case, surface to the periodic review (rule 7) whether this card's diff went
     # OUTSIDE the paths its project declared. It never blocks a close, never un-applies a case and
@@ -12063,10 +12008,6 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
         # deliberately, not dead weight: it keeps the emit honest under BOTH dispositions, so a future
         # relaxation of the check cannot silently drop the T8 lens' signal.
         **({"post_verification_gap": True} if post_verification_gap else {}),
-        # T-0202 — hygiene-fast-path excluded-surface visibility. Emitted ONLY when a fast-path close
-        # actually hit a spec-bound surface, so the field stays an HONEST signal (absent = no hit /
-        # not fast-path). Plural: value is the list of matched surfaces (audit-pre pass-2 F0 absorbed).
-        **({"hygiene_excluded_surfaces": hygiene_excluded_surfaces} if hygiene_excluded_surfaces else {}),
         # SPEC-0178 rule 6 (T-11155) — the out-of-path observation row(s) this close surfaced, read
         # from the SHIP diff only. Emitted ONLY when non-empty so the field stays an HONEST signal
         # (absent = no declared `paths:` case escaped / none declared). Report-only, never a gate;
@@ -12101,7 +12042,7 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
         # T-0298 — spec-drift recurrence-prevention visibility. Emitted ONLY when the closing task's diff
         # left an active co-anchored spec possibly-stale, so the field stays an HONEST signal (absent = no
         # unverified drift). Value = the sorted drifted spec ids the author should re-verify (mirror of the
-        # hygiene_excluded_surfaces honest-only pattern; report-only, never a gate).
+        # other honest-only fields here; report-only, never a gate).
         **({"spec_drift_unverified": spec_drift_unverified} if spec_drift_unverified else {}),
         # T-1177 (SPEC-0015 §Reverify-at-close) — the spec(s) this close re-stamped via --reverify (the
         # author's still-accurate assertion, folded into the closure-commit). Emitted ONLY when non-empty

@@ -1570,6 +1570,66 @@ def _verify_bound_source(declared: "float | None", effective: float) -> str:
     return "the global default — NO timeout was declared for this layer"
 
 
+# T-13925 (X-1972) — the links the PINNED leg's own priming made (`rebaseline_currency._pinned_env_prime`,
+# T-11182). A prep refuses a dependency directory that is a link or leads outside its worktree; these are
+# the one exception, and they are recognised by PROVENANCE — the priming records each `(link, target)` pair
+# here as it creates it — never by their shape: a hand-made link of exactly the primed form is not in the
+# record and is refused (audit-pre finding fp1:46dccde22d48721e). Process-local by design: the pinned leg's
+# layers run in the process that primed them, and a process that never primed can only refuse, never exempt.
+_PRIMED_DEPENDENCY_LINKS: set = set()
+_PRIMED_DEPENDENCY_LINKS_LOCK = threading.Lock()
+
+
+def _primed_link_key(link) -> str:
+    """The link's location with its PARENT resolved (the link itself is never followed)."""
+    link = Path(link)
+    return os.path.join(os.path.realpath(link.parent), link.name)
+
+
+def _record_primed_dependency_link(link, target) -> None:
+    """Record one link the pinned-leg priming created (T-13925). Called only by `_pinned_env_prime`."""
+    with _PRIMED_DEPENDENCY_LINKS_LOCK:
+        _PRIMED_DEPENDENCY_LINKS.add((_primed_link_key(link), str(target)))
+
+
+def _is_primed_dependency_link(dep: Path) -> bool:
+    """True only when `dep` is a link the priming recorded AND it still points where it was made to."""
+    try:
+        if not dep.is_symlink():
+            return False
+        pair = (_primed_link_key(dep), os.readlink(dep))
+    except OSError:
+        return False
+    with _PRIMED_DEPENDENCY_LINKS_LOCK:
+        return pair in _PRIMED_DEPENDENCY_LINKS
+
+
+def _prep_dependency_link_refusal(root: Path, workdir: Path, layer_name: str) -> "str | None":
+    """T-13925 (X-1972, SPEC-0152 rule 16 fail-closed) — the reason a dependency-installing prep must NOT
+    start in `workdir`, or None. A `node_modules` there that is a LINK, or that resolves outside the
+    worktree `root`, would have `npm ci` install into (or fail on) a tree that is not this worktree's —
+    another checkout's dependencies, possibly owned by another user. The pinned leg's own primed links
+    pass (`_is_primed_dependency_link`); no leg skips the check."""
+    dep = workdir / "node_modules"
+    try:
+        is_link = dep.is_symlink()
+        if not is_link and (not dep.exists() or dep.resolve().is_relative_to(root)):
+            return None
+    except OSError:
+        is_link = True
+    if _is_primed_dependency_link(dep):
+        return None
+    try:
+        target = os.readlink(dep) if is_link else str(dep.resolve())
+    except OSError:
+        target = "<unreadable>"
+    return (f"land(consumer): verify layer {layer_name!r} prep REFUSED before the install: the dependency "
+            f"directory {dep} is {'a link' if is_link else 'a path'} leading to {target}, so `npm ci` "
+            f"would install into (or fail on) a tree outside this worktree. Remove the link and let the "
+            f"prep install a real node_modules in the worktree (for a hand run, run `npm ci` in the "
+            f"worktree itself) — fail-closed (SPEC-0152 rule 16).")
+
+
 def _run_layer_prep(worktree: Path, layer_name: str, prep: dict, *, _verify_test_timeout_seconds,
                     _live_land_frontier=None, _load_avg=None, _cpu_count=None,
                     declared_timeout: "float | None" = None, _verify_contention_context, _children_cpu_seconds, _prep_timeout_work_signal, _verify_bound_source) -> dict:
@@ -1590,7 +1650,9 @@ def _run_layer_prep(worktree: Path, layer_name: str, prep: dict, *, _verify_test
     cannot be matched — the mode, the manifest, the lockfile, the package-manager, or the declared runtime
     is missing / un-resolvable / mismatched — OR a project-controlled path pin escapes the worktree (the
     audit-pre HIGH-1 containment floor: pins are worktree-RELATIVE only; an absolute pin or a `..`/symlink
-    escape is refused, so `npm ci` never runs against files outside the prepared worktree). The kernel
+    escape is refused, and — T-13925 — so is a dependency directory in the workdir that is a link or
+    resolves outside the worktree, unless the pinned leg's own priming recorded it, so `npm ci` never runs
+    against files outside the prepared worktree). The kernel
     checks the STANCE + resolvability, never the command's/lockfile's correctness (rule 3)."""
     import hashlib
     import shutil
@@ -1627,6 +1689,11 @@ def _run_layer_prep(worktree: Path, layer_name: str, prep: dict, *, _verify_test
         return {"bad": [f"land(consumer): verify layer {layer_name!r} prep workdir {prep.get('workdir')!r} "
                         f"is not a directory in the worktree — fail-closed (SPEC-0152 rule 16)."],
                 "record": None}
+    # T-13925 (X-1972): before anything can start the install, refuse a dependency directory that would
+    # carry it outside the worktree.
+    _link_reason = _prep_dependency_link_refusal(root, workdir, layer_name)
+    if _link_reason:
+        return {"bad": [_link_reason], "record": None}
     # manifest (package.json) — required, else un-resolvable.
     mf, err = _contained(prep.get("manifest"), "manifest")
     if err:

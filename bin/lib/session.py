@@ -104,6 +104,11 @@ ON_DEMAND_FILING = on_demand("filing a task")
 ON_DEMAND_CLAIMED = on_demand("this is your claimed task — continue it")
 ON_DEMAND_STATION = on_demand("voicing that station to the person, once")
 ON_DEMAND_GUARDED_VERB = on_demand("before your first `worktree new` / `task file` / `land`")   # T-13688
+ON_DEMAND_CONTRACT_BODIES = on_demand("before your next action in this stage")   # T-13934
+# T-13927 (X-1970): the scan's other precondition — a receipt whose stdout went to the null device is
+# not credited (gates._require_help_read). One wording for both lines that order the scan.
+HELP_SCAN_OUTPUT_CLAUSE = ("with its output reaching you (a pipe or a file, never the null device — "
+                           "a scan sent there is not credited)")
 
 
 def startup_done_line(worker: bool, help_cmd: str) -> str:
@@ -113,8 +118,19 @@ def startup_done_line(worker: bool, help_cmd: str) -> str:
     refusal stays its enforcement."""
     nxt = "continue your claimed task" if worker else "await the owner cue"
     return (f"startup done — open nothing else now: {nxt}. Before your first `worktree new` / `task file` / "
-            f"`land`, scan `{help_cmd}`. Every line above is marked {REPORT_ONLY} (no action now), "
+            f"`land`, scan `{help_cmd}` {HELP_SCAN_OUTPUT_CLAUSE}. Every line above is marked {REPORT_ONLY} (no action now), "
             f"{OWNER_CUED_TAG} (only on the owner's cue) or [on-demand: <trigger>] (only when that happens).")
+
+
+def contract_bodies_line(bodies: list) -> str:
+    """T-13934 — the closing line of a `stage <NAME>` / in-worktree `session start` run that printed stage
+    contract BODIES (`bodies`: one `(spec id, bytes)` pair per body, never a pointer). It sits among the
+    lines a short tail shows, so a reader that kept only the tail still learns the read is above. It
+    attests emission, never reading (SPEC-0050 HONEST BOUND). Callers mark it ON_DEMAND_CONTRACT_BODIES."""
+    kb = max(1, round(sum(n for _sid, n in bodies) / 1024))
+    return (f"contract bodies printed above: {len(bodies)} stage-entry contract(s), ~{kb} kB, between "
+            f"the `── stage-entry contracts` fences — that text IS the read; read it whole, never "
+            f"through `tail`, `head` or `grep` (a file it was sent to is read in full)")
 
 
 def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
@@ -438,7 +454,7 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
         print(_kq(f"rescan CLI surface: YITC_SESSION_REF={resolved_ref} {ENGINE_ROOT}/bin/yitc-v2 "
               f"-C {REPO_ROOT} --help  (a consumer has no local bin/yitc-v2 — invoke the ENGINE CLI "
               "with -C <path>; the receipt is session-tied, so carry the ref or the scan is not credited) "
-              + ON_DEMAND_GUARDED_VERB))
+              + HELP_SCAN_OUTPUT_CLAUSE + " " + ON_DEMAND_GUARDED_VERB))
         # T-9757: a dispatched WORKER (`--type build`, SPEC-0039 audience `background`) does NOT
         # auto-read the MEMORY.md buffer — its startup read-set is the mandatory handbook seed + the
         # active stage bundle only. The buffer's cross-session-continuity content is controller-

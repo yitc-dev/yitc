@@ -2203,8 +2203,9 @@ def _subcritical_result(*a, **kw):
 # during an outage (bounded to the severity-blocking class, reason-bearing, every blocked finding named,
 # journaled as `deploy_security_gate_overridden`). That escape hatch is only legitimate while it stays
 # RARE and VISIBLE: an override that nobody ever reads back is indistinguishable from a gate that was
-# quietly switched off — and the findings it bypassed are still open in production. So every override
-# gets exactly one mandatory reading moment, on the seams the owner already passes through.
+# quietly switched off. So every override gets exactly one mandatory reading moment, on the seams the
+# owner already passes through. The texts below say only what this fold reads (T-13928, X-1978): the
+# findings were open when the gate was overridden; whether they still are is not read here.
 #
 # The fold is a WINDOW, not an FSM: an override is a dated ACT, not an obligation with an open/closed
 # state (the underlying findings' openness is the sub-critical fold's business, not this one's — one
@@ -2270,17 +2271,20 @@ def recent_gate_overrides(events_path, window_days: int = _GATE_OVERRIDE_WINDOW_
     return {
         "lens": f"recent-security-gate-overrides (SPEC-0119 rule 14) — governed deploys that OVERRODE a "
                 f"REJECTING pre-deploy security gate (SPEC-0155 rule 7) in the last {window_days} days. "
-                f"Each was owner-invoked, reason-bearing and named every finding it bypassed — but those "
-                f"findings are still OPEN in the deployed code. DERIVED by folding the journal; zero "
-                f"stored state, recomputed fresh, report-only, never a gate.",
+                f"Each was owner-invoked, reason-bearing and named every finding it bypassed; those "
+                f"findings were open when the gate was overridden — whether they still are is not read "
+                f"here (SPEC-0119 rule 11). Each override ages out of the window; nothing discharges it "
+                f"sooner. DERIVED by folding the journal; zero stored state, recomputed fresh, "
+                f"report-only, never a gate.",
         "now": now.isoformat().replace("+00:00", "Z"),
         "window_days": window_days,
         "count": len(overrides),
         "overrides": overrides,
-        "next": ("the security gate was overridden — the bypassed findings remain open in production: fix "
-                 "each (or record an accepted-risk waiver with an expiry) and re-run the security "
-                 "producer. A REPEATING override is the signal that the gate's blocking rule, not the "
-                 "deploy, is what needs the change (SPEC-0155 rule 7)."
+        "next": ("the security gate was overridden — the bypassed findings were open when the gate was "
+                 "overridden. For one still open: fix it (or record an accepted-risk waiver with an "
+                 "expiry) and re-run the security producer. The override ages out of the window. A "
+                 "REPEATING override is the signal that the gate's blocking rule, not the deploy, is "
+                 "what needs the change (SPEC-0155 rule 7)."
                  if overrides else
                  "no security-gate override in the window — the gate has not been bypassed."),
     }

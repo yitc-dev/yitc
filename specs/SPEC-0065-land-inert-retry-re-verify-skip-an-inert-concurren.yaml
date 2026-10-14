@@ -149,128 +149,141 @@ body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency r
   \ on records neither key. It is the land's, not one attempt's — a retry that is\
   \ not asked\nagain keeps it. A `main-moved` refusal also records what main's OWN\
   \ advance since the run touched\n: that delta — never the branch's — classified\
-  \ by the SPEC-0064 authority as inert,\nobservable or unknown, with its path count,\
-  \ and unknown (never inert) whenever it cannot be read; an\ninert advance refused\
-  \ because a test names it also records that reader. A CREDITED land over an\ninert\
-  \ advance records, with the credited row, the advance it accepted, so the journal\n\
-  counts how often that arm fires.\n**The per-layer case of a tree difference.** When\
-  \ condition (2) is what failed, for a path\nthat is not inert — conditions (1) and\
-  \ (3) proven as above — and the project declares verify\nlayers, the candidate verify\
-  \ still runs, and the land MAY take the verdict of one or more declared\nlayers\
-  \ from the run instead of running them again. This is a permission with conditions:\
-  \ a land\nthat takes no layer's verdict from the run is not touched by any of it\
-  \ and runs its candidate\nverify as it did before this case existed. On a land that\
-  \ takes it, each declared layer falls\nunder exactly one of three rules:\n  (A)\
-  \ IT TAKES ITS VERDICT FROM THE RUN instead of running again, when ALL of these\
-  \ hold; any\n      unproven part, or any error, sends it to (C) (fail-closed):\n\
-  \      (i) it passed in the run — the row records exactly one outcome for that layer\
-  \ and it is a\n            pass;\n      (ii) nothing in its subject changed since\
-  \ — its declared subject is disjoint from every path\n            that differs between\
-  \ the tested tree and the candidate tree, the journal and the\n            closure\
-  \ bookkeeping included, by the predicate the land's own subject skip uses\n    \
-  \        (SPEC-0152 rule 16); a layer that declares no subject never qualifies;\n\
-  \      (iii) the verifier's own surface did not change since — that difference meets\
-  \ none of the\n            fail-closed edges of the land's own subject skip (SPEC-0152\
-  \ rule 16: the verifier's own\n            surface, the project's verify declaration,\
-  \ a check surface a layer declares), taken\n            WITHOUT that skip's section-aware\
-  \ and ownership-aware narrowings;\n      (iv) it is an ordinary layer, declared\
-  \ unambiguously — its name is declared once, it is not\n            backed by a\
-  \ report adapter (SPEC-1006 keeps its own credit), and it is not the layer\n   \
-  \         the test sweep is delegated to (that layer stands in for the sweep).\n\
-  \  (B) IT RUNS WHATEVER ITS SUBJECT when it did not pass in the run — failed, skipped\
-  \ or unrecorded\n      there. This is the condition of leaning on the run at all:\
-  \ the run holds no verdict for such\n      a layer, so on a land that takes another\
-  \ layer's verdict from that run the land's own subject\n      skip does not apply\
-  \ to it — it runs even where the candidate diff is disjoint from its\n      subject.\
-  \ (A layer the project waives stays waived: a waiver is the project's declaration,\
-  \ not\n      a verdict.)\n  (C) OTHERWISE IT IS JUDGED AS ON ANY LAND — by the land's\
-  \ own subject skip over the candidate\n      diff, recorded as before.\nThe test-directory\
-  \ sweep is outside all three: the land sweeps exactly what it would sweep with no\n\
-  Stage-6 row at all, so a project that declares no layers (the engine) keeps its\
-  \ whole candidate\nverify. Condition (5) holds unchanged, and a project that switched\
-  \ the credit off has switched this\ncase off too. A land that takes this case is\
-  \ NOT a credited land — its re-verify is not skipped —\nand it is LESS than the\
-  \ land's own candidate verify: its head forms alone, it records no tested\ntree\
-  \ (so it never anchors (b)), and it is not the earlier verify lever B leans on —\
-  \ a retry\nre-proves from scratch. It records the tree-differs refusal reason, the\
-  \ Stage-6 row its layers\nwere judged against, the layers that took that row's verdict\
-  \ (each also by its own outcome) and\nthe layers it ran. Soundness of (A): such\
-  \ a layer passed on the\ntested tree, on a `main` condition (1) accepts, and by\
-  \ the project's own declaration nothing that\nlayer reads differs between that tree\
-  \ and the one about to fast-forward — the premise SPEC-0152\nrule 16 already rests\
-  \ on for a layer disjoint from the candidate diff. It is NOT a credit over the\n\
-  spec status lines a closing card's activation writes: those are an observable difference\
-  \ like any\nother, and every layer whose subject holds them runs on the tree that\
-  \ carries them.\n**Residuals, stated:** the runner's mark is as trustworthy as every\
-  \ other journal row a land reads\n(the anchor row of (b) included): it closes the\
-  \ governed hand route, not a raw write to the journal\nfile, which no verb performs.\
-  \ V was verified by its own land's candidate selection — the same last-green\npremise\
-  \ SPEC-0077's pinned leg and lever B already rest on; tests that GLOB `tasks/` or\
-  \ read the real\njournal are not caught by (d) — the owner-accepted residual (events.jsonl#ts=);\n\
-  untracked files an ignore rule matches are outside the local tested-tree comparison\
-  \ of (b), as\nthey are outside the tree a venue ship carries.\n\n**`reverify_skipped`\
-  \ has a SECOND producer (SPEC-0184 rule 8) — this rule is unchanged.**\nA reader\
-  \ who took that field to imply \"an inert concurrency retry\" would now be reading\
-  \ a silent\ncontradiction, so it is named here rather than left to drift. SPEC-0184\
-  \ rule 8 skips the verify for a\nSUPERSEDED BATCH MEMBER — a land carrying nothing\
-  \ not already in `main` — on a strictly narrower\ncondition than lever B (no commits\
-  \ at all, not merely an inert tree), and it reuses this telemetry\ncarrier rather\
-  \ than adding a parallel one. The two are discriminated by `reverify_skip_reason`\n\
-  (`inert-retry-delta` here, `superseded-nothing-to-integrate` there). Nothing about\
-  \ lever B's own\n`attempt > 1` bound, its classification, or its fail-closed direction\
-  \ is altered by that rule.\n\n## Parameters\n\nNone. The inert/observable boundary\
-  \ is owned by SPEC-0064 (cited, not duplicated — P5).\n\n## Rationale\n\nWorst-case\
-  \ land 457s = full re-verify on each concurrency retry; ~79% of ships (and thus\
-  \ most\nconcurrent retries) carry only inert deltas (2026-06-09 telemetry, plan\n\
-  `speed-up-land-under-concurrency-inert-retry-re-ver`). The fail-closed observability\
-  \ framing is the\nload-bearing safety condition (external audits cited in SPEC-0064\
-  \ + the plan).\n\n## Verification\n\nBehavioural probe (the load-bearing safety\
-  \ test): during a land's verify window, force the retry\nbranch with a concurrent\
-  \ sibling land (the sibling is what MAKES `main` advance; its own content is\nheld\
-  \ INERT throughout and is not the subject). What varies is the LANDING branch's\
-  \ OWN footprint —\nthe delta this rule classifies: (i) INERT → the retry SKIPS re-verify\
-  \ AND ff's correctly; (ii)\nOBSERVABLE → the retry RE-RUNS the full verify before\
-  \ ff; (iii) classifier raises → fail-closed, full\nre-verify. Telemetry: `land_completed`\n\
-  carries `reverify_skipped` (bool) + reason, so every skip is journal-visible (Principle\
-  \ 8 — never\nsilent). Seam: the existing `_after_verify_hook` deterministically\
-  \ drives the retry branch.\n\nStage-6 credit probes (one per condition, each differing\
-  \ from the credited fixture by that\none thing): a consumer land after the REAL\
-  \ runner's green run on the same tree, `main` unmoved, runs\nno candidate sweep\
-  \ and no layer, records `stage6-credit` and names the row it credited — and with\
-  \ the\ncredit removed the same land runs both. The candidate verify runs when `main`\
-  \ moved since the run, a\nnon-inert path differs, the newest row is red, narrowed\
-  \ or unmarked, a declared layer is uncovered, a\ntest names a card changed since\
-  \ the run, a rebaseline is declared, or the project opted out; the hand\nevent route\
-  \ refuses the mark. Refusal-reason probes : the land after `main` advanced records\n\
-  `stage6_credit_refused: main-moved` and its credited twin records none; each other\
-  \ refusal of a\nmarked green row records its own reason; a hand row, a red newest\
-  \ row, no row, an opted-out project\nand a declared rebaseline record none — and\
-  \ a writer stamping every uncredited land is told apart\nby those arms. Main-delta\
-  \ probes : an inert-only advance is still refused and records\n«inert» with its\
-  \ count; an observable advance records «observable»; an unreadable delta records\n\
-  «unknown», never «inert»; the branch's own delta is observable, so a reader of it\
-  \ is told apart;\nthe credited twin and a non-`main-moved` refusal record none.\
-  \ A credited land carrying a credential is refused by the floor with\n`main` untouched,\
-  \ and its clean twin calls the host-leak verdict. Under a verify-path touch with\
-  \ the\npinned leg due, the credited land still runs the pinned leg once and aborts\
-  \ on its failure.\n\nPer-layer probes (three declared layers of disjoint subjects,\
-  \ the REAL runner's green run,\nthe real layer runner and the real sweep, each command\
-  \ and each swept file leaving its own mark): a\nlater change under ONE layer's subject\
-  \ makes the land execute that layer and the sweep and neither\nother layer, and\
-  \ its row names the refusal, the Stage-6 row, the layers that took its verdict and\n\
-  the layers run — where before the change all three ran. That layer made red after\
-  \ the run aborts\nthe land with `main` untouched. A layer the real run SKIPPED (its\
-  \ subject untouched by the branch,\nso the land's own subject skip would skip it\
-  \ again) executes at a land that takes a sibling's\nverdict from the run, and so\
-  \ does a layer whose run outcome is failed, absent, doubled or not a\npass; at a\
-  \ land with no layer to credit that same skipped layer stays skipped, as before.\
-  \ A test\npath, the verify declaration or a declared check surface in the difference,\
-  \ a layer with no\ndeclared subject, the layer carrying the delegated sweep, an\
-  \ opted-out project and an observable\n`main` advance take no verdict from the run;\
-  \ an inert `main` advance keeps the case and is\nrecorded with it; a retry after\
-  \ a per-layer attempt re-proves; a land that took a verdict from the\nrun records\
-  \ no tested tree and forms alone, and one that took none does neither.\n\n## Drift\
-  \ review\n\n (2026-06-09): re-verified this body against `bin/lib/worktree.py#_land_integrate`\
+  \ by the SPEC-0064 authority as inert,\nobservable or unknown, with its path count\
+  \ and its first 20 paths by name, and unknown (never inert) whenever it cannot be\
+  \ read; an\ninert advance refused because a test names it also records that reader.\
+  \ A CREDITED land over an\ninert advance records, with the credited row, the advance\
+  \ it accepted, so the journal\ncounts how often that arm fires.\n**The per-layer\
+  \ case of a tree difference.** When condition (2) is what failed, for a path\nthat\
+  \ is not inert — conditions (1) and (3) proven as above — or when condition (1)\
+  \ failed on a\n`main` advance that is readable and not inert, condition (3) proven\
+  \ (an inert advance a test names,\nor one that cannot be read, keeps the whole candidate\
+  \ verify), and the project declares verify\nlayers, the candidate verify still runs,\
+  \ and the land MAY take the verdict of one or more declared\nlayers from the run\
+  \ instead of running them again. This is a permission with conditions: a land\n\
+  that takes no layer's verdict from the run is not touched by any of it and runs\
+  \ its candidate\nverify as it did before this case existed. On a land that takes\
+  \ it, each declared layer falls\nunder exactly one of three rules:\n  (A) IT TAKES\
+  \ ITS VERDICT FROM THE RUN instead of running again, when ALL of these hold; any\n\
+  \      unproven part, or any error, sends it to (C) (fail-closed):\n      (i) it\
+  \ passed WHOLE in the run — the row records exactly one outcome for that layer,\
+  \ it is\n            a pass, and it is not the row of a partial run (SPEC-1030 rule\
+  \ 5's `passed-partial`, or\n            an adapter record marked partial);\n   \
+  \   (ii) nothing in its subject changed since — its declared subject is disjoint\
+  \ from every path\n            that differs between the tested tree and the candidate\
+  \ tree, the journal and the\n            closure bookkeeping included, by the predicate\
+  \ the land's own subject skip uses\n            (SPEC-0152 rule 16); a layer that\
+  \ declares no subject never qualifies;\n      (iii) the verifier's own surface did\
+  \ not change since — that difference meets none of the\n            fail-closed\
+  \ edges of the land's own subject skip (SPEC-0152 rule 16: the verifier's own\n\
+  \            surface, the project's verify declaration, a check surface a layer\
+  \ declares), taken\n            WITHOUT that skip's section-aware and ownership-aware\
+  \ narrowings;\n      (iv) it is declared unambiguously — its name is declared once,\
+  \ and it is not the layer the\n            test sweep is delegated to (that layer\
+  \ stands in for the sweep);\n      (v) when it is backed by a report adapter (SPEC-1006),\
+  \ that difference meets none of the\n            adapter's declared `sources` (SPEC-1006\
+  \ rule 6 — a change there runs the layer whatever\n            its subject), and\
+  \ its adapter declaration reads well-formed.\n    A layer that takes its verdict\
+  \ from the run under (A) does not run, so no adapter selection,\n    attempt record\
+  \ or credit (SPEC-1006, SPEC-1030 rule 3) is taken for it at this land; a layer\n\
+  \    that runs keeps its adapter selection and credit exactly as on any land.\n\
+  \  (B) IT RUNS WHATEVER ITS SUBJECT when it did not pass whole in the run — failed,\
+  \ skipped, partial or unrecorded\n      there. This is the condition of leaning\
+  \ on the run at all: the run holds no verdict for such\n      a layer, so on a land\
+  \ that takes another layer's verdict from that run the land's own subject\n    \
+  \  skip does not apply to it — it runs even where the candidate diff is disjoint\
+  \ from its\n      subject. (A layer the project waives stays waived: a waiver is\
+  \ the project's declaration, not\n      a verdict.)\n  (C) OTHERWISE IT IS JUDGED\
+  \ AS ON ANY LAND — by the land's own subject skip over the candidate\n      diff,\
+  \ recorded as before.\nThe test-directory sweep is outside all three: the land sweeps\
+  \ exactly what it would sweep with no\nStage-6 row at all, so a project that declares\
+  \ no layers (the engine) keeps its whole candidate\nverify. Condition (5) holds\
+  \ unchanged, and a project that switched the credit off has switched this\ncase\
+  \ off too. A land that takes this case is NOT a credited land — its re-verify is\
+  \ not skipped —\nand it is LESS than the land's own candidate verify: its head forms\
+  \ alone, it records no tested\ntree (so it never anchors (b)), and it is not the\
+  \ earlier verify lever B leans on — a retry\nre-proves from scratch. It records\
+  \ its refusal reason (`tree-differs:` or `main-moved`), the Stage-6 row its layers\n\
+  were judged against, the layers that took that row's verdict (each also by its own\
+  \ outcome) and\nthe layers it ran. Soundness of (A): such a layer passed on the\n\
+  tested tree, and by the project's own declaration nothing that\nlayer reads differs\
+  \ between that tree and the one about to fast-forward — the premise SPEC-0152\n\
+  rule 16 already rests on for a layer disjoint from the candidate diff. It is NOT\
+  \ a credit over the\nspec status lines a closing card's activation writes: those\
+  \ are an observable difference like any\nother, and every layer whose subject holds\
+  \ them runs on the tree that carries them.\n**Residuals, stated:** the runner's\
+  \ mark is as trustworthy as every other journal row a land reads\n(the anchor row\
+  \ of (b) included): it closes the governed hand route, not a raw write to the journal\n\
+  file, which no verb performs. V was verified by its own land's candidate selection\
+  \ — the same last-green\npremise SPEC-0077's pinned leg and lever B already rest\
+  \ on; tests that GLOB `tasks/` or read the real\njournal are not caught by (d) —\
+  \ the owner-accepted residual (events.jsonl#ts=);\nuntracked files an ignore rule\
+  \ matches are outside the local tested-tree comparison of (b), as\nthey are outside\
+  \ the tree a venue ship carries.\n\n**`reverify_skipped` has a SECOND producer (SPEC-0184\
+  \ rule 8) — this rule is unchanged.**\nA reader who took that field to imply \"\
+  an inert concurrency retry\" would now be reading a silent\ncontradiction, so it\
+  \ is named here rather than left to drift. SPEC-0184 rule 8 skips the verify for\
+  \ a\nSUPERSEDED BATCH MEMBER — a land carrying nothing not already in `main` — on\
+  \ a strictly narrower\ncondition than lever B (no commits at all, not merely an\
+  \ inert tree), and it reuses this telemetry\ncarrier rather than adding a parallel\
+  \ one. The two are discriminated by `reverify_skip_reason`\n(`inert-retry-delta`\
+  \ here, `superseded-nothing-to-integrate` there). Nothing about lever B's own\n\
+  `attempt > 1` bound, its classification, or its fail-closed direction is altered\
+  \ by that rule.\n\n## Parameters\n\nNone. The inert/observable boundary is owned\
+  \ by SPEC-0064 (cited, not duplicated — P5).\n\n## Rationale\n\nWorst-case land\
+  \ 457s = full re-verify on each concurrency retry; ~79% of ships (and thus most\n\
+  concurrent retries) carry only inert deltas (2026-06-09 telemetry, plan\n`speed-up-land-under-concurrency-inert-retry-re-ver`).\
+  \ The fail-closed observability framing is the\nload-bearing safety condition (external\
+  \ audits cited in SPEC-0064 + the plan).\n\n## Verification\n\nBehavioural probe\
+  \ (the load-bearing safety test): during a land's verify window, force the retry\n\
+  branch with a concurrent sibling land (the sibling is what MAKES `main` advance;\
+  \ its own content is\nheld INERT throughout and is not the subject). What varies\
+  \ is the LANDING branch's OWN footprint —\nthe delta this rule classifies: (i) INERT\
+  \ → the retry SKIPS re-verify AND ff's correctly; (ii)\nOBSERVABLE → the retry RE-RUNS\
+  \ the full verify before ff; (iii) classifier raises → fail-closed, full\nre-verify.\
+  \ Telemetry: `land_completed`\ncarries `reverify_skipped` (bool) + reason, so every\
+  \ skip is journal-visible (Principle 8 — never\nsilent). Seam: the existing `_after_verify_hook`\
+  \ deterministically drives the retry branch.\n\nStage-6 credit probes (one per condition,\
+  \ each differing from the credited fixture by that\none thing): a consumer land\
+  \ after the REAL runner's green run on the same tree, `main` unmoved, runs\nno candidate\
+  \ sweep and no layer, records `stage6-credit` and names the row it credited — and\
+  \ with the\ncredit removed the same land runs both. The candidate verify runs when\
+  \ `main` moved since the run, a\nnon-inert path differs, the newest row is red,\
+  \ narrowed or unmarked, a declared layer is uncovered, a\ntest names a card changed\
+  \ since the run, a rebaseline is declared, or the project opted out; the hand\n\
+  event route refuses the mark. Refusal-reason probes : the land after `main` advanced\
+  \ records\n`stage6_credit_refused: main-moved` and its credited twin records none;\
+  \ each other refusal of a\nmarked green row records its own reason; a hand row,\
+  \ a red newest row, no row, an opted-out project\nand a declared rebaseline record\
+  \ none — and a writer stamping every uncredited land is told apart\nby those arms.\
+  \ Main-delta probes : an inert-only advance is still refused and records\n«inert»\
+  \ with its count; an observable advance records «observable»; an unreadable delta\
+  \ records\n«unknown», never «inert»; the branch's own delta is observable, so a\
+  \ reader of it is told apart;\nthe credited twin and a non-`main-moved` refusal\
+  \ record none. A credited land carrying a credential is refused by the floor with\n\
+  `main` untouched, and its clean twin calls the host-leak verdict. Under a verify-path\
+  \ touch with the\npinned leg due, the credited land still runs the pinned leg once\
+  \ and aborts on its failure.\n\nPer-layer probes (three declared layers of disjoint\
+  \ subjects, the REAL runner's green run,\nthe real layer runner and the real sweep,\
+  \ each command and each swept file leaving its own mark): a\nlater change under\
+  \ ONE layer's subject makes the land execute that layer and the sweep and neither\n\
+  other layer, and its row names the refusal, the Stage-6 row, the layers that took\
+  \ its verdict and\nthe layers run — where before the change all three ran. That\
+  \ layer made red after the run aborts\nthe land with `main` untouched. A layer the\
+  \ real run SKIPPED (its subject untouched by the branch,\nso the land's own subject\
+  \ skip would skip it again) executes at a land that takes a sibling's\nverdict from\
+  \ the run, and so does a layer whose run outcome is failed, absent, doubled or not\
+  \ a\npass; at a land with no layer to credit that same skipped layer stays skipped,\
+  \ as before. A test\npath, the verify declaration or a declared check surface in\
+  \ the difference, a layer with no\ndeclared subject, the layer carrying the delegated\
+  \ sweep, an opted-out project and an inert `main`\nadvance a test names take no\
+  \ verdict from the run; an inert `main` advance keeps the case and is\nrecorded\
+  \ with it; an observable `main` advance keeps it too — a layer whose subject the\
+  \ advance\ntouches runs, the others take the run's verdict, the refusal stays `main-moved`\
+  \ and the row names\nthe moved paths (tests/test_t13936_stage6_layer_credit_main_moved.py);\
+  \ a retry after a per-layer attempt re-proves; a land that took a verdict from the\n\
+  run records no tested tree and forms alone, and one that took none does neither.\n\
+  \n## Drift review\n\n (2026-06-09): re-verified this body against `bin/lib/worktree.py#_land_integrate`\
   \ step-4a. The\n`attempt > 1` retry gate, the FINAL merged-tree classification via\
   \ `_classify_inert_paths(\n_merged_tree_delta_paths(W, merged_base))`, the `reverify_skipped`\
   \ / `do_test_verify` gating of the\ntest suite + canary, and the fail-closed observable/classifier-raised\
@@ -293,6 +306,6 @@ proposed_by: speed-up-land-under-concurrency-inert-retry-re-ver
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/worktree.py#_land_integrate: 83543b1690cd90a17850a0704479158b165f118483439c1f29db32a88cfa2ebe
-  bin/lib/worktree.py#_land_stage6_credit: c43cff9840cd7cedfeed8d4a51a473f484722a592fdbe770b5f65108db74ae84
+  bin/lib/worktree.py#_land_integrate: c7bf2e515589a8836c21d3dd5f3b0c92b72683de4f3ada641f3aa3046b6d8e6e
+  bin/lib/worktree.py#_land_stage6_credit: 3f5cec885be9abbdbddb9c8e19509bfcd2dedabee752f7a4a456f4fb83cbe1d1
   bin/lib/worktree.py#_stage6_run_record: 01a55bc7b202be3fdf2e2f6de6c0b28a6cafeda89088c6f73d70c6ec8e81cf8d

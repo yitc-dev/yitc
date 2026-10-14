@@ -454,7 +454,7 @@ implements_signature:
   bin/lib/cli.py#_compaction_backstop: f1104515f4aec4ee2d2374603119beebfe20321757f8dd3790a5e5d695dfa4ab
   bin/lib/cli.py#_restoration_brief: 4640c51d200d9cf52c08ce6305a526b412092336cf1b456444884549d5ecbba5
   bin/lib/cli.py#_session_start_print_only: e1c27fa58b8afced470f7ceec831cbf98d1f6eaac51ff237c207ae02622787e8
-  bin/lib/cli.py#cmd_session_start: a25eb8f0d52d546f31df923c93c908bc4cbfb6cd529e7a44fc3f69514a67d30f
+  bin/lib/cli.py#cmd_session_start: 8106c3bed702bd377112613963a0db552d1536816456f570a66457f5148e58d2
   bin/lib/journal.py#conversation_entry: 5a51900cba11b61ec9dcbbc3293996bf383f56e9ed4a83151169477b7f70b48b
   bin/lib/session.py#backstop_plain_line: 86d3b5a98a8e9dd73cbafd85bba77a3e5f865be63777ffbf45c1a7ab33092a14
   bin/lib/session.py#cue_not_guaranteed_line: 23d0e6876b59b5ad32d509fb676b1c7ed3c130e42d2971866a443308172bf861

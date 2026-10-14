@@ -157,10 +157,13 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   **NON-DETERMINISTIC** (≥ 2 distinct non-ok classes = class-switching flakiness); a lone one-off
   non-ok class is a report-only observation, not a finding. `failed` (the tests themselves went red)
   is the SUBJECT outcome, not an infrastructure class, and is excluded — counting it made the
-  criterion fire on every window with two red lands. A row with no `fail_class` is `no-metrics`,
-  printed apart — absent evidence never reads as `ok`: an all-unmeasured window says NO-DATA, a
-  partly-unmeasured one DEGRADED with its no-metrics share, and `clean` prints only over a fully
-  measured window; every verdict names the window bounds and measured/total. **report-only — never an autonomous
+  criterion fire on every window with two red lands. A row with no `fail_class` is counted in one of
+  three classes, printed apart: `reverify-skipped` (an ok land that skipped the re-verify — the
+  sanctioned shortcut, nothing to measure), `aborted` (an abort that never reached a measured
+  verify), and `no-metrics` (every other row). Only `no-metrics` is absent evidence, and it never
+  reads as `ok`: a window whose unexplained rows are all of it says NO-DATA, a partly-unexplained one
+  DEGRADED with its no-metrics share, and `clean` prints only when no row is `no-metrics`; every
+  verdict names the window bounds and measured/total. **report-only — never an autonomous
   action (CHARTER §6 fence);** the owner/Review decides whether to act. Run:
   ```
   python3 -c 'import sys,json,collections; sys.path.insert(0,"bin")
@@ -168,28 +171,38 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   ev=[e for e in (json.loads(l) for l in open("events.jsonl") if "\"land_completed\"" in l)
       if e.get("type")=="land_completed"][-200:] # by TYPE — a substring also matches rows that merely mention it
   rows=[e.get("data",{}) for e in ev]
-  fc=collections.Counter((d.get("verify_metrics") or {}).get("fail_class") or "no-metrics" for d in rows)
-  bad={k:v for k,v in fc.items if k not in ("ok","failed","no-metrics")}
+  def cls(d): # a row with no fail_class is reverify-skipped / aborted (counted apart) or no-metrics
+      if (d.get("verify_metrics") or {}).get("fail_class"): return "measured"
+      if d.get("status")=="ok" and d.get("reverify_skipped") is True: return "reverify-skipped"
+      return "aborted" if d.get("status")=="abort" else "no-metrics"
+  kc=collections.Counter(cls(d) for d in rows)
+  fc=collections.Counter(d["verify_metrics"]["fail_class"] for d in rows if cls(d)=="measured")
+  bad={k:v for k,v in fc.items if k not in ("ok","failed")}
   recurring={k:v for k,v in bad.items if v>=2}
   nondet = len(bad)>=2
-  n=len(rows); nm=fc.get("no-metrics",0)
-  win="window %s..%s, %d/%d measured" % (ev[0].get("ts","?") if ev else "-", ev[-1].get("ts","?") if ev else "-", n-nm, n)
+  n=len(rows); m=kc["measured"]; nm=kc["no-metrics"]
+  win="window %s..%s, %d/%d measured" % (ev[0].get("ts","?") if ev else "-", ev[-1].get("ts","?") if ev else "-", m, n)
   print("window n=%d fail_class=%s" % (n, dict(fc)))
-  if n==nm:
+  print("classes: measured=%d reverify-skipped=%d aborted=%d no-metrics=%d" % (m, kc["reverify-skipped"], kc["aborted"], nm))
+  if not m and nm:
       print("fail_class: NO-DATA — no row carries a fail_class, no verdict (%s)" % win)
+  elif not m:
+      print("fail_class: no measured row — every row is reverify-skipped or aborted, counted apart; no verdict (%s)" % win)
   elif nm: # judged over the measured rows only, and SAID so — never a bare clean
       print("fail_class: DEGRADED — %d/%d no-metrics; verdict below covers the measured rows only (%s)" % (nm, n, win))
-  if n>nm and (recurring or nondet):
+  if m and (recurring or nondet):
       print("FINDING: land-verify fail_class instability — recurring=%s non-deterministic=%s (%s)" % (recurring or "none", nondet, win))
-  elif n>nm and bad:
+  elif m and bad:
       print("observation (report-only, not a finding): lone one-off non-ok class(es)=%s (%s)" % (bad, win))
-  elif n>nm and not nm:
+  elif m and not nm:
       print("fail_class: clean — no finding (%s)" % win)
-  walls=sum(1 for d in rows if isinstance(d.get("verify_metrics"),dict) and d["verify_metrics"].get("verify_wall_ms") is not None)
+  hw=lambda d: isinstance(d.get("verify_metrics"),dict) and d["verify_metrics"].get("verify_wall_ms") is not None
+  walls=sum(1 for d in rows if hw(d))
+  wmiss=sum(1 for d in rows if cls(d) in ("measured","no-metrics") and not hw(d)) # skipped/aborted owe no wall
   sig="\n".join(_verify_scaling_signals(rows))
   cov="%d/%d rows carry a verify wall; %s" % (walls, n, win)
   if not walls: print("scaling signals: NO-DATA — no row carries a verify wall (%s)" % cov)
-  elif walls<n: print("scaling signals: DEGRADED — measured rows only (%s):" % cov, sig or "none over the measured rows")
+  elif wmiss: print("scaling signals: DEGRADED — measured rows only (%s):" % cov, sig or "none over the measured rows")
   else: print("scaling signals (%s):" % cov, sig or "none — clean")'
   ```
   (Run over a SEGMENT-AWARE root, never the bare checkout: the checkout `events.jsonl` holds only the

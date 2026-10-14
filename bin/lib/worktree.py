@@ -20503,6 +20503,8 @@ _STAGE6_VERDICT_TYPES = ("tests_passed", "tests_failed")
 _STAGE6_CREDIT_NOT_POSSIBLE = frozenset({
     "policy-opt-out", "not-a-task-branch", "no-stage6-row", "newest-stage6-row-red", "row-not-runner-marked"})
 _STAGE6_SHA = re.compile(r"[0-9a-f]{40}")
+#: T-13936 — how many of main's moved paths a `main-moved` delta lists by name (`paths` stays the count).
+_STAGE6_MAIN_MOVED_PATHS_CAP = 20
 
 
 def _trees_differ_by_journal_only(W, tree_a: str, tree_b: str, _run_git_cap) -> bool:
@@ -20843,25 +20845,31 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
     land runs its candidate verify exactly as before this card. Every doubt and every error is None.
 
     `net` is the tested-tree..HEAD path list `_land_stage6_credit` already read (renames off, the
-    journal's own files included), `data` the runner-marked green row.
+    journal's own files included), `data` the runner-marked green row. It is asked on a `tree-differs:`
+    refusal and on a `main-moved` refusal over an observable advance (T-13936) — `net` carries main's
+    advance either way, since HEAD merged `merged_base`.
 
     `layers` — the declared layers that take their verdict from the run. A layer qualifies only when
     ALL hold:
       • the build is a consumer build by the injected predicate, and the delegation predicate is
         injected (an uninjected or raising predicate → None);
       • the row records a layers run with a list of layer rows, and exactly one of them names this
-        layer, outcome `passed`;
+        layer, outcome `passed`, and it is not a partial run (`_layer_row_is_partial_run`, T-13935);
       • `net` meets no shared fail-closed edge of the subject skip (`_verify_skip_fail_closed_edge`
         over `_project_verify_infra_globs()`, with NO freed path: a `tests/` or ops-carrier
         path in `net` → None) and no declared check surface (`_declared_check_surface_touch` — which
         is where a root `bin/` file the project's own contract names is caught, T-13915).
         The carrier is therefore the same at the tested tree and at HEAD, so the declaration read
         from disk is the one the run used; `merged_base` only ADDS the base carrier's surfaces;
-      • its name is declared exactly once, it declares no `adapter` key, it is not the layer the
-        test sweep is delegated to (that layer stands in for the sweep, and the sweep is never
-        credited), and its well-formed `subject_globs` are disjoint from `net` by the predicate the
-        land's own skip uses (`_subject_globs_would_skip` — absent, empty or malformed globs never
-        qualify).
+      • its name is declared exactly once, it is not the layer the test sweep is delegated to (that
+        layer stands in for the sweep, and the sweep is never credited), and its well-formed
+        `subject_globs` are disjoint from `net` by the predicate the land's own skip uses
+        (`_subject_globs_would_skip` — absent, empty or malformed globs never qualify);
+      • an adapter-backed layer qualifies on the same terms (T-13935), read by the guard's own reader
+        (`_declared_layer_adapters` over the repository's file set — a malformed declaration or an
+        unreadable set → None), with one more: no path of `net` lies under its `adapter.sources`
+        (SPEC-1006 rule 6, the guard's own exception to the skip). A credited layer does not run, so
+        no adapter selection or credit is taken for it at this land.
     `rerun` — the CONDITION of taking any verdict from the run: every declared layer the row does
     NOT show as passed (anything but exactly one row for its name with outcome `passed` — failed,
     skipped, waived, absent, doubled). The run holds no verdict for such a layer, so a land that
@@ -20886,15 +20894,28 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
         deleg = _consumer_tests_delegation(Path(W))
         deleg = deleg.strip() if isinstance(deleg, str) else deleg
         names = [ly.get("layer").strip() if isinstance(ly.get("layer"), str) else "" for ly in declared]
-        ran = [(r.get("layer").strip(), r.get("outcome")) for r in rows
-               if isinstance(r, dict) and isinstance(r.get("layer"), str)]
+        # T-13935: a pass counts only WHOLE — a partial run of an adapter-backed layer is not one.
+        ran = [(r.get("layer").strip(),
+                "passed-partial" if land_verify_legs._layer_row_is_partial_run(r) else r.get("outcome"))
+               for r in rows if isinstance(r, dict) and isinstance(r.get("layer"), str)]
         every = [n for i, n in enumerate(names) if n and n not in names[:i]]
         rerun = [n for n in every if [o for m, o in ran if m == n] != ["passed"]]
+        # T-13935: an adapter-backed layer qualifies too, read by the guard's own reader over the same
+        # file set; a malformed declaration raises → None. Its `adapter.sources` are a verifier surface
+        # of that layer (SPEC-1006 rule 6): a delta under them keeps it out of `layers`.
+        adapters = {}
+        if any("adapter" in ly for ly in declared):
+            ls = _run_git_cap(["ls-files", "-z", "--cached", "--others", "--exclude-standard"], W)
+            if ls is None or ls.returncode != 0:
+                return None
+            adapters = _declared_layer_adapters(declared, repo_files={p for p in (ls.stdout or "").split("\0") if p})
         out = []
-        for ly, name in zip(declared, names):
-            if not name or name in rerun or names.count(name) != 1 or "adapter" in ly:
+        for i, (ly, name) in enumerate(zip(declared, names)):
+            if not name or name in rerun or names.count(name) != 1:
                 continue
             if deleg and name == deleg:
+                continue
+            if i in adapters and any(p == s or p.startswith(s + "/") for p in net for s in adapters[i]["sources"]):
                 continue
             if _subject_globs_would_skip(net, ly.get("subject_globs")):
                 out.append(name)
@@ -20917,7 +20938,10 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
     rerun}` when `_stage6_layer_credit` names at least one layer that may take the run's verdict —
     the caller then runs the candidate verify with `layers` withheld and, as the condition of
     that, with `rerun` kept out of the land's own subject skip; where it answers None so does this,
-    and the caller's candidate verify is the one it ran before this card.
+    and the caller's candidate verify is the one it ran before this card. A `main-moved` refusal over
+    an observable advance reaches the same split (T-13936): its ref then also carries `layer_credit`
+    = `{task, ts, tree, base, layers, rerun}`, wired by the caller exactly as a tree-differs split;
+    every readable `main-moved` delta lists its first `_STAGE6_MAIN_MOVED_PATHS_CAP` paths as `moved`.
     The THIRD exception (T-13910 — SPEC-1030 rule 6, first clause): a
     `partial-units-differ…` or `partial-needs-unknown` refusal carries `{task, ts, layers}` — the
     Stage-6 row and, per layer, what `_stage6_partial_run_covers` recorded — plus `main_delta` when
@@ -20977,11 +21001,29 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
             # A named card is refused here as `main-moved` with `read_by`, never left to (2).
             try:
                 moved = _diff_name_paths(W, base, merged_base, _run_git_cap=_run_git_cap)
-                delta = {"class": _classify_inert_paths(moved)[0], "paths": len(moved)}
+                delta = {"class": _classify_inert_paths(moved)[0], "paths": len(moved),
+                         "moved": moved[:_STAGE6_MAIN_MOVED_PATHS_CAP]}   # T-13936: which paths, capped
             except Exception:                              # noqa: BLE001 — unknown, never a guess
                 return False, "main-moved", {"class": "unknown", "paths": None}
             if delta["class"] != "inert":
-                return False, "main-moved", delta
+                # T-13936: an observable advance ends the WHOLE credit, never the per-layer case — the
+                # layers are judged against `net` = tree..HEAD, which carries main's advance (HEAD
+                # merged `merged_base`), by the same split and the same fail-closed edges as a
+                # tree-differs refusal. The reason stays `main-moved`; the split rides as `layer_credit`.
+                try:
+                    t = _run_git_cap(["cat-file", "-t", tree], W)
+                    if t.returncode != 0 or (t.stdout or "").strip() != "tree":
+                        return False, "main-moved", delta
+                    net = _diff_name_paths(W, tree, "HEAD", _run_git_cap=_run_git_cap)
+                except Exception:                          # noqa: BLE001 — no split, the refusal as before
+                    return False, "main-moved", delta
+                split = _stage6_layer_credit(W, merged_base, net, data, _run_git_cap=_run_git_cap,
+                                             _is_consumer_build=_is_consumer_build,
+                                             _consumer_tests_delegation=_consumer_tests_delegation)
+                if split is None:
+                    return False, "main-moved", delta
+                return False, "main-moved", {**delta, "layer_credit": {
+                    "task": tid, "ts": newest.get("ts"), "tree": tree, "base": base, **split}}
             moved_readers = []
             moved_artifacts = [p for p in moved if p != "events.jsonl"
                                and not events.is_archive_segment(Path(p), Path("events.jsonl"))]
@@ -26111,7 +26153,8 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 _consumer_tests_delegation=_consumer_tests_delegation)
             if not _s6_ok and _s6_why not in _STAGE6_CREDIT_NOT_POSSIBLE and not _s6_why.startswith("error:"):
                 _stage6_refused = _s6_why
-                _stage6_main_delta = _s6_ref if _s6_why == "main-moved" else None
+                _stage6_main_delta = ({k: v for k, v in _s6_ref.items() if k != "layer_credit"}
+                                      if _s6_why == "main-moved" and isinstance(_s6_ref, dict) else None)
                 _stage6_partial = (_s6_ref if _s6_why.startswith("partial-") and isinstance(_s6_ref, dict)
                                    else None)                # T-13910 (SPEC-1030 rule 6)
                 if _s6_why.startswith("tree-differs:") and isinstance(_s6_ref, dict):
@@ -26121,6 +26164,10 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                     # of that every layer that did not pass in the run (`rerun`) is kept out of the
                     # land's own subject skip.
                     _s6_layer_credit = _s6_ref
+                elif _s6_why == "main-moved" and isinstance(_s6_ref, dict) \
+                        and isinstance(_s6_ref.get("layer_credit"), dict):
+                    # T-13936: the same per-layer case, reached on an observable main advance.
+                    _s6_layer_credit = _s6_ref["layer_credit"]
             if _s6_ok:
                 _stage6_credit = _s6_ref
                 reverify_skipped = True

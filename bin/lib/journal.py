@@ -717,6 +717,40 @@ def _controller_wait_pause(events):
     return pause
 
 
+# T-13929 — THE WORKER'S OWN WINDOW of a launch. The launcher writes `bg_dispatch_spawned` right after
+# the spawn and `bg_dispatch_launched` only after the launch probe (DISPATCH_LAUNCH_TYPES above), so a
+# worker that acts inside that gap records rows OLDER than its own launched row (measured: a
+# controller-wait pause 4s before the launched row, a consumer's report on T-13929). A reader that
+# bounds the launch's epoch at the launched row drops them. The epoch of a launch therefore starts, for
+# the rows of ITS OWN worker only, at its spawn: the newest `bg_dispatch_spawned` carrying the same
+# `data.expected` as the launched row. The session tie is what keeps a row left by the worker of an
+# EARLIER launch out of this one — a ts bound alone would admit it. No such spawned row (a launch
+# recorded before T-12645, or a row with no `expected`) -> None, and the launched row stays the bound.
+# Pure; `events` is the ts-ascending per-id chain the caller already holds — no reader, no store.
+def _launch_own_window(events, launch):
+    """`(worker_ref, spawn_ts)` for the launched row `launch`, or None when it has no spawn row."""
+    if not isinstance(launch, dict) or launch.get("type") != "bg_dispatch_launched":
+        return None
+    data = launch.get("data")
+    ref = data.get("expected") if isinstance(data, dict) else None
+    if not ref:
+        return None
+    launch_ts = launch.get("ts") or ""
+    spawn = next((e for e in reversed(events or [])
+                  if e.get("type") == "bg_dispatch_spawned"
+                  and isinstance(e.get("data"), dict) and e["data"].get("expected") == ref
+                  and (e.get("ts") or "") <= launch_ts), None)
+    if spawn is None or not spawn.get("ts"):
+        return None
+    return ref, spawn["ts"]
+
+
+def _in_launch_own_window(e, window):
+    """True when `e` is a row the launch's OWN worker recorded at/after that launch's spawn."""
+    return (window is not None and e.get("session_ref") == window[0]
+            and (e.get("ts") or "") >= window[1])
+
+
 def _controller_wait_next_action(events):
     """The `next_action` the controller-wait pause recorded — the CONTROLLER's own pending step.
     Report-only (SPEC-0133 rule 2): naming it is what makes the needs-decision actionable without a
@@ -7966,9 +8000,13 @@ def _classify_dispatch(events, task_id, now=None, proc_alive=None, identity=None
     # strictly later, still wins this reversed scan wherever it exists.
     newest_launch = next((e for e in reversed(events)
                           if e.get("type") in DISPATCH_LAUNCH_TYPES), None)
+    # T-13929 — the epoch also holds the rows the launch's OWN worker recorded between its spawn and
+    # its launched row (`_launch_own_window`); rows of any other session in that gap stay out.
     if newest_launch is not None:
         seg_ts = newest_launch.get("ts") or ""
-        events = [e for e in events if (e.get("ts") or "") >= seg_ts]
+        _own = _launch_own_window(events, newest_launch)
+        events = [e for e in events
+                  if (e.get("ts") or "") >= seg_ts or _in_launch_own_window(e, _own)]
     last_ts = events[-1].get("ts") if events else None
     sref = next((e.get("session_ref") for e in reversed(events) if e.get("session_ref")), None)
     # T-10254 — the row's session_ref is the WORKER's ref FROM THE MOMENT OF DISPATCH, never the
@@ -10326,6 +10364,16 @@ def _dispatch_events_tail_first(task_id, *, _dispatch_status_events, _dispatch_t
     definition of a suffix, the ENTIRE epoch the classifier reads — every event at/after it — and its
     classification is therefore BIT-IDENTICAL to the full read's. The launch row is the whole epoch's
     lower bound, so finding it is finding everything that matters.
+
+    ONE BOUNDED EXCEPTION, AND ITS DIRECTION (T-13929). The classifier's epoch also holds the rows the
+    launch's OWN worker recorded between its spawn and its launched row (`_launch_own_window`), and
+    those are OLDER than the launched row. A suffix holds them whenever it reaches the spawn row; the
+    one read that does not is a cutoff falling INSIDE that gap, for at most the gap's length. That
+    read sees the launched row without those rows — the pre-T-13929 reading. It can only LOSE a pause
+    or a terminal the worker wrote there, never invent one, so it errs toward `in flight`: the guard
+    skips, it never spawns. The card-horizon arm below reads from the card floor (the whole history
+    where the card gives none) and has no such case; `dispatch`'s launch phase and `journal query`
+    take that arm.
 
     WHY A TAIL NEGATIVE MAY NOT. "No launch in the window" is NOT "no launch": an OLDER launch may sit
     below the cutoff. Concluding `no launch in flight` from it would let the guard SPAWN a second worker

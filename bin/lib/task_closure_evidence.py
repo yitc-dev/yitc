@@ -302,7 +302,9 @@ def p8_ref_horizon(refs, task_floor) -> tuple:
         `land_completed@ts#branch=` / `#refused=` — rows PINNED by ts: that ts's day;
       * `land_completed@ts#gate=` — the pinned row's day AND the task's own ship land (task horizon);
       * `land_completed@ts#metric=` (condition iii, «some EARLIER land lacked the key») and
-        `land_completed@ts#<layer>` (condition iv, «no EARLIER land ran the layer») ask a FIRST-EVER
+        `land_completed@ts#<layer>` (condition iv, «no EARLIER land ran the layer») — and, through the
+        bare-layer branch below, `land_completed@ts#adapter=` (T-13924: «some EARLIER land ran the layer
+        without an adapter record», plus the task's own ship land) — ask a FIRST-EVER
         question over every earlier land row — no index answers it, so the WHOLE history (rare path
         R2, named in the rule-10 exemption); so does a pin whose ts carries no date.
     A ref the resolver refuses on its grammar alone reads nothing. The answer only ever WIDENS the
@@ -783,6 +785,68 @@ def _resolve_metric_row_ref(key: str, ts: str, events: list) -> bool:
         if ev_ts < ts and key not in metrics:                           # (iii)
             key_had_a_beginning = True
     return pinned and key_had_a_beginning
+# T-13924 (X-1974, <project>) — the SIXTH correlated selector on the same blocklisted type, for the
+# VERIFY-LAYER ADAPTER ship class. Spelled `land_completed@<ts>#adapter=<layer>`; the literal
+# `adapter=` prefix cannot collide with its siblings, and a bare layer name has never contained `=`.
+_ADAPTER_ROW_SELECTOR_PREFIX = "adapter="
+
+
+def _resolve_adapter_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
+    """T-13924 — does the ADAPTER-ROW ref `land_completed@<ts>#adapter=<layer>` resolve?
+
+    THE CLASS: a card whose ship DECLARES a SPEC-1006 `adapter:` on an EXISTING `verify.layers` entry.
+    The layer's command and bound do not change, so the land row of the card's own branch carries no
+    `definition_changed` (form (3) refuses it: the layer is not new and was not rewired), and the
+    adapter record first appears on a LATER land of ANOTHER branch, because `land` verifies with the
+    contract it integrates onto. Measured on <project> T-0924 (declared) / T-0925 (first row carrying
+    `consumer_verify_layers[frontend].adapter`). Form (6) reads `verify_metrics` only.
+    Taken over hashing the adapter into the layer identity (the T-13511 route): that is forward-only
+    and leaves every row already written uncitable.
+
+    All FOUR conditions hold:
+      (i)   the exact (land_completed, ts) row exists — PINNED, never match-any;
+      (ii)  among the layer rows it answers for (`_land_layer_rows`, so a Stage-6-credited land counts)
+            a row for `layer` with outcome `passed` whose `adapter` is a mapping with `usable: true` —
+            the record of a report that decided something (a void report decides nothing, SPEC-1006
+            rule 4). A row of the layer WITHOUT that record is the AC1 negative: it does not resolve;
+      (iii) ANTI-FREERIDE — the record HAD A BEGINNING: some EARLIER land ran `layer` with a row
+            carrying no adapter mapping. A layer that carried an adapter from its first land has no
+            adapter ship to prove (its creation is form (3)'s novelty), and without this any card could
+            cite any adapter row;
+      (iv)  POST-SHIP — `ts` is not earlier than the citing task's FIRST successful land, the
+            moment its declaration shipped; a task with no landed ship resolves nothing. The FIRST,
+            not the latest `_own_ship_land_ts` form (10) uses: a later re-land of the same card must
+            not turn a ref that resolved into one that does not (audit-pre pass 1). Any branch is
+            admitted, as for form (6): the qualifying row is by construction another card's land.
+    RESIDUAL, as for form (6): a card could cite an adapter some OTHER card declared. Close checks the
+    claim is CHECKABLE, audit-post checks it is TRUE (SPEC-0015). Every missing or wrong-typed field is
+    UNKNOWN, never a match. Pure function of (layer, tid, ts, events) — no I/O."""
+    own_ship = min((str(ev.get("ts") or "") for ev in events
+                    if ev.get("type") == _LAYER_ROW_EVIDENCE_TYPE and isinstance(ev.get("data"), dict)
+                    and ev["data"].get("status") == "ok" and ev["data"].get("branch") == f"task/{tid}"
+                    and ev.get("ts")), default=None)
+    if own_ship is None or ts < own_ship:
+        return False                                                    # (iv)
+    stage6_index = _stage6_layer_rows_index(events)
+    pinned = had_a_beginning = False
+    for ev in events:
+        if ev.get("type") != _LAYER_ROW_EVIDENCE_TYPE:
+            continue
+        data = ev.get("data")
+        if not isinstance(data, dict):
+            continue
+        rows = _land_layer_rows(data, stage6_index)
+        rows = [r for r in rows or () if isinstance(r, dict) and r.get("layer") == layer]
+        if not rows:
+            continue
+        ev_ts = str(ev.get("ts") or "")
+        if ev_ts == ts:
+            pinned = pinned or any(                                     # (i) + (ii)
+                r.get("outcome") == "passed" and isinstance(r.get("adapter"), dict)
+                and r["adapter"].get("usable") is True for r in rows)
+        elif ev_ts < ts and any(not isinstance(r.get("adapter"), dict) for r in rows):
+            had_a_beginning = True                                      # (iii)
+    return pinned and had_a_beginning
 # T-12106 (fu_232faef9222b / T-12069) — the FIFTH correlated selector on the same blocklisted type,
 # for the KERNEL-SIDE GATE ship class. Spelled `land_completed@<ts>#gate=<test-file-basename>`; the
 # literal `gate=` prefix cannot collide with `refused=` / `branch=` / `metric=`, and a bare layer name
@@ -1320,9 +1384,10 @@ def _consumer_journal_form_admitted(form: str) -> bool:
     """T-13477 — is `form` one of the forms (2)-(6), the only ones a consumer journal may answer? PURE.
 
     Decided on the SPELLING, before any journal is opened: a pinned `TYPE@<ts>` (form 2), or a
-    `land_completed@<ts>#<selector>` whose selector is not `gate=` (forms 3-6). Everything else —
-    a bare type (1), the scheduled-run selector (7), `exit:` (8), `test:` (9), `#gate=` (10), a
-    second prefix — is refused here, so a kernel-only form can never be answered by a consumer row."""
+    `land_completed@<ts>#<selector>` whose selector is not `gate=` / `adapter=` (forms 3-6). Everything
+    else — a bare type (1), the scheduled-run selector (7), `exit:` (8), `test:` (9), `#gate=` (10),
+    `#adapter=` (12, T-13924: its post-ship condition reads the citing card's own land), a second
+    prefix — is refused here, so a kernel-only form can never be answered by a consumer row."""
     if form.startswith((_IN_PROCESS_EVIDENCE_PREFIX, _EXIT_STATUS_EVIDENCE_PREFIX)):
         return False
     if _split_consumer_journal_ref(form) is not None:
@@ -1335,7 +1400,7 @@ def _consumer_journal_form_admitted(form: str) -> bool:
     if not sep:
         return True
     return bool(selector) and etype == _LAYER_ROW_EVIDENCE_TYPE \
-        and not selector.startswith(_GATE_ROW_SELECTOR_PREFIX)
+        and not selector.startswith((_GATE_ROW_SELECTOR_PREFIX, _ADAPTER_ROW_SELECTOR_PREFIX))
 # A surface RAN under the scheduled runner only on these verdicts. `skip` (not the engine / paths
 # absent) and `error` (a runner fault) mean it never executed, so they witness nothing — fail-closed.
 _SCHEDULED_RUN_RAN_VERDICTS = frozenset({"ok", "fail"})
@@ -1485,8 +1550,11 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
         OTHER branches — so none of the three above can express it); conditions in
         `_resolve_metric_row_ref`. Same type, same `#` address space, disambiguated by the literal
         `metric=` prefix.
+      - (T-13924) an ADAPTER-ROW ref `land_completed@<iso-ts>#adapter=<layer>` — the sixth such
+        spelling, for the VERIFY-LAYER ADAPTER ship class (an `adapter:` declared on an existing layer,
+        first recorded on a later land of another branch); conditions in `_resolve_adapter_row_ref`.
     A ref naming a `_NON_EVIDENTIAL_EVIDENCE_TYPES` member never resolves (circular / free-for-every-task),
-    the five correlated `land_completed` selectors above being its only exceptions.
+    the six correlated `land_completed` selectors above being its only exceptions.
 
     (T-10914, widened by T-12106) A FURTHER spelling — the in-process observation ref
     `test:<repo-relative test path>::<node>[&contrast=<node>]` — resolves against the REPO instead of the
@@ -1622,6 +1690,11 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
             # a bare layer name has never been able to contain `=`.
             key = layer[len(_METRIC_ROW_SELECTOR_PREFIX):].strip()
             return bool(key) and _resolve_metric_row_ref(key, ts, events)
+        if layer.startswith(_ADAPTER_ROW_SELECTOR_PREFIX):
+            # (T-13924) the ADAPTER-ROW form `adapter=<layer>` — an empty layer is MALFORMED, never a
+            # match-any layer. Called directly: a pure same-module reader, like the stage-6 index.
+            name = layer[len(_ADAPTER_ROW_SELECTOR_PREFIX):].strip()
+            return bool(name) and _resolve_adapter_row_ref(name, tid, ts, events)
         return _resolve_layer_row_ref(layer, tid, ts, events)
     if etype in _NON_EVIDENTIAL_EVIDENCE_TYPES:
         return False
@@ -1641,7 +1714,8 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
             return True
     return False
 # ── T-12021 (X-1245) — the CHARTER §P2 commit-locator SHAPE ──────────────────────────────────────
-# Read ONLY by the no-ref-resolves diagnostic, and ONLY to NAME what the author wrote. It is
+# Read by the no-ref-resolves diagnostic and by the emit refusal (`p8_commit_locator_only_refs`,
+# T-13923), in both ONLY to NAME what the author wrote. It is
 # deliberately NOT an arm of `_resolve_evidence_ref`: admitting this shape as evidence was the
 # decision this card made and DECLINED, because it names no event type (so it cannot carry the
 # correlation the grammar exists for) and because its own "maps unambiguously to ONE row"
@@ -1682,6 +1756,36 @@ def p8_payload_missing_keys(data) -> list:
 
 
 P8_PAYLOAD_REQUIRED_KEYS = ("failing_input", "evidence_events")
+
+
+def p2_commit_locator_clause() -> str:
+    """T-13923 — the ONE wording that names the commit-locator look-alike and the form to write
+    instead. Its two readers print it at the two ends of a row's life: the no-ref-resolves reason of
+    `_p8_evidence_is_substantive` (READ) and the refusal in `events.cmd_event` (WRITE), so the emit
+    tells the author exactly what the later read would have told them (CHARTER §P5)."""
+    return ("`events.jsonl#ts=…` / `events.jsonl#source_ref=…`, which is "
+            "the CHARTER §Principle-2 COMMIT `from:` locator, NOT this "
+            "grammar: it names no event type, so it can carry none of the "
+            "correlation an adoption ref needs. Cite the SAME row as "
+            "`<event_type>@<iso-ts>` (or, when the row carries this task's "
+            "`task_id`, as the bare `<event_type>`)")
+
+
+def p8_commit_locator_only_refs(data) -> list:
+    """T-13923 (X-1980, X-1245) — the look-alike refs of a payload that holds NO ref the grammar
+    could read. Returns the `evidence_events` members written in the commit-locator spelling when
+    the list holds at least one AND every other member is one `_resolve_evidence_ref` rejects before
+    it reads any row (not a string, or blank); otherwise `[]`. One ref of any other spelling beside
+    a look-alike returns `[]`: that ref may resolve, now or at close, so the payload is not judged
+    here. A SPELLING test only — the reader's own recogniser, no journal, no resolution — which is
+    why it may run at the write while resolution stays read-side. Pure; never raises."""
+    refs = data.get("evidence_events") if isinstance(data, dict) else None
+    if not isinstance(refs, list):
+        return []
+    lookalikes = [r for r in refs if _is_p2_commit_locator_ref(r)]
+    if any(isinstance(r, str) and r.strip() and not _is_p2_commit_locator_ref(r) for r in refs):
+        return []
+    return lookalikes
 
 
 def _p8_evidence_is_substantive(ev: dict, tid: str, events: list, *,
@@ -1748,12 +1852,7 @@ def _p8_evidence_is_substantive(ev: dict, tid: str, events: list, *,
         # clause is REPORT-ONLY and fires only on the failing path, so a clean payload pays nothing.
         if any(_is_p2_commit_locator_ref(r) for r in refs):
             return _verdict(False, "no `evidence_events` ref resolves — and at least one is written "
-                                   "as `events.jsonl#ts=…` / `events.jsonl#source_ref=…`, which is "
-                                   "the CHARTER §Principle-2 COMMIT `from:` locator, NOT this "
-                                   "grammar: it names no event type, so it can carry none of the "
-                                   "correlation an adoption ref needs. Cite the SAME row as "
-                                   "`<event_type>@<iso-ts>` (or, when the row carries this task's "
-                                   "`task_id`, as the bare `<event_type>`)")
+                                   "as " + p2_commit_locator_clause())
         # T-12106 — NAME THE UNMET CONDITION for a form-(10) `gate=` ref. The verdict is UNMOVED;
         # what is retired is a refusal an author cannot act on. Form (10) is the only form whose
         # conditions are read off ANOTHER land's row and a git revision, so "no ref resolves" gave
@@ -3215,18 +3314,25 @@ def _case_governance_guard(case, paths, *, governance_globs, _case_valid) -> "di
     ok, _why = _case_valid(case)
     if not ok or not governance_globs:
         return None
-    hits: list = []
-    for raw in (paths or []):
-        p = str(raw).strip()
-        if not p:
-            continue
-        if p.startswith("./"):
-            p = p[2:]
-        if any(fnmatch.fnmatch(p, g) for g in governance_globs):
-            hits.append(p)
+    hits = _governance_touched_paths(paths, governance_globs)
     if not hits:
         return None
-    return {"case": str(case.get("case")).strip(), "governance_paths": sorted(set(hits))}
+    return {"case": str(case.get("case")).strip(), "governance_paths": hits}
+
+
+def _governance_touched_paths(paths, governance_globs) -> list:
+    """The paths of `paths` that match the governance-surface set (fnmatch, `*` crosses `/`), sorted and
+    deduped; `./` prefixes dropped. PURE, never raises. The ONE matcher over that set: SPEC-0178 rule 3's
+    guard above and the hygiene fast-path refusal in `cmd_task_close` (T-13921) both read it, so the two
+    can never disagree about which path is a governance surface. An empty set matches nothing."""
+    hits: set = set()
+    for raw in (paths or []):
+        p = str(raw).strip()
+        if p.startswith("./"):
+            p = p[2:]
+        if p and any(fnmatch.fnmatch(p, g) for g in (governance_globs or ())):
+            hits.add(p)
+    return sorted(hits)
 
 
 def _same_outside_signature_map(before, after) -> bool:

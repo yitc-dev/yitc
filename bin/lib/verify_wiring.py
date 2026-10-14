@@ -60,7 +60,7 @@ from lib import worktree as worktree_mod
 #                       graph-build logic (cmd_graph_build / graph_build_index — there is NO separate
 #                       graph-build script; it lives here), the test RUNNER, AND the config the
 #                       verify-exercised features read (bin/*.yaml). Covers bin/lib/** (a future helper
-#                       home, HYGIENE_EXCLUDED_SURFACES) by the prefix, so a new helper is in-scope.
+#                       home) by the prefix, so a new helper is in-scope.
 #   • tests/**        — the test files the verify executes PLUS their imported helpers/fixtures
 #                       (tests/_hermetic.py, tests/_read_gate.py, tests/_graph_build_sandbox.py): a change
 #                       to a shared helper can flip every test's verdict, so it is verify surface.

@@ -1,6 +1,6 @@
-# Release v2.12.0
+# Release v2.13.0
 
-Source commit: `e0e208fd52105e9c16c2cb1d8391c78c5f11d050`
+Source commit: `30bb41e33bd14473894847cc5913c4417bd5ef1b`
 
 ## Proposals this release answers
 
@@ -88,11 +88,16 @@ answers:
   - 'yitc-dev/yitc#84'
   - 'yitc-dev/yitc#85'
   - 'yitc-dev/yitc#86'
+  - 'yitc-dev/yitc#87'
   - 'yitc-dev/yitc#88'
   - 'yitc-dev/yitc#89'
   - 'yitc-dev/yitc#9'
+  - 'yitc-dev/yitc#90'
+  - 'yitc-dev/yitc#91'
   - 'yitc-dev/yitc#92'
   - 'yitc-dev/yitc#94'
+  - 'yitc-dev/yitc#97'
+  - 'yitc-dev/yitc#98'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
   - 'yitc-dev/yitc-archive-2026-10-02#10'
   - 'yitc-dev/yitc-archive-2026-10-02#11'
@@ -146,34 +151,28 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-2 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
-
-- SPEC-1029 — Remote verify venue — kernel verify passes on an owner-raised compute box behind a trust envelope: venue record, routing, transport, envelope, W policy, box lifecycle, one executor, host-sensitive coverage
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1029`
-- SPEC-1030 — Deciding selection and deciding credit on an adapter-backed verify layer — project-declared opt-ins with a reason, whose partial runs are recorded and never read as full breadth
-  turn on: yitc-ops.yaml `verify.layers[].adapter` — on an adapter-backed verify layer, `selection: deciding` with a `selection_deciding_reason:` (the layer runs only the test files a change reaches, the whole layer wherever the change cannot be placed) and `credit: deciding` with a `credit_deciding_reason:` (after a failed run and a fix, the next attempt reuses the other passes of the failed one); the full run before a deploy stays the project's own
-  read: `yitc-v2 graph query --kernel SPEC-1030`
+No kernel spec became active since the previous release tag.
 
 ## What changed
 
-15 task(s) closed since the previous release tag, in close order:
+16 task(s) closed since the previous release tag, in close order:
 
-- T-13906 — Count only lands that ran a verify layer in the run-level skip rate, and print the other lands as their own classes (fix) — events.jsonl#ts=2026-10-13T16:14:15Z
-- T-13904 — Run the Stage-6 pass of a card carrying a live queue-jump mark at normal priority and full width, and record what it ran at (feature) — events.jsonl#ts=2026-10-13T18:02:53Z
-- T-13908 — Add the how-to «Making a layer narrow» to the adapter protocol pattern: what each full-layer answer means and what a project can declare about it (docs) — events.jsonl#ts=2026-10-13T18:51:36Z
-- T-13907 — Make a deciding selection act on an adapter-backed verify layer and record a partial run, while the declaration reader still refuses the name (infra) — events.jsonl#ts=2026-10-13T19:56:52Z
-- T-13905 — Say on a Stage-6 run's result how many land verifies ran beside it (feature) — events.jsonl#ts=2026-10-13T20:40:32Z
-- T-13917 — Decide «this repository is the engine» from the kernel's own identity, never from a file at bin/yitc-v2 or bin/lib/cli.py in the repository being landed (infra) — events.jsonl#ts=2026-10-13T20:43:14Z
-- T-13932 — Name the remedy for a report voided by a unit with only skipped records in the adapter how-to (docs) — events.jsonl#ts=2026-10-13T20:50:05Z
-- T-13916 — Name the paths that fired in a selection record that answers the full layer on rung (a) (infra) — events.jsonl#ts=2026-10-13T21:25:30Z
-- T-13911 — Keep every derived reading from counting a partial run as a full run of its layer, or a left-out or credited unit as run (infra) — events.jsonl#ts=2026-10-13T21:26:35Z
-- T-13909 — Make a deciding credit act after a failed attempt: run the units the fix reaches and those with no pass to reuse, credit the rest, and record it (infra) — events.jsonl#ts=2026-10-13T21:36:31Z
-- T-13915 — Stop treating a project's root bin/ as verify infrastructure: keep that member of the fixed set for the kernel's own repository only (infra) — events.jsonl#ts=2026-10-13T22:03:47Z
-- T-13910 — Let the land's Stage-6 credit take a partial Tests-stage run only when it would account for the same units, and record every refusal so it can be analysed (infra) — events.jsonl#ts=2026-10-13T22:48:15Z
-- T-13931 — Record a verify layer's CPU over its whole process tree and name which reading a row carries (infra) — events.jsonl#ts=2026-10-13T23:13:38Z
-- T-13933 — Let a project's declared audit-post exemption reach a card that touches its root bin/: keep that member of the guard's governance set for the kernel's own repository only (infra) — events.jsonl#ts=2026-10-14T00:24:48Z
-- T-13912 — Make `selection: deciding` and `credit: deciding` declarable with their reasons, amend the active texts, and prove the deciding modes end to end on a sandbox consumer (infra) — events.jsonl#ts=2026-10-14T00:35:51Z
+- T-13918 — Keep an audit re-run on an unchanged plan from adding an entry to the passes trail (fix) — events.jsonl#ts=2026-10-14T03:49:26Z
+- T-13923 — Refuse at emit an adoption-evidence event whose evidence refs are all commit-locator look-alikes (fix) — events.jsonl#ts=2026-10-14T04:06:24Z
+- T-13929 — Let dispatch --resume take a controller-wait pause recorded between a worker's spawn and its launched row (fix) — events.jsonl#ts=2026-10-14T04:32:50Z
+- T-13919 — Make an init re-run commit the scaffold files an interrupted run left written and uncommitted (fix) — events.jsonl#ts=2026-10-14T05:12:29Z
+- T-13921 — Refuse a hygiene fast-path close whose diff touches a governance surface (fix) — events.jsonl#ts=2026-10-14T05:57:46Z
+- T-13925 — Refuse by name a layer prep that would install through a dependency link leading outside the worktree (fix) — events.jsonl#ts=2026-10-14T05:58:42Z
+- T-13924 — Give the adoption-evidence grammar a form that cites a verify layer's adapter on a land row (feature) — events.jsonl#ts=2026-10-14T05:59:10Z
+- T-13922 — Count reverify-skipped and aborted lands apart from unmeasured ones in the land-verify stability fold (fix) — events.jsonl#ts=2026-10-14T06:17:55Z
+- T-13927 — Say on the session-start scan line that the help scan's output must reach a reader (fix) — events.jsonl#ts=2026-10-14T06:37:54Z
+- T-13926 — Deliver the worker-nice rule for by-hand test runs to a worker that enters a card after its Plan stage (fix) — events.jsonl#ts=2026-10-14T07:34:02Z
+- T-13920 — Point the spec template's binding comment at the live token vocabulary instead of an incomplete list (docs) — events.jsonl#ts=2026-10-14T08:08:32Z
+- T-13930 — Give a scaffold refresh its own commit message instead of the one-time bootstrap one (fix) — events.jsonl#ts=2026-10-14T08:16:15Z
+- T-13934 — Make session start and stage end with a line saying that contract bodies were printed above and must be read whole (feature) — events.jsonl#ts=2026-10-14T09:05:37Z
+- T-13928 — Make the security-override debt line say what it reads instead of asserting the findings are still open (fix) — events.jsonl#ts=2026-10-14T09:05:45Z
+- T-13935 — Let an adapter-backed verify layer take the per-layer Stage-6 credit on a tree-differs refusal (fix) — events.jsonl#ts=2026-10-14T09:16:12Z
+- T-13936 — Keep the Stage-6 credit per layer when main moved, for layers the advance does not touch (feature) — events.jsonl#ts=2026-10-14T11:54:34Z
 
 ## Trust surfaces
 

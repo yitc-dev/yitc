@@ -273,5 +273,5 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#cmd_memory_consume: 8156ae5ecbd596191b4b23adee8837a004721df2da1684b69a9282ed8c659c0a
   bin/lib/cli.py#cmd_memory_seed: 4d6372bca1ebe6db3a044c57ee67d6e492c195b82ede46f74435e350d572b6eb
-  bin/lib/init.py#cmd_init: 3adab12fb9321412422ecdb5a441958e1e83262531595e510afd7a7372b42f33
+  bin/lib/init.py#cmd_init: 0d133fa805b26a739aad09ddb92f67bd9d2345f8242986e6c49177f9ef5e0834
   bin/lib/memory.py#seed_pointers: 8254559bcaf18d82cc35880b110e930c60de30f87504f95233c658766b30359d

@@ -181,7 +181,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                         "`bin/yitc-v2 -C <consumer> --read-only inspect record --theme T7 --task T-XXXX`.")
     sub = p.add_subparsers(dest="cmd", required=True, metavar="VERB")
 
-    ev = sub.add_parser("event", help="Append event to events.jsonl")
+    # T-13924 (AC2): a P8 adoption row (live_trigger_evidence / consumer_read_evidence) is written with
+    # this verb, so its help prints the evidence-ref grammar — the ONE constant, read off the leaf.
+    ev = sub.add_parser("event", help="Append event to events.jsonl",
+                        epilog="For a live_trigger_evidence / consumer_read_evidence row, `--data` "
+                               "carries `failing_input` and `evidence_events`. "
+                               + vocab.P8_EVIDENCE_REF_GRAMMAR)
     ev.add_argument("type", help="event type (snake_case)")
     ev.add_argument("--task", help="task / decision / spec / phase ID")
     # T-10735 (X-0603): the reserved set is INTERPOLATED from the same constant the runtime check

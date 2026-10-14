@@ -187,7 +187,7 @@ init_concern:
     (or your product `CHARTER.md`) — the filled text, or a named waiver line there.
   tier: universal
 implements_signature:
-  bin/lib/cli.py#cmd_session_start: a25eb8f0d52d546f31df923c93c908bc4cbfb6cd529e7a44fc3f69514a67d30f
+  bin/lib/cli.py#cmd_session_start: 8106c3bed702bd377112613963a0db552d1536816456f570a66457f5148e58d2
   bin/lib/init.py#_ensure_consumer_vendor_adapter: 6a5949d7c49e54d50bfca80079c137594a92131e89eeaffb39f2ed6d210ffbaa
   bin/lib/init.py#home_reference_drift: deefa92df72a8994bb5d8b69ac8831856f86db48549b0cbaa2c061d4eb52cf44
   bin/lib/session.py#visible_start_line: 5cee49e215d4a6c942927b0d54d58719f725d90c59cb56a3f2fc12e4b0111d10

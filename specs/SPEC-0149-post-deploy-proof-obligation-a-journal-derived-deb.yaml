@@ -146,5 +146,5 @@ implements_signature:
   bin/lib/deploy.py#_parse_recheck_window: 8cc5248f79c635f33277da252360566783f727209a6f6ef7d22bd295799d54f6
   bin/lib/deploy.py#_recheck_window: a195dbbff318ac6cce847a753e7e7722ace7967420fc82aab101eba34ba2b544
   bin/lib/deploy.py#cmd_deploy: 1580b1b5dbf6e813f212f18781c1b41154ed313c70799d54d375e11b36ea1104
-  bin/lib/events.py#cmd_event: 8a4f2ba288697c983b432cb6ac21d2b4d677f8cf418758816134a2fa34f6332f
-  bin/lib/views.py#_render_debt_echo: 47df11c183fd49140f832b94f0ece5db0c76c3098af3dac6416cd517c7aad374
+  bin/lib/events.py#cmd_event: 7a9f1ce00099f7eb4bde05abd5e0e820c33f3eaa75d7c8024bad25e2d8780e3a
+  bin/lib/views.py#_render_debt_echo: b072fdf2385a92c2f64b891193a135542e321f7664b2d2fe64fa2a24a3c89aa5

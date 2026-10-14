@@ -1966,6 +1966,22 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                  f"then silently does NOT count at `task close`.{_hint} e.g. --data "
                  f"'{{\"failing_input\":\"<what, if broken, makes this fail>\","
                  f"\"evidence_events\":[\"<event_type>@<iso-ts>\"]}}'. Nothing was appended.")
+        # T-13923 (X-1980, X-1245): the look-alike SPELLING, refused at the same chokepoint. A list
+        # whose only refs are the CHARTER §P2 commit locator (`events.jsonl#ts=…`) used to pass the
+        # key check above, append at exit 0 and never count; the author learned it at a later read
+        # and had to emit again. This is NOT ref resolution, which stays read-side: the test is the
+        # reader's own string recogniser and opens no journal, so a grammar-shaped ref that resolves
+        # to nothing yet is written exactly as before, and so is a look-alike beside a ref of any other
+        # spelling (the reader names the look-alike there).
+        _p8_lookalikes = _tce.p8_commit_locator_only_refs(data)
+        if _p8_lookalikes:
+            _die(f"{event_type}: every `evidence_events` ref ({len(_p8_lookalikes)}; first: "
+                 f"`{_p8_lookalikes[0].strip()[:120]}`) is written as "
+                 f"{_tce.p2_commit_locator_clause()}. This is the spelling, not a row still to "
+                 f"come: `task close` would not count a row written with it. Emit again with "
+                 f"the refs respelled: `bin/yitc-v2 event {event_type} --data "
+                 f"'{{\"failing_input\":\"<what, if broken, makes this fail>\","
+                 f"\"evidence_events\":[\"<event_type>@<iso-ts>\"]}}'`. Nothing was appended.")
 
     # T-10121 (SPEC-0135 §5, SPEC-0025 §wait_reason): the BLOCK-side chokepoint. bg_dispatch_halted is
     # HAND-emitted by dispatched workers via this generic verb (there is no dedicated code emit), and a

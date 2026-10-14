@@ -2413,7 +2413,7 @@ def _scaffold_is_init_written(REPO_ROOT, rel: str, consumer_text: str):
 
     The consumer-side sibling of `_scaffold_is_kernel_ancestor`: on an engine installed from a release
     there is no engine history to ask, but every consumer carries its own — init's bootstrap AND
-    `--refresh-scaffolds` commit through the one `_INIT_COMMIT_SUBJECT` commit. A copy whose bytes equal the
+    `--refresh-scaffolds` commits (the two subjects `_is_init_commit_subject` accepts). A copy whose bytes equal the
     blob one of those commits wrote is untouched since init delivered it, so re-deriving loses nothing.
     Bounded by `_ANCESTRY_REV_CAP` like its sibling; the cap exhausted without a hit is None."""
     import subprocess
@@ -2436,7 +2436,7 @@ def _scaffold_is_init_written(REPO_ROOT, rel: str, consumer_text: str):
         capped = len(rows) > _ANCESTRY_REV_CAP
         # EXACT subject equality: a commit that merely MENTIONS init must never vouch for its bytes.
         for rev, *subj in rows[:_ANCESTRY_REV_CAP]:
-            if (subj or [""])[0] != _INIT_COMMIT_SUBJECT:
+            if not _is_init_commit_subject((subj or [""])[0]):
                 continue
             b = _git(["rev-parse", "--verify", "--quiet", f"{rev}:{rel}"])
             if b.returncode == 0 and b.stdout.strip() == want:
@@ -2497,9 +2497,43 @@ def _scaffold_is_kernel_ancestor(ENGINE_ROOT, rel: str, consumer_text: str):
         return None
 
 
-# T-13233: the subject of init's governed bootstrap/refresh commit — ONE carrier shared by the commit site
+# T-13233: the subject of init's governed bootstrap commit — ONE carrier shared by the commit site
 # and `_scaffold_is_init_written`, which trusts a blob only under this exact subject.
 _INIT_COMMIT_SUBJECT = "chore: bootstrap consumer methodology scaffolds (yitc-v2 init)"
+# T-13930: a run that births no scaffold commits under the refresh subject instead, naming the engine
+# release (`_init_release_label`); `_is_init_commit_subject` accepts exactly these two shapes.
+_INIT_REFRESH_SUBJECT_HEAD = "chore: refresh consumer methodology scaffolds to "
+_INIT_REFRESH_SUBJECT_TAIL = " (yitc-v2 init)"
+
+
+def _is_init_commit_subject(subject: str) -> bool:
+    """T-13930 — was a commit with this subject made by init: the bootstrap subject, or a refresh
+    subject naming one release label (no blank, no line break). Any other subject is not init's."""
+    if subject == _INIT_COMMIT_SUBJECT:
+        return True
+    if not (subject.startswith(_INIT_REFRESH_SUBJECT_HEAD) and subject.endswith(_INIT_REFRESH_SUBJECT_TAIL)):
+        return False
+    label = subject[len(_INIT_REFRESH_SUBJECT_HEAD):len(subject) - len(_INIT_REFRESH_SUBJECT_TAIL)]
+    return bool(label) and not any(c.isspace() for c in label)
+
+
+def _init_release_label(engine_root, run_git) -> str:
+    """T-13930 — the engine release a refresh commit names: the release manifest's `source_ref`, else
+    `source-<short sha>` of an engine checkout (read through init's guarded `run_git`), else `unknown`.
+    Never raises (a message, not a gate)."""
+    from pathlib import Path
+    try:
+        from lib import release as _release
+        ref = str((_release.read_manifest(Path(engine_root)) or {}).get("source_ref") or "").strip()
+        if ref and not any(c.isspace() for c in ref):
+            return ref
+        r = run_git(["rev-parse", "--short", "HEAD"], Path(engine_root))
+        sha = r.stdout.strip() if r.returncode == 0 else ""
+        if sha:
+            return f"source-{sha}"
+    except Exception:  # noqa: BLE001 — a commit message label never fails init
+        pass
+    return "unknown"
 
 # The engine-history walk bound for `_scaffold_is_kernel_ancestor`. Scaffolds are low-churn files, so a
 # few hundred path-touching commits reaches far past any real consumer's birth release; the cap exists so
@@ -10111,7 +10145,8 @@ class _DryRunPlan:
     # resolver makes) — init never mutates worktrees. It MUST pass through so a dry run resolves the true
     # install root; suppressing it fails the resolver OPEN to the invoking worktree, which flips the
     # T-10533 baked-path refresh into a spurious material delivery and breaks the no-op preview (X-0243).
-    _READ_SUBCOMMANDS = frozenset({"ls-files", "show-ref", "rev-parse", "diff", "status", "log", "worktree"})
+    _READ_SUBCOMMANDS = frozenset({"ls-files", "show-ref", "rev-parse", "diff", "status", "log", "worktree",
+                                    "cat-file"})
 
     def __init__(self, repo_root):
         import atexit
@@ -10421,6 +10456,89 @@ def _restore_pre_sweep_delivery(repo_root, snapshot, index_untracked, write_text
         # Undo the index-only `git rm --cached` (the working files were never removed): reset each path's
         # index entry back to HEAD so the tree reads clean again.
         _run_git_cap(["reset", "-q", "--", *sorted(set(index_untracked))], repo_root)
+
+
+def _adapter_delivery_over(rel: str, committed, cli_form: str, project_name: str, charter: bool):
+    """T-13919 — the text init delivers at the adapter/home `rel`: over its COMMITTED copy (the
+    `--refresh-scaffolds` rewrite; None when it rewrites nothing there), or, with `committed` None,
+    the file it is born with. Asked of the one function that owns both writes
+    (`_ensure_consumer_vendor_adapter`, run on a scratch root holding only that copy and, when
+    `charter`, the product CHARTER.md that decides the neutral home), so neither rule gets a second
+    home."""
+    import tempfile
+    from pathlib import Path
+    with tempfile.TemporaryDirectory(prefix="yitc-init-heal-") as scratch:
+        root = Path(scratch)
+        if charter:
+            (root / "CHARTER.md").write_text("", encoding="utf-8")
+        if committed is not None:
+            (root / rel).write_text(committed, encoding="utf-8")
+        writes = _ensure_consumer_vendor_adapter(
+            root, cli_form, (lambda path, text: path.write_text(text, encoding="utf-8")),
+            project_name=project_name, refresh=True)[3]
+        if committed is not None:
+            return writes.get(root / rel)
+        return (root / rel).read_text(encoding="utf-8") if (root / rel).is_file() else None
+
+
+def _uncommitted_init_deliveries(repo_root, _run_git_cap, kernel_now, born_now, rewrites,
+                                 unproven=()) -> tuple:
+    """T-13919 (X-1968) — the init-managed paths that hold a delivery an EARLIER init wrote and never
+    committed, read off the tree alone (no record of that run is kept or needed).
+
+    init writes its scaffolds first and commits them last, so a run that dies in between — a closed
+    pipe under a print, a signal — leaves them written and uncommitted, and the re-run finds every
+    one current, delivers nothing and commits nothing. A path counts as init's own ONLY where the
+    bytes on disk equal the bytes init writes there; of the paths that differ from HEAD:
+      • `kernel_now` `{rel: text}` — a scaffold that tracks the kernel: the kernel's bytes now;
+      • `born_now` `{rel: text}` — an if-absent scaffold, when HEAD has no such path: the bytes it
+        is born with;
+      • `rewrites` `{rel: text -> text or None}` — a path HEAD has: init's rewrite of the committed
+        copy.
+    Every other difference ON DISK — in those paths or in `unproven`, the managed paths with no such
+    rule — is the project's own edit, or a delivery this cannot show to be init's (a grown seed, a
+    section pulled into yitc-ops.yaml, a line appended to .gitignore): it is returned as `left` for
+    the caller to name and keep out of its commit. ONE difference is not judged at all: one that is
+    already STAGED and unchanged on disk since. The index is where init's own commit seam puts its
+    scaffolds, so that is the residue of a commit refused there (T-13181), whose re-run heal commits
+    it; such a path is `own` when its bytes prove it and otherwise in neither list. Returns
+    `(own, left)`, each in the order given; `([], [])` when git cannot say."""
+    paths = list(dict.fromkeys([*kernel_now, *born_now, *rewrites, *unproven]))
+    st = _run_git_cap(["status", "--porcelain", "-z", "--no-renames", "--untracked-files=all",
+                       "--", *paths], repo_root)
+    if st.returncode != 0:
+        return [], []
+    entries = [entry for entry in (st.stdout or "").split("\0") if len(entry) > 3]
+    dirty = {entry[3:] for entry in entries}
+    staged = {entry[3:] for entry in entries if entry[0] not in "? " and entry[1] == " "}
+    own: list = []
+    left: list = []
+    for rel in paths:
+        path = repo_root / rel
+        if rel not in dirty or not path.is_file():
+            continue
+        try:
+            disk = path.read_bytes().decode("utf-8")   # the bytes as they are: read_text would fold a CR into LF
+        except (OSError, UnicodeDecodeError):
+            left.append(rel)
+            continue
+        if rel in kernel_now:
+            ours = disk == kernel_now[rel]
+        elif _run_git_cap(["cat-file", "-e", f"HEAD:{rel}"], repo_root).returncode != 0:
+            ours = rel in born_now and disk == born_now[rel]
+        elif rel in rewrites:
+            try:
+                head = _run_git_cap(["cat-file", "-p", f"HEAD:{rel}"], repo_root)
+                ours = head.returncode == 0 and disk == rewrites[rel](head.stdout)
+            except (OSError, UnicodeDecodeError):
+                ours = False                         # an unreadable committed copy shows nothing
+        else:
+            ours = False
+        if ours:
+            own.append(rel)
+        elif rel not in staged:
+            left.append(rel)
+    return own, left
 
 
 #: `_staged_secret_hits`'s answer when the staged diff could not be rendered or parsed. A SENTINEL, not
@@ -10855,6 +10973,23 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     ops_path = plan.scratch(CONSUMER_OPS_CONTRACT) if dry else REPO_ROOT / CONSUMER_OPS_CONTRACT
     memory_path = plan.scratch("MEMORY.md") if dry else REPO_ROOT / "MEMORY.md"
     _chained = {CONSUMER_OPS_CONTRACT: ops_path, "MEMORY.md": memory_path}
+
+    # T-13919 — every path THIS run writes, noted at the one write seam (real or recorded), so the
+    # re-run heal below can tell this run's own delivery from what an earlier run left on disk.
+    _wrote: set = set()
+    _seam_write = write_text_atomic
+    _overlay_rel = {ops_path: CONSUMER_OPS_CONTRACT, memory_path: "MEMORY.md"}
+
+    def write_text_atomic(path, content):
+        _rel = _overlay_rel.get(path)
+        if _rel is None:
+            try:
+                _rel = str(path.relative_to(REPO_ROOT))
+            except ValueError:
+                _rel = None                          # outside the repository: not a managed path
+        if _rel is not None:
+            _wrote.add(_rel)
+        _seam_write(path, content)
 
     # PURE ADOPTION-RECORD MODE (T-10265 / X-0251) — at the TRUE TOP of cmd_init, before the legacy
     # CROSS-TASKS guard and therefore before ANY filesystem write. `--adopt-concern` declares one job
@@ -11561,6 +11696,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # consumer can still converge on the kernel copy without init ever performing a SILENT deletion.
     accept_loss = set(getattr(args, "accept_scaffold_loss", None) or ())
     pin_corpus = _ScaffoldTestCorpus(REPO_ROOT)   # T-13245: one tracked-test snapshot for every refresh path
+    _kernel_now: dict = {}   # T-13919: {rel: the kernel's bytes now} for each scaffold that tracks the kernel
     cadence_created, cadence_updated, cadence_pending, cadence_foreign, cadence_diverged, cadence_stance = (
         _deliver_cadence_scaffold(REPO_ROOT, ENGINE_ROOT, write_text_atomic, apply=not dry,
                                   refresh=refresh, accept_loss=accept_loss, install_root=_engine_install,
@@ -11633,6 +11769,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             if not eng.exists():
                 continue
             kernel_text = eng.read_text(encoding="utf-8")
+            _kernel_now[rel] = kernel_text
             dst = REPO_ROOT / rel
             if dst.exists() and dst.read_text(encoding="utf-8") == kernel_text:
                 continue                  # already kernel-current — nothing to do
@@ -11785,6 +11922,62 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     cur = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT)
     on_main = cur.returncode == 0 and cur.stdout.strip() == "main"
 
+    # T-13919 (X-1968) — RE-RUN HEAL OF AN INTERRUPTED DELIVERY. The scaffolds above are written long
+    # before the one commit below, so an init that died in between left them written and uncommitted;
+    # this run then found each one current, counts nothing as delivered and would commit nothing. Read
+    # off the tree, no new state (`_uncommitted_init_deliveries`): a managed path that differs from HEAD
+    # and holds, byte for byte, what init writes there is that run's delivery (`stranded`) and rides
+    # the commit below. A path this very run writes is neither a heal nor left. Once a run heals, every
+    # other managed path that differs from HEAD (`_withheld`) stays OUT of its commit — the project's
+    # own edit is never swept in beside the heal — and is named. A run that heals nothing stages as it
+    # always has. What init's own commit seam already STAGED (the T-13181 residue above) is not among
+    # the withheld paths: the reader leaves a staged, since-unchanged difference unjudged, so it rides
+    # the commit as before. On `main` only, like the commit itself.
+    stranded: list = []
+    _withheld: list = []
+    if on_main and head_exists:
+        _consumer = _is_consumer_build()
+        _charter = (REPO_ROOT / "CHARTER.md").exists()
+        _adapters = (["CLAUDE.md", *([] if _charter else ["AGENTS.md"])] if _consumer else [])
+        _born_now = {".gitattributes": _BORN_GITATTRIBUTES, "MEMORY.md": _born_memory,
+                     ".no-v1-hooks": _BORN_NO_V1_HOOKS, "lessons/README.md": _BORN_LESSONS_README,
+                     "patterns/.gitkeep": _BORN_PATTERNS_GITKEEP, "graph/.gitkeep": _BORN_GRAPH_GITKEEP,
+                     f"{_BORN_SCRATCH_DIR}/.gitkeep": _BORN_SCRATCH_GITKEEP}
+        for _rel in _adapters:
+            _born = _adapter_delivery_over(_rel, None, _cli_form, REPO_ROOT.name, _charter)
+            if _born is not None:
+                _born_now[_rel] = _born
+        # the cadence scaffold, only where this run delivers it at all (SPEC-0145 §9a): the launcher
+        # tracks the kernel like a template; the trigger is an if-absent seed the project then grows
+        if _consumer and not cadence_foreign and not cadence_stance:
+            _born_now["bin/security-audit.trigger"] = _BORN_SECURITY_TRIGGER.replace(
+                "__YITC_RUNNER__", "bin/security-audit")
+            if (ENGINE_ROOT / "bin/security-audit").exists():
+                _kernel_now["bin/security-audit"] = _security_launcher_text(_engine_install)
+        _own, _left = _uncommitted_init_deliveries(
+            REPO_ROOT, _run_git_cap, _kernel_now, _born_now,
+            {_rel: (lambda _committed, _rel=_rel: _adapter_delivery_over(
+                _rel, _committed, _cli_form, REPO_ROOT.name, _charter)) for _rel in _adapters},
+            unproven=(".gitignore", CONSUMER_OPS_CONTRACT))
+        # what this run wrote above, or writes at the commit seam below (the three deferred writes)
+        _this_run = set(_wrote) | ({"MEMORY.md"} if onboarding_seeded else set()) | {
+            str(_p.relative_to(REPO_ROOT)) for _p in (*_refresh_writes, *adapter_restamp_writes)}
+        stranded = [_rel for _rel in _own if _rel not in _this_run]
+        _left = [_rel for _rel in _left if _rel not in _this_run]
+        if stranded or not material_delivery:
+            _withheld = _left
+        else:   # no heal: the commit below stages every other present managed path, as it always has
+            _withheld = [_rel for _rel in _left if _rel in _kernel_now]
+    material_delivery = material_delivery or bool(stranded)
+    if _withheld:
+        import sys   # module-local idiom: init.py imports sys per-function, never at module level
+        print(f"consumer init ({REPO_ROOT.name}): left uncommitted — {', '.join(_withheld)}: "
+              f"{'it differs' if len(_withheld) == 1 else 'each differs'} from the last commit and "
+              f"init cannot show it holds its own delivery, so it did not stage "
+              f"{'it' if len(_withheld) == 1 else 'them'}. If init wrote the file, remove it "
+              f"(or restore it: `git -C {REPO_ROOT} checkout -- <path>`) and re-run init — it is "
+              f"delivered again and committed; if the change is yours, commit it.", file=sys.stderr)
+
     # DRY-RUN EXIT (T-10271 / X-0243) — every accumulator above is now exactly what a real init would do,
     # computed by the real body. Render the plan and stop: no journal emit, no staging, no bootstrap
     # commit, no success wording. `would_bootstrap` mirrors the gate on the very next line.
@@ -11936,7 +12129,10 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         # REPORTED, staging it anyway would sweep the consumer's OWN uncommitted edit of that path into
         # init's bootstrap commit — committing a refresh init did not write. Every other managed path is
         # if-absent-or-append and is unchanged. Staging stays scoped — never `git add -A`.
-        _written = set(created) | set(cadence_updated) | set(rematerialized)
+        _written = set(created) | set(cadence_updated) | set(rematerialized) | set(stranded)
+        if "bin/security-audit" in stranded:
+            import os   # module-local idiom: init.py imports per-function, never at module level
+            os.chmod(REPO_ROOT / "bin/security-audit", 0o755)   # the write may have died before its chmod
         _refresh_class = ("bin/security-audit", "bin/security-audit.trigger", *_REMATERIALIZE_TEMPLATES)
         # SPEC-0190-VERDICT: segment-aware — same judgement as the four carrier commits above, for the
         # same reason: `managed` is a scoped staging pathspec list, not a presence query. A first-run
@@ -11949,7 +12145,8 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                    "lessons/README.md", "patterns/.gitkeep", "graph/.gitkeep",
                    f"{_BORN_SCRATCH_DIR}/.gitkeep",   # T-11308: tracked, so the dir exists in every worktree
                    *(p for p in _refresh_class if p in _written)]
-        present = [p for p in managed if (REPO_ROOT / p).exists()]
+        present = [p for p in managed if (REPO_ROOT / p).exists()
+                   and not (stranded and p in _withheld)]   # T-13919: a heal never sweeps a hand edit in
         _add_failed = ""
         if present:
             _added = _run_git_cap(["add", "--", *present], REPO_ROOT)
@@ -11986,14 +12183,33 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                   "rest staged, then re-run init: the bootstrap commit fires once the scan is clean.",
                   file=sys.stderr)
         elif has_staged:
-            _bootstrap_msg = (
-                f"{_INIT_COMMIT_SUBJECT}\n\n"
-                "One-time governed bootstrap commit — the init worktree-gate exception (T-9463): a fresh\n"
-                "consumer cannot ride worktree+land until init delivers its verify contract, so init\n"
-                "commits its born scaffolds + journal directly to main (the .gitignore committed here\n"
-                "also lets a subsequent land ignore the transient .yitc/ + journal-sync-state/ churn).\n\n"
-                "from: SPEC-0051 — canonical write-flow + its no-worktree exceptions "
-                "(AGENTS §Writes-happen-in-a-worktree EXCEPTION); consumer-bootstrap exception, T-9463\n")
+            _from_line = ("from: SPEC-0051 — canonical write-flow + its no-worktree exceptions "
+                          "(AGENTS §Writes-happen-in-a-worktree EXCEPTION); consumer-bootstrap exception, T-9463\n")
+            _removal_specs = [*_churn_specs, CONSUMER_VERIFY_CONTRACT, "CROSS-TASKS.md"]
+            # T-13930 — bootstrap-class content: a scaffold born this run, or a healed (T-13919) delivery
+            # other than a kernel-tracking scaffold or an adapter rewrite, which a refresh writes too.
+            if created or [p for p in stranded if p not in _kernel_now and p not in ("CLAUDE.md", "AGENTS.md")]:
+                _bootstrap_msg = (
+                    f"{_INIT_COMMIT_SUBJECT}\n\n"
+                    "One-time governed bootstrap commit — the init worktree-gate exception (T-9463): a fresh\n"
+                    "consumer cannot ride worktree+land until init delivers its verify contract, so init\n"
+                    "commits its born scaffolds + journal directly to main (the .gitignore committed here\n"
+                    "also lets a subsequent land ignore the transient .yitc/ + journal-sync-state/ churn).\n\n"
+                    + _from_line)
+            else:
+                # T-13930 — anything else is a refresh, not the one-time bootstrap: its subject names
+                # the release, its body the staged paths it carries.
+                _names = _run_git_cap(["diff", "--cached", "--name-only", "--", *present, *_removal_specs],
+                                      REPO_ROOT)
+                _carried = (sorted({x for x in _names.stdout.splitlines() if x})
+                            if _names.returncode == 0 else [])
+                _bootstrap_msg = (
+                    f"{_INIT_REFRESH_SUBJECT_HEAD}{_init_release_label(ENGINE_ROOT, _run_git_cap)}"
+                    f"{_INIT_REFRESH_SUBJECT_TAIL}\n\n"
+                    "Governed scaffold refresh by a re-run of init on main (the T-9463 commit seam; this run\n"
+                    "births no scaffold). Paths this commit carries:\n"
+                    + "".join(f"  {x}\n" for x in (_carried or ["(not listed: the staged names could not be read)"]))
+                    + "\n" + _from_line)
             # T-13456 — the commit carries init's OWN entries only: `present` as staged above, minus
             # the staged deletions inside init's removal classes — the churn it untracks (T-9310), the
             # migrated legacy verify contract (T-9719) and the swept retired cross log (T-9610). The
@@ -12001,7 +12217,6 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             # on a staged credential is healed by a RE-RUN, in which the first run's `git rm --cached`
             # is already staged and no longer re-derived. Anything else staged in the shared index —
             # another session's entry — stays staged and out of this commit.
-            _removal_specs = [*_churn_specs, CONSUMER_VERIFY_CONTRACT, "CROSS-TASKS.md"]
             _committed, _why_not = _commit_from_scoped_index(
                 REPO_ROOT, present, _removal_specs, _bootstrap_msg, _run_git_cap)
             if _committed:
@@ -12041,6 +12256,9 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             parts.append("seeded main")
         if bootstrapped:
             parts.append("bootstrap-committed scaffolds to main")
+        if bootstrapped and stranded:
+            parts.append("committed what an earlier init wrote and left uncommitted: "
+                         + ", ".join(stranded))
         if bootstrap_refused:
             parts.append("bootstrap commit REFUSED — a staged credential (see above)")
         if rematerialized:

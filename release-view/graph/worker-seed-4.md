@@ -23,12 +23,13 @@
 **Fast-path eligibility — a governance-surface-touching change is NOT hygiene.** A change whose
 diff touches a **SPEC** (`specs/*.yaml`), a **PINNED-TEST surface** (the SPEC-0077 pinned last-green
 verify-path — `bin/yitc-v2 graph query SPEC-0077`), or an **always-loaded SEED** (a
-`HANDBOOK_READ_ORDER` handbook file or the floor trigger-map) is **fast-path INELIGIBLE** — by
-definition NOT hygiene. It takes the **substantive** path (all 9 stages, both audits), so any
-last-green **rebaseline** it performs carries a fresh audit-post (satisfying SPEC-0077's A-prime
-own-homework-close). Classification is **MECHANICAL** — path/surface-based, **fail-closed** on any
-touched governance surface (when in doubt, substantive). *(Self-exemplifying: editing this
-`HANDBOOK_READ_ORDER` file is itself substantive.)*
+`HANDBOOK_READ_ORDER` handbook file or the floor trigger-map), or the project's operating contract
+(`yitc-ops.yaml`), is **fast-path INELIGIBLE** — by definition NOT hygiene. It takes the
+**substantive** path (all 9 stages, both audits), so any last-green **rebaseline** it performs
+carries a fresh audit-post (satisfying SPEC-0077's A-prime own-homework-close). Classification is **MECHANICAL** — path/surface-based, **fail-closed** on any
+touched governance surface (when in doubt, substantive), test fixtures included — no carve-out:
+`task close --hygiene-fast-path` REFUSES it, reading the set SPEC-0178 rule 3 composes.
+*(Self-exemplifying: editing this `HANDBOOK_READ_ORDER` file is itself substantive.)*
   - **Incidental-staleness carve-out.** A pinned check that is only INCIDENTALLY stale — not
     semantically touched by this change — MAY still escalate to substantive to REBASELINE it,
     WITHOUT implying semantic ownership of the pinned subject; record the incidental staleness as

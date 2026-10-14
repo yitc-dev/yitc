@@ -4815,7 +4815,7 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         # startup AST-allowlist is untouched — the `_surface_concern_drift` precedent). The ordering IS
         # the correctness property: receipts written here satisfy `ts >= _session_started_lower_bound`
         # by construction, which is exactly what a CLAIM-time delivery could not do (T-11988).
-        _deliver_current_stage_bundle_at_session_start()
+        _stage_bodies = _deliver_current_stage_bundle_at_session_start()
         # T-10776 (SPEC-0171): the consumer frontend-error ECHO — report-only, suppressed-when-clean,
         # printed at this same post-anchor residue seam as the concern-drift surface above (so
         # cmd_session_start gains no injected dep and the D-0052 F5 startup AST-allowlist / SPEC-0077
@@ -4871,6 +4871,10 @@ def cmd_session_start(args: argparse.Namespace) -> None:
             print(session.mark(release_mod.engine_version_line(), session.REPORT_ONLY))
         except Exception:  # noqa: BLE001 — a report-only line never fails the start
             pass
+        # T-13934: the contract bodies delivered above are the read — said here, inside a short tail.
+        if _stage_bodies:
+            print(session.mark(session.contract_bodies_line(_stage_bodies),
+                               session.ON_DEMAND_CONTRACT_BODIES))
         # T-13435: the LAST agent-facing line — startup's end and the one step left (the session-tied
         # `--help` scan), printed immediately BEFORE the person-facing line, which stays the final one.
         print(session.startup_done_line(getattr(args, "type", None) == "build",
@@ -14501,7 +14505,7 @@ def _stage_view_without_maintainer_sections(view: str, reread: str) -> str:
     return "".join(out)
 
 
-def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
+def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out: "list | None" = None) -> list:
     """T-11550 — RENDER this stage's bundle contracts, so `stage <NAME>` DELIVERS the bundle it has
     always only NAMED, and the session that received it is CREDITED by the SPEC-0042/0050 read-gate.
 
@@ -14576,7 +14580,11 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
     body and routing fields, without the derived header and the machine-only source fields — and the
     receipt's byte count and fingerprint are taken over THOSE bytes. An explicit `graph query <SPEC>`
     never passes through here, so it stays the full render; its receipt carries no fingerprint and
-    therefore neither suppresses nor forces a body here."""
+    therefore neither suppresses nor forces a body here.
+
+    `bodies_out` (T-13934): when a list is passed, one `(spec id, bytes)` pair is appended per contract
+    whose BODY was written in full — never for a pointer or a failed render — so the two seams can close
+    with `session.contract_bodies_line`. Every other caller passes none and is unchanged."""
     done: list = []
     if not delivered:
         return done
@@ -14645,6 +14653,8 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list) -> list:
                              f"fetch it yourself: `yitc-v2 {' '.join(argv)}`\n")
             continue
         done.append(sid)
+        if bodies_out is not None:   # T-13934: a BODY reached the reader (a pointer `continue`d above)
+            bodies_out.append((sid, tee.nbytes))
         try:
             _emit_cli_invoked("graph query", argv, tee.nbytes, tee.nlines, 0,
                               args=ns, session_ref=ref, source_kind=ref_source,
@@ -14679,7 +14689,7 @@ def _own_task_worktree_card() -> "dict | None":
     return task
 
 
-def _deliver_current_stage_bundle_at_session_start() -> None:
+def _deliver_current_stage_bundle_at_session_start() -> list:
     """T-12000 — deliver THIS checkout's current stage bundle from the in-worktree `session start`,
     AFTER that verb wrote its own `session_started` anchor.
 
@@ -14717,24 +14727,29 @@ def _deliver_current_stage_bundle_at_session_start() -> None:
     BEST-EFFORT, failing OPEN on delivery and CLOSED on the gate — the `_surface_concern_drift` /
     `_deliver_stage_bundle_contracts` posture: a delivery helper must never break `session start`, and
     the consequence of not delivering is the gate refusing with its existing ready commands, i.e.
-    exactly the status quo this change improves on."""
+    exactly the status quo this change improves on.
+
+    RETURNS the `(spec id, bytes)` pairs whose BODY it printed (T-13934) — [] on every path that printed
+    none — so `session start` can close with `session.contract_bodies_line`."""
+    bodies: list = []
     try:
         task = _own_task_worktree_card()
         if task is None:
-            return
+            return bodies
         stage = task.get("current_stage")
         if not stage or stage not in STAGE_AXIS_NAMES:
-            return
+            return bodies
         delivered = _stage_bundle_specs(stage, include_kernel=True)
         if not delivered:
-            return
+            return bodies
         print(f"stage-entry contract(s) for {task.get('id')}'s current stage ({stage}) — rendered as "
               f"its contract view at the end of this output (or as a one-line pointer when this context epoch "
               f"already holds the same content, T-13510); each counts toward the read-gate "
               f"(SPEC-0042/0050) only once its delivery completes (T-13178): {', '.join(delivered)}")
-        _deliver_stage_bundle_contracts(stage, delivered)
+        _deliver_stage_bundle_contracts(stage, delivered, bodies_out=bodies)
     except Exception:
         pass
+    return bodies
 
 
 def _worker_land_regime(expected_ref, events_path=None, *, now=None,
@@ -15115,7 +15130,14 @@ def cmd_stage(args: argparse.Namespace) -> None:
                              f"re-run with stdout attached (terminal, pipe or file all credit): "
                              f"{shlex.join(sys.argv)}\n")
             sys.exit(STAGE_BUNDLE_DISCARDED_EXIT)
-        _done = _deliver_stage_bundle_contracts(name, delivered)
+        _bodies: list = []
+        _done = _deliver_stage_bundle_contracts(name, delivered, bodies_out=_bodies)
+        if _bodies:   # T-13934: the closing line — the last one a tail of this output shows
+            try:
+                print(session.mark(session.contract_bodies_line(_bodies),
+                                   session.ON_DEMAND_CONTRACT_BODIES))
+            except (BrokenPipeError, OSError):
+                pass
     finally:
         _done_set = set(_done)
         _append_event("stage_entered", tid, {"stage": name, "delivered": list(_done),

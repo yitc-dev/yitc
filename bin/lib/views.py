@@ -6390,10 +6390,11 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # collaborator returns {count, window_days, overrides} — governed deploys that OVERRODE a REJECTING
     # pre-deploy security gate inside the window. UNFLOORED: unlike a followup backlog, ONE deliberate gate
     # bypass must never be count-hidden — an override nobody reads back is indistinguishable from a gate
-    # quietly switched off, and the findings it bypassed are still live in production. Report-only,
-    # suppressed-when-clean (a repo that never overrode the gate → 0 → silent), NEVER gates. The line names
-    # the FIX (the findings are still open) and the meta-signal: a REPEATING override means the blocking
-    # rule, not the deploy, is what needs changing.
+    # quietly switched off. Report-only, suppressed-when-clean (a repo that never overrode the gate → 0 →
+    # silent), NEVER gates. The line states only what the fold reads (T-13928, X-1978): the findings were
+    # open WHEN the gate was overridden; whether they still are is rule 11's fold, not this one. It names
+    # the FIX for a finding still open, the age-out, and the meta-signal: a REPEATING override means the
+    # blocking rule, not the deploy, is what needs changing.
     if _security_gate_overrides is not None:
         _go = _security_gate_overrides() or {}
         go = _n(_go.get("count")) if isinstance(_go, dict) else None
@@ -6405,10 +6406,12 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                       (f" +{len(_adv) - _CAP} more" if len(_adv) > _CAP else "")) if _adv else ""
             lines.append(
                 f"debt: {go} security-gate override(s) in the last {_go.get('window_days')}d{_named} — a "
-                f"REJECTING pre-deploy gate was owner-overridden (SPEC-0155 rule 7) and the bypassed "
-                f"finding(s) are still OPEN in the deployed code: fix each (or record an accepted-risk "
-                f"waiver with an expiry) + re-run the security producer. A REPEATING override means the "
-                f"BLOCKING RULE needs the change, not the deploy. Report-only (SPEC-0119 rule 14).")
+                f"REJECTING pre-deploy gate was owner-overridden (SPEC-0155 rule 7); the bypassed "
+                f"finding(s) were open when the gate was overridden — this line does not read whether "
+                f"they still are. For one still open: fix it (or record an accepted-risk waiver with an "
+                f"expiry) + re-run the security producer. Each override shows until it ages out of the "
+                f"window. A REPEATING override means the BLOCKING RULE needs the change, not the deploy. "
+                f"Report-only (SPEC-0119 rule 14).")
     # LATE-FINDINGS view (SPEC-0204 rule 8 / SPEC-0119, T-12288): the OPTIONAL injected collaborator
     # returns {count, passes, window_days, findings} — defects the auditor raised at a pass >= 2 as
     # `pre-existing-in-subject`, i.e. ones its own pass-1 survey missed. UNFLOORED, like the

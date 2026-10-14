@@ -461,6 +461,14 @@ def _pinned_env_prime(W: Path, pinned_wt: Path, *, _run_git_cap, _PINNED_ENV_DEP
         # that could receive it. Done per entry, immediately after the link, so the fence and the
         # thing it fences can never drift apart. Never raises (see the helper).
         _pinned_env_dockerignore_fence(pinned_wt, rel, _run_git_cap=_run_git_cap)
+        # T-13925 — record the link so the pinned leg's prep recognises it as primed by PROVENANCE. Its own
+        # guard, after the fence, so a failure here never skips the fence; left unrecorded, the prep
+        # refuses the link by name (fail-closed toward the refusal, never toward a silent install).
+        try:
+            from lib import land_verify_legs
+            land_verify_legs._record_primed_dependency_link(dst, src)
+        except Exception:
+            pass
         primed.append(rel)
     return primed
 
