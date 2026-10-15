@@ -3016,21 +3016,23 @@ def _handoff_write_file(dfd: int, name: str, content: str, *, file_mode: int = 0
         raise
 
 
-def _handoff_author_watcher_report(author_ref, _live_watchers) -> "tuple[list, str | None]":
+def _handoff_author_watcher_report(author_ref, _live_watchers) -> "tuple[list, str | None, list]":
     """T-13539 — the lines `session handoff take` prints about the watchers the hand-off's AUTHOR
-    session armed that are still live: `(stdout_lines, problem)`. One line per live watcher, none when
-    there is none. REPORT-ONLY: it reads, it never signals, ends or takes over a watcher. NEVER raises —
-    the take has already happened when this runs — and an UNANSWERED read comes back as `problem`
-    (a sentence for stderr), never as a silent «none»."""
+    session armed that are still live: `(stdout_lines, problem, live_rows)`. One line per live watcher,
+    none when there is none. REPORT-ONLY: it reads, it never signals, ends or takes over a watcher. NEVER
+    raises, and an UNANSWERED read comes back as `problem` (a sentence for stderr), never as a silent
+    «none». T-13945 — `live_rows` are the rows the lines name (empty on an unanswered read), so the take
+    grants arming beside exactly the watchers it reported and no others."""
     if _live_watchers is None or not author_ref:
-        return [], None
+        return [], None, []
     try:
         from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy, leaf-order
         live, unanswered = _live_watchers(author_ref)
         if unanswered is not None:
             return [], (f"session handoff take: the live watchers of the hand-off author's session "
                         f"{author_ref} could NOT be listed ({unanswered}) — one may still be running; "
-                        f"a duplicate `dispatch --watch` over its tasks names it if so")
+                        f"nothing is granted, so a `dispatch --watch` over its tasks is refused as a "
+                        f"duplicate and names it if so"), []
         lines = []
         for row in live or []:
             d = row.get("data") or {}
@@ -3038,10 +3040,39 @@ def _handoff_author_watcher_report(author_ref, _live_watchers) -> "tuple[list, s
             lines.append(f"watcher still live from the hand-off author's session: pid={d.get('pid')} "
                          f"over {tasks} — {_dispatch._watch_holder_text(row)} (report-only: it is not "
                          f"this session's, and nothing here ends it or takes it over)")
-        return lines, None
+        return lines, None, list(live or [])
     except Exception as exc:   # noqa: BLE001 — report-only; the take is already done and must stand
         return [], (f"session handoff take: the live watchers of the hand-off author's session "
-                    f"{author_ref} could NOT be listed ({exc!r}) — one may still be running")
+                    f"{author_ref} could NOT be listed ({exc!r}) — one may still be running"), []
+
+
+_HANDOFF_TASK_ID_RE = re.compile(r"\bT-\d+\b")
+
+
+def _handoff_granted_tasks(entry: dict, live_rows) -> "list[str]":
+    """T-13945 (SPEC-1004 §4) — the task ids a hand-off take lets the taking session arm its own
+    watcher over beside the author's: the ids the author's LIVE watchers held at the take, INTERSECTED
+    with the task ids the hand-off itself names (`T-<n>` pointers in its title and body — the §4
+    content contract puts pointers first, and a hand-off has no other task field). A task the author
+    also watched but the hand-off does not name is not granted. PURE; never raises."""
+    named = set(_HANDOFF_TASK_ID_RE.findall(f"{entry.get('title') or ''}\n{entry.get('body') or ''}"))
+    watched = set()
+    for row in live_rows or []:
+        d = (row.get("data") or {}) if isinstance(row, dict) else {}
+        watched |= {str(t) for t in (d.get("watched_tasks") or [])}
+    return sorted(watched & named)
+
+
+def _handoff_granted_watchers(live_rows) -> "list[str]":
+    """T-13945 — the identities (`<pid>:<pid_start>`) of the author's live watchers the take read, so
+    the admission names THOSE processes and not a watcher the author arms later, even within the same
+    second as the take. PURE; never raises."""
+    keys = []
+    for row in live_rows or []:
+        d = (row.get("data") or {}) if isinstance(row, dict) else {}
+        if d.get("pid") is not None and d.get("pid_start"):
+            keys.append(f"{d.get('pid')}:{d.get('pid_start')}")
+    return sorted(set(keys))
 
 
 def cmd_session_handoff(args, *, REPO_ROOT, _die, _resolve_session_ref, _append_event,
@@ -3104,18 +3135,31 @@ def cmd_session_handoff(args, *, REPO_ROOT, _die, _resolve_session_ref, _append_
                 pass
         finally:
             os.close(dfd)
-        _append_event("handoff_taken" if action == "take" else "handoff_dropped", None,
-                      {"id": hid, "sha256": digest}, session_ref=ref)
         if action == "drop":
+            _append_event("handoff_dropped", None, {"id": hid, "sha256": digest}, session_ref=ref)
             print(f"{hid} удалена")
-        else:
-            # T-13539 — AFTER the take is complete (body printed, file gone, row written), so nothing
-            # here can fail or alter it: name the watchers the author's session left running.
-            _lines, _problem = _handoff_author_watcher_report(entry.get("author_session_ref"), _live_watchers)
-            for _ln in _lines:
-                print(_ln)
-            if _problem:
-                print(_problem, file=_sys.stderr)
+            return
+        # T-13539 — AFTER the claim is complete (body printed, file gone), so nothing here can fail or
+        # alter it: name the watchers the author's session left running. T-13945 — read BEFORE the row,
+        # which records the author and the ids this session may now arm its own watcher over beside
+        # them (SPEC-1004 §4); an unanswered read grants nothing.
+        author = entry.get("author_session_ref")
+        _lines, _problem, _live = _handoff_author_watcher_report(author, _live_watchers)
+        granted = _handoff_granted_tasks(entry, _live)
+        _append_event("handoff_taken", None,
+                      {"id": hid, "sha256": digest, "author_session_ref": author,
+                       "granted_tasks": granted,
+                       "granted_watchers": _handoff_granted_watchers(_live) if granted else []},
+                      session_ref=ref)
+        for _ln in _lines:
+            print(_ln)
+        if _live:
+            print(f"this session may arm its own `dispatch --watch` beside them over: {', '.join(granted)}"
+                  if granted else
+                  "no task granted for a watcher beside them: the hand-off names none of the tasks they "
+                  "watch, so a `dispatch --watch` over those tasks is refused as a duplicate")
+        if _problem:
+            print(_problem, file=_sys.stderr)
         return
 
     if action != "write":

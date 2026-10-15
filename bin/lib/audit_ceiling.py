@@ -428,6 +428,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                 extra={"excerpt": _backtick[:200]})
 
     card = {}
+    pre_fix_plan_source = None
+    pre_fix_plan_source_unfound = False
     if not is_plan:
         task_path = _find_task_yaml(tid)
         if task_path is not None:
@@ -464,8 +466,22 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                                     if isinstance(_remote, dict) else None)
                     if str(_remote_plan or "").strip():
                         card = {**card, "implementation_plan": _remote_plan}
+                        pre_fix_plan_source = f"the task worktree {Path(_other).parent}"
             except (OSError, ValueError, TypeError):
                 pass
+        # T-13948 (public issue #105): a `fix` row can never be corrected (rule 2 is append-only), so
+        # its plan basis is never a silent guess. Name the checkout the plan was read from; and run
+        # on MAIN (a `.git` directory) for an in-progress card whose worktree plan was not found,
+        # main's card may be the stale pre-pause plan — refused below, in the evidence arm, so every
+        # earlier refusal keeps its order.
+        if stage == "pre" and disposition == "fix" and pre_fix_plan_source is None:
+            if not (Path(REPO_ROOT) / ".git").is_dir():
+                pre_fix_plan_source = f"this checkout {REPO_ROOT}"
+            elif str(card.get("status") or "") == "in-progress":
+                pre_fix_plan_source_unfound = True
+            else:
+                pre_fix_plan_source = (f"the main checkout card (status "
+                                       f"{card.get('status') or 'unknown'})")
     # The PLAN a directive may name in place of the target. For a TASK that is the plan the card is
     # `decomposed_from`; for a PLAN target the target IS the plan, and passing it again would only
     # duplicate the arm `_directive_covers_task(row, target_id)` already covers token-exactly — so it
@@ -1036,6 +1052,15 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                             f"post-only and a content hash has no ancestry).",
                             {"evidence_revision": evidence})
             elif stage == "pre":
+                if pre_fix_plan_source_unfound:
+                    _refuse("plan-source-unfound", "pre_fix_plan_source_unfound",
+                            f"{tid} audit-pre: this runs on the main checkout and no live "
+                            f"`task/{tid}` worktree card with an `implementation_plan` was found, "
+                            f"while the card is `in-progress` — main's card may carry a stale plan, "
+                            f"and a recorded `fix` can never be corrected (SPEC-0204 rule 2, "
+                            f"T-13948). Record it once the worker's worktree is live (run this again "
+                            f"from main), or run it from that worktree. Nothing was written.",
+                            {"evidence_revision": evidence})
                 plan_text = str(card.get("implementation_plan") or "")
                 current_fp = _plan_content_hash(plan_text) if plan_text.strip() else None
                 if subject_revision and evidence == subject_revision:
@@ -1276,7 +1301,8 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
 
         _append_event("ceiling_decision", (None if is_plan else tid), payload)
     print(f"{target_id} audit-{target_key}: ceiling decision recorded — {disposition} on "
-          f"{finding_fp} @ {ceiling_ref} (directive {locator})")
+          f"{finding_fp} @ {ceiling_ref} (directive {locator})"
+          + (f"; plan read from {pre_fix_plan_source}" if pre_fix_plan_source else ""))
 
 
 def maximal_evidence_revision(revisions, strict_descendant):

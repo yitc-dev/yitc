@@ -24,6 +24,8 @@ implements:
 - bin/lib/followup.py#awaits_kind
 - bin/lib/followup.py#split_event_awaits
 - bin/lib/followup.py#event_after_arrived
+- bin/lib/followup.py#split_due_awaits
+- bin/lib/followup.py#due_arrived
 - bin/lib/followup.py#predicate_arrival_keys
 - bin/lib/followup.py#advisory_candidate_refs
 - bin/lib/followup.py#arrived_ids
@@ -62,36 +64,41 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ Both refuse BEFORE\n  any append, so a rejected capture leaves NO event and nothing\
   \ to dispose. So the invariant the\n  partition branches on is `armed <=> trigger\
   \ AND awaits`, at this door and at `arm`'s alike; to\n  capture a bare future event\
-  \ with no artifact to name, omit BOTH and capture it ACTIONABLE.\n  The `followup_added`\
-  \ payload ALSO carries **`actor`** — WHO captured it. It is DERIVED\n  host-side\
-  \ from the launch context (`lib/memory.py#resolve_actor`: the owner-role host user\
-  \ records\n  the default `ai-agent`; a named provisioned user, e.g. <collaborator>,\
-  \ records their own name), so attribution\n  costs the human ZERO added input —\
-  \ there is no `--actor` flag to pass and none is wanted (owner\n  directive 2026-07-11).\
-  \ It is BORN-ONLY meta: the fold reads it off `followup_added` alone, and no\n \
-  \ later `followup_armed` / `promoted` / `dropped` re-writes it — the CAPTURER is\
-  \ immutable, exactly as\n  `added_at` is. `followup list` renders `[by: <actor>]`\
-  \ ONLY for a real person (suppressed-when-clean:\n  an `ai-agent` capture — the\
-  \ overwhelming majority — prints nothing, so the view gains signal, not\n  noise).\
-  \ Reuses the existing event; NO new store / field-store / verb (CHARTER §P1 F1-F2).\n\
-  - **`followup promote <id> --into <T-XXXX | lessons|patterns/<note>.md | plan-slug>`**\
-  \ — appends `followup_promoted`; the open→promoted leg. `--into` is REQUIRED (X-0165):\
-  \ a bare promote would fold to promoted with `into=None`, stranding a promoted-but-carrierless\
-  \ item; `promote` names the carrier the followup BECAME (file/author it first, then\
-  \ promote --into it, or `drop`).\n**THREE CARRIERS, resolved by the target's own\
-  \ SHAPE.** `T-NNNN` is the TASK leg,\nunchanged. A repo-relative `lessons/<name>.md`\
-  \ or `patterns/<name>.md` is the **AUTHORED REFERENCE\nNOTE** leg — the carrier\
-  \ SPEC-0140 names as the LIGHTEST for a captured followup, drained\nin ONE batched\
-  \ `work/<slug>` land rather than a worktree cycle per note (the X-0148\nceremony-per-lesson\
-  \ cost). That carrier is a FILE, and before this the vocabulary could not name a\n\
-  file, so the sanctioned lightest path terminated in `drop`: on 2026-08-26 four DELIVERED\
-  \ notes were\nrecorded `dropped`, the carrier surviving only as prose. The 2-state\
-  \ fold is what later readers\ncount and `dropped` means DECIDED-NOT-TO, so a delivered\
-  \ note recorded there is indistinguishable\nfrom an abandoned one, and the recommended\
-  \ carrier was the only one whose outcome could not be\nrecorded truthfully. The\
-  \ note leg is FAIL-CLOSED on the SAME terms as the plan leg: the file must\nEXIST\
-  \ or the promote is REFUSED naming the path, before any append. Its shape is BOUNDED\
-  \ to the two\nsanctioned directories, one slash, a `.md` leaf — a carrier that could\
+  \ with no artifact to name, omit BOTH and capture it ACTIONABLE.\n  **`--due <date>`**\
+  \ captures it BORN-ARMED on a calendar date INSTEAD of `--awaits` (the two are not\n\
+  \  combinable); `--trigger` is then optional and defaults to one naming the date.\
+  \ Accepted forms:\n  `YYYY-MM-DD` (the start of that day, UTC) or `YYYY-MM-DDTHH:MM:SSZ`;\
+  \ an unreadable date, or one not\n  in the future, REFUSES naming those forms, before\
+  \ any append (§Armed → the `due:` shape).\n  The `followup_added` payload ALSO carries\
+  \ **`actor`** — WHO captured it. It is DERIVED\n  host-side from the launch context\
+  \ (`lib/memory.py#resolve_actor`: the owner-role host user records\n  the default\
+  \ `ai-agent`; a named provisioned user, e.g. <collaborator>, records their own name),\
+  \ so attribution\n  costs the human ZERO added input — there is no `--actor` flag\
+  \ to pass and none is wanted (owner\n  directive 2026-07-11). It is BORN-ONLY meta:\
+  \ the fold reads it off `followup_added` alone, and no\n  later `followup_armed`\
+  \ / `promoted` / `dropped` re-writes it — the CAPTURER is immutable, exactly as\n\
+  \  `added_at` is. `followup list` renders `[by: <actor>]` ONLY for a real person\
+  \ (suppressed-when-clean:\n  an `ai-agent` capture — the overwhelming majority —\
+  \ prints nothing, so the view gains signal, not\n  noise). Reuses the existing event;\
+  \ NO new store / field-store / verb (CHARTER §P1 F1-F2).\n- **`followup promote\
+  \ <id> --into <T-XXXX | lessons|patterns/<note>.md | plan-slug>`** — appends `followup_promoted`;\
+  \ the open→promoted leg. `--into` is REQUIRED (X-0165): a bare promote would fold\
+  \ to promoted with `into=None`, stranding a promoted-but-carrierless item; `promote`\
+  \ names the carrier the followup BECAME (file/author it first, then promote --into\
+  \ it, or `drop`).\n**THREE CARRIERS, resolved by the target's own SHAPE.** `T-NNNN`\
+  \ is the TASK leg,\nunchanged. A repo-relative `lessons/<name>.md` or `patterns/<name>.md`\
+  \ is the **AUTHORED REFERENCE\nNOTE** leg — the carrier SPEC-0140 names as the LIGHTEST\
+  \ for a captured followup, drained\nin ONE batched `work/<slug>` land rather than\
+  \ a worktree cycle per note (the X-0148\nceremony-per-lesson cost). That carrier\
+  \ is a FILE, and before this the vocabulary could not name a\nfile, so the sanctioned\
+  \ lightest path terminated in `drop`: on 2026-08-26 four DELIVERED notes were\n\
+  recorded `dropped`, the carrier surviving only as prose. The 2-state fold is what\
+  \ later readers\ncount and `dropped` means DECIDED-NOT-TO, so a delivered note recorded\
+  \ there is indistinguishable\nfrom an abandoned one, and the recommended carrier\
+  \ was the only one whose outcome could not be\nrecorded truthfully. The note leg\
+  \ is FAIL-CLOSED on the SAME terms as the plan leg: the file must\nEXIST or the\
+  \ promote is REFUSED naming the path, before any append. Its shape is BOUNDED to\
+  \ the two\nsanctioned directories, one slash, a `.md` leaf — a carrier that could\
   \ name any file would record\nnothing — and is disjoint from the other two legs\
   \ by construction. `drop` is UNCHANGED and stays\nthe honest terminal for a note\
   \ genuinely abandoned; nothing already recorded is rewritten (the\njournal is append-only,\
@@ -131,16 +138,17 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ grammar); an unresolvable one — a repo path, a spec id, a plan slug,\n  free prose\
   \ — REFUSES on the same terms, at BOTH write doors, naming what IS resolvable. A\
   \ bare\n  future event with no machine-checkable artifact is therefore LEFT ACTIONABLE\
-  \ (visible, awaiting an\n  explicit disposition) or dropped — never armed. `arm`\
-  \ RE-STATES THE WHOLE AWAITED\n  CONDITION (both attributes, last write wins), so\
-  \ it applies to a FIRED followup too and RETURNS IT TO\n  `armed` — the operator\
-  \ saying \"that fire was wrong, here is the real condition\" (§Armed → re-arming).\n\
-  \  NO WORKTREE.\n- **`followup unarm <id>`** — appends `followup_armed` with `trigger:\
-  \ null` AND `awaits: null`; clears\n  both and returns the item to the actionable\
-  \ set. Clearing the trigger while leaving the awaited\n  artifact would strand an\
-  \ actionable item carrying a live fire key. The explicit re-actionable path for\n\
-  \  a waiter whose trigger went MOOT (a plan abandoned, a gate dropped) and so will\
-  \ never fire. NO WORKTREE.\n- **`followup list [--status open|actionable|armed|fired|promoted|dropped|all]`**\
+  \ (visible, awaiting an\n  explicit disposition) or dropped — never armed. **`--due\
+  \ <date>`** arms it on a calendar date\n  INSTEAD of `--awaits`, on exactly the\
+  \ terms of `add --due`. `arm` RE-STATES THE WHOLE AWAITED\n  CONDITION (both attributes,\
+  \ last write wins), so it applies to a FIRED followup too and RETURNS IT TO\n  `armed`\
+  \ — the operator saying \"that fire was wrong, here is the real condition\" (§Armed\
+  \ → re-arming).\n  NO WORKTREE.\n- **`followup unarm <id>`** — appends `followup_armed`\
+  \ with `trigger: null` AND `awaits: null`; clears\n  both and returns the item to\
+  \ the actionable set. Clearing the trigger while leaving the awaited\n  artifact\
+  \ would strand an actionable item carrying a live fire key. The explicit re-actionable\
+  \ path for\n  a waiter whose trigger went MOOT (a plan abandoned, a gate dropped)\
+  \ and so will never fire. NO WORKTREE.\n- **`followup list [--status open|actionable|armed|fired|promoted|dropped|all]`**\
   \ — folds + prints\n  (default `open`, which renders the three-way §Armed partition\
   \ with per-group counts). The three OPEN\n  lenses (`actionable` / `armed` / `fired`)\
   \ are DERIVED views over that partition, NOT stored statuses.\n  An actionable row\
@@ -263,71 +271,80 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ the land comparison each look it up unchanged, so no reader parses a predicate\
   \ for itself.\n  - **The same bound: the KERNEL journal only.** A predicate does\
   \ not reach a consumer's journal;\n    that wait still routes as a `cross request`\
-  \ (below).\n\n**BORN ARMED IS THE DEFAULT WHEREVER THE AWAITED MOMENT IS A NAMEABLE\
-  \ ARTIFACT (NORMATIVE).** A followup whose firing moment IS a reference the grammar\
-  \ above resolves is CAPTURED\nborn-armed (`add --trigger … --awaits <ref>`); it\
-  \ is not captured actionable with the wait written\nas PROSE. ACTIONABLE is the\
-  \ honest state only for a wait no grammar can name. The mechanism alone\nnever delivered\
-  \ this — measured on the kernel 2026-09-04 the headline read 246 actionable / 9\
-  \ armed,\nand well over a hundred of the 246 named their waiting moment in prose\
-  \ — so the CAPTURE DOOR says\nso: when no `--awaits` was given and the capture's\
-  \ own text names a still-OPEN `T-NNNN` or a\nnon-terminal `X-NNNN` other than the\
-  \ `relates_to` provenance ref, `followup add` prints ONE\nreport-only line naming\
-  \ it and the exact `arm` command. It NEVER gates, emits, or changes the exit\ncode;\
-  \ it names only references `awaits_kind` already resolves and never guesses a trigger\
-  \ PHRASE\n(armedness stays a human judgement — §Why the trigger is DECLARED); and\
-  \ it is fail-open to SILENCE,\nbecause a report-only signal about a reader fails\
-  \ the opposite way to a guard. The EVENT grammar is\ndeliberately OUTSIDE the advisory:\
-  \ an event class ARRIVES on MEMBERSHIP, so a class with rows\nalready in the journal\
-  \ fires IMMEDIATELY — advising one would manufacture the false-armed\nstate that\
-  \ grammar was narrowed to end. AMENDS the SECOND half of that reason without moving\n\
-  the advisory: a «next occurrence of <type>» wait now HAS an artifact — the time-anchored\
-  \ `@after=`\nshape above — so it is no longer INEXPRESSIBLE, merely UNDEDUCIBLE.\
-  \ The advisory still declines to\npropose one, and the distinction is the point:\
-  \ the anchor is a TIME THE OPERATOR CHOOSES, and no scan\ncan read a chosen moment\
-  \ out of prose, so proposing one would be the guess this advisory exists not\nto\
-  \ make. The remedy is delivered where the problem is OBSERVABLE instead — at `arm`'s\
-  \ existing\nrow-count report, which now names the fourth shape and prints the exact\
-  \ re-arm command whenever the\nclass it just armed on already has rows (report-only;\
-  \ the operator's awaits is never rewritten).\n`cli.py#_arm_cross_re_entry` stays\
-  \ actionable-by-design, unchanged (the consult: the\npeer's condition names no local\
-  \ artifact).\n\n**WHERE THE MOMENT LANDS DECIDES THE CARRIER (owner ruling 2026-09-04,\
-  \ NORMATIVE).** Every\nshape in the grammar above resolves against THE JOURNAL OF\
-  \ THE REPO THE FOLLOWUP LIVES IN. So the\nfirst question about any wait is not WHICH\
-  \ shape names it, but WHOSE journal its firing moment\nlands in — and when the answer\
-  \ is ANOTHER PROJECT, no followup in this repo can carry it. Such a\nwait is carried\
-  \ by a **`cross request --kind task --to <project>`** (SPEC-0085 §3) whose brief\
-  \ asks\nthat project to (a) ARM ITS OWN followup on the moment, in its own repo,\
-  \ with the grammar above\n(typically `events.jsonl#type=<type>@after=<ISO ts>`),\
-  \ and (b) REPORT THE READING BACK with `cross\ndone <X-NNNN> --note '<the reading\
-  \ + its locator>'` — plus **AT MOST ONE** followup on this side\nARMED on the resulting\
-  \ `X-NNNN`. The kernel then wakes exactly when the peer answers, cites the\nanswer\
-  \ as `coordination.jsonl#cross=X-NNNN` (the SPEC-0015 shared-store locator kind),\
-  \ and\npolls nothing in between. Grounds: the owner ruling of 2026-09-04 — this\
-  \ project does not monitor\nother projects — and the measurement that made it necessary:\
-  \ of the 212 followups left actionable\nafter that day's sweep, an estimated 60-80\
-  \ waited on a row in a CONSUMER's journal, every one of\nthem unfireable by construction\
-  \ and permanently resident in the actionable headline.\n- **THE ASK MAY ONLY PRESCRIBE\
-  \ AN AWAITS KEY THE ASKING SIDE HAS VERIFIED EXISTS.** The\n  asking side owns every\
-  \ emitter the awaited moment could fire from and the receiver owns none of\n  them,\
-  \ so the key is knowable at authoring time and guessable only at reading time: name\
-  \ the\n  literal `events.jsonl#type=<t>`, checked against the SPEC-0025 / SPEC-0161\
-  \ catalog, never a\n  placeholder for the peer to resolve — and when NO emitter\
-  \ fires at that moment, the ask is\n  unanswerable as written and MUST NOT be filed\
-  \ as one (file the emitter card first, or drop the\n  carrier / record it wont-hold).\
-  \ This does not reinstate validation of a TYPE (§the event grammar\n  REPORTS rather\
-  \ than validates, below — a class that has never fired is exactly what these records\n\
-  \  wait for); a placeholder is not an uncatalogued type, it is the absence of a\
-  \ type.\n  `cross.py#placeholder_awaits_key_warning` reports the literal placeholder\
-  \ on a `--kind task`\n  request, report-only. Grounds: <project> X-1379 over the\
-  \ X-1274..X-1291 family, 2026-09-11 —\n  three asks of one family prescribed an\
-  \ awaits key on a moment that emits no event at all.\n- **The `X-NNNN` item STAYS\
-  \ OPEN (`picked`) while the peer holds the obligation, and that is the\n  CARRIER.**\
-  \ `picked` rows are outside the session-start outbox cut, so an item the peer\n\
-  \  is working is not something THE AUTHOR is re-asked about. **That cut is the AUTHOR's\
-  \ outbox, and\n  the brief must not offer it to the RECEIVER as a no-nag promise\
-  \ :** on the receiving\n  side `session start` prints «N inbox item(s) ACCEPTED\
-  \ (picked) but tracked by NO local task»\n  (`cross.inbox_picked_untracked_rows`)\
+  \ (below).\n- **`due:<YYYY-MM-DDTHH:MM:SSZ>`** — a CALENDAR MOMENT: it arrives once\
+  \ the read-time clock has\n  REACHED it (`>=` — the moment itself, unlike the strictly-later\
+  \ `@after=`), with no event needed.\n  Written ONLY by `followup add --due` / `followup\
+  \ arm --due`. It is NOT an `awaits_kind` shape, so\n  `--awaits due:<ts>` and every\
+  \ other door that admits an awaits through `awaits_kind` (`task pause\n  --awaits`,\
+  \ a park's `--awaits`, a deferred-probe moment) REFUSE it: their readers cannot\
+  \ read a\n  clock. Decided at read time by the followup partition — nothing is stored\
+  \ or scheduled, and a\n  fired date wait surfaces where every fired followup does\
+  \ (the session-start debt line, `debt`,\n  `followup list --status fired`). A stored\
+  \ `due:` value not in that spelling never fires.\n\n**BORN ARMED IS THE DEFAULT\
+  \ WHEREVER THE AWAITED MOMENT IS A NAMEABLE ARTIFACT (NORMATIVE).** A followup whose\
+  \ firing moment IS a reference the grammar above resolves is CAPTURED\nborn-armed\
+  \ (`add --trigger … --awaits <ref>`); it is not captured actionable with the wait\
+  \ written\nas PROSE. ACTIONABLE is the honest state only for a wait no grammar can\
+  \ name. The mechanism alone\nnever delivered this — measured on the kernel 2026-09-04\
+  \ the headline read 246 actionable / 9 armed,\nand well over a hundred of the 246\
+  \ named their waiting moment in prose — so the CAPTURE DOOR says\nso: when no `--awaits`\
+  \ was given and the capture's own text names a still-OPEN `T-NNNN` or a\nnon-terminal\
+  \ `X-NNNN` other than the `relates_to` provenance ref, `followup add` prints ONE\n\
+  report-only line naming it and the exact `arm` command. It NEVER gates, emits, or\
+  \ changes the exit\ncode; it names only references `awaits_kind` already resolves\
+  \ and never guesses a trigger PHRASE\n(armedness stays a human judgement — §Why\
+  \ the trigger is DECLARED); and it is fail-open to SILENCE,\nbecause a report-only\
+  \ signal about a reader fails the opposite way to a guard. The EVENT grammar is\n\
+  deliberately OUTSIDE the advisory: an event class ARRIVES on MEMBERSHIP, so a class\
+  \ with rows\nalready in the journal fires IMMEDIATELY — advising one would manufacture\
+  \ the false-armed\nstate that grammar was narrowed to end. AMENDS the SECOND half\
+  \ of that reason without moving\nthe advisory: a «next occurrence of <type>» wait\
+  \ now HAS an artifact — the time-anchored `@after=`\nshape above — so it is no longer\
+  \ INEXPRESSIBLE, merely UNDEDUCIBLE. The advisory still declines to\npropose one,\
+  \ and the distinction is the point: the anchor is a TIME THE OPERATOR CHOOSES, and\
+  \ no scan\ncan read a chosen moment out of prose, so proposing one would be the\
+  \ guess this advisory exists not\nto make. The remedy is delivered where the problem\
+  \ is OBSERVABLE instead — at `arm`'s existing\nrow-count report, which now names\
+  \ the fourth shape and prints the exact re-arm command whenever the\nclass it just\
+  \ armed on already has rows (report-only; the operator's awaits is never rewritten).\n\
+  `cli.py#_arm_cross_re_entry` stays actionable-by-design, unchanged (the consult:\
+  \ the\npeer's condition names no local artifact).\n\n**WHERE THE MOMENT LANDS DECIDES\
+  \ THE CARRIER (owner ruling 2026-09-04, NORMATIVE).** Every\nshape in the grammar\
+  \ above resolves against THE JOURNAL OF THE REPO THE FOLLOWUP LIVES IN. So the\n\
+  first question about any wait is not WHICH shape names it, but WHOSE journal its\
+  \ firing moment\nlands in — and when the answer is ANOTHER PROJECT, no followup\
+  \ in this repo can carry it. Such a\nwait is carried by a **`cross request --kind\
+  \ task --to <project>`** (SPEC-0085 §3) whose brief asks\nthat project to (a) ARM\
+  \ ITS OWN followup on the moment, in its own repo, with the grammar above\n(typically\
+  \ `events.jsonl#type=<type>@after=<ISO ts>`), and (b) REPORT THE READING BACK with\
+  \ `cross\ndone <X-NNNN> --note '<the reading + its locator>'` — plus **AT MOST ONE**\
+  \ followup on this side\nARMED on the resulting `X-NNNN`. The kernel then wakes\
+  \ exactly when the peer answers, cites the\nanswer as `coordination.jsonl#cross=X-NNNN`\
+  \ (the SPEC-0015 shared-store locator kind), and\npolls nothing in between. Grounds:\
+  \ the owner ruling of 2026-09-04 — this project does not monitor\nother projects\
+  \ — and the measurement that made it necessary: of the 212 followups left actionable\n\
+  after that day's sweep, an estimated 60-80 waited on a row in a CONSUMER's journal,\
+  \ every one of\nthem unfireable by construction and permanently resident in the\
+  \ actionable headline.\n- **THE ASK MAY ONLY PRESCRIBE AN AWAITS KEY THE ASKING\
+  \ SIDE HAS VERIFIED EXISTS.** The\n  asking side owns every emitter the awaited\
+  \ moment could fire from and the receiver owns none of\n  them, so the key is knowable\
+  \ at authoring time and guessable only at reading time: name the\n  literal `events.jsonl#type=<t>`,\
+  \ checked against the SPEC-0025 / SPEC-0161 catalog, never a\n  placeholder for\
+  \ the peer to resolve — and when NO emitter fires at that moment, the ask is\n \
+  \ unanswerable as written and MUST NOT be filed as one (file the emitter card first,\
+  \ or drop the\n  carrier / record it wont-hold). This does not reinstate validation\
+  \ of a TYPE (§the event grammar\n  REPORTS rather than validates, below — a class\
+  \ that has never fired is exactly what these records\n  wait for); a placeholder\
+  \ is not an uncatalogued type, it is the absence of a type.\n  `cross.py#placeholder_awaits_key_warning`\
+  \ reports the literal placeholder on a `--kind task`\n  request, report-only. Grounds:\
+  \ <project> X-1379 over the X-1274..X-1291 family, 2026-09-11 —\n  three asks of\
+  \ one family prescribed an awaits key on a moment that emits no event at all.\n\
+  - **The `X-NNNN` item STAYS OPEN (`picked`) while the peer holds the obligation,\
+  \ and that is the\n  CARRIER.** `picked` rows are outside the session-start outbox\
+  \ cut, so an item the peer\n  is working is not something THE AUTHOR is re-asked\
+  \ about. **That cut is the AUTHOR's outbox, and\n  the brief must not offer it to\
+  \ the RECEIVER as a no-nag promise :** on the receiving\n  side `session start`\
+  \ prints «N inbox item(s) ACCEPTED (picked) but tracked by NO local task»\n  (`cross.inbox_picked_untracked_rows`)\
   \ at EVERY start until they declare a local carrier\n  — a card filed `--resolves-cross\
   \ <X-NNNN>`, or a non-terminal plan's frontmatter\n  `resolves_cross:`. So the ask\
   \ states that cost plainly and names the silencer, which is\n  also what tracks\
@@ -721,24 +738,26 @@ implements_signature:
   bin/lib/followup.py#_clean_trigger: 416aa884c7741302bb8a38a2b0c601648c7fc849ebced634ddc96b3e0ee8512a
   bin/lib/followup.py#_fold: a7c82793ad02fd5a88bc01dadff21576de6d12ec97a80bc0c4eac41a4bc84e72
   bin/lib/followup.py#_fu_id: 972d551b84aec0bc47bad06226f0dc531c364c25da5b3e03c7fd4e8d5f0c0ad3
-  bin/lib/followup.py#_partition_open: 81d761216efe896141ae3b71b455547c5dca2985f74843517b10b79f28dcf3fd
+  bin/lib/followup.py#_partition_open: a0ebd6c1422e4ad6ae1f3d3566595ed2cb1fa88958abc82e35eb48494adcc192
   bin/lib/followup.py#_provenance_refusal: 709c47901e2aeb17902aa3a823f13660124d91a3aca90469384f2c17f886646e
   bin/lib/followup.py#_require_promote_target: 6fe6e84f84450076b29b35fe952b0a1c63eb904c8330f78693b3fac4077e2be8
   bin/lib/followup.py#advisory_candidate_refs: ac0b7baaeaf4e95a0883f5c0ead129fef92af9fd32ef9aae244d671807d2538d
   bin/lib/followup.py#arrived_ids: a6f5fd26a43073494d8e436d3c3e681a39a44cc9be61a98af353a2d1eb641dbd
   bin/lib/followup.py#awaits_kind: ca96a0145e1cf4ba61878fe266bb80737c312d30a572fc2f975b7c62a0746220
   bin/lib/followup.py#born_armed_advisory_line: bb759a5bc016feff9932eef282c67eff321b8aa3bb758e63a1c7db5b0e4ba514
-  bin/lib/followup.py#cmd_followup_add: 4351c74ca5b24bab7428dac6f6c4c8e689771b03a1e9eaed659f3bf2167293ac
-  bin/lib/followup.py#cmd_followup_arm: c2da7478d8f38bdca2829d77f803a7fe38021b7a8ee4e777868220b67024f2d6
+  bin/lib/followup.py#cmd_followup_add: 1480873c33bf4542517aae44297160259b5f730f241212c2048dfde05eea09ca
+  bin/lib/followup.py#cmd_followup_arm: 925877a30668578802b887987937826c7d41db829c4c49aa3471c12d805a08be
   bin/lib/followup.py#cmd_followup_drop: fad96f42952c0958e389d00e66f04dfde208a781ec0fb1a7f8261c93fd2de516
-  bin/lib/followup.py#cmd_followup_list: 5b1ce0719a69fd91bd5b0d7b15158d50b605273219914fc3133f0811a19989a8
+  bin/lib/followup.py#cmd_followup_list: 6ed51b47e503b938524664d87fe68656cc05f95cbc22123f3e591f1ed2e1782d
   bin/lib/followup.py#cmd_followup_promote: 92e35fbc3c8da9b7903df704440a777d79a1f47b8aa1597d3129e87733e1492c
   bin/lib/followup.py#cmd_followup_unarm: eda53ae5a16b367b649d710c69aa6c2bef16a37ccde5c613ed7db9a2811f7ff0
+  bin/lib/followup.py#due_arrived: 2b3acb8e65636b293e3702c0784c224adfc3f849f553de301c7c4b6d3ad661d9
   bin/lib/followup.py#event_after_arrived: b5ad9b49efc3ec0423ef0c78ad2f4ffb5a3e77fc918d41bfe65caee8236ee542
-  bin/lib/followup.py#open_followup_counts: 441402bc0d5878a5149877c5b6c8dc1fb24f75402aa397b16e4c601a00481873
+  bin/lib/followup.py#open_followup_counts: 11ba3ed08124ce021df7be23082be0d5f8b40c5d071c8103e780fef430d19b89
   bin/lib/followup.py#predicate_arrival_keys: 2aa9ceb2cddd8ac21c02762629d7fbddb78cc258f1044f9eb975fbc3c18b4f15
   bin/lib/followup.py#promote_at_filing: 1516f301183382cfd26a9cbe40fa34198911e19f39724ddfa7da0aa1c3b0b22d
   bin/lib/followup.py#require_promote_provenance: 16b60a00bd7ab9254fdb31085dab4858eb3e57689afb99aaea555eb1481812ac
+  bin/lib/followup.py#split_due_awaits: 91a9baf836def19f23a4aa62f674979d2679ed774ab3b4787f650a4ca4a3b7ef
   bin/lib/followup.py#split_event_awaits: a4941eda4fcf12b7aa53f9ce49de38163c99767d7aac16b848591d2565ceb8ff
   bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
   bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6

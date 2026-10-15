@@ -103,17 +103,20 @@ body: "## Scenario\n\nA project whose full verify is too slow to pay on every ca
   \ a no-rung answer — NOTHING is credited\nand the full layer runs, whatever the\
   \ difference between the two attempts would allow: a card that\ntouches the carrier's\
   \ `verify` section, a dependency manifest or an unplaceable path runs every one\
-  \ of\nits attempts in full. Only where the ladder answers rung (f) may a unit be\
-  \ credited:\n  - of the units the attempt needs (rule 2), it RUNS every unit the\
-  \ changed paths reach and every unit\n    the previous attempt did not itself run\
-  \ and pass — a unit that failed there included;\n  - every other needed unit is\
-  \ CREDITED: not run, and recorded as credited with the previous attempt's\n    reference\
-  \ — never as run, never as passed.\nONLY A UNIT THE PREVIOUS ATTEMPT ITSELF RAN\
-  \ AND PASSED IS CREDITED. A unit that attempt left out or\nitself credited carries\
-  \ no pass to reuse, so a credit never passes through two attempts.\nWhere rule 14\
-  \ credits nothing — its cases (i)-(iv): the base moved, the previous report was\
-  \ void, the\nrecord is missing or incomplete or its tree does not resolve, or a\
-  \ rung (a)-(e) answers the full layer —\nnothing is credited and the attempt runs\
+  \ of\nits attempts in full. ONE EXCEPTION: when the tree under test is byte-identical\
+  \ to the tree the previous\nattempt recorded (rule 14 — the fix's change names no\
+  \ path), a layer that passed whole there is credited\nwhole despite the card's full-layer\
+  \ reach; a rung (a) answer still runs the full layer.\nOnly where the ladder answers\
+  \ rung (f) may a unit be credited:\n  - of the units the attempt needs (rule 2),\
+  \ it RUNS every unit the changed paths reach and every unit\n    the previous attempt\
+  \ did not itself run and pass — a unit that failed there included;\n  - every other\
+  \ needed unit is CREDITED: not run, and recorded as credited with the previous attempt's\n\
+  \    reference — never as run, never as passed.\nONLY A UNIT THE PREVIOUS ATTEMPT\
+  \ ITSELF RAN AND PASSED IS CREDITED. A unit that attempt left out or\nitself credited\
+  \ carries no pass to reuse, so a credit never passes through two attempts.\nWhere\
+  \ rule 14 credits nothing — its cases (i)-(iv): the base moved, the previous report\
+  \ was void, the\nrecord is missing or incomplete or its tree does not resolve, or\
+  \ a rung (a)-(e) answers the full layer —\nnothing is credited and the attempt runs\
   \ every unit it needs, with the reason recorded.\n\n### 4. What every partial run\
   \ still does\nThe layer's `required:` checks (SPEC-1006 rule 5) run on every run,\
   \ a run that needs or runs no unit\nincluded. The report check, the per-unit re-run\
@@ -191,48 +194,51 @@ body: "## Scenario\n\nA project whose full verify is too slow to pay on every ca
   \ a credit carried\nalong a chain of attempts because the second needs the tree\
   \ each unit last ran on. Rule 6 compares the\nland's needed set with the units the\
   \ row ran OR credited because a land that refused every row with a\ncredited unit\
-  \ would make the after-fix credit cost a run instead of saving one.\n\n## Verification\n\
-  \nProbe contracts — on a sandbox consumer, each observed failing first:\n- Each\
-  \ form of the declaration, for `selection:` and for `credit:` alike: valid; no reason;\
-  \ an empty\n  reason; a blank reason; a reason that is not a string; a reason without\
-  \ the mode; `on`; a boolean —\n  every invalid one fails closed before any layer\
-  \ runs, the refusal naming the cause.\n- Each rung (a)-(e), and each no-rung full\
-  \ answer, runs the FULL layer under `selection: deciding`; rung\n  (f) runs only\
-  \ the selected units; a selection naming no unit runs the `required:` checks and\
-  \ no unit.\n- After a failed attempt on the same base, under `credit: deciding`:\
-  \ the failed units and the units the\n  fix reaches run, the other needed units\
-  \ are recorded credited with the previous attempt's reference;\n  the same holds\
-  \ for a layer that passed while that attempt failed on another layer, and nothing\
-  \ is\n  credited after an attempt that passed as a whole;\n  each rule-14 case (i)-(iv)\
-  \ credits nothing and records its reason; a unit the previous attempt left\n  out\
-  \ or credited runs.\n- Both modes on one layer: the attempt runs and credits only\
-  \ among the units its own selection needs.\n- The card that turns a mode on fails\
-  \ its first attempt and is fixed on the same base: the second attempt\n  runs the\
-  \ full layer and credits nothing; so does a retry of a card whose change the ladder\
-  \ answers on\n  any rung (a)-(e).\n- A layer declaring one key `deciding` and the\
-  \ other `shadow`, either way round, fails closed before any\n  layer runs.\n- A\
-  \ deciding layer whose `list` fails runs its full `command:` and records the decision\
-  \ `full` with its\n  reason, the outcome `passed`, no total and no unit list; a\
-  \ first attempt under `credit: deciding`\n  records no previous attempt's reference.\n\
-  - A failing `required:` check fails a partial run.\n- A void report on a partial\
-  \ run with a zero exit runs the layer's full `command:`.\n- The land that introduces\
-  \ a mode and the land that removes it each run every layer in full.\n- A planted\
-  \ failure in a left-out unit, and one in a credited unit, pass the run — the accepted\
-  \ limit,\n  shown.\n- The Tests-stage run and the land decide alike on the same\
-  \ diff.\n- The pinned last-green leg, the merge-base attribution run and a batch's\
-  \ combined candidate run a\n  layer in full under either mode.\n- A partial run's\
-  \ row carries the modes, the total, the units run, left out and credited, and the\n\
-  \  outcome `passed-partial`; a layer that ran all of its units carries `passed`.\n\
-  - The Stage-6 credit takes a row holding a partial layer run when the land's own\
-  \ decision needs exactly\n  the units the row ran or credited, and refuses it —\
-  \ the land running its own candidate leg — when the\n  sets differ by one unit either\
-  \ way; the refusal names the failed condition and, per layer, the units\n  on each\
-  \ side only, and a difference on an unchanged tree and base carries its own reason.\n\
-  - Each derived reading — the per-unit flaky rate, the layout hotspot report, the\
-  \ false-skip detector, the\n  zero-skip reading — on fixture rows holding a partial\
-  \ run: none counts it as a full run, none counts a\n  left-out or credited unit\
-  \ as run.\n- A project that declares no deciding mode produces the rows it produced\
-  \ before.\n"
+  \ would make the after-fix credit cost a run instead of saving one. Rule 3's same-tree\n\
+  exception (public issue 106, owner route events.jsonl#ts=): on cryptochart\n9 of\
+  \ 15 layers that had passed re-ran whole on a byte-identical tree because the card\
+  \ reached the\nwhole layer; the recorded tree already proves those passes, so the\
+  \ rerun bought nothing.\n\n## Verification\n\nProbe contracts — on a sandbox consumer,\
+  \ each observed failing first:\n- Each form of the declaration, for `selection:`\
+  \ and for `credit:` alike: valid; no reason; an empty\n  reason; a blank reason;\
+  \ a reason that is not a string; a reason without the mode; `on`; a boolean —\n\
+  \  every invalid one fails closed before any layer runs, the refusal naming the\
+  \ cause.\n- Each rung (a)-(e), and each no-rung full answer, runs the FULL layer\
+  \ under `selection: deciding`; rung\n  (f) runs only the selected units; a selection\
+  \ naming no unit runs the `required:` checks and no unit.\n- After a failed attempt\
+  \ on the same base, under `credit: deciding`: the failed units and the units the\n\
+  \  fix reaches run, the other needed units are recorded credited with the previous\
+  \ attempt's reference;\n  the same holds for a layer that passed while that attempt\
+  \ failed on another layer, and nothing is\n  credited after an attempt that passed\
+  \ as a whole;\n  each rule-14 case (i)-(iv) credits nothing and records its reason;\
+  \ a unit the previous attempt left\n  out or credited runs.\n- Both modes on one\
+  \ layer: the attempt runs and credits only among the units its own selection needs.\n\
+  - The card that turns a mode on fails its first attempt and is fixed on the same\
+  \ base: the second attempt\n  runs the full layer and credits nothing; so does a\
+  \ retry of a card whose change the ladder answers on\n  any rung (a)-(e).\n- A layer\
+  \ declaring one key `deciding` and the other `shadow`, either way round, fails closed\
+  \ before any\n  layer runs.\n- A deciding layer whose `list` fails runs its full\
+  \ `command:` and records the decision `full` with its\n  reason, the outcome `passed`,\
+  \ no total and no unit list; a first attempt under `credit: deciding`\n  records\
+  \ no previous attempt's reference.\n- A failing `required:` check fails a partial\
+  \ run.\n- A void report on a partial run with a zero exit runs the layer's full\
+  \ `command:`.\n- The land that introduces a mode and the land that removes it each\
+  \ run every layer in full.\n- A planted failure in a left-out unit, and one in a\
+  \ credited unit, pass the run — the accepted limit,\n  shown.\n- The Tests-stage\
+  \ run and the land decide alike on the same diff.\n- The pinned last-green leg,\
+  \ the merge-base attribution run and a batch's combined candidate run a\n  layer\
+  \ in full under either mode.\n- A partial run's row carries the modes, the total,\
+  \ the units run, left out and credited, and the\n  outcome `passed-partial`; a layer\
+  \ that ran all of its units carries `passed`.\n- The Stage-6 credit takes a row\
+  \ holding a partial layer run when the land's own decision needs exactly\n  the\
+  \ units the row ran or credited, and refuses it — the land running its own candidate\
+  \ leg — when the\n  sets differ by one unit either way; the refusal names the failed\
+  \ condition and, per layer, the units\n  on each side only, and a difference on\
+  \ an unchanged tree and base carries its own reason.\n- Each derived reading — the\
+  \ per-unit flaky rate, the layout hotspot report, the false-skip detector, the\n\
+  \  zero-skip reading — on fixture rows holding a partial run: none counts it as\
+  \ a full run, none counts a\n  left-out or credited unit as run.\n- A project that\
+  \ declares no deciding mode produces the rows it produced before.\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-1006
@@ -260,7 +266,7 @@ implements_signature:
   bin/lib/land_verify_legs.py#_adapter_previous_attempt: 6f1e1777718fd01983b639e8401e9adf31171ea362167eb7c0decd226e96817f
   bin/lib/land_verify_legs.py#_adapter_run_plan: 45d27fa94d7eab6edd051d5b723921ce3ed73e3e615daf7b1c1d87fa97b10c4a
   bin/lib/land_verify_legs.py#_declared_layer_adapters: f23a16f9afb057d9f857fe8181bce56eec8255001b27c1f7683239d4b92cc5b3
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 23b1d6ea857203710a4e5c1bdb8688acdb2c45096cc839bb2e4a104cc7db0b36
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 31a918148eb844e54893c5cf1d486493564f24a0ea92da58ec71a9efeb235f5e
   bin/lib/land_verify_legs.py#_layer_row_is_partial_run: 3ea94e55b8b232807647ffbdbed0710b3bc16c3d9dc21f18fcc85963f74a9e31
   bin/lib/land_verify_legs.py#_one_card_candidate_kw: ac919cfe304064caeeafb01205bcfc796226802d5bb484e5c9cc064659277329
   bin/lib/land_verify_legs.py#_payload_partial_layers: a75c7c0150397b06ef5f6eddc7f0f3de77896c954e3a3fd54e9380385b2ea084

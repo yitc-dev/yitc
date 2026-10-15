@@ -176,8 +176,8 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/debt.py#_debt_echo_lines: 8991b06c7108331c7ed6f5370622a178b83a4f3abc0d98f805ff87154e78e008
+  bin/lib/debt.py#_debt_echo_lines: c223b0eaa2b72e980dbc96bf1b3d6589609bab2bdb872cdeb9f9b82e5d9d5fb0
   bin/lib/debt.py#_definition_identity: d172419d6f8a6c5ce60de6456b05dfab4bf91cdaaaad7a02d4d5a25a0eb66539
   bin/lib/debt_adoption.py#declared_checks: 018ccc471ab12c6e72b929c438f56811c76ce635496f3cd80625d0f6043c2583
   bin/lib/debt_adoption.py#unproven_checks: 98a43409e07035b0a4f61ea5be9c3b2832381ab0f943e5f834faf84215a27e79
-  bin/lib/views.py#_render_debt_echo: b072fdf2385a92c2f64b891193a135542e321f7664b2d2fe64fa2a24a3c89aa5
+  bin/lib/views.py#_render_debt_echo: b1427fe117d3591231d6d517efad9d7e0b973905000d0ef9aa37b125e6de867b

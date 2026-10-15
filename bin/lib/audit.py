@@ -4414,6 +4414,34 @@ CURRENCY_BASIS = "currency"
 CARRY_FORWARD_AUDITOR_MARKER = "unchanged-fp-carry-forward"
 
 
+class AuthoredPaths(list):
+    """T-13941 (public issue 104) — what `_bookkeeping_commit_authored_paths` returns: the authored
+    paths (a plain list to every reader), plus `derived_only`, read off the SAME `git show` parse —
+    True iff the commit touches at least one path and EVERY path it touches, under any status (a
+    deletion and both ends of a rename included), is on D-0051's `_BOOKKEEPING_ALLOWLIST` (the journal
+    and the derived artifacts). Only `audit_custody_commit` reads the attribute; an absent one is no
+    proof."""
+
+    def __init__(self, paths=(), *, derived_only: bool = False):
+        super().__init__(paths)
+        self.derived_only = bool(derived_only)
+
+
+def _register_authored_paths_yaml() -> None:
+    """T-13941 — a caller may record these paths in a YAML artifact, and `yaml.safe_dump` refuses a
+    list subclass; register it as a plain list on every safe dumper present."""
+    try:
+        import yaml as _yaml
+    except Exception:  # noqa: BLE001 — no yaml, nothing dumps it
+        return
+    for _dumper in (getattr(_yaml, "SafeDumper", None), getattr(_yaml, "CSafeDumper", None)):
+        if _dumper is not None:
+            _dumper.add_representer(AuthoredPaths, _yaml.representer.SafeRepresenter.represent_list)
+
+
+_register_authored_paths_yaml()
+
+
 def audit_custody_commit(chain, recorded, *, bookkeeping_kinds, authored_paths=None,
                          ship_landed=None):
     """T-12362 (SPEC-0015 §Internal / SPEC-0204 rule 2) — THE AUDITED COMMIT: the last AUTHORED ship,
@@ -4471,6 +4499,16 @@ def audit_custody_commit(chain, recorded, *, bookkeeping_kinds, authored_paths=N
     behaviour. That is the whole reason this is a NARROWING and not a repeal: wherever the
     anti-custody-game fence has a working exit, the fence stands unchanged.
 
+    A KIND-LESS DERIVED-ONLY COMMIT IS TRANSPARENT TOO (T-13941, public issue 104). A plain `task
+    commit` after a graph rebuild records a kind-less row whose diff is only `graph/index.json` (+ the
+    journal). Read as the subject, the T-11405 guard refused it and no route reached Stage 8. Such a
+    row is skipped when the SAME `authored_paths` answer is `[]` AND marks it `derived_only`
+    (`AuthoredPaths` — every path it touches, deletions included, is the journal or a derived
+    artifact); both bounds above still apply (unlanded ship only; an unanswered predicate keeps the
+    row). A kind-less row touching anything else stays the subject — a deletion of authored content,
+    and the card record the governed card-repair commit carries (SPEC-0015). A predicate that returns
+    a plain list marks nothing, so every other wiring keeps today's behaviour.
+
     Pure f(args) apart from the injected predicates — no journal read, no git of its own, never raises."""
     kinds = frozenset(bookkeeping_kinds or ())
 
@@ -4483,12 +4521,25 @@ def audit_custody_commit(chain, recorded, *, bookkeeping_kinds, authored_paths=N
         except Exception:           # noqa: BLE001 — an unanswerable predicate is the fail-closed arm
             return False
 
+    def _proven_derived_only(sha: str) -> bool:
+        """T-13941 — `[]` marked `derived_only`; unwired, None, unmarked or a raise keep the row."""
+        if authored_paths is None:
+            return False
+        try:
+            res = authored_paths(sha)
+        except Exception:           # noqa: BLE001 — an unanswerable predicate is the fail-closed arm
+            return False
+        return res == [] and getattr(res, "derived_only", False) is True
+
     candidate, skipped = None, False
     for sha, kind in reversed(list(chain or ())):
         if not sha:
             continue
         if kind is not None and str(kind) in kinds and _proven_record_only(str(sha)):
             skipped = True          # a PROVEN record-only bookkeeping self-commit
+            continue
+        if kind is None and _proven_derived_only(str(sha)):
+            skipped = True          # T-13941 — a PROVEN derived-only kind-less commit
             continue
         candidate = str(sha)
         break
@@ -11705,6 +11756,15 @@ def _attached_worktree_for_branch(branch: str, REPO_ROOT) -> "str | None":
     return None
 
 
+def _same_checkout(worktree, REPO_ROOT) -> bool:
+    """T-13941 — is `worktree` (from `git worktree list`) this very checkout? realpath compare;
+    any failure answers False, which keeps the T-12738 text unchanged."""
+    try:
+        return os.path.realpath(str(worktree)) == os.path.realpath(str(REPO_ROOT))
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _ship_on_unlanded_task_branch(tid: str, subject_sha: str, REPO_ROOT,
                                   *, _bookkeeping_commit_authored_paths) -> "tuple | None":
     """T-12738 (<project> X-1493) — is this card's ship PROVABLY committed on an unlanded `task/<tid>`
@@ -12592,6 +12652,24 @@ def empty_audit_subject_refusal(args, tid: str, sha: str, *, _bookkeeping_commit
                 f"<fp> --disposition fix --evidence {ship_sha} --reason <why> "
                 f"--directive events.jsonl#ts=<ISO>\n"
                 f"T-13211 / X-1832 / T-13362.")
+        if _same_checkout(worktree, REPO_ROOT):
+            # T-13941 (public issue 104) — THIS checkout IS that worktree, so «a checkout that cannot
+            # see it» and the `-C` re-run below are both false here. State what was resolved and the
+            # rule that kept it, nothing this function has not read.
+            return (
+                f"{tid}: the resolved audit-post subject {sha[:12]} carries NO authored content — every "
+                f"path in it is lifecycle bookkeeping (the task's own card / its own audit records / "
+                f"events.jsonl / derived artifacts).{carries} "
+                f"This card's ship {ship_sha[:12]} is in THIS checkout's history (the `task/{tid}` "
+                f"worktree you are running in), so a re-run with `-C` changes nothing. The subject is "
+                f"the commit this card's `commit_landed` rows resolve to: custody passes over a commit "
+                f"only when it touches the journal and derived artifacts alone, or is a proven "
+                f"record-only park/pause/wont-do self-commit, and in both cases only while the ship "
+                f"before it is unlanded (T-13941 / T-12362); {sha[:12]} was not passed over. If it is a "
+                f"card-record repair after a RED audit-post, "
+                f"`task commit --fix-red --card-repair` is its governed route; otherwise escalate "
+                f"(`blocked-on-land {tid} <reason>`) naming {sha[:12]} and {ship_sha[:12]}. "
+                f"T-13941 / T-12738.")
         return (
             f"{tid}: the resolved audit-post subject {sha[:12]} carries NO authored content — every "
             f"path in it is lifecycle bookkeeping (the task's own card / its own audit records / "

@@ -424,4 +424,4 @@ implements_signature:
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 62d72504b6d715313dca1f145321e944c5c5eeb3a938a7f1218cd1fb675980c6
+  bin/lib/task.py#cmd_task_test: 22f3fbb8aaaba7a671e856ee56ce69d46634b518d1ff66270e4d4a590c21621d

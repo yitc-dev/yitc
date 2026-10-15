@@ -63,8 +63,15 @@ body: "## Scenario\n\nThe owner periodically wants a SYSTEM-LEVEL read on the me
   \ a tier subject exists solely so a NON-theme periodic sweep (the weekly\nhygiene\
   \ tier) gains the SAME `inspection_completed` journal anchor a theme has, which\
   \ the review-due\nsemaphore (SPEC-0119 / §9) reads. No new event kind, sink, or\
-  \ mechanism (ONE construct, §1).\n\n### 4. EVALUATION = THE FINDINGS, NOT A COLOR\n\
-  An inspection's output IS its findings list — each tagged severity (HIGH/MED/LOW)\
+  \ mechanism (ONE construct, §1).\n**A kernel report-only LENS subject — currently\
+  \ `test-suite-shape` (Lens C) — is recordable by\n`inspect record --theme <slug>`**\
+  \ with or without a declaration: it is NOT a theme slot, its\ncriteria_ref hashes\
+  \ its own lens section of the roster, and the review-due semaphore judges it at\n\
+  the weekly day-value in every repo. A project ADDS readings to it by declaring an\
+  \ ordinary\n`inspection.themes[]` entry under the SAME slug (SPEC-0093 rule 12 shape);\
+  \ the run then carries\nthe kernel readings and the project's side by side, and\
+  \ the kernel's weekly cadence holds.\n\n### 4. EVALUATION = THE FINDINGS, NOT A\
+  \ COLOR\nAn inspection's output IS its findings list — each tagged severity (HIGH/MED/LOW)\
   \ + the surface it\ntouches. There is NO per-theme GREEN/YELLOW/RED verdict (a color\
   \ floods RED at this altitude and pushes\ntoward bands/scoring — the exact complexity\
   \ V2 forbids). The only per-theme signal is the trivially\nderived binary `open\
@@ -303,4 +310,4 @@ proposed_by: finalize-decisions-to-specs-migration-inventory-cl
 binding:
 - query-only
 implements_signature:
-  bin/lib/inspection.py#cmd_inspect_record: 9b2bfc85a880af9f178cc1df1a54d0629c2a6318110df16a8cc10cb4115fb532
+  bin/lib/inspection.py#cmd_inspect_record: 012349010f0643cf7d01ea535f924f6cdc632730c1379df85c73e99b091df071

@@ -101,8 +101,9 @@ ADD_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("relates_to", "--relates-to", "relates_to", None),
     ("trigger",    "--trigger",    "trigger",    None),
     ("awaits",     "--awaits",     "awaits",     None),
+    ("due",        "--due",        "due",        None),   # T-13938 — the date wait, same channel rules
 )
-PROSE_BEARING_ADD_FIELDS = ("text", "relates_to", "trigger", "awaits")
+PROSE_BEARING_ADD_FIELDS = ("text", "relates_to", "trigger", "awaits", "due")
 
 DROP_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("reason", "--reason", "reason", None),
@@ -117,8 +118,9 @@ NOT_ADOPTED_PREFIX = "NOT-ADOPTED: "
 ARM_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("trigger", "--trigger", "trigger", None),
     ("awaits",  "--awaits",  "awaits",  None),
+    ("due",     "--due",     "due",     None),   # T-13938
 )
-PROSE_BEARING_ARM_FIELDS = ("trigger", "awaits")
+PROSE_BEARING_ARM_FIELDS = ("trigger", "awaits", "due")
 
 
 def _stdin_ingest(args, table, prose_fields, *, die, carries, ingest=None) -> None:
@@ -392,7 +394,8 @@ AWAITS_GRAMMAR_HELP = (
     "                              one predicate, <value> 1-64 chars of [A-Za-z0-9._:/-]. Admitted on\n"
     "                              these classes only: " + ", ".join(sorted(AWAITS_PREDICATE_TYPES)) + "\n"
     "                              (e.g. events.jsonl#type=consumer_read_evidence&task_id=T-1234"
-    "@after=2026-09-04T08:25:51Z)")
+    "@after=2026-09-04T08:25:51Z)\n"
+    "A wait for a calendar DATE takes `--due <date>` instead of `--awaits` (T-13938).")
 
 
 def predicate_arrival_keys(etype, envelope_task_id, data) -> list:
@@ -577,6 +580,95 @@ def land_anchored_arrived(awaits, land_order=None, latest_event_order=None) -> b
     return bool(latest) and tuple(latest) > tuple(land_order)
 
 
+# ── T-13938 — THE DATE SHAPE: `due:<YYYY-MM-DDTHH:MM:SSZ>` (written by `--due` ONLY) ──────────────────
+# THE GAP. Every shape above waits for something to HAPPEN — a card closing, a row appearing. A wait for
+# a calendar date had no shape, so it was written through a proxy (`events.jsonl#type=land_completed
+# @after=<ISO>`, e.g. fu_003f4898bb22) that fires only when some unrelated land happens after the date.
+#
+# HOW IT IS DECIDED: at READ time, like every other shape. `_partition_open` reads the clock ONCE per
+# call and fires the row when that reading has REACHED the stored moment (`>=`: the operator names the
+# moment itself, unlike `@after=`'s strict `>` over a moment that already happened). Nothing is stored,
+# scheduled or notified — a fired date wait surfaces where every fired followup does.
+#
+# WHY IT IS NOT A SHAPE OF `awaits_kind`. Three other doors delegate to that predicate — `task pause
+# --awaits`, the park's `--awaits`, the deferred-probe moment — and their readers decide arrival through
+# `arrived_ids` / `event_after_arrived`, which cannot read a clock. Admitting the date there would park a
+# wait no reader can end: the exact failure `awaits_kind` is fail-closed against. So the date shape has
+# its OWN parse home here, written only by the two followup doors' `--due`, and read only by the
+# followup partition; `awaits_kind` — and so every `--awaits` admission — is unchanged, and a literal
+# `--awaits due:<ts>` is refused like any other unknown string.
+#
+# THE SPELLING is the journal's own fixed-width UTC timestamp (`_AWAITS_AFTER_TS_RE`), so the read-time
+# comparison is a string comparison, exactly as for `@after=`. The prefix `due:` begins no other shape.
+AWAITS_DUE_PREFIX = "due:"
+_DUE_DATE_RE = re.compile(r"\d{4}-\d{2}-\d{2}\Z")
+DUE_FORMS_HELP = "YYYY-MM-DD (the start of that day, UTC) or YYYY-MM-DDTHH:MM:SSZ"
+
+
+def _now_ts() -> str:
+    """The read-time clock in the journal's own spelling (UTC, whole seconds)."""
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def parse_due(value):
+    """Normalize a `--due` value to `YYYY-MM-DDTHH:MM:SSZ`, else None (T-13938). PURE.
+
+    A bare `YYYY-MM-DD` means the start of that day, UTC; a full timestamp in the journal's spelling is
+    taken as is. Any other spelling — a local offset, a fractional second, an impossible calendar date
+    such as 2026-02-30 — is None, so the write door refuses it rather than compare it."""
+    import datetime as _dt
+    if not isinstance(value, str):
+        return None
+    v = value.strip()
+    if _DUE_DATE_RE.match(v):
+        v = f"{v}T00:00:00Z"
+    if not _AWAITS_AFTER_TS_RE.match(v):
+        return None
+    try:
+        _dt.datetime.strptime(v, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return v
+
+
+def split_due_awaits(awaits):
+    """The moment a date-shaped awaits (`due:<ts>`) waits for, else None (T-13938). PURE.
+
+    THE SINGLE PARSE HOME of the date shape: the write doors build it through `parse_due` and the
+    partition reads it through here. A `due:` value whose moment is not the journal's spelling (a
+    hand-written row) is None — it then never fires and stays visible as armed, the fail-closed side."""
+    if not isinstance(awaits, str):
+        return None
+    a = awaits.strip()
+    if not a.startswith(AWAITS_DUE_PREFIX):
+        return None
+    moment = a[len(AWAITS_DUE_PREFIX):]
+    return moment if _AWAITS_AFTER_TS_RE.match(moment) and parse_due(moment) else None
+
+
+def due_arrived(awaits, now_ts) -> bool:
+    """Has the read-time clock `now_ts` REACHED this date-shaped awaits' moment? (T-13938). PURE.
+    False for every other shape, so it can never shadow the membership or `@after=` tests."""
+    moment = split_due_awaits(awaits)
+    return moment is not None and bool(now_ts) and now_ts >= moment
+
+
+def _due_awaits(raw, verb: str, *, die, now_ts=None) -> str:
+    """The `--due` write door, shared by `add` and `arm`: parse, require a FUTURE moment, return the
+    `due:<ts>` awaits. Both refusals name the accepted forms, before anything is appended."""
+    moment = parse_due(raw)
+    if moment is None:
+        die(f"followup {verb} --due {raw!r} is not a date this verb can read — accepted forms: "
+            f"{DUE_FORMS_HELP} (e.g. --due 2026-11-01 or --due 2026-11-01T09:00:00Z).")
+    now = now_ts or _now_ts()
+    if moment <= now:
+        die(f"followup {verb} --due {raw!r} names {moment}, which is not in the future (now {now}) — "
+            f"a date wait that has already arrived would fire on the next read; capture the item "
+            f"ACTIONABLE instead, or give a later date. Accepted forms: {DUE_FORMS_HELP}.")
+    return f"{AWAITS_DUE_PREFIX}{moment}"
+
+
 # The per-kind (VERB, gloss) the `arm` success line is built from. The VERB is per-kind and not a
 # uniform word on purpose: a task and a coordination item genuinely CLOSE, an event class ARRIVES, and
 # a single verb would be inaccurate for one of them. It also keeps `arm`'s task-shaped line byte-identical
@@ -586,6 +678,7 @@ _AWAITS_KIND_GLOSS = {
     "task": ("closes", "a task reaching a terminal status"),
     "cross": ("closes", "a shared-coordination item reaching a terminal status"),
     "event": ("arrives", "a journal row of that event class appearing"),
+    "date": ("is reached", "the read-time clock reaching that UTC moment (T-13938)"),
 }
 
 
@@ -1590,7 +1683,7 @@ def _captured_in_closure_window(rel: str, it: dict, closing_sessions) -> bool:
 
 
 def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
-                    fire_ids=None, closing_sessions=None, latest_event_ts=None) -> dict:
+                    fire_ids=None, closing_sessions=None, latest_event_ts=None, now_ts=None) -> dict:
     """Partition the OPEN followups into the three DERIVED groups the debt echo and `list` both render.
 
     Computed at READ time from the folded records + `terminal_ids` (the caller's set of task ids whose
@@ -1599,7 +1692,8 @@ def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
       actionable    — open, no trigger. Needs a disposition NOW; the debt echo's headline count.
       armed_fired   — open, triggered, and `awaits` has ARRIVED — either a member of `fire_ids`
                       (the three bare grammars), or a `@after=`-suffixed event awaits whose class has
-                      a row strictly later than its anchor in `latest_event_ts` (T-12057). The artifact it
+                      a row strictly later than its anchor in `latest_event_ts` (T-12057), or a `due:<ts>`
+                      date awaits whose moment the read-time clock `now_ts` has reached (T-13938). The artifact it
                       WAITED FOR arrived, so the moment it awaited has ARRIVED: it is due, and the echo
                       surfaces it UNFLOORED. This is the check that makes an armed waiter impossible to
                       suppress indefinitely (T-10309 audit-pre finding 1).
@@ -1729,6 +1823,9 @@ def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
     """
     if fire_ids is None:
         fire_ids = terminal_ids
+    # T-13938 — the read-time clock for the date shape, read ONCE per call (`now_ts` is the injection
+    # point a caller or a test fakes; production callers pass nothing).
+    now = now_ts or _now_ts()
     groups: dict = {"actionable": [], "armed_waiting": [], "armed_fired": []}
     for it in items.values():
         if it.get("status") != "open":
@@ -1762,7 +1859,9 @@ def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
         # is never a member of `fire_ids` (its literal string is not in it), and an unsuffixed one
         # makes the predicate return False. `latest_event_ts=None` therefore reads as "no suffixed
         # awaits can fire", which is what every caller that does not inject the map already means.
-        elif it.get("awaits") in fire_ids or event_after_arrived(it.get("awaits"), latest_event_ts):
+        # T-13938 — a THIRD disjoint test: a `due:<ts>` awaits fires once the clock reaches its moment.
+        elif (it.get("awaits") in fire_ids or event_after_arrived(it.get("awaits"), latest_event_ts)
+              or due_arrived(it.get("awaits"), now)):
             groups["armed_fired"].append(it)
         else:
             groups["armed_waiting"].append(it)
@@ -1773,7 +1872,7 @@ def _partition_open(items: dict, terminal_ids=frozenset(), closed_at_by_id=None,
 
 def open_followup_counts(events_path, terminal_ids=frozenset(), closed_at_by_id=None,
                          _segment_lines=None, terminal_cross_ids=frozenset(),
-                         _segment_rows=None) -> dict:
+                         _segment_rows=None, now_ts=None) -> dict:
     """The 3 OPEN-followup counts — the host's injection point for the SPEC-0119 debt echo.
 
     Reuses the ONE fold + the ONE partition, so the echo can never disagree with `followup list`.
@@ -1797,7 +1896,8 @@ def open_followup_counts(events_path, terminal_ids=frozenset(), closed_at_by_id=
     groups = _partition_open(items, terminal_ids, closed_at_by_id,
                              fire_ids=arrived_ids(terminal_ids, terminal_cross_ids, seen),
                              closing_sessions=closing,   # T-12019 — the by-construction suppression
-                             latest_event_ts=latest)     # T-12057 — the `@after=` anchor comparison
+                             latest_event_ts=latest,     # T-12057 — the `@after=` anchor comparison
+                             now_ts=now_ts)              # T-13938 — the date-shape clock
     counts = {k: len(v) for k, v in groups.items()}
     counts["actionable_stale"] = sum(1 for it in groups["actionable"] if it.get("stale_provenance"))
     return counts
@@ -1896,6 +1996,15 @@ def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
         die("followup add --trigger must name a non-empty trigger (an armed followup waits for a NAMED "
             "moment). Omit --trigger to capture an actionable followup.")
     raw_awaits = getattr(args, "awaits", None)
+    # T-13938 — `--due <date>` is the ONLY door to the date shape; it replaces `--awaits`, never joins it,
+    # and when no `--trigger` is given the trigger text names the date.
+    raw_due = getattr(args, "due", None)
+    if raw_due is not None:
+        if raw_awaits is not None:
+            die("followup add: give --due OR --awaits, not both — --due <date> IS the awaited moment.")
+        raw_awaits = _due_awaits(raw_due, "add", die=die)
+        if trigger is None:
+            trigger = f"date {split_due_awaits(raw_awaits)} reached"
     awaits = _clean_awaits(raw_awaits)
     if raw_awaits is not None and awaits is None:
         die("followup add --awaits must name a non-empty artifact (the thing whose closure IS the "
@@ -1910,7 +2019,7 @@ def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
     # T-11964 — the SECOND, STRICTER refusal, landing AFTER the T-11863 pair above (so the
     # missing/empty cases keep their own precise wording) and BEFORE any append. It does not loosen
     # that guard by one character; it narrows what a PRESENT awaits may be.
-    if awaits and awaits_kind(awaits) is None:
+    if awaits and raw_due is None and awaits_kind(awaits) is None:
         die(_awaits_shape_refusal(awaits, "add"))
     if trigger and not awaits:
         die("followup add --trigger requires --awaits — the AWAITED ARTIFACT whose closure fires this "
@@ -1939,7 +2048,9 @@ def cmd_followup_add(args, *, append_event, die, actor=None, stdin_ingest=None,
         data["actor"] = actor
     append_event("followup_added", None, data)
     state = f"open, armed — awaiting: {trigger}" if trigger else "open"
-    if awaits:
+    if awaits and split_due_awaits(awaits):
+        state += f" (fires when the read-time clock reaches {split_due_awaits(awaits)})"
+    elif awaits:
         state += f" (fires when {awaits} closes)"
     if fingerprint:
         state += f" (from cluster {fingerprint})"
@@ -2381,11 +2492,20 @@ def cmd_followup_arm(args, *, append_event, events_path, die, stdin_ingest=None,
     _stdin_ingest(args, ARM_STDIN_CONFLICTING_ARGV_FLAGS, PROSE_BEARING_ARM_FIELDS, die=die,
                   carries="the awaited condition (trigger / awaits)", ingest=stdin_ingest)
     trigger = _clean_trigger(getattr(args, "trigger", None))
+    raw_awaits = getattr(args, "awaits", None)
+    # T-13938 — `--due <date>`, the same door as `add --due`: it replaces `--awaits`, and a missing
+    # `--trigger` defaults to one naming the date.
+    raw_due = getattr(args, "due", None)
+    if raw_due is not None:
+        if raw_awaits is not None:
+            die("followup arm: give --due OR --awaits, not both — --due <date> IS the awaited moment.")
+        raw_awaits = _due_awaits(raw_due, "arm", die=die)
+        if getattr(args, "trigger", None) is None:
+            trigger = f"date {split_due_awaits(raw_awaits)} reached"
     if not trigger:
         die("followup arm requires a non-empty --trigger — an armed followup waits for a NAMED moment "
             "(e.g. --trigger 'next -C consumer init'). Without one it would vanish from the actionable "
             "headline with nothing to bring it back. Use `followup drop <id> --reason ...` to discard it.")
-    raw_awaits = getattr(args, "awaits", None)
     awaits = _clean_awaits(raw_awaits)
     if raw_awaits is not None and awaits is None:
         die("followup arm --awaits must name a non-empty artifact (the thing whose closure IS the "
@@ -2402,7 +2522,7 @@ def cmd_followup_arm(args, *, append_event, events_path, die, stdin_ingest=None,
     # T-11964 — the SECOND, STRICTER refusal, landing AFTER the two T-11863 refusals above (which keep
     # their own precise wording for the missing/empty cases) and BEFORE any append. It does not loosen
     # that guard by one character; it narrows what a PRESENT awaits may be.
-    kind = awaits_kind(awaits)
+    kind = "date" if raw_due is not None else awaits_kind(awaits)
     if kind is None:
         die(_awaits_shape_refusal(awaits, "arm"))
     fid = _arm_target(args, events_path=events_path, die=die, _segment_lines=_segment_lines)
@@ -2548,7 +2668,7 @@ def _open_label(fid: str, groups: dict):
 
 def cmd_followup_show(args, *, events_path, die, terminal_ids=frozenset(), closed_at_by_id=None,
                       terminal_cross_ids=frozenset(),
-                      is_named_actor=None, _segment_lines=None) -> None:
+                      is_named_actor=None, _segment_lines=None, now_ts=None) -> None:
     """`followup show <fu_XXXXXXXXXXXX>` (read-only) — resolve ONE followup by id (T-11225 / X-0962).
 
     The read-one counterpart of `list`, modelled leg-for-leg on `cross show` (bin/lib/cross.py
@@ -2586,7 +2706,8 @@ def cmd_followup_show(args, *, events_path, die, terminal_ids=frozenset(), close
     groups = _partition_open(items, terminal_ids, closed_at_by_id,   # also derives `stale_provenance`
                              fire_ids=arrived_ids(terminal_ids, terminal_cross_ids, seen),
                              closing_sessions=closing,   # T-12019 — the by-construction suppression
-                             latest_event_ts=latest)     # T-12057 — the `@after=` anchor comparison
+                             latest_event_ts=latest,     # T-12057 — the `@after=` anchor comparison
+                             now_ts=now_ts)              # T-13938 — the date-shape clock
     label = _open_label(fid, groups) or it["status"]
     print(_fmt_row(it, label, is_named_actor).strip())
     # The detail `list` has no room for on a one-line row — printed only when present
@@ -2598,7 +2719,8 @@ def cmd_followup_show(args, *, events_path, die, terminal_ids=frozenset(), close
 
 
 def cmd_followup_list(args, *, events_path, terminal_ids=frozenset(), closed_at_by_id=None,
-                      is_named_actor=None, _segment_lines=None, terminal_cross_ids=frozenset()) -> None:
+                      is_named_actor=None, _segment_lines=None, terminal_cross_ids=frozenset(),
+                      now_ts=None) -> None:
     """`followup list [--status open|actionable|armed|fired|promoted|dropped|all]` — fold + print.
 
     Default `open` renders the DERIVED three-way partition as labelled groups with their own counts, so
@@ -2619,7 +2741,8 @@ def cmd_followup_list(args, *, events_path, terminal_ids=frozenset(), closed_at_
     groups = _partition_open(items, terminal_ids, closed_at_by_id,
                              fire_ids=arrived_ids(terminal_ids, terminal_cross_ids, seen),
                              closing_sessions=closing,   # T-12019 — the by-construction suppression
-                             latest_event_ts=latest)     # T-12057 — the `@after=` anchor comparison
+                             latest_event_ts=latest,     # T-12057 — the `@after=` anchor comparison
+                             now_ts=now_ts)              # T-13938 — the date-shape clock
 
     open_lenses = {"actionable": ("actionable",), "armed": ("armed_waiting",), "fired": ("armed_fired",)}
     if status in open_lenses:

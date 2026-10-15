@@ -2700,6 +2700,13 @@ def _land_batch_members(branch: str, task: "str | None" = None, *,
             _policy = "all"                    # resolver unavailable ⇒ run the leg (fail-closed)
     if _sup and _policy == "never":
         _sup = set()
+    # T-13947 (SPEC-0186 rule 9): the rebaseline declarations, head (`rebaselining`) and peers (`_reb`),
+    # are inert under `never` for the same reason — they isolate a member for a pinned leg that will
+    # not run. Rule 8 already refuses `--rebaseline` there, so in practice this is `--expect-rebaseline`.
+    # `solo_head` and the rule-4 marks in `_inel` are NOT narrowed: a red batch still requeues.
+    if _policy == "never":
+        _reb = set()
+        rebaselining = False
     # T-11508 (SPEC-0184 rule 11) — the WORKING-TREE precondition, resolved ONCE over the head plus
     # the enumerated peers, before either decision point consults it. Derived here rather than inside
     # the two branches below so both read ONE answer over ONE snapshot of the trees, exactly as the

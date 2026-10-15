@@ -4681,6 +4681,52 @@ def _live_watchers_over(tasks, *, main_wt, _dispatch_status_events, _pid_alive,
     return live, None
 
 
+def _handoff_taken_grants(session_ref, *, main_wt, _dispatch_status_events, _utc_now=None
+                          ) -> "tuple[list, str | None]":
+    """T-13945 (SPEC-1004 §4) — what THIS session's hand-off takes let it arm beside: `(grants,
+    unanswered)`, each grant `(author_session_ref, frozenset(granted_watchers), frozenset(granted_tasks))`
+    — the watchers named by their `<pid>:<pid_start>` identity as the take read them — from a
+    `handoff_taken` row whose envelope `session_ref` is `session_ref`, read from MAIN's journal through
+    the dedup seam's reader, window and locus. A row without the two fields (written before this card)
+    grants nothing; no own ref grants nothing. `unanswered` is the reader's failure (repr), else None."""
+    if not session_ref or _dispatch_status_events is None:
+        return [], None
+    now = _utc_now() if _utc_now is not None else datetime.datetime.now(datetime.timezone.utc)
+    since = (now - datetime.timedelta(seconds=_WATCH_DEDUP_WINDOW_SEC)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    try:
+        rows = _dispatch_status_events(task_id=None, since=since, include_types={"handoff_taken"},
+                                       journals=[Path(main_wt) / "events.jsonl"])
+    except Exception as exc:   # noqa: BLE001 — unanswered ⇒ no grant, said aloud by the caller
+        return [], repr(exc)
+    grants = []
+    for row in rows or []:
+        if not isinstance(row, dict) or row.get("type") != "handoff_taken":
+            continue
+        if str(row.get("session_ref") or "") != str(session_ref):
+            continue
+        d = row.get("data") or {}
+        author, granted, watchers = (d.get("author_session_ref"), d.get("granted_tasks"),
+                                     d.get("granted_watchers"))
+        if (not author or not isinstance(granted, list) or not granted
+                or not isinstance(watchers, list) or not watchers):
+            continue
+        grants.append((str(author), frozenset(str(w) for w in watchers), frozenset(str(t) for t in granted)))
+    return grants, None
+
+
+def _admitted_by_grant(row: dict, tasks, grants) -> bool:
+    """T-13945 — a live watcher row the taking session may arm beside: some grant names the row's
+    arming session as the author, the row's process identity (`<pid>:<pid_start>`) is one the take
+    read — so a watcher the author arms after the take is never admitted, even within the same
+    second — and every requested id the row holds is one the grant names. PURE."""
+    d = row.get("data") or {}
+    overlap = {str(t) for t in (d.get("watched_tasks") or [])} & {str(t) for t in tasks}
+    holder = str(row.get("session_ref") or "")
+    ident = f"{d.get('pid')}:{d.get('pid_start')}"
+    return any(holder == author and ident in watchers and overlap <= granted
+               for author, watchers, granted in grants)
+
+
 def _watch_holder_text(row: dict) -> str:
     """T-13539 — WHO holds a live watcher and UNTIL WHEN, from its `watch_process_group_escaped` row:
     the arming session (the row's envelope `session_ref`), the arm time (its `ts`) and the latest
@@ -4742,11 +4788,13 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
                _dispatch_status_events=None, _pid_alive=_default_pid_alive,
                _proc_start_token=_default_proc_start_token,
                _watch_fleet_rows=None, _watch_status_row=None, _watch_premature_findings=None,
-               _watch_sleep=None, _watch_now=None, _utc_now=None) -> int:
+               _watch_sleep=None, _watch_now=None, _utc_now=None, session_ref=None) -> int:
     """ARM the blessed watcher over `tasks` IN THIS PROCESS and return its `WATCH:` exit code
     (T-12637). The one body behind both `dispatch --watch` and the self-arming launch tail — see the
     block comment above. Refuses a DUPLICATE (a live watcher already over any of `tasks`) with rc 0
-    and no side effect at all."""
+    and no side effect at all — except a live watcher of a hand-off author that `session_ref` (this
+    session) took the hand-off of, over ids that take granted (T-13945, SPEC-1004 §4): this session's
+    watcher is armed beside it, and nothing ends or takes it over."""
     # timeout: an EXPLICIT 0 is legitimate ("probe once, exit TIMEOUT now") — only an ABSENT value
     # takes the default (see the loop call below for the history of that rule).
     _timeout_raw = getattr(args, "watch_timeout", None)
@@ -4778,6 +4826,24 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
             print(f"dispatch: live-watcher check could NOT be read ({unanswered}) — arming over "
                   f"{', '.join(str(t) for t in tasks)} anyway; a DUPLICATE watcher over these ids is "
                   f"possible until this one ends (T-12637 AC2 seam unanswered).", file=sys.stderr, flush=True)
+        if live:
+            # T-13945 — read only when a live duplicate exists: the grants this session's hand-off
+            # takes recorded. An unanswered read admits nothing (the refusal below stands).
+            grants, _g_unanswered = _handoff_taken_grants(
+                session_ref, main_wt=main_wt, _dispatch_status_events=_dispatch_status_events,
+                _utc_now=_utc_now)
+            if _g_unanswered is not None:
+                print(f"dispatch: this session's hand-off takes could NOT be read ({_g_unanswered}) — "
+                      f"no watcher is armed beside a hand-off author's (T-13945).", file=sys.stderr, flush=True)
+            beside = [r for r in live if grants and _admitted_by_grant(r, tasks, grants)]
+            live = [r for r in live if r not in beside]
+            if not live:
+                for row in beside:
+                    d = row.get("data") or {}
+                    overlap = sorted({str(t) for t in (d.get("watched_tasks") or [])} & {str(t) for t in tasks})
+                    print(f"dispatch: arming beside the watcher live for {', '.join(overlap)} "
+                          f"(pid={d.get('pid')}) {_watch_holder_text(row)} — this session took the "
+                          f"author's hand-off; nothing ends or takes over it (T-13945).", flush=True)
         if live:
             for row in live:
                 d = row.get("data") or {}
@@ -4944,7 +5010,10 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                  # T-12637 — the ONE arming implementation behind `--watch` AND the self-arming launch
                  # tail. Injected so a probe can record the arming instead of blocking in the loop;
                  # None ⇒ this module's `_arm_watch`.
-                 _arm_watch=None) -> None:
+                 _arm_watch=None,
+                 # T-13945 — this session's own ref, so `_arm_watch` can admit a watcher beside a
+                 # hand-off author's. None ⇒ no own ref ⇒ every duplicate refused as before.
+                 _own_session_ref=None) -> None:
     """`dispatch` — the W4 THIN launcher (T-0558, list-extended T-0580). See the §Dispatch-launcher
     header block + the governing home patterns/background-session-operation.md §Dispatch. Launches
     the owner-given LIST of tasks SEQUENTIALLY in ONE invocation — each worker a fresh distinct
@@ -5025,7 +5094,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
             _dispatch_status_events=_dispatch_status_events, _pid_alive=_launch_pid_alive,
             _watch_fleet_rows=_watch_fleet_rows, _watch_status_row=_watch_status_row,
             _watch_premature_findings=_watch_premature_findings,
-            _watch_sleep=_watch_sleep, _watch_now=_watch_now))
+            _watch_sleep=_watch_sleep, _watch_now=_watch_now,
+            session_ref=_own_session_ref() if _own_session_ref else None))
     # T-12304 — on `--resume` the brief is OPTIONAL: the worker's instructions are the RECORDED
     # resume contract, and `--brief` carries only a DELTA. With no brief channel supplied at all the
     # briefs resolve to empty deltas (the contract alone governs); supply one and the ordinary
@@ -6013,7 +6083,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
             _dispatch_status_events=_dispatch_status_events, _pid_alive=_launch_pid_alive,
             _watch_fleet_rows=_watch_fleet_rows, _watch_status_row=_watch_status_row,
             _watch_premature_findings=_watch_premature_findings,
-            _watch_sleep=_watch_sleep, _watch_now=_watch_now)
+            _watch_sleep=_watch_sleep, _watch_now=_watch_now,
+            session_ref=_own_session_ref() if _own_session_ref else None)
     except SystemExit:
         raise
     except Exception as _exc:                    # noqa: BLE001 — AC3: an arming that did NOT happen is LOUD

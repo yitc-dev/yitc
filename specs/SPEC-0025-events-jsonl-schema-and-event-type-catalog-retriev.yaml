@@ -931,150 +931,159 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ the runner\ncould not establish the tree (never a fabricated value — the discipline).\
   \ It is RESERVED at\nthe hand route: `event --data` refuses it, so only the runner\
   \ writes it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its\
-  \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\n\n**`duration_ms` is REQUIRED\
-  \ on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the delegated-layer\
-  \ leg and the tests/ sweep alike) and writes the measured wall in ms, so the\nTests-stage\
-  \ wall splits into machine time and worker time without inference. An explicitly\
-  \ passed\n`--duration-ms` still WINS (and still stamps `counts_source: \"author_reported\"\
-  `). THE ONE EXEMPT\nSHAPE, stated so the requirement is honest rather than aspirational:\
-  \ a hand-authored `--evidence`\nwith NO run attached measured nothing, so it carries\
-  \ the field only via the author-reported group —\nnever a fabricated 0 (the discipline).\
-  \ Before the field was author-reported-only and\n25 of 511 kernel rows in 2026-08-19..09-02\
-  \ carried one.\n\n**tests_failed** — the RED half of `tests_passed`, emitted by\
-  \ `task test --run` when the Stage-6\nself-check FAILS. It exists because a green\
-  \ run had a home and a red one had none: the run\nhappened, cost its minutes, and\
-  \ left no row, so a later session could not see that a suite had\nalready failed\
-  \ here or why (<project> X-1112; measured on <project>, where the only surviving\n\
-  trace of a full failing run was prose in an unrelated message an hour later). `data:\
-  \ {current_stage,\nfailed, layers, evidence, duration_ms, counts_source: \"harness_measured\"\
-  , leg: \"candidate\"}` —\n* `duration_ms` — **REQUIRED **: the same measured subprocess\
-  \ wall `tests_passed` carries,\n  written on the SAME rule (an explicit `--duration-ms`\
-  \ wins, else the measurement), because a red\n  run costs exactly the minutes a\
-  \ green one does and the row exists to say what the run cost;\n* `failed` = the\
-  \ failing-entry COUNT; `evidence` = the runner's own failure messages, bounded,\
-  \ so the\n  row answers *what failed* without a re-run;\n* `layers` = an ordered\
-  \ list of `{name, attribution}`, one per failing test file or consumer verify\n\
-  \  layer (SPEC-0152). `attribution` is a CLOSED set: **`in-diff`** (this card's\
-  \ changed-path set — its\n  working tree plus untracked files versus `merge-base(HEAD,\
-  \ main)` — contains that layer's own file)\n  · **`not-in-diff`** (it does not)\
-  \ · **`undetermined`** (the relation could not be established;\n  recorded explicitly,\
-  \ never guessed). MATCHING IS EXACT: a failing TEST-FILE name is a basename and\n\
-  \  is resolved only by joining it to the tests directory it came from, never by\
-  \ suffix — a changed\n  `docs/test_X.py` does NOT make a failing `tests/test_X.py`\
-  \ read `in-diff`, because a basename is\n  not an address. A name that addresses\
-  \ no file at all (a consumer verify LAYER label) is\n  `undetermined`, since a diff-touch\
-  \ relation is undefined for it; a confident wrong attribution is\n  worse than an\
-  \ absent one, because a reader acts on it.\n* `counts_source: \"harness_measured\"\
-  ` — the deliberate CONTRAST with `tests_passed`'s\n  `author_reported`: these numbers\
-  \ come from the runner this verb just executed, not from an author.\n* `leg: \"\
-  candidate\"` — the row is scoped to the CANDIDATE leg this verb runs. `land` verifies\
-  \ TWO\n  legs (SPEC-0077); the pinned last-green leg is NOT run here and is NOT\
-  \ described by this row.\n\n**READ `attribution` AS THE RELATION IT MEASURES, NOT\
-  \ AS A VERDICT.** It is a diff-TOUCH relation, not\na proof of causation: `not-in-diff`\
-  \ does NOT assert the failure is pre-existing on `main` (a card can\nbreak a file\
-  \ it never opened), and `in-diff` does not assert the card caused it. It is the\
-  \ strongest\nattribution computable without materializing and re-running main's\
-  \ tree, and it is what the incident\nneeded — establishing that a red sat in a layer\
-  \ the card had not written.\n\n**NOT A GATE, and not blocklisted for P8.** The emit\
-  \ changes no verdict and no exit code: a failing\nrun refuses exactly what it refused\
-  \ before it existed. And unlike `tests_passed`, this type is\ndeliberately ABSENT\
-  \ from `_NON_EVIDENTIAL_EVIDENCE_TYPES` — the green row is blocklisted because\n\
-  CHARTER §P8 says tests green BY ITSELF proves nothing (every task earns one for\
-  \ free, zero\ndifferential), whereas this row exists ONLY when a run actually failed,\
-  \ so its presence IS a\ndifferential. Same reasoning as the three named `land_completed`\
-  \ row-ref exceptions.\n\n**land_completed** — emitted on BOTH outcomes of a `land`\
-  \ attempt ( — the journal mirror of\nthe `LAND: OK|ABORT` stdout token contract).\
-  \ **Consumers MUST key off `data.status` — NEVER\nread land_completed as success-only**\
-  \ (duration trend views filter `status: ok`). Pre- rows\ncarry no `status` key —\
-  \ readers treat an ABSENT status as ok (those rows were emitted only on\nsuccessful\
-  \ lands). **Where the ok row is COMMITTED :** it is appended post-ff to main's\n\
-  WORKING journal and reaches main's COMMITTED journal inside the NEXT land's single\
-  \ bookkeeping\ncommit — the path the abort row already takes — unless this land\
-  \ wrote a non-journal post-ff\ncarrier (the verify-durations table, a load-sensitive\
-  \ carrier line, an auto-filed card), whose\nfresh commit carries it at once. So\
-  \ a reader reads the on-disk / unioned journal, never\n`git show <rev>:events.jsonl`.\
-  \ Ok path (post-ff, on main): `data: {branch, sha, worktree, status: \"ok\",\nverify_duration_ms,\
-  \ admission_wait_ms, reservation_wait_ms, duration_ms?, reverify_skipped, reverify_skip_reason?,\
-  \ verify_mode}` —\n`verify_duration_ms` = the landing attempt's step-4 verify wall,\
-  \ and it is QUEUE-INCLUSIVE :\nthe wall starts BEFORE the SPEC-0132 verify-admission\
-  \ slot is requested, so it charges both waiting\nfor a slot and running the checks.\
-  \ `admission_wait_ms` (int ms) = the QUEUE half of it —\ntotal time that attempt\
-  \ spent ACQUIRING admission slots (the candidate verify, plus the pinned\nlast-green\
-  \ re-run when it fires), so RUN time is `verify_duration_ms - admission_wait_ms`\
-  \ with no\ninference. ALWAYS present on an ok land; `0` on an uncontended land (a\
-  \ truthful measurement, not a\nfabricated zero — the sub-ms non-blocking slot scan)\
-  \ and on a land that never reached a verify.\n`reservation_wait_ms` (int ms) = the\
-  \ OTHER queue, and it is NOT inside `verify_duration_ms`\nat all: the land-fairness\
-  \ RESERVATION ( — the serialized merge->verify->ff window) is taken at\nthe TOP\
-  \ of the attempt, before the merge and before step 4, so no subtraction over the\
-  \ verify wall can\nrecover it. It is the SUM of every reservation acquisition this\
-  \ LAND made, not one attempt's — the\nreservation fd is held across attempts, so\
-  \ the wait is a property of the land. ALWAYS present on an ok\nland; `0` when the\
-  \ reservation was taken without waiting (again a measurement, not a fabricated zero).\n\
-  **THE TWO QUEUE FIELDS ARE NEVER SUMMED INTO ONE**, and that is a contract rather\
-  \ than a formatting\nchoice: they ask for DIFFERENT remedies — an admission wait\
-  \ says the verify SLOT POOL is the\nconstraint, a reservation wait says a PEER LAND\
-  \ is holding the window — so a single collapsed field\nwould name neither. Before\
-  \ the reservation wait appeared in NO summary field on any row and\nwas recoverable\
-  \ only by hand-folding `waiting_for_land_reservation` heartbeats per (session, branch);\n\
-  one measured group land (task/, sha cc5fcfa, 2026-08-27) reported 65 min total,\
-  \ 9 min verify\nand 0 admission wait, with the missing 56 min sitting in 195 such\
-  \ heartbeats.\nBefore it, 3892 samples carried a total and no wait, so a 0.1-to-18.2-minute\
-  \ spread could not be\nattributed and each remedy (slot count / cores per verify\
-  \ / the worker command cap) was a guess;\nthe only estimate available was counting\
-  \ `waiting_for_verify_admission_slot` heartbeats. REPORT-ONLY.\n`duration_ms` =\
-  \ whole-land wall; `reverify_skipped` (bool) = re-verify skip telemetry — True iff\
-  \ this ok land's ff'ing attempt skipped the code/test\nre-verify. It has FOUR producers,\
-  \ and the discriminator is `reverify_skip_reason` (str), which rides\nonly when\
-  \ True: `inert-retry-delta` = lever B (SPEC-0065 §Verification), a concurrency retry\
-  \ whose\ninert merged-tree delta made re-verifying redundant; `superseded-nothing-to-integrate`\
-  \ = lever C\n(SPEC-0184 rule 8), a land carrying nothing not already in `main` —\
-  \ typically a batch member\nwhose content the head already fast-forwarded; `inert-first-attempt-delta`\
-  \ = the inert first-attempt\nskip (SPEC-0065 §Bound), a land none of whose attempts\
-  \ verified whose tree differs from the\nvenue-GREEN tested tree of main's newest\
-  \ verified land only by inert paths no test names; `stage6-credit` = the\nStage-6\
-  \ credit (SPEC-0065 §Bound), a land whose CANDIDATE leg was not run because the\
-  \ land\nproved the task's own runner-recorded green Stage-6 run tested this tree\
-  \ on this `main` (or on a\n`main` it advanced from only by inert paths no test names)\
-  \ — the one\nproducer that applies to an OBSERVABLE delta, and the one under which\
-  \ a verify leg may still have\nrun (the SPEC-0077 pinned leg, when due: the row\
-  \ then carries `verify_mode: pinned+candidate`, whose\ncandidate half is the credited\
-  \ run). Such a land additionally carries `stage6_credit: {task, ts, tree,\nbase}`\
-  \ — WHICH Stage-6 row it credited, resolvable as that task's `tests_passed` row\
-  \ at\n`events.jsonl#ts=<ts>`; ADDITIVE, present only on a credited land. When `main`\
-  \ advanced since that\nrun, the same record also states the inert advance the credit\
-  \ accepted — its class and path count\n — so the journal counts how often that arm\
-  \ fires. Its counterpart is\n`stage6_credit_refused` (str) = WHY the credit was\
-  \ REFUSED to a runner-marked green newest\nStage-6 row of the task — the one reason\
-  \ of the SPEC-0065 §Bound condition that failed (`main-moved`,\n`tree-differs:<class>`,\
-  \ `read-by:<test>`, `run-narrowed`, `layer-not-covered:<layer>`,\n`row-tree-unrecorded`,\
-  \ `row-tree-unresolvable`, …), so what each condition costs is foldable from\nthe\
-  \ journal. Present ONLY on an ok land that asked for the credit and refused such\
-  \ a row; ABSENT on a\ncredited land and wherever no credit was possible (no Stage-6\
-  \ row, a red or an unmarked newest row,\nan opted-out project, a non-task branch,\
-  \ an error inside the proof, a land step 4d is not asked on) —\nit never reads as\
-  \ «no credit». It is the LAND's, not one attempt's: a retry that is not asked again\n\
-  keeps it. ADDITIVE, REPORT-ONLY. Beside `main-moved` ONLY it is joined by `stage6_credit_main_delta`\n\
-  \ = main's OWN advance between the run's recorded base and this land's merge base,\n\
-  classified by the one SPEC-0064 authority as inert, observable or unknown, with\
-  \ its path count and\nits first 20 paths by name (`moved`) —\nunknown (no count)\
-  \ whenever that delta cannot be read, never inert — and, when an inert advance was\n\
-  refused because a test names it, the first such test. Beside a `tree-differs:` refusal,\
-  \ or\na `main-moved` refusal over an advance that is readable and not inert, it\
-  \ is joined by\n`stage6_layer_credit` wherever the land took the SPEC-0065 §Bound\
-  \ per-layer\ncase (at least one declared layer took the run's verdict): which Stage-6\
-  \ row the layers were\njudged against (identified as the credited-land record above\
-  \ identifies its row, an accepted inert\nadvance stated on the same terms), the\
-  \ names of the layers that took that row's verdict and the\nnames of the layers\
-  \ this land executed itself, both read off the per-layer outcome trail the\nverify\
-  \ wrote. Such a land RAN its candidate verify — it is not a credited land — records\
-  \ no tested\ntree, and each layer that took the run's verdict reads `credited-stage6-run`\
-  \ on that trail.\nBeside a `partial-units-differ…` or `partial-needs-unknown` refusal\
-  \ it is joined by\n`stage6_credit_partial` (dict — SPEC-1030 rule 6: only a land\
-  \ of a project whose\ncontract declares a deciding mode carries what this paragraph\n\
-  registers). The refused Stage-6 row held a layer recorded as a\npartial run (`passed-partial`),\
-  \ and the land's own decision on its candidate did not need\nexactly the units that\
-  \ row ran or credited. Its reasons on `stage6_credit_refused`:\n`partial-units-differ-same-tree-and-base:<layer>`\
+  \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\nThe same mark, recorded\
+  \ the same way, also rides a failed run's `tests_failed` row : there\nit says only\
+  \ which tree the failed run tested, and the land never credits it.\n\n**`duration_ms`\
+  \ is REQUIRED on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the\
+  \ delegated-layer leg and the tests/ sweep alike) and writes the measured wall in\
+  \ ms, so the\nTests-stage wall splits into machine time and worker time without\
+  \ inference. An explicitly passed\n`--duration-ms` still WINS (and still stamps\
+  \ `counts_source: \"author_reported\"`). THE ONE EXEMPT\nSHAPE, stated so the requirement\
+  \ is honest rather than aspirational: a hand-authored `--evidence`\nwith NO run\
+  \ attached measured nothing, so it carries the field only via the author-reported\
+  \ group —\nnever a fabricated 0 (the discipline). Before the field was author-reported-only\
+  \ and\n25 of 511 kernel rows in 2026-08-19..09-02 carried one.\n\n**tests_failed**\
+  \ — the RED half of `tests_passed`, emitted by `task test --run` when the Stage-6\n\
+  self-check FAILS. It exists because a green run had a home and a red one had none:\
+  \ the run\nhappened, cost its minutes, and left no row, so a later session could\
+  \ not see that a suite had\nalready failed here or why (<project> X-1112; measured\
+  \ on <project>, where the only surviving\ntrace of a full failing run was prose\
+  \ in an unrelated message an hour later). `data: {current_stage,\nfailed, layers,\
+  \ evidence, duration_ms, counts_source: \"harness_measured\", leg: \"candidate\"\
+  }` —\n* `duration_ms` — **REQUIRED **: the same measured subprocess wall `tests_passed`\
+  \ carries,\n  written on the SAME rule (an explicit `--duration-ms` wins, else the\
+  \ measurement), because a red\n  run costs exactly the minutes a green one does\
+  \ and the row exists to say what the run cost;\n* `failed` = the failing-entry COUNT;\
+  \ `evidence` = the runner's own failure messages, bounded, so the\n  row answers\
+  \ *what failed* without a re-run;\n* `layers` = an ordered list of `{name, attribution}`,\
+  \ one per failing test file or consumer verify\n  layer (SPEC-0152). `attribution`\
+  \ is a CLOSED set: **`in-diff`** (this card's changed-path set — its\n  working\
+  \ tree plus untracked files versus `merge-base(HEAD, main)` — contains that layer's\
+  \ own file)\n  · **`not-in-diff`** (it does not) · **`undetermined`** (the relation\
+  \ could not be established;\n  recorded explicitly, never guessed). MATCHING IS\
+  \ EXACT: a failing TEST-FILE name is a basename and\n  is resolved only by joining\
+  \ it to the tests directory it came from, never by suffix — a changed\n  `docs/test_X.py`\
+  \ does NOT make a failing `tests/test_X.py` read `in-diff`, because a basename is\n\
+  \  not an address. A name that addresses no file at all (a consumer verify LAYER\
+  \ label) is\n  `undetermined`, since a diff-touch relation is undefined for it;\
+  \ a confident wrong attribution is\n  worse than an absent one, because a reader\
+  \ acts on it.\n* `counts_source: \"harness_measured\"` — the deliberate CONTRAST\
+  \ with `tests_passed`'s\n  `author_reported`: these numbers come from the runner\
+  \ this verb just executed, not from an author.\n* `leg: \"candidate\"` — the row\
+  \ is scoped to the CANDIDATE leg this verb runs. `land` verifies TWO\n  legs (SPEC-0077);\
+  \ the pinned last-green leg is NOT run here and is NOT described by this row.\n\
+  * `stage6_run` — OPTIONAL : the tree the failed run tested and the `main` commit\
+  \ it sat on,\n  on the terms the `tests_passed` paragraph above gives the same mark;\
+  \ absent on a bare `--run`, which\n  records no tested tree. Never a credit: the\
+  \ land credits a green newest row only.\n\n**READ `attribution` AS THE RELATION\
+  \ IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation, not\na proof of\
+  \ causation: `not-in-diff` does NOT assert the failure is pre-existing on `main`\
+  \ (a card can\nbreak a file it never opened), and `in-diff` does not assert the\
+  \ card caused it. It is the strongest\nattribution computable without materializing\
+  \ and re-running main's tree, and it is what the incident\nneeded — establishing\
+  \ that a red sat in a layer the card had not written.\n\n**NOT A GATE, and not blocklisted\
+  \ for P8.** The emit changes no verdict and no exit code: a failing\nrun refuses\
+  \ exactly what it refused before it existed. And unlike `tests_passed`, this type\
+  \ is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES` — the green row\
+  \ is blocklisted because\nCHARTER §P8 says tests green BY ITSELF proves nothing\
+  \ (every task earns one for free, zero\ndifferential), whereas this row exists ONLY\
+  \ when a run actually failed, so its presence IS a\ndifferential. Same reasoning\
+  \ as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
+  \ — emitted on BOTH outcomes of a `land` attempt ( — the journal mirror of\nthe\
+  \ `LAND: OK|ABORT` stdout token contract). **Consumers MUST key off `data.status`\
+  \ — NEVER\nread land_completed as success-only** (duration trend views filter `status:\
+  \ ok`). Pre- rows\ncarry no `status` key — readers treat an ABSENT status as ok\
+  \ (those rows were emitted only on\nsuccessful lands). **Where the ok row is COMMITTED\
+  \ :** it is appended post-ff to main's\nWORKING journal and reaches main's COMMITTED\
+  \ journal inside the NEXT land's single bookkeeping\ncommit — the path the abort\
+  \ row already takes — unless this land wrote a non-journal post-ff\ncarrier (the\
+  \ verify-durations table, a load-sensitive carrier line, an auto-filed card), whose\n\
+  fresh commit carries it at once. So a reader reads the on-disk / unioned journal,\
+  \ never\n`git show <rev>:events.jsonl`. Ok path (post-ff, on main): `data: {branch,\
+  \ sha, worktree, status: \"ok\",\nverify_duration_ms, admission_wait_ms, reservation_wait_ms,\
+  \ duration_ms?, reverify_skipped, reverify_skip_reason?, verify_mode}` —\n`verify_duration_ms`\
+  \ = the landing attempt's step-4 verify wall, and it is QUEUE-INCLUSIVE :\nthe wall\
+  \ starts BEFORE the SPEC-0132 verify-admission slot is requested, so it charges\
+  \ both waiting\nfor a slot and running the checks. `admission_wait_ms` (int ms)\
+  \ = the QUEUE half of it —\ntotal time that attempt spent ACQUIRING admission slots\
+  \ (the candidate verify, plus the pinned\nlast-green re-run when it fires), so RUN\
+  \ time is `verify_duration_ms - admission_wait_ms` with no\ninference. ALWAYS present\
+  \ on an ok land; `0` on an uncontended land (a truthful measurement, not a\nfabricated\
+  \ zero — the sub-ms non-blocking slot scan) and on a land that never reached a verify.\n\
+  `reservation_wait_ms` (int ms) = the OTHER queue, and it is NOT inside `verify_duration_ms`\n\
+  at all: the land-fairness RESERVATION ( — the serialized merge->verify->ff window)\
+  \ is taken at\nthe TOP of the attempt, before the merge and before step 4, so no\
+  \ subtraction over the verify wall can\nrecover it. It is the SUM of every reservation\
+  \ acquisition this LAND made, not one attempt's — the\nreservation fd is held across\
+  \ attempts, so the wait is a property of the land. ALWAYS present on an ok\nland;\
+  \ `0` when the reservation was taken without waiting (again a measurement, not a\
+  \ fabricated zero).\n**THE TWO QUEUE FIELDS ARE NEVER SUMMED INTO ONE**, and that\
+  \ is a contract rather than a formatting\nchoice: they ask for DIFFERENT remedies\
+  \ — an admission wait says the verify SLOT POOL is the\nconstraint, a reservation\
+  \ wait says a PEER LAND is holding the window — so a single collapsed field\nwould\
+  \ name neither. Before the reservation wait appeared in NO summary field on any\
+  \ row and\nwas recoverable only by hand-folding `waiting_for_land_reservation` heartbeats\
+  \ per (session, branch);\none measured group land (task/, sha cc5fcfa, 2026-08-27)\
+  \ reported 65 min total, 9 min verify\nand 0 admission wait, with the missing 56\
+  \ min sitting in 195 such heartbeats.\nBefore it, 3892 samples carried a total and\
+  \ no wait, so a 0.1-to-18.2-minute spread could not be\nattributed and each remedy\
+  \ (slot count / cores per verify / the worker command cap) was a guess;\nthe only\
+  \ estimate available was counting `waiting_for_verify_admission_slot` heartbeats.\
+  \ REPORT-ONLY.\n`duration_ms` = whole-land wall; `reverify_skipped` (bool) = re-verify\
+  \ skip telemetry — True iff this ok land's ff'ing attempt skipped the code/test\n\
+  re-verify. It has FOUR producers, and the discriminator is `reverify_skip_reason`\
+  \ (str), which rides\nonly when True: `inert-retry-delta` = lever B (SPEC-0065 §Verification),\
+  \ a concurrency retry whose\ninert merged-tree delta made re-verifying redundant;\
+  \ `superseded-nothing-to-integrate` = lever C\n(SPEC-0184 rule 8), a land carrying\
+  \ nothing not already in `main` — typically a batch member\nwhose content the head\
+  \ already fast-forwarded; `inert-first-attempt-delta` = the inert first-attempt\n\
+  skip (SPEC-0065 §Bound), a land none of whose attempts verified whose tree differs\
+  \ from the\nvenue-GREEN tested tree of main's newest verified land only by inert\
+  \ paths no test names; `stage6-credit` = the\nStage-6 credit (SPEC-0065 §Bound),\
+  \ a land whose CANDIDATE leg was not run because the land\nproved the task's own\
+  \ runner-recorded green Stage-6 run tested this tree on this `main` (or on a\n`main`\
+  \ it advanced from only by inert paths no test names) — the one\nproducer that applies\
+  \ to an OBSERVABLE delta, and the one under which a verify leg may still have\n\
+  run (the SPEC-0077 pinned leg, when due: the row then carries `verify_mode: pinned+candidate`,\
+  \ whose\ncandidate half is the credited run). Such a land additionally carries `stage6_credit:\
+  \ {task, ts, tree,\nbase}` — WHICH Stage-6 row it credited, resolvable as that task's\
+  \ `tests_passed` row at\n`events.jsonl#ts=<ts>`; ADDITIVE, present only on a credited\
+  \ land. When `main` advanced since that\nrun, the same record also states the inert\
+  \ advance the credit accepted — its class and path count\n — so the journal counts\
+  \ how often that arm fires. Its counterpart is\n`stage6_credit_refused` (str) =\
+  \ WHY the credit was REFUSED to a runner-marked green newest\nStage-6 row of the\
+  \ task — the one reason of the SPEC-0065 §Bound condition that failed (`main-moved`,\n\
+  `tree-differs:<class>`, `read-by:<test>`, `run-narrowed`, `layer-not-covered:<layer>`,\n\
+  `row-tree-unrecorded`, `row-tree-unresolvable`, …), so what each condition costs\
+  \ is foldable from\nthe journal. Present ONLY on an ok land that asked for the credit\
+  \ and refused such a row; ABSENT on a\ncredited land and wherever no credit was\
+  \ possible (no Stage-6 row, a red or an unmarked newest row,\nan opted-out project,\
+  \ a non-task branch, an error inside the proof, a land step 4d is not asked on)\
+  \ —\nit never reads as «no credit». It is the LAND's, not one attempt's: a retry\
+  \ that is not asked again\nkeeps it. ADDITIVE, REPORT-ONLY. Beside `main-moved`\
+  \ ONLY it is joined by `stage6_credit_main_delta`\n = main's OWN advance between\
+  \ the run's recorded base and this land's merge base,\nclassified by the one SPEC-0064\
+  \ authority as inert, observable or unknown, with its path count and\nits first\
+  \ 20 paths by name (`moved`) —\nunknown (no count) whenever that delta cannot be\
+  \ read, never inert — and, when an inert advance was\nrefused because a test names\
+  \ it, the first such test. Beside a `tree-differs:` refusal, or\na `main-moved`\
+  \ refusal over an advance that is readable and not inert, it is joined by\n`stage6_layer_credit`\
+  \ wherever the land took the SPEC-0065 §Bound per-layer\ncase (at least one declared\
+  \ layer took the run's verdict): which Stage-6 row the layers were\njudged against\
+  \ (identified as the credited-land record above identifies its row, an accepted\
+  \ inert\nadvance stated on the same terms), the names of the layers that took that\
+  \ row's verdict and the\nnames of the layers this land executed itself, both read\
+  \ off the per-layer outcome trail the\nverify wrote. Such a land RAN its candidate\
+  \ verify — it is not a credited land — records no tested\ntree, and each layer that\
+  \ took the run's verdict reads `credited-stage6-run` on that trail.\nA land retry\
+  \ that took that case against an earlier attempt of this land carries\n`retry_layer_credit`\
+  \ = `{attempt, tree, credited, ran}` in its place, on the same terms.\nBeside a\
+  \ `partial-units-differ…` or `partial-needs-unknown` refusal it is joined by\n`stage6_credit_partial`\
+  \ (dict — SPEC-1030 rule 6: only a land of a project whose\ncontract declares a\
+  \ deciding mode carries what this paragraph\nregisters). The refused Stage-6 row\
+  \ held a layer recorded as a\npartial run (`passed-partial`), and the land's own\
+  \ decision on its candidate did not need\nexactly the units that row ran or credited.\
+  \ Its reasons on `stage6_credit_refused`:\n`partial-units-differ-same-tree-and-base:<layer>`\
   \ — the unit sets differ although `main` has\nnot moved since the run and the candidate\
   \ tree is the run's apart from inert paths;\n`partial-units-differ:<layer>` — they\
   \ differ and `main` advanced since the run by inert paths;\n`partial-needs-unknown:<layer>`\

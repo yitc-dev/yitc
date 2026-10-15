@@ -28,6 +28,14 @@ import re
 # loop, SPEC-0135) was the owner-gated 10th theme (T-10125); the roster stays small/fixed/owner-gated.
 THEMES = tuple(f"T{n}" for n in range(1, 11))
 
+# Kernel report-only LENS subjects recordable by `--theme` beside T1–T10 (T-13946, SPEC-0057 §3). Each
+# is NOT a theme slot: its criteria_ref hashes its own `## <Name> lens` section of the served roster
+# parts, the review-due semaphore judges it at `weekly_days`, and a project ADDS readings to it by
+# declaring an ordinary `inspection.themes[]` entry under the SAME slug (SPEC-0093 rule 12 shape).
+# slug -> the section heading prefix in the roster parts.
+LENS_SECTIONS = {"test-suite-shape": "## Test-suite-shape lens"}
+LENS_SUBJECTS = tuple(LENS_SECTIONS)
+
 # The consumer project-ops carrier (SPEC-0093). Its `inspection.themes[]` (rule 12) declares the
 # CONSUMER-LOCAL themes a project grows ON TOP of the kernel T1–T10 roster — the source of truth for
 # the `--theme <declared-slug>` relaxation (T-10235 / plan K2, surfaced by trial DP-A). Under a `-C`
@@ -1302,6 +1310,21 @@ def declared_theme_entry(ops_yaml, theme: str):
     return None
 
 
+def declared_theme_shape_errors(ops_yaml, entry) -> list:
+    """The SPEC-0093 rule-12 shape errors of ONE declared theme entry (T-13944), read from the one
+    shape check `init` fails closed on (`init._hook_inspection`) — never a second validator. The check
+    runs over the whole `inspection:` section and keeps only the messages addressed to THIS entry's
+    `probe` (the kind a run records against); the entry's other fields (e.g. `cadence:`) and the
+    kernel-theme baseline (SPEC-0160 rule 12) stay `init`'s to report, so a run is never refused on them."""
+    from lib import init as _init   # lazy — the init module is heavy and only a declared theme needs it
+    themes = ops_yaml["inspection"]["themes"]
+    idx = next(i for i, t in enumerate(themes) if t is entry)
+    label = "inspection"
+    prefix = f"{label}.themes[{idx}]"
+    return [m for m in _init._hook_inspection(label, ops_yaml["inspection"], ops_yaml)
+            if m.startswith(prefix + ".probe") and "SPEC-0160" not in m]
+
+
 def declared_theme_criteria_ref(entry: dict, theme: str, ops_rel: str) -> str:
     """The freshness-bearing `criteria_ref` for a CONSUMER-declared theme run:
     `<ops_rel>#<theme>@<sha256[:12]>` — the content hash of the theme's DECLARED entry (its probe shape)
@@ -1311,6 +1334,51 @@ def declared_theme_criteria_ref(entry: dict, theme: str, ops_rel: str) -> str:
     canonical = json.dumps(entry, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:12]
     return f"{ops_rel}#{theme}@{digest}"
+
+
+def lens_section_text(roster_text: str, slug: str) -> str:
+    """The roster section of the kernel LENS subject `slug` — its `## <Name> lens` heading through the
+    next `## ` heading or EOF (T-13946). Raises ValueError when this text does not carry it, so the
+    caller resolves it across the served parts with the one exactly-one selector."""
+    prefix = LENS_SECTIONS[slug]
+    lines = roster_text.splitlines()
+    start = next((i for i, ln in enumerate(lines) if ln.startswith(prefix)), None)
+    if start is None:
+        raise ValueError(f"no '{prefix}' section in the roster")
+    end = next((j for j in range(start + 1, len(lines)) if lines[j].startswith("## ")), len(lines))
+    return "\n".join(lines[start:end]).rstrip() + "\n"
+
+
+def lens_readings(section: str) -> list:
+    """The kernel readings a lens section names — the `**Reading N — NAME.**` labels, in order."""
+    return [m.group(1).strip() for m in
+            re.finditer(r"^- \*\*Reading \d+ — ([^*]+?)\.?\*\*", section, re.MULTILINE)]
+
+
+def resolved_lens(parts, slug: str):
+    """`(criteria_ref, kernel_readings)` for a lens subject, resolved across the served roster parts:
+    the ref is `<part rel>#<slug>@<sha256[:12] of the section>` (the checklist-hash shape)."""
+    rel, text = resolve_roster_part(parts, lambda t: lens_section_text(t, slug),
+                                    f"'{LENS_SECTIONS[slug]}' section")
+    section = lens_section_text(text, slug)
+    digest = hashlib.sha256(section.encode("utf-8")).hexdigest()[:12]
+    return f"{rel}#{slug}@{digest}", lens_readings(section)
+
+
+def declared_readings(entry) -> list:
+    """The readings a project ADDS to a kernel lens: its declared `probe.sweep.checks` ([] when the
+    entry is absent or carries no sweep checks)."""
+    probe = entry.get("probe") if isinstance(entry, dict) else None
+    sweep = probe.get("sweep") if isinstance(probe, dict) else None
+    checks = sweep.get("checks") if isinstance(sweep, dict) else None
+    return [str(c).strip() for c in checks if str(c).strip()] if isinstance(checks, list) else []
+
+
+def lens_readings_note(data: dict) -> str:
+    """The ONE rendering of a lens run's readings line — the kernel row, then the project's own."""
+    project = data.get("project_readings") or []
+    return ("readings: kernel " + " · ".join(data.get("kernel_readings") or []) + "; project "
+            + (" · ".join(project) if project else "none declared — the kernel row alone"))
 
 
 # ── Weekly operational-hygiene tier subject (T-10134, owner design 2026-07-05) ────────────────
@@ -1627,13 +1695,24 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
             if ops_path.exists():
                 ops_yaml = _read_yaml(ops_path)
         declared_entry = declared_theme_entry(ops_yaml, theme)
-        if declared_entry is None:
+        # T-13946: a kernel LENS subject is recordable with or without a declaration — a declared
+        # entry under its slug only ADDS the project's readings to the kernel row.
+        if declared_entry is None and theme not in LENS_SUBJECTS:
             _die(f"--theme {theme!r} is neither a kernel roster theme ({', '.join(THEMES)}, the fixed "
                  f"SPEC-0057 §3 roster) nor a theme declared in this consumer's "
                  f"{OPS_YAML_REL} inspection.themes[] (SPEC-0093 rule 12) — an undeclared theme slug is refused")
+        # T-13944: only a DECLARED entry has a shape to check — a kernel lens subject recorded with no
+        # declaration (T-13946) has none.
+        shape_errs = (declared_theme_shape_errors(ops_yaml, declared_entry)
+                      if declared_entry is not None else [])
+        if shape_errs:
+            _die(f"inspect record: --theme {theme!r} is declared with a malformed entry in {OPS_YAML_REL}: "
+                 f"{'; '.join(shape_errs)} — fix the entry, then re-run `bin/yitc-v2 inspect record --theme {theme}` "
+                 f"(SPEC-0093 rule 12)")
     # criteria_ref subject: a declared theme hashes its yitc-ops.yaml entry (its declared probe shape);
     # a kernel theme / tier hashes the roster checklist section. Only the latter needs the roster read.
-    if declared_entry is not None:
+    lens = theme in LENS_SUBJECTS
+    if declared_entry is not None and not lens:
         criteria_ref = declared_theme_criteria_ref(declared_entry, theme, OPS_YAML_REL)
     else:
         if not ROSTER_PATH.exists():
@@ -1645,8 +1724,11 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
         # the same message shape and the same nonzero exit — only WHERE it looked has widened.
         parts = served_roster_parts(ROSTER_PATH, ROSTER_REL)
         try:
-            criteria_ref = (resolved_tier_criteria_ref(parts, tier) if tier
-                            else resolved_checklist_criteria_ref(parts, theme))
+            if lens:
+                criteria_ref, kernel_readings = resolved_lens(parts, theme)
+            else:
+                criteria_ref = (resolved_tier_criteria_ref(parts, tier) if tier
+                                else resolved_checklist_criteria_ref(parts, theme))
         except ValueError as e:
             _die(f"inspect record: {e}")
     subject_label = tier if tier else theme
@@ -1684,6 +1766,12 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
         "lenses_covered": lenses,
         "criteria_ref": criteria_ref,
     }
+    if lens:
+        # T-13946 — the kernel row and the project's own readings, side by side on the one run.
+        data["kernel_readings"] = kernel_readings
+        data["project_readings"] = declared_readings(declared_entry)
+        if declared_entry is not None:
+            data["project_criteria_ref"] = declared_theme_criteria_ref(declared_entry, theme, OPS_YAML_REL)
     # T-12595 — the run's findings TEXT (selected units, measured seconds, routed ids). Additive and
     # only when given: before this the governed verb had no field for it, so rows that carried notes
     # were hand-emitted through the generic `event` verb.
@@ -1776,6 +1864,8 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
         # Rendered from the coverage contract's own renderer — this surface never composes the line
         # itself, so the dry-run and the real emit below can never drift apart (T-11043).
         print("  " + track_coverage_note(tracks_covered(data)))
+        if lens:
+            print("  " + lens_readings_note(data))
         if uncounted_cause is not None:
             # The preview shows semaphore standing for the same reason it shows no_data: a wiring
             # proof that hid the one thing this run would NOT do would prove the wrong thing.
@@ -1804,6 +1894,8 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
     # unconditionally, including the NOT-RECORDED case: a run that stays silent about its coverage is
     # exactly the run this card exists to stop reading like a converged one.
     print("  " + track_coverage_note(tracks_covered(data)))
+    if lens:
+        print("  " + lens_readings_note(data))
     if zero_sweep:
         # Rendered from the ONE semaphore face — this surface never spells its own sentence. Printed
         # for the zero-sweep cause only: the no_verdict cause already says the same thing in its own

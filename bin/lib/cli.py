@@ -1872,6 +1872,10 @@ def _review_due_view() -> dict:
                                   themes=inspection.THEMES if _local else (),
                                   declared_themes=_declared,
                                   declared_cadence=_declared_cad,
+                                  # T-13946 — the kernel weekly lenses (Lens C) run PER REPO, so they
+                                  # are passed whether or not this checkout has a roster of its own;
+                                  # the leaf resolves their day-value from `declared_cadence` then.
+                                  weekly_lenses=inspection.LENS_SUBJECTS,
                                   # T-13104 — the routed-boundary home for the triage subject's gate.
                                   _last_triage_watermark=_SELF._last_triage_watermark)
 def _view_per_unit_flaky_rate(events_path: "Path", since=None, until=None) -> dict:
@@ -19195,6 +19199,7 @@ def _bookkeeping_commit_authored_paths(sha: str, tid: str, *,
     if r.returncode != 0:
         return None
     out: "set[str]" = set()
+    touched, derived_only = False, True            # T-13941 — the `derived_only` mark, same parse
     for ln in r.stdout.splitlines():
         if not ln.strip():
             continue
@@ -19203,6 +19208,8 @@ def _bookkeeping_commit_authored_paths(sha: str, tid: str, *,
         paths = [q.strip().strip('"') for q in parts[1:] if q.strip()]
         if not paths:
             return None                            # a status with no path — unclassifiable, fail closed
+        touched = True                             # EVERY status, a deletion and both rename
+        derived_only = derived_only and all(q in _BOOKKEEPING_ALLOWLIST for q in paths)  # ends too
         if status[:1] == "D":                      # deleted here → this commit ships no content at it
             continue
         for q in paths:                            # R/C carry BOTH endpoints; every other status, one
@@ -19222,7 +19229,7 @@ def _bookkeeping_commit_authored_paths(sha: str, tid: str, *,
         if t.returncode == 0:
             present = {q for q in t.stdout.split("\0") if q}
             out = {q for q in out if q in present}
-    return sorted(out)
+    return audit.AuthoredPaths(sorted(out), derived_only=touched and derived_only)
 
 
 def _chain_is_record_only(chain: "list", tid: "str | None") -> bool:
@@ -27709,6 +27716,9 @@ def _cmd_dispatch_scoped(args: argparse.Namespace, _release, _refresh, _tick) ->
         # import (dispatch.py stays the low leaf its header declares), and the SAME record
         # `venue show` prints is read — one venue reader, not a second view.
         _venue_brief_line=_dispatch_venue_brief_line,
+        # T-13945 — this session's own ref (best-effort, never dies), so a watcher may be armed beside a
+        # hand-off author's that this session took the hand-off of (SPEC-1004 §4).
+        _own_session_ref=lambda: (lambda r: None if r == "unresolved" else r)(_resolve_session_ref_for_envelope()),
         # T-10397 — the in-flight guards read TAIL-FIRST through this reader (a tail POSITIVE carries the
         # whole newest-launch epoch; a tail NEGATIVE is re-decided on the FULL journal, so the guard can
         # never fail OPEN into a double dispatch). Home of the argument: journal._dispatch_events_tail_first.
@@ -28381,7 +28391,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # load at the moment it expired) instead of reading as a bare timeout whose only named remedy is
     # raising the bound. Report-only — the gate is untouched (SPEC-0103). This ONE residue is the seam
     # every caller (`task test`, `_land_integrate`) funnels through, so injecting here reaches them all.
-    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds, **({"queue_jump": True} if queue_jump else {}), **({"one_card_candidate": True} if one_card_candidate else {}))   # T-13907: the candidate run of ONE card, passed on only when a caller says so; T-13904: `queue_jump` — the Stage-6 call site's declaration of a live queue-jump mark, forwarded only when set; T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
+    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, _land_verifies_running=lambda: worktree_mod._running_land_verifies(_main_worktree(REPO_ROOT) or REPO_ROOT), workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds, **({"queue_jump": True} if queue_jump else {}), **({"one_card_candidate": True} if one_card_candidate else {}))   # T-13907: the candidate run of ONE card, passed on only when a caller says so; T-13904: `queue_jump` — the Stage-6 call site's declaration of a live queue-jump mark, forwarded only when set; T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
 
 
 def _consumer_tests_delegation(worktree: Path, routing_from: "Path | None" = None) -> "str | None":

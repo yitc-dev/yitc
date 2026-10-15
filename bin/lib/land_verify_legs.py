@@ -5815,7 +5815,9 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
       • THE PRIORITY. Otherwise the rule-6 ladder is asked for the card's WHOLE change (`change`),
         whatever the layer's `selection:`. Any answer but rung (f) credits nothing — `void` /
         `card-full-layer`, with the ladder's `rung` and its reason as `ladder_reason` — and the
-        whole inventory runs.
+        whole inventory runs. ONE exception (T-13949): where the fix's diff names NO path — this
+        run's tree is the one the previous attempt recorded — and the answer is not rung (a), the
+        decision goes on as on rung (f) below, over that empty diff.
       • ON RUNG (f) `_adapter_credit_decision` decides over the fix's diff (`related` is invoked
         once more for it, inside the same deadline; a rung (a)-(e) there is case (iv)), and
         `_adapter_run_plan` turns the selection — where it acts — and that decision into the
@@ -6146,7 +6148,15 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     lambda: (asked.append(1), _ask_related(inventory, change))[1],
                     exists=_still_a_file, _subject_globs_would_skip=_subject_globs_would_skip)
                 got = None
-                if basis is not None and ladder["decision"] != "units":
+                # T-13949: on the very tree the previous attempt recorded (the fix's diff names no
+                # path) a layer that PASSED WHOLE there — every unit its record holds passed — is
+                # credited whatever the card reaches (SPEC-1030 rule 3's one exception); never on
+                # rung (a), a change to the verify contract itself, which never becomes a partial
+                # run (rule 2). A layer with a failed unit keeps the card-full-layer answer.
+                same_tree = basis is not None and basis["change"].get("paths") == [] \
+                    and ladder["rung"] != "a" and bool(basis.get("units")) \
+                    and all(v == "passed" for v in basis["units"].values())
+                if basis is not None and ladder["decision"] != "units" and not same_tree:
                     # THE PRIORITY (SPEC-1030 rule 3): a full-layer answer for the card's own
                     # change credits nothing, whatever the fix's diff alone would allow.
                     rec["credit"] = _adapter_deciding_credit_record(

@@ -536,39 +536,42 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ --tier weekly`),\n   each T1-T10 system-inspection THEME (anchored by `inspect\
   \ record --theme T<n>`), and each\n   CONSUMER-DECLARED theme (`yitc-ops.yaml inspection.themes[]`,\
   \ SPEC-0093 rule 12 / SPEC-0057 §9\n   relationship (iii); anchored by the SAME\
-  \ `inspect record --theme <slug>`) —. A subject is DUE\n   iff it is PAST its cadence\
-  \ AND >=1 SUBSTANTIVE event (task_closed / land_completed / spec activation\n  \
-  \ / plan-stage — NOT followups/deviations/reads) occurred since its last run — ACTIVITY-GATED,\
-  \ so a\n   quiet period with no work is NEVER due (the owner's no-work->no-nag guarantee).\
-  \ PER-SUBJECT coverage\n   — a recently-run sibling can never hide a stale/never-run\
-  \ subject. Cadence VALUES come from the\n   roster's parseable `<!--CADENCE-->`\
-  \ block (`inspection.parse_cadence`; the CLI holds NO cadence\n   literal — single\
-  \ SoT), and each DECLARED theme is judged at ITS OWN `cadence:` tier's `<tier>_days`\n\
-  \   rather than one uniform monthly. Resolution is PER-SUBJECT + fail-safe: an unresolvable\n\
-  \   subject (no slug / no or unknown tier / no parseable day-value) is SKIPPED,\
-  \ never guessed — the\n   never-nag-on-unknown discipline. The rendered theme line's\
-  \ tier word is DERIVED from the due set\n   (a mixed-cadence set reads `mixed-cadence`,\
-  \ never a false `monthly`). It rides rules 2/3/5 verbatim — the SAME 3 seams, token-frugal\
-  \ (COUNT + the\n   inspect-record POINTER + the due theme id(s) + tier label — still\
-  \ NO ages or full review content ( amends the count-only AC4 per owner directive\
-  \ 2026-07-05)), SUPPRESSED-WHEN-CLEAN,\n   REPORT-ONLY, NO gate/store/event; it\
-  \ SURFACES\n   due-ness, it never RUNS/schedules/selects an inspection (SPEC-0057\
-  \ §2 manual-first UNCHANGED). One\n   more OPTIONAL injected collaborator; no new\
-  \ mechanism (P1).\n   **TRIAGE subject (SPEC-0057 §9).** Deviation-capture triage\
-  \ is one more subject, judged at\n   `weekly_days`: anchored on the latest NON-probe\
-  \ `triage_run_completed` ts, and activity-gated on >=1\n   `deviation_captured`\
-  \ after the routed boundary (`_last_triage_watermark`, a further OPTIONAL injected\n\
-  \   collaborator) — its gate is CAPTURES, not the SUBSTANTIVE set above, because\
-  \ the backlog it drains is\n   captures. Its ONE line (shared with `inspect record\
-  \ --tier weekly`) is the single exception to the\n   no-ages rule: it names the\
-  \ anchor age in days + the unrouted count + `bin/yitc-v2 triage run`, since\n  \
-  \ the lapse length is what an operator needs to act (the revizia-consumers-2026-09-27\
-  \ 31/38-day lapses).\n   **Not every recorded run ANCHORS its subject (X-1262).**\
-  \ A run anchors — resets the\n   cadence clock, marking its subject reviewed — only\
-  \ if it actually reviewed something. Two causes\n   say it did not: the <workshop-spec>\
-  \ rule-1 `no_data` discriminator (the run produced no verdict — it\n   aborted,\
-  \ crashed, or never started), and the SEMAPHORE-STANDING discriminator\n   `semaphore_counted:\
-  \ false` on the `inspection_completed` row (today's one cause: a declared\n   `sweep:`\
+  \ `inspect record --theme <slug>`) — — and each\n   kernel weekly LENS subject (`test-suite-shape`,\
+  \ SPEC-0057 §3) in every repo at `weekly_days`, a\n   declared theme under a lens\
+  \ slug being that lens's extension, not a second subject. A subject is DUE\n   iff\
+  \ it is PAST its cadence AND >=1 SUBSTANTIVE event (task_closed / land_completed\
+  \ / spec activation\n   / plan-stage — NOT followups/deviations/reads) occurred\
+  \ since its last run — ACTIVITY-GATED, so a\n   quiet period with no work is NEVER\
+  \ due (the owner's no-work->no-nag guarantee). PER-SUBJECT coverage\n   — a recently-run\
+  \ sibling can never hide a stale/never-run subject. Cadence VALUES come from the\n\
+  \   roster's parseable `<!--CADENCE-->` block (`inspection.parse_cadence`; the CLI\
+  \ holds NO cadence\n   literal — single SoT), and each DECLARED theme is judged\
+  \ at ITS OWN `cadence:` tier's `<tier>_days`\n   rather than one uniform monthly.\
+  \ Resolution is PER-SUBJECT + fail-safe: an unresolvable\n   subject (no slug /\
+  \ no or unknown tier / no parseable day-value) is SKIPPED, never guessed — the\n\
+  \   never-nag-on-unknown discipline. The rendered theme line's tier word is DERIVED\
+  \ from the due set\n   (a mixed-cadence set reads `mixed-cadence`, never a false\
+  \ `monthly`). It rides rules 2/3/5 verbatim — the SAME 3 seams, token-frugal (COUNT\
+  \ + the\n   inspect-record POINTER + the due theme id(s) + tier label — still NO\
+  \ ages or full review content ( amends the count-only AC4 per owner directive 2026-07-05)),\
+  \ SUPPRESSED-WHEN-CLEAN,\n   REPORT-ONLY, NO gate/store/event; it SURFACES\n   due-ness,\
+  \ it never RUNS/schedules/selects an inspection (SPEC-0057 §2 manual-first UNCHANGED).\
+  \ One\n   more OPTIONAL injected collaborator; no new mechanism (P1).\n   **TRIAGE\
+  \ subject (SPEC-0057 §9).** Deviation-capture triage is one more subject, judged\
+  \ at\n   `weekly_days`: anchored on the latest NON-probe `triage_run_completed`\
+  \ ts, and activity-gated on >=1\n   `deviation_captured` after the routed boundary\
+  \ (`_last_triage_watermark`, a further OPTIONAL injected\n   collaborator) — its\
+  \ gate is CAPTURES, not the SUBSTANTIVE set above, because the backlog it drains\
+  \ is\n   captures. Its ONE line (shared with `inspect record --tier weekly`) is\
+  \ the single exception to the\n   no-ages rule: it names the anchor age in days\
+  \ + the unrouted count + `bin/yitc-v2 triage run`, since\n   the lapse length is\
+  \ what an operator needs to act (the revizia-consumers-2026-09-27 31/38-day lapses).\n\
+  \   **Not every recorded run ANCHORS its subject (X-1262).** A run anchors — resets\
+  \ the\n   cadence clock, marking its subject reviewed — only if it actually reviewed\
+  \ something. Two causes\n   say it did not: the <workshop-spec> rule-1 `no_data`\
+  \ discriminator (the run produced no verdict — it\n   aborted, crashed, or never\
+  \ started), and the SEMAPHORE-STANDING discriminator\n   `semaphore_counted: false`\
+  \ on the `inspection_completed` row (today's one cause: a declared\n   `sweep:`\
   \ theme whose `surfaces:` glob matched ZERO FILES in the checkout). Such a run is\
   \ still\n   RECORDED — proof-of-performance is unchanged, SPEC-0057 §6 — but it\
   \ is SKIPPED by this fold, so\n   its subject stays DUE rather than reading reviewed.\
@@ -4232,7 +4235,7 @@ implements_signature:
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
   bin/lib/debt.py#_debt_echo_compact: e941b54796a1c92b203449ea1e153015f223f0c9f572028e8609f1021d6a11fa
-  bin/lib/debt.py#_debt_echo_lines: 8991b06c7108331c7ed6f5370622a178b83a4f3abc0d98f805ff87154e78e008
+  bin/lib/debt.py#_debt_echo_lines: c223b0eaa2b72e980dbc96bf1b3d6589609bab2bdb872cdeb9f9b82e5d9d5fb0
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
@@ -4346,8 +4349,8 @@ implements_signature:
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: b072fdf2385a92c2f64b891193a135542e321f7664b2d2fe64fa2a24a3c89aa5
-  bin/lib/views.py#_view_review_due: 68b6185ab530bb62997f3f4d3ea92acdd4e9802643f9eb45e80cce96d72f2541
+  bin/lib/views.py#_render_debt_echo: b1427fe117d3591231d6d517efad9d7e0b973905000d0ef9aa37b125e6de867b
+  bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3

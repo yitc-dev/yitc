@@ -67,30 +67,30 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ the amortised pass is only a saving if the members do not each re-pay it afterwards;\
   \ rule 9 by : which change the batch forms AROUND must be decided by cost, not by\
   \ arrival order).\n\n**What SPEC-0186 resolves to `never` is INERT for class assignment\
-  \ — the pinned-supersession key AND\nthe cost ladder's two-pass rung alike.** Class\
-  \ assignment reads the project's\n`verify_policy.pinned_last_green` through the\
-  \ SAME resolver the land verify path uses (one authority,\nread from the base tree\
-  \ at every call site), so a member is NOT isolated one-at-a-time for a check that\n\
-  will not run — whether it was carrying the supersession key or merely touching the\
-  \ verifier's own\nsurface (rule 9). This spec remains the ONE normative home for\
-  \ HOW batches form and for the class set;\nSPEC-0186 supplies only that policy input.\
-  \ Navigational pointer, not a second rule (SPEC-0005 rule 8).\n\n**Red-batch BISECTION\
-  \ is OUT of this spec's scope** (plan-check finding 1, 2026-08-16). A red batch\
-  \ is\nanswered by rule 4 — no member lands — and DISSOLVED back into the queue.\
-  \ Identifying WHICH member was\nthe culprit without re-running every member separately\
-  \ is a cost optimisation with its own later\ncarrier, deliberately excluded here:\
-  \ this spec activates when the card implementing rules 1-7 closes,\nand an `active`\
-  \ spec must not claim behaviour nobody has adopted (CHARTER §P3 / §P8). `BATCH_MAX`\n\
-  below still bounds the diagnosis bill, because that bill is paid by re-queueing\
-  \ either way.\n\n### 1. Formation is queue-driven — never repo-driven, and never\
-  \ ACTOR-driven\nWhen the land slot frees, the batch is exactly the set of lands\
-  \ queued AT THAT MOMENT, capped at\n`BATCH_MAX`. Nothing waits to \"fill\" a batch:\
-  \ a quiet repo forms a batch of ONE, which MUST be\nbyte-identical to pre-spec behaviour\
-  \ — same events, same commits, same tokens. This is what makes the\nmechanism self-disabling\
-  \ where it is not needed, with no flag and no per-repo branch (CHARTER §P1 —\nno\
-  \ second code path to choose between). A repo is never named in this logic; only\
-  \ its queue depth is.\n\n**QUEUE ORDER IS ACCUMULATED AGE, OLDEST FIRST — and it\
-  \ is a RULE, not an accident of the read**\n(measured 2026-08-26). \"Queue order\"\
+  \ — the pinned-supersession key, the\nrebaseline declarations AND the cost ladder's\
+  \ two-pass rung alike.** Class assignment reads the project's\n`verify_policy.pinned_last_green`\
+  \ through the SAME resolver the land verify path uses (one authority,\nread from\
+  \ the base tree at every call site), so a member is NOT isolated one-at-a-time for\
+  \ a check that\nwill not run — whether it was carrying the supersession key, declaring\
+  \ a rebaseline, or merely touching the verifier's own\nsurface (rule 9). This spec\
+  \ remains the ONE normative home for HOW batches form and for the class set;\nSPEC-0186\
+  \ supplies only that policy input. Navigational pointer, not a second rule (SPEC-0005\
+  \ rule 8).\n\n**Red-batch BISECTION is OUT of this spec's scope** (plan-check finding\
+  \ 1, 2026-08-16). A red batch is\nanswered by rule 4 — no member lands — and DISSOLVED\
+  \ back into the queue. Identifying WHICH member was\nthe culprit without re-running\
+  \ every member separately is a cost optimisation with its own later\ncarrier, deliberately\
+  \ excluded here: this spec activates when the card implementing rules 1-7 closes,\n\
+  and an `active` spec must not claim behaviour nobody has adopted (CHARTER §P3 /\
+  \ §P8). `BATCH_MAX`\nbelow still bounds the diagnosis bill, because that bill is\
+  \ paid by re-queueing either way.\n\n### 1. Formation is queue-driven — never repo-driven,\
+  \ and never ACTOR-driven\nWhen the land slot frees, the batch is exactly the set\
+  \ of lands queued AT THAT MOMENT, capped at\n`BATCH_MAX`. Nothing waits to \"fill\"\
+  \ a batch: a quiet repo forms a batch of ONE, which MUST be\nbyte-identical to pre-spec\
+  \ behaviour — same events, same commits, same tokens. This is what makes the\nmechanism\
+  \ self-disabling where it is not needed, with no flag and no per-repo branch (CHARTER\
+  \ §P1 —\nno second code path to choose between). A repo is never named in this logic;\
+  \ only its queue depth is.\n\n**QUEUE ORDER IS ACCUMULATED AGE, OLDEST FIRST — and\
+  \ it is a RULE, not an accident of the read**\n(measured 2026-08-26). \"Queue order\"\
   \ was previously left implicit here and the reader\nsupplied FIRST-SEEN-IN-TAIL\
   \ order, whose docstring claimed it meant \"whoever has been waiting\nlongest is\
   \ ahead\". It did not: every live waiter re-beats every ~20s, so within the freshness\n\
@@ -2397,7 +2397,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_batch_foreign_merges: 45ddd72592a346f428bab170db59d9d87ef3cfa570a883673cc79cb7b9d3bde2
   bin/lib/batch_landing.py#_land_batch_formation_ids: efb09da9dd4b8f7e55db09f8756dee6a9481132f0650ebd9108d93cf503c4261
   bin/lib/batch_landing.py#_land_batch_ineligible_branches: 1410159144b06d707674d12b8c820c1796ba168e6829001e8b3d662e5102f66d
-  bin/lib/batch_landing.py#_land_batch_members: c1ff77b8f4f667eea07e3e4526109cfe1ad1d5df8ea94d77ea60eaff9c4b1422
+  bin/lib/batch_landing.py#_land_batch_members: 7c925eb32a88c52b446cca1805978d2d889e0af330e95f575e17d269bee48c0f
   bin/lib/batch_landing.py#_land_batch_verify_path_touch: 153524acb9e4f5f663243863d0c413ff6f73f85b3f46bb4eb853bdcddc046ea7
   bin/lib/batch_landing.py#_land_clear_yield_offer: b24ed066be5706662defcd7727513b012113c9729411a9ae871f1565f8a5e7be
   bin/lib/batch_landing.py#_land_consume_yield_offer: a687199e81e30ea75f2d7166a354252a6edf56fe8dbea2949c36bf67e4e3a53a
@@ -2438,5 +2438,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: c7bf2e515589a8836c21d3dd5f3b0c92b72683de4f3ada641f3aa3046b6d8e6e
+  bin/lib/worktree.py#_land_integrate: dbe73f663fd386a751274d2f4c2dea2a23b3c687ee12f6c518ee12d9713a665c
   bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883

@@ -420,18 +420,20 @@ lens NAMES candidates only; splitting one is an owner-cued card against.
 
 ## Test-suite-shape lens (Lens C — report-only)
 
-Same posture and record path as Lens A/B. **Monthly, per repo** — the kernel and each `-C` consumer,
-read-only (`-C <repo> --read-only`). It asks whether the suite is cut so that a change runs only what
+Same posture as Lens A/B. **Weekly, per repo** — the kernel and each `-C` consumer, read-only
+(`-C <repo> --read-only`); weekly since (owner, public issue #96), and the review-due line
+judges it at `weekly_days`. It asks whether the suite is cut so that a change runs only what
 it touches, which files grow slow, and whether each file in the load-sensitive (serialized) lane still
 needs to be there. **What it replaces (P1 F3):** the one-off layer reports — C10 (`lessons/kernel-suite-test-layout-report.md`) and C11a (cross items **X-1860** <project> /
 **X-1861** <project>) — become its first readings, and their fold commands ARE its method: re-run them
-over the lens window (the last month), never restate or rebuild them here.
+over the lens window (the last week), never restate or rebuild them here.
 
 - **Reading 1 — LAYERS.** In a consumer with declared verify layers: per layer, how often it ran vs was
   skipped and its share of the layer wall (the X-1860 / X-1861 REPRODUCE command), the layers that run on
   most lands, globs that admit paths the layer's tests do not read, and heavy-layer split candidates
-  against SPEC-0165 item 12 (b). In the kernel: the full-suite share and its reasons, and the share a
-  selected change runs (C10 sections 1–2). Once the per-test hotspot report and per-unit rows
+  against SPEC-0165 item 12 (b), plus LAYER EVENNESS — each layer's wall share against its share of
+  the tests it runs, naming the most uneven layer. In the kernel: the full-suite share and its
+  reasons, and the share a selected change runs (C10 sections 1–2). Once the per-test hotspot report and per-unit rows
   exist on a repo's lands, the reading also names its hotspot files.
 - **Reading 2 — SLOW TAIL.** The files the SPEC-0119 rule-19 delta row of `bin/yitc-v2 [-C <repo>] debt`
   names as grown in the window, and the top files by recorded seconds (C10 section 3).
@@ -439,22 +441,33 @@ over the lens window (the last month), never restate or rebuild them here.
   card (SPEC-0119 rule 41), or a ratification (`ratified by card T-NNNN`) with its age. The line's LAST
   CHECK is the later of: the close of the card its `ratified by card` names (a re-check that keeps the
   line re-ratifies it there, as did) and this repo's previous Lens C run that recorded the line
-  re-checked. A ratified line whose file changed after its last check, or whose last check is older than
+  re-checked. A consumer's own unit lane, where its verify layers declare one, is read the same way.
+  A ratified line whose file changed after its last check, or whose last check is older than
   a month, is named for a re-check; the ratifying card's own replay is the re-check method, and a re-check
   is recorded in the run that made it, which resets the clock. A repo without the file records `no lane`.
+- **Reading 4 — WAITING AND SLOTS.** Over the window's verify runs: the wall spent waiting (for a verify
+  slot or a lock) against the wall spent running, and the worker slots the runs used against the
+  host's cores (`nproc`). A repo with no recorded verify run records `no runs`.
+
+**A project's own readings.** A project ADDS readings to this lens — never a second theme — by
+declaring an ordinary `yitc-ops.yaml` `inspection.themes[]` entry whose `theme:` IS `test-suite-shape`
+(SPEC-0093 rule 12 shape: `probe.sweep` with its test globs as `surfaces:`, its readings as `checks:`,
+`against:` this section). The weekly cadence stays the kernel's, whatever the entry says. A project that
+declares nothing runs this lens alone.
 
 **Output — unlike Lens B, the run files what it accepts.** Each accepted candidate becomes a card: in the
 kernel a `task file` card, filed `ready` and never claimed or dispatched (taking it into work is an owner
 cue); in a consumer a `cross request` to that project, since a kernel session never writes a consumer
 repo. A candidate already held by a live card, followup or open cross item is named with that holder, not
-filed again. **Report shape:** one `inspection_completed` per repo run,
-`run_ref=test-suite-shape-lens-<repo>-<n>`, `data.readings` carrying the three readings as numbers and the
-id of every card or cross item filed; a reading with nothing to report records `no candidates`, never an
+filed again. **Record:** `bin/yitc-v2 [-C <repo>] inspect record --theme test-suite-shape` — one
+`inspection_completed` per repo run (rule home SPEC-0057 §3); it carries the kernel readings and the
+project's declared ones side by side, and `--notes` carries the readings as numbers and the id of every
+card or cross item filed; a reading with nothing to report records `no candidates`, never an
 empty event. Unchanged by this lens: the lane bounds, SPEC-0119 rule 41 and the weekly over-bound row.
 
 ## Context-home content lens (report-only)
 
-Same posture and record path as Lens A–C. **Monthly (rotated), per repo** — the kernel and each `-C`
+Same posture and record path as Lens A/B. **Monthly (rotated), per repo** — the kernel and each `-C`
 consumer, read-only (`-C <repo> --read-only`), since this repo's last `inspection_completed` for this
 lens (the first run records `first run`). It asks whether the project-context home holds entries that
 SPEC-0125 **Rule 1a** says it never holds; the never-holds list and its homes are read THERE

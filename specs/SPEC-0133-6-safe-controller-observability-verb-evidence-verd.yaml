@@ -866,7 +866,7 @@ implements_signature:
   bin/lib/dispatch.py#_readiness_advisory_block: 9b41912fdefae4995cfa56e882bb474e99af0883df061b7288929c8b18011274
   bin/lib/dispatch.py#_watch_row_in_scope: 6b2db2d58c6c0b324a807e774049574564e25c9e899725882874e4b1aaa45175
   bin/lib/dispatch.py#_watch_wake_decision: 809242e0063386cb679f42b6d8ea5e1b55613afe7f714117909ac9ae0381b5ab
-  bin/lib/dispatch.py#cmd_dispatch: d0c3f8c45eb15348dda5de797a9a605f75a0823822c79615122c1c36344a8b30
+  bin/lib/dispatch.py#cmd_dispatch: 60256e48d19800b6716f17704c33fb5a51cde156cf133d56ec60af55e77cdacb
   bin/lib/dispatch.py#cmd_dispatch_watch: 4c4124068e600beac01f1afc822e932a50be0d7a87c144f919b4877573f4280f
   bin/lib/journal.py#DISPATCH_CLASS_VOCAB: 451758aa547817399cfd5ea10ee7ebf67b66359326c2402c20ab18f5a68f2f4f
   bin/lib/journal.py#_dispatch_status_landed_pause: ce76f65f58e887e873287dea5132abc4272b3a94c1803258433b3961bb4da060

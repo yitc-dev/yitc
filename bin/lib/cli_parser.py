@@ -2959,10 +2959,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                        "in both directions: a bare future event with no checkable artifact "
                                        "is captured ACTIONABLE (visible), never armed into silence "
                                        f"({_PROSE_STEER_FOR('followup add')})")
+    fadd.add_argument("--due", metavar="DATE",
+                      help="capture it ARMED until a calendar DATE (T-13938): YYYY-MM-DD (the start of "
+                           "that day, UTC) or YYYY-MM-DDTHH:MM:SSZ. It surfaces as FIRED once the "
+                           "read-time clock reaches that moment — no event needed. Replaces --awaits "
+                           "(not combinable); --trigger is optional and defaults to one naming the date. "
+                           "A date not in the future, or unreadable, is REFUSED")
     fadd.add_argument("--from-stdin", dest="from_stdin", action="store_true",
                       help="read the capture fields as a YAML mapping on stdin (text / relates_to / "
-                           "trigger / awaits) — the SHELL-PROOF path for prose carrying backticks "
-                           "(mirrors `task update --from-stdin`); any of those four on argv alongside "
+                           "trigger / awaits / due) — the SHELL-PROOF path for prose carrying backticks "
+                           "(mirrors `task update --from-stdin`); any of those on argv alongside "
                            "--from-stdin is REFUSED")
     fadd.set_defaults(func=cmd_followup_add)
     fpr = fup_sub.add_parser("promote", help="Promote an OPEN followup into a real task, authored reference note OR plan (emits followup_promoted)")
@@ -3005,8 +3011,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                        "the headline, so it is REFUSED (T-11863): leave such an item "
                                        "actionable, or `followup drop` it "
                                        f"({_PROSE_STEER_FOR('followup arm')})")
+    farm.add_argument("--due", metavar="DATE",
+                      help="arm it until a calendar DATE (T-13938): YYYY-MM-DD (the start of that day, "
+                           "UTC) or YYYY-MM-DDTHH:MM:SSZ; it fires once the read-time clock reaches "
+                           "that moment. Replaces --awaits (not combinable); --trigger then defaults to "
+                           "one naming the date. A date not in the future, or unreadable, is REFUSED")
     farm.add_argument("--from-stdin", dest="from_stdin", action="store_true",
-                      help="read the awaited condition as a YAML mapping on stdin (trigger / awaits) — "
+                      help="read the awaited condition as a YAML mapping on stdin (trigger / awaits / due) — "
                            "the SHELL-PROOF path for a trigger phrase naming a verb or path in "
                            "backticks (mirrors `task update --from-stdin`); either flag on argv "
                            "alongside it is REFUSED. The `id` positional stays on argv")

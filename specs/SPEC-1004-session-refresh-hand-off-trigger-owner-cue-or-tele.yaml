@@ -102,10 +102,15 @@ body: "## Scenario\n\nIn a long INTERACTIVE session the context fills up. The se
   \    (SPEC-0133) the hand-off AUTHOR's session armed that is still running — who\
   \ armed it, when,\n    and when it ends at the latest — and nothing when there is\
   \ none. The take never ends or\n    takes over such a watcher, and a watcher read\
-  \ that fails is said aloud, never read as\n    «none» and never a failed take.\n\
-  \  - `session handoff drop <id>` — delete → `handoff_dropped`.\n\n**No worktree.**\
-  \ These verbs write only the anchored repo's `<git-common-dir>/yitc/handoffs/` —\
-  \ never\na source or artifact file — so they run from any checkout, like a journal\
+  \ that fails is said aloud, never read as\n    «none» and never a failed take. The\
+  \ take ADMITS the taking session to arm its OWN\n    `dispatch --watch` beside those\
+  \ watchers, over the ids they watched at the take that the\n    hand-off itself\
+  \ names (its `T-<n>` pointers), and prints those ids; any other live watcher\n \
+  \   over a requested id still refuses that arming as a duplicate. An id the hand-off\
+  \ does not\n    name, a watcher armed after the take, and a failed watcher read\
+  \ admit nothing.\n  - `session handoff drop <id>` — delete → `handoff_dropped`.\n\
+  \n**No worktree.** These verbs write only the anchored repo's `<git-common-dir>/yitc/handoffs/`\
+  \ — never\na source or artifact file — so they run from any checkout, like a journal\
   \ append (the exception is\nnamed in the write-flow home, AGENTS-SESSIONS §Writes\
   \ happen in a worktree).\n\n**Session-start delivery.** In an interactive Controller\
   \ session, `session start` (engine and `-C`)\nprints an owner-cued, suppressed-when-empty,\
@@ -201,7 +206,7 @@ seed_cue: In an interactive session, on the owner's «обновим сесси�
   H-N».
 init_concern: null
 implements_signature:
-  bin/lib/session.py#cmd_session_handoff: 5fa9b65a1f28d17cdcccb8b278fa7f88662a749cff648fce54360e3f335f0969
+  bin/lib/session.py#cmd_session_handoff: 5498f588498fddeaf60ab015966d30097e6f15b2671cac8da8195a3958318283
   bin/lib/session.py#handoff_start_echo_lines: 80236ceea6384556eba618551e490c4ce1eac0c9b6cc6a1d307521321d6504c6
   bin/lib/session.py#handoff_store_dir: aab589bd643ab7aa64cdc7a68ce9b58890635592efcdeb7746536af8e6e4332a
   bin/lib/session.py#open_handoff_store: abaf7d092cb5cbf7db2883b42d18aa6a7fe9d555f7e33b807f5e975b50cd3710

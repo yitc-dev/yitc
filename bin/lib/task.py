@@ -14173,6 +14173,21 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 _fail_ms = getattr(args, "duration_ms", None)
                 if not isinstance(_fail_ms, int):
                     _fail_ms = _measured_run_ms
+                # T-13940 — the tree this RED run tested, on the SAME runner-only mark and by the SAME
+                # `_stage6_run_record` the green row uses, so the fix's diff to a later green re-run can
+                # be rebuilt. `--run --evidence` only (a bare `--run` took no before-tree). A red row is
+                # never credited: the land refuses a red newest row before it reads the mark.
+                _s6_red: dict = {}
+                if getattr(args, "evidence", None) and _run_git_cap is not None and _s6_root is not None:
+                    try:
+                        from lib import worktree as _wt_s6
+                        _s6_rec, _ = _wt_s6._stage6_run_record(
+                            _s6_root, _s6_tree_before, routed=_s6_routed, venue_tree=_s6_venue_tree,
+                            _run_git_cap=_run_git_cap)
+                        if _s6_rec:
+                            _s6_red = {_wt_s6.STAGE6_RUN_KEY: _s6_rec}
+                    except Exception:          # noqa: BLE001 — absent, never a guess
+                        _s6_red = {}
                 _append_event("tests_failed", tid, {
                     "current_stage": task.get("current_stage"),
                     "failed": len(bad),
@@ -14186,6 +14201,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                                            **_stage6_priority}}
                        if (_venue_metrics or _stage6_retry_metrics or _stage6_priority) else {}),
                     **_stage6_lands,   # T-13905: the land verifies beside this run
+                    **_s6_red,         # T-13940: the tested tree, when the runner could establish it
                     # T-13606 (SPEC-1006 rule 13): + the per-layer rows of a run on which a layer
                     # carries an adapter record — the SAME two keys, in the SAME shape, the green
                     # row and `land_completed` carry — so a FAILED run keeps its per-unit report.

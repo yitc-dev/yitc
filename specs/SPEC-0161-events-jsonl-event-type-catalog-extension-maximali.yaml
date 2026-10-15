@@ -286,28 +286,30 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ session travels on\nthe envelope `session_ref` (never a second payload copy).\n\
   ```jsonc\n{\"ts\": \"...\", \"type\": \"handoff_written\", \"data\": {\"id\": \"\
   H-<N>\", \"sha256\": \"<64 hex>\", \"bytes\": 1234}}\n{\"ts\": \"...\", \"type\"\
-  : \"handoff_taken\", \"data\": {\"id\": \"H-<N>\", \"sha256\": \"<64 hex>\"}}\n\
-  {\"ts\": \"...\", \"type\": \"handoff_dropped\", \"data\": {\"id\": \"H-<N>\", \"\
-  sha256\": \"<64 hex>\"}}\n{\"ts\": \"...\", \"type\": \"handoff_expired\", \"data\"\
-  : {\"id\": \"H-<N>\", \"sha256\": \"<64 hex>\", \"age_days\": 8}}\n```\n- `id` —\
-  \ the hand-off id `H-<N>` (shared allocator key `handoff`; unique and increasing\
-  \ across\n  deletions and linked worktrees). Validation: `^H-[1-9][0-9]*$`.\n- `sha256`\
-  \ — SHA-256 (64 lowercase hex) over the EXACT stored `H-<N>.md` bytes (after redaction\
-  \ and\n  serialization); every terminal row hashes those same unchanged bytes, so\
-  \ a written row and its\n  taken / dropped / expired row PAIR by `id` + `sha256`.\n\
-  - `bytes` — the stored file's length in bytes (<= 32768, the file cap), `handoff_written`\
-  \ only.\n- `age_days` — whole days between the file's frontmatter `written` and\
-  \ the cleanup instant\n  (> 7 by construction — opportunistic cleanup at the next\
-  \ `write`), `handoff_expired` only.\n\n## Rationale\n\nSplit from SPEC-0025 under\
-  \ the SPEC-0120 §3 one-bounded-read ceiling (must-split: the parent was 817\nlines\
-  \ / 65649 B, over BOTH the line and the byte ceiling). The §Event-type catalog extension\
-  \ section\n re-homes VERBATIM here (SPLIT-never-delete, aggregate-neutral) at the\
-  \ document's own\ntop-level seam — the section already carried its own append-only\
-  \ compatibility preamble and is a\nstable-surface boundary (SPEC-0005 rule-6: split\
-  \ by surface, never perspective). Prior art: /\nSPEC-0153 carved the terminal-marker\
-  \ + per-dispatch sections from this same spec identically.\n\n### Catalog completeness\
-  \ reconcile (2026-07-17)\n\n**The catalog is FEDERATED — absence from SPEC-0025/SPEC-0161\
-  \ alone is NOT a gap.** Recorded because\nthree T1 sweeps (fp `spec-0025-event-catalog-lags-emitted-types`,\
+  : \"handoff_taken\", \"data\": {\"id\": \"H-<N>\", \"sha256\": \"<64 hex>\", \"\
+  author_session_ref\": \"<the hand-off author's session>\", \"granted_tasks\": [\"\
+  T-<n>\"], \"granted_watchers\": [\"<pid>:<pid_start>\"]}}\n{\"ts\": \"...\", \"\
+  type\": \"handoff_dropped\", \"data\": {\"id\": \"H-<N>\", \"sha256\": \"<64 hex>\"\
+  }}\n{\"ts\": \"...\", \"type\": \"handoff_expired\", \"data\": {\"id\": \"H-<N>\"\
+  , \"sha256\": \"<64 hex>\", \"age_days\": 8}}\n```\n- `id` — the hand-off id `H-<N>`\
+  \ (shared allocator key `handoff`; unique and increasing across\n  deletions and\
+  \ linked worktrees). Validation: `^H-[1-9][0-9]*$`.\n- `sha256` — SHA-256 (64 lowercase\
+  \ hex) over the EXACT stored `H-<N>.md` bytes (after redaction and\n  serialization);\
+  \ every terminal row hashes those same unchanged bytes, so a written row and its\n\
+  \  taken / dropped / expired row PAIR by `id` + `sha256`.\n- `bytes` — the stored\
+  \ file's length in bytes (<= 32768, the file cap), `handoff_written` only.\n- `age_days`\
+  \ — whole days between the file's frontmatter `written` and the cleanup instant\n\
+  \  (> 7 by construction — opportunistic cleanup at the next `write`), `handoff_expired`\
+  \ only.\n\n## Rationale\n\nSplit from SPEC-0025 under the SPEC-0120 §3 one-bounded-read\
+  \ ceiling (must-split: the parent was 817\nlines / 65649 B, over BOTH the line and\
+  \ the byte ceiling). The §Event-type catalog extension section\n re-homes VERBATIM\
+  \ here (SPLIT-never-delete, aggregate-neutral) at the document's own\ntop-level\
+  \ seam — the section already carried its own append-only compatibility preamble\
+  \ and is a\nstable-surface boundary (SPEC-0005 rule-6: split by surface, never perspective).\
+  \ Prior art: /\nSPEC-0153 carved the terminal-marker + per-dispatch sections from\
+  \ this same spec identically.\n\n### Catalog completeness reconcile (2026-07-17)\n\
+  \n**The catalog is FEDERATED — absence from SPEC-0025/SPEC-0161 alone is NOT a gap.**\
+  \ Recorded because\nthree T1 sweeps (fp `spec-0025-event-catalog-lags-emitted-types`,\
   \ 2026-06-06 + 2026-07-17 x2) measured\nthe emitted surface against SPEC-0025+SPEC-0161\
   \ ONLY and so over-counted ~2x (110 raw \"missing\" vs 61\nreal). A type is **cataloged\
   \ iff SOME active spec homes it**. The homes:\n- **SPEC-0025** — the universal envelope\

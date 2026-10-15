@@ -1,6 +1,6 @@
-# Release v2.13.0
+# Release v2.14.0
 
-Source commit: `30bb41e33bd14473894847cc5913c4417bd5ef1b`
+Source commit: `407e57fb279f04b3b8745e252eb5dd2291a0141e`
 
 ## Proposals this release answers
 
@@ -10,6 +10,12 @@ The proposals below were re-authored in the workshop and ship in this release (t
 answers:
   - 'yitc-dev/yitc#1'
   - 'yitc-dev/yitc#10'
+  - 'yitc-dev/yitc#101'
+  - 'yitc-dev/yitc#103'
+  - 'yitc-dev/yitc#104'
+  - 'yitc-dev/yitc#105'
+  - 'yitc-dev/yitc#106'
+  - 'yitc-dev/yitc#107'
   - 'yitc-dev/yitc#11'
   - 'yitc-dev/yitc#12'
   - 'yitc-dev/yitc#13'
@@ -96,8 +102,11 @@ answers:
   - 'yitc-dev/yitc#91'
   - 'yitc-dev/yitc#92'
   - 'yitc-dev/yitc#94'
+  - 'yitc-dev/yitc#95'
+  - 'yitc-dev/yitc#96'
   - 'yitc-dev/yitc#97'
   - 'yitc-dev/yitc#98'
+  - 'yitc-dev/yitc#99'
   - 'yitc-dev/yitc-archive-2026-10-02#1'
   - 'yitc-dev/yitc-archive-2026-10-02#10'
   - 'yitc-dev/yitc-archive-2026-10-02#11'
@@ -155,24 +164,21 @@ No kernel spec became active since the previous release tag.
 
 ## What changed
 
-16 task(s) closed since the previous release tag, in close order:
+13 task(s) closed since the previous release tag, in close order:
 
-- T-13918 — Keep an audit re-run on an unchanged plan from adding an entry to the passes trail (fix) — events.jsonl#ts=2026-10-14T03:49:26Z
-- T-13923 — Refuse at emit an adoption-evidence event whose evidence refs are all commit-locator look-alikes (fix) — events.jsonl#ts=2026-10-14T04:06:24Z
-- T-13929 — Let dispatch --resume take a controller-wait pause recorded between a worker's spawn and its launched row (fix) — events.jsonl#ts=2026-10-14T04:32:50Z
-- T-13919 — Make an init re-run commit the scaffold files an interrupted run left written and uncommitted (fix) — events.jsonl#ts=2026-10-14T05:12:29Z
-- T-13921 — Refuse a hygiene fast-path close whose diff touches a governance surface (fix) — events.jsonl#ts=2026-10-14T05:57:46Z
-- T-13925 — Refuse by name a layer prep that would install through a dependency link leading outside the worktree (fix) — events.jsonl#ts=2026-10-14T05:58:42Z
-- T-13924 — Give the adoption-evidence grammar a form that cites a verify layer's adapter on a land row (feature) — events.jsonl#ts=2026-10-14T05:59:10Z
-- T-13922 — Count reverify-skipped and aborted lands apart from unmeasured ones in the land-verify stability fold (fix) — events.jsonl#ts=2026-10-14T06:17:55Z
-- T-13927 — Say on the session-start scan line that the help scan's output must reach a reader (fix) — events.jsonl#ts=2026-10-14T06:37:54Z
-- T-13926 — Deliver the worker-nice rule for by-hand test runs to a worker that enters a card after its Plan stage (fix) — events.jsonl#ts=2026-10-14T07:34:02Z
-- T-13920 — Point the spec template's binding comment at the live token vocabulary instead of an incomplete list (docs) — events.jsonl#ts=2026-10-14T08:08:32Z
-- T-13930 — Give a scaffold refresh its own commit message instead of the one-time bootstrap one (fix) — events.jsonl#ts=2026-10-14T08:16:15Z
-- T-13934 — Make session start and stage end with a line saying that contract bodies were printed above and must be read whole (feature) — events.jsonl#ts=2026-10-14T09:05:37Z
-- T-13928 — Make the security-override debt line say what it reads instead of asserting the findings are still open (fix) — events.jsonl#ts=2026-10-14T09:05:45Z
-- T-13935 — Let an adapter-backed verify layer take the per-layer Stage-6 credit on a tree-differs refusal (fix) — events.jsonl#ts=2026-10-14T09:16:12Z
-- T-13936 — Keep the Stage-6 credit per layer when main moved, for layers the advance does not touch (feature) — events.jsonl#ts=2026-10-14T11:54:34Z
+- T-13940 — Record the tested tree on a failed Stage-6 run, as a green run already does (feature) — events.jsonl#ts=2026-10-14T15:18:49Z
+- T-13938 — Let a followup await a calendar date, so it surfaces on that date with no event needed (feature) — events.jsonl#ts=2026-10-14T15:19:03Z
+- T-13939 — Stop the land tail tripwire from reading every graph/index.json advance as a card a test reads (fix) — events.jsonl#ts=2026-10-14T15:29:02Z
+- T-13942 — Name live worktrees as what they are in the verify contention note at a test timeout (fix) — events.jsonl#ts=2026-10-14T18:48:55Z
+- T-13946 — Run the test-suite shape inspection weekly and let a project add its own readings to it (feature) — events.jsonl#ts=2026-10-14T19:37:18Z
+- T-13944 — Refuse an inspection probe that carries both view and sweep where a project checks its own edit (fix) — events.jsonl#ts=2026-10-14T19:42:08Z
+- T-13947 — Let an --expect-rebaseline land join a batch when the pinned last-green leg is off (fix) — events.jsonl#ts=2026-10-14T20:35:20Z
+- T-13948 — Make a pre-stage ceiling fix decision say which checkout its plan came from, and refuse it when no task worktree is found (fix) — events.jsonl#ts=2026-10-14T21:19:34Z
+- T-13945 — Let a session that took a hand-off arm its own watcher beside the author's live one (feature) — events.jsonl#ts=2026-10-14T21:20:24Z
+- T-13943 — Show a project's load-sensitive unit lane in the debt echo, as the engine's lane is shown (feature) — events.jsonl#ts=2026-10-14T21:22:31Z
+- T-13941 — Keep a derived-only task commit from becoming the audit-post subject, and say the right cause when it does (fix) — events.jsonl#ts=2026-10-14T22:17:09Z
+- T-13950 — Credit per layer what a main advance did not touch when a land attempt is retried after main moved (feature) — events.jsonl#ts=2026-10-14T23:00:10Z
+- T-13949 — Keep a passed layer's credit on an identical tree, and a timed-out layer's finished units, between Stage-6 runs (feature) — events.jsonl#ts=2026-10-15T07:36:32Z
 
 ## Trust surfaces
 

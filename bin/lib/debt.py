@@ -9709,6 +9709,78 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None, today=
     return out
 
 
+def load_sensitive_unit_lane(root=None, *, rows=None) -> dict:
+    """T-13943 — the PER-UNIT sibling of `load_sensitive_lane`: a project's declared load-sensitive
+    units (SPEC-1006 rule 11, `yitc-load-sensitive-units.txt` at the repository root, read by the
+    land's own reader `land_verify_legs._unit_lane_set`) and, per layer, what they cost on the
+    layer's LATEST FULL RUN — not the duration table, which an adapter-backed layer does not feed.
+
+    Returns `{count, layers: [{layer, count, run_ts, wall_s, layer_wall_s, share_pct, unrecorded}]}`,
+    layers sorted by name. A FULL RUN is the newest `land_completed` row (by `ts`) whose
+    `consumer_verify_layers[]` row for the layer carries a `usable: true` adapter record and is not a
+    partial run (`land_verify_legs._layer_row_is_partial_run`). `wall_s` sums the recorded
+    `duration_ms` of that run's unit rows the lane names — a `unit` entry by runner project and file,
+    a `group` entry by project and group label, the matching `_adapter_lane_split` uses — and
+    `share_pct` is that sum over the layer row's own `duration_ms`. An entry with no timed row in the
+    run counts in `unrecorded`, never as a guess. A layer with no full run on record keeps its count
+    and reads `run_ts: None` with no figures: the lane is still shown, its cost is not invented.
+
+    `rows` are `land_completed` events, injectable for tests; by default they come through
+    `_own_journal_rows` for the journal of `root` (the debt seam's one-pass scope serves them). The
+    journal is read only when the carrier lists an entry, so a project without the file — the engine
+    itself — costs nothing and folds to `count: 0`, which renders no line. REPORT-ONLY: no bound, no
+    gate; nothing reads this to decide anything."""
+    from lib import land_verify_legs as _legs   # lazy, as this module reaches the land engine (T-13911)
+    base = Path(root) if root else Path(__file__).resolve().parents[2]
+    lane = _legs._unit_lane_set(base)
+    out = {"count": sum(len(v) for v in lane.values()), "layers": []}
+    if not out["count"]:
+        return out
+    if rows is None:
+        rows = _own_journal_rows(own_journal_path(base), types=("land_completed",))
+    latest: dict = {}                                  # layer -> (ts, layer row)
+    for e in rows:
+        if not isinstance(e, dict) or e.get("type") != "land_completed" or not isinstance(e.get("ts"), str):
+            continue
+        data = e.get("data")
+        layers = data.get("consumer_verify_layers") if isinstance(data, dict) else None
+        for lrow in layers if isinstance(layers, list) else []:
+            if not isinstance(lrow, dict) or lrow.get("layer") not in lane:
+                continue
+            rec = lrow.get("adapter")
+            if not isinstance(rec, dict) or rec.get("usable") is not True \
+                    or not isinstance(rec.get("units"), list) or _legs._layer_row_is_partial_run(lrow):
+                continue
+            if lrow["layer"] not in latest or e["ts"] > latest[lrow["layer"]][0]:
+                latest[lrow["layer"]] = (e["ts"], lrow)
+    _ms = lambda v: v if isinstance(v, int) and not isinstance(v, bool) and v > 0 else None
+    for name in sorted(lane):
+        entries = lane[name]
+        item = {"layer": name, "count": len(entries), "run_ts": None, "wall_s": None,
+                "layer_wall_s": None, "share_pct": None, "unrecorded": None}
+        if name in latest:
+            ts, lrow = latest[name]
+            timed: set = set()                             # entries with a timed row in the run
+            wall_ms = 0
+            for u in lrow["adapter"]["units"]:
+                if not isinstance(u, dict) or _ms(u.get("duration_ms")) is None:
+                    continue
+                proj = str(u.get("project") or "")
+                hit = {k for k in (("unit", proj, str(u.get("file"))),
+                                   ("group", proj, str(u.get("group"))) if u.get("group") else None)
+                       if k is not None and k in entries}
+                if hit:                                    # a row named by a unit AND a group entry
+                    wall_ms += u["duration_ms"]            # still ran once: its time counts once
+                    timed |= hit
+            wall = wall_ms / 1000.0
+            layer_ms = _ms(lrow.get("duration_ms"))
+            item.update({"run_ts": ts, "wall_s": round(wall, 1), "unrecorded": len(entries) - len(timed),
+                         "layer_wall_s": round(layer_ms / 1000.0, 1) if layer_ms else None,
+                         "share_pct": round(wall * 100000.0 / layer_ms, 1) if layer_ms else None})
+        out["layers"].append(item)
+    return out
+
+
 # ---------------------------------------------------------------------------------------------
 # T-12710 (C11c) — the 3 `_debt_echo_*` host bodies, relocated here byte-identical from `bin/lib/cli.py`
 # (plan extract-the-13-over-budget-bin-lib-modules-into-le §Extraction map C11c;
@@ -10119,6 +10191,9 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # the carrier and table of the repo the CALLER POINTED AT. A repo with an empty
                 # carrier — the engine's own state today — folds to 0 and stays silent.
                 _load_sensitive_lane=lambda: debt_mod.load_sensitive_lane(root=REPO_ROOT),
+                # T-13943: its PER-UNIT sibling — a project's `yitc-load-sensitive-units.txt` lane
+                # (SPEC-1006 rule 11) with each layer's latest full run, same residue, same seams.
+                _load_sensitive_unit_lane=lambda: debt_mod.load_sensitive_unit_lane(root=REPO_ROOT),
                 # T-11969 (SPEC-0189): the RESTORATION-PROPOSAL fold — the concerns born PERMISSIVE
                 # whose NAMED detector has fired, rendered as a proposal naming the project, the
                 # surface and the observed signal. Wired at this ONE shared residue like every sibling,

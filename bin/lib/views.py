@@ -5206,11 +5206,15 @@ PROJECT_GROWTH_READ_TYPES = ("land_completed",)         # `project_growth`'s one
 
 def _view_review_due(now=None, *, EVENTS_PATH=None, cadence=None, themes=(),
                      declared_themes=(), declared_cadence=None, _segment_rows=None,
-                     _last_triage_watermark=None) -> dict:
+                     _last_triage_watermark=None, weekly_lenses=()) -> dict:
     """review-due lens (T-10134): the DERIVED, ACTIVITY-GATED "which periodic reviews are now DUE"
     surface — the review-axis companion of the overdue-recheck lens. A review SUBJECT is DUE iff it is
     past its cadence AND substantive work happened since its last run; a quiet period (no work) is NEVER
-    due (the owner's no-work->no-nag guarantee). Zero stored state — re-derived every call from the
+    due (the owner's no-work->no-nag guarantee). WEEKLY LENS subjects (`weekly_lenses`, T-13946 — the
+    kernel report-only lenses run per repo, e.g. `test-suite-shape`) are judged at `weekly_days` from
+    `cadence`, else from `declared_cadence`, so a repo with no roster of its own still judges them; a
+    declared theme under a lens slug is the project's extension of that lens, never a second subject.
+    Zero stored state — re-derived every call from the
     `inspection_completed` anchors + the journal's substantive events (CHARTER §P5 / SPEC-0119 discipline).
 
     SUBJECTS: the WEEKLY operational-hygiene tier (anchored by `inspect record --tier weekly`, cadence
@@ -5269,7 +5273,9 @@ def _view_review_due(now=None, *, EVENTS_PATH=None, cadence=None, themes=(),
     # No parseable cadence for ANY subject → cannot honestly judge due-ness → suppress (never nag on
     # unknown). The check is PER-SUBJECT below (a declared theme resolves its own tier from
     # `declared_cadence`), so this early return fires only when NOTHING is resolvable at all.
+    lens_days = weekly_days if isinstance(weekly_days, int) else declared_cadence.get("weekly_days")
     if (not isinstance(weekly_days, int) and not isinstance(monthly_days, int)
+            and not (weekly_lenses and isinstance(lens_days, int))
             and all(_declared_subject(e, declared_cadence) is None for e in declared_themes)):
         return {"count": 0, "weekly_due": False, "themes_due": [], "triage_due": False,
                 "next": "no parseable cadence block in the roster — review-due suppressed."}
@@ -5375,9 +5381,14 @@ def _view_review_due(now=None, *, EVENTS_PATH=None, cadence=None, themes=(),
             d, age = _due(th, monthly_days)
             if d:
                 themes_due.append({"subject": th, "age_days": age, "cadence": "monthly"})
+    if isinstance(lens_days, int):
+        for lens in weekly_lenses:              # kernel report-only lenses, per repo — weekly (T-13946)
+            d, age = _due(lens, lens_days)
+            if d:
+                themes_due.append({"subject": lens, "age_days": age, "cadence": "weekly"})
     for entry in declared_themes:               # the consumer's own declared themes — each at ITS tier
         resolved = _declared_subject(entry, declared_cadence)
-        if resolved is None:
+        if resolved is None or resolved[0] in weekly_lenses:   # a lens extension is not a 2nd subject
             continue
         subject, tier, days = resolved
         d, age = _due(subject, days)
@@ -5788,6 +5799,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                       _git_maintenance_deferrals=None,
                       _tail_writes_withheld=None,
                       _load_sensitive_lane=None,
+                      _load_sensitive_unit_lane=None,
                       _seam_read_amplification=None,
                       _nightly_verdict_changes=None,
                       _restoration_proposals=None,
@@ -6286,9 +6298,18 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 _parts.append(f"{_si} unanswered/contradictory stance(s)")
             if _ew:
                 _parts.append(f"{_ew} expired waiver(s)")
+            # T-13944 — NAME the stance issues, not just count them: a malformed shape (e.g. a rule-12
+            # probe carrying both kinds) needs its own fix, which a bare count hides behind the
+            # declare-or-waive remedy. The texts are init's own messages, so the line and init agree.
+            _sil = [str(s) for s in (_cc.get("stance_issues") or [])]
+            _named = ""
+            if _sil:
+                _more = f" (+{len(_sil) - 3} more)" if len(_sil) > 3 else ""
+                _named = f": {'; '.join(_sil[:3])}{_more}"
             lines.append(
-                f"debt: {cc} concern-conformance issue(s) in yitc-ops.yaml ({', '.join(_parts)}) — "
-                f"declare-or-waive each vs the concern registry (SPEC-0128) then re-run "
+                f"debt: {cc} concern-conformance issue(s) in yitc-ops.yaml ({', '.join(_parts)}){_named} — "
+                f"fix each named issue (declare-or-waive a missing stance vs the concern registry "
+                f"(SPEC-0128), correct a malformed shape) then re-run "
                 f"`bin/yitc-v2 -C . init`. Report-only (SPEC-0119 rule 8).")
         # CARRIER COMMENT-CONTRACT gap (T-10536 / X-0401) — its OWN line, on its OWN arm, read from the
         # SAME injected view (no new collaborator → all three debt seams light up from this one existing
@@ -6630,6 +6651,35 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"policy / harness isolation — with a dated line in `inspect record --tier weekly` "
                 f"that either files that card or records why not plus a re-check date; another "
                 f"per-file card is not a disposition. Report-only; nothing here acts.", _label))
+
+    # PER-UNIT LOAD-SENSITIVE LANE view (T-13943): the OPTIONAL injected fold over a project's
+    # `yitc-load-sensitive-units.txt` (SPEC-1006 rule 11) and each layer's latest full run
+    # (`debt.load_sensitive_unit_lane`) — the engine lane's line above, applied per unit, one line per
+    # layer that lists a unit. Silent for an empty or absent carrier. It carries no bound and is not
+    # marked for the session-start table (SPEC-0119 rule 40 names the engine lane there); it prints
+    # in `debt` and `debt --explain`. Report-only; it NEVER gates.
+    if _load_sensitive_unit_lane is not None:
+        _ul = _load_sensitive_unit_lane() or {}
+        for _l in (_ul.get("layers") or []) if isinstance(_ul, dict) else []:
+            _lc = _n(_l.get("count")) if isinstance(_l, dict) else None
+            if not _lc or _lc <= 0:
+                continue
+            if _l.get("run_ts"):
+                _lw = _l.get("layer_wall_s")
+                _fig = (f"{_l.get('wall_s')}s serialized" + (f" = {_l.get('share_pct')}% of the layer's "
+                        f"{_lw}s" if _lw else " (the layer's wall is not recorded)")
+                        + f"; full run events.jsonl#ts={_l.get('run_ts')}")
+                _un = _n(_l.get("unrecorded")) or 0
+                _tail = (f"; {_un} listed unit(s) carry no recorded duration in that run and count as 0s"
+                         if _un else "")
+            else:
+                _fig, _tail = "no full run of the layer on record", ""
+            lines.append(
+                f"debt: load-sensitive unit lane, layer {_l.get('layer')} ({_lc} unit(s)) [{_fig}] — "
+                f"{_lc} listed unit(s) of verify layer `{_l.get('layer')}` run one at a time after the "
+                f"layer's batch, so this is wall a land pays in sequence (SPEC-1006 rule 11, the "
+                f"engine lane's rule applied per unit){_tail}. The figures come from the layer's latest "
+                f"full run, not the duration table. Report-only; nothing here acts.")
 
     # RESTORATION-PROPOSAL view (SPEC-0189 / T-11969): the OPTIONAL injected collaborator
     # `_restoration_proposals` (zero-arg, RETURNS `{count, proposals, …}` — see
