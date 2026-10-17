@@ -630,7 +630,11 @@ def _engine_release(engine: Path) -> dict:
     reader and ONE digest (`read_release_tree`, `tree_digest`) — the same pair `verify_release`
     runs — so what ships is provably the kernel-realm cut that was published, and a workshop
     checkout (no manifest; or v2-self files the manifest's digest does not cover) is refused. Returns
-    {tree, exec_paths, source_ref, tree_digest}; raises `VenueError` naming the cause."""
+    {tree, exec_paths, source_ref, tree_digest}; raises `VenueError` naming the cause.
+
+    T-13994 (SPEC-1032 rule 6) — the install's OWN files (`release.INSTALL_LOCAL_PATHS`: the venue
+    binding at its default home, a root journal, `.yitc/`) are dropped from the tree before the digest,
+    so they neither fail the check nor travel to the box; every other file is judged as before."""
     from lib import release as _release   # deferred: the release module is a cold path here
     exec_paths: set = set()
     try:
@@ -638,6 +642,8 @@ def _engine_release(engine: Path) -> dict:
     except Exception as exc:              # noqa: BLE001 — an unreadable root is a refusal, not a crash
         raise VenueError(f"the engine root {engine} could not be read as a release tree "
                          f"({exc.__class__.__name__})") from None
+    tree = {rel: blob for rel, blob in tree.items() if not _release.is_install_local(rel)}
+    exec_paths = {rel for rel in exec_paths if rel in tree}
     manifest = _release._parse_yaml_blob(tree.get(_release.MANIFEST_FILENAME))
     if not manifest:
         raise VenueError(f"the engine root {engine} is not a published release (no readable "
@@ -1363,8 +1369,10 @@ def consumer_declaration(ops) -> dict:
     `environment` (a list; an empty list is valid — what is not declared is not compared); then per
     check: a mapping, `name` / `cmd` / `expect` each present and a string, `name` and `cmd` non-blank
     (`expect` may be "" — a command that prints nothing), and no repeated `name` (a check is refused
-    BY NAME at publish, rule 6). Unknown keys are ignored; the valid result carries only the three
-    fields of each check, values verbatim.
+    BY NAME at publish, rule 6); then the optional `width` (T-13994): absent reads `whole` and adds
+    no key, present it must be `whole` or `per-live-pass` and the valid result carries it as `width`.
+    Unknown keys are ignored; the valid result carries only the three fields of each check, values
+    verbatim.
 
     Read by the Stage-6 seam (`task._stage6_consumer_venue`) and by `venue publish -C`, both since
     T-13976 activated SPEC-1032."""
@@ -1403,7 +1411,16 @@ def consumer_declaration(ops) -> dict:
             return invalid(f"{at}.name", f"duplicate {entry['name']!r}")
         seen.add(entry["name"])
         checks.append({"name": entry["name"], "cmd": entry["cmd"], "expect": entry["expect"]})
-    return {"state": "valid", "stage6": True, "environment": checks}
+    # T-13994 (SPEC-1032 rules 1 and 3) — the OPTIONAL width policy, checked last. Absent reads
+    # `whole` and the valid result keeps exactly its three keys; present, it must be one of the two
+    # policy names and the result carries it as `width`.
+    if "width" not in mapping:
+        return {"state": "valid", "stage6": True, "environment": checks}
+    width = mapping.get("width")
+    if width not in remote_verify.CONSUMER_WIDTH_POLICIES:
+        return invalid("verify.venue.width",
+                       f"{width!r} is not one of {', '.join(remote_verify.CONSUMER_WIDTH_POLICIES)}")
+    return {"state": "valid", "stage6": True, "environment": checks, "width": width}
 
 
 def consumer_declaration_of(repo_root, ops_contract) -> dict:

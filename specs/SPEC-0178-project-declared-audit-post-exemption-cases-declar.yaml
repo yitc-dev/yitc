@@ -526,7 +526,7 @@ implements_signature:
   bin/lib/task.py#_case_match: 5002cea43d867fd7d3ac1e31118115d81fe18da504fdd187b070b9d776634aa0
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: d720d8d1e699a42854cbe6cb0206bfbe7bf4cd79db5223fcdd18fd1b3b6e146a
+  bin/lib/task.py#cmd_task_close: 4251f762cbe9110f6bc674b04c32ca234b2c6d0c8b6806941a7c20c783a3a488
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
   bin/lib/task_closure_evidence.py#_case_closure_index: a68a8461d86f6fa975f4c5d523e5c081c7e724a2fa7015bc781e15ead3561103
   bin/lib/task_closure_evidence.py#_case_covered_share: bf05701807cfd853476788117b2cbaa470923898841f3a423ae5ce59b273ba8d

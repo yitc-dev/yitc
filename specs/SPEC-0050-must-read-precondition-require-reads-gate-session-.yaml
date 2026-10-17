@@ -696,7 +696,7 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 5c386936914ed1bf5c3bfcff2087a81d4205bb91eacfcb1662d318609a8564a1
+  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
   bin/lib/cli.py#_deliver_stage_bundle_contracts: 43dc04a2189c3a257017ea907c982671b71cfb8044f0b9e8cbf545105c189d8d
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
@@ -705,13 +705,13 @@ implements_signature:
   bin/lib/events.py#_emit_cli_invoked: 623edbb57a9b533417faa4069b968f28c6dbf66bf6a44b1355292019be59c49b
   bin/lib/gates.py#_fetched_spec_ids: bd89d532c1caa100984be88c08658b59bd2971c829b1ad13690030bb5f7d9f46
   bin/lib/gates.py#_require_reads: ac08593a04786f860a54d8edc2d123df7f47d5c28f6ac7e4c27fa3e8086c97ee
-  bin/lib/gates.py#_require_seed_read: 8e2bc919f11fd0a983c40f71648c985f28828c0bd6d59d95d66d2abd1c57baac
-  bin/lib/gates.py#_seed_receipt_epochs: 37ced50b43ae720c9bf3d9eb0e44db5c8eb16e6b5469c92313103b4a6a336978
+  bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
+  bin/lib/gates.py#_seed_receipt_epochs: c41d8270ea3553a47a8ed7a84959dde9aee36079b52e75637bc6ab2120b77af5
   bin/lib/gates.py#_session_started_lower_bound: b33e13a47bcb5aa7ad4cb3671878fdce453aa448bbdf3f75d09ff6e6ad359265
-  bin/lib/gates.py#seed_stamp_credits: da9780a76a68522e579b9b8f3bc44d9870ddd20b939624966170e45a6a5ad0bc
+  bin/lib/gates.py#seed_stamp_credits: 22d380afb43a79df24c2d7dd63962d968316ee42f8bc3b3dbac69ef16b275b37
   bin/lib/plan.py#_print_plan_stage_delivery: 870582bbd7b6b762af54e2458caa50825266b353b261fe86e1a5a2d207a676e5
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: d720d8d1e699a42854cbe6cb0206bfbe7bf4cd79db5223fcdd18fd1b3b6e146a
+  bin/lib/task.py#cmd_task_close: 4251f762cbe9110f6bc674b04c32ca234b2c6d0c8b6806941a7c20c783a3a488
   bin/lib/task.py#cmd_task_commit: be0d945a859e0f8af4fa4afa1b1695c28536dcdd398c1c3619ea2dc2d488f87c

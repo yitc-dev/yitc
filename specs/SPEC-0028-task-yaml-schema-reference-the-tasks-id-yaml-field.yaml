@@ -62,67 +62,68 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ event)\n  - AC2: dashboard view shows counter (probe: curl /dashboard returns\
   \ updated count)\ncites: # task IDs / spec IDs / decision IDs — INFORMATIONAL refs\
   \ (non-blocking)\n  - SPEC-005\n  -\nrequires: [] # task IDs (T-XXXX) — the ONLY\
-  \ BLOCKING deps\n                               # task target: blocks if status\
-  \ != done\n                               # decision target (D-XXXX): NON-BLOCKING\
-  \ — the decision-resolution\n                               # branch was retired\
-  \ by (gated-safe by the sweep:\n                               # 0 non-terminal\
-  \ tasks depended on decision-unblock semantics).\n                             \
-  \  # A decision is a cites-only reference, never a lifecycle-blocking\n        \
-  \                       # prerequisite — same as a spec. Use `cites:` for decision\
-  \ deps.\n                               # specs NOT allowed here — use `cites:`\
-  \ for spec refs (specs = reference artifacts, not lifecycle-blocking)\n        \
-  \                       # Picker excludes this task only if a `requires:` TASK target\
-  \ is not done.\n                               # Distinct from `cites:` (informational).\n\
-  \                               # FILING refuses a T-XXXX entry with no card in\
-  \ this checkout :\n                               # an edge on a task that does\
-  \ not exist can never be satisfied. File the\n                               # dependency\
-  \ first (a batch files in order). `cites:` stays unchecked.\nimplementation_plan:\
-  \ | # Stage 3 — filled before Stage 4\n  1. Edit bin/lib/state.py — add emit_metric_event\n\
-  \  2. Edit bin/lib/dashboard.py — read events.jsonl, count metric_x_emitted\n  3.\
-  \ Test: tests/test_metric_x.bats\nclosed_at: null # filled at Stage 9\ncommit: null\
-  \ # SHA, filled at Stage 9\nprobe_passed: null # THREE-STATE at Stage 9, filled\
-  \ only after probe verification\n                             # : `true` when every\
-  \ probe is `pass`; `deferred` when the\n                             # close gate\
-  \ passed but at least one probe is still recorded\n                            \
-  \ # `deferred`, so a done card never claims a proof it does not have.\n        \
-  \                     # STRING-VALUED in that second case — a consumer holding the\
-  \ older\n                             # boolean-only contract must widen (`deferred`\
-  \ is TRUTHY, so a bare\n                             # bool silently reads it as\
-  \ `true`). `task close --settle-probe`\n                             # flips it\
-  \ to `true` when the LAST deferred probe is discharged.\n                      \
-  \       # Rule home: SPEC-0015 §`probe_passed` is THREE-STATE; the done-card\n \
-  \                            # required-field reading is QUEUE §Done log.\nprobe_moments:\
-  \ {} # OPTIONAL sibling of `probes:` — the FIRING MOMENT of each\n             \
-  \                  # probe recorded `deferred` at closure, so the SPEC-0119 rule-3\
-  \ debt\n                               # echo can headline only the DUE ones. ONE\
-  \ mapping, AC -> ONE of two\n                               # forms, both already\
-  \ in the corpus (no third grammar):\n                               # probe_moments:\
-  \ {AC2: {due_by: '2026-09-20'}}\n                               # an ISO date —\
-  \ the post_ship_observation shape.\n                               # probe_moments:\
-  \ {AC2: {awaits: ''}} # or X-0042\n                               # probe_moments:\
-  \ {AC2: {awaits: 'events.jsonl#type=<t>@after=<ISO>'}}\n                       \
-  \        # the SPEC-0095 §Armed shape; the ref is admitted by the SAME\n       \
-  \                        # grammar the followup fire predicate reads (followup.awaits_kind\n\
-  \                               # / arrived_ids / event_after_arrived), so a moment\
-  \ the close door\n                               # accepts is one the read side\
-  \ can decide, by construction.\n                               # probe_moments:\
-  \ {AC2: {awaits: 'events.jsonl#type=<t>@after=land'}}\n                        \
-  \       # the first row of <t> AFTER THIS CARD'S OWN land —\n                  \
-  \             # its latest successful `land_completed` on `task/<id>`, resolved\n\
-  \                               # from the journal at read time and ordered by (ts,\
-  \ journal\n                               # position); unlanded -> pending. Probe\
-  \ moments only (a followup\n                               # has no own land, so\
-  \ `followup arm` still refuses it).\n                               # probe_moments:\
-  \ {AC2: {awaits: 'events.jsonl#type=<t>&<key>=<value>@after=land'}}\n          \
-  \                     # ONE row predicate: only a row of <t> that ALSO matches\n\
-  \                               # arrives the moment. `task_id` is the row's envelope\
-  \ task id; any\n                               # other snake_case key is a top-level\
-  \ string `data` value. EXACT\n                               # equality, ONE predicate,\
-  \ the KERNEL journal only, and only on the\n                               # event\
-  \ classes the parse home (followup.py#split_event_awaits)\n                    \
-  \           # declares. It rides either event form above (`@after=<ISO>` or\n  \
-  \                             # `@after=land`). Rule home: SPEC-0095 §Armed.\n \
-  \                              # Written by `task close --probe-deferred <AC>:<moment>`,\
+  \ BLOCKING deps\n                               # task target: blocks until it is\
+  \ done; a terminal wont-do target\n                               # is not waited\
+  \ on — selection rule: QUEUE.md §Picker logic\n                               #\
+  \ decision target (D-XXXX): NON-BLOCKING — the decision-resolution\n           \
+  \                    # branch was retired by (gated-safe by the sweep:\n       \
+  \                        # 0 non-terminal tasks depended on decision-unblock semantics).\n\
+  \                               # A decision is a cites-only reference, never a\
+  \ lifecycle-blocking\n                               # prerequisite — same as a\
+  \ spec. Use `cites:` for decision deps.\n                               # specs\
+  \ NOT allowed here — use `cites:` for spec refs (specs = reference artifacts, not\
+  \ lifecycle-blocking)\n                               # Picker excludes this task\
+  \ only if a `requires:` TASK target is neither done nor wont-do.\n             \
+  \                  # Distinct from `cites:` (informational).\n                 \
+  \              # FILING refuses a T-XXXX entry with no card in this checkout :\n\
+  \                               # an edge on a task that does not exist can never\
+  \ be satisfied. File the\n                               # dependency first (a batch\
+  \ files in order). `cites:` stays unchecked.\nimplementation_plan: | # Stage 3 —\
+  \ filled before Stage 4\n  1. Edit bin/lib/state.py — add emit_metric_event\n  2.\
+  \ Edit bin/lib/dashboard.py — read events.jsonl, count metric_x_emitted\n  3. Test:\
+  \ tests/test_metric_x.bats\nclosed_at: null # filled at Stage 9\ncommit: null #\
+  \ SHA, filled at Stage 9\nprobe_passed: null # THREE-STATE at Stage 9, filled only\
+  \ after probe verification\n                             # : `true` when every probe\
+  \ is `pass`; `deferred` when the\n                             # close gate passed\
+  \ but at least one probe is still recorded\n                             # `deferred`,\
+  \ so a done card never claims a proof it does not have.\n                      \
+  \       # STRING-VALUED in that second case — a consumer holding the older\n   \
+  \                          # boolean-only contract must widen (`deferred` is TRUTHY,\
+  \ so a bare\n                             # bool silently reads it as `true`). `task\
+  \ close --settle-probe`\n                             # flips it to `true` when\
+  \ the LAST deferred probe is discharged.\n                             # Rule home:\
+  \ SPEC-0015 §`probe_passed` is THREE-STATE; the done-card\n                    \
+  \         # required-field reading is QUEUE §Done log.\nprobe_moments: {} # OPTIONAL\
+  \ sibling of `probes:` — the FIRING MOMENT of each\n                           \
+  \    # probe recorded `deferred` at closure, so the SPEC-0119 rule-3 debt\n    \
+  \                           # echo can headline only the DUE ones. ONE mapping,\
+  \ AC -> ONE of two\n                               # forms, both already in the\
+  \ corpus (no third grammar):\n                               # probe_moments: {AC2:\
+  \ {due_by: '2026-09-20'}}\n                               # an ISO date — the post_ship_observation\
+  \ shape.\n                               # probe_moments: {AC2: {awaits: ''}} #\
+  \ or X-0042\n                               # probe_moments: {AC2: {awaits: 'events.jsonl#type=<t>@after=<ISO>'}}\n\
+  \                               # the SPEC-0095 §Armed shape; the ref is admitted\
+  \ by the SAME\n                               # grammar the followup fire predicate\
+  \ reads (followup.awaits_kind\n                               # / arrived_ids /\
+  \ event_after_arrived), so a moment the close door\n                           \
+  \    # accepts is one the read side can decide, by construction.\n             \
+  \                  # probe_moments: {AC2: {awaits: 'events.jsonl#type=<t>@after=land'}}\n\
+  \                               # the first row of <t> AFTER THIS CARD'S OWN land\
+  \ —\n                               # its latest successful `land_completed` on\
+  \ `task/<id>`, resolved\n                               # from the journal at read\
+  \ time and ordered by (ts, journal\n                               # position);\
+  \ unlanded -> pending. Probe moments only (a followup\n                        \
+  \       # has no own land, so `followup arm` still refuses it).\n              \
+  \                 # probe_moments: {AC2: {awaits: 'events.jsonl#type=<t>&<key>=<value>@after=land'}}\n\
+  \                               # ONE row predicate: only a row of <t> that ALSO\
+  \ matches\n                               # arrives the moment. `task_id` is the\
+  \ row's envelope task id; any\n                               # other snake_case\
+  \ key is a top-level string `data` value. EXACT\n                              \
+  \ # equality, ONE predicate, the KERNEL journal only, and only on the\n        \
+  \                       # event classes the parse home (followup.py#split_event_awaits)\n\
+  \                               # declares. It rides either event form above (`@after=<ISO>`\
+  \ or\n                               # `@after=land`). Rule home: SPEC-0095 §Armed.\n\
+  \                               # Written by `task close --probe-deferred <AC>:<moment>`,\
   \ which\n                               # REFUSES a bare key at every close-time\
   \ door onto `probes:`. The\n                               # RESULT stays the authoritative\
   \ discriminator in `probes:` (where the\n                               # settle\

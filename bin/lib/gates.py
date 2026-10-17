@@ -386,9 +386,10 @@ def mark_label(mark) -> str:
 def seed_stamp_credits(stamps, current) -> bool:
     """THE credit rule of a seed receipt (SPEC-1023 rule 6, SPEC-0050 §8; T-13789) — the ONE predicate the
     gate and every caller that asks "would the gate credit this ref?" share. `stamps` are ONE journal's
-    in-window receipts in FILE ORDER; only the NEWEST (the last appended) decides, so a receipt a later
-    stamping run superseded never credits again, whatever the reading later returns to (a truncated
-    transcript, a repaired one). It credits when it EQUALS the current mark — identity, never an
+    in-window receipts OLDEST FIRST, as `_seed_receipt_epochs` returns them (time order, file order inside
+    one second — T-13995); only the NEWEST (the last of them) decides, so a receipt a later stamping run
+    superseded never credits again, whatever the reading later returns to (a truncated transcript, a
+    repaired one). It credits when it EQUALS the current mark — identity, never an
     order; with `current` None (CANNOT TELL under a provider whose detection is not observed — rule 6)
     when it is any mark at all. A pre-change NUMBER credits under no reading."""
     stamps = list(stamps)
@@ -398,15 +399,63 @@ def seed_stamp_credits(stamps, current) -> bool:
 
 
 def _newest_seed_receipt(session_ref: str, lower_bound: str, *, events) -> "tuple | None":
-    """`(ts, stamp)` of THIS journal snapshot's newest in-window seed receipt of `session_ref` — the last
-    appended (file order, never a ts sort) — or None (T-13789)."""
+    """`(ts, stamp)` of THIS journal snapshot's newest in-window seed receipt of `session_ref` — the latest
+    `ts`, and among receipts of that same second the last appended — or None (T-13789, T-13995).
+
+    WHY TIME FIRST (T-13995, public intake #127). The journal is merged `merge=union`, so its line order
+    is not chronology: a `worktree sync` that merges main can append main's OLDER receipt of this session
+    (the dispatch bootstrap's NONE, an earlier start) AFTER the worktree's own fresh one, and the last
+    line then hid the fresh receipt — every governed verb refused `seed_read_stale_epoch` until a second
+    stamping run. WHY FILE ORDER INSIDE A SECOND (T-13789, kept). `ts` has whole-second resolution, so
+    two receipts of one second are ordered only by their position: the one appended last is the later
+    stamping run, and it decides — a superseded receipt of that second never credits again."""
     last = None
     for e in events:
         if (e.get("type") == "cli_invoked" and e.get("session_ref") == session_ref
                 and (e.get("ts") or "") >= lower_bound
                 and (e.get("data") or {}).get("node_id") == SEED_READ_NODE_ID):
-            last = e
+            if last is None or (e.get("ts") or "") >= (last.get("ts") or ""):
+                last = e    # `>=`: a later line of the SAME second supersedes (T-13789)
     return None if last is None else (last.get("ts") or "", _receipt_stamp(last.get("data") or {}))
+
+
+def _reads_through(_iter_events_tail) -> bool:
+    """Does this tail reader take the T-13995 `horizon` (and the session scope it rides on)?"""
+    if _iter_events_tail is None:
+        return False
+    params = inspect.signature(_iter_events_tail).parameters
+    return "horizon" in params and "session_ref" in params
+
+
+def seed_receipt_horizon(session_ref: str):
+    """T-13995 — the `horizon` a seed gate hands a narrowed read of `session_ref`'s rows: the DAY of the
+    snapshot's newest seed receipt (None while it holds none). The reader then reads through every
+    segment that can hold a row of that day or later (`cli._SessionWalk._read_through`), so the newest
+    receipt by time it returns is the journal's — a union merge cannot hide a newer one above the stop."""
+    def _day(rows):
+        got = _newest_seed_receipt(session_ref, "", events=rows)
+        return got[0][:10] if got and got[0] else None
+    return _day
+
+
+def seed_tail_may_credit(session_ref: str, lower_bound: str, *, events) -> bool:
+    """May a NARROWED (tail) snapshot of one journal CREDIT a seed receipt (T-13995)? Only when its
+    last-appended in-window receipt of `session_ref` carries the same stamp as its newest by time
+    (`_newest_seed_receipt`); True when it holds none (it then credits nothing anyway).
+
+    ONLY for a tail reader that does not take a `horizon` (an injected test reader): the production
+    reader reads through its newest receipt's day (`seed_receipt_horizon`) and needs no such test. Under
+    the last-appended order a tail credit is monotone (a suffix's last receipt is the file's); under the
+    time order it is not, so such a tail credits only where both orders agree, and otherwise the full
+    read decides."""
+    rows = [e for e in events
+            if e.get("type") == "cli_invoked" and e.get("session_ref") == session_ref
+            and (e.get("ts") or "") >= lower_bound
+            and (e.get("data") or {}).get("node_id") == SEED_READ_NODE_ID]
+    if not rows:
+        return True
+    newest = _newest_seed_receipt(session_ref, lower_bound, events=rows)
+    return _receipt_stamp(rows[-1].get("data") or {}) == newest[1]
 
 
 def newest_seed_stamps(per_journal) -> list:
@@ -425,7 +474,9 @@ def _seed_receipt_epochs(session_ref: str, lower_bound: str, *, _iter_events, ev
     """The CONTEXT-EPOCH STAMPS of the in-window seed_read receipts (T-10082, SPEC-0050 §8) — the reader
     `_require_seed_read` uses in place of the boolean `SEED_READ_NODE_ID in _fetched_spec_ids` check.
     Returns one entry per in-window seed receipt (a `cli_invoked` of THIS session_ref with
-    ts >= lower_bound whose data.node_id == SEED_READ_NODE_ID): its stamp as `_receipt_stamp` reads it.
+    ts >= lower_bound whose data.node_id == SEED_READ_NODE_ID): its stamp as `_receipt_stamp` reads it,
+    OLDEST FIRST — sorted by `ts`, file order kept inside one second (a stable sort), the order
+    `_newest_seed_receipt` decides by (T-13995: a union merge does not keep the journal chronological).
 
     T-13789 (SPEC-1023 rule 6): a stamp is the reading's MARK, compared by equality
     (`seed_stamp_credits`). A receipt stamped with a number keeps it — a pre-change receipt, which equals
@@ -444,8 +495,9 @@ def _seed_receipt_epochs(session_ref: str, lower_bound: str, *, _iter_events, ev
         data = e.get("data") or {}
         if data.get("node_id") != SEED_READ_NODE_ID:
             continue
-        out.append(_receipt_stamp(data))
-    return out
+        out.append((e.get("ts") or "", _receipt_stamp(data)))
+    out.sort(key=lambda r: r[0])    # stable: file order decides inside one second (T-13789)
+    return [st for _ts, st in out]
 
 
 def fresh_seed_receipt(events_path, session_ref: str, current_epoch, *, _iter_events,
@@ -489,14 +541,27 @@ def fresh_seed_receipt(events_path, session_ref: str, current_epoch, *, _iter_ev
     if not events_path or not session_ref:
         return False
 
+    def _decided(snap) -> bool:
+        lb = _session_started_lower_bound(session_ref, _iter_events=_iter_events, events=snap)
+        return lb is not None and seed_stamp_credits(
+            _seed_receipt_epochs(session_ref, lb, _iter_events=_iter_events, events=snap), current_epoch)
+    reads_through = _reads_through(_iter_events_tail)
+
     def _attempt(*, tail: bool) -> "tuple[bool, bool]":
+        # T-13995: a session-scoped read that reads through its newest receipt's day (`horizon`), as the
+        # gate's own reads are; the bare tail window serves an injected reader that takes neither.
         events, bounded = _gate_snapshot(events_path, tail=tail, _iter_events=_iter_events,
-                                         _iter_events_tail=_iter_events_tail)
+                                         _iter_events_tail=_iter_events_tail,
+                                         session_ref=session_ref if reads_through else None,
+                                         settled=_decided if reads_through else None,
+                                         horizon=seed_receipt_horizon(session_ref) if reads_through else None)
         lower = _session_started_lower_bound(session_ref, _iter_events=_iter_events, events=events)
         if lower is None:
             return False, bounded
         epochs = _seed_receipt_epochs(session_ref, lower, _iter_events=_iter_events, events=events)
-        return seed_stamp_credits(epochs, current_epoch), bounded
+        return (seed_stamp_credits(epochs, current_epoch)
+                and (not bounded or reads_through
+                     or seed_tail_may_credit(session_ref, lower, events=events))), bounded
 
     try:
         if _iter_events_tail is not None:
@@ -819,7 +884,8 @@ def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consum
 # The two helpers below are the ONE home for that discipline — both gates route through them, so the
 # soundness argument lives in a single place rather than being restated per gate.
 
-def _gate_snapshot(ev_path, *, tail: bool, _iter_events, _iter_events_tail, session_ref=None, settled=None):
+def _gate_snapshot(ev_path, *, tail: bool, _iter_events, _iter_events_tail, session_ref=None, settled=None,
+                   horizon=None):
     """One candidate journal → `(events, bounded)`. `bounded` is True only when the read was genuinely
     NARROWED to a tail (so a refusal computed from it is not yet final). Falls back to the full reader
     whenever the tail reader is absent (not injected — the pre-T-10396 behavior every existing test
@@ -834,8 +900,12 @@ def _gate_snapshot(ev_path, *, tail: bool, _iter_events, _iter_events_tail, sess
     credits stops at the SPEC-0190 summary window (T-13331). A reader that does not declare the keyword (every
     injected test fake) is called exactly as before."""
     if tail and _iter_events_tail is not None:
-        if session_ref and "session_ref" in inspect.signature(_iter_events_tail).parameters:
-            return _iter_events_tail(events_path=ev_path, session_ref=session_ref, settled=settled)
+        params = inspect.signature(_iter_events_tail).parameters
+        if session_ref and "session_ref" in params:
+            kw = {"session_ref": session_ref, "settled": settled}
+            if horizon is not None and "horizon" in params:     # T-13995 — see `seed_receipt_horizon`
+                kw["horizon"] = horizon
+            return _iter_events_tail(events_path=ev_path, **kw)
         return _iter_events_tail(events_path=ev_path)
     if (session_ref and _iter_events_tail is not None
             and "full" in inspect.signature(_iter_events_tail).parameters):
@@ -1239,9 +1309,11 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
         (T-10396), i.e. a refusal computed here is NOT final — the full read may still credit.
 
         T-13789 (SPEC-1023 rule 6): the session's NEWEST receipt decides, session-wide — each
-        candidate journal's newest in-window receipt (the last appended), then the latest of those by
-        time (`newest_seed_stamps`) — so a receipt a later stamping run superseded, in this checkout or
-        in the main checkout, never credits again. Every candidate is therefore read. A narrowed
+        candidate journal's newest in-window receipt (the latest by time, the last appended inside one
+        second — T-13995), then the latest of those by time (`newest_seed_stamps`) — so a receipt a later
+        stamping run superseded, in this checkout or in the main checkout, never credits again. A
+        narrowed snapshot on which the last-appended and the latest receipt differ decides nothing
+        (`seed_tail_may_credit`): the full read settles it. Every candidate is therefore read. A narrowed
         snapshot that shows no receipt has not shown that its candidate holds none: the pass is
         undecided-and-bounded and the full read settles it."""
         anchored = False
@@ -1253,12 +1325,16 @@ def _require_seed_read(*, verb: str, _resolve_session_ref, _session_started_lowe
                 return lb is not None and bool(_seed_receipt_epochs(sref, lb, events=snap))
             snapshot, was_bounded = _gate_snapshot(ev_path, tail=tail, _iter_events=_iter_events,
                                                    _iter_events_tail=_iter_events_tail,
-                                                   session_ref=sref, settled=_decided)
+                                                   session_ref=sref, settled=_decided,
+                                                   horizon=seed_receipt_horizon(sref))
             narrowed = narrowed or was_bounded
             lower_bound = _session_started_lower_bound(sref, events=snapshot)
             anchored = anchored or lower_bound is not None
             newest = (None if lower_bound is None
                       else _newest_seed_receipt(sref, lower_bound, events=snapshot))
+            if newest is not None and was_bounded and not _reads_through(_iter_events_tail) \
+                    and not seed_tail_may_credit(sref, lower_bound, events=snapshot):
+                return False, (anchored, []), True    # T-13995: the orders disagree — the full read decides
             if newest is not None:
                 per_journal.append(newest)
             elif was_bounded:

@@ -9733,17 +9733,16 @@ _LAND_MEMBER_VERDICTS = batch_landing._LAND_MEMBER_VERDICTS  # T-11524 host re-e
 
 
 # ── SPEC-0184 rules 1 + 2 + the Parameters table — batch FORMATION (T-11192) ──────────────────────
-# BATCH_MAX — the upper bound on members per batch. The VALUE and the CARRIER are both SPEC-0184's
-# Parameters table: `4`, held as a CODE CONSTANT citing the spec while the spec stays
-# `consumed: false`. That is deliberate and not an oversight — `consumed: true` is reserved for a
-# governance scalar an existing control-point READS out of the spec, and a batch cap is ordinary
-# tuning that belongs beside the code enforcing it. The identical shape `_VERIFY_WORKER_CEILING`
-# already uses for SPEC-0132, so this adds no new config path (CHARTER §P1 F1/F2).
-#
-# The measured basis lives in SPEC-0184 (8.8% of 675 August branches red on their own leg → a batch
-# of 4 is all-green ~69% of the time, ASSUMING independent reds; 8+ inverts the trade). Re-tuning is
-# a one-line edit precisely because the value sits here.
+# BATCH_MAX — the upper bound on members per batch: the machine PERFORMANCE key
+# `lib.batch_landing._LAND_BATCH_MAX` (T-13991; band 1..8, 1 = batching off), whose built-in default
+# is the constant below. SPEC-0184 §Parameters names the key; `config set` tunes it per machine.
 _LAND_BATCH_MAX = batch_landing._LAND_BATCH_MAX  # T-11524 host re-export alias — moved WITH its readers
+
+
+@functools.wraps(batch_landing._land_batch_max)
+def _land_batch_max(*a, **kw):
+    """T-11524 host residue — the body lives in `bin/lib/batch_landing.py#_land_batch_max` (T-13991)."""
+    return batch_landing._land_batch_max(*a, **kw)
 
 
 @functools.wraps(batch_landing._land_batch_engagement)
@@ -15195,15 +15194,19 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         _first = "command"
         _sink: dict = {}
         r = None
+        _term_grace = ("", {})
+        land_verify_legs._layer_kill.ending = None   # T-13993: no earlier layer's ending is read as this one's
         try:
             if _adapter_first:
                 _pre.append(_adapter_pass(timeout=effective_timeout, env=_layer_env,
                                           first_attempt=True, sink=_sink))
+                _term_grace = land_verify_legs._layer_term_grace()   # T-13993: read on this thread, now
                 _first = _adapter_first_attempt(_pre[0])
                 _proc_ms = _sink.get("proc_ms")
             if _first == "command":
                 r, _cmd_ms, _captured = _nice_kw.get("_run_layer_command", _run_layer_command)(
                     cmd, worktree, effective_timeout, _layer_env)
+                _term_grace = land_verify_legs._layer_term_grace()   # T-13993: read on this thread, now
                 _proc_ms = _cmd_ms if _proc_ms is None else _proc_ms + (_cmd_ms or 0)
         finally:
             _cpu_fields = _cpu.finish(_proc_ms)   # REPORT-ONLY reading, read by nothing that decides
@@ -15248,12 +15251,13 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 e_bad.append(f"land(consumer): verify layer {name!r} command TIMED OUT after {effective_timeout}s: "
                              f"{_ran!r} (the adapter's `{_rec.get('outer_at')}`) — raise the layer's "
                              f"`timeout:` (or `verify.timeout_seconds:`) in {CONSUMER_OPS_CONTRACT} if the "
-                             f"layer is legitimately slower than that." + (f"\n{_cc}" if _cc else ""))
+                             f"layer is legitimately slower than that." + _term_grace[0]
+                             + (f"\n{_cc}" if _cc else ""))
                 if _log:
                     e_bad.append(f"land(consumer): verify layer {name!r} — WHOLE captured output: {_log}")
                 return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share,
                                               **_bound, **({"output_log": _log} if _log else {}),
-                                              **_row_tail},
+                                              **_term_grace[1], **_row_tail},
                         "prep": prep_record}
             _extra: dict = {}
             if _first == "units-failed":
@@ -15291,13 +15295,13 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             e_bad.append(f"land(consumer): verify layer {name!r} command TIMED OUT after {effective_timeout}s: "
                          f"{cmd!r} — raise the layer's `timeout:` (or `verify.timeout_seconds:`) in "
                          f"{CONSUMER_OPS_CONTRACT} if the layer is legitimately slower than that."
-                         + (f"\n{_cc}" if _cc else ""))
+                         + _term_grace[0] + (f"\n{_cc}" if _cc else ""))
             # T-12758: what the layer HAD printed before the bound killed it — discarded before this.
             _log = _write_layer_output_log(_log_ctx, name, _captured)
             if _log:
                 e_bad.append(f"land(consumer): verify layer {name!r} — WHOLE captured output: {_log}")
             return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share, **_bound,
-                                          **({"output_log": _log} if _log else {}),
+                                          **({"output_log": _log} if _log else {}), **_term_grace[1],
                                           **_layer_duration_ms(_layer_t0), **_cpu_fields,
                                           **_adapter_fields(outer="timed-out", outer_at="command")},
                     "prep": prep_record}
@@ -21020,7 +21024,9 @@ def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_con
         counts, not names, so its coverage of the land's own selection cannot be proven from it.
       • LAYERS (consumer builds) — every declared, non-waived layer must be `passed` on the row, or
         `skipped-disjoint-subject` there AND in the land's own skip set (`_subject_scoping_skip_layers`
-        over `merged_base..HEAD` — the function the land's guard calls).
+        over `merged_base..HEAD` — the function the land's guard calls). A layer any of whose rows
+        carries the consumer venue's `listed_none` mark (`land_verify_legs._layer_row_listed_none`,
+        T-13994 — SPEC-1032 rule 5) is not covered, whatever its outcome.
       • A PARTIAL LAYER RUN (T-13910 — SPEC-1030 rule 6, first clause) — a
         layer for which the row holds a `passed-partial` row (ANY of its rows: read off every layer
         row, never off the per-name fold, which keeps the last of several) AND which this land's
@@ -21057,10 +21063,16 @@ def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_con
     skip = _subject_scoping_skip_layers(Path(W), declared, merged_base, _run_git_cap)
     partial_rows = {str(r.get("layer")) for r in (data.get("consumer_verify_layers") or [])
                     if isinstance(r, dict) and r.get("outcome") == "passed-partial"}
+    # T-13994 (SPEC-1032 rule 5): a layer whose `list` named no unit on the consumer venue is not
+    # covered by the run, whatever its row's outcome (ANY of its rows carrying the mark).
+    listed_none = {str(r.get("layer")) for r in (data.get("consumer_verify_layers") or [])
+                   if land_verify_legs._layer_row_listed_none(r)}
     deciding = _stage6_deciding_layers(W, _run_git_cap=_run_git_cap) if partial_rows else None
     partial: list = []
     for ly in declared:
         name = str(ly.get("layer") or "").strip()
+        if name in listed_none:
+            return f"layer-not-covered:{name or '?'}"
         if deciding is not None and name in partial_rows and name in deciding["decls"]:
             if name not in partial:
                 partial.append(name)
@@ -21306,6 +21318,7 @@ _STAGE6_LAYER_RERUN_REASONS = (
     "adapter-sources",     # `net` meets its adapter's declared `sources` (SPEC-1006 rule 6)
     "no-subject",          # it declares no well-formed `subject_globs`
     "globs-touched",       # `net` meets its `subject_globs`
+    "listed-none-on-venue",  # the run's row for it listed no unit on the consumer venue (T-13994)
 )
 
 
@@ -21327,6 +21340,8 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
         injected (an uninjected or raising predicate → None);
       • the row records a layers run with a list of layer rows, and exactly one of them names this
         layer, outcome `passed`, and it is not a partial run (`_layer_row_is_partial_run`, T-13935);
+      • no row of it carries the consumer venue's `listed_none` mark (`_layer_row_listed_none`,
+        T-13994 — SPEC-1032 rule 5): such a layer is in `rerun`, reason `listed-none-on-venue`;
       • `net` meets no shared fail-closed edge of the subject skip (`_verify_skip_fail_closed_edge`
         over `_project_verify_infra_globs()`, with NO freed path: a `tests/` or ops-carrier
         path in `net` → None) and no declared check surface (`_declared_check_surface_touch` — which
@@ -21383,7 +21398,11 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
         ran = [(r.get("layer").strip(),
                 "passed-partial" if land_verify_legs._layer_row_is_partial_run(r) else r.get("outcome"))
                for r in rows if isinstance(r, dict) and isinstance(r.get("layer"), str)]
-        rerun = [n for n in every if [o for m, o in ran if m == n] != ["passed"]]
+        # T-13994 (SPEC-1032 rule 5): a layer whose `list` named no unit on the consumer venue
+        # holds no verdict to take, whatever its row's outcome.
+        listed_none = {r.get("layer").strip() for r in rows if isinstance(r, dict)
+                       and isinstance(r.get("layer"), str) and land_verify_legs._layer_row_listed_none(r)}
+        rerun = [n for n in every if n in listed_none or [o for m, o in ran if m == n] != ["passed"]]
         # T-13935: an adapter-backed layer qualifies too, read by the guard's own reader over the same
         # file set; a malformed declaration raises → None. Its `adapter.sources` are a verifier surface
         # of that layer (SPEC-1006 rule 6): a delta under them keeps it out of `layers`.
@@ -21402,6 +21421,8 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
                 why = "declared-twice"
             elif deleg and name == deleg:
                 why = "delegated-sweep"
+            elif name in listed_none:
+                why = "listed-none-on-venue"
             elif name in rerun:
                 why = ("adapter-partial" if [o for m, o in ran if m == name] == ["passed-partial"]
                        else "not-passed-whole")

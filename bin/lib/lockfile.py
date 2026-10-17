@@ -30,11 +30,12 @@ import os
 from pathlib import Path
 
 
-def open_flock_target(path: "Path | str") -> int:
+def open_flock_target(path: "Path | str", mode: int = 0o644) -> int:
     """Open `path` as a pure flock target and return its fd — never truncating, cross-user safe.
 
-    CREATE-if-first via `O_CREAT|O_EXCL` (forcing 0644 with `fchmod` so a restrictive umask cannot
-    leave it unreadable to a peer); on `FileExistsError` (a peer created it) or `PermissionError`
+    CREATE-if-first via `O_CREAT|O_EXCL` (forcing `mode` — 0644 unless the caller passes another, e.g.
+    0664 for a lock every group member of a shared checkout must also be able to create-and-write
+    (T-13999) — with `fchmod` so a restrictive umask cannot leave it unreadable to a peer); on `FileExistsError` (a peer created it) or `PermissionError`
     (it is the peer's file and we may not write it) fall back to a plain `O_RDONLY` open with NO
     `O_CREAT`. `flock(LOCK_EX)` holds on a read-only fd, so the shared-inode serialization every
     caller relies on is unchanged.
@@ -43,8 +44,8 @@ def open_flock_target(path: "Path | str") -> int:
     advisory lock). Not safe over NFS.
     """
     try:
-        fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o644)
-        os.fchmod(fd, 0o644)   # defeat a restrictive umask — a peer MUST be able to open it
+        fd = os.open(str(path), os.O_CREAT | os.O_EXCL | os.O_RDWR, mode)
+        os.fchmod(fd, mode)    # defeat a restrictive umask — a peer MUST be able to open it
     except (FileExistsError, PermissionError):
         fd = os.open(str(path), os.O_RDONLY)
     return fd

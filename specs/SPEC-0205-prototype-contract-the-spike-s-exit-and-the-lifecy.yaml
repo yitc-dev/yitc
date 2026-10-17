@@ -567,7 +567,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
-  bin/lib/audit_packet.py#build_audit_prompt: fa41ee30bf00047cbef4d7c95ba118752c64a39978d3b3095b369b12f08c9ad5
+  bin/lib/audit_packet.py#build_audit_prompt: fa3b65b4f1242ea93fd9ea0fc21b287cbffd7143dacf7d18b67a2e50c49ae1f6
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
   bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758

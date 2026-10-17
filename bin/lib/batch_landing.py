@@ -75,7 +75,20 @@ _LAND_MEMBER_VERDICTS = (
     "dropped-dead-member",       # rule 6 — the member's claim stopped being held; the batch went on
     _LAND_DISPOSITION_UNACCOUNTED,   # T-11322 — declared, then left silent; NOT an outcome
 )
-_LAND_BATCH_MAX = 4
+_LAND_BATCH_MAX = 4   # T-13991 — the BUILT-IN default of the machine PERFORMANCE key of the same name
+
+
+def _land_batch_max() -> int:
+    """T-13991 — the batch cap in effect on THIS host: the machine-settings value of
+    `lib.batch_landing._LAND_BATCH_MAX` (band 1..8; 1 forms every land alone, batching off) when one
+    is set, else the module constant above, read at call time so a patched constant is honoured. The
+    `worktree._verify_worker_ceiling` shape: any fault in the settings stack yields the constant
+    (SPEC-0193 rule 6 — the file is never a prerequisite)."""
+    try:
+        from lib import machine_settings      # deferred: keeps the hot import graph unchanged
+        return int(machine_settings.resolve("lib.batch_landing._LAND_BATCH_MAX", _LAND_BATCH_MAX))
+    except Exception:                          # noqa: BLE001 — never a caller's problem
+        return _LAND_BATCH_MAX
 _LAND_QUEUE_FRESHNESS_SEC = 90
 _LAND_QUEUE_TERMINAL_TYPES = ("land_completed", "land_member_verdict")
 _LAND_QUEUE_TAIL_BYTES = 512 * 1024
@@ -671,7 +684,7 @@ def _land_median_verify_wall_ms(events_path: "Path | None", *, _scan=None,
 
 
 def _emit_land_batch_formed(members: "list[dict]", paying: int, *, batch_id: "str | None" = None,
-                            engagement: "str | None" = None, batch_max: int = _LAND_BATCH_MAX,
+                            engagement: "str | None" = None, batch_max: "int | None" = None,
                             queue_excluded: "list | None" = None,
                             queue_snapshot: "dict | None" = None,
                             formation_ids: "dict | None" = None,
@@ -763,6 +776,10 @@ def _emit_land_batch_formed(members: "list[dict]", paying: int, *, batch_id: "st
     and `formation_ids`.
 
     Returns the number of rows emitted, so a probe can assert the count."""
+    if batch_max is None:                  # T-13991: the cap the formation cut under, never a re-read
+        batch_max = (queue_snapshot or {}).get("batch_max")
+        if batch_max is None:
+            batch_max = _land_batch_max()
     _seen = list((queue_snapshot or {}).get("seen") or [])
     if len(members) <= 1 and not queue_excluded and not _seen:
         return 0
@@ -2392,7 +2409,7 @@ def _land_batch_members(branch: str, task: "str | None" = None, *,
                         claim_pid: "int | None" = None,
                         main_wt: "Path | None" = None, repo_root: "Path | None" = None,
                         events_path: "Path | None" = None, now: "float | None" = None,
-                        batch_max: int = _LAND_BATCH_MAX,
+                        batch_max: "int | None" = None,
                         ineligible: "set[str] | None" = None,
                         rebaselining: bool = False,
                         merge_invalid_acceptance: bool = False,
@@ -2587,6 +2604,8 @@ def _land_batch_members(branch: str, task: "str | None" = None, *,
     putting it in the same sink would inflate `queue_depth` — whose meaning is the candidates this
     formation SAW — and describe the slot holder as one of its own exclusions.
     """
+    if batch_max is None:                  # T-13991: ONE read per formation — the same value cuts the
+        batch_max = _land_batch_max()      # members and rides `snapshot_out` to the formed row
     self_member = {"branch": branch, "task": task}
     # T-11196 (SPEC-0180 rule 6): THIS land's claim handle rides its OWN member record. Only the
     # self-member can carry one: the peers come from wait heartbeats, which say a land is queued but
@@ -2752,6 +2771,7 @@ def _land_batch_members(branch: str, task: "str | None" = None, *,
         if snapshot_out is not None:
             snapshot_out["read_ts"] = _read_ts
             snapshot_out["seen"] = list(_seen)
+            snapshot_out["batch_max"] = batch_max   # T-13991: the cap THIS formation cut under
 
     # T-11939 — the SECOND ground joins as a further disjunct and is written LAST, on a continuation
     # line, so this line's PREFIX is byte-identical. That is not cosmetic: T-11335's
@@ -4349,7 +4369,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
         except Exception:                      # noqa: BLE001
             pass
 
-def _land_form_batch(queue: "list[dict]", *, batch_max: int = _LAND_BATCH_MAX,
+def _land_form_batch(queue: "list[dict]", *, batch_max: "int | None" = None,
                      engaged: bool = True, admitter=None,
                      excluded_out: "list | None" = None,
                      prefilter=None) -> "tuple[list[dict], list[dict]]":
@@ -4422,6 +4442,8 @@ def _land_form_batch(queue: "list[dict]", *, batch_max: int = _LAND_BATCH_MAX,
 
     `prefilter=None` keeps every current caller byte-for-byte, exactly as `admitter=None` does.
     """
+    if batch_max is None:                  # T-13991: the machine PERFORMANCE key, read at call time
+        batch_max = _land_batch_max()
     n = max(1, int(batch_max)) if engaged else 1
     if admitter is None and prefilter is None:
         return (list(queue[:n]), list(queue[n:]))

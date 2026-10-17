@@ -832,6 +832,9 @@ def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
         same indent — audit-pre F0: a decorator change must be in-region) until the next non-blank
         line at indent <= the def's. Multi-line signatures are covered: their continuation lines
         indent past the def, so they fall inside the region.
+        A JS/TS function (declaration or const/let/var binding) skips a line at its own indent that
+        starts with a closing bracket and carries more code — the rest of a multi-line header
+        (`_js_header_continues`, T-13996).
       - module const / annotation (`<sym> [:=]` at col 0): its line until the next non-blank col-0 line.
       - markdown heading (`#..# ... <sym>`): until the next heading of level <= its own.
       - a PROJECT-DECLARED form (T-13647, `declared_symbol_line`) — consulted only when none of the
@@ -899,14 +902,42 @@ def symbol_region(text: str, sym: str, file_rel: str) -> str | None:
         if py_end is not None:
             end = py_end
         else:
+            js_function = kind == "def" and suffix in JS_SUFFIXES and hit in _JS_FUNCTION_FORMS
             for j in range(body_from + 1, len(lines)):
                 ln = lines[j]
                 if not ln.strip():
                     continue
-                if (len(ln) - len(ln.lstrip())) <= indent:
+                ln_indent = len(ln) - len(ln.lstrip())
+                if ln_indent <= indent:
+                    if js_function and ln_indent == indent and _js_header_continues(ln):
+                        continue            # T-13996 — the rest of a multi-line header, not the end
                     end = j
                     break
     return "\n".join(lines[start:end])
+
+
+#: T-13996 — the `anchor_symbol_patterns` tuple indexes of the two JS/TS FUNCTION forms: a `function`
+#: declaration and a `const`/`let`/`var` binding.
+_JS_FUNCTION_FORMS = frozenset({2, 3})
+
+
+def _js_header_continues(ln: str) -> bool:
+    """True when `ln`, a line at a JS/TS function declaration's own indent, continues the declaration
+    rather than ending it: it STARTS with a closing bracket and carries more code after its closing
+    brackets — `): T {`, `}: Props) {`, `) => ({`, `} {` after a multi-line return type (yitc#130:
+    a parameter list closing at column 0 ended the region before the body). A line of closing
+    brackets alone, optionally with `;` / `,` and a comment (`}`, `};`, `});`), still ends the region,
+    so a region the plain indent scan got right is unchanged; a closing line that carries code of its
+    own (`})();`, `].map(f);`) is now inside the region — wider, never narrower. T-13996.
+
+    Bound (owner decision events.jsonl#ts=2026-10-17T17:58:14Z): no lexer — a line at the
+    declaration's indent INSIDE the body (a column-0 comment, template or string text, a body written
+    unindented) still ends the region, as the plain scan does; the region is never narrower than it."""
+    lead = ln.strip()
+    if lead[:1] not in ")]}":
+        return False
+    rest = re.sub(r"^[)\]}\s]+", "", lead).lstrip(";,").strip()
+    return bool(rest) and not rest.startswith(("//", "/*"))
 
 
 def _py_def_region_end(lines: list, body_from: int, indent: int) -> "int | None":

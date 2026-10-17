@@ -149,10 +149,11 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
 - **land-verify concurrency stability (weekly; grounding: the 2026-07-03 concurrency flake class —
   oversubscription + ff-race — that SPEC-0132 governs).** Its verdict obeys §Run-mode rule (3) (`inspection-criteria-roster-run-and-lenses.md` — print the no-data / excluded share before any `clean`). The durable, recurring successor to the
   proposing plan's one-week post-Z real-data watch, so that flake class cannot silently drift back.
-  Two report-only reads over the recent `land_completed` A4 verify-metrics window (SPEC-0132 Rule 2 /
+  Three report-only reads over the recent `land_completed` A4 verify-metrics window (SPEC-0132 Rule 2 /
   SPEC-0025), REUSING the shipped pure signal — **no new store/detector/parser** (CHARTER §P1):
   (a) the SPEC-0132 Rule-3/4 watch-point signals via `bin/lib/worktree.py#_verify_scaling_signals`,
-  and (b) a scan of that window's `fail_class`. **FINDING criterion is precise:** a non-ok
+  (b) a scan of that window's `fail_class`, and (c) the verify wall per regime beside the pinned wall
+  (below). **FINDING criterion is precise:** a non-ok
   `fail_class` is a FINDING only when **RECURRING** (the same non-ok class ≥ 2× in the window) OR
   **NON-DETERMINISTIC** (≥ 2 distinct non-ok classes = class-switching flakiness); a lone one-off
   non-ok class is a report-only observation, not a finding. `failed` (the tests themselves went red)
@@ -210,6 +211,54 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   whose `events.jsonl` is `bin/yitc-v2 journal query --since <start> --limit 0 --json` and whose `bin`
   links the repo's; the same applies to the two blocks below. The window is the last ~200 rows. Signals may fire report-only on scaling watch-points independent of
   `fail_class` — SPEC-0132 Rules 3-4.)
+  **(c) The verify wall per regime, beside the pinned wall (owner decision 2026-10-17).**
+  `bin/lib/worktree.py#_VERIFY_WALL_SECONDS` sizes the land reservation park bound and is deliberately
+  never derived live. Where the verify ran moves the wall hard — the remote venue and this host are two
+  regimes, and each repo has its own — so one median over both would hide a drift in either. This read
+  prints, per repo and over a STATED CLOSED window `[<START>, <END>)`, the full-suite verify wall of each
+  regime apart — `venue` (a row whose `verify_metrics.venue` names a venue) and `local` (every other
+  row) — with n, median and p95, over the population the pinned value was derived from (`status` ok
+  with a `verify_wall_ms`), and beside each median its signed departure from the pinned value. It
+  never prints a pooled median and judges no threshold: the reader weighs each departure with n beside
+  it. When the regime the park bound protects has moved away from the pinned value, the route is a
+  card re-deriving the constant over a stated closed window and saying which regime (or mix) the bound
+  must cover, as did — never an automatic re-derive. Report-only, exit 0. Run from the engine
+  checkout (the block imports the pinned value from its `bin`), feeding it the segment-aware reader;
+  add `-C <consumer>` for a consumer's own split:
+  `bin/yitc-v2 [-C <repo>] journal query --type land_completed --since <START> --until <END> --limit 0 --json | python3 <this block> <START> <END>`
+  ```
+  import sys, json, os
+  sys.path.insert(0, "bin")
+  from lib.worktree import _VERIFY_WALL_SECONDS as pinned
+  start, end = sys.argv[1], sys.argv[2] # closed window [start, end): --until is inclusive, so ts == end is dropped here
+  walls = {"venue": [], "local": []}
+  skipped = {"malformed": 0, "outside window": 0, "not ok or no wall": 0}
+  for line in sys.stdin:
+      try:
+          e = json.loads(line)
+      except ValueError:
+          skipped["malformed"] += 1; continue
+      if not isinstance(e, dict) or e.get("type") != "land_completed":
+          continue
+      if not (start <= str(e.get("ts", "")) < end):
+          skipped["outside window"] += 1; continue
+      d = e.get("data") or {}
+      m = d.get("verify_metrics") if isinstance(d.get("verify_metrics"), dict) else {}
+      w = m.get("verify_wall_ms")
+      if d.get("status") != "ok" or isinstance(w, bool) or not isinstance(w, (int, float)):
+          skipped["not ok or no wall"] += 1; continue
+      v = m.get("venue")
+      walls["venue" if v and v != "local" else "local"].append(w / 1000.0)
+  print("verify wall per regime — window [%s, %s), pinned _VERIFY_WALL_SECONDS = %.1f s" % (start, end, pinned))
+  for regime in ("venue", "local"):
+      xs = sorted(walls[regime])
+      if not xs:
+          print(" %-5s: no rows in window" % regime); continue
+      n = len(xs); med = (xs[(n - 1) // 2] + xs[n // 2]) / 2; p95 = xs[max(0, -(-95 * n // 100) - 1)]
+      print(" %-5s: n=%d median %.1f s p95 %.1f s median vs pinned %+.1f%%" % (regime, n, med, p95, 100.0 * (med - pinned) / pinned))
+  print(" excluded: %s" % ", ".join("%s %d" % kv for kv in skipped.items))
+  print(" retune route (only when the regime the park bound protects has moved): a card re-deriving _VERIFY_WALL_SECONDS over a stated closed window, naming the regime (or mix) the bound must cover, as did — never an automatic re-derive")
+  ```
 - **abort assertion legibility — what share of aborts can NAME what broke (weekly; report-only;
   grounding: <project> X-1050, who measured 96 of 133 assertion entries (72%) reading
   `(no assertion captured)` across 105 aborted lands).** Its verdict obeys §Run-mode rule (3) (`inspection-criteria-roster-run-and-lenses.md` — print the no-data / excluded share before any `clean`). The sibling bullet above asks whether the

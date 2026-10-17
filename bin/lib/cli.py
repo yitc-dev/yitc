@@ -1550,7 +1550,7 @@ def cmd_task_close(args: argparse.Namespace) -> None:
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
     with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
-        task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
+        task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -1707,6 +1707,10 @@ def _declared_surface_preview(*, tid: str, cls: "str | None", requires: list, ci
     return task_mod._declared_surface_preview(tid=tid, cls=cls, requires=requires, cites=cites, expected_touch=expected_touch, index=index, live_claimed=live_claimed, batch_siblings=batch_siblings, _batch_sibling_task_ids=_batch_sibling_task_ids, _live_claimed_task_ids=_live_claimed_task_ids, _task_safety_verdict=_task_safety_verdict)
 def _unconfirmed_travels_specs(tid: str) -> list:
     return task_mod._unconfirmed_travels_specs(tid, SPECS_DIR=SPECS_DIR, _read_yaml=_read_yaml)
+
+
+def _unflippable_supersedes_targets(tid: str) -> list:
+    return task_mod._unflippable_supersedes_targets(tid, SPECS_DIR=SPECS_DIR, _find_spec_path=_find_spec_path, _read_yaml=_read_yaml)
 
 
 def _activate_task_proposed_specs(tid: str) -> tuple:
@@ -2902,11 +2906,13 @@ def _ref_current_epoch_anchored(ref: str, *, bounded: bool = False) -> bool:
     _skip_noted: list = []   # T-13370 — the horizon's skipped segments are reported once per decision
     _segment_paths = events.segment_paths   # bound here: `_attempt` shadows `events` with its rows
 
-    def _decide(events) -> bool:
+    def _decide(events, bounded=False) -> bool:
         lb = _session_started_lower_bound(ref, events=events)
         if lb is None:
             return False
         return gates.seed_stamp_credits(_seed_receipt_epochs(ref, lb, events=events), _session_epoch())
+
+    _horizon = gates.seed_receipt_horizon(ref)   # T-13995 — a narrowed read reaches back to its day
 
     def _attempt(*, tail: bool):
         """One read attempt in the driver's `(credited, payload, bounded)` contract. `payload` is the
@@ -2938,15 +2944,22 @@ def _ref_current_epoch_anchored(ref: str, *, bounded: bool = False) -> bool:
         # T-13337 — a keep_all scope answers from the SPEC-0190 summary window (`_scoped_session_window`,
         # the seed and help gates' own source), never the whole history: a refusal walks no archive
         # segment wholly older than the window (AC2).
-        shared = _scoped_session_window(_jp, ref, _decide if tail else None, not tail)
+        shared = _scoped_session_window(_jp, ref, _decide if tail else None, not tail, _horizon)
         if shared is not None:
             return _decide(shared[0]), shared[0], shared[1]
         scoped = journal_mod.scope_needle_rows(_jp, ref, whole=not tail)
         if scoped is not None:
-            return _decide(scoped), scoped, not journal_mod.scope_is_whole(_jp)
+            _b = not journal_mod.scope_is_whole(_jp)
+            # T-13995: a narrowed scope read credits only when its floor reaches back to the day of its
+            # newest receipt — every segment that can hold a newer one was then walked (live whole).
+            _floor = journal_mod.scope_horizon(_jp) if _b else None
+            _day = _horizon(scoped) if _b else None
+            _covered = not _b or (_floor is not None and _day is not None and _floor <= _day)
+            return (_decide(scoped) and _covered), scoped, _b
         if tail:
-            # T-13289: walk THIS ref's rows back only as far as `_decide` needs to credit (its horizon).
-            events, bounded = _iter_events_tail(ev, session_ref=ref, settled=_decide)
+            # T-13289: walk THIS ref's rows back only as far as `_decide` needs to credit (its horizon),
+            # and (T-13995) through every segment that can hold a receipt newer than the one it credits.
+            events, bounded = _iter_events_tail(ev, session_ref=ref, settled=_decide, horizon=_horizon)
         elif _held_session_walk(_jp, ref) is not None:
             # T-13370 — the FULL read RESUMES the walk the tail attempt took (`_SessionWalk.refresh`:
             # finish it to the SPEC-0190 summary-window floor, then read only bytes appended since; a
@@ -4480,7 +4493,8 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
         rows, _bounded = gates._gate_snapshot(
             Path(main_events), tail=True, _iter_events=_iter_events,
             _iter_events_tail=_iter_events_tail, session_ref=ref,
-            settled=lambda snap: bool(_seed_rows(snap)))
+            settled=lambda snap: bool(_seed_rows(snap)),
+            horizon=gates.seed_receipt_horizon(ref))   # T-13995 — the newest receipt by time is the journal's
         seeds = _seed_rows(rows)
         if not seeds:
             return False
@@ -4488,7 +4502,7 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
         # on an established reading (CANNOT TELL / no transcript never proves «already holds»)
         cur = _session_epoch_known()
         if cur is None or not gates.seed_stamp_credits(
-                [gates._receipt_stamp(e.get("data") or {}) for e in seeds], cur):
+                _seed_receipt_epochs(ref, "", events=seeds), cur):   # oldest first, by time (T-13995)
             return False
         # and the session's NEWEST receipt — session-wide, as the gate reads it — names it too: a main
         # receipt superseded by a newer one of another mark in a worktree proves nothing (T-13789)
@@ -4498,14 +4512,14 @@ def _seed_cues_held_this_epoch(ref: "str | None") -> bool:
         return False
 
 
-def _session_rows(events_path, ref: str, *, settled=None, full: bool = False) -> list:
+def _session_rows(events_path, ref: str, *, settled=None, full: bool = False, horizon=None) -> list:
     """This session's own rows of ONE journal, walked newest first and stopped once `settled` holds —
     the session-scoped tail walk the T-13580 receipt read uses (`gates._gate_snapshot`). `full=True`
     (T-13787) is that walk's own whole-history answer — the read a gate's refusal retry takes — for a
-    caller whose «not found» must be final."""
+    caller whose «not found» must be final. `horizon` (T-13995): see `gates.seed_receipt_horizon`."""
     rows, _bounded = gates._gate_snapshot(
         Path(events_path), tail=not full, _iter_events=_iter_events, _iter_events_tail=_iter_events_tail,
-        session_ref=ref, settled=settled)
+        session_ref=ref, settled=settled, horizon=horizon)
     return [e for e in rows if e.get("session_ref") == ref]
 
 
@@ -4603,6 +4617,12 @@ def _post_compact_refold_plans(ref: str) -> list:
     return out
 
 
+# T-13995 — the types `session start` reads whole after the debt echo's pass (`journal.typed_handdown`):
+# the capture-fingerprint dedupe (`_record_unobserved_version_deviation`, both capture names) and the
+# worker-fit line (`journal.worker_fit`). The debt echo's walk keeps each of them whole (`debt_echo_scan`).
+START_HANDDOWN_TYPES = ("deviation_captured", "friction_captured", "land_completed")
+
+
 def cmd_session_start(args: argparse.Namespace) -> None:
     # T-13303 (AC5): the verb's OWN wall-clock start — its seed receipt below is emitted IN-verb, so
     # `main`'s post-run `duration_ms` never reaches it; measured from here, as `main` measures a body.
@@ -4688,6 +4708,12 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         # T-13303: `live_settled` — nothing in this request appends to the live segment and reads it
         # back (the debt echo and every view run before `session_started` is emitted), so the
         # strict-text readers (the SPEC-0098 floor probe) take the live segment from this one fold too.
+        # T-13995 (yitc#132): the two whole-history typed reads this start makes AFTER the debt echo's
+        # one pass — the capture-fingerprint dedupe and the worker-fit line — are handed down from that
+        # pass instead of re-walking every archived segment (`journal.typed_handdown`). Only a scope
+        # keeping all three types whole fills it (the debt echo's), so a receipt-only start, which runs
+        # no debt echo, leaves it empty and reads as before.
+        _read_scope.enter_context(journal_mod.typed_handdown(EVENTS_PATH, START_HANDDOWN_TYPES))
         _live_memo = _read_scope.enter_context(journal_mod.rows_memo([EVENTS_PATH]))
         if _live_memo is not None:      # a test that nulls the memo hands back None
             _live_memo.live_settled = True
@@ -5261,7 +5287,7 @@ def _backstop_open(args) -> "str | None":
 
 def _newest_seed_stamps(ref: str) -> list:
     """The stamp(s) of `ref`'s NEWEST seed receipt as the gate reads it (T-13789): each of this
-    checkout's journal and the main checkout's gives its last-appended receipt, and the latest of those
+    checkout's journal and the main checkout's gives its newest receipt (by time, T-13995), and the latest of those
     by time is the session's (`gates.newest_seed_stamps` — two when both journals hold one of that same
     second); [] when neither holds one. The session-scoped tail walk the gate's readers use."""
     def _seeds(rows) -> list:
@@ -5269,9 +5295,10 @@ def _newest_seed_stamps(ref: str) -> list:
                 and (e.get("data") or {}).get("node_id") == gates.SEED_READ_NODE_ID]
     per_journal = []
     for path in _post_compact_journals():
-        seeds = _seeds(_session_rows(path, ref, settled=lambda snap: bool(_seeds(snap))))
-        if seeds:
-            per_journal.append((seeds[-1].get("ts") or "", gates._receipt_stamp(seeds[-1].get("data") or {})))
+        seeds = _seeds(_session_rows(path, ref, settled=lambda snap: bool(_seeds(snap)),
+                                     horizon=gates.seed_receipt_horizon(ref)))   # T-13995
+        if seeds:   # T-13995: the newest by time, as the gate reads it (`gates._newest_seed_receipt`)
+            per_journal.append(gates._newest_seed_receipt(ref, "", events=seeds))
     return gates.newest_seed_stamps(per_journal)
 
 
@@ -8772,10 +8799,12 @@ def cmd_decision_new(args: argparse.Namespace) -> None:
         "See plans/phase-1-narrow-spec-as-rule-proven-plus-cut-decisi + CHARTER §Decision lifecycle.")
 
 
-def _decision_apply_field_edits(path: Path, raw: str, edits, expect: dict) -> None:
+def _decision_apply_field_edits(path: Path, raw: str, edits, expect: dict) -> str:
     """Apply TARGETED single-line field replacements to a decision YAML, preserving comments + body
     (NO full yaml re-dump — that would destroy the decision's rich comments / literal blocks; P5).
-    Each edit = (field, new_full_line). SPEC-0001 self-test: reload + assert expected field values."""
+    Each edit = (field, new_full_line). SPEC-0001 self-test: reload + assert expected field values.
+    Returns the text written (T-13995: the spec activation writer keeps it as what the file must read
+    as next, without reading the file back)."""
     import yaml
     new_raw = raw
     for field, new_line in edits:
@@ -8790,6 +8819,7 @@ def _decision_apply_field_edits(path: Path, raw: str, edits, expect: dict) -> No
         if rt.get(k) != v:
             _die(f"SPEC-0001 self-test failed: {k} did not round-trip to {v!r} (got {rt.get(k)!r})")
     write_text_atomic(path, new_raw)
+    return new_raw
 
 
 
@@ -17441,7 +17471,7 @@ def _resolve_prompt_file(arg: str) -> Path:
 
 def cmd_audit(args: argparse.Namespace) -> None:
     # T-9712 (SPEC-0124 §Audit-loop ceiling, dispatched-worker auto-consult) — bounded in-process
-    # ceiling-continuation loop. On the ceiling-REACHING audit-post RED in a dispatched-worker context,
+    # ceiling-continuation loop. On the ceiling-REACHING audit-pre/post RED (T-13997) in a dispatched-worker context,
     # audit.cmd_audit persists the pass-2 RED then raises WorkerCeilingContinuation INSTEAD of exiting;
     # catch it and re-invoke ONCE — the re-entry reads prior_passes == cap from disk, so the EXISTING
     # pre-block L3 auto-drives the consult (no extra worker `audit post` call). The raise gate
@@ -24061,21 +24091,48 @@ class _SessionWalk:
             self._blocks.insert(0, fresh)
         return self.rows()
 
-    def rows_until(self, settled) -> "tuple[list, bool]":
+    def _read_through(self, day) -> bool:
+        """T-13995 — has this walk read WHOLE every segment that can hold a row dated on or after `day`
+        (an ISO date)? The live segment can hold a row of any date (it is appended to and union-merged
+        into), so it must be finished; an archive segment holds rows of exactly its label's day
+        (`events.segment_label` — the rotation writer's contract), so one labelled before `day` cannot,
+        and an undatable label always can."""
+        if self.exhausted:
+            return True
+        if self._seg < 0:
+            return False
+        first_unread = self._seg if self._pos > 0 else self._seg + 1
+        if first_unread == 0:
+            return False
+        live = self._segs[0]
+        return all((lab := events.segment_label(seg, live)) is not None and lab < day
+                   for seg in self._segs[first_unread:])
+
+    def rows_until(self, settled, *, horizon=None) -> "tuple[list, bool]":
         """Walk until `settled(rows)` holds or the history is exhausted → `(rows, True)` — always
-        `bounded`, so a caller re-decides a refusal on its own full read (see the block above)."""
-        if settled is not None and self._blocks and settled(self.rows()):
+        `bounded`, so a caller re-decides a refusal on its own full read (see the block above).
+
+        `horizon` (T-13995): `horizon(rows)` names a DAY (or None) the stop must also have read through
+        — the walk does not stop on `settled` until every segment that can hold a row dated on or after
+        that day was read whole (`_read_through`). The seed gates pass their newest receipt's day, so a
+        receipt a union merge put ABOVE the stop cannot be newer than the one they decide by."""
+        def _stop() -> bool:
+            if settled is None or not settled(self.rows()):
+                return False
+            day = horizon(self.rows()) if horizon is not None else None
+            return day is None or self._read_through(day)
+        if self._blocks and _stop():
             return self.rows(), True
         while not self.exhausted:
             got = self._step()
-            if got and settled is not None and settled(self.rows()):
+            if (got or horizon is not None) and _stop():
                 break
         if self._fh is not None:
             self._report()      # the stop is inside a segment: account what this request read
         return self.rows(), True
 
 
-def _scoped_session_window(path: Path, ref: str, settled, full: bool):
+def _scoped_session_window(path: Path, ref: str, settled, full: bool, horizon=None):
     """T-13337 — the preamble's session rows SERVED BY THE REQUEST'S ONE SCAN (Controller decision
     2026-10-01T23:32:13Z, option 1). Inside a keep_all ReadScope (`task close` / `stage` / `task plan`
     install it around the whole invocation, T-13330) the journal is already walked once for the
@@ -24114,13 +24171,16 @@ def _scoped_session_window(path: Path, ref: str, settled, full: bool):
     if not full and settled is not None:
         walked = scope.horizon
         rows = _rows(max(walked, day) if (walked and day) else (walked or day))
-        if settled(rows):
+        # T-13995: with a `horizon`, a credit on the walked horizon stands only when that horizon
+        # reaches back to the horizon's day (every segment that can hold a newer row was walked).
+        h = horizon(rows) if (horizon is not None and settled(rows)) else None
+        if settled(rows) and (horizon is None or (h is not None and (walked or "") <= h)):
             return rows, True
     return _rows(day), not full
 
 
 def _iter_events_tail(events_path: "Path | None" = None, *, window_sec: int = _GATE_TAIL_WINDOW_SEC,
-                      session_ref: "str | None" = None, settled=None, full: bool = False):
+                      session_ref: "str | None" = None, settled=None, full: bool = False, horizon=None):
     """The tail-windowed twin of `_iter_events` — returns `(events, bounded)`.
 
     `events` is the parsed record list; `bounded` is True only when the physical read was actually
@@ -24185,7 +24245,7 @@ def _iter_events_tail(events_path: "Path | None" = None, *, window_sec: int = _G
         trivial = True
     scope = getattr(_SESSION_TAIL_TLS, "scope", None)
     if session_ref and journal_mod._prefilter_needle(session_ref) and (scope is not None or not trivial):
-        shared = _scoped_session_window(path, session_ref, settled, full)
+        shared = _scoped_session_window(path, session_ref, settled, full, horizon)
         if shared is not None:
             return shared     # T-13337 — the request's one scan already holds this journal
         try:
@@ -24211,11 +24271,13 @@ def _iter_events_tail(events_path: "Path | None" = None, *, window_sec: int = _G
                 held = (sig, _SessionWalk(path, session_ref, peer=peer))
                 if scope is not None:
                     scope[key] = held
-            return held[1].rows_until(settled)
+            return held[1].rows_until(settled, horizon=horizon)
         except OSError:
             return list(_iter_events(events_path)), False
-    if full:
-        return list(_iter_events(events_path)), False     # a FULL request never takes the window
+    if full or horizon is not None:
+        # a FULL request never takes the window; nor does a `horizon` one (T-13995): the time window
+        # below cuts inside the live segment, so it cannot show it read through a day — read it all.
+        return list(_iter_events(events_path)), False
     cutoff = (_dt.datetime.now(_dt.timezone.utc)
               - _dt.timedelta(seconds=window_sec)).strftime("%Y-%m-%dT%H:%M:%SZ")
     # T-13330 — inside task close's keep_all ReadScope the live segment is ALREADY walked once for the

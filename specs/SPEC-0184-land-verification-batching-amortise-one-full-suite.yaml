@@ -2162,91 +2162,93 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ never substitutes for batching, and batching never licenses raising the cap.\n\
   \n## Parameters\n\n| param | value | meaning | carrier |\n|---|---|---|---|\n| `BATCH_MAX`\
   \ | **4** | upper bound on members per batch — bounds the COST OF DIAGNOSING a red\
-  \ batch, not formation | code constant in `bin/lib/worktree.py` CITING this spec;\
-  \ `consumed: false` |\n| `RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` | **3** | rule 13\
-  \ — batch rides since the last completed verify after which a branch is routed SOLO\
-  \ | code constant `_LAND_RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` in `bin/lib/batch_landing.py`\
-  \ CITING this spec; `consumed: false` |\n\n**The value is 4, and it is a code constant,\
-  \ not a spec-consumed scalar** (plan-check finding 4,\n2026-08-16). `consumed: true`\
-  \ is reserved for governance scalars an existing control-point READS\nfrom the spec;\
-  \ a batch cap is ordinary tuning that belongs beside the code that enforces it,\
-  \ with a\ncitation back here — the same shape `_VERIFY_WORKER_CEILING` already uses\
-  \ for SPEC-0132.\n\n**`RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` is 3, and it is AUTHOR-DECLARED\
-  \ AND REVISABLE — never\nmeasured.** A later reader must not treat it as derived\
-  \ from anything. The readings it was chosen\nAGAINST, recorded beside it so the\
-  \ choice can be re-argued rather than rediscovered: `task/`\nrode four batches,\
-  \ `task/` rode six, and the external consult\n(`decisions/land-conveyor-blindspots-audit-adhoc.yaml`,\
-  \ finding 3) proposed one or two passenger\nturn-backs. It is a code constant for\
-  \ the same reason `BATCH_MAX` is — ordinary tuning that belongs\nbeside the code\
-  \ that enforces it, with a citation back here, so re-tuning costs nothing.\n\nMeasured\
-  \ basis: over 675 distinct branches attempting to land in August 2026, 8.8% were\
-  \ ever red on\ntheir own candidate leg. At that rate a batch of 4 is all-green about\
-  \ 69% of the time; 8+ inverts the\ntrade (all-green drops below half). 4 also halves\
-  \ cleanly, which keeps the eventual bisection\noptimisation (out of scope here)\
-  \ at two passes rather than an uneven three.\n\n**The 69% ASSUMES member reds are\
-  \ INDEPENDENT** — it is 0.912^4 — and they may not be: a broken\n`main`, a flaky\
-  \ pinned test, or one bad merge-base correlates redness across a batch, pushing\
-  \ the\nall-green rate DOWN and the re-queue bill UP. The trial must REPORT the observed\
-  \ batch-level red rate\nagainst this 69% rather than assume it; if reds correlate\
-  \ materially, `BATCH_MAX` is the parameter to\nre-tune, and it is a code constant\
-  \ precisely so that costs nothing to change.\n\nProbes belong AT and OVER the cap:\
-  \ a queue of exactly `BATCH_MAX` forms one batch; a queue of\n`BATCH_MAX + 1` forms\
-  \ a full batch plus a remainder that waits, never an oversized batch.\n\n**`BATCH_MAX`\
-  \ and the code-less cohort (rule 9).** The cap is not re-tuned and gets no\nsecond\
-  \ value. A cohort batch exists only where a cohort land verifies, and there the\
-  \ cap means what\nit means for any batch; a cohort land that runs no suite forms\
-  \ no batch, so there is nothing for a\ncap to bound.\n\n## Rationale\n\nMeasured,\
-  \ not assumed (2026-08-16):\n\n- **Verify cost is FIXED, not proportional to the\
-  \ change.** Regression over 165 (audited-files,\n  verify-seconds) pairs gives ~515s\
-  \ base and −1.0s per file — the slope is zero. audited 53\n  files in 438s; a 2-file\
-  \ land took 460s. So per-change cost cannot be reduced by making changes\n  smaller;\
-  \ only the NUMBER of passes can fall.\n- **That fixed cost now exceeds what a worker\
-  \ survives.** August median land verify 325s (n=743), p95\n  743s, against a ~590s\
-  \ harness per-call cap; on 2026-08-15, 22% of dispatched workers halted\n  `blocked-on-land`.\
-  \ SPEC-0132 Rule 4's Tier-C triggers (median >5min OR p95 >12min) have both fired.\n\
-  - **Test selection is unavailable as a lever here.** 70% of the 830-file corpus\
-  \ asserts on kernel\n  SOURCE TEXT rather than executing it; the union of executed\
-  \ lines across a traced sample covers only\n  6.1% of `worktree.py`. Coverage cannot\
-  \ observe those dependencies and selection on it would produce\n  a false green.\
-  \ The suite can be amortised but not shortened.\n- **Queueing is deliberate and\
-  \ correct.** serialized merge→verify→ff after measuring 71% of\n  the verify budget\
-  \ as redo (11.6h discarded against 4.6h that counted, all `retry-main-advanced`).\n\
-  \  Racing is worse. What that change did not provide is a way to survive the queue\
-  \ it created.\n\nPrior art extended rather than replaced: SPEC-0132 (governor +\
-  \ ladder) (serialized span),\nSPEC-0077 (doubled verify) (pinned-verdict cache,\
-  \ keyed on the whole candidate tree so it\nonly hits on a repeated attempt of the\
-  \ SAME branch — it does not amortise across different changes).\nIndustry precedent\
-  \ for this exact shape: Bors / GitHub merge queue (batch then bisect), Zuul\n(speculative\
-  \ chains).\n\n### History moved from the rule body\n\nFrom «4. One pass, then all-or-nothing\
-  \ — and a red batch NEVER reforms itself»:\n\nRate, so the rule is sized rather\
-  \ than guessed: 6 of 48 branches that landed on 2026-08-17 carried a\nrebaseline\
-  \ (~12.5%), giving a batch of N a superseder with probability ≈ 1 − 0.875^N — 23%\
-  \ at N=2,\n41% at N=4. BOTH formations that day contained one and BOTH died red;\
-  \ under this rule neither would\nhave formed, costing zero successful batches and\
-  \ saving two combined passes. The second occurrence\nlanded the cost entirely on\
-  \ a bystander: a filing land of two YAML cards (an inert diff) was batched\nwith\
-  \ a superseding peer and reddened by it, `paying_members` 1 of 2.\n\nFrom «9. A\
-  \ slot holder YIELDS to a strictly cheaper unmarked queued class»:\n\n**THE OBSERVATION\
-  \ THAT MADE IT CONCRETE.** On 2026-08-27 the mark fired repeatedly for task/\n—\
-  \ a branch whose own land had ABORTED on a pinned verify failure at 11:19:22Z —\
-  \ while the admission\nqueue grew to 10 and the oldest waiter sat at 3629 s. A mark\
-  \ that outranks EVERYTHING hands a\nfailing branch repeated priority over branches\
-  \ that would have cleared, including ones that would\nhave cleared for free.\n\n\
-  From «11. A candidate whose WORKTREE IS DIRTY does not consume a batch place»:\n\
-  \n**THE MEASURED COST OF COUNTING IT** (2026-08-27): 9 `uncommitted-worktree-dirt`\
-  \ exclusions\nacross 45 formations in one day, and task/ dropped from two consecutive\
-  \ formations\n(09:40:25Z, 09:51:30Z) with `events.jsonl` as its ONLY dirty path.\
-  \ The burden fell on PEERS alone,\nand asymmetrically: a HEAD reaches formation\
-  \ ALREADY folded clean by `cmd_land`s two\n`_fold_trailing_bookkeeping` calls, while\
-  \ a peer`s tree is folded by nobody. So the two candidate\npositions were being\
-  \ judged by different standards — not by design, but as a side effect of where\n\
-  the fold runs.\n\n## Verification\n\n- **Rule 15 (the queued pre-merge — four differentials,\
-  \ `tests/test_t12150_queued_land_branch_freshness.py`):**\n  (a) FRESHNESS — a branch\
-  \ parked on a real held reservation gains main's commit WHILE STILL\n  PARKED and\
-  \ the merge path is invoked exactly ONCE across the whole land; with\n  `YITC_LAND_QUEUED_PREMERGE=0`\
-  \ the same fixture leaves the branch untouched during the wait and\n  merges only\
-  \ after acquisition. (b) WATERMARK — a persistent blocking conflict costs exactly\
-  \ ONE\n  attempt across many throttle intervals and then leaves the queue (`tests/test_t13345_queued_conflict_leaves_queue.py`:\
+  \ batch, not formation | the built-in default of the machine PERFORMANCE key `lib.batch_landing._LAND_BATCH_MAX`\
+  \ (band 1..8; 1 forms every land alone — batching off), set per machine with `config\
+  \ set`; `consumed: false` |\n| `RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` | **3** |\
+  \ rule 13 — batch rides since the last completed verify after which a branch is\
+  \ routed SOLO | code constant `_LAND_RIDES_WITHOUT_LANDING_SOLO_THRESHOLD` in `bin/lib/batch_landing.py`\
+  \ CITING this spec; `consumed: false` |\n\n**`BATCH_MAX` is the machine PERFORMANCE\
+  \ key `lib.batch_landing._LAND_BATCH_MAX`, not a\nspec-consumed scalar.** It changes\
+  \ how many lands one verify carries, never a member's verdict (rule\n4 re-queues\
+  \ every member of a red batch), so each machine sets it inside its band with `config\
+  \ set`\nand `config list` shows its value and source (SPEC-1031 rules 2 and 4);\
+  \ an unset machine forms\nbatches at the built-in default. `consumed: true` is reserved\
+  \ for governance scalars an existing\ncontrol-point READS from the spec.\n\n**`RIDES_WITHOUT_LANDING_SOLO_THRESHOLD`\
+  \ is 3, and it is AUTHOR-DECLARED AND REVISABLE — never\nmeasured.** A later reader\
+  \ must not treat it as derived from anything. The readings it was chosen\nAGAINST,\
+  \ recorded beside it so the choice can be re-argued rather than rediscovered: `task/`\n\
+  rode four batches, `task/` rode six, and the external consult\n(`decisions/land-conveyor-blindspots-audit-adhoc.yaml`,\
+  \ finding 3) proposed one or two passenger\nturn-backs. It is a code constant —\
+  \ ordinary tuning that belongs beside the code that enforces it,\nwith a citation\
+  \ back here, so re-tuning costs nothing.\n\nMeasured basis: over 675 distinct branches\
+  \ attempting to land in August 2026, 8.8% were ever red on\ntheir own candidate\
+  \ leg. At that rate a batch of 4 is all-green about 69% of the time; 8+ inverts\
+  \ the\ntrade (all-green drops below half). 4 also halves cleanly, which keeps the\
+  \ eventual bisection\noptimisation (out of scope here) at two passes rather than\
+  \ an uneven three.\n\n**The 69% ASSUMES member reds are INDEPENDENT** — it is 0.912^4\
+  \ — and they may not be: a broken\n`main`, a flaky pinned test, or one bad merge-base\
+  \ correlates redness across a batch, pushing the\nall-green rate DOWN and the re-queue\
+  \ bill UP. The trial must REPORT the observed batch-level red rate\nagainst this\
+  \ 69% rather than assume it; if reds correlate materially, `BATCH_MAX` is the parameter\
+  \ to\nre-tune, and it is a machine setting precisely so that costs nothing to change.\n\
+  \nProbes belong AT and OVER the cap: a queue of exactly `BATCH_MAX` forms one batch;\
+  \ a queue of\n`BATCH_MAX + 1` forms a full batch plus a remainder that waits, never\
+  \ an oversized batch.\n\n**`BATCH_MAX` and the code-less cohort (rule 9).** The\
+  \ cap is not re-tuned and gets no\nsecond value. A cohort batch exists only where\
+  \ a cohort land verifies, and there the cap means what\nit means for any batch;\
+  \ a cohort land that runs no suite forms no batch, so there is nothing for a\ncap\
+  \ to bound.\n\n## Rationale\n\nMeasured, not assumed (2026-08-16):\n\n- **Verify\
+  \ cost is FIXED, not proportional to the change.** Regression over 165 (audited-files,\n\
+  \  verify-seconds) pairs gives ~515s base and −1.0s per file — the slope is zero.\
+  \ audited 53\n  files in 438s; a 2-file land took 460s. So per-change cost cannot\
+  \ be reduced by making changes\n  smaller; only the NUMBER of passes can fall.\n\
+  - **That fixed cost now exceeds what a worker survives.** August median land verify\
+  \ 325s (n=743), p95\n  743s, against a ~590s harness per-call cap; on 2026-08-15,\
+  \ 22% of dispatched workers halted\n  `blocked-on-land`. SPEC-0132 Rule 4's Tier-C\
+  \ triggers (median >5min OR p95 >12min) have both fired.\n- **Test selection is\
+  \ unavailable as a lever here.** 70% of the 830-file corpus asserts on kernel\n\
+  \  SOURCE TEXT rather than executing it; the union of executed lines across a traced\
+  \ sample covers only\n  6.1% of `worktree.py`. Coverage cannot observe those dependencies\
+  \ and selection on it would produce\n  a false green. The suite can be amortised\
+  \ but not shortened.\n- **Queueing is deliberate and correct.** serialized merge→verify→ff\
+  \ after measuring 71% of\n  the verify budget as redo (11.6h discarded against 4.6h\
+  \ that counted, all `retry-main-advanced`).\n  Racing is worse. What that change\
+  \ did not provide is a way to survive the queue it created.\n\nPrior art extended\
+  \ rather than replaced: SPEC-0132 (governor + ladder) (serialized span),\nSPEC-0077\
+  \ (doubled verify) (pinned-verdict cache, keyed on the whole candidate tree so it\n\
+  only hits on a repeated attempt of the SAME branch — it does not amortise across\
+  \ different changes).\nIndustry precedent for this exact shape: Bors / GitHub merge\
+  \ queue (batch then bisect), Zuul\n(speculative chains).\n\n### History moved from\
+  \ the rule body\n\nFrom «4. One pass, then all-or-nothing — and a red batch NEVER\
+  \ reforms itself»:\n\nRate, so the rule is sized rather than guessed: 6 of 48 branches\
+  \ that landed on 2026-08-17 carried a\nrebaseline (~12.5%), giving a batch of N\
+  \ a superseder with probability ≈ 1 − 0.875^N — 23% at N=2,\n41% at N=4. BOTH formations\
+  \ that day contained one and BOTH died red; under this rule neither would\nhave\
+  \ formed, costing zero successful batches and saving two combined passes. The second\
+  \ occurrence\nlanded the cost entirely on a bystander: a filing land of two YAML\
+  \ cards (an inert diff) was batched\nwith a superseding peer and reddened by it,\
+  \ `paying_members` 1 of 2.\n\nFrom «9. A slot holder YIELDS to a strictly cheaper\
+  \ unmarked queued class»:\n\n**THE OBSERVATION THAT MADE IT CONCRETE.** On 2026-08-27\
+  \ the mark fired repeatedly for task/\n— a branch whose own land had ABORTED on\
+  \ a pinned verify failure at 11:19:22Z — while the admission\nqueue grew to 10 and\
+  \ the oldest waiter sat at 3629 s. A mark that outranks EVERYTHING hands a\nfailing\
+  \ branch repeated priority over branches that would have cleared, including ones\
+  \ that would\nhave cleared for free.\n\nFrom «11. A candidate whose WORKTREE IS\
+  \ DIRTY does not consume a batch place»:\n\n**THE MEASURED COST OF COUNTING IT**\
+  \ (2026-08-27): 9 `uncommitted-worktree-dirt` exclusions\nacross 45 formations in\
+  \ one day, and task/ dropped from two consecutive formations\n(09:40:25Z, 09:51:30Z)\
+  \ with `events.jsonl` as its ONLY dirty path. The burden fell on PEERS alone,\n\
+  and asymmetrically: a HEAD reaches formation ALREADY folded clean by `cmd_land`s\
+  \ two\n`_fold_trailing_bookkeeping` calls, while a peer`s tree is folded by nobody.\
+  \ So the two candidate\npositions were being judged by different standards — not\
+  \ by design, but as a side effect of where\nthe fold runs.\n\n## Verification\n\n\
+  - **Rule 15 (the queued pre-merge — four differentials, `tests/test_t12150_queued_land_branch_freshness.py`):**\n\
+  \  (a) FRESHNESS — a branch parked on a real held reservation gains main's commit\
+  \ WHILE STILL\n  PARKED and the merge path is invoked exactly ONCE across the whole\
+  \ land; with\n  `YITC_LAND_QUEUED_PREMERGE=0` the same fixture leaves the branch\
+  \ untouched during the wait and\n  merges only after acquisition. (b) WATERMARK\
+  \ — a persistent blocking conflict costs exactly ONE\n  attempt across many throttle\
+  \ intervals and then leaves the queue (`tests/test_t13345_queued_conflict_leaves_queue.py`:\
   \ the land aborts while the holder still\n  holds; with the kill switch it is still\
   \ parked at release), and an unproven behind-count is\n  recorded as a non-consumable\
   \ `error`, never as a consumable `current`. (c) FAIL-OPEN — an injected exception\n\
@@ -2397,14 +2399,14 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/batch_landing.py#_emit_land_batch_formed: ff36b48a6277c1c41beff47f26186d62d8a1bf282c15de5c7329e9aaf13594a2
+  bin/lib/batch_landing.py#_emit_land_batch_formed: 3c0180c13cf09116378ec9b9023af6452edd8fc99dbbc8b7b11635f1ceaa48df
   bin/lib/batch_landing.py#_emit_land_member_verdicts: 91bbf4698d6acd7531c34e0ab51f3775213c46a525526aa11b02b13186c63420
   bin/lib/batch_landing.py#_land_addressee_gone: 216d05af011bfaf5d2fb455335b599e2ab9c1b7e8616142999ca551f227ab456
   bin/lib/batch_landing.py#_land_batch_engagement: 6f0f4f4dd72e23a55002fcc817cdb351317dcdeed3f4e729def2b3d5b2e25b5c
   bin/lib/batch_landing.py#_land_batch_foreign_merges: 45ddd72592a346f428bab170db59d9d87ef3cfa570a883673cc79cb7b9d3bde2
   bin/lib/batch_landing.py#_land_batch_formation_ids: efb09da9dd4b8f7e55db09f8756dee6a9481132f0650ebd9108d93cf503c4261
   bin/lib/batch_landing.py#_land_batch_ineligible_branches: 1410159144b06d707674d12b8c820c1796ba168e6829001e8b3d662e5102f66d
-  bin/lib/batch_landing.py#_land_batch_members: 7c925eb32a88c52b446cca1805978d2d889e0af330e95f575e17d269bee48c0f
+  bin/lib/batch_landing.py#_land_batch_members: 528511a33f5caaa3488a2540d42e89bf698d7d365da582eb68f872aafeaceddc
   bin/lib/batch_landing.py#_land_batch_verify_path_touch: 153524acb9e4f5f663243863d0c413ff6f73f85b3f46bb4eb853bdcddc046ea7
   bin/lib/batch_landing.py#_land_clear_yield_offer: b24ed066be5706662defcd7727513b012113c9729411a9ae871f1565f8a5e7be
   bin/lib/batch_landing.py#_land_consume_yield_offer: a687199e81e30ea75f2d7166a354252a6edf56fe8dbea2949c36bf67e4e3a53a
@@ -2412,7 +2414,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_cost_class: 32ee657f0890d48f1721819c7deee1f4773c5734082ba59f46adbc6ce45183a0
   bin/lib/batch_landing.py#_land_dissolve_batch: 712c4651e9041421c1c4ecf468843afbbeef22e416317de855b0e680d5322c17
   bin/lib/batch_landing.py#_land_drop_dead_members: f43df5e723e0251634593a0c55330004c16ccb30bfbac0d89b9cf73270004437
-  bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
+  bin/lib/batch_landing.py#_land_form_batch: f10edfeeea336ebbc3a5b69791f1afbb6954f6a8dc276a70a4e270d1e55eecb1
   bin/lib/batch_landing.py#_land_mark_red_assertions: d329a77d50e5930c49161eeb9f6dde8fca7ca86d4913827e1b82e5e3db6757ec
   bin/lib/batch_landing.py#_land_median_verify_wall_ms: 3553a9e331e8e5e22a45cd559b2b1be560deaf419121c3c035057c07181af064
   bin/lib/batch_landing.py#_land_member_claim_held: 8c9c247f06d1a629b7f7b88c963ec44edddae28a765eda4d0612d0fe7336ab79

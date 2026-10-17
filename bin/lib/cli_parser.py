@@ -2057,8 +2057,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                              "this flag (SPEC-0034 §Audit posture — plan-lifecycle audits never run routine).")
         ap.add_argument("--prompt-extra", dest="prompt_extra",
                         help="extra context appended to prompt")
-        ap.add_argument("--from-file", dest="from_file",
-                        help="path to file containing extra prompt content (appended after --prompt-extra)")
+        ap.add_argument("--from-file", dest="from_file", action="append",
+                        help="path to a file containing extra prompt content (appended after "
+                             "--prompt-extra); repeatable — every file is attached, in the order "
+                             "given, each under its own heading (T-13996)")
         # T-11407 (SPEC-0036 §Packet preview / X-1060, owner-authorized 2026-08-21). The asymmetry
         # this closes, measured at <project> T-0435: the only way to learn what the auditor will
         # actually SEE was to invoke it — which costs a ceiling pass, and past the ceiling costs an

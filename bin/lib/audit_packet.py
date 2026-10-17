@@ -336,7 +336,8 @@ def _format_adoption_evidence_lines(evidence_events, keep_types=None) -> str:
     render every other value literally.
 
     T-13710 — `keep_types` (the types never summarized: those the audited card's acceptance NAMES,
-    T-10708, plus the two P8 adoption types — the audit-post caller passes both) turns on
+    T-10708, plus the two P8 adoption types and `state_checked` (T-13998) — the audit-post caller
+    passes them) turns on
     RUN COLLAPSING: a run of consecutive rows of ONE type the acceptance does not name is rendered as
     ONE summary line (type, count, first/last ts, subjects, and every distinct value per key) when
     that line is shorter than the rows it replaces. Measured before the change: in 9 of the 10 largest
@@ -2305,9 +2306,13 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             # reuses the SAME rendering. Render them so the proof is visible.
             # T-13710 — rows of a type the acceptance names, and the two P8 adoption types (each
             # row is a proof judged on its own payload), are never folded into a run summary.
+            # T-13998 (X-2031) — nor are `state_checked` rows, named or not: each is a re-reading of
+            # an acceptance probe, and a summary unpairs a value from its ts, so the auditor could
+            # not tell the latest (superseding) reading from a superseded one.
             from lib.cli import P8_EVIDENCE_TYPES, _card_named_event_types   # lazy: cli.py imports THIS module
             adoption = _format_adoption_evidence_lines(
-                evidence_events, keep_types=_card_named_event_types(task) | set(P8_EVIDENCE_TYPES))
+                evidence_events, keep_types=_card_named_event_types(task) | set(P8_EVIDENCE_TYPES)
+                | {"state_checked"})
         else:
             adoption = ("(no P8 adoption event — consumer_read_evidence / live_trigger_evidence — and no\n"
                         "other AC-probe event — e.g. spec_edited tied via cites: or via a spec file in the\n"

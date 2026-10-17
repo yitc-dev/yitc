@@ -379,7 +379,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/batch_landing.py#_land_form_batch: f086beed83879328510550792be58aa2b75a829732eb90210a37c50f21b21b7c
+  bin/lib/batch_landing.py#_land_form_batch: f10edfeeea336ebbc3a5b69791f1afbb6954f6a8dc276a70a4e270d1e55eecb1
   bin/lib/git_env.py#_git_child_env: 89dfccef69566d938d60f19ca3b5eb2477054b90f7057659cced1b323c82afaf
   bin/lib/worktree.py#_await_land_tail_marker: 4c5ae49e9f12a36fb6fb9b7a96d4b426e2b51fac4a37ce1fb659b7a6d4bf1f72
   bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5

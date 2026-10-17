@@ -6109,9 +6109,18 @@ CONSUMER_INDETERMINATE_CLASSES = ("truncated", "duplicate-or-stale", CONSUMER_ID
 #: `<run>/out-consumer`, beside the kernel legs' `cand` / `pinned` under the same `box_run_dir`.
 CONSUMER_LEG = "consumer"
 
+#: SPEC-1032 rules 1 and 3 (T-13994) — the width policies a consumer declares as `verify.venue.width`.
+#: `whole` (also the reading of an absent key): every pass runs at the box's thread count. `per-live-pass`:
+#: a pass runs at that count divided by the consumer passes live on the box at its admission, itself
+#: included, floor 1 — computed on the box, under the admission lock, from the prologue's own count.
+CONSUMER_WIDTH_WHOLE = "whole"
+CONSUMER_WIDTH_PER_LIVE_PASS = "per-live-pass"
+CONSUMER_WIDTH_POLICIES = (CONSUMER_WIDTH_WHOLE, CONSUMER_WIDTH_PER_LIVE_PASS)
 
-def _engine_identity(root):
-    """The identity of the engine release installed at `root`: `{bin_digest, files, source_ref}`.
+
+def _engine_identity(root, local=(), skip=()):
+    """The identity of the engine release installed at `root`: `{bin_digest, files, source_ref,
+    tree_digest}`.
 
     SELF-CONTAINED ON PURPOSE — the box computes the SAME function: `consumer_box_script` embeds this
     function's own source text, so the host's reading and the box's cannot be two spellings of one
@@ -6119,17 +6128,37 @@ def _engine_identity(root):
     `<relative path> NUL <sha256 of its bytes>` lines — the code that runs, not the directory's
     metadata; byte-cache dirs and files (`__pycache__`, `*.pyc`) are left out, because running the
     engine writes them. `source_ref` is the release tag the root's `release-manifest.yaml` names
-    (None for a source checkout). `files` 0 → `bin_digest` None: there is no engine there."""
+    (None for a source checkout). `files` 0 → `bin_digest` None: there is no engine there.
+
+    `local` (T-13994, SPEC-1032 rule 6) — the install's own paths, relative to `root`
+    (`_install_local_paths`, which the host passes and the box text renders): a file at or under one
+    of them is left out, as the byte cache is, because the release does not carry it. `bin_digest`
+    also reads past what the image build reads past — symlinks, anything not a regular file, and a
+    path with a component matching `skip` — so a file the build leaves off the image never moves it.
+
+    `tree_digest` (T-13994, SPEC-1032 rules 5-6) — where `root` holds a `release-manifest.yaml` (a
+    release install), the same fold over EVERY regular file under `root`, not only `bin/`, leaving out
+    `local`, symlinks and every path with a component matching a pattern of `skip`
+    (`release.NON_ARTIFACT_COMPONENTS`, which the host passes and the box text renders — the image
+    build's own exclusion), so a file added, changed or removed anywhere moves the identity exactly as
+    it fails the image's digest. None for a root with no manifest (a source checkout, which no
+    consumer image ships)."""
+    import fnmatch as _fn
     import hashlib as _hl
     import os as _os
     root = _os.path.realpath(str(root))
     h, n = _hl.sha256(), 0
     for dirpath, dirnames, filenames in _os.walk(_os.path.join(root, "bin")):
-        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
+        dirnames[:] = sorted(d for d in dirnames
+                             if d != "__pycache__" and not any(_fn.fnmatch(d, pat) for pat in skip))
         for name in sorted(filenames):
-            if name.endswith((".pyc", ".pyo")):
+            if name.endswith((".pyc", ".pyo")) or any(_fn.fnmatch(name, pat) for pat in skip):
                 continue
             path = _os.path.join(dirpath, name)
+            rel = _os.path.relpath(path, root).replace(_os.sep, "/")
+            if _os.path.islink(path) or not _os.path.isfile(path) \
+                    or any(rel == p or rel.startswith(p + "/") for p in local):
+                continue
             try:
                 with open(path, "rb") as fh:
                     data = fh.read()
@@ -6148,13 +6177,55 @@ def _engine_identity(root):
                     break
     except OSError:
         pass
-    return {"bin_digest": h.hexdigest() if n else None, "files": n, "source_ref": source_ref}
+    tree_digest = None
+    if _os.path.isfile(_os.path.join(root, "release-manifest.yaml")):
+        th = _hl.sha256()
+        for dirpath, dirnames, filenames in _os.walk(root):
+            dirnames[:] = sorted(d for d in dirnames if not any(_fn.fnmatch(d, pat) for pat in skip))
+            for name in sorted(filenames):
+                path = _os.path.join(dirpath, name)
+                rel = _os.path.relpath(path, root).replace(_os.sep, "/")
+                if any(_fn.fnmatch(part, pat) for part in rel.split("/") for pat in skip) \
+                        or _os.path.islink(path) or not _os.path.isfile(path) \
+                        or any(rel == p or rel.startswith(p + "/") for p in local):
+                    continue
+                try:
+                    with open(path, "rb") as fh:
+                        data = fh.read()
+                except OSError:
+                    data = b"<unreadable>"
+                th.update(rel.encode("utf-8", "surrogateescape") + b"\0"
+                          + _hl.sha256(data).hexdigest().encode() + b"\n")
+        tree_digest = th.hexdigest()
+    return {"bin_digest": h.hexdigest() if n else None, "files": n, "source_ref": source_ref,
+            "tree_digest": tree_digest}
 
 
 def engine_release_identity(engine_root) -> dict:
     """SPEC-1032 rule 5 — the engine release identity the host reads off the engine it runs, which
-    the box's must equal (`_engine_identity`, the one rule both sides compute)."""
-    return _engine_identity(engine_root)
+    the box's must equal (`_engine_identity`, the one rule both sides compute). T-13994: the
+    install's own paths (`release.INSTALL_LOCAL_PATHS`) are left out, here and in the box text."""
+    return _engine_identity(engine_root, _install_local_paths(), _release_non_artifact())
+
+
+def _install_local_paths() -> tuple:
+    """T-13994 — `release.INSTALL_LOCAL_PATHS`, the one carrier both identity readings take: the
+    host passes it to `_engine_identity`, `consumer_box_script` renders it into the box text."""
+    try:  # the release module under either import spelling (`_git`'s way)
+        from lib import release as _release
+    except ImportError:
+        import release as _release                        # type: ignore[no-redef]
+    return tuple(_release.INSTALL_LOCAL_PATHS)
+
+
+def _release_non_artifact() -> tuple:
+    """T-13994 — `release.NON_ARTIFACT_COMPONENTS`, the image build's own exclusion, which both
+    identity readings take for the whole-tree fold (passed by the host, rendered into the box text)."""
+    try:  # the release module under either import spelling (`_git`'s way)
+        from lib import release as _release
+    except ImportError:
+        import release as _release                        # type: ignore[no-redef]
+    return tuple(_release.NON_ARTIFACT_COMPONENTS)
 
 
 def declared_check_passes(got, check) -> bool:
@@ -6212,7 +6283,7 @@ def consumer_plan_digest(plan: dict) -> str:
 
 
 def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, checks=(),
-                     width: int, request: str, attempt: int = 1) -> dict:
+                     width: int, request: str, attempt: int = 1, width_policy=None) -> dict:
     """SPEC-1032 rules 4-5 — the REQUEST of one consumer pass, computed BEFORE any transport so a
     fault on the way can never redefine what was asked about (`shipped_identity`'s stance):
     `{kind, request, attempt, ref, cand_sha, cand_tree, box_cand_ref, plan, plan_digest, engine_root,
@@ -6220,8 +6291,12 @@ def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, c
     snapshot, `working_tree_snapshot`); `plan` is `consumer_plan`'s; `engine_root` the ABSOLUTE path
     of the engine release the host runs, which the box runs from the same path; `checks` the
     declaration's environment checks (`venue.consumer_declaration`); `width` the width the pass runs
-    at. Raises RemoteVerifyError on what makes the request unanswerable: a relative engine path, no
-    engine there, a width that is not a positive integer, a malformed check, a plan that names no
+    at — the box's thread count. `width_policy` (T-13994, SPEC-1032 rule 3) is the declared
+    `verify.venue.width`: None or `whole` adds nothing (the request is the one it was);
+    `per-live-pass` is recorded on the request as `width_policy`, and the box then divides `width`
+    by the live passes at its admission. Raises RemoteVerifyError on what makes the request
+    unanswerable: a relative engine path, no engine there, a width that is not a positive integer, a
+    width policy that is not one of `CONSUMER_WIDTH_POLICIES`, a malformed check, a plan that names no
     tree or another tree than the one being shipped (it was taken over another tree), or a ref git
     cannot resolve."""
     repo_root = Path(repo_root)
@@ -6231,6 +6306,9 @@ def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, c
                                 f"the engine from the host's own absolute path (SPEC-1032 rule 6)")
     if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
         raise RemoteVerifyError(f"the width {width!r} is not a positive integer")
+    if width_policy is not None and width_policy not in CONSUMER_WIDTH_POLICIES:
+        raise RemoteVerifyError(f"the width policy {width_policy!r} is not one of "
+                                f"{', '.join(CONSUMER_WIDTH_POLICIES)}")
     want = []
     for c in checks or ():
         if not (isinstance(c, dict) and all(isinstance(c.get(k), str) for k in ("name", "cmd", "expect"))):
@@ -6249,11 +6327,14 @@ def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, c
     if ran != cand_tree:
         raise RemoteVerifyError(f"the plan was taken over tree {str(ran)[:12]}, not the shipped "
                                 f"{cand_tree[:12]} — take the plan again over the tree being shipped")
-    return {"kind": "consumer", "request": request, "attempt": int(attempt), "ref": ref,
-            "cand_sha": cand_sha, "cand_tree": cand_tree,
-            "box_cand_ref": box_ref(request, attempt, "cand"),
-            "plan": plan, "plan_digest": consumer_plan_digest(plan),
-            "engine_root": str(eng), "engine_identity": ident, "checks": want, "width": int(width)}
+    req = {"kind": "consumer", "request": request, "attempt": int(attempt), "ref": ref,
+           "cand_sha": cand_sha, "cand_tree": cand_tree,
+           "box_cand_ref": box_ref(request, attempt, "cand"),
+           "plan": plan, "plan_digest": consumer_plan_digest(plan),
+           "engine_root": str(eng), "engine_identity": ident, "checks": want, "width": int(width)}
+    if width_policy == CONSUMER_WIDTH_PER_LIVE_PASS:
+        req["width_policy"] = CONSUMER_WIDTH_PER_LIVE_PASS
+    return req
 
 
 def consumer_box_inputs(req: dict) -> dict:
@@ -6287,6 +6368,7 @@ rm -rf "$OUT"; mkdir -p "$OUT"
 # atomic or not at all — before anything is checked out or run. Empty when the text is rendered
 # without one (`consumer_box_script(admission="")`).
 %(admission)s
+%(width_step)s
 # THE PER-REQUEST CHECKOUT of the shipped commit, from this request's own transport ref (SPEC-1029
 # rule 3) — fresh every pass, so two passes on one box share no working tree.
 git -C "$REPO" worktree prune
@@ -6317,7 +6399,7 @@ PYCHECKS
 python3 -I - "$ENGINE" > "$OUT/engine.json" <<'PYENGINE'
 %(engine_identity)s
 import json, sys
-print(json.dumps(_engine_identity(sys.argv[1])))
+print(json.dumps(_engine_identity(sys.argv[1], %(install_local)s, %(non_artifact)s)))
 PYENGINE
 # IDENTITY = the tree that RUNS: taken LAST before the run — after the checks, which may write — over
 # a temporary index seeded from the checkout's own (the kernel leg's way, T-13002). Any failing step
@@ -6355,7 +6437,7 @@ checkout = subprocess.run(["git", "-C", d, "rev-parse", "HEAD^{tree}"], text=Tru
                           capture_output=True).stdout.strip() or None
 env = {"schema": %(schema)r, "kind": "consumer", "request": req, "attempt": int(att),
        "tree": tree, "checkout_digest": checkout, "engine": load("engine.json"),
-       "checks": load("checks.json"), "width": int(w), "result": load("result.json"),
+       "checks": load("checks.json"), "width": int(w), %(width_env)s"result": load("result.json"),
        "completed_at": time.strftime("%%Y-%%m-%%dT%%H:%%M:%%SZ", time.gmtime()),
        "completion_marker": "COMPLETE"}
 open(dst + ".tmp", "w").write(json.dumps(env))
@@ -6365,6 +6447,22 @@ PYENV
 rm -f "$LEASE"
 echo CONSUMER-DONE
 """
+
+
+#: T-13994 (SPEC-1032 rule 3) — the `per-live-pass` width step, placed right after the admission. The
+#: prologue leaves `LIVE_S6` = the OTHER live Stage-6 passes it counted under the lock when it admitted
+#: this one (on a consumer venue every Stage-6 pass is a consumer pass, rule 2), so the pass runs at the
+#: box's thread count divided by those plus itself, floor 1. With no admission rendered there is no
+#: count, and the pass reads as alone. The derivation is written beside the run for the envelope, where
+#: the host checks the width against it (`validate_consumer_envelope`).
+_CONSUMER_WIDTH_STEP = r"""# THE WIDTH POLICY (SPEC-1032 rule 3, T-13994): per-live-pass.
+THREADS=$W
+LIVE_AT_ADMISSION=${LIVE_S6:-0}
+case "$LIVE_AT_ADMISSION" in ''|*[!0-9]*) LIVE_AT_ADMISSION=0 ;; esac
+W=$(( THREADS / (LIVE_AT_ADMISSION + 1) ))
+[ "$W" -ge 1 ] || W=1
+printf '{"policy": "per-live-pass", "threads": %s, "live": %s, "width": %s}\n' "$THREADS" "$LIVE_AT_ADMISSION" "$W" > "$OUT/width.json"
+echo "consumer_width policy=per-live-pass threads=$THREADS live=$LIVE_AT_ADMISSION width=$W" >&2"""
 
 
 def _box_shell_path(path: str) -> str:
@@ -6389,8 +6487,13 @@ def consumer_box_script(req: dict, *, repo_git: str = BOX_REPO_GIT, runs_dir: st
     the plan. Admission to the box (SPEC-1032 rule 3) is the caller's `admission` text — the
     consumer box lease prologue (`box_lease_prologue(consumer=True)`), placed before the checkout and
     given the lease names it reads (`leases_dir`); `run_consumer_pass` passes it, and the lease is
-    removed when the envelope is written."""
+    removed when the envelope is written.
+
+    T-13994 (SPEC-1032 rule 3) — a request recording `width_policy: per-live-pass` gets the width step
+    (`_CONSUMER_WIDTH_STEP`) after the admission and a `width_derivation` in its envelope; every other
+    request (`whole` and an absent key alike) renders one text with neither."""
     import inspect
+    per_live = req.get("width_policy") == CONSUMER_WIDTH_PER_LIVE_PASS
     return _CONSUMER_BOX_TEMPLATE % {
         "engine": shlex.quote(str(req["engine_root"])),
         "runs": _box_shell_path(runs_dir), "repo": _box_shell_path(repo_git),
@@ -6398,7 +6501,12 @@ def consumer_box_script(req: dict, *, repo_git: str = BOX_REPO_GIT, runs_dir: st
         "leg": CONSUMER_LEG, "schema": CONSUMER_ENVELOPE_SCHEMA,
         # substituted as VALUES, so their own `%` is never read as a format specifier
         "admission": admission,
-        "engine_identity": inspect.getsource(_engine_identity)}
+        "width_step": _CONSUMER_WIDTH_STEP if per_live else "",
+        "width_env": '"width_derivation": load("width.json"), ' if per_live else "",
+        "engine_identity": inspect.getsource(_engine_identity),
+        # T-13994: the install's own paths, as a Python literal of the one carrier
+        "install_local": repr(_install_local_paths()),
+        "non_artifact": repr(_release_non_artifact())}
 
 
 def _read_consumer_plan(path) -> tuple:
@@ -6526,6 +6634,28 @@ def _consumer_classify(failed_checks) -> str:
     return "venue-fault"
 
 
+def consumer_expected_width(request: dict, env: dict) -> "int | None":
+    """T-13994 (SPEC-1032 rules 3 and 5) — the width a consumer pass must have run at. A request with
+    no `width_policy` (absent or `whole`): its own `width`, the box's thread count, as before. A
+    `per-live-pass` request: `width // (live + 1)`, floor 1, where `live` is the count the box recorded
+    at the admission (`env["width_derivation"]`) — and only when that record is whole: a mapping
+    naming the policy, `threads` equal to the requested width, a non-negative integer `live` and a
+    `width` equal to the envelope's. Anything else is None, which no width equals. PURE."""
+    width = request.get("width") if isinstance(request, dict) else None
+    if not (isinstance(request, dict) and request.get("width_policy") == CONSUMER_WIDTH_PER_LIVE_PASS):
+        return width
+    d = env.get("width_derivation") if isinstance(env, dict) else None
+    if not isinstance(d, dict):
+        return None
+    live = d.get("live")
+    if d.get("policy") != CONSUMER_WIDTH_PER_LIVE_PASS or isinstance(live, bool) \
+            or not isinstance(live, int) or live < 0 or isinstance(width, bool) \
+            or not isinstance(width, int) or width <= 0 or d.get("threads") != width:
+        return None
+    got = max(1, width // (live + 1))
+    return got if d.get("width") == got and env.get("width") == got else None
+
+
 def validate_consumer_envelope(text: "str | None", *, request: dict, seen: "set | tuple" = ()) -> dict:
     """SPEC-1032 rule 5 — the complete check of a consumer pass's envelope, and the only place its
     outcome is decided. Returns `{outcome, indeterminate_class, checks, failing, layers, result,
@@ -6536,7 +6666,9 @@ def validate_consumer_envelope(text: "str | None", *, request: dict, seen: "set 
 
     `checks` is the full roster in a FIXED order, passing entries included. The consumer identity
     checks — the tree that ran, the engine release identity, the plan (and the sweep it planned), the
-    declared checks' outputs, the width — each fail to `consumer-identity-mismatch`, never GREEN."""
+    declared checks' outputs, the width (`consumer_expected_width`: the box's thread count, or under
+    `per-live-pass` its share at the admission, T-13994) — each fail to `consumer-identity-mismatch`,
+    never GREEN."""
     checks: list = []
 
     def chk(name, ok, detail=""):
@@ -6578,10 +6710,12 @@ def validate_consumer_envelope(text: "str | None", *, request: dict, seen: "set 
     chk("consumer_checks", not _consumer_check_faults(env.get("checks"), request.get("checks") or []),
         ", ".join(_consumer_check_faults(env.get("checks"), request.get("checks") or []))
         or f"{len(request.get('checks') or [])} passed")
-    budget = (result or {}).get("layer_worker_budget", request.get("width"))
-    chk("consumer_width", env.get("width") == request.get("width") == budget
-        and (result or {}).get("workers") == request.get("width"),
-        f"envelope {env.get('width')} layers {budget} requested {request.get('width')}")
+    want_width = consumer_expected_width(request, env)
+    budget = (result or {}).get("layer_worker_budget", want_width)
+    chk("consumer_width", want_width is not None and env.get("width") == want_width == budget
+        and (result or {}).get("workers") == want_width,
+        f"envelope {env.get('width')} layers {budget} expected {want_width} "
+        f"requested {request.get('width')}")
     plan_sweep = (request.get("plan") or {}).get("sweep") or {}
     ran_sweep = (result or {}).get("sweep") if isinstance((result or {}).get("sweep"), dict) else {}
     chk("consumer_sweep", result is not None and ran_sweep.get("paths") == plan_sweep.get("paths")
@@ -6706,7 +6840,7 @@ def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint:
 
 def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_only=None, checks=(),
                    engine_root=None, request: "str | None" = None, attempt: int = 1,
-                   seen: "set | tuple" = (), on_wait=None, _transport=None) -> dict:
+                   seen: "set | tuple" = (), on_wait=None, _transport=None, width_policy=None) -> dict:
     """ONE declared consumer Stage-6 pass that the rule-2 order sent to its venue (`decision`, reason
     `venue`), run on the box. Same result shape as `route` — `{venue, reason, note, outcome,
     indeterminate_class, cand, pinned, metrics, partition, result}` — plus `guard`: the box layer
@@ -6722,6 +6856,13 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
     thread count (`consumer_request_width` of the record's fingerprint); the request, binding the
     engine release at `engine_root` (this host's by default) and the declared `checks`; the
     transport (`run_consumer_pass`, injectable for a test); then `validate_consumer_envelope`.
+
+    T-13994 — `width_policy` is the declaration's `verify.venue.width` (None = `whole`): under
+    `per-live-pass` the request records it, the box takes its share at the admission, and the result's
+    `w_derivation` names the policy, the thread count and the live count it ran at (`venue_width_live`
+    on the Stage-6 row). A layer the box's `list` named no unit for while the shipped plan listed units
+    (`land_verify_legs.venue_empty_layers`) is named on the row as `venue_empty_layers` (the box's
+    own output, relayed, names it too).
 
     Never a local re-run and never a pass on a fault (SPEC-1029 rule 7): a box still queued at the
     admission bound is INDETERMINATE `venue-busy`; no envelope with a leg record naming
@@ -6743,6 +6884,15 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
             result["shipped"] = {"cand_tree": req.get("cand_tree"), "cand_sha": req.get("cand_sha"),
                                  "push_s": (ran or {}).get("push_s")}
             result["w_derivation"] = {"workers": req.get("width"), "bound": "box-threads"}
+            if req.get("width_policy") == CONSUMER_WIDTH_PER_LIVE_PASS:
+                # T-13994: the width the box took at its admission — known only from a judged
+                # envelope; before one exists it is unknown, never the thread count (T-0358)
+                env = (validated or {}).get("envelope") or {}
+                d = env.get("width_derivation") if isinstance(env, dict) else None
+                ran_width = consumer_expected_width(req, env) if validated is not None else None
+                result["w_derivation"] = {"workers": ran_width, "bound": CONSUMER_WIDTH_PER_LIVE_PASS,
+                                          "threads": req.get("width"),
+                                          "live": (d or {}).get("live") if ran_width is not None else None}
         if ran is not None:
             result["run"] = {"both_legs_wall_s": ran.get("wall_s")}
         if validated is not None:
@@ -6754,10 +6904,20 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
         for key in ("layer_worker_budget", "flaky_retry"):
             if key in box_result:
                 guard[key] = box_result[key]
+        metrics = venue_verify_metrics(result)
+        if (result.get("w_derivation") or {}).get("bound") == CONSUMER_WIDTH_PER_LIVE_PASS:
+            metrics["venue_width_live"] = result["w_derivation"].get("live")
+        try:  # the layer-row reader, under either import spelling (`_git`'s way)
+            from lib import land_verify_legs as _lvl
+        except ImportError:
+            import land_verify_legs as _lvl                   # type: ignore[no-redef]
+        empty = _lvl.venue_empty_layers(guard["layers"])
+        if empty:                      # ABSENT, never `[]`, when no layer is named (T-0358)
+            metrics["venue_empty_layers"] = empty
         return {"venue": record.get("box"), "reason": decision.get("reason"),
                 "note": decision.get("note") or "", "outcome": outcome, "indeterminate_class": cls,
                 "indeterminate_detail": result.get("indeterminate_detail"),
-                "cand": list(cand), "pinned": [], "metrics": venue_verify_metrics(result),
+                "cand": list(cand), "pinned": [], "metrics": metrics,
                 "partition": None, "result": result, "guard": guard,
                 "output": list((ran or {}).get("output") or [])}
 
@@ -6780,7 +6940,8 @@ def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_o
         # the engine release this host runs — the root holding the `bin/lib/` this module is in
         req = consumer_request(repo_root, ref, plan=plan,
                                engine_root=engine_root or Path(__file__).resolve().parents[2],
-                               checks=checks, width=width, request=request, attempt=attempt)
+                               checks=checks, width=width, request=request, attempt=attempt,
+                               width_policy=width_policy)
         ran = (_transport or run_consumer_pass)(repo_root, record["box"], req, user=user,
                                                 fingerprint=record.get("fingerprint"), on_wait=on_wait)
     except VenueAdmissionWait as e:

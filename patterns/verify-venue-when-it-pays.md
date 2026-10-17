@@ -59,7 +59,9 @@ project's machine:
 1. **Declare it.** In the project's `yitc-ops.yaml`, inside its `verify` section, add a
    `verify.venue` mapping: `stage6: on`, and under `environment` the checks the box must pass — each a
    `name`, a `cmd` run on the box, and the exact output it must print as `expect` (a font list, a tool
-   version). A project that declares nothing sees no change.
+   version). A project that declares nothing sees no change. The binding file `bin/venue-config.yaml`
+   stays where it is: the image build and the engine identity read past it, as they read past a root
+   `events.jsonl` and `.yitc/` in your install.
 2. **Build the box image:** `bin/yitc-v2 venue seed --build -C <project> --provision <script>`. Your
    script installs what your checks need (warm package caches, browsers, fonts); the build pushes a
    full-history clone, puts the engine release at the path it runs from on your machine, snapshots the
@@ -72,8 +74,16 @@ project's machine:
 4. **Set how many passes share the box.** A pass alone has the whole box; one runs at a time until
    you set `YITC_VENUE_STAGE6_MAX_CONCURRENT` on that machine
    (`bin/yitc-v2 config set YITC_VENUE_STAGE6_MAX_CONCURRENT <n>`). Measure what pays before you raise it.
+   To have passes that run together share the box instead of each taking all of it, add
+   `width: per-live-pass` to the `verify.venue` mapping: a pass admitted alone still gets every thread,
+   one admitted beside other live passes gets the thread count divided among them. `width: whole`, or
+   no `width`, keeps the whole box for every pass.
 5. **Keep a pass at home when you need to:** `task test --run --placement local`.
-   `bin/yitc-v2 venue show --leases` lists the passes admitted on the box.
+   `bin/yitc-v2 venue show --leases` lists the passes admitted on the box. A layer with a deciding
+   selection or credit whose `list` finds no unit on the box while it finds some on your machine (for
+   example one that runs only under an environment variable of your machine) is named on the Stage-6
+   row, and its land does not take that layer's verdict from the pass. Any other layer gated that way
+   is not detected; run such a card with `--placement local`.
 
 **The layer timeouts are not calibrated for the box.** They were set on your own machine; measure
 them on the box under SPEC-0208 (its tuple, at the most passes you admit at once) before trusting a

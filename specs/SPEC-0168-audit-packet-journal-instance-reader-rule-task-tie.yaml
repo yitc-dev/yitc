@@ -301,7 +301,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/audit_packet.py#build_audit_prompt: fa41ee30bf00047cbef4d7c95ba118752c64a39978d3b3095b369b12f08c9ad5
+  bin/lib/audit_packet.py#build_audit_prompt: fa3b65b4f1242ea93fd9ea0fc21b287cbffd7143dacf7d18b67a2e50c49ae1f6
   bin/lib/cli.py#_ac_probe_evidence_events_for: 49f39e49fad32eb7a786226bb39940e18653e96dfafe90bc6cec7ee2f427a90b
   bin/lib/cli.py#_p8_evidence_events_for: bc0670a73cdfe69c153e2af0090d2d74318de157d427dc6d1b81465e870ca672
   bin/lib/cross.py#_cross_evidence_section_for: 738062bd5dfd7928337af3c81ca81ed1d42bd8ed9aa67653ee2affb44296b754

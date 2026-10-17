@@ -2507,6 +2507,27 @@ def _group_runqueue_wait_seconds(pgid: int, *, _proc: "Path | None" = None) -> "
 _layer_tree = threading.local()   # T-13931: `.reading` = the open `_LayerProcessTree` of the layer this
                                   # THREAD is running, set and cleared by that layer's CPU sampler
 
+# T-13993 (public issue #122) — at a layer's bound its process group gets SIGTERM and this long to
+# exit before the SIGKILL, so a unit can clean up (its temp box, its own report) on the way out. A
+# constant, not a setting (owner decision 2026-10-17); it never raises the bound or rescues the outcome.
+_LAYER_TERM_GRACE_S = 5.0
+_layer_kill = threading.local()   # T-13993: `.ending` = how the last bound-killed command of this THREAD
+                                  # ended: None (no grace given), "exited-in-grace" or "killed-hard"
+
+
+def _layer_term_grace():
+    """T-13993 — `(sentence, row_fields)` for the timeout this thread's last `_run_layer_command` hit:
+    the sentence the TIMED OUT assertion appends and the `term_grace` key of the timed-out layer row.
+    `("", {})` when that call gave no grace (it did not time out, or the bound passed before it ran)."""
+    ended = getattr(_layer_kill, "ending", None)
+    if ended is None:
+        return "", {}
+    how = ("it exited inside the grace" if ended == "exited-in-grace"
+           else "it was still running when the grace ended and was killed hard (SIGKILL)")
+    return (f" At the bound the layer's process group was sent SIGTERM and given a "
+            f"{_LAYER_TERM_GRACE_S:g}s grace (T-13993): {how}.",
+            {"term_grace": {"grace_s": _LAYER_TERM_GRACE_S, "ended": ended}})
+
 
 class _LayerProcessTree:
     """T-13931 — the CPU a verify layer's commands burned in processes their reaped rusage never
@@ -2729,6 +2750,7 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
     import threading
     deadline = None if timeout is None else time.monotonic() + timeout
     proc_ms, streams = 0, []
+    _layer_kill.ending = None       # T-13993: set below only when the bound kills this command
     tree = getattr(_layer_tree, "reading", None)    # T-13931: the layer's process-tree reading, if one is open
     while True:     # at most twice: the attempt, and (T-13811) its ONE restart at normal priority
         _nice_kw = {"preexec_fn": (lambda: os.nice(max(0, nice - os.nice(0))))} if nice else {}
@@ -2772,11 +2794,37 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
                 # T-12849: signal the layer's whole process GROUP (its own session, above) — `sh` forks a
                 # simple command, so killing the shell alone leaves the grandchild holding the reader pipes
                 # open and the wall runs past the layer's own timeout.
-                try:
-                    os.killpg(p.pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    p.kill()
-                _, status, ru = reap(True)
+                reaped = None
+                if not restart:
+                    # T-13993: the BOUND — SIGTERM the group and give it `_LAYER_TERM_GRACE_S` to exit
+                    # (the T-12645 reap shape). It has exited when the shell is reaped AND no member
+                    # of the group is left. A starvation restart (T-13811) stays an immediate kill.
+                    try:
+                        os.killpg(p.pid, signal.SIGTERM)
+                    except ProcessLookupError:
+                        pass
+                    term_end = time.monotonic() + _LAYER_TERM_GRACE_S
+                    _layer_kill.ending = "killed-hard"
+                    while True:
+                        if reaped is None:
+                            got = reap(False)
+                            reaped = got if got[0] else None
+                        if reaped is not None:
+                            try:
+                                os.killpg(p.pid, 0)
+                            except ProcessLookupError:
+                                _layer_kill.ending = "exited-in-grace"
+                                break
+                        if time.monotonic() >= term_end:
+                            break
+                        time.sleep(0.02)
+                if _layer_kill.ending != "exited-in-grace":
+                    try:
+                        os.killpg(p.pid, signal.SIGKILL)
+                    except ProcessLookupError:
+                        if reaped is None:
+                            p.kill()
+                _, status, ru = reaped if reaped is not None else reap(True)
                 timed_out = not restart
                 break
             if read is not None:
@@ -6276,6 +6324,18 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
             entries `run` is to be invoked with, or None for the whole inventory."""
             got = shipped if isinstance(shipped, dict) else {}
             want = got.get("units")
+            # T-13994 (SPEC-1032 rule 5) — the host's `list` named units for this layer and this
+            # pass's `list` answered with NONE (`list_reason: empty`, an answer the reader above
+            # already refuses as an inventory): the run here cannot verify what the plan was taken
+            # over. The record says so; the host names the layer on the Stage-6 row and the land
+            # takes no verdict for it from this pass. Whatever follows below runs exactly as before.
+            plan_listed = got.get("listed")
+            if isinstance(plan_listed, int) and not isinstance(plan_listed, bool) and plan_listed > 0 \
+                    and rec.get("list") == "failed" and rec.get("list_reason") == "empty":
+                rec["listed_none"] = {"plan_listed": plan_listed}
+                print(f"land(consumer): verify layer {layer!r} lists NO unit here, while the shipped "
+                      f"plan was taken over {plan_listed} listed unit(s) — the layer is named on the "
+                      f"Stage-6 row and the land takes no verdict for it from this pass (SPEC-1032 rule 5)")
 
             def _keys(units):
                 if not (isinstance(units, list) and all(isinstance(u, dict) and isinstance(u.get("file"), str)
@@ -6891,7 +6951,9 @@ def _adapter_shipped_decision(rec, sink) -> dict:
     `selection` / `credit` are the record's two deciding records as written (None where the layer
     reads no such mode); `units`, `left_out`, `credited` and `previous` are the run plan the pass
     took (`sink["plan"]`, `_adapter_run_plan`'s answer), each unit `{file, project?}`. `units` None
-    — the plan narrows nothing, or the pass never reached a plan — runs the whole inventory. PURE."""
+    — the plan narrows nothing, or the pass never reached a plan — runs the whole inventory.
+    `listed` (T-13994, SPEC-1032 rule 5) is how many units the host's `list` named (`sink["inventory"]`),
+    None when it named none usable; a box whose own `list` names none of them says so on its row. PURE."""
     def _names(units):
         return [{"file": u["file"], **({"project": u["project"]} if u.get("project") else {})}
                 for u in units or () if isinstance(u, dict) and isinstance(u.get("file"), str)]
@@ -6902,7 +6964,9 @@ def _adapter_shipped_decision(rec, sink) -> dict:
     out = {"selection": json.loads(json.dumps(rec["selection"])) if isinstance(rec.get("selection"), dict) else None,
            "credit": json.loads(json.dumps(rec["credit"])) if isinstance(rec.get("credit"), dict) else None,
            "units": _names(plan["units"]) if isinstance(plan.get("units"), list) else None,
-           "left_out": _names(plan.get("left_out"))}
+           "left_out": _names(plan.get("left_out")),
+           "listed": (len(sink["inventory"]) if isinstance(sink, dict)
+                      and isinstance(sink.get("inventory"), list) else None)}
     if plan.get("credited"):
         out.update({"credited": _names(plan["credited"]),
                     "previous": dict(plan["previous"]) if isinstance(plan.get("previous"), dict) else {}})
@@ -6914,6 +6978,32 @@ def _adapter_passed_outcome(rec) -> str:
     when the record is a narrowed run's (it carries `partial`), `passed` otherwise — a run that is
     not narrowed, and every layer under `off` or `shadow`. PURE."""
     return "passed-partial" if isinstance(rec, dict) and isinstance(rec.get("partial"), dict) else "passed"
+
+
+def _layer_row_listed_none(row) -> bool:
+    """T-13994 (SPEC-1032 rule 5) — is this `consumer_verify_layers[]` row the row of a layer whose
+    `list` named NO unit on the consumer venue while the plan the host shipped had listed units for it?
+    True when the row's `adapter` record carries the box follower's `listed_none` mark (a mapping).
+    Such a row's outcome is whatever the run gave, and no land takes a verdict for that layer from
+    it. PURE."""
+    rec = row.get("adapter") if isinstance(row, dict) else None
+    return isinstance(rec, dict) and isinstance(rec.get("listed_none"), dict)
+
+
+def venue_empty_layers(rows) -> list:
+    """T-13994 (SPEC-1032 rule 5) — the layers a consumer venue pass names on its Stage-6 row
+    (`verify_metrics.venue_empty_layers`): `[{layer, plan_listed}]`, one per layer name, in row order,
+    for every row `_layer_row_listed_none` reads as marked. Empty when none is. PURE."""
+    out, seen = [], set()
+    for r in rows or ():
+        name = r.get("layer") if isinstance(r, dict) else None
+        if not isinstance(name, str) or name in seen or not _layer_row_listed_none(r):
+            continue
+        seen.add(name)
+        listed = r["adapter"]["listed_none"].get("plan_listed")
+        out.append({"layer": name, "plan_listed": listed if isinstance(listed, int)
+                    and not isinstance(listed, bool) else None})
+    return out
 
 
 def _layer_row_is_partial_run(row) -> bool:

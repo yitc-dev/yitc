@@ -32,7 +32,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0027",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (5c3869369) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e73d2b938) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#advance_stage_pointer",
@@ -77,7 +77,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0038",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (d720d8d1e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "tasks/_template.yaml",
@@ -97,7 +97,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (5c3869369) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e73d2b938) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
@@ -117,7 +117,7 @@
   {
    "anchor": "bin/lib/gates.py#_require_seed_read",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/gates.py#_require_seed_read: content changed since last verified-accurate signature (8e2bc919f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/gates.py#_require_seed_read: content changed since last verified-accurate signature (944b67852) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
@@ -132,7 +132,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (d720d8d1e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_commit",
@@ -177,7 +177,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0069",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (d720d8d1e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/effort-routing-config.yaml",
@@ -307,7 +307,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (5c3869369) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e73d2b938) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#_DeployRunRecorder",
@@ -540,6 +540,11 @@
    "warn": "bin/lib/session.py#cmd_session_start: content changed since last verified-accurate signature (3e3f9d346) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
+   "anchor": "bin/lib/task.py#_render_live_dependents",
+   "spec": "SPEC-0119",
+   "warn": "bin/lib/task.py#_render_live_dependents: content changed since last verified-accurate signature (c49af7bd2) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
    "anchor": "bin/lib/task.py#cmd_task_update",
    "spec": "SPEC-0119",
    "warn": "bin/lib/task.py#cmd_task_update: content changed since last verified-accurate signature (ce7e8259e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
@@ -567,12 +572,12 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-0123",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (652a4ef37) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (9dd221c30) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
    "spec": "SPEC-0125",
-   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (8106c3bed) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (1bfe64fc0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#_concern_surface_warnings",
@@ -697,7 +702,7 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-0152",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (652a4ef37) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (9dd221c30) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_uncommitted_layer_surface",
@@ -752,7 +757,7 @@
   {
    "anchor": "bin/lib/audit_packet.py#build_audit_prompt",
    "spec": "SPEC-0168",
-   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (fa41ee30b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (fa3b65b4f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#_ac_probe_evidence_events_for",
@@ -782,17 +787,17 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0176",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (5c3869369) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e73d2b938) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0177",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (d720d8d1e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0178",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (d720d8d1e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt_adoption.py#open_known_broken",
@@ -847,7 +852,7 @@
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
    "spec": "SPEC-0202",
-   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (8106c3bed) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (1bfe64fc0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
@@ -857,7 +862,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (5c3869369) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e73d2b938) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#contentless_findings",
@@ -907,7 +912,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-0204",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (12a9aa457) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (5e866742a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#retired_plan_gate_terminal_violations",
@@ -927,7 +932,7 @@
   {
    "anchor": "bin/lib/audit_packet.py#build_audit_prompt",
    "spec": "SPEC-0205",
-   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (fa41ee30b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (fa3b65b4f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
@@ -942,7 +947,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-0209",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (12a9aa457) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (5e866742a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/textutil.py#ARGV_PROSE_SEAMS",
@@ -992,12 +997,12 @@
   {
    "anchor": "bin/lib/gates.py#_require_seed_read",
    "spec": "SPEC-1023",
-   "warn": "bin/lib/gates.py#_require_seed_read: content changed since last verified-accurate signature (8e2bc919f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/gates.py#_require_seed_read: content changed since last verified-accurate signature (944b67852) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
    "spec": "SPEC-1024",
-   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (8106c3bed) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (1bfe64fc0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_land",
@@ -1022,7 +1027,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1034",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (5c3869369) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e73d2b938) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   }
  ],
  "_implements_warnings": [
@@ -1442,6 +1447,7 @@
    "SPEC-0152",
    "SPEC-0184",
    "SPEC-1030",
+   "SPEC-1032",
    "SPEC-1035"
   ],
   "bin/lib/live_probe.py": [
@@ -5223,11 +5229,11 @@
   },
   {
    "content": "# next_action prose. REQUIRED with paused_reason: artifact-wait,",
-   "id": "rule:spec-0028:ended-pause-not-the-card-s-state-so-a-re:561:must",
+   "id": "rule:spec-0028:ended-pause-not-the-card-s-state-so-a-re:562:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 561,
+   "source_line": 562,
    "source_section": "ended-pause-not-the-card-s-state-so-a-re",
    "status": "active"
   },
@@ -5243,221 +5249,221 @@
   },
   {
    "content": "# boolean-only contract must widen (`deferred` is TRUTHY, so a bare",
-   "id": "rule:spec-0028:internal:79:must",
+   "id": "rule:spec-0028:internal:80:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 79,
+   "source_line": 80,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "# required-field reading is QUEUE §Done log.",
-   "id": "rule:spec-0028:internal:83:must",
+   "id": "rule:spec-0028:internal:84:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 83,
+   "source_line": 84,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "# (REQUIRED label) + any of assert_header_present: <name|[name]> /",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:180:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:181:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 180,
+   "source_line": 181,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# (no live surface) sets `user_facing: false` and may omit recheck_by.",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:189:may",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:190:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 189,
+   "source_line": 190,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# REQUIRED. `outcome` is OPTIONAL at declaration (so the close-gate stays a static",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:198:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:199:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 198,
+   "source_line": 199,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# the seam CANNOT assert read-only; emits security_live_probe_escalated +",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:206:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:207:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 206,
+   "source_line": 207,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# or falling over 7 days»): the reading cannot exist at the pre-land,",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:216:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:217:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 216,
+   "source_line": 217,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# form, both keys REQUIRED (two OPTIONAL):",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:218:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:219:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 218,
+   "source_line": 219,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# no sensitivity requirement — a SPEC-0165 tripwire must be shown to FAIL when its rule is",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:249:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:250:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 249,
+   "source_line": 250,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# task's fix STRUCTURALLY CANNOT REACH, in the resolver's own words.",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:286:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:287:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 286,
+   "source_line": 287,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# keys REQUIRED:",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:314:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:315:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 314,
+   "source_line": 315,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# this must never license. Neither is admitted — a malformed declaration",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:322:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:323:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 322,
+   "source_line": 323,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# audit-post it skipped. ONE form, both keys REQUIRED:",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:340:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:341:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 340,
+   "source_line": 341,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# a card that has NOT declared one cannot audit an arbitrary commit (the",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:346:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:347:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 346,
+   "source_line": 347,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# `main` (already-landed), and `--commit` if given must name it; the saved",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:349:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:350:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 349,
+   "source_line": 350,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# forecast). ONE form, both keys REQUIRED:",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:370:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:371:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 370,
+   "source_line": 371,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# OBJECTIVE STRUCTURAL eligibility predicate (the card must really own",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:378:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:379:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 378,
+   "source_line": 379,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# declaration: <why this card must edit the pinned suite>",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:401:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:402:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 401,
+   "source_line": 402,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# counts — it judges a plan, before any code exists, so it cannot",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:418:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:419:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 418,
+   "source_line": 419,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# axis, so it CANNOT become a blanket waiver: a declaration admits ONE",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:423:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:424:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 423,
+   "source_line": 424,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# evidence required by its `host_config_kind` has been recorded (the per-KIND",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:465:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:466:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 465,
+   "source_line": 466,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "queue_jump: # OPTIONAL emergency place in the LAND-ADMISSION ORDER (reason: <the blockage> # SPEC-0184 rule 9). Mapping with ONE required key, `reason` — the",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:479:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:480:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 479,
+   "source_line": 480,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
@@ -25653,28 +25659,18 @@
   },
   {
    "content": "measured.** A later reader must not treat it as derived from anything. The readings it was chosen",
-   "id": "rule:spec-0184:parameters:2081:must",
+   "id": "rule:spec-0184:parameters:2083:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2081,
+   "source_line": 2083,
    "source_section": "parameters",
    "status": "active"
   },
   {
    "content": "**The 69% ASSUMES member reds are INDEPENDENT** — it is 0.912^4 — and they may not be: a broken",
-   "id": "rule:spec-0184:parameters:2093:may",
+   "id": "rule:spec-0184:parameters:2095:may",
    "severity": "may",
-   "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
-   "source_domain": "spec",
-   "source_line": 2093,
-   "source_section": "parameters",
-   "status": "active"
-  },
-  {
-   "content": "all-green rate DOWN and the re-queue bill UP. The trial must REPORT the observed batch-level red rate",
-   "id": "rule:spec-0184:parameters:2095:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
    "source_line": 2095,
@@ -25682,22 +25678,32 @@
    "status": "active"
   },
   {
-   "content": "files in 438s; a 2-file land took 460s. So per-change cost cannot be reduced by making changes",
-   "id": "rule:spec-0184:rationale:2113:must",
+   "content": "all-green rate DOWN and the re-queue bill UP. The trial must REPORT the observed batch-level red rate",
+   "id": "rule:spec-0184:parameters:2097:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2113,
+   "source_line": 2097,
+   "source_section": "parameters",
+   "status": "active"
+  },
+  {
+   "content": "files in 438s; a 2-file land took 460s. So per-change cost cannot be reduced by making changes",
+   "id": "rule:spec-0184:rationale:2115:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
+   "source_domain": "spec",
+   "source_line": 2115,
    "source_section": "rationale",
    "status": "active"
   },
   {
    "content": "6.1% of `worktree.py`. Coverage cannot observe those dependencies and selection on it would produce",
-   "id": "rule:spec-0184:rationale:2120:must",
+   "id": "rule:spec-0184:rationale:2122:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2120,
+   "source_line": 2122,
    "source_section": "rationale",
    "status": "active"
   },
@@ -25713,26 +25719,16 @@
   },
   {
    "content": "MUST fail (d).",
-   "id": "rule:spec-0184:verification:2176:must",
+   "id": "rule:spec-0184:verification:2178:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2176,
+   "source_line": 2178,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "is all-inert is not — on a first attempt and on a retry alike — and a member whose paths cannot be",
-   "id": "rule:spec-0184:verification:2184:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
-   "source_domain": "spec",
-   "source_line": 2184,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "or that answered every first attempt as paying, satisfies the first half and MUST fail the second;",
    "id": "rule:spec-0184:verification:2186:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
@@ -25742,52 +25738,62 @@
    "status": "active"
   },
   {
-   "content": "spans `app/**` — because a probe where the two coincide cannot tell the carriers apart, and a",
-   "id": "rule:spec-0184:verification:2192:must",
+   "content": "or that answered every first attempt as paying, satisfies the first half and MUST fail the second;",
+   "id": "rule:spec-0184:verification:2188:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2192,
+   "source_line": 2188,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "spans `app/**` — because a probe where the two coincide cannot tell the carriers apart, and a",
+   "id": "rule:spec-0184:verification:2194:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
+   "source_domain": "spec",
+   "source_line": 2194,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "first. What the probe must show is that the kernel suite behaves this way over a COMBINED candidate",
-   "id": "rule:spec-0184:verification:2208:must",
+   "id": "rule:spec-0184:verification:2210:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2208,
+   "source_line": 2210,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "member the pre-change verifier would reject must NOT land — the candidate leg passes under the",
-   "id": "rule:spec-0184:verification:2234:must",
+   "id": "rule:spec-0184:verification:2236:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2234,
+   "source_line": 2236,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "criteria are: only the NAMED successor may take the offered slot (a third contender must abstain,",
-   "id": "rule:spec-0184:verification:2243:may",
+   "id": "rule:spec-0184:verification:2245:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2243,
+   "source_line": 2245,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "and with the offer removed it must not), the named successor TAKES it on the poll tick it already",
-   "id": "rule:spec-0184:verification:2244:must",
+   "id": "rule:spec-0184:verification:2246:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0184-land-verification-batching-amortise-one-full-suite.yaml",
    "source_domain": "spec",
-   "source_line": 2244,
+   "source_line": 2246,
    "source_section": "verification",
    "status": "active"
   },
@@ -31043,11 +31049,11 @@
   },
   {
    "content": "release identity on the box, which must equal the consumer host's; the shipped plan; the outputs of the",
-   "id": "rule:spec-1032:5-the-consumer-envelope:81:must",
+   "id": "rule:spec-1032:5-the-consumer-envelope:88:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1032-consumer-stage-6-passes-on-the-remote-verify-venue.yaml",
    "source_domain": "spec",
-   "source_line": 81,
+   "source_line": 88,
    "source_section": "5-the-consumer-envelope",
    "status": "active"
   },
@@ -31073,11 +31079,11 @@
   },
   {
    "content": "point was overruled). So when a session rejects a YELLOW finding as wrong it MUST record a",
-   "id": "rule:spec-1034:audit-loop-ceiling-charter-principle-1-a:136:must",
+   "id": "rule:spec-1034:audit-loop-ceiling-charter-principle-1-a:138:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1034-audit-loop-ceiling-pass-arithmetic-ledger-skip-axe.yaml",
    "source_domain": "spec",
-   "source_line": 136,
+   "source_line": 138,
    "source_section": "audit-loop-ceiling-charter-principle-1-a",
    "status": "active"
   },
@@ -31093,51 +31099,51 @@
   },
   {
    "content": "| **Ship-custody re-pin** | `audit post --repin-ship` on a TASK: the card's ship LANDED but a BOOKKEEPING self-commit (pause/park/wont-do) displaced custody, and `_require_ship_custody_repin` has ALRE",
-   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:163:must",
+   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:165:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1034-audit-loop-ceiling-pass-arithmetic-ledger-skip-axe.yaml",
    "source_domain": "spec",
-   "source_line": 163,
+   "source_line": 165,
    "source_section": "ledger-skip-axes-re-audits-that-are-not-",
    "status": "active"
   },
   {
    "content": "| **Post-GREEN merge integration** | an ORDINARY TASK `audit post` at/past the cap whose only delta since a GREEN is ONE governed merge with main: the latest recorded audit-post verdict (journal order",
-   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:164:must",
+   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:166:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1034-audit-loop-ceiling-pass-arithmetic-ledger-skip-axe.yaml",
    "source_domain": "spec",
-   "source_line": 164,
+   "source_line": 166,
    "source_section": "ledger-skip-axes-re-audits-that-are-not-",
    "status": "active"
   },
   {
    "content": "- **FAIL-CLOSED on single-survivor.** >=2 variants are required (a single variant REFUSES — the",
-   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:223:must",
+   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:225:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1034-audit-loop-ceiling-pass-arithmetic-ledger-skip-axe.yaml",
    "source_domain": "spec",
-   "source_line": 223,
+   "source_line": 225,
    "source_section": "ledger-skip-axes-re-audits-that-are-not-",
    "status": "active"
   },
   {
    "content": "`_die` — the summary the owner reads MUST NAME each RESIDUAL finding's REAL",
-   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:235:must",
+   "id": "rule:spec-1034:ledger-skip-axes-re-audits-that-are-not-:237:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1034-audit-loop-ceiling-pass-arithmetic-ledger-skip-axe.yaml",
    "source_domain": "spec",
-   "source_line": 235,
+   "source_line": 237,
    "source_section": "ledger-skip-axes-re-audits-that-are-not-",
    "status": "active"
   },
   {
    "content": "over-ceiling (SPEC-0120 §3 must-split resolved).",
-   "id": "rule:spec-1034:verification:360:must",
+   "id": "rule:spec-1034:verification:374:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1034-audit-loop-ceiling-pass-arithmetic-ledger-skip-axe.yaml",
    "source_domain": "spec",
-   "source_line": 360,
+   "source_line": 374,
    "source_section": "verification",
    "status": "active"
   },
@@ -37347,10 +37353,12 @@
     "bin/lib/cli.py#_venue_seed_build",
     "bin/lib/cli.py#_venue_show_leases",
     "bin/lib/cli.py#cmd_venue_publish",
+    "bin/lib/land_verify_legs.py#_layer_row_listed_none",
     "bin/lib/remote_verify.py#_venue_core_split_apply",
     "bin/lib/remote_verify.py#box_lease_prologue",
     "bin/lib/remote_verify.py#consumer_box_main",
     "bin/lib/remote_verify.py#consumer_box_script",
+    "bin/lib/remote_verify.py#consumer_expected_width",
     "bin/lib/remote_verify.py#consumer_request_width",
     "bin/lib/remote_verify.py#consumer_route",
     "bin/lib/remote_verify.py#consumer_venue_decision",
@@ -37386,7 +37394,8 @@
    "concern": null,
    "implements": [
     "bin/lib/audit.py#cmd_audit",
-    "bin/lib/audit.py#is_trend_convergence_grant"
+    "bin/lib/audit.py#is_trend_convergence_grant",
+    "bin/lib/audit.py#trend_grant_subject_changed"
    ],
    "init_concern": null,
    "proposed_by": null,

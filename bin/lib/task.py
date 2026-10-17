@@ -29,6 +29,7 @@ from lib import audit      # noqa: E402
 from lib import textutil   # noqa: E402
 from lib import error      # noqa: E402
 from lib import cross      # noqa: E402
+from lib import lockfile   # noqa: E402  # T-13999: the ONE cross-user flock-target open (X-0226)
 from lib import followup   # noqa: E402  # T-10288 / X-0263: the filing preview folds the open-followup
                            # set (SPEC-0095); followup is a stdlib-only leaf — back-imports nothing, no cycle.
 from lib import spec       # noqa: E402
@@ -2985,6 +2986,13 @@ def _unpark_into_preserved_worktree(tid: str, note, *, REPO_ROOT, _run_git_cap, 
 # too, so the only way to find it is scanning every `tasks/*.yaml` for the id — which is what the
 # reporter had to do by hand.
 #
+# T-13996 — this kernel's picker does NOT wait on a `wont-do` target (T-11122,
+# `graph.requires_blockers_in_index`), so here the same edge strands the other way: it stops holding
+# the dependents back, and each becomes pickable WITHOUT the work it required once nothing else
+# holds it.
+# The `wont-do` line says that, not «unpickable» — and it speaks of THIS edge only, since a dependent
+# may still wait on another requirement or on its own status.
+#
 # WHY IT IS STRUCTURAL. Succession IS the documented outcome of a terminal RED (SPEC-0204), so every
 # such closure carries this hazard by construction — the reporter names three successions in that
 # project alone. This session is a near miss on a second project: the Controller retired T-12622
@@ -3032,8 +3040,10 @@ def _render_live_dependents(tid: str, target: str, dependents: list) -> str:
         f"    - {d['task']} [{d['status'] or 'status?'}] {d['title'] or ''}".rstrip() + "\n"
         for d in dependents)
     if terminal:
-        why = ("`wont-do` is TERMINAL in the direction that never satisfies `requires:` — the work "
-               "was decided against — so each of these is unpickable from this moment on")
+        why = ("`wont-do` is TERMINAL and the picker does not wait on it (QUEUE.md §Picker logic) "
+               "— so from this moment on this edge holds none of these back: each becomes pickable "
+               "WITHOUT the work it required, which was decided against, as soon as nothing else "
+               "holds it")
         # T-12644, audit-post pass 1 (class_id: data-loss) — this NAMES the verb and the edit, and
         # deliberately prints NO ready-to-paste `--old/--new` pair. The pair it used to print
         # (`--new 'requires: []'`) is correct ONLY for a dependent whose sole requirement is this
@@ -3051,7 +3061,7 @@ def _render_live_dependents(tid: str, target: str, dependents: list) -> str:
                  "RED, SPEC-0204); or close the dependent `wont-do` too if the requirement was the "
                  "point")
     else:
-        why = ("a `parked` target does not satisfy `requires:` either, so each of these stays "
+        why = ("a `parked` target does not satisfy `requires:`, so each of these stays "
                "unpickable for as long as the park lasts")
         exits = ("nothing is owed if the park is short — but if it is not, either record the "
                  f"`--return-trigger` that unparks {tid}, or drop / re-point the dependent's "
@@ -9431,6 +9441,65 @@ def _unconfirmed_travels_specs(tid: str, *, SPECS_DIR, _read_yaml) -> list:
     return sorted(out)
 
 
+def _spec_key(path) -> str:
+    """One key per spec FILE, however its path was spelled (the scan's or `_find_spec_path`'s)."""
+    try:
+        return str(Path(path).resolve())
+    except OSError:
+        return str(path)
+
+
+def _read_supersedes_target(tgt_path) -> tuple:
+    """`(raw, status, why)` of the `supersedes:` target spec file at `tgt_path`, read ONCE (T-13995,
+    public intake #126): `raw` the exact text, `status` its `status:` string parsed from that same text,
+    `why` the reason it cannot be read to its status (None when it can). A target the close cannot read
+    cannot be flipped, so the successor naming it must not be activated either: activating it alone
+    leaves two active heads of one lineage (D-0047), which no verb repairs. Unreadable = the file does
+    not open, is not UTF-8, does not parse (a merge left conflict markers in it), is not a mapping, or
+    carries no `status:` string. The writer flips from `raw` itself, so the status it checked is the
+    status it rewrites (no second read between the check and the write)."""
+    import yaml
+    try:
+        raw = Path(tgt_path).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        return None, None, f"cannot be opened ({e.__class__.__name__})"
+    try:
+        d = state.load_str(raw)
+    except yaml.YAMLError as e:
+        first = (str(e).strip().splitlines() or ["a parse error"])[0]
+        return raw, None, f"does not parse ({first[:160]})"
+    if not isinstance(d, dict):
+        return raw, None, "is not a YAML mapping"
+    st = d.get("status")
+    if not isinstance(st, str) or not st.strip():
+        return raw, None, "carries no `status:`"
+    return raw, st, None
+
+
+def _unflippable_supersedes_targets(tid: str, *, SPECS_DIR, _find_spec_path, _read_yaml) -> list:
+    """T-13995 — `(successor_id, target_id, target_path, why)` for every PROPOSED spec closing `tid` would
+    activate whose `supersedes:` target file exists but cannot be read to its status
+    (`_read_supersedes_target`). `cmd_task_close` refuses on a non-empty result BEFORE any mutation;
+    the activation writer re-checks inside its own pre-mutation validation (the crash-heal re-run).
+    Ownership is the ONE predicate home, `_task_owns_proposed_spec` (T-11014). A target with no file at
+    all is not listed: there is no lineage head to leave behind, and the writer skips it as before."""
+    out = []
+    for p in state.scan_specs(SPECS_DIR):
+        d = _read_yaml(p)
+        if not isinstance(d, dict) or d.get("status") != "proposed" or not _task_owns_proposed_spec(d, tid):
+            continue
+        tgt = d.get("supersedes")
+        tp = _find_spec_path(tgt) if tgt else None
+        why = _read_supersedes_target(tp)[2] if tp is not None else None
+        if why:
+            out.append((d.get("id") or p.stem, tgt, str(tp), why))
+    return sorted(out)
+
+
+def _unflippable_supersedes_lines(rows: list) -> str:
+    return "; ".join(f"{sid} supersedes {tgt}, whose file {path} {why}" for sid, tgt, path, why in rows)
+
+
 def _unconfirmed_travels_refusal(tid: str, sids: list) -> str:
     return (f"{tid}: closure REFUSED — activating {', '.join(sids)} would make a spec normative whose "
             f"`travels:` is still the UNCONFIRMED draft default (v2-self, `{_TRAVELS_DRAFT_DEFAULT_KEY}: "
@@ -9513,7 +9582,7 @@ def sync_merge_closure_custody(record, sha, *, _git_resolve_sha, repo_root) -> "
     return None
 
 
-def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
+def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _unflippable_supersedes_targets=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
                    _task_commit_landed_chain=None,
                    _bookkeeping_commit_authored_paths=None, _BOOKKEEPING_COMMIT_KINDS=None,
                    _live_probe_settled_unresolved=None, _require_post_ship_observation=None,
@@ -10788,6 +10857,18 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
             if _unconfirmed:
                 _die(_unconfirmed_travels_refusal(tid, _unconfirmed))
 
+    def _refuse_unflippable_supersedes(tid):
+        # T-13995 (yitc#126) — BEFORE the done-write: a successor whose `supersedes:` target cannot be read
+        # is not activated alone (the writer refuses too; this keeps the task un-done and the spec proposed).
+        if _unflippable_supersedes_targets is not None:
+            _rows = _unflippable_supersedes_targets(tid)
+            if _rows:
+                _die(f"{tid}: closure REFUSED — {_unflippable_supersedes_lines(_rows)}: its status cannot "
+                     "be read, so activating the successor would leave two active heads of one lineage "
+                     "(D-0047). Nothing was written; the successor stays proposed and the task stays open. "
+                     f"Repair that file (e.g. finish the merge that left conflict markers in it), then "
+                     f"re-run `bin/yitc-v2 task close {tid}`.")
+
     batch_close = bool(getattr(args, "batch_close", False))
     if batch_close:
         # (1) class gate (AC2): HYGIENE only — a substantive task must NOT escape external audit.
@@ -10819,6 +10900,7 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
         # T-12972 (SPEC-0073 §3) — the travels activation gate runs BEFORE the in-place claim write, so
         # a refused batch-close writes nothing (audit-post pass 1).
         _refuse_unconfirmed_travels(tid)
+        _refuse_unflippable_supersedes(tid)
         task["status"] = "in-progress"
         current_status = "in-progress"
         _write_task_transition(yaml, task_path, task, "Closure")   # status flip + current_stage=Closure
@@ -10834,6 +10916,7 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     # pass 2) and before the stage-pointer advance, so the refusal writes nothing.
     if not batch_close:
         _refuse_unconfirmed_travels(tid)
+        _refuse_unflippable_supersedes(tid)
 
     # T-11551 — pointer advance (Audit-post->Closure forward; hygiene Commit->Closure). Runs after the
     # closeable-status check above, so a non-closeable card never moves its pointer.
@@ -12573,7 +12656,10 @@ def _stage6_layer_scope(cguard) -> str:
     if (cguard or {}).get("mode") != "layers":
         return ""
     rows = [r for r in cguard.get("layers") or [] if isinstance(r, dict)]
-    ran = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed"]
+    from lib import land_verify_legs as _lvl
+    # T-13994: a layer that listed NO unit on the consumer venue is named apart below, never as ran
+    ran = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed"
+           and not _lvl._layer_row_listed_none(r)]
     skipped = [str(r.get("layer")) for r in rows if r.get("outcome") == _STAGE6_SKIPPED_OUTCOME]
     waived = [str(r.get("layer")) for r in rows if r.get("outcome") == "waived"]
     parts = [f"layers ran: {', '.join(ran) if ran else 'none'}"]
@@ -12592,6 +12678,14 @@ def _stage6_layer_scope(cguard) -> str:
                      f"decides on the same diff, SPEC-0152 rule 16)")
     if waived:
         parts.append(f"waived: {', '.join(waived)}")
+    # T-13994 (SPEC-1032 rule 5): a layer whose `list` named no unit on the consumer venue while the
+    # shipped plan listed units for it is NAMED — its row may read passed, yet it verified nothing
+    # there. With no such row the clause is absent and the line is byte-identical.
+    empty = [e["layer"] for e in _lvl.venue_empty_layers(rows)]
+    if empty:
+        parts.append(f"listed NO unit on the consumer venue: {', '.join(empty)} (the shipped plan "
+                     f"listed units for each; the land takes no verdict for it from this pass, "
+                     f"SPEC-1032 rule 5)")
     # T-13545: a layer whose `passed` came from its isolated re-run is NAMED — a PASS line that hid
     # the first-run failure would read as «green on the first try» (SPEC-0152 rule 16).
     retried = [str(r.get("layer")) for r in rows if r.get("outcome") == "passed" and r.get("retried")]
@@ -12643,7 +12737,9 @@ def _stage6_pass_claim(cguard, *, have_tests, suite_scope, pinned_leg_runs) -> s
         # «green» is claimed only over layers that RAN: a skipped or waived layer verified nothing.
         # (A run on which neither a sweep nor a layer ran prints no PASS line at all —
         # `_stage6_ran_nothing` — but this function stays truthful for that input too.)
-        ran = any(isinstance(r, dict) and r.get("outcome") == "passed"
+        from lib import land_verify_legs as _lvl
+        # T-13994: a layer that listed NO unit on the consumer venue verified nothing there
+        ran = any(isinstance(r, dict) and r.get("outcome") == "passed" and not _lvl._layer_row_listed_none(r)
                   for r in (cguard.get("layers") or []))
         layers = ("every declared verify layer that ran is green" if ran
                   else "no declared verify layer ran")
@@ -13501,7 +13597,7 @@ def _stage6_consumer_venue(root, tid, placement, *, take_plan, sweep_dirs, selec
     return dec, decl, remote_verify.consumer_route(
         root, decision=dec, take_plan=take_plan,
         sweep_paths=[os.path.relpath(d, root) for d in sweep_dirs], sweep_only=sweep_only,
-        checks=decl.get("environment") or [],
+        checks=decl.get("environment") or [], width_policy=decl.get("width"),
         on_wait=_stage6_venue_wait_relay(_append_event, tid, rec.get("box"))), summary, None
 
 
@@ -19092,27 +19188,73 @@ def _activate_task_proposed_specs(tid: str, *, SPECS_DIR, _append_event, _decisi
                      f"that both supersede {tgt} — D-0047 one-active-lineage violation. Split the close "
                      "(one activating task per lineage) or chain them via requires/supersedes.")
             seen_targets[tgt] = sid
+    # T-13995 (yitc#126) — all-or-nothing: a target this writer cannot read cannot be flipped, so its
+    # successor is not activated either (two active heads of one lineage, D-0047). Validated BEFORE any
+    # mutation, like the lineage guard, so the close-time pre-check and the crash-heal re-run share it.
+    # The target is read ONCE here: the flip below rewrites that same text, from the status checked here.
+    unreadable, target_snap = [], {}
+    for sp, sid, tgt in owned:
+        tp = _find_spec_path(tgt) if tgt else None
+        if tp is None:
+            continue
+        traw, cur, why = _read_supersedes_target(tp)
+        if why:
+            unreadable.append((sid, tgt, str(tp), why))
+        target_snap[str(sp)] = (tp, traw, cur)
+    if unreadable:
+        _die(f"{tid} activation REFUSED — {_unflippable_supersedes_lines(sorted(unreadable))}: its status "
+             "cannot be read, so it cannot be flipped, and activating its successor alone would leave two "
+             "active heads of one lineage (D-0047). Nothing was written; the successor stays proposed. "
+             f"Repair that file (e.g. finish the merge that left conflict markers in it), then re-run "
+             f"`bin/yitc-v2 task close {tid}`.")
     # mutate: each owned proposed spec — flip its supersedes TARGET FIRST, then the spec itself active
     # (T-0638 — target-first so a crash between the two writes leaves the owned spec still `proposed`,
     # the resume re-entry signal; the re-run re-enters via the status==proposed scan and the target's
     # cur-status guard skips the already-flipped target → no orphaned supersession). The atomic
     # supersession of the target happens in the SAME close as the activation (D-0047 one-active-lineage).
+    # T-13995 — a supersedes CHAIN inside one close (C supersedes B supersedes X, B and C both owned)
+    # runs target-first: B's pair before C's, so C supersedes the B this close activated — never a
+    # still-proposed B (withdrawn, then re-activated by its own pair: two active heads). Order is the
+    # scan order otherwise.
+    ordered, pending = [], list(owned)
+    while pending:
+        left_ids = {sid for _p, sid, _t in pending if sid}
+        ready = [e for e in pending if not (e[2] and e[2] in left_ids and e[2] != e[1])]
+        nxt = ready[0] if ready else pending[0]          # a cycle keeps the scan order
+        ordered.append(nxt)
+        pending.remove(nxt)
     activated, superseded = [], []
-    for p, sid, tgt in owned:
+    written: dict = {}      # path -> (text, status) this call wrote — what the file must read as now
+    for p, sid, tgt in ordered:
         flipped_target = None   # T-10543: report the flip that ACTUALLY happened, not a re-derived guess
-        if tgt:
-            tgt_path = _find_spec_path(tgt)
-            if tgt_path is not None:
-                cur = (_read_yaml(tgt_path) or {}).get("status")
-                new = "superseded" if cur == "active" else ("withdrawn" if cur == "proposed" else None)
-                if new:
-                    traw = tgt_path.read_text(encoding="utf-8")
-                    _decision_apply_field_edits(tgt_path, traw,
-                                                [("status", f"status: {new}")], {"status": new})
-                    superseded.append(tgt)
-                    flipped_target = (tgt, new)
+        if str(p) in target_snap:
+            tgt_path, traw, cur = target_snap[str(p)]
+            traw, cur = written.get(_spec_key(tgt_path), (traw, cur))
+            # T-13995 — the target must still be the text validated above (or the exact text this close
+            # itself wrote into it, kept from the write, not read back): one changed since (a merge
+            # rewrote it mid-close) refuses before
+            # this pair is written, so no successor is activated against a target it was not checked
+            # against (the pairs already written are each whole).
+            try:
+                still = tgt_path.read_text(encoding="utf-8") == traw
+            except (OSError, UnicodeDecodeError):
+                still = False
+            if not still:
+                _die(f"{tid} activation REFUSED — {tgt}'s file {tgt_path} changed while this close was "
+                     f"activating {sid}; {sid} was not activated. Re-run `bin/yitc-v2 task close {tid}` "
+                     "once that file is settled.")
+            new = "superseded" if cur == "active" else ("withdrawn" if cur == "proposed" else None)
+            if new:
+                got = _decision_apply_field_edits(tgt_path, traw,
+                                                  [("status", f"status: {new}")], {"status": new})
+                if isinstance(got, str):       # the text THIS call wrote — never the file read back
+                    written[_spec_key(tgt_path)] = (got, new)
+                superseded.append(tgt)
+                flipped_target = (tgt, new)
         raw = p.read_text(encoding="utf-8")
-        _decision_apply_field_edits(p, raw, [("status", "status: active")], {"status": "active"})
+        got = _decision_apply_field_edits(p, raw, [("status", "status: active")], {"status": "active"})
+        if isinstance(got, str):
+            written[_spec_key(p)] = (got, "active")
         if sid:
             activated.append(sid)
             # T-10543 (X-0411) — attest the completed flip on the ONE journal (see the docstring: one
@@ -19172,7 +19314,7 @@ def _stage6_activation_lock(root):
     `task test --run` is between its flip and its restore -> SystemExit, nothing touched."""
     lp = _stage6_activation_dir(root) / STAGE6_ACTIVATION_LOCK
     lp.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(lp, os.O_RDWR | os.O_CREAT, 0o644)
+    fd = lockfile.open_flock_target(lp, mode=0o664)         # group-writable; read-only for a peer (T-13999)
     try:
         try:
             fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)

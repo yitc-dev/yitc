@@ -7090,7 +7090,8 @@ class WorkerCeilingContinuation(Exception):
     audit-post RED (which RECORDS passes==cap), follows its SPEC-0103 preamble and HALTS — it never
     makes that 3rd `audit post` call, so L3 was structurally BYPASSED (bench seelvr-t9527-c55xh).
 
-    Fix: when `cmd_audit` records the ceiling-REACHING audit-post RED in a dispatched-worker context, it
+    Fix: when `cmd_audit` records the ceiling-REACHING audit-pre/post RED (or a RED on a trend-granted
+    pass, T-13997) in a dispatched-worker context, it
     fully persists that pass-2 RED (so the on-disk trail equals a real 2nd invocation) and then RAISES
     this sentinel. The host wrapper (`bin/yitc-v2 cmd_audit`) catches it and RE-INVOKES `audit.cmd_audit`
     ONCE in-process — now prior_passes reads as the cap from disk, so the EXISTING, UNCHANGED pre-block
@@ -7154,6 +7155,20 @@ def finding_count_trend(prior_record: "dict | None") -> "list[int]":
 # SPEC-0204 rule 6 (T-12290) — `inland_consult_grants_pass` (T-11677) is DELETED: it let an
 # in-land `--reaudit-after-close` audit inherit a converged consult as its owner-reset basis.
 
+
+
+def trend_grant_subject_changed(prior_record: "dict | None", sha: "str | None") -> bool:
+    """T-13997 (X-2035) — True iff the audit-post subject `sha` is a DIFFERENT commit from the one the
+    ceiling-reaching pass audited (`prior_record["commit"]`). A trend grant buys one more absorption
+    pass, and an audit-post absorption is a new commit: on the SAME commit the pass can only re-ask the
+    auditor about an unchanged diff (X-2035: the T-9712 re-entry spent pass 3 on 9a1c1eb, identical
+    RED). A short recorded sha is the same commit as its full form (prefix either way). FAIL-CLOSED:
+    no recorded commit, or no current subject, is not proof of a change → False."""
+    prior = str((prior_record or {}).get("commit") or "").strip() if isinstance(prior_record, dict) else ""
+    cur = str(sha or "").strip()
+    if not prior or not cur:
+        return False
+    return not (cur.startswith(prior) or prior.startswith(cur))
 
 
 def is_trend_convergence_grant(prior_record: "dict | None") -> bool:
@@ -13233,6 +13248,36 @@ def _warn_preauthored_delta(tid, *, preview, prior_pre, _zero_ship_diff_extra_pa
         pass
 
 
+def from_file_attachments(paths, *, _resolve_prompt_file, _die) -> str:
+    """The text `audit pre|post --from-file` adds to the packet: EVERY file given, in the order given,
+    each under its own `### --from-file <i> of <n>: <path>` heading — T-13996.
+
+    The flag was a plain store, so a second `--from-file` silently replaced the first and the packet
+    carried only the last file (T-13584, yitc#129). `paths` is the flag's list; a bare string (an
+    internal caller or a test that builds the namespace by hand) is read as a list of one. Every
+    path given is used: an empty one dies, and each other resolves through `_resolve_prompt_file`
+    (repo-root-relative or absolute, fail-closed, T-0364), so a missing or unreadable one dies naming
+    that path — before anything is sent."""
+    if isinstance(paths, (str, Path)):
+        paths = [paths]
+    paths = list(paths or [])
+    parts = []
+    for i, arg in enumerate(paths, 1):
+        if not str(arg).strip():        # an explicitly passed EMPTY path is refused, never dropped
+            _die(f"--from-file {arg!r}: an empty path names no file — nothing was sent; re-run "
+                 f"`bin/yitc-v2 audit pre|post --task <id> --from-file <path>` naming a file")
+            continue
+        fp = _resolve_prompt_file(arg)
+        try:
+            text = fp.read_text(encoding="utf-8")
+        except (FileNotFoundError, PermissionError, OSError, UnicodeDecodeError) as e:
+            _die(f"--from-file {arg!r} unreadable: {e} — nothing was sent; re-run "
+                 f"`bin/yitc-v2 audit pre|post --task <id> --from-file <path>` with a readable UTF-8 file")
+            continue
+        parts.append(f"### --from-file {i} of {len(paths)}: {arg}\n\n{text}")
+    return "\n\n".join(parts)
+
+
 def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _capacity_retry_hint=None, _with_repo_lock=None, _iter_events=None, EVENTS_PATH=None, _ac_probe_evidence_events_for=None,   # T-12289 — the SPEC-0168 fold the rule-3 admission reads decisions through
               _ceiling_decision_events_for=None,   # T-13459 — that fold's `ceiling_decision` rows, read as a declared slice inside audit pre's scope; un-injected ⇒ the fold, filtered
               _file_followup=None, _plan_gate_lens=None, _audit_scrutiny_spend_note=None,   # T-11581 — SPEC-0178 read at the spend seam; un-injected ⇒ silent (fail-closed)
@@ -15187,6 +15232,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         and not plan_gate_on_decisions      # T-13844 — the recorded decisions admit this pass (the
                                             # plan-gate ladder's own `not on_decisions`)
         and is_trend_convergence_grant(_trend_prior)
+        # T-13997 (X-2035) — at TASK audit-post the grant needs a CHANGED subject: the same commit
+        # cannot carry an absorption, so it takes the ceiling route (the halt row in a worker). Audit-
+        # pre needs no twin: an unchanged plan fingerprint is the carry (`unchanged_fp_reaudit`) above.
+        and (target_kind != "task" or stage != "post"
+             or trend_grant_subject_changed(_trend_prior, sha))
     )
     if trend_grant:
         # GRANT-MOMENT JOURNAL (audit-pre finding 2): emit the grant NOW — BEFORE the (minutes-long,
@@ -15621,11 +15671,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     if args.from_file:
         # T-0131 cwd-independence, hardened fail-closed by T-0364 — shared rule in
         # _resolve_prompt_file (no cwd fallback; see its docstring for the decision).
-        fp = _resolve_prompt_file(args.from_file)
-        try:
-            extra = (extra or "") + "\n\n" + fp.read_text(encoding="utf-8")
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            _die(f"--from-file {args.from_file!r} unreadable: {e}")
+        # T-13996 — repeatable: every file, each under its own heading (`from_file_attachments`).
+        extra = (extra or "") + "\n\n" + from_file_attachments(
+            args.from_file, _resolve_prompt_file=_resolve_prompt_file, _die=_die)
     if merge_integration_reaudit:
         # T-13260 — the prior GREEN + the hand resolution, as CONTEXT beside the whole merged subject.
         extra = (extra or "") + "\n\n" + audit_ceiling.merge_integration_context(merge_integration_reaudit)
@@ -18135,10 +18183,14 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # not less: without it a worker's 2nd RED would yield with no halt row at all. The retired
     # `worker_auto_consult` term drops out of the guard; every other exemption is unchanged.
     # Structurally ONE-SHOT: the `prior_passes + 1 == AUDIT_PASS_CEILING` gate is False on the
-    # re-invoked (prior_passes == cap) call, so it can never re-raise. SCOPE = audit-POST only.
-    if (target_kind == "task" and stage == "post" and verdict == "RED"
-            and not owner_reset and not trend_grant and not ledger_skip
-            and (prior_passes + 1) == AUDIT_PASS_CEILING
+    # re-invoked (prior_passes == cap) call, so it can never re-raise.
+    # T-13997 (X-2032 / X-2035) — SCOPE = audit-PRE and audit-POST, and a trend-granted pass that records
+    # RED too: each is a ceiling reach whose worker would otherwise yield with no halt row. Still
+    # one-shot: the re-entry has no grant open to it (same commit / same plan / already past the +1),
+    # so it takes the ceiling refusal, which `_die`s before any record seam.
+    if (target_kind == "task" and stage in ("pre", "post") and verdict == "RED"
+            and not owner_reset and not ledger_skip
+            and ((prior_passes + 1) == AUDIT_PASS_CEILING or trend_grant)
             and not consult_reopen and not plan_freshness_reaudit and not unchanged_fp_reaudit
             and not concurrent_merge_reaudit and not task_lens_reaudit
             and os.environ.get("YITC_EXPECTED_SESSION_REF", "").strip()):

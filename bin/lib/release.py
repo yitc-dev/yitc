@@ -2538,6 +2538,23 @@ def _is_non_artifact(rel: str) -> bool:
                for part in rel.split("/") for pat in NON_ARTIFACT_COMPONENTS)
 
 
+# T-13994 (SPEC-1032 rule 6) — the paths an engine INSTALL holds of its own, which no release carries:
+# the venue binding at its default home (`venue.CONFIG_DEFAULT`), the journal a `-C` run writes at the
+# install root, and the `.yitc/` state and lock dir. Each is a path relative to the install root; a
+# directory entry covers everything under it. The two consumer-venue digests — the image's release
+# tree (`venue._engine_release`) and the engine release identity (`remote_verify._engine_identity`) —
+# read past them, so a correctly configured install still re-digests to its manifest and equals the
+# box it ships. Anything else that differs from the release — a changed, added or removed file —
+# still fails both. No other reader consults this set: `verify_release` judges a MIRROR, which holds none.
+INSTALL_LOCAL_PATHS = ("bin/venue-config.yaml", "events.jsonl", ".yitc")
+
+
+def is_install_local(rel: str) -> bool:
+    """True when `rel` (a path relative to an install root, `/`-separated) is one of
+    `INSTALL_LOCAL_PATHS` or lies under one of them. PURE."""
+    return any(rel == p or rel.startswith(p + "/") for p in INSTALL_LOCAL_PATHS)
+
+
 def read_tracked_release_tree(root: Path, *, exec_paths: "set | None" = None) -> "dict | None":
     """The TRACKED tree of the git checkout at `root` as {rel_path: bytes}, or None if it is not one.
 

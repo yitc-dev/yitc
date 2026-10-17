@@ -135,7 +135,7 @@ The `from` / `audited` / `emitted_by` edges were DROPPED by the graph-slim cut (
 
 **Task-field dependencies (NOT graph edges per GRAPH §Schema):**
 
-`requires:` field in `tasks/T-NNNN.yaml` lists blocking dependencies (task IDs or decision IDs). Picker excludes task if any `requires:` target incomplete (task: `status != done`; decision: `status != Final`). Specs NOT allowed in `requires:` (use `cites:` per QUEUE §YAML schema). Distinct from `cites:` (informational ref above). Lives in queue model (QUEUE.md), not graph schema (GRAPH.md).
+`requires:` field in `tasks/T-NNNN.yaml` lists blocking dependencies (task IDs or decision IDs). Which targets block the picker, and until when: QUEUE.md §Picker logic (field rules: SPEC-0028). Specs NOT allowed in `requires:` (use `cites:` per QUEUE §YAML schema). Distinct from `cites:` (informational ref above). Lives in queue model (QUEUE.md), not graph schema (GRAPH.md).
 
 **Syntax examples:**
 - Reference decision: `` (short form) or `decisions/-draft-based-doc-lifecycle.yaml` (full path)

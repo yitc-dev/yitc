@@ -6,6 +6,7 @@ travels: null
 consumed: false
 implements:
 - bin/lib/audit.py#is_trend_convergence_grant
+- bin/lib/audit.py#trend_grant_subject_changed
 - bin/lib/audit.py#cmd_audit
 binding:
 - query-only
@@ -61,65 +62,69 @@ body: "## Scenario\n\nWhen an audit RED/YELLOWs, the AI absorbs findings and re-
   skips the deterministic emit, so the absorption is invisible to every later session.\n\
   \n**Trend-aware grant — a bounded +1 on a clearly-converging trend.** At the ceiling\
   \ the session earns\nONE extra pass AUTONOMOUSLY — no owner ask and no recorded\
-  \ decision — when both hold:\n- the per-pass finding-count trend is STRICTLY DECREASING\
-  \ across every recorded pass (each pass has\n  fewer findings than the one before\
-  \ it); a FLAT (2->2) or GROWING trend, or a trail that does not\n  record a finding\
-  \ count for every pass, is not granted;\n- no residual finding is above `medium`.\
-  \ The residual is the finding list of the most recent recorded\n  pass. ZERO residual\
-  \ findings is the most-converged state and IS eligible; each present residual\n\
-  \  finding must be `low` or `medium` — a `high` residual, or one whose severity\
-  \ is absent or unknown,\n  is not granted (FAIL-CLOSED).\nThe grant is a single\
-  \ +1: it raises the EFFECTIVE ceiling by exactly one, never two, and only at the\n\
-  pass the +1 unblocks. So a second still-decreasing step at the raised cap is not\
-  \ granted, and a case\nthe grant does not admit is blocked exactly as before (SPEC-0204).\
-  \ Journal-visible at the GRANT MOMENT via an\n`audit_ceiling_trend_grant` event\
-  \ (emitted BEFORE the auditor runs) and durably in the completed\naudit YAML + completion\
-  \ events (`trend_ceiling_grant: true`). A trend grant is authorized by nobody,\n\
-  so its computed trend and residual severities ARE its reason: the saved audit YAML\
-  \ records them as\n`trend_ceiling_grant_basis` beside that marker. Scope: TASK audit-pre/post,\
-  \ the PLAN FINALIZATION\ngate and the early plan gates (draft-specs/specs-trial/trial-accepted/decomposition-executing).\
-  \ The\nplan corpus/lens/task-carrier freshness axes still pre-empt it (a stale re-pin\
-  \ is never read as a\nconverging trend).\n\n**WHAT HAPPENS AT THE CEILING — homed\
-  \ in SPEC-0204, not here.** This spec keeps the ceiling\nITSELF: the pass arithmetic,\
-  \ the ledger-skip axes, the trend grant. What happens once the ceiling is\nREACHED\
-  \ is SPEC-0036 §Audit-loop ceiling (the core) and **SPEC-0204** (the route). Read\
-  \ it:\n`bin/yitc-v2 graph query SPEC-0204`.\n\nRETIRED by SPEC-0204 rule 6 and NOT\
-  \ described here any more: the consult EPISODES that adjudicated\nthe ceiling (frozen\
-  \ finding ids, retest rounds, the PROCEED/HOLD option pair, `--reopen`), the\n`--owner-reset`\
-  \ continuation on `audit pre|post` and its consult-governed basis, the\ndispatched-worker\
-  \ AUTO-CONSULT, the `WITHDRAWN`/`CUT` card markers, and the spent-budget commit\n\
-  bypass. The dispatched worker's halt at the ceiling: SPEC-0036 §Audit-loop ceiling.\
-  \ Every retired\nflag REFUSES with a pointer to that route.\n\nNOT retired, and\
-  \ unchanged: `audit consult --on-demand` (the BELOW-ceiling technical-fork pick,\n\
-  §On-demand technical-fork consult) and the trend grant above. The PLAN-gate consult\
-  \ and\n`plan stage --owner-reset` ARE retired (SPEC-0204 rule 6) and refuse. At\
-  \ a plan-gate\nceiling the route is `audit decide --plan <slug> --gate <id>` per\
-  \ residual, then\n`plan stage <NEXT> --on-decisions` (SPEC-0204 rule 9).\n\n**The\
-  \ ENGINE drives the continuation, not the worker.** The at-ceiling block fires only\
-  \ when\n`audit post` is invoked with prior_passes >= AUDIT_PASS_CEILING — i.e. a\
-  \ 3rd invocation. When\n`cmd_audit` records the ceiling-REACHING audit-POST RED\
-  \ in a dispatched-worker context (verdict RED,\nstage post, `prior_passes + 1 ==\
-  \ AUDIT_PASS_CEILING`, `YITC_EXPECTED_SESSION_REF` set, and no\nledger-skip / trend-grant\
-  \ / carry-forward exemption), it fully persists that pass-2 RED (YAML + both\ncompletion\
-  \ events) — so the on-disk trail equals a real 2nd invocation — then raises the\n\
-  `WorkerCeilingContinuation` sentinel; the host wrapper catches it and RE-INVOKES\
-  \ `audit.cmd_audit`\nONCE in-process. The re-invoked call reads prior_passes ==\
-  \ cap from disk and enters the at-ceiling\nblock. Structurally ONE-SHOT (the `prior_passes\
-  \ + 1 == cap` gate is False on the re-invoked\nprior_passes == cap call). SCOPE:\
-  \ audit-POST only; audit-pre keeps its existing block. So at\naudit-PRE the Worker\
-  \ makes the third `audit pre --task T-XXXX` call itself, plan edited or not: after\
-  \ a\nRED ceiling-reaching pass that call takes the ceiling refusal, which emits\
-  \ the halt row; an\nunchanged plan does not carry past it.\n\nThe re-entry reaches\
-  \ the ceiling refusal, which is where the halt naming the\ncard's residual FINGERPRINTS\
-  \ is emitted (SPEC-0204 rule 6). Without the continuation a worker's 2nd\nRED would\
-  \ yield with no halt row at all, and the controller would read an orphan.\n\n**SCOPE\
-  \ — the ceiling itself, not what follows it.** The auto-consult's journal\ncarriers\
-  \ — the event `audit_worker_auto_consult_granted`, and `worker_auto_consult` /\n\
-  `owner_reset` / `owner_reset_basis` / `consult_governed` on the completed record\
-  \ — are RETIRED\nwith it (SPEC-0204 rule 6): no route sets them, so no new record\
-  \ carries them, and rows already\non disk keep theirs and stay readable. WHAT SURVIVES\
-  \ UNCHANGED, and belongs to this spec: the ceiling is not an\nauthority transfer,\
-  \ and a worker's dispatched context is read from the EXISTING signal\n`YITC_EXPECTED_SESSION_REF`\
+  \ decision — when all three hold:\n- the per-pass finding-count trend is STRICTLY\
+  \ DECREASING across every recorded pass (each pass has\n  fewer findings than the\
+  \ one before it); a FLAT (2->2) or GROWING trend, or a trail that does not\n  record\
+  \ a finding count for every pass, is not granted;\n- no residual finding is above\
+  \ `medium`. The residual is the finding list of the most recent recorded\n  pass.\
+  \ ZERO residual findings is the most-converged state and IS eligible; each present\
+  \ residual\n  finding must be `low` or `medium` — a `high` residual, or one whose\
+  \ severity is absent or unknown,\n  is not granted (FAIL-CLOSED);\n- at TASK audit-POST,\
+  \ the commit under audit is not the commit the most recent recorded pass audited.\n\
+  \  An audit-post absorption is a new commit, so on the same commit the extra pass\
+  \ could only re-ask\n  about an unchanged diff; with no recorded commit for that\
+  \ pass the grant is not given (FAIL-CLOSED).\n  At audit-pre the same plan never\
+  \ reaches the grant: an unchanged plan is carried, not re-audited.\nThe grant is\
+  \ a single +1: it raises the EFFECTIVE ceiling by exactly one, never two, and only\
+  \ at the\npass the +1 unblocks. So a second still-decreasing step at the raised\
+  \ cap is not granted, and a case\nthe grant does not admit is blocked exactly as\
+  \ before (SPEC-0204). Journal-visible at the GRANT MOMENT via an\n`audit_ceiling_trend_grant`\
+  \ event (emitted BEFORE the auditor runs) and durably in the completed\naudit YAML\
+  \ + completion events (`trend_ceiling_grant: true`). A trend grant is authorized\
+  \ by nobody,\nso its computed trend and residual severities ARE its reason: the\
+  \ saved audit YAML records them as\n`trend_ceiling_grant_basis` beside that marker.\
+  \ Scope: TASK audit-pre/post, the PLAN FINALIZATION\ngate and the early plan gates\
+  \ (draft-specs/specs-trial/trial-accepted/decomposition-executing). The\nplan corpus/lens/task-carrier\
+  \ freshness axes still pre-empt it (a stale re-pin is never read as a\nconverging\
+  \ trend).\n\n**WHAT HAPPENS AT THE CEILING — homed in SPEC-0204, not here.** This\
+  \ spec keeps the ceiling\nITSELF: the pass arithmetic, the ledger-skip axes, the\
+  \ trend grant. What happens once the ceiling is\nREACHED is SPEC-0036 §Audit-loop\
+  \ ceiling (the core) and **SPEC-0204** (the route). Read it:\n`bin/yitc-v2 graph\
+  \ query SPEC-0204`.\n\nRETIRED by SPEC-0204 rule 6 and NOT described here any more:\
+  \ the consult EPISODES that adjudicated\nthe ceiling (frozen finding ids, retest\
+  \ rounds, the PROCEED/HOLD option pair, `--reopen`), the\n`--owner-reset` continuation\
+  \ on `audit pre|post` and its consult-governed basis, the\ndispatched-worker AUTO-CONSULT,\
+  \ the `WITHDRAWN`/`CUT` card markers, and the spent-budget commit\nbypass. The dispatched\
+  \ worker's halt at the ceiling: SPEC-0036 §Audit-loop ceiling. Every retired\nflag\
+  \ REFUSES with a pointer to that route.\n\nNOT retired, and unchanged: `audit consult\
+  \ --on-demand` (the BELOW-ceiling technical-fork pick,\n§On-demand technical-fork\
+  \ consult) and the trend grant above. The PLAN-gate consult and\n`plan stage --owner-reset`\
+  \ ARE retired (SPEC-0204 rule 6) and refuse. At a plan-gate\nceiling the route is\
+  \ `audit decide --plan <slug> --gate <id>` per residual, then\n`plan stage <NEXT>\
+  \ --on-decisions` (SPEC-0204 rule 9).\n\n**The ENGINE drives the continuation, not\
+  \ the worker.** The at-ceiling block fires only when\n`audit pre|post` is invoked\
+  \ with prior_passes >= AUDIT_PASS_CEILING — i.e. a 3rd invocation. When\n`cmd_audit`\
+  \ records, in a dispatched-worker context, a RED that REACHES the ceiling (`prior_passes\
+  \ + 1\n== AUDIT_PASS_CEILING`) or a RED on a trend-granted pass — at audit-pre or\
+  \ audit-post, with\n`YITC_EXPECTED_SESSION_REF` set and no ledger-skip / carry-forward\
+  \ exemption — it fully persists that\nRED (YAML + both completion events) — so the\
+  \ on-disk trail equals a real invocation — then raises the\n`WorkerCeilingContinuation`\
+  \ sentinel; the host wrapper catches it and RE-INVOKES `audit.cmd_audit`\nONCE in-process.\
+  \ The re-invoked call reads the recorded passes from disk and enters the at-ceiling\n\
+  block; no trend grant is open to it (the same commit at audit-post, the same plan\
+  \ at audit-pre, or a\npass already past the +1). Structurally ONE-SHOT: the re-invoked\
+  \ call takes the ceiling refusal and\nrecords no pass. SCOPE: audit-pre and audit-post\
+  \ — the Worker owes no third call at either stage.\n\nThe re-entry reaches the ceiling\
+  \ refusal, which is where the halt naming the\ncard's residual FINGERPRINTS is emitted\
+  \ (SPEC-0204 rule 6). Without the continuation a worker's 2nd\nRED would yield with\
+  \ no halt row at all, and the controller would read an orphan.\n\n**SCOPE — the\
+  \ ceiling itself, not what follows it.** The auto-consult's journal\ncarriers —\
+  \ the event `audit_worker_auto_consult_granted`, and `worker_auto_consult` /\n`owner_reset`\
+  \ / `owner_reset_basis` / `consult_governed` on the completed record — are RETIRED\n\
+  with it (SPEC-0204 rule 6): no route sets them, so no new record carries them, and\
+  \ rows already\non disk keep theirs and stay readable. WHAT SURVIVES UNCHANGED,\
+  \ and belongs to this spec: the ceiling is not an\nauthority transfer, and a worker's\
+  \ dispatched context is read from the EXISTING signal\n`YITC_EXPECTED_SESSION_REF`\
   \ — never a new liveness / autonomy / state machine (CHARTER non-goals).\nThe EARLY\
   \ plan gates keep their own ceiling path in `_run_plan_gate_audit` (§Plan-target\
   \ parity),\nwhich this retirement does not touch; their L3 parity remains the tracked\
@@ -410,23 +415,34 @@ body: "## Scenario\n\nWhen an audit RED/YELLOWs, the AI absorbs findings and re-
   \ 4, option A): widen the grant from all-remaining-low to\n  medium-or-lower when\
   \ the finding count strictly falls and no high finding remains. Kept by the\n  same\
   \ decision: strictly fewer findings than the previous pass, no `high` residual,\
-  \ one extra pass.\n\n## Implementation notes\n\n- The admission predicate is `is_trend_convergence_grant`\
-  \ over `finding_count_trend` (both in\n  `bin/lib/audit.py`): a pure function of\
-  \ the prior saved record — its `passes_trail` counts plus\n  its own `findings`\
-  \ — decided before the auditor runs. It is target-agnostic; `cmd_audit` (task\n\
-  \  pre/post, plan finalization) and `_run_plan_gate_audit` (early plan gates) call\
-  \ it.\n\n## Verification\n\n- `tests/test_t9682_trend_aware_ceiling.py`, the `test_t13986_*`\
-  \ arms: a ceiling pass whose\n  findings fell 3 -> 2 with severities {medium, low}\
-  \ is granted the next pass (red on the low-only\n  predicate); a `high` residual,\
-  \ an equal and a larger count are not granted; the grant stays one\n  pass, journaled\
-  \ by one `audit_ceiling_trend_grant` row.\n- `bin/yitc-v2 graph query SPEC-1034`\
-  \ resolves; no stage entry renders it — SPEC-0036\n  §Audit-loop ceiling, rendered\
-  \ at both audit stage entries, carries the ceiling core and names it.\n- `wc -l\
-  \ specs/SPEC-0036*.yaml` shows the remainder back in the 400-500 band; neither spec\
-  \ is\n  over-ceiling (SPEC-0120 §3 must-split resolved).\n- No LIVE surface still\
-  \ cites the moved anchors at the old home: the stale-ref probe over live\n  docs/code/tests\
-  \ finds 0 hits for either moved anchor (the former ceiling + plan-target-parity\
-  \ refs).\n"
+  \ one extra pass.\n\n### Halt on every ceiling reach; no grant on an unchanged commit\n\
+  \n- Cross X-2032 (<project>, 2026-10-17): an audit-pre pass-2 RED in a dispatched\
+  \ worker wrote no\n  halt row, so the Controller saw no residual fingerprints —\
+  \ the continuation was audit-post only.\n  Cross X-2035: an audit-post pass-2 RED\
+  \ re-entered, took a trend grant and spent pass 3 at once on\n  the same commit\
+  \ (identical RED), then wrote no halt row. The route (in place, not a successor\
+  \ spec)\n  is the on-demand consult of : it restores what SPEC-0036 §Audit-loop\
+  \ ceiling already states\n  — the audit verb itself writes the halt row at the ceiling,\
+  \ and the worker owes no second row.\n\n## Implementation notes\n\n- The admission\
+  \ predicate is `is_trend_convergence_grant` over `finding_count_trend` (both in\n\
+  \  `bin/lib/audit.py`): a pure function of the prior saved record — its `passes_trail`\
+  \ counts plus\n  its own `findings` — decided before the auditor runs. It is target-agnostic;\
+  \ `cmd_audit` (task\n  pre/post, plan finalization) and `_run_plan_gate_audit` (early\
+  \ plan gates) call it.\n\n## Verification\n\n- `tests/test_t9682_trend_aware_ceiling.py`,\
+  \ the `test_t13986_*` arms: a ceiling pass whose\n  findings fell 3 -> 2 with severities\
+  \ {medium, low} is granted the next pass (red on the low-only\n  predicate); a `high`\
+  \ residual, an equal and a larger count are not granted; the grant stays one\n \
+  \ pass, journaled by one `audit_ceiling_trend_grant` row.\n- `tests/test_t13997_ceiling_halt_on_every_reach.py`:\
+  \ a worker's ceiling-reaching audit-pre RED writes\n  one halt row with residual\
+  \ fingerprints; an audit-post re-entry on the same commit spends no grant\n  pass\
+  \ and halts; a changed commit keeps the grant; a trend-granted RED also halts.\n\
+  - `bin/yitc-v2 graph query SPEC-1034` resolves; no stage entry renders it — SPEC-0036\n\
+  \  §Audit-loop ceiling, rendered at both audit stage entries, carries the ceiling\
+  \ core and names it.\n- `wc -l specs/SPEC-0036*.yaml` shows the remainder back in\
+  \ the 400-500 band; neither spec is\n  over-ceiling (SPEC-0120 §3 must-split resolved).\n\
+  - No LIVE surface still cites the moved anchors at the old home: the stale-ref probe\
+  \ over live\n  docs/code/tests finds 0 hits for either moved anchor (the former\
+  \ ceiling + plan-target-parity refs).\n"
 cites:
 - SPEC-0036
 - SPEC-0015
@@ -438,5 +454,6 @@ activation_owner_task: null
 proposed_by: null
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 5c386936914ed1bf5c3bfcff2087a81d4205bb91eacfcb1662d318609a8564a1
+  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
   bin/lib/audit.py#is_trend_convergence_grant: b49015c43bf99062f0bec7752fa349d1ef1cb6505d2f4cba8bbc0a524fd757d0
+  bin/lib/audit.py#trend_grant_subject_changed: c6c5d13d826fb0bf818c557b7d20803cc950ae9e28195dd43caeefc61fac965f

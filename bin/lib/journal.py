@@ -3526,6 +3526,8 @@ def segment_rows(path, *, types=None, min_ts=None) -> list:
     if types is not None:
         types = frozenset(types)
         got = _typed_serve(path, types, min_ts=min_ts)
+        if got is None:
+            got = _handdown_serve(path, types)     # T-13995 — the request's one pass, handed down
         return got if got is not None else _typed_walk(path, types)
     held = _keep_all_scope_for(path)
     if held is not None:      # T-13330 — the safety net (see `JournalScan.serve_undeclared`)
@@ -6275,6 +6277,7 @@ class JournalScan:
         if self._ran and self._catchup_on:
             for r in self._reducers.values():
                 getattr(r, "finish", lambda: None)()
+        _handdown_offer(self)       # T-13995 — an armed request's typed hand-down (see `typed_handdown`)
         self._live = None
 
     def fresh(self) -> bool:
@@ -6678,6 +6681,67 @@ def _note_undeclared(primitive, path) -> None:
     scope = _scope_for(path)
     if scope is not None:
         scope.fallbacks.append(("undeclared", primitive, str(path)))
+
+
+# ── T-13995 — the TYPED HAND-DOWN of a request's one pass (SPEC-0190 rule 10; the T-12495 shape) ─────
+# `session start` (public intake #132) read two WHOLE-HISTORY typed projections AFTER the debt echo's
+# one-pass scope had closed — the capture fingerprints `cli._record_unobserved_version_deviation`
+# dedupes against and the `land_completed` rows of the worker-fit line — so each was a second typed
+# walk of every archived segment the start's memo does not hold (T-13461 keeps only the summary
+# window): measured on the kernel checkout, 252 physical folds over 138 segments for one start. The
+# rows are exactly what that scope already KEEPS. So a request ARMS a hand-down for the types it will
+# read after the pass; the scope, on close, leaves its rows of those types in the slot, and
+# `segment_rows(path, types=T)` with T among them is answered from them — OFFERED, like
+# `offer_adoption`: a request that does not arm one, a scope that cannot serve every armed type, or a
+# narrowed scope (a horizon, keep_all) leaves the slot empty and every reader reads as before.
+# What it serves is the journal as that pass read it: the request treats its live segment as settled
+# already (`cli.cmd_session_start` — `live_settled`, T-13303). Thread-local and request-bounded: the
+# slot dies with the `with`, so nothing survives the request (rule 10 (a)).
+_HANDDOWN_TLS = threading.local()
+
+
+@contextlib.contextmanager
+def typed_handdown(path, types):
+    """Arm the typed hand-down (see the block above) of the rows of `types` of the journal at `path`
+    for this `with` on this thread. The FIRST scope of that journal to close having walked fills it."""
+    prior = getattr(_HANDDOWN_TLS, "slot", None)
+    _HANDDOWN_TLS.slot = {"path": _handdown_key(path), "types": frozenset(types), "rows": None}
+    try:
+        yield
+    finally:
+        _HANDDOWN_TLS.slot = prior
+
+
+def _handdown_key(path) -> str:
+    try:
+        return str(Path(path).resolve())
+    except (OSError, TypeError, ValueError):
+        return str(path)
+
+
+def _handdown_offer(scope) -> None:
+    """Called by `JournalScan.close`: fill an armed, still-empty slot for `scope`'s journal with its
+    whole-history rows of the armed types — only from a scope that walked the WHOLE history (no horizon,
+    not keep_all) and serves every armed type (`JournalScan.serve`, which records a miss otherwise)."""
+    slot = getattr(_HANDDOWN_TLS, "slot", None)
+    if (slot is None or slot["rows"] is not None or not scope._ran or scope._since is not None
+            or scope._keep_all or _handdown_key(scope._path) != slot["path"]):
+        return
+    if not all(t in scope._keep and scope._keep[t] is None for t in slot["types"]):
+        return
+    rows = scope.serve(slot["types"])
+    if rows is not None:
+        slot["rows"] = rows
+
+
+def _handdown_serve(path, types):
+    """The armed slot's rows of `types` in logical order, or None (no slot, another journal, not filled,
+    or a type it does not hold). A new list each call; the row dicts are shared, as a scope's are."""
+    slot = getattr(_HANDDOWN_TLS, "slot", None)
+    if slot is None or slot["rows"] is None or _handdown_key(path) != slot["path"] \
+            or not types <= slot["types"]:
+        return None
+    return [e for e in slot["rows"] if e.get("type") in types]
 
 
 @contextlib.contextmanager

@@ -607,6 +607,13 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("lib.verify_runner._ADMISSION_POLL_SEC", "float", 1.0, "bin/lib/worktree.py",
        "how often a blocked land re-tests for a freed verify-admission slot — pure latency; the "
        "admission DECISION is the flock, not the poll"),
+    _p("lib.batch_landing._LAND_BATCH_MAX", "int", 4, "bin/lib/batch_landing.py#_land_batch_max",
+       "T-13991 (SPEC-0184 §Parameters) — how many queued lands share ONE verify. PERFORMANCE: it "
+       "changes how many lands one verify pass carries, never a member's verdict — a red batch "
+       "re-queues every member (SPEC-0184 rule 4), it fails none. 1 forms every land alone, which is "
+       "batching off. Owner decision 2026-10-17 (option A): the right size depends on the machine "
+       "and the project. Admissible 1..8 (SPEC-0184's measured basis: 8+ inverts the all-green trade)",
+       bounds=(1, 8)),
     _p("lib.worktree._LAND_BACKOFF_CAP_SECONDS", "float", 3.0,
        "bin/lib/worktree.py#_land_retry_backoff",
        "T-12219 — the CAP on the ff-race retry backoff: how long a land that lost the race sleeps "
