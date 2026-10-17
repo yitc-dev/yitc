@@ -245,8 +245,8 @@ verify:
   # - EXEC: the layer brings a stack up ONCE and each probe runs inside it (`compose exec`).
   # see SPEC-0152 §16; SPEC-0093 §3
   # TIMEOUT (X-0204). Per layer `timeout: <seconds>` and/or section `timeout_seconds:`;
-  # in precedence order: the env escape hatch (YITC_VERIFY_TEST_TIMEOUT) · layer · section · the 300s
-  # default;
+  # in precedence order: the env escape hatch (YITC_VERIFY_TEST_TIMEOUT) · layer · section · machine
+  # setting · default;
   # a malformed value fails the land CLOSED.
   # HOW TO CHOOSE THE NUMBER: SPEC-0208 (`bin/yitc-v2 graph query SPEC-0208`) — measure p95 by nearest
   # rank (n >= 20) under the tuple you land under, declare inside [2 x p95, 4 x p95], record it here.
@@ -744,4 +744,7 @@ overrides:
   # nightly sweep. An UNREGISTERED edit of an upstream-owned file is a CONFLICT on update and is
   # never resolved silently in either direction (rule 3).
   entries: []
+# thresholds:
+# SPEC-1031 rule 5 — this project's THRESHOLD values, keyed by `config list` name;
+# absent = the kernel default. Opt-in.
 # ── END born-ops template (generated completeness sentinel) ──

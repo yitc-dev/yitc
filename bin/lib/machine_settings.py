@@ -21,6 +21,10 @@ THE THREE CLASSES (mechanical, fail-closed).
                 aborts a land, an audit timeout's code default and env knob, any threshold a refusal
                 reads. (A machine's per-tier `auditor.<tier>.timeout` is BINDING: its expiry is a
                 no-answer that yields no verdict — SPEC-0202 rules 1 and 6, T-13205.)
+  An ADMISSION value — one that decides only WHEN a governed run may start, e.g. the deploy load
+  window (T-13962) — is PERFORMANCE even where its expiry refuses the run, under the three conditions
+  SPEC-0193 rule 2 states (no judgement of the subject, nothing started and no row, re-runnable
+  unchanged or skipped by a recorded flag). That rule is the home; this is a pointer.
 Classification is FAIL-CLOSED: anything that cannot be confidently classified is GATE. That is why
 the four dynamic PREFIX stems (`YITC_AUDIT_`, `YITC_CLI__`, `YITC_RUNNER__`, `YITC_EXPECTED`) are
 GATE — a stem names an OPEN family, so it cannot be classified at all, and the fail-closed reading is
@@ -50,6 +54,15 @@ without restating either.
 ABSENT-FILE BEHAVIOUR. A missing, unreadable or malformed file yields NO overrides at all: every
 reader falls back to its built-in default. The file is an OVERRIDE LAYER, never a prerequisite — no
 verb may start to require it.
+
+THE TWO OPENED CLASSES (SPEC-1031 rules 2-5, 7; built by T-13966, first keys opened by T-13969). A
+key a card OPENS leaves GATE for one of two classes: BUDGET — a wall-clock limit whose expiry ends a
+run as stuck, set on the MACHINE (environment > this file > built-in default, settable only with a
+declared band, the band checked at set and at file read) — or THRESHOLD — a number a verdict or a
+signal compares against that describes the PROJECT, set in the project's `yitc-ops.yaml`
+`thresholds:` section and never on the machine (the environment is not read, `set_value` refuses it
+and `load` drops it). A key no card opened stays GATE, refused on every door. `in_force` names the
+value applied and its source, for a run row or a signal.
 """
 from __future__ import annotations
 
@@ -61,7 +74,14 @@ from pathlib import Path
 # ── Classes ───────────────────────────────────────────────────────────────────────────────────
 PERFORMANCE = "performance"
 BINDING = "binding"                    # SPEC-0202 rule 1 — a machine-declared LOCATOR
+BUDGET = "budget"                      # SPEC-1031 rule 2 — an OPENED machine wall-clock limit (T-13966)
+THRESHOLD = "threshold"                # SPEC-1031 rule 2 — an OPENED project number (T-13966)
 GATE = "gate"
+#: Every class name an entry may carry (SPEC-1031 rule 2). An entry is BUDGET or THRESHOLD only once a
+#: card opened it (SPEC-1031 rule 3); an unclassified name reads as GATE.
+CLASSES = (PERFORMANCE, BINDING, BUDGET, THRESHOLD, GATE)
+#: The project ops-carrier section a THRESHOLD is set in (SPEC-1031 rule 5).
+THRESHOLDS_SECTION = "thresholds"
 
 MACHINE_SETTINGS_ENV = "YITC_MACHINE_SETTINGS"
 SETTINGS_FILENAME = "machine-settings.json"
@@ -86,14 +106,21 @@ class Knob:
     finding 1). It is an EXTENSION of the one validator `coerce` already is, not a second validation
     path — and it does not reach the environment layer, which never passes through `coerce` at all
     (rule 7 makes env the top layer), so a read site declaring a range still keeps its own check.
+
+    `escape` (T-13967) marks a knob whose ENVIRONMENT value is an escape hatch its own spec puts above
+    every other source whatever the knob's class — the land-verify per-file bound, whose
+    `YITC_VERIFY_TEST_TIMEOUT` heads the SPEC-0152 chain. `applied` reads that value first, as it does
+    for a budget, so `config get` and `config list` show the value the read site applies. It opens
+    nothing: a GATE knob with `escape` is still refused on every door.
     """
 
-    __slots__ = ("name", "cls", "kind", "default", "read_site", "why", "bounds")
+    __slots__ = ("name", "cls", "kind", "default", "read_site", "why", "bounds", "escape")
 
-    def __init__(self, name, cls, kind, default, read_site, why, bounds=None):
+    def __init__(self, name, cls, kind, default, read_site, why, bounds=None, escape=False):
         self.name, self.cls, self.kind = name, cls, kind
         self.default, self.read_site, self.why = default, read_site, why
         self.bounds = bounds
+        self.escape = escape
 
     @property
     def is_performance(self) -> bool:
@@ -105,7 +132,12 @@ class Knob:
         may (SPEC-0193 rule 3, as amended by SPEC-0202 rule 1). Deliberately a SECOND property rather
         than a widened `is_performance`: the class question «is this a cadence value» is asked by
         read sites and by tests that pin a knob's classification, and answering it `True` for a
-        binding locator would quietly make those claims false."""
+        binding locator would quietly make those claims false.
+
+        A BUDGET may too, but ONLY with a declared band (SPEC-1031 rule 3(a)): an unbanded one is
+        treated as GATE, fail-closed. A THRESHOLD never may — it belongs to the project (rule 4)."""
+        if self.cls == BUDGET:
+            return self.bounds is not None
         return self.cls in (PERFORMANCE, BINDING)
 
 
@@ -121,8 +153,23 @@ def _b(name, read_site, why):
     return Knob(name, BINDING, "str", "", read_site, why)
 
 
-def _g(name, kind, default, read_site, why):
-    return Knob(name, GATE, kind, default, read_site, why)
+def _u(name, kind, default, read_site, why, bounds, escape=False):
+    """A BUDGET-class knob a card OPENED (SPEC-1031 rule 3): a wall-clock limit set on the machine,
+    always with its declared band (rule 3(a))."""
+    return Knob(name, BUDGET, kind, default, read_site, why, bounds, escape)
+
+
+def _t(name, kind, default, read_site, why, bounds):
+    """A THRESHOLD-class knob a card OPENED (SPEC-1031 rule 3): a number set in a project's
+    yitc-ops.yaml `thresholds:` section, always with its declared band (rule 3(a))."""
+    return Knob(name, THRESHOLD, kind, default, read_site, why, bounds)
+
+
+def _g(name, kind, default, read_site, why, bounds=None, escape=False):
+    """A GATE-class knob. `bounds` and `escape` (T-13967) prepare a key a later card opens
+    (SPEC-1031 rule 3): the band is declared and the environment escape hatch is shown where it
+    applies, while the class, and with it the refusal on every door, stays GATE."""
+    return Knob(name, GATE, kind, default, read_site, why, bounds, escape)
 
 
 # ── THE INVENTORY ─────────────────────────────────────────────────────────────────────────────
@@ -210,6 +257,24 @@ INVENTORY: "tuple[Knob, ...]" = (
        "shrink the per-leg width, directive 2026-09-07T14:46:36Z), so a higher number is a typo "
        "rather than a policy",
        bounds=(1, 4)),
+    _p("YITC_DEPLOY_ADMISSION_MAX_WAIT_S", "int", 600,
+       "bin/lib/deploy.py#deploy_admission_settings",
+       "how long a forward `deploy` waits, at most, for the host load1 to drop under "
+       "YITC_DEPLOY_HEADROOM_LOAD1 before it refuses (SPEC-0094 §9, T-13962). The verb re-reads the "
+       "load every 15 s inside this bound; when it expires the deploy refuses with nothing run, and "
+       "`deploy --now` skips the wait. Admissible 1..7200 seconds; anything else is ignored and the "
+       "default stands. PERFORMANCE: it changes WHEN a deploy starts, never which gates it runs or "
+       "how they conclude",
+       bounds=(1, 7200)),
+    _p("YITC_DEPLOY_HEADROOM_LOAD1", "float", 36.0,
+       "bin/lib/deploy.py#deploy_admission_settings",
+       "the host load1 a forward `deploy` must be BELOW before it runs the project's deploy command "
+       "(SPEC-0094 §9, T-13962): the command runs its own smoke tests, and on a host busy with verify "
+       "runs those tests flake. The default is the Stage-6 venue headroom built-in "
+       "(YITC_VENUE_STAGE6_HEADROOM_LOAD1, 36.0), the one load figure the engine already admits work "
+       "under. Admissible 1.0..1024.0; anything else is ignored and the default stands. PERFORMANCE: "
+       "it changes WHEN a deploy starts, never which gates it runs or how they conclude",
+       bounds=(1.0, 1024.0)),
     _g("YITC_DISPATCH_LAUNCHER", "str", None, "bin/lib/worktree_lifecycle.py#_dispatch_launcher_pid",
        "T-12830 — the dispatch launcher's <pid>:<starttime>; spares it from the live-holder refusal"),
     _g("YITC_VENUE_RECORD", "str", None, "bin/lib/venue.py#resolve_record_path",
@@ -567,8 +632,71 @@ INVENTORY: "tuple[Knob, ...]" = (
        "can oversubscribe the host. Distinct from YITC_VERIFY_WORKERS, which lowers the DERIVED "
        "REMOTE width only. Owner directive events.jsonl#ts=2026-10-09T13:28:02Z. Admissible 1..1024",
        bounds=(1, 1024)),
+    _p("lib.worktree._VERIFY_WIDTH_FLOOR", "int", 4, "bin/lib/worktree.py#_verify_width_budget",
+       "T-13971 (SPEC-0132 §1c) — the fewest test workers an ADAPTIVE verify runs at, however loaded "
+       "the host reads at its start. PERFORMANCE: it changes how wide a verify runs, never which files "
+       "run or how they conclude; the host resource bound still caps it. Admissible 1..1024",
+       bounds=(1, 1024)),
+    _p("lib.worktree._VERIFY_WIDTH_MAX", "int", None, "bin/lib/worktree.py#_verify_width_budget",
+       "T-13971 (SPEC-0132 §1c) — the most test workers an ADAPTIVE verify runs at; unset = the host's "
+       "processor count. PERFORMANCE, as the floor. Admissible 1..1024",
+       bounds=(1, 1024)),
+    _p("lib.worktree._VERIFY_WIDTH_MODE", "str", "adaptive", "bin/lib/worktree.py#_verify_width_budget",
+       "T-13971 (SPEC-0132 §1c) — `adaptive` sizes each verify at its start by the host's free cores "
+       "(load1 read once, under one host-wide lock, with the widths of verifies that started within "
+       "the last minute counted as load); `fixed` runs every verify at "
+       "lib.worktree._VERIFY_WORKER_CEILING, as before this card. PERFORMANCE: width only. "
+       "Admissible: adaptive | fixed",
+       bounds=("adaptive", "fixed")),
+    _p("lib.worktree._VERIFY_WIDTH_SHARE", "float", 0.8, "bin/lib/worktree.py#_verify_width_budget",
+       "T-13971 (SPEC-0132 §1c) — the share of the host's free cores (processor count - load1 - "
+       "recently started widths) an ADAPTIVE verify takes. PERFORMANCE, as the floor. "
+       "Admissible 0.05..1.0",
+       bounds=(0.05, 1.0)),
 
-    # ---- GATE: everything else. Unclassifiable is GATE by construction, not by omission. ----
+    # ---- BUDGET and THRESHOLD: the keys a card OPENED (SPEC-1031 rule 3; T-13969). Each declares
+    # its band; a BUDGET is set on the machine, a THRESHOLD in a project's yitc-ops.yaml `thresholds:`.
+    _u("YITC_VERIFY_TEST_TIMEOUT", "float", 300.0, "bin/lib/cli.py#_verify_test_timeout_seconds",
+       "the land-verify per-file wall-clock bound (SPEC-0071): expiry ends the run as stuck and aborts "
+       "the land. ONE key (T-13967 folded the former second name lib.cli._VERIFY_TEST_TIMEOUT_DEFAULT "
+       "in); its built-in default lives here and nowhere else. A BUDGET (T-13969): a machine sets it "
+       "with `config set` inside its band; its environment value is the SPEC-0152 escape hatch above "
+       "every other source, a project's declared layer / section bound comes next, and the machine "
+       "file takes the place just above this default (SPEC-1031 rule 4)",
+       bounds=(60.0, 3600.0), escape=True),
+    _t("YITC_LOAD_SENSITIVE_MAX_FILES", "int", 25, "bin/lib/debt.py#load_sensitive_max_files",
+       "the FILE-COUNT half of the SPEC-0132 §3 serial-lane watch-point as EXTENDED to the declared "
+       "load-sensitive lane (T-12360): past this many files in `tests/load-sensitive.txt` the weekly "
+       "review must dispose a NAMED global-rework question instead of filing another per-file card. "
+       "The default is the value the watch-point stated when it was written, reused as-is. A "
+       "THRESHOLD (T-13969): one value per project, set in its yitc-ops.yaml `thresholds:` section, "
+       "so the same lane reads the same bound on every machine. Admissible 1..1000 — below 1 no lane "
+       "could ever be under bound, and past 1000 the lane would exceed this repo's whole recorded "
+       "corpus. REPORT-ONLY: it changes what the weekly review is asked to DISPOSE, never which tests "
+       "run, where they run, or how any verdict concludes",
+       bounds=(1, 1000)),
+    _t("YITC_LOAD_SENSITIVE_SHARE_PCT", "int", 10, "bin/lib/debt.py#load_sensitive_share_pct",
+       "the SHARE-OF-VERIFY-WALL half of the same extended watch-point (T-12360), in percent of the "
+       "duration table's own total per-file work (T-11316): past this share the lane's serialized "
+       "tail is long enough that the weekly review must dispose the global-rework question. The "
+       "default is likewise the watch-point's own stated value. A THRESHOLD on the same reading as its "
+       "sibling above. Admissible 1..100 — 0 would report every non-empty lane as over bound and past "
+       "100 no lane could be. REPORT-ONLY on the same terms",
+       bounds=(1, 100)),
+    _t("lib.cli.LAND_REPEATED_ABORT_THRESHOLD", "int", 2, "bin/lib/cli.py#cmd_land",
+       "the T-0655 repeated-abort backstop: a land is refused once this many consecutive same-cause "
+       "aborts are on record, so it decides whether a land runs. A THRESHOLD (T-13969): one value "
+       "per project, set in its yitc-ops.yaml `thresholds:` section; the band's lower end keeps one "
+       "transient abort from ever blocking. Read through `in_force`, and the abort it decides names "
+       "value and source on its row (T-13968)",
+       bounds=(2, 10)),
+    _t("lib.cli._LAND_MAX_RETRIES", "int", 5, "bin/lib/cli.py#_land_integrate",
+       "the concurrent-land ff-race bound (D-0083 §3d): the number of integration attempts a land "
+       "makes, the first one included, before it aborts `retries-exhausted`, so it decides whether "
+       "a land completes. A THRESHOLD (T-13969): one value per project, set in its yitc-ops.yaml "
+       "`thresholds:` section; the band's lower end keeps one retry. Read through `in_force`, and the "
+       "abort it decides names value and source on its row (T-13968)",
+       bounds=(2, 20)),
 
     # ---- GATE: everything else. Unclassifiable is GATE by construction, not by omission. ----
     _g("YITC_ACTOR", "str", None, "bin/lib/grants.py",
@@ -702,34 +830,12 @@ INVENTORY: "tuple[Knob, ...]" = (
        "merely timing. A <=0 or non-numeric value falls back to the default, so it can never be "
        "turned into an unthrottled loop"),
     _g("YITC_LAND_PARK_REQUEUE_MAX", "int", 2, "bin/lib/worktree.py#_land_park_requeue_max",
-       "the T-12393 cap on automatic park-bound REQUEUES for one land process. GATE on the SAME "
-       "ground as `_LAND_MAX_RETRIES` and as the park limit it extends: the number decides whether "
-       "the land eventually gives up and HALTS, which is a verdict, not a cadence"),
+       "the T-12393 cap on automatic park-bound REQUEUES for one land process. GATE on the same "
+       "ground as the park limit it extends: the number decides whether the land eventually gives "
+       "up and HALTS, which is a verdict, not a cadence; no card opened it (SPEC-1031 rule 3)"),
     _g("YITC_LAND_RESERVATION_PARK_LIMIT_SECS", "float", None, "bin/lib/worktree.py",
        "the SPEC-0132 park BOUND: expiry degrades the land, so it is a verdict input (and is "
        "explicitly written never to be disableable)"),
-    _g("YITC_LOAD_SENSITIVE_MAX_FILES", "int", 25, "bin/lib/debt.py#load_sensitive_max_files",
-       "the FILE-COUNT half of the SPEC-0132 §3 serial-lane watch-point as EXTENDED to the declared "
-       "load-sensitive lane (T-12360): past this many files in `tests/load-sensitive.txt` the weekly "
-       "review must dispose a NAMED global-rework question instead of filing another per-file card. "
-       "THE DEFAULT 25 IS NOT A NEW NUMBER — it is the value the watch-point has stated since it was "
-       "written («OR 25 files»), reused as-is, which is why this card introduced no hypothesis "
-       "figure. GATE-class by the module's fail-closed rule, and deliberately so even though nothing "
-       "refuses on it: it is a governance THRESHOLD, and a threshold that read differently per "
-       "machine would make the same lane over-bound on one host and clean on another. Admissible "
-       "1..1000 — below 1 no lane could ever be under bound, and past 1000 the lane would exceed "
-       "this repo's whole recorded corpus; anything else is ignored and the default stands. "
-       "REPORT-ONLY: it changes what the weekly review is asked to DISPOSE, never which tests run, "
-       "where they run, or how any verdict concludes"),
-    _g("YITC_LOAD_SENSITIVE_SHARE_PCT", "int", 10, "bin/lib/debt.py#load_sensitive_share_pct",
-       "the SHARE-OF-VERIFY-WALL half of the same extended watch-point (T-12360), in percent of the "
-       "duration table's own total per-file work (T-11316): past this share the lane's serialized "
-       "tail is long enough that the weekly review must dispose the global-rework question. THE "
-       "DEFAULT 10 IS LIKEWISE THE WATCH-POINT'S OWN STATED VALUE («exceeds 10% of verify wall "
-       "time»), reused rather than re-derived. GATE-class on the same reading as its sibling above. "
-       "Admissible 1..100 — 0 would report every non-empty lane as over bound and past 100 no lane "
-       "could be; anything else is ignored and the default stands. REPORT-ONLY on the same terms",
-       ),
     _g("YITC_MACHINE_SETTINGS", "str", None, "bin/lib/machine_settings.py#resolve_settings_path",
        "WHICH machine settings file is read/written — a placement/identity input, the same nature as "
        "YITC_CROSS_LOG. Pointing it at another file cannot smuggle a gate-class value in: the READ "
@@ -821,9 +927,6 @@ INVENTORY: "tuple[Knob, ...]" = (
        "and cannot move a verdict, but this is a DESTINATION, not a cadence or a worker count — and "
        "the classification is fail-closed, so it is GATE: a value pointing the export somewhere "
        "unwritable or shared is a thing a reader must be able to see classified"),
-    _g("YITC_VERIFY_TEST_TIMEOUT", "float", 300.0, "bin/lib/cli.py",
-       "the card's own named example: expiry ABORTS the land, so the value participates in the "
-       "verdict"),
     _g("YITC_VERIFY_TMPDIR", "str", None, "bin/lib/verify_runner.py#_install_verify_tmpdir",
        "T-12185 — relocates the verify run's temp base (e.g. a tmpfs), which BOTH the sandbox "
        "mkdtemp and the SPEC-0132 Rule 1 disk/inode statvfs follow. GATE, not PERFORMANCE, and "
@@ -838,8 +941,6 @@ INVENTORY: "tuple[Knob, ...]" = (
        "it only through the BINDING key auditor.full.timeout"),
     _g("lib.audit.AUDIT_TIMEOUT_SECONDS", "int", 300, "bin/lib/audit.py",
        "the built-in default behind YITC_AUDIT_TIMEOUT_SECONDS — a verdict input"),
-    _g("lib.cli._VERIFY_TEST_TIMEOUT_DEFAULT", "float", 300.0, "bin/lib/cli.py",
-       "the built-in default behind YITC_VERIFY_TEST_TIMEOUT — a verdict input"),
     _g("lib.worktree._LAND_RESERVATION_PARK_WALLS", "float", 20.0, "bin/lib/worktree.py",
        "the park bound in units of a verify wall — a SAFETY bound, so a verdict input"),
     _g("lib.worktree._VERIFY_WALL_SECONDS", "float", 448.4, "bin/lib/worktree.py",
@@ -927,10 +1028,11 @@ def _raw_load(path) -> dict:
 
 
 def load(env=None) -> dict:
-    """The EFFECTIVE overrides: performance- and binding-class keys only, each coerced to its
-    declared type (SPEC-0193 rule 3, as amended by SPEC-0202 rule 1).
+    """The EFFECTIVE overrides: settable keys only (`Knob.is_settable` — performance and binding,
+    and a banded budget), each coerced to its declared type and band (SPEC-0193 rule 3, as amended
+    by SPEC-0202 rule 1; SPEC-1031 rule 7 for a budget).
 
-    Gate-class and unknown keys present in the file are DROPPED — silently for the reader (whose
+    Gate-class, threshold-class and unknown keys present in the file are DROPPED — silently for the reader (whose
     correct behaviour is its built-in default) and visibly for `config list`, which reports them.
     This is the second half of the hard refusal: a hand-edited file is an entrypoint too.
     """
@@ -959,10 +1061,19 @@ def get_value(name, env=None):
 
 
 # ── The file: write side ──────────────────────────────────────────────────────────────────────
-def coerce(knob: Knob, raw):
+def coerce(knob: Knob, raw, *, banded=True):
     """Validate + convert `raw` for `knob`, or raise SettingsRefused. Numeric knobs must be finite
     and > 0: every numeric performance knob here is a cadence or a worker count, and zero/negative
-    would not be a slower engine but a disabled or nonsensical one."""
+    would not be a slower engine but a disabled or nonsensical one.
+
+    A boolean is never a number here, and an integer knob takes no fractional value: a hand-written
+    `true` or `2.5` is refused rather than read as 1 or 2 (T-13966). `banded=False` skips the band
+    and nothing else — the environment layer of a budget, which SPEC-1031 rule 4 puts above the band
+    exactly as SPEC-0193 rule 7 puts it above the file."""
+    if knob.kind in ("int", "float") and isinstance(raw, bool):
+        raise SettingsRefused(f"{knob.name}: expected {knob.kind}, got {raw!r}")
+    if knob.kind == "int" and isinstance(raw, float) and not raw.is_integer():
+        raise SettingsRefused(f"{knob.name}: expected int, got {raw!r}")
     try:
         if knob.kind == "int":
             value = int(raw)
@@ -972,12 +1083,15 @@ def coerce(knob: Knob, raw):
             value = str(raw)
     except (TypeError, ValueError):
         raise SettingsRefused(f"{knob.name}: expected {knob.kind}, got {raw!r}")
+    if knob.kind == "str" and knob.bounds is not None and value not in knob.bounds:
+        # T-13971 — a str knob's `bounds` is the CLOSED set of values its read site acts on.
+        raise SettingsRefused(f"{knob.name}: must be one of {' | '.join(knob.bounds)} (got {value!r})")
     if knob.kind in ("int", "float"):
         if value != value or value in (float("inf"), float("-inf")):     # NaN / inf
             raise SettingsRefused(f"{knob.name}: {raw!r} is not a finite {knob.kind}")
         if value <= 0:
             raise SettingsRefused(f"{knob.name}: must be > 0 (got {value})")
-        if knob.bounds is not None:
+        if banded and knob.bounds is not None:
             lo, hi = knob.bounds
             if not (lo <= value <= hi):
                 raise SettingsRefused(
@@ -990,7 +1104,18 @@ def coerce(knob: Knob, raw):
 def _refuse_gate(name: str) -> None:
     """THE HARD REFUSAL (owner directive 2026-09-02 + SPEC-0132). Deliberately takes no override
     argument: there is no flag and no environment value that reaches this, because a parameter here
-    is exactly the second door AC3 exists to keep shut."""
+    is exactly the second door AC3 exists to keep shut.
+
+    A THRESHOLD is refused here too (SPEC-1031 rule 7), with its own reason: it is the PROJECT's
+    value, so the refusal names where it is set instead of calling it a gate."""
+    knob = BY_NAME.get(name)
+    if knob is not None and knob.cls == THRESHOLD:
+        raise SettingsRefused(
+            f"{name} is a THRESHOLD-class value and CANNOT be set in the machine settings file — "
+            f"refused.\n"
+            f"  WHY: a threshold describes the PROJECT, so every machine verifying one project must "
+            f"read one value (SPEC-1031 rule 4).\n"
+            f"  SET IT in that project's yitc-ops.yaml, section `{THRESHOLDS_SECTION}:`, key {name}.")
     raise SettingsRefused(
         f"{name} is a GATE-class value and CANNOT be set in the machine settings file — refused.\n"
         f"  WHY: a gate participates in a pass/fail verdict, so putting it here would make that "
@@ -1004,10 +1129,11 @@ def _refuse_gate(name: str) -> None:
 
 
 def set_value(name, raw, env=None):
-    """Set a PERFORMANCE- or BINDING-class knob in the machine file. Returns (old, new, dropped).
+    """Set a settable knob (`Knob.is_settable`) in the machine file. Returns (old, new, dropped).
 
-    Refuses — writing NOTHING — an unknown key (rather than storing a typo nobody will ever read)
-    and a gate-class key (hard, see `_refuse_gate`). The write is atomic (temp file + replace), so a
+    Refuses — writing NOTHING — an unknown key (rather than storing a typo nobody will ever read),
+    a gate-class or threshold-class key (hard, see `_refuse_gate`), and a value outside the knob's
+    band (`coerce`). The write is atomic (temp file + replace), so a
     refusal or a crash can never leave a half-written file behind. `dropped` names any inert
     non-settable (gate-class or unknown) keys the write removed (see below).
     """
@@ -1081,6 +1207,122 @@ def effective(name, env=None):
     `_verify_heartbeat_interval` — and is deliberately not restated here.)"""
     value = get_value(name, env)
     return BY_NAME[name].default if value is None else value
+
+
+# ── T-13966: the THRESHOLD section reader and the value-in-force helper (SPEC-1031 rules 4-6) ────
+def project_thresholds(ops) -> "tuple[dict, list[str]]":
+    """The project's `thresholds:` section (SPEC-1031 rule 5) as `({name: value}, notes)`.
+
+    `ops` is the project's ops carrier as already parsed by its caller (this module reads no repo
+    file). Only a THRESHOLD-class knob that declares a band is read, its value coerced and checked
+    against that band. Every other entry is IGNORED with exactly ONE report-only line naming it:
+    an unknown name, a name of another class (a GATE key is never read from here — rule 7), an
+    unbanded threshold, a value that will not coerce or lies outside the band. A section that is not
+    a mapping is ignored whole with one line, and so is a carrier its caller could not read (any
+    `ops` that is neither None nor a mapping — the reader's unreadable answer). An absent carrier
+    (None), an absent section or an absent key contributes nothing and says nothing (rule 8). A line says only that the
+    entry is ignored, never which value applies instead: that is the reader's answer (`applied`),
+    and for a key of another class it is not the built-in default. Never raises: nothing in this
+    section can fail a run."""
+    if ops is None:
+        return {}, []
+    if not isinstance(ops, dict):
+        return {}, [f"{THRESHOLDS_SECTION}: not read — the project's ops carrier could not be read"]
+    if ops.get(THRESHOLDS_SECTION) is None:
+        return {}, []
+    section = ops[THRESHOLDS_SECTION]
+    if not isinstance(section, dict):
+        return {}, [f"{THRESHOLDS_SECTION}: ignored — the section is a {type(section).__name__}, not a "
+                    f"mapping; none of its entries is read"]
+    values, notes = {}, []
+    for key, raw in section.items():
+        knob = BY_NAME.get(key) if isinstance(key, str) else None
+        if knob is None:
+            why = "not in the tunable inventory"
+        elif knob.cls != THRESHOLD:
+            why = f"a {knob.cls}-class key, never read from this section"
+        elif knob.bounds is None:
+            why = "a threshold that declares no band"
+        else:
+            try:
+                value = coerce(knob, raw, banded=False)
+            except SettingsRefused as exc:
+                why = str(exc)
+            else:
+                lo, hi = knob.bounds
+                if lo <= value <= hi:
+                    values[key] = value
+                    continue
+                why = f"{value!r} is outside its band {lo}..{hi}"
+        notes.append(f"{THRESHOLDS_SECTION}: {key!r} ignored — {why}")
+    return values, notes
+
+
+_NOTES_SAID: "set[str]" = set()
+
+
+def say_notes(notes, stream=None) -> None:
+    """Print each report-only `thresholds:` line (SPEC-1031 rule 5) ONCE per process, on stderr — the
+    one way a THRESHOLD reader with no listing of its own surfaces what `in_force` returned in
+    `notes`, so no read ignores an entry silently and two reads of one section never repeat a line.
+    `config list` prints its own block instead."""
+    import sys
+    out = sys.stderr if stream is None else stream
+    for line in notes:
+        if line not in _NOTES_SAID:
+            _NOTES_SAID.add(line)
+            print(f"yitc-v2: {line} (report-only)", file=out)
+
+
+def applied(knob: Knob, env, file_values, section_values):
+    """`(value, source)` — the value a reader applies for `knob` and where it came from, given the
+    three layers already read (`env` a mapping, `file_values` what `load` returned, `section_values`
+    what `project_thresholds` returned). The one place the per-class order lives (SPEC-1031 rule 4):
+
+      BUDGET    — environment (type-checked, not banded) > machine file > built-in default.
+      escape    — a knob declaring `escape` (T-13967) reads its environment value first the same way,
+                  whatever its class: its own spec puts that value on top as an escape hatch.
+      THRESHOLD — the project section > built-in default; the environment and the file are not read.
+      others    — machine file > built-in default, as `effective` answers: the environment layer of a
+                  performance knob is applied by its own read site and not restated here, and a
+                  GATE key has no file value, so it reads its built-in default.
+
+    Sources: `env`, `machine-file`, `yitc-ops.yaml` (the project's `thresholds:` section),
+    `built-in`."""
+    if knob.cls == THRESHOLD:
+        if knob.name in section_values:
+            return section_values[knob.name], "yitc-ops.yaml"
+        return knob.default, "built-in"
+    if knob.escape or (knob.cls == BUDGET and knob.is_settable):  # an unbanded budget reads as GATE
+        raw = env.get(knob.name)
+        if raw is not None and str(raw).strip():
+            try:
+                return coerce(knob, raw, banded=False), "env"
+            except SettingsRefused:
+                pass                   # a malformed environment value is an absent one
+    if knob.name in file_values:
+        return file_values[knob.name], "machine-file"
+    return knob.default, "built-in"
+
+
+def in_force(name, *, env=None, ops=None) -> dict:
+    """The value in force for inventory key `name` and its source, as the fields a run row or a
+    signal records (SPEC-1031 rule 6): `{"key", "value", "source", "notes"}`. `ops` is the project's
+    parsed ops carrier (read only for a THRESHOLD). `notes` carries, for a THRESHOLD, every
+    report-only line the `thresholds:` section produced (SPEC-1031 rule 5) — so a read through this
+    helper never ignores a bad entry silently; the caller prints them once (`say_notes`, or its own
+    listing) — and is empty for any
+    other class. A settings fault never raises — the file is an override layer (SPEC-0193 rule 6);
+    an unknown `name` is a caller's error and raises KeyError."""
+    knob = BY_NAME[name]
+    env_map = os.environ if env is None else env
+    try:
+        file_values = load(env) if knob.is_settable else {}
+    except Exception:                  # noqa: BLE001 — a settings fault is never a caller's problem
+        file_values = {}
+    section_values, notes = project_thresholds(ops) if knob.cls == THRESHOLD else ({}, [])
+    value, source = applied(knob, env_map, file_values, section_values)
+    return {"key": name, "value": value, "source": source, "notes": notes}
 
 
 # ── T-13831: the first-install LOAD RECOMMENDATION ───────────────────────────────────────────

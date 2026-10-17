@@ -178,77 +178,78 @@ body: "## Scenario\n\nA dispatched **Worker** (a headless one-shot session that 
   \ before any\ngate fires). The concrete adapter (`<vendor-adapter>.md`) is the implementation\
   \ anchor, not the norm (P4b).\n\n### 5. The HARD invariant (the inspection probe)\n\
   The inspection HARD-FAILS on ANY of three conditions — runtime audience default\
-  \ stays `core` so a worker is NEVER starved of a rule (SPEC-0124 consult, decomposition-executing,\
-  \ option 1): (1) **any `controller`-tagged section inside the worker seed**, (2)\
-  \ **any UNTAGGED seed section** (untagged resolves to `core` at RUNTIME for safety,\
-  \ but MUST be explicitly tagged — an untagged section FAILS the inspection, so controller-only\
-  \ content cannot silently re-accrete as core). The worker-startup inventory computes\
-  \ both; AND (3) **any worker-seed PART over the §3a line band** — the band is what\
-  \ makes each part single-read-safe, so an over-band part is a broken read surface,\
-  \ not a style nit.\nthe recurring inspection (roster) FAILS on any violation — this\
-  \ is the mechanical guard that\nController-only content cannot re-accrete into the\
-  \ worker seed over time.\n**The size signal is a PROBE now, not advice (superseding\
-  \ the report-only reading).** The\nworker-seed line/token TOTAL stays report-only\
-  \ — a total has no reader-facing threshold, only a\ntrajectory. What IS mechanically\
-  \ checked is the PER-PART line band (probe 3): the packer holds it by\nconstruction\
-  \ at every SOURCE-DOC seam, so probe 3 can fire in exactly ONE way — a single source\
-  \ doc\nwhose own `core`+`worker` slice exceeds a bound, which the packer must not\
-  \ cut mid-doc. The remedy is\nthen to SPLIT THAT SOURCE DOC (SPEC-0120 §3), and\
-  \ the probe names it. The owner-set-threshold clause is\nDISCHARGED: the threshold\
-  \ is not a preference, it is the reader's bounded-read page cap, measured\n and\
-  \ grounded in SPEC-0120 §3.\n\n### 6. Bounds (what this is NOT)\nNOT a new node-type\
-  \ (the audience tag is a section marker, not a graph node — GRAPH node-count bound\n\
-  holds). NOT a validation/legality layer (a malformed audience token fails the storage-format\
-  \ check\nfail-closed, like the read-order drift check; the generator judges no semantics).\
-  \ NOT a second copy\nof any seed content — the views are DERIVED from the one tagged\
-  \ source. The worker keep-list (which\nsections stay `core`/`worker`) is decided\
-  \ at tagging time, not encoded here.\n\n### 7. What this RETIRES (P1 F3 — the removal,\
-  \ not just the addition)\nThis does NOT only ADD a mechanism; it RETIRES the current\
-  \ load model: **«one undifferentiated whole\nseed, loaded identically by EVERY session»**\
-  \ ceases to be how the seed is delivered. After this, the\nseed is delivered per-audience,\
-  \ and a dispatched Worker NO LONGER loads the `controller`-tagged\nsections (the\
-  \ ~300-400 controller-only lines — orchestrate/dispatch governance, the queue picker,\
-  \ the\nplan lifecycle, the controller startup echoes) at startup. The whole-seed\
-  \ contract in SPEC-0007 §5 is\nAMENDED (not merely extended) to the three-tier model\
-  \ — the old \"restore the WHOLE seed\" wording is\nsuperseded by \"restore the WHOLE\
-  \ of YOUR audience's seed\" (per-audience coherence). Nothing is\nDELETED from the\
-  \ corpus — controllers still receive every section — but the undifferentiated-load\n\
-  RULE is removed and replaced.\n\n### 8. The seed budget — set membership, the byte/token\
-  \ axis, compaction\nThe LINE cap — its hard limit and its warning threshold — is\
-  \ stated in CHARTER §Principle 2 «Size\nbudget» and is not restated here; the rest\
-  \ of the budget rule is this section. The seed keeps two\npre-edit cues that point\
-  \ here: AGENTS.md «Authoring the seed» and the CHARTER «Size budget» list.\n\n**Canonical\
-  \ handbook = the generated `HANDBOOK_READ_ORDER` set** (the single carrier in `bin/yitc-v2`,\
-  \ from which every read-order surface is generated). A file is a handbook member\
-  \ iff it is in that read-order — canonical is the SET, not a fixed file COUNT. Current\
-  \ members: `CHARTER.md`, the AGENTS protocol (split across `AGENTS.md` + `AGENTS-SESSIONS.md`\
-  \ + `AGENTS-PROTOCOL.md` for single-Read safety, SPEC-0120), `LIFECYCLE.md`, `QUEUE.md`,\
-  \ `GRAPH.md`. Per SPEC-0120 an over-ceiling handbook doc SPLITS into read-order-served\
-  \ parts (all parts served at startup), so the member list grows by splitting — the\
-  \ old fixed \"5 files\" count is RETIRED (replacement: the generated set).\n\n-\
-  \ **Byte/token axis — a REPORTED OUTCOME + a trajectory warn, NEVER a second cap\
-  \ (owner ruling Q1,\n  2026-07-17).** The line cap is blind to DENSITY: a diff may\
-  \ grow the set's reading cost while\n  its line count holds or even falls. So the\
-  \ aggregate BYTES + a bytes/4 token estimate are REPORTED\n  beside the line cap,\
-  \ and the existing report-only `seed-growth` WARN (`graph conformance`) fires on\n\
-  \  byte growth as well as line growth. This axis decrees **no second hard cap and\
-  \ no token number** —\n  deliberately: a decreed number is voluntaristic (established\
-  \ by the cancelled plan\n  `startup-slice-compression-re-home-handbook-bodies-`),\
-  \ so what decides whether content STAYS in the\n  seed is the **three-bucket placement\
-  \ test** (creed stays · triggered detail demotes to its spec ·\n  provenance cuts),\
-  \ never a threshold. Same rule already ratified for the sibling worker-seed total\
-  \ at\n  SPEC-0127 §5: *a total has no reader-facing threshold, only a trajectory*.\
-  \ Report-only means exactly\n  that — outside the conformance RED set, no exit code\
-  \ moves.\n  - **Origin datum (so the trajectory has a zero point) — mind the two\
-  \ distinct numbers.** At\n    2026-07-17 this budget's own subject, the `HANDBOOK_READ_ORDER`\
-  \ set, measured **1739 lines = 70% of\n    the 2500 cap and GREEN, carrying ~173kB\
-  \ (~100 bytes/line) ≈ ~43k tokens** — green on the only axis\n    that existed while\
-  \ density grew unchecked. Distinct and wider: **~177k tokens** is the TOTAL\n  \
-  \  per-substantive-task protocol weight (~37k seed + ~140k stage bundles), which\
-  \ grew **×2.7** vs\n    2026-06-06 — the trajectory this axis exists to make visible,\
-  \ but NOT what this budget measures\n    (stage bundles are not handbook members).\n\
-  \    Do not read the two ~177 figures as one: the SET is ~173kB, the whole per-task\
-  \ read is ~177k **tok**.\n    Method + both derivations: `ideas/protocol-weight-compaction-review-stage-bundles-seed.md`\
+  \ stays `core` so a worker is NEVER starved of a rule (<workshop-spec> consult,\
+  \ decomposition-executing, option 1): (1) **any `controller`-tagged section inside\
+  \ the worker seed**, (2) **any UNTAGGED seed section** (untagged resolves to `core`\
+  \ at RUNTIME for safety, but MUST be explicitly tagged — an untagged section FAILS\
+  \ the inspection, so controller-only content cannot silently re-accrete as core).\
+  \ The worker-startup inventory computes both; AND (3) **any worker-seed PART over\
+  \ the §3a line band** — the band is what makes each part single-read-safe, so an\
+  \ over-band part is a broken read surface, not a style nit.\nthe recurring inspection\
+  \ (roster) FAILS on any violation — this is the mechanical guard that\nController-only\
+  \ content cannot re-accrete into the worker seed over time.\n**The size signal is\
+  \ a PROBE now, not advice (superseding the report-only reading).** The\nworker-seed\
+  \ line/token TOTAL stays report-only — a total has no reader-facing threshold, only\
+  \ a\ntrajectory. What IS mechanically checked is the PER-PART line band (probe 3):\
+  \ the packer holds it by\nconstruction at every SOURCE-DOC seam, so probe 3 can\
+  \ fire in exactly ONE way — a single source doc\nwhose own `core`+`worker` slice\
+  \ exceeds a bound, which the packer must not cut mid-doc. The remedy is\nthen to\
+  \ SPLIT THAT SOURCE DOC (SPEC-0120 §3), and the probe names it. The owner-set-threshold\
+  \ clause is\nDISCHARGED: the threshold is not a preference, it is the reader's bounded-read\
+  \ page cap, measured\n and grounded in SPEC-0120 §3.\n\n### 6. Bounds (what this\
+  \ is NOT)\nNOT a new node-type (the audience tag is a section marker, not a graph\
+  \ node — GRAPH node-count bound\nholds). NOT a validation/legality layer (a malformed\
+  \ audience token fails the storage-format check\nfail-closed, like the read-order\
+  \ drift check; the generator judges no semantics). NOT a second copy\nof any seed\
+  \ content — the views are DERIVED from the one tagged source. The worker keep-list\
+  \ (which\nsections stay `core`/`worker`) is decided at tagging time, not encoded\
+  \ here.\n\n### 7. What this RETIRES (P1 F3 — the removal, not just the addition)\n\
+  This does NOT only ADD a mechanism; it RETIRES the current load model: **«one undifferentiated\
+  \ whole\nseed, loaded identically by EVERY session»** ceases to be how the seed\
+  \ is delivered. After this, the\nseed is delivered per-audience, and a dispatched\
+  \ Worker NO LONGER loads the `controller`-tagged\nsections (the ~300-400 controller-only\
+  \ lines — orchestrate/dispatch governance, the queue picker, the\nplan lifecycle,\
+  \ the controller startup echoes) at startup. The whole-seed contract in SPEC-0007\
+  \ §5 is\nAMENDED (not merely extended) to the three-tier model — the old \"restore\
+  \ the WHOLE seed\" wording is\nsuperseded by \"restore the WHOLE of YOUR audience's\
+  \ seed\" (per-audience coherence). Nothing is\nDELETED from the corpus — controllers\
+  \ still receive every section — but the undifferentiated-load\nRULE is removed and\
+  \ replaced.\n\n### 8. The seed budget — set membership, the byte/token axis, compaction\n\
+  The LINE cap — its hard limit and its warning threshold — is stated in CHARTER §Principle\
+  \ 2 «Size\nbudget» and is not restated here; the rest of the budget rule is this\
+  \ section. The seed keeps two\npre-edit cues that point here: AGENTS.md «Authoring\
+  \ the seed» and the CHARTER «Size budget» list.\n\n**Canonical handbook = the generated\
+  \ `HANDBOOK_READ_ORDER` set** (the single carrier in `bin/yitc-v2`, from which every\
+  \ read-order surface is generated). A file is a handbook member iff it is in that\
+  \ read-order — canonical is the SET, not a fixed file COUNT. Current members: `CHARTER.md`,\
+  \ the AGENTS protocol (split across `AGENTS.md` + `AGENTS-SESSIONS.md` + `AGENTS-PROTOCOL.md`\
+  \ for single-Read safety, SPEC-0120), `LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md`. Per\
+  \ SPEC-0120 an over-ceiling handbook doc SPLITS into read-order-served parts (all\
+  \ parts served at startup), so the member list grows by splitting — the old fixed\
+  \ \"5 files\" count is RETIRED (replacement: the generated set).\n\n- **Byte/token\
+  \ axis — a REPORTED OUTCOME + a trajectory warn, NEVER a second cap (owner ruling\
+  \ Q1,\n  2026-07-17).** The line cap is blind to DENSITY: a diff may grow the set's\
+  \ reading cost while\n  its line count holds or even falls. So the aggregate BYTES\
+  \ + a bytes/4 token estimate are REPORTED\n  beside the line cap, and the existing\
+  \ report-only `seed-growth` WARN (`graph conformance`) fires on\n  byte growth as\
+  \ well as line growth. This axis decrees **no second hard cap and no token number**\
+  \ —\n  deliberately: a decreed number is voluntaristic (established by the cancelled\
+  \ plan\n  `startup-slice-compression-re-home-handbook-bodies-`), so what decides\
+  \ whether content STAYS in the\n  seed is the **three-bucket placement test** (creed\
+  \ stays · triggered detail demotes to its spec ·\n  provenance cuts), never a threshold.\
+  \ Same rule already ratified for the sibling worker-seed total at\n  SPEC-0127 §5:\
+  \ *a total has no reader-facing threshold, only a trajectory*. Report-only means\
+  \ exactly\n  that — outside the conformance RED set, no exit code moves.\n  - **Origin\
+  \ datum (so the trajectory has a zero point) — mind the two distinct numbers.**\
+  \ At\n    2026-07-17 this budget's own subject, the `HANDBOOK_READ_ORDER` set, measured\
+  \ **1739 lines = 70% of\n    the 2500 cap and GREEN, carrying ~173kB (~100 bytes/line)\
+  \ ≈ ~43k tokens** — green on the only axis\n    that existed while density grew\
+  \ unchecked. Distinct and wider: **~177k tokens** is the TOTAL\n    per-substantive-task\
+  \ protocol weight (~37k seed + ~140k stage bundles), which grew **×2.7** vs\n  \
+  \  2026-06-06 — the trajectory this axis exists to make visible, but NOT what this\
+  \ budget measures\n    (stage bundles are not handbook members).\n    Do not read\
+  \ the two ~177 figures as one: the SET is ~173kB, the whole per-task read is ~177k\
+  \ **tok**.\n    Method + both derivations: `ideas/protocol-weight-compaction-review-stage-bundles-seed.md`\
   \ §1/§1a.\n- Compaction trigger: any single decision adds > 100 lines OR session\
   \ adds > 200 lines aggregate → mandatory file follow-up task «compact / refactor\
   \ / delete equivalent content»\n- If approaching cap, split MUST involve **deletion**\

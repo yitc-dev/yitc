@@ -4904,7 +4904,7 @@ def _verify_worker_governor(*, _headroom: "dict | None" = None, _VERIFY_WORKER_C
 
 def cmd_verify_durations(args, *, REPO_ROOT, _run_verify_tests, _die, write_text_atomic,
                          _consumer_tests_delegation=None, _VERIFY_DURATIONS_FILE=None, _load_verify_duration_table=None,
-                         _verify_worker_governor=None) -> None:
+                         _verify_worker_governor=None, _is_consumer_build=None, _events_path=None) -> None:
     """T-11316 — `verify-durations` (bare = REPORT) / `--rebuild` (regenerate the table).
 
     THE VERB IS THE POINT — for a MEASURING run. This verb's job is to rebuild the table by RUNNING
@@ -4967,6 +4967,25 @@ def cmd_verify_durations(args, *, REPO_ROOT, _run_verify_tests, _die, write_text
     carrier, section waiver, waived or commandless layer all yield None), and None is byte-for-byte
     today's behaviour. Scoping the bare-host route is not removing it."""
     test_dir = Path(REPO_ROOT) / "tests"
+    # T-13961 — a CONSUMER's bare report starts with its verify-layer table, read from its own journal;
+    # with no tests/ of its own that table is the whole report (exit 0, not the refusal below).
+    _layer_table = (not getattr(args, "rebuild", False) and _is_consumer_build is not None
+                    and _is_consumer_build() and _events_path is not None)
+    _last = getattr(args, "last", None)
+    if _last is not None and not _layer_table:
+        _die("verify-durations: --last sizes the consumer verify-layer table only, which the bare "
+             "report prints under `-C <consumer>` — re-run as `bin/yitc-v2 -C <consumer> "
+             "verify-durations --last <N>`, or drop `--last` here.")
+    if _layer_table:
+        if _last is not None and _last < 1:
+            _die(f"verify-durations: --last must be at least 1 (got {_last}) — re-run as "
+                 f"`bin/yitc-v2 -C <repo> verify-durations --last <N>` with N >= 1, or without "
+                 f"`--last` for the default window.")
+        from lib import land_verify_legs as _legs   # lazy: the layer-row readers live with the land engine
+        for line in _legs._consumer_layer_durations_report(_events_path, window=_last):
+            print(line)
+        if not test_dir.is_dir():
+            return
     if not test_dir.is_dir():
         _die(f"{test_dir} does not exist — this repo runs no `tests/test_*.py` probes through the "
              f"kernel runner, so it has no duration table to report on or rebuild.")

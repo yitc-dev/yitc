@@ -870,7 +870,30 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ — **SPEC-0169 rule 9 (concurrent appenders are serialized)** — and is cited, not\
   \ restated,\nhere. Note only the interaction, which is what a reader of THIS rule\
   \ needs: serializing trail\nappenders does NOT serialize deploys of different projects,\
-  \ so the per-project bound above stands\nunchanged.\n\n## Amends (explicit replacement\
+  \ so the per-project bound above stands\nunchanged.\n\n### 9. A forward `deploy`\
+  \ waits for a host load window before the project command\n\nA project's deploy\
+  \ command runs its own smoke tests, and those flake on a host already busy. So\n\
+  before it launches the project command, a FORWARD deploy reads the host load1 once\
+  \ and, while that\nreading is at or above the deploy headroom (`YITC_DEPLOY_HEADROOM_LOAD1`),\
+  \ sleeps a fixed settle\ninterval and reads it again, for at most the bounded wait\
+  \ (`YITC_DEPLOY_ADMISSION_MAX_WAIT_S`) of\nsleeping. Both are machine settings (<workshop-spec>),\
+  \ read through `config list` / `config set`.\n- **Admitted** — the reading drops\
+  \ under the headroom: the deploy goes on. The wait happens above\n  the §6 last-moment\
+  \ revision check, so a checkout that moved while it waited is still refused.\n-\
+  \ **Expired** — the bound is spent and the reading is still at or above the headroom:\
+  \ the verb\n  REFUSES, exit 3, with a line naming the reading, the headroom and\
+  \ the bound. Nothing is launched\n  and no row is written, as for every refusal\
+  \ before the launch (§1).\n- **`--now`** — no wait: one reading is taken for the\
+  \ record and the deploy goes on.\n- **A rollback never waits** — a reversal is always\
+  \ available (SPEC-0097 §2).\n- **An unreadable load admits at once** — the wait\
+  \ is a courtesy to the smoke tests, never a\n  reason to hold a deploy.\nThe wait\
+  \ is inside the verb, so the §8 run lock is held across it; a second deploy of the\
+  \ project\nmeanwhile is refused by that lock as before. Gates that ran before the\
+  \ wait (a Class-C1 dump) are\nolder by up to the bound when the command starts.\n\
+  Every row a started deploy writes — `deploy_completed` and `deploy_failed` — carries\
+  \ the outcome:\n`admission` (`admitted` | `skipped-by-flag` | `load-unreadable`\
+  \ | `rollback-exempt`),\n`admission_wait_ms` and `load1_at_start`. No lock, queue,\
+  \ stored admission state or event type is\nadded.\n\n## Amends (explicit replacement\
   \ map — plan-check findings #2/#5; SPEC-0005 §3 / P7)\n\n**Amend-dependency policy\
   \ (finding #4) — why `requires:` stays SPEC-0093-only.** This spec\nAMENDS SPEC-0028/0025/0015/0036,\
   \ yet its `requires:` names ONLY SPEC-0093. That is deliberate, not an\nomission:\
@@ -946,45 +969,51 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   The §6 expected revision (2026-10-12): a consumer's release card could not hold\
   \ the commit it\nhad acceptance-tested against a `land` arriving between its own\
   \ HEAD check and the verb — its\naudit-pre went RED on exactly that. The verb compared\
-  \ HEAD with nothing the caller named.\n\n## Implementation notes\n\n- The §6 expected\
-  \ revision. The option is `--expect-revision <full commit id>` on a forward `deploy`.\n\
-  \  Exit status: 3 for a refused value and for the option on a `--rollback`; 4 for\
-  \ a refusal at\n  moments (a) and (b); 5 for the failure at moment (c), whose `deploy_failed`\
-  \ row names the step\n  `revision_recheck`. The re-check of moments (b) and (c)\
-  \ reads the working tree first and HEAD\n  last: a fast-forward rewrites the files\
-  \ before it moves the ref, so read in that order one of the\n  two reads always\
-  \ sees it. An answer git could not give is a failure, never a pass.\n\n## Verification\n\
-  \n- a real <project> deploy emits `deploy_completed` with the live SHA; a rollback\
-  \ emits a new one.\n- a journal interleaving a target-less record, `production:\
-  \ false` records and a `production: true`\n  record reads the latest PRODUCTION\
-  \ one as the current-live revision in BOTH readers — the\n  not-adopted baseline\
-  \ (with no adapter, and with a degraded one) and the SPEC-0097 §2a rollback\n  target\
-  \ — while the pre-change readers return the non-production revision on the same\
-  \ journal\n  (§1, `tests/test_deploy_live_revision_production_only.py`).\n- `task\
-  \ close` on a deploying project REFUSES a user-facing task with no declared `live_probe`\
-  \ (the\n  fail-closed gate — state check); a NON-deploying project's close is unchanged\
-  \ (no new precondition).\n- the per-change `live_probe` GET (task YAML) passes against\
-  \ production using the carrier `live_base_url`;\n  the not-adopted surface reads\
-  \ 0 after deploy.\n- a serve/deploy task's audit-post does NOT RED-flag adoption-missing\
-  \ (the X-0039 path).\n- grep: no per-task probe stored in the carrier; no base_url/dialect\
-  \ re-declared on a task YAML (one SoT each).\n- a forward `deploy` from a non-`main`\
-  \ checkout OR with uncommitted SOURCE dirt REFUSES (exit non-zero, no `deploy_completed`);\
-  \ a deploy from clean `main` proceeds; journal/derived/`.yitc/` dirt alone does\
-  \ NOT block (the §6 build-source gate).\n- a forward deploy given an expected revision\
-  \ that is not HEAD refuses before any pre-deploy gate or the project command runs\
-  \ (no `deploy_completed`, no `deploy_failed`); given the one that is HEAD it records\
-  \ exactly that revision; a checkout that moves while the pre-deploy gates run refuses\
-  \ before the launch; one that moves while the command runs — the ref, or only the\
-  \ files a fast-forward has rewritten so far — fails the deploy with one `deploy_failed`\
-  \ and no `deploy_completed`, and the recovery command that failure prints runs as\
-  \ printed; a ref name, an abbreviated id, a blank value and an expected revision\
-  \ on a rollback are refused; a deploy given no expected revision is unchanged (§6,\
-  \ `tests/test_t13874_deploy_expected_revision.py`).\n- a STARTED deploy leaves exactly\
-  \ ONE terminal row: one whose command exits non-zero, dies by a signal, or whose\
-  \ verb is interrupted by a catchable signal before any other terminal row was written\
-  \ leaves exactly ONE `deploy_failed` (revision + exit code or signal) and NO `deploy_completed`;\
-  \ a signal inside a terminal write is deferred, never lost or doubled; a deploy\
-  \ refused before its launch leaves none (§1, `tests/test_t13398_deploy_failed_row.py`).\n"
+  \ HEAD with nothing the caller named.\n\nThe §9 load window (2026-10-16): on this\
+  \ host a verify start read load1 median 17-22,\np90 41-60 on 32 cores (<project>\
+  \ / <project> journals 2026-10-08..16), and both projects' deploy\ncommands run\
+  \ smoke tests beside those verifies; the owner's list named «a deploy in a free\n\
+  window». The default headroom is the Stage-6 venue headroom built-in. A host-wide\
+  \ admission pool\n stays parked by the owner.\n\n## Implementation notes\n\n- The\
+  \ §6 expected revision. The option is `--expect-revision <full commit id>` on a\
+  \ forward `deploy`.\n  Exit status: 3 for a refused value and for the option on\
+  \ a `--rollback`; 4 for a refusal at\n  moments (a) and (b); 5 for the failure at\
+  \ moment (c), whose `deploy_failed` row names the step\n  `revision_recheck`. The\
+  \ re-check of moments (b) and (c) reads the working tree first and HEAD\n  last:\
+  \ a fast-forward rewrites the files before it moves the ref, so read in that order\
+  \ one of the\n  two reads always sees it. An answer git could not give is a failure,\
+  \ never a pass.\n\n## Verification\n\n- a real <project> deploy emits `deploy_completed`\
+  \ with the live SHA; a rollback emits a new one.\n- a journal interleaving a target-less\
+  \ record, `production: false` records and a `production: true`\n  record reads the\
+  \ latest PRODUCTION one as the current-live revision in BOTH readers — the\n  not-adopted\
+  \ baseline (with no adapter, and with a degraded one) and the SPEC-0097 §2a rollback\n\
+  \  target — while the pre-change readers return the non-production revision on the\
+  \ same journal\n  (§1, `tests/test_deploy_live_revision_production_only.py`).\n\
+  - `task close` on a deploying project REFUSES a user-facing task with no declared\
+  \ `live_probe` (the\n  fail-closed gate — state check); a NON-deploying project's\
+  \ close is unchanged (no new precondition).\n- the per-change `live_probe` GET (task\
+  \ YAML) passes against production using the carrier `live_base_url`;\n  the not-adopted\
+  \ surface reads 0 after deploy.\n- a serve/deploy task's audit-post does NOT RED-flag\
+  \ adoption-missing (the X-0039 path).\n- grep: no per-task probe stored in the carrier;\
+  \ no base_url/dialect re-declared on a task YAML (one SoT each).\n- a forward `deploy`\
+  \ from a non-`main` checkout OR with uncommitted SOURCE dirt REFUSES (exit non-zero,\
+  \ no `deploy_completed`); a deploy from clean `main` proceeds; journal/derived/`.yitc/`\
+  \ dirt alone does NOT block (the §6 build-source gate).\n- a forward deploy given\
+  \ an expected revision that is not HEAD refuses before any pre-deploy gate or the\
+  \ project command runs (no `deploy_completed`, no `deploy_failed`); given the one\
+  \ that is HEAD it records exactly that revision; a checkout that moves while the\
+  \ pre-deploy gates run refuses before the launch; one that moves while the command\
+  \ runs — the ref, or only the files a fast-forward has rewritten so far — fails\
+  \ the deploy with one `deploy_failed` and no `deploy_completed`, and the recovery\
+  \ command that failure prints runs as printed; a ref name, an abbreviated id, a\
+  \ blank value and an expected revision on a rollback are refused; a deploy given\
+  \ no expected revision is unchanged (§6, `tests/test_t13874_deploy_expected_revision.py`).\n\
+  - a STARTED deploy leaves exactly ONE terminal row: one whose command exits non-zero,\
+  \ dies by a signal, or whose verb is interrupted by a catchable signal before any\
+  \ other terminal row was written leaves exactly ONE `deploy_failed` (revision +\
+  \ exit code or signal) and NO `deploy_completed`; a signal inside a terminal write\
+  \ is deferred, never lost or doubled; a deploy refused before its launch leaves\
+  \ none (§1, `tests/test_t13398_deploy_failed_row.py`).\n"
 cites:
 - CHARTER.md#principle-3
 - CHARTER.md#principle-8
@@ -1054,12 +1083,12 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d3a5b8718acb2eb07184ea0877ecd82d9bacc9a6347d354b5dfd04fc40a434c9
+  bin/lib/audit.py#cmd_audit: 5c386936914ed1bf5c3bfcff2087a81d4205bb91eacfcb1662d318609a8564a1
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
   bin/lib/deploy.py#_resolve_rollback_target: 783479b12cb944fb6d24607a4fe5ebd926ee6e75d00a8732eedeed345a51e22b
-  bin/lib/deploy.py#cmd_deploy: 1580b1b5dbf6e813f212f18781c1b41154ed313c70799d54d375e11b36ea1104
+  bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
   bin/lib/deploy.py#is_production_live_record: d1d46285eb3e2f980f40a5b941ea0a9448a6408e7f83e19ef2b464c6c6229142
   bin/lib/live_probe.py#cmd_live_probe: e63237018f5d25654b86ff07dc741d8cbae85eb164d30077d30a3c5b932c4ef4
   bin/lib/task.py#_all_touched_non_runtime_surface: dd0302b43fedfff3b4325000a9c7a59b52e41d0c991ffed0e2488f284eedd2f9

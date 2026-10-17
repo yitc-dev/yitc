@@ -137,8 +137,8 @@ body: "## Scenario\n\nBefore the AI runs an audit it must hold the audit contrac
   \ post = commit SHA) settles a point — a STALE / multi-survivor /\n  ABORT consult\
   \ settles NOTHING, and a routine RED with no settling consult governs normally.\n\
   \n### Audit-loop ceiling (CHARTER §Principle 1 applied to audits)\n**CEILING CONTRACTS\
-  \ → SPEC-0124, SPEC-0204, SPEC-1018, SPEC-1014 (index).** No stage entry\nrenders\
-  \ them; fetch each at its trigger (`bin/yitc-v2 graph query <id>`): SPEC-0124 when\
+  \ → SPEC-1034, SPEC-0204, SPEC-1018, SPEC-1014 (index).** No stage entry\nrenders\
+  \ them; fetch each at its trigger (`bin/yitc-v2 graph query <id>`): SPEC-1034 when\
   \ a\nre-audit's pass charge is in question (ledger-skip axes, trend grant); SPEC-0204\
   \ when `audit\npre|post` halts at the ceiling; SPEC-1018 / SPEC-1014 when a verb's\
   \ help head names them.\n\nMaximum 2 absorption passes per TASK target per audit\
@@ -164,22 +164,22 @@ body: "## Scenario\n\nBefore the AI runs an audit it must hold the audit contrac
   \ §5 work-carrying shape; re-entry is `task resume` after the Controller's decisions).\n\
   \nRETIRED as post-ceiling machinery: `audit consult` for ceiling adjudication (episodes,\
   \ frozen\n`B<n>` / `R<k>.<n>` ids, retest rounds, `--reopen`, the offered PROCEED/HOLD\
-  \ option pair, the\ndispatched-worker auto-consult of SPEC-0124, the outcome vocabulary\
-  \ rows 15/16/17/18/22/23 and\nthe consult-governed `--owner-reset` basis); `--owner-reset`\
-  \ on `audit pre|post`; the `WITHDRAWN\n… out-of-subject` / `CUT to` card markers\
-  \ and their readers; the spent-budget bypass predicate\n and the reopen gate; the\
-  \ consult-record YAML as any basis. Every retired flag\nREFUSES with a pointer to\
-  \ `audit decide` / `--on-decisions` (no silent no-op).\n\nEach late finding still\
-  \ needs a typed decision (rule 2 admits it at any pass) before Closure; a\n`fix`\
-  \ of a late finding is verified only on the ONE rule-3 pass (no additional audit\
-  \ exists); a\nlate finding recorded ON the rule-3 pass admits `accept` or `defer`\
-  \ only.\n\n- **TASK lens-version:** ONE-SHOT — a missing prior `lens_version` (pre-\
-  \ record) counts as\n  changed; an EQUAL version is NOT exempt (no blanket bypass);\
-  \ and the re-audit records the CURRENT\n  version, so a follow-up with an unchanged\
-  \ version re-applies the ceiling. A surfaced\n  YELLOW/RED/finding is a real outcome\
-  \ that advances `passes` normally.\n\n### Universal V2 evaluation lens (include\
-  \ in EVERY prompt)\nEvaluate against CHARTER principles:\n- Anti-complexity: does\
-  \ this add mechanism/file/rule? 4 filters passed?\n- Done = adopted: acceptance\
+  \ option pair, the\ndispatched-worker auto-consult of <workshop-spec>, the outcome\
+  \ vocabulary rows 15/16/17/18/22/23 and\nthe consult-governed `--owner-reset` basis);\
+  \ `--owner-reset` on `audit pre|post`; the `WITHDRAWN\n… out-of-subject` / `CUT\
+  \ to` card markers and their readers; the spent-budget bypass predicate\n and the\
+  \ reopen gate; the consult-record YAML as any basis. Every retired flag\nREFUSES\
+  \ with a pointer to `audit decide` / `--on-decisions` (no silent no-op).\n\nEach\
+  \ late finding still needs a typed decision (rule 2 admits it at any pass) before\
+  \ Closure; a\n`fix` of a late finding is verified only on the ONE rule-3 pass (no\
+  \ additional audit exists); a\nlate finding recorded ON the rule-3 pass admits `accept`\
+  \ or `defer` only.\n\n- **TASK lens-version:** ONE-SHOT — a missing prior `lens_version`\
+  \ (pre- record) counts as\n  changed; an EQUAL version is NOT exempt (no blanket\
+  \ bypass); and the re-audit records the CURRENT\n  version, so a follow-up with\
+  \ an unchanged version re-applies the ceiling. A surfaced\n  YELLOW/RED/finding\
+  \ is a real outcome that advances `passes` normally.\n\n### Universal V2 evaluation\
+  \ lens (include in EVERY prompt)\nEvaluate against CHARTER principles:\n- Anti-complexity:\
+  \ does this add mechanism/file/rule? 4 filters passed?\n- Done = adopted: acceptance\
   \ includes probe evidence (event/state/measurable)?\n- Documentation-first: relevant\
   \ docs read/updated?\n- Single source of truth: parallel storage/parser created?\n\
   - AI independence: provider-specific terms in normative text?\n- Controller+Worker\

@@ -10,56 +10,56 @@ implements: []
 body: "## Scenario\n\nA project's land-verify layer is legitimately slow, so the project\
   \ declares a `timeout:` for it\n(SPEC-0152 rule 16). That number decides whether\
   \ work PASSES — exceeding it FAILS the layer and\nABORTS the land — so it is a GATE-class\
-  \ threshold in the sense of SPEC-0193 rule 2. The kernel\nchecks only that it is\
-  \ a positive number. Everything that makes it a real gate — that it was\nmeasured,\
-  \ that the margin is bounded at BOTH ends, that a reader can see what it was measured\n\
-  against, and that it stops being trusted when the machine underneath it changes\
-  \ — is what this\nspec requires.\n\nTwo failure directions, both silent, both observed\
-  \ in this corpus. A bound set too TIGHT fails\nhealthy runs under ordinary contention,\
-  \ and the failure is indistinguishable from a real test\nfailure. A bound set too\
-  \ LOOSE stops being a hang detector at all: the layer can wedge for ten\nminutes\
-  \ and the gate never speaks. A project that answers a flake by raising the number\
-  \ until\nnothing ever trips has not fixed the gate, it has removed it — while every\
-  \ surface still reports a\ngate is present.\n\n## Internal\n\nTHE CALIBRATION CONTRACT\
-  \ for a declared land-verify bound. Five rules. It governs the `timeout:`\nand `timeout_seconds:`\
-  \ values SPEC-0152 rule 16 admits; SPEC-0152 keeps the SHAPE contract\n(positive\
-  \ number, precedence, fail-closed on malformed) and is unchanged by this spec. It\
-  \ adds NO\ncarrier field, NO new store, NO parser and NO gate — every reading it\
-  \ requires is a fold over\n`land_completed` rows the journal already carries (CHARTER\
-  \ §P1 F2: a view, not a new entity).\n\n### Rule 1 — PRE-ADOPTION MEASUREMENT UNDER\
-  \ THE DECLARED TUPLE\n\nA bound is DERIVED from measurement before it is declared,\
-  \ never chosen and then defended.\n\n**The TUPLE is the execution regime the measurement\
-  \ was taken under**, and it is three values:\n  - the per-verify **worker ceiling\
-  \ W** (`bin/lib/worktree.py#_VERIFY_WORKER_CEILING`);\n  - the **concurrent verify-slot\
-  \ count** derived from it (host cores // W — the SPEC-0132 rule-1\n    admission\
-  \ pool);\n  - the layer's **own admitted share** — what the governor writes into\
-  \ the layer command's env as\n    `YITC_VERIFY_LAYER_WORKERS` (SPEC-0132 rule 2).\n\
-  The measurement is taken at the **MAXIMUM admission regime the host supports** —\
-  \ every slot\noccupied — not on a quiet box. A number derived in isolation describes\
-  \ a machine the gate will\nnever run on.\n\n**The SERIES is the layer's own history**:\
-  \ the `duration_ms` values of that layer's entries in\n`land_completed.consumer_verify_layers[]`,\
-  \ over a **CLOSED window with both ends written as\nliterals**, with **n stated**\
-  \ and **n >= 20**. Rows with no `duration_ms` (a skipped or malformed\nlayer) are\
-  \ not in the series. The closed-window-plus-stated-population discipline is SPEC-0132's,\n\
-  reused deliberately: a window phrased relative to \"now\" re-reads differently every\
-  \ time it is run,\nso the reading could never be checked by a second reader.\n\n\
-  **WHEN THE OBLIGATION ATTACHES.** At the moment a bound is DECLARED or CHANGED,\
-  \ and again at every\nRule-5 invalidation. A declaration that predates this rule\
-  \ is NOT retro-broken and no land refuses\nit: it is READ by the Rule-3 fold, and\
-  \ a non-conforming one is carried as a durable cross-project\nfollow-up (`cross\
-  \ request`, AGENTS §Filing rule), discharged at that project's next touch of the\n\
-  bound. The adoption path is a follow-up, never a silent pass and never a forced\
-  \ edit to someone\nelse's carrier.\n\n### Rule 2 — THE STATISTIC AND THE MARGIN\
-  \ ARE PREDEFINED\n\nNeither is chosen per declaration; both are fixed here, so two\
-  \ readers of the same series cannot\nreach two different verdicts.\n\n**The statistic\
-  \ is p95 by NEAREST RANK, defined to the index:** sort the series ascending and\
-  \ take\nthe element at 1-based index `ceil(0.95 * n)`. No interpolation, no estimator\
-  \ option. This is\nstated at index level on purpose — \"p95\" alone is under-specified,\
-  \ and nearest-rank, inclusive\ninterpolation and exclusive interpolation give three\
-  \ different numbers on the same n=20 series,\nhence three different admissible bands.\n\
-  \n**The margin is a BAND, not a minimum:** a conforming bound satisfies\n\n    2\
-  \ x p95 <= declared timeout <= 4 x p95\n\nBoth ends bind. A declaration below the\
-  \ floor is UNDER-MARGINED (Rule 3's load-flaky direction); a\ndeclaration above\
+  \ threshold in the sense of <workshop-spec> rule 2. The kernel\nchecks only that\
+  \ it is a positive number. Everything that makes it a real gate — that it was\n\
+  measured, that the margin is bounded at BOTH ends, that a reader can see what it\
+  \ was measured\nagainst, and that it stops being trusted when the machine underneath\
+  \ it changes — is what this\nspec requires.\n\nTwo failure directions, both silent,\
+  \ both observed in this corpus. A bound set too TIGHT fails\nhealthy runs under\
+  \ ordinary contention, and the failure is indistinguishable from a real test\nfailure.\
+  \ A bound set too LOOSE stops being a hang detector at all: the layer can wedge\
+  \ for ten\nminutes and the gate never speaks. A project that answers a flake by\
+  \ raising the number until\nnothing ever trips has not fixed the gate, it has removed\
+  \ it — while every surface still reports a\ngate is present.\n\n## Internal\n\n\
+  THE CALIBRATION CONTRACT for a declared land-verify bound. Five rules. It governs\
+  \ the `timeout:`\nand `timeout_seconds:` values SPEC-0152 rule 16 admits; SPEC-0152\
+  \ keeps the SHAPE contract\n(positive number, precedence, fail-closed on malformed)\
+  \ and is unchanged by this spec. It adds NO\ncarrier field, NO new store, NO parser\
+  \ and NO gate — every reading it requires is a fold over\n`land_completed` rows\
+  \ the journal already carries (CHARTER §P1 F2: a view, not a new entity).\n\n###\
+  \ Rule 1 — PRE-ADOPTION MEASUREMENT UNDER THE DECLARED TUPLE\n\nA bound is DERIVED\
+  \ from measurement before it is declared, never chosen and then defended.\n\n**The\
+  \ TUPLE is the execution regime the measurement was taken under**, and it is three\
+  \ values:\n  - the per-verify **worker ceiling W** (`bin/lib/worktree.py#_VERIFY_WORKER_CEILING`);\n\
+  \  - the **concurrent verify-slot count** derived from it (host cores // W — the\
+  \ SPEC-0132 rule-1\n    admission pool);\n  - the layer's **own admitted share**\
+  \ — what the governor writes into the layer command's env as\n    `YITC_VERIFY_LAYER_WORKERS`\
+  \ (SPEC-0132 rule 2).\nThe measurement is taken at the **MAXIMUM admission regime\
+  \ the host supports** — every slot\noccupied — not on a quiet box. A number derived\
+  \ in isolation describes a machine the gate will\nnever run on.\n\n**The SERIES\
+  \ is the layer's own history**: the `duration_ms` values of that layer's entries\
+  \ in\n`land_completed.consumer_verify_layers[]`, over a **CLOSED window with both\
+  \ ends written as\nliterals**, with **n stated** and **n >= 20**. Rows with no `duration_ms`\
+  \ (a skipped or malformed\nlayer) are not in the series. The closed-window-plus-stated-population\
+  \ discipline is SPEC-0132's,\nreused deliberately: a window phrased relative to\
+  \ \"now\" re-reads differently every time it is run,\nso the reading could never\
+  \ be checked by a second reader.\n\n**WHEN THE OBLIGATION ATTACHES.** At the moment\
+  \ a bound is DECLARED or CHANGED, and again at every\nRule-5 invalidation. A declaration\
+  \ that predates this rule is NOT retro-broken and no land refuses\nit: it is READ\
+  \ by the Rule-3 fold, and a non-conforming one is carried as a durable cross-project\n\
+  follow-up (`cross request`, AGENTS §Filing rule), discharged at that project's next\
+  \ touch of the\nbound. The adoption path is a follow-up, never a silent pass and\
+  \ never a forced edit to someone\nelse's carrier.\n\n### Rule 2 — THE STATISTIC\
+  \ AND THE MARGIN ARE PREDEFINED\n\nNeither is chosen per declaration; both are fixed\
+  \ here, so two readers of the same series cannot\nreach two different verdicts.\n\
+  \n**The statistic is p95 by NEAREST RANK, defined to the index:** sort the series\
+  \ ascending and take\nthe element at 1-based index `ceil(0.95 * n)`. No interpolation,\
+  \ no estimator option. This is\nstated at index level on purpose — \"p95\" alone\
+  \ is under-specified, and nearest-rank, inclusive\ninterpolation and exclusive interpolation\
+  \ give three different numbers on the same n=20 series,\nhence three different admissible\
+  \ bands.\n\n**The margin is a BAND, not a minimum:** a conforming bound satisfies\n\
+  \n    2 x p95 <= declared timeout <= 4 x p95\n\nBoth ends bind. A declaration below\
+  \ the floor is UNDER-MARGINED (Rule 3's load-flaky direction); a\ndeclaration above\
   \ the ceiling is INERT (Rule 3's upper bound). The coefficients are derived in\n\
   §Rationale from this corpus's own journals; they are not decreed, and they move\
   \ only by re-running\nthat derivation on a fresh window.\n\n### Rule 3 — THE UPPER\
@@ -164,7 +164,6 @@ body: "## Scenario\n\nA project's land-verify layer is legitimately slow, so the
   \ the pinned observations.\n"
 cites:
 - SPEC-0152
-- SPEC-0193
 - SPEC-0132
 - SPEC-0093
 - CHARTER.md#principle-1

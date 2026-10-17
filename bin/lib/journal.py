@@ -4204,14 +4204,15 @@ def _index_store(journal_path, *, honour_off=True) -> "dict | None":
     common = Path(out[0].strip())
     if not common.is_absolute():
         common = live.parent / common
+    d = common.joinpath(*_INDEX_DIR)
     try:
         live.parent.resolve().relative_to(Path(out[1].strip()).resolve())
         if not common.is_dir():
             return None
+        # T-13979 — a store the caller cannot stat (another OS user's 2700 `yitc/`) is INERT too.
+        if d.parent.is_symlink() or d.is_symlink():
+            return None
     except (OSError, ValueError):
-        return None
-    d = common.joinpath(*_INDEX_DIR)
-    if d.parent.is_symlink() or d.is_symlink():
         return None
     return {"dir": d, "algo": out[2].strip()}
 
@@ -5498,7 +5499,13 @@ class JournalScan:
             # selection and the walk, so a rotation cannot move rows between the snapshot of the
             # segment set and the read of it (audit-post fp1:420a65e749aab482).
             with (events.journal_lock(self._path) if self._lock else contextlib.nullcontext()):
-                self._run()
+                try:
+                    self._run()
+                except BaseException:
+                    # T-13979 — a failed walk leaves the scope UNRUN: the next call walks again (or
+                    # raises its own error again), never an AttributeError on a field it never set.
+                    self._ran = False
+                    raise
         elif self._live is not None:
             self._catch_up()      # T-13332 — the live segment's appended bytes, never a re-fold
 
@@ -8632,9 +8639,12 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
                             f"pass and no `audit decide` is admitted, so do NOT re-dispatch for one; the "
                             f"exits are the terminal dispositions, cited to an owner directive: "
                             f"{audit.ceiling_terminal_exits(t)}")
+            # T-13980 (X-2023) — the audit-pre order is the ONE phrase the decide refusal names too.
+            from lib import audit_ceiling   # noqa: PLC0415 — lazy, like the audit import above
             return (f"paused at the audit-loop ceiling — record one `bin/yitc-v2 audit decide` per residual "
                     f"fingerprint (SPEC-0204), then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
-                    f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions`)")
+                    f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions`); "
+                    f"at audit-pre: {audit_ceiling.ceiling_pre_decide_order(t)}")
         if detail == "artifact-wait":
             # T-13575 — no decision is pending here: `task pause --reason artifact-wait` REQUIRES the
             # awaited item (`--awaits`, stored as `paused_awaits`, T-12407), and the session-start echo

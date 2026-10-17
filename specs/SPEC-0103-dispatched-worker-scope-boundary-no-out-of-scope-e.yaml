@@ -58,7 +58,7 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ a new card. Measured:\n<project>, 2026-09-18 — ship 6042231 landed after a terminal\
   \ RED via the wont-do flip.\n\n#### 3-ceiling. THE AUDIT-LOOP CEILING IS ONE OF\
   \ THESE BLOCKS, and the worker HALTS WITH FINGERPRINTS\nA dispatched Worker that\
-  \ reaches the SPEC-0124 audit-loop ceiling does NOT consult, does NOT adjudicate\n\
+  \ reaches the <workshop-spec> audit-loop ceiling does NOT consult, does NOT adjudicate\n\
   and does NOT grant itself a continuation — the auto-consult that once did is retired\
   \ (SPEC-0204 rule\n6). It takes the §3 escalation above, through the SAME `bg_dispatch_halted`\
   \ marker, and that marker\nNAMES `residual_fingerprints[]`: the engine fingerprints\
@@ -109,9 +109,10 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   invisible newest row would let an older same-cause pair arm the backstop on a land\
   \ whose failing set\nwas entirely a known flake, and an invisible middle row would\
   \ read two non-consecutive attempts as\nconsecutive.\n\n**BOUNDS — what is unchanged.**\
-  \ The freeze class is untouched: two genuinely consecutive\nsame-cause aborts still\
-  \ arm at the threshold, and re-running a heavy gate against an unresolved\ncontradiction\
-  \ is still forbidden (CHARTER §P7). `--ack-repeated-abort` remains available and\n\
+  \ The freeze class is untouched: genuinely consecutive\nsame-cause aborts still\
+  \ arm at the threshold (the project's `lib.cli.LAND_REPEATED_ABORT_THRESHOLD`,\n\
+  SPEC-1031), and re-running a heavy gate against an unresolved\ncontradiction is\
+  \ still forbidden (CHARTER §P7). `--ack-repeated-abort` remains available and\n\
   CONTROLLER-routed, never owner-gated. What is removed is only the ack-and-requeue\
   \ ritual on\na non-repeat: every tier change above can make the backstop arm LESS,\
   \ never more, which is the\nfail-open direction the counter's own doctrine already\

@@ -1,6 +1,6 @@
-# Release v2.14.0
+# Release v2.15.0
 
-Source commit: `407e57fb279f04b3b8745e252eb5dd2291a0141e`
+Source commit: `9920ba087b4dc1571702999cf7005a9e8f9620dc`
 
 ## Proposals this release answers
 
@@ -16,8 +16,17 @@ answers:
   - 'yitc-dev/yitc#105'
   - 'yitc-dev/yitc#106'
   - 'yitc-dev/yitc#107'
+  - 'yitc-dev/yitc#108'
   - 'yitc-dev/yitc#11'
+  - 'yitc-dev/yitc#112'
+  - 'yitc-dev/yitc#113'
+  - 'yitc-dev/yitc#114'
+  - 'yitc-dev/yitc#115'
+  - 'yitc-dev/yitc#116'
+  - 'yitc-dev/yitc#117'
+  - 'yitc-dev/yitc#119'
   - 'yitc-dev/yitc#12'
+  - 'yitc-dev/yitc#121'
   - 'yitc-dev/yitc#13'
   - 'yitc-dev/yitc#14'
   - 'yitc-dev/yitc#15'
@@ -160,25 +169,60 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag.
+4 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1031 — Tunable values — budgets on the machine, thresholds in the project, opened one key at a time; GATE stays hard; a governing value written once
+  turn on: yitc-ops.yaml `thresholds.thresholds`
+  read: `yitc-v2 graph query --kernel SPEC-1031`
+- SPEC-1032 — Consumer Stage-6 passes on the remote verify venue - the verify.venue opt-in, a box published for one consumer and shared as the project balances it, consumer envelope identity, named per-pass placement
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1032`
+- SPEC-1034 — Audit-loop ceiling — pass arithmetic, ledger-skip axes and the trend grant
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1034`
+- SPEC-1035 — Adapter-backed consumer verify layers — per-test report, fail-closed selection, per-test re-run of the failed cases and accounting; lane entry counts rescues of the current file version
+  turn on: yitc-ops.yaml `verify.layers[].adapter` — an `adapter:` block on the declared verify layer whose tests it lists, selects and re-runs; the protocol the project script speaks, with a sample adapter per runner: `patterns/verify-layer-adapter-protocol.md`
+  read: `yitc-v2 graph query --kernel SPEC-1035`
 
 ## What changed
 
-13 task(s) closed since the previous release tag, in close order:
+35 task(s) closed since the previous release tag, in close order:
 
-- T-13940 — Record the tested tree on a failed Stage-6 run, as a green run already does (feature) — events.jsonl#ts=2026-10-14T15:18:49Z
-- T-13938 — Let a followup await a calendar date, so it surfaces on that date with no event needed (feature) — events.jsonl#ts=2026-10-14T15:19:03Z
-- T-13939 — Stop the land tail tripwire from reading every graph/index.json advance as a card a test reads (fix) — events.jsonl#ts=2026-10-14T15:29:02Z
-- T-13942 — Name live worktrees as what they are in the verify contention note at a test timeout (fix) — events.jsonl#ts=2026-10-14T18:48:55Z
-- T-13946 — Run the test-suite shape inspection weekly and let a project add its own readings to it (feature) — events.jsonl#ts=2026-10-14T19:37:18Z
-- T-13944 — Refuse an inspection probe that carries both view and sweep where a project checks its own edit (fix) — events.jsonl#ts=2026-10-14T19:42:08Z
-- T-13947 — Let an --expect-rebaseline land join a batch when the pinned last-green leg is off (fix) — events.jsonl#ts=2026-10-14T20:35:20Z
-- T-13948 — Make a pre-stage ceiling fix decision say which checkout its plan came from, and refuse it when no task worktree is found (fix) — events.jsonl#ts=2026-10-14T21:19:34Z
-- T-13945 — Let a session that took a hand-off arm its own watcher beside the author's live one (feature) — events.jsonl#ts=2026-10-14T21:20:24Z
-- T-13943 — Show a project's load-sensitive unit lane in the debt echo, as the engine's lane is shown (feature) — events.jsonl#ts=2026-10-14T21:22:31Z
-- T-13941 — Keep a derived-only task commit from becoming the audit-post subject, and say the right cause when it does (fix) — events.jsonl#ts=2026-10-14T22:17:09Z
-- T-13950 — Credit per layer what a main advance did not touch when a land attempt is retried after main moved (feature) — events.jsonl#ts=2026-10-14T23:00:10Z
-- T-13949 — Keep a passed layer's credit on an identical tree, and a timed-out layer's finished units, between Stage-6 runs (feature) — events.jsonl#ts=2026-10-15T07:36:32Z
+- T-13955 — Make the session-start closing line true whether the seed is read before or after the start (fix) — events.jsonl#ts=2026-10-16T09:52:32Z
+- T-13963 — Check why the per-layer Stage-6 credit on main-moved never credits a layer in a consumer, and make the land row say which layers it credited or re-ran (fix) — events.jsonl#ts=2026-10-16T11:31:41Z
+- T-13952 — Scope the envelope session-ref resolver's worktree-stamp step to the caller's own checkout (fix) — events.jsonl#ts=2026-10-16T11:31:59Z
+- T-13965 — Consolidate the verify-cost techniques into one playbook pattern and point the test-suite-shape inspection at it (docs) — events.jsonl#ts=2026-10-16T11:33:15Z
+- T-13962 — Let the deploy verb wait for a load window before running the project's deploy command (feature) — events.jsonl#ts=2026-10-16T11:55:52Z
+- T-13961 — Give a consumer project a verify-durations table from its own journal: per layer and per adapter unit (feature) — events.jsonl#ts=2026-10-16T12:06:20Z
+- T-13966 — Build the dormant tunable-values mechanism of SPEC-1031 and give the two SPEC-0132 load-sensitive bounds one source (feature) — events.jsonl#ts=2026-10-16T12:13:08Z
+- T-13953 — Name a spent GREEN on-decisions pass and the moved subject in the audit-post ceiling halt (fix) — events.jsonl#ts=2026-10-16T12:46:40Z
+- T-13971 — Size a verify's worker width by the host's free cores at its start, read under the Stage-6 admission lock, between a floor and an adaptive maximum (feature) — events.jsonl#ts=2026-10-16T12:50:21Z
+- T-13964 — Let a change confined to a consumer's own test files enter the selection ladder as changed units instead of a verify-implementation touch (feature) — events.jsonl#ts=2026-10-16T13:19:19Z
+- T-13970 — Give the two SPEC-0132 load-sensitive bounds one source and name their keys in SPEC-0132 (refactor) — events.jsonl#ts=2026-10-16T13:27:09Z
+- T-13972 — Build the dormant verify.venue declaration reader of SPEC-1032 rule 1 (infra) — events.jsonl#ts=2026-10-16T13:35:28Z
+- T-13954 — Re-target a card's supersession onto a sibling-landed successor at land (fix) — events.jsonl#ts=2026-10-16T13:52:59Z
+- T-13979 — Read an unreadable journal-index directory as no index, and leave no half-built scan behind a failed walk (fix) — events.jsonl#ts=2026-10-16T14:14:58Z
+- T-13957 — Let spec edit --bless re-bless a spec that is active on main and superseded only on this branch (fix) — events.jsonl#ts=2026-10-16T14:44:30Z
+- T-13980 — Give a worker paused at the audit-pre ceiling a decide-then-resume route that needs no hand-opened worktree (fix) — events.jsonl#ts=2026-10-16T15:26:43Z
+- T-13967 — Prepare the land-verify per-file test timeout to become a machine budget (one key, band, venue forwarding, row record) (feature) — events.jsonl#ts=2026-10-16T15:54:20Z
+- T-13959 — Tie a ts locator to this card on the live-probe settle path, as the settle-evidence path already does (fix) — events.jsonl#ts=2026-10-16T16:14:34Z
+- T-13958 — Attribute a consumer layer red to main only when the base run fails the same assertions (fix) — events.jsonl#ts=2026-10-16T16:17:41Z
+- T-13977 — Ship a traveling consumer venue-image build - venue seed --build -C <consumer> --provision <script> (infra) — events.jsonl#ts=2026-10-16T16:40:21Z
+- T-13968 — Register the land repeated-abort count and the land retry count in the inventory and record them on the land row (feature) — events.jsonl#ts=2026-10-16T16:58:00Z
+- T-13960 — Say that a caller's Co-Authored-By trailer wins over the placeholder, and stop hard-coding it in the sync bookkeeping commit (fix) — events.jsonl#ts=2026-10-16T17:14:09Z
+- T-13973 — Build the dormant consumer executor and consumer envelope of SPEC-1032 rules 4 and 5 (infra) — events.jsonl#ts=2026-10-16T17:46:59Z
+- T-13956 — Leave the card's own lifecycle bookkeeping out of the SPEC-0178 rule 6 out-of-path set (fix) — events.jsonl#ts=2026-10-16T17:52:17Z
+- T-13974 — Build the dormant consumer box readiness, atomic-only admission and whole-box width of SPEC-1032 rules 3 and 6 (infra) — events.jsonl#ts=2026-10-16T18:15:45Z
+- T-13983 — Let land fold the files a verb of the same batch wrote and left uncommitted, instead of refusing the land (feature) — events.jsonl#ts=2026-10-16T19:16:27Z
+- T-13984 — Resolve derived artifacts before leaving a mixed-conflict sync merge open (fix) — events.jsonl#ts=2026-10-16T19:33:00Z
+- T-13969 — Open the first tunable keys and activate SPEC-1031 (the closing card of the tunable-values plan) (feature) — events.jsonl#ts=2026-10-16T19:54:02Z
+- T-13982 — Run a spec-activating card's final Stage-6 on the tree its close will land, so the land keeps the run's credit (fix) — events.jsonl#ts=2026-10-16T20:01:05Z
+- T-13985 — Re-run only the failed cases of a rescued unit where the adapter names them (feature) — events.jsonl#ts=2026-10-16T20:01:17Z
+- T-13986 — Widen the audit-loop trend grant to medium-or-lower residuals when the finding count strictly falls (feature) — events.jsonl#ts=2026-10-16T22:06:54Z
+- T-13975 — Build the dormant consumer routing order, the --placement seam and venue show --leases of SPEC-1032 rules 2 and 6 (infra) — events.jsonl#ts=2026-10-16T22:46:43Z
+- T-13987 — Report a batch member still awaiting its own land as pending, not unaccounted (fix) — events.jsonl#ts=2026-10-16T23:13:52Z
+- T-13988 — Count a lane rescue only when the run tree holds the latest change of the unit file (fix) — events.jsonl#ts=2026-10-17T00:35:44Z
+- T-13976 — Activate SPEC-1032 - route declared consumer Stage-6 passes to a consumer venue, publish serves with its kernel guard, amend SPEC-1029 rule 2 (infra) — events.jsonl#ts=2026-10-17T02:51:15Z
 
 ## Trust surfaces
 

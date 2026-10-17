@@ -445,8 +445,8 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ **THAT AUDIT IS A CURRENCY CHECK, AND IS BOUNDED AS ONE.** It asks whether the\n\
   \  sign-off is still current for the tree that reaches `main`, on a `status: done`\
   \ card — never\n  whether the card's absorption loop converged — so it consumes\
-  \ no SPEC-0124 ceiling pass, is\n  exempt from the ceiling and from SPEC-0204 rule\
-  \ 4 in both directions, records `basis: currency`,\n  and bounds its NEW findings\
+  \ no <workshop-spec> ceiling pass, is\n  exempt from the ceiling and from SPEC-0204\
+  \ rule 4 in both directions, records `basis: currency`,\n  and bounds its NEW findings\
   \ (all medium/low → YELLOW and the land PROCEEDS; a high, an absent\n  severity,\
   \ or an open `fix` residual keeps RED and STOPS the land for the ordinary fix route).\n\
   \  Its verdict is recorded at the BRANCH TIP the land merged, never at the land's\
@@ -595,8 +595,9 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ a CODE audit, while the verify still runs the full suite over HEAD — so\n    \
   \      nothing is skipped. What got wrong was only its SCOPE, and that asymmetry\
   \ is retired\n          here: the same note on a task branch used to refuse.\n \
-  \   (ii) EXACT DIFF SHAPE — ONE of the TWO shapes `task close` itself produces or\
-  \ prescribes, each\n          measured over the ENTIRE change to the spec file against\
+  \   (ii) EXACT DIFF SHAPE — ONE of the THREE shapes below (two that `task close`\
+  \ itself produces or\n          prescribes, one that `land`'s supersession re-target\
+  \ writes), each measured over the ENTIRE\n          change to the spec file against\
   \ the audited commit:\n            - the FLIP close WRITES: ONE `status:` line replaced\
   \ by another, the pair in the CLOSED\n              vocabulary {proposed→active,\
   \ active→superseded, proposed→withdrawn} — every flip the SOLE\n              activation\
@@ -617,66 +618,82 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ and CONTAIN `binding`; a differing `status` must be\n              exactly proposed→active\
   \ — narrower than the vocabulary above, because a binding token is\n           \
   \   prescribed only for the spec the close ACTIVATED, never for a `supersedes:`\
-  \ target).\n          A body edit, a second changed line, an added/deleted file,\
-  \ a comment change outside the\n          declaration, or any failure to read or\
-  \ parse either blob fails this axis.\n    (iii) GOVERNED-VERB PROVENANCE — a `spec_activated`\
+  \ target).\n            - the SUPERSESSION RE-TARGET `land` WRITES (SPEC-0005 §4):\
+  \ on the spec this\n              close activated, its scalar `supersedes:` line\
+  \ moved to another spec id, optionally\n              together with that close's\
+  \ own `proposed → active` flip and the `binding:` declaration\n              it\
+  \ prescribes, and nothing else (the textual and semantic confinement, widened\n\
+  \              by that one line); on the head it superseded — measured against the\
+  \ `main` tip the land\n              merged when it is ABSENT at the audited commit,\
+  \ else against the concurrent-main\n              fold of the audited blob — ONE\
+  \ `status:` line, plain or quoted, `active → superseded`,\n              and nothing\
+  \ else.\n          A body edit, a second changed line, an added/deleted file, a\
+  \ comment change outside the\n          declaration, or any failure to read or parse\
+  \ either blob fails this axis.\n    (iii) GOVERNED-VERB PROVENANCE — a `spec_activated`\
   \ row (SPEC-0161) in THIS task's id slot naming\n          THIS spec. Provenance\
   \ is safer than path-only ONLY IF IT IS NOT A TRUST FLAG: it is applied\n      \
   \    LAST, as a necessary conjunct over a shape already proven mechanically. A hand-emitted\
   \ row\n          never admits a path whose shape failed (ii), and a genuine flip\
-  \ whose row is missing is\n          refused.\n\n  WHAT THIS IS NOT. It does NOT\
-  \ widen the SPEC-0064 global inert allowlist — `specs/**` and `lessons/**`\n  stay\
-  \ verify-OBSERVABLE there (a test may assert their content), exactly as kept them;\
-  \ the\n  subtraction is LOCAL to the currency consumers, which then re-classify\
-  \ the REDUCED path set through\n  the ONE classifier (the one-authority invariant\
-  \ holds). It adds NO closure mode, flag or waive\n  to `land`. Its binding-token\
-  \ boundary is PRECISE (narrowing this sentence rather than deleting\n  it): admitted\
-  \ is a binding declaration on a spec THIS close ACTIVATED — proven by the `spec_activated`\n\
-  \  row in this task's id slot — whose whole file change is confined to the declaration\
-  \ (plus at most that\n  close's own proposed→active flip). Any OTHER binding edit\
-  \ still refuses: a binding change to a spec this\n  close did not activate, one\
-  \ riding with a body/rule edit, or one carrying any other content. The point\n \
-  \ is not that binding tokens are harmless; it is that this exact edit is the one\
-  \ closure ITSELF prescribes,\n  and a governed instruction must not be refused by\
-  \ the governed verb that follows it. And it does NOT\n  touch `merge_inherited`,\
-  \ which still never refuses\n  on its own (the position, preserved). Every other\
-  \ observable post-audit path — bin / tests /\n  patterns / root-md, and any `specs/**`\
-  \ path failing (ii) or (iii) — stays observable → still REFUSED.\n\n  **PROVEN MECHANICAL\
-  \ CONFLICT-RESOLUTION exemption (the SECOND exemption at this seam, on the\n  SAME\
-  \ conjunction standard).** The footprint clause above covers \"conflict-resolution\
-  \ edits made in the\n  update-from-main merge commit\" — and that read every resolution,\
-  \ HAND-made or MECHANICAL, as content\n  the audit never saw. But `_classify_land_merge_conflicts`\
-  \ is the ONE admission authority for what\n  `update-from-main` resolves WITHOUT\
-  \ a human, and its output is a DETERMINISTIC FUNCTION of the two\n  sides. So the\
-  \ gate demanded that an external auditor review a string the tool itself produced\
-  \ and can\n  re-derive — and the auditor is a system-wide single point of failure,\
-  \ so every avoidable re-audit is an\n  avoidable dependency on it. On a hot file\
-  \ the chain does not converge at all: a fresh conflict\n  re-authors content on\
-  \ every attempt (measured 2026-08-19 — task/ needed five land attempts over\n  ~3h,\
-  \ task/ walked conflict → resolution → currency refusal → re-audit → land). The\
-  \ claim is the\n  same SHAPE as the closure exemption's: the merge the lifecycle\
-  \ REQUIRES cannot be the thing that makes\n  the lifecycle unauditable.\n\n  PROVEN\
-  \ means a CONJUNCTION of three axes, each carrying positive evidence; no axis is\
-  \ sufficient alone\n  and a failure on any axis leaves the path REFUSED:\n    (i)\
-  \ CONFLICT-MARKED in `merge-tree --write-tree <audit_commit> <merged_base>` — the\
-  \ gate's OWN\n          comparison, so no second oracle is introduced. This is positive\
-  \ evidence that a conflict\n          existed AT ALL: a path whose re-merge is CLEAN\
-  \ and whose HEAD nevertheless differs is a\n          post-audit EDIT, never a resolution.\n\
-  \    (ii) RESOLVED BY THE ONE AUTHORITY to a TEXT payload — `_classify_land_merge_conflicts`,\
-  \ asked over\n          that same stream through the index-free stage-read seam\
-  \ built. Two ways to fail: the\n          authority leaves the path unresolved,\
-  \ or it returns a kind carrying NO text payload, which\n          means \"resolvable\"\
-  \ to the merge path but \"no content to compare\" to THIS reader. That\n       \
-  \   missing-value judgement is made at the use site, never pushed into the shared\
-  \ authority.\n    (iii) CONTENT IDENTITY — HEAD's content for the path is BYTE-IDENTICAL\
-  \ to that re-derived text. THE\n          LABEL IS NEVER TRUSTED: no marker, commit\
-  \ subject or recorded claim that a resolution happened\n          is read. This\
-  \ axis is also what makes a separate hand-made EXCLUSION unnecessary and unsound\
-  \ to\n          add — a hand-typed string byte-equal to the mechanical output IS\
-  \ the mechanical output, and any\n          hand resolution differing by one byte\
-  \ fails here.\n\n  THE DID-NOT-ANSWER VALUE IS A REFUSAL, STRUCTURALLY. The subtraction\
-  \ is computed as a SUBSET of the\n  already-blocking set, so \"did not answer\"\
-  \ and \"no\" are the same value and there is no third value to\n  route (`lessons/carving-an-exception-into-a-fail-closed-gate`\
+  \ whose row is missing is\n          refused. The re-target's moved `supersedes:`\
+  \ line is proven only by the land's re-target\n          rows (they carry `retargeted_from`)\
+  \ whose moves CHAIN from the audited value to the one\n          HEAD carries —\
+  \ a land retried after `main` superseded the head writes one per attempt;\n    \
+  \      such a row never proves an activation (the status flip and a binding declaration\
+  \ still\n          need the close's own row), and the head's flip is proven by its\
+  \ `supersedes` /\n          `supersedes_status` pair exactly as a close's target\
+  \ flip is.\n\n  WHAT THIS IS NOT. It does NOT widen the SPEC-0064 global inert allowlist\
+  \ — `specs/**` and `lessons/**`\n  stay verify-OBSERVABLE there (a test may assert\
+  \ their content), exactly as kept them; the\n  subtraction is LOCAL to the currency\
+  \ consumers, which then re-classify the REDUCED path set through\n  the ONE classifier\
+  \ (the one-authority invariant holds). It adds NO closure mode, flag or waive\n\
+  \  to `land`. Its binding-token boundary is PRECISE (narrowing this sentence rather\
+  \ than deleting\n  it): admitted is a binding declaration on a spec THIS close ACTIVATED\
+  \ — proven by the `spec_activated`\n  row in this task's id slot — whose whole file\
+  \ change is confined to the declaration (plus at most that\n  close's own proposed→active\
+  \ flip). Any OTHER binding edit still refuses: a binding change to a spec this\n\
+  \  close did not activate, one riding with a body/rule edit, or one carrying any\
+  \ other content. The point\n  is not that binding tokens are harmless; it is that\
+  \ this exact edit is the one closure ITSELF prescribes,\n  and a governed instruction\
+  \ must not be refused by the governed verb that follows it. And it does NOT\n  touch\
+  \ `merge_inherited`, which still never refuses\n  on its own (the position, preserved).\
+  \ Every other observable post-audit path — bin / tests /\n  patterns / root-md,\
+  \ and any `specs/**` path failing (ii) or (iii) — stays observable → still REFUSED.\n\
+  \n  **PROVEN MECHANICAL CONFLICT-RESOLUTION exemption (the SECOND exemption at this\
+  \ seam, on the\n  SAME conjunction standard).** The footprint clause above covers\
+  \ \"conflict-resolution edits made in the\n  update-from-main merge commit\" — and\
+  \ that read every resolution, HAND-made or MECHANICAL, as content\n  the audit never\
+  \ saw. But `_classify_land_merge_conflicts` is the ONE admission authority for what\n\
+  \  `update-from-main` resolves WITHOUT a human, and its output is a DETERMINISTIC\
+  \ FUNCTION of the two\n  sides. So the gate demanded that an external auditor review\
+  \ a string the tool itself produced and can\n  re-derive — and the auditor is a\
+  \ system-wide single point of failure, so every avoidable re-audit is an\n  avoidable\
+  \ dependency on it. On a hot file the chain does not converge at all: a fresh conflict\n\
+  \  re-authors content on every attempt (measured 2026-08-19 — task/ needed five\
+  \ land attempts over\n  ~3h, task/ walked conflict → resolution → currency refusal\
+  \ → re-audit → land). The claim is the\n  same SHAPE as the closure exemption's:\
+  \ the merge the lifecycle REQUIRES cannot be the thing that makes\n  the lifecycle\
+  \ unauditable.\n\n  PROVEN means a CONJUNCTION of three axes, each carrying positive\
+  \ evidence; no axis is sufficient alone\n  and a failure on any axis leaves the\
+  \ path REFUSED:\n    (i) CONFLICT-MARKED in `merge-tree --write-tree <audit_commit>\
+  \ <merged_base>` — the gate's OWN\n          comparison, so no second oracle is\
+  \ introduced. This is positive evidence that a conflict\n          existed AT ALL:\
+  \ a path whose re-merge is CLEAN and whose HEAD nevertheless differs is a\n    \
+  \      post-audit EDIT, never a resolution.\n    (ii) RESOLVED BY THE ONE AUTHORITY\
+  \ to a TEXT payload — `_classify_land_merge_conflicts`, asked over\n          that\
+  \ same stream through the index-free stage-read seam built. Two ways to fail: the\n\
+  \          authority leaves the path unresolved, or it returns a kind carrying NO\
+  \ text payload, which\n          means \"resolvable\" to the merge path but \"no\
+  \ content to compare\" to THIS reader. That\n          missing-value judgement is\
+  \ made at the use site, never pushed into the shared authority.\n    (iii) CONTENT\
+  \ IDENTITY — HEAD's content for the path is BYTE-IDENTICAL to that re-derived text.\
+  \ THE\n          LABEL IS NEVER TRUSTED: no marker, commit subject or recorded claim\
+  \ that a resolution happened\n          is read. This axis is also what makes a\
+  \ separate hand-made EXCLUSION unnecessary and unsound to\n          add — a hand-typed\
+  \ string byte-equal to the mechanical output IS the mechanical output, and any\n\
+  \          hand resolution differing by one byte fails here.\n\n  THE DID-NOT-ANSWER\
+  \ VALUE IS A REFUSAL, STRUCTURALLY. The subtraction is computed as a SUBSET of the\n\
+  \  already-blocking set, so \"did not answer\" and \"no\" are the same value and\
+  \ there is no third value to\n  route (`lessons/carving-an-exception-into-a-fail-closed-gate`\
   \ §1). An un-runnable git, an unparsable\n  merge-tree stream, an authority that\
   \ raised, an absent injection, an unreadable HEAD blob — each leaves\n  the path\
   \ exactly where the pre-exemption code left it.\n\n  WHAT THIS IS NOT. It does not\
@@ -1329,12 +1346,16 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ already-trusted reference the consumer\ndoes not edit per-land — kernel is pinned,\
   \ not consumer-mutable); (c) a pre-extraction / kernel-provided\nconsumer runs engine-resolved\
   \ content it does not edit, so nothing consumer-side is\npinned beyond the engine's\
-  \ already-pinned version. One rule, surfaces named.\n\n## Rationale\n\nA self-modifying\
-  \ engine has a circular-trust gap: the same CLI/graph-build code being changed is\n\
-  also the code that decides whether the land is valid, so a wrong-but-passing verifier\
-  \ change can\nsilently weaken the chokepoint. V2 dispatches autonomous workers that\
-  \ edit `bin/yitc-v2` + the\ngraph-build, and real `-C` consumers arrive next — each\
-  \ consumer's `-C land` verifies its own code\nwith its own (possibly-just-changed)\
+  \ already-pinned version. One rule, surfaces named.\nThe consumer arm of the §1\
+  \ edge: in a project's adapter-backed layer, a touch made only by\nthe project's\
+  \ own test files may select units on the CANDIDATE leg — rule home <workshop-spec>\
+  \ rule 6 (a).\nThe §1 trigger, the pinned leg where the project's policy runs it\
+  \ (SPEC-0186), and the engine's own\nedge over its root test directory are unchanged.\n\
+  \n## Rationale\n\nA self-modifying engine has a circular-trust gap: the same CLI/graph-build\
+  \ code being changed is\nalso the code that decides whether the land is valid, so\
+  \ a wrong-but-passing verifier change can\nsilently weaken the chokepoint. V2 dispatches\
+  \ autonomous workers that edit `bin/yitc-v2` + the\ngraph-build, and real `-C` consumers\
+  \ arrive next — each consumer's `-C land` verifies its own code\nwith its own (possibly-just-changed)\
   \ verifier, the SAME risk at the project level. Source: the\nexternal consult `decisions/kernel-protection-recovery-set-audit-adhoc.yaml`\
   \ (finding 2, HIGH,\n4-filter-passed). Classic bootstrap / verifier self-hosting\
   \ risk (incident count zero;\nprior-art-grounded). EXTENDS the existing `land` chokepoint\
@@ -1427,5 +1448,5 @@ implements_signature:
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions: e285282f55cfe142d1c927721d9fbf9052815cc94de7dd850394ce05abc29598
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row: d8834898170438d70c4f77711a2e66b1e15350a70068edca203c05dd8cc22cb5
   bin/lib/verify_runner.py#_verify_failure_excerpt: 63bcb17f33bf87e3e053a4001fc27722638af4ffbf87b78bbe3d930213f26031
-  bin/lib/worktree.py#_land_integrate: dbe73f663fd386a751274d2f4c2dea2a23b3c687ee12f6c518ee12d9713a665c
+  bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
   bin/lib/worktree.py#_run_pinned_verify: 181c3193b7ea1d623bef9cd420829435a04ba0b43971ea5ea11db6c844d1a152

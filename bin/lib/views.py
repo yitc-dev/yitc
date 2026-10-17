@@ -6623,6 +6623,10 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
         if _ls_count and _ls_count > 0:
             _crossed = [str(c) for c in (_ls.get("crossed") or [])]
             _bs, _bf = _ls.get("bound_share_pct"), _ls.get("bound_files")
+            # T-13970 (SPEC-1031 rule 6): each bound names where its value came from, as `config list`
+            # prints it; a fold row carrying no source renders as before
+            _bss = f" [{_ls['bound_share_source']}]" if _ls.get("bound_share_source") else ""
+            _bfs = f" [{_ls['bound_files_source']}]" if _ls.get("bound_files_source") else ""
             _which = {"share": f"share > {_bs}%", "files": f"count > {_bf}"}
             _mark = (" — OVER BOUND (" + ", ".join(_which.get(c, c) for c in _crossed) + ")"
                      if _crossed else "")
@@ -6643,7 +6647,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"debt: load-sensitive lane ({_ls_count} file(s)) [{_fig}] — "
                 f"{_ls_count} file(s), {_ls.get('wall_s')}s serialized "
                 f"tail = {_ls.get('share_pct')}% of the duration table's {_ls.get('suite_wall_s')}s "
-                f"of per-file work (bounds: {_bs}% / {_bf} files){_mark}"
+                f"of per-file work (bounds: {_bs}%{_bss} / {_bf} files{_bfs}){_mark}"
                 f"{f'; {_unrec} listed file(s) carry no recorded duration and count as 0s' if _unrec else ''}. "
                 f"The lane runs SERIALIZED after the pool on both legs, so this is wall a land pays "
                 f"in sequence (SPEC-0132 §3, T-12358/T-12360). Past either bound the weekly review must "

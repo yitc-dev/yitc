@@ -44,7 +44,7 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ is realized as the `gate_policy` +\n`blocking=` arguments to `_run_plan_gate_audit`\
   \ in `cmd_plan_stage` (bin/yitc-v2). A\nMANDATORY-BLOCKING gate `_die`s on a RED/ABORT\
   \ verdict (transition held, status unchanged) and\nenforces the 2-pass audit-loop\
-  \ ceiling (SPEC-0124 §Audit-loop ceiling); an ABORT burns no pass.\nWhat happens\
+  \ ceiling (<workshop-spec> §Audit-loop ceiling); an ABORT burns no pass.\nWhat happens\
   \ AT that ceiling is homed in SPEC-0204 rule 9 (the plan-gate arm): the Controller\
   \ records\none typed decision per residual and ONE bounded pass then rides the FSM\
   \ advance this gate blocks. The\nconsult-governed continuation this policy previously\
@@ -317,7 +317,7 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ LIFECYCLE §4/§8 manual fallback); (b) the habit of pasting ad-hoc\nquestion blocks\
   \ into bespoke auditor runs for plans is RETIRED — its replacement IS `--focus`.\n\
   \n## Parameters\n\nNone consumed. The audit-loop ceiling constant (= 2) lives in\
-  \ its own home (SPEC-0124) — not\nduplicated here.\n\n## Rationale\n\nPrior-art:\
+  \ its own home (<workshop-spec>) — not\nduplicated here.\n\n## Rationale\n\nPrior-art:\
   \ <workshop-spec> carved a stable surface out of SPEC-0055 (`supersedes: ~`, parent\
   \ lives on)\n— the same carve shape used here. The P2-P5 gate infrastructure already\
   \ existed; the\npolicy table was a sub-surface of the large multi-concern SPEC-0036.\

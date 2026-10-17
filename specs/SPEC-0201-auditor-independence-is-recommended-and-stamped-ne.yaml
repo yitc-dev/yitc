@@ -64,17 +64,18 @@ body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool �
   \ / bootstrap doc §6>». Nothing gated, nothing refused. Silent the moment\nan external\
   \ provider resolves. Post-`/compact` re-fold: `bin/yitc-v2 audit status` (SPEC-0202).\n\
   \n### Rule 4 — The ceiling and every other audit rule are UNCHANGED\nA same-provider\
-  \ pass counts against the SPEC-0124 audit-loop ceiling exactly as an external pass;\n\
-  verdict handling (GREEN/YELLOW/RED/ABORT), tiers, overlays and the consult are unchanged.\
-  \ This spec\nchanges WHO may audit and HOW it is recorded — nothing about WHAT is\
-  \ judged.\n\n### Rule 5 — Disposition of <workshop-spec> rule 2 (the draft «strict\
-  \ cross-provider, the change WAITS»)\n<workshop-spec> (draft, plan-local to `provider-independence-learn-provider-portability-o`,\
-  \ in trial) rule 2\n+ VP2 state the opposite of rule 1 for OPERATION. On this spec's\
-  \ activation that clause is DEMOTED to\na pointer: «operation: per SPEC-0201 — same-provider\
-  \ admitted + stamped + reminded against»; its\nrule 1 (binding is a configurable\
-  \ variable), rule 3 (the bench same-provider carve-out, measurement\nonly) and rules\
-  \ 4-5 are UNTOUCHED and remain that plan's. Done by a card of THIS plan editing\
-  \ the\ndraft file (a draft is hand-edited by construction — `spec edit` serves active/proposed\
+  \ pass counts against the <workshop-spec> audit-loop ceiling exactly as an external\
+  \ pass;\nverdict handling (GREEN/YELLOW/RED/ABORT), tiers, overlays and the consult\
+  \ are unchanged. This spec\nchanges WHO may audit and HOW it is recorded — nothing\
+  \ about WHAT is judged.\n\n### Rule 5 — Disposition of <workshop-spec> rule 2 (the\
+  \ draft «strict cross-provider, the change WAITS»)\n<workshop-spec> (draft, plan-local\
+  \ to `provider-independence-learn-provider-portability-o`, in trial) rule 2\n+ VP2\
+  \ state the opposite of rule 1 for OPERATION. On this spec's activation that clause\
+  \ is DEMOTED to\na pointer: «operation: per SPEC-0201 — same-provider admitted +\
+  \ stamped + reminded against»; its\nrule 1 (binding is a configurable variable),\
+  \ rule 3 (the bench same-provider carve-out, measurement\nonly) and rules 4-5 are\
+  \ UNTOUCHED and remain that plan's. Done by a card of THIS plan editing the\ndraft\
+  \ file (a draft is hand-edited by construction — `spec edit` serves active/proposed\
   \ only), cited\nfrom both plans; a Principle-7 dissonance resolved by naming ONE\
   \ authoritative home, not silently.\n\n## Parameters\nNone consumed (the reminder\
   \ text and the stamp values are code constants, not governing scalars).\n\n## Rationale\n\
@@ -99,7 +100,6 @@ cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-4
 - SPEC-0036
-- SPEC-0124
 - SPEC-0202
 requires: []
 supersedes: null

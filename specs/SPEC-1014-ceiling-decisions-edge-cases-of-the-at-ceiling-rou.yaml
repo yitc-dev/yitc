@@ -32,7 +32,7 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ arm (text)\n\nMoved verbatim from SPEC-0204 rule 9; SPEC-0204 keeps the rule's\
   \ heading and every code\nanchor. Its edge cases follow under §At-ceiling edge cases,\
   \ group «Rule 9».\n\nRules 1-5 apply to a PLAN GATE, with the target pair `(plan\
-  \ slug, gate id)` in place of\n`(task id, stage)`. The gate id is the SPEC-0124\
+  \ slug, gate id)` in place of\n`(task id, stage)`. The gate id is the <workshop-spec>\
   \ gate identity (INV-1) — the ceiling row's `stage`,\nthe `ceiling_ref`, and what\
   \ the decision names; the gate's audit-TEMPLATE name is the RECORD's name\nand is\
   \ never the identity. What differs from the task arm, and nothing else does:\n \
@@ -162,7 +162,7 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ row whatever its verdict — rule 2's «sits on both the completion event and the\
   \ verdict\nYAML» — so a GREEN pass that follows a RED outranks it and is the ceiling\
   \ row a later admission reads. Two\nrows still state none, each for the reason given\
-  \ where it is defined: a `basis: currency` row (rule 3), and a\npass the SPEC-0124\
+  \ where it is defined: a `basis: currency` row (rule 3), and a\npass the <workshop-spec>\
   \ ledger did not charge that carries no findings — the rule-5 no-answer row among\
   \ them. A\nGREEN row written BEFORE this clause states none either and stays in\
   \ the journal as written; where the\nceiling row is selected for a binding or an\
@@ -313,39 +313,39 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ row's commit, so the admission line and\nthe projection would name a revision\
   \ the pass is not about. This is REPORTING only: the audited\nsubject is unchanged.\n\
   The SIBLING half of the same claim — so a converged card can also CLOSE at its landed\
-  \ ship — is the\nship-custody re-pin's ceiling exemption, homed in SPEC-0124 §Ledger-skip\
-  \ axes, not here.\n\n**THE EMPTY RESIDUAL SET AT AUDIT-PRE ADMITS AN AMENDED PLAN\
-  \ ONCE (ADDITIVE; measured on\n<project> 2026-10-02, X-1849/X-1850).** The pre mirror\
-  \ of the post-side admission: a\nGREEN pre ceiling row has no residual, so no decision\
-  \ can be recorded, and a plan fingerprint has no\nancestry to ride — so a plan amended\
-  \ after that row was a dead end. Over an EMPTY *and* RESOLVED\nresidual set with\
-  \ NO decision, the subject is resolved from the ceiling ROW's own `plan_fingerprint`\n\
-  (the pre sibling of (a) above), and the pass is ADMITTED at the CURRENT plan fingerprint\
-  \ (and names\nit) when the two DIFFER; when they are EQUAL the plan is unchanged,\
-  \ there is nothing new to judge,\nand the pass is REFUSED `decisions-not-for-this-revision`\
-  \ (`plan_unchanged_since_ceiling`) — no free\npass. An unknown fingerprint on either\
-  \ side refuses as before. BOUNDED: task audit-pre only (plan\ngates and audit-post\
-  \ unchanged), still the ONE bounded pass — it writes the next ceiling row, so a\n\
-  re-run at that same plan meets the equal-fingerprint refusal — and anything the\
-  \ amendment introduced\ncounts NEW at its own severity.\n\n**THE CEILING ROW'S OWN\
-  \ SUBJECT MAY BE A `--card-repair` COMMIT, AND THAT SUBJECT IS ADMITTED\n(ADDITIVE).**\
-  \ When the pass that REACHED the ceiling\naudited a `task commit --fix-red --card-repair`\
-  \ commit — bookkeeping-only, admitted at pass N by the\n card-repair door on proof\
-  \ the ship it rides on exists — and RED-ed on a NON-card cause, the\nrow's `subject_revision`\
-  \ IS that repair and an all-`accept`/`defer` set names it as this pass's\nsubject\
-  \ (arm 1 EQUALITY holds by construction). The no-authored-content guard then judges\n\
-  that subject through the SAME card-repair admission it passed at pass N, and that\
-  \ admission's\nship-facing conjuncts — (c) the prior RED's cause derives to the\
-  \ card record, (d) the covered ship\ncarries authored content, (e) the repair reaches\
-  \ that ship along a transparent first-parent chain —\nread the record the repair\
-  \ ANSWERED: whenever the LIVE `decisions/<tid>-audit-post.yaml` is pinned\nto the\
-  \ subject itself (it is the pass ON the repair, carrying that pass's cause), the\
-  \ conjuncts read\nthe superseded verdict the repair commit FOLDED (`<sha>:decisions/<tid>-audit-post.yaml`,\
-  \ a\ngoverned record read from git — the same trust boundary every other conjunct\
-  \ sits behind;\n`bin/lib/audit_packet.py#_folded_audit_post_record`). The packet\
-  \ is UNCHANGED: `merge-base..sha`\nalready renders the ship the repair rides on\
-  \ plus the repair, exactly what pass N saw. BOUNDED, so nothing else moves: the\
-  \ guard is not widened — a\npause / park / closure record carries no `card_repair`\
+  \ ship — is the\nship-custody re-pin's ceiling exemption, homed in <workshop-spec>\
+  \ §Ledger-skip axes, not here.\n\n**THE EMPTY RESIDUAL SET AT AUDIT-PRE ADMITS AN\
+  \ AMENDED PLAN ONCE (ADDITIVE; measured on\n<project> 2026-10-02, X-1849/X-1850).**\
+  \ The pre mirror of the post-side admission: a\nGREEN pre ceiling row has no residual,\
+  \ so no decision can be recorded, and a plan fingerprint has no\nancestry to ride\
+  \ — so a plan amended after that row was a dead end. Over an EMPTY *and* RESOLVED\n\
+  residual set with NO decision, the subject is resolved from the ceiling ROW's own\
+  \ `plan_fingerprint`\n(the pre sibling of (a) above), and the pass is ADMITTED at\
+  \ the CURRENT plan fingerprint (and names\nit) when the two DIFFER; when they are\
+  \ EQUAL the plan is unchanged, there is nothing new to judge,\nand the pass is REFUSED\
+  \ `decisions-not-for-this-revision` (`plan_unchanged_since_ceiling`) — no free\n\
+  pass. An unknown fingerprint on either side refuses as before. BOUNDED: task audit-pre\
+  \ only (plan\ngates and audit-post unchanged), still the ONE bounded pass — it writes\
+  \ the next ceiling row, so a\nre-run at that same plan meets the equal-fingerprint\
+  \ refusal — and anything the amendment introduced\ncounts NEW at its own severity.\n\
+  \n**THE CEILING ROW'S OWN SUBJECT MAY BE A `--card-repair` COMMIT, AND THAT SUBJECT\
+  \ IS ADMITTED\n(ADDITIVE).** When the pass that REACHED the ceiling\naudited a `task\
+  \ commit --fix-red --card-repair` commit — bookkeeping-only, admitted at pass N\
+  \ by the\n card-repair door on proof the ship it rides on exists — and RED-ed on\
+  \ a NON-card cause, the\nrow's `subject_revision` IS that repair and an all-`accept`/`defer`\
+  \ set names it as this pass's\nsubject (arm 1 EQUALITY holds by construction). The\
+  \ no-authored-content guard then judges\nthat subject through the SAME card-repair\
+  \ admission it passed at pass N, and that admission's\nship-facing conjuncts — (c)\
+  \ the prior RED's cause derives to the card record, (d) the covered ship\ncarries\
+  \ authored content, (e) the repair reaches that ship along a transparent first-parent\
+  \ chain —\nread the record the repair ANSWERED: whenever the LIVE `decisions/<tid>-audit-post.yaml`\
+  \ is pinned\nto the subject itself (it is the pass ON the repair, carrying that\
+  \ pass's cause), the conjuncts read\nthe superseded verdict the repair commit FOLDED\
+  \ (`<sha>:decisions/<tid>-audit-post.yaml`, a\ngoverned record read from git — the\
+  \ same trust boundary every other conjunct sits behind;\n`bin/lib/audit_packet.py#_folded_audit_post_record`).\
+  \ The packet is UNCHANGED: `merge-base..sha`\nalready renders the ship the repair\
+  \ rides on plus the repair, exactly what pass N saw. BOUNDED, so nothing else moves:\
+  \ the guard is not widened — a\npause / park / closure record carries no `card_repair`\
   \ (or `absorption`) marker and folds no verdict,\nso it stays refused BY NAME at\
   \ conjunct (a); a live record pinned ELSEWHERE than the subject is read\nexactly\
   \ as before (the folded read is gated on that identity); still ONE bounded pass,\
@@ -417,24 +417,24 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   auditor does not declare.\n\n#### Rule 4 — custody\n\n**A `task commit --reship`\
   \ SHIP OPENS A NEW CEILING ROW (ADDITIVE; cites).** A\nfurther IN-SCOPE ship committed\
   \ through `task commit --reship` makes its follow-up\n`audit post --commit <new>`\
-  \ **pass 1 of a NEW ceiling row** for that commit, and the ordinary\nSPEC-0124 2-pass\
-  \ ceiling then applies to THAT row. THIS IS NOT A RELAXATION OF THE CEILING, and\
-  \ the bound is\nSTRUCTURAL rather than promised: the ceiling bounds a card's ABSORPTION\
-  \ LOOP on ONE subject (RED →\nabsorb → RED at the same revision), and opening a\
-  \ row COSTS a GREEN auditor verdict on the prior\nsubject — a RED is never reshippable,\
-  \ `--reship` refuses non-GREEN at the commit door — PLUS a\ncommit that provably\
-  \ carries AUTHORED content. That is a NEW subject, and a new subject has always\n\
-  earned its own passes. CUSTODY RULES 3-4 ARE UNCHANGED: the superseded GREEN covers\
-  \ the OLD commit\nONLY, the follow-up re-audit is still REQUIRED before closure,\
-  \ and no decision inherits\nacross the rows. DERIVED, never asserted, and FAIL-CLOSED\
-  \ on four conjuncts — the LAST\n`commit_landed` for the task carries the `reship`\
-  \ marker (an ordinary ship, a bookkeeping\nself-commit, an `--absorb` or a `--fix-red`\
-  \ leg all leave it ABSENT); that row's commit RESOLVES to\nthe revision being audited\
-  \ (resolved identity, never a string compare — discipline); the\nprior saved record\
-  \ reads GREEN; and that record does not ALREADY name this subject. The THIRD\nconjunct\
-  \ is what keeps rule 4 intact: a rule-3 pass that came back RED leaves the record\
-  \ RED, so no\nrow opens and the `ceiling-terminal` refusal stands byte-unchanged.\
-  \ The FOURTH is the ONE-SHOT —\nthe opening pass stamps `ceiling_row_reset_for:\
+  \ **pass 1 of a NEW ceiling row** for that commit, and the ordinary\n<workshop-spec>\
+  \ 2-pass ceiling then applies to THAT row. THIS IS NOT A RELAXATION OF THE CEILING,\
+  \ and the bound is\nSTRUCTURAL rather than promised: the ceiling bounds a card's\
+  \ ABSORPTION LOOP on ONE subject (RED →\nabsorb → RED at the same revision), and\
+  \ opening a row COSTS a GREEN auditor verdict on the prior\nsubject — a RED is never\
+  \ reshippable, `--reship` refuses non-GREEN at the commit door — PLUS a\ncommit\
+  \ that provably carries AUTHORED content. That is a NEW subject, and a new subject\
+  \ has always\nearned its own passes. CUSTODY RULES 3-4 ARE UNCHANGED: the superseded\
+  \ GREEN covers the OLD commit\nONLY, the follow-up re-audit is still REQUIRED before\
+  \ closure, and no decision inherits\nacross the rows. DERIVED, never asserted, and\
+  \ FAIL-CLOSED on four conjuncts — the LAST\n`commit_landed` for the task carries\
+  \ the `reship` marker (an ordinary ship, a bookkeeping\nself-commit, an `--absorb`\
+  \ or a `--fix-red` leg all leave it ABSENT); that row's commit RESOLVES to\nthe\
+  \ revision being audited (resolved identity, never a string compare — discipline);\
+  \ the\nprior saved record reads GREEN; and that record does not ALREADY name this\
+  \ subject. The THIRD\nconjunct is what keeps rule 4 intact: a rule-3 pass that came\
+  \ back RED leaves the record RED, so no\nrow opens and the `ceiling-terminal` refusal\
+  \ stands byte-unchanged. The FOURTH is the ONE-SHOT —\nthe opening pass stamps `ceiling_row_reset_for:\
   \ <sha>` on the saved record and every later pass of\nthat row CARRIES it, so pass\
   \ 2 counts normally and pass 3 meets the ceiling; without the stamp the\nmarker\
   \ would name the subject forever and the stage would be unbounded. WITHOUT a reship\
@@ -442,51 +442,50 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ and the retirements of\nrule 6 are untouched — no `--owner-reset`, no consult.\
   \ The stamp is a RECORD projection (the shape\n`basis:` / `absorbable:` take), ABSENT\
   \ on every other record and NOT a journal payload key, so the\nSPEC-0161 catalog\
-  \ is owed no entry. HOW IT READS AGAINST SPEC-0124's «maximum 2 absorption passes\n\
-  per target per audit stage», stated here rather than left for a reader to reconcile\
-  \ (CHARTER §P7):\nthat sentence bounds the ABSORPTION LOOP, and SPEC-0124 itself\
-  \ delegates what happens AT the\nceiling to this spec. The ROW is already this contract's\
-  \ unit — rule 4 says in as many words that\n«a later RED at the same stage is a\
-  \ NEW ceiling row», and rule 1 already states that «reset/merge-\ntriggered passes\
-  \ are not charged, so the count and the counter differ». So a card may hold two\n\
-  rows at one stage, each bounded by the same 2 passes, and that is the pre-existing\
-  \ reading of the\ncounter, not a new one this amendment introduces. SPEC-0124's\
-  \ own arithmetic — the ceiling value,\nthe ledger-skip axes, the trend grant — is\
-  \ UNTOUCHED.\n\n#### Rule 9 — the plan-gate arm\n\nTHE ADMITTED ROUTES, PER SIGNATURE\
-  \ FIELD — and the two non-`content_hash` gates are NOT alike\n(AMENDED, <project>\
-  \ X-1420; this clause previously refused BOTH by name):\n  - `content_hash` (draft-specs\
-  \ / specs-trial / trial-accepted): the plan BODY's hash. Unchanged.\n  - `card_set_fingerprint`\
-  \ (`decomposition-executing`): ADMITTED. This gate's audited SUBJECT is\n    the\
-  \ FILED CARD SET, so the normal remedy for its RED is to EDIT THAT CARD SET — and\
-  \ the value\n    IS computable at decide time: it is a PURE function of the filed\
-  \ cards plus the plan's\n    proposed specs, and the decide side calls the SAME\
-  \ helper the gate itself calls to recompute\n    the cut (no second signature scheme\
-  \ — INV-2 holds). The rule-3 admission at this gate takes\n    the RECOMPUTED cut\
-  \ fingerprint as the current subject WHEN the decision set carries a `fix`\n   \
-  \ (it is the value the pass will record); an all-`accept`/`defer` set, which names\
-  \ no revision\n    of its own, keeps the RECORDED-signature read-back unchanged.\n\
-  \  - `corpus_signature` (`finalization`): STILL REFUSED BY NAME. Its subject is\
-  \ the plan's SPEC\n    CORPUS, a different subject this amendment does not touch;\
-  \ `accept` and `defer` remain there.\nFAIL-CLOSED ON A DEGRADED READ. The card-set\
-  \ helper is TELEMETRY-GRADE — it never raises,\ndegrading to a stable sentinel hash\
-  \ when the cut cannot be read. A sentinel is a CONSTANT, so it\ncould be typed as\
-  \ `--evidence` and satisfy the equality with no repaired cut behind it. The\nsentinel\
-  \ is therefore NOT a signature: a degraded read — the sentinel, an unwired collaborator,\
-  \ or\none that raises — takes the SAME uncomputable refusal this clause already\
-  \ had, which is exactly\nwhat the state is.\n\n## Parameters\n\nNone consumed.\n\
-  \n## Rationale\n\nA minority of cards reach the audit-loop ceiling, and each case\
-  \ above arises for a minority of those.\nRendered inside SPEC-0204 this detail reached\
-  \ every session entering Audit-pre or Audit-post; as a\nreference behind one index\
-  \ line and the head of the deciding verb's help it is met by the session\nthat is\
-  \ at a ceiling (SPEC-0005 §6, the rare-case option).\n\n## Verification\n\n- VP1\
-  \ (one home): every block of §At-ceiling edge cases is present in this spec and\
-  \ absent from\n  SPEC-0204, and SPEC-0204 carries exactly one index line naming\
+  \ is owed no entry. HOW IT READS AGAINST <workshop-spec>'s «maximum 2 absorption\
+  \ passes\nper target per audit stage», stated here rather than left for a reader\
+  \ to reconcile (CHARTER §P7):\nthat sentence bounds the ABSORPTION LOOP, and <workshop-spec>\
+  \ itself delegates what happens AT the\nceiling to this spec. The ROW is already\
+  \ this contract's unit — rule 4 says in as many words that\n«a later RED at the\
+  \ same stage is a NEW ceiling row», and rule 1 already states that «reset/merge-\n\
+  triggered passes are not charged, so the count and the counter differ». So a card\
+  \ may hold two\nrows at one stage, each bounded by the same 2 passes, and that is\
+  \ the pre-existing reading of the\ncounter, not a new one this amendment introduces.\
+  \ <workshop-spec>'s own arithmetic — the ceiling value,\nthe ledger-skip axes, the\
+  \ trend grant — is UNTOUCHED.\n\n#### Rule 9 — the plan-gate arm\n\nTHE ADMITTED\
+  \ ROUTES, PER SIGNATURE FIELD — and the two non-`content_hash` gates are NOT alike\n\
+  (AMENDED, <project> X-1420; this clause previously refused BOTH by name):\n  - `content_hash`\
+  \ (draft-specs / specs-trial / trial-accepted): the plan BODY's hash. Unchanged.\n\
+  \  - `card_set_fingerprint` (`decomposition-executing`): ADMITTED. This gate's audited\
+  \ SUBJECT is\n    the FILED CARD SET, so the normal remedy for its RED is to EDIT\
+  \ THAT CARD SET — and the value\n    IS computable at decide time: it is a PURE\
+  \ function of the filed cards plus the plan's\n    proposed specs, and the decide\
+  \ side calls the SAME helper the gate itself calls to recompute\n    the cut (no\
+  \ second signature scheme — INV-2 holds). The rule-3 admission at this gate takes\n\
+  \    the RECOMPUTED cut fingerprint as the current subject WHEN the decision set\
+  \ carries a `fix`\n    (it is the value the pass will record); an all-`accept`/`defer`\
+  \ set, which names no revision\n    of its own, keeps the RECORDED-signature read-back\
+  \ unchanged.\n  - `corpus_signature` (`finalization`): STILL REFUSED BY NAME. Its\
+  \ subject is the plan's SPEC\n    CORPUS, a different subject this amendment does\
+  \ not touch; `accept` and `defer` remain there.\nFAIL-CLOSED ON A DEGRADED READ.\
+  \ The card-set helper is TELEMETRY-GRADE — it never raises,\ndegrading to a stable\
+  \ sentinel hash when the cut cannot be read. A sentinel is a CONSTANT, so it\ncould\
+  \ be typed as `--evidence` and satisfy the equality with no repaired cut behind\
+  \ it. The\nsentinel is therefore NOT a signature: a degraded read — the sentinel,\
+  \ an unwired collaborator, or\none that raises — takes the SAME uncomputable refusal\
+  \ this clause already had, which is exactly\nwhat the state is.\n\n## Parameters\n\
+  \nNone consumed.\n\n## Rationale\n\nA minority of cards reach the audit-loop ceiling,\
+  \ and each case above arises for a minority of those.\nRendered inside SPEC-0204\
+  \ this detail reached every session entering Audit-pre or Audit-post; as a\nreference\
+  \ behind one index line and the head of the deciding verb's help it is met by the\
+  \ session\nthat is at a ceiling (SPEC-0005 §6, the rare-case option).\n\n## Verification\n\
+  \n- VP1 (one home): every block of §At-ceiling edge cases is present in this spec\
+  \ and absent from\n  SPEC-0204, and SPEC-0204 carries exactly one index line naming\
   \ this spec and the heading to search.\n- VP2 (reachable from the verb): the first\
   \ lines of the `audit decide` help name this spec.\n- VP3 (no stage render): no\
   \ stage entry delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n"
 cites:
 - SPEC-0204
-- SPEC-0124
 - SPEC-0005
 - SPEC-0013
 requires: []

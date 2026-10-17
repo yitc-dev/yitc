@@ -109,9 +109,9 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ naming that\n`ceiling_ref` spends it — no counter): on it the absorbable arm is\
   \ OFF, so a SECOND new finding there\ncounts at its own severity and a RED there\
   \ is TERMINAL exactly as a rule-3 RED is. A NEW `high` finding on\nthe rule-3 pass\
-  \ → RED (terminal, unchanged); the ceiling counting of SPEC-0124 is unchanged (the\
-  \ absorption\nre-audit is the mode-a pass the ceiling already counts, `passes` =\
-  \ ceiling + 2).\nThe verdict is recorded on `external_audit_completed` with `basis:\
+  \ → RED (terminal, unchanged); the ceiling counting of <workshop-spec> is unchanged\
+  \ (the absorption\nre-audit is the mode-a pass the ceiling already counts, `passes`\
+  \ = ceiling + 2).\nThe verdict is recorded on `external_audit_completed` with `basis:\
   \ on-decisions` (or\n`on-decisions-absorption` on the absorption re-audit), `ceiling_ref`,\
   \ `decisions_applied`,\n`overruled_by_decision`, `new_findings` — the NEW findings\
   \ by identity, each `{finding_fingerprint,\nseverity, absorbable}` (no longer a\
@@ -119,9 +119,9 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ `absorbable`. GREEN / YELLOW-absorbed → the ordinary\nStage-9 / land path. **RED\
   \ → TERMINAL for this (task, stage)** — a rule-3 RED, or an absorption\nre-audit\
   \ RED, or (task audit-post) a RED on the ONE post-GREEN merge-integration pass\n\
-  (SPEC-0124 §Ledger-skip axes — which also admits no `--on-decisions` pass and no\
-  \ decision\nafter it on any verdict): no further\npass is ever admitted at that\
-  \ stage for that card — the ONLY exits are the EXISTING owner terminal\ndispositions,\
+  (<workshop-spec> §Ledger-skip axes — which also admits no `--on-decisions` pass\
+  \ and no decision\nafter it on any verdict): no further\npass is ever admitted at\
+  \ that stage for that card — the ONLY exits are the EXISTING owner terminal\ndispositions,\
   \ cited to a directive: `task update --status parked|wont-do` for a card that is\
   \ not yet\ndone; `worktree park` (discard the branch; the card stays `ready` on\
   \ main — QUEUE §Prematurely-\nclosed-unlanded) for a done-but-unlanded card; or\
@@ -189,10 +189,10 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ explicit\nController re-invocation of the same verb, never automatic.\n\n### 6.\
   \ Retirements (CHARTER §P1 F3 — a POSITIVE list; nothing outside it changes)\nThe\
   \ retired list and its refusals are homed in SPEC-0036 §Audit-loop ceiling. `audit\
-  \ consult\n--on-demand` (the BELOW-ceiling technical-fork pick, SPEC-0124) is not\
-  \ on the list and is unchanged. Retired flags survive only as refusal\nshims (print\
-  \ the pointer, exit nonzero) until this contract's plan is `realized`, then are\
-  \ deleted.\nALSO RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication\
+  \ consult\n--on-demand` (the BELOW-ceiling technical-fork pick, <workshop-spec>)\
+  \ is not on the list and is unchanged. Retired flags survive only as refusal\nshims\
+  \ (print the pointer, exit nonzero) until this contract's plan is `realized`, then\
+  \ are deleted.\nALSO RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication\
   \ consult and with it\nevery episode a plan gate could open — so the `malformed-exhausted`\
   \ episode terminal is UNREACHABLE\nfor a plan gate, asserted by a `graph conformance`\
   \ probe that reads the SAME retirement carrier the\nrefusal shim reads; the plan-gate\
@@ -202,10 +202,10 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ AUTO-consult at a\nplan-gate ceiling, the plan-axis twin of the task auto-consult\
   \ already on this list. Each retired\nplan-gate surface REFUSES with a pointer to\
   \ the rule-9 route (no silent no-op), and the retired flag\nstays REGISTERED for\
-  \ exactly that reason. SPEC-0124 §Plan-target parity's post-ceiling paragraphs and\n\
-  SPEC-0083's gate policy point HERE for what happens at a plan-gate ceiling. <workshop-spec>\
-  \ is SUPERSEDED by this spec\non activation; SPEC-0124's post-ceiling paragraphs\
-  \ (ceiling-convergence triage, dispatched-worker\nauto-consult, owner-authorized\
+  \ exactly that reason. <workshop-spec> §Plan-target parity's post-ceiling paragraphs\
+  \ and\nSPEC-0083's gate policy point HERE for what happens at a plan-gate ceiling.\
+  \ <workshop-spec> is SUPERSEDED by this spec\non activation; <workshop-spec>'s post-ceiling\
+  \ paragraphs (ceiling-convergence triage, dispatched-worker\nauto-consult, owner-authorized\
   \ continuation) are replaced by a pointer here; SPEC-0191 §5 rung 2\n(«adversarial\
   \ consult») becomes «Controller typed decisions (this spec)»; SPEC-0036's overlay\
   \ table\ndrops the consult-governed short-circuit and its saved-result schema gains\
@@ -240,7 +240,7 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   Its text, (a) to (h), is in the edge-case reference that the index paragraph at\
   \ the head of §Internal\nnames, under its heading `### Rule 9 — the plan-gate arm\
   \ (text)` (moved verbatim).\n\n### 7. Kept — the safety properties, and where each\
-  \ now lives\nThe ceiling itself (SPEC-0124, 2 passes) — unchanged. No self-grant\
+  \ now lives\nThe ceiling itself (<workshop-spec>, 2 passes) — unchanged. No self-grant\
   \ past the ceiling — rule 2's writer\nauthority + the mandatory directive locator.\
   \ No silent loop — rule 3: one pass, then terminal on a TASK target; a PLAN gate\
   \ is decision-bounded, each round admitted only by fresh decisions (rule 9(f)) (amended\n\
@@ -273,9 +273,9 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ at its severity exactly as before.\nHow a late finding is decided is homed in\
   \ SPEC-0036 §Audit-loop ceiling. Late findings per pass are\ncounted (a debt-view\
   \ line).\n\n## Parameters\n\nNone consumed. `AUDIT_PASS_CEILING` (2) stays homed\
-  \ in SPEC-0124 / `bin/lib/audit.py` (stated in the\nSPEC-0036 §Audit-loop ceiling\
-  \ core); the fingerprint\nversion prefix (`fp1:`) is a code constant beside the\
-  \ hash, bumped on any change to the canonical\ntuple (a bump invalidates nothing\
+  \ in <workshop-spec> / `bin/lib/audit.py` (stated in the\nSPEC-0036 §Audit-loop\
+  \ ceiling core); the fingerprint\nversion prefix (`fp1:`) is a code constant beside\
+  \ the hash, bumped on any change to the canonical\ntuple (a bump invalidates nothing\
   \ retroactively — an old-version fingerprint simply matches no current\nresidual,\
   \ so it can never be decided).\n\n## Rationale\n\nThe contract satisfies three constraints:\
   \ an immutable decision record bound to task + stage +\nrevision + ceiling row +\

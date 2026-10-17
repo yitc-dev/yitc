@@ -786,7 +786,21 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         _die(f"spec not found: {sid} (specs/{sid}-*.yaml)")
     rec = _read_yaml(path)
     status = rec.get("status")
-    if status not in ("active", "proposed", "draft") and status not in SPEC_ABANDONED_TERMINAL:
+    # T-13957: a spec this branch superseded (a card's close flips it status-only) is still `active` at
+    # `main`, and the land guard judges it by its status THERE (worktree.py status_rec = base record) —
+    # so after a sync brings a main-side body edit, the stale-bless remedy (sync, bless, land) needs a
+    # bless of exactly this spec. Admitted for --bless ONLY, and only when `main` reads it `active`;
+    # an unreadable / absent / non-active main copy keeps the refusal (fail-closed).
+    active_on_main = False
+    if getattr(args, "bless", False) and status == "superseded" and _run_git_cap is not None:
+        main_show = _run_git_cap(["show", f"main:{path.relative_to(REPO_ROOT)}"], REPO_ROOT)
+        if main_show.returncode == 0:
+            try:
+                active_on_main = ((state.load_str(main_show.stdout) or {}).get("status") == "active")
+            except Exception:
+                active_on_main = False
+    if status not in ("active", "proposed", "draft") and status not in SPEC_ABANDONED_TERMINAL \
+            and not active_on_main:
         _die(f"`spec edit` is for active/proposed/draft specs (and the deliberate terminals "
              f"withdrawn/rejected, T-0627) only — {sid} is status={status!r}. "
              f"superseded/retired are frozen history (a post-active record is immutable).")
@@ -802,9 +816,11 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                 or getattr(args, "from_file", None) or getattr(args, "from_stdin", False):
             _die("--bless blesses an ALREADY-MADE in-place edit — do NOT also pass "
                  "--old/--new/--from-file/--from-stdin")
-        if status != "active":
+        if status != "active" and not active_on_main:
             _die(f"--bless is for ACTIVE specs only ({sid} is status={status!r}); the T-9730 land guard "
-                 f"governs only active specs (SPEC-0005 §4), so a non-active spec body edit needs no bless.")
+                 f"governs only specs active at `main` (SPEC-0005 §4), so a non-active spec body edit "
+                 f"needs no bless. A spec superseded on this branch only and still active at `main` IS "
+                 f"blessable (T-13957).")
         if _run_git_cap is None:
             _die("--bless unavailable: git runner not injected (host-wiring error)")
         # before-rule-change gate — the bless path ENFORCES the SPEC-0005 read receipt (the normal edit
@@ -864,6 +880,8 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                 "fingerprint": fingerprint, "fields": fields}
             if fpath != path:
                 blessed_ev["part_of"] = base_relpath
+            if active_on_main:
+                blessed_ev["status_at_main"] = "active"   # T-13957: superseded on this branch only
             _append_event("spec_edited", sid, blessed_ev)
             print(f"spec blessed: {relpath} — diff-bound spec_edited emitted (fields: {', '.join(fields)}; "
                   f"fingerprint {fingerprint[:12]}…).")
@@ -1303,7 +1321,8 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
     # RESULT carries another status is refused here, before the write: a draft may only be ENDED
     # (→ withdrawn / rejected), and a terminal keeps its status. Judged on the parsed result against
     # the status read from disk above, so it holds whichever reading the write would take. A part
-    # (T-12925) carries no status of its own; active/proposed are not this guard's subject.
+    # (T-12925) carries no status of its own. Of active/proposed, only active → superseded is this
+    # guard's subject (T-13954).
     if path == base_path:
         new_status = updated_rec.get("status") if isinstance(updated_rec, dict) else None
         if new_status != status and status in SPEC_ABANDONED_TERMINAL:
@@ -1312,6 +1331,17 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                  f"status={new_status!r} (SPEC-0005 §4). A rule that is still wanted is authored "
                  f"again under its new carrier: `bin/yitc-v2 spec new --title <title> --travels "
                  f"<realm>`. The file is untouched.")
+        if status == "active" and new_status == "superseded":
+            # T-13954 (SPEC-0005 §4) — an active spec is superseded only by the writer that activates its
+            # successor: `task close` of that successor's activation owner, or the land's supersession
+            # re-target when a sibling landed its successor first. A hand flip here passed outside that
+            # sole-writer rule (cryptochart T-0383) and the land guard reads a status-only change as no edit.
+            _die(f"`spec edit` does not supersede an active spec — {sid} is status='active' and this "
+                 f"edit would leave it status='superseded' (SPEC-0005 §4). A spec is superseded only by "
+                 f"the activation of the spec that names it in `supersedes:` "
+                 f"(`bin/yitc-v2 task close <owner-task>` of that spec's activation owner; at `land`, "
+                 f"the supersession re-target when a sibling landed its successor first). The file is "
+                 f"untouched.")
         if new_status != status and status == "draft" and new_status not in SPEC_ABANDONED_TERMINAL:
             _die(f"`spec edit` does not promote a draft spec — {sid} is status='draft' and this edit "
                  f"would leave it status={new_status!r}. A draft becomes `proposed` only when its "

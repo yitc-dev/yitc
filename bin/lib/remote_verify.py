@@ -69,6 +69,7 @@ import math
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -439,6 +440,22 @@ def derive_remote_w(fingerprint: "dict | None", durations: "dict | None", *,
             "files": len(walls), "lane_excluded": lane_excluded, "table": bool(walls)}
 
 
+def consumer_request_width(fingerprint: "dict | None") -> "int | None":
+    """T-13974 — the width a CONSUMER request carries (SPEC-1032 rule 3): the box's thread count, the
+    fingerprint's `cores` (`os.cpu_count()` on the box). A pass alone on the box has the whole box;
+    the project's own `verify.layer_worker_shares` divide it among layers, so rule 5's derivation
+    (`derive_remote_w`) does not apply. None when the fingerprint states no positive count — never a
+    guessed width; the caller treats that as a venue fault."""
+    v = fingerprint.get("cores") if isinstance(fingerprint, dict) else None
+    if isinstance(v, bool):
+        return None
+    try:
+        n = int(v)
+    except (TypeError, ValueError):
+        return None
+    return n if n > 0 else None
+
+
 def remote_duration_table(repo_root) -> dict:
     """The repo's recorded per-file duration table as `{file: wall_ms}` — the input `derive_remote_w`
     schedules against.
@@ -541,7 +558,7 @@ def local_runner_digest(repo_root, ref: str = "HEAD") -> str:
     return _git(Path(repo_root), "rev-parse", f"{ref}:bin").strip()
 
 
-def working_tree_snapshot(repo_root) -> "str | None":
+def working_tree_snapshot(repo_root, *, filemode: "bool | None" = None) -> "str | None":
     """The Stage-6 ref: a TEMPORARY SNAPSHOT COMMIT of the WORKING TREE, or `None` when the tree is
     proven clean (T-12425).
 
@@ -589,7 +606,9 @@ def working_tree_snapshot(repo_root) -> "str | None":
             return r.stdout
 
         _snap_git("read-tree", "HEAD")
-        _snap_git("add", "-A")
+        # T-13976: `filemode=True` adds as `worktree._worktree_disk_tree` does (`core.filemode=true`),
+        # so a consumer pass's shipped tree and the tree its plan was taken over are one identity
+        _snap_git(*(["-c", "core.filemode=true"] if filemode else []), "add", "-A")
         tree = _snap_git("write-tree").strip()
         if tree == head_tree:
             return None
@@ -1137,6 +1156,9 @@ done
 CAP=@MAX_REQUESTS@
 S6MAX=@STAGE6_MAX@
 HEADROOM=@STAGE6_HEADROOM@
+# SPEC-1032 rule 3 (T-13974) — 1 for a CONSUMER request, 0 for every kernel request. Rendered by
+# `box_lease_prologue(consumer=...)`, never read off the box: the host decided what this request is.
+CONSUMER=@CONSUMER@
 # AN UNSUBSTITUTED TEMPLATE FAILS FAST AND LOUD, IT DOES NOT SPIN. This prologue is a TEMPLATE:
 # `box_lease_prologue` resolves the three admission parameters into it, and every shipped path goes
 # through that. If the text is ever executed RAW, they are still placeholders — and the two ways of
@@ -1162,6 +1184,12 @@ case "$HEADROOM" in
     echo "venue admission: stage6 headroom not substituted (got '$HEADROOM') — this prologue is a TEMPLATE; render it through box_lease_prologue()" >&2
     exit 90 ;;
 esac
+case "$CONSUMER" in
+  0|1) ;;
+  *)
+    echo "venue admission: consumer flag not substituted (got '$CONSUMER') — this prologue is a TEMPLATE; render it through box_lease_prologue()" >&2
+    exit 90 ;;
+esac
 # THIS REQUEST'S CLASS, derived from the nice the leg was invoked with (see the block above).
 # `${NICE:-0}` rather than a bare `$NICE` so the prologue stays standalone-executable under `set -u`
 # by a test that does not bind it — the same property `${OUT:-$RUN}` gives the record write below.
@@ -1171,6 +1199,11 @@ CLASS=land
 # as the leg's argument 6, because the nice no longer tells it from a land. Only the value `stage6`
 # is read; anything else, and every leg that passes no sixth argument, keeps the derivation above.
 [ "${LEGCLASS:-}" = stage6 ] && CLASS=stage6
+# A CONSUMER request IS a Stage-6 request (SPEC-1032 rule 3): its bound is the Stage-6 count against
+# $S6MAX beside the same load headroom, so it is admitted on the Stage-6 question whatever its nice.
+# Its lease carries an EIGHTH field, `consumer`, which is what keeps the core-split applier off its
+# CPUs (`_venue_core_split_apply`); field 7 stays the class every reader already reads.
+[ "$CONSUMER" = 1 ] && CLASS=stage6
 # WHERE THE BOX'S OWN LOAD IS READ. `/proc/loadavg` on every shipped path; the override exists ONLY
 # so this text is exercisable without a box — the same reason the prologue is extracted as text at
 # all, and the same shape as the leg template's `VENUE_CORRUPT` rehearsal seam. The executor never
@@ -1185,6 +1218,16 @@ LOCK="$(dirname "$LEASES")/.venue-admission.lock"
 WAITED=0; LIVE=0; LIVE_S6=0; LOAD1=0; DEG=-; ATOMIC=1
 command -v flock > /dev/null 2>&1 || ATOMIC=0
 [ "$ATOMIC" = 1 ] && { exec 9>"$LOCK" || ATOMIC=0; }
+# A CONSUMER REQUEST IS ADMITTED ATOMICALLY OR NOT AT ALL (SPEC-1032 rule 3). The degraded unlocked
+# path below exists for the kernel's own box and NEVER applies to a consumer pass: without the lock
+# primitive the pass ends here, INDETERMINATE `atomic-admission-unavailable`, before it writes a lease
+# and before any test starts — checked at EVERY admission, because `flock` present at publish says
+# nothing about the box now. The class also goes into this leg's record, where the envelope reads.
+if [ "$CONSUMER" = 1 ] && [ "$ATOMIC" != 1 ]; then
+  echo "venue_admission_aborted request=$REQ-$ATT leg=$LEG class=$CLASS indeterminate=atomic-admission-unavailable" >&2
+  printf '{"indeterminate_class": "atomic-admission-unavailable", "venue_admission_atomic": 0}\n' > "${OUT:-$RUN}/leg.json"
+  exit 91
+fi
 
 # The critical section, as ONE function so the locked and unlocked paths run IDENTICAL logic and
 # cannot drift: count the distinct live FOREIGN requests BY CLASS, read the box's load once, and —
@@ -1192,11 +1235,12 @@ command -v flock > /dev/null 2>&1 || ATOMIC=0
 # `<verdict> <live> <live_stage6> <load1> <headroom_degraded>` so the caller reads all five out of
 # one subshell (`-` in the last field when the load WAS measured).
 venue_try_admit() {
-  local rows n_any n_land n_s6 load1 raw deg ok c L X_REQ X_ATT X_PG X_CLIENT X_LEG X_RUN X_CLASS
+  local rows n_any n_land n_s6 load1 raw deg ok c L X_REQ X_ATT X_PG X_CLIENT X_LEG X_RUN X_CLASS X_KIND
   rows=$(for L in "$LEASES"/*; do
         [ -f "$L" ] || continue
         case "${L##*/}" in .*) continue ;; esac
-        read -r X_REQ X_ATT X_PG X_CLIENT X_LEG X_RUN X_CLASS < "$L" || continue
+        # X_KIND takes a consumer lease's eighth field, so X_CLASS stays exactly field 7.
+        read -r X_REQ X_ATT X_PG X_CLIENT X_LEG X_RUN X_CLASS X_KIND < "$L" || continue
         [ -n "${X_CLIENT:-}" ] || continue
         [ "$X_REQ-$X_ATT" = "$REQ-$ATT" ] && continue
         kill -0 "$X_CLIENT" 2>/dev/null || continue
@@ -1264,7 +1308,11 @@ EOF
   # `${deg:--}` so the verdict line always carries the SAME field count: a reader parsing it
   # positionally must never have a field shift under it because a box happened to be measurable.
   if [ "$ok" = 1 ]; then
-    echo "$REQ $ATT $$ $CLIENT $LEG $RUN $CLASS" > "$LEASE"
+    if [ "$CONSUMER" = 1 ]; then
+      echo "$REQ $ATT $$ $CLIENT $LEG $RUN $CLASS consumer" > "$LEASE"
+    else
+      echo "$REQ $ATT $$ $CLIENT $LEG $RUN $CLASS" > "$LEASE"
+    fi
     # THE CORE SPLIT, SYNCHRONOUSLY, UNDER THIS SAME LOCK and before the runner starts (T-13312): a
     # land never starts full-width beside a Stage-6, and a widen cannot interleave with an admission.
     # A LAND IS NEVER GATED on it (unverified = runs unsplit, recorded `degraded:` — owner decision
@@ -1315,7 +1363,15 @@ EOF
     # `headroom_degraded` is printed UNCONDITIONALLY (`-` when the load was measured) for the same
     # reason the verdict line carries it that way: a field that appears only sometimes is a field a
     # reader gets wrong exactly when it matters.
-    echo "waiting_for_venue_admission request=$REQ-$ATT leg=$LEG class=$CLASS live=$LIVE live_stage6=$LIVE_S6 load1=$LOAD1 headroom_degraded=$DEG cap=$CAP waited_s=$WAITED" >&2
+    # A CONSUMER wait names the bound that holds it (SPEC-1032 rule 3): `cap` while the live Stage-6
+    # count is at $S6MAX, else `headroom` (the load, or a load that could not be read). Kernel lines
+    # are unchanged.
+    WHY=
+    if [ "$CONSUMER" = 1 ]; then
+      if [ "$LIVE_S6" -ge "$S6MAX" ]; then WHY=" reason=cap"; else WHY=" reason=headroom"; fi
+      WHY="$WHY stage6_max=$S6MAX"
+    fi
+    echo "waiting_for_venue_admission request=$REQ-$ATT leg=$LEG class=$CLASS live=$LIVE live_stage6=$LIVE_S6 load1=$LOAD1 headroom_degraded=$DEG cap=$CAP waited_s=$WAITED$WHY" >&2
   fi
   sleep 5
   WAITED=$((WAITED + 5))
@@ -1526,6 +1582,10 @@ def _venue_core_split_apply(leases, me, record_path, interval, mode,
         except OSError:
             continue
         if len(f) < 4:
+            continue
+        # T-13974 — a CONSUMER pass's CPUs are its project's (SPEC-1032 rule 3): its lease carries an
+        # eighth field `consumer`, and such a tree is never read as live, never masked, never paired.
+        if len(f) > 7 and f[7] == "consumer":
             continue
         try:
             os.kill(int(f[3]), 0)
@@ -1926,6 +1986,19 @@ else:
         raise SystemExit("PYRUN: no `_run_verify_tests` in the shipped tree - looked in "
                          + str(rbin / "lib" / "verify_wiring.py") + " and lib.cli (" + str(_e) + ")")
 metrics, durations = {}, []
+# T-13967 - THE CALLER'S PER-FILE BOUND (SPEC-0071 rule 1), resolved on the host that routed this pass
+# and substituted here as a literal (None when the host resolved none). It is handed to the runner as
+# its own `timeout=` argument, never exported: the variable would reach every test child, and four
+# suites read it. A runner whose signature cannot be read, or has no `timeout`, gets nothing and
+# resolves its own bound as before - and the leg record says which value it applied either way.
+_caller_timeout = %(verify_test_timeout)s
+try:
+    import inspect as _vtt_inspect
+    _vtt_params = _vtt_inspect.signature(_run_verify_tests).parameters
+    _vtt_takes = "timeout" in _vtt_params or any(p.kind == p.VAR_KEYWORD for p in _vtt_params.values())
+except (TypeError, ValueError):
+    _vtt_takes = False
+_timeout_kw = {"timeout": _caller_timeout} if (_caller_timeout is not None and _vtt_takes) else {}
 if leg == "pinned":
     # ...and PROVES it: every `lib` module the resolution loaded must originate under the materialised
     # tree. A runner imported from anywhere else is not the merged base's, so the leg exits LOUD (no
@@ -2120,12 +2193,12 @@ _ov_t0 = time.time()          # T-12260: the run window, in the sidecar's own EP
 try:
     if _pin_kw is None:
         bad = _run_verify_tests(root / "tests", root, int(W), fail_fast=False,
-                                metrics_out=metrics, durations_out=durations,
+                                metrics_out=metrics, durations_out=durations, **_timeout_kw,
                                 **({"only": set(only)} if only is not None else {}))
     else:
         # `only` is dropped, never faked, when the merged-base runner predates it: the leg then runs
         # its WHOLE discovered set — slower and possibly redder, never a narrower verdict.
-        bad = _run_verify_tests(root / "tests", root, int(W), **_pin_kw,
+        bad = _run_verify_tests(root / "tests", root, int(W), **_pin_kw, **_timeout_kw,
                                 **({"only": set(only)} if only is not None and _takes("only") else {}))
     launch_error = None
 except Exception as e:                            # a leg that cannot START is a venue fault, not a
@@ -2315,6 +2388,10 @@ json.dump({"leg": leg, "workers_requested": int(W), "workers_in_effect": metrics
            # it the only failure text this record carried was `failing` below, the first line per
            # file, and a routed abort read «(no assertion captured)» with nothing else to go on.
            "venue_failed_output_tail": metrics.get("failed_output_tail"),
+           # T-13967 - THE PER-FILE BOUND THIS LEG'S RUNNER APPLIED, as the runner recorded it (its
+           # source only when it resolved the bound itself). null = the runner recorded none.
+           "verify_test_timeout_s": metrics.get("verify_test_timeout_s"),
+           "verify_test_timeout_source": metrics.get("verify_test_timeout_source"),
            "verify_tmpdir": __import__("os").environ.get("YITC_VERIFY_TMPDIR"),
            "phases": [l.split() for l in open(out + "/phases.txt").read().splitlines()],
            "venue_refs_moved": venue_refs_moved,
@@ -2355,7 +2432,8 @@ echo LEG-DONE $LEG
 def box_lease_prologue(max_requests: "int | None" = None, *,
                        stage6_max_concurrent: "int | None" = None,
                        stage6_headroom_load1: "float | None" = None,
-                       fingerprint: "dict | None" = None) -> str:
+                       fingerprint: "dict | None" = None,
+                       consumer: bool = False) -> str:
     """The lease + admission prologue TEXT with the three admission parameters RESOLVED into it
     (T-12241, extended by T-12259 to the by-class question).
 
@@ -2370,14 +2448,25 @@ def box_lease_prologue(max_requests: "int | None" = None, *,
     that box's own cores, and the text a reader inspects carries the value that actually decided.
 
     Returned as text, and separately from `box_leg_script`, so the concurrency logic is EXECUTABLE
-    by a test without a box — the same reason `box_leg_script` returns text at all."""
+    by a test without a box — the same reason `box_leg_script` returns text at all.
+
+    T-13974 — `consumer=True` renders the prologue for a CONSUMER request (SPEC-1032 rule 3): admitted
+    on the Stage-6 question, atomically or not at all, its lease marked `consumer`. Its concurrency
+    bound is the SAME machine setting, `YITC_VENUE_STAGE6_MAX_CONCURRENT`, read with NO derivation and
+    a default of 1 — unset, a consumer venue admits one pass at a time; the project sets how many
+    share its box. The headroom is unchanged. Every kernel caller passes nothing and renders
+    `CONSUMER=0`, which changes no branch of the text."""
     cap = venue_max_requests() if max_requests is None else int(max_requests)
     if cap <= 0:                       # same fail-safe direction as the resolver: never uncapped
         cap = VENUE_MAX_REQUESTS_DEFAULT
-    s6max = (venue_stage6_max_concurrent() if stage6_max_concurrent is None
-             else int(stage6_max_concurrent))
+    if stage6_max_concurrent is not None:
+        s6max = int(stage6_max_concurrent)
+    elif consumer:
+        s6max = venue_stage6_max_concurrent(default=1)    # SPEC-1032: 1 when unset, never derived
+    else:
+        s6max = venue_stage6_max_concurrent()
     if s6max <= 0:                     # never a cap of 0: that would DISABLE Stage-6, not slow it
-        s6max = VENUE_STAGE6_MAX_CONCURRENT_DEFAULT
+        s6max = 1 if consumer else VENUE_STAGE6_MAX_CONCURRENT_DEFAULT
     headroom = (venue_stage6_headroom_load1(fingerprint) if stage6_headroom_load1 is None
                 else float(stage6_headroom_load1))
     if not (headroom > 0):             # incl. NaN, which compares false against every bound
@@ -2385,7 +2474,8 @@ def box_lease_prologue(max_requests: "int | None" = None, *,
     return (_BOX_LEASE_PROLOGUE
             .replace("@MAX_REQUESTS@", str(cap))
             .replace("@STAGE6_MAX@", str(s6max))
-            .replace("@STAGE6_HEADROOM@", f"{headroom:g}"))
+            .replace("@STAGE6_HEADROOM@", f"{headroom:g}")
+            .replace("@CONSUMER@", "1" if consumer else "0"))
 
 
 def box_leg_script(*, nofile: int = VENUE_NOFILE, tmpdir_root: str = VENUE_TMPDIR_ROOT,
@@ -2396,7 +2486,8 @@ def box_leg_script(*, nofile: int = VENUE_NOFILE, tmpdir_root: str = VENUE_TMPDI
                    stage6_headroom_load1: "float | None" = None,
                    fingerprint: "dict | None" = None,
                    shipped_knobs: "dict | None" = None,
-                   stage6_exports: "dict | None" = None) -> str:
+                   stage6_exports: "dict | None" = None,
+                   verify_test_timeout: "float | None" = None) -> str:
     """The per-leg driver TEXT. Returned rather than written so a test can assert its shape without a
     box — in particular that it exports the tmpfs lever and the outcomes dir, and that it contains no
     `sed`/patch of the shipped tree. W is a runtime ARGUMENT to the script, never baked into its text:
@@ -2404,12 +2495,17 @@ def box_leg_script(*, nofile: int = VENUE_NOFILE, tmpdir_root: str = VENUE_TMPDI
 
     T-12545 — `shipped_knobs` ({knob: host-resolved value}, `shipped_performance_knobs`) renders as one
     `export` line each beside the tmpfs lever. The box-side read keeps its own precedence: an export
-    is the env layer there, and an absent one still resolves to the built-in."""
+    is the env layer there, and an absent one still resolves to the built-in.
+
+    T-13967 — `verify_test_timeout` is the CALLER's resolved per-file bound, rendered as a Python
+    literal into the leg's runner call (`None` = none forwarded: the box runner resolves its own)."""
     knob_exports = "\n".join(f"export {name}={shlex.quote(str(value))}"
                              for name, value in sorted(((shipped_knobs or {})
                                                         | (stage6_exports or {})).items()))
     return _BOX_LEG_TEMPLATE % {"nofile": nofile, "tmpdir_root": tmpdir_root,
                                 "knob_exports": knob_exports,
+                                "verify_test_timeout": (repr(float(verify_test_timeout))
+                                                        if verify_test_timeout is not None else "None"),
                                 "venue": venue_dir, "repo": repo_git,
                                 "runs": runs_dir, "leases": leases_dir,
                                 "lease_prologue": box_lease_prologue(
@@ -2677,14 +2773,17 @@ class VenueAdmissionWait(subprocess.TimeoutExpired):
 
 
 def _drain_leg(leg: str, proc, on_wait: "callable | None", overlap_out: "dict | None" = None,
-               admission_out: "dict | None" = None) -> None:
+               admission_out: "dict | None" = None, lines_out: "list | None" = None) -> None:
     """Read ONE leg's merged output to EOF, relaying each admission heartbeat as it arrives.
 
     Errors are swallowed by contract — see the call site: this thread exists for observability, and
     an observability fault must never reach the verdict. It also performs the draining the pipe
-    needs regardless of whether anyone is listening for heartbeats."""
+    needs regardless of whether anyone is listening for heartbeats. `lines_out` (T-13976), when
+    given, keeps every line read, so a consumer pass's host can print what the box printed."""
     try:
         for line in iter(proc.stdout.readline, ""):
+            if lines_out is not None:
+                lines_out.append(line.rstrip("\n"))
             # T-12260 — the land-overlap heartbeat, recorded as it ARRIVES (mid-run) rather than read
             # off the envelope afterwards. The leg bound below expires while the run is in flight, so
             # a total learned after the leg ended could not extend it. MONOTONE by construction: only
@@ -2849,7 +2948,8 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
              pinned_skip: "set | list | None" = None,
              stage6_exports: "dict | None" = None,
              admission_timeout: float = VENUE_ADMISSION_WAIT_BOUND_S,
-             stage6_class_width: "int | None" = None) -> dict:
+             stage6_class_width: "int | None" = None,
+             verify_test_timeout: "float | None" = None) -> dict:
     """Start both legs in parallel and assemble the envelope on the box; return the RAW run record
     (both-legs wall + where the envelope was fetched to). It does NOT judge — `validate_envelope`
     does, and keeping the two apart is what lets the validator be tested without a box.
@@ -2881,7 +2981,10 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
     to apply. The box never rebuilds it: before this card these two exclusions were computed NOWHERE
     on a routed land (the local driver that owns them is not called, and the leg script derives only
     `not_pinned`), so every venue land re-ran a stale pinned copy and paid a rebaseline round.
-    ALWAYS written (a JSON list, `[]` when empty) for the same reason `exclude.json` always is."""
+    ALWAYS written (a JSON list, `[]` when empty) for the same reason `exclude.json` always is.
+
+    T-13967 — `verify_test_timeout` is the CALLER's resolved per-file bound (`route`), rendered into
+    the leg script for both legs' runners; None renders none and the box resolves its own."""
     if workers is None:                         # T-12219 — resolved HERE, never as a module-level
         workers = remote_verify_workers()       # default: an import-time default never sees a later
                                                 # `config set` (SPEC-0193 rule 7 read-site shape)
@@ -2913,7 +3016,9 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
     leg_sh.write_text(box_leg_script(nofile=VENUE_NOFILE, max_requests=max_requests,
                                      stage6_max_concurrent=_s6max,
                                      fingerprint=fingerprint, shipped_knobs=shipped_knobs,
-                                     stage6_exports=stage6_exports))
+                                     stage6_exports=stage6_exports,
+                                     **({"verify_test_timeout": verify_test_timeout}
+                                        if verify_test_timeout is not None else {})))
     subprocess.run(["scp", *SSH_OPTS, "-q", str(leg_sh), f"{user}@{box}:{run_dir}/box-leg.sh"],
                    check=True, timeout=120)
     if fingerprint is not None:
@@ -3370,7 +3475,8 @@ def _execute_remote_verify_once(repo_root, box: str, *, ref: str = "HEAD", reque
                           pinned_skip: "set | list | None" = None,
                           stage6_exports: "dict | None" = None,
                           on_shipped: "callable | None" = None,
-                          stage6_class_width: "int | None" = None) -> dict:
+                          stage6_class_width: "int | None" = None,
+                          verify_test_timeout: "float | None" = None) -> dict:
     """THE executor entry (SPEC-0203 rules 3-4): ship → run both legs → fetch → validate.
 
     Returns the validation result (see `validate_envelope`) with the request identity, the shipped
@@ -3420,7 +3526,9 @@ def _execute_remote_verify_once(repo_root, box: str, *, ref: str = "HEAD", reque
                            max_requests=max_requests, pinned_skip=pinned_skip,
                            stage6_exports=stage6_exports,
                            **({"stage6_class_width": stage6_class_width}
-                              if stage6_class_width is not None else {}))
+                              if stage6_class_width is not None else {}),
+                           **({"verify_test_timeout": verify_test_timeout}
+                              if verify_test_timeout is not None else {}))
             if run.get("fault") == "disconnect":
                 result = validate_envelope(None, shipped=shipped, request=request, attempt=attempt,
                                            fingerprint=fingerprint, seen=seen, disconnected=True,
@@ -3801,13 +3909,13 @@ def fold_venue_load_sensitive(verify_metrics: dict) -> dict:
 #:   dispatch — the box runner's schedule record is not carried in the leg record;
 #:   mem_peak_kb — the host's RUSAGE_CHILDREN would measure the local-probe leg only, never the box;
 #:   queue_wait_ms — the box pool's queue wait is not carried in the leg record;
-#:   verify_test_timeout_s / _source — the per-file bound is resolved box-side and not carried;
 #:   selection_full_suite_globs / _paths — a host computation over the diff, not a venue fact, and
 #:     report-only (no land-row reader);
 #:   selection_tripwire_recovered / _tests — the omission tripwire runs inside the local runner only,
 #:     so on a routed pass it did not fire, which is exactly what an absent key says.
-VENUE_ABSENT_BASE_KEYS = ("dispatch", "mem_peak_kb", "queue_wait_ms", "verify_test_timeout_s",
-                          "verify_test_timeout_source", "selection_full_suite_globs",
+#: (T-13967: `verify_test_timeout_s` / `_source` left this list — the caller's bound now travels with
+#: the pass and the leg reports the value it applied, folded by `routed_verify_bound`.)
+VENUE_ABSENT_BASE_KEYS = ("dispatch", "mem_peak_kb", "queue_wait_ms", "selection_full_suite_globs",
                           "selection_full_suite_paths", "selection_tripwire_recovered",
                           "selection_tripwire_tests")
 
@@ -3841,6 +3949,8 @@ def fold_venue_base_metrics(verify_metrics: dict, routed: "dict | None", duratio
         never an all-`not-started` export) and the probe side is accounted for.
       fail_class — the CANDIDATE verdict class, as the local runner derives it: "ok" when no candidate
         file failed, "timeout" when a failed run's last word on some file is `timed-out`, else "failed".
+      verify_test_timeout_s / _source (T-13967) — the per-file bound the box candidate leg applied and
+        the caller's rung that supplied it (`routed_verify_bound`), on a passing and an ended run alike.
     NOTHING is written for an INDETERMINATE pass or without a partition: no verdict, no base facts.
     `VENUE_ABSENT_BASE_KEYS` names the keys this fold never writes, and why. Mutates and returns the
     same dict; never raises into the land it reports on."""
@@ -3849,6 +3959,7 @@ def fold_venue_base_metrics(verify_metrics: dict, routed: "dict | None", duratio
     partition = routed.get("partition")
     if routed.get("outcome") not in (OUTCOME_GREEN, OUTCOME_FAILED) or not isinstance(partition, dict):
         return verify_metrics
+    verify_metrics.update(routed_verify_bound(routed))
     counts = partition.get("counts") or {}
     remote_names = [n for n in partition.get("remote") or () if isinstance(n, str) and n]
     local_names = [n for n in partition.get("local") or () if isinstance(n, str) and n]
@@ -4644,16 +4755,24 @@ def _small_selection(selection_size) -> bool:
 
 
 def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_note: str = "",
-                   full_suite: bool = True, sandbox: bool = False, selection_size=None) -> dict:
+                   full_suite: bool = True, sandbox: bool = False, selection_size=None,
+                   declaration: "dict | None" = None, repo_common_dir=None,
+                   placement: "str | None" = "auto") -> dict:
     """PURE, box-free, and therefore testable without a venue: should THIS pass run remotely?
+
+    T-13976 — SPEC-1032 is active: this is the ONE routing decision, and it answers through the
+    rule-2 order of `consumer_venue_decision`. A consumer caller hands in what it holds (`declaration`,
+    `repo_common_dir`, `placement`); a caller that hands in none of them — every land — gets exactly
+    the answers below, plus `venue-consumer-only` for a kernel pass on a record published for a
+    consumer (it carries `serves`). What follows is the SPEC-1029 half (`_kernel_venue_decision`).
 
     Returns `{"remote", "reason", "record", "note"}`. Remote iff a record is PRESENT **and** this is a
     KERNEL pass **and** the run is not a small SPEC-0181 selection. Every reason is named, because a
     pass that silently stayed local is exactly the reading the venue exists to make impossible:
       `no-venue`        nothing published (or the record did not parse — `record_note` travels with it
                         to the land tail, rule 1: an unreadable record reads ABSENT, never honoured);
-      `consumer`        rule 2 — a `-C <consumer>` pass NEVER consults the record (T-12192 is the
-                        later slice that gives consumers their own venue);
+      `consumer`        a `-C <consumer>` pass that declares no `verify.venue` (SPEC-1032 rule 1) —
+                        the record is not consulted;
       `small-selection` the owner directive of 2026-09-06T13:39:24Z, bounded by the owner decision of
                         2026-09-30 (T-13287) — a narrowed SPEC-0181 selection of at most
                         `VENUE_STAGE6_SMALL_SELECTION_MAX_FILES` files (`selection_size`) is cheaper
@@ -4683,8 +4802,16 @@ def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_not
     T-12199 split that kept Stage-6 local until T-12220 is deleted with this card; see the
     STAGE6_KIND block above for what it was and why its lift condition is met.
     """
-    if not kernel:
-        return {"remote": False, "reason": "consumer", "record": None, "note": ""}
+    return consumer_venue_decision(kernel=kernel, kind=kind, record=record, record_note=record_note,
+                                   declaration=declaration, repo_common_dir=repo_common_dir,
+                                   placement=placement, full_suite=full_suite, sandbox=sandbox,
+                                   selection_size=selection_size)
+
+
+def _kernel_venue_decision(*, kind: str, record: "dict | None", record_note: str = "",
+                           full_suite: bool = True, sandbox: bool = False, selection_size=None) -> dict:
+    """SPEC-1029's answer for a KERNEL pass on a record that serves no consumer — the order the
+    `venue_decision` docstring lists (`kind` names the caller only)."""
     if not record:
         return {"remote": False, "reason": "no-venue", "record": None, "note": record_note}
     if sandbox:
@@ -4692,6 +4819,163 @@ def venue_decision(*, kernel: bool, kind: str, record: "dict | None", record_not
     if not full_suite and _small_selection(selection_size):
         return {"remote": False, "reason": "small-selection", "record": record, "note": ""}
     return {"remote": True, "reason": "venue", "record": record, "note": ""}
+
+
+def consumer_venue_decision(*, kernel: bool, kind: str, record: "dict | None",
+                            record_note: str = "", declaration: "dict | None" = None,
+                            repo_common_dir=None, placement: "str | None" = "auto",
+                            full_suite: bool = True, sandbox: bool = False,
+                            selection_size=None) -> dict:
+    """T-13975 — the SPEC-1032 rule-2 routing ORDER, as a PURE function: no I/O, no environment, no
+    box. Same return shape as `venue_decision` (`{"remote", "reason", "record", "note"}`).
+
+    `venue_decision` answers through this since T-13976 activated SPEC-1032. The
+    caller hands in what it already holds — the parsed `verify.venue` result of
+    `venue.consumer_declaration` (`declaration`), the routing record, and the real path of THIS
+    repository's git common dir (`repo_common_dir`, resolved by the caller) — so the order stays
+    testable without a venue, a carrier or a git tree.
+
+    A CONSUMER pass (`kernel` False), in this order; every reason but `venue` runs it locally:
+      `consumer`                       no declaration (`declaration` None or `{"state": "absent"}`);
+      `venue-declaration-invalid`      the declaration is invalid — its `cause` is the note; a result
+                                       of any other shape reads invalid too, never absent;
+      `no-venue`                       no record (`record_note` travels, as in `venue_decision`);
+      `consumer-needs-consumer-venue`  the record carries no `serves` — a kernel venue;
+      `venue-other-project`            `serves` is not this repository's git common dir: compared as
+                                       ABSOLUTE paths after `os.path.normpath` (a string operation),
+                                       so a relative or non-string `serves`, or an unknown
+                                       `repo_common_dir`, never matches — one machine path is one
+                                       repository, and a linked worktree shares its repository's;
+      `consumer-land-local`            any pass but a Stage-6 one (`kind` != `STAGE6_KIND`): a
+                                       consumer land leg stays local;
+      `placement-local`                `placement` is anything but `auto` (None reads `auto`): the
+                                       CLI admits only `auto|local`, and an unknown value stays local
+                                       under this named reason rather than routing;
+      then SPEC-1029's carve-outs, unchanged: `skipped-sandbox-repo`, `small-selection`; else `venue`.
+    A KERNEL pass on a record that carries `serves` (any value but None or "") reads
+    `venue-consumer-only`: a consumer venue serves that one repository's Stage-6 passes only. Every
+    other kernel pass is SPEC-1029's answer (`_kernel_venue_decision`), called with the same inputs."""
+    serves = record.get("serves") if isinstance(record, dict) else None
+    consumer_record = serves is not None and serves != ""
+    if kernel:
+        if record and consumer_record:
+            return {"remote": False, "reason": "venue-consumer-only", "record": record,
+                    "note": f"the published venue serves one consumer repository ({serves!r})"}
+        return _kernel_venue_decision(kind=kind, record=record, record_note=record_note,
+                                      full_suite=full_suite, sandbox=sandbox,
+                                      selection_size=selection_size)
+    state = declaration.get("state") if isinstance(declaration, dict) else None
+    if declaration is None or state == "absent":
+        return {"remote": False, "reason": "consumer", "record": None, "note": ""}
+    if state != "valid":
+        cause = declaration.get("cause") if state == "invalid" else None
+        return {"remote": False, "reason": "venue-declaration-invalid", "record": None,
+                "note": str(cause) if cause else f"unrecognised declaration result {declaration!r}"}
+    if not record:
+        return {"remote": False, "reason": "no-venue", "record": None, "note": record_note}
+    if not consumer_record:
+        return {"remote": False, "reason": "consumer-needs-consumer-venue", "record": record,
+                "note": "the published venue carries no `serves` — it is a kernel venue"}
+    mine = str(repo_common_dir) if repo_common_dir is not None else ""
+    if not (isinstance(serves, str) and os.path.isabs(serves) and os.path.isabs(mine)
+            and os.path.normpath(serves) == os.path.normpath(mine)):
+        return {"remote": False, "reason": "venue-other-project", "record": record,
+                "note": f"the venue serves {serves!r}, this repository is {mine or 'undetermined'}"}
+    if kind != STAGE6_KIND:
+        return {"remote": False, "reason": "consumer-land-local", "record": record, "note": ""}
+    if placement not in (None, "auto"):
+        return {"remote": False, "reason": "placement-local", "record": record, "note": ""}
+    if sandbox:
+        return {"remote": False, "reason": SANDBOX_ROUTING_REASON, "record": record, "note": ""}
+    if not full_suite and _small_selection(selection_size):
+        return {"remote": False, "reason": "small-selection", "record": record, "note": ""}
+    return {"remote": True, "reason": "venue", "record": record, "note": ""}
+
+
+def box_leases_script(leases_dir: str = BOX_LEASES_DIR) -> str:
+    """T-13975 — the box-side text `venue show --leases` runs (SPEC-1032 rule 6): one line per lease
+    file, then `leases-end`. READ-ONLY and NON-WAITING by construction: it writes nothing, removes
+    nothing, kills nothing and never touches the admission lock beside the dir, so a stale lease
+    stays for the next admission to reap and a held lock delays nothing.
+
+    It reads leases with the admission's own qualifiers (`venue_try_admit` in `_BOX_LEASE_PROLOGUE`):
+    a dot-file (a pre-ship lease) is not an admitted pass and is skipped; a lease is LIVE only when
+    it reads, names a client, and that client answers `kill -0`. Nothing it could not read is ever
+    reported as a state. ONE invariant decides whether there is a listing at all: the shell must
+    ENTER the lease dir (`cd`) and find it READABLE; any other outcome — absent, not a directory, a
+    parent or the dir itself the ssh user cannot search or read — ends the script with exit 3, the
+    operating system's own error on stderr and NO `leases-end`, so no listing (and no «0 admitted»)
+    is ever claimed; the cause is quoted, never interpreted. A lease file that cannot be read is
+    reported `unreadable` by name; a readable one the admission would not count live is reported
+    `stale` by name. `leases_dir` is substituted unquoted, as the leg template does, so the default
+    `~` expands.
+    Each field is printed as `-` when empty, and anything past the 8th field is read into a ninth
+    variable and dropped, so a reader never sees a column shift; the file name goes last so the
+    reader can keep it whole."""
+    return ("LEASES=" + leases_dir + "\n"
+            'cd -- "$LEASES" || exit 3\n'
+            '[ -r . ] || { echo "the lease dir $LEASES cannot be listed: not readable" >&2; exit 3; }\n'
+            "for L in ./*; do\n"
+            '  [ -f "$L" ] || continue\n'
+            '  case "${L##*/}" in .*) continue ;; esac\n'
+            '  [ -r "$L" ] || { echo "lease unreadable ${L##*/}"; continue; }\n'
+            "  X_REQ=; X_ATT=; X_PG=; X_CLIENT=; X_LEG=; X_RUN=; X_CLASS=; X_KIND=; X_REST=\n"
+            '  if read -r X_REQ X_ATT X_PG X_CLIENT X_LEG X_RUN X_CLASS X_KIND X_REST < "$L" 2>&- &&\n'
+            '     [ -n "$X_CLIENT" ] && kill -0 "$X_CLIENT" 2>&-; then\n'
+            '    echo "lease live ${X_REQ:--} ${X_ATT:--} ${X_PG:--} $X_CLIENT ${X_LEG:--} '
+            '${X_RUN:--} ${X_CLASS:--} ${X_KIND:--} ${L##*/}"\n'
+            "  else\n"
+            '    echo "lease stale ${L##*/}"\n'
+            "  fi\n"
+            "done\n"
+            "echo leases-end\n")
+
+
+def parse_box_leases(text) -> dict:
+    """T-13975 — `{"live": [...], "stale": [names], "unreadable": [names], "complete": bool}` from
+    `box_leases_script`'s output. PURE. `complete` is True only when `leases-end` is the LAST non-empty line — an output cut
+    short by a dropped connection is never read as «no leases». A live row is a dict of `request`
+    (`REQ-ATT`), `pgid`, `client`, `leg`, `run`, `class`, `consumer` (the 8th lease field is the word
+    `consumer`) and `name`; a line of any other shape is ignored."""
+    lines = [ln for ln in str(text or "").splitlines() if ln.strip()]
+    live, stale, unreadable = [], [], []
+    for ln in lines:
+        parts = ln.split(" ", 10)
+        if len(parts) == 11 and parts[:2] == ["lease", "live"]:
+            req, att, pg, client, leg, run, klass, kind, name = parts[2:]
+            live.append({"request": f"{req}-{att}", "pgid": pg, "client": client, "leg": leg,
+                         "run": run, "class": klass, "consumer": kind == "consumer",
+                         "name": name})
+        elif len(parts) >= 3 and parts[:2] == ["lease", "stale"]:
+            stale.append(ln.split(" ", 2)[2])
+        elif len(parts) >= 3 and parts[:2] == ["lease", "unreadable"]:
+            unreadable.append(ln.split(" ", 2)[2])
+    return {"live": live, "stale": stale, "unreadable": unreadable,
+            "complete": bool(lines) and lines[-1].strip() == "leases-end"}
+
+
+def box_leases(record: dict, *, leases_dir: str = BOX_LEASES_DIR, timeout: float = 30) -> dict:
+    """T-13975 — the published box's leases, read in ONE bounded ssh round (`_ssh`, the executor's
+    transport), for `venue show --leases`. Raises `RemoteVerifyError` naming the cause when the record
+    names no box, the ssh round fails or times out, or the listing comes back incomplete; never waits
+    on admission and never writes on the box (see `box_leases_script`)."""
+    box = str((record or {}).get("box") or "").strip()
+    if not box:
+        raise RemoteVerifyError("the venue record names no box")
+    try:
+        user = {"user": str(record["ssh_user"])} if record.get("ssh_user") else {}   # else _ssh's default
+        r = _ssh(box, box_leases_script(leases_dir), timeout=timeout, check=False, **user)
+    except subprocess.TimeoutExpired:
+        raise RemoteVerifyError(f"ssh to {box} did not answer within {timeout:g} s") from None
+    except OSError as exc:
+        raise RemoteVerifyError(f"ssh to {box} could not start ({exc})") from None
+    if r.returncode != 0:
+        raise RemoteVerifyError(f"ssh to {box} failed (rc={r.returncode}): "
+                                f"{(r.stderr or r.stdout or '').strip()[:300]}")
+    parsed = parse_box_leases(r.stdout)
+    if not parsed["complete"]:
+        raise RemoteVerifyError(f"the lease listing from {box} ended before `leases-end`")
+    return parsed
 
 
 def _attach_leg_output_tails(entries, leg_record) -> list:
@@ -4839,13 +5123,55 @@ class _LocalProbeLeg:
         return waited
 
 
+def _caller_verify_bound(resolver=None) -> "dict | None":
+    """T-13967 — `{"value", "source"}`: the per-file bound THIS host applies to a kernel tests leg,
+    resolved through the one resolver (`lib.cli._verify_test_timeout_seconds`, injectable for a
+    test) with the rung that supplied it. None when it cannot be resolved — the pass then forwards
+    nothing and the box resolves its own bound, which is the behaviour before this card."""
+    try:
+        if resolver is None:
+            from lib.cli import _verify_test_timeout_seconds as resolver   # loaded by every caller
+        src: list = []
+        value = float(resolver(source_out=src))
+    except Exception:                   # noqa: BLE001 — the bound then stays the box's own
+        return None
+    if not value > 0:
+        return None
+    return {"value": value, "source": src[0] if src else None}
+
+
+def routed_verify_bound(routed: "dict | None") -> dict:
+    """T-13967 (SPEC-0071 rule 1, the SPEC-0025 bound fields) — the per-file bound a ROUTED pass ran
+    under, as the two run-row fields a local run's runner writes: `verify_test_timeout_s` = the value
+    the box CANDIDATE leg's runner reports it applied, and `verify_test_timeout_source` = the rung that
+    supplied it — the leg runner's own rung when it resolved the bound itself (nothing forwarded, or a
+    runner that takes no `timeout`), else the rung of the caller's ladder when the leg applied exactly
+    the forwarded value; absent when neither holds. `{}` when the leg reported no value (an older leg
+    record): absent, never a guess (T-0358). Shared by the land fold (`fold_venue_base_metrics`) and
+    the Stage-6 row."""
+    result = (routed or {}).get("result") or {}
+    cand = (((result.get("envelope") or {}).get("legs")) or {}).get("cand")
+    applied = cand.get("verify_test_timeout_s") if isinstance(cand, dict) else None
+    if isinstance(applied, bool) or not isinstance(applied, (int, float)) or not applied > 0:
+        return {}
+    out = {"verify_test_timeout_s": float(applied)}
+    own = cand.get("verify_test_timeout_source")
+    fwd = result.get("verify_test_timeout_forwarded")
+    if isinstance(own, str) and own:
+        out["verify_test_timeout_source"] = own
+    elif isinstance(fwd, dict) and fwd.get("source") and fwd.get("value") == float(applied):
+        out["verify_test_timeout_source"] = fwd["source"]
+    return out
+
+
 def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
           selection: "set | list | None" = None,
           pinned_skip: "set | list | None" = None,
           priority: str = "full", legs: "tuple | list" = LEGS,
           request: "str | None" = None, attempt: int = 1, seen: "set | tuple" = (),
           journal: "callable | None" = None, on_wait: "callable | None" = None,
-          _execute=None, queue_jump: "str | None" = None, **executor_kw) -> dict:
+          _execute=None, queue_jump: "str | None" = None,
+          _verify_test_timeout_seconds=None, **executor_kw) -> dict:
     """Run this verify pass where `decision` says, and return ONE result shape for BOTH callers.
 
     THE RESULT CONTRACT, identical on every path: `{venue, reason, outcome, indeterminate_class,
@@ -4999,6 +5325,14 @@ def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
     # never cancelled, never left running — before `route` returns on EVERY path, including an
     # exception out of the executor, so a caller's cleanup (`land`'s reservation release) can never
     # run while probe process groups live.
+    # T-13967 — THE CALLER'S PER-FILE BOUND travels with the pass, as the performance knobs do: the
+    # host resolves it ONCE through the one resolver (`_verify_test_timeout_seconds`, the ladder the
+    # local path runs) and the leg hands it to the box runner, so a routed pass applies the bound the
+    # caller would have applied, not the box's own. Its rung is kept on the result for the fold that
+    # writes the run row (`routed_verify_bound`). A resolver that cannot answer forwards nothing.
+    _bound = _caller_verify_bound(_verify_test_timeout_seconds)
+    if _bound is not None:
+        executor_kw["verify_test_timeout"] = _bound["value"]
     probe = _LocalProbeLeg(local, partition["local"])
     try:
         result = execute(repo_root, record["box"], request=request, attempt=attempt,
@@ -5013,6 +5347,8 @@ def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
         probe.join(reraise=False)
         raise
     waited = probe.join()
+    if _bound is not None and isinstance(result, dict):
+        result["verify_test_timeout_forwarded"] = _bound
 
     # An INDETERMINATE is a venue fault with no verdict to complete, so whatever the probe found is
     # DISCARDED and the caller aborts on the class — folding it would produce a partial verdict
@@ -5733,3 +6069,737 @@ class ParkedPreship:
         if mark is not None:
             rec["completed_before_verify"], rec["in_flight_at_verify"] = mark
         return rec
+
+
+# ── a CONSUMER pass: the executor and the envelope (SPEC-1032 rules 4-5, T-13973) ────────────────
+#
+# Routed since T-13976 activated SPEC-1032: `consumer_route` (the end of this module) composes this
+# section for a declared consumer Stage-6 pass the rule-2 order sends to its venue; no kernel pass
+# reads any of it.
+#
+# WHAT IS DIFFERENT FROM A KERNEL PASS, and only that. A consumer tree carries no engine, so the
+# runner of the shipped tree (SPEC-1029 rule 3) is, for a consumer pass, the consumer's INSTALLED
+# engine release on the box, at the absolute path its host runs it from (rule 4). The HOST decides
+# the pass ONCE — the skip set, each deciding layer's SPEC-1030 selection and credit with the reading
+# of the previous attempt (`_consumer_zero_probe_guard(plan_out=...)`), and the test-sweep paths with
+# their SPEC-0181 selection — and ships that plan; the box follows it and selects nothing
+# (`_consumer_zero_probe_guard(shipped_plan=...)`). The envelope binds what makes such a run
+# comparable with the host's: the tree that ran, the engine release identity, the plan, the declared
+# environment checks' outputs and the width; any of them off is INDETERMINATE
+# `consumer-identity-mismatch`, never GREEN (rule 5). The transport stays SPEC-1029 rule 3's: the
+# candidate commit in the box's bare clone under this request's own `box_ref`.
+
+CONSUMER_PLAN_SCHEMA = "yitc.remote-verify.consumer-plan/1"
+CONSUMER_ENVELOPE_SCHEMA = "yitc.remote-verify.consumer-envelope/1"
+
+#: SPEC-1032 rule 5 — the ONE class every consumer identity mismatch reads. It is NOT added to
+#: `INDETERMINATE_CLASSES`, which is SPEC-1029 rule 4's closed set for a KERNEL pass and stays exactly
+#: that; the consumer set below is the one a consumer envelope can return.
+CONSUMER_IDENTITY_MISMATCH = "consumer-identity-mismatch"
+#: SPEC-1032 rule 3 (T-13976) — the class of a consumer admission the box could not take atomically:
+#: the prologue ends the pass before any test with this class in the leg record, and the host reads it
+#: there because no envelope is written.
+ATOMIC_ADMISSION_UNAVAILABLE = "atomic-admission-unavailable"
+#: `venue-busy` (T-13436) keeps its SPEC-1029 meaning for a consumer pass still queued at the
+#: admission-wait bound.
+CONSUMER_INDETERMINATE_CLASSES = ("truncated", "duplicate-or-stale", CONSUMER_IDENTITY_MISMATCH,
+                                  "binding", "venue-busy", ATOMIC_ADMISSION_UNAVAILABLE, "venue-fault")
+
+#: The box-side name of a consumer pass's one leg: its checkout is `<run>/consumer`, its outputs
+#: `<run>/out-consumer`, beside the kernel legs' `cand` / `pinned` under the same `box_run_dir`.
+CONSUMER_LEG = "consumer"
+
+
+def _engine_identity(root):
+    """The identity of the engine release installed at `root`: `{bin_digest, files, source_ref}`.
+
+    SELF-CONTAINED ON PURPOSE — the box computes the SAME function: `consumer_box_script` embeds this
+    function's own source text, so the host's reading and the box's cannot be two spellings of one
+    rule. `bin_digest` is a sha256 over every file under `<root>/bin` in sorted path order, as
+    `<relative path> NUL <sha256 of its bytes>` lines — the code that runs, not the directory's
+    metadata; byte-cache dirs and files (`__pycache__`, `*.pyc`) are left out, because running the
+    engine writes them. `source_ref` is the release tag the root's `release-manifest.yaml` names
+    (None for a source checkout). `files` 0 → `bin_digest` None: there is no engine there."""
+    import hashlib as _hl
+    import os as _os
+    root = _os.path.realpath(str(root))
+    h, n = _hl.sha256(), 0
+    for dirpath, dirnames, filenames in _os.walk(_os.path.join(root, "bin")):
+        dirnames[:] = sorted(d for d in dirnames if d != "__pycache__")
+        for name in sorted(filenames):
+            if name.endswith((".pyc", ".pyo")):
+                continue
+            path = _os.path.join(dirpath, name)
+            try:
+                with open(path, "rb") as fh:
+                    data = fh.read()
+            except OSError:
+                data = b"<unreadable>"
+            rel = _os.path.relpath(path, root)
+            h.update(rel.encode("utf-8", "surrogateescape") + b"\0"
+                     + _hl.sha256(data).hexdigest().encode() + b"\n")
+            n += 1
+    source_ref = None
+    try:
+        with open(_os.path.join(root, "release-manifest.yaml"), encoding="utf-8") as fh:
+            for line in fh:
+                if line.startswith("source_ref:"):
+                    source_ref = line.split(":", 1)[1].strip().strip("'\"") or None
+                    break
+    except OSError:
+        pass
+    return {"bin_digest": h.hexdigest() if n else None, "files": n, "source_ref": source_ref}
+
+
+def engine_release_identity(engine_root) -> dict:
+    """SPEC-1032 rule 5 — the engine release identity the host reads off the engine it runs, which
+    the box's must equal (`_engine_identity`, the one rule both sides compute)."""
+    return _engine_identity(engine_root)
+
+
+def declared_check_passes(got, check) -> bool:
+    """SPEC-1032 rule 1 — does ONE declared environment check pass: it exited 0 AND its stdout equals
+    the declared `expect` exactly, with the trailing newlines removed (the shell's own `$(…)` reading
+    of an output — `expect: "Noto Sans"` matches `echo Noto Sans`). Exit 0 with the wrong text fails,
+    and so does the right text with a non-zero exit. PURE. T-13976: THE one comparison — the
+    publish-time readiness (`venue.consumer_check_passes`) answers through it, so a box readiness
+    admits is never a box every pass then refuses."""
+    if not (isinstance(got, dict) and isinstance(check, dict)):
+        return False
+    out, exit_code = got.get("stdout"), got.get("exit")
+    return (isinstance(exit_code, int) and not isinstance(exit_code, bool) and exit_code == 0
+            and isinstance(out, str) and isinstance(check.get("expect"), str)
+            and out.rstrip("\n") == check["expect"])
+
+
+def consumer_plan(guard_plan: dict, *, sweep_paths, sweep_only=None) -> dict:
+    """SPEC-1032 rule 4 — THE plan a consumer pass ships, assembled from what the host decided:
+    `guard_plan` is what `_consumer_zero_probe_guard(plan_out=...)` filled (`tree` — the tree the
+    plan was taken over —, `skip`, `attempt`, `layers`), `sweep_paths` the repo-relative test-sweep
+    directories the run sweeps (none where a layer's `covers:` takes the sweep over), `sweep_only`
+    the test FILE NAMES the host's SPEC-0181 selection names (None = the whole sweep). PURE; raises
+    ValueError on a shape the box could not follow, so a malformed plan is refused on the host and
+    never shipped."""
+    if not isinstance(guard_plan, dict) or not isinstance(guard_plan.get("layers"), dict) \
+            or not isinstance(guard_plan.get("skip"), list):
+        raise ValueError("the guard's plan is not a {skip, attempt, layers} record")
+    paths = [str(p) for p in (sweep_paths or ())]
+    if any(p.startswith("/") or p in ("", "..") or p.startswith("../") or "/../" in p for p in paths):
+        raise ValueError(f"a sweep path is not repo-relative: {paths}")
+    if sweep_only is not None and not all(isinstance(n, str) and n and "/" not in n for n in sweep_only):
+        raise ValueError("a selected sweep file is not a file name")
+    tree = guard_plan.get("tree")
+    if tree is not None and not (isinstance(tree, str) and tree):
+        raise ValueError("the tree the plan was taken over is not a tree id")
+    attempt = guard_plan.get("attempt")
+    return {"schema": CONSUMER_PLAN_SCHEMA, "tree": tree,
+            "skip": sorted(str(n) for n in guard_plan["skip"]),
+            "attempt": dict(attempt) if isinstance(attempt, dict) else None,
+            "layers": json.loads(json.dumps(guard_plan["layers"])),
+            "sweep": {"paths": sorted(set(paths)),
+                      "only": sorted(set(sweep_only)) if sweep_only is not None else None}}
+
+
+def consumer_plan_bytes(plan: dict) -> bytes:
+    """The ONE byte form a plan travels in — canonical JSON — so the digest the host binds and the
+    digest the box takes of what it read are taken over the same bytes."""
+    return json.dumps(plan, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def consumer_plan_digest(plan: dict) -> str:
+    import hashlib
+    return hashlib.sha256(consumer_plan_bytes(plan)).hexdigest()
+
+
+def consumer_request(repo_root, ref: str = "HEAD", *, plan: dict, engine_root, checks=(),
+                     width: int, request: str, attempt: int = 1) -> dict:
+    """SPEC-1032 rules 4-5 — the REQUEST of one consumer pass, computed BEFORE any transport so a
+    fault on the way can never redefine what was asked about (`shipped_identity`'s stance):
+    `{kind, request, attempt, ref, cand_sha, cand_tree, box_cand_ref, plan, plan_digest, engine_root,
+    engine_identity, checks, width}`. `ref` is the commit to ship (a Stage-6 pass: the working-tree
+    snapshot, `working_tree_snapshot`); `plan` is `consumer_plan`'s; `engine_root` the ABSOLUTE path
+    of the engine release the host runs, which the box runs from the same path; `checks` the
+    declaration's environment checks (`venue.consumer_declaration`); `width` the width the pass runs
+    at. Raises RemoteVerifyError on what makes the request unanswerable: a relative engine path, no
+    engine there, a width that is not a positive integer, a malformed check, a plan that names no
+    tree or another tree than the one being shipped (it was taken over another tree), or a ref git
+    cannot resolve."""
+    repo_root = Path(repo_root)
+    eng = Path(str(engine_root))
+    if not eng.is_absolute():
+        raise RemoteVerifyError(f"the engine path {str(engine_root)!r} is not absolute — the box runs "
+                                f"the engine from the host's own absolute path (SPEC-1032 rule 6)")
+    if isinstance(width, bool) or not isinstance(width, int) or width <= 0:
+        raise RemoteVerifyError(f"the width {width!r} is not a positive integer")
+    want = []
+    for c in checks or ():
+        if not (isinstance(c, dict) and all(isinstance(c.get(k), str) for k in ("name", "cmd", "expect"))):
+            raise RemoteVerifyError(f"a declared check is malformed: {c!r}")
+        want.append({"name": c["name"], "cmd": c["cmd"], "expect": c["expect"]})
+    if len({c["name"] for c in want}) != len(want):
+        raise RemoteVerifyError("two declared checks share one name")
+    if not (isinstance(plan, dict) and plan.get("schema") == CONSUMER_PLAN_SCHEMA):
+        raise RemoteVerifyError("the plan is not a consumer plan (`consumer_plan`)")
+    ident = engine_release_identity(eng)
+    if ident["bin_digest"] is None:
+        raise RemoteVerifyError(f"no engine release at {eng} (no files under its bin/)")
+    cand_sha = _git(repo_root, "rev-parse", "--verify", f"{ref}^{{commit}}").strip()
+    cand_tree = _git(repo_root, "rev-parse", f"{cand_sha}^{{tree}}").strip()
+    ran = plan.get("tree")
+    if ran != cand_tree:
+        raise RemoteVerifyError(f"the plan was taken over tree {str(ran)[:12]}, not the shipped "
+                                f"{cand_tree[:12]} — take the plan again over the tree being shipped")
+    return {"kind": "consumer", "request": request, "attempt": int(attempt), "ref": ref,
+            "cand_sha": cand_sha, "cand_tree": cand_tree,
+            "box_cand_ref": box_ref(request, attempt, "cand"),
+            "plan": plan, "plan_digest": consumer_plan_digest(plan),
+            "engine_root": str(eng), "engine_identity": ident, "checks": want, "width": int(width)}
+
+
+def consumer_box_inputs(req: dict) -> dict:
+    """The per-pass INPUT files of a consumer pass, `{name: bytes}`, written into its box run dir
+    beside the script (the kernel legs' `exclude.json` / `only.json` way): the plan in its ONE byte
+    form, and the declared checks the box runs — the commands only; what each must print stays on
+    the host, which judges the outputs (`validate_consumer_envelope`)."""
+    return {"plan.json": consumer_plan_bytes(req["plan"]),
+            "checks.json": json.dumps([{"name": c["name"], "cmd": c["cmd"]} for c in req["checks"]],
+                                      sort_keys=True).encode("utf-8")}
+
+
+_CONSUMER_BOX_TEMPLATE = r"""#!/bin/bash
+# usage: consumer-box.sh <request> <attempt> <width>   — generated by bin/lib/remote_verify.py (T-13973)
+# ONE consumer pass (SPEC-1032 rules 4-5): check out the shipped tree, run the declared environment
+# checks, read the installed engine's identity, take the tree that runs, run THAT engine over the
+# checkout with the host's plan, and assemble the envelope. The host decided the pass; nothing here
+# selects anything.
+set -uo pipefail
+REQ=$1; ATT=$2; W=$3
+# THE CLIENT HANDLE first, as the kernel leg takes it (its lease names it; the sweep reaps a lease
+# whose client is gone).
+CLIENT=$PPID
+ENGINE=%(engine)s
+REPO=%(repo)s; RUNS=%(runs)s
+RUN="$RUNS/$REQ-$ATT"; D="$RUN/%(leg)s"; OUT="$RUN/out-%(leg)s"
+LEG=%(leg)s; LEASES=%(leases)s; LEASE="$LEASES/$REQ-$ATT-$LEG"
+CANDREF="refs/venue/$REQ-$ATT/cand"
+rm -rf "$OUT"; mkdir -p "$OUT"
+# THE ADMISSION (SPEC-1032 rule 3, T-13976): the box lease prologue rendered for a consumer request —
+# atomic or not at all — before anything is checked out or run. Empty when the text is rendered
+# without one (`consumer_box_script(admission="")`).
+%(admission)s
+# THE PER-REQUEST CHECKOUT of the shipped commit, from this request's own transport ref (SPEC-1029
+# rule 3) — fresh every pass, so two passes on one box share no working tree.
+git -C "$REPO" worktree prune
+rm -rf "$D"
+git -C "$REPO" worktree add -q -f --detach "$D" "$CANDREF" 2>"$OUT/checkout.err" || true
+cd "$D" 2>>"$OUT/checkout.err" || true
+unset YITC_SESSION_REF YITC_EXPECTED_SESSION_REF
+# THE DECLARED ENVIRONMENT CHECKS (SPEC-1032 rule 1): each command runs here and its exit code and
+# stdout are RECORDED; the host judges them against what it declared.
+python3 -I - "$RUN/checks.json" "$OUT/checks.json" <<'PYCHECKS'
+import json, subprocess, sys
+src, dst = sys.argv[1:3]
+try:
+    checks = json.load(open(src))
+except Exception:
+    checks = None
+out = None
+if isinstance(checks, list):
+    out = []
+    for c in checks:
+        r = subprocess.run(["bash", "-c", str(c.get("cmd"))], capture_output=True, text=True,
+                           stdin=subprocess.DEVNULL)
+        out.append({"name": c.get("name"), "exit": r.returncode, "stdout": r.stdout})
+json.dump(out, open(dst, "w"))
+PYCHECKS
+# THE ENGINE RELEASE IDENTITY of what is installed at the host's path — the host's own function,
+# embedded below as its source text.
+python3 -I - "$ENGINE" > "$OUT/engine.json" <<'PYENGINE'
+%(engine_identity)s
+import json, sys
+print(json.dumps(_engine_identity(sys.argv[1])))
+PYENGINE
+# IDENTITY = the tree that RUNS: taken LAST before the run — after the checks, which may write — over
+# a temporary index seeded from the checkout's own (the kernel leg's way, T-13002). Any failing step
+# leaves it EMPTY, which the envelope check reads as a mismatch, never as a match.
+WT_TREE=
+if [ "$(pwd -P)" = "$(cd "$D" 2>>"$OUT/wt-add.err" && pwd -P)" ] \
+   && cp "$(git rev-parse --git-path index)" "$OUT/wt.index" 2>"$OUT/wt-add.err" \
+   && GIT_INDEX_FILE="$OUT/wt.index" git add -A . 2>>"$OUT/wt-add.err"; then
+  WT_TREE=$(GIT_INDEX_FILE="$OUT/wt.index" git write-tree 2>>"$OUT/wt-add.err") || WT_TREE=
+fi
+echo "$WT_TREE" > "$OUT/wt-tree.txt"
+# THE RUN: the INSTALLED engine, at the host's absolute path, over the shipped checkout (-C) with the
+# host's plan. `-I` keeps the checkout off `sys.path`, so a consumer tree can never stand in for the
+# engine; the engine follows the plan (`consumer_box_main`).
+python3 -I - "$ENGINE" -C "$D" --plan "$RUN/plan.json" --out "$OUT/result.json" --workers "$W" <<'PYRUN'
+import sys
+sys.path.insert(0, sys.argv[1] + "/bin")
+from lib import remote_verify
+sys.exit(remote_verify.consumer_box_main(sys.argv[2:]))
+PYRUN
+# THE ENVELOPE — written whole to a temp path, then renamed (`envelope_script`'s way).
+python3 -I - "$REQ" "$ATT" "$W" "$OUT" "$D" "$RUN/envelope.json" <<'PYENV'
+import json, os, subprocess, sys, time
+req, att, w, out, d, dst = sys.argv[1:7]
+def load(name):
+    try:
+        return json.load(open(os.path.join(out, name)))
+    except Exception:
+        return None
+try:
+    tree = open(os.path.join(out, "wt-tree.txt")).read().strip() or None
+except Exception:
+    tree = None
+checkout = subprocess.run(["git", "-C", d, "rev-parse", "HEAD^{tree}"], text=True,
+                          capture_output=True).stdout.strip() or None
+env = {"schema": %(schema)r, "kind": "consumer", "request": req, "attempt": int(att),
+       "tree": tree, "checkout_digest": checkout, "engine": load("engine.json"),
+       "checks": load("checks.json"), "width": int(w), "result": load("result.json"),
+       "completed_at": time.strftime("%%Y-%%m-%%dT%%H:%%M:%%SZ", time.gmtime()),
+       "completion_marker": "COMPLETE"}
+open(dst + ".tmp", "w").write(json.dumps(env))
+os.rename(dst + ".tmp", dst)
+print("ENVELOPE", len(json.dumps(env)))
+PYENV
+rm -f "$LEASE"
+echo CONSUMER-DONE
+"""
+
+
+def _box_shell_path(path: str) -> str:
+    """A box path as ONE shell word: quoted, with a leading `~/` kept as the box user's home
+    (`"$HOME"/…`), so a path with a space stays one argument and `~/venue` still means the venue."""
+    path = str(path)
+    if path.startswith("~/"):
+        return '"$HOME"/' + shlex.quote(path[2:])
+    return shlex.quote(path)
+
+
+def consumer_box_script(req: dict, *, repo_git: str = BOX_REPO_GIT, runs_dir: str = BOX_RUNS_DIR,
+                        leases_dir: str = BOX_LEASES_DIR, admission: str = "") -> str:
+    """SPEC-1032 rule 4 — the box-side TEXT of one consumer pass. Returned rather than written, as
+    `box_leg_script` is, so its shape is assertable without a box — and here also EXECUTABLE without
+    one: `repo_git` / `runs_dir` point it at any bare clone and run root. The request, attempt and
+    width are runtime ARGUMENTS; only the engine path (the request's) is part of the text.
+
+    It invokes the installed engine at `req["engine_root"]` with `-C <the shipped checkout>` and the
+    shipped plan, and carries NO selection step: no SPEC-1030 ladder, no `related`, no SPEC-0181
+    selection, no previous-attempt read, no skip decision — every one of them is the host's, inside
+    the plan. Admission to the box (SPEC-1032 rule 3) is the caller's `admission` text — the
+    consumer box lease prologue (`box_lease_prologue(consumer=True)`), placed before the checkout and
+    given the lease names it reads (`leases_dir`); `run_consumer_pass` passes it, and the lease is
+    removed when the envelope is written."""
+    import inspect
+    return _CONSUMER_BOX_TEMPLATE % {
+        "engine": shlex.quote(str(req["engine_root"])),
+        "runs": _box_shell_path(runs_dir), "repo": _box_shell_path(repo_git),
+        "leases": _box_shell_path(leases_dir),
+        "leg": CONSUMER_LEG, "schema": CONSUMER_ENVELOPE_SCHEMA,
+        # substituted as VALUES, so their own `%` is never read as a format specifier
+        "admission": admission,
+        "engine_identity": inspect.getsource(_engine_identity)}
+
+
+def _read_consumer_plan(path) -> tuple:
+    """(sha256 of the plan's BYTES as read, the parsed JSON — None when it does not parse). The digest
+    is taken over what the box actually read, so the envelope binds the plan that ran, not the file a
+    later read would find. Raises only on an unreadable file."""
+    import hashlib
+    raw = Path(path).read_bytes()
+    try:
+        plan = json.loads(raw)
+    except ValueError:
+        plan = None
+    return hashlib.sha256(raw).hexdigest(), plan
+
+
+def consumer_box_main(argv) -> int:
+    """THE BOX-SIDE ENTRY of a consumer pass, run by the INSTALLED engine (`consumer_box_script`):
+    `-C <checkout> --plan <file> --out <file> --workers <n>`. Binds the engine to the checkout the
+    way `-C` does (`cli._resolve_c_flag` + `cli._rebind_repo_root`), then FOLLOWS the plan in
+    `task test --run`'s order: the test sweep over the plan's paths and files with no selection of
+    its own (a planned path or file missing here is a fault), then the declared layers through the
+    layer runner with the host's decisions (`shipped_plan`) at width `n`. Writes the
+    result whole to `--out` (temp + rename): `{plan_digest, workers, engine_module, mode, bad,
+    layers, layer_worker_budget?, flaky_retry?, sweep, launch_error}` — `layers` is the layer
+    runner's own per-layer export, so a host reads a remote pass's rows as it reads a local run's.
+    Once its arguments parse it never raises: a fault — a `_die` SystemExit included — is
+    `launch_error`, and the host reads the pass as INDETERMINATE (`runner_returned`). Arguments that
+    do not parse exit before any result exists, which the host reads as no result (`result_present`)."""
+    import argparse
+    ap = argparse.ArgumentParser(prog="consumer-box", add_help=False)
+    ap.add_argument("-C", dest="checkout", required=True)
+    ap.add_argument("--plan", required=True)
+    ap.add_argument("--out", required=True)
+    ap.add_argument("--workers", type=int, required=True)
+    a = ap.parse_args(argv)
+    result: dict = {"plan_digest": None, "workers": a.workers,
+                    "engine_module": os.path.realpath(__file__), "launch_error": None}
+    try:
+        result["plan_digest"], plan = _read_consumer_plan(a.plan)
+        if not (isinstance(plan, dict) and plan.get("schema") == CONSUMER_PLAN_SCHEMA):
+            raise RemoteVerifyError("the shipped plan is not a consumer plan")
+        from lib import cli as _cli
+        from lib import verify_wiring as _vw
+        root = _cli._resolve_c_flag(a.checkout)
+        _cli._rebind_repo_root(root)
+        # THE SWEEP FIRST, then the layers — `cmd_task_test`'s own order. Every planned path and
+        # every planned file must be HERE: the tree is the host's, so one missing is a fault, never a
+        # smaller sweep (a planned sweep that ran nothing would read green).
+        sweep = plan.get("sweep") or {}
+        only = sweep.get("only")
+        paths = [str(p) for p in sweep.get("paths") or ()]
+        dirs = [root / p for p in paths]
+        missing = [p for p, d in zip(paths, dirs) if not d.is_dir()]
+        missing += [n for n in (only or ()) if not any((d / n).is_file() for d in dirs)]
+        if missing:
+            raise RemoteVerifyError(f"the planned test sweep is not in the shipped tree: {missing[:5]}")
+        swept: list = []
+        metrics: dict = {}
+        if dirs:
+            swept = [str(b) for b in _vw._run_verify_tests(
+                dirs, root, a.workers, fail_fast=False, select=False, journal_path=_cli.EVENTS_PATH,
+                metrics_out=metrics, _host_globals=vars(_cli),
+                **({"only": set(only)} if only is not None else {}))]
+        guard = _cli._consumer_zero_probe_guard(
+            root, None, workers=a.workers,
+            shipped_plan={"skip": plan.get("skip") or [], "attempt": plan.get("attempt"),
+                          "layers": plan.get("layers") or {}})
+        result.update({"mode": guard.get("mode"), "layers": guard.get("layers") or [],
+                       "bad": [str(b) for b in guard.get("bad") or []] + swept,
+                       "sweep": {"paths": paths, "only": only, "ran": bool(dirs), "bad": swept,
+                                 "test_file_count": metrics.get("test_file_count")}})
+        for key in ("layer_worker_budget", "flaky_retry"):
+            if key in guard:
+                result[key] = guard[key]
+    except BaseException as e:                 # a `_die` is a SystemExit: still a fault, never a pass
+        result["launch_error"] = f"{type(e).__name__}: {e}"[:500]
+    tmp = a.out + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(result, fh)
+    os.replace(tmp, a.out)
+    return 0
+
+
+def _consumer_check_faults(got, declared) -> list:
+    """What is wrong with the box's record of the declared checks, as names — empty when every
+    declared check ran exactly once and passed (`declared_check_passes`). The record is read as a
+    SHAPE first: not a list, an entry that is not `{name: str, exit: int, stdout: str}`, a name
+    recorded twice, a declared check with no record and a record of a check nobody declared are each
+    a fault — a malformed record never reaches a dict that would keep one of two entries. PURE."""
+    if not isinstance(got, list):
+        return ["<no check record>"]
+    names, faults = [], []
+    for g in got:
+        if not (isinstance(g, dict) and isinstance(g.get("name"), str) and isinstance(g.get("stdout"), str)
+                and isinstance(g.get("exit"), int) and not isinstance(g.get("exit"), bool)):
+            return ["<malformed check record>"]
+        names.append(g["name"])
+    faults += sorted({n for n in names if names.count(n) > 1})
+    by_name = {g["name"]: g for g in got}
+    want = {c["name"] for c in declared}
+    faults += [c["name"] for c in declared if not declared_check_passes(by_name.get(c["name"]), c)]
+    faults += sorted(n for n in set(by_name) - want)
+    return faults
+
+
+def _consumer_classify(failed_checks) -> str:
+    """`_classify` for a consumer envelope: the most specific cause first, and every consumer
+    identity check under its one class (SPEC-1032 rule 5)."""
+    names = {c["check"] for c in failed_checks}
+    if "parse" in names or "completion_marker" in names:
+        return "truncated"
+    if "not_duplicate_or_stale" in names:
+        return "duplicate-or-stale"
+    # T-13976 — an identity the envelope itself carries (the tree that ran, the engine release, the
+    # declared checks' outputs) is judged before a missing result: a different engine at the host's
+    # path also fails to write a result, and rule 5 names that a mismatch, not a fault
+    if names & {"consumer_tree", "consumer_engine", "consumer_checks"}:
+        return CONSUMER_IDENTITY_MISMATCH
+    if "result_present" in names:
+        return "venue-fault"           # no result to compare: the run's plan and width are unknown
+    if any(n.startswith("consumer_") for n in names):
+        return CONSUMER_IDENTITY_MISMATCH
+    if any("binding" in n for n in names):
+        return "binding"
+    return "venue-fault"
+
+
+def validate_consumer_envelope(text: "str | None", *, request: dict, seen: "set | tuple" = ()) -> dict:
+    """SPEC-1032 rule 5 — the complete check of a consumer pass's envelope, and the only place its
+    outcome is decided. Returns `{outcome, indeterminate_class, checks, failing, layers, result,
+    envelope}`: GREEN, FAILED (`failing["consumer"]`: the run's own failure messages, as a local run
+    names them) or INDETERMINATE with one of `CONSUMER_INDETERMINATE_CLASSES`. `layers` is the box's
+    per-layer export — the layer runner's own rows — so the Stage-6 row, the SPEC-1030 credit and the
+    SPEC-0065 land credit read it as a local run's.
+
+    `checks` is the full roster in a FIXED order, passing entries included. The consumer identity
+    checks — the tree that ran, the engine release identity, the plan (and the sweep it planned), the
+    declared checks' outputs, the width — each fail to `consumer-identity-mismatch`, never GREEN."""
+    checks: list = []
+
+    def chk(name, ok, detail=""):
+        checks.append({"check": name, "ok": bool(ok), "detail": str(detail)[:160]})
+
+    def out(outcome, cls, env=None, failing=None, layers=None, result=None):
+        return {"outcome": outcome, "indeterminate_class": cls, "checks": checks,
+                "failing": failing or {}, "layers": layers if layers is not None else [],
+                "result": result, "envelope": env}
+
+    try:
+        env = json.loads(text or "")
+        if not isinstance(env, dict):
+            raise ValueError(f"the envelope is a {type(env).__name__}, not an object")
+        chk("parse", True)
+    except Exception as e:
+        chk("parse", False, str(e))
+        return out(OUTCOME_INDETERMINATE, "truncated")
+    chk("schema", env.get("schema") == CONSUMER_ENVELOPE_SCHEMA, env.get("schema"))
+    chk("completion_marker", env.get("completion_marker") == "COMPLETE", env.get("completion_marker"))
+    chk("request_binding", env.get("request") == request.get("request"),
+        f"{env.get('request')} vs {request.get('request')}")
+    chk("attempt_binding", env.get("attempt") == request.get("attempt"),
+        f"{env.get('attempt')} vs {request.get('attempt')}")
+    key = f"{env.get('request')}#{env.get('attempt')}"
+    chk("not_duplicate_or_stale", key not in set(seen), key)
+    ran = env.get("tree")
+    chk("consumer_tree", bool(ran) and ran == request.get("cand_tree"),
+        f"ran {str(ran)[:12]} shipped {str(request.get('cand_tree'))[:12]}")
+    eng = env.get("engine")
+    chk("consumer_engine", isinstance(eng, dict) and bool(eng.get("bin_digest"))
+        and eng == request.get("engine_identity"),
+        f"box {str((eng or {}).get('bin_digest') if isinstance(eng, dict) else eng)[:12]} "
+        f"host {str((request.get('engine_identity') or {}).get('bin_digest'))[:12]}")
+    result = env.get("result") if isinstance(env.get("result"), dict) else None
+    ran_plan = (result or {}).get("plan_digest")
+    chk("consumer_plan", bool(ran_plan) and ran_plan == request.get("plan_digest"),
+        f"ran {str(ran_plan)[:12]} shipped {str(request.get('plan_digest'))[:12]}")
+    chk("consumer_checks", not _consumer_check_faults(env.get("checks"), request.get("checks") or []),
+        ", ".join(_consumer_check_faults(env.get("checks"), request.get("checks") or []))
+        or f"{len(request.get('checks') or [])} passed")
+    budget = (result or {}).get("layer_worker_budget", request.get("width"))
+    chk("consumer_width", env.get("width") == request.get("width") == budget
+        and (result or {}).get("workers") == request.get("width"),
+        f"envelope {env.get('width')} layers {budget} requested {request.get('width')}")
+    plan_sweep = (request.get("plan") or {}).get("sweep") or {}
+    ran_sweep = (result or {}).get("sweep") if isinstance((result or {}).get("sweep"), dict) else {}
+    chk("consumer_sweep", result is not None and ran_sweep.get("paths") == plan_sweep.get("paths")
+        and ran_sweep.get("only") == plan_sweep.get("only")
+        and ran_sweep.get("ran") is bool(plan_sweep.get("paths")),
+        f"ran {ran_sweep.get('paths')} planned {plan_sweep.get('paths')}")
+    chk("result_present", result is not None and isinstance(result.get("layers"), list)
+        and isinstance(result.get("bad"), list), "no result record" if result is None else "")
+    chk("runner_returned", result is not None and result.get("launch_error") is None,
+        (result or {}).get("launch_error") or "")
+    bad = [c for c in checks if not c["ok"]]
+    if bad:
+        return out(OUTCOME_INDETERMINATE, _consumer_classify(bad), env)
+    failing = {CONSUMER_LEG: [str(b) for b in result["bad"]]}
+    return out(OUTCOME_GREEN if not result["bad"] else OUTCOME_FAILED, None, env,
+               failing=failing, layers=result["layers"], result=result)
+
+
+# ── T-13976 (SPEC-1032 rules 3-5) — THE ROUTE OF ONE DECLARED CONSUMER STAGE-6 PASS ───────────────
+# The pieces C2-C4 built are composed here and nowhere else: the working-tree snapshot, the host's
+# plan over that tree, the request, the push of its commit to the request's own ref in the consumer's
+# bare clone, the box text with the consumer admission prologue in it, one run, the envelope fetched
+# back and judged by `validate_consumer_envelope`. A consumer pass is NOT a kernel pass with another
+# tree: no rule-8 split (the pass runs whole on the box), no suite-partition width (the width is the
+# box's thread count), no core split, no pinned leg, no main mirror. It never goes through
+# `execute_remote_verify`, which stays the kernel executor's one call site.
+
+def _box_repo_url(box: str, user: str) -> str:
+    """The push URL of the box's bare clone for `user` — the address `ship_trees` pushes to."""
+    return f"ssh://{user}@{box}/home/{user}/venue/repo.git"
+
+
+def run_consumer_pass(repo_root, box: str, req: dict, *, user: str, fingerprint: "dict | None" = None,
+                      scratch=None, timeout: float = 3600, on_wait=None,
+                      admission_timeout: float = VENUE_ADMISSION_WAIT_BOUND_S) -> dict:
+    """THE TRANSPORT of one consumer request (`consumer_request`) on `box`, and nothing else: push
+    its commit to `req["box_cand_ref"]` in the box's bare clone, copy its inputs and its box text
+    into its run dir, run that text once, and fetch what it wrote. It judges nothing.
+
+    The box text carries the consumer admission prologue (`box_lease_prologue(consumer=True)`), so
+    the pass is admitted atomically under the project's cap and the load headroom before anything is
+    checked out; `wait_legs` bounds the queued span by `admission_timeout` (`VenueAdmissionWait`)
+    and the run by `timeout` from its admission (the kernel leg's own default in `run_legs`). When no envelope comes back, the leg's own record
+    is read instead: the prologue writes the class there when it ends the pass before any test.
+
+    Returns `{envelope_text, leg_record, push_s, wall_s, output}` — `envelope_text` is None when the
+    box wrote none; `output` is every line the box text printed. The box run dir, lease and request
+    ref are cleaned, and the local scratch removed, on every exit (a bound running out included). Raises RemoteVerifyError on a failed push, `subprocess` errors on a failed
+    copy, `subprocess.TimeoutExpired` (incl. `VenueAdmissionWait`) when a bound runs out."""
+    try:  # the git child env policy leaf, under either import spelling (`_git`'s way)
+        from lib import git_env as _git_env
+    except ImportError:
+        import git_env as _git_env                        # type: ignore[no-redef]
+    request, attempt = str(req["request"]), int(req["attempt"])
+    run_dir = box_run_dir(request, attempt)
+    own_scratch = scratch is None
+    scratch = Path(scratch) if scratch else Path(tempfile.mkdtemp(prefix=f"venue-consumer-{request}-"))
+    try:
+        t0 = time.monotonic()
+        push_env = {**os.environ, "GIT_SSH_COMMAND": "ssh " + " ".join(SSH_OPTS)}
+        r = _push(["git", "push", "-q", "-f", "--no-follow-tags", _box_repo_url(box, user),
+                   f"{req['cand_sha']}:{req['box_cand_ref']}"],
+                  cwd=str(repo_root), text=True, capture_output=True, timeout=SHIP_PUSH_TIMEOUT_S,
+                  env=_git_env._git_child_env(push_env))
+        if r.returncode != 0:
+            raise RemoteVerifyError(f"git push into the consumer venue clone failed: "
+                                    f"{(r.stderr or '')[:300]}")
+        push_s = round(time.monotonic() - t0, 2)
+        _ssh(box, f"mkdir -p {run_dir} {BOX_LEASES_DIR}", user=user, timeout=120)
+        files = dict(consumer_box_inputs(req))
+        files["consumer-box.sh"] = consumer_box_script(
+            req, admission=box_lease_prologue(consumer=True, fingerprint=fingerprint)).encode("utf-8")
+        for name, data in files.items():
+            local = scratch / name
+            local.write_bytes(data)
+            subprocess.run(["scp", *SSH_OPTS, "-q", str(local), f"{user}@{box}:{run_dir}/{name}"],
+                           check=True, timeout=120)
+        t_run = time.monotonic()
+        proc = subprocess.Popen(
+            ssh_argv(box, f"bash {run_dir}/consumer-box.sh {shlex.quote(request)} {attempt} "
+                          f"{int(req['width'])}", user=user),
+            text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        admission: dict = {}
+        output: list = []
+        relay = threading.Thread(target=_drain_leg, args=(CONSUMER_LEG, proc, on_wait, None),
+                                 kwargs={"admission_out": admission, "lines_out": output}, daemon=True)
+        relay.start()
+        try:
+            wait_legs({CONSUMER_LEG: proc}, timeout, None, admission=admission,
+                      admission_timeout=admission_timeout)
+        except subprocess.TimeoutExpired:
+            try:
+                proc.kill()                    # the box sweep reaps the lease of a gone client
+            except Exception:                  # noqa: BLE001 — best-effort release
+                pass
+            raise
+        relay.join(timeout=30)
+        wall_s = round(time.monotonic() - t_run, 1)
+        dest = scratch / f"envelope-{request}-{attempt}.json"
+        got = subprocess.run(["scp", *SSH_OPTS, "-q", f"{user}@{box}:{run_dir}/envelope.json",
+                              str(dest)], capture_output=True, timeout=300)
+        text = dest.read_text(encoding="utf-8") if got.returncode == 0 and dest.is_file() else None
+        leg_record = None
+        if text is None:
+            rec = _ssh(box, f"cat {run_dir}/out-{CONSUMER_LEG}/leg.json", user=user, timeout=60,
+                       check=False)
+            try:
+                leg_record = json.loads(rec.stdout) if rec.returncode == 0 else None
+            except ValueError:
+                leg_record = None
+        return {"envelope_text": text,
+                "leg_record": leg_record if isinstance(leg_record, dict) else None,
+                "push_s": push_s, "wall_s": wall_s, "output": output}
+    finally:                                   # on EVERY exit, after any fetch; never fatally
+        try:
+            _ssh(box, box_cleanup_script(request, attempt), user=user, timeout=120, check=False)
+        except Exception:                      # noqa: BLE001 — best-effort by contract
+            pass
+        if own_scratch:
+            shutil.rmtree(scratch, ignore_errors=True)
+
+
+def consumer_route(repo_root, *, decision: dict, take_plan, sweep_paths, sweep_only=None, checks=(),
+                   engine_root=None, request: "str | None" = None, attempt: int = 1,
+                   seen: "set | tuple" = (), on_wait=None, _transport=None) -> dict:
+    """ONE declared consumer Stage-6 pass that the rule-2 order sent to its venue (`decision`, reason
+    `venue`), run on the box. Same result shape as `route` — `{venue, reason, note, outcome,
+    indeterminate_class, cand, pinned, metrics, partition, result}` — plus `guard`: the box layer
+    runner's own record in the shape the host's guard returns (`mode`, `bad`, `layers`, and
+    `layer_worker_budget` / `flaky_retry` when the box run carried them), so the Stage-6 row, the
+    SPEC-1030 credit and the SPEC-0065 land credit read the pass as a local one; and `output`, every
+    line the box printed (empty when the box never ran).
+
+    In order: the working-tree snapshot (`working_tree_snapshot`; a clean tree ships HEAD); the
+    host's plan, taken by `take_plan()` AFTER the snapshot over the same working tree (the guard's
+    `plan_out`); `consumer_plan` with `sweep_paths` (repo-relative) and `sweep_only` (the file names
+    of the host's SPEC-0181 selection of the sweep; None = the whole sweep); the width, the box's
+    thread count (`consumer_request_width` of the record's fingerprint); the request, binding the
+    engine release at `engine_root` (this host's by default) and the declared `checks`; the
+    transport (`run_consumer_pass`, injectable for a test); then `validate_consumer_envelope`.
+
+    Never a local re-run and never a pass on a fault (SPEC-1029 rule 7): a box still queued at the
+    admission bound is INDETERMINATE `venue-busy`; no envelope with a leg record naming
+    `atomic-admission-unavailable` is INDETERMINATE that class; no envelope otherwise, and every
+    failure before one could exist — no ssh user on the record, no core count, a snapshot, plan,
+    request or transport fault — is INDETERMINATE `venue-fault` naming its cause; an envelope is
+    judged by `validate_consumer_envelope` alone."""
+    record = decision.get("record") or {}
+    request = request or uuid.uuid4().hex[:12]
+    t0 = time.monotonic()
+    result: dict = {"request": request, "attempt": int(attempt), "box": record.get("box"),
+                    "legs": (CONSUMER_LEG,), "nice": 0, "shipped": {}, "kind": "consumer"}
+
+    def done(outcome, cls=None, detail=None, cand=(), validated=None, req=None, ran=None):
+        result["outcome"], result["indeterminate_class"] = outcome, cls
+        if detail:
+            result["indeterminate_detail"] = str(detail)[:500]
+        if req is not None:
+            result["shipped"] = {"cand_tree": req.get("cand_tree"), "cand_sha": req.get("cand_sha"),
+                                 "push_s": (ran or {}).get("push_s")}
+            result["w_derivation"] = {"workers": req.get("width"), "bound": "box-threads"}
+        if ran is not None:
+            result["run"] = {"both_legs_wall_s": ran.get("wall_s")}
+        if validated is not None:
+            result["checks"], result["envelope"] = validated.get("checks"), validated.get("envelope")
+        result["all_in_wall_s"] = round(time.monotonic() - t0, 1)
+        box_result = (validated or {}).get("result") or {}
+        guard = {"mode": box_result.get("mode"), "bad": list(cand),
+                 "layers": list((validated or {}).get("layers") or [])}
+        for key in ("layer_worker_budget", "flaky_retry"):
+            if key in box_result:
+                guard[key] = box_result[key]
+        return {"venue": record.get("box"), "reason": decision.get("reason"),
+                "note": decision.get("note") or "", "outcome": outcome, "indeterminate_class": cls,
+                "indeterminate_detail": result.get("indeterminate_detail"),
+                "cand": list(cand), "pinned": [], "metrics": venue_verify_metrics(result),
+                "partition": None, "result": result, "guard": guard,
+                "output": list((ran or {}).get("output") or [])}
+
+    req = ran = None
+    try:
+        user = record.get("ssh_user")
+        if not user:
+            raise RemoteVerifyError("the venue record names no ssh user")
+        width = consumer_request_width(record.get("fingerprint"))
+        if width is None:
+            raise RemoteVerifyError("the venue record's fingerprint carries no core count, and a "
+                                    "consumer pass runs at the box's thread count (SPEC-1032 rule 3)")
+        ref = working_tree_snapshot(repo_root, filemode=True) or "HEAD"
+        guard_plan = take_plan()
+        if not (isinstance(guard_plan, dict) and guard_plan.get("tree")):
+            raise RemoteVerifyError("the working tree's identity could not be taken (a submodule in "
+                                    "HEAD, or an unreadable tree), and a consumer pass ships one tree "
+                                    "id — run this pass with --placement local")
+        plan = consumer_plan(guard_plan, sweep_paths=sweep_paths, sweep_only=sweep_only)
+        # the engine release this host runs — the root holding the `bin/lib/` this module is in
+        req = consumer_request(repo_root, ref, plan=plan,
+                               engine_root=engine_root or Path(__file__).resolve().parents[2],
+                               checks=checks, width=width, request=request, attempt=attempt)
+        ran = (_transport or run_consumer_pass)(repo_root, record["box"], req, user=user,
+                                                fingerprint=record.get("fingerprint"), on_wait=on_wait)
+    except VenueAdmissionWait as e:
+        return done(OUTCOME_INDETERMINATE, "venue-busy", str(e), req=req)
+    except Exception as e:                     # noqa: BLE001 — every fault is named, none is a pass
+        return done(OUTCOME_INDETERMINATE, "venue-fault", f"{type(e).__name__}: {e}", req=req, ran=ran)
+    text = ran.get("envelope_text")
+    leg = ran.get("leg_record") or {}
+    if text is None:
+        if leg.get("indeterminate_class") == ATOMIC_ADMISSION_UNAVAILABLE:
+            return done(OUTCOME_INDETERMINATE, ATOMIC_ADMISSION_UNAVAILABLE,
+                        "the box has no atomic admission primitive (flock); no test started",
+                        req=req, ran=ran)
+        return done(OUTCOME_INDETERMINATE, "venue-fault",
+                    f"the box wrote no envelope (leg record: {json.dumps(leg)[:200] if leg else 'none'})",
+                    req=req, ran=ran)
+    v = validate_consumer_envelope(text, request=req, seen=seen)
+    if v["outcome"] == OUTCOME_INDETERMINATE:
+        return done(OUTCOME_INDETERMINATE, v["indeterminate_class"],
+                    "; ".join(f"{c['check']}: {c['detail']}" for c in v["checks"] if not c["ok"]),
+                    validated=v, req=req, ran=ran)
+    return done(v["outcome"], cand=v["failing"].get(CONSUMER_LEG) or [], validated=v, req=req, ran=ran)

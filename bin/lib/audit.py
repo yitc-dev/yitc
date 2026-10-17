@@ -7102,7 +7102,7 @@ class WorkerCeilingContinuation(Exception):
 
 
 # T-9682 — severity rank for the trend-aware ceiling's residual-severity gate. An unknown/absent
-# severity ranks ABOVE low (fail-closed: an un-categorizable residual is never treated as low).
+# severity ranks as high (fail-closed: an un-categorizable residual is never admitted).
 _TREND_SEVERITY_RANK = {"low": 1, "medium": 2, "high": 3}
 
 
@@ -7159,14 +7159,15 @@ def finding_count_trend(prior_record: "dict | None") -> "list[int]":
 def is_trend_convergence_grant(prior_record: "dict | None") -> bool:
     """T-9682 — True iff the recorded audit is CLEARLY ABOUT TO CONVERGE, earning ONE bounded extra
     pass past the flat ceiling: the per-pass finding-count trend (finding_count_trend) is STRICTLY
-    DECREASING across every consecutive pair (>=2 points) AND the residual severity is LOW. The caller
-    raises the EFFECTIVE ceiling by exactly +1 the same way --owner-reset does (a single pass), so the
-    grant is BOUNDED — a second still-decreasing step at prior_passes==ceiling+1 stays blocked.
+    DECREASING across every consecutive pair (>=2 points) AND no residual finding is above MEDIUM
+    (T-13986 widened it from low-only). The caller raises the EFFECTIVE ceiling by exactly +1 (a single
+    pass), so the grant is BOUNDED — a second still-decreasing step at prior_passes==ceiling+1 stays
+    blocked.
 
-    Residual-severity gate (audit-pre finding 1): the test is "residual severity is LOW", NOT "non-empty
-    residual" — ZERO residual findings is the MOST-converged state and is ELIGIBLE; when residual
-    findings ARE present, EVERY one must be severity == 'low'. FAIL-CLOSED: an incomplete trail (→ []),
-    a flat/growing trend, or ANY present residual finding with absent/unknown/non-low severity → False.
+    Residual-severity gate: the test is "no residual above medium", NOT "non-empty residual" — ZERO
+    residual findings is the MOST-converged state and is ELIGIBLE; when residual findings ARE present,
+    EVERY one must be severity 'low' or 'medium'. FAIL-CLOSED: an incomplete trail (→ []), a
+    flat/growing trend, or ANY present residual finding with a high/absent/unknown severity → False.
     A FLAT (e.g. 2->2) or GROWING trend blocks/escalates exactly as before. Pure f(record), decided
     BEFORE the auditor runs — the analog of the T-0544 / T-9650 ceiling predicates."""
     if not isinstance(prior_record, dict):
@@ -7178,8 +7179,8 @@ def is_trend_convergence_grant(prior_record: "dict | None") -> bool:
         return False   # not strictly decreasing (flat or growing) → block as before
     for f in (prior_record.get("findings") or []):   # residual = the most-recent recorded pass
         sev = str(f.get("severity") or "").lower() if isinstance(f, dict) else ""
-        if _TREND_SEVERITY_RANK.get(sev, 3) > _TREND_SEVERITY_RANK["low"]:
-            return False   # a present residual finding is medium/high/unknown → not low → block
+        if _TREND_SEVERITY_RANK.get(sev, 3) > _TREND_SEVERITY_RANK["medium"]:
+            return False   # a present residual finding is high/unknown → above medium → block
     return True
 
 
@@ -8353,7 +8354,9 @@ def ceiling_decide_route(tid, stage, worktree) -> str:
 def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, emit_fn,
                                         residual_findings=None,
                                         residual_fingerprints=None,
-                                        worktree=None) -> "list[str]":
+                                        worktree=None,
+                                        spent_green=None,
+                                        merge_integration_refusal=None) -> "list[str]":
     """T-9618 / SPEC-0204 rule 6 — the audit-loop-ceiling halt of a DISPATCHED worker.
 
     A worker (`worker_ref` truthy = `YITC_EXPECTED_SESSION_REF` set) that reaches the ceiling emits a
@@ -8393,6 +8396,30 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
             "residual_fingerprints": fingerprints}
     if residual_findings:
         data["residual_findings_summary"] = residual_findings_summary(residual_findings)
+    # T-13953 (public issue #112) — A SPENT GREEN. The ceiling row is a GREEN `--on-decisions` pass and
+    # the subject moved past it by a commit the merge-integration route does not admit: there is no
+    # residual to decide, so asking for a decision per residual sends the Controller to a verb that
+    # cannot admit a pass. The halt says what is true instead and names the exits that exist.
+    # `residual_fingerprints` stays on the row (empty) so the reader's needs-decision shape is kept.
+    if spent_green:
+        _green = str(spent_green.get("commit") or "")[:12]
+        _head = str(spent_green.get("head") or "")[:12]
+        data["spent_green"] = {"commit": spent_green.get("commit"), "head": spent_green.get("head")}
+        if merge_integration_refusal:
+            data["merge_integration_refusal"] = str(merge_integration_refusal)
+        _mi = (f" Post-GREEN merge integration (T-13260) not admitted — {merge_integration_refusal}."
+               if merge_integration_refusal else "")
+        _exits = (f"Exits: return the branch to the GREEN commit {_green} (drop the commits after it), "
+                  f"or carry the later change on a NEW card")
+        data["reason"] = (
+            f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land: the stage is "
+            f"GREEN at {_green} (the SPEC-0204 rule-3 `--on-decisions` pass), and HEAD {_head} has "
+            f"moved past it. There is NO residual to decide — `audit decide` cannot admit a further "
+            f"pass on a GREEN row.{_mi} {_exits} (SPEC-0204 rule 3, SPEC-0103 §3)")
+        emit_fn("bg_dispatch_halted", tid, data)
+        return [f"# {tid} audit-{stage}: audit-loop ceiling reached — emitted bg_dispatch_halted "
+                f"(blocked_on_land): audit-{stage} is GREEN at {_green} and HEAD {_head} moved past "
+                f"it; there is no residual for `audit decide`.{_mi} {_exits}."]
     # The reason NAMES the route: this string is what a controller reading `--dispatch-status` sees
     # first. It states the fingerprint COUNT, not the list — the list is on the row, and a reason
     # inlining N hashes would be unreadable at the exact moment it is meant to be read.
@@ -9404,7 +9431,7 @@ def audit_ceiling_blocked(prior_passes: int, owner_reset: bool = False, trend_gr
     is preserved, just made in-CLI instead of a manual codex fallback.
 
     `trend_grant` (T-9682) is the AUTONOMOUS sibling: when the recorded finding-count trend is strictly
-    decreasing with low residual severity (is_trend_convergence_grant), the work is clearly about to
+    decreasing with no residual above medium (is_trend_convergence_grant), the work is clearly about to
     converge, so it earns the SAME single +1. EITHER signal raises the effective ceiling by exactly +1
     (never +2 when both fire) — so the trend grant is BOUNDED: a second still-decreasing step at
     prior_passes==ceiling+1 stays blocked (the flat/growing cases are unchanged)."""
@@ -14613,6 +14640,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # which is also why it is a plain local and not a second call to `on_decisions_residuals`.
     # Empty below the ceiling and for a plan/decision target: there is no ceiling row to resolve.
     ceiling_residual_fingerprints: list = []
+    # T-13953 — set at the at-ceiling fold when the ceiling row is a GREEN `--on-decisions` pass and
+    # the audited subject has moved past its commit; read by the ceiling-block halt and refusal text.
+    ceiling_spent_green = None
     on_decisions_by_fp: dict = {}
     on_decisions_packet = None
     # T-12376 (SPEC-0204 rule 3, amended) — the ONE bounded ABSORPTION re-audit. Set at the
@@ -14746,6 +14776,18 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                    if _od_ceiling_row is not None else None)
         if _od_res is not None and not _od_res.get("unresolvable"):
             ceiling_residual_fingerprints = list(_od_res.get("keys") or ())
+        # T-13953 — a SPENT GREEN: the ceiling row is a GREEN rule-3 pass and the subject moved on.
+        # Text only (the halt + the refusal); it admits nothing. Fail-soft: any doubt leaves None.
+        try:
+            _sg_data = (_od_ceiling_row or {}).get("data") or {}
+            _sg_commit = str(_sg_data.get("commit") or "")
+            if (str(_sg_data.get("basis") or "") == ON_DECISIONS_BASIS
+                    and str(_sg_data.get("verdict") or "").strip().upper() == "GREEN" and _sg_commit):
+                _sg_head = str(sha or _git_resolve_sha("HEAD") or "")
+                if _sg_head and not (_sg_head.startswith(_sg_commit) or _sg_commit.startswith(_sg_head)):
+                    ceiling_spent_green = {"commit": _sg_commit, "head": _sg_head}
+        except Exception:   # noqa: BLE001 — a text refinement never masks the ceiling refusal
+            ceiling_spent_green = None
         # T-12376 — THE ABSORPTION GRANT, resolved ONCE here rather than inside the `else` arm that
         # consumes it, because the (b3) admission below needs the SAME reading to know whether THIS
         # run is terminal-bearing. One derivation at the wiring site, never a reader per consumer
@@ -15114,7 +15156,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
 
     # T-9682 — TREND-AWARE ceiling grant (SPEC-0124 §Audit-loop ceiling). The flat 2-pass cap trips
     # even when the recorded finding-count trend is clearly CONVERGING (3->1, 2->1). When the prior
-    # passes show a STRICTLY-DECREASING trend with LOW residual severity (is_trend_convergence_grant),
+    # passes show a STRICTLY-DECREASING trend with no residual above MEDIUM (is_trend_convergence_grant),
     # grant ONE bounded extra pass — the same single +1 mechanic as --owner-reset, but AUTONOMOUS (no
     # owner ask). BOUNDED to exactly +1: the grant fires ONLY at prior_passes == ceiling (the one pass
     # the +1 unblocks — pass-(ceiling+1)); a second still-decreasing step at prior_passes==ceiling+1 is
@@ -15164,9 +15206,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             "pass_ceiling": AUDIT_PASS_CEILING,
         })
         print(f"# audit-loop ceiling: TREND GRANT — recorded finding-count trend {_trend_counts} is "
-              f"strictly decreasing with low residual severity for {tid} {stage}; granting ONE bounded "
-              f"extra pass (pass {prior_passes + 1}) past the flat {AUDIT_PASS_CEILING}-pass cap "
-              f"(T-9682, SPEC-0124 §Audit-loop ceiling).", file=sys.stderr)
+              f"strictly decreasing with no residual finding above medium for {tid} {stage}; granting ONE "
+              f"bounded extra pass (pass {prior_passes + 1}) past the flat {AUDIT_PASS_CEILING}-pass cap "
+              f"(T-9682/T-13986, SPEC-1034 §Audit-loop ceiling).", file=sys.stderr)
     # T-9683 (SPEC-0124 §Audit-loop ceiling, dispatched-worker auto-consult) — RC#3 continuation half.
     # A DISPATCHED headless worker (YITC_EXPECTED_SESSION_REF set) CANNOT self-grant the owner-gated
     # --owner-reset, so at the ceiling it died-but-unlanded (X-0134 RC2). Instead of dying, at the ceiling
@@ -15288,7 +15330,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     # at-ceiling fold `--on-decisions` computes above (one request-scoped read at the
                     # wiring site, SPEC-0190 rule 10) rather than resolving the ceiling row twice.
                     residual_fingerprints=ceiling_residual_fingerprints,
-                    worktree=REPO_ROOT):
+                    worktree=REPO_ROOT,
+                    # T-13953 — a spent GREEN names itself, and the Controller reads WHY the
+                    # merge-integration route refused on the halt row, not only in this `_die`.
+                    spent_green=ceiling_spent_green,
+                    merge_integration_refusal=merge_integration_refusal):
                 print(_ln, file=sys.stderr)
         # SPEC-0204 rule 6 (T-12290) — ONE forward path, named once. The three hints that used to
         # branch here (the spent-reset consult re-open, the dispatched-worker auto-consult, the
@@ -15296,7 +15342,14 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # replaces them is not three shorter hints but the single route that now exists.
         _die(f"audit-loop ceiling reached: {prior_passes} passes existing for {tid} {stage}; "
              f"pass {prior_passes + 1} is admitted ONLY by the recorded ceiling decisions "
-             f"(SPEC-0204 rules 2-3).\n\n" + RETIRED_CEILING_POINTER
+             f"(SPEC-0204 rules 2-3).\n\n"
+             # T-13953 — a spent GREEN: no residual exists, so say so before the decide pointer.
+             + (f"audit-{stage} is GREEN at {ceiling_spent_green['commit'][:12]} (the rule-3 "
+                f"`--on-decisions` pass) and HEAD {ceiling_spent_green['head'][:12]} moved past it: "
+                f"there is no residual for `audit decide`. Exits: return the branch to that GREEN "
+                f"commit, or carry the later change on a NEW card.\n\n"
+                if ceiling_spent_green else "")
+             + RETIRED_CEILING_POINTER
              # T-10143 — the ask NAMES each residual's real severity + class, never softening a high
              # finding to a prose nit (X: T-10134).
              + _residual_suffix
@@ -18605,8 +18658,11 @@ def _canary_reason_class(reasons, timeout_marker: str) -> str:
 def _canary_backstop_budget_secs(environ=None) -> float:
     """T-12481 — the backstop's canary suite-run budget. `YITC_CANARY_BUDGET_SECS` when it parses to a
     positive float, else 180s (a malformed override never means unbounded); then CLAMPED to 30s below the
-    outer per-file wall bound (`YITC_VERIFY_TEST_TIMEOUT` when positive, else the 300s default), floor 10s,
-    so the budget always expires before the outer SIGKILL and the watched surface still gets inspected."""
+    outer per-file wall bound, floor 10s, so the budget always expires before the outer SIGKILL and the
+    watched surface still gets inspected. The outer bound is the one the runner applies to the file
+    without a declared bound — read through `machine_settings.in_force`, the per-file BUDGET's one
+    reader (escape hatch, machine settings file, built-in default — SPEC-1031 rule 4; T-13969), so no
+    second default or parser of it lives here."""
     env = os.environ if environ is None else environ
 
     def _pos(name):
@@ -18617,7 +18673,8 @@ def _canary_backstop_budget_secs(environ=None) -> float:
         return v if v > 0 else None
 
     budget = _pos("YITC_CANARY_BUDGET_SECS") or 180.0
-    outer = _pos("YITC_VERIFY_TEST_TIMEOUT") or 300.0
+    from lib import machine_settings              # deferred: the hot import graph is unchanged
+    outer = float(machine_settings.in_force("YITC_VERIFY_TEST_TIMEOUT", env=env)["value"])
     return max(10.0, min(budget, outer - 30.0))
 
 

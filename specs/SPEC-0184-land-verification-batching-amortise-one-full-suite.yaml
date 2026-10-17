@@ -1095,55 +1095,62 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ the reconciler emits through the\nsame emitter, whose N=1 clause owns the byte-identity,\
   \ so a declared set of one produces nothing.\nThis amends only the sink paragraph's\
   \ sentence that read a sink entry as meaning \"has received NO\nverdict\" — it now\
-  \ receives exactly one, and that row still carries no outcome.\n\n**A REMOVAL IS\
-  \ RECORDED IN A SINK, AND A SINK IS NOT A VERDICT.** A member can leave a\nbatch\
-  \ BEFORE the verify, and only ONE removal reason — `conflict` — produces a verdict\n\
-  (`evicted-for-conflict`). The other four — `candidate-merge-failed`, `already-on-candidate`,\n\
-  `head-unresolvable`, `not-in-landed-history` — deliberately produce NONE, and that\
-  \ exclusion STANDS:\na verdict is a durable claim about a member's CHANGES, while\
-  \ those four are facts about THIS\nATTEMPT (a ref that moved, a git error, work\
-  \ already carried elsewhere), so journaling one as a\nverdict would invite a reader\
-  \ to treat a transient failure as a property of somebody's change\n(audit-absorbed\
-  \ 2026-08-16). What that decision never provided was ANY record: measured\n2026-08-18,\
-  \ a member announced into a batch whose head then landed ok had its removal reason\n\
-  UNRECOVERABLE from the journal. So every non-conflict removal is recorded as an\
-  \ ATTEMPT-SCOPED\nSINK entry — `{branch, reason}` under `members_removed` on the\
-  \ HEAD's own `land_completed` row,\npresent ONLY when non-empty so a land that removed\
-  \ nobody stays byte-identical.\n\nThe sink is **DIAGNOSTIC, NON-TERMINAL, and NOT\
-  \ a verdict**, and the naming carries that: it says\nwhat this ATTEMPT did, never\
-  \ what a member IS. A branch listed there has received NO verdict and is\nstill\
-  \ in its own queue — the terminal signal remains the member verdict alone, and a\
-  \ reader must\nnot treat a sink entry as an outcome. That guard is the rule, not\
-  \ a stylistic note: the one real\nrisk here is semantic drift, downstream readers\
-  \ gradually reading sink entries as terminal\n(external consult, 2026-08-18, GREEN).\
-  \ Conflicts are EXCLUDED from the sink because they already\ncarry the verdict,\
-  \ and double-recording would blur exactly this line. Same shape and same argument\n\
-  as the FORMATION-side `queue_excluded` sink — an exclusion nobody can see is\nindistinguishable\
-  \ from one that never happened.\n\n**Bound, named not hidden:** the sink rides the\
-  \ OK payload only. The abort row is composed by a\nseparate helper fed from many\
-  \ call sites, so an abort at verify can still leave a pre-verify-removed\nmember\
-  \ unrecorded while its surviving peers receive `requeued-after-red-batch`. Tracked,\
-  \ not\nprose-deferred (followup `fu_ee82d6562144`).\n\n**At N=1 attribution REUSES\
-  \ the existing land events and emits NO new row** (plan-check finding 1,\n2026-08-16).\
-  \ Rule 1 requires a batch of one to be byte-identical to the pre-spec path — same\
-  \ events,\nsame commits, same tokens — while this rule requires every member to\
-  \ carry its own verdict. Read\nnaively the two collide: a new per-member row on\
-  \ a singleton would break the identity Rule 1 promises.\nThey do not collide, and\
-  \ the reason is not a carve-out but an observation: a singleton's land ALREADY\n\
-  carries its member's verdict, because the member IS the land. The existing `land_completed`\
-  \ row and\nits `^LAND:` token are that member's individual outcome, in full. So\
-  \ attribution introduces NO new\ncarrier at N=1; the per-member rows this rule adds\
-  \ exist ONLY for N>1, where there is no longer a\none-to-one land to read a member's\
-  \ verdict from. As a probe-shaped invariant: the row set a land emits\nis UNCHANGED\
-  \ at N=1 and grows only for N>1.\n\nWhat is being claimed compatible is BEHAVIORAL,\
-  \ at three named levels — journal EVENTS (row set and\npayload shape), COMMITS (the\
-  \ footprint the land leaves on `main`), and the terminal TOKEN contract\n(`^LAND:\
-  \ (OK|ABORT)` as the final stdout line). It is NOT a claim of byte-identical process\
-  \ output in\ngeneral: timings, verify heartbeats and progress lines are free to\
-  \ differ, and a probe that keys on\nthem is testing the wrong thing.\n\n### 6. A\
-  \ dead member is DROPPED; the batch is not — AMENDS <workshop-spec>\n**This rule\
-  \ AMENDS an ACTIVE spec and must ship as an amendment, not as a contradiction left\
-  \ for a\nreader to reconcile** (plan-check finding 2, 2026-08-16). <workshop-spec>\
+  \ receives exactly one, and that row still carries no outcome.\n\n**ONE EXCEPTION:\
+  \ A MEMBER WHOSE OWN LAND STILL ANSWERS FOR IT GETS NO ROW.** A declared\nmember\
+  \ the fast-forward did not carry (`not-in-landed-history`) whose OWN land is still\
+  \ queued — a\nfresh queue wait row in the main journal, its land process alive or\
+  \ unpublished — or has just\ncompleted ok, receives no row from this land: its own\
+  \ land's outcome is its answer, and an\n`unaccounted` row would report a member\
+  \ as lost while it lands. Everything else stays\n`unaccounted`: no wait row, a stale\
+  \ one, a dead process, any other removal reason, an unreadable\njournal. The vocabulary\
+  \ is unchanged.\n\n**A REMOVAL IS RECORDED IN A SINK, AND A SINK IS NOT A VERDICT.**\
+  \ A member can leave a\nbatch BEFORE the verify, and only ONE removal reason — `conflict`\
+  \ — produces a verdict\n(`evicted-for-conflict`). The other four — `candidate-merge-failed`,\
+  \ `already-on-candidate`,\n`head-unresolvable`, `not-in-landed-history` — deliberately\
+  \ produce NONE, and that exclusion STANDS:\na verdict is a durable claim about a\
+  \ member's CHANGES, while those four are facts about THIS\nATTEMPT (a ref that moved,\
+  \ a git error, work already carried elsewhere), so journaling one as a\nverdict\
+  \ would invite a reader to treat a transient failure as a property of somebody's\
+  \ change\n(audit-absorbed 2026-08-16). What that decision never provided was ANY\
+  \ record: measured\n2026-08-18, a member announced into a batch whose head then\
+  \ landed ok had its removal reason\nUNRECOVERABLE from the journal. So every non-conflict\
+  \ removal is recorded as an ATTEMPT-SCOPED\nSINK entry — `{branch, reason}` under\
+  \ `members_removed` on the HEAD's own `land_completed` row,\npresent ONLY when non-empty\
+  \ so a land that removed nobody stays byte-identical.\n\nThe sink is **DIAGNOSTIC,\
+  \ NON-TERMINAL, and NOT a verdict**, and the naming carries that: it says\nwhat\
+  \ this ATTEMPT did, never what a member IS. A branch listed there has received NO\
+  \ verdict and is\nstill in its own queue — the terminal signal remains the member\
+  \ verdict alone, and a reader must\nnot treat a sink entry as an outcome. That guard\
+  \ is the rule, not a stylistic note: the one real\nrisk here is semantic drift,\
+  \ downstream readers gradually reading sink entries as terminal\n(external consult,\
+  \ 2026-08-18, GREEN). Conflicts are EXCLUDED from the sink because they already\n\
+  carry the verdict, and double-recording would blur exactly this line. Same shape\
+  \ and same argument\nas the FORMATION-side `queue_excluded` sink — an exclusion\
+  \ nobody can see is\nindistinguishable from one that never happened.\n\n**Bound,\
+  \ named not hidden:** the sink rides the OK payload only. The abort row is composed\
+  \ by a\nseparate helper fed from many call sites, so an abort at verify can still\
+  \ leave a pre-verify-removed\nmember unrecorded while its surviving peers receive\
+  \ `requeued-after-red-batch`. Tracked, not\nprose-deferred (followup `fu_ee82d6562144`).\n\
+  \n**At N=1 attribution REUSES the existing land events and emits NO new row** (plan-check\
+  \ finding 1,\n2026-08-16). Rule 1 requires a batch of one to be byte-identical to\
+  \ the pre-spec path — same events,\nsame commits, same tokens — while this rule\
+  \ requires every member to carry its own verdict. Read\nnaively the two collide:\
+  \ a new per-member row on a singleton would break the identity Rule 1 promises.\n\
+  They do not collide, and the reason is not a carve-out but an observation: a singleton's\
+  \ land ALREADY\ncarries its member's verdict, because the member IS the land. The\
+  \ existing `land_completed` row and\nits `^LAND:` token are that member's individual\
+  \ outcome, in full. So attribution introduces NO new\ncarrier at N=1; the per-member\
+  \ rows this rule adds exist ONLY for N>1, where there is no longer a\none-to-one\
+  \ land to read a member's verdict from. As a probe-shaped invariant: the row set\
+  \ a land emits\nis UNCHANGED at N=1 and grows only for N>1.\n\nWhat is being claimed\
+  \ compatible is BEHAVIORAL, at three named levels — journal EVENTS (row set and\n\
+  payload shape), COMMITS (the footprint the land leaves on `main`), and the terminal\
+  \ TOKEN contract\n(`^LAND: (OK|ABORT)` as the final stdout line). It is NOT a claim\
+  \ of byte-identical process output in\ngeneral: timings, verify heartbeats and progress\
+  \ lines are free to differ, and a probe that keys on\nthem is testing the wrong\
+  \ thing.\n\n### 6. A dead member is DROPPED; the batch is not — AMENDS <workshop-spec>\n\
+  **This rule AMENDS an ACTIVE spec and must ship as an amendment, not as a contradiction\
+  \ left for a\nreader to reconcile** (plan-check finding 2, 2026-08-16). <workshop-spec>\
   \ states that a detached land dies\nwith the worker that claimed it. Under batching\
   \ that sentence, taken literally, lets ONE worker's\ndeath destroy a verify pass\
   \ carrying up to three uninvolved peers — a safety property turned into a\ndenial\
@@ -2422,7 +2429,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_queue_at_slot_free: 3f6957716acf80756e2e301dd93d446f841c7667afdcde09cc54aa36d1104343
   bin/lib/batch_landing.py#_land_read_yield_offer: 6b25de4e113ab4214b11efb8196eca490101c0d2911d8d6bb3519c3c9e19261c
   bin/lib/batch_landing.py#_land_rebaselining_branches: 6700eaad0ec66151374c28ec6e8cac17724d7a752867eb8ad799ee4516c9367a
-  bin/lib/batch_landing.py#_land_reconcile_member_verdicts: 9d4e7876d49c3bea6c8ca1a84067493dbe7affd9f587ec58f32982302bbeb904
+  bin/lib/batch_landing.py#_land_reconcile_member_verdicts: 0d2ff82e54f0c5afb342443d2be5a2f1f9caf2ada973873f575edc0bdf913dcb
   bin/lib/batch_landing.py#_land_reddened_member_sets: a2b6f910cda74c93b63f7020b21107996d46f29e2fa58cb7ca1068d483942683
   bin/lib/batch_landing.py#_land_rederive_merged_candidate: 8f748034ff41e6e21ba9fe03a217f67f2b74f9fe79dde74233267ca80c01ef73
   bin/lib/batch_landing.py#_land_release_peers_for_solo_head: 2537c79df892760d35bc02361283fea17c69359636cf362b10164461ad025716
@@ -2438,5 +2445,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: dbe73f663fd386a751274d2f4c2dea2a23b3c687ee12f6c518ee12d9713a665c
-  bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883
+  bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
+  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5

@@ -1084,14 +1084,14 @@ concern:
     \  # - EXEC: the layer brings a stack up ONCE and each probe runs inside it (`compose\
     \ exec`).\n  # see SPEC-0152 §16; SPEC-0093 §3\n  # TIMEOUT (X-0204). Per layer\
     \ `timeout: <seconds>` and/or section `timeout_seconds:`;\n  # in precedence order:\
-    \ the env escape hatch (YITC_VERIFY_TEST_TIMEOUT) · layer · section · the 300s\n\
-    \  # default;\n  # a malformed value fails the land CLOSED.\n  # HOW TO CHOOSE\
-    \ THE NUMBER: SPEC-0208 (`bin/yitc-v2 graph query SPEC-0208`) — measure p95 by\
-    \ nearest\n  # rank (n >= 20) under the tuple you land under, declare inside [2\
-    \ x p95, 4 x p95], record it here.\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
-    \ init` — no land-verify layer declared yet; declare a `layers:` list (each {layer,\
-    \ command} or per-layer {layer, waiver:{reason}}) as this project's land-verify\
-    \ layers settle (SPEC-0152 rule 16).\"\n"
+    \ the env escape hatch (YITC_VERIFY_TEST_TIMEOUT) · layer · section · machine\n\
+    \  # setting · default;\n  # a malformed value fails the land CLOSED.\n  # HOW\
+    \ TO CHOOSE THE NUMBER: SPEC-0208 (`bin/yitc-v2 graph query SPEC-0208`) — measure\
+    \ p95 by nearest\n  # rank (n >= 20) under the tuple you land under, declare inside\
+    \ [2 x p95, 4 x p95], record it here.\n  waiver:\n    reason: \"Initialized via\
+    \ `bin/yitc-v2 init` — no land-verify layer declared yet; declare a `layers:`\
+    \ list (each {layer, command} or per-layer {layer, waiver:{reason}}) as this project's\
+    \ land-verify layers settle (SPEC-0152 rule 16).\"\n"
   carrier_path: verify
   presence_policy: checked-if-present
   update_policy: init re-seed

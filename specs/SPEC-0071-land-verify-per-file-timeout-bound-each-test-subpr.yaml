@@ -32,181 +32,186 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ subprocess MUST honor it):\n\n1. PER-FILE (not whole-suite) wall-clock bound.\
   \ Each `tests/test_*.py` (in `_run_verify_tests`) and the\n   dedicated host-leak\
   \ canary suite (`_run_host_leak_canary`) is bounded by `_verify_test_timeout_seconds`\n\
-  \   — `_VERIFY_TEST_TIMEOUT_DEFAULT` (300s), overridable by the `YITC_VERIFY_TEST_TIMEOUT`\
-  \ env var\n   (positive float; a blank/invalid/non-positive value fails safe to\
-  \ the default — the bound is never\n   disabled). Per-file, not whole-suite, so\
-  \ the hung test is NAMED.\n\n   **Resolution order ( additive extension — the bound's\
-  \ SOURCE, never its absence).**\n   `_verify_test_timeout_seconds(declared=None)`\
+  \   — the `YITC_VERIFY_TEST_TIMEOUT` inventory key, a machine BUDGET (SPEC-1031):\
+  \ its built-in default\n   lives once, as the key's inventory default (`bin/yitc-v2\
+  \ config list` shows it and the value in\n   force), a machine may set its own inside\
+  \ the key's band (`config set`), and the\n   `YITC_VERIFY_TEST_TIMEOUT` env var\
+  \ overrides both\n   (positive float; a blank/invalid/non-positive value fails safe\
+  \ to the next source — the bound is\n   never disabled). Per-file, not whole-suite,\
+  \ so the hung test is NAMED.\n\n   **Resolution order ( additive extension — the\
+  \ bound's SOURCE, never its absence).**\n   `_verify_test_timeout_seconds(declared=None)`\
   \ resolves, highest precedence first: the\n   `YITC_VERIFY_TEST_TIMEOUT` env ESCAPE\
-  \ HATCH · an OPTIONAL `declared` bound passed by the caller ·\n   the 300s default.\
-  \ The `declared` rung serves a CONSUMER's durable per-layer / per-project\n   land-verify\
-  \ declaration (`yitc-ops.yaml verify.layers[].timeout` / `verify.timeout_seconds`\
-  \ —\n   SPEC-0152 rule 16), so a legitimately slow-but-passing verify no longer\
-  \ needs a remembered env\n   override at every land (X-0204). A zero-arg call is\
-  \ unchanged (env-or-default), and every rung\n   falls SAFE: a blank/invalid/non-positive\
-  \ value at ANY rung drops to the next, so the bound is\n   NEVER disabled — the\
-  \ per-file hang guard above is untouched. Additive only: this rule's default\n \
-  \  VALUE, its process-group kill, its marker, and its abort classification are all\
-  \ unchanged.\n\n   **CPU-STARVATION GRACE ( — the bound is charged for HANGING,\
-  \ not for CONTENTION).** At the\n   deadline, and BEFORE the kill, the runner consults\
-  \ `_verify_timeout_grace_seconds` on the wall+CPU\n   sample §3 already takes. It\
-  \ returns extra seconds, or 0.0 meaning KILL NOW (the pre-\n   decision, unchanged).\
-  \ Grace is granted ONLY when ALL hold: (a) §3's class is `starved` — so the\n  \
-  \ group HAS burned real CPU (it is not a deadlock) yet spent most of its life waiting\
-  \ for a core;\n   (b) fewer than `_VERIFY_TIMEOUT_GRACE_MAX` (=2) windows have already\
-  \ been granted — a HARD ceiling\n   putting total wall at (1+MAX)x the bound, so\
-  \ every file is still killed in bounded time; (c) CPU is\n   still ACCUMULATING\
-  \ — it grew over the last window by at least the stalled band's share of one\n \
-  \  window, so a file that starts starved and then deadlocks loses its grace at the\
-  \ NEXT deadline\n   rather than riding the ceiling out. An unusable input (cpu unavailable\
-  \ → no class; a non-positive\n   bound) returns 0.0: an unavailable measurement\
-  \ fails SAFE to the kill and never buys time.\n   THE HANG GUARD IS INTACT BY CONSTRUCTION,\
-  \ not by promise: the two ENDS of the band are exactly the\n   two hang shapes —\
-  \ `stalled` (cpu≈0: a deadlock or a blocking wait) and `long` (cpu≈wall: a runaway\n\
-  \   busy loop) — and both fall through to the UNCHANGED first-deadline kill. Only\
-  \ the middle band can\n   buy time, at most twice, and only while it keeps proving\
-  \ progress. Grace DEFERS a kill; it never\n   cancels one and it can NEVER turn\
-  \ a verdict into a pass — the file runs on to its OWN real verdict\n   (pass or\
-  \ fail) or to a later kill.\n   WIDENED REACHABILITY IS NOT A WIDENED DIRECTION\
-  \ (named here because the 2026-08-27\n   external consult required it be named).\
-  \ Making §3's denominator explicit makes `starved`\n   REACHABLE for a single-process\
-  \ file that the old one-core reading always called `long`, and since\n   `starved`\
-  \ is the only band that can defer, that WIDENS WHAT MAY BE DEFERRED. It does NOT\
-  \ widen\n   the DIRECTION in which this classification gates, and no part of this\
-  \ rule may be read as doing\n   so: grace still only ever DEFERS a kill, never cancels\
-  \ one, never raises the bound and never\n   turns a verdict into a pass; conditions\
-  \ (a)/(b)/(c) above are unchanged; `_VERIFY_TIMEOUT_GRACE_MAX`\n   stays 2 so total\
-  \ wall stays bounded at (1+MAX)x the bound; and BOTH ENDS of the band still fall\n\
-  \   through to the unchanged first-deadline kill AT ANY MEMBER COUNT. Reachability\
-  \ and direction are\n   separate properties of this gate — changed only the first,\
-  \ deliberately, and a future\n   change that touches the second is a different decision\
-  \ needing its own consult.\n   THE MIDDLE BAND'S RESIDUAL, STATED RATHER THAN HIDDEN:\
-  \ a hang\n   that BURNS starved-band CPU (a polling livelock, a spin-with-sleep\
-  \ retry loop, a waiter that\n   wakes to re-check) is indistinguishable from real\
-  \ starvation to any bound, because CPU is the\n   ONLY progress evidence available\
-  \ from outside the process. Such a file IS granted its windows —\n   and it is still\
-  \ KILLED and still ABORTS the land, in total wall bounded by (1+MAX)x the bound\n\
-  \   rather than by infinity. So the guarantee for the two ENDS of the band is `killed\
-  \ at the first\n   deadline` and for the MIDDLE it is the CEILING; the hard constraint\
-  \ (a genuine hang is still\n   killed and still aborts, whatever its cpu profile)\
-  \ holds for all three, and the price of the\n   middle case is one land delayed\
-  \ by at most two extra windows.\n   WHY: the timeout class is a POPULATION, not\
-  \ a list. A fixed wall\n   bound + a growing suite + a host SPEC-0132 admission\
-  \ deliberately OVERSUBSCRIBES guarantees a fresh\n   cohort of starved files whenever\
-  \ load rises (88 dated fingerprints in the week to 2026-08-10,\n   refilling from\
-  \ the next-slowest files after each round of per-file remediation), so the remedy\
-  \ is\n   to give a starved file the CPU time it was never given rather than to keep\
-  \ draining the cohort or\n   to stretch the bound blindly for everyone. Every kill\
-  \ — first-deadline or grace-exhausted — records\n   the windows it spent, in the\
-  \ abort reason (`grace=N`) and in the §4 payload (`grace_extensions`).\n\n   **MEASURED\
-  \ LAND OVERLAP IS SUBTRACTED BEFORE ANY OF THE ABOVE.** On the <workshop-spec>\n\
-  \   venue a Stage-6 leg runs at nice 19 beside a nice-0 land and receives ~1% of\
-  \ contended CPU, so\n   it is effectively PAUSED while this wall bound keeps ticking\
-  \ (a leg sent at nice 0 under\n   SPEC-1029 rule 5's queue-jump exception is slowed\
-  \ rather than paused, and is read the same\n   way); the leg therefore records the\n\
-  \   intervals during which a foreign `land`-class lease was live on the box, and\
-  \ at each deadline\n   the runner pushes the deadline out by the part of THIS FILE'S\
-  \ OWN window that overlapped one —\n   before the grace consult above, which is\
-  \ unchanged. This is a DEFERRAL denominated in\n   MEASUREMENT rather than a raised\
-  \ bound: it is 0.0 whenever the sidecar is absent, unreadable or\n   names no land\
-  \ (so every local land is byte-identical to before this card), it can never exceed\n\
-  \   the file's own elapsed window, and a file nothing starved is still killed on\
-  \ exactly the\n   deadline it always was — at BOTH ends of the §3 band.\n\n   **A\
-  \ STARVED LOWERED-PRIORITY ATTEMPT IS RESTARTED ONCE AT NORMAL PRIORITY, IN ONE\
-  \ BUDGET\n.** When the run spawns its children at a lowered priority (nice > 0:\
-  \ a dispatched\n   worker's Stage-6 run, unless its card carries a live queue-jump\
-  \ mark — SPEC-1029 rule 5; a\n   land, an interactive run and every nested or pinned\
-  \ driver spawn at\n   nice 0 and never take this branch), the attempt is classified\
-  \ every fifth of its bound by\n   the same §3 classifier the kill reads. When the\
-  \ host is oversubscribed (load1 above the CPUs\n   the run may use) and the reading\
-  \ is `stalled` or `starved`, the attempt is killed, one stderr line names\n   it,\
-  \ and the file is run ONCE more, in a fresh sandbox box, at normal priority, against\
-  \ the\n   FIRST attempt's deadline — the file keeps one budget, and its duration\
-  \ row spans both\n   attempts. That run's\n   verdict is the file's: a pass passes,\
-  \ a failure fails, a timeout takes this whole rule\n   (credit, grace, kill, marker,\
-  \ the §4 deviation) and fails. The restarted run is never probed\n   or restarted,\
-  \ so a hang is still killed by the same deadline and still fails. A `long`\n   reading,\
-  \ no reading, or a host with spare CPU leaves the attempt running as before. The\
-  \ starved attempt emits no\n   deviation and records no row.\n\n   **THE SAME RESTART\
-  \ HOLDS FOR A PROJECT'S VERIFY-LAYER COMMANDS.** A dispatched\n   worker's Stage-6\
-  \ run of a project starts every command of a declared verify layer at the same\n\
-  \   lowered priority (with the same exception), under that command's own bound;\
-  \ a land starts a layer command at normal\n   priority and never takes this branch.\
-  \ A lowered layer command is read every fifth of its bound\n   by the same decision\
-  \ as a test file above — the §3 class is `stalled` or `starved` and the host\n \
-  \  is oversubscribed — with ONE more condition: some task of the command's process\
-  \ group has\n   spent the attempt waiting for a CPU, i.e. the longest run-queue\
-  \ wait of any one of its live\n   tasks, read by the same classifier against the\
-  \ same wall, reads `long`. Waits are never summed\n   across tasks: many tasks that\
-  \ each waited briefly are not one task that was held off the CPU.\n   A layer command\
-  \ whose work runs outside its process group (in a container, on a remote\n   service)\
-  \ uses no CPU of its own while nothing is withheld from it; that condition leaves\
-  \ it\n   running. When all three hold, the command's process group is killed, one\
-  \ stderr line names it,\n   and the command is run ONCE more at normal priority\
-  \ in the time left of the same bound. That\n   run is never read again, and its\
-  \ result is the command's: a pass passes, a failure fails, and\n   a command still\
-  \ running at the first attempt's deadline is killed there and the layer times\n\
-  \   out. When that deadline has already passed once the killed attempt is cleaned\
-  \ up, no second\n   run starts and the layer times out. No wait reading, any other\
-  \ class, a host with spare CPU,\n   or a command with no bound leaves the attempt\
-  \ running as before.\n\n2. OWN PROCESS GROUP + GROUP-KILL. Every verify subprocess\
-  \ is launched with `start_new_session=True`\n   (its PID == its process-group id).\
-  \ On expiry `_terminate_process_group` `os.killpg(pid, SIGKILL)`s\n   the WHOLE\
-  \ group — the test AND every child it forked — then reaps, so a leaked grandchild\n\
-  \   (tempdir-holder, server, sub-subprocess) cannot orphan and survive the kill.\
-  \ The same helper is\n   reused on the existing fail-fast kill, so fail-fast kills\
-  \ also group-reap.\n THE BOUND IS CHARGED ONLY WHILE THE DIRECT CHILD IS ALIVE.\
-  \ A file's verdict is decided\n by its DIRECT CHILD's EXIT STATUS, never by whether\
-  \ some descendant still holds the inherited\n stdout pipe. So the runner WAITS ON\
-  \ THE CHILD (`proc.wait`) and drains stdout concurrently in a\n reader thread; it\
-  \ must NOT wait for EOF on the pipe (`communicate`), which every grandchild\n inherits.\
-  \ Pre- a test that spawned a background child and exited 0 left that pipe open,\
-  \ so\n the deadline kept being charged against an already-reaped, already-PASSING\
-  \ child until the bound\n tripped and killed it — aborting a land whose diff was\
-  \ innocent, with the cpu much-less-than-wall\n signature that §3's renderer reports\
-  \ as a starved host, hiding the cause in the message meant to\n explain it. Once\
-  \ the direct child exits, the runner group-kills whatever it leaked (so reaping\n\
-  \ here is strictly INCREASED — it now covers the clean-exit path too, not only timeout/fail-fast)\n\
-  \ and collects the drained output under a SHORT bounded join, so a descendant that\
-  \ escaped the\n group via its own `setsid` cannot extend the file either. This does\
-  \ NOT loosen §1: a file whose\n direct child never exits is still bounded by the\
-  \ SAME per-file wall clock and still takes §3.\n Incident: was complete (both audits\
-  \ GREEN, probes 3/3) and self-halted BLOCKED-ON-LAND\n after two consecutive aborts\
-  \ of this class under 20 live worktrees (2026-08-07).\n\n3. LOUD, ACTIONABLE, NON-RETRIABLE\
-  \ failure — and it MEASURES rather than DIAGNOSES. The\n   timeout appends to the\
-  \ existing `[reason...]` return shape a message carrying the stable\n   `_VERIFY_TIMEOUT_MARKER`\
-  \ token plus a human-actionable reason: the named file, the bound, the\n   override\
-  \ env var, and — the amendment — the MEASURED wall AND the MEASURED CPU at the\n\
-  \   kill. The message MUST NOT assert that the killed test hangs or leaks a child.\
-  \ That assertion was\n   the pre- wording, and it is a DIAGNOSIS the mechanism cannot\
-  \ make: this rule's own trigger\n   (a wall-clock bound) cannot distinguish a test\
-  \ doing genuine work from a starved host doing none.\n   Stating it anyway sent\
-  \ an operator to debug tests that PASS at the same tree state, twice in one\n  \
-  \ session (2026-08-07). The two numbers let the reader draw the conclusion the evidence\
-  \ supports, and\n   since the message NAMES that conclusion as one of THREE classes\
-  \ rather than leaving the\n   two waiting cases collapsed — the class is a pure\
-  \ function of the already-sampled ratio\n   `cpu/wall` (`_timeout_class`, bands\
-  \ 0.6 and 0.05, cut from the measured profiles 300.1/292.3,\n   300.3/83.8 and a\
-  \ deadlocked file at cpu≈0):\n     * `long` (cpu ≈ wall) — real work: a genuinely\
-  \ long test, or a busy loop;\n     * `starved` (cpu ≪ wall) — mostly WAITING FOR\
-  \ CPU on a host SPEC-0132 admission deliberately\n                             \
-  \    oversubscribes; the landing diff is probably innocent;\n     * `stalled` (cpu\
-  \ ≈ 0) — no work at all for the whole bound: a deadlock or a blocking wait.\n  \
-  \ THE DENOMINATOR THE BANDS ARE READ AGAINST IS EXPLICIT — and it is NOT the same\
-  \ for\n   every band. The numerator is summed over the WHOLE process group (§2's\
-  \ kill unit), so reading it\n   against wall alone reads it against ONE core while\
-  \ the group's parallelism is unknown. One fixed\n   pair of bands then cannot separate\
-  \ a single-process file denied 39 percent of one core from a\n   multi-process group\
-  \ doing real work on several cores — measured over every land-verify timeout\n \
-  \  kill in this repo's live journal segment (n=82, 2026-08-27): 77 `long`, 5 `stalled`,\
-  \ and ZERO\n   `starved`, with `grace_extensions` 0 on all 82, i.e. §1's starvation\
-  \ grace had never once fired.\n   The most-killed file walked its ratio DOWN across\
-  \ dates (1.00, 0.77, 0.64, 0.70, 0.69, 0.61)\n   toward the 0.6 edge while classified\
-  \ `long` throughout, and so was handed the `long` advice for a\n   condition neither\
-  \ of its remedies addresses. So:\n     * the LONG band is read against `cpu / (wall\
-  \ x MEMBERS)`, where MEMBERS is the group's OBSERVED\n       member count — `_process_group_cpu_seconds`\
-  \ returns it alongside the CPU total, counted on\n       the /proc walk it already\
-  \ performs. Per observed member the band is\n       `_TIMEOUT_CLASS_LONG_RATIO_PER_MEMBER`\
+  \ HATCH · an OPTIONAL `declared` bound passed by the caller ·\n   this machine's\
+  \ settings-file value of the key · the key's built-in default (the order SPEC-1031\n\
+  \   rule 4 gives this budget). The `declared` rung serves a CONSUMER's durable per-layer\
+  \ / per-project\n   land-verify declaration (`yitc-ops.yaml verify.layers[].timeout`\
+  \ / `verify.timeout_seconds` —\n   SPEC-0152 rule 16), so a legitimately slow-but-passing\
+  \ verify no longer needs a remembered env\n   override at every land (X-0204). A\
+  \ zero-arg call has no `declared` rung, and every rung falls\n   SAFE: a blank/invalid/non-positive\
+  \ value at ANY rung (a machine-file value outside the key's band\n   included) drops\
+  \ to the next, so the bound is NEVER disabled — the per-file hang guard above is\n\
+  \   untouched. The process-group kill, the marker and the abort classification are\
+  \ the same whichever\n   rung supplied the bound.\n\n   **CPU-STARVATION GRACE (\
+  \ — the bound is charged for HANGING, not for CONTENTION).** At the\n   deadline,\
+  \ and BEFORE the kill, the runner consults `_verify_timeout_grace_seconds` on the\
+  \ wall+CPU\n   sample §3 already takes. It returns extra seconds, or 0.0 meaning\
+  \ KILL NOW (the pre-\n   decision, unchanged). Grace is granted ONLY when ALL hold:\
+  \ (a) §3's class is `starved` — so the\n   group HAS burned real CPU (it is not\
+  \ a deadlock) yet spent most of its life waiting for a core;\n   (b) fewer than\
+  \ `_VERIFY_TIMEOUT_GRACE_MAX` (=2) windows have already been granted — a HARD ceiling\n\
+  \   putting total wall at (1+MAX)x the bound, so every file is still killed in bounded\
+  \ time; (c) CPU is\n   still ACCUMULATING — it grew over the last window by at least\
+  \ the stalled band's share of one\n   window, so a file that starts starved and\
+  \ then deadlocks loses its grace at the NEXT deadline\n   rather than riding the\
+  \ ceiling out. An unusable input (cpu unavailable → no class; a non-positive\n \
+  \  bound) returns 0.0: an unavailable measurement fails SAFE to the kill and never\
+  \ buys time.\n   THE HANG GUARD IS INTACT BY CONSTRUCTION, not by promise: the two\
+  \ ENDS of the band are exactly the\n   two hang shapes — `stalled` (cpu≈0: a deadlock\
+  \ or a blocking wait) and `long` (cpu≈wall: a runaway\n   busy loop) — and both\
+  \ fall through to the UNCHANGED first-deadline kill. Only the middle band can\n\
+  \   buy time, at most twice, and only while it keeps proving progress. Grace DEFERS\
+  \ a kill; it never\n   cancels one and it can NEVER turn a verdict into a pass —\
+  \ the file runs on to its OWN real verdict\n   (pass or fail) or to a later kill.\n\
+  \   WIDENED REACHABILITY IS NOT A WIDENED DIRECTION (named here because the 2026-08-27\n\
+  \   external consult required it be named). Making §3's denominator explicit makes\
+  \ `starved`\n   REACHABLE for a single-process file that the old one-core reading\
+  \ always called `long`, and since\n   `starved` is the only band that can defer,\
+  \ that WIDENS WHAT MAY BE DEFERRED. It does NOT widen\n   the DIRECTION in which\
+  \ this classification gates, and no part of this rule may be read as doing\n   so:\
+  \ grace still only ever DEFERS a kill, never cancels one, never raises the bound\
+  \ and never\n   turns a verdict into a pass; conditions (a)/(b)/(c) above are unchanged;\
+  \ `_VERIFY_TIMEOUT_GRACE_MAX`\n   stays 2 so total wall stays bounded at (1+MAX)x\
+  \ the bound; and BOTH ENDS of the band still fall\n   through to the unchanged first-deadline\
+  \ kill AT ANY MEMBER COUNT. Reachability and direction are\n   separate properties\
+  \ of this gate — changed only the first, deliberately, and a future\n   change that\
+  \ touches the second is a different decision needing its own consult.\n   THE MIDDLE\
+  \ BAND'S RESIDUAL, STATED RATHER THAN HIDDEN: a hang\n   that BURNS starved-band\
+  \ CPU (a polling livelock, a spin-with-sleep retry loop, a waiter that\n   wakes\
+  \ to re-check) is indistinguishable from real starvation to any bound, because CPU\
+  \ is the\n   ONLY progress evidence available from outside the process. Such a file\
+  \ IS granted its windows —\n   and it is still KILLED and still ABORTS the land,\
+  \ in total wall bounded by (1+MAX)x the bound\n   rather than by infinity. So the\
+  \ guarantee for the two ENDS of the band is `killed at the first\n   deadline` and\
+  \ for the MIDDLE it is the CEILING; the hard constraint (a genuine hang is still\n\
+  \   killed and still aborts, whatever its cpu profile) holds for all three, and\
+  \ the price of the\n   middle case is one land delayed by at most two extra windows.\n\
+  \   WHY: the timeout class is a POPULATION, not a list. A fixed wall\n   bound +\
+  \ a growing suite + a host SPEC-0132 admission deliberately OVERSUBSCRIBES guarantees\
+  \ a fresh\n   cohort of starved files whenever load rises (88 dated fingerprints\
+  \ in the week to 2026-08-10,\n   refilling from the next-slowest files after each\
+  \ round of per-file remediation), so the remedy is\n   to give a starved file the\
+  \ CPU time it was never given rather than to keep draining the cohort or\n   to\
+  \ stretch the bound blindly for everyone. Every kill — first-deadline or grace-exhausted\
+  \ — records\n   the windows it spent, in the abort reason (`grace=N`) and in the\
+  \ §4 payload (`grace_extensions`).\n\n   **MEASURED LAND OVERLAP IS SUBTRACTED BEFORE\
+  \ ANY OF THE ABOVE.** On the <workshop-spec>\n   venue a Stage-6 leg runs at nice\
+  \ 19 beside a nice-0 land and receives ~1% of contended CPU, so\n   it is effectively\
+  \ PAUSED while this wall bound keeps ticking (a leg sent at nice 0 under\n   SPEC-1029\
+  \ rule 5's queue-jump exception is slowed rather than paused, and is read the same\n\
+  \   way); the leg therefore records the\n   intervals during which a foreign `land`-class\
+  \ lease was live on the box, and at each deadline\n   the runner pushes the deadline\
+  \ out by the part of THIS FILE'S OWN window that overlapped one —\n   before the\
+  \ grace consult above, which is unchanged. This is a DEFERRAL denominated in\n \
+  \  MEASUREMENT rather than a raised bound: it is 0.0 whenever the sidecar is absent,\
+  \ unreadable or\n   names no land (so every local land is byte-identical to before\
+  \ this card), it can never exceed\n   the file's own elapsed window, and a file\
+  \ nothing starved is still killed on exactly the\n   deadline it always was — at\
+  \ BOTH ends of the §3 band.\n\n   **A STARVED LOWERED-PRIORITY ATTEMPT IS RESTARTED\
+  \ ONCE AT NORMAL PRIORITY, IN ONE BUDGET\n.** When the run spawns its children at\
+  \ a lowered priority (nice > 0: a dispatched\n   worker's Stage-6 run, unless its\
+  \ card carries a live queue-jump mark — SPEC-1029 rule 5; a\n   land, an interactive\
+  \ run and every nested or pinned driver spawn at\n   nice 0 and never take this\
+  \ branch), the attempt is classified every fifth of its bound by\n   the same §3\
+  \ classifier the kill reads. When the host is oversubscribed (load1 above the CPUs\n\
+  \   the run may use) and the reading is `stalled` or `starved`, the attempt is killed,\
+  \ one stderr line names\n   it, and the file is run ONCE more, in a fresh sandbox\
+  \ box, at normal priority, against the\n   FIRST attempt's deadline — the file keeps\
+  \ one budget, and its duration row spans both\n   attempts. That run's\n   verdict\
+  \ is the file's: a pass passes, a failure fails, a timeout takes this whole rule\n\
+  \   (credit, grace, kill, marker, the §4 deviation) and fails. The restarted run\
+  \ is never probed\n   or restarted, so a hang is still killed by the same deadline\
+  \ and still fails. A `long`\n   reading, no reading, or a host with spare CPU leaves\
+  \ the attempt running as before. The starved attempt emits no\n   deviation and\
+  \ records no row.\n\n   **THE SAME RESTART HOLDS FOR A PROJECT'S VERIFY-LAYER COMMANDS.**\
+  \ A dispatched\n   worker's Stage-6 run of a project starts every command of a declared\
+  \ verify layer at the same\n   lowered priority (with the same exception), under\
+  \ that command's own bound; a land starts a layer command at normal\n   priority\
+  \ and never takes this branch. A lowered layer command is read every fifth of its\
+  \ bound\n   by the same decision as a test file above — the §3 class is `stalled`\
+  \ or `starved` and the host\n   is oversubscribed — with ONE more condition: some\
+  \ task of the command's process group has\n   spent the attempt waiting for a CPU,\
+  \ i.e. the longest run-queue wait of any one of its live\n   tasks, read by the\
+  \ same classifier against the same wall, reads `long`. Waits are never summed\n\
+  \   across tasks: many tasks that each waited briefly are not one task that was\
+  \ held off the CPU.\n   A layer command whose work runs outside its process group\
+  \ (in a container, on a remote\n   service) uses no CPU of its own while nothing\
+  \ is withheld from it; that condition leaves it\n   running. When all three hold,\
+  \ the command's process group is killed, one stderr line names it,\n   and the command\
+  \ is run ONCE more at normal priority in the time left of the same bound. That\n\
+  \   run is never read again, and its result is the command's: a pass passes, a failure\
+  \ fails, and\n   a command still running at the first attempt's deadline is killed\
+  \ there and the layer times\n   out. When that deadline has already passed once\
+  \ the killed attempt is cleaned up, no second\n   run starts and the layer times\
+  \ out. No wait reading, any other class, a host with spare CPU,\n   or a command\
+  \ with no bound leaves the attempt running as before.\n\n2. OWN PROCESS GROUP +\
+  \ GROUP-KILL. Every verify subprocess is launched with `start_new_session=True`\n\
+  \   (its PID == its process-group id). On expiry `_terminate_process_group` `os.killpg(pid,\
+  \ SIGKILL)`s\n   the WHOLE group — the test AND every child it forked — then reaps,\
+  \ so a leaked grandchild\n   (tempdir-holder, server, sub-subprocess) cannot orphan\
+  \ and survive the kill. The same helper is\n   reused on the existing fail-fast\
+  \ kill, so fail-fast kills also group-reap.\n THE BOUND IS CHARGED ONLY WHILE THE\
+  \ DIRECT CHILD IS ALIVE. A file's verdict is decided\n by its DIRECT CHILD's EXIT\
+  \ STATUS, never by whether some descendant still holds the inherited\n stdout pipe.\
+  \ So the runner WAITS ON THE CHILD (`proc.wait`) and drains stdout concurrently\
+  \ in a\n reader thread; it must NOT wait for EOF on the pipe (`communicate`), which\
+  \ every grandchild\n inherits. Pre- a test that spawned a background child and exited\
+  \ 0 left that pipe open, so\n the deadline kept being charged against an already-reaped,\
+  \ already-PASSING child until the bound\n tripped and killed it — aborting a land\
+  \ whose diff was innocent, with the cpu much-less-than-wall\n signature that §3's\
+  \ renderer reports as a starved host, hiding the cause in the message meant to\n\
+  \ explain it. Once the direct child exits, the runner group-kills whatever it leaked\
+  \ (so reaping\n here is strictly INCREASED — it now covers the clean-exit path too,\
+  \ not only timeout/fail-fast)\n and collects the drained output under a SHORT bounded\
+  \ join, so a descendant that escaped the\n group via its own `setsid` cannot extend\
+  \ the file either. This does NOT loosen §1: a file whose\n direct child never exits\
+  \ is still bounded by the SAME per-file wall clock and still takes §3.\n Incident:\
+  \ was complete (both audits GREEN, probes 3/3) and self-halted BLOCKED-ON-LAND\n\
+  \ after two consecutive aborts of this class under 20 live worktrees (2026-08-07).\n\
+  \n3. LOUD, ACTIONABLE, NON-RETRIABLE failure — and it MEASURES rather than DIAGNOSES.\
+  \ The\n   timeout appends to the existing `[reason...]` return shape a message carrying\
+  \ the stable\n   `_VERIFY_TIMEOUT_MARKER` token plus a human-actionable reason:\
+  \ the named file, the bound, the\n   override env var, and — the amendment — the\
+  \ MEASURED wall AND the MEASURED CPU at the\n   kill. The message MUST NOT assert\
+  \ that the killed test hangs or leaks a child. That assertion was\n   the pre- wording,\
+  \ and it is a DIAGNOSIS the mechanism cannot make: this rule's own trigger\n   (a\
+  \ wall-clock bound) cannot distinguish a test doing genuine work from a starved\
+  \ host doing none.\n   Stating it anyway sent an operator to debug tests that PASS\
+  \ at the same tree state, twice in one\n   session (2026-08-07). The two numbers\
+  \ let the reader draw the conclusion the evidence supports, and\n   since the message\
+  \ NAMES that conclusion as one of THREE classes rather than leaving the\n   two\
+  \ waiting cases collapsed — the class is a pure function of the already-sampled\
+  \ ratio\n   `cpu/wall` (`_timeout_class`, bands 0.6 and 0.05, cut from the measured\
+  \ profiles 300.1/292.3,\n   300.3/83.8 and a deadlocked file at cpu≈0):\n     *\
+  \ `long` (cpu ≈ wall) — real work: a genuinely long test, or a busy loop;\n    \
+  \ * `starved` (cpu ≪ wall) — mostly WAITING FOR CPU on a host SPEC-0132 admission\
+  \ deliberately\n                                 oversubscribes; the landing diff\
+  \ is probably innocent;\n     * `stalled` (cpu ≈ 0) — no work at all for the whole\
+  \ bound: a deadlock or a blocking wait.\n   THE DENOMINATOR THE BANDS ARE READ AGAINST\
+  \ IS EXPLICIT — and it is NOT the same for\n   every band. The numerator is summed\
+  \ over the WHOLE process group (§2's kill unit), so reading it\n   against wall\
+  \ alone reads it against ONE core while the group's parallelism is unknown. One\
+  \ fixed\n   pair of bands then cannot separate a single-process file denied 39 percent\
+  \ of one core from a\n   multi-process group doing real work on several cores —\
+  \ measured over every land-verify timeout\n   kill in this repo's live journal segment\
+  \ (n=82, 2026-08-27): 77 `long`, 5 `stalled`, and ZERO\n   `starved`, with `grace_extensions`\
+  \ 0 on all 82, i.e. §1's starvation grace had never once fired.\n   The most-killed\
+  \ file walked its ratio DOWN across dates (1.00, 0.77, 0.64, 0.70, 0.69, 0.61)\n\
+  \   toward the 0.6 edge while classified `long` throughout, and so was handed the\
+  \ `long` advice for a\n   condition neither of its remedies addresses. So:\n   \
+  \  * the LONG band is read against `cpu / (wall x MEMBERS)`, where MEMBERS is the\
+  \ group's OBSERVED\n       member count — `_process_group_cpu_seconds` returns it\
+  \ alongside the CPU total, counted on\n       the /proc walk it already performs.\
+  \ Per observed member the band is\n       `_TIMEOUT_CLASS_LONG_RATIO_PER_MEMBER`\
   \ (0.75).\n     * the STALLED band is read against the RAW `cpu / wall` and is NEVER\
   \ normalised. \"Did\n       essentially no work at all\" is an ABSOLUTE property\
   \ of the group; dividing it by concurrency\n       would relabel a large, mostly-idle\
@@ -232,25 +237,25 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ ceilinged, progress-conditional windows. It can never cancel a kill,\n   never\
   \ raise the bound, and never turn a verdict into a pass. Everything else is as before:\
   \ a\n   `long` kill and a `stalled` (deadlocked) kill both still happen on the SAME\
-  \ unchanged 300s WALL\n   deadline — which is why no above-300s wall backstop is\
-  \ needed to tell a deadlock from a merely\n   slow test — and a file whose grace\
-  \ is spent is killed and ABORTS the land exactly as it always did.\n   The grace\
-  \ decision CALLS `_timeout_class` rather than re-deriving a second cpu/wall discriminator,\n\
-  \   so the label an operator reads and the behaviour the land takes can never disagree.\n\
-  \   An unmeasured kill (`cpu=unavailable`) is left UNCLASSIFIED rather than guessed.\n\
-  \   CPU is summed over the WHOLE process GROUP that §2 kills, never\n   the leader\
-  \ alone: `cutime`/`cstime` account only for REAPED children, so a leader-only read\n\
-  \   undercounts exactly the live-child leak shape this rule exists to catch and\
-  \ would mislabel it\n   \"starved\" — re-introducing the false diagnosis through\
-  \ the number instead of the prose. The\n   measurement is BEST-EFFORT and renders\
-  \ `cpu=unavailable` when it fails: it must never mask,\n   delay, or replace the\
-  \ abort it describes. `_land_integrate` greps the marker\n   and `_die`s with the\
-  \ DISTINCT `abort_class=\"verify-timeout\"`. This is categorically NOT the soft\n\
-  \   ff-race retry: a verify failure `_die`s (SystemExit) BEFORE the in-lock `continue`\
-  \ paths, so a\n   timeout is NEVER consumed by `_LAND_MAX_RETRIES`; the distinct\
-  \ abort_class also lets the\n   repeated-abort backstop streak a recurring hang\
-  \ separately from generic verify failures.\n\n4. DURABLE CROSS-SESSION TRACE. On\
-  \ a timeout-kill `_emit_verify_timeout_deviation` appends a\n   `deviation_captured`\
+  \ unchanged WALL deadline\n   (the per-file bound in force) — which is why no wall\
+  \ backstop above that bound is needed to tell a\n   deadlock from a merely slow\
+  \ test — and a file whose grace is spent is killed and ABORTS the land\n   exactly\
+  \ as it always did.\n   The grace decision CALLS `_timeout_class` rather than re-deriving\
+  \ a second cpu/wall discriminator,\n   so the label an operator reads and the behaviour\
+  \ the land takes can never disagree.\n   An unmeasured kill (`cpu=unavailable`)\
+  \ is left UNCLASSIFIED rather than guessed.\n   CPU is summed over the WHOLE process\
+  \ GROUP that §2 kills, never\n   the leader alone: `cutime`/`cstime` account only\
+  \ for REAPED children, so a leader-only read\n   undercounts exactly the live-child\
+  \ leak shape this rule exists to catch and would mislabel it\n   \"starved\" — re-introducing\
+  \ the false diagnosis through the number instead of the prose. The\n   measurement\
+  \ is BEST-EFFORT and renders `cpu=unavailable` when it fails: it must never mask,\n\
+  \   delay, or replace the abort it describes. `_land_integrate` greps the marker\n\
+  \   and `_die`s with the DISTINCT `abort_class=\"verify-timeout\"`. This is categorically\
+  \ NOT the soft\n   ff-race retry: a verify failure `_die`s (SystemExit) BEFORE the\
+  \ in-lock `continue` paths, so a\n   timeout is NEVER consumed by `_LAND_MAX_RETRIES`;\
+  \ the distinct abort_class also lets the\n   repeated-abort backstop streak a recurring\
+  \ hang separately from generic verify failures.\n\n4. DURABLE CROSS-SESSION TRACE.\
+  \ On a timeout-kill `_emit_verify_timeout_deviation` appends a\n   `deviation_captured`\
   \ (the EXISTING capture event — no new type; `kind: defect`,\n   `fingerprint: land-verify-timeout:<test>`)\
   \ to MAIN's `events.jsonl` (`journal_path` passed by\n   `_land_integrate`). Durable\
   \ on main even though THIS land aborts — the next land folds\n   the append. The\
@@ -393,89 +398,94 @@ body: "## Scenario\n\n`land` verifies a writing worktree by running the whole `t
   \ stopgap, never the fix: it hides a growth trend, which\n  on 2026-08-07 cost four\
   \ dispatched workers their finished builds.\n- `_LAND_MAX_RETRIES` interaction:\
   \ a hard timeout-fail is `abort_class=\"verify-timeout\"`, distinct from\n  the\
-  \ soft ff-race retry; it is never blindly retried 5x (it `_die`s before any `continue`).\n\
-  \n## Parameters\n\n| name | value | consumed | note |\n|------|-------|----------|------|\n\
-  | `_VERIFY_TEST_TIMEOUT_DEFAULT` | 300.0 s/file | no | per-file wall clock; ~100x\
-  \ the slowest real test (3s) |\n| `YITC_VERIFY_TEST_TIMEOUT` | env, positive float\
-  \ | no | per-host/CI override (top precedence); invalid → next rung (fail-safe)\
-  \ |\n| `declared` (arg) | positive float or None | no | a consumer's declared land-verify\
-  \ bound (SPEC-0152 rule 16); below env, above the default |\n| `_VERIFY_TIMEOUT_MARKER`\
-  \ | `[land-verify-timeout]` | no | machine key classifying the abort as `verify-timeout`\
-  \ |\n| `_VERIFY_TIMEOUT_GRACE_MAX` | 2 windows | no | ceiling on starvation-grace\
-  \ extensions; total wall <= (1+MAX)x the bound |\n| `_TIMEOUT_CLASS_LONG_RATIO`\
-  \ / `_TIMEOUT_CLASS_STALLED_RATIO` | 0.6 / 0.05 | no | the §3 cpu/wall bands; also\
-  \ gate §1's grace (starved band only) |\n\n## Rationale\n\nReal incident (CHARTER\
-  \ §Principle-1 filter 4): land hung indefinitely on a leaking/hanging test on\n\
-  2026-06-10, and under concurrent load hung land for all sessions. Surfaced by the\
-  \ benchmarking trial\n(plan `ai-configuration-benchmarking-same-task-different-`\
+  \ soft ff-race retry; it is never retried by the ff-race retry bound (it `_die`s\
+  \ before any\n  `continue`).\n\n## Parameters\n\n| name | value | consumed | note\
+  \ |\n|------|-------|----------|------|\n| `YITC_VERIFY_TEST_TIMEOUT` built-in default\
+  \ (inventory) | the key's inventory default (`config list`) | no | per-file wall\
+  \ clock; generous against the slowest real test |\n| `YITC_VERIFY_TEST_TIMEOUT`\
+  \ machine settings value | positive float inside the key's band (`config set`) |\
+  \ no | a machine BUDGET (SPEC-1031 rule 4); below `declared`, above the built-in\
+  \ default; outside the band → ignored at read |\n| `YITC_VERIFY_TEST_TIMEOUT` |\
+  \ env, positive float | no | per-host/CI override (top precedence); invalid → next\
+  \ rung (fail-safe) |\n| `declared` (arg) | positive float or None | no | a consumer's\
+  \ declared land-verify bound (SPEC-0152 rule 16); below env, above the machine settings\
+  \ value |\n| `_VERIFY_TIMEOUT_MARKER` | `[land-verify-timeout]` | no | machine key\
+  \ classifying the abort as `verify-timeout` |\n| `_VERIFY_TIMEOUT_GRACE_MAX` | 2\
+  \ windows | no | ceiling on starvation-grace extensions; total wall <= (1+MAX)x\
+  \ the bound |\n| `_TIMEOUT_CLASS_LONG_RATIO` / `_TIMEOUT_CLASS_STALLED_RATIO` |\
+  \ 0.6 / 0.05 | no | the §3 cpu/wall bands; also gate §1's grace (starved band only)\
+  \ |\n\n## Rationale\n\nReal incident (CHARTER §Principle-1 filter 4): land hung\
+  \ indefinitely on a leaking/hanging test on\n2026-06-10, and under concurrent load\
+  \ hung land for all sessions. Surfaced by the benchmarking trial\n(plan `ai-configuration-benchmarking-same-task-different-`\
   \ §6). Anti-complexity (all 4 filters pass):\n(1) EXISTING analogs extended — `_run_verify_tests`/`_run_host_leak_canary`\
   \ get a `timeout=` param;\n`deviation_captured` reused for the trace (no new event\
   \ type); `_die`/`abort_class` reused for the\nabort. (2) New VIEW over existing\
   \ data, not a new entity — no new store/ledger/hook/parser. (3) What\nis removed:\
   \ the unbounded `while True` hang path (the failure mode itself). (4) Real incident,\
-  \ above.\nConstant choice: 300s/file is generous (slowest real test sleeps 3s →\
-  \ ~100x headroom) so a legit test\nnever false-trips, yet bounds a true hang to\
-  \ ~5min/file instead of infinity; env override covers a\nlegitimately long integration\
-  \ test without weakening the default.\n\nRe-verified (2026-06-10): refined the NON-timeout\
-  \ post-run verdict of\n`_run_host_leak_canary` (re-derive from `_canary_watched_leaks`/`_leak_lines`\
-  \ over post-run git\nstatus, not the raw subprocess exit). This is ORTHOGONAL to\
-  \ SPEC-0071's contract — the per-file\ntimeout bound, group-kill, `_VERIFY_TIMEOUT_MARKER`\
-  \ non-retriable abort, and the durable\n`deviation_captured` trace are all preserved\
-  \ verbatim. The timeout contract holds; last-touch\nrefreshed to clear the symbol-region\
-  \ possibly-stale heuristic.\n\n (2026-10-09): 20 of 69 Stage-6 runs on 2026-10-09\
-  \ failed, 50 of them on per-file\ntimeouts classed `stalled`, every task passing\
-  \ on a re-run. Reproduced on one tree under 40\nnice-0 CPU burners (load1 45-61\
-  \ on 32 cores): `test_per_unit_rerun.py` passed in 190 s at nice 0\n(39.9 s CPU)\
-  \ and reached 9.6 s CPU in 300 s at nice 19 (cpu/wall 0.032, `stalled`, no grace).\n\
-  Main before and after the lands of 2026-10-08 00:33-00:37 behaved the same, so the\
-  \ cause was the\nlowered priority meeting foreign nice-0 load, not a tree change\
-  \ (events.jsonl#ts=).\n\n (2026-10-10): a project's layer commands have run at the\
-  \ worker priority on a\ndispatched worker's Stage-6 run since, with a wall bound\
-  \ and no restart. Reproduced with\ntwo normal-priority CPU burners and the layer\
-  \ command pinned to the same two CPUs: at nice 19 the\ncommand read 0.0 s CPU at\
-  \ 3.0 s wall, was restarted and passed 4.5 s after its first launch\n(bound 15 s),\
-  \ three runs of three; with the restart off the same pinned run timed out three\
-  \ times\nof three, its last reading (0.17 s CPU at 12.0 s wall) classed `stalled`;\
-  \ a command that only\nwaits was not restarted (events.jsonl#ts=). Through the engine's\
-  \ own CLI\nentry on a consumer checkout, pinned the same way with nothing stubbed,\
-  \ the run passed three\ntimes of three in 6.0-6.3 s and timed out three times of\
-  \ three with the restart decision\nanswering no (events.jsonl#ts=). The run-queue\
-  \ condition exists\nbecause project layers often run their suites in containers:\
-  \ such a command's process group\nholds a waiting client and reads `stalled` for\
-  \ its whole run.\n\n## Verification\n\n- tests/test_t0678_land_verify_timeout.py:\
-  \ AC1 a hung test is killed within ~timeout + an actionable\n  marker reason + the\
-  \ call returns (non-hang); AC2 the killed test's spawned grandchild is reaped (no\n\
-  \  orphan survives); AC3 structural — a verify-failure (incl. timeout) routes to\
-  \ `_die`, never a\n  `continue`, and the timeout marker yields `abort_class=\"verify-timeout\"\
-  `; AC4 a `deviation_captured`\n  is emitted to the passed journal path; plus the\
-  \ constant + env-override resolver. adds the\n§3 classification tripwires: the three\
-  \ measured profiles yield three DISTINCT classes; a\nDEADLOCKED file is still killed\
-  \ end-to-end and classified `stalled`; the PAIRED probe that the\nkill is still\
-  \ a FAILURE with `_VERIFY_TEST_TIMEOUT_DEFAULT` still 300.0 and the raise-the-bound\n\
-  advice absent from `starved`/`stalled`; and payload-vs-message class agreement (ledger\
-  \ I9h–I9j).\n- tests/test_t10875_verify_starvation_grace.py: the §1 GRACE tripwires.\
-  \ The ANTI-PROBE — a genuinely\n  hanging file is still killed on the FIRST deadline\
-  \ (asserted as measured elapsed < 2x the bound,\n  i.e. not even one grace window),\
-  \ still marked, still non-empty, granted ZERO grace — plus the same\n  for the busy-loop\
-  \ end of the band and for an unmeasurable cpu, and — end-to-end on the real clock\
-  \ —\n  a MID-BAND hang (a livelock burning starved-band CPU, indistinguishable from\
-  \ real starvation to any\n  bound) is granted its windows and is still killed, still\
-  \ aborting, inside the ceiling. The DIFFERENTIAL — a file that only\n  exceeds the\
-  \ bound because it is starved (simulated at the runner's own two inputs: the injectable\n\
-  \  clock and the group-CPU reader) reaches its OWN real verdict and emits no timeout\
-  \ deviation. The\n  CEILING — a permanently starved file is still killed once its\
-  \ `_VERIFY_TIMEOUT_GRACE_MAX` windows\n  are spent, and both the reason (`grace=N`)\
-  \ and the payload (`grace_extensions`) record it. The\n  PAIRED probe that the 300s\
-  \ default, the marker, the resolver and the ordinary pass/fail verdicts\n  are unmoved.\
-  \ Mutation-checked: making the grace unconditional turns the anti-probes RED.\n\
-  - tests/test_t13807_niced_timeout_priority_rerun.py: the §1 lowered-priority restart.\
-  \ A starved\n  niced attempt is restarted once at the runner's own priority and\
-  \ passes inside its bound (one\n  duration row spanning both attempts, no timeout\
-  \ deviation); the DIFFERENTIAL — the same file in\n  an un-niced run fails on its\
-  \ first timeout; a hang runs twice, never more, is killed by the\n  first attempt's\
-  \ deadline and fails with the marker and ONE deviation; an attempt the injected\n\
-  \  classifier reads `long`, or one on a host with spare CPU, is not restarted while\
-  \ one read\n  `starved` is; a failing file is not re-run by this rule.\n- tests/test_t13811_consumer_layer_priority_rerun.py:\
+  \ above.\nDefault choice : generous against the slowest real test of the time (it\
+  \ slept 3 s — about 100x\nheadroom), so a legit test never false-trips, yet a true\
+  \ hang is bounded to minutes per file instead of\ninfinity; the env override and\
+  \ a machine's own budget cover a legitimately long run without weakening\nthe default.\n\
+  \nRe-verified (2026-06-10): refined the NON-timeout post-run verdict of\n`_run_host_leak_canary`\
+  \ (re-derive from `_canary_watched_leaks`/`_leak_lines` over post-run git\nstatus,\
+  \ not the raw subprocess exit). This is ORTHOGONAL to SPEC-0071's contract — the\
+  \ per-file\ntimeout bound, group-kill, `_VERIFY_TIMEOUT_MARKER` non-retriable abort,\
+  \ and the durable\n`deviation_captured` trace are all preserved verbatim. The timeout\
+  \ contract holds; last-touch\nrefreshed to clear the symbol-region possibly-stale\
+  \ heuristic.\n\n (2026-10-09): 20 of 69 Stage-6 runs on 2026-10-09 failed, 50 of\
+  \ them on per-file\ntimeouts classed `stalled`, every task passing on a re-run.\
+  \ Reproduced on one tree under 40\nnice-0 CPU burners (load1 45-61 on 32 cores):\
+  \ `test_per_unit_rerun.py` passed in 190 s at nice 0\n(39.9 s CPU) and reached 9.6\
+  \ s CPU in 300 s at nice 19 (cpu/wall 0.032, `stalled`, no grace).\nMain before\
+  \ and after the lands of 2026-10-08 00:33-00:37 behaved the same, so the cause was\
+  \ the\nlowered priority meeting foreign nice-0 load, not a tree change (events.jsonl#ts=).\n\
+  \n (2026-10-10): a project's layer commands have run at the worker priority on a\n\
+  dispatched worker's Stage-6 run since, with a wall bound and no restart. Reproduced\
+  \ with\ntwo normal-priority CPU burners and the layer command pinned to the same\
+  \ two CPUs: at nice 19 the\ncommand read 0.0 s CPU at 3.0 s wall, was restarted\
+  \ and passed 4.5 s after its first launch\n(bound 15 s), three runs of three; with\
+  \ the restart off the same pinned run timed out three times\nof three, its last\
+  \ reading (0.17 s CPU at 12.0 s wall) classed `stalled`; a command that only\nwaits\
+  \ was not restarted (events.jsonl#ts=). Through the engine's own CLI\nentry on a\
+  \ consumer checkout, pinned the same way with nothing stubbed, the run passed three\n\
+  times of three in 6.0-6.3 s and timed out three times of three with the restart\
+  \ decision\nanswering no (events.jsonl#ts=). The run-queue condition exists\nbecause\
+  \ project layers often run their suites in containers: such a command's process\
+  \ group\nholds a waiting client and reads `stalled` for its whole run.\n\n## Verification\n\
+  \n- tests/test_t0678_land_verify_timeout.py: AC1 a hung test is killed within ~timeout\
+  \ + an actionable\n  marker reason + the call returns (non-hang); AC2 the killed\
+  \ test's spawned grandchild is reaped (no\n  orphan survives); AC3 structural —\
+  \ a verify-failure (incl. timeout) routes to `_die`, never a\n  `continue`, and\
+  \ the timeout marker yields `abort_class=\"verify-timeout\"`; AC4 a `deviation_captured`\n\
+  \  is emitted to the passed journal path; plus the constant + env-override resolver.\
+  \ adds the\n§3 classification tripwires: the three measured profiles yield three\
+  \ DISTINCT classes; a\nDEADLOCKED file is still killed end-to-end and classified\
+  \ `stalled`; the PAIRED probe that the\nkill is still a FAILURE with the key's built-in\
+  \ default unmoved and the raise-the-bound\nadvice absent from `starved`/`stalled`;\
+  \ and payload-vs-message class agreement (ledger I9h–I9j).\n- tests/test_t10875_verify_starvation_grace.py:\
+  \ the §1 GRACE tripwires. The ANTI-PROBE — a genuinely\n  hanging file is still\
+  \ killed on the FIRST deadline (asserted as measured elapsed < 2x the bound,\n \
+  \ i.e. not even one grace window), still marked, still non-empty, granted ZERO grace\
+  \ — plus the same\n  for the busy-loop end of the band and for an unmeasurable cpu,\
+  \ and — end-to-end on the real clock —\n  a MID-BAND hang (a livelock burning starved-band\
+  \ CPU, indistinguishable from real starvation to any\n  bound) is granted its windows\
+  \ and is still killed, still aborting, inside the ceiling. The DIFFERENTIAL — a\
+  \ file that only\n  exceeds the bound because it is starved (simulated at the runner's\
+  \ own two inputs: the injectable\n  clock and the group-CPU reader) reaches its\
+  \ OWN real verdict and emits no timeout deviation. The\n  CEILING — a permanently\
+  \ starved file is still killed once its `_VERIFY_TIMEOUT_GRACE_MAX` windows\n  are\
+  \ spent, and both the reason (`grace=N`) and the payload (`grace_extensions`) record\
+  \ it. The\n  PAIRED probe that the key's built-in default, the marker, the resolver\
+  \ and the ordinary pass/fail verdicts\n  are unmoved. Mutation-checked: making the\
+  \ grace unconditional turns the anti-probes RED.\n- tests/test_t13807_niced_timeout_priority_rerun.py:\
+  \ the §1 lowered-priority restart. A starved\n  niced attempt is restarted once\
+  \ at the runner's own priority and passes inside its bound (one\n  duration row\
+  \ spanning both attempts, no timeout deviation); the DIFFERENTIAL — the same file\
+  \ in\n  an un-niced run fails on its first timeout; a hang runs twice, never more,\
+  \ is killed by the\n  first attempt's deadline and fails with the marker and ONE\
+  \ deviation; an attempt the injected\n  classifier reads `long`, or one on a host\
+  \ with spare CPU, is not restarted while one read\n  `starved` is; a failing file\
+  \ is not re-run by this rule.\n- tests/test_t13811_consumer_layer_priority_rerun.py:\
   \ the §1 restart of a project's verify-layer\n  command, through the Stage-6 verb\
   \ on a fixture project. A lowered command that is starved is\n  restarted once and\
   \ passes inside its bound; the DIFFERENTIALS — the same run with the restart\n \
@@ -503,7 +513,7 @@ implements_signature:
   bin/lib/cli.py#_emit_verify_timeout_deviation: aa81c2b62247a16203b627be1256e70fd440f41f0d460e3ecf07830efe88b220
   bin/lib/cli.py#_run_host_leak_canary: 93d94b07821040ba203a1b754361ae1e42ef633a5b0cd01ab2f3850f5ca7ef0b
   bin/lib/cli.py#_terminate_process_group: 90db1795ef0f8286045789950b9435cfcca8639fe53970c608e575209a937849
-  bin/lib/cli.py#_verify_test_timeout_seconds: d2f9a0910ef7d2d91b165e148082b6efec0238b5ec9683b753fba5351a25ed35
+  bin/lib/cli.py#_verify_test_timeout_seconds: 0906151c1d859aaf9416c57d7c1fd6643a6948459071854cf2956ddbb5650aeb
   bin/lib/cli.py#_verify_timeout_grace_seconds: 9c9bea45c85f2b5f43ed7080bf79afcd18be52b34d829c97c47aa9ec2599191e
   bin/lib/land_verify_legs.py#_run_layer_command: 6531990748874ae936a5f98b252056ae4e69385b87759b717d3234aa51ff9e28
   bin/lib/verify_runner.py#_path_at_or_under: e5a0791affdb82443073cc4a1468c9d99e9d4c27c141aeca7757776d5d1d6045

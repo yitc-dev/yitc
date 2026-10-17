@@ -1396,6 +1396,16 @@ def _land_attribution_line(rec: "dict | None", *, _land_ambient_yitc_overrides=N
                     + "\n- ".join(_u)
                     + "\nTHE LAND STILL ABORTS ON THEM — re-land to re-run the layer; if it fails again, "
                       "the layer itself is unstable.\n\n")
+    # T-13958 — a merge-base leg that failed WITHOUT the branch's assertion is SAID, so a reader
+    # does not take the silence for "no attribution ran", nor the base leg's failure for main's.
+    if outcome == "undecidable" and (rec or {}).get("reason") == "base-layer-failed-differently":
+        _q_lead += ("ATTRIBUTION: UNDECIDABLE — THE MERGE-BASE LEG WAS BROKEN. The failing layer(s) "
+                    "below also failed at the merge-base, but WITHOUT the failing assertion(s) shown, "
+                    "so the base run failed on something else — most often its own environment (the "
+                    "merge-base tree is a bare checkout with no dependency install) — and says nothing "
+                    "about main or this branch:\n- "
+                    + "\n- ".join(str(p) for p in ((rec or {}).get("failing") or []))
+                    + "\nTHE LAND STILL ABORTS ON THEM — judge the red on this branch's own run.\n\n")
     if outcome not in _LAND_ATTRIBUTION_OUTCOMES or outcome == "undecidable":
         return _q_lead
     if outcome == "main":
@@ -4094,7 +4104,9 @@ def _land_failure_attribution_probe(bad: "list | None", *,
     under its surfaced `"<layer>: <assertion>"` id and is re-run on the SAME merge-base tree:
     `failed` there reproduces it (main); `passed` does not (branch — only on a GREEN base run); a
     base exit of 126/127 (the shell's cannot-execute / not-found codes) is `runner-launch-failure`;
-    `timed-out` is `verify-timeout`; a layer the base does not declare is `base-layer-undeclared`
+    `timed-out` is `verify-timeout`; a base layer that failed WITHOUT the same surfaced id is
+    `base-layer-failed-differently` (T-13958, GitHub #117: a merge-base leg broken on its own
+    environment is not main reproducing the red); a layer the base does not declare is `base-layer-undeclared`
     (no green main run happened, so no branch verdict); any other base outcome or guard mode is
     `base-layer-<x>`. Every one of those declines is `undecidable` for the WHOLE record — a partial
     picture is never decided. Without both injections a layer red refuses exactly as before.
@@ -4221,13 +4233,22 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                 return ([], "verify-timeout")
             if _o == "failed":
                 _exit = None
+                _base_ids: list = []
                 for _b in res.get("bad") or []:
+                    _first = str(_b).splitlines()[0].strip() if str(_b).strip() else ""
+                    if _consumer_verify_layer_key(_first) != _name:
+                        continue
+                    _base_ids.append(_land_layer_red_id(_b, _surface_failing_assertions))
                     _m = _BASE_LAYER_EXIT_RE.match(str(_b))
-                    if _m and _consumer_verify_layer_key(str(_b).splitlines()[0]) == _name:
+                    if _m and _exit is None:
                         _exit = int(_m.group(1))
-                        break
                 if _exit in (126, 127):
                     return ([], "runner-launch-failure")
+                # T-13958 — a failed base layer reproduces THIS id only when the base run failed
+                # the SAME assertion. A base leg that failed on something else (its own unprimed
+                # environment, GitHub #117) observed nothing about this red, so it declines.
+                if _sid not in _base_ids:
+                    return ([], "base-layer-failed-differently")
                 out.append(_sid)
             elif _o != "passed":
                 return ([], f"base-layer-{_o}")
@@ -7419,7 +7440,8 @@ def _land_merge_invalid_acceptance_branches(events_path: "Path | None", **kw) ->
 
 def _land_reconcile_member_verdicts(batch_state: "dict | None", *, _append_event,
                                     events_path: "Path | None" = None,
-                                    batch_id: "str | None" = None, _emit_land_member_verdicts=None) -> int:
+                                    batch_id: "str | None" = None, _emit_land_member_verdicts=None,
+                                    _land_queue_member_facts=None, _pid_alive=None) -> int:
     """SPEC-0184 rule 5 — journal `unaccounted` for every DECLARED member that got no verdict row.
 
     THE HOLE THIS CLOSES. Verdicts are emitted from four explicit member LISTS, and until this
@@ -7466,6 +7488,18 @@ def _land_reconcile_member_verdicts(batch_state: "dict | None", *, _append_event
     by that clause and lose the row this whole function exists to emit. This is the same reading
     every other call site passes a size it did not derive from its own list for — the semantics are
     untouched.
+
+    T-13987 — A MEMBER THE FF DID NOT CARRY WHOSE OWN LAND IS STILL QUEUED GETS NO ROW HERE. Measured
+    on a consumer (public intake #121, four cases in two days): an ff-race retry resets the candidate
+    (the peers' commits leave), the inert retry skips re-formation, the head fast-forwards ALONE, and
+    the peer falls out as `not-in-landed-history` — then its OWN queued land completes 22-59 s later.
+    Sweeping it `unaccounted` told a reader it was lost. So a silent member whose recorded reason is
+    `not-in-landed-history` AND whose branch has a fresh queue wait row (the queue's own fold,
+    `_land_queue_member_facts`, over the same main journal) with a live or unpublished pid — or a
+    fresh `land_completed` status=ok row, its land having finished before this sweep — is left to
+    its own land, which answers for it. Everything else — no wait row, a stale one, a dead pid, any
+    other reason, an unreadable journal — stays `unaccounted`: a member that really vanished is still
+    LOUD (T-11322). Rule home: SPEC-0184 rule 5.
     """
     if batch_state is None:
         return 0
@@ -7479,6 +7513,43 @@ def _land_reconcile_member_verdicts(batch_state: "dict | None", *, _append_event
     # members the other seam had decided to speak for. `batch_size` below stays `len(declared)` —
     # the size of the BATCH, never of the silent subset — for the reason stated above.
     silent = _land_declared_members_awaiting_verdict(batch_state)
+    # T-13987 — read the queue ONCE, and only when a not-carried member could be waiting on it.
+    if events_path is not None and _land_queue_member_facts is not None and any(
+            reasons.get(rec["branch"]) == _LAND_MEMBER_NOT_IN_FF for rec in silent):
+        try:
+            facts = _land_queue_member_facts(events_path) or {}
+        except Exception:                      # noqa: BLE001 — unreadable queue: stay loud
+            facts = {}
+        alive = _pid_alive or (lambda _pid: "unprovable")
+        # …and a member whose own land ALREADY completed ok between the head's ff and this sweep
+        # (its pid is gone by then) is answered by that `land_completed` row: same main journal,
+        # same bounded tail, same freshness window as the wait rows (audit-pre 2026-10-16, fp1:d752).
+        landed_ok: "set[str]" = set()
+        try:
+            _now = time.time()
+            for ev in journal_mod.tail_scan_events(Path(events_path), "land_completed",
+                                                   max_bytes=_LAND_QUEUE_TAIL_BYTES) or []:
+                d = ev.get("data") if isinstance(ev, dict) and isinstance(ev.get("data"), dict) else {}
+                if ev.get("type") != "land_completed" or d.get("status") != "ok":
+                    continue
+                ts = _land_queue_row_epoch(ev.get("ts"))
+                if ts is not None and abs(_now - ts) <= _LAND_QUEUE_FRESHNESS_SEC:
+                    landed_ok.add(str(d.get("branch") or "").strip())
+        except Exception:                      # noqa: BLE001 — unreadable: nothing landed, stay loud
+            landed_ok = set()
+
+        def _own_land_queued(br: str) -> bool:
+            if br in landed_ok:
+                return True
+            f = facts.get(br)
+            if not isinstance(f, dict):
+                return False
+            pid = f.get("pid")
+            return pid is None or alive(pid) == "alive"
+
+        silent = [rec for rec in silent
+                  if not (reasons.get(rec["branch"]) == _LAND_MEMBER_NOT_IN_FF
+                          and _own_land_queued(rec["branch"]))]
     # T-11653 — GROUP BY THE ID EACH MEMBER WAS DECLARED UNDER, falling back to the argument for a
     # record that carries none. First-seen order, so the emitted sequence is deterministic.
     groups: "dict" = {}
@@ -7718,6 +7789,14 @@ def _land_entry_is_verify_timeout(entry, timeout_marker: "str | None") -> bool:
     """
     return bool(timeout_marker) and timeout_marker in str(entry)
 
+def _land_layer_red_id(entry, _surface_failing_assertions) -> str:
+    """T-13958 — the ONE derivation of a consumer layer red's `"<layer>: <assertion>"` id, read by
+    both sides of the merge-base attribution: the branch's failing entries and the base run's."""
+    s = str(entry)
+    first = s.splitlines()[0].strip() if s.strip() else ""
+    return (_surface_failing_assertions([entry]) or [first])[0]
+
+
 def _land_red_isolation_entries(bad: "list | None", timeout_marker: "str | None",
                                 _surface_failing_assertions=None, *, _land_red_isolation_surface_one=None,
                                 _consumer_verify_layer_key=None, layers_out: "list | None" = None) -> "tuple[list, str | None]":
@@ -7783,7 +7862,7 @@ def _land_red_isolation_entries(bad: "list | None", timeout_marker: "str | None"
                       and layers_out is not None else None)
             if not _layer:
                 return ([], "non-test-entry")
-            _surfaced = (_surface_failing_assertions([entry]) or [first])[0]
+            _surfaced = _land_layer_red_id(entry, _surface_failing_assertions)
             if all(_surfaced != _l[0] for _l in layers_out):
                 layers_out.append((_surfaced, _layer))
             continue

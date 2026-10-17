@@ -8,6 +8,9 @@ applies_to: reading whether a rejecting land gate's wall-clock cost is separable
 
 # Observation — a rejecting land gate's cost IS separable, and the gates are not what an aborted land costs
 
+> **Catalog.** This page is one source of `patterns/verify-cost-playbook.md`, which lists every verify-cost
+> technique with its measured case — read it there when choosing what to cut.
+
 > **Reading, not a fix.** Produced. Implementing pre-flight is explicitly out of scope
 > and remains the batching plan's decision. This artifact supplies the numbers that decision needs.
 

@@ -5229,11 +5229,12 @@ def _broken_invariants_result(now, invariants: list) -> dict:
 # all. Reporting only what MOVED is what keeps SUPPRESSED-WHEN-CLEAN a real property here rather than
 # a decoration: clean means no new entrant and no material growth, and clean prints nothing.
 #
-# NO ABSOLUTE BAR. The rejected alternative anchored to the 300s per-file verify timeout (SPEC-0071).
+# NO ABSOLUTE BAR. The rejected alternative anchored to the per-file verify bound (SPEC-0071).
 # That is an ABORT bound, not a health target: it makes a file interesting only once it is near
-# failing a land (135.7s reads as a comfortable 45% while being a bad cost for one test) and it falls
-# silent entirely once everything sits under it — exactly when durations creep back up unwatched. A
-# relative reading decrees nothing and self-calibrates. The 300s bound stays what it already is.
+# failing a land (a 135.7s file reads as comfortably inside it while being a bad cost for one test)
+# and it falls silent entirely once everything sits under it — exactly when durations creep back up
+# unwatched. A relative reading decrees nothing and self-calibrates. The per-file bound stays what it
+# already is.
 #
 # NOT A CADENCE (SPEC-0142 §4). This stands up no recurring obligation and owns no trigger: it is
 # computed inline at the debt seams a controller already passes, and computes nothing when nobody
@@ -9543,46 +9544,56 @@ def debt_explain(_debt_echo_lines, key=None) -> list:
 # The declared load-sensitive set (T-12358) grows only by automatic entry and shrinks only by a card,
 # so its SIZE is the one number that says whether flakes are a per-file problem or a harness one.
 # SPEC-0132 §3's serial-lane watch-point is EXTENDED to this lane; these are its two bounds, read
-# from the config registry (`bin/yitc-v2 config list`) and seeded at the values §3 already states —
-# no new numbers (owner directive events.jsonl#ts=2026-09-08T13:56:22Z).
+# from the config registry (`bin/yitc-v2 config list`): each value lives ONCE, as its key's inventory
+# default — no second default here (SPEC-1031 rule 9, T-13970; owner directive
+# events.jsonl#ts=2026-09-08T13:56:22Z kept §3's own numbers as those defaults).
 LOAD_SENSITIVE_CARRIER = "load-sensitive.txt"          # the T-12358 carrier, beside the tests
 LOAD_SENSITIVE_TABLE = "verify-durations.json"         # the T-11316 FIXED per-file duration table
 _LANE_SHARE_ENV = "YITC_LOAD_SENSITIVE_SHARE_PCT"
 _LANE_FILES_ENV = "YITC_LOAD_SENSITIVE_MAX_FILES"
-_LANE_SHARE_DEFAULT, _LANE_SHARE_RANGE = 10, (1, 100)
-_LANE_FILES_DEFAULT, _LANE_FILES_RANGE = 25, (1, 1000)
 
 
-def _lane_knob(env_name: str, default: int, band: tuple, *, env: "dict | None" = None) -> int:
-    """The ONE resolver behind both lane bounds: env > machine settings > built-in, fail-safe to the
-    built-in on anything blank / non-numeric / outside `band`. Copied in shape from
-    `worktree._flaky_sensitive_knob` (the T-12358 sibling) so the whole load-sensitive family
-    resolves by ONE precedence rather than two."""
-    _env = os.environ if env is None else env
-    raw = _env.get(env_name)
-    if raw is None or not str(raw).strip():
-        try:
-            from lib import machine_settings          # deferred: the hot import graph is unchanged
-            raw = machine_settings.get_value(env_name)
-        except Exception:
-            raw = None
+def _lane_ops(root=None):
+    """The ops carrier of the project whose lane is read (`root`, else this checkout), through the
+    land-time reader; any fault is the reader's unreadable answer — a report never fails on it."""
+    from lib import profile                       # deferred: the hot import graph is unchanged
     try:
-        value = int(raw)
-    except (TypeError, ValueError):
-        return default
-    lo, hi = band
-    return value if lo <= value <= hi else default
+        return profile._load_ops(Path(root) if root else Path(__file__).resolve().parents[2])
+    except (SystemExit, Exception):               # noqa: BLE001 — SPEC-1031 rule 8
+        return profile._OPS_UNREADABLE
 
 
-def load_sensitive_share_pct(*, env: "dict | None" = None) -> int:
-    """The share-of-verify-wall bound, in percent — SPEC-0132 §3's own «exceeds 10% of verify wall
-    time», reused as-is for the load-sensitive lane."""
-    return _lane_knob(_LANE_SHARE_ENV, _LANE_SHARE_DEFAULT, _LANE_SHARE_RANGE, env=env)
+def _lane_bound(key: str, *, env: "dict | None" = None, ops=None) -> dict:
+    """The ONE resolver behind both lane bounds — `{key, value, source}`, the shape
+    `machine_settings.in_force` gives a signal row (SPEC-1031 rule 6). Both keys are THRESHOLDs
+    (T-13969): the value is the project's — its yitc-ops.yaml `thresholds:` section in `ops`, source
+    `yitc-ops.yaml` — else the key's inventory default, source `built-in`. The environment and the
+    machine file are not read (rule 4), so every machine reading one project's lane reads one bound;
+    a section entry outside the key's band is ignored, and `notes` carries its report-only line
+    (rule 5) for the caller to surface."""
+    from lib import machine_settings              # deferred: the hot import graph is unchanged
+    row = machine_settings.in_force(key, env=env, ops=ops)
+    return {"key": row["key"], "value": row["value"], "source": row["source"], "notes": row["notes"]}
 
 
-def load_sensitive_max_files(*, env: "dict | None" = None) -> int:
-    """The file-count bound — SPEC-0132 §3's own «OR 25 files», reused as-is for the lane."""
-    return _lane_knob(_LANE_FILES_ENV, _LANE_FILES_DEFAULT, _LANE_FILES_RANGE, env=env)
+def _lane_value(key: str, *, root=None, env: "dict | None" = None):
+    """One bound's value for the project at `root`, its ignored `thresholds:` entries named once."""
+    from lib import machine_settings              # deferred: the hot import graph is unchanged
+    row = _lane_bound(key, env=env, ops=_lane_ops(root))
+    machine_settings.say_notes(row["notes"])
+    return row["value"]
+
+
+def load_sensitive_share_pct(*, root=None, env: "dict | None" = None) -> int:
+    """The share-of-verify-wall bound, in percent — SPEC-0132 §3's serial-lane share bound, reused
+    as-is for the load-sensitive lane; the project at `root` may set its own (a THRESHOLD)."""
+    return _lane_value(_LANE_SHARE_ENV, root=root, env=env)
+
+
+def load_sensitive_max_files(*, root=None, env: "dict | None" = None) -> int:
+    """The file-count bound — SPEC-0132 §3's serial-lane file bound, reused as-is for the lane; the
+    project at `root` may set its own (a THRESHOLD)."""
+    return _lane_value(_LANE_FILES_ENV, root=root, env=env)
 
 
 def _lane_carrier_entries(path) -> dict:
@@ -9620,7 +9631,8 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None, today=
     artifacts that already exist: the carrier `tests/load-sensitive.txt` (T-12358) and the FIXED
     per-file duration table `tests/verify-durations.json` (T-11316 / SPEC-0132 §6).
 
-    Returns `{count, wall_s, suite_wall_s, share_pct, bound_share_pct, bound_files, unrecorded,
+    Returns `{count, wall_s, suite_wall_s, share_pct, bound_share_pct, bound_files,
+    bound_share_source, bound_files_source, unrecorded,
     entry_window_days, entered, entered_s, undated, crossed: [...]}` — the four entry keys being the
     T-13621 7-day reading (present only once the table was read). `wall_s` is the lane's SERIALIZED wall — the sum of the LISTED files' recorded
     seconds, and only those: a file the table does not list contributes ZERO and is counted in
@@ -9635,10 +9647,15 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None, today=
     crossing, and never reports a PARTIAL one (a count beside a 0s wall) either: no data reads as no
     line, never as a lane that costs nothing.
     """
-    bound_share = load_sensitive_share_pct(env=env)
-    bound_files = load_sensitive_max_files(env=env)
+    _ops = _lane_ops(root)                         # ONE read of the project's carrier, both bounds
+    share_row = _lane_bound(_LANE_SHARE_ENV, env=env, ops=_ops)
+    files_row = _lane_bound(_LANE_FILES_ENV, env=env, ops=_ops)
+    from lib import machine_settings              # deferred: the hot import graph is unchanged
+    machine_settings.say_notes(share_row["notes"] + files_row["notes"])   # rule 5: one line each
+    bound_share, bound_files = share_row["value"], files_row["value"]
     out = {"count": 0, "wall_s": 0.0, "suite_wall_s": 0.0, "share_pct": 0.0,
            "bound_share_pct": bound_share, "bound_files": bound_files,
+           "bound_share_source": share_row["source"], "bound_files_source": files_row["source"],
            "unrecorded": 0, "files": [], "crossed": []}
     base = Path(root) if root else Path(__file__).resolve().parents[2]
     carrier_path = Path(carrier) if carrier else base / "tests" / LOAD_SENSITIVE_CARRIER

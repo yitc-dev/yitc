@@ -66,7 +66,7 @@ so the named-default index is one place; its rule-home is elsewhere (named, not 
   asking for it by hand.
   - **Scope bound:** structural/pre-plan forks ONLY — NOT routine choices, NOT in-lifecycle gates (the
     Stage-4/8 `audit pre|post` are already mandatory, not an offered option). **OFFERED, never
-    auto-fired** — the auditor runs only if the owner takes it, so the audit-loop ceiling (SPEC-0124)
+    auto-fired** — the auditor runs only if the owner takes it, so the audit-loop ceiling (<workshop-spec>)
     is untouched.
   - **Rule-home (do not duplicate):** AGENTS-PROTOCOL.md §Recommendation Default — "Default option — offer
     an external-auditor consult on a structural/pre-plan fork".

@@ -133,7 +133,7 @@ When AI detects inconsistency between durable artifacts (docs disagree, spec con
 
 **Protocol:** halt action → record contradiction (the session log captures it durably — manual `dissonance_detected` event optional, not obligated) → author a spec (when a NEW standing rule resolves it) or escalate to owner → resume after explicit resolution.
 
-**The re-run-vs-resolve fork (heavy gates).** A heavy mandatory gate that RED/ABORTs *again on the same unresolved cause* a prior pass already surfaced is itself a dissonance: **STOP — resolve the cause or escalate; do NOT blindly re-run the gate.** Re-running a slow gate against an unresolved contradiction is the freeze failure (both 2026-06-09 incidents — the plan-gate case still burned 2 full audits before the contradiction was recognised). This recognition is behavioral, held always; it is structurally backed by the audit-loop ceiling (SPEC-0124 §Audit-loop ceiling) and the land repeated-abort backstop — cite those for enforcement, this is the principle.
+**The re-run-vs-resolve fork (heavy gates).** A heavy mandatory gate that RED/ABORTs *again on the same unresolved cause* a prior pass already surfaced is itself a dissonance: **STOP — resolve the cause or escalate; do NOT blindly re-run the gate.** Re-running a slow gate against an unresolved contradiction is the freeze failure (both 2026-06-09 incidents — the plan-gate case still burned 2 full audits before the contradiction was recognised). This recognition is behavioral, held always; it is structurally backed by the audit-loop ceiling (SPEC-1034 §Audit-loop ceiling) and the land repeated-abort backstop — cite those for enforcement, this is the principle.
 
 Without it the foundation accumulates silent contradictions until catastrophic correction.
 

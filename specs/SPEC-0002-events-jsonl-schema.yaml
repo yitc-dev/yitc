@@ -184,20 +184,20 @@ body: "## Internal\n\n`events.jsonl` is the single append-only governance journa
   \ and a pointer — NOT a supersession: this spec spans the\nenvelope, provenance,\
   \ the per-line size cap and ordering, none of which the re-home touches,\nso superseding\
   \ it to relocate one surface would be the wrong instrument (the same\nstable-surface\
-  \ split SPEC-0124 took out of SPEC-0036). Nothing else in this spec moved.\n\n**What\
-  \ stays HERE and is referenced from the new home: §Violations below** — it still\
-  \ forbids\na second event-log file alongside events.jsonl and any in-place rewrite\
-  \ of it (CHARTER\n§Principle 5, one journal), and so still reserves PHYSICAL rotation\
-  \ to explicit owner\napproval. SPEC-0190 §Rotation policy cites it rather than restating\
-  \ it, so the prohibition has\none home too.\n\n### Orphan-tail recovery\n\nBounded\
-  \ lag is EXPLICIT, not papered over. A session that ends without a final CLI\ncall\
-  \ leaves directives in the session-log tail un-materialized until the next sync.\n\
-  Recovery verb: `bin/yitc-v2 journal sync --session-ref <id>` (ships in),\ninvoked\
-  \ manually for forensic recovery. Cross-session auto-recovery is DEFERRED\n(reopen\
-  \ only on an incident demonstrating a governance gap — CHARTER §Principle 1 F4).\n\
-  \n### Violations\n\nAny of:\n- Adding a second event-log file alongside events.jsonl\
-  \ (CHARTER §Principle 5)\n- Rewriting events.jsonl in place (breaks append-only\
-  \ invariant)\n- Emitting chat-class events (owner_directive / instruction_injection\
+  \ split <workshop-spec> took out of SPEC-0036). Nothing else in this spec moved.\n\
+  \n**What stays HERE and is referenced from the new home: §Violations below** — it\
+  \ still forbids\na second event-log file alongside events.jsonl and any in-place\
+  \ rewrite of it (CHARTER\n§Principle 5, one journal), and so still reserves PHYSICAL\
+  \ rotation to explicit owner\napproval. SPEC-0190 §Rotation policy cites it rather\
+  \ than restating it, so the prohibition has\none home too.\n\n### Orphan-tail recovery\n\
+  \nBounded lag is EXPLICIT, not papered over. A session that ends without a final\
+  \ CLI\ncall leaves directives in the session-log tail un-materialized until the\
+  \ next sync.\nRecovery verb: `bin/yitc-v2 journal sync --session-ref <id>` (ships\
+  \ in),\ninvoked manually for forensic recovery. Cross-session auto-recovery is DEFERRED\n\
+  (reopen only on an incident demonstrating a governance gap — CHARTER §Principle\
+  \ 1 F4).\n\n### Violations\n\nAny of:\n- Adding a second event-log file alongside\
+  \ events.jsonl (CHARTER §Principle 5)\n- Rewriting events.jsonl in place (breaks\
+  \ append-only invariant)\n- Emitting chat-class events (owner_directive / instruction_injection\
   \ / slash_command)\n  from an AI-discretion CLI path instead of the parser/adapter\n\
   - Bypassing fail-closed session_ref resolution (silent fallback)\n\n→ anti-complexity\
   \ filter applies; requires owner approval + a D-XXXX decision.\n\n## Rationale\n\

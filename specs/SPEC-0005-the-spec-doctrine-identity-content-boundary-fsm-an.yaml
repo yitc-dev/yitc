@@ -166,33 +166,43 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ — non-normative history, kept + indexed.\n`proposed → active` is GATED by an adoption\
   \ probe (CHARTER §P3/§P8); on activation any `supersedes:`\ntarget flips atomically\
   \ (`active` target → `superseded`; a still-`proposed` target being replaced →\n\
-  `withdrawn`/`rejected`, since it never governed).\n**Draft tooling — SHIPPED ( Part\
-  \ A).** The `draft` stage is now live: `spec new --draft\n--proposed-by <plan>`\
-  \ births a plan-local draft; `graph build` indexes drafts (status-agnostic\nwalk);\
-  \ default `graph query --projected` EXCLUDES all drafts; `graph query --projected\n\
-  --include-draft=<plan>` is the plan-scoped what-if. Draft→proposed is NOT a spec\
-  \ verb — that\npromotion is Part B's `plan accept` (one promotion route only). **Currency/staleness\
-  \ is NOT yet\nbuilt (Part G):** when it ships it MUST start at `proposed` and NEVER\
-  \ fire on `draft` — until then\nthere simply is no currency mechanism, so a draft\
-  \ triggers none.\n**A draft whose plan ends without accepting it.** When the proposing\
-  \ plan reaches `cancelled` or\n`rejected`, each spec of that plan still in `draft`\
-  \ becomes `withdrawn` in the same transition,\nand the journal row of that transition\
-  \ names it; a `proposed` or `active` spec of that plan stays\nas it is. A rule still\
-  \ wanted afterwards is authored again with `spec new` under its new carrier —\n\
-  as a draft of another plan, or as a `proposed` spec whose `activation_owner_task`\
-  \ names the card\nthat activates it (rule 5); the withdrawn draft is not revived.\
-  \ `spec edit` is not a promotion\nroute: on a `draft` it refuses a `status` change\
-  \ to anything but `withdrawn` or `rejected`, and on\na `withdrawn` or `rejected`\
-  \ spec it refuses any `status` change. A draft left by a plan that had\nalready\
-  \ ended is ended by hand: `spec edit` its `status` from `draft` to `withdrawn`.\n\
-  \n### 5. One activation OWNER per spec\nCarrier field: **`activation_owner_task:\
-  \ T-XXXX`** — the SINGLE task that carries closure, the\nadoption probe, and supersession\
-  \ responsibility. Lifecycle: forbidden while `draft`; REQUIRED for\n`proposed →\
-  \ active` (a `proposed` spec may sit briefly without one, but cannot activate without\n\
-  one); singular at all times; transferable only by explicit mutation. Other tasks\
-  \ MAY implement\nportions of the same spec (multi-surface / infra+product / staged\
-  \ rollout) — they `cite` the spec;\nthey do not own its activation.\n**Many-implementer\
-  \ rule:** when a rule has several implementing tasks (the old decision\n`refs.follow_ups`\
+  `withdrawn`/`rejected`, since it never governed).\n**A successor a sibling landed\
+  \ first.** When a spec a land activates names in\n`supersedes:` a target that `main`\
+  \ already marks `superseded`, `land` re-targets it after its merge\nfrom `main`,\
+  \ in ONE shape only: exactly one spec on `main` names that target in `supersedes:`,\
+  \ it is\n`active`, and the branch left it unchanged. The landing spec's `supersedes:`\
+  \ then moves to that head,\nthe head flips to `superseded`, and a `spec_activated`\
+  \ row carrying `retargeted_from` records it\n(SPEC-0161). Every other shape of that\
+  \ trigger — no head, several heads, a head that is not\n`active`, a head the branch\
+  \ edited — refuses the land before any spec is written. These are the\nonly two\
+  \ writers that supersede an `active` spec: `spec edit` refuses an `active → superseded`\n\
+  status change.\n**Draft tooling — SHIPPED ( Part A).** The `draft` stage is now\
+  \ live: `spec new --draft\n--proposed-by <plan>` births a plan-local draft; `graph\
+  \ build` indexes drafts (status-agnostic\nwalk); default `graph query --projected`\
+  \ EXCLUDES all drafts; `graph query --projected\n--include-draft=<plan>` is the\
+  \ plan-scoped what-if. Draft→proposed is NOT a spec verb — that\npromotion is Part\
+  \ B's `plan accept` (one promotion route only). **Currency/staleness is NOT yet\n\
+  built (Part G):** when it ships it MUST start at `proposed` and NEVER fire on `draft`\
+  \ — until then\nthere simply is no currency mechanism, so a draft triggers none.\n\
+  **A draft whose plan ends without accepting it.** When the proposing plan reaches\
+  \ `cancelled` or\n`rejected`, each spec of that plan still in `draft` becomes `withdrawn`\
+  \ in the same transition,\nand the journal row of that transition names it; a `proposed`\
+  \ or `active` spec of that plan stays\nas it is. A rule still wanted afterwards\
+  \ is authored again with `spec new` under its new carrier —\nas a draft of another\
+  \ plan, or as a `proposed` spec whose `activation_owner_task` names the card\nthat\
+  \ activates it (rule 5); the withdrawn draft is not revived. `spec edit` is not\
+  \ a promotion\nroute: on a `draft` it refuses a `status` change to anything but\
+  \ `withdrawn` or `rejected`, and on\na `withdrawn` or `rejected` spec it refuses\
+  \ any `status` change. A draft left by a plan that had\nalready ended is ended by\
+  \ hand: `spec edit` its `status` from `draft` to `withdrawn`.\n\n### 5. One activation\
+  \ OWNER per spec\nCarrier field: **`activation_owner_task: T-XXXX`** — the SINGLE\
+  \ task that carries closure, the\nadoption probe, and supersession responsibility.\
+  \ Lifecycle: forbidden while `draft`; REQUIRED for\n`proposed → active` (a `proposed`\
+  \ spec may sit briefly without one, but cannot activate without\none); singular\
+  \ at all times; transferable only by explicit mutation. Other tasks MAY implement\n\
+  portions of the same spec (multi-surface / infra+product / staged rollout) — they\
+  \ `cite` the spec;\nthey do not own its activation.\n**Many-implementer rule:**\
+  \ when a rule has several implementing tasks (the old decision\n`refs.follow_ups`\
   \ shape), exactly ONE becomes the `activation_owner_task`; the rest `cite` the spec.\n\
   **Grandfathering:** a pre-doctrine spec is VALID without `activation_owner_task`\
   \ / `proposed_by` —\nthese fields are required only for newly-created specs OR on\

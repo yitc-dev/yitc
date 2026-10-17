@@ -120,7 +120,7 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
 - **Manual fallback (emergency only)**: ONLY if the `audit` verb/CLI is unavailable (emergency-mode — `patterns/emergency-mode.md`): invoke the external auditor directly in the concrete adapter form declared in `bin/audit-config.yaml` (the provider binding's home), with a hand-authored prompt; save verdict YAML manually (SPEC-0001 quoting hazards). NOT a routine alternative — the verb is the obligatory path (AGENTS §Verb-execution discipline); a custom prompt goes through `audit adhoc --prompt`/`-f`, not a hand fallback.
 - Verdict: GREEN / YELLOW / RED / ABORT
 - **GREEN** = proceed to Stage 5
-- **YELLOW** = absorb findings inline (within the audit-loop ceiling — SPEC-0124 §Audit-loop ceiling), then proceed
+- **YELLOW** = absorb findings inline (within the audit-loop ceiling — SPEC-1034 §Audit-loop ceiling), then proceed
 - **RED** = STOP. Re-plan or escalate to owner. Never silent-loop.
 - **ABORT** = STOP. Auditor unavailable or output malformed. Surface to owner, do not proceed without a verdict.
 
@@ -136,12 +136,12 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
   later sessions). It runs no auditor and leaves `verdict:` / `passes:` / `plan_fingerprint:` untouched; it refuses a
   non-YELLOW record (RED/ABORT = STOP, GREEN has nothing to absorb) and a custody-re-pinned one. The plan text is unchanged →
   no re-fingerprint → no forced re-audit → this does **not** generate a new pass. The SAME route serves a **plan-gate**
-  residual — `bin/yitc-v2 audit pre --plan <slug> --gate <id> --absorb "<text>"`, gate id per SPEC-0124
+  residual — `bin/yitc-v2 audit pre --plan <slug> --gate <id> --absorb "<text>"`, gate id per SPEC-1034
   §Plan-target parity — on identical terms.
 - **Either mode — sweep before you absorb (rule: SPEC-0036 §Absorption sweep).** Search the whole audited subject for the
   same defect class and fix or record each instance; state the sweep — where you looked, what you found — as `--sweep "<text>"`: beside `--absorb "<text>"` for mode (b), and on a TASK's `audit pre|post` re-run after the edited plan/card text for mode (a). A plan gate's mode-(a) re-audit writes no absorption row, so there the sweep is stated in the edited plan text, not through the flag. On the routes that write a row, an absorption without the statement still proceeds and its `audit_finding_absorbed` row records `sweep: not stated`, so a miss stays countable.
 
-> **At the audit-loop ceiling — the core is SPEC-0036 §Audit-loop ceiling** (this stage's bundle delivers it); it names **SPEC-0124** (§Audit-loop ceiling: what counts as a pass) **+ SPEC-0204** (what happens once the ceiling is reached), fetched at their trigger. `bin/yitc-v2 graph query SPEC-0204`
+> **At the audit-loop ceiling — the core is SPEC-0036 §Audit-loop ceiling** (this stage's bundle delivers it); it names **SPEC-1034** (§Audit-loop ceiling: what counts as a pass) **+ SPEC-0204** (what happens once the ceiling is reached), fetched at their trigger. `bin/yitc-v2 graph query SPEC-0204`
 
 **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
 

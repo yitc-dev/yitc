@@ -374,6 +374,11 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
             # simply has none to carry.
             if abort_detail.get("verify_metrics"):
                 data["verify_metrics"] = abort_detail["verify_metrics"]
+            # T-13968 (SPEC-0025 §land_completed) — the land threshold that decided this abort, value
+            # and source (`{key, value, source}`), composed by the host residue for the backstop and
+            # retries-exhausted classes only. Additive and presence-guarded like the key above.
+            if abort_detail.get("land_threshold"):
+                data["land_threshold"] = abort_detail["land_threshold"]
             # T-11973 (SPEC-0189 / SPEC-0025 §land_completed) — THE PER-LAYER OUTCOME TRAIL ON THE
             # ABORT. `_land_integrate` has composed `_abort_detail["consumer_verify_layers"]` since
             # T-9719, whose whole stated point was "carry the per-layer outcome trail onto the abort

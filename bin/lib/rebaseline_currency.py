@@ -1587,7 +1587,7 @@ def _closure_blob(path: str, W: "Path", rev: str, _run_git_cap, _blobs) -> "str 
     r = _run_git_cap(["show", f"{rev}:{path}"], W)
     return (r.stdout or "") if r.returncode == 0 else None
 
-def _closure_spec_status_flip(path: str, W: Path, audit_commit: str, *, _run_git_cap, _blobs=None, _CLOSURE_SPEC_STATUS_RE=None, _CLOSURE_SPEC_TRANSITIONS=None, _closure_blob=None) -> "tuple | None":
+def _closure_spec_status_flip(path: str, W: Path, audit_commit: str, *, _run_git_cap, _blobs=None, _CLOSURE_SPEC_STATUS_RE=None, _CLOSURE_SPEC_TRANSITIONS=None, _closure_blob=None, _main_point=None, _CLOSURE_SPEC_HEAD_STATUS_RE=None) -> "tuple | None":
     """AXIS (b) — EXACT DIFF SHAPE. Return `(old_status, new_status)` iff the ENTIRE change to `path`
     between `audit_commit` and HEAD is ONE `status:` line replaced by another AND that pair is in the
     closed `_CLOSURE_SPEC_TRANSITIONS` vocabulary; else `None`.
@@ -1629,16 +1629,61 @@ def _closure_spec_status_flip(path: str, W: Path, audit_commit: str, *, _run_git
         pair = (mo.group(1), mn.group(1))
         return pair if pair in _CLOSURE_SPEC_TRANSITIONS else None
 
+    def _head_flip(old, new):
+        """T-13954 — the supersession re-target's HEAD flip: exactly one changed line, the `status:`
+        line read by the SAME pattern the re-target writer requires (`_CLOSURE_SPEC_HEAD_STATUS_RE`,
+        plain or quoted), and ONLY `active → superseded` — the one flip land writes to a head."""
+        if old is None or new is None or _CLOSURE_SPEC_HEAD_STATUS_RE is None:
+            return None
+        ol, nl = old.split("\n"), new.split("\n")
+        if len(ol) != len(nl):
+            return None
+        changed = [i for i, (a, b) in enumerate(zip(ol, nl)) if a != b]
+        if len(changed) != 1:
+            return None
+        mo = _CLOSURE_SPEC_HEAD_STATUS_RE.match(ol[changed[0]])
+        mn = _CLOSURE_SPEC_HEAD_STATUS_RE.match(nl[changed[0]])
+        if not mo or not mn:
+            return None
+        flip = (mo.group(mo.lastindex), mn.group(mn.lastindex))
+        return flip if flip == ("active", "superseded") else None
+
     old = _closure_blob(path, W, audit_commit, _run_git_cap, _blobs)
     new = _closure_blob(path, W, "HEAD", _run_git_cap, _blobs)
     pair = _one_flip(old, new)
+    if old is None and new is not None:
+        # T-13954 — THE SUPERSESSION RE-TARGET'S HEAD. A spec ABSENT at the audited commit (its listing
+        # read and not holding the path — an unreadable blob there is refused, never this arm) that main
+        # landed afterwards, and that land's re-target (SPEC-0005 §4) flipped `active → superseded`:
+        # judged against the main tip the land merged (`_main_point`, passed by the caller that knows
+        # it; else the T-13152 fold point `merge-base(HEAD, main)`, which a post-ff re-read cannot use
+        # because main IS HEAD then) — exactly one changed line, the `status:` line read by the SAME
+        # pattern the re-target writer requires (`_CLOSURE_SPEC_HEAD_STATUS_RE`, plain or quoted), and
+        # ONLY that one transition, the only flip land writes to a spec the branch never had.
+        # Provenance is still the caller's last conjunct.
+        try:
+            # ABSENT, not merely unread: the audited commit's listing must be read and must not hold
+            # the path — a failed read of a blob PRESENT at the audit is never taken for absence.
+            ls = _run_git_cap(["ls-tree", "--name-only", audit_commit, "--", path], W)
+            if ls.returncode != 0 or (ls.stdout or "").strip():
+                return None
+            main_pt = str(_main_point or "").strip()
+            if not main_pt:
+                mt = _run_git_cap(["merge-base", "HEAD", "main"], W)
+                main_pt = (mt.stdout or "").strip() if mt.returncode == 0 else ""
+            theirs = _closure_blob(path, W, main_pt, _run_git_cap, _blobs) if main_pt else None
+            return _head_flip(theirs, new)
+        except Exception:
+            return None
     if pair is not None or old is None or new is None:
         return pair
     try:
-        mt = _run_git_cap(["merge-base", "HEAD", "main"], W)
-        if mt.returncode != 0:
-            return None
-        main_pt = (mt.stdout or "").strip()
+        main_pt = str(_main_point or "").strip()       # T-13954 — the merged tip, when the caller knows it
+        if not main_pt:
+            mt = _run_git_cap(["merge-base", "HEAD", "main"], W)
+            if mt.returncode != 0:
+                return None
+            main_pt = (mt.stdout or "").strip()
         mb = _run_git_cap(["merge-base", audit_commit, main_pt], W)
         if mb.returncode != 0:
             return None
@@ -1659,7 +1704,10 @@ def _closure_spec_status_flip(path: str, W: Path, audit_commit: str, *, _run_git
             mr = _run_git_cap(["merge-file", "-p", *files], W)
         if mr.returncode != 0:
             return None                        # conflicted (or failed) merge — nothing to attribute
-        return _one_flip(mr.stdout or "", new)
+        # T-13954 — a head present at the audited commit (e.g. still `proposed` there) that main then
+        # activated, and the land's re-target superseded: the merged blob carries main's `active` line,
+        # read by the shared head pattern (a quoted scalar included), for that ONE transition only.
+        return _one_flip(mr.stdout or "", new) or _head_flip(mr.stdout or "", new)
     except Exception:
         return None
 
@@ -1752,7 +1800,7 @@ def _closure_spec_binding_declaration(path: str, W: Path, audit_commit: str, *, 
     return True
 
 def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", tid: "str | None", *,
-                                   _run_git_cap, EVENTS_PATH, _blobs=None, _CLOSURE_LESSON_NOTE_RE=None, _CLOSURE_SPEC_PATH_RE=None, _ClosureBlobReader=None, _closure_spec_binding_declaration=None, _closure_spec_status_flip=None, _read_land_events=None) -> set:
+                                   _run_git_cap, EVENTS_PATH, _blobs=None, _CLOSURE_LESSON_NOTE_RE=None, _CLOSURE_SPEC_PATH_RE=None, _ClosureBlobReader=None, _closure_spec_binding_declaration=None, _closure_spec_status_flip=None, _read_land_events=None, _CLOSURE_SPEC_STATUS_RE=None, _CLOSURE_SPEC_SUPERSEDES_RE=None, _main_point=None, _closure_spec_binding_block=None) -> set:
     """T-10998 — the SUBSET of `paths` PROVEN to be exact deterministic governed closure side-effects,
     i.e. post-audit writes the lifecycle itself REQUIRES and that therefore do not stale the audit.
     Everything else is absent from the subset and stays refused exactly as today.
@@ -1795,6 +1843,63 @@ def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", t
           hand-edit — but ONLY ever as the LAST conjunct. A hand-emitted row cannot admit a path whose
           shape failed (b), and a genuine flip whose row is missing is refused: provenance confirms an
           already-mechanically-proven shape, it never grants trust on its own."""
+    def _closure_spec_retarget_shape(old_text, new_text):
+        """T-13954 — AXIS (b) for the shape the land's SUPERSESSION RE-TARGET writes on the spec this
+        land activates (SPEC-0005 §4, `bin/lib/task.py#_land_supersession_retarget`). Return
+        `(status_pair_or_None, old_supersedes, new_supersedes, binding_changed)` iff the ENTIRE change
+        between the audited blob and HEAD is the scalar `supersedes:` line moving to another spec id,
+        optionally together with the closure's own `status: proposed → active` flip on its `status:`
+        line and the `binding:` declaration that closure PRESCRIBES (T-11072 — the two governed writes
+        compose); else `None`.
+
+        The T-11072 confinement, widened by exactly the one line: delete each side's `binding:` block,
+        `status:` line and `supersedes:` line, and the remainder must be byte-identical line for line
+        (TEXTUAL); parsed as YAML, the differing keys must be a subset of {supersedes, status, binding}
+        and contain `supersedes` (SEMANTIC); the spec is `active` on HEAD (the only status the writer
+        re-targets). Fail-closed: a missing blob, a `supersedes:` value that is not one spec id on either
+        side or does not change, a HEAD status other than `active`, any other status pair, an unparseable
+        blob, or anything outside the three regions returns `None`."""
+        if old_text is None or new_text is None:
+            return None
+        old_lines, new_lines = old_text.split("\n"), new_text.split("\n")
+
+        def _regions(lines):
+            idx = set(_closure_spec_binding_block(lines)) if _closure_spec_binding_block else set()
+            st = next((i for i, ln in enumerate(lines) if _CLOSURE_SPEC_STATUS_RE.match(ln)), None)
+            sp = next((i for i, ln in enumerate(lines) if ln.startswith("supersedes:")), None)
+            idx |= {i for i in (st, sp) if i is not None}
+            return idx, st, sp
+        ro, st_o, sp_o = _regions(old_lines)
+        rn, st_n, sp_n = _regions(new_lines)
+        if sp_o is None or sp_n is None:
+            return None
+        if ([ln for i, ln in enumerate(old_lines) if i not in ro]
+                != [ln for i, ln in enumerate(new_lines) if i not in rn]):
+            return None
+        so = _CLOSURE_SPEC_SUPERSEDES_RE.match(old_lines[sp_o])
+        sn = _CLOSURE_SPEC_SUPERSEDES_RE.match(new_lines[sp_n])
+        if not so or not sn or so.group(1) == sn.group(1):
+            return None
+        try:
+            from lib import state as _state
+            orec, nrec = _state.load_str(old_text), _state.load_str(new_text)
+        except Exception:                          # noqa: BLE001 — unparseable ⇒ not this shape
+            return None
+        if not isinstance(orec, dict) or not isinstance(nrec, dict):
+            return None
+        _missing = object()
+        differing = {k for k in set(orec) | set(nrec) if orec.get(k, _missing) != nrec.get(k, _missing)}
+        if "supersedes" not in differing or differing - {"supersedes", "status", "binding"}:
+            return None
+        if nrec.get("status") != "active":
+            return None                            # the writer re-targets only a spec active on HEAD
+        status_pair = None
+        if "status" in differing:
+            status_pair = (orec.get("status"), nrec.get("status"))
+            if status_pair != ("proposed", "active") or st_o is None or st_n is None:
+                return None
+        return status_pair, so.group(1), sn.group(1), "binding" in differing
+
     out: set = set()
     if not paths or not audit_commit:
         return out
@@ -1826,7 +1931,8 @@ def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", t
     shaped = {}
     for raw, (p, sid) in candidates.items():
         pair = _closure_spec_status_flip(p, W, audit_commit,
-                                         _run_git_cap=_run_git_cap, _blobs=_blobs)         # axis (b)
+                                         _run_git_cap=_run_git_cap, _blobs=_blobs,
+                                         _main_point=_main_point)                          # axis (b)
         if pair is not None:
             shaped[raw] = (sid, pair[1], False)
         elif _closure_spec_binding_declaration(p, W, audit_commit,
@@ -1836,24 +1942,60 @@ def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", t
             # its admission through the STRICTER provenance branch below: only a spec THIS close ACTIVATED
             # can carry a prescribed binding token, so the `supersedes:`-target route is unreachable here.
             shaped[raw] = (sid, "active", True)
+        elif _CLOSURE_SPEC_SUPERSEDES_RE is not None:
+            # T-13954 — the THIRD shape: the land's supersession re-target on the spec this close
+            # activated (its `supersedes:` line moved onto the head a sibling landed first, with or
+            # without the close's own proposed→active flip). Earns admission only through the stricter
+            # re-target provenance below — a `spec_activated` row naming BOTH ends of the move.
+            rt = _closure_spec_retarget_shape(
+                _closure_blob(p, W, audit_commit, _run_git_cap, _blobs),
+                _closure_blob(p, W, "HEAD", _run_git_cap, _blobs))
+            if rt is not None:
+                shaped[raw] = (sid, ("retarget", rt), False)
     if not shaped:
         return out
     activated: set = set()
     superseded: set = set()
+    retargets: set = set()                     # T-13954 — (spec_id, retargeted_from, supersedes)
     try:                                                                                  # axis (c)
         for e in journal_mod.declared_read(_read_land_events, EVENTS_PATH, types=("spec_activated",),
                                            since=journal_mod.task_floor(EVENTS_PATH, tid)):  # T-13304
             if e.get("type") != "spec_activated" or e.get("task_id") != tid:
                 continue
             d = e.get("data") or {}
-            if d.get("spec_id"):
+            if d.get("retargeted_from"):
+                # T-13954 — a LAND re-target row: it proves the re-target (both ends) and the head flip
+                # it performed, and it is NOT an activation (only the close's own row proves that).
+                retargets.add((str(d.get("spec_id") or ""), str(d["retargeted_from"]),
+                               str(d.get("supersedes") or "")))
+            elif d.get("spec_id"):
                 activated.add(str(d["spec_id"]))
             if d.get("supersedes"):
                 superseded.add((str(d["supersedes"]), str(d.get("supersedes_status") or "")))
     except Exception:
         return out             # no readable journal ⇒ no provenance ⇒ nothing spec-shaped is exempted
     for raw, (sid, new_status, is_binding) in shaped.items():
-        if is_binding:
+        if isinstance(new_status, tuple):                    # T-13954 — the re-target shape
+            status_pair, old_sup, new_sup, binding_changed = new_status[1]
+            # The re-target rows of THIS task for THIS spec, as edges retargeted_from → supersedes; a
+            # land retried after main advanced writes one per attempt (X→B, then B→C), so the move is
+            # proven when the edges CHAIN from the audited value to the one HEAD carries.
+            edges: dict = {}
+            for s_, frm_, to_ in retargets:
+                if s_ == sid:
+                    edges.setdefault(frm_, set()).add(to_)
+            seen, frontier, chained = set(), list(edges.get(old_sup, ())), False
+            while frontier:
+                cur = frontier.pop()
+                if cur == new_sup:
+                    chained = True
+                    break
+                if cur not in seen:
+                    seen.add(cur)
+                    frontier.extend(edges.get(cur, ()))
+            proven = (chained and (status_pair is None or sid in activated)
+                      and (not binding_changed or sid in activated))
+        elif is_binding:
             proven = sid in activated                        # T-11072 — the activation this close performed,
                                                              # and ONLY that: a binding declaration on a spec
                                                              # this close did not activate is not prescribed
@@ -4556,7 +4698,8 @@ def _land_audited_footprint_split(W: Path, branch: str, merged_base: "str | None
         # `unclassified` is the reserved did-not-answer value, which must never be reclassified by a
         # helper that also could not answer. A helper failure yields an empty set → nothing moves.
         closure = _governed_closure_side_effects(own, W, commit, tid,
-                                                 _run_git_cap=_run_git_cap, EVENTS_PATH=EVENTS_PATH)
+                                                 _run_git_cap=_run_git_cap, EVENTS_PATH=EVENTS_PATH,
+                                                 _main_point=merged_base)   # T-13954
         # T-11332 — the OTHER proven-exempt class, on the SAME standard and with the same
         # subset-never-a-verdict shape: content the merge classifier itself produces, re-derived here
         # and compared byte-for-byte. Partitioned out of `own_post_audit` ONLY, for the identical

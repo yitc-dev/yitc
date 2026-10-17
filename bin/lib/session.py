@@ -115,11 +115,15 @@ def startup_done_line(worker: bool, help_cmd: str) -> str:
     """T-13435 — the LAST agent-facing line of `session start`, printed just before the SPEC-0125 rule 2c
     person-facing line. Startup is done once the seed is read and `session start` has run (T-13688): the
     session-tied `--help` scan is named for the first guarded work verb, whose `_require_help_read`
-    refusal stays its enforcement."""
+    refusal stays its enforcement. T-13955: the line holds in either order — a session started before its
+    seed is read (the home picker's flow) is told to read the rest in the same turn, never to stop; and
+    the seed lines (SEED_LINE_PREFIXES) are named as the unmarked read itself."""
     nxt = "continue your claimed task" if worker else "await the owner cue"
-    return (f"startup done — open nothing else now: {nxt}. Before your first `worktree new` / `task file` / "
+    return (f"startup done — open nothing else now, once your audience's seed is read: any part of it you have "
+            f"not read yet, read now, in this same turn; then {nxt}. Before your first `worktree new` / `task file` / "
             f"`land`, scan `{help_cmd}` {HELP_SCAN_OUTPUT_CLAUSE}. Every line above is marked {REPORT_ONLY} (no action now), "
-            f"{OWNER_CUED_TAG} (only on the owner's cue) or [on-demand: <trigger>] (only when that happens).")
+            f"{OWNER_CUED_TAG} (only on the owner's cue) or [on-demand: <trigger>] (only when that happens) — except "
+            f"the seed lines, which are the read itself.")
 
 
 def contract_bodies_line(bodies: list) -> str:

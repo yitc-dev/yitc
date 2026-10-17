@@ -479,26 +479,26 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ and, per declared path not admitted, why (catalog: SPEC-0161).\n- **Why the plan\
   \ must change for a late declaration.** The saved verdict is bound to the plan's\n\
   \  fingerprint and a re-run on an unchanged fingerprint carries the prior verdict\
-  \ with no auditor\n  call (SPEC-0124); that pass keeps the prior statement of what\
-  \ was shown.\n\n## Verification\n\n- **VP1 (rule 1):** `worktree new --work spike-x`\
-  \ → refused naming `--spike`; `--spike` → stamp\n  `spike: true`; `--work sandbox-x`\
-  \ → unaffected. Kernel test, RED before GREEN.\n- **VP2 (rule 2, T1 + T3):** over\
-  \ a sandbox repo with one declared spike: `git checkout <spike> --\n  <path>` ·\
-  \ whole-file copy · rename of a copied file · `git archive` → `LAND: ABORT spike-content`\n\
-  \  naming file + spike (T1); cherry-pick · merge · rebase · `format-patch`/`am`\
-  \ · `git apply` ·\n  `merge --squash` → `LAND: ABORT spike-content` naming the spike\
-  \ (T3); partial-hunk copy and copy +\n  reformat → land with the `spike-content:`\
-  \ report line; a control branch minus the copied content →\n  `LAND: OK`; every\
-  \ land override flag re-runs the predicate; an emergency-marker commit body carrying\n\
-  \  spike content is refused; FALSE-POSITIVE controls — a declared generator output,\
-  \ a lockfile, a\n  migration, `__init__.py`, a golden fixture, a binary asset, an\
-  \ unchanged file present in the spike\n  tree — each lands. Each leg RED-observed-first\
-  \ (SPEC-0165).\n- **VP2a (rule 2a, ambiguity + boundary controls):** a change-set\
-  \ two spikes both carry → REFUSED\n  naming both refs (identity is decisive); a\
-  \ shared hunk beside own hunks → REPORT, no share names it,\n  lands; a candidate\
-  \ adding `yitc-generated` beside a copied source file → REFUSED (attribute read\
-  \ from\n  `main`); an added empty `__init__.py` → lands; a copied block split by\
-  \ an inserted line → REPORT, lands; a hunk\n  already on `main` → excluded, lands;\
+  \ with no auditor\n  call (<workshop-spec>); that pass keeps the prior statement\
+  \ of what was shown.\n\n## Verification\n\n- **VP1 (rule 1):** `worktree new --work\
+  \ spike-x` → refused naming `--spike`; `--spike` → stamp\n  `spike: true`; `--work\
+  \ sandbox-x` → unaffected. Kernel test, RED before GREEN.\n- **VP2 (rule 2, T1 +\
+  \ T3):** over a sandbox repo with one declared spike: `git checkout <spike> --\n\
+  \  <path>` · whole-file copy · rename of a copied file · `git archive` → `LAND:\
+  \ ABORT spike-content`\n  naming file + spike (T1); cherry-pick · merge · rebase\
+  \ · `format-patch`/`am` · `git apply` ·\n  `merge --squash` → `LAND: ABORT spike-content`\
+  \ naming the spike (T3); partial-hunk copy and copy +\n  reformat → land with the\
+  \ `spike-content:` report line; a control branch minus the copied content →\n  `LAND:\
+  \ OK`; every land override flag re-runs the predicate; an emergency-marker commit\
+  \ body carrying\n  spike content is refused; FALSE-POSITIVE controls — a declared\
+  \ generator output, a lockfile, a\n  migration, `__init__.py`, a golden fixture,\
+  \ a binary asset, an unchanged file present in the spike\n  tree — each lands. Each\
+  \ leg RED-observed-first (SPEC-0165).\n- **VP2a (rule 2a, ambiguity + boundary controls):**\
+  \ a change-set two spikes both carry → REFUSED\n  naming both refs (identity is\
+  \ decisive); a shared hunk beside own hunks → REPORT, no share names it,\n  lands;\
+  \ a candidate adding `yitc-generated` beside a copied source file → REFUSED (attribute\
+  \ read from\n  `main`); an added empty `__init__.py` → lands; a copied block split\
+  \ by an inserted line → REPORT, lands; a hunk\n  already on `main` → excluded, lands;\
   \ an independent-identical hunk beside own hunks → REPORT, lands;\n  a whole diff\
   \ that is one independent-identical hunk → REFUSED with the exit printed (the documented\n\
   \  class); a landed `prototype_ref` card's hunks no longer attribute (derived retirement).\n\
@@ -570,7 +570,7 @@ implements_signature:
   bin/lib/audit_packet.py#build_audit_prompt: fa41ee30bf00047cbef4d7c95ba118752c64a39978d3b3095b369b12f08c9ad5
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
-  bin/lib/deploy.py#cmd_deploy: 1580b1b5dbf6e813f212f18781c1b41154ed313c70799d54d375e11b36ea1104
+  bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
   bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
   bin/lib/spike_identity.py#content_verdict: 74ee1480574d0386dc9aa7ab0094be38b71bf68dbf7ee47f03d62b13ef480ab8
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
@@ -578,7 +578,7 @@ implements_signature:
   bin/lib/spike_identity.py#refusal_message: 1cc76242268d27b3004503ca514f0a10069e84635e506ebeab5bf151e24660c6
   bin/lib/task.py#prototype_identical_error: ba0adb9f28a6b50ebefef840452f26e583a54885fe37a90e93aca7c1da43338d
   bin/lib/task.py#prototype_ref_error: 976fed2553c45f8cb9ebee95330ccf5cb85028b1cfd3aaee1e8c21a99238bc05
-  bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883
+  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
   bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a

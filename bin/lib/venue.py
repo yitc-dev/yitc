@@ -28,6 +28,8 @@ provider's status/code/message, so no refusal path can carry it either (AC4).
 """
 from __future__ import annotations
 
+import base64
+import io
 import json
 import os
 import re
@@ -36,6 +38,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import uuid
 from pathlib import Path
 
 from lib import host_paths  # T-12024: the stdlib-only host-home leaf (no cycle)
@@ -221,6 +224,28 @@ def routing_record(env=None) -> tuple:
     return read_record(env)
 
 
+def record_transition_lock(env=None):
+    """T-13976 (SPEC-1032 rule 6) — the ONE machine-wide lock over a publish's transition: held from
+    its authoritative read of the record through its write. Two publishers of DIFFERENT repositories
+    each hold only their own repository's land reservation, so without this both could pass the
+    check and the later write silently replace the earlier record. An exclusive flock on a file
+    beside the record (the record's own directory), released when the context exits."""
+    import contextlib
+    import fcntl
+
+    @contextlib.contextmanager
+    def _held():
+        path = resolve_record_path(env)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(path.parent / ".verify-venue.lock"), os.O_CREAT | os.O_RDWR, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(fd)
+    return _held()
+
+
 def write_record(record: dict, env=None) -> Path:
     """Atomic (tmp + os.replace) and 0600 — the record carries an ssh identity and a box address."""
     return _write_json_0600(resolve_record_path(env), record)
@@ -257,14 +282,18 @@ def clear_record(env=None) -> bool:
 
 def build_record(*, box, server_id, snapshot_id, fingerprint, published_at,
                  session_ref, task=None, checkout_root=None, ssh_user=BOX_USER,
-                 ssh_identity=None) -> dict:
-    """Rule 1's field list, and ONLY it: discovery/config state, never a verdict or a result.
+                 ssh_identity=None, serves=None) -> dict:
+    """Rule 1's field list (with SPEC-1032's `serves`), and ONLY it: discovery/config state, never a
+    verdict or a result.
     `cores` + `legs` are lifted out of the fingerprint because rule 5's `derive_remote_w` consumes
-    them (T-12195) and a reader must not have to re-open the fingerprint to find the W inputs."""
+    them (T-12195) and a reader must not have to re-open the fingerprint to find the W inputs.
+    `serves` (T-13976, SPEC-1032 rule 6) — the real path of the consumer repository's git common dir
+    — is written only for a venue published for a consumer; a kernel record carries no such key."""
     fp = fingerprint or {}
     if ssh_identity is None:
         ssh_identity = (binding() or {}).get("ssh_key")
     return {
+        **({"serves": serves} if serves else {}),
         "schema": RECORD_SCHEMA,
         "box": box,
         "ssh_user": ssh_user,
@@ -481,8 +510,14 @@ QUOTA_REFUSAL_ORDER = (
 
 
 def create_server(name: str, image: str, *, env=None, server_type: "str | None" = None,
-                  location: "str | None" = None, ssh_key: "str | None" = None) -> dict:
+                  location: "str | None" = None, ssh_key: "str | None" = None,
+                  user_data: "str | None" = None, labels: "dict | None" = None) -> dict:
     """POST /servers from the seed SNAPSHOT (rule 3: a bare image is for seeding only, never a pass).
+
+    `user_data` and `labels` are given ONLY by the image build (`build_consumer_image`, T-13977),
+    which raises a BARE image to SEED it — the recipe's `create_box ... WITH_USER_DATA` — and tags the
+    box with its run's own label, so a box whose create response is lost can still be found and
+    deleted. This stays the ONE creation path, so the build meets the same quota refusal.
 
     On HTTP 403 `resource_limit_exceeded` raises `VenueQuotaRefused` carrying the recipe's exact
     snapshot -> delete -> raise order and does NOT retry: a retry cannot succeed while a box of this
@@ -493,8 +528,10 @@ def create_server(name: str, image: str, *, env=None, server_type: "str | None" 
     body = {
         "name": name, "server_type": server_type, "image": image, "location": location,
         "ssh_keys": [key_id],
-        "labels": {"purpose": "remote-verify-venue", "recipe": "venue-verb"},
+        "labels": {"purpose": "remote-verify-venue", "recipe": "venue-verb", **(labels or {})},
     }
+    if user_data is not None:
+        body["user_data"] = user_data
     status, parsed = _api("POST", "/servers", body, env=env)
     if status != 201:
         code, msg = _error_of(parsed)
@@ -525,6 +562,575 @@ def list_servers(*, env=None, label: str = "purpose=remote-verify-venue") -> lis
         raise VenueError(f"cannot list servers (HTTP {status}) — {code}: {msg}")
     return parsed.get("servers") or []
 
+
+# ── The consumer image build (SPEC-1032 rule 6 image, T-13977) ────────────────────────────────
+# WHAT THIS IS. `venue seed --build -C <consumer> --provision <script>`: the kernel's TRAVELING build
+# of a consumer's first seed snapshot. The kernel's own image recipe (its seed-recipe script) is
+# v2-self and never travels, so an install had no way to build its first image. The
+# build is the recipe's `seed` shape PORTED (not shared — the recipe file is untouched and keeps its
+# behaviour): a BARE image with the recipe's base setup, then the project's own provisioning script,
+# a FULL-HISTORY bare clone of the consumer, the host's engine release at the host's absolute path,
+# fstrim, a quiesced snapshot — and the box deleted on EVERY exit (a started hour is billed whole).
+# The CLI host (`cmd_venue_seed`) owns the journal rows and the seed record write, as for every verb.
+
+#: The base package set of a build box — the recipe's `SEED_PACKAGES`, PORTED: the recipe is v2-self
+#: and never travels, this build does. `tests/test_t13977_venue_seed_build.py` pins the two equal so
+#: neither moves alone. The consumer's OWN environment is its provisioning script's business.
+BUILD_BASE_PACKAGES = ("git", "python3", "python3-venv", "python3-pip", "python3-pytest",
+                       "python3-yaml", "curl", "ca-certificates", "rsync", "jq")
+#: The bare image a build box starts from — the recipe's `BARE_IMAGE` default (pinned equal), and
+#: the OS the readiness probe expects (`PROBE_EXPECTATIONS`: Ubuntu 24.04).
+BUILD_BARE_IMAGE = "ubuntu-24.04"
+
+
+def build_base_setup(*, user: str = BOX_USER, nofile: "int | None" = None,
+                     packages=BUILD_BASE_PACKAGES) -> str:
+    """The build box's cloud-init `user_data` — the recipe's `cloud_init`, line for line (comments
+    aside): the package set, the fd limits the venue pins (`remote_verify.VENUE_NOFILE`, SPEC-1029
+    rule 5) with pam_limits on for ssh, the box user with sudo and the root ssh keys, and the
+    CLOUD-INIT-DONE marker `wait_ready` polls. `flock` is checked after it, by the `base-check` step."""
+    nofile = remote_verify.VENUE_NOFILE if nofile is None else int(nofile)
+    return "\n".join((
+        "#!/bin/bash",
+        "set -euxo pipefail",
+        "export DEBIAN_FRONTEND=noninteractive",
+        "apt-get update -q",
+        f"apt-get install -y -q {' '.join(packages)}",
+        f"printf '* soft nofile {nofile}\\n* hard nofile {nofile}\\nroot soft nofile {nofile}\\n"
+        f"root hard nofile {nofile}\\n' > /etc/security/limits.d/90-yitc-venue.conf",
+        "grep -q pam_limits /etc/pam.d/sshd || echo 'session required pam_limits.so' >> /etc/pam.d/sshd",
+        f"useradd -m -d /home/{user} -s /bin/bash {user} || true",
+        f"mkdir -p /home/{user}/.ssh && cp /root/.ssh/authorized_keys /home/{user}/.ssh/",
+        f"chown -R {user}:{user} /home/{user}/.ssh && chmod 700 /home/{user}/.ssh",
+        f"echo '{user} ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/{user}",
+        f"chown -R {user}:{user} /home/{user}",
+        f"touch /home/{user}/CLOUD-INIT-DONE && chown {user}:{user} /home/{user}/CLOUD-INIT-DONE",
+        ""))
+
+
+def _build_git(repo, *argv, timeout: float = 120):
+    """ONE guarded git read of a host checkout for the build's pre-flight (the SPEC-0188 rule 7 child
+    env). Returns the CompletedProcess, or None when git could not be run at all."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    try:
+        return subprocess.run(["git", "-C", str(repo), *argv], text=True, capture_output=True,
+                              timeout=timeout, env=_git_env._git_child_env())
+    except Exception:                          # noqa: BLE001 — a launch fault is named by the caller
+        return None
+
+
+def _build_git_out(repo, *argv) -> "str | None":
+    r = _build_git(repo, *argv)
+    return r.stdout.strip() if r is not None and r.returncode == 0 else None
+
+
+def _engine_release(engine: Path) -> dict:
+    """The engine as a PUBLISHED RELEASE (SPEC-0195): its tracked tree, which must re-digest to the
+    `tree_digest` its own `release-manifest.yaml` declares. Reuses the release module's ONE tree
+    reader and ONE digest (`read_release_tree`, `tree_digest`) — the same pair `verify_release`
+    runs — so what ships is provably the kernel-realm cut that was published, and a workshop
+    checkout (no manifest; or v2-self files the manifest's digest does not cover) is refused. Returns
+    {tree, exec_paths, source_ref, tree_digest}; raises `VenueError` naming the cause."""
+    from lib import release as _release   # deferred: the release module is a cold path here
+    exec_paths: set = set()
+    try:
+        tree = _release.read_release_tree(engine, exec_paths=exec_paths)
+    except Exception as exc:              # noqa: BLE001 — an unreadable root is a refusal, not a crash
+        raise VenueError(f"the engine root {engine} could not be read as a release tree "
+                         f"({exc.__class__.__name__})") from None
+    manifest = _release._parse_yaml_blob(tree.get(_release.MANIFEST_FILENAME))
+    if not manifest:
+        raise VenueError(f"the engine root {engine} is not a published release (no readable "
+                         f"{_release.MANIFEST_FILENAME}) — the image carries the RELEASE this host "
+                         f"runs, never a workshop checkout")
+    excludes = [str(x) for x in (manifest.get("digest_excludes") or [_release.MANIFEST_FILENAME])]
+    declared = str(manifest.get("tree_digest") or "")
+    recomputed = _release.tree_digest(tree, excludes=excludes)
+    if not declared or recomputed != declared:
+        raise VenueError(f"the engine release at {engine} does not match its manifest — the manifest "
+                         f"says {declared[:16] or '<unset>'}…, the tracked tree hashes to "
+                         f"{recomputed[:16]}… (a modified or added file); the image ships only the "
+                         f"release as published")
+    return {"tree": tree, "exec_paths": exec_paths,
+            "source_ref": str(manifest.get("source_ref") or "?"), "tree_digest": declared}
+
+
+def build_preflight(*, repo_root, engine_root, provision, pinned: bool = False, env=None) -> dict:
+    """Every refusal the build can decide BEFORE a provider call, so a refused build costs nothing.
+
+    Returns {repo_root, engine_root, engine_path, engine, provision_path, provision_rel, main_sha};
+    raises `VenueError` naming the one cause. The checks, in order: a complete binding; a CONSUMER
+    (`-C`; the kernel's own image is the recipe's); the provisioning script is a FILE inside the
+    consumer repository (a `..` or a symlink out of it is outside); `refs/heads/main` resolves; the
+    repository is not shallow (SPEC-1032 rule 6: never shallow); the engine is not a declared pin's
+    release cache (that tree lives under the temp dir, which a booted image does not keep); the
+    engine root is a PUBLISHED RELEASE whose tracked tree matches its manifest (`_engine_release`)."""
+    _require_binding(env)
+    repo = Path(os.path.realpath(str(repo_root)))
+    engine = Path(os.path.realpath(str(engine_root)))
+    if repo == engine:
+        raise VenueError("the image build is for a CONSUMER (`-C <consumer>`); this engine's own "
+                         "image is built by its own seed recipe, which does not travel")
+    if provision is None or not str(provision).strip():
+        raise VenueError("no provisioning script was named (--provision <path in the consumer repo>)")
+    raw = Path(str(provision))
+    candidate = raw if raw.is_absolute() else repo / raw
+    prov = Path(os.path.realpath(str(candidate)))
+    if prov != repo and repo not in prov.parents:
+        raise VenueError(f"the provisioning script {provision!r} resolves to {prov}, OUTSIDE the "
+                         f"consumer repository {repo} — it must be the project's own file")
+    if not prov.is_file():
+        raise VenueError(f"the provisioning script {prov} is not a file")
+    main_sha = _build_git_out(repo, "rev-parse", "--verify", "-q", "refs/heads/main^{commit}")
+    if not main_sha:
+        raise VenueError(f"the consumer repository {repo} has no refs/heads/main — nothing to clone")
+    shallow = _build_git_out(repo, "rev-parse", "--is-shallow-repository")
+    if shallow != "false":
+        raise VenueError(f"the consumer repository {repo} is SHALLOW (or its depth could not be read: "
+                         f"{shallow!r}) — the image needs its FULL history (SPEC-1032 rule 6)")
+    if pinned:
+        raise VenueError(f"this consumer declares an engine pin; the engine resolved to the release "
+                         f"cache {engine}, which this build does not ship — run it from the install "
+                         f"the pin names")
+    return {"repo_root": repo, "engine_root": engine, "engine_path": str(engine),
+            "engine": _engine_release(engine),
+            "provision_path": prov, "provision_rel": str(prov.relative_to(repo)),
+            "main_sha": main_sha}
+
+
+def _q(value) -> str:
+    import shlex
+    return shlex.quote(str(value))
+
+
+def build_plan(pre: dict, *, box: str = "<box>", server_id="<server-id>", user: str = BOX_USER,
+               nofile: "int | None" = None) -> list:
+    """The ORDERED build steps — the ONE place the order lives (SPEC-1032 rule 6). Each step is
+    {name, where, text} plus what the driver runs: `script` (box-side shell text fed to `bash -s`
+    over ssh as `user`), `stdin_file` (the provisioning script, fed the same way), `argv` (a host
+    git command) or nothing (a provider call the driver makes). `render_build_plan` prints `text`."""
+    nofile = remote_verify.VENUE_NOFILE if nofile is None else int(nofile)
+    repo, path, release = pre["repo_root"], pre["engine_path"], pre["engine"]
+    main_sha = pre["main_sha"]
+    clone = remote_verify.BOX_REPO_GIT
+    url = f"ssh://{user}@{box}/home/{user}/venue/repo.git"
+    base_check = (
+        "set -eu\n"
+        "test -f ~/CLOUD-INIT-DONE\n"
+        f"test \"$(id -un)\" = {_q(user)}\n"
+        "[ -n \"$(command -v flock)\" ] || { echo 'base setup: flock is missing'; exit 1; }\n"
+        f"[ \"$(ulimit -Sn)\" -ge {nofile} ] && [ \"$(ulimit -Hn)\" -ge {nofile} ] "
+        f"|| {{ echo \"base setup: nofile $(ulimit -Sn)/$(ulimit -Hn) < {nofile}\"; exit 1; }}\n"
+        "echo 'base setup: user, nofile and flock present'\n")
+    clone_init = (
+        "set -eu\n"
+        f"test ! -e {clone} || {{ echo 'the clone path already exists: the build owns it'; exit 1; }}\n"
+        f"mkdir -p {remote_verify.BOX_VENUE_DIR} && git init -q --bare {clone}\n")
+    push_argv = ["git", "-C", str(repo), "push", "-q", url,
+                 f"{main_sha}:refs/heads/main", "refs/tags/*:refs/tags/*"]
+    clone_verify = (
+        "set -eu\n"
+        f"cd {clone}\n"
+        "test \"$(git rev-parse --is-shallow-repository)\" = false\n"
+        f"test \"$(git rev-parse --verify -q 'refs/heads/main^{{commit}}')\" = {main_sha}\n"
+        "git fsck --connectivity-only --no-dangling --no-progress\n"
+        "sync\n"
+        f"echo 'clone verified: full history, main@{main_sha[:12]}'\n")
+    engine_dir = (
+        "set -eu\n"
+        f"sudo mkdir -p {_q(path)} && sudo chown {user}:{user} {_q(path)}\n"
+        f"test -z \"$(ls -A {_q(path)})\" || {{ echo 'the engine path is not empty:' {_q(path)}; exit 1; }}\n")
+    extract = f"tar -x -C {_q(path)}"
+    engine_verify = (
+        "set -eu\n"
+        f"test -f {_q(path + '/bin/yitc-v2')} && test -f {_q(path + '/bin/lib/cli.py')}\n"
+        f"echo 'engine release {release['source_ref']} installed at' {_q(path)}\n")
+    fstrim = "set -eu\nsync\nsudo fstrim -av\nsync\n"
+    ssh = f"ssh {user}@{box}"
+    return [
+        {"name": "base-setup", "where": "cloud-init (root, at raise)",
+         "text": build_base_setup(user=user, nofile=nofile)},
+        {"name": "base-check", "where": f"box as {user}", "text": base_check, "script": base_check,
+         "timeout": 120},
+        {"name": "provision", "where": f"box as {user}",
+         "text": f"{ssh} 'bash -s' < {_q(pre['provision_path'])}   # the project's script, as {user}",
+         "stdin_file": pre["provision_path"], "timeout": 7200},
+        {"name": "clone-init", "where": f"box as {user}", "text": clone_init, "script": clone_init,
+         "timeout": 120},
+        {"name": "clone-push", "where": "host",
+         "text": " ".join(_q(a) for a in push_argv) + "   # full history: no --depth",
+         "argv": push_argv, "timeout": 5400},
+        {"name": "clone-verify", "where": f"box as {user}", "text": clone_verify,
+         "script": clone_verify, "timeout": 1800},
+        {"name": "engine-dir", "where": f"box as {user}", "text": engine_dir, "script": engine_dir,
+         "timeout": 120},
+        {"name": "engine-install", "where": "host",
+         "text": (f"tar of the release {release['source_ref']} as published ({len(release['tree'])} "
+                  f"files, tree_digest {release['tree_digest'][:16]}…, verified against its manifest) "
+                  f"| {ssh} {_q(extract)}"),
+         "release": release, "extract": extract, "timeout": 900},
+        {"name": "engine-verify", "where": f"box as {user}", "text": engine_verify,
+         "script": engine_verify, "timeout": 120},
+        {"name": "fstrim", "where": f"box as {user}", "text": fstrim, "script": fstrim,
+         "timeout": 900},
+        {"name": "poweroff", "where": "provider",
+         "text": f"POST /servers/{server_id}/actions/poweroff   # quiesce: never snapshot a running box"},
+        {"name": "snapshot", "where": "provider",
+         "text": f"POST /servers/{server_id}/actions/create_image"},
+    ]
+
+
+def render_build_plan(steps: list) -> str:
+    """The build as text, in order — what the driver runs, readable without a box."""
+    return "\n".join(f"## {i}. {s['name']} [{s['where']}]\n{s['text'].rstrip()}\n"
+                     for i, s in enumerate(steps, 1))
+
+
+def _box_run(ip: str, payload: bytes, *, user: str = BOX_USER, timeout: float):
+    """ONE ssh round to the build box: `bash -s` reading the step's text (or the project's
+    provisioning script) on stdin, as `user`. Bytes in, bytes out — a script is never re-encoded."""
+    return subprocess.run(remote_verify.ssh_argv(ip, "bash -s", user=user), input=payload,
+                          capture_output=True, timeout=timeout)
+
+
+def _push_clone(argv: list, *, timeout: float):
+    """The full-history clone push (host git, the SPEC-0188 rule 7 child env + the venue ssh opts)."""
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    env = dict(os.environ, GIT_SSH_COMMAND="ssh " + " ".join(remote_verify.SSH_OPTS))
+    return subprocess.run(argv, text=True, capture_output=True, timeout=timeout,
+                          env=_git_env._git_child_env(env))
+
+
+def _install_engine(release: dict, ip: str, extract: str, *, user: str = BOX_USER,
+                    timeout: float):
+    """The verified release tree (`_engine_release`) written as ONE tar and fed to `tar -x` on the
+    box. The bytes are the snapshot the digest was computed over — never a second read of the root
+    — and a file's executable bit travels (0755 for the release's exec paths, else 0644).
+    Returns (rc, tail)."""
+    import tarfile
+    with tempfile.TemporaryFile() as tar_file:
+        with tarfile.open(fileobj=tar_file, mode="w") as tar:
+            for rel in sorted(release["tree"]):
+                blob = release["tree"][rel]
+                info = tarfile.TarInfo(rel)
+                info.size = len(blob)
+                info.mode = 0o755 if rel in release["exec_paths"] else 0o644
+                info.mtime = int(time.time())
+                tar.addfile(info, io.BytesIO(blob))
+        tar_file.seek(0)
+        unpack = subprocess.run(remote_verify.ssh_argv(ip, extract, user=user), stdin=tar_file,
+                                capture_output=True, timeout=timeout)
+    return unpack.returncode, (unpack.stderr or unpack.stdout or b"").decode("utf-8", "replace")
+
+
+# ── Provider calls the build adds (ported from the recipe's `seed`; each is a READ or a MUTATION) ─
+def poweroff_server(server_id, *, env=None) -> None:
+    status, parsed = _api("POST", f"/servers/{server_id}/actions/poweroff", {}, env=env)
+    if status != 201:
+        code, msg = _error_of(parsed)
+        raise VenueError(f"poweroff of server {server_id} failed (HTTP {status}) — {code}: {msg}")
+
+
+def server_status(server_id, *, env=None) -> str:
+    status, parsed = _api("GET", f"/servers/{server_id}", env=env)
+    if status != 200:
+        code, msg = _error_of(parsed)
+        raise VenueError(f"cannot read server {server_id} (HTTP {status}) — {code}: {msg}")
+    return str(((parsed or {}).get("server") or {}).get("status") or "")
+
+
+def create_image(server_id, description: str, *, env=None, labels: "dict | None" = None) -> str:
+    body = {"type": "snapshot", "description": description,
+            "labels": {"purpose": "remote-verify-venue-seed", **(labels or {})}}
+    status, parsed = _api("POST", f"/servers/{server_id}/actions/create_image", body, env=env)
+    if status != 201:
+        code, msg = _error_of(parsed)
+        raise VenueError(f"create_image of server {server_id} failed (HTTP {status}) — {code}: {msg}")
+    image_id = ((parsed or {}).get("image") or {}).get("id")
+    if image_id in (None, ""):
+        raise VenueError(f"create_image of server {server_id} returned no image id")
+    return str(image_id)
+
+
+def image_status(image_id, *, env=None) -> str:
+    status, parsed = _api("GET", f"/images/{image_id}", env=env)
+    if status != 200:
+        code, msg = _error_of(parsed)
+        raise VenueError(f"cannot read image {image_id} (HTTP {status}) — {code}: {msg}")
+    return str(((parsed or {}).get("image") or {}).get("status") or "")
+
+
+def wait_status(read, want: str, *, seam: str, interval: float, timeout: float,
+                _sleep=time.sleep, _now=time.monotonic) -> float:
+    """The bounded provider poll — `read()` until it returns `want` or ONE absolute deadline passes
+    (a read fault refuses at once: the box is deleted by the caller's finally, never retried into)."""
+    t0 = _now()
+    last = ""
+    while True:
+        last = read()
+        if last == want:
+            return _now() - t0
+        if _now() - t0 >= timeout:
+            raise VenueError(f"bounded wait exceeded at seam {seam!r} — no {want!r} within "
+                             f"{timeout:g}s (last observed: {last or '<empty>'})")
+        _sleep(interval)
+
+
+def _tail(raw, limit: int = 600) -> str:
+    text = raw.decode("utf-8", "replace") if isinstance(raw, bytes) else str(raw or "")
+    text = text.strip()
+    return text[-limit:] if len(text) > limit else text
+
+
+#: The provider label every build box AND its snapshot carry, valued with the run's own nonce: the
+#: one handle a box (or image) whose create response was LOST can still be found by.
+BUILD_LABEL_KEY = "yitc-build"
+
+
+def build_consumer_image(pre: dict, *, name: str, on_mutation=None, say=None, env=None,
+                         ready_timeout: float = 900, poweroff_timeout: float = 300,
+                         image_timeout: float = 1800, poll_interval: float = 5,
+                         image_interval: float = 15, lookup_attempts: int = 3,
+                         lookup_interval: float = 10) -> dict:
+    """THE BUILD — raise a bare box under the install binding, run `build_plan` in order, quiesce,
+    snapshot, and DELETE THE BOX ON EVERY EXIT (success, refusal, failure, interrupt).
+
+    THE CREATE ITSELF IS INSIDE THE CLEANUP SCOPE. Every box carries `BUILD_LABEL_KEY=<nonce>`; when
+    the create's outcome is unknown — a transport fault or an interrupt after the provider may have
+    acted — the cleanup finds the box by that label and deletes it. Only a quota refusal (a
+    DEFINITE "nothing was created") skips the cleanup.
+
+    ONE ROW PER MUTATION, WHATEVER ITS OUTCOME (SPEC-0116). Each provider MUTATION the build attempts
+    — create, poweroff, create_image, delete — calls `on_mutation(target, action)` exactly once, so
+    the CLI host journals one `external_action` row each: the done row, or, when the call raised
+    after the request may have reached the provider, ONE row saying the outcome is UNKNOWN (naming
+    the run label). A quota refusal did nothing and writes none. The rows go through ONE writer that
+    never raises: a row the journal refuses never stops a delete, and fails the build AFTER the
+    cleanup, each such row named so it can be recorded by hand.
+
+    THE CLEANUP IS ONE BOUNDED PHASE AN INTERRUPT DOES NOT CUT SHORT (`_cleanup_build_box`): an
+    interrupt during it is held until its looks and deletes are done, the outcome is reported, and
+    only then is the interrupt raised again.
+
+    `pre` is `build_preflight`'s result. Returns {snapshot_id, server_id, ip, main_sha,
+    engine_release, engine_tree_digest, engine_path, provision_rel, timings}. Raises
+    `VenueQuotaRefused` or `VenueError`; a box that could not be deleted is named with
+    `bin/yitc-v2 venue delete --server-id <id>`."""
+    say = say or (lambda line: print(line, flush=True))
+    mutated = on_mutation or (lambda target, action: None)
+    b = _require_binding(env)
+    provider = b.get("provider") or "venue-provider"
+    nonce = uuid.uuid4().hex[:16]
+    label = {BUILD_LABEL_KEY: nonce}
+    box = {"id": None, "ip": ""}
+    timings: dict = {}
+    failure = interrupt = None
+    image_id = None
+    current = "create"
+    faults: list = []
+
+    def row(target, action) -> None:
+        """THE one row writer — never raises; a refused row is kept for the end-of-build refusal."""
+        try:
+            mutated(target, action)
+        except Exception as exc:               # noqa: BLE001 — the delete matters more than the row
+            faults.append((target, action, f"{exc.__class__.__name__}: {_tail(str(exc), 200)}"))
+            say(f"  WARNING: the external_action row could not be written ({exc}): {action}")
+
+    def attempt(call, target, action):
+        """ONE provider mutation. On a raise after the request may have reached the provider, its
+        ONE row says the outcome is UNKNOWN; the done row is the caller's (it names the new id)."""
+        try:
+            return call()
+        except VenueQuotaRefused:
+            raise                              # DEFINITE: the provider did nothing
+        except BaseException as exc:
+            row(target, f"{action} — outcome UNKNOWN: the call raised {exc.__class__.__name__} "
+                        f"({_tail(str(exc), 200)}), so the provider may have acted; the run label is "
+                        f"{BUILD_LABEL_KEY}={nonce} (venue seed --build)")
+            raise
+
+    def journal_held() -> None:
+        if faults:                             # stop now: a build whose rows are refused bills on
+            raise VenueError("the journal refused an external_action row, so the build stops")
+
+    try:
+        created = attempt(lambda: create_server(name, BUILD_BARE_IMAGE, env=env,
+                                                user_data=build_base_setup(), labels=label),
+                          f"{provider}:server(label {BUILD_LABEL_KEY}={nonce})", "POST /servers")
+        box["id"], box["ip"] = created["server_id"], created["ip"]
+        server_id, ip = box["id"], box["ip"]
+        target = f"{provider}:server({server_id})"
+        row(target, f"POST /servers — {b['server_type']} {b['location']} raised from bare image "
+                    f"{BUILD_BARE_IMAGE} with the base setup, label {BUILD_LABEL_KEY}={nonce} "
+                    f"(venue seed --build)")
+        journal_held()
+        say(f"venue seed --build: server {server_id} at {ip} raised from {BUILD_BARE_IMAGE}")
+        if not ip:
+            raise VenueError(f"the provider created server {server_id} but reported no ipv4")
+        current = "wait-ready"
+        t0 = time.monotonic()
+        wait_ready(ip, timeout=ready_timeout)
+        timings["ready_s"] = round(time.monotonic() - t0, 1)
+        for step in build_plan(pre, box=ip, server_id=server_id):
+            t0 = time.monotonic()
+            name_ = current = step["name"]
+            if name_ == "base-setup":
+                continue                                   # ran as cloud-init at the raise
+            say(f"  {name_}: running ({step['where']})")
+            if "script" in step or "stdin_file" in step:
+                payload = (Path(step["stdin_file"]).read_bytes() if "stdin_file" in step
+                           else step["script"].encode("utf-8"))
+                r = _box_run(ip, payload, timeout=step["timeout"])
+                if r.returncode != 0:
+                    raise VenueError(f"step {name_!r} failed on the box (rc={r.returncode}): "
+                                     f"{_tail(r.stderr or r.stdout)}")
+            elif "argv" in step:
+                r = _push_clone(step["argv"], timeout=step["timeout"])
+                if r.returncode != 0:
+                    raise VenueError(f"step {name_!r} failed (rc={r.returncode}): "
+                                     f"{_tail(r.stderr or r.stdout)}")
+            elif "release" in step:
+                rc, tail = _install_engine(step["release"], ip, step["extract"],
+                                           timeout=step["timeout"])
+                if rc != 0:
+                    raise VenueError(f"step {name_!r} failed (rc={rc}): {_tail(tail)}")
+            elif name_ == "poweroff":
+                attempt(lambda: poweroff_server(server_id, env=env), target,
+                        f"POST /servers/{server_id}/actions/poweroff")
+                row(target, f"POST /servers/{server_id}/actions/poweroff — quiesce before "
+                            f"create_image (venue seed --build)")
+                journal_held()
+                wait_status(lambda: server_status(server_id, env=env), "off",
+                            seam="server-powered-off", interval=poll_interval,
+                            timeout=poweroff_timeout)
+            elif name_ == "snapshot":
+                desc = (f"yitc-venue-seed {pre['repo_root'].name} main@{pre['main_sha'][:8]} "
+                        f"engine {pre['engine']['source_ref']} (SPEC-1032 rule 6 consumer image; "
+                        f"T-13977)")
+                try:
+                    image_id = attempt(lambda: create_image(server_id, desc, env=env, labels=label),
+                                       f"{provider}:image(label {BUILD_LABEL_KEY}={nonce})",
+                                       f"POST /servers/{server_id}/actions/create_image")
+                except VenueError as exc:
+                    raise VenueError(f"{exc} — if the provider made the snapshot anyway it carries "
+                                     f"the label {BUILD_LABEL_KEY}={nonce}") from None
+                row(f"{provider}:image({image_id})",
+                    f"POST /servers/{server_id}/actions/create_image — consumer seed snapshot of "
+                    f"{pre['repo_root'].name} at main@{pre['main_sha'][:8]}, label "
+                    f"{BUILD_LABEL_KEY}={nonce} (venue seed --build)")
+                journal_held()
+                wait_status(lambda: image_status(image_id, env=env), "available",
+                            seam="snapshot-available", interval=image_interval,
+                            timeout=image_timeout)
+            else:
+                raise VenueError(f"internal: build step {name_!r} has nothing to run")
+            timings[f"{name_}_s"] = round(time.monotonic() - t0, 1)
+            say(f"  {name_}: done ({timings[f'{name_}_s']}s)")
+    except VenueQuotaRefused:
+        raise                                  # DEFINITE: the provider created nothing
+    except subprocess.TimeoutExpired as exc:
+        failure = f"step {current!r} outlived its {exc.timeout:g}s bound"
+    except VenueError as exc:
+        failure = str(exc)
+    except Exception as exc:                   # noqa: BLE001 — any fault is a refusal, box deleted
+        failure = f"{exc.__class__.__name__}: {_tail(str(exc), 300)}"
+    except BaseException as exc:               # an interrupt: clean up, then let it propagate
+        interrupt = exc
+    gone, cleanup, held = _cleanup_build_box(box["id"], nonce, provider, row, say, env=env,
+                                             attempts=lookup_attempts, interval=lookup_interval)
+    if interrupt is None and held:
+        interrupt = held[0]
+    if faults:
+        cleanup += (f" {len(faults)} external_action row(s) could NOT be journaled; record each with "
+                    f"`bin/yitc-v2 event external_action --task <id> --data <target, action>`: "
+                    + "; ".join(f"[{t}] {a} ({why})" for t, a, why in faults))
+        if failure is None:
+            failure = "the journal refused an external_action row"
+    if interrupt is not None:
+        say(f"venue seed --build: INTERRUPTED at step {current!r} — {cleanup}")
+        raise interrupt
+    if failure is not None and image_id:
+        failure += f" (snapshot {image_id} was requested and is NOT recorded)"
+    if failure is not None:
+        raise VenueError(f"the image build REFUSED — {failure}. {cleanup}")
+    if not gone:
+        raise VenueError(f"snapshot {image_id} is available but {cleanup} Then record the image "
+                         f"with `bin/yitc-v2 venue seed --snapshot-id {image_id}`")
+    return {"snapshot_id": image_id, "server_id": box["id"], "ip": box["ip"],
+            "main_sha": pre["main_sha"], "engine_release": pre["engine"]["source_ref"],
+            "engine_tree_digest": pre["engine"]["tree_digest"], "engine_path": pre["engine_path"],
+            "provision_rel": pre["provision_rel"], "timings": timings}
+
+
+def _cleanup_build_box(server_id, nonce, provider, row, say, *, env=None, attempts: int = 3,
+                       interval: float = 10, _sleep=time.sleep) -> tuple:
+    """(gone, sentence, held) — delete the build box, as ONE bounded phase an interrupt does not cut
+    short: EVERY call in it — provider calls, the waits, the journal rows and the progress lines —
+    runs through `shielded`, so a fault is named and an interrupt is HELD (returned in
+    `held` for the caller to raise once the outcome is reported) while the phase finishes its looks
+    and deletes. With no id in hand (the create's response never arrived, or an interrupt hit it)
+    the box is FOUND by the run's label. A create whose answer was lost may still be completing on
+    the provider's side, so the lookup is repeated — `attempts` looks, `interval` seconds apart —
+    and an empty result is reported as exactly that, never as proof that nothing was created. Each
+    delete writes ONE row through `row` (the build's writer, which never raises)."""
+    held: list = []
+
+    def shielded(fn, *a, **kw) -> tuple:
+        try:
+            return True, fn(*a, **kw)
+        except Exception as exc:               # noqa: BLE001 — named by the caller
+            return False, exc
+        except BaseException as exc:           # an interrupt: held, the phase runs on
+            held.append(exc)
+            return False, exc
+
+    def why(exc) -> str:
+        return f"{exc.__class__.__name__}: {_tail(str(exc), 200)}" if str(exc) else exc.__class__.__name__
+
+    by_label = server_id is None
+    if not by_label:
+        ids = [server_id]
+    else:
+        ids, failed = [], []
+        looks = max(1, int(attempts))
+        for look in range(looks):
+            if look:
+                shielded(_sleep, interval)
+            ok, found = shielded(list_servers, env=env, label=f"{BUILD_LABEL_KEY}={nonce}")
+            if not ok:
+                failed.append(found)
+                continue
+            ids = [s.get("id") for s in found if isinstance(s, dict) and s.get("id") is not None]
+            if ids:
+                break
+        if not ids and failed:
+            return False, (f"The create's outcome is unknown and {len(failed)} of {looks} lookup(s) by "
+                           f"its label failed (last: {why(failed[-1])}): a box labelled "
+                           f"{BUILD_LABEL_KEY}={nonce} may be live — find it in the provider project "
+                           f"and delete it with `bin/yitc-v2 venue delete --server-id <id>`."), held
+        if not ids:
+            return True, (f"No box labelled {BUILD_LABEL_KEY}={nonce} was found after {looks} "
+                          f"look(s); should the provider project show one later, delete it with "
+                          f"`bin/yitc-v2 venue delete --server-id <id>`."), held
+    how = f" (found by its label {BUILD_LABEL_KEY}={nonce})" if by_label else ""
+    stuck = []
+    for sid in ids:
+        ok, status = shielded(delete_server, sid, env=env)
+        if not ok:
+            stuck.append(sid)
+            shielded(row, f"{provider}:server({sid})",
+                     f"DELETE /servers/{sid} — outcome UNKNOWN: the call raised {why(status)}; the "
+                     f"build box{how} may still be live (venue seed --build)")
+            shielded(say, f"  WARNING: delete of build box {sid} FAILED ({why(status)})")
+            continue
+        shielded(row, f"{provider}:server({sid})",
+                 f"DELETE /servers/{sid} — build box{how} deleted (HTTP {status}) (venue seed --build)")
+        shielded(say, f"  build box {sid} deleted (HTTP {status})")
+    if stuck:
+        return False, (f"The build box could NOT be deleted: finish with `bin/yitc-v2 venue delete "
+                       f"--server-id {stuck[0]}`."), held
+    return True, "The box was deleted.", held
 
 # ── Bounded wait + readiness probe ────────────────────────────────────────────────────────────
 def wait_ready(ip: str, *, user: str = BOX_USER, interval: "float | None" = None,
@@ -641,11 +1247,16 @@ def _holds(actual, op, expected) -> bool:
     raise VenueError(f"unknown probe operator {op!r}")
 
 
-def probe_readiness(fingerprint: dict | None) -> list:
+def probe_readiness(fingerprint: dict | None, declaration: "dict | None" = None) -> list:
     """The FAILURES, in table order: `[{field, op, expected, actual}]`. Empty list = GREEN.
 
     The fd row delegates to `remote_verify.fingerprint_admits_pin` — the ONE home of that predicate
     (rule 5) — and is reported under a synthetic `nofile` field so a refusal still names what failed.
+
+    T-13974 — `declaration` is a consumer's `verify.venue` reading (`consumer_declaration`). Given,
+    the box is judged for THAT consumer too, after the unchanged rows (SPEC-1032 rules 3 and 6): see
+    `consumer_readiness_failures`. Omitted (every kernel caller), the result is exactly as before —
+    a `consumer` part in the fingerprint is not read at all.
     """
     fp = fingerprint or {}
     failures = []
@@ -659,6 +1270,8 @@ def probe_readiness(fingerprint: dict | None) -> list:
         failures.append({"field": "nofile", "op": "ge", "expected": remote_verify.VENUE_NOFILE,
                          "actual": {"nofile_soft": fp.get("nofile_soft"),
                                     "nofile_hard": fp.get("nofile_hard")}})
+    if declaration is not None:
+        failures.extend(consumer_readiness_failures(fp, declaration))
     return failures
 
 
@@ -724,3 +1337,260 @@ def main_mirror_state(fingerprint: dict | None, *, repo_root, main_ref: str = "m
                 except (TypeError, ValueError):
                     behind = None
     return {"clone_main_sha": clone_sha, "host_main_sha": host_sha, "behind": behind}
+
+
+# ── The consumer declaration — `verify.venue` (SPEC-1032 rule 1, T-13972) ─────────────────────────
+#: The reason a consumer pass reads when its `verify.venue` mapping is present but malformed: it runs
+#: locally, and the reason is shown on its Stage-6 row (SPEC-1032 rules 1-2) — never a silent local run.
+DECLARATION_INVALID_REASON = "venue-declaration-invalid"
+
+
+def consumer_declaration(ops) -> dict:
+    """The consumer's `verify.venue` opt-in, read off the ALREADY-PARSED `yitc-ops.yaml` carrier
+    (SPEC-1032 rule 1; the carrier is SPEC-0093's, read and parsed by the caller). PURE: no I/O, no
+    environment, never raises, never mutates `ops`. Returns exactly one of
+
+      {"state": "absent"}
+      {"state": "valid", "stage6": True, "environment": [{"name", "cmd", "expect"}, ...]}
+      {"state": "invalid", "reason": DECLARATION_INVALID_REASON, "cause": "<field path>: <what>"}
+
+    ABSENT is keyed off the KEY (the `verify.layer_worker_shares` stance): no carrier, no `verify`
+    mapping, or no `venue` key reads absent — SPEC-1029's `consumer` branch, nothing below is read. A
+    PRESENT key whose value is malformed is INVALID, never silently absent, so `venue: ~` is invalid.
+
+    The checks run in a fixed order and the FIRST failure is the cause, so a cause names ONE field:
+    the mapping; `stage6` (exactly `True` — YAML `on` — or the quoted string "on"; `1` is not on);
+    `environment` (a list; an empty list is valid — what is not declared is not compared); then per
+    check: a mapping, `name` / `cmd` / `expect` each present and a string, `name` and `cmd` non-blank
+    (`expect` may be "" — a command that prints nothing), and no repeated `name` (a check is refused
+    BY NAME at publish, rule 6). Unknown keys are ignored; the valid result carries only the three
+    fields of each check, values verbatim.
+
+    Read by the Stage-6 seam (`task._stage6_consumer_venue`) and by `venue publish -C`, both since
+    T-13976 activated SPEC-1032."""
+    def invalid(path, what):
+        return {"state": "invalid", "reason": DECLARATION_INVALID_REASON, "cause": f"{path}: {what}"}
+
+    ver = ops.get("verify") if isinstance(ops, dict) else None
+    if not isinstance(ver, dict) or "venue" not in ver:
+        return {"state": "absent"}
+    mapping = ver.get("venue")
+    if not isinstance(mapping, dict):
+        return invalid("verify.venue", f"{mapping!r} is not a mapping")
+    if "stage6" not in mapping:
+        return invalid("verify.venue.stage6", "missing (the only routed pass class is `stage6: on`)")
+    stage6 = mapping.get("stage6")
+    if not (stage6 is True or stage6 == "on"):
+        return invalid("verify.venue.stage6", f"{stage6!r} is not on")
+    env_list = mapping.get("environment")
+    if not isinstance(env_list, list):
+        return invalid("verify.venue.environment",
+                       "missing" if "environment" not in mapping else f"{env_list!r} is not a list")
+    checks, seen = [], set()
+    for i, entry in enumerate(env_list):
+        at = f"verify.venue.environment[{i}]"
+        if not isinstance(entry, dict):
+            return invalid(at, f"{entry!r} is not a mapping of name, cmd, expect")
+        for field in ("name", "cmd", "expect"):
+            if field not in entry:
+                return invalid(f"{at}.{field}", "missing")
+            if not isinstance(entry[field], str):
+                return invalid(f"{at}.{field}", f"{entry[field]!r} is not a string (quote it)")
+        for field in ("name", "cmd"):
+            if not entry[field].strip():
+                return invalid(f"{at}.{field}", "empty")
+        if entry["name"] in seen:
+            return invalid(f"{at}.name", f"duplicate {entry['name']!r}")
+        seen.add(entry["name"])
+        checks.append({"name": entry["name"], "cmd": entry["cmd"], "expect": entry["expect"]})
+    return {"state": "valid", "stage6": True, "environment": checks}
+
+
+def consumer_declaration_of(repo_root, ops_contract) -> dict:
+    """T-13976 — `consumer_declaration` over the carrier ON DISK: `repo_root`/`ops_contract` (the
+    caller names the carrier, `init.CONSUMER_OPS_CONTRACT`). The ONE file read of `verify.venue`, used
+    by the Stage-6 seam and by `venue publish -C`. No carrier reads absent; a carrier that does not
+    parse reads INVALID naming the file, never silently absent."""
+    from lib import state                      # deferred, as this module's other lib reads
+    path = Path(repo_root) / ops_contract
+    if not path.is_file():
+        return {"state": "absent"}
+    try:
+        ops = state.load_ops(path)
+    except Exception as e:                     # noqa: BLE001 — named, never absent
+        return {"state": "invalid", "reason": DECLARATION_INVALID_REASON,
+                "cause": f"{ops_contract}: does not parse ({type(e).__name__})"}
+    return consumer_declaration(ops)
+
+
+# ── The consumer box readiness — SPEC-1032 rules 3 and 6 (T-13974) ─────────────────────────────────
+#: The consumer part of the box fingerprint, measured in ONE ssh round beside `measure_fingerprint`
+#: (the `_CLONE_SCRIPT` precedent), never one round per check: whether the atomic admission primitive
+#: (`flock`) is on the box, whether the seeded clone is SHALLOW (the consumer's tests read old git
+#: objects, so a shallow clone is refused), and each declared check's exit code and stdout. The checks
+#: travel base64-encoded JSON, so no command text can close the heredoc or need quoting. Each check
+#: runs under `bash -c` in its OWN process group, and ONE invariant decides what was measured: a check
+#: has an exit code only when its stdout reached EOF AND the process exited, both within ONE deadline
+#: of `timeout_s` (60 s by default). Anything else — a hang, or a child left holding stdout open — is
+#: rc None, which fails, and the whole group is killed whatever happened, so nothing the check
+#: started outlives it and no partial output is ever judged. The checks run inside a temporary checkout
+#: of the clone's `main`, as a pass runs them inside its own checkout (T-13976). stdout is read off the raw fd as it
+#: arrives and only the first 65536 bytes are KEPT (a check that prints without end costs no memory
+#: past that); past them the output is `truncated`, which never passes. stderr is discarded. The
+#: 65536 is a literal on purpose: this one script's bound, not a machine setting.
+_CONSUMER_PROBE_SCRIPT = r"""python3 - <<'PY'
+import base64, json, os, select, shutil, signal, subprocess, time
+checks = json.loads(base64.b64decode(%(checks)r).decode("utf-8"))
+
+def run_check(cmd, cwd=None):
+    try:
+        p = subprocess.Popen(["bash", "-c", cmd], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                             stderr=subprocess.DEVNULL, start_new_session=True, cwd=cwd)
+    except OSError:
+        return None, b"", False
+    deadline = time.monotonic() + %(timeout)d
+    fd, kept, seen, eof, rc = p.stdout.fileno(), bytearray(), 0, False, None
+    while True:
+        left = deadline - time.monotonic()
+        if left <= 0 or not select.select([fd], [], [], left)[0]:
+            break
+        b = os.read(fd, 65536)
+        if not b:
+            eof = True
+            break
+        if seen <= 65536:
+            kept += b
+        seen += len(b)
+    if eof:
+        try:
+            rc = p.wait(timeout=max(0.0, deadline - time.monotonic()))
+        except subprocess.TimeoutExpired:
+            rc = None
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except OSError:
+        pass
+    p.wait()
+    p.stdout.close()
+    return rc, bytes(kept[:65536]), seen > 65536
+clone = os.path.expanduser("~/venue/repo.git")
+try:
+    r = subprocess.run(["git", "-C", clone, "rev-parse", "--is-shallow-repository"],
+                       text=True, capture_output=True, timeout=30)
+    shallow = r.stdout.strip() if r.returncode == 0 and r.stdout.strip() in ("true", "false") else None
+except Exception:
+    shallow = None
+# T-13976: the checks run inside a checkout of the clone's main, as every pass runs them inside its
+# own checkout — a directory-dependent check answers the same at publish and on the pass. No checkout
+# (no clone, no main) leaves them in the login directory; the clone rows above already fail then.
+import tempfile
+work = tempfile.mkdtemp(prefix="venue-readiness-")
+co = os.path.join(work, "checkout")
+try:
+    made = subprocess.run(["git", "-C", clone, "worktree", "add", "-q", "--detach", co, "main"],
+                          capture_output=True, timeout=120).returncode == 0
+except Exception:
+    made = False
+out = []
+try:
+    for c in checks:
+        rc, data, truncated = run_check(c["cmd"], co if made else None)
+        out.append({"name": c["name"], "rc": rc, "stdout": data.decode("utf-8", "replace"),
+                    "truncated": truncated})
+finally:
+    if made:
+        subprocess.run(["git", "-C", clone, "worktree", "remove", "--force", co], capture_output=True)
+    shutil.rmtree(work, ignore_errors=True)
+print(json.dumps({"flock": shutil.which("flock") is not None, "clone_shallow": shallow,
+                  "checks": out}))
+PY"""
+
+
+def consumer_probe_script(checks, *, timeout_s: int = 60) -> str:
+    """The consumer probe TEXT for the declared `checks` ({name, cmd, expect}; `expect` is never
+    shipped — the box measures, the host judges). Returned as text so a test runs the SAME script on
+    this host that `measure_consumer_environment` sends to the box; `timeout_s` is the per-check
+    bound (the shipped probe uses the default)."""
+    payload = json.dumps([{"name": c["name"], "cmd": c["cmd"]} for c in checks or ()])
+    return _CONSUMER_PROBE_SCRIPT % {"checks": base64.b64encode(payload.encode("utf-8")).decode("ascii"),
+                                     "timeout": int(timeout_s)}
+
+
+def measure_consumer_environment(ip: str, declaration: dict, *, user: str = BOX_USER,
+                                 timeout: "float | None" = None) -> dict:
+    """Run the consumer probe on the box: `{flock, clone_shallow, checks: [{name, rc, stdout,
+    truncated}]}` — the fingerprint's `consumer` part (SPEC-1032 rule 1: the declared checks'
+    outputs are the consumer part of the environment fingerprint). A declaration that is not a valid
+    one is refused by name rather than probed; a probe that did not run or did not parse is a
+    `VenueError`, never an empty reading that would judge as «no checks failed»."""
+    if not isinstance(declaration, dict) or declaration.get("state") != "valid":
+        raise VenueError("no valid verify.venue declaration to probe the box against"
+                         + (f" — {declaration.get('cause')}" if isinstance(declaration, dict)
+                            and declaration.get("cause") else ""))
+    checks = declaration.get("environment") or []
+    if timeout is None:
+        timeout = 60 + 60 * len(checks)      # the script's own 60 s per check, plus the round
+    # Through the ONE venue ssh launcher (`remote_verify._ssh`, the `probe_fingerprint` route), not a
+    # second raw launch site; `check=False` so the refusal below is this module's named VenueError.
+    r = remote_verify._ssh(ip, consumer_probe_script(checks), user=user, timeout=timeout, check=False)
+    if r.returncode != 0:
+        raise VenueError(f"the consumer probe did not run on the box (rc={r.returncode}): "
+                         f"{(r.stderr or r.stdout)[:200]}")
+    try:
+        measured = json.loads(r.stdout)
+    except ValueError:
+        raise VenueError("the box returned an unparseable consumer probe") from None
+    if not isinstance(measured, dict):
+        raise VenueError("the box returned an unparseable consumer probe")
+    return measured
+
+
+def consumer_check_passes(rc, stdout, expect, truncated=False) -> bool:
+    """THE ONE comparison of a declared check (SPEC-1032 rule 1): it exited 0 AND its stdout equals
+    `expect`. «Equals» is the shell's `$(...)` reading — trailing newlines dropped, nothing else
+    touched (the declaration keeps `expect` verbatim, surrounding spaces included). A `truncated`
+    output never passes, whatever its prefix: the bytes past the cut are unknown. A non-integer exit
+    (None = timed out or did not start; a bool) fails."""
+    if truncated:
+        return False
+    # T-13976: the ONE comparison, the pass's own (`remote_verify.declared_check_passes`)
+    return remote_verify.declared_check_passes({"exit": rc, "stdout": stdout}, {"expect": expect})
+
+
+def consumer_readiness_failures(fingerprint: "dict | None", declaration: dict) -> list:
+    """The consumer rows of the readiness verdict, in the `probe_readiness` shape, read off the
+    fingerprint's `consumer` part (`measure_consumer_environment`). Each failure NAMES its cause:
+      `verify.venue` — the declaration is not a valid one (its own cause is the actual);
+      `flock`        — the atomic admission primitive is absent (or was not measured);
+      `clone_shallow`— the clone is shallow, or its depth could not be told (None): fail-closed;
+      `check:<name>` — one per declared check that did not exit 0 with stdout equal to `expect`,
+                       or that has no measurement at all.
+    An empty `environment` adds no check rows — what is not declared is not compared."""
+    if not isinstance(declaration, dict) or declaration.get("state") != "valid":
+        return [{"field": "verify.venue", "op": "valid", "expected": "",
+                 "actual": (declaration or {}).get("cause") or (declaration or {}).get("state")
+                 if isinstance(declaration, dict) else declaration}]
+    measured = (fingerprint or {}).get("consumer")
+    measured = measured if isinstance(measured, dict) else {}
+    failures = []
+    if measured.get("flock") is not True:
+        failures.append({"field": "flock", "op": "true", "expected": "",
+                         "actual": measured.get("flock")})
+    if measured.get("clone_shallow") != "false":
+        failures.append({"field": "clone_shallow", "op": "eq", "expected": "false",
+                         "actual": measured.get("clone_shallow")})
+    got = {}
+    for m in measured.get("checks") or ():
+        if isinstance(m, dict) and isinstance(m.get("name"), str):
+            got.setdefault(m["name"], m)
+    for check in declaration.get("environment") or ():
+        m = got.get(check["name"])
+        if m is not None and consumer_check_passes(m.get("rc"), m.get("stdout"), check["expect"],
+                                                   m.get("truncated")):
+            continue
+        failures.append({"field": f"check:{check['name']}", "op": "exit 0 and stdout eq",
+                         "expected": check["expect"],
+                         "actual": None if m is None else {
+                             "rc": m.get("rc"), "stdout": str(m.get("stdout") or "")[:200],
+                             "truncated": bool(m.get("truncated"))}})
+    return failures

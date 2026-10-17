@@ -430,6 +430,17 @@
    "waiver_policy": "loose"
   },
   {
+   "carrier_path": "thresholds",
+   "declare_key": "thresholds",
+   "declare_type": "mapping",
+   "presence_policy": "opt-in",
+   "section": "thresholds",
+   "spec": "SPEC-1031",
+   "update_policy": "init re-seed",
+   "version": "bc00cbff5250",
+   "waiver_policy": "loose"
+  },
+  {
    "authoring_floor": {
     "specs": [
      "SPEC-0100"

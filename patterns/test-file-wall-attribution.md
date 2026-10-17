@@ -8,6 +8,9 @@ applies_to: deciding where test-suite time can be cut without weakening a check 
 
 # Observation — the heaviest test files spend their time inside their own process, not in git fixtures, worktrees or lands
 
+> **Catalog.** This page is one source of `patterns/verify-cost-playbook.md`, which lists every verify-cost
+> technique with its measured case — read it there when choosing what to cut.
+
 > **Reading, not a fix.** Produced. No test was edited and no card was filed; the thirteen
 > groups in §5 are followups for the owner to decide on.
 

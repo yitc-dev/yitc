@@ -10706,14 +10706,17 @@ def _home_picker_body(engine_root) -> str:
             "4. Your first message to the person after the chosen project's session starts quotes, word for word, "
             "the visible start line `session start` printed last (\"Working in YITC mode — project <name>.\"). "
             "Send it as a message of its own as soon as that `session start` returns — before you read the "
-            "handbook files it names; later progress notes are separate messages.\n")
+            "handbook files it names; later progress notes are separate messages. Then continue in the same turn, "
+            "without waiting for the person: scan the `--help` the start block names, with the session ref it "
+            "printed, then read the handbook files in the read-order it names.\n")
 
 
 # T-13429 — sha256 of every EARLIER body `_home_picker_body` wrote, normalised by `_home_picker_normalised`
 # (git history: 797489755f T-13182, 4c5f8ddda3 T-13183, 5a0de2a7e4 = v2.2.0, e5e8c01b5c T-13384/T-13385,
 # 7bd9967738 = the T-13386 body T-13491 replaced, 549f8b4126 = the T-13491 body T-13504 replaced — the last
 # one that told the AI to say the come-back line at every start; station [A] Start says it once now;
-# the T-13504 body T-13527 replaced — its step 4 said "first message" and named no moment).
+# the T-13504 body T-13527 replaced — its step 4 said "first message" and named no moment; the T-13527 body
+# T-13955 replaced — its step 4 sent the start line before the handbook and never said to continue).
 # A command file matching one of these (or the current body) is engine-written and is refreshed on install;
 # anything else is a person's and is left. When `_home_picker_body` changes, add the outgoing body's digest.
 _HOME_PICKER_ENGINE_DIGESTS = frozenset({
@@ -10724,6 +10727,7 @@ _HOME_PICKER_ENGINE_DIGESTS = frozenset({
     "5577c3318d2e449ecab66a49ea86a0dccae5a366fe98db5ac10a7aff4dd933f6",
     "7c8891caea470c7c2d25e63bb1d38d33e7c63dfeb145be57420065461b91b3f0",
     "4205c0c9dcef3701a51b6c4cb2427a69fb1a9b032084193ef2830dc1825b7a20",
+    "834d042ddeb48fedaa714817b7698a467ec5af5e8aedfe07ec44daef5da3db29",
 })
 
 

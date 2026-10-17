@@ -15,7 +15,6 @@ cites:
 - SPEC-0128
 - SPEC-0015
 - SPEC-0036
-- SPEC-0124
 - SPEC-0119
 implements:
 - bin/lib/task.py#_audit_scrutiny_cases
@@ -234,7 +233,7 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ note:** a consumer has no\n`HANDBOOK_READ_ORDER` seed of its own, so for a consumer\
   \ that member is simply an empty set, not an\nexception.\n\n### Rule 4 — What a\
   \ skipped audit-post is NOT\nA card closed under a case:\n- burns **no** audit-loop\
-  \ pass (SPEC-0124) — an absent audit is not a failed one;\n- **cannot** satisfy\
+  \ pass (<workshop-spec>) — an absent audit is not a failed one;\n- **cannot** satisfy\
   \ Principle-8 infra-class adoption evidence — an infra-class card takes\n  audit-post\
   \ regardless of any case matching it;\n- is recorded **separately** from a YELLOW\
   \ absorption — the two are different facts and must not\n  be counted together;\n\
@@ -325,22 +324,25 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ rule 3's.** This rule reads the **ship diff\nONLY**. Rule 3 guards SAFETY, so\
   \ it must see every governance touch however late it lands; rule 6\nshows a reviewer\
   \ the scope the AUTHOR chose, so a write the author did not make (e.g. `task close`'s\n\
-  own spec activation) is not evidence about their declaration.\n\nFor a case declared\
-  \ by `class:` this observation is **NOT computed** — there is no declared path\n\
-  set for the diff to be outside of, and no class-to-path source of truth exists to\
-  \ invent one. The\nasymmetry is stated rather than papered over: declaring by `class:`\
-  \ buys convenience and gives up\nthis observation; a project that wants the observation\
-  \ declares the case by `paths:`. Rule 3's\nguard is unaffected either way, since\
-  \ it reads the diff.\n\n### Rule 7 — What the review proposes\nThe periodic review\
-  \ does not compute whether to loosen. Each proposal it produces names four\nthings:\
-  \ the CASE, the ACTION (restore · narrow · widen · leave), the BASIS (the specific\
-  \ records),\nand the STRENGTH of that basis — either **direct observation** (a defect\
-  \ was attributed, an audit\nfound something) or **absence of observation** (nothing\
-  \ was recorded over the window). Absence of\nobservation is labelled as such and\
-  \ is never presented as evidence of safety. The owner's answer\nto a SPEC-0189 born-permissive\
-  \ restoration proposal on the debt echo (e.g. the surface-2\nexempted-rework firing)\
-  \ is recorded as a SPEC-0189 rule 9 disposition in the concern's own\nsection, not\
-  \ as prose in a case `reason`; this rule's own four-part proposal is unchanged.\n\
+  own spec activation) is not evidence about their declaration. For the same reason\
+  \ the card's own\nlifecycle records in that diff — its card, the journal and its\
+  \ archive segments, its own\n`decisions/<tid>-*` records and the derived artifacts\
+  \ every build regenerates — never count as\noutside the declared paths.\n\nFor a\
+  \ case declared by `class:` this observation is **NOT computed** — there is no declared\
+  \ path\nset for the diff to be outside of, and no class-to-path source of truth\
+  \ exists to invent one. The\nasymmetry is stated rather than papered over: declaring\
+  \ by `class:` buys convenience and gives up\nthis observation; a project that wants\
+  \ the observation declares the case by `paths:`. Rule 3's\nguard is unaffected either\
+  \ way, since it reads the diff.\n\n### Rule 7 — What the review proposes\nThe periodic\
+  \ review does not compute whether to loosen. Each proposal it produces names four\n\
+  things: the CASE, the ACTION (restore · narrow · widen · leave), the BASIS (the\
+  \ specific records),\nand the STRENGTH of that basis — either **direct observation**\
+  \ (a defect was attributed, an audit\nfound something) or **absence of observation**\
+  \ (nothing was recorded over the window). Absence of\nobservation is labelled as\
+  \ such and is never presented as evidence of safety. The owner's answer\nto a SPEC-0189\
+  \ born-permissive restoration proposal on the debt echo (e.g. the surface-2\nexempted-rework\
+  \ firing) is recorded as a SPEC-0189 rule 9 disposition in the concern's own\nsection,\
+  \ not as prose in a case `reason`; this rule's own four-part proposal is unchanged.\n\
   \n### Rule 8 — Reconciliation with the closure and audit contracts (REQUIRED before\
   \ activation)\nThis spec CONDITIONS a precondition owned by two active contracts,\
   \ so leaving them unqualified\nwould be a standing contradiction (CHARTER §P7),\
@@ -524,12 +526,12 @@ implements_signature:
   bin/lib/task.py#_case_match: 5002cea43d867fd7d3ac1e31118115d81fe18da504fdd187b070b9d776634aa0
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: cf2ba2d7b3a8f8b3f58c845a0ddec30ea55fcc35f1c96baca044f744c61e9da7
+  bin/lib/task.py#cmd_task_close: d720d8d1e699a42854cbe6cb0206bfbe7bf4cd79db5223fcdd18fd1b3b6e146a
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
   bin/lib/task_closure_evidence.py#_case_closure_index: a68a8461d86f6fa975f4c5d523e5c081c7e724a2fa7015bc781e15ead3561103
   bin/lib/task_closure_evidence.py#_case_covered_share: bf05701807cfd853476788117b2cbaa470923898841f3a423ae5ce59b273ba8d
   bin/lib/task_closure_evidence.py#_case_declaration_refusal: 8aeb8d285b491b09fe53d327ab0aee95b99aeb236de53a45eb64844c748293d0
   bin/lib/task_closure_evidence.py#_case_governance_guard: 3412c3b3e1462446476ec9bffa9bb49f9a08409b2e5447cf4c09dfd837b5dc41
-  bin/lib/task_closure_evidence.py#_case_out_of_path_observation: 46534caa298e6f7be764d084ca27c51b7a1c518de639e70c66fb023b47840fed
+  bin/lib/task_closure_evidence.py#_case_out_of_path_observation: 170e2ac77255d41c127fc093cd15ea6f6110db4c38f5f0e38ec62d93abb7bfd2
   bin/lib/task_closure_evidence.py#_case_revision_proposal: 0a2047abfe810749433f5354cebd557835901a3cb6bda0985f2cfb91b85b7aa4
   bin/lib/task_closure_evidence.py#_case_revision_review: 1f3184d5d7bfa455ef335714b4fed812c54c093c53de320f9c87bb8721ca60df

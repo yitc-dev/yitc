@@ -1057,7 +1057,7 @@ def _live_probe_settled_unresolved(lp, tid=None) -> "str | None":
                                               _main_events_path=_main_events_path(),
                                               lines_of=lambda path: journal_mod.typed_lines(
                                                   path, None, since=_since, lock=True, must=_must))
-    return (task_mod._live_probe_settled_evidence_unresolved(lp, _events)
+    return (task_mod._live_probe_settled_evidence_unresolved(lp, _events, tid=tid)
             or task_mod._live_probe_attested_outcome_unresolved(lp, _events, tid))
 def _settle_evidence_unresolved(locator: str, tid: str = None, flag: str = "--settle-evidence") -> "str | None":
     # T-11107 (X-0885) — the RESOLUTION half of the deferred-probe settlement, bound to the journal
@@ -1549,7 +1549,8 @@ def cmd_task_close(args: argparse.Namespace) -> None:
 
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
-    task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
+    with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
+        task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -1602,8 +1603,30 @@ def _stage6_governed_selection(*a, **kw):
     return worktree_mod.verify_runner.governed_selection(*a, **kw)
 
 
+def _stage6_close_activation_writer():
+    """T-13982 — the close's own activation writer, bound at call time (a -C rebind and a test's
+    monkeypatch of these host names hold)."""
+    return functools.partial(task_mod._activate_task_proposed_specs, SPECS_DIR=SPECS_DIR,
+                             _decision_apply_field_edits=_decision_apply_field_edits,
+                             _find_spec_path=_find_spec_path, _read_yaml=_read_yaml)
+
+
 def cmd_task_test(args: argparse.Namespace) -> None:
-    return task_mod.cmd_task_test(args, _append_event=_append_event, _declared_test_sweep_paths=_declared_test_sweep_paths, _die=_die, _governing_rule_pointer=_governing_rule_pointer, _load_task_for_transition=_load_task_for_transition, _post_action_hint=_post_action_hint, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _write_task_transition=_write_task_transition, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _consumer_zero_probe_guard=_consumer_zero_probe_guard, _consumer_tests_delegation=_consumer_tests_delegation, _render_tests_delegation_note=worktree_mod._render_tests_delegation_note, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _uncommitted_layer_surface=_uncommitted_layer_surface, _render_uncommitted_layer_surface_note=worktree_mod._render_uncommitted_layer_surface_note, _auto_rebuild_graph=_auto_rebuild_graph, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _is_consumer_build=_is_consumer_build, _governed_selection=_stage6_governed_selection, _classify_inert_paths=_classify_inert_paths, _verify_worker_governor=worktree_mod._verify_worker_governor, _main_worktree=_main_worktree, _layer_step_lines=lambda cur: _scaling_signals_lines(stage6=cur))   # T-13520: the main-checkout resolver the PASS line's pinned-leg clause reads the land's policy tree through.   # T-12589: Stage-6 publishes the governor's W to consumer layers.   # T-12496: the ONE SPEC-0064 inert authority, injected so Stage 6 excludes inert changed paths from the tripwire's needles exactly as land does.   # T-12221: the SPEC-0181 selection ladder (the ONE home `verify_runner.governed_selection`, host collaborators bound at call time) — injected so the Stage-6 venue decision reads the RESOLVED breadth, never re-implemented there.   # T-12199: the SPEC-0203 rule-2 kernel/consumer predicate the routing decision reads — injected, never re-implemented.   # T-11975: the Stage-6 stale-anchor report reuses the SAME assembler the audit packet's `### Spec coverage of touched files` section calls (`_spec_coverage_section`) — one detector, forwarded here rather than re-derived, so the two surfaces cannot drift.   # T-11935: the Stage-6 uncommitted-inside-a-declared-layer-surface signal (SPEC-0152 rule 16 §stage-6-reads-a-working-tree) — report-only, injected like its sibling gap/renderer pair. # T-10975: _run_git_cap drives the done-but-UNLANDED closure determination
+    task_mod.refuse_kernel_local_placement(args, kernel=not _is_consumer_build(), _die=_die)   # T-13975: SPEC-1032 rule 6
+    # T-13982: a `--run` tests the tree its close will land — the card's close-time spec activation is
+    # held on disk for the run (task.py#_stage6_close_activation) and put back after it; the graph is
+    # rebuilt once the bytes are back, on green, red and any exception alike.
+    held = (task_mod._stage6_close_activation(REPO_ROOT, args.task, specs_dir=SPECS_DIR,
+                                              activate=_stage6_close_activation_writer(),
+                                              find_spec_path=_find_spec_path, read_yaml=_read_yaml)
+            if getattr(args, "run", False) else contextlib.nullcontext([]))
+    flipped: list = []
+    try:
+        with held as flipped:
+            return task_mod.cmd_task_test(args, _append_event=_append_event, _declared_test_sweep_paths=_declared_test_sweep_paths, _die=_die, _governing_rule_pointer=_governing_rule_pointer, _load_task_for_transition=_load_task_for_transition, _post_action_hint=_post_action_hint, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _write_task_transition=_write_task_transition, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _consumer_zero_probe_guard=_consumer_zero_probe_guard, _consumer_tests_delegation=_consumer_tests_delegation, _render_tests_delegation_note=worktree_mod._render_tests_delegation_note, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _uncommitted_layer_surface=_uncommitted_layer_surface, _render_uncommitted_layer_surface_note=worktree_mod._render_uncommitted_layer_surface_note, _auto_rebuild_graph=_auto_rebuild_graph, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _is_consumer_build=_is_consumer_build, _governed_selection=_stage6_governed_selection, _classify_inert_paths=_classify_inert_paths, _verify_worker_governor=worktree_mod._verify_worker_governor, _main_worktree=_main_worktree, _layer_step_lines=lambda cur: _scaling_signals_lines(stage6=cur))   # T-13520: the main-checkout resolver the PASS line's pinned-leg clause reads the land's policy tree through.   # T-12589: Stage-6 publishes the governor's W to consumer layers.   # T-12496: the ONE SPEC-0064 inert authority, injected so Stage 6 excludes inert changed paths from the tripwire's needles exactly as land does.   # T-12221: the SPEC-0181 selection ladder (the ONE home `verify_runner.governed_selection`, host collaborators bound at call time) — injected so the Stage-6 venue decision reads the RESOLVED breadth, never re-implemented there.   # T-12199: the SPEC-0203 rule-2 kernel/consumer predicate the routing decision reads — injected, never re-implemented.   # T-11975: the Stage-6 stale-anchor report reuses the SAME assembler the audit packet's `### Spec coverage of touched files` section calls (`_spec_coverage_section`) — one detector, forwarded here rather than re-derived, so the two surfaces cannot drift.   # T-11935: the Stage-6 uncommitted-inside-a-declared-layer-surface signal (SPEC-0152 rule 16 §stage-6-reads-a-working-tree) — report-only, injected like its sibling gap/renderer pair. # T-10975: _run_git_cap drives the done-but-UNLANDED closure determination
+    finally:
+        if flipped:
+            _auto_rebuild_graph("task_test")
 def cmd_task_analyze(args: argparse.Namespace) -> None:
     # T-11358: the Stage-8 forecast CORRECTION arm needs the recorded audit commit + its diff, so the
     # fence is computed from what the ship ACTUALLY touched rather than taken on a flag's word. Both
@@ -1641,7 +1664,8 @@ def cmd_task_commit(args: argparse.Namespace) -> None:
                       f"history (one pass) — routed T-13288", file=sys.stderr)
             if scope.set_horizon(since) and tid:   # a no-op once the scope has walked
                 scope.task_floors.setdefault(str(tid), since)
-        return task_mod.cmd_task_commit(args, _set_read_horizon=_set_read_horizon, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _audit_commit_shift_hazard=_audit_commit_shift_hazard, _bookkeeping_only_custody_shift=_bookkeeping_only_custody_shift, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _commit_worktree=_commit_worktree, _count_audit_passes=_count_audit_passes, _die=_die, _dump_state_yaml=_dump_state_yaml, _governing_contract_for=_governing_contract_for, _load_task_for_transition=_load_task_for_transition, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, write_text_atomic=write_text_atomic, _write_task_transition=_write_task_transition, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _red_fix_authored_paths=_red_fix_authored_paths, _card_repair_staged_card=_card_repair_staged_card, _folded_audit_post_hazard=_folded_audit_post_hazard, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _prior_audit_record=_prior_audit_record, _red_cause_is_card_record=_red_cause_is_card_record, _lifecycle_bookkeeping_path=_forecast_excluded_path, _worktree_dirty_paths=_worktree_dirty_paths, _worktree_path_statuses=_worktree_path_statuses, _zero_ship_diff_bookkeeping=_zero_ship_diff_bookkeeping, _reverify_spec_signature=_reverify_spec_signature, _run_git_cap=_run_git_cap, _anchor_moved_since=_anchor_moved_since)
+        with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: never commit a transient Stage-6 activation
+            return task_mod.cmd_task_commit(args, _set_read_horizon=_set_read_horizon, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _audit_commit_shift_hazard=_audit_commit_shift_hazard, _bookkeeping_only_custody_shift=_bookkeeping_only_custody_shift, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _commit_worktree=_commit_worktree, _count_audit_passes=_count_audit_passes, _die=_die, _dump_state_yaml=_dump_state_yaml, _governing_contract_for=_governing_contract_for, _load_task_for_transition=_load_task_for_transition, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, write_text_atomic=write_text_atomic, _write_task_transition=_write_task_transition, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _red_fix_authored_paths=_red_fix_authored_paths, _card_repair_staged_card=_card_repair_staged_card, _folded_audit_post_hazard=_folded_audit_post_hazard, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _prior_audit_record=_prior_audit_record, _red_cause_is_card_record=_red_cause_is_card_record, _lifecycle_bookkeeping_path=_forecast_excluded_path, _worktree_dirty_paths=_worktree_dirty_paths, _worktree_path_statuses=_worktree_path_statuses, _zero_ship_diff_bookkeeping=_zero_ship_diff_bookkeeping, _reverify_spec_signature=_reverify_spec_signature, _run_git_cap=_run_git_cap, _anchor_moved_since=_anchor_moved_since)
 def _list_sort_key(task: dict) -> tuple:
     return task_mod._list_sort_key(task)
 def cmd_task_show(args: argparse.Namespace) -> None:
@@ -3314,8 +3338,10 @@ def _resolve_session_ref_for_envelope_with_source() -> "tuple[str, str, str | No
     if carried:
         return carried, f"env:{SELF_REF_ENV}", None
     # No carry → rediscover a carry-less process's OWN identity (worktree stamp / live runtime record);
-    # a None (ambiguity/absence) degrades to the sentinel — never fails closed.
-    ref, reason, source = _try_rediscover_session_ref_with_source()
+    # a None (ambiguity/absence) degrades to the sentinel — never fails closed. The stamp counts only when
+    # REPO_ROOT is the caller's own checkout: under `-C <another session's worktree>` it names THAT
+    # worktree's owner, not this process (T-13952; the same scope T-11911 put on the keyer).
+    ref, reason, source = _try_rediscover_session_ref_with_source(allow_locus_stamp=_repo_root_is_caller_locus())
     if ref is not None:
         return ref, source, None
     return "unresolved", "unresolved", reason
@@ -9665,41 +9691,83 @@ def cmd_config_list(args: argparse.Namespace) -> None:
     bounded knob refuses an out-of-range `config set` and its resolver ignores an out-of-range value,
     but the only way to learn the band was to guess wrong and read the refusal. It is rendered from
     the SAME `knob.bounds` both doors read, so a listing cannot state a band the doors do not
-    enforce; an unbounded knob prints nothing rather than an empty column."""
+    enforce; an unbounded knob prints nothing rather than an empty column.
+
+    THE VALUE AND ITS SOURCE ARE THE ONES A READER APPLIES (T-13966, SPEC-1031 rules 4-5): each row
+    comes from `machine_settings.applied`, the one per-class read order, so a budget's environment
+    value and a threshold's project `thresholds:` value show with their source rather than a
+    machine-file or built-in reading nobody applies; an ignored `thresholds:` entry is named in one
+    report-only line of its own."""
     path = machine_settings.resolve_settings_path()
     present = machine_settings.load()
+    section, notes = machine_settings.project_thresholds(_project_ops_carrier())
     print(f"machine settings file: {path}" + ("" if path.exists() else "  (absent — built-in defaults)"))
     for knob in machine_settings.INVENTORY:
-        value = present.get(knob.name, knob.default)
-        src = "machine-file" if knob.name in present else "built-in"
-        band = "" if knob.bounds is None else f"  bounds {knob.bounds[0]}..{knob.bounds[1]}"
+        value, src = machine_settings.applied(knob, os.environ, present, section)
+        band = ("" if knob.bounds is None
+                else f"  bounds {' | '.join(knob.bounds)}" if knob.kind == "str"   # T-13971: a closed value set
+                else f"  bounds {knob.bounds[0]}..{knob.bounds[1]}")
         print(f"  {knob.cls:<11} {knob.name:<48} {value!r:<12} [{src}]  {knob.read_site}{band}")
     raw = machine_settings._raw_load(path)
     dropped = [k for k in sorted(raw) if k not in present]
     if dropped:
-        print("\nIGNORED keys present in the file (gate-class or unknown — the read path drops them, "
-              "so they change NOTHING):")
+        print("\nIGNORED keys present in the file (the read path drops them, so they change NOTHING):")
         for key in dropped:
             knob = machine_settings.BY_NAME.get(key)
-            why = "gate-class (SPEC-0132)" if knob is not None else "not in the tunable inventory"
+            if knob is None:
+                why = "not in the tunable inventory"
+            elif knob.cls == machine_settings.THRESHOLD:
+                why = "threshold-class — set in the project's yitc-ops.yaml thresholds: section"
+            elif knob.is_settable:
+                why = "its value is malformed or outside its band"
+            else:
+                why = "gate-class (SPEC-0132)"
             print(f"  {key} — {why}")
+    if notes:
+        print("\nIGNORED entries of the project's yitc-ops.yaml thresholds: section (report-only — "
+              "nothing fails on them):")
+        for line in notes:
+            print(f"  {line}")
+
+
+def _project_ops_carrier():
+    """The ops carrier of the project THIS CALL RUNS IN, through the land-time reader, for its
+    `thresholds:` section — the one `config list` / `config get` show (T-13966) and a land applies
+    (T-13969). Any fault yields the reader's own unreadable answer, which the section reader names
+    on one report-only line — no caller fails on the project's carrier (SPEC-1031 rule 8), and a
+    fault is never read as an absent section."""
+    try:
+        return profile_mod._load_ops(REPO_ROOT)
+    except (SystemExit, Exception):   # noqa: BLE001 — no reader fails on the carrier (rule 8)
+        return profile_mod._OPS_UNREADABLE
 
 
 def cmd_config_get(args: argparse.Namespace) -> None:
     """The EFFECTIVE value of one knob. Fails closed on an unknown key rather than printing an empty
-    line that reads like «set to nothing»."""
+    line that reads like «set to nothing».
+
+    T-13967 — the value comes from `machine_settings.in_force`, the one per-class read order that
+    `config list` renders too, so `get` and `list` print the same value, and for a key whose
+    environment value is an escape hatch (`Knob.escape`) that is the value its read site applies.
+    For a THRESHOLD, each ignored entry of the project's `thresholds:` section is named once on
+    stderr (SPEC-1031 rule 5), the value alone on stdout."""
     knob = machine_settings.BY_NAME.get(args.key)
     if knob is None:
         _die(f"config get: unknown key {args.key!r} — not in the tunable inventory. "
              f"`bin/yitc-v2 config list` prints every knob and its class.")
-    print(machine_settings.effective(args.key))
+    ops = _project_ops_carrier() if knob.cls == machine_settings.THRESHOLD else None
+    rec = machine_settings.in_force(args.key, ops=ops)
+    machine_settings.say_notes(rec["notes"])      # an ignored thresholds: entry, on stderr (rule 5)
+    print(rec["value"])
 
 
 def cmd_config_set(args: argparse.Namespace) -> None:
-    """Set a PERFORMANCE- or BINDING-class knob, and journal the change.
+    """Set a PERFORMANCE-, BINDING- or BUDGET-class knob (a budget inside its band), and journal the
+    change.
 
-    Refuses a GATE-class key HARD (no flag reaches the refusal, by construction) and an unknown key,
-    writing nothing in either case. On success emits `config_changed` carrying key + old + new, so a
+    Refuses a GATE-class key HARD (no flag reaches the refusal, by construction), a THRESHOLD-class key
+    (it is set in the project's yitc-ops.yaml, SPEC-1031 rule 7) and an unknown key, writing nothing in
+    any of these cases. On success emits `config_changed` carrying key + old + new, so a
     later reader asking «why did behaviour change» has the answer on the journal rather than in a
     file's mtime.
     """
@@ -9953,6 +10021,13 @@ def cmd_venue_seed(args: argparse.Namespace) -> None:
     as the seed candidate and emits `venue_seed_candidate_recorded` (T-12885) — the next bare
     `venue raise` verifies it and promotes it on GREEN. Bare, it SHOWS the record (and any pending
     candidate) or states its absence (read-only, no event). Never a side effect of publish."""
+    if getattr(args, "build", False):
+        _venue_seed_build(args)
+        return
+    if getattr(args, "provision", None) is not None:
+        _die("venue seed: --provision names the build's provisioning script and needs --build: "
+             "`bin/yitc-v2 -C <consumer> venue seed --build --provision <path>`")
+        return
     seed, reason = venue.read_seed(os.environ)
     path = venue.resolve_seed_path(os.environ)
     candidate_id = getattr(args, "candidate", None)
@@ -10003,13 +10078,80 @@ def cmd_venue_seed(args: argparse.Namespace) -> None:
           + (f" (replaces {previous})" if previous and previous != record["snapshot_id"] else ""))
 
 
-def _venue_publish_existing(record: "dict | None", box: str) -> bool:
+def _venue_seed_build(args) -> None:
+    """`venue seed --build -C <consumer> --provision <script>` — the TRAVELING consumer image build
+    (SPEC-1032 rule 6 image, T-13977). `lib/venue.py` owns the build (`build_preflight`, then
+    `build_consumer_image`, which deletes its box on every exit); this host owns the rows, as for
+    every venue verb: one `external_action` per provider mutation (SPEC-0116), and on success
+    `venue_seed_recorded` through the ONE seed writer, carrying the new snapshot id."""
+    if args.snapshot_id is not None or getattr(args, "candidate", None) is not None:
+        _die("venue seed: --build records the image it builds, so it takes neither --snapshot-id "
+             "nor --candidate; to record an existing image run `bin/yitc-v2 venue seed "
+             "--snapshot-id <id>`")
+        return
+    pinned = _PINNED_ENGINE_ROOT is not None and ENGINE_ROOT == _PINNED_ENGINE_ROOT
+    try:
+        pre = venue.build_preflight(repo_root=REPO_ROOT, engine_root=ENGINE_ROOT,
+                                    provision=args.provision, pinned=pinned, env=os.environ)
+    except venue.VenueError as exc:
+        _die(f"venue seed --build: REFUSED before any provider call — {exc}. Nothing was raised; "
+             f"once fixed re-run `bin/yitc-v2 -C <consumer> venue seed --build --provision <path>`")
+        return
+    slug = re.sub(r"[^a-z0-9-]+", "-", pre["repo_root"].name.lower()).strip("-")[:30] or "consumer"
+    name = f"yitc-venue-seed-{slug}-{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}"
+    print(f"venue seed --build: {pre['repo_root']} main@{pre['main_sha'][:12]} · engine "
+          f"{pre['engine_path']} (release {pre['engine']['source_ref']}, verified against its "
+          f"manifest) · provision {pre['provision_rel']}")
+    try:
+        built = venue.build_consumer_image(
+            pre, name=name, env=os.environ,
+            on_mutation=lambda target, action: _venue_external_action(args, target, action))
+    except venue.VenueQuotaRefused as exc:
+        _die(f"venue seed --build: REFUSED — {exc}\n  Nothing was raised. The live box of this class "
+             f"holds the quota: snapshot it if its state matters, then `bin/yitc-v2 venue delete`, "
+             f"then re-run the build.", code=3)
+        return
+    except venue.VenueError as exc:
+        _die(f"venue seed --build: {exc}\n  Once the cause is fixed re-run "
+             f"`bin/yitc-v2 -C <consumer> venue seed --build --provision <path>`.")
+        return
+    record, previous = _record_canonical_seed(
+        built["snapshot_id"], built["main_sha"],
+        f"built by venue seed --build for {pre['repo_root']} (provision {built['provision_rel']}, "
+        f"engine release {built['engine_release']})",
+        getattr(args, "task", None),
+        extra={"built_by": "venue seed --build", "built_for": str(pre["repo_root"]),
+               "engine_root": built["engine_path"], "engine_release": built["engine_release"],
+               "engine_tree_digest": built["engine_tree_digest"],
+               "provision": built["provision_rel"], "build_server_id": built["server_id"]})
+    if record is None:
+        return
+    print(f"venue seed --build: snapshot {record['snapshot_id']} recorded as the canonical seed "
+          f"({venue.resolve_seed_path(os.environ)})"
+          + (f", replacing {previous}" if previous and previous != record["snapshot_id"] else "")
+          + f"; the build box {built['server_id']} is deleted")
+    candidate, _cand_reason = venue.read_seed_candidate(os.environ)
+    if candidate is not None:
+        print(f"  note: a seed CANDIDATE ({candidate['snapshot_id']}) is pending and a bare "
+              f"`venue raise` tries it FIRST; `bin/yitc-v2 venue raise --from-image "
+              f"{record['snapshot_id']}` raises this build's image")
+
+
+def _venue_publish_existing(record: "dict | None", box: str, serves=None) -> bool:
     """The unpublished->published TRANSITION is the only thing `publish` gates (SPEC-0203 rule 6,
     T-12804). A record naming THIS box makes the call an idempotent no-op — no mirror, no write, no
     row — and a record naming ANOTHER box is a refusal naming the way out: a live box may be serving
-    requests, and re-publishing over it would race them. Returns True when the caller must stop."""
+    requests, and re-publishing over it would race them. Returns True when the caller must stop.
+    T-13976 (SPEC-1032 rule 6): the no-op holds only for the same box published for the same
+    repository (`serves`, None for a kernel venue); the same box published for another is refused."""
     if record is None:
         return False
+    if str(record.get("box")) == str(box) and (record.get("serves") or None) != (serves or None):
+        _die(f"venue publish: REFUSED — {box} is already published for "
+             f"{record.get('serves') or 'the engine (a kernel venue)'}, not for "
+             f"{serves or 'the engine'}; a box serves one repository (SPEC-1032 rule 6). Unpublish it "
+             f"first: `bin/yitc-v2 venue unpublish --reason <why>`. NOTHING was written.")
+        return True
     if str(record.get("box")) == str(box):
         print(f"venue publish: {box} is ALREADY published (server {record.get('server_id')}) — "
               f"nothing to do; the gate covers only the unpublished->published transition")
@@ -10038,14 +10180,39 @@ def cmd_venue_publish(args: argparse.Namespace) -> None:
     existing, reason = venue.read_record(os.environ)
     if reason:
         print(f"venue publish: {reason}", file=sys.stderr)
-    if _venue_publish_existing(existing, args.box):   # the cheap early exit; re-checked below
+    # T-13976 (SPEC-1032 rule 6) — `-C <consumer>` publishes the box for THAT repository: it must
+    # declare `verify.venue`, the box must pass the consumer readiness (atomic admission, a full-history
+    # clone, every declared check), and the record names the repository it serves.
+    declaration = serves = None
+    if _is_consumer_build():
+        declaration = venue.consumer_declaration_of(REPO_ROOT, init_mod.CONSUMER_OPS_CONTRACT)
+        if declaration.get("state") != "valid":
+            _what = ("declares none" if declaration.get("state") == "absent"
+                     else f"declares it invalidly ({declaration.get('cause')})")
+            _die(f"venue publish: REFUSED — a consumer venue serves a project that declares "
+                 f"`verify.venue` in its yitc-ops.yaml, and this one {_what}. Declare it as "
+                 f"`bin/yitc-v2 graph query --kernel SPEC-1032` rule 1 says, then publish again. "
+                 f"NOTHING was written.")
+            return
+        common = _git_common_dir(REPO_ROOT)
+        if common is None:
+            _die("venue publish: REFUSED — this repository's git common dir did not resolve "
+                 "(`git rev-parse --git-common-dir`), so the record could not name the repository it "
+                 "serves. NOTHING was written.")
+            return
+        serves = str(common)
+    if _venue_publish_existing(existing, args.box, serves):   # the cheap early exit; re-checked below
         return
     try:
         fingerprint = venue.measure_fingerprint(args.box)
+        if declaration is not None:
+            fingerprint = dict(fingerprint,
+                               consumer=venue.measure_consumer_environment(args.box, declaration))
     except Exception as exc:
         _die(f"venue publish: the fingerprint did not measure on {args.box} ({exc}) — nothing written")
         return
-    failures = venue.probe_readiness(fingerprint)
+    failures = (venue.probe_readiness(fingerprint) if declaration is None
+                else venue.probe_readiness(fingerprint, declaration))
     if failures:
         for failure in failures:
             print(f"  readiness probe FAILED on {venue.describe_failure(failure)}", file=sys.stderr)
@@ -10070,17 +10237,20 @@ def cmd_venue_publish(args: argparse.Namespace) -> None:
              "so the mirror cannot run without racing a land into the same ref. NOTHING was written.")
         return
     try:
-        _venue_publish_under_reservation(args, fingerprint, _rv)
+        # T-13976: the record is machine-wide and the reservation per repository — the transition
+        # lock serializes publishers of different repositories from the re-check through the write
+        with venue.record_transition_lock(os.environ):
+            _venue_publish_under_reservation(args, fingerprint, _rv, serves=serves)
     finally:
         os.close(fd)
 
 
-def _venue_publish_under_reservation(args, fingerprint: dict, _rv) -> None:
+def _venue_publish_under_reservation(args, fingerprint: dict, _rv, *, serves=None) -> None:
     """The mirror + record write, run while `cmd_venue_publish` HOLDS the land reservation."""
     # THE AUTHORITATIVE TRANSITION CHECK (audit-pre fp1:2a96f21d6cbb7d1c): a concurrent publisher may
     # have written its record between the early read and the reservation being granted.
     existing, _reason = venue.read_record(os.environ)
-    if _venue_publish_existing(existing, args.box):
+    if _venue_publish_existing(existing, args.box, serves):
         return
     host = subprocess.run(["git", "-C", str(REPO_ROOT), "rev-parse", "--verify", "-q", "main"],
                           text=True, capture_output=True, env=_git_child_env())
@@ -10119,7 +10289,7 @@ def _venue_publish_under_reservation(args, fingerprint: dict, _rv) -> None:
         box=args.box, server_id=args.server_id, snapshot_id=args.snapshot_id,
         fingerprint=fingerprint, published_at=_utc_now_iso(),
         session_ref=_resolve_session_ref(), task=getattr(args, "task", None),
-        checkout_root=args.checkout_root)
+        checkout_root=args.checkout_root, serves=serves)
     path = venue.write_record(record, os.environ)
     push_s = mirrored["mirror_push_s"]
     evidence = dict(record, path=str(path), push_s=push_s,
@@ -10133,6 +10303,9 @@ def _venue_publish_under_reservation(args, fingerprint: dict, _rv) -> None:
     _append_event("venue_published", getattr(args, "task", None), evidence)
     print(f"venue published: {record['box']} (server {record['server_id']}, snapshot "
           f"{record['snapshot_id']}) -> {path}")
+    if serves:
+        print(f"  serves: {serves} — this repository's Stage-6 passes only; a kernel pass on this "
+              f"machine runs locally (SPEC-1032 rule 6)")
     print(f"  mirror: clone main {mirrored['mirror_relation']} host main "
           f"{host_main[:12]} (push_s={push_s})")
     # REPORT ONLY (T-12668): a box that verified from a snapshot OTHER than the recorded seed is the
@@ -10242,6 +10415,8 @@ def cmd_venue_show(args: argparse.Namespace) -> None:
     if record is None:
         print(f"venue show: NO venue is published ({path}) — every kernel verify pass runs LOCALLY.")
         print(f"  {seed_line}")
+        if getattr(args, "leases", False):
+            print("  leases           none — no venue is published, so there is no box to read")
         return
     print(f"venue: {record.get('box')} (server {record.get('server_id')}) — {path}")
     print(f"  {seed_line}")
@@ -10250,9 +10425,57 @@ def cmd_venue_show(args: argparse.Namespace) -> None:
         print(f"  {key:<16} {record.get(key)}")
     by = record.get("published_by") or {}
     print(f"  {'published_by':<16} session {by.get('session_ref')} · task {by.get('task')}")
+    if record.get("serves"):
+        print(f"  {'serves':<16} {record.get('serves')} — a consumer venue (SPEC-1032 rule 6)")
     fp = record.get("fingerprint") or {}
     print(f"  fingerprint      {fp.get('os')} · python {fp.get('python')} · "
           f"nofile {fp.get('nofile_soft')} · tmpfs {fp.get('tmpfs_shm_mb')}MB")
+    if getattr(args, "leases", False):
+        _venue_show_leases(record)
+
+
+def _venue_show_leases(record: dict) -> None:
+    """T-13975 — `venue show --leases` (SPEC-1032 rule 6): the caps and the Stage-6 headroom this
+    machine resolves, then the passes admitted on the box, read in ONE bounded ssh round
+    (`remote_verify.box_leases`). Read-only and non-waiting: it reaps nothing, takes no admission
+    lock and decides nothing — the numbers are printed before the box is asked, so a failed read
+    still shows them. A record carrying `serves` is a consumer venue, whose Stage-6 cap is the
+    machine setting or 1 (SPEC-1032 rule 3); a kernel venue derives its cap per pass unless set."""
+    from lib import remote_verify as _rv
+    fp = record.get("fingerprint") if isinstance(record.get("fingerprint"), dict) else {}
+    print(f"  {'land cap':<16} {_rv.venue_max_requests()} ({_rv.VENUE_MAX_REQUESTS_ENV})")
+    if record.get("serves") not in (None, ""):
+        s6 = (f"{_rv.venue_stage6_max_concurrent(default=1)} ({_rv.VENUE_STAGE6_MAX_CONCURRENT_ENV};"
+              f" a consumer venue admits 1 while it holds no valid value)")
+    else:
+        s6set = _rv.venue_stage6_max_concurrent(default=None)
+        s6 = (f"{s6set} ({_rv.VENUE_STAGE6_MAX_CONCURRENT_ENV})" if s6set is not None else
+              f"derived per pass — box cores // the pass's width, built-in "
+              f"{_rv.VENUE_STAGE6_MAX_CONCURRENT_DEFAULT} without both "
+              f"({_rv.VENUE_STAGE6_MAX_CONCURRENT_ENV} holds no valid value)")
+    print(f"  {'stage6 cap':<16} {s6}")
+    print(f"  {'stage6 headroom':<16} box load1 must be below "
+          f"{_rv.venue_stage6_headroom_load1(fp):g} to admit a Stage-6 pass "
+          f"({_rv.VENUE_STAGE6_HEADROOM_LOAD1_ENV})")
+    try:
+        got = _rv.box_leases(record)
+    except _rv.RemoteVerifyError as exc:
+        _die(f"venue show --leases: the box leases could not be read ({exc}) — nothing was changed "
+             f"on the box. Retry `bin/yitc-v2 venue show --leases`.")
+        return
+    live = got["live"]
+    print(f"  {'leases':<16} {len(live)} admitted pass leg(s) on the box (read-only; nothing reaped, "
+          f"admission never waited on)")
+    for row in live:
+        print(f"    {row['class']:<7} {row['request']}  leg {row['leg']}"
+              f"{'  consumer' if row['consumer'] else ''}  client {row['client']}  "
+              f"pgid {row['pgid']}  ({row['name']})")
+    if got["stale"]:
+        print(f"  {'stale leases':<16} {len(got['stale'])} the admission does not count live (no "
+              f"client answering `kill -0`): {', '.join(got['stale'])}")
+    if got["unreadable"]:
+        print(f"  {'unreadable':<16} {len(got['unreadable'])} lease file(s) the ssh user cannot read — "
+              f"their state is UNKNOWN: {', '.join(got['unreadable'])}")
 
 def _followup_events_path():
     """The EFFECTIVE journal the followup fold must read — the SAME resolution _append_event WRITES to
@@ -16891,7 +17114,7 @@ _lazy_alias("_is_timeout_abort", "audit", "is_timeout_abort")
 # module-level function directly; this re-export is the API/test surface parity.
 _lazy_alias("_is_passable_absorption_reaudit", "audit", "is_passable_absorption_reaudit")
 # Re-export -> audit.is_trend_convergence_grant / finding_count_trend (T-9682): the pure trend-aware
-# ceiling predicate (strictly-decreasing finding-count trend + low residual severity → ONE bounded
+# ceiling predicate (strictly-decreasing finding-count trend + no residual above medium → ONE bounded
 # extra pass) + its trend-reconstruction helper. cmd_audit calls the module-level functions directly;
 # these re-exports are the API/test surface parity (mirrors _is_passable_absorption_reaudit).
 _lazy_alias("_is_trend_convergence_grant", "audit", "is_trend_convergence_grant")
@@ -27813,9 +28036,12 @@ def _dedup_events(lines: "list[str]") -> "list[str]":
 
 
 
-_LAND_MAX_RETRIES = 5   # bounded concurrent-land optimistic-concurrency retry (T-0138 / D-0083 §3d;
-                        # raised 3->5 with backoff per T-0254/E-0010 — sustained concurrent landing was
-                        # exhausting 3 attempts and forcing a manual re-run, the ff-race-starvation class)
+# Bounded concurrent-land optimistic-concurrency retry (T-0138 / D-0083 §3d; raised with backoff per
+# T-0254/E-0010 — sustained concurrent landing was exhausting the attempts and forcing a manual re-run,
+# the ff-race-starvation class). T-13969: a THRESHOLD key (SPEC-1031) — its default lives once, in the
+# inventory, and this name only reads it, on first access (the import stays lazy); the _land_integrate
+# residue applies the PROJECT's value through `_land_threshold_in_force`.
+_lazy_computed("_LAND_MAX_RETRIES", lambda: machine_settings.BY_NAME["lib.cli._LAND_MAX_RETRIES"].default)
 
 # T-0678 — per-file land-verify timeout (SPEC-0071). _run_verify_tests Popen'd each test with NO
 # wall-clock bound, so a hung/leaking test hung `land` FOREVER — and under concurrent load it hung land
@@ -27824,7 +28050,8 @@ _LAND_MAX_RETRIES = 5   # bounded concurrent-land optimistic-concurrency retry (
 # is recorded — NEVER a hang. 300s/file is GENEROUS: the slowest real test sleeps 3s (~100x headroom), so
 # a legit test never false-trips, while a true hang bounds the land to ~5 min/file instead of ∞. Override
 # per-host/CI via env (e.g. a legitimately long integration test) — positive float seconds.
-_VERIFY_TEST_TIMEOUT_DEFAULT = 300.0
+# T-13967 — the value is written ONCE, as the inventory default of this key (`bin/yitc-v2 config
+# list` shows it); the second name this module kept beside it is folded in (SPEC-1031 rule 3(c)).
 _VERIFY_TEST_TIMEOUT_ENV = "YITC_VERIFY_TEST_TIMEOUT"
 # Stable marker token embedded in a timeout failure reason — `_land_integrate` greps it to classify the
 # abort as the DISTINCT non-retriable `verify-timeout` (categorically separate from the soft ff-race
@@ -27842,34 +28069,38 @@ def _verify_test_timeout_seconds(declared: "float | None" = None, *, source_out:
          `timeout:`, else the project-level `verify.timeout_seconds:` in `yitc-ops.yaml`. Its CALLER
          (`_consumer_zero_probe_guard`) validates the carrier and fails CLOSED on a malformed value, so
          a non-positive one reaching here is treated as absent — never as "no bound".
-      3. `_VERIFY_TEST_TIMEOUT_DEFAULT` — the 300s global fallback (value unchanged).
+      3. this machine's settings file — the key is a BUDGET (SPEC-1031 rule 4, T-13969): `config set
+         YITC_VERIFY_TEST_TIMEOUT <seconds>` inside its band takes the place just above the default.
+      4. the key's built-in default, read from its ONE home, the `YITC_VERIFY_TEST_TIMEOUT` inventory
+         entry (T-13967).
 
-    A zero-arg call keeps its exact pre-T-10257 behaviour (env-or-default). This stays the ONE resolver,
+    T-13967 — rungs 1, 3 and 4 are read through `machine_settings.in_force`, the reader `config get`
+    and `config list` show, so the value they print is the value applied here. The escape hatch is the
+    key's declared environment leg there: a value that is not a finite number above zero falls
+    through (an infinite one too — it would disable the bound); a machine-file value outside the band
+    is dropped at read, so the next rung answers.
+
+    A zero-arg call has no `declared` rung: env > machine file > built-in default. This stays the ONE resolver,
     extended — never a parallel resolution path (CHARTER §Principle 5).
 
     T-11703 — WHICH RUNG ANSWERED, reported on request. The ladder above is invisible after the fact:
     a reader of a land's metrics sees a bound but cannot tell whether it came from the escape hatch, a
     project declaration or the default, so a journal fold cannot answer "what bound was actually in
-    force". An OPTIONAL keyword-only `source_out` list receives the rung NAME ("env" | "declared" |
-    "default") beside the value this call returns. Out-CHANNEL rather than a changed return type on
+    force". An OPTIONAL keyword-only `source_out` list receives the rung NAME (the four
+    below) beside the value this call returns. Out-CHANNEL rather than a changed return type on
     purpose: this resolver is injected as a callable into `_run_verify_tests` and passed around by
     existing callers/stubs, so widening the return would break every one of them; a caller that does
     not pass `source_out` is byte-identical to the pre-T-11703 function. The rung vocabulary is exactly
-    these three — a value the CALLER decided (an explicit `timeout=`) never reaches this ladder and so
-    has no rung at all."""
+    four names — "env" | "declared" | "machine-file" | "default" — and a value the CALLER decided (an
+    explicit `timeout=`) never reaches this ladder and so has no rung at all."""
     def _took(rung: str, value: float) -> float:
         if source_out is not None:
             source_out.append(rung)
         return value
 
-    raw = os.environ.get(_VERIFY_TEST_TIMEOUT_ENV)
-    if raw:
-        try:
-            v = float(raw)
-            if v > 0:
-                return _took("env", v)
-        except (TypeError, ValueError):
-            pass
+    row = machine_settings.in_force(_VERIFY_TEST_TIMEOUT_ENV)
+    if row["source"] == "env":
+        return _took("env", row["value"])
     if declared is not None:
         try:
             v = float(declared)
@@ -27877,7 +28108,7 @@ def _verify_test_timeout_seconds(declared: "float | None" = None, *, source_out:
                 return _took("declared", v)
         except (TypeError, ValueError):
             pass
-    return _took("default", _VERIFY_TEST_TIMEOUT_DEFAULT)
+    return _took("default" if row["source"] == "built-in" else row["source"], row["value"])
 
 
 def _terminate_process_group(proc) -> None:
@@ -28374,7 +28605,7 @@ def _fold_main_journal_into_branch(main_wt, reset_main: bool = True) -> bool:
 CONSUMER_VERIFY_CONTRACT = "yitc-verify.yaml"
 
 
-def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None, queue_jump: bool = False, one_card_candidate: bool = False) -> dict:
+def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *, workers=None, _container_cpu_reader=None, layer_log_ctx=None, only_layers=None, working_tree: bool = False, stage6_credit_layers=None, stage6_rerun_layers=None, queue_jump: bool = False, one_card_candidate: bool = False, shipped_plan=None, plan_out=None) -> dict:
     # T-13675: `stage6_credit_layers` / `stage6_rerun_layers` (optional, the land's step 4d only) — after
     # a tree-differs refusal, the layers that take their verdict from the task's Stage-6 run and the
     # layers that did not pass there and so run whatever their subject (SPEC-0065 §Bound).
@@ -28391,7 +28622,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # load at the moment it expired) instead of reading as a bare timeout whose only named remedy is
     # raising the bound. Report-only — the gate is untouched (SPEC-0103). This ONE residue is the seam
     # every caller (`task test`, `_land_integrate`) funnels through, so injecting here reaches them all.
-    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, _land_verifies_running=lambda: worktree_mod._running_land_verifies(_main_worktree(REPO_ROOT) or REPO_ROOT), workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds, **({"queue_jump": True} if queue_jump else {}), **({"one_card_candidate": True} if one_card_candidate else {}))   # T-13907: the candidate run of ONE card, passed on only when a caller says so; T-13904: `queue_jump` — the Stage-6 call site's declaration of a live queue-jump mark, forwarded only when set; T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
+    return worktree_mod._consumer_zero_probe_guard(worktree, base_ref, _is_consumer_build=_is_consumer_build, _read_yaml=_read_yaml, _verify_test_timeout_seconds=_verify_test_timeout_seconds, CONSUMER_VERIFY_CONTRACT=CONSUMER_VERIFY_CONTRACT, _run_git_cap=_run_git_cap, _live_land_frontier=_live_land_frontier, _load_avg=os.getloadavg, _cpu_count=os.cpu_count, _land_verifies_running=lambda: worktree_mod._running_land_verifies(_main_worktree(REPO_ROOT) or REPO_ROOT), workers=workers, _container_cpu_reader=_container_cpu_reader, layer_log_ctx=layer_log_ctx, only_layers=only_layers, working_tree=working_tree, stage6_credit_layers=stage6_credit_layers, stage6_rerun_layers=stage6_rerun_layers, _timeout_class=_timeout_class, _process_group_cpu_seconds=_process_group_cpu_seconds, **({"queue_jump": True} if queue_jump else {}), **({"one_card_candidate": True} if one_card_candidate else {}), **({"shipped_plan": shipped_plan} if shipped_plan is not None else {}), **({"plan_out": plan_out} if plan_out is not None else {}))   # T-13973: the SPEC-1032 rule-4 plan — taken on the host (`plan_out`), followed on a box (`shipped_plan`) — passed on only when given; T-13907: the candidate run of ONE card, passed on only when a caller says so; T-13904: `queue_jump` — the Stage-6 call site's declaration of a live queue-jump mark, forwarded only when set; T-13811: the SPEC-0071 classifier + group-CPU reader, for the lowered-priority restart of a Stage-6 layer invocation; T-13675: the Stage-6 per-layer split; T-13533 working_tree: the Stage-6 seam of the subject skip; T-13107 only_layers; T-12758: the failing-layer output-log context, land + Stage-6 (T-13635)
 
 
 def _consumer_tests_delegation(worktree: Path, routing_from: "Path | None" = None) -> "str | None":
@@ -29468,6 +29699,26 @@ def _surface_failing_assertions(bad: list) -> "list[str]":
 
 
 
+# T-13968 / T-13969 (SPEC-1031 rules 4-6) — the two land thresholds are THRESHOLD keys: the value a
+# land applies is the PROJECT's (its yitc-ops.yaml `thresholds:` section), else the inventory default.
+# The record of what a read applied is kept for this process, so the abort row a threshold decides
+# names the value that was applied, even if the carrier changed on disk in between.
+_LAND_THRESHOLDS_APPLIED: dict = {}
+
+
+def _land_threshold_in_force(name: str) -> dict:
+    """`{key, value, source}` of land threshold `name`, read from the ops carrier of the project this
+    land runs in (`_project_ops_carrier`) — the value the land applies — and recorded as the latest
+    value this process applied for `name`. Each report-only line the `thresholds:` section produced
+    (an ignored entry, SPEC-1031 rule 5) is printed once per process on stderr. Never raises on the
+    carrier: a fault reads as the reader's unreadable answer, so nothing in the section fails a land."""
+    rec = machine_settings.in_force(name, ops=_project_ops_carrier())
+    machine_settings.say_notes(rec["notes"])
+    out = {"key": rec["key"], "value": rec["value"], "source": rec["source"]}
+    _LAND_THRESHOLDS_APPLIED[name] = out
+    return out
+
+
 def _emit_land_abort(branch: "str | None", reason: str, t0: float,
                      abort_class: "str | None" = None,
                      abort_detail: "dict | None" = None, *,
@@ -29483,6 +29734,15 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
     # `cmd_land` is injected with, so a kwarg added only to the impl raises TypeError INSIDE the abort
     # handler and turns every abort into an unhandled crash with no `LAND: ABORT` token at all —
     # caught here by tests/test_c_flag_cwd_independent.py's fail-closed final-line guard.
+    # T-13968: an abort a land threshold decided names that threshold's value and source on its row
+    # (SPEC-1031 rule 6) — the value this process applied (T-13969), read afresh only when no read
+    # site of this process applied one. The caller's dict is copied, never mutated.
+    _threshold_key = {_LAND_BACKSTOP_ABORT_CLASS: "lib.cli.LAND_REPEATED_ABORT_THRESHOLD",
+                      "retries-exhausted": "lib.cli._LAND_MAX_RETRIES"}.get(abort_class)
+    if _threshold_key is not None:
+        _applied = (_LAND_THRESHOLDS_APPLIED.get(_threshold_key)
+                    or _land_threshold_in_force(_threshold_key))
+        abort_detail = {**(abort_detail or {}), "land_threshold": dict(_applied)}
     return worktree_mod._emit_land_abort(branch, reason, t0, abort_class, abort_detail,
                                          _append_event=_append_event, events_path=events_path,
                                          attempt_attribution=attempt_attribution,
@@ -29498,9 +29758,12 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
 # analog of audit `--owner-reset`, but NOT its authority twin: this one is the CONTROLLER's call, and the
 # halt escalates to the controller (SPEC-0103 §3 / T-10788). Cause key = the STABLE `abort_class` (set at the _die origin), never the mutable
 # reason text (SPEC-0124 ceiling-convergence consult survivor, decisions/T-0655-audit-consult-pre.yaml).
-LAND_REPEATED_ABORT_THRESHOLD = 2          # block the (T+1)-th attempt once this many consecutive
-                                           # same-cause aborts are on record; a single transient abort
-                                           # never blocks (AC2).
+# Block the (T+1)-th attempt once this many consecutive same-cause aborts are on record; a single
+# transient abort never blocks (AC2). T-13969: a THRESHOLD key (SPEC-1031) — its default lives once, in
+# the inventory, and this name only reads it, on first access; cmd_land applies the PROJECT's value
+# through `_land_threshold_in_force`.
+_lazy_computed("LAND_REPEATED_ABORT_THRESHOLD",
+               lambda: machine_settings.BY_NAME["lib.cli.LAND_REPEATED_ABORT_THRESHOLD"].default)
 _LAND_BACKSTOP_ABORT_CLASS = "repeated-abort-backstop"   # the backstop's OWN refusal code — SKIPPED
                                            # by the streak so a refusal neither inflates nor breaks it.
 # T-9371 (X-0052): the CHEAP, DETERMINISTIC PREFLIGHT abort_classes — the single-use causes raised by the
@@ -29822,7 +30085,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # (task/ AND work/ lands); a caller (test seam) may override it.
     if _land_frontier_count is None:
         _land_frontier_count = (lambda: (_live_land_frontier().get("total") or None))
-    return worktree_mod._land_integrate(W, main_wt, branch, run_tests, _after_verify_hook, t_start, no_tests_reason, owner_authorized, owner_rebaseline, rebaseline_reason, expect_rebaseline=expect_rebaseline, merge_invalid_acceptance=merge_invalid_acceptance, merge_invalid_assertions=merge_invalid_assertions, _VERIFY_IMPLEMENTATION_GLOBS=verify_wiring._verify_infrastructure_globs(kernel_repo=not _is_consumer_build()), _anchor_signature_of_text=_anchor_signature_of_text, rebaseline_waive=rebaseline_waive, rebaseline_kind=rebaseline_kind, _context_seam_tail=_context_seam_tail, _scaling_signals_tail=_scaling_signals_tail, _land_bookkeeping_sha=_land_bookkeeping_sha, _land_frontier_count=_land_frontier_count, _auto_file_kernel_deviations=_auto_file_kernel_deviations, _auto_cross_done_for_landed_closes=_auto_cross_done_for_landed_closes, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _run_git_cap=_run_git_cap, _with_repo_lock=_with_repo_lock, EVENTS_PATH=EVENTS_PATH, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_MAX_RETRIES=_LAND_MAX_RETRIES, _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _VERIFY_TIMEOUT_MARKER=_VERIFY_TIMEOUT_MARKER, _change_is_audited=_change_is_audited, _classify_inert_paths=_classify_inert_paths, _consumer_zero_probe_guard=_consumer_zero_probe_guard, _dedup_events=_dedup_events, _fold_main_journal_into_branch=_fold_main_journal_into_branch, _is_foldable_journal=_is_foldable_journal, _is_yitc_session_state=_is_yitc_session_state, _land_content_confirmation=_land_content_confirmation, _land_retry_backoff_seconds=_land_retry_backoff_seconds, _merged_tree_delta_paths=_merged_tree_delta_paths, _pinned_failures_are_additive_layout_mismatch=_pinned_failures_are_additive_layout_mismatch, _reset_worktree_bookkeeping=_reset_worktree_bookkeeping, _run_decision_rule_body_guard=_run_decision_rule_body_guard, _run_pinned_verify=functools.partial(verify_wiring._run_pinned_verify, _host_globals=globals()), _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _surface_failing_assertions=_surface_failing_assertions, _verify_failing_test_names=_verify_failing_test_names, write_text_atomic=write_text_atomic, _consumer_tests_delegation=_consumer_tests_delegation, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _audience_view_paths=_audience_view_paths, _event_dedup_key=_event_dedup_key, member_claim_pid=member_claim_pid, batch_state=batch_state, _inland_audit_post=_inland_audit_post, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission, _is_consumer_build=_is_consumer_build, _regen_manifest_managed_regions=_regen_manifest_managed_regions, _regen_manifest_root=_regen_manifest_root, _id_alloc_lock=_id_alloc_lock, _dump_state_yaml=_dump_state_yaml)  # T-12359: the two host primitives the auto-filed load-sensitive card is composed with (the ONE T-id allocator + the ONE card-write serializer/chokepoint) — injected, never re-implemented in worktree.py.  # T-12236: the manifest §1/§2/§3 managed-region regen — the generator land re-derives beside `_auto_rebuild_graph`, injected (never re-implemented in worktree.py). # T-12199: the kernel/consumer predicate the SPEC-0203 rule-2 routing decision reads (a `-C` pass NEVER consults the venue record) — injected, never re-implemented in worktree.py. # T-11483: the in-land re-audit runner (the SAME `audit post` verb, re-exec'd over the merged tree) — injected, never re-implemented in worktree.py. # T-10731: the WRITE SIDE's dedupe identity, injected for the SPEC-0168 rule-5 custody check (rule 3 — never re-implemented)
+    return worktree_mod._land_integrate(W, main_wt, branch, run_tests, _after_verify_hook, t_start, no_tests_reason, owner_authorized, owner_rebaseline, rebaseline_reason, expect_rebaseline=expect_rebaseline, merge_invalid_acceptance=merge_invalid_acceptance, merge_invalid_assertions=merge_invalid_assertions, _VERIFY_IMPLEMENTATION_GLOBS=verify_wiring._verify_infrastructure_globs(kernel_repo=not _is_consumer_build()), _anchor_signature_of_text=_anchor_signature_of_text, rebaseline_waive=rebaseline_waive, rebaseline_kind=rebaseline_kind, _context_seam_tail=_context_seam_tail, _scaling_signals_tail=_scaling_signals_tail, _land_bookkeeping_sha=_land_bookkeeping_sha, _land_frontier_count=_land_frontier_count, _auto_file_kernel_deviations=_auto_file_kernel_deviations, _auto_cross_done_for_landed_closes=_auto_cross_done_for_landed_closes, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _run_git_cap=_run_git_cap, _with_repo_lock=_with_repo_lock, EVENTS_PATH=EVENTS_PATH, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_MAX_RETRIES=_land_threshold_in_force("lib.cli._LAND_MAX_RETRIES")["value"], _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _VERIFY_TIMEOUT_MARKER=_VERIFY_TIMEOUT_MARKER, _change_is_audited=_change_is_audited, _classify_inert_paths=_classify_inert_paths, _consumer_zero_probe_guard=_consumer_zero_probe_guard, _dedup_events=_dedup_events, _fold_main_journal_into_branch=_fold_main_journal_into_branch, _is_foldable_journal=_is_foldable_journal, _is_yitc_session_state=_is_yitc_session_state, _land_content_confirmation=_land_content_confirmation, _land_retry_backoff_seconds=_land_retry_backoff_seconds, _merged_tree_delta_paths=_merged_tree_delta_paths, _pinned_failures_are_additive_layout_mismatch=_pinned_failures_are_additive_layout_mismatch, _reset_worktree_bookkeeping=_reset_worktree_bookkeeping, _run_decision_rule_body_guard=_run_decision_rule_body_guard, _run_pinned_verify=functools.partial(verify_wiring._run_pinned_verify, _host_globals=globals()), _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _surface_failing_assertions=_surface_failing_assertions, _verify_failing_test_names=_verify_failing_test_names, write_text_atomic=write_text_atomic, _consumer_tests_delegation=_consumer_tests_delegation, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _audience_view_paths=_audience_view_paths, _event_dedup_key=_event_dedup_key, member_claim_pid=member_claim_pid, batch_state=batch_state, _inland_audit_post=_inland_audit_post, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission, _is_consumer_build=_is_consumer_build, _regen_manifest_managed_regions=_regen_manifest_managed_regions, _regen_manifest_root=_regen_manifest_root, _id_alloc_lock=_id_alloc_lock, _dump_state_yaml=_dump_state_yaml, _land_supersession_retarget=functools.partial(task_mod._land_supersession_retarget, _run_git_cap=_run_git_cap, _append_event=_append_event, _decision_apply_field_edits=_decision_apply_field_edits, _status_line_re=worktree_mod._CLOSURE_SPEC_HEAD_STATUS_RE, _supersedes_line_re=worktree_mod._CLOSURE_SPEC_SUPERSEDES_RE))  # T-13954: the supersession re-target at land — the close's own field writer, injected. # T-12359: the two host primitives the auto-filed load-sensitive card is composed with (the ONE T-id allocator + the ONE card-write serializer/chokepoint) — injected, never re-implemented in worktree.py.  # T-12236: the manifest §1/§2/§3 managed-region regen — the generator land re-derives beside `_auto_rebuild_graph`, injected (never re-implemented in worktree.py). # T-12199: the kernel/consumer predicate the SPEC-0203 rule-2 routing decision reads (a `-C` pass NEVER consults the venue record) — injected, never re-implemented in worktree.py. # T-11483: the in-land re-audit runner (the SAME `audit post` verb, re-exec'd over the merged tree) — injected, never re-implemented in worktree.py. # T-10731: the WRITE SIDE's dedupe identity, injected for the SPEC-0168 rule-5 custody check (rule 3 — never re-implemented)
 
 
 
@@ -29831,6 +30094,7 @@ def cmd_verify_durations(args: argparse.Namespace) -> None:
     return worktree_mod.cmd_verify_durations(args, REPO_ROOT=REPO_ROOT, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()),
                                              _die=_die, write_text_atomic=write_text_atomic,
                                              _consumer_tests_delegation=_consumer_tests_delegation,   # T-11389: the SAME tests-delegation predicate the two sweep callers use — a rebuild is refused where the suite runs inside a declared layer
+                                             _is_consumer_build=_is_consumer_build, _events_path=EVENTS_PATH,   # T-13961: a consumer's bare report opens with its verify-layer table, read from its own journal
                                              _verify_worker_governor=worktree_mod._verify_worker_governor)   # T-12297: READ-ONLY, for the bare arm's report-only critical-path floor; the derivation itself is untouched
 
 
@@ -30124,7 +30388,7 @@ def cmd_frontend_errors(args: argparse.Namespace) -> None:
 def cmd_land(args: argparse.Namespace) -> None:
     _require_help_read("land")   # T-9786 (X-0158): scan the verb inventory this session first
     # Thin residue → worktree_mod.cmd_land (T-9340 inject seam; host-deps injected at call time).
-    out = worktree_mod.cmd_land(args, _die=_die, _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _worktree_path_for_branch=_worktree_path_for_branch, EVENTS_PATH=EVENTS_PATH, LAND_REPEATED_ABORT_THRESHOLD=LAND_REPEATED_ABORT_THRESHOLD, REPO_ROOT=REPO_ROOT, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_BACKSTOP_ABORT_CLASS=_LAND_BACKSTOP_ABORT_CLASS, _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _NO_TESTS_UNAUTHORIZED_ABORT_CLASS=_NO_TESTS_UNAUTHORIZED_ABORT_CLASS, _append_event=_append_event, _emit_land_abort=_emit_land_abort, _is_yitc_session_state=_is_yitc_session_state, _land_integrate=_land_integrate, _land_repeated_abort_count=_land_repeated_abort_count, _land_terminal_signal=_land_terminal_signal, _read_land_events=_read_land_events, __file__=_ENTRY_FILE, _live_land_frontier=_live_land_frontier, _classify_inert_paths=_classify_inert_paths, _context_seam_tail=_context_seam_tail_line, _scaling_signals_tail=_scaling_signals_lines, _abort_cause_breadth_head=_abort_cause_breadth_head_lines, _land_head_read_scope=_land_head_read_scope, _land_abort_key=_land_abort_key, _read_worktree_stamp=_read_worktree_stamp, _stamp_is_own=_stamp_is_own, _main_events_path=_main_events_path, _capture_reopen_errors_dirt=_capture_reopen_errors_dirt, _is_consumer_build=_is_consumer_build, _foreign_worktree_refusal=_foreign_worktree_refusal, _lifecycle_record_path=_lifecycle_record_path, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission)  # T-13323: the P0 entry in-land-ceiling arm's two deps — the SAME ceiling reader + rule-3 admission the step-4a in-land re-audit is injected with; T-12786: the P0 wont-do unaudited-ship arm's one added dep — the T-12713 lifecycle-record composition (own bookkeeping + `_BOOKKEEPING_ALLOWLIST`), the SAME predicate `_bookkeeping_commit_authored_paths` reads; T-12594: the rule-11b named refusal; T-11372: the P0 foreign-main-dirt arm's one added dep; T-11718: the P0 rebaseline-authorization arm's one added dep — the globs-BOUND predicate — T-12438: NO LONGER forwarded from here (forwarding a selection-root name is what made the decision REACH this module); `worktree.cmd_land` binds its own to `verify_wiring._VERIFY_IMPLEMENTATION_GLOBS`
+    out = worktree_mod.cmd_land(args, _die=_die, _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _worktree_path_for_branch=_worktree_path_for_branch, EVENTS_PATH=EVENTS_PATH, LAND_REPEATED_ABORT_THRESHOLD=_land_threshold_in_force("lib.cli.LAND_REPEATED_ABORT_THRESHOLD")["value"], REPO_ROOT=REPO_ROOT, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_BACKSTOP_ABORT_CLASS=_LAND_BACKSTOP_ABORT_CLASS, _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _NO_TESTS_UNAUTHORIZED_ABORT_CLASS=_NO_TESTS_UNAUTHORIZED_ABORT_CLASS, _append_event=_append_event, _emit_land_abort=_emit_land_abort, _is_yitc_session_state=_is_yitc_session_state, _land_integrate=_land_integrate, _land_repeated_abort_count=_land_repeated_abort_count, _land_terminal_signal=_land_terminal_signal, _read_land_events=_read_land_events, __file__=_ENTRY_FILE, _live_land_frontier=_live_land_frontier, _classify_inert_paths=_classify_inert_paths, _context_seam_tail=_context_seam_tail_line, _scaling_signals_tail=_scaling_signals_lines, _abort_cause_breadth_head=_abort_cause_breadth_head_lines, _land_head_read_scope=_land_head_read_scope, _land_abort_key=_land_abort_key, _read_worktree_stamp=_read_worktree_stamp, _stamp_is_own=_stamp_is_own, _main_events_path=_main_events_path, _capture_reopen_errors_dirt=_capture_reopen_errors_dirt, _is_consumer_build=_is_consumer_build, _foreign_worktree_refusal=_foreign_worktree_refusal, _lifecycle_record_path=_lifecycle_record_path, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission)  # T-13323: the P0 entry in-land-ceiling arm's two deps — the SAME ceiling reader + rule-3 admission the step-4a in-land re-audit is injected with; T-12786: the P0 wont-do unaudited-ship arm's one added dep — the T-12713 lifecycle-record composition (own bookkeeping + `_BOOKKEEPING_ALLOWLIST`), the SAME predicate `_bookkeeping_commit_authored_paths` reads; T-12594: the rule-11b named refusal; T-11372: the P0 foreign-main-dirt arm's one added dep; T-11718: the P0 rebaseline-authorization arm's one added dep — the globs-BOUND predicate — T-12438: NO LONGER forwarded from here (forwarding a selection-root name is what made the decision REACH this module); `worktree.cmd_land` binds its own to `verify_wiring._VERIFY_IMPLEMENTATION_GLOBS`
     _onboarding_seam_nudge("land")   # SPEC-0147 §5 station I rides this existing seam
     return out
 

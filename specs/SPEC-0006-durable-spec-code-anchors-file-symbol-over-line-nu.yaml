@@ -130,8 +130,8 @@ body: "## Scenario\n\nThe owner/AI asks «which code enforces this spec?» and �
   \ a licence for the whole-spec re-sign. **Cost of not\n  doing it:** the audit is\
   \ then taken over stale `implements_signature` values and REDs\n  predictably on\
   \ exactly that — and an audit pass is NOT refundable, so a predictable RED spends\
-  \ a\n  pass against the SPEC-0124 audit-loop ceiling that the branch may then need\
-  \ to finish. Measured:\n  on 2026-08-24 a merge into `task/` moved `bin/lib/worktree.py#_land_integrate`;\
+  \ a\n  pass against the <workshop-spec> audit-loop ceiling that the branch may then\
+  \ need to finish. Measured:\n  on 2026-08-24 a merge into `task/` moved `bin/lib/worktree.py#_land_integrate`;\
   \ eight\n  active specs held three different stale signatures; the re-audit returned\
   \ RED high-severity on\n  that alone, burned one of only two passes plus a full\
   \ external-auditor invocation, and the card\n  needed an owner-authorized `--owner-reset`\

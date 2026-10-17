@@ -11,6 +11,9 @@ cites:
 
 # Choosing a bound test's boundary
 
+> **Catalog.** This page is one source of `patterns/verify-cost-playbook.md`, which lists every verify-cost
+> technique with its measured case — read it there when choosing what to cut.
+
 SPEC-0076 §5 says WHAT a bound test is (point-first, at the step's own observable boundary,
 reddened by a step-specific fault input, named additively beside the production anchor) and §6(a)
 why it matters (it is the regression obligation's producer). This pattern is the HOW: how to make

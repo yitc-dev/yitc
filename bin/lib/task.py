@@ -9513,7 +9513,7 @@ def sync_merge_closure_custody(record, sha, *, _git_resolve_sha, repo_root) -> "
     return None
 
 
-def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _unconfirmed_travels_specs=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
+def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
                    _task_commit_landed_chain=None,
                    _bookkeeping_commit_authored_paths=None, _BOOKKEEPING_COMMIT_KINDS=None,
                    _live_probe_settled_unresolved=None, _require_post_ship_observation=None,
@@ -11715,9 +11715,16 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
     #
     # Rule 6 stays REPORT-ONLY and rule-status-independent: it observes what a declaration COVERED,
     # which is meaningful whether or not SPEC-0178 is active and whether or not the case was refused.
+    #
+    # The card's OWN lifecycle records leave the OUTSIDE set (T-13956): this tid's card, the journal and
+    # its archive segments, its own `decisions/<tid>-*` records and the derived build artifacts —
+    # `_lifecycle_record_path` (T-12713) plus the journal's own segment definer, never a third list.
+    def _own_lifecycle_record(p, _tid=tid):
+        return bool((_lifecycle_record_path is not None and _lifecycle_record_path(p, _tid))
+                    or events.is_archive_segment(Path(p), Path("events.jsonl")))
     case_out_of_path: list[dict] = []
     for _case in _cases:
-        _row = _case_out_of_path_observation(_case, touched)
+        _row = _case_out_of_path_observation(_case, touched, is_lifecycle_record=_own_lifecycle_record)
         if _row:
             case_out_of_path.append(_row)
     for _row in case_out_of_path:
@@ -13020,14 +13027,35 @@ def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: s
     return _wt._verify_admission(Path(key), n, on_wait=_on_wait, pool="stage6")
 
 
-def _stage6_local_run_width(governor, limits: dict):
+def _stage6_local_run_width(governor, limits: dict, budget: "dict | None" = None):
     """T-13806 — the `workers=` the local Stage-6 suite run is handed, or None for the runner's own
     default (today's). None unless a fraction is SET and the governor gives a POSITIVE width: an
-    exhausted host's 0 is left to the runner's own handling, never turned into a forced width of 1."""
-    if limits.get("workers_fraction") is None or governor is None:
+    exhausted host's 0 is left to the runner's own handling, never turned into a forced width of 1.
+
+    T-13971 (SPEC-0132 §1c) — with an ADAPTIVE `budget` (one that read the host, no fallback) the
+    governor is asked at the budget's width instead of the fixed ceiling, and the width is passed even
+    when no fraction is set (the runner's own default is the fixed ceiling)."""
+    if governor is None:
         return None
-    w = governor()
+    if _stage6_budget_applies(budget):
+        w = governor(_VERIFY_WORKER_CEILING=budget["width"])
+    elif limits.get("workers_fraction") is None:
+        return None
+    else:
+        w = governor()
     return _stage6_local_workers(w, limits) if w and w > 0 else None
+
+
+def _stage6_width_budget():
+    """T-13971 — the width budget a local Stage-6 run enters (`worktree._verify_width_budget` at the
+    host's fixed ceiling). One seam, so a test can stub the reading."""
+    from lib import worktree as _wt           # lazy: the circular-import idiom used in this module
+    return _wt._verify_width_budget(_wt._verify_worker_ceiling())
+
+
+def _stage6_budget_applies(budget) -> bool:
+    """T-13971 — does this width budget replace the fixed ceiling? Only an adaptive one that read the host."""
+    return bool(budget) and budget.get("mode") == "adaptive" and "fallback" not in budget
 
 
 def _stage6_local_workers(workers, limits: dict):
@@ -13363,6 +13391,135 @@ def _stage6_venue_wait_relay(_append_event, tid, box):
     return _relay
 
 
+def _stage6_resolve_breadth(root, dirs, test_dir, *, _governed_selection, _run_git_cap,
+                            _classify_inert_paths):
+    """T-12221 / T-13976 — the SPEC-0181 breadth of a Stage-6 pass about to be routed, resolved ONCE
+    through the single selector home (`governed_selection`, reached through the host residue) over the
+    test files of `dirs`. Returns its answer, or None when the breadth could not be resolved — and None
+    reads FULL, which routes. Shared by the kernel seam and the consumer seam, so both resolve a
+    routed pass's selection the same way."""
+    try:
+        sel_diff = _stage6_changed_paths(root, _run_git_cap=_run_git_cap)
+        return _governed_selection(
+            [f for d in dirs for f in test_discovery.test_files(d)],
+            select=True, journal_path=root / "events.jsonl", test_dir=test_dir,
+            selection_diff_paths=sel_diff,
+            selection_tripwire_inert_paths=_stage6_inert_paths(sel_diff, _classify_inert_paths),
+            selection_diff_error=(None if sel_diff is not None
+                                  else "stage6-changed-paths-undeterminable"))
+    except Exception as e:                     # noqa: BLE001 — an unresolved breadth reads FULL
+        # SAID OUT LOUD, never swallowed: the run still proceeds (to the venue, the fail-closed arm),
+        # but a reader who cannot see that the breadth was never resolved cannot tell a deliberate
+        # full-suite route from a broken selector. stderr rather than a metrics key: nothing
+        # downstream reads it except the printed summary, so a key added here would be dead weight
+        # (CHARTER §P1 F3) and a new journal payload key nothing emits.
+        print(f"task test --run: the SPEC-0181 selection breadth could not be "
+              f"resolved ({type(e).__name__}: {e}) — reading it as the FULL suite",
+              file=sys.stderr)
+        return None
+
+
+def _stage6_repo_common_dir(root, _run_git_cap) -> "str | None":
+    """T-13976 — the real path of THIS repository's git common dir: what a consumer venue record's
+    `serves` names (SPEC-1032 rule 6), so a linked worktree reads its repository's. None when git
+    cannot say, and None matches no record."""
+    if _run_git_cap is None:
+        return None
+    try:
+        r = _run_git_cap(["rev-parse", "--git-common-dir"], root)
+    except Exception:                          # noqa: BLE001 — unknown, never a guess
+        return None
+    out = (getattr(r, "stdout", "") or "").strip()
+    if getattr(r, "returncode", 1) != 0 or not out:
+        return None
+    p = Path(out)
+    return os.path.realpath(p if p.is_absolute() else Path(root) / p)
+
+
+def _stage6_routing_record(decision, *, declared: bool) -> dict:
+    """T-13976 — the routing reason the Stage-6 row carries (`verify_metrics.venue_routing`): every
+    reason of a consumer pass that DECLARES `verify.venue` (valid or not), and a kernel pass's
+    `venue-consumer-only` — the cases SPEC-1032 adds. Every other row stays as SPEC-1029 left it: an
+    undeclared consumer's and every other kernel pass's carry no such key."""
+    reason = (decision or {}).get("reason")
+    if reason and (declared or reason == "venue-consumer-only"):
+        return {"venue_routing": reason}
+    return {}
+
+
+def _stage6_consumer_venue(root, tid, placement, *, take_plan, sweep_dirs, select, _append_event,
+                           _run_git_cap) -> tuple:
+    """T-13976 — the SPEC-1032 rule-2 decision of ONE consumer Stage-6 pass and, when it says
+    `venue`, the pass itself on the box (`remote_verify.consumer_route`). Returns `(decision,
+    declaration, routed result or None, selection summary or None, local selection or None)` — the
+    last is the resolved selection a `small-selection` pass runs locally, so the local run does not
+    select again (SPEC-1029 rule 2). An undeclared consumer reads `consumer` without the record being
+    read (rule 1: nothing below is read).
+
+    The breadth is the kernel seam's two steps: decide at full breadth; only when that says `venue`
+    and the pass has a test sweep, resolve the sweep's SPEC-0181 selection through `select(dirs)`
+    (`_stage6_resolve_breadth`; None = `--full` or no selector) and decide again on its size — a small
+    narrowed selection stays local (`small-selection`), a larger one ships with its names, an
+    unresolved one ships the whole sweep. `sweep_dirs` are the existing sweep directories the pass
+    sweeps (none when a layer's `covers:` takes the sweep over)."""
+    decl = venue.consumer_declaration_of(root, init.CONSUMER_OPS_CONTRACT)
+    if decl.get("state") == "absent":
+        return ({"remote": False, "reason": "consumer", "record": None, "note": ""}, decl, None, None,
+                None)
+    rec, note = venue.routing_record()
+    kw = dict(kernel=False, kind=remote_verify.STAGE6_KIND, record=rec, record_note=note,
+              declaration=decl, repo_common_dir=_stage6_repo_common_dir(root, _run_git_cap),
+              placement=placement, sandbox=bool(rec) and remote_verify.sandbox_repo(root))
+    dec = remote_verify.venue_decision(full_suite=True, **kw)
+    files = [f for d in sweep_dirs for f in test_discovery.test_files(d)]
+    sweep_only, full_reason, presel = None, None, None
+    if dec["remote"] and files and select is not None:
+        gsel = select(sweep_dirs)
+        if gsel is not None and gsel.get("governed"):
+            chosen = gsel.get("test_files") if isinstance(gsel.get("test_files"), list) else None
+            dec = remote_verify.venue_decision(
+                full_suite=False, selection_size=len(chosen) if chosen is not None else None, **kw)
+            if dec["remote"] and chosen:
+                sweep_only = sorted(f.name for f in chosen)
+            elif not dec["remote"]:
+                presel = gsel             # the local run takes THIS selection — no pass selects twice
+        elif gsel is not None:
+            full_reason = gsel.get("reason")
+    print(f"{tid} task test --run: venue routing {dec['reason']} (SPEC-1032 rule 2)"
+          + (f" — {dec['note']}" if dec.get("note") else ""))
+    if not dec["remote"]:
+        return dec, decl, None, None, presel
+    print(f"task test --run: routed to the published consumer venue {rec.get('box')} — the whole "
+          f"pass, its test sweep and its declared layers (SPEC-1032 rule 4)")
+    summary = None
+    if files:
+        summary = _stage6_selection_summary(
+            {}, full=select is None, full_reason=full_reason,
+            partition={"counts": {"discovered": len(files), "local": 0,
+                                  "remote": len(sweep_only) if sweep_only is not None else len(files)},
+                       "selection_applied": sweep_only is not None})
+    return dec, decl, remote_verify.consumer_route(
+        root, decision=dec, take_plan=take_plan,
+        sweep_paths=[os.path.relpath(d, root) for d in sweep_dirs], sweep_only=sweep_only,
+        checks=decl.get("environment") or [],
+        on_wait=_stage6_venue_wait_relay(_append_event, tid, rec.get("box"))), summary, None
+
+
+def refuse_kernel_local_placement(args, *, kernel: bool, _die) -> None:
+    """T-13975 — `task test --placement local` names a CONSUMER pass's placement (SPEC-1032 rule 6):
+    it keeps a declared consumer's Stage-6 pass on its own host while a venue is published. A kernel
+    pass has no such choice — SPEC-1029 rule 7 is unchanged for it — so the flag is REFUSED there,
+    class `placement-kernel-unsupported`, before anything runs or is written. `auto` (the default)
+    and an absent attribute (a caller building its own namespace) pass through untouched, as does a
+    consumer pass whatever it asks: the rule-2 order reads it there (`_stage6_consumer_venue`,
+    T-13976) and a declared pass asking `local` runs here under the reason `placement-local`."""
+    if kernel and getattr(args, "placement", None) == "local":
+        _die(f"placement-kernel-unsupported: `--placement local` names where a declared CONSUMER "
+             f"project's Stage-6 pass runs (SPEC-1032 rule 6); a kernel pass is routed by SPEC-1029 "
+             f"alone and has no local placement. Run `bin/yitc-v2 task test {args.task} --run` "
+             f"without it (`--placement auto` is the default).")
+
+
 @_pinned_suite_edit_preaudit_marker
 def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _changed_anchor_spec_drift=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None) -> None:
     """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
@@ -13439,6 +13596,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     _stage6_step_lines: list = []   # T-13645: the layer STEP lines this run printed (SPEC-0132 Rule 7)
     _stage6_retry_metrics: dict = {}   # T-13545: the guard's layer re-run record, as a verify_metrics fragment
     _stage6_priority: dict = {}        # T-13904: what THIS invocation's run ran at, as a verify_metrics fragment
+    _s6_routing: dict = {}             # T-13976: the SPEC-1032 routing reason, as a verify_metrics fragment
+    _s6_budget: dict = {}              # T-13971: the width budget the local run was sized by (SPEC-0132 §1c)
     _stage6_lands: dict = {}           # T-13905: the land verifies beside THIS invocation's run, as a row fragment
     # T-13532 (SPEC-0065 §Bound) — what the `--run` branch learns about the tree it tested, read by the
     # `--evidence` recorder. Function-scoped for the same reason as the two above: a bare
@@ -13616,6 +13775,50 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # unmarked run calls the runner, the guard and the route seam as before.
         _s6_mark = _stage6_queue_jump(root, tid, _main_worktree=_main_worktree)
         _s6_mark_kw = {"queue_jump": True} if _s6_mark else {}
+        # T-13976 (SPEC-1032 rule 2) — A CONSUMER PASS IS DECIDED HERE, before the sweep/layers fork:
+        # a routed consumer pass runs WHOLE on the box (rule 1), its sweep and its declared layers
+        # alike, so its decision cannot sit in the sweep arm the kernel decision sits in. The host
+        # takes the plan (rule 4) only when the pass routes, over the same working tree it ships.
+        _s6_cres = _s6_cpresel = None
+        if _is_consumer_build is not None and _is_consumer_build():
+            def _s6_take_plan():
+                _gp: dict = {}
+                _pb, _ = _stage6_subject_base(root, _run_git_cap=_run_git_cap,
+                                              _is_consumer_build=_is_consumer_build)
+                if _pb:
+                    _consumer_zero_probe_guard(root, _pb, working_tree=True, one_card_candidate=True,
+                                               plan_out=_gp)
+                else:
+                    _consumer_zero_probe_guard(root, plan_out=_gp)
+                if "layers" not in _gp:
+                    # the guard returned before its plan (no declared layers, a section waiver, a
+                    # malformed section): ship an EMPTY plan over this tree, and the box's guard
+                    # reaches the same mode and verdict itself
+                    from lib import worktree as _wt_plan
+                    _gp = {"tree": _wt_plan._worktree_disk_tree(root, _run_git_cap), "skip": [],
+                           "layers": {}, "attempt": None}
+                return _gp
+            _s6_cdec, _s6_cdecl, _s6_cres, _s6_csummary, _s6_cpresel = _stage6_consumer_venue(
+                root, tid, getattr(args, "placement", "auto"), take_plan=_s6_take_plan,
+                sweep_dirs=([] if delegated else [d for d in test_dirs if d.is_dir()]),
+                select=(None if getattr(args, "full", False) or _governed_selection is None else
+                        functools.partial(_stage6_resolve_breadth, root, test_dir=test_dir,
+                                          _governed_selection=_governed_selection,
+                                          _run_git_cap=_run_git_cap,
+                                          _classify_inert_paths=_classify_inert_paths)),
+                _append_event=_append_event, _run_git_cap=_run_git_cap)
+            _s6_routing = _stage6_routing_record(
+                _s6_cdec, declared=_s6_cdecl.get("state") != "absent")
+            if _s6_cres is not None:
+                if _s6_cres["outcome"] == remote_verify.OUTCOME_INDETERMINATE:
+                    # SPEC-1029 rule 7, unchanged for a consumer pass: never a pass, never a local re-run.
+                    _die(f"{remote_verify.stage6_indeterminate_text(_s6_cres)} Cause: "
+                         f"{_s6_cres.get('indeterminate_detail') or 'not recorded'}. Or `yitc-v2 "
+                         "venue unpublish` to return this project's Stage-6 passes to the local path.")
+                _venue_result = _s6_cres
+                _venue_metrics = dict(_s6_cres.get("metrics") or {})
+                _sel_metrics = {}        # nothing ran on this host; the box's own figures are below
+                selection_summary = _s6_csummary
         gap = None
         if delegated and _delegated_tests_execution_gap is not None:
             gap = _delegated_tests_execution_gap(root, delegated)
@@ -13623,7 +13826,15 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             print(_render_tests_delegation_note(delegated, "task test --run", gap)
                   if _render_tests_delegation_note is not None else
                   f"{tid} task test --run: tests/ sweep DELEGATED to verify layer '{delegated}'")
-        elif _have_tests:
+        if _s6_cres is not None:
+            # the box's own output — what the pass printed there, as a local run prints it here
+            for _line in _s6_cres.get("output") or []:
+                print(_line)
+            print(f"{tid} task test --run: the pass ran on the consumer venue "
+                  f"({_s6_cres['outcome']}, {len(_s6_cres['cand'])} failure(s))")
+            if selection_summary:
+                print(_stage6_selection_note(selection_summary))
+        elif _have_tests and not delegated:
             _present = [d for d in test_dirs if d.is_dir()]
             print(f"{tid} task test --run: running the pinned land-verify suite "
                   f"({', '.join(str(d) for d in _present)}) ...")
@@ -13825,7 +14036,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             # breadth unknown, and the unknown answer is the ladder's own: the full suite. That
             # both runs MORE tests and — being the arm the venue takes — keeps the host free,
             # so the two safety directions agree here rather than competing.
-            _stage6_presel = None
+            _stage6_presel = _s6_cpresel   # T-13976: a consumer small-selection resolved above, else None
             # T-12271 — the breadth reason RESOLVED FOR THE WHOLE RUN, kept for the routed summary.
             # On the routed branch the probe leg's own `selection_full_suite_reason` describes the
             # ~15 host-sensitive files, not the pass; this is the answer the venue decision was
@@ -13833,7 +14044,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             _stage6_full_reason = None
             # T-13287 — the resolved names a LARGE narrowed selection ships with; None = full suite.
             _stage6_route_selection = None
-            if _is_consumer_build is not None:
+            # T-13976: a consumer pass was decided above (SPEC-1032 rule 2); this block is the kernel's
+            if _is_consumer_build is not None and not _is_consumer_build():
                 _vrec, _vnote = venue.routing_record()   # T-13000: unbound ⇒ record ignored
                 # T-12272 — SPEC-0203 rule 7's sandbox carve-out, resolved ONCE into a local before
                 # the first decision so the full-suite read and the SPEC-0181 narrowed re-read below
@@ -13843,29 +14055,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     kernel=not _is_consumer_build(), kind=remote_verify.STAGE6_KIND,
                     record=_vrec, record_note=_vnote, full_suite=True, sandbox=_vsandbox)
                 if _vdec["remote"] and not _sel_full and _governed_selection is not None:
-                    _gsel_up = None
-                    try:
-                        _sel_diff = _stage6_changed_paths(root, _run_git_cap=_run_git_cap)
-                        _gsel_up = _governed_selection(
-                            [f for d in _present for f in test_discovery.test_files(d)],
-                            select=True, journal_path=root / "events.jsonl",
-                            test_dir=test_dir,
-                            selection_diff_paths=_sel_diff,
-                            selection_tripwire_inert_paths=_stage6_inert_paths(
-                                _sel_diff, _classify_inert_paths),
-                            selection_diff_error=(None if _sel_diff is not None
-                                                  else "stage6-changed-paths-undeterminable"))
-                    except Exception as _e:      # noqa: BLE001 — an unresolved breadth reads FULL
-                        # SAID OUT LOUD, never swallowed: the run still proceeds (to the venue, the
-                        # fail-closed arm), but a reader who cannot see that the breadth was never
-                        # resolved cannot tell a deliberate full-suite route from a broken selector.
-                        # stderr rather than a metrics key: nothing downstream reads `_sel_metrics`
-                        # except the printed summary, so a key added here would be dead weight
-                        # (CHARTER §P1 F3) and a new journal payload key nothing emits.
-                        print(f"task test --run: the SPEC-0181 selection breadth could not be "
-                              f"resolved ({type(_e).__name__}: {_e}) — reading it as the FULL suite",
-                              file=sys.stderr)
-                        _gsel_up = None
+                    _gsel_up = _stage6_resolve_breadth(
+                        root, _present, test_dir, _governed_selection=_governed_selection,
+                        _run_git_cap=_run_git_cap, _classify_inert_paths=_classify_inert_paths)
                     if _gsel_up is not None and not _gsel_up["governed"]:
                         _stage6_full_reason = _gsel_up.get("reason")
                     if _gsel_up is not None and _gsel_up["governed"]:
@@ -13891,6 +14083,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                             _stage6_presel = None
                 if _vdec.get("note"):
                     print(f"task test --run: {_vdec['note']}", file=sys.stderr)
+                # T-13976 — a kernel pass on a consumer venue says so on its row (SPEC-1032 rule 2)
+                _s6_routing = _s6_routing or _stage6_routing_record(_vdec, declared=False)
                 if _vdec["remote"]:
                     print(f"task test --run: routed to the published venue {_vrec.get('box')} "
                           f"(candidate leg, lower priority) — SPEC-0203")
@@ -13924,8 +14118,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 _s6_limits = _stage6_marked_limits(remote_verify.local_stage6_limits(), _s6_mark)
                 with _stage6_local_admission(root, _s6_limits, _main_worktree=_main_worktree):
                     # measured AFTER the slot is held: a wait cannot hand the run a stale width
-                    _s6_w = _stage6_local_run_width(_verify_worker_governor, _s6_limits)
-                    bad = _local_verify(presel=_stage6_presel, workers=_s6_w)
+                    with _stage6_width_budget() as _wb:
+                        _s6_budget = dict(_wb)
+                        _s6_w = _stage6_local_run_width(_verify_worker_governor, _s6_limits, _wb)
+                        bad = _local_verify(presel=_stage6_presel, workers=_s6_w)
             # T-12271 — a ROUTED pass reports off its PARTITION, never off the rule-8 probe leg's
             # metrics (which are all `_sel_metrics` holds on that branch). `partition=None` on the
             # unrouted path keeps that reading byte-identical.
@@ -13971,10 +14167,24 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             except Exception:                  # an unresolvable main checkout: keep it beside the run
                 _s6_log_root = root
             _guard_kw["layer_log_ctx"] = {"root": _s6_log_root, "branch": f"task/{tid}", "attempt": "stage6"}
-        with _stage6_local_admission(root, _s6_glimits, _main_worktree=_main_worktree):
+        # T-13971 (SPEC-0132 §1c): a CONSUMER's local layers are sized by the width budget too; the
+        # engine's own guard runs no layer, so it keeps the plain governor call.
+        _s6_layer_budget = bool(_s6_glimits) or bool(_is_consumer_build and _is_consumer_build()
+                                                     and not _venue_metrics)
+        with _stage6_local_admission(root, _s6_glimits, _main_worktree=_main_worktree), \
+                (_stage6_width_budget() if _s6_layer_budget else contextlib.nullcontext({})) as _gwb:
             if _verify_worker_governor is not None:
-                _guard_kw["workers"] = _stage6_local_workers(_verify_worker_governor(), _s6_glimits)
-            if _s6_base:
+                if _gwb and not _s6_budget:
+                    _s6_budget = dict(_gwb)
+                if _stage6_budget_applies(_gwb):
+                    _guard_kw["workers"] = _stage6_local_workers(
+                        _verify_worker_governor(_VERIFY_WORKER_CEILING=_gwb["width"]), _s6_glimits)
+                else:
+                    _guard_kw["workers"] = _stage6_local_workers(_verify_worker_governor(), _s6_glimits)
+            if _s6_cres is not None:
+                # T-13976 — the layers ran on the box; its layer runner's record IS this run's guard.
+                cguard = _s6_cres["guard"]
+            elif _s6_base:
                 # T-13907 (SPEC-1030 rule 4): the Tests-stage run is the candidate run of ONE card.
                 cguard = _consumer_zero_probe_guard(root, _s6_base, working_tree=True,
                                                     one_card_candidate=True, **_guard_kw)
@@ -14006,6 +14216,15 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 _s6_mark, _s6_nice, workers=_s6_width,
                 layer_nice=cguard.get("layer_nice"),
                 layer_workers=cguard.get("layer_worker_budget"))}
+            if _s6_budget:               # T-13971: the width budget the local run was sized by
+                _stage6_priority["worker_budget"] = _s6_budget
+            # T-13967 — and the per-file bound the run ran under, value and source, on the two keys a
+            # land row carries (SPEC-0025): on a routed run the box candidate leg's applied value and
+            # the caller's rung, otherwise the local runner's own report.
+            _stage6_priority.update(
+                remote_verify.routed_verify_bound(_venue_result) if _venue_result is not None
+                else {k: _s6_run[k] for k in ("verify_test_timeout_s", "verify_test_timeout_source")
+                      if k in _s6_run})
             # … and SAID, when a marked run's processes on THIS host did not get normal priority
             # because the process that ran it is itself lowered: the reports of the legs that
             # started processes here — the local runner's (routed or not) and the layer guard's.
@@ -14198,8 +14417,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     "leg": "candidate",
                     # T-13545: + the layer re-run record, so a run that failed BOTH attempts says so.
                     **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics,
-                                           **_stage6_priority}}
-                       if (_venue_metrics or _stage6_retry_metrics or _stage6_priority) else {}),
+                                           **_stage6_priority, **_s6_routing}}
+                       if (_venue_metrics or _stage6_retry_metrics or _stage6_priority
+                           or _s6_routing) else {}),
                     **_stage6_lands,   # T-13905: the land verifies beside this run
                     **_s6_red,         # T-13940: the tested tree, when the runner could establish it
                     # T-13606 (SPEC-1006 rule 13): + the per-layer rows of a run on which a layer
@@ -14333,6 +14553,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # only when THIS invocation ran the suite; a hand-authored `--evidence` measured nothing.
         if _stage6_priority:
             data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_stage6_priority}
+        # T-13976 — and the SPEC-1032 routing reason of a pass it decided (`_stage6_routing_record`).
+        if _s6_routing:
+            data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_s6_routing}
         # T-13905 — and the land verifies that ran beside it. Present only when THIS invocation ran
         # the suite; a hand-authored `--evidence` measured nothing.
         data.update(_stage6_lands)
@@ -18899,4 +19122,378 @@ def _activate_task_proposed_specs(tid: str, *, SPECS_DIR, _append_event, _decisi
                 data["supersedes"], data["supersedes_status"] = flipped_target
             _append_event("spec_activated", tid, data)
     return sorted(activated), sorted(superseded)
+
+
+# ── T-13982 — the final Stage-6 run tests the tree its close will land (SPEC-0065 §Bound (2)) ───────
+# `task close` flips the card's proposed spec(s) AFTER the final `task test --run`, so HEAD carried
+# specs/ bytes the run never tested and the land refused the credit (`tree-differs:specs`, X-2026).
+# The run now applies that flip ON DISK through the SAME writer close uses, and puts the bytes back
+# after it; close then writes byte-identical bytes, so the run tree is the landed tree. The persisted
+# proposed -> active write stays close's (GRAPH §Spec lifecycle): this one is transient. One exclusive
+# lock per checkout (in its own git dir) is held from the scan to the restore, so a second run, `task commit` and `task
+# close` never see the flip; the restore record lets the next holder heal a run killed before its
+# restore (the kernel drops a dead holder's lock, so holding the lock proves the writer is gone).
+STAGE6_ACTIVATION_RESTORE = "stage6-activation-restore.json"
+STAGE6_ACTIVATION_LOCK = "stage6-activation.lock"
+_STATUS_LINE_RE = re.compile(r"(?m)^status:.*$")
+
+
+def _stage6_activation_dir(root) -> Path:
+    """Where the lock and the restore record live: this checkout's OWN git dir (`<git-dir>/yitc/`, one
+    per worktree, never in the working tree, so never in a tested tree or a `git add -A`), read from
+    `<root>/.git` — the directory itself, or a linked worktree's `gitdir:` file; `.yitc/` under `root`
+    only when `root` has neither."""
+    dotgit = Path(root) / ".git"
+    try:
+        if dotgit.is_dir():
+            return dotgit / "yitc"
+        line = dotgit.read_text(encoding="utf-8").strip()
+        if line.startswith("gitdir:"):
+            gd = Path(line[len("gitdir:"):].strip())
+            return (gd if gd.is_absolute() else (Path(root) / gd).resolve()) / "yitc"
+    except OSError:
+        pass
+    return Path(root) / ".yitc"
+
+
+def _read_exact(p) -> str:
+    with open(p, encoding="utf-8", newline="") as f:       # newline="": the bytes, line endings kept
+        return f.read()
+
+
+def _write_exact(p, text: str) -> None:
+    with open(p, "w", encoding="utf-8", newline="") as f:
+        f.write(text)
+
+
+@contextlib.contextmanager
+def _stage6_activation_lock(root):
+    """The checkout's exclusive Stage-6 activation lock, taken without waiting: a holder means a
+    `task test --run` is between its flip and its restore -> SystemExit, nothing touched."""
+    lp = _stage6_activation_dir(root) / STAGE6_ACTIVATION_LOCK
+    lp.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(lp, os.O_RDWR | os.O_CREAT, 0o644)
+    try:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            raise SystemExit("yitc-v2: a running `task test --run` holds a transient close-time spec "
+                             f"activation in this checkout ({lp}) — wait for it to finish, then re-run")
+        yield
+    finally:
+        os.close(fd)                                        # closing the descriptor drops the lock
+
+
+def _stage6_heal_locked(root) -> list:
+    rec_path = _stage6_activation_dir(root) / STAGE6_ACTIVATION_RESTORE
+    if not rec_path.is_file():
+        return []
+    try:
+        files = json.loads(rec_path.read_text(encoding="utf-8"))["files"]
+        assert isinstance(files, dict)
+    except Exception:                                       # noqa: BLE001
+        raise SystemExit(f"yitc-v2: unreadable Stage-6 activation restore record {rec_path} — put the "
+                         "spec files it names back by hand (git diff specs/), then delete it")
+    healed, stuck = [], []
+    for rel, ent in sorted(files.items()):
+        p = Path(root) / rel
+        orig, flipped = ent.get("original"), ent.get("flipped")
+        try:
+            cur = _read_exact(p)
+        except OSError:
+            cur = None
+        if cur is None or flipped is None or cur == flipped:
+            _write_exact(p, orig)
+        elif cur != orig:
+            o_st, c_st = _STATUS_LINE_RE.findall(orig), _STATUS_LINE_RE.findall(cur)
+            if len(o_st) != 1 or len(c_st) != 1:
+                stuck.append(rel)
+                continue
+            _write_exact(p, _STATUS_LINE_RE.sub(lambda _m: o_st[0], cur, count=1))
+        healed.append(rel)
+    if stuck:
+        raise SystemExit(f"yitc-v2: a killed `task test --run` left a transient spec activation in "
+                         f"{', '.join(stuck)}, edited since, with no unique `status:` line to put back — "
+                         f"restore its `status:` by hand, then delete {rec_path}")
+    rec_path.unlink()
+    if healed:
+        print(f"Stage-6 activation healed: {', '.join(healed)} put back to their pre-run status "
+              "(a run was killed before its restore)")
+    return healed
+
+
+@contextlib.contextmanager
+def _stage6_activation_guard(root):
+    """For `task commit` / `task close`: hold the checkout's Stage-6 activation lock for the whole verb
+    and first put back a transient activation a killed run left on disk (`_stage6_heal_locked`).
+
+    The lock held by a live run -> SystemExit, nothing touched. Otherwise (the writer is gone) per
+    file: unchanged since the flip (or no flip recorded) -> the original bytes; edited since -> ONLY
+    its `status:` line is put back, keeping the edits; a file whose `status:` line is not exactly one,
+    in either text -> SystemExit naming it, record KEPT. The record is deleted only once every file is
+    healed, so a refusal makes every later caller refuse again. A run started while the verb holds the
+    lock is refused, so nothing the verb stages or closes over can be a transient flip."""
+    with _stage6_activation_lock(root):
+        _stage6_heal_locked(root)
+        yield
+
+
+@contextlib.contextmanager
+def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_path, read_yaml):
+    """Hold the close-time activation of `tid`'s proposed spec(s) on disk for one Stage-6 run; yields
+    the activated ids ([] when there is nothing to activate or the writer refused).
+
+    `activate(tid, _append_event=, _die=)` is the SAME `_activate_task_proposed_specs` close runs, bound
+    by the host. Its journal emit is dropped (no `spec_activated` for a transient flip) and its refusal
+    raises here, so a refused flip leaves the bytes as they were and the run goes on as before."""
+    root = Path(root)
+    with contextlib.ExitStack() as stack:
+        stack.enter_context(_stage6_activation_lock(root))
+        _stage6_heal_locked(root)
+        snap = {}
+        for p in state.scan_specs(Path(specs_dir)):
+            d = read_yaml(p)
+            if isinstance(d, dict) and d.get("status") == "proposed" and _task_owns_proposed_spec(d, tid):
+                snap[p] = _read_exact(p)
+                tgt = d.get("supersedes")
+                tp = find_spec_path(tgt) if tgt else None
+                if tp is not None and Path(tp) not in snap:
+                    snap[Path(tp)] = _read_exact(tp)
+        if not snap:
+            stack.close()                                   # nothing to hold: release before the run
+            yield []
+            return
+        rec_path = _stage6_activation_dir(root) / STAGE6_ACTIVATION_RESTORE
+        rel = {p: os.path.relpath(p, root) for p in snap}
+
+        def _write_rec(flipped: dict) -> None:
+            # tmp + rename: the record on disk is always a whole one (never a truncated original).
+            rec_path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = rec_path.with_name(rec_path.name + f".{os.getpid()}.tmp")
+            tmp.write_text(json.dumps({"task": tid, "files": {
+                rel[p]: {"original": snap[p], "flipped": flipped.get(p)} for p in snap}}), encoding="utf-8")
+            os.replace(tmp, rec_path)
+
+        def _refuse(msg, *_a, **_k):
+            raise RuntimeError(msg)
+
+        _write_rec({})
+        ids: list = []
+        try:
+            try:
+                ids = list(activate(tid, _append_event=lambda *a, **k: None, _die=_refuse)[0])
+                _write_rec({p: _read_exact(p) for p in snap})
+            except (Exception, SystemExit) as e:            # noqa: BLE001 — a refusal = no flip
+                for p, raw in snap.items():
+                    _write_exact(p, raw)
+                print(f"{tid} Stage-6 run: the close-time activation was not applied ({e}) — the run "
+                      "tests the specs as they are; `task close` will refuse or flip on its own")
+                ids = []
+            if ids:
+                print(f"{tid} Stage-6 run tests the close-time activation: {', '.join(ids)} "
+                      "(restored after the run)")
+            yield ids
+        finally:
+            for p, raw in snap.items():
+                _write_exact(p, raw)
+            rec_path.unlink(missing_ok=True)
+
+
+# ── T-13954 — the supersession re-target at land (SPEC-0005 §4) ────────────────────────────────────
+# `_activate_task_proposed_specs` flips an activated spec's `supersedes:` target at CLOSE, on the
+# branch. When a sibling landed a successor of the SAME target first, the branch's flip and main's flip
+# merge cleanly and the land used to leave TWO active heads of one lineage on main (D-0047 B6). The
+# land re-targets the one unambiguous shape through the SAME field writer the close uses, and refuses
+# every other shape of that trigger before it writes anything.
+_RETARGET_SPEC_PATH_RE = re.compile(r"^specs/(SPEC-\d{4,})(?:-[^/]*)?\.ya?ml$")
+_RETARGET_SPEC_ID_RE = re.compile(r"^SPEC-\d{4,}$")
+_RETARGET_TASK_ID_RE = re.compile(r"^T-\d{4,}$")
+
+
+def _land_supersession_retarget(W: Path, merged_base: str, *, _run_git_cap, _append_event,
+                                _decision_apply_field_edits, _status_line_re, _supersedes_line_re) -> dict:
+    """T-13954 — at land, after update-from-main: re-target a spec this land ACTIVATES onto the head a
+    sibling landed first for the same `supersedes:` target, or refuse the shape.
+
+    The TRIGGER, all on the merged tree `W` against the main tip `merged_base` it merged:
+      - A is a spec file this land changes (`merged_base..HEAD`), `active` in W and NOT `active` on the
+        main tip (this land activates it), and names a scalar `supersedes: X`;
+      - X is `superseded` on the main tip (main superseded it before this land arrived).
+    Outside the trigger nothing is written (the ordinary land); a landing change with no active
+    scalar-`supersedes:` spec costs the one `git diff` and nothing else.
+
+    Inside it, ONE shape is re-targeted: exactly one landing spec A for X, exactly one spec S on the main
+    tip whose PARSED `supersedes:` is X (every base spec there is read, whatever line form it uses), S
+    `active` there, S byte-identical in W, A's `supersedes:` line and S's
+    `status:` line each one unique line in the form the audit-currency gate recognises
+    (`_supersedes_line_re` / `_status_line_re`, the SAME patterns `_governed_closure_side_effects`
+    admits by — injected, so writer and admission cannot disagree). Then S → `superseded` and A's
+    `supersedes:` → S, through `_decision_apply_field_edits` (the close's own field writer; target
+    first, as T-0638 orders the close), and one `spec_activated` row per re-target in A's
+    activation-owner slot carrying `retargeted_from: X`, appended to W's journal so the step-3 reconcile
+    commit carries it with the two spec files.
+
+    Every other shape is a REFUSAL, decided for ALL candidates before the first write, so a refused
+    land changes no spec: no head, several heads (on main, or two landing specs for one X), a head that
+    is not `active`, a head this branch edited, a line not in the recognised form, an unresolvable
+    owner — and `unreadable`: any git call failing, a blob that EXISTS on the main tip (per `ls-tree`)
+    but cannot be read, or a blob that cannot be parsed. An absent path is a fact; a failed read of a
+    present one is never taken for absence.
+
+    Returns {"retargeted": [{spec_id, supersedes, retargeted_from, task_id}], "paths": [rel paths
+    written], "refusal": None | {"shape", "message", "record"}}."""
+    out = {"retargeted": [], "paths": [], "refusal": None}
+
+    def _refuse(shape, message, **record):
+        out["refusal"] = {"shape": shape, "record": {"shape": shape, **record},
+                          "message": (f"land: REFUSED — supersession re-target (T-13954, SPEC-0005 §4): "
+                                      f"{message} No spec was changed; worktree intact, main untouched.")}
+        return out
+
+    def _load(text):
+        try:
+            d = state.load_str(text)
+        except Exception:                  # noqa: BLE001 — the caller decides what an unparseable blob means
+            return None
+        return d if isinstance(d, dict) else None
+
+    main_listing: dict = {}                # rel path -> True, base spec files on the main tip (filled lazily)
+    main_docs: dict = {}                   # rel path -> (True, text, doc), each main-tip blob read once
+
+    def _main_doc(path):
+        """(present, text, doc) for `path` on the main tip; refuses through `None` on a read/parse fault
+        of a PRESENT blob — the caller turns that into `unreadable`."""
+        if path not in main_listing:
+            return False, None, None
+        if path in main_docs:
+            return main_docs[path]
+        r = _run_git_cap(["show", f"{merged_base}:{path}"], W)
+        if r.returncode != 0:
+            return None
+        doc = _load(r.stdout)
+        if doc is None:
+            return None
+        main_docs[path] = (True, r.stdout, doc)
+        return main_docs[path]
+
+    d = _run_git_cap(["diff", "--name-only", merged_base, "HEAD", "--", "specs/"], W)
+    if d.returncode != 0:
+        return _refuse("unreadable", f"`git diff {merged_base[:12]} HEAD -- specs/` failed, so the "
+                                     "landing specs could not be read.")
+    changed = [p for p in (textutil.git_unquote_path(ln).strip() for ln in d.stdout.splitlines())
+               if p and _RETARGET_SPEC_PATH_RE.match(p) and not state.is_spec_part(p)]
+    pre = []                               # (A path, A id, X, A doc) — judged on W alone first
+    for p in changed:
+        f = W / p
+        if not f.is_file():
+            continue                       # deleted by this land — removing a spec activates nothing
+        a = _load(f.read_text(encoding="utf-8"))
+        if a is None:
+            return _refuse("unreadable", f"the landing spec {p} does not parse, so whether it is a "
+                           "re-target could not be decided.", path=p)
+        x = a.get("supersedes")
+        if a.get("status") != "active" or not isinstance(x, str) or not _RETARGET_SPEC_ID_RE.match(x.strip()):
+            continue
+        pre.append((p, str(a.get("id") or _RETARGET_SPEC_PATH_RE.match(p).group(1)), x.strip(), a))
+    if not pre:
+        return out
+    ls = _run_git_cap(["ls-tree", "--name-only", merged_base, "specs/"], W)
+    if ls.returncode != 0:
+        return _refuse("unreadable", f"`git ls-tree {merged_base[:12]} specs/` failed.")
+    main_specs = {}                        # id -> path, base spec files on the main tip
+    for ln in ls.stdout.splitlines():
+        p = textutil.git_unquote_path(ln).strip()
+        m = _RETARGET_SPEC_PATH_RE.match(p)
+        if m and not state.is_spec_part(p):
+            main_listing[p] = True
+            main_specs.setdefault(m.group(1), p)
+    by_target: dict = {}
+    for c in pre:
+        got = _main_doc(c[0])
+        if got is None:
+            return _refuse("unreadable", f"{c[0]} exists on main but could not be read.", path=c[0])
+        if got[0] and got[2].get("status") == "active":
+            continue                       # already active on main — this land does not activate it
+        x_path = main_specs.get(c[2])
+        if x_path is None:
+            continue                       # the target is not on main — not this shape
+        got = _main_doc(x_path)
+        if got is None:
+            return _refuse("unreadable", f"the target {c[2]} ({x_path}) exists on main but could not "
+                           "be read.", target=c[2])
+        if got[2].get("status") == "superseded":
+            by_target.setdefault(c[2], []).append(c)
+    if not by_target:
+        return out
+    plan = []                              # (A path, A id, X, S path, S id, owner)
+    for x, landing in sorted(by_target.items()):
+        if len(landing) > 1:
+            return _refuse("several-heads", f"{len(landing)} specs this land activates "
+                           f"({', '.join(sorted(c[1] for c in landing))}) all supersede {x}, which main "
+                           f"already superseded.", target=x, landing=sorted(c[1] for c in landing))
+        a_path, a_id, _x, a_doc = landing[0]
+        # The heads of X are read off the PARSED value of every base spec on the main tip, never off
+        # the line form a head spells its `supersedes:` in (a tagged or block scalar is still a head);
+        # each blob is read once (`main_docs`) and only when the trigger holds.
+        heads = []
+        for p in sorted(main_listing):
+            if p == a_path:
+                continue
+            got = _main_doc(p)
+            if got is None:                # a listed blob that cannot be read or parsed
+                return _refuse("unreadable", f"{p} on main could not be read or parsed, so the heads "
+                               f"of {x} could not be decided.", target=x, path=p)
+            sup = got[2].get("supersedes")
+            if isinstance(sup, str) and sup.strip() == x:
+                heads.append((p, str(got[2].get("id") or _RETARGET_SPEC_PATH_RE.match(p).group(1)),
+                              got[2], got[1]))
+        if not heads:
+            return _refuse("no-head", f"{a_id} supersedes {x}, which main already marks superseded, "
+                           f"but no spec on main names {x} in `supersedes:`.", spec=a_id, target=x)
+        if len(heads) > 1:
+            return _refuse("several-heads", f"{a_id} supersedes {x}, and main already holds "
+                           f"{len(heads)} specs superseding it ({', '.join(sorted(h[1] for h in heads))}), "
+                           f"so there is no one head to re-target onto.", spec=a_id, target=x,
+                           heads=sorted(h[1] for h in heads))
+        s_path, s_id, s_doc, s_main = heads[0]
+        if s_doc.get("status") != "active":
+            return _refuse("successor-not-active", f"{a_id} supersedes {x}; main's successor {s_id} "
+                           f"is status={s_doc.get('status')!r}, not active, so it is not the head to "
+                           f"re-target onto.", spec=a_id, target=x, successor=s_id,
+                           successor_status=s_doc.get("status"))
+        s_here = (W / s_path).read_text(encoding="utf-8") if (W / s_path).is_file() else None
+        if s_here != s_main:
+            return _refuse("successor-changed-on-branch", f"{a_id} supersedes {x}; main's successor "
+                           f"{s_id} differs between main and this branch, so the re-target would not "
+                           f"be the only change to it.", spec=a_id, target=x, successor=s_id)
+        a_text = (W / a_path).read_text(encoding="utf-8")
+        a_sup = re.findall(r"(?m)^supersedes:.*$", a_text)
+        s_st = re.findall(r"(?m)^status:.*$", s_here)
+        ma = _supersedes_line_re.match(a_sup[0]) if len(a_sup) == 1 else None
+        ms = _status_line_re.match(s_st[0]) if len(s_st) == 1 else None
+        if not ma or ma.group(1) != x or not ms or ms.group(ms.lastindex) != "active":
+            return _refuse("unrewritable", f"{a_id}'s `supersedes:` line or {s_id}'s `status:` line is "
+                           "not one unique line in the form the land's audit-currency gate admits.",
+                           spec=a_id, target=x, successor=s_id)
+        owner = a_doc.get("activation_owner_task") or a_doc.get("proposed_by")
+        if not isinstance(owner, str) or not _RETARGET_TASK_ID_RE.match(owner):
+            return _refuse("no-activation-owner", f"{a_id} names no activation-owner task to record "
+                           "the re-target under.", spec=a_id, target=x, successor=s_id)
+        plan.append((a_path, a_id, x, s_path, s_id, owner))
+    for a_path, a_id, x, s_path, s_id, owner in plan:
+        sp = W / s_path
+        _decision_apply_field_edits(sp, sp.read_text(encoding="utf-8"),
+                                    [("status", "status: superseded")], {"status": "superseded"})
+        ap = W / a_path
+        _decision_apply_field_edits(ap, ap.read_text(encoding="utf-8"),
+                                    [("supersedes", f"supersedes: {s_id}")], {"supersedes": s_id})
+        data = {"spec_id": a_id, "supersedes": s_id, "supersedes_status": "superseded",
+                "retargeted_from": x}
+        _append_event("spec_activated", owner, data, events_path=W / "events.jsonl")
+        out["retargeted"].append({**data, "task_id": owner})
+        out["paths"] += [s_path, a_path]
+        print(f"land: supersession re-target (T-13954) — {a_id} now supersedes {s_id} (was {x}, which "
+              f"{s_id} superseded on main first); {s_id} → superseded. Recorded as spec_activated "
+              f"under {owner}.", file=sys.stderr)
+    return out
 

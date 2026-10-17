@@ -47,46 +47,47 @@ implements:
 - bin/lib/audit.py#suspected_echo_findings
 - bin/lib/audit_ceiling.py#residual_finding_records
 body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ceiling\
-  \ (SPEC-0124: two absorption passes).\nNothing is consulted, re-surveyed or re-tested.\
-  \ The residuals ARE the findings of that last RED,\neach carrying an engine-computed\
-  \ fingerprint. The Controller — never a Worker — records ONE typed\ndecision per\
-  \ residual, citing the owner directive that authorizes it: `fix` (a change follows),\n\
-  `accept` (the residual stands, with the reason), or `defer` (the work rides a named\
-  \ receiving card —\nwhether parked for a successor or out of this card's subject).\
-  \ When every residual is decided, exactly ONE further audit pass runs on those\n\
-  decisions. GREEN or YELLOW-absorbed → Closure/land as today — and a NEW small (medium/low)\
-  \ finding that\npass raises is absorbed like any YELLOW (fix + one bounded re-audit\
-  \ under the same ceiling row, or a\nfollowup), never a card-burning terminal. RED\
-  \ again — a new high finding, a `fix` still open, or\na second new finding on the\
-  \ one absorption re-audit → the card's audit status\nstays RED and the only exits\
-  \ are the owner's TERMINAL dispositions that already exist. No episode,\nno finding\
-  \ ids, no retest rounds, no reset flag, no marker prose on the card.\n\n## Internal\n\
-  \nTHE CEILING-DECISION CONTRACT — the SOLE normative home of (a) what happens AFTER\
-  \ the audit-loop\nceiling is reached, for TASK audit-pre and audit-post, and (b)\
-  \ the first-round DELTA discipline that\nkeeps cards from being pushed there (rule\
-  \ 8). SPEC-0124 keeps the ceiling itself (pass\narithmetic, ledger-skips) and points\
-  \ here; SPEC-0036 keeps the invocation/verdict/lens contract and the\nper-finding\
-  \ response fields this contract reads. Eight rules.\n\n**EDGE CASES OF THE CEILING\
-  \ ROUTE → SPEC-1014 (index).** The rules below keep what is needed to\nrecognise\
-  \ the ceiling and to decide whether a decision or the one further pass is permitted.\
-  \ The\ndetail of their rare edge cases — which row is the ceiling row and when its\
-  \ residual set is empty,\na directive sharing its second with another, a subject\
-  \ that does not resolve, the writer-side\nadmission check, record-only and nested\
-  \ `fix` evidence, a pass over an empty residual set, a\ncard-repair subject, a finding\
-  \ on a currency row, the unbound-echo report, the new ceiling row a\nreship opens,\
-  \ and the plan-gate `fix` routes — is the reference SPEC-1014: read it when a ceiling\n\
-  refusal or `audit decide` meets one of them (`graph query SPEC-1014`), from its\
-  \ heading\n«At-ceiling edge cases».\n\n### 1. The residual list IS the last RED's\
-  \ findings — fingerprinted by the engine\nAt the ceiling there is no separate survey:\
-  \ the residuals of a (task, stage) are the `findings` of the\nlast `external_audit_completed`\
-  \ row for that task+stage (the CEILING ROW). A NON-DEFECT row — a finding\nwhose\
-  \ severity is in the closed set {pass, ok, none, info, green}, e.g. an auditor's\
-  \ «No change.» row — is NOT a\nresidual: it is skipped at READ time in every row\
-  \ shape (so an already-saved record is read the same way),\nnever written into a\
-  \ plan-gate ceiling row, needs no decision, and is counted in the packet as\n`non_defect_rows_skipped`.\
-  \ An unknown severity stays a residual (fail-closed). Each finding carries an\n\
-  ENGINE-computed `finding_fingerprint` = `fp<v>:` + a hash over the canonical tuple\n\
-  {task, stage, class_id|criterion_ref, locator, normalized(failing_input)} — a REVISION-FREE\
+  \ (<workshop-spec>: two absorption passes).\nNothing is consulted, re-surveyed or\
+  \ re-tested. The residuals ARE the findings of that last RED,\neach carrying an\
+  \ engine-computed fingerprint. The Controller — never a Worker — records ONE typed\n\
+  decision per residual, citing the owner directive that authorizes it: `fix` (a change\
+  \ follows),\n`accept` (the residual stands, with the reason), or `defer` (the work\
+  \ rides a named receiving card —\nwhether parked for a successor or out of this\
+  \ card's subject). When every residual is decided, exactly ONE further audit pass\
+  \ runs on those\ndecisions. GREEN or YELLOW-absorbed → Closure/land as today — and\
+  \ a NEW small (medium/low) finding that\npass raises is absorbed like any YELLOW\
+  \ (fix + one bounded re-audit under the same ceiling row, or a\nfollowup), never\
+  \ a card-burning terminal. RED again — a new high finding, a `fix` still open, or\n\
+  a second new finding on the one absorption re-audit → the card's audit status\n\
+  stays RED and the only exits are the owner's TERMINAL dispositions that already\
+  \ exist. No episode,\nno finding ids, no retest rounds, no reset flag, no marker\
+  \ prose on the card.\n\n## Internal\n\nTHE CEILING-DECISION CONTRACT — the SOLE\
+  \ normative home of (a) what happens AFTER the audit-loop\nceiling is reached, for\
+  \ TASK audit-pre and audit-post, and (b) the first-round DELTA discipline that\n\
+  keeps cards from being pushed there (rule 8). <workshop-spec> keeps the ceiling\
+  \ itself (pass\narithmetic, ledger-skips) and points here; SPEC-0036 keeps the invocation/verdict/lens\
+  \ contract and the\nper-finding response fields this contract reads. Eight rules.\n\
+  \n**EDGE CASES OF THE CEILING ROUTE → SPEC-1014 (index).** The rules below keep\
+  \ what is needed to\nrecognise the ceiling and to decide whether a decision or the\
+  \ one further pass is permitted. The\ndetail of their rare edge cases — which row\
+  \ is the ceiling row and when its residual set is empty,\na directive sharing its\
+  \ second with another, a subject that does not resolve, the writer-side\nadmission\
+  \ check, record-only and nested `fix` evidence, a pass over an empty residual set,\
+  \ a\ncard-repair subject, a finding on a currency row, the unbound-echo report,\
+  \ the new ceiling row a\nreship opens, and the plan-gate `fix` routes — is the reference\
+  \ SPEC-1014: read it when a ceiling\nrefusal or `audit decide` meets one of them\
+  \ (`graph query SPEC-1014`), from its heading\n«At-ceiling edge cases».\n\n### 1.\
+  \ The residual list IS the last RED's findings — fingerprinted by the engine\nAt\
+  \ the ceiling there is no separate survey: the residuals of a (task, stage) are\
+  \ the `findings` of the\nlast `external_audit_completed` row for that task+stage\
+  \ (the CEILING ROW). A NON-DEFECT row — a finding\nwhose severity is in the closed\
+  \ set {pass, ok, none, info, green}, e.g. an auditor's «No change.» row — is NOT\
+  \ a\nresidual: it is skipped at READ time in every row shape (so an already-saved\
+  \ record is read the same way),\nnever written into a plan-gate ceiling row, needs\
+  \ no decision, and is counted in the packet as\n`non_defect_rows_skipped`. An unknown\
+  \ severity stays a residual (fail-closed). Each finding carries an\nENGINE-computed\
+  \ `finding_fingerprint` = `fp<v>:` + a hash over the canonical tuple\n{task, stage,\
+  \ class_id|criterion_ref, locator, normalized(failing_input)} — a REVISION-FREE\
   \ matching key,\nstable across revisions of one (task, stage); the binding to a\
   \ revision lives on the decision (rule 2's\n`ceiling_ref`), never inside the hash\
   \ — versioned (`fp1:`), computed ONCE at record time and carried CANONICALLY on\
@@ -206,12 +207,12 @@ body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ce
   \ no\nsecond store; the audit packet renders decisions beside the findings they\
   \ bind to as a PROJECTION of\nthe journal. Payload (SPEC-0161 catalog extension):\
   \ `task_id`, `stage` (pre|post), `subject_revision`,\n`ceiling_ref` (the ceiling\
-  \ row's DURABLE identity `<task>/<stage>/pass-<N>` — the SPEC-0124 `passes` counter\
-  \ is\nunique and monotonic per (task, stage) and sits on both the completion event\
-  \ and the verdict YAML; never a\nbare timestamp, so two rows sharing a `ts` bind\
-  \ distinctly), `finding_fingerprint`, `disposition` ∈ {fix, accept,\ndefer} — the\
-  \ PER-FINDING set (a card-TERMINAL disposition is never a `ceiling_decision`, rule\
-  \ 3), `reason` (non-empty), `directive` (the owner-directive locator,\n`events.jsonl#ts=<ISO>`\
+  \ row's DURABLE identity `<task>/<stage>/pass-<N>` — the <workshop-spec> `passes`\
+  \ counter is\nunique and monotonic per (task, stage) and sits on both the completion\
+  \ event and the verdict YAML; never a\nbare timestamp, so two rows sharing a `ts`\
+  \ bind distinctly), `finding_fingerprint`, `disposition` ∈ {fix, accept,\ndefer}\
+  \ — the PER-FINDING set (a card-TERMINAL disposition is never a `ceiling_decision`,\
+  \ rule 3), `reason` (non-empty), `directive` (the owner-directive locator,\n`events.jsonl#ts=<ISO>`\
   \ — REQUIRED and RESOLVED at write: it must name an `owner_directive` row that\n\
   PRECEDES the decision and COVERS THE TASK. COVERAGE HAS THREE TOKEN-EXACT ADMITTING\n\
   SHAPES AND NO FOURTH, each NAMED here: (a) the BATCH arm — the task id is an element\
@@ -308,7 +309,6 @@ cites:
 - CHARTER.md#principle-5
 - CHARTER.md#principle-7
 - CHARTER.md#principle-8
-- SPEC-0124
 - SPEC-0036
 - SPEC-0191
 - SPEC-0161
@@ -318,7 +318,6 @@ cites:
 - SPEC-0077
 - ceiling-decisions-one-typed-controller-decision-pe
 requires:
-- SPEC-0124
 - SPEC-0036
 - SPEC-0161
 - SPEC-0168
@@ -330,9 +329,9 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
-  bin/lib/audit.py#audit_ceiling_blocked: 8e11fb5399e6d6a64801bdb55f5e234a7c5fc842a7779ffe1a94cb57c5c6b3a0
-  bin/lib/audit.py#blocked_on_land_ceiling_disposition: dbfad51c3dbb452abda3fe580112d867ca4c8fc2155434a87de0a4d32657cf97
-  bin/lib/audit.py#cmd_audit: d3a5b8718acb2eb07184ea0877ecd82d9bacc9a6347d354b5dfd04fc40a434c9
+  bin/lib/audit.py#audit_ceiling_blocked: cec7de584e38045317a1dc6695ac6145c608804d4661f5820b5f9ccdbfc1a48c
+  bin/lib/audit.py#blocked_on_land_ceiling_disposition: a14d1669d5ef988351c98c6187cc4dde05e83ba5c84908d2ca2cb9fcb8b8a539
+  bin/lib/audit.py#cmd_audit: 5c386936914ed1bf5c3bfcff2087a81d4205bb91eacfcb1662d318609a8564a1
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -356,8 +355,8 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: 56f5461826dd5ca135dbe005cd3f078aed29239219be8f903c558e530327bc20
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: 24b386ade6bb79eea5de1e7480856d38645cb7f4da554fa2d02c8a274eb9f3e5
+  bin/lib/cli_parser.py#build_parser: 12a9aa45758ec2d1b80088fb8faa38de9d5c94d1b3be8715e1ff6344fe50f77a
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
-  bin/lib/plan.py#_run_plan_gate_audit: 8d0835cd6ee763f2afd3ab84291a2165e8b97fc82c79fec2cdfb6d75ad69cdb0
+  bin/lib/plan.py#_run_plan_gate_audit: a8f25295f6edce0a82fb7c736717f6f32976742171c6b99e17010c266630afc7
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0

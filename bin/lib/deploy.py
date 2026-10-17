@@ -2704,6 +2704,92 @@ def _resolve_rollback_target(deploy_section, requested: str) -> _DeployTarget:
     return _DeployTarget(command.strip(), requested, False, None)
 
 
+# ── T-13962 — THE LOAD WINDOW A FORWARD DEPLOY WAITS FOR (SPEC-0094 §9) ──────────────────────────
+# A project's deploy command runs its own smoke tests (<project>: build -> alembic -> /healthz -> smoke;
+# <project>: deploy-gate smoke + browser-row-press), and on this host they ran beside verify runs at a
+# load1 of median 17-22, p90 41-60 on 32 cores. So before the command the verb reads load1 once and,
+# while it is at or above the headroom, re-reads it every settle interval up to a bounded wait. One
+# reading, a sleep, a re-read: no lock, no queue, no stored admission state, no new event type — the
+# outcome rides the existing terminal rows as three fields.
+DEPLOY_HEADROOM_LOAD1_ENV = "YITC_DEPLOY_HEADROOM_LOAD1"
+DEPLOY_ADMISSION_MAX_WAIT_ENV = "YITC_DEPLOY_ADMISSION_MAX_WAIT_S"
+#: The Stage-6 venue headroom built-in (remote_verify.VENUE_STAGE6_HEADROOM_LOAD1_DEFAULT) — the one
+#: load figure the engine already admits work under. Restated, not imported: remote_verify is the
+#: venue client and this verb must not load it; a test pins the two equal.
+DEPLOY_HEADROOM_LOAD1_DEFAULT = 36.0
+DEPLOY_HEADROOM_LOAD1_RANGE = (1.0, 1024.0)
+DEPLOY_ADMISSION_MAX_WAIT_DEFAULT = 600
+DEPLOY_ADMISSION_MAX_WAIT_RANGE = (1, 7200)
+#: Seconds between two load readings while waiting — a fixed cadence, not a setting.
+DEPLOY_ADMISSION_SETTLE_S = 15
+
+
+def _resolved_setting(name, kind, default, bounds):
+    """env > machine file > built-in; a malformed or out-of-bounds value is ignored and the built-in
+    stands (the venue_stage6_headroom_load1 resolution shape). Never raises."""
+    raw = os.environ.get(name)
+    if raw is None:
+        try:
+            from lib import machine_settings     # deferred: the settings file is read per call
+            raw = machine_settings.get_value(name)
+        except Exception:                        # noqa: BLE001 — a settings fault never blocks a deploy
+            raw = None
+    if raw is not None:
+        try:
+            value = kind(str(raw).strip())
+        except (TypeError, ValueError, AttributeError):
+            value = None
+        if value is not None and value == value and bounds[0] <= value <= bounds[1]:
+            return value
+    return default
+
+
+def deploy_admission_settings() -> "tuple[float, int]":
+    """THE ONE READ SITE of the two deploy-admission settings: (headroom load1, max wait seconds)."""
+    return (_resolved_setting(DEPLOY_HEADROOM_LOAD1_ENV, float, DEPLOY_HEADROOM_LOAD1_DEFAULT,
+                              DEPLOY_HEADROOM_LOAD1_RANGE),
+            _resolved_setting(DEPLOY_ADMISSION_MAX_WAIT_ENV, int, DEPLOY_ADMISSION_MAX_WAIT_DEFAULT,
+                              DEPLOY_ADMISSION_MAX_WAIT_RANGE))
+
+
+def _read_load1() -> "float | None":
+    try:
+        return round(float(os.getloadavg()[0]), 2)
+    except (OSError, AttributeError, IndexError, TypeError, ValueError):
+        return None
+
+
+def _await_deploy_window(headroom, max_wait_s, *, read_load=None, sleep=None, clock=None,
+                         settle_s=DEPLOY_ADMISSION_SETTLE_S) -> dict:
+    """Wait for load1 < headroom, at most `max_wait_s` seconds of sleeping. Returns the admission
+    record: `admitted` (bool), `admission`, `admission_wait_ms`, `load1_at_start`, `load1_last`.
+
+    The bound is counted in SLEPT seconds, so it holds however long a reading takes. An unreadable
+    load admits at once as `load-unreadable`: the wait is a courtesy to the smoke tests, and a host
+    that cannot report its load is no reason to hold a deploy. The collaborators are looked up at call
+    time so a test can hand in fakes."""
+    read_load = read_load or _read_load1
+    sleep = sleep or time.sleep
+    clock = clock or time.monotonic
+    started = clock()
+    first = load = read_load()
+    slept = 0
+    while load is not None and load >= headroom:
+        if slept >= max_wait_s:
+            return {"admitted": False, "admission": "expired",
+                    "admission_wait_ms": int((clock() - started) * 1000),
+                    "load1_at_start": first, "load1_last": load}
+        step = min(settle_s, max_wait_s - slept)
+        sleep(step)
+        slept += step
+        load = read_load()
+    # Classified by the LAST reading: a high first reading followed by an unreadable one admitted the
+    # deploy because the load could not be read, and the row must say so (audit-post finding).
+    return {"admitted": True, "admission": "admitted" if load is not None else "load-unreadable",
+            "admission_wait_ms": int((clock() - started) * 1000),
+            "load1_at_start": first, "load1_last": load}
+
+
 class _DeployRunRecorder:
     """T-13398 / SPEC-0094 §1 — exactly ONE terminal journal row for a deploy whose project command
     STARTED, however it ends.
@@ -3762,6 +3848,32 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # (A5/T-11448), and it owns the per-segment write this guard must not invent.
             journal_snapshot = list(journal_mod.fold_lines(events_mod.live_segment(ev_path)))
 
+    # T-13962 / SPEC-0094 §9 — the LOAD WINDOW. Placed above moment (b) so the revision recheck below
+    # also covers the time spent waiting. A rollback never waits (SPEC-0097 §2: a reversal is always
+    # available); `--now` takes one reading for the record and goes. An expired wait refuses ABOVE the
+    # launch, so it writes no row, exactly like every other refusal up here (SPEC-0094 §1 bound (i)).
+    if kind == "rollback":
+        admission = {"admission": "rollback-exempt", "admission_wait_ms": 0,
+                     "load1_at_start": _read_load1()}
+    elif getattr(args, "now", False):
+        admission = {"admission": "skipped-by-flag", "admission_wait_ms": 0,
+                     "load1_at_start": _read_load1()}
+    else:
+        headroom, max_wait_s = deploy_admission_settings()
+        window = _await_deploy_window(headroom, max_wait_s)
+        if not window["admitted"]:
+            print(f"deploy: REFUSED — host load1 {window['load1_last']} is still at or above the deploy "
+                  f"headroom {headroom:g} after the bounded wait of {max_wait_s}s (load1 at start "
+                  f"{window['load1_at_start']}; SPEC-0094 §9). The project `deploy:` command was NOT "
+                  f"launched, so nothing was deployed; no deploy_completed emitted. Re-run later, raise "
+                  f"`{DEPLOY_HEADROOM_LOAD1_ENV}` / `{DEPLOY_ADMISSION_MAX_WAIT_ENV}` with "
+                  f"`config set`, or pass `--now` to deploy without waiting.", file=sys.stderr)
+            sys.exit(3)
+        admission = {k: window[k] for k in ("admission", "admission_wait_ms", "load1_at_start")}
+        if window["admission_wait_ms"]:
+            print(f"deploy: load window — waited {window['admission_wait_ms'] / 1000:.0f}s for load1 "
+                  f"{window['load1_at_start']} -> {window['load1_last']} (headroom {headroom:g}).")
+
     # T-13874 / SPEC-0094 §6, moment (b) — the gates above can run for minutes (a Class-C1 dump, the
     # security-audit producer), and a `land` in that time moves the tree the command is about to build.
     # Ask again at the last moment before the launch: refusing HERE leaves production untouched, where
@@ -3786,7 +3898,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     print(f"  $ {run_command}")
     # T-13398 / SPEC-0094 §1 — from the launch on, every way this run ends leaves exactly ONE terminal
     # row (`_DeployRunRecorder`). Every refusal ABOVE stays row-less: production was never touched.
-    failure_base = {"revision": revision, "project": project, "kind": kind}
+    failure_base = {"revision": revision, "project": project, "kind": kind, **admission}
     if dtarget.name is not None:
         failure_base["target"] = dtarget.name
     recorder = _DeployRunRecorder(failure_base, _append_event=_append_event)
@@ -3949,6 +4061,9 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
 
     # Convergence verified (or nothing declared): the revision is live. Emit the governed adoption record.
     payload = {"revision": revision, "project": project, "kind": kind}
+    # T-13962 / SPEC-0094 §9 — how this deploy was admitted: the outcome, the wait and the load1 read
+    # at its start, as land_completed carries its admission wait. Fields on the existing row.
+    payload.update(admission)
 
     # T-12066 / SPEC-0094 §6 — WHAT SOURCE this forward deploy built. Since the landed-main-line
     # assertion is now scoped by target, a record that omits this cannot be read for the one question

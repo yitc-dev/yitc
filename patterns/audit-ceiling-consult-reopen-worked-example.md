@@ -1,19 +1,19 @@
 ---
 name: audit-ceiling-consult-reopen-worked-example
 class: discipline
-sourced_from: SPEC-0204 (the rule home for what happens once the audit-loop ceiling is reached) + SPEC-0124 §Audit-loop ceiling (the ceiling itself). Rewritten by (fu_e2241c8fa6c4) for the SPEC-0204 decision route. The path keeps its historical name because SPEC-0124 part2 links it; the earlier consult -> `--owner-reset` example (re-homed, extended by) describes a route SPEC-0204 rule 6 retired.
+sourced_from: SPEC-0204 (the rule home for what happens once the audit-loop ceiling is reached) + <workshop-spec> §Audit-loop ceiling (the ceiling itself). Rewritten by (fu_e2241c8fa6c4) for the SPEC-0204 decision route. The path keeps its historical name because <workshop-spec> part2 links it; the earlier consult -> `--owner-reset` example (re-homed, extended by) describes a route SPEC-0204 rule 6 retired.
 applies_to: a session standing at an exhausted audit-loop ceiling, TASK audit-pre or audit-post — the Worker that halts there, and the Controller that records the decisions
 ---
 
 # Pattern: at the audit-loop ceiling — the SPEC-0204 decision route (worked example)
 
 > **NON-NORMATIVE illustration. The RULE lives in SPEC-0204** (`bin/yitc-v2 graph query SPEC-0204`);
-> the ceiling arithmetic itself stays in SPEC-0124 §Audit-loop ceiling. On ANY conflict, SPEC-0204
+> the ceiling arithmetic itself stays in <workshop-spec> §Audit-loop ceiling. On ANY conflict, SPEC-0204
 > WINS. This file teaches the sequence; it establishes no rule and adds no gate.
 >
 > **Why it lives here:** a worked example inside SPEC-0204 would be paid by everyone who fetches the
 > rule, before anyone needs the walk-through. It is read ON DEMAND, when a ceiling is actually reached
-> (no stage entry renders SPEC-0204 or SPEC-0124 since; SPEC-0036 §Audit-loop ceiling names them).
+> (no stage entry renders SPEC-0204 or <workshop-spec> since; SPEC-0036 §Audit-loop ceiling names them).
 
 ## When to read this
 
@@ -40,7 +40,7 @@ have not hit a ceiling, you do not need this.
    - `accept` — the residual stands; the reason quotes the authorizing words;
    - `defer` — the work rides a named receiving card (`--receiving T-YYYY`).
 
-   In the one residual was a spec-coherence finding (a SPEC-0124 pointer that would go stale).
+   In the one residual was a spec-coherence finding (a <workshop-spec> pointer that would go stale).
    The Worker amended the plan to include that pointer edit, re-finalized it, and stopped with
    `--reason controller-wait` so the Controller could record `--disposition fix` against the new plan
    fingerprint.
@@ -71,7 +71,7 @@ technical-fork pick) is a different thing and is unchanged.
 
 - **SPEC-0204** — the rule home: residuals (rule 1), `ceiling_decision` (rule 2), the one bounded
   pass (rule 3), custody (rule 4), retirements (rule 6).
-- **SPEC-0124** — the ceiling itself (pass arithmetic, ledger-skips).
+- **<workshop-spec>** — the ceiling itself (pass arithmetic, ledger-skips).
 - **SPEC-0103 §3 / §5** — the Worker's halt and the work-carrying pause shape.
 - **LIFECYCLE §Stage 4 / §Stage 8** — the mode-a / mode-b absorption fork. Most ceilings are reached
   by pushing a PASSABLE finding through mode-a; recording it with mode-b (`--absorb`) spends no pass.

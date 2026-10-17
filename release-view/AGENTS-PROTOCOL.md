@@ -138,7 +138,7 @@ Use lighter-capability mode for:
 - Routine pre/post audits on small changes
 - Quick verdict on absorption iterations
 
-Audit-loop ceiling — homed in **SPEC-0124 §Audit-loop ceiling**; what happens ONCE IT IS REACHED in **SPEC-0204** (the Controller records one typed decision per residual, then ONE bounded `--on-decisions` pass; consult episodes / `--owner-reset` / `--reopen` are retired and REFUSE). Never a silent loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
+Audit-loop ceiling — homed in **SPEC-1034 §Audit-loop ceiling**; what happens ONCE IT IS REACHED in **SPEC-0204** (the Controller records one typed decision per residual, then ONE bounded `--on-decisions` pass; consult episodes / `--owner-reset` / `--reopen` are retired and REFUSE). Never a silent loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
 
 ## Anti-recurrence discipline checks
 <!--AUDIENCE:core-->
@@ -247,7 +247,7 @@ hand. **Bounds:** this applies to
 **structural/pre-plan forks ONLY** — NOT routine choices (a naming pick, a trivial toggle) and NOT
 in-lifecycle gates (the Stage-4/8 `audit pre|post` are already mandatory there, not an offered option). It
 is **OFFERED, never auto-fired**: the auditor runs only if the owner takes the option, so the audit-loop
-ceiling (SPEC-0124) is untouched. Still lead with your own recommended option per the format above — the
+ceiling (SPEC-1034) is untouched. Still lead with your own recommended option per the format above — the
 auditor consult is an *additional* alternative for a genuinely open structural fork, not a substitute for
 the recommendation you should already have formed.
 

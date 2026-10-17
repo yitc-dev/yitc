@@ -2657,8 +2657,8 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                     "would_spend_pass": prior_passes + 1})
     if blocking and prior_passes >= AUDIT_PASS_CEILING:
         # T-9717 (L2 parity with T-9682/T-9702) — TREND-AWARE ceiling grant for the EARLY plan gates.
-        # Pure f(prior record): when the recorded finding-count trend is strictly DECREASING with LOW
-        # residual severity AND prior_passes == the flat cap (the one pass the +1 unblocks), grant ONE
+        # Pure f(prior record): when the recorded finding-count trend is strictly DECREASING with no
+        # residual above MEDIUM AND prior_passes == the flat cap (the one pass the +1 unblocks), grant ONE
         # bounded extra pass — the same single +1 mechanic as --owner-reset, but AUTONOMOUS (no owner
         # ask). BOUNDED to +1: it fires ONLY at prior_passes == AUDIT_PASS_CEILING, so a second
         # still-decreasing step at cap+1 stays blocked; a FLAT/GROWING/high-residual trend blocks too.
@@ -2823,9 +2823,9 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                 "trend": _trend_counts, "residual_severity": _residual_sev,
                 "pass_ceiling": AUDIT_PASS_CEILING})
             print(f"# audit-loop ceiling: TREND GRANT — recorded finding-count trend {_trend_counts} is "
-                  f"strictly decreasing with low residual severity for {slug} {template}; granting ONE "
-                  f"bounded extra pass (pass {prior_passes + 1}) past the flat {AUDIT_PASS_CEILING}-pass "
-                  f"cap (T-9717/T-9682, SPEC-0124 §Audit-loop ceiling).", file=sys.stderr)
+                  f"strictly decreasing with no residual finding above medium for {slug} {template}; "
+                  f"granting ONE bounded extra pass (pass {prior_passes + 1}) past the flat "
+                  f"{AUDIT_PASS_CEILING}-pass cap (T-9717/T-13986, SPEC-1034 §Audit-loop ceiling).", file=sys.stderr)
         else:
             # T-11250 (<project> X-0974) — PRINT THE EXACT COMMAND, do not make the caller derive it.
             # This refusal is reached precisely when the caller is already blocked and under time

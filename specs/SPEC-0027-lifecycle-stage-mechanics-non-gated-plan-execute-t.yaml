@@ -419,9 +419,9 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d3a5b8718acb2eb07184ea0877ecd82d9bacc9a6347d354b5dfd04fc40a434c9
+  bin/lib/audit.py#cmd_audit: 5c386936914ed1bf5c3bfcff2087a81d4205bb91eacfcb1662d318609a8564a1
   bin/lib/gates.py#advance_stage_pointer: 80d13c9bac15006a9028df1d6b8493d52f7dad17186fd3453ab3db831c6b3e9a
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 22f3fbb8aaaba7a671e856ee56ce69d46634b518d1ff66270e4d4a590c21621d
+  bin/lib/task.py#cmd_task_test: d89d29338b440e22e3813e4f10280348dcc24cd5ab0cbf09fb0a1c91da729444

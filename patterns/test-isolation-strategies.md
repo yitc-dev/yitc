@@ -7,6 +7,9 @@ applies_to: async SQLAlchemy / FastAPI projects choosing how to isolate test dat
 
 # Test Isolation Strategies (async SQLAlchemy)
 
+> **Catalog.** This page is one source of `patterns/verify-cost-playbook.md`, which lists every verify-cost
+> technique with its measured case — read it there when choosing what to cut.
+
 ## Problem
 
 Async tests with a real database must be isolated from each other — a row created by test A must not be visible to test B. The three available strategies have different speed/correctness tradeoffs; picking the wrong one wastes hours either in test runtime or in debugging cross-test pollution.

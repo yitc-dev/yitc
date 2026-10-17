@@ -696,7 +696,7 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: d3a5b8718acb2eb07184ea0877ecd82d9bacc9a6347d354b5dfd04fc40a434c9
+  bin/lib/audit.py#cmd_audit: 5c386936914ed1bf5c3bfcff2087a81d4205bb91eacfcb1662d318609a8564a1
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
   bin/lib/cli.py#_deliver_stage_bundle_contracts: 43dc04a2189c3a257017ea907c982671b71cfb8044f0b9e8cbf545105c189d8d
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
@@ -713,5 +713,5 @@ implements_signature:
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: cf2ba2d7b3a8f8b3f58c845a0ddec30ea55fcc35f1c96baca044f744c61e9da7
+  bin/lib/task.py#cmd_task_close: d720d8d1e699a42854cbe6cb0206bfbe7bf4cd79db5223fcdd18fd1b3b6e146a
   bin/lib/task.py#cmd_task_commit: be0d945a859e0f8af4fa4afa1b1695c28536dcdd398c1c3619ea2dc2d488f87c

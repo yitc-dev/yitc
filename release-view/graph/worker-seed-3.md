@@ -284,7 +284,7 @@ Use lighter-capability mode for:
 - Routine pre/post audits on small changes
 - Quick verdict on absorption iterations
 
-Audit-loop ceiling — homed in **SPEC-0124 §Audit-loop ceiling**; what happens ONCE IT IS REACHED in **SPEC-0204** (the Controller records one typed decision per residual, then ONE bounded `--on-decisions` pass; consult episodes / `--owner-reset` / `--reopen` are retired and REFUSE). Never a silent loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
+Audit-loop ceiling — homed in **SPEC-1034 §Audit-loop ceiling**; what happens ONCE IT IS REACHED in **SPEC-0204** (the Controller records one typed decision per residual, then ONE bounded `--on-decisions` pass; consult episodes / `--owner-reset` / `--reopen` are retired and REFUSE). Never a silent loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
 
 ## Anti-recurrence discipline checks
 

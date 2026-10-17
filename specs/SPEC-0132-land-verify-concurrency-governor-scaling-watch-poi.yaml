@@ -16,12 +16,15 @@ implements:
 - bin/lib/verify_runner.py#_verify_dispatch_order
 - bin/lib/verify_runner.py#_load_verify_duration_table
 - bin/lib/verify_runner.py#cmd_verify_durations
+- bin/lib/land_verify_legs.py#_consumer_layer_duration_fold
+- bin/lib/land_verify_legs.py#_consumer_layer_durations_report
 - bin/lib/worktree.py#_refresh_verify_duration_table
 - bin/lib/worktree.py#_verify_table_refresh_decision
 - bin/lib/worktree.py#_verify_median_durations
 - bin/lib/worktree.py#_verify_makespan_ms
 - bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal
 - bin/lib/views.py#_view_admission_series
+- bin/lib/worktree.py#_verify_width_budget
 body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE machine.\
   \ They must share the host WITHOUT\noversubscribing it into non-deterministic slowness\
   \ or fast-forward races — and, as the suite grows\n(~3× tests projected) while cores\
@@ -223,31 +226,55 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   untested A+B combination, Rule 1a). A SINGLE-ATTEMPT land emits nothing new — no\
   \ row, no output:\nthe uncontended path is the overwhelming majority, and a row\
   \ that fired on every land would be\nnoise rather than signal. REPORT-ONLY; nothing\
-  \ gates on it (CHARTER non-goal #7).\n\n### 2. Per-land verify metrics (A4) — the\
-  \ standing observability probe\n\nEvery `land_completed` event carries a verify-metrics\
-  \ payload: total verify wall time, queue wait,\nworker count, memory peak, tmp/inode\
-  \ usage, fd/process pressure, timeout/fail class, and serial-lane\ntime. These are\
-  \ the measurements Rule 1's selection and Rule 4's triggers CONSUME. **`SPEC-0025`\
-  \ is\nthe SINGLE home of the `events.jsonl` / `land_completed` event SCHEMA (P5):\
-  \ this rule declares the\nverify-metrics as an ADDITIVE field-set on that existing\
-  \ payload and does NOT restate/duplicate the\nschema — any change to the event SHAPE\
-  \ is amended in `SPEC-0025`, not here.** NO new log/store. A **minimal subset**\n\
-  (verify wall time, fail/timeout class, worker count) MUST emit before FINAL governor\
-  \ adoption, so the\ngovernor tunes against real numbers; the fuller payload MAY\
-  \ follow (the plan's `A2-final requires\nA4-min` ordering).\n**`flaky_retry` — an\
-  \ ADDITIVE field on this same field-set, on BOTH venues:** when a leg\nre-ran its\
-  \ failing files once in isolation it records `{rows: [{file, leg, isolated, pool_tail,\n\
-  load1}], resumed}`, and when the plan declined it records `{skipped: <reason>}`;\
-  \ a ROUTED land\nfolds the per-leg record onto the SAME unprefixed key, with the\
-  \ string `unknown` for an envelope\nthat never carried it (never `{}` or absent,\
-  \ either of which would read as \"no flakes\"). ABSENT\nwhen no retry was reached,\
-  \ so a green land never reports one it did not do.\n**LAYER rows on the same field.**\
-  \ A consumer land whose layer guard re-ran a sole failed\nverify LAYER (SPEC-0152\
-  \ rule 16 §THE ISOLATED RE-RUN) records it HERE too, on both local legs: a\nrow\
-  \ in `rows` naming the `layer`, its `leg`, the `isolated` verdict and the host `load1`\
-  \ at the\nre-run, with the FIRST attempt's exit code and failure excerpt kept on\
-  \ it — on a rescue as well,\nsince a pass alone does not prove the first failure\
-  \ harmless. A layer row names a `layer`, never a\n`file`, so the load-sensitive\
+  \ gates on it (CHARTER non-goal #7).\n\n### 1c. The per-verify WIDTH is sized at\
+  \ its start by the host's free cores\nA local verify — a land's candidate leg and\
+  \ a local Stage-6 run — takes its worker width when it\nSTARTS, inside its admission\
+  \ slot (after any wait), and holds it until it ends. In `adaptive` mode\nthe width\
+  \ is clamp(floor, (processor count - load1 - load not yet in load1) x share, maximum),\
+  \ where\n\"load not yet in load1\" is the sum, over the verifies still running,\
+  \ of each one's width x\nexp(-age / 60 s) — the part load1's one-minute average\
+  \ does not show yet. The reading and the\nregistration of the chosen width happen\
+  \ under ONE host-wide exclusive lock, and EVERY verify,\n`fixed` included, registers\
+  \ its width, so two verifies starting on one quiet reading never both take\nthe\
+  \ maximum. A registration is held by its verify and released when it ends or dies.\
+  \ `fixed` mode,\nand any unusable reading (no load average, no processor count,\
+  \ a lock or file fault), take the fixed\nceiling `lib.worktree._VERIFY_WORKER_CEILING`\
+  \ — never a wider width. The host resource bound of\nRule 1 still caps the width;\
+  \ the Stage-6 width fraction and a project's `layer_worker_shares` apply\nto the\
+  \ computed width as they applied to the ceiling. The admission slot count is unchanged\
+  \ (bound //\nceiling): this rule sizes a verify, it does not decide whether one\
+  \ starts. The mode, floor, share\nand maximum are machine settings (<workshop-spec>):\
+  \ `lib.worktree._VERIFY_WIDTH_MODE` (adaptive | fixed),\n`_VERIFY_WIDTH_FLOOR`,\
+  \ `_VERIFY_WIDTH_SHARE`, `_VERIFY_WIDTH_MAX` (unset = the processor count);\n`config\
+  \ set lib.worktree._VERIFY_WIDTH_MODE fixed` restores the fixed width. The chosen\
+  \ width and\nits inputs ride the run's row as `verify_metrics.worker_budget` {mode,\
+  \ load1, nproc, registered,\nwidth}, beside `layer_worker_budget` (Rule 2). The\
+  \ pinned last-green leg and the attribution probes\nkeep the fixed width. The venue\
+  \ arm is not governed here (<workshop-spec>).\n\n### 2. Per-land verify metrics\
+  \ (A4) — the standing observability probe\n\nEvery `land_completed` event carries\
+  \ a verify-metrics payload: total verify wall time, queue wait,\nworker count, memory\
+  \ peak, tmp/inode usage, fd/process pressure, timeout/fail class, and serial-lane\n\
+  time. These are the measurements Rule 1's selection and Rule 4's triggers CONSUME.\
+  \ **`SPEC-0025` is\nthe SINGLE home of the `events.jsonl` / `land_completed` event\
+  \ SCHEMA (P5): this rule declares the\nverify-metrics as an ADDITIVE field-set on\
+  \ that existing payload and does NOT restate/duplicate the\nschema — any change\
+  \ to the event SHAPE is amended in `SPEC-0025`, not here.** NO new log/store. A\
+  \ **minimal subset**\n(verify wall time, fail/timeout class, worker count) MUST\
+  \ emit before FINAL governor adoption, so the\ngovernor tunes against real numbers;\
+  \ the fuller payload MAY follow (the plan's `A2-final requires\nA4-min` ordering).\n\
+  **`flaky_retry` — an ADDITIVE field on this same field-set, on BOTH venues:** when\
+  \ a leg\nre-ran its failing files once in isolation it records `{rows: [{file, leg,\
+  \ isolated, pool_tail,\nload1}], resumed}`, and when the plan declined it records\
+  \ `{skipped: <reason>}`; a ROUTED land\nfolds the per-leg record onto the SAME unprefixed\
+  \ key, with the string `unknown` for an envelope\nthat never carried it (never `{}`\
+  \ or absent, either of which would read as \"no flakes\"). ABSENT\nwhen no retry\
+  \ was reached, so a green land never reports one it did not do.\n**LAYER rows on\
+  \ the same field.** A consumer land whose layer guard re-ran a sole failed\nverify\
+  \ LAYER (SPEC-0152 rule 16 §THE ISOLATED RE-RUN) records it HERE too, on both local\
+  \ legs: a\nrow in `rows` naming the `layer`, its `leg`, the `isolated` verdict and\
+  \ the host `load1` at the\nre-run, with the FIRST attempt's exit code and failure\
+  \ excerpt kept on it — on a rescue as well,\nsince a pass alone does not prove the\
+  \ first failure harmless. A layer row names a `layer`, never a\n`file`, so the load-sensitive\
   \ entry fold — which counts rows by `file` — cannot count one:\nthere is no automatic\
   \ lane for layers. A declined layer plan is recorded as `layers_skipped`\n(`timeout-class`\
   \ / `prep-failed` / `over-bound`), beside and never over the runner's own FILE\n\
@@ -255,7 +282,7 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ host — which is\nwhy the load is recorded. Field shapes: SPEC-0025. A layer that\
   \ declares an adapter also re-runs a\nfailed test file alone and enters a repeatedly\
   \ rescued one into its own load-sensitive lane — the\nper-unit siblings of this\
-  \ re-run and of the lane, homed in SPEC-1006.\n**The admitted budget is PUBLISHED,\
+  \ re-run and of the lane, homed in <workshop-spec>.\n**The admitted budget is PUBLISHED,\
   \ and each layer's actual CPU is RECORDED — REPORT-ONLY:**\nthe governor's admitted\
   \ per-verify worker count reaches every consumer verify layer COMMAND, and\nStage-6\
   \ `task test --run`, as `YITC_VERIFY_LAYER_WORKERS` — an OUTPUT, deliberately distinct\
@@ -275,49 +302,50 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ from the concurrent pool and run one at\n    a time after it, on both legs — and\
   \ it grows only by automatic entry while shrinking only by a\n    card, so the SAME\
   \ two bounds apply to it unchanged, now as the `config`-class tunables\n    `YITC_LOAD_SENSITIVE_SHARE_PCT`\
-  \ (10) and `YITC_LOAD_SENSITIVE_MAX_FILES` (25), seeded at the\n    values this\
-  \ watch-point already states rather than at new numbers. Its wall is read from the\n\
-  \    FIXED per-file duration table (§6) — the sum of the LISTED files' recorded\
-  \ seconds\n    against the table's own total per-file work — and both numbers ride\
-  \ the SPEC-0119 debt echo's\n    rule-40 line at every seam, so nobody computes\
-  \ them by hand. The same line reads how many\n    listed files ENTERED the lane\
-  \ in the last 7 days and their recorded seconds, from each carrier\n    line's own\
-  \ entry date; an undated line is named as undated. A file that LEFT the lane is\
-  \ not\n    reported — the card that removed it already dealt with it. OVER EITHER\
-  \ BOUND the obligation\n    is a DISPOSITION, not an action: the weekly review (`inspect\
-  \ record --tier weekly`, the roster's\n    T5 lens) must dispose a NAMED global-rework\
-  \ question — box-admission width, stage-6-beside-land\n    policy, or harness isolation\
-  \ — with a dated line that either files that card or records why not\n    plus a\
-  \ re-check date. Another per-file card is not a disposition. Report-only on the\
-  \ same terms\n    as every watch-point here: nothing gates, nothing acts autonomously\
-  \ (CHARTER §6 fence).\n\n**RETIRED watch-point — the pinned double-verify cache\
-  \ hit-rate (X-0968).** This rule used\nto carry a third watch-point: *\"the pinned\
-  \ double-verify cache hit-rate is < 80% after warm-up →\nredesign the pinned trigger\
-  \ scope.\"* It is **DELETED, not re-tuned** — no threshold is reachable, so\nthe\
-  \ expectation was wrong rather than the number. Recorded here, with its evidence,\
-  \ because the cache\naxis had already been adjudicated three times (plan `land-throughput-cut-queue-occupancy-and-doomed-lan`\n\
-  slice S3) without anyone owning the EXPECTATION, and a reader who does not find\
-  \ the\nreason at the retired rule re-opens it a fifth time.\n\nMEASURED, kernel-side,\
-  \ 2026-08-17 — locator `events.jsonl#ts=` (a\n`measurement_recorded` event carrying\
-  \ the full counts + the measuring commit sha): over 7032\n`land_completed` rows,\
-  \ **1390** ran the pinned leg, **0** recorded `pinned_cache_hit`, and **0** were\n\
-  layout-excused — so all 1390 were clean GREENs that ran `_pinned_cache_put` — while\n\
-  `.git/yitc-pinned-verify-cache` held **1135 markers, all 1135 distinct**. 1135 writes,\
-  \ zero hits: no\nkey has ever repeated. This also REFUTES the earlier reading (carried\
-  \ in own commit body and\nin <project> X-0934) that the 0% meant a GREEN pinned\
-  \ verdict was never reached — greens are reached and\ncached in bulk, and the rate\
-  \ is still 0.\n\nWHY NO FLOOR IS REACHABLE — two INDEPENDENT causes, either alone\
-  \ sufficient:\n  1. **The subject term defeats its own trigger.** The key's subject\
-  \ is the candidate `HEAD^{tree}`,\n     and the cache is consulted ONLY when `_verify_path_touch`\
-  \ holds — i.e. only when this land's diff\n     touches the very `bin`/`tests` surfaces\
-  \ that guarantee its tree differs from every earlier land's.\n     The condition\
-  \ that OPENS the cache is the condition that BUSTS it. The only unchanged-tree case\
-  \ is\n     a retry, and `land` runs update-from-main BEFORE verify, so a retry's\
-  \ tree and merged base move too.\n  2. **The engine-code-hash term invalidates globally**,\
-  \ for every consumer at once: 438 commits touched\n     `bin/**/*.py` or `bin/yitc-v2`\
-  \ in the 7 days to 2026-08-17 — a full-cache kill roughly every 23\n     minutes,\
-  \ far shorter than the interval between two lands of any one project.\n\nWHAT IS\
-  \ AND IS NOT RETIRED. Only the EXPECTATION and its report-only emit site. The cache\
+  \ and `YITC_LOAD_SENSITIVE_MAX_FILES`, each value written once, as\n    the key's\
+  \ inventory default (`bin/yitc-v2 config list` shows it and its source). Its wall\
+  \ is read from the\n    FIXED per-file duration table (§6) — the sum of the LISTED\
+  \ files' recorded seconds\n    against the table's own total per-file work — and\
+  \ both numbers ride the SPEC-0119 debt echo's\n    rule-40 line at every seam, so\
+  \ nobody computes them by hand. The same line reads how many\n    listed files ENTERED\
+  \ the lane in the last 7 days and their recorded seconds, from each carrier\n  \
+  \  line's own entry date; an undated line is named as undated. A file that LEFT\
+  \ the lane is not\n    reported — the card that removed it already dealt with it.\
+  \ OVER EITHER BOUND the obligation\n    is a DISPOSITION, not an action: the weekly\
+  \ review (`inspect record --tier weekly`, the roster's\n    T5 lens) must dispose\
+  \ a NAMED global-rework question — box-admission width, stage-6-beside-land\n  \
+  \  policy, or harness isolation — with a dated line that either files that card\
+  \ or records why not\n    plus a re-check date. Another per-file card is not a disposition.\
+  \ Report-only on the same terms\n    as every watch-point here: nothing gates, nothing\
+  \ acts autonomously (CHARTER §6 fence).\n\n**RETIRED watch-point — the pinned double-verify\
+  \ cache hit-rate (X-0968).** This rule used\nto carry a third watch-point: *\"the\
+  \ pinned double-verify cache hit-rate is < 80% after warm-up →\nredesign the pinned\
+  \ trigger scope.\"* It is **DELETED, not re-tuned** — no threshold is reachable,\
+  \ so\nthe expectation was wrong rather than the number. Recorded here, with its\
+  \ evidence, because the cache\naxis had already been adjudicated three times (plan\
+  \ `land-throughput-cut-queue-occupancy-and-doomed-lan`\nslice S3) without anyone\
+  \ owning the EXPECTATION, and a reader who does not find the\nreason at the retired\
+  \ rule re-opens it a fifth time.\n\nMEASURED, kernel-side, 2026-08-17 — locator\
+  \ `events.jsonl#ts=` (a\n`measurement_recorded` event carrying the full counts +\
+  \ the measuring commit sha): over 7032\n`land_completed` rows, **1390** ran the\
+  \ pinned leg, **0** recorded `pinned_cache_hit`, and **0** were\nlayout-excused\
+  \ — so all 1390 were clean GREENs that ran `_pinned_cache_put` — while\n`.git/yitc-pinned-verify-cache`\
+  \ held **1135 markers, all 1135 distinct**. 1135 writes, zero hits: no\nkey has\
+  \ ever repeated. This also REFUTES the earlier reading (carried in own commit body\
+  \ and\nin <project> X-0934) that the 0% meant a GREEN pinned verdict was never reached\
+  \ — greens are reached and\ncached in bulk, and the rate is still 0.\n\nWHY NO FLOOR\
+  \ IS REACHABLE — two INDEPENDENT causes, either alone sufficient:\n  1. **The subject\
+  \ term defeats its own trigger.** The key's subject is the candidate `HEAD^{tree}`,\n\
+  \     and the cache is consulted ONLY when `_verify_path_touch` holds — i.e. only\
+  \ when this land's diff\n     touches the very `bin`/`tests` surfaces that guarantee\
+  \ its tree differs from every earlier land's.\n     The condition that OPENS the\
+  \ cache is the condition that BUSTS it. The only unchanged-tree case is\n     a\
+  \ retry, and `land` runs update-from-main BEFORE verify, so a retry's tree and merged\
+  \ base move too.\n  2. **The engine-code-hash term invalidates globally**, for every\
+  \ consumer at once: 438 commits touched\n     `bin/**/*.py` or `bin/yitc-v2` in\
+  \ the 7 days to 2026-08-17 — a full-cache kill roughly every 23\n     minutes, far\
+  \ shorter than the interval between two lands of any one project.\n\nWHAT IS AND\
+  \ IS NOT RETIRED. Only the EXPECTATION and its report-only emit site. The cache\
   \ MECHANISM\n(`_pinned_verify_cache_key` / `_pinned_cache_get` / `_pinned_cache_put`)\
   \ is UNTOUCHED and remains\ncorrect: a MISS is fail-safe (it re-runs), so the cache\
   \ can never produce a stale green and costs only\na few git calls. `land_completed.pinned_cache_hit`\
@@ -360,25 +388,26 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ pass. A reader tracking a scaling problem must therefore ask BOTH questions —\
   \ is the\nhost oversubscribed, and are passes being spent one-per-change — because\
   \ an answer to either\nleaves the other exactly where it was.\n\n### 6. Dispatch\
-  \ ORDER — longest-first against a FIXED per-repo duration table\nRules 1-5 govern\
-  \ how much MACHINE a verify pass gets and how many changes ride one pass. This rule\n\
-  governs the remaining free variable: the ORDER the discovered files are handed to\
-  \ the pool in. The\npool is a greedy list schedule, whose makespan is bounded by\
-  \ (optimum + the longest single job), so\na long file discovered late is served\
-  \ with nothing to overlap it — the bound this rule recovers.\n\n**The rule.** `_run_verify_tests`\
-  \ dispatches its files in DESCENDING recorded duration, name\nascending on ties.\
-  \ WHICH files run, their isolation, the per-file timeout, the fail-fast semantics,\n\
-  the metrics and the VERDICT are untouched — the verdict is order-independent by\
-  \ construction (pass\niff no file failed). This is a sort key, and it is the whole\
-  \ of the behavioural change.\n\n**The table is a RECORDED ARTIFACT, never a live\
-  \ measurement — and this is the load-bearing half.**\nOrder must be STABLE (a failure\
-  \ has to reproduce in the order that produced it, and the SPEC-0077\npinned-vs-candidate\
-  \ comparison is only meaningful against a fixed schedule) while durations drift\n\
-  as the suite grows. Recomputing per run satisfies NEITHER: the order would be deterministic\
-  \ given\nthe table while the table moved underneath it. So the table is a RECORDED\
-  \ artifact, rewritten under\na stated WRITE POLICY and never by the mere act of\
-  \ running; between writes the order is immobile.\nPrior-art reused wholesale — `implements_signature`:\
-  \ a recorded baseline, an explicit re-sign verb,\ndivergence SHOWN (bare `verify-durations`)\
+  \ ORDER — longest-first against a FIXED per-repo duration table\nThe pool's WIDTH\
+  \ is Rule 1c's. Rules 1-5 govern how much MACHINE a verify pass gets and how many\
+  \ changes ride one pass. This rule\ngoverns the remaining free variable: the ORDER\
+  \ the discovered files are handed to the pool in. The\npool is a greedy list schedule,\
+  \ whose makespan is bounded by (optimum + the longest single job), so\na long file\
+  \ discovered late is served with nothing to overlap it — the bound this rule recovers.\n\
+  \n**The rule.** `_run_verify_tests` dispatches its files in DESCENDING recorded\
+  \ duration, name\nascending on ties. WHICH files run, their isolation, the per-file\
+  \ timeout, the fail-fast semantics,\nthe metrics and the VERDICT are untouched —\
+  \ the verdict is order-independent by construction (pass\niff no file failed). This\
+  \ is a sort key, and it is the whole of the behavioural change.\n\n**The table is\
+  \ a RECORDED ARTIFACT, never a live measurement — and this is the load-bearing half.**\n\
+  Order must be STABLE (a failure has to reproduce in the order that produced it,\
+  \ and the SPEC-0077\npinned-vs-candidate comparison is only meaningful against a\
+  \ fixed schedule) while durations drift\nas the suite grows. Recomputing per run\
+  \ satisfies NEITHER: the order would be deterministic given\nthe table while the\
+  \ table moved underneath it. So the table is a RECORDED artifact, rewritten under\n\
+  a stated WRITE POLICY and never by the mere act of running; between writes the order\
+  \ is immobile.\nPrior-art reused wholesale — `implements_signature`: a recorded\
+  \ baseline, an explicit re-sign verb,\ndivergence SHOWN (bare `verify-durations`)\
   \ rather than silently absorbed.\n\n**AMENDED : `--rebuild` is no longer the SOLE\
   \ writer — a green land REFRESHES the table\nfrom its own measurement, under the\
   \ write policy below.** What the original rule got right is kept\nin full: the order\
@@ -534,6 +563,23 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ produce a table with no reader. An\nhonest cannot-measure-this-from-here beats\
   \ a table of zeros: a measurement that is CONFIDENTLY\nWRONG is more expensive than\
   \ an absent one, and here the absent one costs nothing, because nothing\nreads it.\n\
+  \n**THE CONSUMER LAYER TABLE — the bare report's consumer arm, a VIEW.** A consumer\
+  \ whose\nverify is its declared layers (SPEC-0152 rule 16) has no per-file table\
+  \ to report, while its journal\nalready records every layer run: `consumer_verify_layers[]`\
+  \ on `land_completed`, `tests_passed` and\n`tests_failed`. So under `-C <consumer>`\
+  \ the BARE report opens with a per-layer table over the newest\nN land records and\
+  \ the newest N Stage-6 run records that carry layer rows (N set by `--last`):\n\
+  observations, skip share, runs, median / p90 / max / summed duration, timeouts,\
+  \ reds, and the newest\ntimeout any row of the layer declares, marked where it sits\
+  \ under the measured p90; a duration or\ntimeout that is not a finite non-negative\
+  \ number is no reading; an adapter-backed layer (<workshop-spec>)\nadds its top\
+  \ units by summed duration. A row of a layer that neither ran nor was skipped (waived,\n\
+  credited to a Stage-6 run), or that ran only a part of the layer (SPEC-1030 rule\
+  \ 6), is not an\nobservation. With no layer rows the report says so in one line;\
+  \ with no `tests/` the table is the\nwhole report and the verb exits 0. It reads\
+  \ the journal through the segment-aware reader\n(SPEC-0190), writes nothing, emits\
+  \ no event of its own and gates nothing; it prints levels and\njudges none, so Rule\
+  \ 7's fence is untouched. The engine's own report and `--rebuild` are unchanged.\n\
   \n### 7. Duration CREEP — the DELTA, never the level\nRules 3-4 fire on a LEVEL:\
   \ a measured value crosses a decreed threshold. This rule fires on\nMOVEMENT and\
   \ decrees no level at all. It exists because made per-file test duration a\nSERIES\
@@ -598,8 +644,8 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ a baseline and every one of them moved past\nthe relative bar — a short layer\
   \ under the absolute floor still counts as having moved — the whole\nverify moved\
   \ together — host load, not a layer — and nothing is reported; and when\nthe observation\
-  \ carries per-unit rows (SPEC-1006), the line names the slowest unit.\n**Two seams,\
-  \ and nowhere else.** The layer subject is rendered where the land that produced\
+  \ carries per-unit rows (<workshop-spec>), the line names the slowest unit.\n**Two\
+  \ seams, and nowhere else.** The layer subject is rendered where the land that produced\
   \ the\nnewest observation finishes — both readings — and the step reading also at\
   \ the Stage-6 run, over\nthat run's own layer rows against the recorded lands, where\
   \ the green row records the printed\nline only when one printed. On the land tail\
@@ -611,49 +657,55 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ (Rules 3-4) and the movement bars (Rule 7) are governance numbers\nstated in rule-text\
   \ an editor reads before changing the policy; they are NOT runtime scalars read\n\
   FROM this spec by code (`consumed: false`). A future task MAY move a threshold into\
-  \ a code\nconstant citing this spec.\n\n## Rationale\n\nReal incident + measurement:\
-  \ the 2026-07-03 raised-cap flake (oversubscription + ff-race under\nconcurrency)\
-  \ and the land-concurrency reality (concurrent lands expected; a 49%-overlap +\n\
-  oversubscription measurement). Three external-auditor consults (land-timing mechanics\
-  \ /\ntest-isolation-under-high-parallelism / test-verify scaling strategy) converged:\
-  \ the FIRST durable\nwall is full-suite throughput, not isolation. Prior-art extended:\
-  \ `` (parked serialize-the-\ncritical-section proposal → the serialize fork), ``\
-  \ (contention-aware cap → the share fork),\n`SPEC-0077` (pinned double-verify),\
-  \ `SPEC-0071` (per-file timeout). Why measurement resolves the fork\nrather than\
-  \ a prose pick, and the full share/serialize/hybrid deliberation, live in the proposing\
-  \ plan\n(SPEC-0005 §3 content boundary — not restated here).\n\n## Verification\n\
-  \n- **Rule 1:** the postcheck record names the ladder level in effect with the A4\
-  \ numbers that\n  selected it (replayable from the journaled trial runs); the governor's\
-  \ multi-resource bound is\n  fail-closed (a synthetic over-bound admission is refused).\n\
-  - **Rule 2:** a `land_completed` event carries the verify-metrics payload (grep\
-  \ the journal); the\n  minimal subset is present before governor final-adoption.\n\
-  - **Rules 3-4:** the watch-point / Tier-C triggers are report-only signals computed\
-  \ from the A4\n  metrics — a synthetic metric series over/under a threshold flips\
-  \ the reported signal (yes/no),\n  never an autonomous build.\n- **Rule 7, the layer\
-  \ subject:** a journal whose layer creeps across lands under one worker budget\n\
-  \  makes the land tail print the line naming that layer and citing rows of that\
-  \ journal; the same\n  journal flattened, and the same growth split across two budgets,\
-  \ print nothing; and the\n  session-start output over the creeping journal is byte-identical\
-  \ to its output over the flat one\n  (`tests/test_t11127_duration_drift.py`).\n\
-  - **Rule 7, the layer step:** ten lands of a layer at 150-170 s and one observation\
-  \ at 364 s make\n  both the land tail and the Stage-6 run print the line naming\
-  \ that layer, and the run's green row\n  carry it; every layer doubling together,\
-  \ and a budget change, print nothing at either seam, and the\n  run's exit code\
-  \ does not move (`tests/test_t11127_duration_drift.py`).\n\n## Postcheck convergence\
-  \ soak\n\nA controlled real-data soak (SPEC-0035; never mutates production data)\
-  \ run at the plan's `postcheck`\nstage on the BUILT governor (not a pre-accept FSM\
-  \ `trial` on throwaway prototypes): run the\nnarrowest-default governor (serialize-ff\
-  \ + conservative shared verify cap) against a batch of real\nconcurrent lands at\
-  \ the raised concurrency, ≥5 runs, capturing the Rule-2 A4 metrics per run into\n\
-  `land_completed`. Convergence = zero oversubscription/ff-race non-determinism at\
-  \ an acceptable p95\nland wall time within the resource bound. If the A4 metrics\
+  \ a code\nconstant citing this spec.\n\n## Rationale\n\nRule 1c (owner decision\
+  \ events.jsonl#ts=): measured 2026-10-16 on the\n32-core host, heavy verifies in\
+  \ flight averaged 0.6-1.3 for 19 of 24 hours, so a verify at the\nfixed 13 left\
+  \ about 19 cores idle most of the day; the engine's full verify was bound by its\n\
+  per-file sum over 13 workers (14388 s / 13, median wall 17 min). The registration\
+  \ closes the\ncheck-then-start race (GitHub issue 102) for the width; admission\
+  \ stays. The audit-pre\nof replaced a 60 s age cut-off with the exp(-age/60) residual\
+  \ (a verify a minute old is\nonly about 63 percent inside load1) and made a fixed-mode\
+  \ verify register too.\n\nReal incident + measurement: the 2026-07-03 raised-cap\
+  \ flake (oversubscription + ff-race under\nconcurrency) and the land-concurrency\
+  \ reality (concurrent lands expected; a 49%-overlap +\noversubscription measurement).\
+  \ Three external-auditor consults (land-timing mechanics /\ntest-isolation-under-high-parallelism\
+  \ / test-verify scaling strategy) converged: the FIRST durable\nwall is full-suite\
+  \ throughput, not isolation. Prior-art extended: `` (parked serialize-the-\ncritical-section\
+  \ proposal → the serialize fork), `` (contention-aware cap → the share fork),\n\
+  `SPEC-0077` (pinned double-verify), `SPEC-0071` (per-file timeout). Why measurement\
+  \ resolves the fork\nrather than a prose pick, and the full share/serialize/hybrid\
+  \ deliberation, live in the proposing plan\n(SPEC-0005 §3 content boundary — not\
+  \ restated here).\n\n## Verification\n\n- **Rule 1:** the postcheck record names\
+  \ the ladder level in effect with the A4 numbers that\n  selected it (replayable\
+  \ from the journaled trial runs); the governor's multi-resource bound is\n  fail-closed\
+  \ (a synthetic over-bound admission is refused).\n- **Rule 2:** a `land_completed`\
+  \ event carries the verify-metrics payload (grep the journal); the\n  minimal subset\
+  \ is present before governor final-adoption.\n- **Rules 3-4:** the watch-point /\
+  \ Tier-C triggers are report-only signals computed from the A4\n  metrics — a synthetic\
+  \ metric series over/under a threshold flips the reported signal (yes/no),\n  never\
+  \ an autonomous build.\n- **Rule 7, the layer subject:** a journal whose layer creeps\
+  \ across lands under one worker budget\n  makes the land tail print the line naming\
+  \ that layer and citing rows of that journal; the same\n  journal flattened, and\
+  \ the same growth split across two budgets, print nothing; and the\n  session-start\
+  \ output over the creeping journal is byte-identical to its output over the flat\
+  \ one\n  (`tests/test_t11127_duration_drift.py`).\n- **Rule 7, the layer step:**\
+  \ ten lands of a layer at 150-170 s and one observation at 364 s make\n  both the\
+  \ land tail and the Stage-6 run print the line naming that layer, and the run's\
+  \ green row\n  carry it; every layer doubling together, and a budget change, print\
+  \ nothing at either seam, and the\n  run's exit code does not move (`tests/test_t11127_duration_drift.py`).\n\
+  \n## Postcheck convergence soak\n\nA controlled real-data soak (SPEC-0035; never\
+  \ mutates production data) run at the plan's `postcheck`\nstage on the BUILT governor\
+  \ (not a pre-accept FSM `trial` on throwaway prototypes): run the\nnarrowest-default\
+  \ governor (serialize-ff + conservative shared verify cap) against a batch of real\n\
+  concurrent lands at the raised concurrency, ≥5 runs, capturing the Rule-2 A4 metrics\
+  \ per run into\n`land_completed`. Convergence = zero oversubscription/ff-race non-determinism\
+  \ at an acceptable p95\nland wall time within the resource bound. If the A4 metrics\
   \ show the default's queueing/throughput\ncost crosses a Rule-4 threshold, escalate\
   \ ONE ladder step (Rule 1) and re-soak. The owner judges\nconvergence on the journaled\
   \ runs and records the level in effect in the plan's **postcheck record**.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-6
-- SPEC-1006
 - SPEC-0025
 - SPEC-0035
 - SPEC-0071
@@ -671,6 +723,8 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
+  bin/lib/land_verify_legs.py#_consumer_layer_duration_fold: 8fe4811218efa2b39f0b462a837ba3c5d5fef3e5b5999743cbbfaee74b70d5fc
+  bin/lib/land_verify_legs.py#_consumer_layer_durations_report: b26e241a3fe5c09e97041c5d5a3d7b40919e1b7ea38b95c1a82119c68f8170a0
   bin/lib/land_verify_legs.py#_verify_duration_drift_signals: 8ac2cdbb412625dc21a0c47d7598451a16c5bc2a4be0c9b2267909863c3f5911
   bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: 32da99cc15e2e4fb18de6eb8870876d781e3d957a04b64ac1a959e465ad8b0d7
   bin/lib/land_verify_legs.py#_verify_layer_duration_drift_signals: a3221546efaffd7a8593688e5fd91adce8e97de66e35075c06dfe2975b426030
@@ -679,10 +733,11 @@ implements_signature:
   bin/lib/verify_runner.py#_load_verify_duration_table: a7e65f0f31f369f01a0c4f9622277d149d9432a1d0d9ea54af9b2d8f666038db
   bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
   bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87
-  bin/lib/verify_runner.py#cmd_verify_durations: 045048b7467db530e5e43b0803825f63cc41cb1d90e808ee9d781136486630ad
+  bin/lib/verify_runner.py#cmd_verify_durations: e6dfc4e11bace9598795780e08cf0cb5feb612a824e578567b90a645b5ae6cc7
   bin/lib/views.py#_view_admission_series: a46e84f334ad70fea8b2f2233f15ebd4c47e852c73594a0c54dc46eaaf5b45df
-  bin/lib/worktree.py#_land_integrate: dbe73f663fd386a751274d2f4c2dea2a23b3c687ee12f6c518ee12d9713a665c
+  bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
   bin/lib/worktree.py#_refresh_verify_duration_table: fab9c3d40799a122489b253f03246ff9eb08586b6a26bf51dc4cb32c6d8410bd
   bin/lib/worktree.py#_verify_makespan_ms: 73dc708938203c66a69417af5d1457415d4801b80de3fbb7b346f5f86bacf78d
   bin/lib/worktree.py#_verify_median_durations: 3f1384108794642657d9c720d73f0a272d58fc736154b9bf89a75cc3b27c0d52
   bin/lib/worktree.py#_verify_table_refresh_decision: cf1682aabb2b71d5fdcab920131b3bd0252eb7d74c4fe2aed56bf0b8befdd93e
+  bin/lib/worktree.py#_verify_width_budget: 028d7944cfb6db37fd5615f664f0998b3beff280a491ac600bb92af735be6969

@@ -47,20 +47,24 @@ body: "## Scenario\n\nBefore the AI commits a change, it must shape the commit s
   \ ≥ 30 chars including incident context>` in the body.\n- Owner-authorized (chat\
   \ OK in the emergency itself; the commit message records the marker).\n- Required:\
   \ within 72 hours, write a retro-doc + file a post-incident task.\n- Frequency check:\
-  \ > 1 use per 30 days triggers a Review-session audit.\n\n### Trailer\nEnd each\
-  \ commit body with:\n```\nCo-Authored-By: AI Agent <noreply@example.com>\n```\n\
-  (Substitute the actual model identifier if different.)\n\n## Rationale\n\nThe commit\
-  \ rules live in the `retrieved` tier (reached through `binding:`, SPEC-0013) rather\
-  \ than in\nalways-loaded prose, so the seed budget shrinks without losing obligation-driven\
-  \ delivery.\n\n### History moved from the rule body\n\nEach entry is a passage moved\
-  \ word for word out of the rule text of the section it names;\nthe rule it explains\
-  \ stays there.\n\n- From «Staging is owned by `task commit` »: (the git-pathspec-exclude\
-  \ gotcha: v1\n  B-722)\n\n## Verification\n\n- Bound: `bin/yitc-v2 graph build`\
-  \ maps `Commit → SPEC-0014` in `binding_report.stage_to_specs`\n  (the stage-entry\
-  \ delivery axis) once this spec is `active`; `stage Commit` delivers it.\n- Pointer:\
-  \ `bin/yitc-v2 task test T-XXXX` prints the commit-rules forward-pointer (element\
-  \ #2).\n- Non-dangling: empty `implements:` + non-empty `binding:` ⇒ excluded from\
-  \ `dangling_specs`.\n"
+  \ > 1 use per 30 days triggers a Review-session audit.\n\n### Trailer\nEnd the commit\
+  \ message with the session's own attribution trailer:\n```\nCo-Authored-By: <name>\
+  \ <email>\n```\nA Co-Authored-By trailer written in the message is kept verbatim.\
+  \ The placeholder\n`Co-Authored-By: AI Agent <noreply@example.com>` is only the\
+  \ fallback the commit verb adds when\nthe message carries none. The card-bookkeeping\
+  \ commit `worktree sync` makes carries the\nCo-Authored-By trailer of the branch's\
+  \ newest commit that has one other than the placeholder,\nand the same fallback\
+  \ otherwise.\n\n## Rationale\n\nThe commit rules live in the `retrieved` tier (reached\
+  \ through `binding:`, SPEC-0013) rather than in\nalways-loaded prose, so the seed\
+  \ budget shrinks without losing obligation-driven delivery.\n\n### History moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «Staging\
+  \ is owned by `task commit` »: (the git-pathspec-exclude gotcha: v1\n  B-722)\n\n\
+  ## Verification\n\n- Bound: `bin/yitc-v2 graph build` maps `Commit → SPEC-0014`\
+  \ in `binding_report.stage_to_specs`\n  (the stage-entry delivery axis) once this\
+  \ spec is `active`; `stage Commit` delivers it.\n- Pointer: `bin/yitc-v2 task test\
+  \ T-XXXX` prints the commit-rules forward-pointer (element #2).\n- Non-dangling:\
+  \ empty `implements:` + non-empty `binding:` ⇒ excluded from `dangling_specs`.\n"
 cites:
 - part-i-a-retrieval-delivery-mechanism
 - SPEC-0013

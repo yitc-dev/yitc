@@ -831,7 +831,7 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ this spec carries\nthat doctrine down to the per-test-file granularity of the\
   \ script-run suite path, reusing its\nfail-closed edge set and its self-guard predicate\
   \ rather than authoring a parallel design. A consumer\nlayer that declares an adapter\
-  \ records the same kind of fail-closed ladder per test file, in shadow,\nunder SPEC-1006.\n\
+  \ records the same kind of fail-closed ladder per test file, in shadow,\nunder <workshop-spec>.\n\
   \nRoute (e) of §Known-broken-on-main rule 2 (raised as issue 77 by an adopting consumer\
   \ on\nrelease 2.8.0). A layer red has been recorded under the layer's name since,\
   \ while routes\n(b), (c) and (d) each look a pair's first half up among test files,\
@@ -882,7 +882,6 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
 cites:
 - SPEC-0077
 - SPEC-0132
-- SPEC-1006
 - SPEC-0152
 - CHARTER.md#principle-3
 requires: []

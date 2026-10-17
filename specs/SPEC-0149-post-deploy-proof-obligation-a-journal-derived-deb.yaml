@@ -145,6 +145,6 @@ implements_signature:
   bin/lib/debt_adoption.py#open_proof_obligations: 975b27595826f7e8d74c6ef7c07e56fea088cadda05b44955e03479e47caef8a
   bin/lib/deploy.py#_parse_recheck_window: 8cc5248f79c635f33277da252360566783f727209a6f6ef7d22bd295799d54f6
   bin/lib/deploy.py#_recheck_window: a195dbbff318ac6cce847a753e7e7722ace7967420fc82aab101eba34ba2b544
-  bin/lib/deploy.py#cmd_deploy: 1580b1b5dbf6e813f212f18781c1b41154ed313c70799d54d375e11b36ea1104
+  bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
   bin/lib/events.py#cmd_event: 7a9f1ce00099f7eb4bde05abd5e0e820c33f3eaa75d7c8024bad25e2d8780e3a
-  bin/lib/views.py#_render_debt_echo: b1427fe117d3591231d6d517efad9d7e0b973905000d0ef9aa37b125e6de867b
+  bin/lib/views.py#_render_debt_echo: beb6e6658134a40a4b41c61eff2db64326ddd9556aef9cd376c21a4bc908fb7e

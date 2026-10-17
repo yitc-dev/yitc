@@ -401,6 +401,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # one commit and then calls the verb; without this the verb ships whatever HEAD is when it starts,
     # so a land in between ships a commit nobody tested. A flag of its own, deliberately NOT the
     # positional `rev` above: that one names where a rollback goes TO.
+    # T-13962 / SPEC-0094 §9 — the load window a forward deploy waits for, and its recorded skip.
+    dep.add_argument("--now", action="store_true",
+                     help="forward deploy only: do not wait for the host load window. Without it the "
+                          "verb waits, before the project command, while load1 is at or above "
+                          "YITC_DEPLOY_HEADROOM_LOAD1, re-reading it up to YITC_DEPLOY_ADMISSION_MAX_WAIT_S "
+                          "and refusing (nothing run) when that bound expires. The skip is recorded as "
+                          "`admission: skipped-by-flag` on the deploy's row (SPEC-0094 §9). A rollback "
+                          "never waits.")
     dep.add_argument("--expect-revision", dest="expect_revision", metavar="SHA", default=None,
                      help="forward deploy only: the FULL commit id this deploy is expected to ship. "
                           "The verb refuses, before the project command runs, unless HEAD of the "
@@ -625,7 +633,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                "(T-11389): where a declared verify layer's `covers:` names tests/, "
                                "`--rebuild` REFUSES (the bare-host route does not run that suite, and "
                                "the kernel skips the sweep the table would schedule) and the BARE "
-                               "report names any existing table SUSPECT")
+                               "report names any existing table SUSPECT. CONSUMER (`-C`, T-13961): the "
+                               "bare report opens with a per-layer duration table read from the "
+                               "project's own journal (`consumer_verify_layers` rows: runs, skip share, "
+                               "median / p90 / max / sum, timeouts, reds, declared timeout, top units "
+                               "of an adapter-backed layer); with no tests/ it is the whole report")
     vdur.add_argument("--rebuild", action="store_true",
                       help="run the suite (fail_fast=False, every file to its own verdict) and "
                            "REWRITE tests/verify-durations.json. ALL-OR-NOTHING: refuses to write "
@@ -633,6 +645,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "mis-ranks exactly the files it is missing, and looks correct doing it). "
                            "REFUSED OUTRIGHT where a declared layer covers tests/: measuring "
                            "`python3 <file>` on the host would record the cost of failing to start")
+    vdur.add_argument("--last", type=int, default=None, metavar="N",
+                      help="consumer layer table only: read the newest N land records and the newest "
+                           "N Stage-6 run records that carry layer rows (default 100)")
     vdur.set_defaults(func=cmd_verify_durations, cli_invoked_receipt="verify-durations", read_only_admit=RO_RECEIPT,
                       read_only_refuse=("rebuild", "--rebuild runs the whole suite and rewrites tests/verify-durations.json in the target"))  # T-12846
 
@@ -1202,6 +1217,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="T-0375: passed count (author-reported, with --evidence) — all-or-nothing with --duration-ms/--failed")
     tt.add_argument("--failed", type=int,
                     help="T-0375: failed count (author-reported, with --evidence) — all-or-nothing with --duration-ms/--passed")
+    tt.add_argument("--placement", choices=("auto", "local"), default="auto",
+                    help="T-13975 (SPEC-1032 rule 6): where a declared CONSUMER project's Stage-6 pass "
+                         "runs while a venue is published — auto (the default, the routing order) or "
+                         "local (this host); refused on a kernel pass (placement-kernel-unsupported)")
     tt.set_defaults(func=cmd_task_test, cli_invoked_receipt="task test")  # T-13071: attempt receipt
     tan = task_sub.add_parser("analyze", help="Stage 1: --finalize validates the analysis: decision-record + checks SPEC-0032/0046 read; requires current_stage==Analysis (T-0600 — does not set stage)")
     tan.add_argument("task", help="T-NNNN id")
@@ -1240,7 +1259,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-13694: the head of the help points at the reference holding the commit-side door.
     tcm = task_sub.add_parser("commit", help="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), callable ×N",
                               description="Stage 7: git-wrapper commit (auto from:/Co-Authored-By), "
-                                          "callable ×N. RARE CASE — an absorption commit refused past "
+                                          "callable ×N. A Co-Authored-By trailer written in the message is kept; the placeholder is added only when none is given (SPEC-0014 §Trailer). "
+                                          "RARE CASE — an absorption commit refused past "
                                           "the exhausted audit-post ceiling: the commit-side door for "
                                           "a late finding is the reference SPEC-1018 — `graph query "
                                           "SPEC-1018`, heading «Rare ceiling cases».")
@@ -1249,6 +1269,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # the stdin mapping instead; presence is re-checked AFTER ingest, so an omitted message still refuses.
     tcm.add_argument("-m", "--message",
                      help="commit message (subject + optional body). "
+                          "A Co-Authored-By trailer written in the message is kept; the placeholder is added only when none is given (SPEC-0014 §Trailer). "
                           f"{_PROSE_STEER_FOR('task commit')}")
     tcm.add_argument("--from-stdin", dest="from_stdin", action="store_true",
                      help="read the commit message from stdin as a YAML mapping with the single key "
@@ -2693,6 +2714,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                         help="the clone's main sha the snapshot carries (provenance, optional)")
     vnseed.add_argument("--note", default=None, help="one line of provenance (optional)")
     vnseed.add_argument("--task", help="the card this promotion acts under")
+    vnseed.add_argument("--build", action="store_true",
+                        help="BUILD a consumer's seed image and record it (with -C <consumer>, "
+                             "SPEC-1032 rule 6, T-13977): a bare box with the base setup, the "
+                             "--provision script as the box user, a full-history clone, this "
+                             "engine at its host path, fstrim, snapshot; the box is deleted on "
+                             "every exit")
+    vnseed.add_argument("--provision", default=None, metavar="PATH",
+                        help="with --build: the project's own provisioning script (a file in the "
+                             "consumer repository), run on the box as the box user")
     vnseed.set_defaults(func=cmd_venue_seed, cli_invoked_verb="venue seed")
 
     vnpub = vn_sub.add_parser("publish", help="write the venue record after re-measuring the live box; "
@@ -2718,6 +2748,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     vnd.set_defaults(func=cmd_venue_delete, cli_invoked_verb="venue delete")
 
     vns = vn_sub.add_parser("show", help="print the published venue record, or state its absence (read-only)")
+    vns.add_argument("--leases", action="store_true",
+                     help="T-13975 (SPEC-1032 rule 6): also print the passes admitted on the box (its "
+                          "live leases, one ssh read), the caps and the Stage-6 headroom — read-only, "
+                          "never waits on admission, decides nothing")
     vns.set_defaults(func=cmd_venue_show, cli_invoked_verb="venue show", read_only_admit=RO_READ)
 
     crossp = sub.add_parser("cross", help="Cross-project coordination log (SPEC-0085/0086)",
@@ -3900,6 +3934,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-10720 (E-0054) — the same shell-proof escape as `task commit` (same message field, same core).
     wc.add_argument("-m", "--message",
                     help="commit message (subject + optional body). "
+                         "A Co-Authored-By trailer written in the message is kept; the placeholder is added only when none is given (SPEC-0014 §Trailer). "
                          f"{_PROSE_STEER_FOR('work commit')}")
     wc.add_argument("--from-stdin", dest="from_stdin", action="store_true",
                     help="read the commit message from stdin as a YAML mapping with the single key "

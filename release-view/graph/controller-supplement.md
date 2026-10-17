@@ -258,7 +258,7 @@ hand. **Bounds:** this applies to
 **structural/pre-plan forks ONLY** — NOT routine choices (a naming pick, a trivial toggle) and NOT
 in-lifecycle gates (the Stage-4/8 `audit pre|post` are already mandatory there, not an offered option). It
 is **OFFERED, never auto-fired**: the auditor runs only if the owner takes the option, so the audit-loop
-ceiling (SPEC-0124) is untouched. Still lead with your own recommended option per the format above — the
+ceiling (SPEC-1034) is untouched. Still lead with your own recommended option per the format above — the
 auditor consult is an *additional* alternative for a genuinely open structural fork, not a substitute for
 the recommendation you should already have formed.
 

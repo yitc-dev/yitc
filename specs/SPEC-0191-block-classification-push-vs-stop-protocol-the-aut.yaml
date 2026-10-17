@@ -119,84 +119,85 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ owner, or a `decide-authority` holder for that project — §5a). This LADDER (§5\
   \ itself, as distinct from §5a — see the §Internal preamble for the one mechanism\
   \ §5a adds) ADDS NO new mechanism (SPEC-0005 rule 1): rung-1 is\nthe EXISTING §2.1\
-  \ governed self-clear / diff inspection, rung-2 is the EXISTING SPEC-0124 adversarial\n\
-  consult engine, rung-3 is the EXISTING escalation gate (blocked-on-land / `--ack-repeated-abort`\
-  \ /\nthe SPEC-0204 ceiling decisions, which replaced the retired `--owner-reset`)\
-  \ — an EXISTING gate,\nunchanged in code by this spec; §5a widens only WHO may answer\n\
-  at that rung. It adds no VERB and no STORE of its own; what it does add is named\
-  \ in full in the\n§Internal preamble above (one gate function, plus one optional\
-  \ `--cause` flag on the existing\n`grants authorize`), with the four anti-complexity\
-  \ filters recorded there.\n\n  - **Rung 1 — MECHANICAL SELF-EVIDENCE (mandatory\
-  \ first; an auditor call costs minutes+tokens).** Valid ONLY for a NO-NEW-DECISION\
-  \ case: the diff + the\n    named failing assertion + a PRE-EXISTING audited AUTHORIZING\
-  \ ARTIFACT (task card / accepted plan /\n    active spec) together re-derive the\
-  \ SAME conclusion. A behaviour change WITHOUT such an artifact is\n    NOT staleness\
-  \ — it is a rung-2 (or authority-class rung-3) question, never a rung-1 self-clear.\n\
-  \    Every rung-1 act records a compact EVIDENCE TUPLE — never prose — carrying:\
-  \ (assertion id, old\n    pinned expectation, new intentional expectation, authorizing\
-  \ artifact, journal ref). This IS the\n    §2.1 governed self-clear made explicit;\
-  \ free-form \"looks stale\" remains a §2.4 UNCERTAIN → escalate.\n  - **Rung 2 —\
-  \ EXTERNAL-AUDITOR ADVERSARIAL CONSULT (only after rung-1 fails).** Submit >=2\n\
-  \    framed OPTIONS and let the auditor NAME which survives — NEVER a \"may I?\"\
-  \ approval request\n    (else workers learn to phrase for approval — the false-consent\
-  \ failure). An auditor verdict is EVIDENCE, not\n    command: verify each finding\
-  \ MECHANICALLY before absorbing it; a contested finding under genuine\n    disagreement\
-  \ is itself a CHARTER §P7 dissonance that goes to the owner. DEGRADE-CLOSED: auditor\
-  \ unavailable / ABORT / no-survivor → rung-3 OWNER,\n    NEVER back to rung-1; a\
-  \ consumer with NO configured auditor collapses rung-2 → for anything\n    ambiguous\
-  \ the question goes straight rung-1→owner.\n    - **WHICH CONSULT.** For a BELOW-ceiling\
-  \ technical fork this rung is the on-demand\n      variant-pick `audit consult --on-demand\
-  \ --task <T-XXXX> --option... --option...`, which\n      SPEC-0204 rule 6 leaves\
-  \ unchanged. The AT-CEILING consult it used to name is RETIRED: past the\n     \
-  \ audit-loop ceiling a residual is not adjudicated by an auditor at all, it is settled\
-  \ by\n      **Controller typed decisions (SPEC-0204)** — one recorded `ceiling_decision`\
-  \ per residual\n      (`audit decide`, rule 2), then ONE bounded verifying pass\
-  \ (`audit pre|post --on-decisions`,\n      rule 3). A dispatched Worker never records\
-  \ one: it halts naming its residual fingerprints and\n      the Controller decides.\
-  \ So at the ceiling the ladder's rung 2 IS that decision route, and the\n      adversarial-consult\
-  \ shape above applies to the below-ceiling fork it still governs.\n  - **Rung 3\
-  \ — THE AUTHORITY (the owner, or a `decide-authority` holder for that project —\
-  \ §5a).**\n    Reached only for a genuine dead-end (rung-2 non-convergence / degrade)\
-  \ OR an AUTHORITY-CLASS\n    cause (below). It is the backstop for AUTHORITY and\
-  \ true forks, not a routing default for every\n    block. A genuine dead-end that\
-  \ is NOT authority-class stays the OWNER's: the right admits the\n    authority\
-  \ class, and nothing beyond it.\n\n**THE JUDGMENT-vs-AUTHORITY SPLIT — the hard\
-  \ boundary (CHARTER §P4a / §P7).** Rungs 1–2 adjudicate\nTECHNICAL/JUDGMENT merit\
-  \ only. An AUTHORITY-class cause NEVER delegates past THE AUTHORITY — the\nowner,\
-  \ OR a holder of the `decide-authority` right for that project (SPEC-0169 rule 2)\
-  \ — REGARDLESS\nof any auditor verdict; the auditor has different blind spots, not\
-  \ responsibility. The\nauthority-class list: data deletion / destructive DB or FS\
-  \ mutation ·\nproduction exposure · scope change · money · credentials/secrets ·\n\
-  legal / compliance / privacy posture · irreversible EXTERNAL mutations ·\npublic\
-  \ / user-facing commitments. A rung-2 GREEN does NOT clear any of these; they hold\n\
-  the rung-3 AUTHORITY gate unconditionally. WHO may be that authority is §5a; THAT\
-  \ one is required is\nunchanged here, and no auditor verdict has ever been, or becomes,\
-  \ a substitute for one.\n\n### 5a. WHO MAY BE THE AUTHORITY — the gate is CONDITIONED,\
-  \ never REMOVED\n§5's rung-3 admits, alongside the owner, a holder of the SPEC-0169\
-  \ rule-2\nright `decide-authority` on THE PROJECT THE CAUSE BELONGS TO. This is\
-  \ the ONLY thing that changes in\nthis spec; every other clause of §1–§5 is carried\
-  \ forward unaltered, save the two pointers to\nthis section in §3's Owner rung and\
-  \ §5's rung-3 bullet.\n\n**THE WHOLE CLASS, NARROWED BY THE GRANT ROW — not by a\
-  \ carved subset.** The right admits the ENTIRE\nauthority-class list of §5. There\
-  \ is deliberately NO delegable/reserved split of that list. The narrowing that makes\
-  \ this safe is the GRANT — a (person, project, rights) triple written\nby the owner\
-  \ — never a second classification of causes that would have to be kept in step with\
-  \ §5's\nlist forever.\n\n**THE DIFFERENTIAL — three refusals that must survive,\
-  \ or the gate was REMOVED rather than\nCONDITIONED.** All three fall out of SPEC-0169's\
-  \ EXISTING decision — the gate function delegates\nadmission to it whole and re-implements\
-  \ none of them:\n  1. **A person WITHOUT the right is STOPPED** on the same cause,\
-  \ on the same project. Admission is\n     a positive fact about a grant row, never\
-  \ an absence of objection.\n  2. **A right-holder is STOPPED on a project their\
-  \ grant does not name.** The right is\n     (person × project) by SPEC-0169 rule\
-  \ 1; holding it on project A says nothing about project B.\n     The rule-1a all-registry-projects\
-  \ SCOPE CLASS may make a grant cover every registered project,\n     but it is a\
-  \ DECLARATION resolved against the registry at read time, and it widens WHICH\n\
-  \     PROJECTS only — never WHO is admitted.\n  3. **A missing, unreadable or empty\
-  \ grant set REFUSES.** SPEC-0169 rule 4 fails closed in BOTH\n     directions, and\
-  \ this clause inherits it unchanged: a misconfigured installation denies the\n \
-  \    decision, it never opens it. Only a present, readable, matching row admits.\n\
-  A surface that satisfies the admission without exhibiting all three has not implemented\
-  \ this rule; it\nhas deleted §5's gate and left a permissive path behind.\n\n**DECIDING\
+  \ governed self-clear / diff inspection, rung-2 is the EXISTING <workshop-spec>\
+  \ adversarial\nconsult engine, rung-3 is the EXISTING escalation gate (blocked-on-land\
+  \ / `--ack-repeated-abort` /\nthe SPEC-0204 ceiling decisions, which replaced the\
+  \ retired `--owner-reset`) — an EXISTING gate,\nunchanged in code by this spec;\
+  \ §5a widens only WHO may answer\nat that rung. It adds no VERB and no STORE of\
+  \ its own; what it does add is named in full in the\n§Internal preamble above (one\
+  \ gate function, plus one optional `--cause` flag on the existing\n`grants authorize`),\
+  \ with the four anti-complexity filters recorded there.\n\n  - **Rung 1 — MECHANICAL\
+  \ SELF-EVIDENCE (mandatory first; an auditor call costs minutes+tokens).** Valid\
+  \ ONLY for a NO-NEW-DECISION case: the diff + the\n    named failing assertion +\
+  \ a PRE-EXISTING audited AUTHORIZING ARTIFACT (task card / accepted plan /\n   \
+  \ active spec) together re-derive the SAME conclusion. A behaviour change WITHOUT\
+  \ such an artifact is\n    NOT staleness — it is a rung-2 (or authority-class rung-3)\
+  \ question, never a rung-1 self-clear.\n    Every rung-1 act records a compact EVIDENCE\
+  \ TUPLE — never prose — carrying: (assertion id, old\n    pinned expectation, new\
+  \ intentional expectation, authorizing artifact, journal ref). This IS the\n   \
+  \ §2.1 governed self-clear made explicit; free-form \"looks stale\" remains a §2.4\
+  \ UNCERTAIN → escalate.\n  - **Rung 2 — EXTERNAL-AUDITOR ADVERSARIAL CONSULT (only\
+  \ after rung-1 fails).** Submit >=2\n    framed OPTIONS and let the auditor NAME\
+  \ which survives — NEVER a \"may I?\" approval request\n    (else workers learn\
+  \ to phrase for approval — the false-consent failure). An auditor verdict is EVIDENCE,\
+  \ not\n    command: verify each finding MECHANICALLY before absorbing it; a contested\
+  \ finding under genuine\n    disagreement is itself a CHARTER §P7 dissonance that\
+  \ goes to the owner. DEGRADE-CLOSED: auditor unavailable / ABORT / no-survivor →\
+  \ rung-3 OWNER,\n    NEVER back to rung-1; a consumer with NO configured auditor\
+  \ collapses rung-2 → for anything\n    ambiguous the question goes straight rung-1→owner.\n\
+  \    - **WHICH CONSULT.** For a BELOW-ceiling technical fork this rung is the on-demand\n\
+  \      variant-pick `audit consult --on-demand --task <T-XXXX> --option... --option...`,\
+  \ which\n      SPEC-0204 rule 6 leaves unchanged. The AT-CEILING consult it used\
+  \ to name is RETIRED: past the\n      audit-loop ceiling a residual is not adjudicated\
+  \ by an auditor at all, it is settled by\n      **Controller typed decisions (SPEC-0204)**\
+  \ — one recorded `ceiling_decision` per residual\n      (`audit decide`, rule 2),\
+  \ then ONE bounded verifying pass (`audit pre|post --on-decisions`,\n      rule\
+  \ 3). A dispatched Worker never records one: it halts naming its residual fingerprints\
+  \ and\n      the Controller decides. So at the ceiling the ladder's rung 2 IS that\
+  \ decision route, and the\n      adversarial-consult shape above applies to the\
+  \ below-ceiling fork it still governs.\n  - **Rung 3 — THE AUTHORITY (the owner,\
+  \ or a `decide-authority` holder for that project — §5a).**\n    Reached only for\
+  \ a genuine dead-end (rung-2 non-convergence / degrade) OR an AUTHORITY-CLASS\n\
+  \    cause (below). It is the backstop for AUTHORITY and true forks, not a routing\
+  \ default for every\n    block. A genuine dead-end that is NOT authority-class stays\
+  \ the OWNER's: the right admits the\n    authority class, and nothing beyond it.\n\
+  \n**THE JUDGMENT-vs-AUTHORITY SPLIT — the hard boundary (CHARTER §P4a / §P7).**\
+  \ Rungs 1–2 adjudicate\nTECHNICAL/JUDGMENT merit only. An AUTHORITY-class cause\
+  \ NEVER delegates past THE AUTHORITY — the\nowner, OR a holder of the `decide-authority`\
+  \ right for that project (SPEC-0169 rule 2) — REGARDLESS\nof any auditor verdict;\
+  \ the auditor has different blind spots, not responsibility. The\nauthority-class\
+  \ list: data deletion / destructive DB or FS mutation ·\nproduction exposure · scope\
+  \ change · money · credentials/secrets ·\nlegal / compliance / privacy posture ·\
+  \ irreversible EXTERNAL mutations ·\npublic / user-facing commitments. A rung-2\
+  \ GREEN does NOT clear any of these; they hold\nthe rung-3 AUTHORITY gate unconditionally.\
+  \ WHO may be that authority is §5a; THAT one is required is\nunchanged here, and\
+  \ no auditor verdict has ever been, or becomes, a substitute for one.\n\n### 5a.\
+  \ WHO MAY BE THE AUTHORITY — the gate is CONDITIONED, never REMOVED\n§5's rung-3\
+  \ admits, alongside the owner, a holder of the SPEC-0169 rule-2\nright `decide-authority`\
+  \ on THE PROJECT THE CAUSE BELONGS TO. This is the ONLY thing that changes in\n\
+  this spec; every other clause of §1–§5 is carried forward unaltered, save the two\
+  \ pointers to\nthis section in §3's Owner rung and §5's rung-3 bullet.\n\n**THE\
+  \ WHOLE CLASS, NARROWED BY THE GRANT ROW — not by a carved subset.** The right admits\
+  \ the ENTIRE\nauthority-class list of §5. There is deliberately NO delegable/reserved\
+  \ split of that list. The narrowing that makes this safe is the GRANT — a (person,\
+  \ project, rights) triple written\nby the owner — never a second classification\
+  \ of causes that would have to be kept in step with §5's\nlist forever.\n\n**THE\
+  \ DIFFERENTIAL — three refusals that must survive, or the gate was REMOVED rather\
+  \ than\nCONDITIONED.** All three fall out of SPEC-0169's EXISTING decision — the\
+  \ gate function delegates\nadmission to it whole and re-implements none of them:\n\
+  \  1. **A person WITHOUT the right is STOPPED** on the same cause, on the same project.\
+  \ Admission is\n     a positive fact about a grant row, never an absence of objection.\n\
+  \  2. **A right-holder is STOPPED on a project their grant does not name.** The\
+  \ right is\n     (person × project) by SPEC-0169 rule 1; holding it on project A\
+  \ says nothing about project B.\n     The rule-1a all-registry-projects SCOPE CLASS\
+  \ may make a grant cover every registered project,\n     but it is a DECLARATION\
+  \ resolved against the registry at read time, and it widens WHICH\n     PROJECTS\
+  \ only — never WHO is admitted.\n  3. **A missing, unreadable or empty grant set\
+  \ REFUSES.** SPEC-0169 rule 4 fails closed in BOTH\n     directions, and this clause\
+  \ inherits it unchanged: a misconfigured installation denies the\n     decision,\
+  \ it never opens it. Only a present, readable, matching row admits.\nA surface that\
+  \ satisfies the admission without exhibiting all three has not implemented this\
+  \ rule; it\nhas deleted §5's gate and left a permissive path behind.\n\n**DECIDING\
   \ IS NOT DOING — and this is the rung a right-holder lands on NEXT.** `decide-authority`\n\
   confers NO execution capability (SPEC-0169 rule 2, probe V12). An admitted holder\
   \ has become the\nAUTHORITY for the cause; they have gained nothing else. Every\
@@ -412,4 +413,4 @@ implements_signature:
   bin/lib/grants.py#_authorization_refusal_message: 305e3098641c12e8cf38be3db6743b32903a9870ff9d5f99e722c9cb8cb2cd0f
   bin/lib/grants.py#cmd_grants_authorize: 3777cf3c7b3982cda1c0e1c811dbfd1d998bd04c60306afc52d09298079621e4
   bin/lib/grants.py#decide_authority_class_cause: 16b58912c5b105188c8bd26157b6d4869ab2f233383f9dfe66efa66dbda4104b
-  bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883
+  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5

@@ -449,6 +449,9 @@ over the lens window (the last week), never restate or rebuild them here.
   slot or a lock) against the wall spent running, and the worker slots the runs used against the
   host's cores (`nproc`). A repo with no recorded verify run records `no runs`.
 
+**Against:** `patterns/verify-cost-playbook.md` — the catalog of verify-cost techniques with their measured
+cases; a reading names the technique it points to, and a candidate it files cites the entry.
+
 **A project's own readings.** A project ADDS readings to this lens — never a second theme — by
 declaring an ordinary `yitc-ops.yaml` `inspection.themes[]` entry whose `theme:` IS `test-suite-shape`
 (SPEC-0093 rule 12 shape: `probe.sweep` with its test globs as `surfaces:`, its readings as `checks:`,

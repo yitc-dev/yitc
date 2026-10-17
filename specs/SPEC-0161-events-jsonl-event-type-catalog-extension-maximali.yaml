@@ -200,35 +200,40 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ the ONE write, so both call paths are covered: the normal `cmd_task_close` AND\
   \ the\n  `_recover_close_tail` crash-heal re-run. IDEMPOTENT by construction — the\
   \ writer's `status == proposed`\n  filter skips an already-active spec, so the heal\
-  \ re-run re-emits nothing.\n- Append-only + P5-safe : additive — no existing event\
-  \ type changes, and a consumer that does\n  not know this type parses it as the\
-  \ opaque `{ts,type,data}` triple.\n\n#### Test-class execution event (per SPEC-0152\
-  \ rule 24)\n**`test_class_executed`** — the recorded LAST SUCCESSFUL EXECUTION of\
-  \ a declared test class (SPEC-0152\nrule 24). SPEC-0156 asks \"would this check\
-  \ go RED if broken?\"; this answers the sibling question \"has this\nclass ever\
-  \ actually RUN green?\". <project>'s e2e class was DECLARED but its browsers were\
-  \ never installed —\nnothing ran, nothing failed, and a class that never executed\
-  \ read as coverage (X-0375). This event is the\ndurable proof a declared class actually\
-  \ ran, recorded by whoever RAN it.\n```jsonc\n{\"ts\": \"...\", \"type\": \"test_class_executed\"\
-  , \"task_id\": \"T-XXXX\",\n \"data\": {\"class\": \"live-app-e2e\", \"outcome\"\
-  : \"pass\",\n          \"evidence\": \"<what run — a CI url / a log ref / a harness\
-  \ id>\"}}\n```\n- `class` — WHICH declared `tests.classes[]` class ran, as the carrier\
-  \ names it.\n- `outcome` — **must be `pass` to record a successful run.** A non-pass\
-  \ (or absent, or misspelt) outcome\n  records no successful run and clears nothing.\n\
-  - `evidence` — what run this attests to (a CI url / a log ref / a harness id). **REQUIRED\
-  \ to clear the\n  class** (the SPEC-0156 `broken_input` discipline): a bare \"it\
-  \ ran\" with no named run is a CLAIM anyone\n  could type, and clearing a class\
-  \ on a claim is the false-green this contract exists to end. `class`, a\n  `pass`\
-  \ `outcome`, and a non-empty `evidence` must ALL be present; an incomplete record\
-  \ does not clear it,\n  so the class stays visible as debt (the conservative direction\
-  \ — under-evidenced ⇒ still owed).\n- It rides the EXISTING generic `event` verb\
-  \ (`bin/yitc-v2 event test_class_executed --data`) — SPEC-0152\n  rule 24 admits\
-  \ **no new verb, no new emitter, no new store** (the SPEC-0156 producer precedent).\
-  \ It is\n  NOT auto-emitted from the declaration: a pinned suite pass does not positively\
-  \ observe a per-class run\n  (`land` runs `verify.layers` by layer, never per class),\
-  \ so an auto-emit would be the very false-green\n  this ends. The consumer is the\
-  \ DERIVED debt view `debt.unexecuted_test_classes`, which folds\n  carrier + journal\
-  \ at read time and surfaces every declared class with no matching record as unexecuted\n\
+  \ re-run re-emits nothing.\n- **Also appended by `land` (SPEC-0005 §4)** when it\
+  \ re-targets an activated spec onto a\n  successor a sibling landed first: the same\
+  \ shape in that spec's activation-owner slot, `supersedes`\n  / `supersedes_status`\
+  \ naming the head it superseded, plus `retargeted_from` — the target the spec\n\
+  \  named before. A row carrying `retargeted_from` records a re-target, never an\
+  \ activation.\n- Append-only + P5-safe : additive — no existing event type changes,\
+  \ and a consumer that does\n  not know this type parses it as the opaque `{ts,type,data}`\
+  \ triple.\n\n#### Test-class execution event (per SPEC-0152 rule 24)\n**`test_class_executed`**\
+  \ — the recorded LAST SUCCESSFUL EXECUTION of a declared test class (SPEC-0152\n\
+  rule 24). SPEC-0156 asks \"would this check go RED if broken?\"; this answers the\
+  \ sibling question \"has this\nclass ever actually RUN green?\". <project>'s e2e\
+  \ class was DECLARED but its browsers were never installed —\nnothing ran, nothing\
+  \ failed, and a class that never executed read as coverage (X-0375). This event\
+  \ is the\ndurable proof a declared class actually ran, recorded by whoever RAN it.\n\
+  ```jsonc\n{\"ts\": \"...\", \"type\": \"test_class_executed\", \"task_id\": \"T-XXXX\"\
+  ,\n \"data\": {\"class\": \"live-app-e2e\", \"outcome\": \"pass\",\n          \"\
+  evidence\": \"<what run — a CI url / a log ref / a harness id>\"}}\n```\n- `class`\
+  \ — WHICH declared `tests.classes[]` class ran, as the carrier names it.\n- `outcome`\
+  \ — **must be `pass` to record a successful run.** A non-pass (or absent, or misspelt)\
+  \ outcome\n  records no successful run and clears nothing.\n- `evidence` — what\
+  \ run this attests to (a CI url / a log ref / a harness id). **REQUIRED to clear\
+  \ the\n  class** (the SPEC-0156 `broken_input` discipline): a bare \"it ran\" with\
+  \ no named run is a CLAIM anyone\n  could type, and clearing a class on a claim\
+  \ is the false-green this contract exists to end. `class`, a\n  `pass` `outcome`,\
+  \ and a non-empty `evidence` must ALL be present; an incomplete record does not\
+  \ clear it,\n  so the class stays visible as debt (the conservative direction —\
+  \ under-evidenced ⇒ still owed).\n- It rides the EXISTING generic `event` verb (`bin/yitc-v2\
+  \ event test_class_executed --data`) — SPEC-0152\n  rule 24 admits **no new verb,\
+  \ no new emitter, no new store** (the SPEC-0156 producer precedent). It is\n  NOT\
+  \ auto-emitted from the declaration: a pinned suite pass does not positively observe\
+  \ a per-class run\n  (`land` runs `verify.layers` by layer, never per class), so\
+  \ an auto-emit would be the very false-green\n  this ends. The consumer is the DERIVED\
+  \ debt view `debt.unexecuted_test_classes`, which folds\n  carrier + journal at\
+  \ read time and surfaces every declared class with no matching record as unexecuted\n\
   \  (report-only, never a gate).\n- Append-only + P5-safe : additive — no existing\
   \ event type changes; a consumer that does not know\n  this type parses it as the\
   \ opaque `{ts,type,data}` triple.\n\n#### Followup-capture events (per SPEC-0095;\
@@ -354,7 +359,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   it RESOLVED the freeze rather than repeating it, and that route is untouched. (That\
   \ the shipped predicate\nis a raw whole-corpus substring rather than structured\
   \ active-spec homing is a real, separate concern —\nraised at audit-pre and ruled\
-  \ out of scope by the SPEC-0124 ceiling-convergence consult,\ntracked as followup\
+  \ out of scope by the <workshop-spec> ceiling-convergence consult,\ntracked as followup\
   \ fu_f5305ac63f6f: a stronger predicate strictly WIDENS the failing set and so must\
   \ be\nmeasured report-only before it is ever allowed to gate a land.)\n\n**THE NAMED\
   \ RESIDUE — what a diff-scoped gate stops seeing, and where it is reported instead.**\
@@ -375,9 +380,9 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ as **77 = 30 + 13 + 34**: **30** resolve by name\nto another active spec (the\
   \ federated homes above — e.g. `canary_backstop_ran`→SPEC-0066,\n`concern_drift_surfaced`→SPEC-0143,\
   \ `deviation_resolved`→SPEC-0085, `error_*`→SPEC-0056/<workshop-spec>,\n`blocked_on_land`→SPEC-0103/<workshop-spec>,\
-  \ `audit_*`→SPEC-0124), **13** earned a roster entry here (below),\nand **34** are\
-  \ the named no-emitter deferrals. So the raw count over-reported by ~5x, and the\
-  \ REAL\nuncatalogued set — the thing the card is about — was 13. A FIFTH firing\
+  \ `audit_*`→<workshop-spec>), **13** earned a roster entry here (below),\nand **34**\
+  \ are the named no-emitter deferrals. So the raw count over-reported by ~5x, and\
+  \ the REAL\nuncatalogued set — the thing the card is about — was 13. A FIFTH firing\
   \ on the raw 2-spec number\nresolves BY CITATION to this paragraph; only a re-run\
   \ against the WHOLE corpus is evidence of a gap.\n\n#### Roster — verb-emitted types\
   \ homed here ( reconcile)\nCompact roster lines, deliberately NOT per-type JSONC\
@@ -655,11 +660,11 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ payload keys, none omitted: `task_id` · `stage` (pre|post) · `subject_revision`\
   \ (the audited subject — the recorded commit SHA at audit-post, the plan fingerprint\
   \ at audit-pre) · `ceiling_ref` (the ceiling row's durable identity `<task>/<stage>/pass-<N>`,\
-  \ whose `<N>` is that row's own SPEC-0124 `passes` COUNTER and never a count of\
-  \ rows) · `finding_fingerprint` (the engine key of the residual this decision binds\
-  \ to — SPEC-0204 rule 1, `fp1:`) · `disposition` (the PER-FINDING set `fix` | `accept`\
-  \ | `defer`; a card-TERMINAL disposition is never a `ceiling_decision`) · `reason`\
-  \ (non-empty) · `directive` (the owner-directive locator `events.jsonl#ts=<ISO>`,\
+  \ whose `<N>` is that row's own <workshop-spec> `passes` COUNTER and never a count\
+  \ of rows) · `finding_fingerprint` (the engine key of the residual this decision\
+  \ binds to — SPEC-0204 rule 1, `fp1:`) · `disposition` (the PER-FINDING set `fix`\
+  \ | `accept` | `defer`; a card-TERMINAL disposition is never a `ceiling_decision`)\
+  \ · `reason` (non-empty) · `directive` (the owner-directive locator `events.jsonl#ts=<ISO>`,\
   \ RESOLVED at write) · `receiving_task` (REQUIRED for `defer`) · `evidence_revision`\
   \ (REQUIRED for `fix`) · `decided_by` (the session ref). **Why it is rostered before\
   \ its emitter exists (SPEC-0046 §A):** the card that BIRTHS a shared primitive owns\
@@ -1018,9 +1023,15 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ store under the git common dir). CANDIDATE: read only by the report-only\n`dev-utilities/audit-paired-sample.py`,\
   \ which re-sends the identical packet to a candidate auditor;\nno gate or verdict\
   \ branches on it. Not added to the count, on the same terms as the blocks above.\n\
-  \n**THREE MORE PAIRS NAMED FORWARD — the land-withdrawal observable (2026-09-08).**\n\
-  SPEC-0184 rule 16 introduces a new event type, `land_withdrawn` (a land that observed\
-  \ a withdrawal\nrequest for its own attempt while still queued for a verify slot,\
+  \n**ONE MORE PAIR NAMED FORWARD — the supersession re-target key (2026-10-16).**\n\
+  `spec_activated.retargeted_from` (the spec id an activated spec named in `supersedes:`\
+  \ before `land`\nre-targeted it onto a successor a sibling landed first — SPEC-0005\
+  \ §4). GOVERNING: the land\naudit-currency gate reads it back to admit the re-target's\
+  \ written shape and never counts a row\ncarrying it as an activation (SPEC-0077\
+  \ §3a). Not added to the count, on the same terms as the\nblocks above.\n\n**THREE\
+  \ MORE PAIRS NAMED FORWARD — the land-withdrawal observable (2026-09-08).**\nSPEC-0184\
+  \ rule 16 introduces a new event type, `land_withdrawn` (a land that observed a\
+  \ withdrawal\nrequest for its own attempt while still queued for a verify slot,\
   \ and withdrew itself), whose three\ndata keys — `branch` / `wait_type` / `waited_s`\
   \ — are named in the recorded set above BEFORE any row\ncarrying them has reached\
   \ `main`. Of the three only `wait_type` is a NEW word to this corpus;\n`branch`\
@@ -1058,13 +1069,13 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ the COUNT above is NOT inflated for them. The nine, none omitted:\n`external_audit_completed.findings`\
   \ (the per-finding list a RED task record now carries — each entry\n`finding_fingerprint`\
   \ + `criterion_ref`|`class_id` + `locator` + `failing_input`, plus `severity` when\n\
-  the response carried one) · `external_audit_completed.passes` (the SPEC-0124 COUNTER\
-  \ the saved record\ncarries, NEVER a count of rows — reset/merge-triggered passes\
-  \ are ledger-skipped, so the two genuinely\ndiffer; `ceiling_ref`'s `pass-<N>` reads\
-  \ this) · `external_audit_completed.finding_fingerprint` (the\nper-finding engine\
-  \ key, `fp1:` + 16 hex over the SPEC-0204 rule-1 canonical tuple; `fp1d:` is READ-TIME\n\
-  only and is never written to a row) · `external_audit_completed.basis` (`on-decisions`\
-  \ on the ONE\nbounded post-ceiling pass) · `external_audit_completed.ceiling_ref`\
+  the response carried one) · `external_audit_completed.passes` (the <workshop-spec>\
+  \ COUNTER the saved record\ncarries, NEVER a count of rows — reset/merge-triggered\
+  \ passes are ledger-skipped, so the two genuinely\ndiffer; `ceiling_ref`'s `pass-<N>`\
+  \ reads this) · `external_audit_completed.finding_fingerprint` (the\nper-finding\
+  \ engine key, `fp1:` + 16 hex over the SPEC-0204 rule-1 canonical tuple; `fp1d:`\
+  \ is READ-TIME\nonly and is never written to a row) · `external_audit_completed.basis`\
+  \ (`on-decisions` on the ONE\nbounded post-ceiling pass) · `external_audit_completed.ceiling_ref`\
   \ (the ceiling row that pass's\ndecisions bind to) · `external_audit_completed.decisions_applied`\
   \ ·\n`external_audit_completed.overruled_by_decision` (a residual the auditor re-argued\
   \ that a decision had\nalready settled — recorded, never a verdict driver) · `external_audit_completed.new_findings`\
@@ -1371,9 +1382,10 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ no second catalog. CANDIDATE on both: `task.py` WRITES\n  that fragment only when\
   \ the invocation actually routed; beside it the same key carries the layer\n  re-run\
   \ record of a run that made one (SPEC-0152 rule 16) and, on every invocation that\
-  \ ran the\n  suite, the `stage6_priority` mapping (SPEC-1029 rule 5). A hand-authored\
-  \ `--evidence` measured\n  no pass and carries none of the three, the discipline,\
-  \ and nothing in `bin/` branches on\n  them — the routing\n  decision is taken live\
+  \ ran the\n  suite, the `stage6_priority` mapping (SPEC-1029 rule 5), and on a pass\
+  \ SPEC-1032 rule 2 names on\n  the row its routing reason, `venue_routing`. A hand-authored\
+  \ `--evidence` measured\n  no pass and carries none of them, the discipline, and\
+  \ nothing in `bin/` branches on\n  them — the routing\n  decision is taken live\
   \ from `venue_decision`, never from the emitted row.\n- `bg_dispatch_halted.confirmed_death_basis`\
   \ and `bg_dispatch_halted.log_tail` — the\n  premature-exit death evidence: what\
   \ CONFIRMED the worker is gone, and the tail of its dispatch log.\n  They exist\

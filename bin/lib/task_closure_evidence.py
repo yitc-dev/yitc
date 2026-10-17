@@ -2352,7 +2352,7 @@ def _live_probe_waiver_settled(lp, *, _live_probe_settled_grammar_error) -> bool
     return _live_probe_settled_grammar_error(lp) is None
 
 
-def _live_probe_settled_evidence_unresolved(lp, events, *, _journal_locator_matches, _live_probe_settled_locator) -> "str | None":
+def _live_probe_settled_evidence_unresolved(lp, events, *, tid=None, _journal_locator_matches, _live_probe_settled_locator) -> "str | None":
     """RESOLUTION half — run at the CLOSE-GATE, which already reads the journal. Returns a refusal
     reason when a grammar-valid `settled_by` locator does NOT resolve to a real probe-evidence event,
     else None. PURE with INJECTED events (the caller folds worktree+main via `_folded_journal_events`),
@@ -2361,7 +2361,11 @@ def _live_probe_settled_evidence_unresolved(lp, events, *, _journal_locator_matc
     TWO ways a settle is dishonest and both are refused:
       (a) the locator names NO existing journal line — a made-up citation;
       (b) it resolves to a line that is not PROBE EVIDENCE — resolving to an arbitrary event would let
-          any waiver settle against any journal line, which is the same defect one layer down."""
+          any waiver settle against any journal line, which is the same defect one layer down.
+      (c) T-13959 (X-2000) — a `ts=` locator matching SEVERAL probe-evidence rows names no single run
+          unless exactly one ties to the closing card `tid`: the `--settle-evidence` tie rule
+          (`_ts_locator_ambiguity`, T-13342), applied over the evidence rows. One evidence row still
+          settles whatever its tie — a settle claims SOME real probe discharged the debt."""
     loc = _live_probe_settled_locator(lp)
     if loc is None:
         return None  # not a settled waiver (or malformed) — the grammar half owns that refusal
@@ -2375,6 +2379,10 @@ def _live_probe_settled_evidence_unresolved(lp, events, *, _journal_locator_matc
         return (f"`settled_by.evidence` resolves to event type(s) {sorted(t for t in types if t)} — none is "
                 f"PROBE EVIDENCE. Cite one of {list(_LIVE_PROBE_PROBE_EVIDENCE_TYPES)}: a settle must name the "
                 f"probe RUN that discharged the debt, not an unrelated journal line")
+    if kind == "ts":
+        evidence = [ev for ev in matched if str(ev.get("type") or "") in _LIVE_PROBE_PROBE_EVIDENCE_TYPES]
+        if len(evidence) > 1:
+            return _ts_locator_ambiguity(wanted, evidence, tid, flag="settled_by.evidence")
     return None
 # ── T-11674 (X-1130) — THE ATTESTED FORM: the kernel GRADES a proof the PROJECT already runs ──────
 # THE MISMATCH <project> measured (25 overdue rechecks, ONE structural cause). The declaration grammar
@@ -3178,7 +3186,8 @@ def _live_worktree_notice(tid: str, *, REPO_ROOT, _live_task_worktrees) -> "str 
             f"view above; the claim/stage lands from that worktree (not read here — SPEC-0060).")
 
 
-def _case_out_of_path_observation(case, ship_paths, *, _case_valid) -> "dict | None":
+def _case_out_of_path_observation(case, ship_paths, *, _case_valid,
+                                  is_lifecycle_record=None) -> "dict | None":
     """SPEC-0178 rule 6 — the OUT-OF-PATH observation for a `paths:`-declared audit_scrutiny case.
     REPORT-ONLY by construction: a PURE f(case, ship_paths) → one report row, or None when there is
     nothing to surface. It never gates, never refuses, never raises, and touches no git/disk (AC3).
@@ -3211,7 +3220,16 @@ def _case_out_of_path_observation(case, ship_paths, *, _case_valid) -> "dict | N
 
     Glob matching REUSES the existing fnmatch idiom of `_subject_globs_would_skip` (SPEC-0152 rule 16,
     `bin/lib/worktree.py`): a `*` crosses `/`, and a leading `./` is normalised to the repo-relative
-    form the globs are written in. No new matcher (CHARTER §P1 filter 1)."""
+    form the globs are written in. No new matcher (CHARTER §P1 filter 1).
+
+    **The card's OWN lifecycle records are not "outside" (T-13956).**
+    The ship diff also carries what the lifecycle wrote for the card — its card, the journal, its own
+    `decisions/<tid>-*` records, the derived artifacts every build regenerates. None is a write the
+    author chose, so by the same reason the ship diff is read at all, none is evidence about their
+    declaration; counted, they made the WARN fire on every close under a `paths:` case.
+    `is_lifecycle_record` (a per-path predicate the Closure seam binds to this card's tid) drops them
+    from the OUTSIDE set only: a record a declared glob covers still counts as inside, so whether the
+    card is read under the case at all is unchanged. None = no filter."""
     ok, _why = _case_valid(case)          # T-11156: rule-1 applicability has ONE home (P5)
     if not ok:
         return None
@@ -3231,6 +3249,8 @@ def _case_out_of_path_observation(case, ship_paths, *, _case_valid) -> "dict | N
         if p.startswith("./"):
             p = p[2:]
         (inside if any(fnmatch.fnmatch(p, g) for g in globs) else outside).append(p)
+    if is_lifecycle_record is not None:
+        outside = [p for p in outside if not is_lifecycle_record(p)]
     if not inside or not outside:
         return None                       # not read under this case / the declaration held
     return {"case": name.strip(), "declared_paths": globs, "out_of_path": sorted(set(outside))}

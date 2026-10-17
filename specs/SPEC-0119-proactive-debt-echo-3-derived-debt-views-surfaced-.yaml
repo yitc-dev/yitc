@@ -1361,12 +1361,12 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ and clean prints NOTHING. The current tail stays available ON DEMAND from\n  \
   \  the latest land's own record, exactly as the debt views themselves are available\
   \ on demand.\n    **NO ABSOLUTE BAR, and the rejected one is named.** The original\
-  \ design anchored to the 300s\n    per-file verify timeout (SPEC-0071). That is\
-  \ an ABORT bound, not a health target: it makes a file\n    interesting only once\
-  \ it is near failing a land (135.7s reads as a comfortable 45% while being a\n \
-  \   bad cost for one test), and it goes silent entirely once everything sits under\
-  \ it — precisely\n    when durations creep back up unwatched. A relative reading\
-  \ decrees nothing and self-calibrates.\n    The 300s bound stays what it already\
+  \ design anchored to the per-file\n    verify bound (SPEC-0071). That is an ABORT\
+  \ bound, not a health target: it makes a file\n    interesting only once it is near\
+  \ failing a land (a 135.7 s file read as comfortably inside it\n    while being\
+  \ a bad cost for one test), and it goes silent entirely once everything sits under\
+  \ it —\n    precisely when durations creep back up unwatched. A relative reading\
+  \ decrees nothing and\n    self-calibrates. The per-file bound stays what it already\
   \ is: the hard abort.\n    **ENTRANT IS DEFINED BY MEMBERSHIP, never by \"unseen\
   \ anywhere before\".** A file counts as an\n    entrant when it is absent from the\
   \ BASELINE SLOWEST-SET MEMBERSHIP — the union of the prior\n    window's recorded\
@@ -3175,10 +3175,10 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ gap, not a threshold gap.** Every existing surface for a\n    repeating abort\
   \ is scoped to ONE lane: the re-run-versus-resolve discipline (CHARTER P7) to a\n\
   \    SESSION's repeated attempts, the repeated-abort backstop (`_land_repeated_abort_count`)\
-  \ to a\n    BRANCH, the audit-loop ceiling (SPEC-0124) to a TASK. A cause failing\
-  \ ONCE on each of four DIFFERENT\n    branches trips none of them, because no single\
-  \ branch ever repeats. This rule owns exactly that\n    cross-branch reading and\
-  \ nothing else.\n    **THE IDENTITY IS BORROWED, NEVER MINTED.** The cause identity\
+  \ to a\n    BRANCH, the audit-loop ceiling (<workshop-spec>) to a TASK. A cause\
+  \ failing ONCE on each of four DIFFERENT\n    branches trips none of them, because\
+  \ no single branch ever repeats. This rule owns exactly that\n    cross-branch reading\
+  \ and nothing else.\n    **THE IDENTITY IS BORROWED, NEVER MINTED.** The cause identity\
   \ is\n    `worktree._land_abort_cause_identity` — the SAME fine identity the backstop\
   \ streaks on — INJECTED,\n    so the two surfaces cannot disagree about what \"\
   the same cause\" is (P5). CONSEQUENCE, stated because\n    it was measured on the\
@@ -3374,8 +3374,8 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ — and this is the whole reason the rule\n    exists.** Every surface that could\
   \ catch a stuck branch is keyed on the REPETITION OF A CAUSE:\n    the repeated-abort\
   \ backstop is per BRANCH but arms only on N CONSECUTIVE aborts sharing\n    a cause\
-  \ key; the SPEC-0124 audit-loop ceiling is per TASK and counts audit passes, not\
-  \ land\n    aborts; the CHARTER §P7 re-run-vs-resolve discipline is per SESSION\
+  \ key; the <workshop-spec> audit-loop ceiling is per TASK and counts audit passes,\
+  \ not land\n    aborts; the CHARTER §P7 re-run-vs-resolve discipline is per SESSION\
   \ and behavioural; rule 27's\n    aborted-land cost view groups BY CLASS, so one\
   \ branch's several classes scatter across several\n    rows and never sum. A branch\
   \ that fails for a DIFFERENT reason each time trips none of them.\n    **MEASURED\
@@ -4334,7 +4334,7 @@ implements_signature:
   bin/lib/init.py#concern_conformance: 819343d1d921cd17db13205ed90cef5c62afa36c18ca231c1d19f63a032ffc78
   bin/lib/init.py#unratified_adoptions: dcef8224b31e53d31e2c711c95b98fbb14acdf5bf307866d6fe663a605e4e17b
   bin/lib/journal.py#HALT_RESOLUTION_INPUT_TYPES: 7795f42ff4364f6f09cbff43004383437a46172d7aecfe9d75d6c3167ec58854
-  bin/lib/land_abort.py#_emit_land_abort: 10132271ce7efb47f1e335b4da5a0c29630b8aabf2b858f66fea89d9408fdd44
+  bin/lib/land_abort.py#_emit_land_abort: d1947380ca1cd9edef0b0c234ff241afc5d924451335071e553458ee5f8965da
   bin/lib/land_verify_legs.py#_registry_names_file: 85426b25d567d463c9debede36c118666df3b881341b97f249dca6a6eb0e9884
   bin/lib/nightly.py#_check_concern_conformance: 6c0bbe2b0976df16f31c764b48edf6c95af046b3cd094d33456080c86d05a6e1
   bin/lib/nightly.py#_check_unratified_adoptions: 2da20549af6874ea9b0cfbc9b53a191e5159c78027986bfeeb826f8bc16908be
@@ -4349,10 +4349,10 @@ implements_signature:
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: b1427fe117d3591231d6d517efad9d7e0b973905000d0ef9aa37b125e6de867b
+  bin/lib/views.py#_render_debt_echo: beb6e6658134a40a4b41c61eff2db64326ddd9556aef9cd376c21a4bc908fb7e
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_load_sensitive_file_card: e18678b2d56985f14fc3021ee4247db7c1eb3b6b61d58de0c19b13b23335b66a
-  bin/lib/worktree.py#cmd_land: 6cfbd3aa1d2a95d56e8d549a08f6abf56ed11c19650211eb70a85e53777d7883
+  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5

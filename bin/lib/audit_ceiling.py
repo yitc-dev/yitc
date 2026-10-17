@@ -119,6 +119,87 @@ def _any_type_axis(axis, diag) -> bool:
         axis == "delegation-chain-broken" and (diag or {}).get("reason") == "cited-row-missing")
 
 
+def ceiling_pre_decide_order(tid) -> str:
+    """T-13980 (X-2023) — the ONE order a Controller follows for an audit-pre ceiling decision, named
+    verbatim by both the `plan-source-unfound` refusal and the dispatch recovery hint
+    (`journal._dispatch_recovery_hint`), so the two texts can never prescribe different orders."""
+    return (f"decide from main FIRST, then dispatch; if the decide refuses plan-source-unfound, "
+            f"re-open the task worktree FIRST with `bin/yitc-v2 worktree new --task {tid}`, then "
+            f"decide from main, then dispatch")
+
+
+def landed_pause_plan_basis(tid, card_path, ceiling_ts, repo_root, working_plan, load):
+    """T-13980 (X-2023) — is main's card PROVABLY the plan the worker paused on at the audit-pre
+    ceiling? Returns `(ok, why, plan)`; `plan` is the PAUSE COMMIT's `implementation_plan`.
+
+    T-13948 refuses a main-run pre `fix` with no live task worktree because main's card may carry a
+    stale plan. When the worker's audit-ceiling pause record LANDED, the worktree is gone and main's
+    card IS the paused plan — provably so only when every fact below is read from COMMITTED git, never
+    the working file: the HEAD card is paused `audit-ceiling` at Plan/Audit-pre no earlier than the
+    ceiling row; the working plan equals it; the newest commit adding that `paused_at` (the pause
+    commit) carries the same pause fields and plan; no commit in <pause>..HEAD touches the card's
+    plan (a change kept or changed back alike); and the `task/<tid>` branch is absent or carries the
+    same plan. Any git failure, unreadable card or exception is not ok (fail closed)."""
+    import subprocess
+    from lib import git_env as _git_env
+    root = Path(repo_root)
+
+    def git(*a):
+        return subprocess.run(["git", f"--git-dir={root / '.git'}", f"--work-tree={root}", *a],
+                              capture_output=True, text=True, timeout=60,
+                              env=_git_env._git_child_env())
+
+    def plan_of(c):
+        return str((c or {}).get("implementation_plan") or "").strip()
+
+    def card_at(rev):
+        r = git("show", f"{rev}:{rel}")
+        if r.returncode != 0:
+            return None
+        c = load(r.stdout)
+        return c if isinstance(c, dict) else None
+
+    try:
+        rel = Path(card_path).resolve().relative_to(root.resolve()).as_posix()
+        head = card_at("HEAD")
+        if head is None:
+            return False, "the card is not committed at HEAD", None
+        paused_at = str(head.get("paused_at") or "").strip()
+        if str(head.get("paused_reason") or "") != "audit-ceiling" or not paused_at:
+            return False, "main's committed card is not paused at the audit-loop ceiling", None
+        if str(head.get("current_stage") or "") not in ("Plan", "Audit-pre"):
+            return False, "main's committed pause is not at Plan/Audit-pre", None
+        if ceiling_ts and paused_at < str(ceiling_ts):
+            return False, "main's committed pause is older than the ceiling row", None
+        if str(working_plan or "").strip() != plan_of(head):
+            return False, "main's working card plan differs from its committed plan", None
+        r = git("log", "-1", "--full-history", f"-S{paused_at}", "--format=%H", "HEAD", "--", rel)
+        pause = r.stdout.strip() if r.returncode == 0 else ""
+        pcard = card_at(pause) if pause else None
+        if pcard is None or any(str(pcard.get(k) or "").strip() != str(head.get(k) or "").strip()
+                                for k in ("paused_reason", "paused_at", "current_stage")):
+            return False, "the pause commit could not be found", None
+        if plan_of(pcard) != plan_of(head):
+            return False, "plan-changed-after-pause", None
+        # --full-history: a merged side branch that changed the plan and changed it back is
+        # TREESAME to its merge and plain history simplification would skip both commits.
+        r = git("rev-list", "--full-history", f"{pause}..HEAD", "--", rel)
+        if r.returncode != 0:
+            return False, "git rev-list failed", None
+        for c in r.stdout.split():
+            if plan_of(card_at(c)) != plan_of(pcard):
+                return False, "plan-changed-after-pause", None
+        r = git("show-ref", "--verify", "--quiet", f"refs/heads/task/{tid}")
+        if r.returncode == 0:
+            if plan_of(card_at(f"refs/heads/task/{tid}")) != plan_of(pcard):
+                return False, f"the `task/{tid}` branch carries a different plan", None
+        elif r.returncode != 1:
+            return False, "git show-ref failed", None
+        return True, "", pcard.get("implementation_plan")
+    except Exception as e:   # noqa: BLE001 — fail closed: an unproven plan is never admitted
+        return False, f"the landed pause could not be read ({type(e).__name__})", None
+
+
 # ---------------------------------------------------------------------------
 # INJECTS — the generated keyword-only inject roster per mover (host stayers, host globals,
 # lib aliases, moved siblings). `audit._ceiling_inject(kw, name)` reads it at call time.
@@ -430,6 +511,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
     card = {}
     pre_fix_plan_source = None
     pre_fix_plan_source_unfound = False
+    _wt_live = False
     if not is_plan:
         task_path = _find_task_yaml(tid)
         if task_path is not None:
@@ -458,6 +540,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                 _other = _cross_instance_path()
                 if _other and (Path(_other).parent / ".git").is_dir():
                     _other = None
+                _wt_live = bool(_other)
                 _matches = (sorted((Path(_other).parent / "tasks").glob(f"{tid}-*.yaml"))
                             if _other else [])
                 if len(_matches) == 1:
@@ -1053,14 +1136,29 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                             {"evidence_revision": evidence})
             elif stage == "pre":
                 if pre_fix_plan_source_unfound:
-                    _refuse("plan-source-unfound", "pre_fix_plan_source_unfound",
-                            f"{tid} audit-pre: this runs on the main checkout and no live "
-                            f"`task/{tid}` worktree card with an `implementation_plan` was found, "
-                            f"while the card is `in-progress` — main's card may carry a stale plan, "
-                            f"and a recorded `fix` can never be corrected (SPEC-0204 rule 2, "
-                            f"T-13948). Record it once the worker's worktree is live (run this again "
-                            f"from main), or run it from that worktree. Nothing was written.",
-                            {"evidence_revision": evidence})
+                    # T-13980 (X-2023): a LANDED audit-ceiling pause makes main's card provably the
+                    # paused plan — admitted only on that proof, read from committed git.
+                    _ok, _why, _paused_plan = (False, "no task card was found", None)
+                    if _wt_live:
+                        _why = "a live task worktree exists but carries no plan"
+                    elif task_path is not None:
+                        _ok, _why, _paused_plan = landed_pause_plan_basis(
+                            tid, task_path, (ceiling_row or {}).get("ts"), REPO_ROOT,
+                            card.get("implementation_plan"), state.load_str)
+                    if _ok:
+                        card = {**card, "implementation_plan": _paused_plan}
+                        pre_fix_plan_source = ("the main checkout card - the worker's landed "
+                                               "audit-ceiling pause (no live task worktree)")
+                    else:
+                        _refuse("plan-source-unfound", "pre_fix_plan_source_unfound",
+                                f"{tid} audit-pre: this runs on the main checkout and no live "
+                                f"`task/{tid}` worktree card with an `implementation_plan` was found, "
+                                f"while the card is `in-progress` — main's card may carry a stale "
+                                f"plan, and a recorded `fix` can never be corrected (SPEC-0204 rule 2, "
+                                f"T-13948); main's card is not provably the landed audit-ceiling "
+                                f"pause: {_why}. Order: {ceiling_pre_decide_order(tid)}. Nothing was "
+                                f"written.",
+                                {"evidence_revision": evidence})
                 plan_text = str(card.get("implementation_plan") or "")
                 current_fp = _plan_content_hash(plan_text) if plan_text.strip() else None
                 if subject_revision and evidence == subject_revision:

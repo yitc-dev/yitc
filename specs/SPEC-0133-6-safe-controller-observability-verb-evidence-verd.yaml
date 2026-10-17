@@ -325,21 +325,22 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ halt\n  reading `halted`. `land_completed` carries no `task_id` (only `data.branch`),\
   \ so this arm matches BY\n  BRANCH and its readers must fold the UNSCOPED stream.\n\
   - **(ii) CONSULT + GRANTED PASS** — the DESIGNED audit-loop-ceiling continuation\
-  \ (SPEC-0124): a\n  CONVERGED consult (`external_audit_completed`, `stage` = `consult-pre`|`consult-post`,\
-  \ verdict\n  GREEN) followed AT-OR-AFTER by THAT stage's granted GREEN pass (`audit_pre_completed`\
-  \ /\n  `audit_post_completed`). **Both halves are required** — a converged consult\
-  \ alone only GRANTS the\n  continuation; the granted pass may still come back RED.\n\
-  \n- **(iii) MAIN WENT GREEN ** — for a **MAIN-ATTRIBUTED** halt ONLY: ANY\n  `land_completed{status:\
-  \ ok}`, on ANY branch. Nothing recorded that a red main, once fixed, resolves\n\
-  \  the halts that NAMED it, so an outage halting N workers left N manual dispositions\
-  \ behind it, each\n  already moot. Incident: **2026-08-28**, the fleet still reported\
-  \ needs-decision on evidence\n  from 06:32:24Z whose cause — main's own pinned verify\
-  \ RED — was cleared at 07:45 when landed;\n  the session-start `9 worker halt(s)\
-  \ with no recorded resolution` line was that same population.\n  WHERE THE ATTRIBUTION\
-  \ COMES FROM, measured before the arm was written (2026-08-29, 242 halts): the\n\
-  \  `bg_dispatch_halted` payload carries NO structured attribution — a MAIN cause\
-  \ appears only as PROSE\n  in `data.reason`, which this arm does NOT read. The structured\
-  \ fact is ONE ROW EARLIER, on the land\n  the worker halted over: `land_completed.data.failure_attribution.outcome`,\
+  \ (<workshop-spec>): a\n  CONVERGED consult (`external_audit_completed`, `stage`\
+  \ = `consult-pre`|`consult-post`, verdict\n  GREEN) followed AT-OR-AFTER by THAT\
+  \ stage's granted GREEN pass (`audit_pre_completed` /\n  `audit_post_completed`).\
+  \ **Both halves are required** — a converged consult alone only GRANTS the\n  continuation;\
+  \ the granted pass may still come back RED.\n\n- **(iii) MAIN WENT GREEN ** — for\
+  \ a **MAIN-ATTRIBUTED** halt ONLY: ANY\n  `land_completed{status: ok}`, on ANY branch.\
+  \ Nothing recorded that a red main, once fixed, resolves\n  the halts that NAMED\
+  \ it, so an outage halting N workers left N manual dispositions behind it, each\n\
+  \  already moot. Incident: **2026-08-28**, the fleet still reported needs-decision\
+  \ on evidence\n  from 06:32:24Z whose cause — main's own pinned verify RED — was\
+  \ cleared at 07:45 when landed;\n  the session-start `9 worker halt(s) with no recorded\
+  \ resolution` line was that same population.\n  WHERE THE ATTRIBUTION COMES FROM,\
+  \ measured before the arm was written (2026-08-29, 242 halts): the\n  `bg_dispatch_halted`\
+  \ payload carries NO structured attribution — a MAIN cause appears only as PROSE\n\
+  \  in `data.reason`, which this arm does NOT read. The structured fact is ONE ROW\
+  \ EARLIER, on the land\n  the worker halted over: `land_completed.data.failure_attribution.outcome`,\
   \ computed by the land\n  verify against the merge-base (census: `undecidable` 159,\
   \ `branch` 36, `main` 27). Nobody types it,\n  so it is EVIDENCE, not a claim —\
   \ the standard `needs_owner_reset` meets for rule 2e. The halt is\n  MAIN-attributed\

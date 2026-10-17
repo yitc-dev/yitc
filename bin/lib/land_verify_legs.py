@@ -839,6 +839,85 @@ def _owned_test_verify_freed(worktree: Path, base_ref: str, diff_paths, *, _run_
         return None
 
 
+def _edge_own_test_paths(edge_paths, base_text, cand_text, *, CONSUMER_OPS_CONTRACT,
+                         _declared_verify_infra_globs, _declared_test_globs) -> "frozenset | None":
+    """T-13964 (SPEC-1006 rule 6, rung (a)) — the paths among `edge_paths` that are the project's OWN
+    test files, or None. `edge_paths` are the changed paths that made the SPEC-0152 rule-16 skip
+    decision answer `verify-implementation-touch` / `declared-check-surface`; the adapter ladder
+    lets such an edge pass ONLY when every one of them is in this set AND its own layer places it
+    (`_adapter_shadow_decision`). PURE: no git, no filesystem.
+
+    A path is in the set ONLY ON POSITIVE PROOF, and every doubt is the same answer — «not in the
+    set», which leaves the edge answering rung (a) exactly as before:
+      (a) both carrier texts parse strictly (`_ops_carrier_strict_doc`) and neither carries a
+          REFUSED `verify.infra_globs` entry;
+      (b) it matches the project's declared `tests.classes[].globs` at BOTH carriers
+          (`_declared_test_globs`, the one reader of that declaration) — a project that declares
+          none has no own test file here;
+      (c) it matches no explicit `verify.infra_globs` entry of EITHER carrier — how a project names
+          a shared test helper it wants run whole;
+      (d) it is no layer's adapter `sources:` entry, nor under one, at either carrier (matched
+          literally, as rung (a) matches `sources:`);
+      (e) it is not the carrier itself.
+    Any exception is None."""
+    import posixpath
+    carrier = str(CONSUMER_OPS_CONTRACT)
+    try:
+        names = [str(p) for p in (edge_paths or ()) if isinstance(p, str)]
+        if not names:
+            return None
+        declared: list = []
+        infra: set = set()
+        sources: set = set()
+        for text in (base_text, cand_text):
+            doc = _ops_carrier_strict_doc(text)                                    # (a)
+            globs, refused = _declared_verify_infra_globs(doc, CONSUMER_OPS_CONTRACT=carrier)
+            if refused:
+                return None                                                        # (a)
+            infra.update(globs)                                                    # (c)
+            declared.append([g for g in _declared_test_globs(doc) if isinstance(g, str) and g.strip()])
+            ver = doc.get("verify")
+            for ly in (ver.get("layers") if isinstance(ver, dict) else None) or ():
+                adapter = ly.get("adapter") if isinstance(ly, dict) else None
+                for src in (adapter.get("sources") if isinstance(adapter, dict) else None) or ():
+                    if isinstance(src, str) and src.strip():
+                        sources.add(posixpath.normpath(src.strip()))               # (d)
+        own: set = set()
+        for p in names:
+            q = p[2:] if p.startswith("./") else p
+            if q == carrier:
+                continue                                                           # (e)
+            if not all(any(fnmatch.fnmatch(q, g) for g in globs) for globs in declared) \
+                    or not all(declared):
+                continue                                                           # (b)
+            if any(fnmatch.fnmatch(q, g) for g in infra):
+                continue                                                           # (c)
+            if any(q == s or q.startswith(s + "/") for s in sources):
+                continue                                                           # (d)
+            own.add(p)
+        return frozenset(own) or None
+    except Exception:                          # noqa: BLE001 — any doubt frees nothing
+        return None
+
+
+def _edge_own_test_verify(worktree: Path, base_ref: str, edge_paths, *, _run_git_cap,
+                          CONSUMER_OPS_CONTRACT, _edge_own_test_paths) -> "frozenset | None":
+    """T-13964 — `_edge_own_test_paths` for a LIVE land or Stage-6 run: the merge-base carrier against
+    the candidate tree's, taken by `_ops_carrier_live_texts` (the acquisition the owned-test and
+    carrier readers use, conditions unchanged). Reads nothing without an edge path. FAIL-CLOSED to
+    None on every read doubt and on any exception."""
+    try:
+        if not base_ref or _run_git_cap is None or not edge_paths:
+            return None
+        texts = _ops_carrier_live_texts(worktree, base_ref, _run_git_cap=_run_git_cap,
+                                        CONSUMER_OPS_CONTRACT=CONSUMER_OPS_CONTRACT)
+        if texts is None:
+            return None
+        return _edge_own_test_paths(edge_paths, texts[0], texts[1])
+    except Exception:                          # noqa: BLE001 — any doubt frees nothing
+        return None
+
+
 def _pinned_declared_check_paths(ops: "dict | None", *, _pinned_declared_check_paths_by_layer) -> list:
     """The flat union of `_pinned_declared_check_paths_by_layer` — the form every caller but the
     land-time report needs. Kept as the single public shape; the by-layer map is its source."""
@@ -1543,7 +1622,7 @@ def _prep_timeout_work_signal(cpu_seconds: "float | None", wall_seconds: "float 
     return "\n".join(lines)
 
 
-def _verify_bound_source(declared: "float | None", effective: float) -> str:
+def _verify_bound_source(declared: "float | None", effective: float, rung: "str | None" = None) -> str:
     """T-10931 (AC2) — NAME which rung of the T-10257 precedence chain produced an already-resolved
     verify bound, so a killed-by-bound abort tells an operator WHERE to change the number (or that
     nobody declared one) instead of just quoting a bare figure.
@@ -1553,21 +1632,35 @@ def _verify_bound_source(declared: "float | None", effective: float) -> str:
     disagree with the resolver about the bound, because it never computes one — a divergence could only
     ever change the WORDS in a message, never which bound is enforced. The rungs are checked in the
     resolver's own precedence order, so an env override that happens to equal the declaration is
-    attributed to the env, exactly as the resolver decided it."""
-    raw = os.environ.get("YITC_VERIFY_TEST_TIMEOUT")
-    if raw:
-        try:
-            if float(raw) == effective:
-                return "set by the YITC_VERIFY_TEST_TIMEOUT env escape hatch"
-        except (TypeError, ValueError):
-            pass
+    attributed to the env, exactly as the resolver decided it. T-13969: `rung` is the resolver's own
+    `source_out` answer for THIS resolution (env | declared | machine-file | default) — given, it is
+    the label, so a settings file rewritten after the resolution cannot relabel the bound applied
+    (audit-post pass-1 finding 1). Without it (a resolver that reports no rung) the env and
+    machine-file rungs are read back through `machine_settings.in_force`, the resolver's own reader
+    (SPEC-1031 rule 4 — the machine file sits just above the built-in default)."""
+    labels = {"env": "set by the YITC_VERIFY_TEST_TIMEOUT env escape hatch",
+              "declared": "set by the layer's declared `timeout:` / `verify.timeout_seconds:`",
+              "machine-file": ("set by this machine's settings file (`config set YITC_VERIFY_TEST_TIMEOUT`) "
+                               "— NO timeout was declared for this layer"),
+              "default": "the built-in default — NO timeout was declared for this layer"}
+    if rung in labels:
+        return labels[rung]
+    from lib import machine_settings              # deferred: the hot import graph is unchanged
+    try:
+        row = machine_settings.in_force("YITC_VERIFY_TEST_TIMEOUT")
+    except Exception:                             # noqa: BLE001 — a labeller never breaks its caller
+        row = {"source": "built-in", "value": None}
+    if row["source"] == "env" and row["value"] == effective:
+        return labels["env"]
     if declared is not None:
         try:
             if float(declared) == effective:
-                return "set by the layer's declared `timeout:` / `verify.timeout_seconds:`"
+                return labels["declared"]
         except (TypeError, ValueError):
             pass
-    return "the global default — NO timeout was declared for this layer"
+    if row["source"] == "machine-file" and row["value"] == effective:
+        return labels["machine-file"]
+    return labels["default"]
 
 
 # T-13925 (X-1972) — the links the PINNED leg's own priming made (`rebaseline_currency._pinned_env_prime`,
@@ -1721,11 +1814,18 @@ def _run_layer_prep(worktree: Path, layer_name: str, prep: dict, *, _verify_test
                         f"PATH — un-resolvable, fail-closed (SPEC-0152 rule 16)."], "record": None}
     # T-10931 — the prep's INNER subprocess bound is resolved ONCE, HERE, from the SAME declared
     # precedence chain as the outer one (`YITC_VERIFY_TEST_TIMEOUT` env · the layer's `timeout:` · the
-    # section's `verify.timeout_seconds:` · the 300s default). It used to be hoisted only for `npm ci`
+    # section's `verify.timeout_seconds:` · the machine settings value · the built-in default — SPEC-1031
+    # rule 4). It used to be hoisted only for `npm ci`
     # below, while the runtime probe carried a HARDCODED 30s — a bound nobody declared, silently
     # overriding the declaration T-10257 exists to honour, one level further in.
-    effective_timeout = _verify_test_timeout_seconds(declared_timeout)
-    bound_source = _verify_bound_source(declared_timeout, effective_timeout)
+    # T-13969: the label names the rung THIS resolution took (the resolver's `source_out`), never a
+    # second read of the settings; a resolver that takes no such keyword falls back to the read-back.
+    _rung: list = []
+    try:
+        effective_timeout = _verify_test_timeout_seconds(declared_timeout, source_out=_rung)
+    except TypeError:
+        effective_timeout = _verify_test_timeout_seconds(declared_timeout)
+    bound_source = _verify_bound_source(declared_timeout, effective_timeout, _rung[0] if _rung else None)
     # runtime — detect the actual node; match the declared `node@<major>` when pinned (else the npm-ci
     # install still needs a resolvable node runtime). A missing/mismatched runtime is fail-closed.
     node_bin = shutil.which("node")
@@ -3111,7 +3211,7 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str, *,
     return out
 
 
-def _unit_rescue_passes(rows, since: str, until: str) -> dict:
+def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None" = None) -> dict:
     """T-13609 (SPEC-1006 rule 11) — `{(<layer>, <kind>, <project>, <name>): [<locator>, ...]}` of
     every RESCUED per-unit `flaky_retry` row on a `land_completed` row of `rows` whose `ts` lies in
     `[since, until]` — the fold the per-unit lane entry is decided on. `kind` is `unit` (name = the
@@ -3131,7 +3231,13 @@ def _unit_rescue_passes(rows, since: str, until: str) -> dict:
     neither can count the other's rows.
 
     The locator form, the dedup — on (ts, leg, the key) — and the fail-soft per row are that
-    fold's: a malformed row skips ITSELF and can only shrink the answer."""
+    fold's: a malformed row skips ITSELF and can only shrink the answer.
+
+    T-13988 — `heads_out`, when given, receives `{(<key>, <locator>): <commit>}` for every counted
+    rescue whose leg recorded the commit its units ran on (`flaky_retry.run_heads[<leg>]`, or the
+    `run_head` of a record that was never folded per leg); a rescue whose leg recorded none is absent
+    from it. Keyed by the unit as well as the locator, because two rows with one `ts` and leg can carry
+    different units on different commits. The answer itself is unchanged."""
     out: dict = {}
     seen: set = set()
     for e in rows or []:
@@ -3149,6 +3255,8 @@ def _unit_rescue_passes(rows, since: str, until: str) -> dict:
         for leg, lrec in legs:
             if not isinstance(lrec, dict):
                 continue
+            heads = lrec.get("run_heads") if isinstance(lrec.get("run_heads"), dict) else {}
+            own_head = lrec.get("run_head") if isinstance(lrec.get("run_head"), str) else None
             for row in (lrec.get("rows") or []) if isinstance(lrec.get("rows"), list) else []:
                 if not isinstance(row, dict) or row.get("rescued") is not True or row.get("lane"):
                     continue
@@ -3161,8 +3269,12 @@ def _unit_rescue_passes(rows, since: str, until: str) -> dict:
                 if (ts, stamped, key) in seen:
                     continue
                 seen.add((ts, stamped, key))
-                out.setdefault(key, []).append(
-                    f"events.jsonl#ts={ts}" + (f":{stamped}" if stamped else ""))
+                loc = f"events.jsonl#ts={ts}" + (f":{stamped}" if stamped else "")
+                out.setdefault(key, []).append(loc)
+                head = heads.get(stamped) if isinstance(stamped, str) else None
+                head = head if isinstance(head, str) and head else own_head
+                if heads_out is not None and head:
+                    heads_out[(key, loc)] = head
     return out
 
 
@@ -4097,6 +4209,10 @@ def _pinned_recovery_hint(*, REBASELINE_KINDS) -> str:
 # `isolated: true` asks `run` to execute the named units ONE AT A TIME (no file parallelism), so
 # several failed units share one invocation and a layer's setup is paid once per attempt. A first
 # attempt's manifest is byte-identical to the one above.
+#
+# T-13985 (SPEC-1033 rule 10) — ONE additive key on a re-run's UNIT entry: `cases`, the case ids the
+# first attempt's report named failed for that unit (`_adapter_rerun_entities` says when). `run`
+# executes only those cases of that file, or the whole file — the kernel reads either alike.
 _VERIFY_ADAPTER_MANIFEST_ENV = "YITC_VERIFY_ADAPTER_MANIFEST"
 # The reason key each DECIDING mode is declared with (SPEC-1030 rule 1): required IFF its mode
 # reads `deciding`, refused beside any other value of that mode.
@@ -4709,6 +4825,12 @@ def _adapter_change_facts(worktree, base_ref: str, forms, *, _run_git_cap) -> di
     return seen
 
 
+#: T-13964 — the two SPEC-0152 rule-16 edge reasons the ladder lets the project's own test files pass
+#: (`_edge_own_test_paths`); byte-equal to the tokens the skip decision records
+#: (`worktree._SKIP_EDGE_VERIFY_TOUCH`, the declared-check-surface companion's reason).
+_ADAPTER_OWN_TEST_EDGES = ("verify-implementation-touch", "declared-check-surface")
+
+
 def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, exists=None, *,
                              _subject_globs_would_skip) -> dict:
     """SPEC-1006 rule 6 — the selection ladder for ONE layer and ONE change, in the rule's order.
@@ -4724,7 +4846,9 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
     has none — each path is judged under the EXACT name git gives it: a name is never trimmed or
     rewritten, since `a.sh ` and `a.sh` are two files), `edge` (the reason the SPEC-0152 rule-16 skip decision ran every layer, or None),
     `edge_paths` (T-13916 — the changed paths that made that decision answer `edge`, as the
-    decision itself reports them; absent or None where it named none), `base`, and `seen` from
+    decision itself reports them; absent or None where it named none), `edge_test_paths` (T-13964 —
+    the subset of them `_edge_own_test_paths` proved the project's own test files; absent = none),
+    `base`, and `seen` from
     `_adapter_change_facts`. `inventory` is `list`'s unit list, or None
     when this run has none.
 
@@ -4732,7 +4856,13 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
       no changed paths    the kernel has no path list for this run (no comparison base, a diff that
                           could not be read, an empty diff): `rung` null, the full layer.
       (a)                 a verify-infrastructure touch — the SPEC-0152 rule-16 edge fired
-                          (`edge`) — or a changed path under the layer's own `sources:`.
+                          (`edge`) — or a changed path under the layer's own `sources:`. T-13964:
+                          a `verify-implementation-touch` / `declared-check-surface` edge does NOT
+                          answer here when `edge_paths` is a non-empty list and every path in it is
+                          in `edge_test_paths` (the project's own test files, `_edge_own_test_paths`)
+                          and this layer places it — a unit file of `inventory`, or no longer a
+                          file and eligible (rung (d) then answers it as deleted, whether or not a
+                          trigger names it). Those files join the units chosen at rung (f).
       (b)                 a changed dependency manifest, lockfile or toolchain pin
                           (`_adapter_dependency_manifest`, plus the layer's own `prep:` files).
       (c)                 a changed path matches a trigger naming the full layer.
@@ -4753,7 +4883,8 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
       (e)                 a browser-class layer (`covers_classes` holds `e2e`): an eligible changed
                           path that is neither one of the layer's unit files nor named by a trigger.
       (f)                 the selected units: `related`'s answer plus the units of every matching
-                          trigger, each widened to its whole declared group.
+                          trigger plus the own test files rung (a) let pass, each widened to its
+                          whole declared group.
     Rungs (a)-(c) read EVERY changed path — inside a layer a glob never subtracts; `unknown` and
     rung (e) read the eligible ones, a path outside the globs being no input of this layer.
 
@@ -4801,9 +4932,24 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
             if len(fired) > 20:
                 sel["fired_paths_more"] = len(fired) - 20
 
+    exists = exists or (lambda _path: True)
+    # T-13964 — the consumer arm of the edge: a SPEC-0152 rule-16 touch made ONLY by the project's own
+    # test files that THIS layer places (a unit of its inventory, or a deleted eligible one, which
+    # rung (d) then answers) does not answer here; the files join the selected units at rung (f).
+    own_tests: set = set()
     if change.get("edge"):
-        _fired(change.get("edge_paths"))
-        return _full("a", str(change["edge"]))
+        fired_by = change.get("edge_paths")
+        own = change.get("edge_test_paths")
+        placed = {u["file"] for u in inventory} if inventory is not None else set()
+        changed, admitted = set(paths), set(eligible)
+        if not (str(change["edge"]) in _ADAPTER_OWN_TEST_EDGES and inventory is not None
+                and isinstance(fired_by, (list, tuple)) and fired_by
+                and isinstance(own, (set, frozenset, list, tuple))
+                and all(isinstance(p, str) and p in own and p in changed
+                        and (p in placed or (not exists(p) and p in admitted)) for p in fired_by)):
+            _fired(fired_by)
+            return _full("a", str(change["edge"]))
+        own_tests = set(fired_by)
     under_sources = [p for p in paths if any(p == s or p.startswith(s + "/") for s in decl.get("sources") or ())]
     if under_sources:
         _fired(under_sources)
@@ -4831,9 +4977,11 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
     named = [g for t in decl.get("triggers") or () for g in t["globs"]]
     form = _ADAPTER_REPORT_PROFILES[decl["report_profile"]]["related_diff"]
     seen = None if form == "kernel" else (change.get("seen") or {}).get(form)
-    exists = exists or (lambda _path: True)
     unknown = []
     for p in eligible:
+        if p in own_tests and not exists(p):
+            unknown.append({"path": p, "why": "deleted-or-renamed"})
+            continue                                        # T-13964: a deleted own test file is rung (d), named by a trigger or not
         if any(fnmatch.fnmatch(p, g) for g in named):
             continue                                        # a path a trigger names is MODELLED (rule 7)
         if not exists(p):
@@ -4865,7 +5013,7 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
         return _full("e", "browser-layer-change")
     # (f)
     chosen = set(reached) | {(u.get("project") or "", u["file"]) for u in inventory
-                             if u["file"] in trigger_files}
+                             if u["file"] in trigger_files or u["file"] in own_tests}
     groups = {u["group"] for u in inventory
               if u.get("group") and (u.get("project") or "", u["file"]) in chosen}
     would_run, would_omit = [], []
@@ -5633,7 +5781,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                                max_output_bytes: int = 16 * 1024 * 1024, first_attempt: bool = False,
                                rerun=None, sink=None, max_kept_output_chars: int = 1024 * 1024,
                                change=None, _subject_globs_would_skip=None, credit=None,
-                               lane=None, one_card_candidate: bool = False) -> dict:
+                               lane=None, one_card_candidate: bool = False, shipped=None) -> dict:
     """SPEC-1006 rules 3-4 — the REPORT-ONLY adapter pass of ONE layer: `list`, then `run`, inside
     the layer's prepared worktree, read through the layer's report profile. Returns the record that
     rides the layer's outcome row as `adapter` (registered in SPEC-0025):
@@ -5826,7 +5974,25 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
         `partial.credited` beside `partial.previous`. A run that credits is a narrowed run in
         every respect above, a run that requests no unit included.
     A fault while the credit decision is taken credits nothing (`credit-error`); a fault of the
-    ladder is `selection-error` on both records."""
+    ladder is `selection-error` on both records.
+
+    A SHIPPED DECISION (T-13973 — SPEC-1032 rule 4). `shipped` is the decision the HOST took for
+    this layer, carried to a box that runs the pass over the same tree (`_adapter_shipped_decision`
+    builds it from the host's own pass, `worktree._consumer_zero_probe_guard(plan_out=...)`):
+    `{selection, credit, units, left_out, credited?, previous?}` — the two records as the host wrote them and
+    `_adapter_run_plan`'s answer. Given one, on a layer that reads a deciding mode and a pass that
+    is not a re-run, the decision is NOT taken again: no ladder, no `related`, no credit decision
+    and no previous attempt is read. The records are the host's, copied; `units` None runs the
+    whole inventory; otherwise the units run are this pass's own `list` entries named by
+    `units`, and the rest is the host's `left_out` / `credited`, recorded through
+    `_adapter_partial_record` exactly as a local narrowed run. A plan this pass cannot follow —
+    a malformed `shipped`, no inventory, a narrowed plan whose run / left-out / credited units are
+    not, each exactly once, the units this pass's `list` names, a narrowed plan without the host's
+    record for each deciding mode the layer reads, or credits on a layer that reads no deciding
+    credit or with no previous-attempt reference — narrows nothing: the whole
+    inventory runs, each deciding record reads `void` / `shipped-plan-mismatch` (toward MORE
+    testing, never fewer). The host's pass fills the caller's `sink["plan"]` with
+    the plan it took, which is where a shipped decision comes from."""
     import posixpath
     import shutil
     import tempfile
@@ -6104,6 +6270,64 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     "schema": 1, "mode": "shadow", "decision": "void", "reason": "credit-error",
                     "compared": False, "disagreements": [], "error": f"{type(e).__name__}: {e}"[:300]})
 
+        def _follow_shipped(inventory):
+            """T-13973 (SPEC-1032 rule 4) — follow the decision the host shipped for this layer
+            (see the docstring's last paragraph). Returns what `_decide` returns: the inventory
+            entries `run` is to be invoked with, or None for the whole inventory."""
+            got = shipped if isinstance(shipped, dict) else {}
+            want = got.get("units")
+
+            def _keys(units):
+                if not (isinstance(units, list) and all(isinstance(u, dict) and isinstance(u.get("file"), str)
+                                                        for u in units)):
+                    return None
+                return [(u.get("project") or "", u["file"]) for u in units]
+
+            keys, out_keys, cred_keys = _keys(want), _keys(got.get("left_out") or []), _keys(got.get("credited") or [])
+            listed = [(u.get("project") or "", u["file"]) for u in inventory or ()]
+            # A narrowed plan must ACCOUNT for every unit this pass's `list` names — run, left out or
+            # credited, each exactly once — or a unit the host never saw would neither run nor be
+            # recorded (toward MORE testing: such a plan narrows nothing).
+            accounted = None if None in (keys, out_keys, cred_keys) else keys + out_keys + cred_keys
+            # ...and a narrowed plan carries the host's record for every deciding mode it acts under
+            # (the record says WHY it narrowed), and a credit only where the layer credits, with the
+            # previous attempt it credits from.
+            records = (not deciding or isinstance(got.get("selection"), dict)) \
+                and (not crediting or isinstance(got.get("credit"), dict)) \
+                and (not cred_keys or (crediting and isinstance(got.get("previous"), dict)))
+            follows = isinstance(shipped, dict) and "units" in got and out_keys is not None \
+                and cred_keys is not None and (want is None or (
+                    inventory is not None and accounted is not None and records
+                    and len(accounted) == len(set(accounted)) and set(accounted) == set(listed)))
+            if not follows:
+                if deciding:
+                    rec["selection"] = _no_decision("shipped-plan-mismatch")
+                if crediting:
+                    rec["credit"] = _no_credit("shipped-plan-mismatch")
+                print(f"land(consumer): verify layer {layer!r} shipped plan cannot be followed here "
+                      f"(shipped-plan-mismatch) — nothing is narrowed, the whole layer runs")
+                return None
+            if deciding:
+                rec["selection"] = (json.loads(json.dumps(got["selection"])) if isinstance(got.get("selection"), dict)
+                                    else _no_decision("shipped-plan-mismatch"))
+            if crediting:
+                rec["credit"] = (json.loads(json.dumps(got["credit"])) if isinstance(got.get("credit"), dict)
+                                 else _no_credit("shipped-plan-mismatch"))
+            if want is None:
+                print(f"land(consumer): verify layer {layer!r} shipped plan (decided on the host): "
+                      f"nothing is narrowed")
+                return None
+            chosen = set(keys)
+            to_run = [u for u in inventory if (u.get("project") or "", u["file"]) in chosen]
+            plan = {"units": to_run, "left_out": [dict(u) for u in got.get("left_out") or ()]}
+            if got.get("credited"):
+                plan.update({"credited": [dict(u) for u in got["credited"]], "previous": dict(got["previous"])})
+            planned["narrowed"] = {"inventory": inventory, **plan}
+            print(f"land(consumer): verify layer {layer!r} shipped plan (decided on the host): a PARTIAL "
+                  f"run — {len(to_run)} of {len(inventory)} unit(s) requested, {len(plan['left_out'])} "
+                  f"left out, {len(plan.get('credited') or ())} credited, none selected here")
+            return to_run
+
         def _decide(inventory):
             """T-13907 (SPEC-1030 rules 2, 5) — a DECIDING selection, taken BEFORE `run`. Records
             `selection` and returns the inventory entries `run` is to be invoked with, or None
@@ -6111,6 +6335,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
             no rung, `reason: selection-error`."""
             if not (deciding or crediting):
                 return None
+            if shipped is not None:
+                return _follow_shipped(inventory)     # T-13973: the host decided; nothing is selected here
             ladder, asked = None, []
 
             def _credit_line():
@@ -6171,6 +6397,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                         got = None
                         rec["credit"] = {**_no_credit("credit-error"), "error": f"{type(e).__name__}: {e}"[:300]}
                 plan = _adapter_run_plan(inventory, ladder if deciding else None, got)
+                if sink is not None:
+                    sink["plan"] = plan             # T-13973: the plan this run took, for a box to follow
                 if got is not None:
                     rec["credit"] = _adapter_deciding_credit_record(got, acted=bool(plan.get("credited")))
                 sel = _adapter_deciding_record(ladder, narrowed=bool(plan["left_out"]))
@@ -6656,6 +6884,31 @@ def _one_card_candidate_kw(batch_members) -> dict:
     return {"one_card_candidate": True} if len(batch_members or ()) <= 1 else {}
 
 
+def _adapter_shipped_decision(rec, sink) -> dict:
+    """T-13973 (SPEC-1032 rule 4) — the decision ONE host-side pass of a deciding layer took, in the
+    form a box follows (`_layer_adapter_report_pass(shipped=...)`): `{selection, credit, units,
+    left_out, credited?, previous?}`. `rec` is the pass's record, `sink` the dict it was handed:
+    `selection` / `credit` are the record's two deciding records as written (None where the layer
+    reads no such mode); `units`, `left_out`, `credited` and `previous` are the run plan the pass
+    took (`sink["plan"]`, `_adapter_run_plan`'s answer), each unit `{file, project?}`. `units` None
+    — the plan narrows nothing, or the pass never reached a plan — runs the whole inventory. PURE."""
+    def _names(units):
+        return [{"file": u["file"], **({"project": u["project"]} if u.get("project") else {})}
+                for u in units or () if isinstance(u, dict) and isinstance(u.get("file"), str)]
+
+    rec = rec if isinstance(rec, dict) else {}
+    plan = (sink or {}).get("plan") if isinstance(sink, dict) else None
+    plan = plan if isinstance(plan, dict) else {}
+    out = {"selection": json.loads(json.dumps(rec["selection"])) if isinstance(rec.get("selection"), dict) else None,
+           "credit": json.loads(json.dumps(rec["credit"])) if isinstance(rec.get("credit"), dict) else None,
+           "units": _names(plan["units"]) if isinstance(plan.get("units"), list) else None,
+           "left_out": _names(plan.get("left_out"))}
+    if plan.get("credited"):
+        out.update({"credited": _names(plan["credited"]),
+                    "previous": dict(plan["previous"]) if isinstance(plan.get("previous"), dict) else {}})
+    return out
+
+
 def _adapter_passed_outcome(rec) -> str:
     """SPEC-1030 rule 5 — the row outcome of a layer whose adapter report PASSED: `passed-partial`
     when the record is a narrowed run's (it carries `partial`), `passed` otherwise — a run that is
@@ -6677,6 +6930,166 @@ def _layer_row_is_partial_run(row) -> bool:
         return False
     rec = row.get("adapter")
     return row.get("outcome") == "passed-partial" or (isinstance(rec, dict) and "partial" in rec)
+
+
+# T-13961 — the CONSUMER arm of the bare `verify-durations` report (SPEC-0132 §6). A consumer whose verify
+# is its declared layers (SPEC-0152 rule 16) has no per-file table; its journal already records every
+# layer run on `land_completed` / `tests_passed` / `tests_failed` `consumer_verify_layers[]`. This is a
+# VIEW over those rows: no store, no event, no gate, nothing written.
+# the layer neither ran nor was skipped on such a row, so it is no observation at all
+_CONSUMER_LAYER_NOT_OBSERVED = frozenset(("waived", "credited-stage6-run"))
+_CONSUMER_LAYER_RED = frozenset(("failed", "prep-failed", "malformed"))
+_CONSUMER_LAYER_SOURCES = ("land_completed", "tests_passed", "tests_failed")
+
+
+def _consumer_layer_ms(v):
+    """An int millisecond reading, or None — a bool, a string, a negative, NaN or an infinity (a JSON
+    `1e309` decodes to one) is no reading."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v < 0:
+        return None
+    return int(v)
+
+
+def _consumer_layer_timeout_s(v):
+    """A declared timeout in seconds, or None — the same non-reading shapes as above, and zero."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) or v <= 0:
+        return None
+    return float(v)
+
+
+def _nearest_rank(sorted_vals, q):
+    """Nearest-rank percentile of an ascending non-empty list: the value at rank ceil(q*n)."""
+    return sorted_vals[max(1, math.ceil(q * len(sorted_vals))) - 1]
+
+
+def _consumer_layer_duration_fold(rows, *, window=100, top_k=5):
+    """PURE — journal rows -> the per-layer duration table (T-13961, SPEC-0132 §6 consumer arm).
+
+    The window is the newest `window` `land_completed` rows and the newest `window` Stage-6 rows
+    (`tests_passed` / `tests_failed`), ordered by `ts`, whose `consumer_verify_layers` is a non-empty
+    list. Per layer: `observed` = rows naming it, minus a row whose layer did not run and was not skipped
+    (waived, credited to a Stage-6 run) and a partial run (`_layer_row_is_partial_run`); `skipped` = the
+    observed rows whose outcome is `skipped-disjoint-subject`; `runs` = the observed rows carrying a
+    millisecond `duration_ms`, over which median / p90 / max / sum are taken (nearest rank); `timeouts` =
+    outcome `timed-out`; `reds` = failed / prep-failed / malformed; `timeout_s` = the declared timeout on
+    the newest row naming the layer that carries one — ANY such row, skipped and not-observed rows
+    included, since the declaration is not a run. An adapter-backed layer adds its `units[]` (per file: runs, median, sum,
+    share of the layer's summed unit time), top `top_k` by sum."""
+    lands, stage6 = [], []
+    for e in rows:
+        if not isinstance(e, dict):
+            continue
+        d = e.get("data")
+        layers = d.get("consumer_verify_layers") if isinstance(d, dict) else None
+        if not isinstance(layers, list) or not layers:
+            continue
+        t = e.get("type")
+        if t == "land_completed":
+            lands.append(e)
+        elif t in ("tests_passed", "tests_failed"):
+            stage6.append(e)
+    key = lambda e: str(e.get("ts") or "")
+    lands = sorted(lands, key=key)[-window:] if window > 0 else []
+    stage6 = sorted(stage6, key=key)[-window:] if window > 0 else []
+    table: dict = {}
+    declared: dict = {}                    # layer -> [timeouts in ts order], from every row naming it
+    for e in sorted(lands + stage6, key=key):
+        for r in e["data"]["consumer_verify_layers"]:
+            if not isinstance(r, dict):
+                continue
+            name = r.get("layer")
+            if not isinstance(name, str) or not name.strip():
+                continue
+            tmo = _consumer_layer_timeout_s(r.get("timeout_s"))
+            if tmo is not None:
+                declared.setdefault(name.strip(), []).append(tmo)
+            outcome = r.get("outcome")
+            if outcome in _CONSUMER_LAYER_NOT_OBSERVED or _layer_row_is_partial_run(r):
+                continue
+            L = table.setdefault(name.strip(), {"observed": 0, "skipped": 0, "durations": [],
+                                                "timeouts": 0, "reds": 0, "units": {}})
+            L["observed"] += 1
+            if outcome == "skipped-disjoint-subject":
+                L["skipped"] += 1
+                continue
+            if outcome == "timed-out":
+                L["timeouts"] += 1
+            elif outcome in _CONSUMER_LAYER_RED:
+                L["reds"] += 1
+            ms = _consumer_layer_ms(r.get("duration_ms"))
+            if ms is None:
+                continue
+            L["durations"].append(ms)
+            rec = r.get("adapter")
+            units = rec.get("units") if isinstance(rec, dict) else None
+            for u in units if isinstance(units, list) else ():
+                if not isinstance(u, dict) or not isinstance(u.get("file"), str) or not u["file"]:
+                    continue
+                ums = _consumer_layer_ms(u.get("duration_ms"))
+                if ums is not None:
+                    L["units"].setdefault(u["file"], []).append(ums)
+    out = {}
+    for name, L in table.items():
+        ds = sorted(L["durations"])
+        tmos = declared.get(name, [])
+        row = {"observed": L["observed"], "skipped": L["skipped"], "runs": len(ds),
+               "median_ms": _nearest_rank(ds, 0.5) if ds else None,
+               "p90_ms": _nearest_rank(ds, 0.9) if ds else None,
+               "max_ms": ds[-1] if ds else None, "sum_ms": sum(ds) if ds else None,
+               "timeouts": L["timeouts"], "reds": L["reds"], "timeout_s": tmos[-1] if tmos else None,
+               "timeout_range": (min(tmos), max(tmos)) if tmos else None, "units": []}
+        total = sum(sum(v) for v in L["units"].values())
+        if total > 0:
+            ranked = sorted(L["units"].items(), key=lambda kv: (-sum(kv[1]), kv[0]))[:top_k]
+            row["units"] = [{"file": f, "runs": len(v), "median_ms": _nearest_rank(sorted(v), 0.5),
+                             "sum_ms": sum(v), "share": sum(v) / total} for f, v in ranked]
+        out[name] = row
+    return {"lands": len(lands), "stage6": len(stage6), "layers": out}
+
+
+def _consumer_layer_durations_report(events_path, *, window=None) -> list:
+    """T-13961 — the printed lines of the consumer arm (read through the segment-aware reader, SPEC-0190)."""
+    window = window or 100        # the `--last` default: the newest 100 records of EACH source
+    try:
+        rows = journal_mod.segment_rows(events_path, types=_CONSUMER_LAYER_SOURCES)
+    except (OSError, UnicodeDecodeError):
+        rows = []
+    fold = _consumer_layer_duration_fold(rows, window=window)
+    if not fold["layers"]:
+        return [f"verify-durations: {events_path} records no consumer verify-layer row "
+                f"(`consumer_verify_layers` on land_completed / tests_passed / tests_failed) — "
+                f"nothing to tabulate."]
+    s = lambda ms: "-" if ms is None else f"{ms / 1000.0:.1f}s"
+    w = max(5, max(len(n) for n in fold["layers"]))
+    lines = [f"verify-durations: consumer verify layers from {events_path} — the newest "
+             f"{fold['lands']} land record(s) and {fold['stage6']} Stage-6 run record(s) that carry "
+             f"layer rows (at most {window} of each, `--last`):",
+             f"  {'layer':<{w}} {'obs':>4} {'skip%':>6} {'runs':>5} {'median':>8} {'p90':>8} "
+             f"{'max':>8} {'sum':>9} {'tmo':>4} {'reds':>5}  timeout"]
+    for name in sorted(fold["layers"]):
+        r = fold["layers"][name]
+        skip = f"{100.0 * r['skipped'] / r['observed']:.0f}%" if r["observed"] else "-"
+        tmo = r["timeout_s"]
+        flag = (" !" if tmo is not None and r["p90_ms"] is not None and r["p90_ms"] / 1000.0 > tmo
+                else "")
+        rng = r["timeout_range"]
+        tmo_txt = ("-" if tmo is None else f"{tmo:.0f}s" if rng is None or rng[0] == rng[1]
+                   else f"{tmo:.0f}s (window {rng[0]:.0f}-{rng[1]:.0f}s)")
+        lines.append(f"  {name:<{w}} {r['observed']:>4} {skip:>6} {r['runs']:>5} {s(r['median_ms']):>8} "
+                     f"{s(r['p90_ms']):>8} {s(r['max_ms']):>8} {s(r['sum_ms']):>9} {r['timeouts']:>4} "
+                     f"{r['reds']:>5}  {tmo_txt}{flag}")
+    for name in sorted(fold["layers"]):
+        units = fold["layers"][name]["units"]
+        if not units:
+            continue
+        lines.append(f"  top units of '{name}' by summed duration (adapter rows):")
+        for i, u in enumerate(units, 1):
+            lines.append(f"    {i}. {s(u['sum_ms']):>9} {100.0 * u['share']:5.1f}%  {u['file']} "
+                         f"({u['runs']} run(s), median {s(u['median_ms'])})")
+    lines.append("  Report-only: read from journal rows, nothing written. '!' = the newest declared "
+                 "timeout is under the measured p90; obs excludes waived, Stage-6-credited and "
+                 "partial-run rows.")
+    return lines
 
 
 def _adapter_full_command_ran(rec):
@@ -6810,7 +7223,23 @@ def _adapter_rerun_entities(units, inventory) -> list:
     `units` are the first attempt's unit rows, `inventory` the listed units (`sink["inventory"]`).
     A failed row the inventory does not hold makes no entity (it cannot be asked for). PURE, and
     LINEAR in the inventory plus the rows: the inventory is walked ONCE — into the unit index and
-    the group membership index — so a report with many failed units costs no scan per unit."""
+    the group membership index — so a report with many failed units costs no scan per unit.
+
+    T-13985 (SPEC-1033 rule 10) — THE FAILED CASES OF A UNIT. A unit entity (never a group) whose
+    first-attempt row reads `failed` and names EVERY failed case of the unit — `failed_cases`
+    non-empty, each `id` a non-empty string, and no `failed_cases_more` (the row's bound left none
+    uncounted) — runs a COPY of its inventory entry carrying `cases`: those ids, deduplicated, in
+    the report's order. Any other failed unit runs its entry as listed — the whole unit. The
+    inventory itself is never changed, and the entity's identity (`unit`, `project`) is the unit's
+    either way."""
+    def _rerun_case_ids(row):
+        named = row.get("failed_cases")
+        if row.get("status") != "failed" or row.get("failed_cases_more") or not isinstance(named, list) \
+                or not named or not all(isinstance(c, dict) and isinstance(c.get("id"), str) and c["id"]
+                                        for c in named):
+            return None
+        return list(dict.fromkeys(c["id"] for c in named))
+
     listed: dict = {}
     grouped: dict = {}       # (project, group label) -> its inventory units, in inventory order
     for u in inventory or []:
@@ -6832,8 +7261,9 @@ def _adapter_rerun_entities(units, inventory) -> list:
         key = (uid[0], "group", group) if group else (uid[0], "unit", uid[1])
         ent = by_key.get(key)
         if ent is None:
-            ent = {"project": uid[0], "units": grouped[(uid[0], group)] if group else [entry],
-                   "first": []}
+            cases = None if group else _rerun_case_ids(row)
+            ent = {"project": uid[0], "units": grouped[(uid[0], group)] if group else
+                   [entry if cases is None else {**entry, "cases": cases}], "first": []}
             ent["group" if group else "unit"] = group or uid[1]
             by_key[key] = ent
             entities.append(ent)
