@@ -1423,6 +1423,27 @@ def _land_attribution_line(rec: "dict | None", *, _land_ambient_yitc_overrides=N
                     "about main or this branch:\n- "
                     + "\n- ".join(str(p) for p in ((rec or {}).get("failing") or []))
                     + "\nTHE LAND STILL ABORTS ON THEM — judge the red on this branch's own run.\n\n")
+    # T-14028 — a match on an id that names no assertion is SAID, for the same reason.
+    if outcome == "undecidable" and (rec or {}).get("reason") == "base-layer-digest-only-match":
+        _q_lead += ("ATTRIBUTION: UNDECIDABLE — THE MERGE-BASE MATCH NAMES NO ASSERTION. The failing "
+                    "layer(s) below failed at the merge-base with the same id, but that id is a digest "
+                    "of unmarked output (no assertion was extracted), so both runs printed the same "
+                    "thing (a missing dependency in the bare merge-base checkout is one way that "
+                    "happens), and that is not evidence that main fails the same assertion:\n- "
+                    + "\n- ".join(str(p) for p in ((rec or {}).get("failing") or []))
+                    + _land_attribution_base_leg(rec or {})
+                    + "\nTHE LAND STILL ABORTS ON THEM — judge the red on this branch's own run.\n\n")
+    # T-14030 — the same decline for an id that names a whole test FILE, not an assertion in it.
+    if outcome == "undecidable" and (rec or {}).get("reason") == "base-layer-file-granular-match":
+        _q_lead += ("ATTRIBUTION: UNDECIDABLE — THE MERGE-BASE MATCH NAMES ONLY A TEST FILE. The failing "
+                    "layer(s) below failed at the merge-base with the same id, but that id names a whole "
+                    "test file, and the runner's failure lines in that file do not match this branch's "
+                    "(the base leg can fail the same file for another reason — a bare merge-base "
+                    "checkout with no dependency install, or another red in that file), so that is not "
+                    "evidence that main fails the same assertion:\n- "
+                    + "\n- ".join(str(p) for p in ((rec or {}).get("failing") or []))
+                    + _land_attribution_base_leg(rec or {})
+                    + "\nTHE LAND STILL ABORTS ON THEM — judge the red on this branch's own run.\n\n")
     if outcome not in _LAND_ATTRIBUTION_OUTCOMES or outcome == "undecidable":
         return _q_lead
     if outcome == "main":
@@ -1435,6 +1456,7 @@ def _land_attribution_line(rec: "dict | None", *, _land_ambient_yitc_overrides=N
                 "assertion below reproduces at the merge-base (main WITHOUT this branch's diff), "
                 "so this red is NOT attributable to this branch's diff:\n- "
                 + "\n- ".join(rec.get("at_main") or [])
+                + _land_attribution_base_leg(rec)
                 + "\nWHAT THIS DOES NOT SAY: both arms ran in THIS process's environment, so the "
                   "re-run compares DIFFS, never ENVIRONMENTS — a red caused by an environment both "
                   "arms shared reproduces on both sides by construction and lands here too. Rule "
@@ -1460,6 +1482,20 @@ def _land_attribution_line(rec: "dict | None", *, _land_ambient_yitc_overrides=N
             + ("\n  does NOT reproduce there (THIS BATCH's — " + ", ".join(_members) + "):\n- "
                if _members else "\n  does NOT reproduce there (THIS BRANCH's):\n- ")
             + "\n- ".join(rec.get("at_branch") or []) + "\n" + _to_lead + "\n")
+
+
+def _land_attribution_base_leg(rec: dict) -> str:
+    """T-14028 — the merge-base leg a MAIN line rests on, named so a reader can check it: the base sha
+    and every id that leg failed; "" for that part when the leg left no sha (the injected reader has
+    no tree). T-14030 — beside a file-granular id, the runner's failure lines of that run, whenever
+    they were read."""
+    _lines = rec.get("base_failure_lines")
+    out = "" if _lines is None else ("\n  merge-base failure line(s) for the file-granular id(s):\n  - "
+                                      + ("\n  - ".join(str(p) for p in _lines) or "(none found)"))
+    if not rec.get("base_sha"):
+        return out
+    return (f"\n  merge-base re-run at {rec['base_sha']}; failing id(s) in that run:\n  - "
+            + ("\n  - ".join(str(p) for p in (rec.get("at_base") or [])) or "(none recorded)") + out)
 
 
 _LAND_ATTRIBUTION_TIMEOUT_RE = re.compile(r"timed out|exceeded timeout|\btimeout\b", re.IGNORECASE)
@@ -2405,6 +2441,37 @@ def _land_reddened_member_sets(events_path: "Path | None", *,
     return {frozenset(brs) for bid, brs in groups.items()
             if sizes.get(bid, 0) > 1 and len(brs) == sizes[bid]}
 
+
+def _land_head_solo_reason(branch: str, *, ineligible=(), superseding=(), dirty=(),
+                           rebaselining: bool = False, merge_invalid_acceptance: bool = False,
+                           pinned_leg_off: bool = False) -> "str | None":
+    """T-14029 — WHY `branch` must land alone (the per-branch half of SPEC-0184 batch eligibility), or None.
+
+    THE ONE PREDICATE, TWO CALLERS: `_land_batch_members` decides its head gate through it, and the
+    read-only `land --batch-eligibility` answers through it. Pure over inputs the caller already
+    resolved — the readers' sets (`ineligible` rules 4/9/13/14, `superseding`, `dirty` rule 11) and the
+    two declarations — so it reads nothing and writes nothing.
+
+    The ORDER is the peer-filter order in `_land_batch_members` (dirt, requeue mark, rebaseline,
+    supersession, merge-invalid ground): the reason returned is the one formation journals when it
+    drops this branch as a PEER, the first filter owning the row. `pinned_leg_off` is SPEC-0186 rule 9:
+    where the pinned leg will not run, the rebaseline and supersession sources are inert.
+
+    Queue-relative exclusions (incompatible-with-selected, cost class, over-cap, a reddened set) are
+    NOT answered here — they depend on the other members and exist only at formation."""
+    if branch in dirty:
+        return _LAND_DIRTY_WORKTREE_EXCLUSION_REASON
+    if branch in ineligible:
+        return _LAND_REQUEUED_INELIGIBLE_EXCLUSION_REASON
+    if not pinned_leg_off:
+        if rebaselining:
+            return _LAND_REBASELINING_EXCLUSION_REASON
+        if branch in superseding:
+            return _LAND_PINNED_SUPERSESSION_EXCLUSION_REASON
+    if merge_invalid_acceptance:
+        return _LAND_MERGE_INVALID_EXCLUSION_REASON
+    return None
+
 def _land_batch_members(branch: str, task: "str | None" = None, *,
                         claim_pid: "int | None" = None,
                         main_wt: "Path | None" = None, repo_root: "Path | None" = None,
@@ -2780,8 +2847,15 @@ def _land_batch_members(branch: str, task: "str | None" = None, *,
     # entirely (that `solo_head` is NOT a disjunct here). Inserting into the middle would redden a
     # tripwire on the one thing it declares it is not checking, so the disjunct goes where the
     # existing locator still finds its anchor. Order is otherwise immaterial — these are OR-ed.
-    if branch in _inel or rebaselining or branch in _sup or branch in _dirty \
-            or merge_invalid_acceptance:
+    # T-14029 — the gate is DECIDED by `_land_head_solo_reason`, the one predicate `land
+    # --batch-eligibility` answers through. Its first three disjuncts are subsumed by `_head_solo` and
+    # stay only as the locator prefix the two tripwires above search for; under `never` `_sup` and
+    # `rebaselining` are already empty, so the truth value is unchanged on every input.
+    _head_solo = _land_head_solo_reason(branch, ineligible=_inel, superseding=_sup, dirty=_dirty,
+                                        rebaselining=rebaselining,
+                                        merge_invalid_acceptance=merge_invalid_acceptance,
+                                        pinned_leg_off=_policy == "never")
+    if branch in _inel or rebaselining or branch in _sup or _head_solo is not None:
         # T-11312 — the peers were ALREADY enumerated above, and this return drops every one of them.
         # Before this card they left no trace at all: the queue read's own stale entries still reached
         # the sink (it appends them itself), so the row showed exclusions and a member and simply
@@ -4060,7 +4134,9 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                                     diff_paths: "list | None" = None, diff_inert: "bool | None" = None,
                                     reachability_freed=None,
                                     _is_verify_implementation_touch=None,
-                                    _subject_globs_would_skip=None) -> dict:
+                                    _subject_globs_would_skip=None,
+                                    _NO_ASSERTION_CAPTURED: "str | None" = None,
+                                    _UNMARKED_LAYER_FAILURE_PREFIX: "str | None" = None) -> dict:
     """T-11464 — WHOSE failure is this red: MAIN's, or this branch's? Returns a RECORD; decides
     nothing, journals nothing, and gates nothing. The caller reports it beside an abort whose class,
     message tail and exit are unchanged.
@@ -4144,6 +4220,15 @@ def _land_failure_attribution_probe(bad: "list | None", *,
     layer declaring no globs, under an observable diff, keeps today's verdict: it runs on everything, so
     a code change CAN break it. Test-FILE pairs are never unreachable. Every missing input — no diff,
     no predicate, the injected `_run_at_base` path (no base tree to read) — exempts nothing.
+
+    T-14028 (GitHub #147) — A DIGEST-ONLY MATCH IS NOT A REPRODUCTION. When a layer's tail carries no
+    failure marker its id names no assertion: `(no assertion captured)` or a T-11346 digest of the
+    captured output. Two runs that print the same unmarked output — the same missing dependency in an
+    unprimed merge-base checkout and in the candidate — match on that id without having observed the
+    same assertion, so a matching digest-only id declines `base-layer-digest-only-match` (the two
+    marker strings are injected by the host residue, their one home). A record whose merge-base leg
+    ran also carries `base_sha` and `at_base` (the base leg's failing ids), so the MAIN line can name
+    what a reader would check.
     """
     import shutil
     import tempfile
@@ -4165,6 +4250,24 @@ def _land_failure_attribution_probe(bad: "list | None", *,
     # T-11807 — the pairs whose self-declared attribution quarantine is ADMITTED. Empty until the
     # merge-base tree is in hand, so every path that never reaches it quarantines NOTHING.
     admitted_quarantine: set = set()
+    # T-14028 — the two no-assertion markers (host-injected, one home) and the base leg's failing ids.
+    _digest_markers = tuple(m for m in (_NO_ASSERTION_CAPTURED, _UNMARKED_LAYER_FAILURE_PREFIX) if m)
+    _at_base: list = []
+
+    def _note_base(entries) -> None:
+        """T-14028 — every id the base run reported, recorded BEFORE any decision returns, so the
+        record never names only the part of that run a decline happened to reach first."""
+        for _b in (entries if isinstance(entries, (list, tuple)) else []):
+            _i = _land_layer_red_id(_b, _surface_failing_assertions)
+            if _i not in _at_base:
+                _at_base.append(_i)
+        _base_ran()
+
+    def _base_ran() -> None:
+        """T-14028 — stamp the merge-base leg's identity once that leg's result was read."""
+        if merged_base:
+            rec["base_sha"] = str(merged_base)
+        rec["at_base"] = list(_at_base)
 
     def _undecidable(reason: str) -> dict:
         rec["outcome"] = "undecidable"
@@ -4230,6 +4333,44 @@ def _land_failure_attribution_probe(bad: "list | None", *,
             rec["outcome"], rec["reason"] = "mixed", "partially-reproduces-at-merge-base"
         return rec
 
+    # T-14030 — a file-granular layer id and the failure text read beside it, bound to the unit it
+    # explains: the summary line's own excerpt, unless it is only the status value
+    # `_adapter_unit_failure_lines` falls back to, and EVERY line printed after that summary until
+    # the next one, verbatim (stripped). No line shape is selected, so nothing the runner printed is
+    # dropped; a line that varies between runs (a duration, a checkout path) makes the match decline.
+    # The land's own `WHOLE captured output:` pointer is not runner output and is skipped.
+    # With one unit in the entry, a line printed before its summary is that unit's too.
+    _FILE_GRANULAR_RE = re.compile(r"(?:^|; )FAILED \S+::\(file\)")
+    _SUMMARY_RE = re.compile(r"^FAILED (\S+::\S+)(?:\s+\[[^\]]*\])?(?:\s+-\s+(.*))?$")
+    _STATUS_ONLY = {"failed", "error", "missing", "skipped", "timed-out"}
+
+    def _failure_lines(entries, layer) -> dict:
+        units: dict = {}
+        for _e in (entries if isinstance(entries, (list, tuple)) else []):
+            _rows = str(_e).splitlines()
+            if not _rows or _consumer_verify_layer_key(_rows[0].strip()) != layer:
+                continue
+            _unit, _loose = None, []
+            for _ln in _rows[1:]:
+                _ln = _ln.strip()
+                if not _ln or _ln.startswith("WHOLE captured output:"):   # the land's own log pointer
+                    continue
+                _s = _SUMMARY_RE.match(_ln)
+                if _s:
+                    _unit = _s.group(1)
+                    units.setdefault(_unit, [])
+                    _x = " ".join(str(_s.group(2) or "").split())
+                    if _x and _x not in _STATUS_ONLY and _x not in units[_unit]:
+                        units[_unit].append(_x)
+                    continue
+                _dst = units[_unit] if _unit is not None else _loose
+                if _ln not in _dst:
+                    _dst.append(_ln)
+            if _loose and len(units) == 1:
+                _only = next(iter(units.values()))
+                _only += [_l for _l in _loose if _l not in _only]
+        return units
+
     def _layers_at_base(tree) -> "tuple[list, str | None]":
         """T-13107 — re-run the failing consumer LAYERS on the merge-base tree and read each back.
         Returns `(reproduced ids, refusal)`; an empty `_layer_reds` runs nothing."""
@@ -4242,6 +4383,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
         res = res if isinstance(res, dict) else {}
         if res.get("mode") != "layers":
             return ([], f"base-layer-mode:{res.get('mode') or 'absent'}")
+        _note_base(res.get("bad"))
         rows = {str((r or {}).get("layer")): str((r or {}).get("outcome"))
                 for r in (res.get("layers") or []) if isinstance(r, dict)}
         out: list = []
@@ -4269,6 +4411,22 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                 # environment, GitHub #117) observed nothing about this red, so it declines.
                 if _sid not in _base_ids:
                     return ([], "base-layer-failed-differently")
+                # T-14028 — the same id, but one naming no assertion: the two runs printed the same
+                # unmarked output, which says nothing about whether main fails the same assertion.
+                if _digest_markers and _sid.partition(": ")[2].startswith(_digest_markers):
+                    return ([], "base-layer-digest-only-match")
+                # T-14030 — the same id, but one naming a whole test FILE (`FAILED <file>::(file)`):
+                # the base leg may have failed that file for another reason, so the runner's own
+                # failure lines must match too, and the base leg's lines are recorded either way.
+                if _FILE_GRANULAR_RE.search(_sid.partition(": ")[2]):
+                    _cand = _failure_lines(bad, _name)
+                    _base = _failure_lines(res.get("bad"), _name)
+                    rec.setdefault("base_failure_lines", [])
+                    rec["base_failure_lines"] += [_l for _ls in _base.values() for _l in _ls
+                                                  if _l not in rec["base_failure_lines"]]
+                    if not _cand or not all(_t and set(_t) <= set(_base.get(_u) or [])
+                                            for _u, _t in _cand.items()):
+                        return ([], "base-layer-file-granular-match")
                 out.append(_sid)
             elif _o != "passed":
                 return ([], f"base-layer-{_o}")
@@ -4281,6 +4439,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                 out = _run_at_base(list(_test_pairs))
             except Exception as _e:            # noqa: BLE001 — an injected reader that raised
                 return _undecidable(f"base-run-error:{type(_e).__name__}")
+            _note_base(out)
             _rep, refusal = _land_red_isolation_reproduced(out, list(_test_pairs),
                                                            _VERIFY_TIMEOUT_MARKER,
                                                            _surface_failing_assertions)
@@ -4288,6 +4447,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                 return _undecidable(refusal)
             reproduced.extend(_rep)
         _lrep, refusal = _layers_at_base(None)
+        _base_ran()
         if refusal:
             return _undecidable(refusal)
         return _decide(reproduced + _lrep)
@@ -4340,6 +4500,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                    if any((wt / s / n).exists() for s in _subs)]
         # T-13107 — the failing consumer LAYERS, re-run on this same merge-base tree.
         _lrep, refusal = _layers_at_base(wt)
+        _base_ran()
         if refusal:
             return _undecidable(refusal)
         if not present:
@@ -4350,11 +4511,13 @@ def _land_failure_attribution_probe(bad: "list | None", *,
             out = _run_verify_tests([wt / s for s in _subs], wt, workers=workers, only=set(present))
         except Exception as _e:                # noqa: BLE001 — the runner itself could not run
             return _undecidable(f"base-run-error:{type(_e).__name__}")
+        _note_base(out)
         _asked = [p for p in _test_pairs if str(p).partition(": ")[0] in present]
         reproduced, refusal = _land_red_isolation_reproduced(out, _asked, _VERIFY_TIMEOUT_MARKER,
                                                              _surface_failing_assertions)
         if refusal:
             return _undecidable(refusal)
+        _base_ran()
         # A pair whose FILE is absent from the base was never asked and cannot have reproduced — it
         # falls into `at_branch` by the same soundness argument as the all-absent case above.
         return _decide(list(reproduced) + list(_lrep))

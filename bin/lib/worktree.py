@@ -4529,7 +4529,8 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
     if getattr(args, "report", None):
         _land_report_cli(args, target_task, target_branch, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap,
                          _worktree_path_for_branch=_worktree_path_for_branch, _main_worktree=_main_worktree,
-                         _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS)
+                         _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+                         _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _is_yitc_session_state=_is_yitc_session_state)
 
     # T-12318 (U4 of the T-12243 split) — `land --withdraw`: SHORT-CIRCUIT HERE, and the position is
     # load-bearing in three directions at once. It sits AFTER the target is resolved (the arm needs
@@ -9990,6 +9991,12 @@ def _land_batch_max(*a, **kw):
     return batch_landing._land_batch_max(*a, **kw)
 
 
+@functools.wraps(batch_landing._land_head_solo_reason)
+def _land_head_solo_reason(*a, **kw):
+    """T-11524 host residue — the body lives in `bin/lib/batch_landing.py#_land_head_solo_reason` (T-14029)."""
+    return batch_landing._land_head_solo_reason(*a, **kw)
+
+
 @functools.wraps(batch_landing._land_batch_engagement)
 def _land_batch_engagement(*a, **kw):
     """T-11524 host residue — the body now lives in `bin/lib/batch_landing.py#_land_batch_engagement`.
@@ -11212,7 +11219,8 @@ def _land_report_object_isolated(_run_git_cap, objects_dir: str, alternates: str
 
 
 def _land_report_cli(args, target_task, target_branch, *, REPO_ROOT, _run_git_cap, _worktree_path_for_branch,
-                     _main_worktree, _DERIVED_MERGE_ARTIFACTS) -> None:
+                     _main_worktree, _DERIVED_MERGE_ARTIFACTS, _BOOKKEEPING_ALLOWLIST=None,
+                     _is_yitc_session_state=None) -> None:
     """T-14008 — the `land --report` invocation: resolve the target, print ONE JSON object, EXIT.
     Exit 0 with the object; exit 1 with a stderr line when the target cannot be reported or the
     invocation also names `--withdraw`. Never
@@ -11230,16 +11238,43 @@ def _land_report_cli(args, target_task, target_branch, *, REPO_ROOT, _run_git_ca
         wt = Path(REPO_ROOT)
     from lib.cli import _anchor_signature_of_text as _sig, _dedup_events as _dd   # what land injects
     try:
-        out = land_report_arm(args.report, Path(wt) if wt else None, branch,
-                              _main_worktree(REPO_ROOT) or Path(REPO_ROOT), _run_git_cap=_run_git_cap,
-                              working_tree=bool(getattr(args, "working_tree", False)),
-                              _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dd,
-                              _anchor_signature_of_text=_sig)
+        if args.report == "batch-eligibility":   # T-14029 — a text answer, through the SAME two exits
+            out = _land_batch_eligibility_text(branch, wt, _main_worktree(REPO_ROOT) or Path(REPO_ROOT),
+                                               _run_git_cap=_run_git_cap,
+                                               _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+                                               _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST,
+                                               _is_yitc_session_state=_is_yitc_session_state)
+        else:
+            out = land_report_arm(args.report, Path(wt) if wt else None, branch,
+                                  _main_worktree(REPO_ROOT) or Path(REPO_ROOT), _run_git_cap=_run_git_cap,
+                                  working_tree=bool(getattr(args, "working_tree", False)),
+                                  _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dd,
+                                  _anchor_signature_of_text=_sig)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
-    print(json.dumps(out, sort_keys=True))
+    print(out if isinstance(out, str) else json.dumps(out, sort_keys=True))
     sys.exit(0)
+
+
+def _land_batch_eligibility_text(branch, wt, main: Path, *, _run_git_cap, _DERIVED_MERGE_ARTIFACTS,
+                                 _BOOKKEEPING_ALLOWLIST=None, _is_yitc_session_state=None) -> str:
+    """T-14029 — `land --batch-eligibility`: `eligible` or `solo:<reason>`, then the fixed queue-relative
+    note. Raises ValueError (exit 1 at the caller) when the branch does not resolve."""
+    if not branch or _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+                                  main).returncode != 0:
+        raise ValueError(f"land --batch-eligibility: no branch {branch!r} to answer for")
+    _foldable = None
+    if _BOOKKEEPING_ALLOWLIST is not None and _is_yitc_session_state is not None:
+        _foldable = (lambda _p: _is_foldable_bookkeeping(   # the land's own binding (T-11700)
+            _p, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST,
+            _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+            _is_yitc_session_state=_is_yitc_session_state))
+    from lib.cli import _land_batch_eligibility, _LAND_BATCH_ELIGIBILITY_NOTE   # composed outside the
+    # batch-landing host/module pair (T-11524: a host caller would make its readers non-exclusive)
+    reason = _land_batch_eligibility(branch, main, Path(wt) if wt else None,
+                                     _run_git_cap=_run_git_cap, _is_foldable_bookkeeping=_foldable)
+    return ("eligible" if reason is None else f"solo:{reason}") + "\n" + _LAND_BATCH_ELIGIBILITY_NOTE
 
 
 def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", main_wt: Path, *,
@@ -11963,6 +11998,8 @@ def _land_failure_attribution_probe(*a, **kw):
                        ("_land_red_isolation_reproduced", _land_red_isolation_reproduced),
                        ("_consumer_verify_layer_key", _consumer_verify_layer_key),   # T-13107
                        ("_subject_globs_would_skip", _subject_globs_would_skip),     # T-13449
+                       ("_NO_ASSERTION_CAPTURED", _NO_ASSERTION_CAPTURED),           # T-14028
+                       ("_UNMARKED_LAYER_FAILURE_PREFIX", _UNMARKED_LAYER_FAILURE_PREFIX),
     ):
         kw.setdefault(_k, _v)
     return batch_landing._land_failure_attribution_probe(*a, **kw)
@@ -11996,6 +12033,14 @@ def _land_attribution_timeout_qualifier(*a, **kw):
     `bin/lib/batch_landing.py#_land_attribution_timeout_qualifier` (T-13235). Pure apart from the load
     reading, so it needs no host collaborator forwarding."""
     return batch_landing._land_attribution_timeout_qualifier(*a, **kw)
+
+
+@functools.wraps(batch_landing._land_attribution_base_leg)
+def _land_attribution_base_leg(*a, **kw):
+    """T-11524 host residue — the body lives in
+    `bin/lib/batch_landing.py#_land_attribution_base_leg` (T-14028). Pure over its argument, so it
+    needs no host collaborator forwarding."""
+    return batch_landing._land_attribution_base_leg(*a, **kw)
 
 
 @functools.wraps(batch_landing._land_attribution_line)

@@ -2795,7 +2795,12 @@ def _layer_worker_shares_reader_advisories(repo_root, ops) -> list:
     that is followed, and does not say the share is unread. Wording only: the same layers WARN as
     before, the token test above is unchanged, and nothing is credited or refused on it. A command
     with no `npm` word, a waived or commandless layer, and a followed `npm run <script>` keep the
-    first sentence."""
+    first sentence.
+
+    THE NAMED LIMITS (T-14027, GitHub issue 145). The NOT RESOLVED line also names the forms the
+    resolver does not follow — a bare `npm test`, an `&&` chain, an `npm run` nested inside a package
+    script, a tool's default config file — and both lines end on the SPEC-0152 rule 16 one-process
+    clause: a layer whose runner takes no worker setting stays out of the shares. Wording only."""
     import re
     from pathlib import Path
 
@@ -2841,13 +2846,17 @@ def _layer_worker_shares_reader_advisories(repo_root, ops) -> list:
             out.append(f"WARN layer_worker_shares[{name}]: a share is declared and its reader of "
                        f"{_LAYER_WORKER_SHARES_READER_TOKEN} was NOT RESOLVED — the layer command "
                        "names npm in a form the resolver does not follow into package.json (it "
-                       "follows only a command that is, in full, one plain `npm run <script>`), and "
-                       "the token is not in the text it did read. This does not establish that the "
-                       "share is unread (SPEC-0152 rule 16)")
+                       "follows only a command that is, in full, one plain `npm run <script>`; it "
+                       "does not follow a bare `npm test`, an `&&` chain, an `npm run` nested inside a "
+                       "package script, or a tool's default config file such as vitest.config.ts), "
+                       "and the token is not in the text it did read. This does not establish that "
+                       "the share is unread. A layer whose runner takes no worker setting runs one "
+                       "process: leave it out of layer_worker_shares (SPEC-0152 rule 16)")
             continue
         out.append(f"WARN layer_worker_shares[{name}]: a share is declared but no reader of "
                    f"{_LAYER_WORKER_SHARES_READER_TOKEN} is named in its command/scripts "
-                   "(SPEC-0152 rule 16 — a share nobody reads divides nothing)")
+                   "(SPEC-0152 rule 16 — a share nobody reads divides nothing; a layer whose runner "
+                   "takes no worker setting runs one process: leave it out of layer_worker_shares)")
     return out
 
 

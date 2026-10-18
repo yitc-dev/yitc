@@ -2170,24 +2170,33 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ an observable\ndiff, keeps the ordinary split; a test-FILE pair never enters it;\
   \ a missing diff or predicate admits\nnothing. A red made ENTIRELY of such pairs\
   \ is `undecidable`/`failing-layer-unreachable-from-diff`,\nand the land still ABORTS\
-  \ on it. PRESENT ONLY on an abort whose probe\nproduced a record —\nadditive / P5-safe,\
-  \ guarded exactly as `verify_metrics` is, and an abort raised before the probe could\n\
-  run carries none. The record is COMPLETE EVEN WHEN IT SAYS NOTHING (`undecidable`\
-  \ with a named reason),\nso \"the probe could not decide\" stays distinguishable\
-  \ from \"the probe never ran\". REPORT-ONLY: nothing\ngates on it, and an `outcome:\
-  \ main` land aborts exactly as loudly as any other. It became a PERSISTED\nkey at\
-  \ because it is the ESTABLISHING PAYLOAD of the known-broken-on-main fold\n(`debt.open_known_broken`,\
-  \ SPEC-0181): that fold reads `at_main` / `at_branch` from HERE and never the\n\
-  first-sight `failing_tests` / `failing_assertions` above, nor `verify_metrics.fail_class`.\
-  \ Before\n the record was computed on every red land and DROPPED by this emitter's\
-  \ key allow-list.\n`prequeue_known_broken` (dict, SPEC-0181 §Known-broken-on-main\
-  \ / SPEC-0119 rule 33) = the\nPRE-QUEUE KNOWN-BROKEN REFUSAL's own record — the\
-  \ COMPLEMENT of `failure_attribution` above, on the\nsame row and by the same rules:\
-  \ that key records a land that DISCOVERED a break, this one a land\nREFUSED because\
-  \ of one already recorded.\n`{branch, pairs: [{pair, file, since, established_by,\
-  \ establishing_sha}], main, merge_base}` —\n`establishing_sha` is `null`, never\
-  \ a fabricated value, when main's history does not reach the\nestablishing instant\
-  \ (the discipline). PRESENT ONLY on an abort raised by\n`_land_prequeue_known_broken_refusal`,\
+  \ on it. A layer pair matched at the merge-base on an id naming no assertion\n(`(no\
+  \ assertion captured)` or an `unmarked-layer-failure:` digest) is\n`undecidable`/`base-layer-digest-only-match`,\
+  \ never `main` (SPEC-0181 §Known-broken-on-main\nrule 1b); one matched on a file-granular\
+  \ `FAILED <file>::(file)` id is `main` only when each unit's\nfailure text matches\
+  \ too, else `undecidable`/`base-layer-file-granular-match`, and such a record\n\
+  carries `base_failure_lines` (the merge-base run's failure text for that layer)\
+  \ (same rule). A record whose merge-base run happened also carries `base_sha` (the\
+  \ tree that run used, when\na tree was checked out) and `at_base` (the ids that\
+  \ run failed), which the ATTRIBUTION: MAIN line prints; both are absent from a record\n\
+  whose base run never happened. PRESENT ONLY on an abort whose probe\nproduced a\
+  \ record —\nadditive / P5-safe, guarded exactly as `verify_metrics` is, and an abort\
+  \ raised before the probe could\nrun carries none. The record is COMPLETE EVEN WHEN\
+  \ IT SAYS NOTHING (`undecidable` with a named reason),\nso \"the probe could not\
+  \ decide\" stays distinguishable from \"the probe never ran\". REPORT-ONLY: nothing\n\
+  gates on it, and an `outcome: main` land aborts exactly as loudly as any other.\
+  \ It became a PERSISTED\nkey at because it is the ESTABLISHING PAYLOAD of the known-broken-on-main\
+  \ fold\n(`debt.open_known_broken`, SPEC-0181): that fold reads `at_main` / `at_branch`\
+  \ from HERE and never the\nfirst-sight `failing_tests` / `failing_assertions` above,\
+  \ nor `verify_metrics.fail_class`. Before\n the record was computed on every red\
+  \ land and DROPPED by this emitter's key allow-list.\n`prequeue_known_broken` (dict,\
+  \ SPEC-0181 §Known-broken-on-main / SPEC-0119 rule 33) = the\nPRE-QUEUE KNOWN-BROKEN\
+  \ REFUSAL's own record — the COMPLEMENT of `failure_attribution` above, on the\n\
+  same row and by the same rules: that key records a land that DISCOVERED a break,\
+  \ this one a land\nREFUSED because of one already recorded.\n`{branch, pairs: [{pair,\
+  \ file, since, established_by, establishing_sha}], main, merge_base}` —\n`establishing_sha`\
+  \ is `null`, never a fabricated value, when main's history does not reach the\n\
+  establishing instant (the discipline). PRESENT ONLY on an abort raised by\n`_land_prequeue_known_broken_refusal`,\
   \ guarded on presence exactly as `verify_metrics` is, so every\nother abort row\
   \ is byte-unchanged (additive / P5-safe). It rides the EXISTING `corpus-integrity`\n\
   abort_class and the EXISTING `abort_preflight` shape: **no new event type enters\

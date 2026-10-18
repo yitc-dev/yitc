@@ -300,7 +300,7 @@ concern:
     \    act — set `pinned_last_green: all` here.\"\n"
 init_concern: null
 implements_signature:
-  bin/lib/batch_landing.py#_land_batch_members: 528511a33f5caaa3488a2540d42e89bf698d7d365da582eb68f872aafeaceddc
+  bin/lib/batch_landing.py#_land_batch_members: 3c970df34d86702aedae15b56d933d16b56baf397cd94bc4b204417bcc565828
   bin/lib/debt.py#_consumer_carrier_posture: c3077d7ce2a6f81e3f5aa9f4f6321a00b2ea7e7c008b37c5d0c6f50c5153c391
   bin/lib/init.py#_hook_verify_policy_pinned_last_green: 476797d64328c9f2f8973734e8d18b4a01f89547bb97696a13f90885e4727799
   bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc

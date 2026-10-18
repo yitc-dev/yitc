@@ -3747,6 +3747,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "decision, against the merge-base with main); `merge` = whether the branch "
                            "merges cleanly with main's tip and, if not, the conflicted paths (the land's "
                            "own merge probe). Target: --task / --branch, else this checkout's branch.")
+    land_mode.add_argument("--batch-eligibility", dest="report", action="store_const",
+                           const="batch-eligibility",
+                           help="ANSWER whether this branch must land alone (read-only, as --report: no "
+                                "lock, no write, no `LAND:` token): print `eligible` or "
+                                "`solo:<reason>` — the per-branch reason batch formation journals "
+                                "(rule-4 mark, rebaseline, pinned supersession, merge-invalid ground, "
+                                "uncommitted dirt) — then a note that queue-relative exclusions are "
+                                "decided only at formation. Target: --task / --branch, else this "
+                                "checkout's branch.")
     land.add_argument("--working-tree", action="store_true",
                       help="with --report layers: judge the working tree's changes (committed + "
                            "uncommitted + untracked), as the Stage-6 test run does")

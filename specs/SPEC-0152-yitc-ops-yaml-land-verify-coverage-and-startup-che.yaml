@@ -294,20 +294,23 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ allotment as\nit judges, and scales its own runners from the allotment it reads\
   \ — because only the project knows\nwhat its layers do. A layer with no entry, and\
   \ every layer under a project that declares nothing, is\nsimply unsplit: it reads\
-  \ the whole allotment, unchanged.\n\nA DECLARED SHARE OWES A READER — that is the\
-  \ project half, stated as the one obligation the\ndeclaration carries. Declaring\
-  \ a share for a layer OBLIGATES the project to READ the allotment and\nAPPLY the\
-  \ share: the layer's `command:`, or an in-repo script that command runs, reads\n\
-  `YITC_VERIFY_LAYER_WORKERS` and scales that layer's own runners to `floor(allotment\
-  \ x share)`,\nfloored at 1 — a layer given zero workers does not run. A share nobody\
-  \ reads divides nothing: it is\na FALSE DECLARATION, recorded on the outcome row\
-  \ as though it governed a split that never happened.\nThis states explicitly the\
-  \ project half the paragraph above already writes descriptively; it adds\nno kernel\
-  \ computation, no enforcement and no refusal — the kernel still validates shape\
-  \ only, and a\nproject already reading the allotment and applying its share is COMPLIANT\
-  \ AND UNAFFECTED.\n\nBY WAY OF EXPLANATION, NOT AS A SECOND OBLIGATION — what the\
-  \ kernel EXPECTS of a reader run OFF the\nland path. On the land path the variable\
-  \ is always there: the kernel keeps publishing the allotment\nWHOLE in `YITC_VERIFY_LAYER_WORKERS`\
+  \ the whole allotment, unchanged. A layer whose runner takes no worker\nsetting\
+  \ runs one process whatever the allotment, so it stays UNDECLARED and outside the\
+  \ share sum:\na share on it would divide nothing and would still be counted in the\
+  \ load reading below.\n\nA DECLARED SHARE OWES A READER — that is the project half,\
+  \ stated as the one obligation the\ndeclaration carries. Declaring a share for a\
+  \ layer OBLIGATES the project to READ the allotment and\nAPPLY the share: the layer's\
+  \ `command:`, or an in-repo script that command runs, reads\n`YITC_VERIFY_LAYER_WORKERS`\
+  \ and scales that layer's own runners to `floor(allotment x share)`,\nfloored at\
+  \ 1 — a layer given zero workers does not run. A share nobody reads divides nothing:\
+  \ it is\na FALSE DECLARATION, recorded on the outcome row as though it governed\
+  \ a split that never happened.\nThis states explicitly the project half the paragraph\
+  \ above already writes descriptively; it adds\nno kernel computation, no enforcement\
+  \ and no refusal — the kernel still validates shape only, and a\nproject already\
+  \ reading the allotment and applying its share is COMPLIANT AND UNAFFECTED.\n\n\
+  BY WAY OF EXPLANATION, NOT AS A SECOND OBLIGATION — what the kernel EXPECTS of a\
+  \ reader run OFF the\nland path. On the land path the variable is always there:\
+  \ the kernel keeps publishing the allotment\nWHOLE in `YITC_VERIFY_LAYER_WORKERS`\
   \ to every layer, as the paragraph above guarantees. So a reader\nonly ever meets\
   \ that variable's ABSENCE outside the land path — a hand run, or the project's own\
   \ CI\n— and there the kernel's expectation is that the reader FAILS LOUD rather\

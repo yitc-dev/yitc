@@ -31223,6 +31223,40 @@ def _post_verb_receipt_journal(main_of_worktree: "Path | None") -> "Path | None"
     return None
 
 
+_LAND_BATCH_ELIGIBILITY_NOTE = ("note: queue-relative exclusions (incompatible-with-selected, cost class, "
+                                "over-batch-cap, exact-set-already-reddened) are decided only at batch formation")
+
+
+def _land_batch_eligibility(branch: str, main_wt: Path, wt: "Path | None", *, _run_git_cap=None,
+                            _is_foldable_bookkeeping=None) -> "str | None":
+    """T-14029 — the per-branch batch-eligibility answer: `_land_head_solo_reason` over the SAME readers
+    `_land_batch_members` resolves, read once each for this one branch. Read-only: the readers read the
+    journal, the branch's card and `git status`; no lock, no merge probe, no row.
+
+    The declarations (rebaseline, merge-invalid ground) are the branch's own queued wait rows, as
+    formation reads a peer's; the supersession notice is read off the branch's worktree journal when
+    it has one (the journal its land would hand formation), else main's."""
+    ep = Path(main_wt) / "events.jsonl"
+    inel = worktree_mod._land_batch_ineligible_branches(
+        ep, main_wt=main_wt, _queue_jump_reason=worktree_mod._land_queue_jump_reason, branches=[branch])
+    reb = worktree_mod._land_rebaselining_branches(ep)
+    mia = worktree_mod._land_merge_invalid_acceptance_branches(ep)
+    sup = worktree_mod._land_pinned_supersession_branches(
+        (Path(wt) / "events.jsonl") if wt is not None and (Path(wt) / "events.jsonl").exists() else ep)
+    dirty = (worktree_mod._land_dirty_candidate_paths(main_wt, [branch], _run_git_cap=_run_git_cap,
+                                                      _is_foldable_bookkeeping=_is_foldable_bookkeeping)
+             if _run_git_cap is not None else {})
+    try:
+        policy = task_mod._verify_policy_pinned_last_green(
+            Path(main_wt), ops_contract=host_apply_mod.CONSUMER_OPS_CONTRACT)
+    except Exception:                          # noqa: BLE001 — unresolved ⇒ the leg runs (fail-closed)
+        policy = "all"
+    return worktree_mod._land_head_solo_reason(branch, ineligible=inel, superseding=sup, dirty=dirty,
+                                               rebaselining=branch in reb,
+                                               merge_invalid_acceptance=branch in mia,
+                                               pinned_leg_off=policy == "never")
+
+
 def _zero_write_view(args: argparse.Namespace) -> bool:
     """T-12929 (SPEC-0105 §1e) — True for a ZERO-WRITE view: `nightly --status` (the per-project
     nightly view) and, since T-12960 (SPEC-0086 rule 6f), `session pick` (the project picker — a

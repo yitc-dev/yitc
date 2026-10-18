@@ -3918,6 +3918,28 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
           f"`yitc-v2 land --task {task}`." if task else
           f"  main was NOT advanced — this is a SYNC, not a land. Integrate with "
           f"`yitc-v2 land --branch {branch}`.")
+    # T-14026 (yitc#146) — the merge completed, so a hand-resolution blocker the pre-flight PRINTED
+    # above was a prediction the merge did not bear out. Withdraw it by name, then re-run the SAME
+    # conflict re-proof the `--resolved` arm runs (three-state, never a second checker), so the last
+    # word on conflicts is about the main actually merged.
+    if conflict_sink.get("unresolved"):
+        print(f"  pre-flight prediction NOT borne out: it predicted "
+              f"{len(conflict_sink['unresolved'])} path(s) needing a hand merge; the merge completed "
+              f"clean — the MERGE CONFLICTS blocker above is WITHDRAWN, nothing needs resolving by hand.")
+        reproof_sink: dict = {}
+        reproof = _land_preflight_conflict_lines(
+            branch, main_wt, task, _run_git_cap=_run_git_cap,
+            _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dedup_events,
+            EVENTS_PATH=EVENTS_PATH, _classify_inert_paths=_classify_inert_paths,
+            _blockers_out=reproof_sink)
+        for ln in reproof:
+            print(ln)
+        if not reproof and "unresolved" in reproof_sink:
+            print("  conflict re-proof: RAN and reported no blocker — the same check `land` runs "
+                  "before the queue finds no conflict with main.")
+        elif not reproof:
+            print("  conflict re-proof: could not answer — treat the branch's merge-cleanliness as "
+                  "UNKNOWN and expect `land` to judge it.")
     cur_lines = None                           # None = the phase was SKIPPED, [] = ran and clean
     if _classify_inert_paths is not None and EVENTS_PATH is not None:
         # T-12020 (X-1242) — measure against the main tip `_update_from_main` ACTUALLY merged, NOT
@@ -6806,8 +6828,11 @@ def _land_preflight_conflict_lines(branch: str, main_wt: Path, tid: "str | None"
             _blockers_out.update({"unresolved": list(unresolved), "resolved": list(resolved)})
         if not unresolved:
             return []                          # not PROVEN blocking → say nothing (fail-open)
+        # T-14026 — a PREDICTION, labelled as one: the real merge that follows can complete clean
+        # (yitc#146), and `cmd_worktree_sync` then withdraws this line by name.
         lines = [f"worktree sync: PRE-FLIGHT BLOCKER — MERGE CONFLICTS with main {main_rev[:12]} "
-                 f"({branch} {branch_rev[:12]}). These must be resolved by hand:"]
+                 f"({branch} {branch_rev[:12]}), PREDICTED by a merge-tree probe before the merge "
+                 f"runs — these would need resolving by hand:"]
         lines.extend(f"    {p}" for p in unresolved)
         if resolved:
             lines.append("  (auto-resolvable, NOT blocking: " + ", ".join(sorted(resolved)) + ")")

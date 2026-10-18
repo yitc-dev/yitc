@@ -650,23 +650,41 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ the\nbreakages it exists to catch. NOT `failing_tests` / `failing_assertions`:\
   \ those are the FIRST-SIGHT\nkeys, and an implementation reading them records a\
   \ standing \"main is broken\" claim on a single\nobservation — it would satisfy\
-  \ the reporting criterion and fail the flake guard outright.\n\nRULE 2 — WHAT CLEARS\
-  \ A RECORD, and it is ONLY evidence that this pair's test RAN and PASSED on a\n\
-  fresh main, recorded STRICTLY LATER than the row that established it. The journal\
-  \ stamps whole\nSECONDS, so two rows can share a `ts`; a same-instant row is not\
-  \ later evidence, it is a tie broken\nby where the row happens to sit in the file,\
-  \ and the tie FAILS CLOSED to not-evidence. (The\nopposite direction from SPEC-0149's\
-  \ `>=`, deliberately: there a recheck appended in the same second\nas its deploy\
-  \ really did happen after it, while here \"later\" IS the whole claim.) A RE-OBSERVATION\n\
-  re-stamps that instant — the record is a fact about the newest tree, so evidence\
-  \ must post-date the\nnewest observation, not the original one. Exactly five routes:\n\
-  \  (a) PAIR-LEVEL. A later row lists that pair in `at_branch` — its merge-base run\
-  \ did NOT reproduce\n      the failure, which is a direct observation of it passing\
-  \ on main.\n  (b) FULL-ENUMERATION GREEN LAND. A later `status: ok` row whose verify\
-  \ ran the WHOLE discovered\n      enumeration (`verify_metrics.test_file_count >=\
-  \ selection_discovered_count > 0`) AND whose\n      own recorded `sha` names a tree\
-  \ CONTAINING that pair's test file. Green means every executed\n      file passed,\
-  \ and the sha it fast-forwarded main to IS main's new tip.\n  (c) RECORDED-SELECTION\
+  \ the reporting criterion and fail the flake guard outright.\n\nRULE 1b — A MATCH\
+  \ ON AN ID THAT NAMES NO ASSERTION ESTABLISHES NOTHING. A consumer verify-layer\n\
+  pair whose assertion half is `(no assertion captured)` or an `unmarked-layer-failure:`\
+  \ digest of\nthe layer's output names no assertion, so the merge-base run failing\
+  \ it under the same id shows\nonly that both runs printed the same output. The attribution\
+  \ probe records such a red\n`undecidable` / `base-layer-digest-only-match`, not\
+  \ `main`: the pair is not listed in `at_main` and\nopens no record, and the land\
+  \ still aborts on it. A pair whose assertion half names a whole test\nFILE (`FAILED\
+  \ <file>::(file)`, a runner that names no case) is treated the same way unless,\
+  \ for\nevery such unit, the candidate run's failure text for that unit is non-empty\
+  \ and all of it also\nappears for the same unit in the merge-base run: otherwise\
+  \ it is `undecidable` /\n`base-layer-file-granular-match`. A unit's failure text\
+  \ is the excerpt on its summary line, unless\nthat is only the unit's status value,\
+  \ and every line printed after that summary up to the next\none, verbatim; a line\
+  \ that differs between the runs — a duration, a checkout path — therefore\nmakes\
+  \ the match decline.\nA record whose\nmerge-base run happened names that run's tree\
+  \ and the ids it failed (`base_sha`, `at_base`), and the\nabort's ATTRIBUTION: MAIN\
+  \ line prints both; beside a file-granular id the record also carries that\nrun's\
+  \ failure lines (`base_failure_lines`), which the ATTRIBUTION line prints.\n\nRULE\
+  \ 2 — WHAT CLEARS A RECORD, and it is ONLY evidence that this pair's test RAN and\
+  \ PASSED on a\nfresh main, recorded STRICTLY LATER than the row that established\
+  \ it. The journal stamps whole\nSECONDS, so two rows can share a `ts`; a same-instant\
+  \ row is not later evidence, it is a tie broken\nby where the row happens to sit\
+  \ in the file, and the tie FAILS CLOSED to not-evidence. (The\nopposite direction\
+  \ from SPEC-0149's `>=`, deliberately: there a recheck appended in the same second\n\
+  as its deploy really did happen after it, while here \"later\" IS the whole claim.)\
+  \ A RE-OBSERVATION\nre-stamps that instant — the record is a fact about the newest\
+  \ tree, so evidence must post-date the\nnewest observation, not the original one.\
+  \ Exactly five routes:\n  (a) PAIR-LEVEL. A later row lists that pair in `at_branch`\
+  \ — its merge-base run did NOT reproduce\n      the failure, which is a direct observation\
+  \ of it passing on main.\n  (b) FULL-ENUMERATION GREEN LAND. A later `status: ok`\
+  \ row whose verify ran the WHOLE discovered\n      enumeration (`verify_metrics.test_file_count\
+  \ >= selection_discovered_count > 0`) AND whose\n      own recorded `sha` names\
+  \ a tree CONTAINING that pair's test file. Green means every executed\n      file\
+  \ passed, and the sha it fast-forwarded main to IS main's new tip.\n  (c) RECORDED-SELECTION\
   \ GREEN LAND. A later `status: ok` row whose\n      `verify_metrics.selection_ran_tests`\
   \ NAMES that pair's test file. This is a direct\n      observation that the file\
   \ ran and passed on the tree that land produced, so it clears the\n      pair whether\
@@ -848,16 +866,25 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ the same shape the next day\nfor a land of a plan file, an audit record and journal\
   \ rows. Rule 7's ground — the land is red\neither way — does not hold for such a\
   \ branch: where SPEC-0065 §Bound proves the inert first-attempt\nskip, its land\
-  \ runs no test.\n\n## Implementation notes\n\nRule 8 of §Known-broken-on-main. The\
-  \ refusal takes the tree the land's merge would produce from\nthe land's one merge\
-  \ oracle (`_land_merge_probe`, called as the pre-queue merge refusal calls it;\n\
-  no ref is moved) and classifies that tree's delta to `main`, listed with renames\
-  \ off — the\nevaluation point SPEC-0064 §3 gives the classifier. A merge the oracle\
-  \ calls neither clean nor\nresolvable by the land admits nothing. The admission\
-  \ row carries `branch`, `route`\n(`inert-diff`), `pairs` (each `pair`, `file`, `since`,\
-  \ `established_by`, ordered by `since` then\n`pair`), `main`, `merge_base` and `paths`\
-  \ (the count of changed paths). The land hands the\nrefusal the classifier, the\
-  \ path lister, the merge oracle and the journal writer; with any of\nthem absent\
+  \ runs no test.\n\nRule 1b of §Known-broken-on-main. An adopting consumer reported\
+  \ (GitHub #147, release\n2.16.0) that all 8 land aborts reading ATTRIBUTION: MAIN\
+  \ over 2026-10-15..18 were not main breaks:\n7 were interactions between cards on\
+  \ a whole-repository check and 1 a broken merge-base leg. The\nreader could not\
+  \ check a MAIN line, which named neither the tree the re-run used nor what it failed,\n\
+  and a layer whose output carries no failure marker is matched on a digest of that\
+  \ output, which two\nunprimed runs share. The consumer then measured that none of\
+  \ the 8 matched on a digest: all\n8 matched on a file-granular `FAILED <file>::(file)`\
+  \ id, and in at least 5 of them the candidate's\nfailing assertion named a path\
+  \ only the branch adds.\n\n## Implementation notes\n\nRule 8 of §Known-broken-on-main.\
+  \ The refusal takes the tree the land's merge would produce from\nthe land's one\
+  \ merge oracle (`_land_merge_probe`, called as the pre-queue merge refusal calls\
+  \ it;\nno ref is moved) and classifies that tree's delta to `main`, listed with\
+  \ renames off — the\nevaluation point SPEC-0064 §3 gives the classifier. A merge\
+  \ the oracle calls neither clean nor\nresolvable by the land admits nothing. The\
+  \ admission row carries `branch`, `route`\n(`inert-diff`), `pairs` (each `pair`,\
+  \ `file`, `since`, `established_by`, ordered by `since` then\n`pair`), `main`, `merge_base`\
+  \ and `paths` (the count of changed paths). The land hands the\nrefusal the classifier,\
+  \ the path lister, the merge oracle and the journal writer; with any of\nthem absent\
   \ the route is off.\n\n## Verification\n\n- VP1 (self-guard, differential): a diff\
   \ touching `bin/**` yields an EMPTY would-omit set.\n  Failing input — remove rung\
   \ R1 and the tripwire goes RED.\n- VP2 (governs nothing, differential): the executed\

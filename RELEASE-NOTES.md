@@ -1,6 +1,6 @@
-# Release v2.17.0
+# Release v2.18.0
 
-Source commit: `3ef048014db8e6fe051693b8f9eae181934942a7`
+Source commit: `3f25d3ba7a60fabcb7ab79568b4be402bb5e7bd5`
 
 ## Proposals this release answers
 
@@ -46,6 +46,10 @@ answers:
   - 'yitc-dev/yitc#14'
   - 'yitc-dev/yitc#141'
   - 'yitc-dev/yitc#142'
+  - 'yitc-dev/yitc#144'
+  - 'yitc-dev/yitc#145'
+  - 'yitc-dev/yitc#146'
+  - 'yitc-dev/yitc#147'
   - 'yitc-dev/yitc#15'
   - 'yitc-dev/yitc#16'
   - 'yitc-dev/yitc#17'
@@ -186,34 +190,18 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
-
-- SPEC-1037 — The spec doctrine — identity, content boundary, FSM, homing, and how to create/split/reshape a spec
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1037`
+No kernel spec became active since the previous release tag.
 
 ## What changed
 
-18 task(s) closed since the previous release tag, in close order:
+6 task(s) closed since the previous release tag, in close order:
 
-- T-14002 — Let the dispatch watcher bound come from a machine setting so a watch lasts as long as the workers it watches (fix) — events.jsonl#ts=2026-10-18T07:22:05Z
-- T-14001 — Stop the session-start WAITING-ON-OWNER line showing a pause a controller decision and a resume already answered (fix) — events.jsonl#ts=2026-10-18T08:01:03Z
-- T-14005 — Make audit --preview report the Stage-6 evidence precondition the on-decisions pass checks (fix) — events.jsonl#ts=2026-10-18T08:26:54Z
-- T-14009 — Show the in-place-amend-versus-successor probe where an author chooses how to change an active spec (docs) — events.jsonl#ts=2026-10-18T09:47:12Z
-- T-14003 — Resolve a land or worktree-sync merge hunk that only re-points spec ids to successors without stopping for a hand merge (feature) — events.jsonl#ts=2026-10-18T10:15:33Z
-- T-14016 — Attribute a tests_failed layer in-diff when its failure message names a path the card changed (fix) — events.jsonl#ts=2026-10-18T10:19:33Z
-- T-14008 — Expose read-only verbs for which verify layers a change runs and whether a branch merges cleanly with main (feature) — events.jsonl#ts=2026-10-18T10:40:40Z
-- T-14004 — Make dispatch --resume take the newest pause contract and a real stage name for a preserved worktree (fix) — events.jsonl#ts=2026-10-18T10:50:00Z
-- T-14018 — Refuse at write a controller-delegated owner_directive whose read fields cite no owner row, naming the field that holds the citation (fix) — events.jsonl#ts=2026-10-18T11:13:50Z
-- T-14006 — Order Stage-6 local slot waiters oldest first with queue-jump ahead and journal each wait (fix) — events.jsonl#ts=2026-10-18T11:23:58Z
-- T-14021 — Cue the mention review at Analysis for a card that activates a superseding spec (docs) — events.jsonl#ts=2026-10-18T11:28:05Z
-- T-14020 — Show the active head and the lineage citers on the spec point-lookup above the unchanged body (feature) — events.jsonl#ts=2026-10-18T11:28:44Z
-- T-14019 — Report a superseded cite as information in the filing advisory instead of as a premise fault (docs) — events.jsonl#ts=2026-10-18T11:45:42Z
-- T-14007 — Add a read-only verb that shows who holds and who waits for the Stage-6 slot and the land reservation (feature) — events.jsonl#ts=2026-10-18T12:16:11Z
-- T-13989 — Align SPEC-1031 Verification with the delivery test AC4 shipped (docs) — events.jsonl#ts=2026-10-18T12:25:08Z
-- T-14017 — Serve the spec body of the as-of commit in graph query --as-of instead of the current file (fix) — events.jsonl#ts=2026-10-18T12:50:22Z
-- T-14023 — Hold a local Stage-6 start while the host CPU busy share is over a machine bound, opt-in, on a reading taken after the newest start (feature) — events.jsonl#ts=2026-10-18T13:12:11Z
-- T-14022 — Activate SPEC-1037 as the successor of SPEC-0005 after its own mention review (docs) — events.jsonl#ts=2026-10-18T15:34:15Z
+- T-14026 — Make worktree sync withdraw its pre-flight conflict blocker when the real merge completes clean (fix) — events.jsonl#ts=2026-10-18T18:10:13Z
+- T-14027 — State that a one-process verify layer stays undeclared in layer worker shares, and name the unfollowed npm forms in the advisory (docs) — events.jsonl#ts=2026-10-18T18:47:45Z
+- T-14025 — Let task commit --fix-red admit a dirty audit-post RED pinned to the custody ship after a task pause (fix) — events.jsonl#ts=2026-10-18T19:07:50Z
+- T-14029 — Add a read-only land --batch-eligibility answer from the same head-solo predicate batch formation uses (feature) — events.jsonl#ts=2026-10-18T20:15:00Z
+- T-14028 — Name the base sha and failing ids on a land ATTRIBUTION MAIN line and decline digest-only base matches to UNDECIDABLE (fix) — events.jsonl#ts=2026-10-18T21:30:49Z
+- T-14030 — Decline a land ATTRIBUTION MAIN matched only on a file-granular unit id unless the failing assertion text matches too (fix) — events.jsonl#ts=2026-10-18T23:13:58Z
 
 ## Trust surfaces
 

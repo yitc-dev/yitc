@@ -6861,14 +6861,36 @@ def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_ya
     T-13348 — the FOLDED re-pinned arm (the X-1690 dispute, same card). When a pause self-commit has
     FOLDED that re-pinned record, the clean-fold branch's custody equality fails (custody = the pause,
     record = the ship) and asks the SAME re-pin resolver instead of answering None — one resolver for
-    both shapes. Also `--fix-red` only (the host refuses `--absorb` on a record declaring the re-pin)."""
+    both shapes. Also `--fix-red` only (the host refuses `--absorb` on a record declaring the re-pin).
+
+    T-14025 — the DIRTY CUSTODY arm (public intake yitc#144). Ship -> `task pause` -> plain `audit
+    post`: the verb resolves its subject through the custody resolver, so the FRESH (dirty) RED record
+    is pinned to the SHIP while the kind-blind recorded commit is the pause. The dirty guard and the
+    re-pin arm (no marker) both answer None. So a dirty record that does NOT declare the re-pin, whose
+    `commit:` resolves to `_audited_custody_sha` and which is the standing verdict is admitted — the
+    SAME custody equality and standing-verdict check the clean-fold branch asks. The host still confines
+    a dirty hazard to `--fix-red`."""
     rel = f"decisions/{tid}-audit-post.yaml"
     try:
         if rel in (_worktree_dirty_paths(pathspecs=[rel]) or []):
-            return _dirty_repinned_audit_post_hazard(
+            hit = _dirty_repinned_audit_post_hazard(
                 tid, rel, REPO_ROOT=REPO_ROOT, _git_resolve_sha=_git_resolve_sha, _read_yaml=_read_yaml,
                 _repin_ship_admissible=_repin_ship_admissible,
                 _last_audit_post_event=_last_audit_post_event)
+            ad = _read_yaml(REPO_ROOT / rel)
+            if hit or not isinstance(ad, dict) or ad.get("custody_repin") is True:
+                return hit            # a record DECLARING the re-pin is the re-pin arm's alone
+            ac = str(ad.get("commit") or "").strip()
+            ac_full = _git_resolve_sha(ac) if ac else None
+            custody = _audited_custody_sha(tid)
+            if not ac_full or not custody or _git_resolve_sha(custody) != ac_full:
+                return None
+            last_verdict, last_commit = (_last_audit_post_event(tid) or (None, None))[:2]
+            if not last_verdict or not last_commit or _git_resolve_sha(str(last_commit)) != ac_full:
+                return None
+            if str(last_verdict).strip().upper() != str(ad.get("verdict") or "").strip().upper():
+                return None
+            return (rel, ac_full)
         if not _path_tracked_at_head(rel):
             return None
         fold = _record_fold_commit(rel)
