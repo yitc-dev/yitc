@@ -40,8 +40,8 @@ body: "## Scenario\n\nWhen a project grows into a live product, the questions a 
   \ the logs are, how to roll back, who to contact; declare `logs:` + `rollback:`\n\
   \   + `contact:` — LOOSE waiver. Asked at `live*`. (Placement decided against a\
   \ subfield of\n   `alert_routing`: SPEC-0164 answers WHO reads an alert; a runbook\
-  \ answers WHAT to do — the\n   SPEC-0005 delete-test keeps them separable.)\n\n\
-  ## Parameters\nNone consumed. Key names and the born text are the concern blocks\
+  \ answers WHAT to do — the\n   <workshop-spec> delete-test keeps them separable.)\n\
+  \n## Parameters\nNone consumed. Key names and the born text are the concern blocks\
   \ below (single source).\n\n## Rationale\nIndustry prior-art (Google SRE Production\
   \ Readiness Review, AWS Well-Architected, 12-factor) names\nthese as the questions\
   \ a live service must answer; the kernel had homes for none of them. Real\nincidents:\

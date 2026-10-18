@@ -241,7 +241,7 @@ implements_signature:
   bin/lib/cli.py#_resolve_worker_binary: 15c4e30a31bd509a9705a546ea7375b1e361aad288e59649d23d26f889e1fa3e
   bin/lib/cli.py#_strip_model_window_suffix: 01955b91ac353e9e62c496d299ea60c4714b596774915502aff25a3af9f1760b
   bin/lib/dispatch.py#classify_launch_answer: 217a598ab5ed2f5865ccffc887106c23f9714c7283ca1cc0f1d887dfa70abfb1
-  bin/lib/dispatch.py#cmd_dispatch: 60256e48d19800b6716f17704c33fb5a51cde156cf133d56ec60af55e77cdacb
+  bin/lib/dispatch.py#cmd_dispatch: 89677868feb62a8de29252bf5c33c1628a9eb965875861a20743c6d58ecfc56d
   bin/lib/dispatch.py#launch_worker_with_pair: 4330b00e18ebeb5505ee8333455c912b877d4e6d86f2d61e86a3ff03b2bc84d6
   bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
   bin/lib/task.py#cmd_task_update: ce7e8259e5abd8c335c5e400cbe6779965b76fe2b815c2be36fdaa033f2281db

@@ -9,10 +9,10 @@ binding:
 - floor
 activation_owner_task: null
 amends:
-- SPEC-0005 rule 8 (homing): refines the "third home" (handbook / pattern prose as
-    a SEPARATE home) into ONE class (the spec) + a `mandatory`/`retrieved` TIER attribute
-    — the handbook = the mandatory-tier specs. A simplification (a view, not a new
-    entity), not a contradiction; both are `proposed` in the same plan.
+- <workshop-spec> rule 8 (homing): refines the "third home" (handbook / pattern prose
+    as a SEPARATE home) into ONE class (the spec) + a `mandatory`/`retrieved` TIER
+    attribute — the handbook = the mandatory-tier specs. A simplification (a view,
+    not a new entity), not a contradiction; both are `proposed` in the same plan.
 - D-0034: amends the "sessions do NOT scan at startup" stance — the MANDATORY tier
     auto-loads in full; the RETRIEVED tier is delivered at stage-entry / on demand,
     NOT scanned at startup (the original startup count-nudge was retired). The picker
@@ -45,30 +45,30 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ under the FULL spec discipline\n(admission test, content boundary, two-bound volume,\
   \ currency, retirement) — NOT a separate class.\nThe handbook size cap is therefore\
   \ the **token budget of the mandatory tier**, not a special\nhandbook-only rule.\
-  \ (Refines SPEC-0005 rule 8: the \"third home\" collapses into mandatory-tier specs.)\n\
-  **The tiering UNIT is the spec, not the file.** A tier is carried by ONE spec, and\
-  \ each spec is\nuniform-tier. A large current handbook FILE is not \"half mandatory,\
-  \ half retrieved\" — it DECOMPOSES\n(SPEC-0005 rule 6, split-by-surface) into MULTIPLE\
-  \ specs, each with a single tier; the file may then\nmap to both mandatory and retrieved\
-  \ specs, but no single spec mixes tiers.\n\n### 2. The tier is a VIEW over the injection\
-  \ category — no new field\nTwo ORTHOGONAL axes, do not conflate:\n  - **Normative\
-  \ FORCE** = rule severity (`[MUST]` / `[SHOULD]` / `[MAY]`) — how binding once known.\n\
-  \    A MUST rule can be `retrieved` (binding but surface-specific). So tier ≠ severity.\n\
-  \  - **Context RESIDENCY** = the tier — the SAME axis as the injection categories.\
-  \ Mapping:\n    `mandatory` = standing-default `MUST_READ_NOW` (session start);\
-  \ retrieved-situational =\n    `SHOULD_READ_TASK` (loaded when its surface is in\
-  \ scope); retrieved-on-demand = `REF_AVAILABLE`\n    (explicit query / saved lens).\
-  \ `JUST_FYI` is ambient, not a rule-home.\n**The PATTERNS catalog (`patterns/*`)\
-  \ is reference-tier — a query-only reference, not a delivery-judgment class.** A\
-  \ pattern is reached through the §5a **query-only reference** class (the always-loaded\
-  \ handbook pointer-stub + `bin/yitc-v2 graph query` / a saved lens) OR a pointer\
-  \ surfaced by an EXISTING stage / seed / verb binding — NEVER a standalone \"read\
-  \ patterns when relevant\" delivery judgment (that judgment is the \"available if\
-  \ remembered\" gap rule 5a exists to close). Patterns are non-normative (CHARTER\
-  \ §P2 handbook-cap exclusion; not restated here per SPEC-0005 rule 8), and therefore\
-  \ NEVER `mandatory` and NEVER ambient-actionable: a STANDING normative rule lives\
-  \ in a bound spec (rule 1), never in a pattern \"consulted when relevant\". The\
-  \ catalog thus has ONE residency path — query-only reference — not a sixth delivery\
+  \ (Refines <workshop-spec> rule 8: the \"third home\" collapses into mandatory-tier\
+  \ specs.)\n**The tiering UNIT is the spec, not the file.** A tier is carried by\
+  \ ONE spec, and each spec is\nuniform-tier. A large current handbook FILE is not\
+  \ \"half mandatory, half retrieved\" — it DECOMPOSES\n(<workshop-spec> rule 6, split-by-surface)\
+  \ into MULTIPLE specs, each with a single tier; the file may then\nmap to both mandatory\
+  \ and retrieved specs, but no single spec mixes tiers.\n\n### 2. The tier is a VIEW\
+  \ over the injection category — no new field\nTwo ORTHOGONAL axes, do not conflate:\n\
+  \  - **Normative FORCE** = rule severity (`[MUST]` / `[SHOULD]` / `[MAY]`) — how\
+  \ binding once known.\n    A MUST rule can be `retrieved` (binding but surface-specific).\
+  \ So tier ≠ severity.\n  - **Context RESIDENCY** = the tier — the SAME axis as the\
+  \ injection categories. Mapping:\n    `mandatory` = standing-default `MUST_READ_NOW`\
+  \ (session start); retrieved-situational =\n    `SHOULD_READ_TASK` (loaded when\
+  \ its surface is in scope); retrieved-on-demand = `REF_AVAILABLE`\n    (explicit\
+  \ query / saved lens). `JUST_FYI` is ambient, not a rule-home.\n**The PATTERNS catalog\
+  \ (`patterns/*`) is reference-tier — a query-only reference, not a delivery-judgment\
+  \ class.** A pattern is reached through the §5a **query-only reference** class (the\
+  \ always-loaded handbook pointer-stub + `bin/yitc-v2 graph query` / a saved lens)\
+  \ OR a pointer surfaced by an EXISTING stage / seed / verb binding — NEVER a standalone\
+  \ \"read patterns when relevant\" delivery judgment (that judgment is the \"available\
+  \ if remembered\" gap rule 5a exists to close). Patterns are non-normative (CHARTER\
+  \ §P2 handbook-cap exclusion; not restated here per <workshop-spec> rule 8), and\
+  \ therefore NEVER `mandatory` and NEVER ambient-actionable: a STANDING normative\
+  \ rule lives in a bound spec (rule 1), never in a pattern \"consulted when relevant\"\
+  . The catalog thus has ONE residency path — query-only reference — not a sixth delivery\
   \ class beside the §5a five.\nA retrieved rule MAY escalate to `MUST_READ_NOW` for\
   \ the specific action that touches its surface\n(standing default vs per-injection\
   \ realization — one vocabulary, two scopes). **Residency is NEVER\nstored on the\
@@ -391,25 +391,25 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   at BOTH the primary startup (§At-session-start) and post-`/compact` re-read — the\
   \ latter resolves the\nengine paths directly WITHOUT re-running `session start`\
   \ (which would re-emit startup side-effects).\nThis is an AUTHORING / coherence\
-  \ DISCIPLINE — close-the-door, like the SPEC-0005 §7 declare-the-binding\nstep :\
-  \ it binds the editor's attention AT EDIT TIME and is verified by the audit / coherence\n\
-  pass, NOT by a new gate, hook, parser, or detector (CHARTER §P1 — nothing accreted;\
-  \ this is one\ninvariant on the spec that already governs the always-loaded tier).\n\
-  **Consumer (`-C`) echo extension.** The same `session start` consumer echo ADDITIONALLY\n\
-  surfaces, after the read-order line: (a) the consumer's OWN backbone when present\
-  \ (its product\n`CHARTER.md` = separate project-context, NOT the methodology seed),\
-  \ and (b) the consumer verb-invocation form\n`<engine>/bin/yitc-v2 -C <path> <verb>`\
-  \ on the `--help` rescan line — a consumer has NO local\n`bin/yitc-v2`, so the bare\
-  \ engine-relative form is command-not-found. (Per the active-spec COUNT is NO LONGER\
-  \ echoed at every start — obtainable ON-DEMAND via `graph query --type spec`.) These\
-  \ are CONVENIENCE surfaces\nover durable on-disk state (the consumer's own `CHARTER.md`\
-  \ / `specs/` + the engine `-C` invocation),\nNOT a new datum or rule; their §5b\
-  \ co-design (route (b) justify): they re-derive directly post-`/compact`\n(re-read\
-  \ the consumer's own backbone + re-count via the engine `-C` `graph query`), never\
-  \ by re-running\n`session start`. The engine self-build echo (`REPO_ROOT == ENGINE_ROOT`)\
-  \ is byte-unchanged. The born\nconsumer `MEMORY.md` template (SPEC-0039) renders\
-  \ its `graph query SPEC-0039` example in the SAME\nengine `-C` form for the same\
-  \ reason; it is a durable file, so it survives `/compact` unaided.\n**Newer-release\
+  \ DISCIPLINE — close-the-door, like the <workshop-spec> §7 declare-the-binding\n\
+  step : it binds the editor's attention AT EDIT TIME and is verified by the audit\
+  \ / coherence\npass, NOT by a new gate, hook, parser, or detector (CHARTER §P1 —\
+  \ nothing accreted; this is one\ninvariant on the spec that already governs the\
+  \ always-loaded tier).\n**Consumer (`-C`) echo extension.** The same `session start`\
+  \ consumer echo ADDITIONALLY\nsurfaces, after the read-order line: (a) the consumer's\
+  \ OWN backbone when present (its product\n`CHARTER.md` = separate project-context,\
+  \ NOT the methodology seed), and (b) the consumer verb-invocation form\n`<engine>/bin/yitc-v2\
+  \ -C <path> <verb>` on the `--help` rescan line — a consumer has NO local\n`bin/yitc-v2`,\
+  \ so the bare engine-relative form is command-not-found. (Per the active-spec COUNT\
+  \ is NO LONGER echoed at every start — obtainable ON-DEMAND via `graph query --type\
+  \ spec`.) These are CONVENIENCE surfaces\nover durable on-disk state (the consumer's\
+  \ own `CHARTER.md` / `specs/` + the engine `-C` invocation),\nNOT a new datum or\
+  \ rule; their §5b co-design (route (b) justify): they re-derive directly post-`/compact`\n\
+  (re-read the consumer's own backbone + re-count via the engine `-C` `graph query`),\
+  \ never by re-running\n`session start`. The engine self-build echo (`REPO_ROOT ==\
+  \ ENGINE_ROOT`) is byte-unchanged. The born\nconsumer `MEMORY.md` template (SPEC-0039)\
+  \ renders its `graph query SPEC-0039` example in the SAME\nengine `-C` form for\
+  \ the same reason; it is a durable file, so it survives `/compact` unaided.\n**Newer-release\
   \ notice.** A consumer that PINS its engine (SPEC-0195 rule 3) ALSO gets, at\nmost\
   \ once a UTC day, ONE report-only, suppressed-when-current line naming a newer published\
   \ release\n(installed vs newest + the moved digit's rule-10 meaning); silent on\
@@ -510,44 +510,45 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ stays out (its content enters the graph only after the drain promotes an item\
   \ into a real\nartifact). **This rule states the chosen DIRECTION only — the `graph\
   \ build` extraction-from-spec-bodies\nCODE is downstream materialization, NOT authored\
-  \ by this proposed spec** (a `proposed` spec governs\nnothing — SPEC-0005 rule 4).\n\
-  \n### V2 self-adoption (worked example — file→spec(s) mapping; line-level demotion\
-  \ is materialization work)\nApplying the rules to V2's OWN always-loaded files.\
-  \ \"decomposes\" means the file splits into multiple\nuniform-tier specs (rule 1,\
-  \ the tiering unit is the spec) — NOT that one spec mixes tiers:\n\n| File | Content-type\
-  \ | Tier(s) of its spec(s) |\n|---|---|---|\n| `CHARTER.md` | rules | **decomposes**:\
-  \ the 8 principles + non-goals → **mandatory** (bootstrap-floor frame); the decision-lifecycle\
-  \ + AI-failure-classes table → **retrieved** specs (pulled when operating the frozen-decision\
-  \ backlog / reasoning about a failure class) |\n| `AGENTS.md` | rules | **decomposes**:\
-  \ session-start protocol + anchors → a **mandatory** spec (bootstrap-floor); the\
-  \ reference-grade contracts (event-schema catalog, auditor-invocation contract [**realized\
-  \ — <workshop-spec> active, Part I-A**], injection-protocol schema, reverse-mapping\
-  \ queries) → **retrieved** specs (pulled when emitting an event / running an audit\
-  \ / reasoning about injections) |\n| `LIFECYCLE.md` | rules | **decomposes**: the\
-  \ 9-stage contract frame → **mandatory** (held to act safely); the per-stage detail\
-  \ → **retrieved** specs (pulled when entering that stage) |\n| `QUEUE.md` | rules\
-  \ | **mandatory** (picker + state transitions); the full YAML field catalog → a\
-  \ **retrieved** spec candidate |\n| `GRAPH.md` | rules | **decomposes**: node/edge\
-  \ schema + spec lifecycle → **mandatory**; the query-layer / reverse-mapping catalog\
-  \ → **retrieved** |\n| `<vendor-adapter>.md` | plumbing | **thinness rule** — 5-line\
-  \ vendor adapter, no normative content (already conformant) |\n| project `MEMORY.md`\
-  \ | memory-index | non-authoritative drainable buffer (rule 6) — V2 does not yet\
-  \ keep one; this rule introduces it as the governed project-local surface |\n\n\
-  The mandatory tier auto-loads in full (topo + the pedagogical pin: CHARTER before\
-  \ the protocol that\nuses it); the retrieved slices load when their surface is touched.\
-  \ **Delivery class of each retrieved\ndemote (rule 5a):** the AGENTS reference contracts\
-  \ (event-schema, injection-protocol, reverse-mapping),\nthe CHARTER decision-lifecycle\
-  \ + failure-class table, the LIFECYCLE per-stage detail (stages without a\ncontrol-point:\
-  \ plan/execute/test/resume/hygiene/stage-FSM), and the QUEUE YAML-schema + GRAPH\n\
-  query-layer/spec-schema are **query-only reference** (pointer-stub + `graph query`)\
-  \ — NOT floor-\ntriggered (those actions are not gated control-points; a `before-event`/`before-plan`\
-  \ trigger would be\ncreep). The lifecycle control-point contracts (SPEC-0014/0015/0016\
-  \ + the analysis/file specs) are\n**stage-delivered** (rule 5a — delivered at stage-entry\
-  \ by `stage <NAME>`, via a `stage-entry:<STAGE>`\nbinding), NOT floor-triggered\
-  \ ( retired the lifecycle before-* floor triggers). The ONLY\nfloor-triggered retrieved\
-  \ demote is the stage-AGNOSTIC `before-rule-change` (SPEC-0005 — spec\nauthoring\
-  \ is not a lifecycle stage); a LIFECYCLE stage rule is delivered at its stage-entry,\
-  \ the rest\nare query-only.\n\n### Inheritable scope (cross-project recommendation)\n\
+  \ by this proposed spec** (a `proposed` spec governs\nnothing — <workshop-spec>\
+  \ rule 4).\n\n### V2 self-adoption (worked example — file→spec(s) mapping; line-level\
+  \ demotion is materialization work)\nApplying the rules to V2's OWN always-loaded\
+  \ files. \"decomposes\" means the file splits into multiple\nuniform-tier specs\
+  \ (rule 1, the tiering unit is the spec) — NOT that one spec mixes tiers:\n\n| File\
+  \ | Content-type | Tier(s) of its spec(s) |\n|---|---|---|\n| `CHARTER.md` | rules\
+  \ | **decomposes**: the 8 principles + non-goals → **mandatory** (bootstrap-floor\
+  \ frame); the decision-lifecycle + AI-failure-classes table → **retrieved** specs\
+  \ (pulled when operating the frozen-decision backlog / reasoning about a failure\
+  \ class) |\n| `AGENTS.md` | rules | **decomposes**: session-start protocol + anchors\
+  \ → a **mandatory** spec (bootstrap-floor); the reference-grade contracts (event-schema\
+  \ catalog, auditor-invocation contract [**realized — <workshop-spec> active, Part\
+  \ I-A**], injection-protocol schema, reverse-mapping queries) → **retrieved** specs\
+  \ (pulled when emitting an event / running an audit / reasoning about injections)\
+  \ |\n| `LIFECYCLE.md` | rules | **decomposes**: the 9-stage contract frame → **mandatory**\
+  \ (held to act safely); the per-stage detail → **retrieved** specs (pulled when\
+  \ entering that stage) |\n| `QUEUE.md` | rules | **mandatory** (picker + state transitions);\
+  \ the full YAML field catalog → a **retrieved** spec candidate |\n| `GRAPH.md` |\
+  \ rules | **decomposes**: node/edge schema + spec lifecycle → **mandatory**; the\
+  \ query-layer / reverse-mapping catalog → **retrieved** |\n| `<vendor-adapter>.md`\
+  \ | plumbing | **thinness rule** — 5-line vendor adapter, no normative content (already\
+  \ conformant) |\n| project `MEMORY.md` | memory-index | non-authoritative drainable\
+  \ buffer (rule 6) — V2 does not yet keep one; this rule introduces it as the governed\
+  \ project-local surface |\n\nThe mandatory tier auto-loads in full (topo + the pedagogical\
+  \ pin: CHARTER before the protocol that\nuses it); the retrieved slices load when\
+  \ their surface is touched. **Delivery class of each retrieved\ndemote (rule 5a):**\
+  \ the AGENTS reference contracts (event-schema, injection-protocol, reverse-mapping),\n\
+  the CHARTER decision-lifecycle + failure-class table, the LIFECYCLE per-stage detail\
+  \ (stages without a\ncontrol-point: plan/execute/test/resume/hygiene/stage-FSM),\
+  \ and the QUEUE YAML-schema + GRAPH\nquery-layer/spec-schema are **query-only reference**\
+  \ (pointer-stub + `graph query`) — NOT floor-\ntriggered (those actions are not\
+  \ gated control-points; a `before-event`/`before-plan` trigger would be\ncreep).\
+  \ The lifecycle control-point contracts (SPEC-0014/0015/0016 + the analysis/file\
+  \ specs) are\n**stage-delivered** (rule 5a — delivered at stage-entry by `stage\
+  \ <NAME>`, via a `stage-entry:<STAGE>`\nbinding), NOT floor-triggered ( retired\
+  \ the lifecycle before-* floor triggers). The ONLY\nfloor-triggered retrieved demote\
+  \ is the stage-AGNOSTIC `before-rule-change` (SPEC-1037 — spec\nauthoring is not\
+  \ a lifecycle stage); a LIFECYCLE stage rule is delivered at its stage-entry, the\
+  \ rest\nare query-only.\n\n### Inheritable scope (cross-project recommendation)\n\
   This is the system-files organization recommendation for ANY YITC-adopting project,\
   \ not V2-only. The\nrules are stated generically (\"a project's always-loaded tier…\"\
   ); V2 is the worked example. The ONLY\nper-project binding is the **territory split**\
@@ -562,41 +563,41 @@ body: "## Scenario\n\nA YITC project's \"system files\" — everything auto-load
   \ The mandatory-tier token budget = the handbook cap (2500, CHARTER §P2) — referenced,\n\
   living in its own home, NOT duplicated or `consumed:` here.\n\n## Rationale\n\n\
   Self-hosting prior-art: PEP-1 is itself a PEP (the process doc lives in the process's\
-  \ own form), and\nSPEC-0005 already makes a process rule live in a spec — this spec\
-  \ applies that doctrine to the\nalways-loaded tier. The always-resident-core-plus-on-demand-retrieval\
+  \ own form), and\n<workshop-spec> already makes a process rule live in a spec —\
+  \ this spec applies that doctrine to the\nalways-loaded tier. The always-resident-core-plus-on-demand-retrieval\
   \ split is the standard shape of\nRAG / agent-memory / code-indexing systems: a\
   \ small always-loaded seed + precise pull beats bulk\nalways-load. Living-docs survive\
   \ only with currency + retrieval precision, never by loading\neverything; an ungoverned\
   \ always-loaded memory surface bloats precisely because it has no drain. One\nclass\
   \ + a tier VIEW (the injection category) avoids a parallel entity (P1/P5).\n\n##\
   \ Verification\n\nProbe CONTRACTS (not one-time results — those are history per\
-  \ SPEC-0005 rule 8):\n- **VP1 (admission, self):** this spec satisfies the SPEC-0005\
-  \ rule-2 admission test — a cross-task,\n  durable, analysis-shaping process rule\
-  \ (criteria 1, 3, 4, 5, 7); delete-test: removing it materially\n  worsens always-loaded-tier\
-  \ change analysis. Evidence: ## Internal states standing rules, not one\n  function's\
-  \ control flow.\n- **VP2 (content boundary, dogfood):** grep this body — no rejected-alternatives\
-  \ narrative, no\n  approval/ratification chronology, no dated audit-finding refs;\
-  \ only concise interpreting provenance\n  remains (SPEC-0005 rule-3 ALLOWED set).\
-  \ The body self-applies the boundary the model states.\n- **VP3 (non-authoritative):**\
-  \ `status: proposed` + `consumed: false` — governs nothing; removing this\n  spec\
-  \ changes no live behaviour.\n- **VP4 (graph-indexed):** `bin/yitc-v2 graph build`\
-  \ indexes SPEC-0007 as a `spec` node (the spec NODE\n  — NOT the staged spec-body\
-  \ rule-extraction of rule 7, which is downstream). Evidence: `graph query\n  SPEC-0007`\
-  \ resolves.\n- **VP5 (tier classification, dogfood):** the V2 self-adoption table\
-  \ classifies the 5 handbook files +\n  plumbing + project `MEMORY.md` under the\
-  \ tier attribute + the 3 content-types. Evidence: the table\n  in ## Internal.\n\
-  - **VP6 (amendment honesty, P7):** the `amends:` block names every canonical surface\
-  \ this spec\n  deliberately changes (SPEC-0005 rule 8).\n- **VP7 (inheritable):**\
-  \ the rules read generically; only the territory split is per-project. Evidence:\n\
-  \  ## Internal §Inheritable scope.\n- **VP8 (one home, P5):** no rule here is also\
-  \ duplicated as a standing rule in handbook prose; a\n  handbook-homed rule is referenced\
-  \ (`cites`), never restated.\n"
+  \ <workshop-spec> rule 8):\n- **VP1 (admission, self):** this spec satisfies the\
+  \ <workshop-spec> rule-2 admission test — a cross-task,\n  durable, analysis-shaping\
+  \ process rule (criteria 1, 3, 4, 5, 7); delete-test: removing it materially\n \
+  \ worsens always-loaded-tier change analysis. Evidence: ## Internal states standing\
+  \ rules, not one\n  function's control flow.\n- **VP2 (content boundary, dogfood):**\
+  \ grep this body — no rejected-alternatives narrative, no\n  approval/ratification\
+  \ chronology, no dated audit-finding refs; only concise interpreting provenance\n\
+  \  remains (<workshop-spec> rule-3 ALLOWED set). The body self-applies the boundary\
+  \ the model states.\n- **VP3 (non-authoritative):** `status: proposed` + `consumed:\
+  \ false` — governs nothing; removing this\n  spec changes no live behaviour.\n-\
+  \ **VP4 (graph-indexed):** `bin/yitc-v2 graph build` indexes SPEC-0007 as a `spec`\
+  \ node (the spec NODE\n  — NOT the staged spec-body rule-extraction of rule 7, which\
+  \ is downstream). Evidence: `graph query\n  SPEC-0007` resolves.\n- **VP5 (tier\
+  \ classification, dogfood):** the V2 self-adoption table classifies the 5 handbook\
+  \ files +\n  plumbing + project `MEMORY.md` under the tier attribute + the 3 content-types.\
+  \ Evidence: the table\n  in ## Internal.\n- **VP6 (amendment honesty, P7):** the\
+  \ `amends:` block names every canonical surface this spec\n  deliberately changes\
+  \ (<workshop-spec> rule 8).\n- **VP7 (inheritable):** the rules read generically;\
+  \ only the territory split is per-project. Evidence:\n  ## Internal §Inheritable\
+  \ scope.\n- **VP8 (one home, P5):** no rule here is also duplicated as a standing\
+  \ rule in handbook prose; a\n  handbook-homed rule is referenced (`cites`), never\
+  \ restated.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-2
 - CHARTER.md#principle-4
 - CHARTER.md#principle-5
-- SPEC-0005
 - doc-model-rework-retire-decision-unify-on-spec-spe
 requires: []
 supersedes: null

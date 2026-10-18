@@ -43,32 +43,35 @@ body: "## Scenario\n\nA Build session runs a task through nine stages. The contr
   \ this\n  task`, so it activates (`proposed → active`) at **THIS task's closure**\
   \ (Stage 9). A\n  **plan-born** spec (`proposed_by ==` a plan, born by `plan accept`,\
   \ Part B)\n  activates at the closure of the ONE task named as its activation owner\
-  \ (SPEC-0005 rule 5 homes\n  that carrier; SPEC-0034 says how a plan's decomposition\
+  \ (<workshop-spec> rule 5 homes\n  that carrier; SPEC-0034 says how a plan's decomposition\
   \ names the task). So this task's closure\n  activates a plan-born spec only when\
-  \ this task is that named owner.\n- Plan ~45 lines is a **soft guideline, not a\
-  \ hard gate**: `task plan --finalize` **WARNs**\n  past it but proceeds. If the\
-  \ task is genuinely too big, decompose at Stage 2 — but that is a\n  judgement,\
-  \ and the ~45 measures plan verbosity, not task decomposability (a single coherent\
-  \ artifact\n  may legitimately exceed it).\n- **REPEATED-WORK STATEMENT (advisory).**\
-  \ For any plan STEP that adds a read, a loop, a poll, a\n  remote fetch, a scan\
-  \ or a worker pass, the `implementation_plan` carries ONE line for that step:\n\
-  \  `reuses: <the neighbouring mechanism at this seam that already folds / caches\
-  \ / bounds /\n  watermarks this work>` — or `adds-first: <why no such neighbour\
-  \ exists>`. It is the Plan-stage\n  face of the Analysis REPEATED-WORK CHECK (SPEC-0032\
-  \ §Internal item 1a); the classes and detect\n  heuristics live single-home in `patterns/repeated-work-lens.md`\
-  \ and are NOT restated here\n  (SPEC-0005 rule 8). **ADVISORY, and it gates NOTHING:**\
-  \ `task plan --finalize` neither refuses nor\n  warns on its absence, and no other\
-  \ verb reads it — a plan that omits the line finalizes exactly as\n  before.\n-\
-  \ **For substantive plans** (foundational decisions, multi-file/multi-step, quantitative\
-  \ claims) —\n  consult `patterns/big-plan-checklist.md` (6-probe optional discipline).\n\
-  \n#### Plan-entry pre-flight checklist (GREEN-first)\nSelf-check these FIVE before\
-  \ `task plan --finalize` — a VIEW of the audit-pre lens shifted LEFT to\nPlan-entry,\
-  \ so the plan clears Stage-4 on the FIRST pass instead of learning the criteria\
-  \ post-hoc\nfrom the auditor. **One home (P5 / SPEC-0005 rule 8):** the lens itself\
-  \ lives in SPEC-0036 §Task\nper-stage overlays → audit-pre — this is a short pointer\
-  \ to it, NOT a second source of plan-quality\nrules; on any doubt read `bin/yitc-v2\
-  \ graph query SPEC-0036`.\n1. **PROBE PER AC** — each acceptance criterion names\
-  \ a concrete grep / command / event that PROVES\n   it (not a restatement); an infra-class\
+  \ this task is that named owner.\n- **Changing an active spec:** adding to it (a\
+  \ new case, a clarification) → `spec edit` in place; a\n  successor only when a\
+  \ reader must act differently in a case the spec already covers (<workshop-spec>\
+  \ rule 7).\n- Plan ~45 lines is a **soft guideline, not a hard gate**: `task plan\
+  \ --finalize` **WARNs**\n  past it but proceeds. If the task is genuinely too big,\
+  \ decompose at Stage 2 — but that is a\n  judgement, and the ~45 measures plan verbosity,\
+  \ not task decomposability (a single coherent artifact\n  may legitimately exceed\
+  \ it).\n- **REPEATED-WORK STATEMENT (advisory).** For any plan STEP that adds a\
+  \ read, a loop, a poll, a\n  remote fetch, a scan or a worker pass, the `implementation_plan`\
+  \ carries ONE line for that step:\n  `reuses: <the neighbouring mechanism at this\
+  \ seam that already folds / caches / bounds /\n  watermarks this work>` — or `adds-first:\
+  \ <why no such neighbour exists>`. It is the Plan-stage\n  face of the Analysis\
+  \ REPEATED-WORK CHECK (SPEC-0032 §Internal item 1a); the classes and detect\n  heuristics\
+  \ live single-home in `patterns/repeated-work-lens.md` and are NOT restated here\n\
+  \  (<workshop-spec> rule 8). **ADVISORY, and it gates NOTHING:** `task plan --finalize`\
+  \ neither refuses nor\n  warns on its absence, and no other verb reads it — a plan\
+  \ that omits the line finalizes exactly as\n  before.\n- **For substantive plans**\
+  \ (foundational decisions, multi-file/multi-step, quantitative claims) —\n  consult\
+  \ `patterns/big-plan-checklist.md` (6-probe optional discipline).\n\n#### Plan-entry\
+  \ pre-flight checklist (GREEN-first)\nSelf-check these FIVE before `task plan --finalize`\
+  \ — a VIEW of the audit-pre lens shifted LEFT to\nPlan-entry, so the plan clears\
+  \ Stage-4 on the FIRST pass instead of learning the criteria post-hoc\nfrom the\
+  \ auditor. **One home (P5 / <workshop-spec> rule 8):** the lens itself lives in\
+  \ SPEC-0036 §Task\nper-stage overlays → audit-pre — this is a short pointer to it,\
+  \ NOT a second source of plan-quality\nrules; on any doubt read `bin/yitc-v2 graph\
+  \ query SPEC-0036`.\n1. **PROBE PER AC** — each acceptance criterion names a concrete\
+  \ grep / command / event that PROVES\n   it (not a restatement); an infra-class\
   \ AC names an unforgeable P8 adoption probe (CHARTER §3/§8).\n2. **COHERENCE SWEEP**\
   \ — «where else is this rule stated?» amend the governing spec + handbook prose\n\
   \   + any template + the derived index in the SAME change (P7 / P5 — leave no second\
@@ -419,9 +422,9 @@ supersedes: null
 activation_owner_task: null
 proposed_by: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
+  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
   bin/lib/gates.py#advance_stage_pointer: 80d13c9bac15006a9028df1d6b8493d52f7dad17186fd3453ab3db831c6b3e9a
   bin/lib/gates.py#stage_pointer_move: fad47f6127d629202918d7164c0870c6e036300629d65230c4ba2445624ded28
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: d89d29338b440e22e3813e4f10280348dcc24cd5ab0cbf09fb0a1c91da729444
+  bin/lib/task.py#cmd_task_test: 09629320adfb61e15e548fbdd2c3682b02b0c6a9fe78659c9e0b4c437cd23121

@@ -198,8 +198,8 @@ body: "## Scenario\n\nA consumer that already migrated to v2 does not silently f
   \ consult Q8 (in the <project> consumer\nrepo). Full deliberation, rejected alternatives\
   \ (explicit-integer version, extend-SPEC-0128,\nper-drift cross-request), and the\
   \ ratification act live in the proposing plan\n`concern-update-propagation-to-existing-consumers-c`\
-  \ (SPEC-0005 rule 3 — not restated here).\n\n## Verification\n\n- Version determinism:\
-  \ editing a concern's normative metadata bumps its `graph/concern-registry.json`\n\
+  \ (<workshop-spec> rule 3 — not restated here).\n\n## Verification\n\n- Version\
+  \ determinism: editing a concern's normative metadata bumps its `graph/concern-registry.json`\n\
   \  `version`; an unrelated edit does not (deterministic content-derivation probe).\n\
   - Drift surfaced + suppressed: a consumer behind on a concern gets a report-only\
   \ line + a\n  `concern_drift_surfaced` event at session-start and nightly; a consumer\

@@ -235,31 +235,37 @@ body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ce
   carrying the owner's COMPLETE message verbatim as `owner_text`, anchored `<transcript>#uuid:<uuid>`,\n\
   resolves on its own proof — `event` checks the text EQUALS that owner entry (an\
   \ OMITTED `owner_text`\nis taken from the entry itself) and stamps `owner_text_verified`;\
-  \ any element missing stays chain-broken. A locator resolving to nothing, to another\
-  \ event type, to\nanother task, or to a row later than the decision is refused —\
-  \ authority is proven by resolution,\nnever by a non-empty string), `receiving_task`\n\
-  (REQUIRED for `defer` — a FILED card of any non-terminal status (ready / parked\
-  \ / in-progress), found\nin this checkout or in the decided task's own worktree,\
-  \ checked at write; a followup id is NOT a card;\nwith no card yet, file one first\
-  \ with `task file` (in that worktree, or landed on main), then pass its\nid as `--receiving`),\
-  \ `evidence_revision` (REQUIRED\nfor `fix` — the revision that carries the change,\
-  \ a STRICT descendant of the audited commit; «already in\nthe audited commit» is\
-  \ an `accept` with that reason, never a `fix`, rule 3. At audit-POST it is journaled\n\
-  as the RESOLVED full commit identity of whatever the Controller typed — never the\
-  \ typed form — and a\nrevision that does not resolve is refused by name with nothing\
-  \ written; at audit-PRE it is the plan\nfingerprint verbatim. Rule 3's admission\
-  \ compares every revision on RESOLVED identity, so a row that\nrecorded a short\
-  \ form before this clause is admitted when it names the subject —; the\n«already\
-  \ in the audited subject» refusal holds at audit-PRE and at a PLAN GATE too: a `fix`\
-  \ whose\nevidence EQUALS the ceiling row's own audited subject — the unedited plan\
-  \ fingerprint / the gate's\nrecorded signature — is refused `evidence-is-audited-subject`\
-  \ with nothing written; edit the plan\nfirst, then record the `fix` against the\
-  \ NEW fingerprint), `decided_by`\n(the session ref).\nA PLAN GATE takes this same\
-  \ rule with its own target pair — see rule 9.\nWriter: `bin/yitc-v2 audit decide\
-  \ --task T-XXXX --stage pre|post --finding <fp> --disposition …\n--reason … --directive\
-  \ <locator> [--receiving T-YYYY] [--evidence <revision>]` — an arm of the existing\n\
-  `audit` verb. It is a journal append (no worktree — AGENTS §Writes-happen-in-a-worktree)\
-  \ and\nis REFUSED, fail-closed, when: the caller is a dispatched Worker (`YITC_EXPECTED_SESSION_REF`\
+  \ any element missing stays chain-broken. The WRITE refuses an uncited delegated\
+  \ row: `event owner_directive` with `captured_via: controller-delegated` and no\
+  \ `mid_turn` whose `text` / `directive` / `owner_text` carry no `events.jsonl#ts=<ISO>`\
+  \ locator appends nothing, and its refusal names those three fields, any other payload\
+  \ field that holds the locator (e.g. `summary`, which no reader of the chain reads)\
+  \ and any bare `#ts=<ISO>` with its `events.jsonl#ts=<ISO>` spelling; the fields\
+  \ the chain reads are not widened. A locator resolving to nothing, to another event\
+  \ type, to\nanother task, or to a row later than the decision is refused — authority\
+  \ is proven by resolution,\nnever by a non-empty string), `receiving_task`\n(REQUIRED\
+  \ for `defer` — a FILED card of any non-terminal status (ready / parked / in-progress),\
+  \ found\nin this checkout or in the decided task's own worktree, checked at write;\
+  \ a followup id is NOT a card;\nwith no card yet, file one first with `task file`\
+  \ (in that worktree, or landed on main), then pass its\nid as `--receiving`), `evidence_revision`\
+  \ (REQUIRED\nfor `fix` — the revision that carries the change, a STRICT descendant\
+  \ of the audited commit; «already in\nthe audited commit» is an `accept` with that\
+  \ reason, never a `fix`, rule 3. At audit-POST it is journaled\nas the RESOLVED\
+  \ full commit identity of whatever the Controller typed — never the typed form —\
+  \ and a\nrevision that does not resolve is refused by name with nothing written;\
+  \ at audit-PRE it is the plan\nfingerprint verbatim. Rule 3's admission compares\
+  \ every revision on RESOLVED identity, so a row that\nrecorded a short form before\
+  \ this clause is admitted when it names the subject —; the\n«already in the audited\
+  \ subject» refusal holds at audit-PRE and at a PLAN GATE too: a `fix` whose\nevidence\
+  \ EQUALS the ceiling row's own audited subject — the unedited plan fingerprint /\
+  \ the gate's\nrecorded signature — is refused `evidence-is-audited-subject` with\
+  \ nothing written; edit the plan\nfirst, then record the `fix` against the NEW fingerprint),\
+  \ `decided_by`\n(the session ref).\nA PLAN GATE takes this same rule with its own\
+  \ target pair — see rule 9.\nWriter: `bin/yitc-v2 audit decide --task T-XXXX --stage\
+  \ pre|post --finding <fp> --disposition …\n--reason … --directive <locator> [--receiving\
+  \ T-YYYY] [--evidence <revision>]` — an arm of the existing\n`audit` verb. It is\
+  \ a journal append (no worktree — AGENTS §Writes-happen-in-a-worktree) and\nis REFUSED,\
+  \ fail-closed, when: the caller is a dispatched Worker (`YITC_EXPECTED_SESSION_REF`\
   \ set —\n«no self-grant past the ceiling» is preserved by the AUTHORITY OF THE WRITER,\
   \ not by budget\narithmetic); `prior_passes` at that stage is below the ceiling\
   \ — EXCEPT for a recorded `late_finding`\nat that stage, decidable at any pass incl.\
@@ -331,7 +337,7 @@ implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: cec7de584e38045317a1dc6695ac6145c608804d4661f5820b5f9ccdbfc1a48c
   bin/lib/audit.py#blocked_on_land_ceiling_disposition: a14d1669d5ef988351c98c6187cc4dde05e83ba5c84908d2ca2cb9fcb8b8a539
-  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
+  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -355,7 +361,7 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: 56f5461826dd5ca135dbe005cd3f078aed29239219be8f903c558e530327bc20
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: 5e866742afd3b03fcf647e4ef50a5a48567c2c6805c33e020887850b31bdc5aa
+  bin/lib/cli_parser.py#build_parser: 1f7ccb5d704d3a440dc166c88e8b4be561af9284797b43a71a0349443959e4dd
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
   bin/lib/plan.py#_run_plan_gate_audit: a8f25295f6edce0a82fb7c736717f6f32976742171c6b99e17010c266630afc7

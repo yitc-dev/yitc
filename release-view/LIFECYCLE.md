@@ -63,7 +63,7 @@ lightest-first order, per-branch conditions, escalate-a-genuine-decision-not-the
 **Goal:** understand the task before doing anything.
 
 > **Retrieved — moved to SPEC-0032**. The full ordered Stage-1 procedure (prior-art grep incl. the
-> plan-layer sweep → cite-the-proof → standing-rule?→SPEC-0005 → decomposition?→SPEC-0046 → read-cited →
+> plan-layer sweep → cite-the-proof → standing-rule?→SPEC-1037 → decomposition?→SPEC-0046 → read-cited →
 > file-clarification; + Done-when a/b/c) is **delivered at the Analysis stage-entry** ( — the claim
 > `worktree new --task` IS Analysis-entry; SPEC-0032 binds `stage-entry:Analysis`, delivered by `stage Analysis`).
 > Fetch via `bin/yitc-v2 graph query SPEC-0032`. (Supersedes always-loaded retention — same model as §Stage 3.)

@@ -30,7 +30,7 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ / lands / adopts. The controller reads the\nverdict and decides; the reliability\
   \ of the read no longer depends on the controller hand-rolling a\nliveness grep.\n\
   \n## Internal\n\nTHE §6-SAFE CONTROLLER-OBSERVABILITY VERB — a process/governance\
-  \ spec (SPEC-0005 rule 1). It adds NO\nnew store / parser / journal / node-type:\
+  \ spec (<workshop-spec> rule 1). It adds NO\nnew store / parser / journal / node-type:\
   \ it EXTENDS the existing `journal query --dispatch-status`\nreader with a fleet-verdict\
   \ surface, and it homes a standing §6-compliance TEST for read-only\ndetection verbs.\
   \ Provider-neutral throughout (CHARTER §P4b — the target is any observability verb,\
@@ -518,7 +518,7 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ it replaces; omitting the field, or\n    synthesising a code, would each be worse.\
   \ This bound is stated because a reader who expects an\n    exit code and finds\
   \ a null must be able to tell \"not recorded\" from \"not recordable\".\n\n**In-place\
-  \ amend, not a supersede** (SPEC-0005 rule 5 — the rule-4a / 5a / 5c precedent):\
+  \ amend, not a supersede** (<workshop-spec> rule 5 — the rule-4a / 5a / 5c precedent):\
   \ rule 2a\nsaid which halts are surfaced, and was silent on the halt nobody writes.\
   \ This names it. Nothing\nabove changes: every authored halt keeps its own finer,\
   \ self-reported label, checked first.\n\n### 3. Heartbeat-derivable (bounds MISSED-TRUE-DEATH\
@@ -569,8 +569,8 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   under E); the controller nearly declared a live worker dead and re-dispatched it.\
   \ This verb exists\nprecisely so a raw journal grep does not mis-read healthy workers\
   \ as actionable — so the verb itself\nmust not. **In-place amend, not a supersede**\
-  \ (SPEC-0005 rule 5): rule 4 was SILENT on which of the two\nrefs a pre-anchor row\
-  \ keys on, and post-anchor E *is* the worker's own ref — so no already-covered\n\
+  \ (<workshop-spec> rule 5): rule 4 was SILENT on which of the two\nrefs a pre-anchor\
+  \ row keys on, and post-anchor E *is* the worker's own ref — so no already-covered\n\
   case's required behaviour changes; this adds an explicit answer to a case the rule\
   \ did not address.\n\n### 5. Scope bound + the 4 anti-complexity filters (written\
   \ down — AGENTS §When NOT to add)\n- **F1 existing analog?** YES — the `journal\
@@ -614,58 +614,58 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ actionable rows are additionally COUNTED on the watcher's per-tick line — a suppression\
   \ is\nvisible, never silent (the never-silent posture). ALL_TERMINAL / TIMEOUT semantics\
   \ for the\nwatched set are UNCHANGED by this rule.\n\n**In-place amend, not a supersede**\
-  \ (SPEC-0005 rule 5 — the rule-4a precedent): rule 2 said WHICH\nverdicts are actionable\
-  \ and was SILENT on WHOSE verdicts a given watcher may act on. The shipped\nwatcher\
-  \ read that silence as «any row in the fleet», so an armed watch woke on workers\
-  \ it was\nnot watching: 7 phantom wakes on 2026-07-11, every one on a synthetic\
-  \ non-watched row while watching\nreal tasks, each burning the batch monitor + a\
-  \ controller turn. No already-covered case's required\nbehaviour changes; this answers\
-  \ a case the rule did not address.\n\n### 5b. The watcher's terminal VERDICT is\
-  \ DURABLE — journal row beside the stdout token\nRule 5's watcher spoke its terminal\
-  \ verdict on STDOUT ALONE: `cmd_dispatch_watch` had exactly ONE\nemit site for it,\
-  \ the final `WATCH: <token> <reason>` print. So a watcher whose WRAPPER OUTPUT was\n\
-  lost came back with NO surviving answer to the question it was armed for — reported\
-  \ as <project>\nX-1026, and settled by X-1038 with a same-session controlled comparison:\
-  \ four poll loops armed\nidentically, each PRINTING PER TICK, returned 544 / 3770\
-  \ / 4014 / 1581 bytes with every line intact\nwhile the watcher returned 22 (the\
-  \ bare exit line). The harness preserves stdout; that watcher never\nwrote a verdict\
-  \ to preserve. The general property worth keeping: a loop that prints on EVERY tick\n\
-  cannot come back mute, because its output exists before any terminal condition —\
-  \ a watcher that\nspeaks only at the END has nothing to preserve if it ends without\
-  \ speaking.\n\nSo on reaching ANY terminal (WAKE / ALL_TERMINAL / TIMEOUT) the watcher\
-  \ ALSO writes ONE\n`watch_verdict_recorded` journal row carrying the token, the\
-  \ reason and the watched task ids, and\nrecovery keys off the JOURNAL — which is\
-  \ what X-0843's capture-wide/gate-narrow rule already\nrequires and what this surface\
-  \ alone did not honour. Three bounds:\n  - **The stdout token contract is UNCHANGED**\
-  \ — byte-identical for all three terminals, so a caller\n    already parsing `^WATCH:\
-  \ (WAKE|ALL_TERMINAL|TIMEOUT)\\b` keeps working untouched. This ADDS a\n    durable\
-  \ record BESIDE the token; it replaces nothing.\n  - **Written BEFORE the print,\
-  \ and FAIL-OPEN.** Before, because the record must survive the case\n    where the\
-  \ stdout does not, so it must already exist when the token is spoken. Fail-open,\
-  \ because\n    durability is an addition and never a gate: a broken journal must\
-  \ never swallow the token a\n    caller is blocked on (the sibling posture of rule\
-  \ 6's `consumer_read_evidence` receipt).\n  - **Still §6-safe (rule 1).** It is\
-  \ a journal APPEND — the sanctioned no-worktree capture,\n    through the SAME injected\
-  \ emitter the adoption receipt already uses, never read back by the\n    watcher.\
-  \ It does not REMEMBER: no state crosses invocations, and the loop stays a pure\
-  \ function\n    of current observable state.\nOut of scope, requester-agreed: nothing\
-  \ that verifies a controller ARMED a watcher at all — that is\nharness-shaped. This\
-  \ closes the half / left: those remove the controller's DEPENDENCE\non the watcher\
-  \ for death detection, while a watcher that cannot answer its own question is a\
-  \ loss\neven when nothing died.\n\n### 5c. Per-worker terminality is an OPT-IN exit,\
-  \ never the default\nRule 5's watcher exits on exactly three conditions, and a worker\
-  \ that finishes CLEANLY is none of\nthem: it carries no actionable verdict (rule\
-  \ 2), so under rule 3's no-abandon-siblings guarantee its\ncompletion never ends\
-  \ a multi-task watch. Control is therefore all-at-once. That is CORRECT for the\n\
-  case rule 3 was written for and stays the DEFAULT — but it cannot express an **N-slot\
-  \ refill queue**,\nwhere the operating mode is «start a replacement AS EACH worker\
-  \ lands, not in waves» (owner ask,\n2026-08-29, 7 continuously-running workers).\
-  \ One watcher over the N ids would report only when all N\nfinished, so the only\
-  \ expressible shape was N single-task watchers — one wrapper process per worker,\n\
-  each hand-re-armed after every land.\n\nSo the watcher gains ONE opt-in exit condition\
-  \ (the concrete flag spelling is an interface detail —\nit lives in the verb's `--help`\
-  \ + the watcher cue, not in this rule, per the rule-5a precedent):\nwhen NOT every\
-  \ watched task is terminal but at least one reads a POSITIVE class=TERMINAL(done)\n\
+  \ (<workshop-spec> rule 5 — the rule-4a precedent): rule 2 said WHICH\nverdicts\
+  \ are actionable and was SILENT on WHOSE verdicts a given watcher may act on. The\
+  \ shipped\nwatcher read that silence as «any row in the fleet», so an armed watch\
+  \ woke on workers it was\nnot watching: 7 phantom wakes on 2026-07-11, every one\
+  \ on a synthetic non-watched row while watching\nreal tasks, each burning the batch\
+  \ monitor + a controller turn. No already-covered case's required\nbehaviour changes;\
+  \ this answers a case the rule did not address.\n\n### 5b. The watcher's terminal\
+  \ VERDICT is DURABLE — journal row beside the stdout token\nRule 5's watcher spoke\
+  \ its terminal verdict on STDOUT ALONE: `cmd_dispatch_watch` had exactly ONE\nemit\
+  \ site for it, the final `WATCH: <token> <reason>` print. So a watcher whose WRAPPER\
+  \ OUTPUT was\nlost came back with NO surviving answer to the question it was armed\
+  \ for — reported as <project>\nX-1026, and settled by X-1038 with a same-session\
+  \ controlled comparison: four poll loops armed\nidentically, each PRINTING PER TICK,\
+  \ returned 544 / 3770 / 4014 / 1581 bytes with every line intact\nwhile the watcher\
+  \ returned 22 (the bare exit line). The harness preserves stdout; that watcher never\n\
+  wrote a verdict to preserve. The general property worth keeping: a loop that prints\
+  \ on EVERY tick\ncannot come back mute, because its output exists before any terminal\
+  \ condition — a watcher that\nspeaks only at the END has nothing to preserve if\
+  \ it ends without speaking.\n\nSo on reaching ANY terminal (WAKE / ALL_TERMINAL\
+  \ / TIMEOUT) the watcher ALSO writes ONE\n`watch_verdict_recorded` journal row carrying\
+  \ the token, the reason and the watched task ids, and\nrecovery keys off the JOURNAL\
+  \ — which is what X-0843's capture-wide/gate-narrow rule already\nrequires and what\
+  \ this surface alone did not honour. Three bounds:\n  - **The stdout token contract\
+  \ is UNCHANGED** — byte-identical for all three terminals, so a caller\n    already\
+  \ parsing `^WATCH: (WAKE|ALL_TERMINAL|TIMEOUT)\\b` keeps working untouched. This\
+  \ ADDS a\n    durable record BESIDE the token; it replaces nothing.\n  - **Written\
+  \ BEFORE the print, and FAIL-OPEN.** Before, because the record must survive the\
+  \ case\n    where the stdout does not, so it must already exist when the token is\
+  \ spoken. Fail-open, because\n    durability is an addition and never a gate: a\
+  \ broken journal must never swallow the token a\n    caller is blocked on (the sibling\
+  \ posture of rule 6's `consumer_read_evidence` receipt).\n  - **Still §6-safe (rule\
+  \ 1).** It is a journal APPEND — the sanctioned no-worktree capture,\n    through\
+  \ the SAME injected emitter the adoption receipt already uses, never read back by\
+  \ the\n    watcher. It does not REMEMBER: no state crosses invocations, and the\
+  \ loop stays a pure function\n    of current observable state.\nOut of scope, requester-agreed:\
+  \ nothing that verifies a controller ARMED a watcher at all — that is\nharness-shaped.\
+  \ This closes the half / left: those remove the controller's DEPENDENCE\non the\
+  \ watcher for death detection, while a watcher that cannot answer its own question\
+  \ is a loss\neven when nothing died.\n\n### 5c. Per-worker terminality is an OPT-IN\
+  \ exit, never the default\nRule 5's watcher exits on exactly three conditions, and\
+  \ a worker that finishes CLEANLY is none of\nthem: it carries no actionable verdict\
+  \ (rule 2), so under rule 3's no-abandon-siblings guarantee its\ncompletion never\
+  \ ends a multi-task watch. Control is therefore all-at-once. That is CORRECT for\
+  \ the\ncase rule 3 was written for and stays the DEFAULT — but it cannot express\
+  \ an **N-slot refill queue**,\nwhere the operating mode is «start a replacement\
+  \ AS EACH worker lands, not in waves» (owner ask,\n2026-08-29, 7 continuously-running\
+  \ workers). One watcher over the N ids would report only when all N\nfinished, so\
+  \ the only expressible shape was N single-task watchers — one wrapper process per\
+  \ worker,\neach hand-re-armed after every land.\n\nSo the watcher gains ONE opt-in\
+  \ exit condition (the concrete flag spelling is an interface detail —\nit lives\
+  \ in the verb's `--help` + the watcher cue, not in this rule, per the rule-5a precedent):\n\
+  when NOT every watched task is terminal but at least one reads a POSITIVE class=TERMINAL(done)\n\
   confirmed across the SAME `--watch-confirm-ticks`, the watcher exits with a token\
   \ NAMING that task.\nAn early terminal whose `detail` is recovery-bearing (halt\
   \ / wont-do / blocked_on_land) exits WAKE\ninstead — the per-task echo of rule 3's\
@@ -686,19 +686,19 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ §6-safe (rule 1).** One added exit condition on an existing read-only poll: no\
   \ new verb,\n    no store, no scheduler, no state across invocations. The watcher\
   \ still mutates nothing and never\n    kills / adopts / lands / respawns (CHARTER\
-  \ §6, SPEC-0133 rule 1).\n\n**In-place amend, not a supersede** (SPEC-0005 rule\
-  \ 5 — the rule-4a / 5a precedent, and its\nadditive-extension fork): rules 3 and\
-  \ 5 said what ends an all-at-once watch and were SILENT on a\nfleet whose members\
-  \ must be answered for individually. No already-covered case's required behaviour\n\
-  changes — an unflagged watcher behaves identically to before; this answers a case\
-  \ the rule did not\naddress.\n\n### 5d. A landed PAUSE is not TERMINAL(done) — the\
-  \ card decides\nA task paused awaiting a decision whose pause record LANDED carries\
-  \ a successful land for its\nbranch, and the land reconcile reads any landed branch\
-  \ as TERMINAL(done). So `--dispatch-status`\nread «done» while the card read in-progress/paused,\
-  \ and the watcher — whose per-task terminal proof\nIS that row — exited its rule-5c\
-  \ per-worker token on a task waiting on a decision (<project> X-1563;\nmeasured\
-  \ on this kernel 2026-09-24 paused owner-wait).\n\nSo the `--dispatch-status` row\
-  \ RE-READS a TERMINAL(done) reconcile against the CARD on main — the\nSAME card\
+  \ §6, SPEC-0133 rule 1).\n\n**In-place amend, not a supersede** (<workshop-spec>\
+  \ rule 5 — the rule-4a / 5a precedent, and its\nadditive-extension fork): rules\
+  \ 3 and 5 said what ends an all-at-once watch and were SILENT on a\nfleet whose\
+  \ members must be answered for individually. No already-covered case's required\
+  \ behaviour\nchanges — an unflagged watcher behaves identically to before; this\
+  \ answers a case the rule did not\naddress.\n\n### 5d. A landed PAUSE is not TERMINAL(done)\
+  \ — the card decides\nA task paused awaiting a decision whose pause record LANDED\
+  \ carries a successful land for its\nbranch, and the land reconcile reads any landed\
+  \ branch as TERMINAL(done). So `--dispatch-status`\nread «done» while the card read\
+  \ in-progress/paused, and the watcher — whose per-task terminal proof\nIS that row\
+  \ — exited its rule-5c per-worker token on a task waiting on a decision (<project>\
+  \ X-1563;\nmeasured on this kernel 2026-09-24 paused owner-wait).\n\nSo the `--dispatch-status`\
+  \ row RE-READS a TERMINAL(done) reconcile against the CARD on main — the\nSAME card\
   \ cross-check `--fleet-verdict` already reads for its `pause_detail`, not a second\n\
   reader: a card still `in-progress` AND paused reads `paused(<reason>)`, the reason\
   \ being the one the\ncard records. A `done` card — a genuine closure — keeps TERMINAL(done),\
@@ -717,7 +717,7 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ reading (class TERMINAL + the report-only `pause_detail`), the shared dispatch\
   \ classifier is not changed, and the dispatch in-flight guard keeps its\nsettled-pause\
   \ override. Still §6-safe (rule 1): one more read of a field already on main,\n\
-  no store, no event, no new class token.\n\n**In-place amend, not a supersede** (SPEC-0005\
+  no store, no event, no new class token.\n\n**In-place amend, not a supersede** (<workshop-spec>\
   \ rule 5 — the additive-extension fork, as rule 5c):\nrules 2, 3 and 5c were SILENT\
   \ on a landed pause; a genuinely closed task, a halt, and every other\nalready-covered\
   \ case read exactly as before. This answers a case the rule did not address.\n\n\
@@ -737,13 +737,13 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   \ in-flight membership\ndepends on what was asked, so a scoped read and a fleet-wide\
   \ read agree on every record both emit.\nRule 5a's fail-closed judgement is untouched\
   \ and still the watcher's: the watcher names no task to\nthis reader and keeps reading\
-  \ the whole fleet.\n\n**In-place amend, not a supersede** (SPEC-0005 rule 5 — the\
-  \ rule-4a / 5a precedent): rule 2 said what\na record carries and was SILENT on\
-  \ a caller-named subset. The shipped reader read that silence as\n«ignore the request»,\
-  \ so a one-task question returned twelve unrelated records with no word that the\n\
-  request was not applied (measured 2026-10-05). No already-covered case's required\
-  \ behaviour changes.\n\n### 6. The dispatch-readiness advisor is REPORT-ONLY, and\
-  \ `dispatch` self-serves it in the decision frame\nThe sibling wave-sizing advisor\
+  \ the whole fleet.\n\n**In-place amend, not a supersede** (<workshop-spec> rule\
+  \ 5 — the rule-4a / 5a precedent): rule 2 said what\na record carries and was SILENT\
+  \ on a caller-named subset. The shipped reader read that silence as\n«ignore the\
+  \ request», so a one-task question returned twelve unrelated records with no word\
+  \ that the\nrequest was not applied (measured 2026-10-05). No already-covered case's\
+  \ required behaviour changes.\n\n### 6. The dispatch-readiness advisor is REPORT-ONLY,\
+  \ and `dispatch` self-serves it in the decision frame\nThe sibling wave-sizing advisor\
   \ `journal query --dispatch-readiness` is a pure current-state\nread under rule\
   \ 1 — `headroom` / `live_worker_count` / `recommended_wave_ceiling` / `sole_controller`\
   \ /\n`in_flight_land`. Two bounds are NORMATIVE and neither is optional:\n  - **REPORT-ONLY,\
@@ -864,10 +864,10 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/dispatch.py#_journal_redispatch_state: 20cb7b6ca98e9bdd26cd1ce15fd5bcb7320d857c3a8f4c4eaaef06e082106748
-  bin/lib/dispatch.py#_readiness_advisory_block: 9b41912fdefae4995cfa56e882bb474e99af0883df061b7288929c8b18011274
+  bin/lib/dispatch.py#_readiness_advisory_block: 96b1658f1d999a57882a153a2d761011b21ea58db65e7c2f4c3884e692c98ed9
   bin/lib/dispatch.py#_watch_row_in_scope: 6b2db2d58c6c0b324a807e774049574564e25c9e899725882874e4b1aaa45175
   bin/lib/dispatch.py#_watch_wake_decision: 809242e0063386cb679f42b6d8ea5e1b55613afe7f714117909ac9ae0381b5ab
-  bin/lib/dispatch.py#cmd_dispatch: 60256e48d19800b6716f17704c33fb5a51cde156cf133d56ec60af55e77cdacb
+  bin/lib/dispatch.py#cmd_dispatch: 89677868feb62a8de29252bf5c33c1628a9eb965875861a20743c6d58ecfc56d
   bin/lib/dispatch.py#cmd_dispatch_watch: 4c4124068e600beac01f1afc822e932a50be0d7a87c144f919b4877573f4280f
   bin/lib/journal.py#DISPATCH_CLASS_VOCAB: 451758aa547817399cfd5ea10ee7ebf67b66359326c2402c20ab18f5a68f2f4f
   bin/lib/journal.py#_dispatch_status_landed_pause: ce76f65f58e887e873287dea5132abc4272b3a94c1803258433b3961bb4da060

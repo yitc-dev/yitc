@@ -18,12 +18,12 @@ implements:
 - bin/lib/events.py#_emit_cli_invoked
 amends:
 - SPEC-0050 §8 «Epoch-scoping» — the DERIVATION of the context epoch and the «best-efforts
-  to 0» fail-safe move HERE (a stable-surface split, SPEC-0005 rule 6/7 — the precedent
-  of SPEC-0083 out of SPEC-0036). §8 keeps the stale-epoch refusal; its COMPARE changes
-  from a count to the newest-marker identity the receipt records (rule 6), and it
-  gains a pointer. The split is not editorial — rule 4 below reverses the direction
-  of that fail-safe for a governed verb, which is why it rides a new proposed spec
-  and not an in-place edit.
+  to 0» fail-safe move HERE (a stable-surface split, <workshop-spec> rule 6/7 — the
+  precedent of SPEC-0083 out of SPEC-0036). §8 keeps the stale-epoch refusal; its
+  COMPARE changes from a count to the newest-marker identity the receipt records (rule
+  6), and it gains a pointer. The split is not editorial — rule 4 below reverses the
+  direction of that fail-safe for a governed verb, which is why it rides a new proposed
+  spec and not an in-place edit.
 - SPEC-0007 §5b «already holds» — the last-compaction test of the start-block proof
   uses this spec's marker predicate instead of its own copy of one provider's record
   shape.
@@ -321,7 +321,7 @@ implements_signature:
   bin/lib/cli.py#_context_epoch_reading: 69bcb0dae5e86de343149fd4fc995122d94ced49f04624cb110e18ea71ed03a7
   bin/lib/cli.py#_session_epoch_reading: 7b824ff186def65176e07c9bd657a8d6247d0e41a95fd33a34d0fbff3c4626d6
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
-  bin/lib/events.py#_emit_cli_invoked: 623edbb57a9b533417faa4069b968f28c6dbf66bf6a44b1355292019be59c49b
+  bin/lib/events.py#_emit_cli_invoked: 5d1e4ab8dc407eca56e3c449c39f841271d747ce1e789177fd14b1fec630425f
   bin/lib/gates.py#_receipt_stamp: 16f59f33227b06611ecf98e9d307a45c0e27d208db3b97120c30a9296029de73
   bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
   bin/lib/gates.py#seed_stamp_credits: 22d380afb43a79df24c2d7dd63962d968316ee42f8bc3b3dbac69ef16b275b37

@@ -545,56 +545,57 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ backend layer that\nbakes its deps into an isolated image needs none). This is\
   \ a SUB-rule of the existing `verify.layers[]`\ncontract (gate-specs finding [4]\
   \ — keep `prep` inside `verify.layers[]`, no new section/file/parser),\nauthored\
-  \ as an IN-PLACE amend of this active spec (SPEC-0005 §7 in-place amend / one-home).\
-  \ The kernel\nchecks the declared STANCE + structural SHAPE, never the command's/lockfile's\
-  \ correctness (rule 3).\n\n- **DECLARE — a `prep:` mapping carrying a required non-empty\
-  \ `mode:`** naming the built-in prep mode.\n  The kernel BUILT-IN mode in this slice\
-  \ is **`npm-ci`**: the runner runs the equivalent of `npm ci`\n  INSIDE the worktree,\
-  \ installing the layer's deps from the project LOCKFILE + the declared RUNTIME (a\n\
-  \  CLEAN install from the lockfile — never a mutate-in-place `npm install`). OPTIONAL\
-  \ keys pin the prep\n  inputs when they are not at the repo/layer default (shape-only,\
-  \ never judged for value): `lockfile:`\n  (repo-relative path to the lockfile, e.g.\
-  \ `frontend/package-lock.json`), `manifest:` (the\n  `package.json` path), `package_manager:`\
-  \ (e.g. `npm`), `runtime:` (e.g. `node@20`), and `workdir:`\n  (the sub-directory\
-  \ the install + layer command run in, e.g. `frontend`). OR\n- **WAIVE — a `waiver:`\
-  \ mapping with a non-empty `reason:`** (a LOOSE per-layer-prep waiver — a layer\n\
-  \  that legitimately needs no prep, e.g. a Dockerized backend that bakes deps into\
-  \ its image).\n- A `prep:` carrying BOTH a `mode:` and a `waiver:` is a contradiction\
-  \ → ERROR; a `prep:` carrying\n  NEITHER is an UNANSWERED prep → ERROR (the per-layer\
-  \ fail-closed floor, rule 3). `prep:` ABSENT\n  entirely = the layer prepares nothing\
-  \ (the checked-if-present backward-compat default — NOT an error,\n  distinct from\
-  \ a present-but-empty `prep:`).\n\n**The machine-checkable prep record `verify_layer_prep`\
-  \ (gate-specs finding [5] — the stable contract\nfield name).** When the runner\
-  \ executes a layer's `prep`, it records a **`verify_layer_prep`**\nstate/event carrying:\
-  \ the `layer:` key, the RESOLVED `lockfile_hash:` (the content hash of the lockfile\n\
-  the deps were installed from), the `package_manager:` it used, and the `runtime:`\
-  \ it matched. SPEC-0093\nfixes this record's NAME + fields HERE so the sibling land-runner\
-  \ code card has a stable\ncontract to implement + emit, and the postcheck probe\
-  \ is machine-checkable. No SPEC-0025 events-catalog\nedit is needed — the events\
-  \ catalog is code-derived from emit call-sites, so `verify_layer_prep` enters\n\
-  the catalog when emits it.\n\n**Fail-closed contract (no silent best-effort → no\
-  \ false-green).** If ANY prep input dimension cannot be\nmatched — the manifest,\
-  \ the lockfile, the package-manager, or the declared runtime is\nmissing / un-resolvable\
-  \ / mismatched — the prep FAILS the land (the layer is NOT run best-effort against\n\
-  the wrong deps). Clean-install-from-lockfile + fail-on-mismatch is exactly what\
-  \ covers the 7\nauditor-named failure modes: native-addon rebuilds, platform-specific\
-  \ optional packages, Node-version\ndrift, package-manager drift, postinstall side-effects,\
-  \ stale lockfiles, and tests that mutate\n`node_modules`.\n\n**Deferred NON-scope\
-  \ (named — gate-specs finding [1], later opt-in only).** Two optimizations are\n\
-  EXPLICITLY out of this slice and NOT built pre-emptively (CHARTER §P1 F4 — add only\
-  \ when a real\nland-time-cost incident pulls it): the shared **content-addressed\
-  \ dependency store** (approach D — a\nwarm cache keyed by lockfile hash; needs locking\
-  \ + GC + hash validation) and the **symlink / reuse-the-\nmain-checkout `node_modules`**\
-  \ cache (approach A — cheapest but weakest: false-green under a lockfile /\nruntime\
-  \ / platform / native-addon-ABI mismatch, unsafe under concurrent parallel lands\
-  \ mutating one\nshared tree). Approach A is admissible LATER ONLY as an opt-in cache\
-  \ guarded by an exact lockfile-hash +\nruntime match + read-only discipline + a\
-  \ fall-back to `npm ci` on any mismatch — never the default. The\nslice-1 built-in\
-  \ is the conservative per-worktree `npm ci` (approach C).\n\n**The `timeout:` sub-field\
-  \ — a project DECLARES its land-verify bound (X-0204; a SUB-rule of\n`verify.layers[]`\
-  \ + one OPTIONAL section scalar, not a new section).** `land` bounds every layer\
-  \ command\nby a wall clock (the / SPEC-0071 hang guard — a verify must never hang\
-  \ the gate forever). That\nbound was a GLOBAL default, overridable ONLY by the `YITC_VERIFY_TEST_TIMEOUT`\
+  \ as an IN-PLACE amend of this active spec (<workshop-spec> §7 in-place amend /\
+  \ one-home). The kernel\nchecks the declared STANCE + structural SHAPE, never the\
+  \ command's/lockfile's correctness (rule 3).\n\n- **DECLARE — a `prep:` mapping\
+  \ carrying a required non-empty `mode:`** naming the built-in prep mode.\n  The\
+  \ kernel BUILT-IN mode in this slice is **`npm-ci`**: the runner runs the equivalent\
+  \ of `npm ci`\n  INSIDE the worktree, installing the layer's deps from the project\
+  \ LOCKFILE + the declared RUNTIME (a\n  CLEAN install from the lockfile — never\
+  \ a mutate-in-place `npm install`). OPTIONAL keys pin the prep\n  inputs when they\
+  \ are not at the repo/layer default (shape-only, never judged for value): `lockfile:`\n\
+  \  (repo-relative path to the lockfile, e.g. `frontend/package-lock.json`), `manifest:`\
+  \ (the\n  `package.json` path), `package_manager:` (e.g. `npm`), `runtime:` (e.g.\
+  \ `node@20`), and `workdir:`\n  (the sub-directory the install + layer command run\
+  \ in, e.g. `frontend`). OR\n- **WAIVE — a `waiver:` mapping with a non-empty `reason:`**\
+  \ (a LOOSE per-layer-prep waiver — a layer\n  that legitimately needs no prep, e.g.\
+  \ a Dockerized backend that bakes deps into its image).\n- A `prep:` carrying BOTH\
+  \ a `mode:` and a `waiver:` is a contradiction → ERROR; a `prep:` carrying\n  NEITHER\
+  \ is an UNANSWERED prep → ERROR (the per-layer fail-closed floor, rule 3). `prep:`\
+  \ ABSENT\n  entirely = the layer prepares nothing (the checked-if-present backward-compat\
+  \ default — NOT an error,\n  distinct from a present-but-empty `prep:`).\n\n**The\
+  \ machine-checkable prep record `verify_layer_prep` (gate-specs finding [5] — the\
+  \ stable contract\nfield name).** When the runner executes a layer's `prep`, it\
+  \ records a **`verify_layer_prep`**\nstate/event carrying: the `layer:` key, the\
+  \ RESOLVED `lockfile_hash:` (the content hash of the lockfile\nthe deps were installed\
+  \ from), the `package_manager:` it used, and the `runtime:` it matched. SPEC-0093\n\
+  fixes this record's NAME + fields HERE so the sibling land-runner code card has\
+  \ a stable\ncontract to implement + emit, and the postcheck probe is machine-checkable.\
+  \ No SPEC-0025 events-catalog\nedit is needed — the events catalog is code-derived\
+  \ from emit call-sites, so `verify_layer_prep` enters\nthe catalog when emits it.\n\
+  \n**Fail-closed contract (no silent best-effort → no false-green).** If ANY prep\
+  \ input dimension cannot be\nmatched — the manifest, the lockfile, the package-manager,\
+  \ or the declared runtime is\nmissing / un-resolvable / mismatched — the prep FAILS\
+  \ the land (the layer is NOT run best-effort against\nthe wrong deps). Clean-install-from-lockfile\
+  \ + fail-on-mismatch is exactly what covers the 7\nauditor-named failure modes:\
+  \ native-addon rebuilds, platform-specific optional packages, Node-version\ndrift,\
+  \ package-manager drift, postinstall side-effects, stale lockfiles, and tests that\
+  \ mutate\n`node_modules`.\n\n**Deferred NON-scope (named — gate-specs finding [1],\
+  \ later opt-in only).** Two optimizations are\nEXPLICITLY out of this slice and\
+  \ NOT built pre-emptively (CHARTER §P1 F4 — add only when a real\nland-time-cost\
+  \ incident pulls it): the shared **content-addressed dependency store** (approach\
+  \ D — a\nwarm cache keyed by lockfile hash; needs locking + GC + hash validation)\
+  \ and the **symlink / reuse-the-\nmain-checkout `node_modules`** cache (approach\
+  \ A — cheapest but weakest: false-green under a lockfile /\nruntime / platform /\
+  \ native-addon-ABI mismatch, unsafe under concurrent parallel lands mutating one\n\
+  shared tree). Approach A is admissible LATER ONLY as an opt-in cache guarded by\
+  \ an exact lockfile-hash +\nruntime match + read-only discipline + a fall-back to\
+  \ `npm ci` on any mismatch — never the default. The\nslice-1 built-in is the conservative\
+  \ per-worktree `npm ci` (approach C).\n\n**The `timeout:` sub-field — a project\
+  \ DECLARES its land-verify bound (X-0204; a SUB-rule of\n`verify.layers[]` + one\
+  \ OPTIONAL section scalar, not a new section).** `land` bounds every layer command\n\
+  by a wall clock (the / SPEC-0071 hang guard — a verify must never hang the gate\
+  \ forever). That\nbound was a GLOBAL default, overridable ONLY by the `YITC_VERIFY_TEST_TIMEOUT`\
   \ env var — so a\nconsumer whose verify is legitimately slower (a Docker bring-up\
   \ running ~251s, passing standalone but\nflaky-timing-out under land Docker-load)\
   \ could only be rescued by a REMEMBERED env override on every\nland: undurable,\
@@ -748,10 +749,10 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ default for anything undeclared under kernel derivation, the\nprobe-per-boundary\
   \ requirement, the bounded allowlist for a synchronized shared sink, and the\ndispositions\
   \ — is homed SINGLE-SoT in SPEC-1007; read it via `bin/yitc-v2 graph query SPEC-1007`.**\n\
-  This row is a pointer and restates none of it (SPEC-0005 rule 8 / SPEC-0067 drift-proof\
-  \ mention).\n\n**The `subject_globs:` sub-field — per-layer diff-relevance subject\
-  \ (a SUB-rule of `verify.layers[]`,\nnot a new section).** A DECLARED layer MAY\
-  \ additionally carry an OPTIONAL `subject_globs:` — a\nnon-empty list of non-empty\
+  This row is a pointer and restates none of it (<workshop-spec> rule 8 / SPEC-0067\
+  \ drift-proof mention).\n\n**The `subject_globs:` sub-field — per-layer diff-relevance\
+  \ subject (a SUB-rule of `verify.layers[]`,\nnot a new section).** A DECLARED layer\
+  \ MAY additionally carry an OPTIONAL `subject_globs:` — a\nnon-empty list of non-empty\
   \ repo-relative glob strings claiming EXHAUSTIVELY: \"a change to a path\nmatching\
   \ NO glob here cannot affect this layer's verdict.\" When present, the land RUN\
   \ MAY SKIP that\nlayer for a candidate diff whose every touched path provably matches\
@@ -1237,12 +1238,12 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ READS** — never a kernel-read governance scalar, so this\nspec stays `consumed:\
   \ false`.\n\n## Parameters\n\nAs SPEC-0093: the carrier's values are PER-PROJECT\
   \ ops config (verify-layer commands, coverage\nglobs, startup-check commands) —\
-  \ NEVER kernel-read governance scalars (the SPEC-0005 §Parameters\nnon-whitelist).\
+  \ NEVER kernel-read governance scalars (the <workshop-spec> §Parameters\nnon-whitelist).\
   \ So this spec is `consumed: false`.\n\n## Rationale\n\nA SPEC-0120 §3 aggregate-neutral\
   \ split (SPLIT-never-delete) of SPEC-0093, which reached 979 lines /\n80945 bytes\
   \ — over BOTH the 800-line and 63000-byte one-bounded-read ceilings. The seam is\
-  \ by stable\nSURFACE (SPEC-0005 rule 6): the land-verify / coverage / startup cluster\
-  \ owns 6 of the carrier's 7\n`implements:` anchors (the 7th, `init.py#cmd_init`,\
+  \ by stable\nSURFACE (<workshop-spec> rule 6): the land-verify / coverage / startup\
+  \ cluster owns 6 of the carrier's 7\n`implements:` anchors (the 7th, `init.py#cmd_init`,\
   \ is the generic seed/sweep and stays with the\ncore). Split under — its own card,\
   \ decomposed off because it re-homes rule->code\nanchors, not a plain doc relocation.\n\
   \nThe declared-share load reading of rule 16 was added by on the owner's decision\
@@ -1409,7 +1410,7 @@ implements_signature:
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
   bin/lib/land_verify_legs.py#_root_bin_aware_touch: cee2491a9e6f135d3f3d70c1ba4c2b125d57d7440a18a191d6608e6b66dcc39a
   bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
-  bin/lib/task.py#cmd_task_test: d89d29338b440e22e3813e4f10280348dcc24cd5ab0cbf09fb0a1c91da729444
+  bin/lib/task.py#cmd_task_test: 09629320adfb61e15e548fbdd2c3682b02b0c6a9fe78659c9e0b4c437cd23121
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
   bin/lib/verify_wiring.py#_verify_infrastructure_globs: 24b9da17eacfdc1d6fa4bd2dcfa4dae66744eed2a379c0dfa2233fa8b1389099
   bin/lib/worktree.py#_consumer_zero_probe_guard: 9dd221c3026ed850cc3c7a661391854ca7b29a894d4bc170a71d1a635f8d1fc2

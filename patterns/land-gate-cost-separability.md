@@ -178,7 +178,7 @@ The headline the card was reaching for inverts: an aborted land is overwhelmingl
 
 ## §5 — The three gates the card names
 
-### (a) spec-edit chokepoint (SPEC-0005)
+### (a) spec-edit chokepoint (<workshop-spec>)
 
 Fires at `bin/lib/worktree.py:9083`. It has no `abort_class` of its own, so it is found by reason
 text rather than by class. Two populations, both reported because they differ:

@@ -613,6 +613,31 @@ def cmd_journal_fleet_verdict(args: argparse.Namespace) -> None:
 def cmd_journal_dispatch_readiness(args: argparse.Namespace) -> None:
     return journal.cmd_journal_dispatch_readiness(args=args, DISPATCH_WAVE_WINDOW_SEC=DISPATCH_WAVE_WINDOW_SEC, _cpu_count=os.cpu_count, _load_avg=os.getloadavg, _dispatch_status_events=_dispatch_status_events, _live_land_frontier=_live_land_frontier, _live_claimed_task_ids=_live_claimed_task_ids, _land_proc_alive=_SELF._land_proc_alive, _work_land_proc_alive=_SELF._work_land_proc_alive, _session_proc_alive=_SELF._session_proc_alive, _parse_iso_ts=_parse_iso_ts, _events_path=EVENTS_PATH)
 
+def _proc_cwd_name(pid: int) -> "str | None":
+    """T-14007 — the name of `pid`'s working directory, or None when /proc does not answer."""
+    try:
+        return Path(os.readlink(f"/proc/{int(pid)}/cwd")).name
+    except (OSError, ValueError):
+        return None
+
+
+def cmd_journal_admission(args: argparse.Namespace) -> None:
+    """T-14007 — `journal query --admission`, bound to the readers that already implement each order."""
+    from lib import remote_verify as _rv
+    main = _main_worktree(REPO_ROOT) or REPO_ROOT
+    slot_dir = lambda m: worktree_mod._verify_slot_dir(m, create=False)   # noqa: E731 — the read creates nothing
+    return journal.cmd_journal_admission(
+        args, main_wt=main, events_path=Path(main) / "events.jsonl",
+        stage6_limits=_rv.local_stage6_limits(),
+        _stage6_waiters=lambda j: task_mod._stage6_waiters_ahead(
+            j, {"wait_id": "", "since": "9999-12-31T23:59:59Z", "queue_jump": False}),
+        _land_queue=lambda ep, ages: worktree_mod._land_queue_at_slot_free(ep, None, ages=ages),
+        _queue_jump=worktree_mod._land_queue_jump_reason, _flock_holder=worktree_mod._flock_holder,
+        _slot_dir=slot_dir,
+        _reservation_path=lambda m: worktree_mod._land_reservation_path(m, _verify_slot_dir=slot_dir),
+        _proc_cwd=_proc_cwd_name, _locks_readable=lambda: os.access("/proc/locks", os.R_OK))
+
+
 # SPEC-0136 §2 governance-surface classifier for the dispatch-plan advisor: a change's blast-radius (not
 # its size) sets clash weight (LIFECYCLE §Two-flow-types / T-10058). REUSES the shipped mechanical
 # verifier/pinned-test classifier (_is_verify_implementation_touch, SPEC-0077) for the bin/tests surface
@@ -768,7 +793,7 @@ def _journal_query_task_horizon():
 
 
 def _cmd_journal_query_scoped(args: argparse.Namespace) -> None:
-    return journal.cmd_journal_query(args=args, _task_horizon=_JOURNAL_QUERY_TASK_HORIZON, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, EVENTS_PATH=EVENTS_PATH, cmd_journal_dispatch_status=cmd_journal_dispatch_status, cmd_journal_fleet_verdict=cmd_journal_fleet_verdict, cmd_journal_dispatch_readiness=cmd_journal_dispatch_readiness, cmd_journal_lifecycle_integrity=cmd_journal_lifecycle_integrity, cmd_journal_dispatch_plan=cmd_journal_dispatch_plan, _die=_die, own_receipt_ref=_resolve_session_ref_for_envelope(), _live_task_worktrees=_live_task_worktrees, REPO_ROOT=REPO_ROOT)   # T-12915
+    return journal.cmd_journal_query(args=args, _task_horizon=_JOURNAL_QUERY_TASK_HORIZON, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, EVENTS_PATH=EVENTS_PATH, cmd_journal_dispatch_status=cmd_journal_dispatch_status, cmd_journal_fleet_verdict=cmd_journal_fleet_verdict, cmd_journal_dispatch_readiness=cmd_journal_dispatch_readiness, cmd_journal_lifecycle_integrity=cmd_journal_lifecycle_integrity, cmd_journal_dispatch_plan=cmd_journal_dispatch_plan, cmd_journal_admission=cmd_journal_admission, _die=_die, own_receipt_ref=_resolve_session_ref_for_envelope(), _live_task_worktrees=_live_task_worktrees, REPO_ROOT=REPO_ROOT)   # T-12915
 
 def cmd_journal_redact(args: argparse.Namespace) -> None:
     """T-12779 (SPEC-0163 rule 4c) — the residue wrapper injecting the host-coupled collaborators.
@@ -7444,6 +7469,50 @@ class _LiveHolderLookup:
             if not ref or not _SELF._session_proc_alive(ref):
                 return None
             return ref
+        except Exception:
+            return None
+
+    def resumed_in(self, tid, rel, paused_at):
+        """T-14001 (yitc#133) — the worktree in which a resume CLEARED the pause of `tid` that main's
+        card still carries (`paused_at`), else None. A relaunched worker's resume clears the pause in
+        its task worktree, and that clear reaches main only with its land; once the worker exits
+        before the land, `get` answers None and main's card still reads as an open owner question.
+        Proof, both halves: the worktree's card is in-progress with no `paused_at`, AND the card at
+        the worktree branch's merge-base with this checkout carries this same `paused_at` — the
+        worktree started from the paused card, so the pause was cleared there, not never seen. Same
+        worktree probe as `get` plus two git reads and one card read; no journal read at start.
+        Fail-closed: any step unproven or raising answers None, so the caller prints today's text."""
+        if not tid or not rel or not paused_at:
+            return None
+        key = ("resumed", tid)
+        if key not in self._memo:
+            self._memo[key] = self._probe_resumed(tid, rel, str(paused_at))
+        return self._memo[key]
+
+    def _probe_resumed(self, tid, rel, paused_at) -> "Path | None":
+        try:
+            branch = f"task/{tid}"
+            wt = _worktree_path_for_branch(branch)
+            if wt is None:
+                return None
+            card = Path(wt) / rel
+            if not card.is_file():
+                return None
+            d = _read_yaml(card)
+            if not isinstance(d, dict) or d.get("id") != tid:
+                return None
+            if (d.get("status") or "") != "in-progress" or d.get("paused_at"):
+                return None
+            mb = _run_git_cap(["merge-base", "HEAD", branch], REPO_ROOT)
+            if mb.returncode != 0 or not mb.stdout.strip():
+                return None
+            base = _run_git_cap(["show", f"{mb.stdout.strip()}:{rel}"], REPO_ROOT)
+            if base.returncode != 0:
+                return None
+            b = yaml.safe_load(base.stdout)
+            if not isinstance(b, dict) or str(b.get("paused_at") or "") != paused_at:
+                return None
+            return Path(wt)
         except Exception:
             return None
 
@@ -15074,6 +15143,14 @@ def _stage_read_scope(fn):
     return wrapper
 
 
+def _successor_review_cue(tid: str, spec_id: str, target: str) -> str:
+    """T-14021 — the Analysis-entry cue for the activation owner of a superseding spec. `--kernel`: a
+    -C consumer that owns its own SPEC-1037 still opens the kernel rule (SPEC-0092; a no-op here)."""
+    return (f"cue (activation owner of a superseding spec): {tid} activates {spec_id} (supersedes "
+            f"{target}) — before activation run the successor mention review of SPEC-1037 §7 and record "
+            f"it in this card's Analysis (`yitc-v2 graph query --kernel SPEC-1037`).")
+
+
 @_stage_read_scope
 def cmd_stage(args: argparse.Namespace) -> None:
     """`stage <NAME> --task T-XXXX` (T-0287, AU-3a) — the lifecycle stage-ENTRY verb. Its WORK is
@@ -15202,6 +15279,13 @@ def cmd_stage(args: argparse.Namespace) -> None:
             if _early:
                 print(f"WARN (report-only, T-12863): source edits before audit-pre — {', '.join(_early)}. "
                       f"Execution follows a GREEN `audit pre`; hold further edits until then.")
+        # T-14021 — at Analysis entry, the activation owner of a proposed spec carrying `supersedes:` is
+        # cued to the successor mention review SPEC-1037 §7 assigns it (SPEC-0032 carries the same cue).
+        # Own corpus only, from the read above. Print-only, like its siblings: no gate, no field, no event.
+        if name == "Analysis":
+            _succ = (_bundle_read.get("successor_owners") or {}).get(str(tid))
+            if _succ:
+                print(_successor_review_cue(tid, *_succ))
         if name == "Execution" and _task_is_spec_touching(task):
             print(f"cue (spec-touching task): {spec.SPEC_BODY_EDIT_CUE}")
         # T-13523: at Execution stage-entry for a card that touches the ops carrier, ask about the
@@ -18317,21 +18401,27 @@ def _stage_bundle_corpus(*, include_kernel: bool = False) -> dict:
     degrades exactly where it did: a broken kernel corpus empties only the calls that asked for it.
     `kernel_read` says whether the kernel side was asked for; a call that needs a side this read did
     not make reads for itself rather than answer from a side nobody read."""
-    def _stage_map(paths):
+    def _stage_map(paths, owners=None):
         specs = {}
         for p in paths:
             d = state.load_str(p.read_text(encoding="utf-8")) or {}
             sid = d.get("id")
             if sid:
                 specs[sid] = d
+                # T-14021 — the owner of a proposed successor, collected in this same pass (no second
+                # specs/ scan): `cmd_stage` cues that card's SPEC-1037 §7 mention review at Analysis.
+                if (owners is not None and d.get("status") == "proposed" and d.get("supersedes")
+                        and d.get("activation_owner_task")):
+                    owners[str(d["activation_owner_task"])] = (sid, str(d["supersedes"]))
         if not specs:
             return {}
         _, _, report = _build_binding_views(specs)
         return report.get("stage_to_specs") or {}
 
-    corpus = {"own": None, "kernel": None, "kernel_read": bool(include_kernel)}
+    corpus = {"own": None, "kernel": None, "kernel_read": bool(include_kernel), "successor_owners": {}}
     try:
-        corpus["own"] = _stage_map(list(state.scan_specs(SPECS_DIR)) if SPECS_DIR.is_dir() else [])   # SPEC-* excludes _template.yaml
+        corpus["own"] = _stage_map(list(state.scan_specs(SPECS_DIR)) if SPECS_DIR.is_dir() else [],   # SPEC-* excludes _template.yaml
+                                   owners=corpus["successor_owners"])
     except Exception:
         return corpus
     if include_kernel:
@@ -23237,6 +23327,10 @@ def _load_index_as_of(as_of: str) -> dict:
     return graph._load_index_as_of(as_of, REPO_ROOT=REPO_ROOT, _die=_die, _run_git_cap=_run_git_cap)
 
 
+def _resolve_as_of_sha(as_of: str) -> str:
+    return graph._resolve_as_of_sha(as_of, REPO_ROOT=REPO_ROOT, _die=_die, _run_git_cap=_run_git_cap)
+
+
 _graph_query_projected = graph._graph_query_projected   # T-9249 re-export: pure what-will-be projection
 _task_activating_spec_map = graph._task_activating_spec_map   # T-9249 re-export: pure activation-owner map
 _derived_superseded_by = graph._derived_superseded_by   # T-10400 re-export: pure completed-supersession reverse link
@@ -24631,7 +24725,7 @@ def cmd_graph_query(args: argparse.Namespace) -> None:
     _is_view = bool(_nid) and not getattr(args, "kernel", False) and \
         _kernel_content_file(f"views/{_nid}.yaml").exists()
     with _graph_query_read_scope(declare_journal=_is_view):
-        return graph.cmd_graph_query(args, GRAPH_PATH=GRAPH_PATH, REPO_ROOT=REPO_ROOT, _anchor_file=_anchor_file, _carve_out_selection=_carve_out_selection, _cross_self=_cross_self, _die=_die, _emit_node_list=_emit_node_list, _engine_index=_engine_index, _find_error_yaml=_find_error_yaml, _find_spec_path=_find_spec_path, _graph_query_projected=_graph_query_projected, _graph_query_recurring=_graph_query_recurring, _is_consumer_build=_is_consumer_build, _kernel_content_file=_kernel_content_file, _list_views=_list_views, _load_index_as_of=_load_index_as_of, _node_source_path=_node_source_path, _parse_iso_utc=_parse_iso_utc, _read_yaml=_read_yaml, _report_graft_parse_errors=_report_graft_parse_errors, _run_view=_run_view, _with_live_nodes=_with_live_nodes)
+        return graph.cmd_graph_query(args, GRAPH_PATH=GRAPH_PATH, REPO_ROOT=REPO_ROOT, _anchor_file=_anchor_file, _carve_out_selection=_carve_out_selection, _cross_self=_cross_self, _die=_die, _emit_node_list=_emit_node_list, _engine_index=_engine_index, _find_error_yaml=_find_error_yaml, _find_spec_path=_find_spec_path, _graph_query_projected=_graph_query_projected, _graph_query_recurring=_graph_query_recurring, _is_consumer_build=_is_consumer_build, _kernel_content_file=_kernel_content_file, _list_views=_list_views, _load_index_as_of=_load_index_as_of, _node_source_path=_node_source_path, _parse_iso_utc=_parse_iso_utc, _read_yaml=_read_yaml, _report_graft_parse_errors=_report_graft_parse_errors, _resolve_as_of_sha=_resolve_as_of_sha, _run_git_cap=_run_git_cap, _run_view=_run_view, _with_live_nodes=_with_live_nodes)
 
 
 # ---------------------------------------------------------------------------
@@ -30448,7 +30542,8 @@ def cmd_frontend_errors(args: argparse.Namespace) -> None:
 
 
 def cmd_land(args: argparse.Namespace) -> None:
-    _require_help_read("land")   # T-9786 (X-0158): scan the verb inventory this session first
+    if not _zero_write_view(args):   # T-14008: `land --report` is a zero-write view — no gate row
+        _require_help_read("land")   # T-9786 (X-0158): scan the verb inventory this session first
     # Thin residue → worktree_mod.cmd_land (T-9340 inject seam; host-deps injected at call time).
     out = worktree_mod.cmd_land(args, _die=_die, _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _worktree_path_for_branch=_worktree_path_for_branch, EVENTS_PATH=EVENTS_PATH, LAND_REPEATED_ABORT_THRESHOLD=_land_threshold_in_force("lib.cli.LAND_REPEATED_ABORT_THRESHOLD")["value"], REPO_ROOT=REPO_ROOT, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _LAND_BACKSTOP_ABORT_CLASS=_LAND_BACKSTOP_ABORT_CLASS, _NO_TESTS_MIN_REASON_CHARS=_NO_TESTS_MIN_REASON_CHARS, _NO_TESTS_UNAUTHORIZED_ABORT_CLASS=_NO_TESTS_UNAUTHORIZED_ABORT_CLASS, _append_event=_append_event, _emit_land_abort=_emit_land_abort, _is_yitc_session_state=_is_yitc_session_state, _land_integrate=_land_integrate, _land_repeated_abort_count=_land_repeated_abort_count, _land_terminal_signal=_land_terminal_signal, _read_land_events=_read_land_events, __file__=_ENTRY_FILE, _live_land_frontier=_live_land_frontier, _classify_inert_paths=_classify_inert_paths, _context_seam_tail=_context_seam_tail_line, _scaling_signals_tail=_scaling_signals_lines, _abort_cause_breadth_head=_abort_cause_breadth_head_lines, _land_head_read_scope=_land_head_read_scope, _land_abort_key=_land_abort_key, _read_worktree_stamp=_read_worktree_stamp, _stamp_is_own=_stamp_is_own, _main_events_path=_main_events_path, _capture_reopen_errors_dirt=_capture_reopen_errors_dirt, _is_consumer_build=_is_consumer_build, _foreign_worktree_refusal=_foreign_worktree_refusal, _lifecycle_record_path=_lifecycle_record_path, _at_post_ceiling=_at_post_audit_ceiling, _inland_on_decisions_admission=_inland_on_decisions_admission)  # T-13323: the P0 entry in-land-ceiling arm's two deps — the SAME ceiling reader + rule-3 admission the step-4a in-land re-audit is injected with; T-12786: the P0 wont-do unaudited-ship arm's one added dep — the T-12713 lifecycle-record composition (own bookkeeping + `_BOOKKEEPING_ALLOWLIST`), the SAME predicate `_bookkeeping_commit_authored_paths` reads; T-12594: the rule-11b named refusal; T-11372: the P0 foreign-main-dirt arm's one added dep; T-11718: the P0 rebaseline-authorization arm's one added dep — the globs-BOUND predicate — T-12438: NO LONGER forwarded from here (forwarding a selection-root name is what made the decision REACH this module); `worktree.cmd_land` binds its own to `verify_wiring._VERIFY_IMPLEMENTATION_GLOBS`
     _onboarding_seam_nudge("land")   # SPEC-0147 §5 station I rides this existing seam
@@ -31143,11 +31238,17 @@ def _zero_write_view(args: argparse.Namespace) -> bool:
 
     Third member (T-13388): `init --dry-run`, whose --help promises a preview WITHOUT writing anything
     or emitting any event — the sync's transcript rows and journal-sync-state/ broke that promise. Same
-    function-plus-flag keying; bare `init` keeps its sync."""
+    function-plus-flag keying; bare `init` keeps its sync.
+
+    Fourth member (T-14008): `land --report`, which prints what the land would decide and returns
+    before any lock or write — a queue outside the engine runs it, often against a consumer, and a
+    receipt row or a seed-gate refusal row would be its only write. Bare `land` keeps every gate."""
     func = getattr(args, "func", None)
     return ((func is cmd_nightly and bool(getattr(args, "status", False)))
             or func is cmd_session_pick
-            or (func is cmd_init and bool(getattr(args, "dry_run", False))))
+            or (func is cmd_init and bool(getattr(args, "dry_run", False)))
+            or (func is cmd_land and bool(getattr(args, "report", None))
+                and not getattr(args, "withdraw", False)))
 
 
 # T-12621 — the live deploy lock's fd, parked for the process lifetime (see `main`). A module global

@@ -1962,6 +1962,232 @@ def _merged_tree_oid_anchor_signer(tree: str, main_wt: Path, *, _run_git_cap,
     return _sign
 
 
+# T-14003 (yitc#137 item 1) — the SPEC-ID RE-POINT class. Restating one rule of a spec re-points every
+# reference to it onto its successor; two branches that each re-point a DIFFERENT id on one line write
+# adjacent text and the merge stops (50 hand-resolved merges in 3 days, 582 of 777 files specs).
+_SPEC_REPOINT_CLASS = "spec-repoint"
+_SPEC_REPOINT_ID_RE = re.compile(r"\b(SPEC-\d{4,})\b")
+# The records a re-point reaches: authored text that CITES spec ids. NOT `bin/` or `tests/` (an id in
+# code is a constant or a pin — re-pointing it is authored behaviour), NOT `decisions/` (frozen history
+# and audit verdicts, which record what WAS true). A root-level `.md` (the handbook) is covered.
+_SPEC_REPOINT_DIRS = ("specs", "tasks", "plans", "ideas", "patterns", "lessons", "scenarios")
+_SPEC_REPOINT_SUFFIXES = (".md", ".yaml", ".yml")
+_SPEC_REPOINT_SUPERSEDES_RE = re.compile(r"^[^:]+:specs/(SPEC-\d{4,})[^/:]*\.ya?ml:supersedes:(.*)$")
+_SPEC_REPOINT_OWN_ID_RE = re.compile(r"^specs/(SPEC-\d{4,})[^/]*\.ya?ml$")
+_SPEC_REPOINT_MARKER = 31          # `merge-file --marker-size`: no authored line looks like one
+
+
+def _is_spec_repoint_covered(rel_path: str) -> bool:
+    """T-14003: True iff `rel_path` is a record the re-point class may resolve — an explicit allowlist,
+    fail-closed: anything else stays with the hand."""
+    p = str(rel_path)
+    if not p.endswith(_SPEC_REPOINT_SUFFIXES):
+        return False
+    parts = p.split("/")
+    return (len(parts) == 1 and p.endswith(".md")) or (len(parts) > 1 and parts[0] in _SPEC_REPOINT_DIRS)
+
+
+def _spec_successor_map(refs, W: Path, *, _run_git_cap) -> "dict | None":
+    """T-14003: `{old id: {ids whose `supersedes:` names it}}` over the specs of every ref in `refs`
+    (SPEC-0005 §4 — the lineage is read from the `supersedes:` field, never inferred). None when it
+    cannot be read whole: no ref, a git failure, or a `supersedes:` line naming no id and not null (a
+    block list this reader does not parse) — an unread lineage resolves nothing."""
+    refs = [r for r in refs if r]
+    if not refs:
+        return None
+    succ: dict = {}
+    for ref in refs:
+        try:
+            r = _run_git_cap(["grep", "-E", "^supersedes:", ref, "--", "specs/"], W)
+        except Exception:                    # noqa: BLE001 — an unread lineage resolves nothing
+            return None
+        rc = getattr(r, "returncode", 2)
+        if rc == 1:
+            continue                         # no spec on this ref supersedes anything
+        if rc != 0 or not isinstance(r.stdout, str):
+            return None
+        for line in r.stdout.splitlines():
+            m = _SPEC_REPOINT_SUPERSEDES_RE.match(line)
+            if not m:
+                continue                     # a spec below specs/ — not a top-level record
+            value = m.group(2).split("#", 1)[0].strip()
+            ids = _SPEC_REPOINT_ID_RE.findall(value)
+            if not ids:
+                if value in ("~", "null", "[]", "''", '""'):
+                    continue
+                return None
+            for old in ids:
+                succ.setdefault(old, set()).add(m.group(1))
+    return succ
+
+
+def _spec_successors(succ: dict, old: str) -> "set | None":
+    """T-14003: every id `old` is re-pointable to — its supersession chain, transitively. None when the
+    chain FORKS anywhere (two specs supersede one id: D-0047 B6 forbids it, and which head a reference
+    means is then a judgement, never a merge)."""
+    out, cur = set(), old
+    while cur in succ:
+        nxt = succ[cur]
+        if len(nxt) != 1:
+            return None
+        cur = next(iter(nxt))
+        if cur in out or cur == old:
+            return None                      # a cycle is not a lineage
+        out.add(cur)
+    return out
+
+
+def _merge_spec_repoint_conflict(rel_path: str, W: Path, *, _run_git_cap, _show_stage=None,
+                                 _reason_out=None, _successors=None) -> "str | None":
+    """T-14003: resolve a conflict whose EVERY hunk is two sides re-pointing spec ids onto successors.
+    Returns the merged text, or None when the conflict is not provably of this class — None means "not
+    mine", so the `merge-non-union-conflict` stop still fires (fail-closed: admits, never suppresses).
+
+    PER HUNK, against the base. The hunks come from `git merge-file --diff3` over the three stage blobs
+    — in BOTH modes (the index read, or the probe's `_show_stage`), so land and the probes ask one
+    authority (T-11216); every line outside a hunk is kept as that merge wrote it. Inside a hunk the
+    three sides are split on spec ids: the text between the ids must be byte-identical on all three and
+    the id count equal, else None (any real text change stays with the hand). Per id position the
+    `_three_way` rule: a side that moved an id must have moved it to a successor of the BASE id (the
+    `supersedes:` chain, `_successors`); both sides moving one id DIFFERENTLY is a disagreement → None;
+    the result is the union of both sides' re-points. A forked or unreadable lineage, a spec record
+    re-pointed onto its OWN id, or no hunk at all → None.
+
+    `_reason_out` names the class on a resolution, and on a refusal ONLY when the hunk really is a
+    re-point (an id moved, the text around it did not) — and then never over a reason an earlier
+    resolver already gave: this class runs last and sees every refused path, so a note on a hunk that
+    is not its shape would bury the diagnosis that belongs to the path."""
+    def _note(why: str):
+        if _reason_out is not None:
+            _reason_out.setdefault(rel_path, f"{_SPEC_REPOINT_CLASS}: {why}")
+        return None
+
+    if not _is_spec_repoint_covered(rel_path):
+        return None
+    blobs = []
+    for stage in (2, 1, 3):
+        if _show_stage is not None:
+            blob = _show_stage(stage, rel_path)
+        else:
+            try:
+                r = _run_git_cap(["show", f":{stage}:{rel_path}"], W)
+            except Exception:                # noqa: BLE001 — an unreadable stage proves nothing
+                return None
+            blob = r.stdout if r.returncode == 0 else None
+        if not isinstance(blob, str):
+            return None                      # no 3-way basis (add/add, delete/modify)
+        blobs.append(blob)
+    import tempfile
+    with tempfile.TemporaryDirectory(prefix="yitc-spec-repoint-") as td:
+        names = []
+        for label, blob in zip(("ours", "base", "theirs"), blobs):
+            fp = Path(td) / label
+            with open(fp, "w", encoding="utf-8", newline="") as fh:
+                fh.write(blob)
+            names.append(str(fp))
+        try:
+            r = _run_git_cap(["merge-file", "-p", "--diff3", f"--marker-size={_SPEC_REPOINT_MARKER}",
+                              "-L", "ours", "-L", "base", "-L", "theirs", *names], Path(td))
+        except Exception:                    # noqa: BLE001 — git could not run: nothing is proven
+            return None
+    if not (0 <= getattr(r, "returncode", -1) <= 127) or not isinstance(r.stdout, str):
+        return None
+    succ = None
+    own = _SPEC_REPOINT_OWN_ID_RE.match(rel_path)
+    own_id = own.group(1) if own else None
+    mk = _SPEC_REPOINT_MARKER
+    lines = r.stdout.splitlines(keepends=True)
+    out: list = []
+    hunks = 0
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        if not line.startswith(("<" * mk, "|" * mk, "=" * mk, ">" * mk)):
+            out.append(line)
+            i += 1
+            continue
+        if not line.startswith("<" * mk + " "):
+            return None                      # a stray marker — not a hunk this class can read
+        sides = {"ours": [], "base": [], "theirs": []}
+        cur, j = "ours", i + 1
+        while j < len(lines):
+            body = lines[j]
+            if body.startswith("|" * mk + " ") and cur == "ours":
+                cur = "base"
+            elif body.rstrip("\r\n") == "=" * mk and cur == "base":
+                cur = "theirs"
+            elif body.startswith(">" * mk + " ") and cur == "theirs":
+                break
+            elif body.startswith(("<" * mk, "|" * mk, "=" * mk, ">" * mk)):
+                return None                  # a malformed hunk — not this class
+            else:
+                sides[cur].append(body)
+            j += 1
+        if j == len(lines):
+            return None                      # an unterminated hunk — not this class
+        split = {k: _SPEC_REPOINT_ID_RE.split("".join(v)) for k, v in sides.items()}
+        if not (split["base"][0::2] == split["ours"][0::2] == split["theirs"][0::2]):
+            return None                      # the hunk changes text other than spec ids — not this class
+        merged = list(split["base"])
+        for k in range(1, len(merged), 2):
+            b, o, th = split["base"][k], split["ours"][k], split["theirs"][k]
+            for moved in {o, th} - {b}:
+                if succ is None:             # the lineage, read once and only when an id moved
+                    succ = _successors() if _successors is not None else None
+                    if not isinstance(succ, dict):
+                        return _note(f"conflict hunk at line {i + 1}: the supersedes lineage could not "
+                                     "be read on this merge")
+                chain = _spec_successors(succ, b)
+                if chain is None:
+                    return _note(f"conflict hunk at line {i + 1}: the lineage of {b} forks — "
+                                 "which head is meant is a judgement")
+                if moved not in chain:
+                    return _note(f"conflict hunk at line {i + 1}: {b} -> {moved} is not a re-point "
+                                 "onto a successor")
+            v = _three_way(b, o, th)
+            if v is _CONFLICT:
+                return _note(f"conflict hunk at line {i + 1}: both sides re-point {b} differently "
+                             f"({o} vs {th})")
+            if own_id and v == own_id and b != own_id:
+                return _note(f"conflict hunk at line {i + 1} re-points {b} onto this spec's own id")
+            merged[k] = v
+        out.append("".join(merged))
+        hunks += 1
+        i = j + 1
+    if not hunks:
+        return None                          # git conflicted where merge-file did not — not this class
+    if _reason_out is not None:
+        _reason_out[rel_path] = (f"{_SPEC_REPOINT_CLASS}: resolved — every hunk only re-points spec ids "
+                                 "onto successors; took the union of both sides")
+    return "".join(out)
+
+
+def _spec_successors_for(W: Path, *, _run_git_cap, _show_stage=None, _merged_tree=None):
+    """ONE memoised lineage read per classification (the `_census_regen_for` shape), from the MERGED
+    TREE in BOTH modes, so land and the probes answer from the same lineage (T-11216): a probe passes
+    the `merge-tree` tree it holds; the index mode builds the same tree from the two sides of its
+    in-progress merge (`merge-tree --write-tree HEAD MERGE_HEAD`). An edge one side removed cleanly is
+    gone in both; a conflicted spec carries both sides' `supersedes:` lines in both. No tree → None."""
+    memo: dict = {}
+
+    def _read():
+        if "v" not in memo:
+            tree = _merged_tree
+            if _show_stage is None:
+                try:
+                    r = _run_git_cap(["merge-tree", "--write-tree", "HEAD", "MERGE_HEAD"], W)
+                except Exception:            # noqa: BLE001 — no tree: the lineage stays unread
+                    memo["v"] = None
+                    return None
+                first = (r.stdout or "").splitlines()[:1] if isinstance(r.stdout, str) else []
+                ok = getattr(r, "returncode", 2) in (0, 1) and first and re.fullmatch(r"[0-9a-f]{40,64}",
+                                                                                      first[0].strip())
+                tree = first[0].strip() if ok else None
+            memo["v"] = _spec_successor_map([tree] if tree else [], W, _run_git_cap=_run_git_cap)
+        return memo["v"]
+    return _read
+
+
 def _classify_land_merge_conflicts(unmerged, W: Path, *, _run_git_cap,
                                    _DERIVED_MERGE_ARTIFACTS,
                                    _show_stage=None,
@@ -2000,6 +2226,8 @@ def _classify_land_merge_conflicts(unmerged, W: Path, *, _run_git_cap,
     unresolved: list = []
     _census_regen = _census_regen_for(unmerged, W, _show_stage=_show_stage, _merged_tree=_merged_tree,
                                       _tree_conflicted=_tree_conflicted)
+    _successors = _spec_successors_for(W, _run_git_cap=_run_git_cap, _show_stage=_show_stage,
+                                       _merged_tree=_merged_tree)              # T-14003
     for f in unmerged:
         if f in _DERIVED_MERGE_ARTIFACTS or _is_yitc_session_state(f):
             # derived (step 3 rebuilds it) + take-latest `.yitc/` YAMLs -> landing branch wins.
@@ -2012,9 +2240,10 @@ def _classify_land_merge_conflicts(unmerged, W: Path, *, _run_git_cap,
         # T-12448 adds `_merge_manifest_gen_region_conflict` AFTER the row-append ledger: a manifest
         # conflict confined to its GEN-managed regions, taken ours and regenerated at land step 3.
         # T-13355 adds `_merge_census_conflict`: the generated census, regenerated from the merged tree.
+        # T-14003 adds `_merge_spec_repoint_conflict` LAST: it sees only what the five above refuse.
         for _resolver in (_merge_spec_signature_conflict, _merge_row_append_conflict,
                           _merge_manifest_gen_region_conflict, _merge_census_conflict,
-                          _merge_task_card_conflict):
+                          _merge_task_card_conflict, _merge_spec_repoint_conflict):
             # T-11291: only the signature resolver takes the merged-tree re-derivation seam; the
             # row-append ledger and the task card have no derived values, so their signatures stay
             # untouched (a card field is AUTHORED — there is deliberately nothing to re-derive).
@@ -2023,11 +2252,13 @@ def _classify_land_merge_conflicts(unmerged, W: Path, *, _run_git_cap,
             # T-11907 — the refusal-diagnosis sink, offered only to the resolver that produces one.
             # Report-only: it names the HUNK for the abort text and decides nothing.
             if (_resolver in (_merge_task_card_conflict, _merge_manifest_gen_region_conflict,
-                              _merge_census_conflict)
+                              _merge_census_conflict, _merge_spec_repoint_conflict)
                     and _reasons_out is not None):
                 extra = {"_reason_out": _reasons_out}
             if _resolver is _merge_census_conflict:
                 extra = {**extra, "_census_regen": _census_regen}
+            if _resolver is _merge_spec_repoint_conflict:
+                extra = {**extra, "_successors": _successors}
             merged_text = _resolver(f, W, _run_git_cap=_run_git_cap, _show_stage=_show_stage, **extra)
             if merged_text is not None:
                 resolved[f] = ("text", merged_text)
@@ -2585,6 +2816,12 @@ def _land_preflight_census_lines(*a, **kw):
 def _sync_corpus_integrity_lines(*a, **kw):
     """T-13322 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_sync_corpus_integrity_lines`."""
     return worktree_lifecycle._sync_corpus_integrity_lines(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._sync_mention_review_lines)
+def _sync_mention_review_lines(*a, **kw):
+    """T-14022 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_sync_mention_review_lines`."""
+    return worktree_lifecycle._sync_mention_review_lines(*a, **kw)
 
 
 @functools.wraps(worktree_lifecycle._preflight_blocker_record)
@@ -4285,6 +4522,14 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
     # cwd=worktree is kept belt-and-suspenders.
     target_task = getattr(args, "task", None)
     target_branch = getattr(args, "branch", None)
+
+    # T-14008 — `land --report layers|merge`: a READ-ONLY report of what this land would decide.
+    # ABOVE the `--withdraw` arm (which writes) and, like it, before the worker guard, the re-exec, the
+    # token wrapper and every lock — so it never lands, never prints a `LAND:` token, takes no lock.
+    if getattr(args, "report", None):
+        _land_report_cli(args, target_task, target_branch, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap,
+                         _worktree_path_for_branch=_worktree_path_for_branch, _main_worktree=_main_worktree,
+                         _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS)
 
     # T-12318 (U4 of the T-12243 split) — `land --withdraw`: SHORT-CIRCUIT HERE, and the position is
     # load-bearing in three directions at once. It sits AFTER the target is resolved (the arm needs
@@ -10943,6 +11188,144 @@ def _land_prequeue_merge_refusal(*a, **kw):
     ):
         kw.setdefault(_k, _v)
     return batch_landing._land_prequeue_merge_refusal(*a, **kw)
+
+
+# T-14008 (public issue #120, contract (c)) — the key sets of the two `land --report` objects. A
+# caller outside the engine parses these instead of importing private land functions, so they are
+# a CONTRACT: a key is added only with `schema` raised, and a test pins both tuples.
+LAND_REPORT_KEYS = {
+    "layers": ("base", "branch", "changed_paths", "diff", "edge", "layers", "report", "schema"),
+    "merge": ("branch", "clean", "conflicted_paths", "main", "outcome", "report", "resolved_paths", "schema"),
+}
+LAND_REPORT_LAYER_KEYS = ("layer", "reason", "run")
+
+
+def _land_report_object_isolated(_run_git_cap, objects_dir: str, alternates: str):
+    """T-14008 — `_run_git_cap` with git's object WRITES sent to a throwaway `objects_dir`, the
+    repository's own objects read as an alternate: what `merge-tree --write-tree` stores lands outside
+    the repository, so a report adds no object to it. Every other argument passes through unchanged."""
+    def _run(args, cwd, env=None, input=None):
+        e = {**(os.environ if env is None else env),
+             "GIT_OBJECT_DIRECTORY": objects_dir, "GIT_ALTERNATE_OBJECT_DIRECTORIES": alternates}
+        return _run_git_cap(args, cwd, env=e) if input is None else _run_git_cap(args, cwd, env=e, input=input)
+    return _run
+
+
+def _land_report_cli(args, target_task, target_branch, *, REPO_ROOT, _run_git_cap, _worktree_path_for_branch,
+                     _main_worktree, _DERIVED_MERGE_ARTIFACTS) -> None:
+    """T-14008 — the `land --report` invocation: resolve the target, print ONE JSON object, EXIT.
+    Exit 0 with the object; exit 1 with a stderr line when the target cannot be reported or the
+    invocation also names `--withdraw`. Never
+    returns, never prints a `LAND:` token — `cmd_land` calls it before any lock, write or token."""
+    if getattr(args, "withdraw", False):   # --withdraw WRITES: the two modes never compose
+        print("land --report: refused with --withdraw — a report writes nothing and a withdrawal writes "
+              "a request; run them as two invocations", file=sys.stderr)
+        sys.exit(1)
+    if target_task or target_branch:
+        branch = target_branch or f"task/{target_task}"
+        wt = _worktree_path_for_branch(branch)
+    else:
+        cur = _run_git_cap(["rev-parse", "--abbrev-ref", "HEAD"], REPO_ROOT)
+        branch = (cur.stdout or "").strip() if cur.returncode == 0 else None
+        wt = Path(REPO_ROOT)
+    from lib.cli import _anchor_signature_of_text as _sig, _dedup_events as _dd   # what land injects
+    try:
+        out = land_report_arm(args.report, Path(wt) if wt else None, branch,
+                              _main_worktree(REPO_ROOT) or Path(REPO_ROOT), _run_git_cap=_run_git_cap,
+                              working_tree=bool(getattr(args, "working_tree", False)),
+                              _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dd,
+                              _anchor_signature_of_text=_sig)
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        sys.exit(1)
+    print(json.dumps(out, sort_keys=True))
+    sys.exit(0)
+
+
+def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", main_wt: Path, *,
+                    _run_git_cap, working_tree: bool = False, _DERIVED_MERGE_ARTIFACTS=None,
+                    _dedup_events=None, _anchor_signature_of_text=None) -> dict:
+    """T-14008 — `land --report layers|merge`: what `land` WOULD decide, without landing.
+
+    READ-ONLY by construction: it asks the SAME two functions `land` asks — never a copy — and takes
+    no lock and writes no ref, index, working-tree file, object, journal row or sidecar of the
+    repository. Whatever git must store to answer goes to a throwaway directory removed on return.
+
+    `layers` — the SPEC-0152 rule 16 skip decision, `_subject_scoping_skip_layers`, over the
+    declared `verify.layers` of the branch against the merge-base of its tip with `main` (the base
+    the Stage-6 seam uses, `task._stage6_subject_base`). `worktree` is the branch's checkout; with
+    none (`None`), a committed report reads a throwaway `clone --shared` of the branch, so a branch
+    without a worktree is reported too. `working_tree=True` judges that checkout's working tree as
+    `task test --run` does (and needs the checkout); otherwise the committed branch, the land's
+    reading. The land judges the tree AFTER merging `main`, so the report names the base it read
+    (`base`): a later `main` can change the land's answer, never this one's. Per layer `reason`:
+    `subject-disjoint` (skipped), the edge token that ran every layer (`facts.edge`),
+    `no-subject-globs`, or `subject-intersects`.
+
+    `merge` — `_land_merge_probe(rev(main), branch)`, called exactly as `_land_prequeue_merge_refusal`
+    calls it. `clean` is true for `clean` and `land-resolvable` (every conflict is one land resolves);
+    `conflicted_paths` is the classifier's unresolved set, None when the classifier did not run."""
+    import tempfile
+    if kind == "layers":
+        if worktree is None:
+            if working_tree:
+                raise ValueError("land --report layers --working-tree: no worktree is checked out on "
+                                 f"{branch!r}, so there is no working tree to judge")
+            with tempfile.TemporaryDirectory(prefix="yitc-land-report-") as tmp:
+                clone = Path(tmp) / "branch"
+                main_rev = _git_rev("main", main_wt, _run_git_cap=_run_git_cap)
+                r = _run_git_cap(["clone", "-q", "--shared", "--no-tags", "--branch", str(branch or ""),
+                                  str(main_wt), str(clone)], Path(tmp))
+                if r.returncode != 0:
+                    raise ValueError(f"land --report layers: branch {branch!r} does not resolve "
+                                     f"(no worktree, and it cannot be read: {(r.stderr or '').strip()[:200]})")
+                if main_rev and branch != "main":
+                    _run_git_cap(["update-ref", "refs/heads/main", main_rev], clone)
+                return land_report_arm("layers", clone, branch, main_wt, _run_git_cap=_run_git_cap)
+        from lib import debt as _debt                      # lazy, as the Stage-6 credit check reads it
+        base = None
+        try:
+            mb = _run_git_cap(["merge-base", "HEAD", "main"], worktree)
+            out = (mb.stdout or "").strip() if getattr(mb, "returncode", 1) == 0 else ""
+            base = out if re.fullmatch(r"[0-9a-f]{40,64}", out) else None
+        except Exception:                                   # noqa: BLE001 — no base: every layer runs
+            base = None
+        declared = _debt._declared_verify_layers(Path(worktree) / CONSUMER_OPS_CONTRACT)
+        facts: dict = {}
+        skip = _subject_scoping_skip_layers(Path(worktree), declared, base, _run_git_cap,
+                                            working_tree=working_tree, facts=facts)
+        rows = []
+        for ly in declared:
+            name = str(ly.get("layer") or "").strip()
+            if name in skip:
+                rows.append({"layer": name, "run": False, "reason": "subject-disjoint"})
+            elif facts.get("edge"):
+                rows.append({"layer": name, "run": True, "reason": facts["edge"]})
+            elif not ly.get("subject_globs"):
+                rows.append({"layer": name, "run": True, "reason": "no-subject-globs"})
+            else:
+                rows.append({"layer": name, "run": True, "reason": "subject-intersects"})
+        return {"report": "layers", "schema": 1, "branch": branch, "base": base,
+                "diff": "working-tree" if working_tree else "committed", "edge": facts.get("edge"),
+                "changed_paths": facts.get("paths"), "layers": rows}
+    if kind == "merge":
+        main_rev = _git_rev("main", main_wt, _run_git_cap=_run_git_cap)
+        outcome, detail = "unevaluable", None
+        if main_rev and branch:
+            objs = _run_git_cap(["rev-parse", "--path-format=absolute", "--git-path", "objects"], main_wt)
+            alternates = (objs.stdout or "").strip() if objs.returncode == 0 else ""
+            if alternates:
+                with tempfile.TemporaryDirectory(prefix="yitc-land-report-objects-") as tmp:
+                    outcome, _tree, detail = _land_merge_probe(
+                        main_rev, branch, main_wt,
+                        _run_git_cap=_land_report_object_isolated(_run_git_cap, tmp, alternates),
+                        _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dedup_events,
+                        _anchor_signature_of_text=_anchor_signature_of_text)
+        return {"report": "merge", "schema": 1, "branch": branch, "main": main_rev,
+                "outcome": outcome, "clean": outcome in ("clean", "land-resolvable"),
+                "conflicted_paths": None if detail is None else sorted(detail.get("unresolved") or []),
+                "resolved_paths": None if detail is None else sorted(detail.get("resolved") or [])}
+    raise ValueError(f"land --report: unknown report {kind!r}")
 
 
 @functools.wraps(batch_landing._land_prequeue_uncatalogued_type_refusal)
@@ -18505,7 +18888,7 @@ def _priority_starved(*a, **kw):
     return verify_runner._priority_starved(*a, **kw)
 
 
-def _verify_slot_dir(main_wt: Path) -> Path:
+def _verify_slot_dir(main_wt: Path, create: bool = True) -> Path:
     """The system-temp sidecar dir holding this repo's verify-admission flock slot pool — keyed off
     realpath(main_wt) so every land of the SAME repo shares ONE pool (mirrors `events.journal_lock`'s
     off-tree siding; the slot files themselves are never in the working tree, never committed)."""
@@ -18519,7 +18902,8 @@ def _verify_slot_dir(main_wt: Path) -> Path:
     # one pool. Why that is NARROWER than `events._persistent_lock_root` (T-10755) is single-homed in
     # `events.pre_lever_temp_base`'s own docstring — not restated here.
     d = events.pre_lever_temp_base() / _VERIFY_SLOT_DIRNAME / key
-    d.mkdir(parents=True, exist_ok=True)
+    if create:      # T-14007: `create=False` is the read-only path (`journal query --admission`)
+        d.mkdir(parents=True, exist_ok=True)
     return d
 
 
@@ -19071,7 +19455,8 @@ class _LandWithdrawn(Exception):
 
 
 @contextlib.contextmanager
-def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, pool: "str | None" = None):
+def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, pool: "str | None" = None,
+                      may_take=None):
     """SPEC-0132 Rule 1 — the crash-safe VERIFY-ADMISSION SEMAPHORE (the TRUE cross-land shared bound,
     audit-pre P2-F1). Acquire ONE of `slots` exclusive flock slots (`slot-0..slot-{slots-1}`) for the
     duration of ONE verify phase. Try NON-BLOCKING in slot order 0,1,2,… (concurrent lands PACK onto low
@@ -19100,7 +19485,14 @@ def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, po
     T-13806 — OPTIONAL `pool`: a named sub-pool beside the land pool (`<slot dir>/<pool>/slot-N`), so a
     second class of verify — the LOCAL Stage-6 arm under `YITC_VENUE_STAGE6_MAX_CONCURRENT` — is
     bounded by its own count and never takes, or waits on, a land's slot. `pool=None` (every land
-    caller) → the land pool, byte-identical."""
+    caller) → the land pool, byte-identical.
+
+    T-14006 — OPTIONAL `may_take()`: asked before EVERY acquire attempt AND again once a slot is
+    locked; False means "not my turn" — the attempt is skipped (or the just-locked slot released) as
+    if every slot were held, so the caller's own ORDER decides who takes a freed slot instead of the
+    poll race, including a waiter ranked ahead that arrived between the check and the lock. Meaningful with `on_wait` (the polling path). The bound is
+    unchanged — a slot is still only ever taken by LOCK_NB. `may_take=None` (every land caller) →
+    byte-identical."""
     slots = max(1, int(slots))
     d = _verify_slot_dir(main_wt)
     if pool:
@@ -19108,7 +19500,10 @@ def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, po
         d.mkdir(parents=True, exist_ok=True)
     held = None   # the acquired slot's fd (an int; `None` = not yet acquired)
     _acq_t0 = time.monotonic()   # T-10972: the admission-wait baseline (real clock, both acquire paths)
-    try:
+
+    def _try_slots():
+        if may_take is not None and not may_take():
+            return None
         for i in range(slots):
             # Slot files live in the SYSTEM TEMP dir and are shared across users, so they are opened
             # via the shared flock-target helper (T-10336): non-truncating + no WRITE permission
@@ -19117,10 +19512,23 @@ def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, po
             fd = lockfile.open_flock_target(d / f"slot-{i}")
             try:
                 fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                held = fd
-                break
             except OSError:
                 os.close(fd)   # slot i is taken by a peer land — try the next
+                continue
+            if may_take is not None:
+                try:
+                    mine = may_take()
+                except BaseException:
+                    os.close(fd)   # never leave a locked slot behind an exception of the re-check
+                    raise
+                if not mine:
+                    os.close(fd)   # T-14006: one ranked ahead arrived between the check and the lock
+                    return None
+            return fd
+        return None
+
+    try:
+        held = _try_slots()
         if held is None and on_wait is None:
             # every slot is held → the host is saturated by peers. BLOCK on slot-0 for the next free
             # one (guaranteed progress; total concurrent still bounded by `slots`). BYTE-IDENTICAL path.
@@ -19132,14 +19540,7 @@ def _verify_admission(main_wt: Path, slots: int, on_wait=None, wait_out=None, po
             # within ~_ADMISSION_POLL_SEC; total concurrent still bounded by `slots` (LOCK_NB only).
             _t0 = time.monotonic()
             while held is None:
-                for i in range(slots):
-                    fd = lockfile.open_flock_target(d / f"slot-{i}")
-                    try:
-                        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                        held = fd
-                        break
-                    except OSError:
-                        os.close(fd)
+                held = _try_slots()
                 if held is None:
                     on_wait(time.monotonic() - _t0)
                     time.sleep(_ADMISSION_POLL_SEC)

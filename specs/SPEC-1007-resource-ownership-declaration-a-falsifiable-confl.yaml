@@ -47,38 +47,38 @@ body: "## Scenario\n\nA project that wants its land-verify layers to run concurr
   \ comes from;\n> §Rationale and §Verification gain the change's ground and probes.\
   \ Rules 2, 4 and 5, and rule 7's\n> worked declaration, are carried character-for-character.\n\
   > Routed as a SUPERSEDE, not an in-place amend, because it changes what the contract\
-  \ FORBIDS in an\n> ALREADY-COVERED case (SPEC-0005 rule 7's discriminating probe):\
-  \ a project declaring\n> `independent_layers: [a, b]` with no `owns:` was covered\
-  \ by the predecessor's rules 1 and 3, and\n> refused there.\n\nThe CARRIER SHAPE\
-  \ lines are single-homed in SPEC-0152 rule 16: that `owns:` is an optional sub-field\n\
-  of a `verify.layers[]` entry (with the sibling sub-fields `covers:` / `boundary:`\
-  \ / `subject_globs:`),\nand the NAME, SHAPE and SEMANTICS of the section-level `independent_layers:`.\
-  \ That spec points HERE\nfor the ownership contract and for the standing of `independent_layers:`,\
-  \ and this spec does not\nrestate the carrier's own rules (SPEC-0005 rule 8; SPEC-0093\
-  \ rule 3's stance-and-shape-never-value\ndiscipline governs both fields exactly\
-  \ as it governs their siblings).\nThe TEST-AUTHORING sibling of this contract is\
-  \ **SPEC-0041 §1c** (a mutable resource a test OWNS\ntakes a run-unique name): §1c\
-  \ owns how a TEST IS WRITTEN so that a layer-independence claim can be\ntrue, this\
-  \ spec owns what a PROJECT DECLARES in order to make that claim. The two are one\
-  \ pair read\nfrom two ends — §1c points here for the declaration, this points there\
-  \ for the authoring — and\nneither restates the other's rules.\n\n### 1. A bare\
-  \ independence claim carries no kernel-derived eligibility — and the ONE key a project\
-  \ declares on its own judgement\nA declaration that ASSERTS independence — a boolean,\
-  \ a flag, a named set, or prose to the effect that\nlayers do not conflict — states\
-  \ a conclusion while carrying nothing that could contradict it, so it\nreads identically\
-  \ whether it is true or false. Such a claim is therefore **never EVIDENCE of\nindependence,\
-  \ and the kernel DERIVES no concurrency eligibility from it**; offered as proof\
-  \ it is a\n**false attestation**. Concretely RETIRED-IN-ROLE by this rule:\n  -\
-  \ an `independent: true`-shaped per-layer or section-level key. It is refused by\
-  \ name, and the\n    narrowing-to-a-boolean direction is not a future extension\
-  \ of this contract;\n  - the standing of **ports, compose-project names and databases\
-  \ as \"the evidence for independence\"**.\n    Those three are DEMOTED to what they\
-  \ are: examples falling inside two of the seven classes of\n    rule 2 (`services`,\
-  \ `processes`). They remain perfectly good declarations; what they cease to be is\n\
-  \    a sufficient answer, because a layer pair may differ on all three and still\
-  \ both rewrite one build\n    cache, one coverage file, one generated artifact or\
-  \ one temporary path.\nKernel-derived eligibility is **DERIVED from declared ownership,\
-  \ never asserted**.\n\n**THE ONE NAMED EXCEPTION — `verify.independent_layers:`\
+  \ FORBIDS in an\n> ALREADY-COVERED case (<workshop-spec> rule 7's discriminating\
+  \ probe): a project declaring\n> `independent_layers: [a, b]` with no `owns:` was\
+  \ covered by the predecessor's rules 1 and 3, and\n> refused there.\n\nThe CARRIER\
+  \ SHAPE lines are single-homed in SPEC-0152 rule 16: that `owns:` is an optional\
+  \ sub-field\nof a `verify.layers[]` entry (with the sibling sub-fields `covers:`\
+  \ / `boundary:` / `subject_globs:`),\nand the NAME, SHAPE and SEMANTICS of the section-level\
+  \ `independent_layers:`. That spec points HERE\nfor the ownership contract and for\
+  \ the standing of `independent_layers:`, and this spec does not\nrestate the carrier's\
+  \ own rules (<workshop-spec> rule 8; SPEC-0093 rule 3's stance-and-shape-never-value\n\
+  discipline governs both fields exactly as it governs their siblings).\nThe TEST-AUTHORING\
+  \ sibling of this contract is **SPEC-0041 §1c** (a mutable resource a test OWNS\n\
+  takes a run-unique name): §1c owns how a TEST IS WRITTEN so that a layer-independence\
+  \ claim can be\ntrue, this spec owns what a PROJECT DECLARES in order to make that\
+  \ claim. The two are one pair read\nfrom two ends — §1c points here for the declaration,\
+  \ this points there for the authoring — and\nneither restates the other's rules.\n\
+  \n### 1. A bare independence claim carries no kernel-derived eligibility — and the\
+  \ ONE key a project declares on its own judgement\nA declaration that ASSERTS independence\
+  \ — a boolean, a flag, a named set, or prose to the effect that\nlayers do not conflict\
+  \ — states a conclusion while carrying nothing that could contradict it, so it\n\
+  reads identically whether it is true or false. Such a claim is therefore **never\
+  \ EVIDENCE of\nindependence, and the kernel DERIVES no concurrency eligibility from\
+  \ it**; offered as proof it is a\n**false attestation**. Concretely RETIRED-IN-ROLE\
+  \ by this rule:\n  - an `independent: true`-shaped per-layer or section-level key.\
+  \ It is refused by name, and the\n    narrowing-to-a-boolean direction is not a\
+  \ future extension of this contract;\n  - the standing of **ports, compose-project\
+  \ names and databases as \"the evidence for independence\"**.\n    Those three are\
+  \ DEMOTED to what they are: examples falling inside two of the seven classes of\n\
+  \    rule 2 (`services`, `processes`). They remain perfectly good declarations;\
+  \ what they cease to be is\n    a sufficient answer, because a layer pair may differ\
+  \ on all three and still both rewrite one build\n    cache, one coverage file, one\
+  \ generated artifact or one temporary path.\nKernel-derived eligibility is **DERIVED\
+  \ from declared ownership, never asserted**.\n\n**THE ONE NAMED EXCEPTION — `verify.independent_layers:`\
   \ IS ADMISSIBLE AS THE PROJECT'S OWN DECLARED\nRISK JUDGEMENT.** The section-level\
   \ `verify.independent_layers:` list (its name, shape and semantics\nare SPEC-0152\
   \ rule 16's) is the ONE key by which a project states the conclusion directly, and\
@@ -100,23 +100,23 @@ body: "## Scenario\n\nA project that wants its land-verify layers to run concurr
   its content neither admit nor refuse a layer named in `independent_layers:`.\nThe\
   \ exception is CLOSED at this one key. No other assertion carrier is admitted, the\n\
   `independent: true` boolean stays refused, and admitting a second key is a normative\
-  \ reshape of this\nrule (SPEC-0005 rule 7 supersede), never a local carrier extension.\n\
-  \n### 2. The declaration — `owns:`, over seven resource classes\nA `verify.layers[]`\
-  \ entry MAY carry an OPTIONAL `owns:` mapping. Its keys are drawn from exactly these\n\
-  **seven resource classes**, which are the CLOSED set this contract addresses:\n\n\
-  | class | what it covers |\n|---|---|\n| `mutable_files` | any path in the tree\
-  \ or on the host this layer WRITES (build outputs, generated artifacts, coverage\
-  \ files, fixtures, lockfiles) |\n| `caches` | any store kept ACROSS runs to make\
-  \ a later run cheaper (package caches, build caches, image layers, compiled-artifact\
-  \ dirs) |\n| `temp_paths` | any scratch location created for the run (`/tmp` entries,\
-  \ scratch dirs, mount points, download staging) |\n| `services` | anything reached\
-  \ over an address (host ports, containers, databases, message brokers, HTTP endpoints,\
-  \ external APIs) |\n| `locks` | any mutual-exclusion primitive (lockfiles, flocks,\
-  \ advisory DB locks, semaphores, named mutexes) |\n| `processes` | process- and\
-  \ container-namespace identity (compose project names, container names, process\
-  \ groups, PID-keyed identifiers) |\n| `shared_sinks` | any destination MORE THAN\
-  \ ONE writer appends to by design (the journal, an aggregated report, a metrics\
-  \ endpoint, a shared log) |\n\nEach class holds a LIST of **boundary entries**.\
+  \ reshape of this\nrule (<workshop-spec> rule 7 supersede), never a local carrier\
+  \ extension.\n\n### 2. The declaration — `owns:`, over seven resource classes\n\
+  A `verify.layers[]` entry MAY carry an OPTIONAL `owns:` mapping. Its keys are drawn\
+  \ from exactly these\n**seven resource classes**, which are the CLOSED set this\
+  \ contract addresses:\n\n| class | what it covers |\n|---|---|\n| `mutable_files`\
+  \ | any path in the tree or on the host this layer WRITES (build outputs, generated\
+  \ artifacts, coverage files, fixtures, lockfiles) |\n| `caches` | any store kept\
+  \ ACROSS runs to make a later run cheaper (package caches, build caches, image layers,\
+  \ compiled-artifact dirs) |\n| `temp_paths` | any scratch location created for the\
+  \ run (`/tmp` entries, scratch dirs, mount points, download staging) |\n| `services`\
+  \ | anything reached over an address (host ports, containers, databases, message\
+  \ brokers, HTTP endpoints, external APIs) |\n| `locks` | any mutual-exclusion primitive\
+  \ (lockfiles, flocks, advisory DB locks, semaphores, named mutexes) |\n| `processes`\
+  \ | process- and container-namespace identity (compose project names, container\
+  \ names, process groups, PID-keyed identifiers) |\n| `shared_sinks` | any destination\
+  \ MORE THAN ONE writer appends to by design (the journal, an aggregated report,\
+  \ a metrics endpoint, a shared log) |\n\nEach class holds a LIST of **boundary entries**.\
   \ A boundary entry is a mapping:\n\n    owns:\n      <class>:\n      - domain: <the\
   \ conflict domain this layer owns> # required, non-empty\n        mode: exclusive\
   \ | shared-synchronized | serial # required (rule 6)\n        probe: <the check\
@@ -144,7 +144,7 @@ body: "## Scenario\n\nA project that wants its land-verify layers to run concurr
   \ for this shape.\n\n**Every class is addressable, and the seven are the closed\
   \ set.** A resource that does not fall in any\nof the seven classes is by rule 3\
   \ undeclared, and therefore refused — it never falls through as\npermitted. Adding\
-  \ an eighth class is a normative reshape of this rule (SPEC-0005 rule 7 supersede),\n\
+  \ an eighth class is a normative reshape of this rule (<workshop-spec> rule 7 supersede),\n\
   never a local carrier extension.\n\n### 3. Fail-closed default — undeclared means\
   \ REFUSED, never permitted\n**For KERNEL-DERIVED admission, the default for an undeclared\
   \ resource is refusal, not permission.**\nEach of the following makes a layer INELIGIBLE\

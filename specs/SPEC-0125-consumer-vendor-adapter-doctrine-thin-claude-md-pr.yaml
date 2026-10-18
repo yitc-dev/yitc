@@ -133,21 +133,22 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ Real\ntrigger: the `over-scoped-deploy-rule-into-consumer-the AI provider-md`\
   \ incident (<project>).\nDeliberation, the rejected shapes, and the ratification\
   \ act live in the proposing plan\n`consumer-the AI provider-md-provider-divergence-doctrine-ne`\
-  \ (SPEC-0005 rule 3 content-boundary).\n\n### History moved from the rule body\n\
-  \nEach entry is a passage moved word for word out of the rule text of the section\
-  \ it names;\nthe rule it explains stays there.\n\n- From «Rule 2»: (origin incident:\
-  \ the <project> `## Deploy` over-scope, reverted)\n\n## Verification\n\n- VP1 (Rule\
-  \ 2 — thin adapter): a consumer `<vendor-adapter>.md` contains ONLY adapter content\
-  \ (engine path +\n  `-C` verb form + neutral-home pointer) — grep shows NO product-rule\
-  \ / methodology / deploy section.\n- VP2 (Rule 1 — neutral home): the consumer's\
-  \ substantive operating-context is present in the ONE\n  declared neutral home (product\
-  \ `CHARTER.md`, else project `AGENTS.md`; `README.md` is NOT a home).\n- VP3 (Rule\
-  \ 3 — born thin): a temp `-C init` into a throwaway dir produces a thin vendor `<vendor-adapter>.md`\n\
-  \  (this plan's probe) — adapter-only, no product/methodology/deploy sections (grep-checked).\n\
-  - VP4 (runbook lockstep): `patterns/onboarding-onto-yitc-runbook.md` no longer prescribes\
-  \ a\n  `## Product rules (KEEP inside <vendor-adapter>.md)` section — grep is clean.\n\
-  - VP5 (activation): this spec resolves to exactly one `activation_owner_task`; closing\
-  \ it flips\n  draft/proposed → active.\n"
+  \ (<workshop-spec> rule 3 content-boundary).\n\n### History moved from the rule\
+  \ body\n\nEach entry is a passage moved word for word out of the rule text of the\
+  \ section it names;\nthe rule it explains stays there.\n\n- From «Rule 2»: (origin\
+  \ incident: the <project> `## Deploy` over-scope, reverted)\n\n## Verification\n\
+  \n- VP1 (Rule 2 — thin adapter): a consumer `<vendor-adapter>.md` contains ONLY\
+  \ adapter content (engine path +\n  `-C` verb form + neutral-home pointer) — grep\
+  \ shows NO product-rule / methodology / deploy section.\n- VP2 (Rule 1 — neutral\
+  \ home): the consumer's substantive operating-context is present in the ONE\n  declared\
+  \ neutral home (product `CHARTER.md`, else project `AGENTS.md`; `README.md` is NOT\
+  \ a home).\n- VP3 (Rule 3 — born thin): a temp `-C init` into a throwaway dir produces\
+  \ a thin vendor `<vendor-adapter>.md`\n  (this plan's probe) — adapter-only, no\
+  \ product/methodology/deploy sections (grep-checked).\n- VP4 (runbook lockstep):\
+  \ `patterns/onboarding-onto-yitc-runbook.md` no longer prescribes a\n  `## Product\
+  \ rules (KEEP inside <vendor-adapter>.md)` section — grep is clean.\n- VP5 (activation):\
+  \ this spec resolves to exactly one `activation_owner_task`; closing it flips\n\
+  \  draft/proposed → active.\n"
 cites:
 - X-0163
 - SPEC-0073

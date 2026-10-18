@@ -125,7 +125,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ tied it. It rules on WHETHER the refs are\nspelled, never on whether the disposition\
   \ they name is GOOD. No new verb, event type, status or\nstore; NOTHING from the\
   \ shared store is folded into `events.jsonl`. Additive to §Probe verification\n\
-  (SPEC-0005 rule 7).\n\n**Fail-closed, at the close gate.** `task close` REFUSES\
+  (<workshop-spec> rule 7).\n\n**Fail-closed, at the close gate.** `task close` REFUSES\
   \ a card that meets the trigger and whose\n`evidence:` is absent/empty, or is present\
   \ but names no store row. Dormant for every other card.\n\n**THE AUTHORING ROUTE\
   \ — `task update --evidence`.** `bin/yitc-v2 task update T-XXXX\n--evidence X-NNNN\
@@ -283,9 +283,9 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   (many rows share a second). That shape is refused BY NAME, and the diagnostic names\
   \ the accepted\nforms.\n\nThe AUTHOR-FACING RENDER of the accepted forms — each\
   \ with an example — is homed in the CODE beside\nthe predicate that enforces it,\
-  \ not restated here (SPEC-0005 §3: concrete spellings live in the code\nand its\
-  \ tests, this body carries the rule). ONE constant is consumed verbatim by the `task\
-  \ close`\nE-0005 WARN, the Execution/Closure stage cue and the SPEC-0119 rule-31\
+  \ not restated here (<workshop-spec> §3: concrete spellings live in the code\nand\
+  \ its tests, this body carries the rule). ONE constant is consumed verbatim by the\
+  \ `task close`\nE-0005 WARN, the Execution/Closure stage cue and the SPEC-0119 rule-31\
   \ debt remedy, so no surface\ncan spell the grammar differently from the resolver\
   \ that enforces it.\n\n**A reference may name a row in a REGISTERED CONSUMER's journal\
   \ — the `<project>:<form>`\nspelling.** An engine mechanism whose only production\
@@ -321,25 +321,25 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   Those two spellings are the ONLY concrete forms this body states, and they are not\
   \ a second grammar:\neach is a verbatim substring of the one author-facing constant\
   \ the code homes and every surface\nconsumes, pinned that way by a test. The FULL\
-  \ rendered list stays in that constant (SPEC-0005 §3).\n\nIt resolves only when\
-  \ that row is a REAL POST-SHIP reading: the land SUCCEEDED, ran on a branch OTHER\n\
-  than the citing task's own AND LATER than that task's own last successful land,\
-  \ and (a) the named\npath matches the VERIFY RUNNER'S OWN discovery rule, the flat\
-  \ `tests/test_*.py` glob; (b) that file\nEXISTS AT THE CITED ROW'S LANDED REVISION;\
-  \ and (c) the row is a FULL, FAIL-CLOSED RUN — it carries a\n`verify_mode` saying\
-  \ the verify actually ran and was not the policy-off leg, it carries NO\n`verify_metrics.selection_ran_tests`\
-  \ (checked INDEPENDENTLY of the counts, and REFUSING whatever they\nsay), and its\
-  \ `verify_metrics.test_file_count` EQUALS the number of `tests/test_*.py` files\n\
-  discoverable at that same revision. A SELECTED or partial run, a narrowed-run marker,\
-  \ a count\nmismatch, a missing `verify_mode`/`test_file_count`, or an unresolvable\
-  \ sha resolves NOTHING, and the\nreader says which of these failed. A citing task\
-  \ with no landed ship of its own resolves nothing.\n\nHONEST BOUND: it proves the\
-  \ gate FILE ran inside a\nverify that passed, never that one assertion inside it\
-  \ did — close checks the claim is CHECKABLE,\naudit-post checks it is TRUE.\n\n\
-  #### The CONSUMER arm — a mechanism that emits no journal line at all (X-0730)\n\
-  Consumer PRODUCT code emits IN-PROCESS events to a listener, observed by its test\
-  \ run, never a yitc\njournal line — so the event carrier is unsatisfiable by construction\
-  \ for a consumer product task\n(`lessons/kernel-consumer-boundary-evidence.md`;\
+  \ rendered list stays in that constant (<workshop-spec> §3).\n\nIt resolves only\
+  \ when that row is a REAL POST-SHIP reading: the land SUCCEEDED, ran on a branch\
+  \ OTHER\nthan the citing task's own AND LATER than that task's own last successful\
+  \ land, and (a) the named\npath matches the VERIFY RUNNER'S OWN discovery rule,\
+  \ the flat `tests/test_*.py` glob; (b) that file\nEXISTS AT THE CITED ROW'S LANDED\
+  \ REVISION; and (c) the row is a FULL, FAIL-CLOSED RUN — it carries a\n`verify_mode`\
+  \ saying the verify actually ran and was not the policy-off leg, it carries NO\n\
+  `verify_metrics.selection_ran_tests` (checked INDEPENDENTLY of the counts, and REFUSING\
+  \ whatever they\nsay), and its `verify_metrics.test_file_count` EQUALS the number\
+  \ of `tests/test_*.py` files\ndiscoverable at that same revision. A SELECTED or\
+  \ partial run, a narrowed-run marker, a count\nmismatch, a missing `verify_mode`/`test_file_count`,\
+  \ or an unresolvable sha resolves NOTHING, and the\nreader says which of these failed.\
+  \ A citing task with no landed ship of its own resolves nothing.\n\nHONEST BOUND:\
+  \ it proves the gate FILE ran inside a\nverify that passed, never that one assertion\
+  \ inside it did — close checks the claim is CHECKABLE,\naudit-post checks it is\
+  \ TRUE.\n\n#### The CONSUMER arm — a mechanism that emits no journal line at all\
+  \ (X-0730)\nConsumer PRODUCT code emits IN-PROCESS events to a listener, observed\
+  \ by its test run, never a yitc\njournal line — so the event carrier is unsatisfiable\
+  \ by construction for a consumer product task\n(`lessons/kernel-consumer-boundary-evidence.md`;\
   \ the `_is_consumer_build` branch). The same holds\non the KERNEL for a narrower\
   \ class: a report-only STDOUT view, or a reading whose carrier is a\ncommitted artifact\
   \ (SPEC-0119 rule 31 records the class from the debt view's side).\n\nON THE KERNEL\
@@ -360,8 +360,8 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ mandatory,\nand the demand for a resolvable machine reference stays. It is NOT\
   \ a re-admission of `tests_passed`\n(an aggregate earned alike by every task); this\
   \ names ONE node asserting the mechanism's OWN\nemission. The concrete ref spelling\
-  \ lives in the code + its tests (SPEC-0005 §3).\n\n**What this blocklist does NOT\
-  \ reach — an AC's NAMED VERIFIER.** It governs ONE slot — what\nmay appear inside\
+  \ lives in the code + its tests (<workshop-spec> §3).\n\n**What this blocklist does\
+  \ NOT reach — an AC's NAMED VERIFIER.** It governs ONE slot — what\nmay appear inside\
   \ a P8 event's evidence payload — never the executable test SPEC-0060 §4 asks each\
   \ AC\nto name, which stays entirely legitimate. A criterion WRITTEN to demand that\
   \ its own P8 payload cite\nits own test run is unsatisfiable by construction; the\
@@ -378,7 +378,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ WARN, so the WARN can never again be the FIRST surface to name the\nkeys, and\
   \ the two surfaces cannot drift apart. This is a DELIVERY-point rule (print-only,\
   \ on an\nexisting verb — no gate, no detector, no new field); the concrete key spelling\
-  \ stays in the code +\nits tests (SPEC-0005 §3).\n\n### Event-based P8 adoption\
+  \ stays in the code +\nits tests (<workshop-spec> §3).\n\n### Event-based P8 adoption\
   \ evidence: emit during Execution, BEFORE the first audit-post (E-0008 sub-cause\
   \ 2)\nWhen the P8 carrier is an EVENT (`consumer_read_evidence` / `live_trigger_evidence`)\
   \ rather than a\nprobe/state-check, emit that event DURING Execution (Stage 5) —\
@@ -459,7 +459,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ PRE-EXISTING, UNCHANGED\nlayer row on its own land is still refused. A BARE land-record\
   \ reference (and one that pins a land\nbut names no layer) stays REFUSED, here and\
   \ everywhere; the layer-scoped form is the ONE sanctioned\nexception. The reference\
-  \ spelling and the rewire-verdict row field live in the code + its tests\n(SPEC-0005\
+  \ spelling and the rewire-verdict row field live in the code + its tests\n(<workshop-spec>\
   \ §3).\n\n**ORDERING.** The row is LAND-emitted, so the ship's own pre-land close\
   \ legitimately still WARNs; the\ncarrier is read at a POST-land seam (the post-land\
   \ P8 emit, and any later recovery / re-close / audit\nread). It does not manufacture\
@@ -485,15 +485,15 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ outcome); naming the check ties the record to the mechanism.\n\n**The sibling\
   \ refusal is NOT re-opened.** A bare verify-refusal record carrying no named check\
   \ stays\nREFUSED, as does a BARE land-record reference; the spelling lives in the\
-  \ code + its tests (SPEC-0005\n§3). The record is LAND-emitted, so it is read at\
-  \ a POST-land seam.\n\n### Work-first spec-activating (bootstrap) tasks: two-layer\
+  \ code + its tests (<workshop-spec>\n§3). The record is LAND-emitted, so it is read\
+  \ at a POST-land seam.\n\n### Work-first spec-activating (bootstrap) tasks: two-layer\
   \ acceptance + the no-self-blocked-consumer topology rule\nA WORK-FIRST spec-activating\
   \ task (its own `activation_owner_task` — `task close` is the SOLE writer of\nits\
-  \ spec's `proposed → active` flip, GRAPH §Spec-lifecycle / SPEC-0005 rule 5) has\
-  \ acceptance that\nsplits across TWO lifecycle layers, verified at DIFFERENT stages:\n\
-  \  - **Layer 1 — pre-close deliverables** (the spec body / wiring / the diff): verified\
-  \ by Stage-4\n    audit-pre + Stage-8 audit-post, like any substantive ship.\n \
-  \ - **Layer 2 — post-close activation / adoption** (the spec reaching `active`;\
+  \ spec's `proposed → active` flip, GRAPH §Spec-lifecycle / <workshop-spec> rule\
+  \ 5) has acceptance that\nsplits across TWO lifecycle layers, verified at DIFFERENT\
+  \ stages:\n  - **Layer 1 — pre-close deliverables** (the spec body / wiring / the\
+  \ diff): verified by Stage-4\n    audit-pre + Stage-8 audit-post, like any substantive\
+  \ ship.\n  - **Layer 2 — post-close activation / adoption** (the spec reaching `active`;\
   \ the CHARTER §P3/§P8\n    adoption probe): verified AT closure as a Stage-9 probe,\
   \ because `task close` ITSELF performs the\n    activation. **At that write, `task\
   \ close` reports (ACTIONABLE non-blocking WARN + honest-only\n    `dangling_activated_specs`\
@@ -501,32 +501,32 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ conformance predicate would flag as dangling/unknown-bound, naming the `spec edit\
   \ <SPEC>`\n    remedy.** Refreshing that spec's `binding:` via `spec edit` BEFORE\
   \ `land` is the\n    ACCEPTED recovery for a binding not declared on the proposed\
-  \ head before audit-post (SPEC-0005 §7)\n    — NOT a defect; `task close` neither\n\
-  \    auto-writes the token nor gates closure on it (SPEC-0005 §7 / CHARTER non-goal\
-  \ #7).\nSo **audit-pre / audit-post MUST NOT RED-flag a spec merely because it is\
-  \ not yet active** — its\nactivation is structurally Stage-9 work that FOLLOWS Stage-8.\
-  \ A missing or invalid `binding:` on the\nproposed head IS an audit target (SPEC-0005\
-  \ §7: the declaration precedes audit-post), so audit-post MAY\nflag it; only the\
-  \ not-yet-happened activation itself is off-limits (the event-emit-only category\
-  \ mismatch,\n`patterns/event-emit-only-audit-post.md`). The auditor evaluates Layer\
-  \ 1; the Layer-2 activation probe\nis a closure check, not an audit target.\n\n\
-  **No-AC-on-self-blocked-consumer (topology).** An adoption / AC probe MUST NOT depend\
-  \ on a downstream\nconsumer that THIS SAME task hard-blocks (the consumer's `requires:`\
-  \ includes this task) — that is\nCIRCULAR: the consumer cannot run until this task\
-  \ closes, yet this task cannot close until the\nconsumer demonstrates adoption.\
-  \ Instead EITHER (a) file a SEPARATE, independently CLAIMABLE probe\ntask (not `requires:`-ed\
-  \ on this one), OR (b) rely on the CHARTER §P8 inaugural-codification exemption\n\
-  + the FIRST real downstream claim as `live_trigger_evidence`. (ACs are authored\
-  \ by ONE provable claim\nper accept-unit — homed in <workshop-spec> §A; this clause\
-  \ adds only the topology constraint.)\n\n### Crash-atomic ordering\nThe Layer-2\
-  \ `proposed → active` activation write runs AFTER the durable `status: done` write,\
-  \ NOT\nbefore it. The close is therefore a single atomic\noutcome: a crash ANYWHERE\
-  \ before the done-write leaves NOTHING flipped (specs stay `proposed`, the\ntask\
-  \ stays `in-progress` — a clean idempotent re-run); a crash BETWEEN the done-write\
-  \ and the\nactivation leaves a `done` task with un/partly-activated specs, healed\
-  \ idempotently by\n`_recover_close_tail` re-running the activation on the next `task\
-  \ close` (its `status==proposed` scan\nflips only what is still proposed).\n\n>\
-  \ **This body CONTINUES in `SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.part2.yaml`**\n\
+  \ head before audit-post (<workshop-spec> §7)\n    — NOT a defect; `task close`\
+  \ neither\n    auto-writes the token nor gates closure on it (<workshop-spec> §7\
+  \ / CHARTER non-goal #7).\nSo **audit-pre / audit-post MUST NOT RED-flag a spec\
+  \ merely because it is not yet active** — its\nactivation is structurally Stage-9\
+  \ work that FOLLOWS Stage-8. A missing or invalid `binding:` on the\nproposed head\
+  \ IS an audit target (<workshop-spec> §7: the declaration precedes audit-post),\
+  \ so audit-post MAY\nflag it; only the not-yet-happened activation itself is off-limits\
+  \ (the event-emit-only category mismatch,\n`patterns/event-emit-only-audit-post.md`).\
+  \ The auditor evaluates Layer 1; the Layer-2 activation probe\nis a closure check,\
+  \ not an audit target.\n\n**No-AC-on-self-blocked-consumer (topology).** An adoption\
+  \ / AC probe MUST NOT depend on a downstream\nconsumer that THIS SAME task hard-blocks\
+  \ (the consumer's `requires:` includes this task) — that is\nCIRCULAR: the consumer\
+  \ cannot run until this task closes, yet this task cannot close until the\nconsumer\
+  \ demonstrates adoption. Instead EITHER (a) file a SEPARATE, independently CLAIMABLE\
+  \ probe\ntask (not `requires:`-ed on this one), OR (b) rely on the CHARTER §P8 inaugural-codification\
+  \ exemption\n+ the FIRST real downstream claim as `live_trigger_evidence`. (ACs\
+  \ are authored by ONE provable claim\nper accept-unit — homed in <workshop-spec>\
+  \ §A; this clause adds only the topology constraint.)\n\n### Crash-atomic ordering\n\
+  The Layer-2 `proposed → active` activation write runs AFTER the durable `status:\
+  \ done` write, NOT\nbefore it. The close is therefore a single atomic\noutcome:\
+  \ a crash ANYWHERE before the done-write leaves NOTHING flipped (specs stay `proposed`,\
+  \ the\ntask stays `in-progress` — a clean idempotent re-run); a crash BETWEEN the\
+  \ done-write and the\nactivation leaves a `done` task with un/partly-activated specs,\
+  \ healed idempotently by\n`_recover_close_tail` re-running the activation on the\
+  \ next `task close` (its `status==proposed` scan\nflips only what is still proposed).\n\
+  \n> **This body CONTINUES in `SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.part2.yaml`**\n\
   > (SPEC-0120 §3 split) — §Audit-stage YAMLs … §Verification. `graph query SPEC-0015`\
   \ serves both.\n"
 cites:

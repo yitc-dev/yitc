@@ -37,7 +37,7 @@ body: "## Scenario\n\nA consumer project already captures its frontend errors in
   \ it by fingerprint, recurrence collapses the noise, and only\nwhat survives the\
   \ thresholds becomes a CONFIRMED cluster the owner is shown and can promote into\
   \ a\ntask. Nothing is promoted automatically.\n\n## Internal\n\nDRAFT — plan-local,\
-  \ governs nothing (SPEC-0005 §4). Its parameters are the SUBJECT of the plan's\n\
+  \ governs nothing (<workshop-spec> §4). Its parameters are the SUBJECT of the plan's\n\
   `trial`: they are deliberately UNSET here, because fixing them from the armchair\
   \ is exactly what the\ntrial exists to prevent. What IS settled and must not drift\
   \ during the trial:\n\n1. **Placement split (settled prior-art, SPEC-0122 / X-0205).**\

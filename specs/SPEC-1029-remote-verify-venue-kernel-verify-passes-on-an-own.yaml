@@ -43,6 +43,10 @@ implements:
 - bin/lib/remote_verify.py#venue_preship_max_concurrent
 - bin/lib/verify_runner.py#_verify_child_nice
 - bin/lib/task.py#_stage6_queue_jump
+- bin/lib/task.py#_stage6_ordered_admission
+- bin/lib/task.py#_stage6_waiters_ahead
+- bin/lib/task.py#_stage6_load_settings
+- bin/lib/task.py#_Stage6LoadHold
 body: "## Scenario\n\nThe owner opens ONE extra interactive session — the compute-controller\
   \ — and gives it one cue\n(«поднимай вычисления»). That session raises a compute\
   \ box from a prepared snapshot, checks it, and\nPUBLISHES it as the machine's verify\
@@ -67,8 +71,8 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   > Verification — is carried from <workshop-spec> word for word; the only other added\
   \ lines are this\n> note, one Rationale subsection, one implementation note and\
   \ one Verification item. Routed as a\n> SUPERSEDE because the exception changes\
-  \ the required result of a case <workshop-spec> already\n> covered (SPEC-0005 rule\
-  \ 7's discriminating probe).\n\nTHE REMOTE VERIFY VENUE. Eight rules. It EXTENDS\
+  \ the required result of a case <workshop-spec> already\n> covered (<workshop-spec>\
+  \ rule 7's discriminating probe).\n\nTHE REMOTE VERIFY VENUE. Eight rules. It EXTENDS\
   \ the existing hermetic verify runner, the pinned\nlast-green leg, the land admission\
   \ seam and the `external_action` capture (CHARTER §P1 F1 — no\nsecond runner, no\
   \ second verdict authority, no remote queue, no remote result store, no daemon).\n\
@@ -644,57 +648,82 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ the worktree's own copy of the card is not read.\n**What the exception leaves\
   \ as it is:** the pass still takes a Stage-6 place — locally the Stage-6\nslot pool\
   \ with its cap, on the venue the Stage-6 admission class with its cap and headroom\
-  \ (rule\n4) — and waiting passes stay unordered; its deadline credit for a land's\
-  \ overlap (rule 4); a\nland's priority, width and admission; the mark's land effect,\
-  \ lifetime and write route (SPEC-0184\nrule 9); the SPEC-0132 bounds — «full width»\
-  \ is what the governor admits, never a forced width;\nand the test runs a worker\
-  \ launches by hand, which are not Stage-6 passes and keep the priority\nSPEC-0027\
-  \ names for them.\n**What it costs, accepted with the rule:** a marked pass competes\
-  \ with a land for CPU instead of\nyielding to it, and the Stage-6 cap bounds how\
-  \ many passes run, not their summed width — as many\nmarked passes as the cap admits\
-  \ may run at full width beside a land. A project's own layer\ncommand may ignore\
-  \ the width it is handed (SPEC-0132 rule 2 — that budget is report-only), so the\n\
-  exception guarantees the budget and the priority, never a project's speed-up.\n\
-  **It is recorded where it applied.** The Stage-6 result row of the pass records\
-  \ what the pass ran\nat: the priority and the width of its suite run and of a project's\
-  \ layers — each as the leg that\napplied it reported it, and only for a leg that\
-  \ ran — and the mark's reading: live with its\nreason, or not live. The recorded\
-  \ priority is the one the leg's processes ran at: for a local\nleg the priority\
-  \ of the process that ran the pass is part of it, so a marked pass run by a\nlowered\
-  \ process records that process's priority, not zero; for a routed pass it is the\n\
-  priority the box leg measured of itself. An unmarked pass's row says «not live».\
-  \ No event\ntype is added, and a land's row is unchanged.\n\n### 6. Box lifecycle\
-  \ — raised on one owner cue, published after a readiness probe, deleted on the idle\
-  \ condition\n**The venue is OPTIONAL, and its hosting provider is a CONFIG BINDING,\
-  \ never rule text (CHARTER §P4b).** These rules speak of a remote verify box; WHICH\
-  \ provider rents it — the API\nendpoint, the token secret name, the box class, the\
-  \ location and the ssh key — is declared in the\nmachine's venue binding (`bin/venue-config.yaml`,\
-  \ read at call time by `bin/lib/venue.py`), which\nstays with the workshop that\
-  \ wrote it and does not travel. A machine with NO complete binding has\nnot adopted\
-  \ the venue: `venue show` says so plainly and exits 0, every provider call refuses\
-  \ by\nname, and the routing seams IGNORE any record present, so every verify pass\
-  \ runs locally (rule 2's\nunpublished branch). When the venue pays and how to switch\
-  \ it on:\n`patterns/verify-venue-when-it-pays.md`.\nThe box is owned by the **compute-controller\
-  \ session** — an ordinary interactive Controller the\nowner starts, whose owner-authorized\
-  \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
-  \ Its verbs: **`venue raise`** (create from the snapshot, wait for ssh, run the\n\
-  readiness probe — fingerprint + `nofile` + the engine's test deps — and emit an\
-  \ `external_action`\n`from:` the session's card, SPEC-0116), **`venue publish`**\
-  \ (mirror the host's main onto the box\nclone, THEN write rule 1's record; refused\
-  \ when the probe or the mirror failed), **`venue unpublish`** (remove the record\
-  \ — the explicit break-glass and the\nfirst step of every delete), **`venue delete`**\
-  \ (destroy the box + its key; `external_action`).\n**`publish` ESTABLISHES the clone's\
-  \ main mirror before it publishes.** A clone main\nbehind the host's is not an unready\
-  \ box, but rule 3's per-request mirror heals it on the box's\nfirst request **ONLY\
-  \ while that delta push fits the 900 s transport ceiling** the push runs under\n\
-  \ — past it every request times out instead. So the heal is no longer left to the\
-  \ first\nland: `publish` runs rule 3's OWN mirror state machine (`remote_verify.mirror_main_to_box`,\n\
-  extracted from `ship_trees`, never a raw forced push) at the unpublished→published\
-  \ transition, and\nthe record exists only once the invariant holds. Rule 3's per-request\
-  \ mirror is UNCHANGED — host\nmain keeps advancing after publication.\n**THE STALENESS\
-  \ BOUNDS — two quantities on one axis (delta-push seconds), each with its\nderivation.**\
-  \ (i) **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose\
-  \ delta push takes longer is STALE and is refreshed at the next teardown (the refresh\
+  \ (rule\n4) — and waiting passes on the venue stay unordered; its deadline credit\
+  \ for a land's overlap (rule 4); a\nland's priority, width and admission; the mark's\
+  \ land effect, lifetime and write route (SPEC-0184\nrule 9); the SPEC-0132 bounds\
+  \ — «full width» is what the governor admits, never a forced width;\nand the test\
+  \ runs a worker launches by hand, which are not Stage-6 passes and keep the priority\n\
+  SPEC-0027 names for them.\n**Locally, waiting passes are served in order.** When\
+  \ every local Stage-6 slot is held, a freed\nslot goes to the waiting pass with\
+  \ a live queue-jump mark first, then to the pass that has waited\nlongest; for this\
+  \ order the mark is read through the same reader, again while the pass waits, so\n\
+  a mark set or cleared during the wait counts. Each wait journals a `stage6_waiting`\
+  \ row naming the task and\nits arrival time, and each admission a `stage6_admitted`\
+  \ row, in the main checkout's journal.\n**What it costs, accepted with the rule:**\
+  \ a marked pass competes with a land for CPU instead of\nyielding to it, and the\
+  \ Stage-6 cap bounds how many passes run, not their summed width — as many\nmarked\
+  \ passes as the cap admits may run at full width beside a land. A project's own\
+  \ layer\ncommand may ignore the width it is handed (SPEC-0132 rule 2 — that budget\
+  \ is report-only), so the\nexception guarantees the budget and the priority, never\
+  \ a project's speed-up.\n**It is recorded where it applied.** The Stage-6 result\
+  \ row of the pass records what the pass ran\nat: the priority and the width of its\
+  \ suite run and of a project's layers — each as the leg that\napplied it reported\
+  \ it, and only for a leg that ran — and the mark's reading: live with its\nreason,\
+  \ or not live. The recorded priority is the one the leg's processes ran at: for\
+  \ a local\nleg the priority of the process that ran the pass is part of it, so a\
+  \ marked pass run by a\nlowered process records that process's priority, not zero;\
+  \ for a routed pass it is the\npriority the box leg measured of itself. An unmarked\
+  \ pass's row says «not live». No event\ntype is added, and a land's row is unchanged.\n\
+  **Locally, a pass may also wait for the host's CPU — opt-in.** While the machine\
+  \ setting\n`YITC_STAGE6_LOAD_BOUND` (a CPU busy share, a fraction) is set, the pass\
+  \ whose turn it is in the\norder above starts only when the host's CPU busy share\
+  \ — read from two samples\n`YITC_STAGE6_LOAD_WINDOW_S` apart, over the CPUs `YITC_STAGE6_LOAD_CPU_SET`\
+  \ names (empty: every\nonline CPU) — is under the bound, and `YITC_STAGE6_LOAD_SPACING_S`\
+  \ has passed since the newest local\nStage-6 start. A reading counts only when its\
+  \ window began at or after that newest start; a reading\nwhose window began before\
+  \ it is refused and taken again. The newest start is kept in the local\nStage-6\
+  \ slot directory, written under a lock at each start and never removed when a pass\
+  \ ends, so a\npass that ends early still spaces the next start. A reading that cannot\
+  \ be taken holds the pass; it\nis never read as zero. A pass held by the CPU keeps\
+  \ its place in the order, so no pass behind it\nstarts in its place. Its `stage6_waiting`\
+  \ rows carry `wait_reason: load` and the reading — the busy\nshare, the bound, the\
+  \ window start and load1, or the reading named unavailable — and its\n`stage6_admitted`\
+  \ row carries the reading the start was judged on. The hold is part of the local\n\
+  Stage-6 slot, so it applies only while `YITC_VENUE_STAGE6_MAX_CONCURRENT` is set;\
+  \ with the bound\nunset nothing reads the host's CPU and the rows are as before.\
+  \ The keys' defaults and bands are\ntheir `machine_settings.INVENTORY` entries.\n\
+  \n### 6. Box lifecycle — raised on one owner cue, published after a readiness probe,\
+  \ deleted on the idle condition\n**The venue is OPTIONAL, and its hosting provider\
+  \ is a CONFIG BINDING, never rule text (CHARTER §P4b).** These rules speak of a\
+  \ remote verify box; WHICH provider rents it — the API\nendpoint, the token secret\
+  \ name, the box class, the location and the ssh key — is declared in the\nmachine's\
+  \ venue binding (`bin/venue-config.yaml`, read at call time by `bin/lib/venue.py`),\
+  \ which\nstays with the workshop that wrote it and does not travel. A machine with\
+  \ NO complete binding has\nnot adopted the venue: `venue show` says so plainly and\
+  \ exits 0, every provider call refuses by\nname, and the routing seams IGNORE any\
+  \ record present, so every verify pass runs locally (rule 2's\nunpublished branch).\
+  \ When the venue pays and how to switch it on:\n`patterns/verify-venue-when-it-pays.md`.\n\
+  The box is owned by the **compute-controller session** — an ordinary interactive\
+  \ Controller the\nowner starts, whose owner-authorized standing batch is the land\
+  \ seam (`patterns/compute-controller-\nsession.md`). Its verbs: **`venue raise`**\
+  \ (create from the snapshot, wait for ssh, run the\nreadiness probe — fingerprint\
+  \ + `nofile` + the engine's test deps — and emit an `external_action`\n`from:` the\
+  \ session's card, SPEC-0116), **`venue publish`** (mirror the host's main onto the\
+  \ box\nclone, THEN write rule 1's record; refused when the probe or the mirror failed),\
+  \ **`venue unpublish`** (remove the record — the explicit break-glass and the\n\
+  first step of every delete), **`venue delete`** (destroy the box + its key; `external_action`).\n\
+  **`publish` ESTABLISHES the clone's main mirror before it publishes.** A clone main\n\
+  behind the host's is not an unready box, but rule 3's per-request mirror heals it\
+  \ on the box's\nfirst request **ONLY while that delta push fits the 900 s transport\
+  \ ceiling** the push runs under\n — past it every request times out instead. So\
+  \ the heal is no longer left to the first\nland: `publish` runs rule 3's OWN mirror\
+  \ state machine (`remote_verify.mirror_main_to_box`,\nextracted from `ship_trees`,\
+  \ never a raw forced push) at the unpublished→published transition, and\nthe record\
+  \ exists only once the invariant holds. Rule 3's per-request mirror is UNCHANGED\
+  \ — host\nmain keeps advancing after publication.\n**THE STALENESS BOUNDS — two\
+  \ quantities on one axis (delta-push seconds), each with its\nderivation.** (i)\
+  \ **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose delta\
+  \ push takes longer is STALE and is refreshed at the next teardown (the refresh\
   \ leg\nbelow). It is a refresh TRIGGER, derived as ~2.5× the measured fresh-snapshot\
   \ band of 42–48 s\n(the AC2 ceiling), deliberately far below the point of failure\
   \ — 7.5× under the\ntransport ceiling. It is declared ONCE where it is measured\
@@ -915,29 +944,46 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ the box derived\nthe class from the nice alone: sent at nice 0 with nothing declared,\
   \ a marked pass would have\nbeen admitted as a land. No measurement of the gain,\
   \ or of the cost to a land beside a marked\npass, existed when the rule was written;\
-  \ the row record above is what lets the first marked\npasses be read.\n\n## Implementation\
-  \ notes\n\n- **Where rule 5's queue-jump record sits.** On the two Stage-6 result\
-  \ rows\n  (`tests_passed`, `tests_failed`) the record is the `stage6_priority` mapping\
-  \ under\n  `verify_metrics`; the event catalog (SPEC-0161) names it. The suite's\
-  \ priority and width are\n  the ones the runner reports in its run metrics, a project's\
-  \ layers' the ones the layer guard\n  reports in its result, and a routed pass's\
-  \ the box leg's own record; the Stage-6 verb takes\n  no reading of a setting of\
-  \ its own for it. A local report is computed where the processes\n  are started,\
-  \ from the starting process's own nice and what the leg applies to it — a test\n\
-  \  file is started at an increment, a layer command at a target — so it is the nice\
-  \ those\n  processes have, not the amount applied.\n\n## Verification\n\n- **VP1\
-  \ (envelope-bound verdict):** a kernel `land` while a venue is published emits\n\
-  \  `land_completed.verify_metrics` carrying `venue: remote`, both recomputed tree\
-  \ digests, the\n  runner digest of EACH leg (`venue_runner_digest`, the candidate's\
-  \ `bin/`; and\n  `venue_pinned_runner_digest`, the `bin/` the pinned leg ran — the\
-  \ shipped merged base's, so it\n  DIFFERS from the candidate's whenever the land\
-  \ changes `bin/`), the environment fingerprint and\n  both legs' walls; the digests\
-  \ equal what the land, each leg's runner its own expectation\n  (rule 4). Differential:\
-  \ a land with a deliberately corrupted shipped tree yields a digest\n  mismatch\
-  \ and `abort_class: venue-indeterminate`, never GREEN.\n- **VP2 (fault classes):**\
-  \ injected disconnect, truncated envelope, stale-attempt reply and\n  duplicate\
-  \ reply each abort with their own named class; an idempotent re-run completes; none\
-  \ is\n  reported as a test failure and none burns an audit pass.\n- **VP3 (routing\
+  \ the row record above is what lets the first marked\npasses be read.\n\n### The\
+  \ order of local Stage-6 waiters\n\nA consumer project reported on 2026-10-17 (public\
+  \ tracker issue 120) a release-blocker card that\nwaited 63 minutes for a local\
+  \ Stage-6 slot while later waiters took the slot in poll order. The\nowner took\
+  \ the plan's first card on 2026-10-18 (`events.jsonl#ts=`) and chose\nthe in-place\
+  \ route for this amendment (`events.jsonl#ts=`), although the\n<workshop-spec> rule-7\
+  \ probe answers yes for the local arm. The order reuses the land queue's rule —\
+  \ a\nlive mark first, then the oldest wait — on the same grounds: journal rows and\
+  \ local decisions, no\nticket file and no assembler. The venue's admission class\
+  \ was left as it was.\n\n## Implementation notes\n\n- **The local Stage-6 waiter\
+  \ rows.** A waiting local Stage-6 pass journals\n  `stage6_waiting` (task, `since`,\
+  \ `wait_id`, pid, `queue_jump`, position, `state`) in the main\n  checkout's journal\
+  \ before its first attempt, re-beats it inside the land queue's freshness window\n\
+  \  and at once when its mark changes, and asks the order again once it holds a slot\
+  \ (releasing it to\n  a waiter ranked ahead); the order is read through the time-covering\
+  \ tail read over that window,\n  never a byte count; a pass that gives up\n  writes\
+  \ `state: left`; the admission writes `stage6_admitted`. A wait counts as live only\
+  \ while\n  its latest row is a fresh `waiting` row and its pid answers; an unreadable\
+  \ journal reads as\n  nobody ahead.\n\n- **Where rule 5's queue-jump record sits.**\
+  \ On the two Stage-6 result rows\n  (`tests_passed`, `tests_failed`) the record\
+  \ is the `stage6_priority` mapping under\n  `verify_metrics`; the event catalog\
+  \ (SPEC-0161) names it. The suite's priority and width are\n  the ones the runner\
+  \ reports in its run metrics, a project's layers' the ones the layer guard\n  reports\
+  \ in its result, and a routed pass's the box leg's own record; the Stage-6 verb\
+  \ takes\n  no reading of a setting of its own for it. A local report is computed\
+  \ where the processes\n  are started, from the starting process's own nice and what\
+  \ the leg applies to it — a test\n  file is started at an increment, a layer command\
+  \ at a target — so it is the nice those\n  processes have, not the amount applied.\n\
+  \n## Verification\n\n- **VP1 (envelope-bound verdict):** a kernel `land` while a\
+  \ venue is published emits\n  `land_completed.verify_metrics` carrying `venue: remote`,\
+  \ both recomputed tree digests, the\n  runner digest of EACH leg (`venue_runner_digest`,\
+  \ the candidate's `bin/`; and\n  `venue_pinned_runner_digest`, the `bin/` the pinned\
+  \ leg ran — the shipped merged base's, so it\n  DIFFERS from the candidate's whenever\
+  \ the land changes `bin/`), the environment fingerprint and\n  both legs' walls;\
+  \ the digests equal what the land, each leg's runner its own expectation\n  (rule\
+  \ 4). Differential: a land with a deliberately corrupted shipped tree yields a digest\n\
+  \  mismatch and `abort_class: venue-indeterminate`, never GREEN.\n- **VP2 (fault\
+  \ classes):** injected disconnect, truncated envelope, stale-attempt reply and\n\
+  \  duplicate reply each abort with their own named class; an idempotent re-run completes;\
+  \ none is\n  reported as a test failure and none burns an audit pass.\n- **VP3 (routing\
   \ + opt-in):** with a kernel record present (one naming no consumer, SPEC-1032 rule\
   \ 6), `task test --run` on the engine executes\n  zero local test subprocesses and\
   \ the box runs the suite; with the record absent, the local path\n  is byte-identical\
@@ -1004,8 +1050,12 @@ implements_signature:
   bin/lib/remote_verify.py#venue_stage6_headroom_load1: c42b4392ef21b71da4aefba89aa64f67263fec0af7cd64ad3caa3d863c865bdb
   bin/lib/remote_verify.py#venue_stage6_max_concurrent: dfac55993dc902c71631b899025885aa3646f70e0ea5cfdf337c094874ea8b6b
   bin/lib/remote_verify.py#wait_legs: ebad62a4b2551bae1e882200870e45fd8446bee8da7fdd791d66885089899a1e
+  bin/lib/task.py#_Stage6LoadHold: c0aabb79172ed03848e34a4ef6ad0acdf222423b5ea0a95f223eb7a27cf0cc5a
+  bin/lib/task.py#_stage6_load_settings: e4510fd89662ef665da8f1fab0393f3e26bbda46adf7fe32131a09b564891d58
+  bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
-  bin/lib/task.py#cmd_task_test: d89d29338b440e22e3813e4f10280348dcc24cd5ab0cbf09fb0a1c91da729444
+  bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
+  bin/lib/task.py#cmd_task_test: 09629320adfb61e15e548fbdd2c3682b02b0c6a9fe78659c9e0b4c437cd23121
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd

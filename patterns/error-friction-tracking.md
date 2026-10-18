@@ -300,7 +300,7 @@ authoritative; divergence → escalate to owner; **NO verification-of-verificati
 > session's §5 dispositions and the two conclusion sets are reconciled. That rule's normative home is
 > **SPEC-0056 §6** (threshold-or-owner-invoked, structural independence, `reconciliation:` block cross-
 > referencing the `triage_run_completed` watermark — no new store); this is a pointer, not a restatement
-> (SPEC-0005 rule 8, one home).
+> (<workshop-spec> rule 8, one home).
 
 ### Where accumulated errors live (graph)
 
@@ -315,7 +315,7 @@ lessons / specs — its NARRATIVE home is the promoted `errors/E-XXXX.yaml` case
 one E-case** whose `cites:` links the member fingerprints / tasks / lessons / specs (the existing edge).
 Do **not** invent a parallel `docs/incidents/` doc class or a per-arc store (the v1-accretion trap this
 whole channel exists to avoid). This complements the §Anti-pattern below: the narrative home **cites** its
-arc by anchor, it does not copy evidence in. Pointer, not a divergent restatement (SPEC-0005 rule 8).
+arc by anchor, it does not copy evidence in. Pointer, not a divergent restatement (<workshop-spec> rule 8).
 
 ## §Example — the dry-run that debugged this procedure
 

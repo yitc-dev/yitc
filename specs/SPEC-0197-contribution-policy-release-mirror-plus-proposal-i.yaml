@@ -67,7 +67,7 @@ body: "## Scenario\n\nSomeone outside the workshop — an independent adopter, o
   Rules 1-6 govern how a proposal flows UP; this rule governs how the WORKSHOP sorts\
   \ it on\narrival. The sorting is homed in SPEC-1010 — §3 the classes, the default\
   \ disposition and the\nownership judgement, §5 their application to this intake\
-  \ — and NOT restated here (SPEC-0005 rule 8).\n\n## Parameters\n\nNone consumed.\n\
+  \ — and NOT restated here (<workshop-spec> rule 8).\n\n## Parameters\n\nNone consumed.\n\
   \n## Rationale\n\nThe position consult predicted the failure a mirror-only public\
   \ repository produces: outside\ncontributors experience it as bait-and-switch unless\
   \ it says, in plain words, that proposals are\nre-authored into the governed source.\

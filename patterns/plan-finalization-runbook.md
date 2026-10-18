@@ -2,13 +2,13 @@
 name: plan-finalization-runbook
 class: discipline
 sourced_from: owner-directive 2026-06-28 ( — "make the finalization runbook") + the migrate-<project>-onto-yitc-v2-v1-incumbent-gat finalization done ad hoc (re-grade→COMPLETE→close→plan realized orchestrated by hand) + SPEC-0034 (plan lifecycle per-stage mechanics + plan↔spec finalization chain) + SPEC-0070 (decomposition-fidelity audit) + SPEC-0036 (audit-loop ceiling) + patterns/realize-on-evidenced-soak-not-just-the-gate.md (the EVIDENCED-soak gate) + LIFECYCLE §Plan lifecycle + patterns/plan-lifecycle.md + the sibling navigational runbook patterns/inspection-triage-launch-runbook.md (format model)
-applies_to: finalizing a plan that has reached the build's end — driving it postcheck → realized (or to a terminal partial/rejected/cancelled). Read BEFORE `plan stage realized`. This pattern is the SEQUENCING/navigation only — every rule it invokes homes elsewhere (it cites, it does not restate; SPEC-0005 rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
+applies_to: finalizing a plan that has reached the build's end — driving it postcheck → realized (or to a terminal partial/rejected/cancelled). Read BEFORE `plan stage realized`. This pattern is the SEQUENCING/navigation only — every rule it invokes homes elsewhere (it cites, it does not restate; <workshop-spec> rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
 ---
 
 # Plan-finalization runbook — driving a plan postcheck → realized
 
 > **What this IS:** a navigational ORDER — the named sequence of verbs to run to finalize a plan, each
-> step pointing at the home that OWNS its rule. It restates **no** rule (CHARTER §P5 / SPEC-0005 rule 8
+> step pointing at the home that OWNS its rule. It restates **no** rule (CHARTER §P5 / <workshop-spec> rule 8
 > — read the cited home for the actual gate / criterion / semantics) and adds **no** new mechanism,
 > verb, gate, or store. The plan-axis sibling of `patterns/inspection-triage-launch-runbook.md`.
 
@@ -40,7 +40,7 @@ the home that governs it; read the home for the rule — this is the ORDER, not 
 ## §What this does NOT add
 
 No new verb, gate, store, FSM, or rule — every step is an existing verb and every gate is enforced by
-its existing home. This runbook is the ORDER, not the law (SPEC-0005 rule 8 — one home per rule).
+its existing home. This runbook is the ORDER, not the law (<workshop-spec> rule 8 — one home per rule).
 
 ## §Refs (the homes — read these for the actual rules)
 

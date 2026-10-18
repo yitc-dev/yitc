@@ -26,7 +26,7 @@ body: "## Scenario\n\nThe owner names WHO may do WHAT on WHICH project — for e
   \ via\n> `bin/yitc-v2 graph query sandbox-family`. Grounds: on 2026-08-13 a reader\
   \ grepped `spike_sandbox`,\n> found none in a project that declares its sandbox\
   \ under THIS key, and concluded it had none (X-0852).\n> A navigational pointer\
-  \ (SPEC-0005 rule 8) — it changes nothing here, and this concern stays OPT-IN.\n\
+  \ (<workshop-spec> rule 8) — it changes nothing here, and this concern stays OPT-IN.\n\
   \n### 1. A grant is (person, project, rights) — never a role, never a convention\n\
   A GRANT is an explicit triple: a named PERSON, a named PROJECT, and one or more\
   \ RIGHTS from the\nclosed set in rule 2. \"The owner only\" is NOT expressible as\

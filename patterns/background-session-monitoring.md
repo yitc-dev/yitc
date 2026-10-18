@@ -197,7 +197,12 @@ bin/yitc-v2 dispatch --watch --task T-XXXX [--task T-YYYY...] # run under Monito
   figure : the default plus one `--watch-interval` sits strictly below it — the verb checks its
   bound after a tick, so it may run one interval past `--watch-timeout` — and the bare verb therefore
   fits under that wrapper with no flag. Pass a LONGER `--watch-timeout` only under a wrapper that can
-  hold it.
+  hold it. **A machine whose watchers always run under a longer wrapper sets the default once
+  :** `bin/yitc-v2 config set lib.journal.WATCH_MAX_RUNTIME_SECS <sec>` — a PERFORMANCE
+  setting whose band and value in force `config list` shows; it bounds every armed watch on that
+  machine, the launch's self-armed one included, that passes no `--watch-timeout`. The flag stays the
+  per-call override and the `TIMEOUT` re-arm cue is unchanged; the NESTING rule above still binds the
+  value you set.
 - **HOW you arm it decides whether the wake can reach you — and the verb now says so OUT LOUD (RULE / X-1440).** There are two arming forms and only one can deliver. Under the harness's own
   background primitive the watcher's EXIT re-invokes the controller, so the wake is delivered. Armed as a
   plain shell background job inside a foreground call with its output redirected away from yours
@@ -390,12 +395,12 @@ Read the verdict/class from the verb; pick the ACTION here. The verb never presc
   class used to SHADOW that state and refuse the recovery outright (a manual
   adopt+land dance each). The class + `closed_at` now survive only as CORROBORATION in the refusal text; the
   three liveness legs are unchanged and still run AFTER admission, so a LIVE worker is refused as before.
-  **SPEC-0005 admission judgement — BELOW ADMISSION, this pattern is `recover-land`'s only prose home BY
+  **<workshop-spec> admission judgement — BELOW ADMISSION, this pattern is `recover-land`'s only prose home BY
   DESIGN (recorded, 2026-07-17; satisfies the T1 named-verb probe).** No spec anchor is warranted:
   the verb states no NEW standing rule — it MECHANIZES rules already homed elsewhere. Its land-alive REFUSE
   leg IS the <workshop-spec> worker-land non-preemption invariant (already `cited_by`, the task that built
   the verb); "the verb reads the class, the operator picks the act" is SPEC-0133 §2; the adopt+land delegation
-  is the existing `land` engine contract (SPEC-0014 / SPEC-0132). SPEC-0005 §2 delete-test: a
+  is the existing `land` engine contract (SPEC-0014 / SPEC-0132). <workshop-spec> §2 delete-test: a
   SPEC-recover-land would not materially improve change analysis — an editor re-derives every constraint from
   those homes — and it would fail legs (2) survives-an-internal-refactor + (3) implementation-shape-independent,
   because the gate IS the implementation shape, i.e. it would paraphrase one function's control flow (§2's

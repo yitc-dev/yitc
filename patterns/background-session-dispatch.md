@@ -82,7 +82,7 @@ provider-neutral («scrub all inherited identity carriers, then set a fresh per-
 
 ### §Dispatch launcher — the blessed verb `bin/yitc-v2 dispatch` (governing home of the W4 launcher)
 
-> **This subsection is the single governing home of the dispatch-launcher contract** (SPEC-0005 rule 8
+> **This subsection is the single governing home of the dispatch-launcher contract** (<workshop-spec> rule 8
 > «one home» — the contract lives HERE, not duplicated into a spec; it extends the M2(b) rule above
 > rather than restating it). **Owner-invoked, never autopilot** — the orchestrate posture is now
 > chartered (CHARTER §6 + AGENTS §Session-types), and named retirement (a) keeps it owner-invoked: the

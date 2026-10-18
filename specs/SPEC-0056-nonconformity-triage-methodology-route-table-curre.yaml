@@ -65,7 +65,7 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   \       fix-task OR waives with a reason. Once a fix is filed the case is `investigating`\
   \ and no\n        longer stale. NOT a gate (observability, CHARTER non-goal #7)\
   \ — a visible advisory.\n(6) **coverage-both-ways for coherence findings** — spec→code\
-  \ dead anchors via graph build stderr;\n    code→spec via the SPEC-0005 admission\
+  \ dead anchors via graph build stderr;\n    code→spec via the <workshop-spec> admission\
   \ test, NOT \"every file = a spec\".\n\n**SAME-ROOT DEDUPE BEFORE FILING — SCOPED,\
   \ NOT BLANKET.** Before filing a NEW E-case for a\nfingerprint, check whether it\
   \ is a RESPELLING of a PROVEN alias family — a confirmed root already\nrouted/`linked`.\
@@ -120,7 +120,7 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   metric (read by the inspection meta-loop lens).\n\n**BY-DESIGN RESIDUAL.** A reopen\
   \ ASSERTS \"fixed badly\" — the recurrence contradicts the\ndisposition. Some waives\
   \ claim the opposite: the residual REMAINS, by design, and a downstream guard\n\
-  catches it (E-0053 — SPEC-0005 sanctions-and-OBSERVES the spec-edit chokepoint,\
+  catches it (E-0053 — <workshop-spec> sanctions-and-OBSERVES the spec-edit chokepoint,\
   \ the land guard\ncatches the irreducible slice). For those, `error promote --waive\
   \ --by-design-residual` records\n`resolution.by_design_residual: true`, and a later\
   \ capture whose fingerprint matches (canonically or\nby cited alias) SURFACES as\
@@ -176,8 +176,8 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   \ when\nno resolution kind exists; preserving an existing `deferred_to_plan` kind)\
   \ and journals\n`error_resolved` like the fix_task path. Terminal `resolved`/`waived`\
   \ stay refused. This is ADDITIVE\n— the ordinary fix_task-gated path (no `--root-fix`)\
-  \ is UNCHANGED (SPEC-0005 in-place amend, not a\nsupersede). Do NOT `--waive` a\
-  \ prevented case: waive = accepted-not-prevented; a landed root-fix is\nprevention.\n\
+  \ is UNCHANGED (<workshop-spec> in-place amend, not a\nsupersede). Do NOT `--waive`\
+  \ a prevented case: waive = accepted-not-prevented; a landed root-fix is\nprevention.\n\
   \n**LINK AN EXISTING FIX CARD.** `error promote E-XXXX --to-task --existing-task\
   \ T-XXXX`\nrecords an ALREADY-FILED card as the case's `resolution.fix_task` instead\
   \ of filing a new one —\nthe route for a case whose fix cards were filed by hand\
@@ -217,24 +217,24 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   \ | REGRESSED | TRULY-NEW | ALREADY-BUILT}, INTO-WORK = TRULY-NEW +\nREGRESSED only,\
   \ recurs semantics, and the remedy-existence 3-state — is HOMED in <workshop-spec>\n\
   (`_currency_status` / `_suggest_route`), carved out of this spec by (a stable-surface\
-  \ split,\nSPEC-0005 §7; no behaviour change). <workshop-spec> refines it there (temporal\
-  \ recurs + fuzzy dedup).\n\n### 6. Dual-track external verification + reconciliation\
-  \ (threshold-or-owner-invoked)\nAfter the session performs the §1(5)/§4 ROUTING\
-  \ of a triage window, that routing MAY itself be\nreviewed by an INDEPENDENT external-auditor\
-  \ pass over the SAME window — judging each route\n(event-only / linked / promote\
-  \ / disband) for missed promotes, wrong disbands, un-swept remedies,\nmis-linked\
-  \ roots. This is a four-eyes overlay on the ROUTING, distinct from §1(2)'s thresholded\n\
-  root-cause consult (that escalates \"why it occurred\" for a subset; this reviews\
-  \ the disposition set).\n\n- **TRIGGER — threshold-or-owner-invoked, NOT every window.**\
-  \ Run the dual-track pass only when the\n  window meets the EXISTING §1(2) threshold\
-  \ set (a reopened / high-blast-radius / unclear / systemic\n  item is present) OR\
-  \ on explicit owner invocation (incl. occasional spot-checks). A blanket pass over\n\
-  \  every singleton-heavy window is over-engineering (the E-0012 enforcement-maximalism\
-  \ class; cf.\n  patterns/error-friction-tracking.md \"dual-running the external\
-  \ auditor on every aspect burns quota\")\n  — the marginal catch-rate does not justify\
-  \ it.\n- **INDEPENDENCE is structural (§P4a).** The pass runs via the EXISTING `audit\
-  \ adhoc` verb, which\n  invokes the external auditor — by construction a DIFFERENT\
-  \ provider than the session that performed\n  the routing. No new provider-selection\
+  \ split,\n<workshop-spec> §7; no behaviour change). <workshop-spec> refines it there\
+  \ (temporal recurs + fuzzy dedup).\n\n### 6. Dual-track external verification +\
+  \ reconciliation (threshold-or-owner-invoked)\nAfter the session performs the §1(5)/§4\
+  \ ROUTING of a triage window, that routing MAY itself be\nreviewed by an INDEPENDENT\
+  \ external-auditor pass over the SAME window — judging each route\n(event-only /\
+  \ linked / promote / disband) for missed promotes, wrong disbands, un-swept remedies,\n\
+  mis-linked roots. This is a four-eyes overlay on the ROUTING, distinct from §1(2)'s\
+  \ thresholded\nroot-cause consult (that escalates \"why it occurred\" for a subset;\
+  \ this reviews the disposition set).\n\n- **TRIGGER — threshold-or-owner-invoked,\
+  \ NOT every window.** Run the dual-track pass only when the\n  window meets the\
+  \ EXISTING §1(2) threshold set (a reopened / high-blast-radius / unclear / systemic\n\
+  \  item is present) OR on explicit owner invocation (incl. occasional spot-checks).\
+  \ A blanket pass over\n  every singleton-heavy window is over-engineering (the E-0012\
+  \ enforcement-maximalism class; cf.\n  patterns/error-friction-tracking.md \"dual-running\
+  \ the external auditor on every aspect burns quota\")\n  — the marginal catch-rate\
+  \ does not justify it.\n- **INDEPENDENCE is structural (§P4a).** The pass runs via\
+  \ the EXISTING `audit adhoc` verb, which\n  invokes the external auditor — by construction\
+  \ a DIFFERENT provider than the session that performed\n  the routing. No new provider-selection\
   \ flag is added (a flag would be a new mechanism with no\n  incident pulling for\
   \ it, anti-cx F4); independence comes from `audit adhoc`'s standing\n  external-auditor\
   \ binding (bin/audit-config.yaml), not from new prose.\n- **TIER:** routine by default;\
@@ -302,7 +302,6 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep over accumulated
   \ arc, never copies evidence in per §Anti-pattern).\n"
 cites:
 - SPEC-0055
-- SPEC-0005
 - SPEC-0025
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

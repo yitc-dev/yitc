@@ -21,8 +21,8 @@ body: "## Scenario\n\nThe owner sees TWO clean homes for durable craft knowledge
   \ + a MINIMAL 8th graph node-type. Seven rules. The\nCHARTER §P1 four-filter justification\
   \ for adding a new node type (vs reusing `pattern`) + the\nround-by-round design\
   \ deliberation live in the proposing plan\n[[patterns-vs-lessons-architecture-traveling-pattern]]\
-  \ (SPEC-0005 §3 content boundary — debate is plan\nmaterial, not spec body); this\
-  \ spec carries only the standing rule.\n\n### 1. Identity & purpose\nA `lesson`\
+  \ (<workshop-spec> §3 content boundary — debate is plan\nmaterial, not spec body);\
+  \ this spec carries only the standing rule.\n\n### 1. Identity & purpose\nA `lesson`\
   \ is a **zero-normative, per-repo craft-knowledge note about ONE specific project's\
   \ specifics**\n— the LOCAL counterpart to a `pattern` (general, traveling methodology).\
   \ It is a REFERENCE artifact\n(like a pattern), authored locally in the repo it\
@@ -225,7 +225,6 @@ cites:
 - CHARTER.md#principle-5
 - CHARTER.md#principle-7
 - GRAPH.md#schema
-- SPEC-0005
 - SPEC-0073
 - SPEC-0076
 - SPEC-0089
@@ -244,7 +243,8 @@ binding:
 amends:
 - GRAPH.md#schema: the 7-node / 4-edge bound (post-SPEC-0076) GROWS to 8 node-types
     (`lesson`); edges UNCHANGED at 4 (`lesson` reuses `cites`). The 4-filter justification
-    lands in GRAPH.md at the mint (SPEC-0005 §7). No further node/edge growth implied.
+    lands in GRAPH.md at the mint (<workshop-spec> §7). No further node/edge growth
+    implied.
 - patterns/doc-conventions.md#artifact-taxonomy: ADDS a `lessons` row (the per-repo
     local-craft home, file-per-topic) + the patterns(travel)/lessons(local) boundary.
     ADDITIVE — retires NO routing surface (rule 7); all routing retirements + the

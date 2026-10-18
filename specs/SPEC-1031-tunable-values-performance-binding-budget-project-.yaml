@@ -67,11 +67,11 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ instead of opening a second one; (c) folds every other\ninventory name for the\
   \ same value into the one key it opens, so `config get` and `config list` show\n\
   the value actually applied; (d) reconciles every active spec that STATES the key's\
-  \ value or class,\nthrough the SPEC-0005 §7 route (an equivalent reference in place,\
-  \ a changed obligation through a\nsuccessor); (e) wires the key's read site to rule\
-  \ 4 and its record to rule 6. A key no card opened\nstays GATE. There is no bulk\
-  \ reclassification.\n\nRULE 4 — WHERE AN OPENED KEY IS SET, AND IN WHICH ORDER IT\
-  \ IS READ.\n  BUDGET — the machine settings file (one path site, `resolve_settings_path`:\
+  \ value or class,\nthrough the <workshop-spec> §7 route (an equivalent reference\
+  \ in place, a changed obligation through a\nsuccessor); (e) wires the key's read\
+  \ site to rule 4 and its record to rule 6. A key no card opened\nstays GATE. There\
+  \ is no bulk reclassification.\n\nRULE 4 — WHERE AN OPENED KEY IS SET, AND IN WHICH\
+  \ ORDER IT IS READ.\n  BUDGET — the machine settings file (one path site, `resolve_settings_path`:\
   \ `YITC_MACHINE_SETTINGS`\n  names it, else it sits beside the shared coordination\
   \ store, SPEC-0084 rule 3). Read order:\n  environment > machine file > built-in\
   \ default; where a project-declared bound exists beside it, the\n  chain its own\
@@ -167,9 +167,10 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ a GATE key and a THRESHOLD key.\n  - rule 9: after the worked example one source\
   \ holds SPEC-0132's two bounds, no second default\n    remains in `bin/lib/debt.py`,\
   \ and changing that source changes the shown default and the\n    applied value\
-  \ with no override set.\nDeferred (settled after activation with `task close --settle-probe`):\
-  \ a later `spec new` delivers\nthis spec through its spec-new / spec-edit binding\
-  \ (rule 9 reaches the next author).\n"
+  \ with no override set.\n  - delivery (rule 9 reaches the next author): `spec new`\
+  \ and `spec edit` deliver this spec among\n    their before-rule-change contracts\
+  \ while it is active, and not while it is proposed —\n    tests/test_t13969_opened_tunable_keys.py\n\
+  \    ::test_ac4_spec_new_and_spec_edit_deliver_spec_1031_once_it_is_active.\n"
 cites:
 - SPEC-0202
 - SPEC-0093
@@ -210,7 +211,7 @@ implements_signature:
   bin/lib/cli.py#cmd_config_set: 7ed9dbfb43fd58ad70990a6d68ab67bb6afeb0af44269c9a1e1fc73bdcc1bb48
   bin/lib/debt.py#_lane_bound: 09607422d04a15cbe2870c596c7d96421c17f394a592a71914e8f2d801bc6b8f
   bin/lib/machine_settings.py#ENTRYPOINTS: 816f31d1eae99164e9ea2b172bc694a30a5b2b7a8ba21a86e0068af8599b12e1
-  bin/lib/machine_settings.py#INVENTORY: 94d35d6a5b6f8452cf160231902d0a1d9855fc72a107b05249b35fb021da627d
+  bin/lib/machine_settings.py#INVENTORY: d9fccd13d315bedd7fc6d511071bda07b0a496659c01e5fa87c5b0b2833448a9
   bin/lib/machine_settings.py#_refuse_gate: edd26b3fe88509639dd1d57833b00551e9c6a1330d7f157b795a8d511be4d753
   bin/lib/machine_settings.py#applied: 1bfb3db83111deb3f04ffa49e10fe4c3444a817342312faf345068de9926fb46
   bin/lib/machine_settings.py#in_force: a8813997b0ca6edb622f61e618cabf7679a94391e9a44632af5fda5ac950ab08

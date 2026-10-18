@@ -29,11 +29,11 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ a pure-declarative section schema is exactly this part's surface now that the\
   \ split seam exists — a new one is born here rather than landing on SPEC-0093 and\
   \ being relocated later. **Rule 30** (`anchors:` section) was born here the same\
-  \ way.\n\n**Split seam (SPEC-0005 rule 6 anti-oversize — split by a STABLE SURFACE,\
-  \ never by perspective).** The\nboundary is CODE-BACKED vs DECLARATIVE. SPEC-0093\
-  \ retains the carrier FRAMEWORK rules (1-4, 6, 7, 11,\n18, 19), the two code-enforced\
-  \ anchors (`init.py#cmd_init` seed/sweep + `init.py#_hook_runtime_delivery`,\nso\
-  \ **rule 22** `deploy.runtime_delivery` stays with its anchor), AND — deliberately\
+  \ way.\n\n**Split seam (<workshop-spec> rule 6 anti-oversize — split by a STABLE\
+  \ SURFACE, never by perspective).** The\nboundary is CODE-BACKED vs DECLARATIVE.\
+  \ SPEC-0093 retains the carrier FRAMEWORK rules (1-4, 6, 7, 11,\n18, 19), the two\
+  \ code-enforced anchors (`init.py#cmd_init` seed/sweep + `init.py#_hook_runtime_delivery`,\n\
+  so **rule 22** `deploy.runtime_delivery` stays with its anchor), AND — deliberately\
   \ — the whole\n`concern:` born-ops registry (born generation is active-gated/SPEC-0128,\
   \ so the registry stays\nSINGLE-SoT on the active carrier). This part receives ONLY\
   \ the declarative per-section SHAPE prose,\nwhich has no code anchor to re-home\
@@ -251,7 +251,7 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ a human runs, exactly as `security.probes[]` are hand-verified).\n  (A `command:`\
   \ run-an-arbitrary-shell-probe branch stays DEFERRED out of slice-1 — add it only\
   \ when a\n  concrete theme can be expressed as NEITHER a `view:` nor a `sweep:`,\
-  \ naming the incident + the\n  rejected simpler option, the SPEC-0005 admission\
+  \ naming the incident + the\n  rejected simpler option, the <workshop-spec> admission\
   \ test.)\n- `cadence:` — one of the cadence-tier values `weekly | monthly | quarterly`.\n\
   \nConcrete pinned shape (the kernel pins the SHAPE precisely, like `ui:`/`tests:`):\n\
   \n    inspection:\n      themes: # DECLARE: a non-empty list — XOR with `waiver:`\
@@ -350,8 +350,8 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ SHAPE ONLY IF PRESENT (the deploy.policy / security / ui / tests /\ninspection\
   \ backward-compat precedent), never its presence.\n\n**NARROWED for the ACTIVE+ADOPTABLE\
   \ CATALOG SET — declare-or-waive fail-closed (SPEC-0112 rule-1).**\nThe \"absence\
-  \ = adopts nothing\" reading above is NARROWED (additive in-place, SPEC-0005 rule\
-  \ 7): for the\nBOUNDED authoritative set — every capability BOTH `status: active`\
+  \ = adopts nothing\" reading above is NARROWED (additive in-place, <workshop-spec>\
+  \ rule 7): for the\nBOUNDED authoritative set — every capability BOTH `status: active`\
   \ AND `extension: adoptable` in the\nSPEC-0101 rule-2 catalog view (`graph query\
   \ extensions-catalog`) — a consumer's `extensions:` record MUST\ncarry an explicit\
   \ DECLARE (`adopts: - spec: SPEC-XXXX`) OR a FORWARD-AWARE WAIVE (a `waives:` entry\n\
@@ -650,8 +650,8 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ at its wiring site, and to carry a regression asserting physical folds <= 1\n\
   per segment in scope and card parses <= 1 per card in scope. A seam that genuinely\
   \ cannot hold that\nbound DECLARES it here rather than quietly missing it; the rule\
-  \ body is SPEC-0190's and is not\nrestated (SPEC-0005 rule 8).\n\n**OPT-IN, and\
-  \ born FULLY COMMENTED — the stance, stated because the default is the load-bearing\n\
+  \ body is SPEC-0190's and is not\nrestated (<workshop-spec> rule 8).\n\n**OPT-IN,\
+  \ and born FULLY COMMENTED — the stance, stated because the default is the load-bearing\n\
   half.** The section is `presence_policy: opt-in` and its `born:` block is entirely\
   \ COMMENTED: not one\nlive key is written into any project's carrier. ABSENCE therefore\
   \ means \"this project exempts no\nseam\", which is the fail-closed reading and\

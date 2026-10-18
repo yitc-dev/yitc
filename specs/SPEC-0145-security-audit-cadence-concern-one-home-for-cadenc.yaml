@@ -363,7 +363,7 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ stays legal.\n**Bound (what this rule does NOT touch).** It adds NO field to the\
   \ §5 evidence schema, changes NO §4\nfreshness window, and changes NO §6 cadence/SLA\
   \ value. It meets §5 at exactly one seam, resolved here as\nan interpreting note\
-  \ (SPEC-0005 rule 3) rather than by a schema change: §5's \"supplemental evidence\n\
+  \ (<workshop-spec> rule 3) rather than by a schema change: §5's \"supplemental evidence\n\
   fields... which the gate IGNORES\" scopes the **COMPLETENESS** contract (`evaluate_report`)\
   \ — such a\nfield is never completeness-REQUIRED — and does NOT forbid reading a\
   \ report's provenance at report\n**SELECTION**, which runs before and outside that\
@@ -384,14 +384,15 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ security live-probe (the per-deploy security sibling), the\nSPEC-0128 concern\
   \ registry (one declaration → all surfaces). Design basis: the external-auditor\
   \ consult\n(YELLOW, 4 findings) + the gate-specs audit (YELLOW, 3 findings) — deliberation\
-  \ lives in the proposing\nplan, not here (SPEC-0005 §3). Provider-neutral rule text\
-  \ (CHARTER §P4b).\n\n## Verification\n\n- `graph conformance` GREEN with the `security_audit`\
-  \ concern present on ALL generated surfaces\n  (registry↔surface skew = 0) — at\
-  \ ACTIVATION (a draft concern does not register).\n- a scheduled SYSTEM-trigger\
-  \ run produces an evidence-complete report → the gate ACCEPTS it.\n- the gate REJECTS\
-  \ a deliberately STALE report AND a deliberately THINNED/tampered\n  (fields-present-but-empty\
-  \ / zero-checks) report — the honest-freshness proof (§4).\n- retiring an AI role\
-  \ does NOT change gate behavior (no AI in the accept path — §2).\n"
+  \ lives in the proposing\nplan, not here (<workshop-spec> §3). Provider-neutral\
+  \ rule text (CHARTER §P4b).\n\n## Verification\n\n- `graph conformance` GREEN with\
+  \ the `security_audit` concern present on ALL generated surfaces\n  (registry↔surface\
+  \ skew = 0) — at ACTIVATION (a draft concern does not register).\n- a scheduled\
+  \ SYSTEM-trigger run produces an evidence-complete report → the gate ACCEPTS it.\n\
+  - the gate REJECTS a deliberately STALE report AND a deliberately THINNED/tampered\n\
+  \  (fields-present-but-empty / zero-checks) report — the honest-freshness proof\
+  \ (§4).\n- retiring an AI role does NOT change gate behavior (no AI in the accept\
+  \ path — §2).\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

@@ -62,8 +62,8 @@ body: "## Scenario\n\nWhen an infra-class task closes (the class V2 treats as me
   \ consequent-change surfaces) + the code implementing it, reusing\nthe existing\
   \ tasks_citing / code_to_specs reverse-index (no new store). It surfaces CANDIDATES,\
   \ never\nasserts completeness — the disposition decision stays owner/closer judgement.\
-  \ This is a navigational\nPOINTER to the tool (SPEC-0005 rule 8); the recipe TEXT\
-  \ lives in that view's own description, not here.\n\n### Structural presence-gate,\
+  \ This is a navigational\nPOINTER to the tool (<workshop-spec> rule 8); the recipe\
+  \ TEXT lives in that view's own description, not here.\n\n### Structural presence-gate,\
   \ NOT a semantic correctness gate\n`task close` REFUSES an infra-class closure that\
   \ records NONE of the three outcomes (an empty /\nabsent disposition) — the same\
   \ structural, false-positive-free shape as the EXISTING empty-probe-set\nrejection\
@@ -109,9 +109,9 @@ body: "## Scenario\n\nWhen an infra-class task closes (the class V2 treats as me
   \ WARN. Shape prior-art: SPEC-0038 (a self-contained `stage-entry:Closure`\nsub-rule\
   \ with a SPEC-0015 pointer). Presence-gate prior-art: SPEC-0015's empty-probe rejection.\
   \ The\ndeliberation lives in the plan [[forward-propagation-adoption-trigger-disposition-r]]\
-  \ (SPEC-0005 rule 3).\n\n### History moved from the rule body\n\nEach entry is a\
-  \ passage moved word for word out of the rule text of the section it names;\nthe\
-  \ rule it explains stays there.\n\n- From «The disposition»: (gate-specs / ad-hoc\
+  \ (<workshop-spec> rule 3).\n\n### History moved from the rule body\n\nEach entry\
+  \ is a passage moved word for word out of the rule text of the section it names;\n\
+  the rule it explains stays there.\n\n- From «The disposition»: (gate-specs / ad-hoc\
   \ external finding, 2026-06-07)\n- From «Delivery + read-contract»: (External ad-hoc\
   \ finding, 2026-06-07.)\n\n### Moved from the rule body\n\nEach entry is a passage\
   \ moved word for word out of the rule text of the section it names.\n\n- From «Structural\

@@ -456,7 +456,7 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   surfaces do the rest. Prior-art REUSED (CHARTER §P1 F1 — extend, don't create):\
   \ the SPEC-0128\nconcern registry, the SPEC-0096 checklist generator, the SPEC-0093\
   \ carrier framework, and the\nexisting `_SHAPE_HOOKS` deep-shape extension point\
-  \ (10 prior instances). Deliberation lives with the\nproposing task, not here (SPEC-0005\
+  \ (10 prior instances). Deliberation lives with the\nproposing task, not here (<workshop-spec>\
   \ rule 3).\n\n## Verification\n\n- **state-check (AC1, differential):** the `remote_sync`\
   \ row renders into BOTH generated\n  activation-checklist views (Init-walk SET +\
   \ Doc-checklist) with `_activation_checklist_drift ==\n  []`; stripping this spec's\

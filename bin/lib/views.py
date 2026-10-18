@@ -2547,18 +2547,18 @@ _CAPTURE_ROUTING_ROWS = [
      "SPEC-0095", "the carrier sieve (plan vs task vs followup) is SPEC-0140."),
     ("a standing RULE / invariant / contract / governing param",
      "a `proposed` spec (`spec new`), activated at its owner task's close",
-     "SPEC-0005", "the before-rule-change floor delivers SPEC-0005/0073/0128."),
+     "SPEC-1037", "the before-rule-change floor delivers SPEC-1037/0073/0128."),
     ("a standing RULE for THIS project's own workers or Controller (its own way of working)",
      "a project-own spec (`spec new --travels project`) whose `binding:` is chosen by the MOMENT the "
      "rule applies: a task stage (`stage-entry:<Stage>`), a plan stage (`plan-stage-entry:<stage>`), "
      "every session (`seed` + `seed_cue`), or an allowed before-* trigger from the floor-trigger map "
      "(a rule that applies before an outbound mutation outside any task -> `before-external-mutation`, "
      "not a stage); never the context home (CHARTER.md / AGENTS.md)",
-     "SPEC-0005", "the route + what each binding delivers: patterns/onboarding-onto-yitc-runbook.md "
+     "SPEC-1037", "the route + what each binding delivers: patterns/onboarding-onto-yitc-runbook.md "
                   "§Your project's own way of working; not a stage for every rule (plan-check F1)."),
     ("a general, TRAVELING reusable practice",
      "a `patterns/<name>.md` doc (cross-project methodology)",
-     "SPEC-0005", "traveling = pattern; LOCAL = lesson (the SPEC-0090 boundary)."),
+     "SPEC-1037", "traveling = pattern; LOCAL = lesson (the SPEC-0090 boundary)."),
     ("a per-repo LOCAL craft note (non-traveling)",
      "a `lessons/<slug>.md` node",
      "SPEC-0090", "the local counterpart of a pattern; project realm (SPEC-0073)."),

@@ -189,9 +189,9 @@ body: "## Scenario\n\nBefore the AI runs an audit it must hold the audit contrac
   \ a repeated scan, an unwatermarked pass — WITHOUT\n  naming the neighbouring mechanism\
   \ at the same seam that it reuses (or recording that none exists)?\n  The classes\
   \ + detect heuristics live single-home in `patterns/repeated-work-lens.md`; this\
-  \ lens\n  asks the ONE question and never restates them (SPEC-0005 rule 8). Its\
-  \ authoring-side counterparts\n  are SPEC-0032 §Internal item 1a (Analysis) and\
-  \ SPEC-0027 §Stage 3 (the plan's `reuses:` /\n  `adds-first:` line) — the absence\
+  \ lens\n  asks the ONE question and never restates them (<workshop-spec> rule 8).\
+  \ Its authoring-side counterparts\n  are SPEC-0032 §Internal item 1a (Analysis)\
+  \ and SPEC-0027 §Stage 3 (the plan's `reuses:` /\n  `adds-first:` line) — the absence\
   \ of that line is at most a finding here, never a refusal there.\n  Inert for an\
   \ artifact that adds no read / loop / poll / fetch / scan / worker pass.\n- **Touch-forecast\
   \ / coverage COMPLETENESS is CONTEXT, never a finding.** That a file or\n  a spec\

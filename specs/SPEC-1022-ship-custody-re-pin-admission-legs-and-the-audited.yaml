@@ -30,12 +30,12 @@ body: "## Scenario\n\nA park, a pause or a wont-do self-commit was recorded afte
   \ are listed; the first and the\n  last each have two arms, (i) and (ii). «This\
   \ bullet» is the audited-subject block the words stand\n  in, and «above» in that\
   \ block reads against the list of the four legs.\n- A new edge case of the re-pin\
-  \ is authored here (SPEC-0005 §6).\n\n### Ship-custody re-pin — admission legs and\
-  \ the audited subject\n\n#### The four admission legs\n\n- **Custody must be genuinely\
-  \ BOOKKEEPING-SHIFTED** — a displaced ship exists AND every `commit_landed`\n  after\
-  \ it DISPLACED custody rather than SHIPPED (the anti-custody-game fence: the path\
-  \ can NEVER\n  re-pin off a genuine ship commit). A record DISPLACED when either\
-  \ arm holds:\n  (i) it carries a kind in the CLOSED admissible set (`_BOOKKEEPING_COMMIT_KINDS`\
+  \ is authored here (<workshop-spec> §6).\n\n### Ship-custody re-pin — admission\
+  \ legs and the audited subject\n\n#### The four admission legs\n\n- **Custody must\
+  \ be genuinely BOOKKEEPING-SHIFTED** — a displaced ship exists AND every `commit_landed`\n\
+  \  after it DISPLACED custody rather than SHIPPED (the anti-custody-game fence:\
+  \ the path can NEVER\n  re-pin off a genuine ship commit). A record DISPLACED when\
+  \ either arm holds:\n  (i) it carries a kind in the CLOSED admissible set (`_BOOKKEEPING_COMMIT_KINDS`\
   \ — park/pause/\n  wont-do); the close-tail kinds (`closure`/`closes_fp_link`/`pv_late_link`)\
   \ are not admitted — nor is\n  any unknown kind; or\n  (ii) — it carries NO kind\
   \ at all AND its own diff is PROVABLY record-only (the existing\n  `_zero_ship_diff_bookkeeping`\
@@ -145,23 +145,22 @@ body: "## Scenario\n\nA park, a pause or a wont-do self-commit was recorded afte
   \ ordered member shas) beside `audited_base` on the\n  verdict YAML and in `audit_post_completed`\
   \ — additive-optional, ABSENT on every single-ship\n  subject and on the re-pin\
   \ route, which keeps `custody_repin_span`.\nThis is likewise an ADDITIVE extension\
-  \ (SPEC-0005 §additive-extension): it adds an answer for a\nquestion the rule was\
-  \ silent on, and alters no already-covered case's required behaviour.\n\n## Rationale\n\
-  \nA re-pin is recorded on well under one in a hundred audit-post passes. Rendered\
-  \ inside SPEC-0015\nthis detail reached every session entering Closure; as a reference\
-  \ behind one index paragraph and\nthe help of the two verbs involved it is met by\
-  \ the session that has the case at hand (SPEC-0005\n§6, the rare-case option).\n\
-  \n## Verification\n\n- VP1 (one home): every block of §Ship-custody re-pin — admission\
-  \ legs and the audited subject is\n  present in this spec and absent from SPEC-0015,\
-  \ and SPEC-0015 carries exactly one index paragraph\n  naming this spec and the\
-  \ heading to search.\n- VP2 (reachable from the verb): the head of the `task close`\
-  \ help and the help of the re-pin\n  option of `audit post` name this spec.\n- VP3\
-  \ (no stage render): no stage entry delivers this spec.\nThe executable form of\
-  \ VP1-VP3 is `tests/test_t13693_repin_reference_spec.py`.\n"
+  \ (<workshop-spec> §additive-extension): it adds an answer for a\nquestion the rule\
+  \ was silent on, and alters no already-covered case's required behaviour.\n\n##\
+  \ Rationale\n\nA re-pin is recorded on well under one in a hundred audit-post passes.\
+  \ Rendered inside SPEC-0015\nthis detail reached every session entering Closure;\
+  \ as a reference behind one index paragraph and\nthe help of the two verbs involved\
+  \ it is met by the session that has the case at hand (<workshop-spec>\n§6, the rare-case\
+  \ option).\n\n## Verification\n\n- VP1 (one home): every block of §Ship-custody\
+  \ re-pin — admission legs and the audited subject is\n  present in this spec and\
+  \ absent from SPEC-0015, and SPEC-0015 carries exactly one index paragraph\n  naming\
+  \ this spec and the heading to search.\n- VP2 (reachable from the verb): the head\
+  \ of the `task close` help and the help of the re-pin\n  option of `audit post`\
+  \ name this spec.\n- VP3 (no stage render): no stage entry delivers this spec.\n\
+  The executable form of VP1-VP3 is `tests/test_t13693_repin_reference_spec.py`.\n"
 cites:
 - SPEC-0015
 - SPEC-0036
-- SPEC-0005
 - SPEC-0013
 requires: []
 supersedes: null

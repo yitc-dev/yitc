@@ -46,8 +46,8 @@ body: "## Scenario\nA worker plans a change. In the task plan, before audit-pre,
   \ item → check → planted fault → RED seen, with\nthe time the runs took;\n(4) a\
   \ missing CHARTER §P8 adoption carrier the change is meant to produce;\n(5) prose\
   \ the diff adds states each rule only in its normative home and points at that home\
-  \ everywhere\nelse — which artifact is the home is SPEC-0005 rule 8's call, not\
-  \ this rule's.\nA «waive» here means only a waive the test doctrine admits (SPEC-0165);\
+  \ everywhere\nelse — which artifact is the home is <workshop-spec> rule 8's call,\
+  \ not this rule's.\nA «waive» here means only a waive the test doctrine admits (SPEC-0165);\
   \ «covered by another test» is not\na waive — that test is the one the item names.\n\
   The hand-in adds NO test obligation of its own: whether an item is covered by a\
   \ test, a recorded waive\nor another check the Tests stage admits is decided by\

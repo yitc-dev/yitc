@@ -22,17 +22,17 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ as the\nCORRECT outcome, never as failure — the failure mode this rule exists\
   \ to prevent is the SILENT\npush past a real signal, which ships an invisible defect\
   \ (the V1 failure class V2 exists to end).\n\n## Internal\n\nTHE BLOCK-CLASSIFICATION\
-  \ + PUSH-VS-STOP PROTOCOL. A process/governance rule (SPEC-0005 rule 1):\na standing,\
-  \ provider-neutral (CHARTER §P4b) decision procedure for any blocked verify gate.\
-  \ It\nADDS no new LEDGER, no new store, no new event type and no new VERB, and §§1-5\
-  \ add no mechanism at\nall — they REUSE the existing machinery. §5a is the ONE exception\
-  \ and is declared here rather than\nleft for a reader to discover: it ships a GATE\
-  \ FUNCTION, `bin/lib/grants.py`\n#decide_authority_class_cause, plus one OPTIONAL\
-  \ flag (`--cause`) on the EXISTING `grants authorize`\nverb. The CHARTER §P1 filters,\
-  \ applied and recorded: F1 EXISTING ANALOG — admission is\ndelegated WHOLE to the\
-  \ existing `authorize`, so SPEC-0169's identity and fail-closed rules govern\nunchanged\
-  \ and no second authority mechanism exists; F2 VIEW OVER ENTITY — no new store,\
-  \ event type,\nverb or gated operation (the emits reuse `authorization_decided`\
+  \ + PUSH-VS-STOP PROTOCOL. A process/governance rule (<workshop-spec> rule 1):\n\
+  a standing, provider-neutral (CHARTER §P4b) decision procedure for any blocked verify\
+  \ gate. It\nADDS no new LEDGER, no new store, no new event type and no new VERB,\
+  \ and §§1-5 add no mechanism at\nall — they REUSE the existing machinery. §5a is\
+  \ the ONE exception and is declared here rather than\nleft for a reader to discover:\
+  \ it ships a GATE FUNCTION, `bin/lib/grants.py`\n#decide_authority_class_cause,\
+  \ plus one OPTIONAL flag (`--cause`) on the EXISTING `grants authorize`\nverb. The\
+  \ CHARTER §P1 filters, applied and recorded: F1 EXISTING ANALOG — admission is\n\
+  delegated WHOLE to the existing `authorize`, so SPEC-0169's identity and fail-closed\
+  \ rules govern\nunchanged and no second authority mechanism exists; F2 VIEW OVER\
+  \ ENTITY — no new store, event type,\nverb or gated operation (the emits reuse `authorization_decided`\
   \ / `authorization_refused`, and\n`GATED_OPERATIONS` is untouched, so the decision\
   \ right stays non-executing); F3 WHAT IS REMOVED —\nthe DEAD END, an authority-class\
   \ cause on a project someone holds the right for no longer has the\nowner as its\
@@ -118,8 +118,8 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ question) that a blocked\nsession climbs BEFORE the AUTHORITY is ever asked (the\
   \ owner, or a `decide-authority` holder for that project — §5a). This LADDER (§5\
   \ itself, as distinct from §5a — see the §Internal preamble for the one mechanism\
-  \ §5a adds) ADDS NO new mechanism (SPEC-0005 rule 1): rung-1 is\nthe EXISTING §2.1\
-  \ governed self-clear / diff inspection, rung-2 is the EXISTING <workshop-spec>\
+  \ §5a adds) ADDS NO new mechanism (<workshop-spec> rule 1): rung-1 is\nthe EXISTING\
+  \ §2.1 governed self-clear / diff inspection, rung-2 is the EXISTING <workshop-spec>\
   \ adversarial\nconsult engine, rung-3 is the EXISTING escalation gate (blocked-on-land\
   \ / `--ack-repeated-abort` /\nthe SPEC-0204 ceiling decisions, which replaced the\
   \ retired `--owner-reset`) — an EXISTING gate,\nunchanged in code by this spec;\
@@ -299,9 +299,9 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ added none); and §Verification names this spec's five anchors instead of the\n\
   \  predecessor's two. §§1-4 and the §Scenario are otherwise character-for-character.\
   \ Routed as a\n  SUPERSEDE, not an in-place amend, because it changes what a consumer\
-  \ must DO in an ALREADY-COVERED\n  case (SPEC-0005 rule 7's discriminating probe):\
-  \ a session facing an authority-class cause must stop\n  at the owner today, and\
-  \ must not when the deciding identity holds `decide-authority` on that\n  project.\n\
+  \ must DO in an ALREADY-COVERED\n  case (<workshop-spec> rule 7's discriminating\
+  \ probe): a session facing an authority-class cause must stop\n  at the owner today,\
+  \ and must not when the deciding identity holds `decide-authority` on that\n  project.\n\
   \n- **Internal:** It had to: before it, the authority-class stop existed only as\
   \ PROSE in the worker\n  preamble and the land refusal, so there was no gate to\
   \ condition and a test could not tell a\n  conditioned gate from a deleted one.\n\
@@ -413,4 +413,4 @@ implements_signature:
   bin/lib/grants.py#_authorization_refusal_message: 305e3098641c12e8cf38be3db6743b32903a9870ff9d5f99e722c9cb8cb2cd0f
   bin/lib/grants.py#cmd_grants_authorize: 3777cf3c7b3982cda1c0e1c811dbfd1d998bd04c60306afc52d09298079621e4
   bin/lib/grants.py#decide_authority_class_cause: 16b58912c5b105188c8bd26157b6d4869ab2f233383f9dfe66efa66dbda4104b
-  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5
+  bin/lib/worktree.py#cmd_land: f1d0e6a696fff5eb112be67c365a6b19e3df792776d1032908b1f546daab9d66

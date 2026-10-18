@@ -25,7 +25,7 @@ amends:
 - AGENTS-SESSIONS.md §Startup picker (the owner-say-so self-execution fallback): the
     claim cue is named a LIVE execution-cue, distinct from a prior design agreement
     — a MINIMAL inline pointer to this spec (the rule body is NOT restated there —
-    SPEC-0005 rule 8 single-SoT).
+    <workshop-spec> rule 8 single-SoT).
 - AGENTS-SESSIONS.md §Controller Boundary (T-12953): the self-execution-fallback sentence
     is replaced by a cue + pointer naming context preservation as the dispatch reason,
     sequential chains included (rule body + the name-the-context-cost duty live in

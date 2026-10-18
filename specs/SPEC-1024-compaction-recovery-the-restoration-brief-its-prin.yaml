@@ -20,9 +20,9 @@ implements:
 amends:
 - 'SPEC-0007 §5b «`session start` is re-run after a compaction ONCE, to refresh the
   receipt» — gains a second sanctioned post-compaction run, the PRINT-ONLY one, placed
-  BEFORE the seed re-read. An ADDITIVE case (SPEC-0005 rule 7): the stamping run,
-  its once-per-checkout rule and everything it prints are unchanged. Edited in place
-  by card (3), which ships the print-only run, together with the AGENTS.md §After
+  BEFORE the seed re-read. An ADDITIVE case (<workshop-spec> rule 7): the stamping
+  run, its once-per-checkout rule and everything it prints are unchanged. Edited in
+  place by card (3), which ships the print-only run, together with the AGENTS.md §After
   /compact sentence below.'
 - 'AGENTS.md §After /compact — card (3) changes the one sentence that allows a single
   post-compaction `session start` (in the same change as the print-only run); the

@@ -19,8 +19,8 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ storage — single home per P5):** SPEC-0112 is the SINGLE HOME of the\ncatalog-set\
   \ declare-or-waive COMPLETENESS (rule 1) + the forward-aware WAIVE semantics (rule\
   \ 2). At THIS\nspec's activation, SPEC-0093 rule-13 is NARROWED in-place (additive,\
-  \ SPEC-0005 rule 7) to govern only\nNON-catalog opt-in extensions (`absence = adopts\
-  \ nothing`) + cross-refs here for the active+adoptable\ncatalog set; SPEC-0101's\
+  \ <workshop-spec> rule 7) to govern only\nNON-catalog opt-in extensions (`absence\
+  \ = adopts nothing`) + cross-refs here for the active+adoptable\ncatalog set; SPEC-0101's\
   \ `adoptable|internal-only` marker is UNCHANGED + gains a one-line cross-ref. So\n\
   the catalog-completeness obligation has EXACTLY ONE home (here), not a second copy\
   \ alongside rule-13.\n\nThis spec EXTENDS the existing extension-catalog vocabulary\
@@ -29,8 +29,8 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ check rides the EXISTING `init --adopt-extension` / consumer-read fail-closed\n\
   path, and the forward-aware waive REUSES the existing per-section waiver shape (SPEC-0093\
   \ rule-6). The\ndeliberation + rejected alternatives live in the proposing PLAN,\
-  \ not here (SPEC-0005 rule 3).\n\n### 1. Bounded completeness — the catalog set\
-  \ is declare-or-waive FAIL-CLOSED\nFor the AUTHORITATIVE SET — every capability\
+  \ not here (<workshop-spec> rule 3).\n\n### 1. Bounded completeness — the catalog\
+  \ set is declare-or-waive FAIL-CLOSED\nFor the AUTHORITATIVE SET — every capability\
   \ that is BOTH `status: active` AND `extension: adoptable`\nin the SPEC-0101 derived\
   \ catalog view (`bin/yitc-v2 graph query --type view`) — a consumer's\n`yitc-ops.yaml\
   \ extensions:` record MUST carry an explicit declare-OR-waive entry. A missing entry\
@@ -44,18 +44,18 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ the rule for NON-catalog/non-adoptable capabilities, but for the bounded\nactive+adoptable\
   \ catalog set, silence is no longer a valid state. (At activation an additive in-place\n\
   cross-ref note is added to SPEC-0093 rule-13 + SPEC-0101 pointing here — additive\
-  \ extension, NOT a\nsupersede, per SPEC-0005 rule 7.)\n\n### 2. The waive is FORWARD-AWARE\
-  \ (the <project> lesson)\nA waive entry states the conscious choice AND how to flip\
-  \ waive→declare later — the trigger/condition\nthat would make the project adopt\
-  \ the capability. This REUSES the existing per-section waiver shape\n(SPEC-0093\
-  \ rule-6 loose policy: a non-empty reason); \"forward-aware\" means that reason\
-  \ names the\nre-entry path. **RETIREMENT:** the implicit \"absent section = unmodeled\
-  \ / forever-off\" reading is\nretired — a waive is an explicit, revisitable decision\
-  \ carrying its own re-entry path, not a silent gap.\n\n**A waive carries an `expiry:`.**\
-  \ `extensions.waives[] = {spec, reason, expiry}`, where\n`expiry` is a date-only\
-  \ ISO review-by date. The waive is REVISITABLE only if something asks for it to\
-  \ be\nrevisited, and without a date nothing does: the kernel's waiver-currency reader\
-  \ walks `expiry:` keys, so\na waive without one keeps its cell settled indefinitely.\
+  \ extension, NOT a\nsupersede, per <workshop-spec> rule 7.)\n\n### 2. The waive\
+  \ is FORWARD-AWARE (the <project> lesson)\nA waive entry states the conscious choice\
+  \ AND how to flip waive→declare later — the trigger/condition\nthat would make the\
+  \ project adopt the capability. This REUSES the existing per-section waiver shape\n\
+  (SPEC-0093 rule-6 loose policy: a non-empty reason); \"forward-aware\" means that\
+  \ reason names the\nre-entry path. **RETIREMENT:** the implicit \"absent section\
+  \ = unmodeled / forever-off\" reading is\nretired — a waive is an explicit, revisitable\
+  \ decision carrying its own re-entry path, not a silent gap.\n\n**A waive carries\
+  \ an `expiry:`.** `extensions.waives[] = {spec, reason, expiry}`, where\n`expiry`\
+  \ is a date-only ISO review-by date. The waive is REVISITABLE only if something\
+  \ asks for it to be\nrevisited, and without a date nothing does: the kernel's waiver-currency\
+  \ reader walks `expiry:` keys, so\na waive without one keeps its cell settled indefinitely.\
   \ The revizia of 2026-09-27 measured this:\n<project> had 4 of 4 waives citing a\
   \ pre-code premise that its current state contradicts, and\n<project> had a waive\
   \ that stood for 68+ days while `deploy` ran 200 times. The init seeder\n(`_seed_catalog_waives`)\
@@ -87,7 +87,7 @@ body: "## Scenario\n\nA consumer project's `yitc-ops.yaml` `extensions:` record 
   \ / consumer-read is still\nthe only enforcement, and it is still per-consumer.\n\
   \n**4a. Activation is kernel-local — it reads NO consumer state.** An adoptable\
   \ offering's spec goes\n`active` at the close of its SHIP task, which IS its `activation_owner_task`\
-  \ (the work-first default,\nGRAPH §Spec lifecycle / SPEC-0005 rule 5). Activation\
+  \ (the work-first default,\nGRAPH §Spec lifecycle / <workshop-spec> rule 5). Activation\
   \ is a kernel-side act with ZERO consumer\npreconditions: no consumer's declaration,\
   \ silence, or absence can gate it, and the kernel's own verify\nnever reads another\
   \ project's live files to decide it (the hermetic-isolation contract <workshop-spec>).\

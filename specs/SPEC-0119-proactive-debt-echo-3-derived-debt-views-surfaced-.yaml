@@ -2180,7 +2180,7 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ DIFFERENT**. `verify-failed` is\n    emitted by ONE refusal over a SHARED failing\
   \ list, and that list is fed by more than the test suite:\n    three CORPUS-INTEGRITY\
   \ guards append to it AFTER the suite — SPEC-0054's decision content-freeze,\n \
-  \   SPEC-0005's off-path spec-edit chokepoint, SPEC-0165's card-shape rationale\
+  \   <workshop-spec>'s off-path spec-edit chokepoint, SPEC-0165's card-shape rationale\
   \ — and their inputs are\n    the branch's COMMITTED DELTA, not the code's behaviour.\
   \ So a land that refused purely on BOOKKEEPING\n    was recorded, counted and TRENDED\
   \ under the one label this rule reserves for a caught defect, and\n    the echo\
@@ -4355,4 +4355,4 @@ implements_signature:
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_load_sensitive_file_card: e18678b2d56985f14fc3021ee4247db7c1eb3b6b61d58de0c19b13b23335b66a
-  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5
+  bin/lib/worktree.py#cmd_land: f1d0e6a696fff5eb112be67c365a6b19e3df792776d1032908b1f546daab9d66

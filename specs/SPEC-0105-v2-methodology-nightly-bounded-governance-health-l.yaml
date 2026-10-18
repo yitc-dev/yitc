@@ -108,7 +108,7 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ state, no new event, no new store, no new verb, no new seam — so\nnothing in THIS\
   \ spec's emission contract moves: the row, its payload and its cadence are unchanged.\n\
   The rule body lives single-SoT in SPEC-0119 rule 38 (`bin/yitc-v2 graph query SPEC-0119`);\
-  \ this is\na navigational cross-reference, never a second copy (CHARTER §P5 / SPEC-0005\
+  \ this is\na navigational cross-reference, never a second copy (CHARTER §P5 / <workshop-spec>\
   \ rule 8).\n\n### 1e. A PROJECT READS ITS OWN VERDICT — `nightly --status`, read-only\n\
   The row lives in the ENGINE's journal, so a consumer's own journal holds no nightly\
   \ row at all\n(<project> X-1577, measured 2026-09-24): a consumer session could\
@@ -398,15 +398,15 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ `v2-self` at plan-accept).\n\n## Rationale\n\nX-0090 (a live 2026-06-25 regression:\
   \ a migrated v2 project landing on the v1 nightly, which runs a\nv1 auto-session\
   \ on it) + v2 having NO automation of its own. The full 3-project study + the\n\
-  anti-complexity discharge live in the proposing plan (SPEC-0005 §3 content boundary\
-  \ — not restated).\n\n## Verification\n\nAdoption probe (CHARTER §P3) on NAMED event/state\
-  \ surfaces (not prose):\n- **nightly ran** — each v2-nightly run emits ONE per-run\
-  \ journal event (a `nightly_*`-class event);\n  ≥3 such events for the dogfood project\
-  \ (<project> once migrated; <project> re-onboarded).\n- **v1-partition holds (STATE\
-  \ check)** — the v1 night-cycle's enumerated project set EXCLUDES every\n  `registry.yaml\
-  \ methodology: yitc_v2` project (assertable/greppable on the v1 enumerator) — the\n\
-  \  measurable form of \"the v1 nightly no longer touches a v2 project\" (closes\
-  \ X-0090).\n- **owner-declared dormancy (§1)** — `tests/test_nightly_dormant_born_waivers.py`:\
+  anti-complexity discharge live in the proposing plan (<workshop-spec> §3 content\
+  \ boundary — not restated).\n\n## Verification\n\nAdoption probe (CHARTER §P3) on\
+  \ NAMED event/state surfaces (not prose):\n- **nightly ran** — each v2-nightly run\
+  \ emits ONE per-run journal event (a `nightly_*`-class event);\n  ≥3 such events\
+  \ for the dogfood project (<project> once migrated; <project> re-onboarded).\n-\
+  \ **v1-partition holds (STATE check)** — the v1 night-cycle's enumerated project\
+  \ set EXCLUDES every\n  `registry.yaml methodology: yitc_v2` project (assertable/greppable\
+  \ on the v1 enumerator) — the\n  measurable form of \"the v1 nightly no longer touches\
+  \ a v2 project\" (closes X-0090).\n- **owner-declared dormancy (§1)** — `tests/test_nightly_dormant_born_waivers.py`:\
   \ over a\n  fixture registry, two projects with identical stale placeholders grade\
   \ `dormant` (declared) and\n  `alert` (undeclared) and only the undeclared one is\
   \ flagged; a declared project's stale\n  freshness source still flags; the V1-shutdown\

@@ -44,67 +44,71 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ evidence <PRESENT|ABSENT>`\n  `P8 carrier: <PRESENT|DEFERRED-DECLARED <field>|ABSENT|n/a\
   \ (class <x>)>`\n  `stale anchors: <file> -> <SPEC-ID>` (one row per pair) or `stale\
   \ anchors: none`\n  `touch: declared <n> audited <m> outside-forecast <k>`\n  `prior\
-  \ findings without response: <n>`\nAnything else the block prints is an INDENTED\
-  \ detail line beneath its row, never a row itself.\n`AC<n>` is the criterion's own\
-  \ leading `ACn` token when it carries one, else its positional index;\nthe verifier\
-  \ state reuses the SPEC-0060 item 4 test-or-waive predicate (`test-not-applicable:\n\
-  <reason>` reads WAIVED); evidence is PRESENT only when the packet carries a row\
-  \ the criterion's own\ntext points at, or a task-tied `state_checked` row naming\
-  \ the criterion's `ACn` id. A\ncriterion naming a directory that holds a test file\
-  \ the predicate recognizes reads verifier PRESENT;\none matching nothing gets an\
-  \ indented `not matched` detail line quoting the criterion text.\nThe P8 row is\
-  \ `n/a` outside `class: infra`, and `DEFERRED-DECLARED <field>` names\nthe SPEC-0028\
-  \ deferred-proof declaration the card carries.\nIT IS ADVISORY, and that is the\
-  \ X-1060 ruling carried forward UNCHANGED: exit 0, no verdict, no\nceiling pass,\
-  \ no gate, no counted set — nothing branches on a row, here or downstream. It is\
-  \ made\nmandatory by DELIVERY (the audit stage bundles and the worker preamble name\
-  \ the preview step), never\nby a gate.\nNO PACKET TO PREVIEW. On the two short-circuit\
-  \ branches that record a verdict without\nassembling a packet (consult-governed\
-  \ carry-forward, unchanged-fingerprint carry-forward) the\npreview NAMES the governing\
-  \ branch and prints no packet — printing one the real invocation never\nbuilds is\
-  \ the failure mode the preview exists to prevent.\nBOUND: the preview runs the same\
-  \ stage-correspondence and read gates as the real invocation.\nONE GATE IT DOES\
-  \ NOT RUN, and only this one (X-1121): the / WRITE-ISOLATION\nguard. So a\npreview\
-  \ runs wherever a journal append may run, INCLUDING the main checkout. The condition\
-  \ is on\nthe PREVIEW PATH, never on the verb: a NON-preview `audit pre|post` off\
-  \ a writing worktree is\nrefused exactly as before, because its verdict YAML is\
-  \ the non-bookkeeping dirt that guard exists\nto keep off `main` (E-0014).\n\n###\
-  \ Anti-pattern (do not do)\nRun audit \"just to check\" on hygiene tasks; iterate\
-  \ >2 absorption passes; cherry-pick verdict\n(run multiple auditors, pick the favorable\
-  \ one); bypass audit via env var; hand-author a bespoke\nplan-gate prompt when the\
-  \ template+`--focus` path is available; make either `--preview` diagnostic\ngate\
-  \ anything; assemble a preview packet through any path but the one real assembler.\n\
-  \n## Rationale\n\nHistory of this spec's rules is recorded in this section (placement\
-  \ rule: SPEC-0005 rule 3).\n\n### History moved out of the rule body\n\nThe passages\
-  \ below stood in the rule text and were moved here verbatim; the rule they\nsat\
-  \ in is unchanged.\n\n- **Scenario:** (re-homed by so the Audit-pre / Audit-post\
-  \ bundles stop carrying a\n  plan-gate-only surface)\n\n- **Auditor selection —\
-  \ provider + model + EFFORT (per-tier):** the committed config is test-pinned to\n\
-  \  <external-auditor>/medium, so the env path must not perturb it\n\n- **When invoked:**\
-  \ (the deadlock live-hit on : the original audit no longer covers the changed\n\
-  \  tree, and a done task previously refused re-audit)\n\n- **When invoked:** This\
-  \ SUPERSEDES the prior SPEC-0077 §3a claim that the post-close case \"needs NO\n\
-  \  re-audit-after-close path, so SPEC-0036's in-progress-only audit rule is untouched\"\
-  \ — it is now\n  touched, exactly here.\n\n- **Verdict handling (uniform across\
-  \ pre / post / ad-hoc / plan-gates):** (the incident)\n\n- **Verdict handling (uniform\
-  \ across pre / post / ad-hoc / plan-gates):** **What OVERRIDES,\n  named so it is\
-  \ traceable:** clause held it DELIBERATE that a non-124 no-outcome failure\n  still\
-  \ advances the ledger; that is overridden.\n\n- **Verdict handling (uniform across\
-  \ pre / post / ad-hoc / plan-gates):** (the X-0098/X-0092 incident\n  — twice in\
-  \ one session)\n\n- **Absorption sweep — the same defect class, across the whole\
-  \ subject :** (2026-10-05: a\n  later round found without the check the absorber\
-  \ had added to and after the\n  previous round)\n\n- **Absorption sweep — the same\
-  \ defect class, across the whole subject :** Amended by\n  : the first absorption\
-  \ under this rule ( audit-pre) stated no sweep, because the\n  earlier text added\
-  \ no verb, event, store or gate and left the statement to memory.\n\n- **Auditor-tier\
-  \ policy — routine vs FULL, and no relitigation of a FULL-settled point :**\n  (owner\
-  \ precedent 2026-06-11)\n\n- **Universal V2 evaluation lens (include in EVERY prompt):**\
-  \ It required every RED verdict (audit-pre\n  AND audit-post) to enumerate the COMPLETE\
-  \ defect set over the WHOLE subject, with a\n  `findings_complete: true | false`\
-  \ declaration read fail-closed on omission, and a one-shot\n  completion re-prompt\
-  \ in the same pass.\n\n- **Monotonic per-pass re-audit prompt (pass N>=2):** ( —\
-  \ X-0134 RC1a out-of-diff half; live\n  incident false-RED)\n\n- **Monotonic per-pass\
-  \ re-audit prompt (pass N>=2):** ( — X-1182; <project>)\n\n- **Task per-stage overlays:**\
+  \ findings without response: <n>`\n  `stage6 evidence: DOES-NOT-COVER <commit>`\
+  \ — printed only at the audit-loop ceiling, and only\n  when the next terminal-bearing\
+  \ pass would refuse `stage6-evidence-stale` (SPEC-0204 rules 3-4):\n  the row is\
+  \ that admission predicate's answer, never a second reading of the ledger; absent\
+  \ otherwise\nAnything else the block prints is an INDENTED detail line beneath its\
+  \ row, never a row itself.\n`AC<n>` is the criterion's own leading `ACn` token when\
+  \ it carries one, else its positional index;\nthe verifier state reuses the SPEC-0060\
+  \ item 4 test-or-waive predicate (`test-not-applicable:\n<reason>` reads WAIVED);\
+  \ evidence is PRESENT only when the packet carries a row the criterion's own\ntext\
+  \ points at, or a task-tied `state_checked` row naming the criterion's `ACn` id.\
+  \ A\ncriterion naming a directory that holds a test file the predicate recognizes\
+  \ reads verifier PRESENT;\none matching nothing gets an indented `not matched` detail\
+  \ line quoting the criterion text.\nThe P8 row is `n/a` outside `class: infra`,\
+  \ and `DEFERRED-DECLARED <field>` names\nthe SPEC-0028 deferred-proof declaration\
+  \ the card carries.\nIT IS ADVISORY, and that is the X-1060 ruling carried forward\
+  \ UNCHANGED: exit 0, no verdict, no\nceiling pass, no gate, no counted set — nothing\
+  \ branches on a row, here or downstream. It is made\nmandatory by DELIVERY (the\
+  \ audit stage bundles and the worker preamble name the preview step), never\nby\
+  \ a gate.\nNO PACKET TO PREVIEW. On the two short-circuit branches that record a\
+  \ verdict without\nassembling a packet (consult-governed carry-forward, unchanged-fingerprint\
+  \ carry-forward) the\npreview NAMES the governing branch and prints no packet —\
+  \ printing one the real invocation never\nbuilds is the failure mode the preview\
+  \ exists to prevent.\nBOUND: the preview runs the same stage-correspondence and\
+  \ read gates as the real invocation.\nONE GATE IT DOES NOT RUN, and only this one\
+  \ (X-1121): the / WRITE-ISOLATION\nguard. So a\npreview runs wherever a journal\
+  \ append may run, INCLUDING the main checkout. The condition is on\nthe PREVIEW\
+  \ PATH, never on the verb: a NON-preview `audit pre|post` off a writing worktree\
+  \ is\nrefused exactly as before, because its verdict YAML is the non-bookkeeping\
+  \ dirt that guard exists\nto keep off `main` (E-0014).\n\n### Anti-pattern (do not\
+  \ do)\nRun audit \"just to check\" on hygiene tasks; iterate >2 absorption passes;\
+  \ cherry-pick verdict\n(run multiple auditors, pick the favorable one); bypass audit\
+  \ via env var; hand-author a bespoke\nplan-gate prompt when the template+`--focus`\
+  \ path is available; make either `--preview` diagnostic\ngate anything; assemble\
+  \ a preview packet through any path but the one real assembler.\n\n## Rationale\n\
+  \nHistory of this spec's rules is recorded in this section (placement rule: <workshop-spec>\
+  \ rule 3).\n\n### History moved out of the rule body\n\nThe passages below stood\
+  \ in the rule text and were moved here verbatim; the rule they\nsat in is unchanged.\n\
+  \n- **Scenario:** (re-homed by so the Audit-pre / Audit-post bundles stop carrying\
+  \ a\n  plan-gate-only surface)\n\n- **Auditor selection — provider + model + EFFORT\
+  \ (per-tier):** the committed config is test-pinned to\n  <external-auditor>/medium,\
+  \ so the env path must not perturb it\n\n- **When invoked:** (the deadlock live-hit\
+  \ on : the original audit no longer covers the changed\n  tree, and a done task\
+  \ previously refused re-audit)\n\n- **When invoked:** This SUPERSEDES the prior\
+  \ SPEC-0077 §3a claim that the post-close case \"needs NO\n  re-audit-after-close\
+  \ path, so SPEC-0036's in-progress-only audit rule is untouched\" — it is now\n\
+  \  touched, exactly here.\n\n- **Verdict handling (uniform across pre / post / ad-hoc\
+  \ / plan-gates):** (the incident)\n\n- **Verdict handling (uniform across pre /\
+  \ post / ad-hoc / plan-gates):** **What OVERRIDES,\n  named so it is traceable:**\
+  \ clause held it DELIBERATE that a non-124 no-outcome failure\n  still advances\
+  \ the ledger; that is overridden.\n\n- **Verdict handling (uniform across pre /\
+  \ post / ad-hoc / plan-gates):** (the X-0098/X-0092 incident\n  — twice in one session)\n\
+  \n- **Absorption sweep — the same defect class, across the whole subject :** (2026-10-05:\
+  \ a\n  later round found without the check the absorber had added to and after the\n\
+  \  previous round)\n\n- **Absorption sweep — the same defect class, across the whole\
+  \ subject :** Amended by\n  : the first absorption under this rule ( audit-pre)\
+  \ stated no sweep, because the\n  earlier text added no verb, event, store or gate\
+  \ and left the statement to memory.\n\n- **Auditor-tier policy — routine vs FULL,\
+  \ and no relitigation of a FULL-settled point :**\n  (owner precedent 2026-06-11)\n\
+  \n- **Universal V2 evaluation lens (include in EVERY prompt):** It required every\
+  \ RED verdict (audit-pre\n  AND audit-post) to enumerate the COMPLETE defect set\
+  \ over the WHOLE subject, with a\n  `findings_complete: true | false` declaration\
+  \ read fail-closed on omission, and a one-shot\n  completion re-prompt in the same\
+  \ pass.\n\n- **Monotonic per-pass re-audit prompt (pass N>=2):** ( — X-0134 RC1a\
+  \ out-of-diff half; live\n  incident false-RED)\n\n- **Monotonic per-pass re-audit\
+  \ prompt (pass N>=2):** ( — X-1182; <project>)\n\n- **Task per-stage overlays:**\
   \ / X-0134 RC1b\n\n- **Task per-stage overlays:** measured across three consumers'\
   \ entire history\n\n- **Task per-stage overlays:** and until now only the first\
   \ was asked\n\n- **Task per-stage overlays:** one rule, now ASKED at verify where\
@@ -214,13 +218,13 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \  UNSTRUCTURED exactly as it did before this rule PLUS ONE diagnostic line naming\
   \ the entry and\n  the expected shape — never silent loss, never a refusal. Pass-1\
   \ packets are unchanged (the whole\n  section renders only on pass N>=2).\n\n- **Monotonic\
-  \ per-pass re-audit prompt (pass N>=2):** **Compatibility (additive — SPEC-0005\
+  \ per-pass re-audit prompt (pass N>=2):** **Compatibility (additive — <workshop-spec>\
   \ §7\n  in-place extension; no new SPEC-ID):** the section is rendered ADDITIVELY\
   \ and ONLY on pass N>=2;\n  pass-1 prompts are unchanged. The audit-record SCHEMA\
   \ is untouched — the ledger-skip family\n  (single-homed at <workshop-spec> §Ledger-skip\
   \ axes) and the recorded `passes:` semantics are PRESERVED\n  (the ceiling still\
   \ counts passes identically — this changes the PROMPT, not the counting). The\n\
-  \  prompt text is DERIVED implementation wording (SPEC-0005 rule 8 cue+pointer);\
+  \  prompt text is DERIVED implementation wording (<workshop-spec> rule 8 cue+pointer);\
   \ the canonical rule\n  is THIS section.\n\n- **Task per-stage overlays:** A card\
   \ closed under a case records `task_closed.data.exempted_case`\n  (SPEC-0025).\n\
   \n- **Task per-stage overlays:** Such a carrier is rendered in the audit-post packet's\

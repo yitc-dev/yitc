@@ -372,42 +372,42 @@ body: "## Scenario\n\nWhen an audit RED/YELLOWs, the AI absorbs findings and re-
   \ charged, and why not?» across a card's\nhistory has only the journal to ask. The\
   \ other markers in this section stay YAML-only; this one\nis named because it is\
   \ the one the ledger's own history is read from.\n\n## Rationale\n\nHistory of this\
-  \ spec's rules is recorded in this section (placement rule: SPEC-0005 rule 3).\n\
-  \n### History moved out of the rule body\n\nThe passages below stood in the rule\
-  \ text and were moved here verbatim; the rule they\nsat in is unchanged.\n\n- **Scenario:**\
-  \ (re-homed from the audit contract SPEC-0036 by — a stable-surface split,\n  SPEC-0005\
-  \ §7 / rule-6 anti-oversize)\n\n- **Internal:** Re-homed VERBATIM from the parent\
-  \ contract SPEC-0036 (its former audit-loop-ceiling\n  section; stable-surface split,\
-  \ SPEC-0005 §7).\n\n- **Audit-loop ceiling (CHARTER §Principle 1 applied to audits):**\
-  \ measured on the plan side by\n  X-0928, where 5 absorbed gate-specs findings left\
-  \ no journal record at all, and on the ad-hoc side\n  by a consult whose 16 absorbed\
-  \ findings the next gate auditor read as contradicted by the record's\n  empty `absorbed:`\
-  \ list.\n\n- **Audit-loop ceiling (CHARTER §Principle 1 applied to audits):** But\
-  \ a REAL dispatched worker, after\n  its 2nd audit-post RED (which RECORDS passes\
-  \ == cap), follows its SPEC-0103 preamble and HALTS — it\n  never makes that 3rd\
-  \ call, so the path was STRUCTURALLY BYPASSED.\n\n- **Audit-loop ceiling (CHARTER\
-  \ §Principle 1 applied to audits):** What the re-entry used to reach was\n  the\
-  \ auto-consult grant\n\n- **Ledger-skip axes — re-audits that are NOT absorption\
-  \ loops:** (measured 2026-09-12)\n\n- **Ledger-skip axes — re-audits that are NOT\
-  \ absorption loops:** (: the GREEN build was\n  discarded and re-claimed)\n\n- **Ledger-skip\
-  \ axes — re-audits that are NOT absorption loops:** (graph/index.json is the measured\n\
-  \  case)\n\n- **Ledger-skip axes — re-audits that are NOT absorption loops:** so\
-  \ the bare rc!=0 short-circuit read\n  that as new observable content and defeated\
-  \ an audited re-baseline forever.\n\n- **Saved-result ledger-skip markers (the ceiling's\
-  \ YAML side-effects):** It was previously listed\n  here as a non-ledger-skip marker;\
-  \ that is superseded.\n\n- **Ledger-skip axes — re-audits that are NOT absorption\
-  \ loops:** The retired ceiling-convergence\n  triage was the pass-3 step and refused\
-  \ below the ceiling.\n\n- **Post-close reaudit exit — a done-but-UNLANDED task IS\
-  \ admitted (the circle):**\n  What USED to be the exit — a HEAD-pinned consult on\
-  \ that target re-opening a spent `--owner-reset`\n   — is retired with both the\
-  \ consult basis and the reset.\n\n- **Ledger-skip axes — re-audits that are NOT\
-  \ absorption loops:** (git history keeps it)\n\n- **Ledger-skip axes — re-audits\
-  \ that are NOT absorption loops:** (git history keeps them)\n\n- **Ledger-skip axes\
-  \ — re-audits that are NOT absorption loops:** (git history keeps them)\n\n### Trend\
-  \ grant admits a medium residual\n\n- The grant was born with (examples 3->1, 2->1)\
-  \ as the autonomous sibling of the since-retired\n  `--owner-reset`; extended it\
-  \ to the plan finalization gate to the early plan gates\n  (the predecessor still\
-  \ called that a tracked deferral after it), and added\n  `trend_ceiling_grant_basis`.\n\
+  \ spec's rules is recorded in this section (placement rule: <workshop-spec> rule\
+  \ 3).\n\n### History moved out of the rule body\n\nThe passages below stood in the\
+  \ rule text and were moved here verbatim; the rule they\nsat in is unchanged.\n\n\
+  - **Scenario:** (re-homed from the audit contract SPEC-0036 by — a stable-surface\
+  \ split,\n  <workshop-spec> §7 / rule-6 anti-oversize)\n\n- **Internal:** Re-homed\
+  \ VERBATIM from the parent contract SPEC-0036 (its former audit-loop-ceiling\n \
+  \ section; stable-surface split, <workshop-spec> §7).\n\n- **Audit-loop ceiling\
+  \ (CHARTER §Principle 1 applied to audits):** measured on the plan side by\n  X-0928,\
+  \ where 5 absorbed gate-specs findings left no journal record at all, and on the\
+  \ ad-hoc side\n  by a consult whose 16 absorbed findings the next gate auditor read\
+  \ as contradicted by the record's\n  empty `absorbed:` list.\n\n- **Audit-loop ceiling\
+  \ (CHARTER §Principle 1 applied to audits):** But a REAL dispatched worker, after\n\
+  \  its 2nd audit-post RED (which RECORDS passes == cap), follows its SPEC-0103 preamble\
+  \ and HALTS — it\n  never makes that 3rd call, so the path was STRUCTURALLY BYPASSED.\n\
+  \n- **Audit-loop ceiling (CHARTER §Principle 1 applied to audits):** What the re-entry\
+  \ used to reach was\n  the auto-consult grant\n\n- **Ledger-skip axes — re-audits\
+  \ that are NOT absorption loops:** (measured 2026-09-12)\n\n- **Ledger-skip axes\
+  \ — re-audits that are NOT absorption loops:** (: the GREEN build was\n  discarded\
+  \ and re-claimed)\n\n- **Ledger-skip axes — re-audits that are NOT absorption loops:**\
+  \ (graph/index.json is the measured\n  case)\n\n- **Ledger-skip axes — re-audits\
+  \ that are NOT absorption loops:** so the bare rc!=0 short-circuit read\n  that\
+  \ as new observable content and defeated an audited re-baseline forever.\n\n- **Saved-result\
+  \ ledger-skip markers (the ceiling's YAML side-effects):** It was previously listed\n\
+  \  here as a non-ledger-skip marker; that is superseded.\n\n- **Ledger-skip axes\
+  \ — re-audits that are NOT absorption loops:** The retired ceiling-convergence\n\
+  \  triage was the pass-3 step and refused below the ceiling.\n\n- **Post-close reaudit\
+  \ exit — a done-but-UNLANDED task IS admitted (the circle):**\n  What USED to be\
+  \ the exit — a HEAD-pinned consult on that target re-opening a spent `--owner-reset`\n\
+  \   — is retired with both the consult basis and the reset.\n\n- **Ledger-skip axes\
+  \ — re-audits that are NOT absorption loops:** (git history keeps it)\n\n- **Ledger-skip\
+  \ axes — re-audits that are NOT absorption loops:** (git history keeps them)\n\n\
+  - **Ledger-skip axes — re-audits that are NOT absorption loops:** (git history keeps\
+  \ them)\n\n### Trend grant admits a medium residual\n\n- The grant was born with\
+  \ (examples 3->1, 2->1) as the autonomous sibling of the since-retired\n  `--owner-reset`;\
+  \ extended it to the plan finalization gate to the early plan gates\n  (the predecessor\
+  \ still called that a tracked deferral after it), and added\n  `trend_ceiling_grant_basis`.\n\
   - Why a medium residual now qualifies: cross X-2028 item 4 (<project>, 2026-10-01..16)\
   \ — 24 of 140\n  cards reached the audit-loop ceiling, 47 of 54 ceiling decisions\
   \ were `fix`, and those cards took a\n  median 66 minutes against 39. The low-only\
@@ -454,6 +454,6 @@ activation_owner_task: null
 proposed_by: null
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
+  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
   bin/lib/audit.py#is_trend_convergence_grant: b49015c43bf99062f0bec7752fa349d1ef1cb6505d2f4cba8bbc0a524fd757d0
   bin/lib/audit.py#trend_grant_subject_changed: c6c5d13d826fb0bf818c557b7d20803cc950ae9e28195dd43caeefc61fac965f

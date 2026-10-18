@@ -500,7 +500,7 @@ COMPLETENESS is the §B5 criterion below — not this bench, and not the two-gat
    the graph. **Spec naming cue:** every spec is a `SPEC-XXXX.yaml` file — the SINGLE spec identifier
    shape; do NOT invent parallel `INVARIANT-*`/`CONFIG-*`/`FSM-*` spec artifacts (a v1-shaped trap — they
    are silently graph-invisible). An invariant/config/FSM is spec CONTENT, not a separate prefix — see
-   SPEC-0005 §Identity for the rule (real incident: the <project> migration, X-0195/X-0197).
+   <workshop-spec> §Identity for the rule (real incident: the <project> migration, X-0195/X-0197).
 2. **No code without documentation.** Every **load-bearing** code surface is governed by a spec (or a
    `scenario`) via the `implements` graph edge — no orphan load-bearing code. (`graph build` reports the
    code→spec coverage; walk the file's symbols against it.) Genuinely-trivial infra / glue may stay
@@ -608,7 +608,7 @@ Controller toward a WRONG force-recovery:
 - [ ] **Imported spec corpus stranded at `proposed` with PHANTOM activation owners.** A v1→v2 spec import
   can land the whole corpus at `status: proposed` carrying an `activation_owner_task` that points at a task
   which does not exist in the consumer (typically a kernel-range id copied along with the spec). Such a spec
-  is stranded by construction: a `proposed` spec **governs nothing** (SPEC-0005 §4 — non-authoritative), and
+  is stranded by construction: a `proposed` spec **governs nothing** (<workshop-spec> §4 — non-authoritative), and
   `proposed → active` is written ONLY by that owner task's `task close`, which can never run for a task with
   no card. So the corpus LOOKS migrated while governing nothing, indefinitely. **Every imported spec must
   reach a TERMINAL honest status — one of exactly two routes, per spec:**
@@ -618,10 +618,10 @@ Controller toward a WRONG force-recovery:
      no activating close is a drift-#10 / P5 signal.
   2. **RETIRE / WITHDRAW** — the honest terminal for a spec the consumer will not actually adopt
      (`spec edit <SPEC>`). A withdrawn spec is a clean outcome; a `proposed` one is not.
-  **Finder:** `bin/yitc-v2 -C <repo> graph conformance` emits a report-only `ADVISORY (SPEC-0005 §4/§5 …)`
+  **Finder:** `bin/yitc-v2 -C <repo> graph conformance` emits a report-only `ADVISORY (<workshop-spec> §4/§5 …)`
   row per phantom-owner spec (report-only by design — the route is a semantic choice no check can make for
   you; it never blocks a land). **Note the boundary:** a spec with NO `activation_owner_task` at all is
-  grandfathered-VALID (SPEC-0005 §5, no retroactive backfill) and is not flagged — this row is about a
+  grandfathered-VALID (<workshop-spec> §5, no retroactive backfill) and is not flagged — this row is about a
   PRESENT-but-unresolvable owner. (Born: <project> F2a import, 2026-07-16 — 36 specs owned by nonexistent
   /; kernel X-0437, sibling of the X-0433 shadowing class.)
 - [ ] **v1 liveness/freshness monitor retired WITHOUT proven like-for-like v2 coverage.** A v1 watchdog
@@ -734,7 +734,7 @@ Walk one column per human collaborator of the migrated project (`registry.yaml` 
 > A rule there is shown only as a pointer at session start. It is in no stage bundle and no
 > dispatch brief, so it reaches a worker only through a hand-written brief.
 
-**(a) A project may write a spec about its own way of working.** SPEC-0005 §1 admits a process rule
+**(a) A project may write a spec about its own way of working.** <workshop-spec> §1 admits a process rule
 as a spec when it is cross-task, durable, analysis-shaping and behaviour-relevant. One-off guidance
 or a temporary choice stays on the card or the plan. Author it like any spec, in a `work/<slug>`
 worktree: `<engine>/bin/yitc-v2 -C <path> spec new --title "…" --travels project`. It is born
@@ -782,7 +782,7 @@ body: |
 ```
 
 The body states the rule only. Where the tests live and the command that runs them are facts the
-repository already holds: the spec names neither (SPEC-0005 §3, the content boundary).
+repository already holds: the spec names neither (<workshop-spec> §3, the content boundary).
 
 Once it is `active`, `stage Tests --task T-XXXX` lists it as `own` beside the kernel's Tests contracts.
 

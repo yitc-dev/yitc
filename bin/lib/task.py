@@ -13,6 +13,7 @@ import functools
 import hashlib
 import io
 import json
+import math
 import os
 import re
 import shutil
@@ -12465,8 +12466,27 @@ def _glob_literal_root(glob) -> str:
     return head[:head.rfind("/")] if "/" in head else ""
 
 
+# T-14016 — a maximal run of path characters in a failure message. Maximal on purpose: inside
+# `docs/tests/x.py` it yields that whole token, never the `tests/x.py` suffix.
+_MESSAGE_PATH_TOKEN_RE = re.compile(r"[A-Za-z0-9_.\-/]+")
+
+
+def _message_named_paths(text) -> set:
+    """T-14016 — the path tokens a failure message names, normalized ONLY by removing literal
+    leading `./` prefixes and a trailing sentence `.`. A leading `/` and `../` components are KEPT,
+    so an absolute or parent-relative path can never equal a repo-relative changed path."""
+    out = set()
+    for tok in _MESSAGE_PATH_TOKEN_RE.findall(str(text or "")):
+        while tok.startswith("./"):
+            tok = tok[2:]
+        tok = tok.rstrip(".")
+        if tok:
+            out.add(tok)
+    return out
+
+
 def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs=(),
-                                layer_tails=None, layer_roots=None) -> list:
+                                layer_tails=None, layer_roots=None, messages=None) -> list:
     """T-11583 — the ATTRIBUTION half of a `tests_failed` row: relate each failing layer to THIS
     card's own diff, so a reader can act on the red without re-running it.
 
@@ -12519,8 +12539,18 @@ def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs
     `layer_roots[name]`. Such a name is attributed from the `FAILED <path>::<node>` lines of its
     tail, each `<path>` tried as-is and joined to every root; no test id, or no declared root,
     is `undetermined`.
+
+    T-14016 — THE NAMED-PATH RULE, a second step after the file rule above. A repository-wide check
+    (one test file that inspects the whole corpus) fails in a file the card never touched while its
+    message names the file the card DID change, so the file rule alone read card-caused reds as
+    foreign (public issue #141). `messages[name]` is that layer's own failure text (the caller passes
+    the lines after the first, never the bare name line or a banner's command). Only when the file
+    rule said `not-in-diff`, a path token of that text EXACTLY equal to a changed path makes the entry
+    `in-diff` — same exactness bound as above, no suffix and no basename. Each decided entry records
+    which step decided it in `rule` (`file` | `named-path`); an `undetermined` entry carries none.
     """
     out = []
+    msgs = {str(k).strip().lstrip("./"): v for k, v in (messages or {}).items()}
     tails = layer_tails or {}
     roots_by = layer_roots or {}
     paths = {str(c).strip().lstrip("./") for c in (changed_paths or []) if str(c).strip()} \
@@ -12552,7 +12582,12 @@ def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs
         else:
             # A bare label with no directory to resolve it against. Say so.
             attribution = "undetermined"
-        out.append({"name": name, "attribution": attribution})
+        entry = {"name": name, "attribution": attribution}
+        if attribution != "undetermined":
+            entry["rule"] = "file"
+            if attribution == "not-in-diff" and (_message_named_paths(msgs.get(name)) & paths):
+                entry.update(attribution="in-diff", rule="named-path")
+        out.append(entry)
     return out
 
 def _stage6_changed_paths(root, *, _run_git_cap=None):
@@ -13092,35 +13127,500 @@ def _stage6_selection_note(summary) -> str:
     return line
 
 
-def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: str = "task test --run"):
+def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: str = "task test --run",
+                            tid=None, mark=None, _append_event=None, _load_hold=None):
     """T-13806 (SPEC-0203 rule 4's Stage-6 count, applied on the LOCAL host) — the admission a
     local Stage-6 run takes when the host SET `YITC_VENUE_STAGE6_MAX_CONCURRENT`.
 
-    `limits` is `remote_verify.local_stage6_limits()`. Unset (`max_concurrent` None) → a no-op context:
-    the local arm takes no admission, exactly as before this card. Set to N → one of N flock slots in
+    `limits` is `remote_verify.local_stage6_limits()`: `max_concurrent` None (unset, the default) →
+    no admission at all, a null context, the arm exactly as before. A count → hold 1 of N slots in
     the `stage6` sub-pool of this repo's verify slot directory (`worktree._verify_admission`, the land
     semaphore reused — a separate pool, so a Stage-6 never takes or waits on a land's slot). Keyed by
     the MAIN checkout, so every task worktree of one repo shares the count. While every slot is held
-    the wait prints one line, then one a minute, so a waiting run never reads as a hang."""
+    the wait prints one line, then one a minute, so a waiting run never reads as a hang.
+
+    T-14006 (SPEC-1029 rule 5) — WAITERS ARE SERVED IN ORDER, not in poll order: a live queue-jump
+    mark (SPEC-0184 rule 9) first, then the oldest wait. The order is read off the MAIN checkout's
+    journal, the way the land queue reads its own: a run journals a `stage6_waiting` row (task, since,
+    position) BEFORE its first attempt and re-beats it while it waits, and a slot is taken only by the
+    run no live waiter ranks ahead of (`_stage6_waiters_ahead`) — asked before the lock and again once
+    it is held. Admission journals a `stage6_admitted` row. `mark` is the mark read at the start or a
+    callable re-reading the LIVE mark (re-asked every poll, a change re-beaten at once). No ticket file
+    and no assembler — every waiter decides from the same rows. `_append_event=None` writes no row
+    (the run is then invisible to the order, but still obeys it).
+
+    T-14023 (SPEC-1029 rule 5) — THE OPT-IN LOAD HOLD. With `YITC_STAGE6_LOAD_BOUND` set
+    (`_stage6_load_settings`), the run that holds the next place in order starts only on a CPU busy
+    share under the bound, read over a window that began at or after the newest start, and once the
+    spacing since that start has passed (`_Stage6LoadHold`). Unset, nothing here reads the host.
+    `_load_hold` is the test seam: a settings dict, or a factory taking the slot directory."""
     n = limits.get("max_concurrent")
     if not n:
         return contextlib.nullcontext()
-    from lib import worktree as _wt           # lazy: the circular-import idiom used in this module
+    from lib import worktree as _wt            # lazy: the circular-import idiom used in this module
     key = root
     if _main_worktree is not None:
         try:
             key = _main_worktree(root) or root
         except Exception:                      # an unresolvable main checkout: key on the run's root
             key = root
-    said = [-60.0]
+    hold = None
+    load = _stage6_load_settings() if _load_hold is None else _load_hold
+    if callable(load):                         # a test seam: a factory taking the slot directory
+        hold = load
+    elif load is not None:
+        hold = (lambda slot_dir: _Stage6LoadHold(load, slot_dir))
+    return _stage6_ordered_admission(_wt, Path(key), n, label=label, tid=tid, mark=mark,
+                                     _append_event=_append_event, _load_hold=hold)
+
+
+@contextlib.contextmanager
+def _stage6_ordered_admission(_wt, key: Path, n: int, *, label, tid, mark, _append_event,
+                              _load_hold=None):
+    """T-14006 — the body of the ordered Stage-6 admission (see `_stage6_local_admission`).
+
+    T-14023 — `_load_hold` (a factory taking the Stage-6 slot directory, None = no hold, the T-14006
+    body exactly): the run that holds the next place in order also waits for the host's CPU
+    (`_Stage6LoadHold`), and a slot it locks is kept only once the hold commits its start."""
+    journal = key / "events.jsonl"
+    hold = None
+    if _load_hold is not None:
+        hold = _load_hold(_wt._verify_slot_dir(key) / "stage6")
+    read_mark = mark if callable(mark) else (lambda: mark)
+
+    def _marked():
+        try:
+            return bool(read_mark())
+        except Exception:                      # noqa: BLE001 — an unreadable mark is no mark
+            return False
+
+    since = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    me = {"wait_id": os.urandom(8).hex(), "since": since, "pid": os.getpid(), "queue_jump": _marked()}
+    beat = _wt._LAND_QUEUE_FRESHNESS_SEC / 3.0   # three beats inside the freshness window the reader applies
+    said, beaten, state = [-60.0], [0.0], {"admitted": False}
+
+    def _emit(etype, data):
+        if _append_event is None:
+            return
+        try:
+            _append_event(etype, tid, data, events_path=journal)
+        except Exception as e:                 # noqa: BLE001 — a lost row never blocks a run
+            print(f"{label}: could not journal {etype}: {e}", file=sys.stderr, flush=True)
+
+    def _refresh_mark():
+        # the LIVE mark, re-read on every admission question: a mark set or cleared mid-wait is
+        # re-beaten at once, so this run and every peer rank on it before the next slot is taken
+        now_marked = _marked()
+        if now_marked != me["queue_jump"]:
+            me["queue_jump"] = now_marked
+            me["position"] = len(_stage6_waiters_ahead(journal, me, _wt=_wt))
+            _emit("stage6_waiting", dict(me, state="waiting", slots=n))
+
+    def _held_by_load():
+        # T-14023 — asked only by the run no live waiter ranks ahead of; a change of what holds the
+        # run (or of the reading's availability) is journaled at once, the reading rides every beat
+        ok = hold.ready()
+        before = _stage6_load_phase(me) if me.get("wait_reason") == "load" else None
+        if ok:
+            me.pop("wait_reason", None)
+            me.pop("load", None)
+        else:
+            me["wait_reason"] = "load"
+            me["load"] = dict(hold.reading)
+            if _stage6_load_phase(me) != before:
+                _emit("stage6_waiting", dict(me, state="waiting", slots=n))
+        return ok
+
+    def _may_take():
+        _refresh_mark()
+        if _stage6_waiters_ahead(journal, me, _wt=_wt):
+            return False
+        return True if hold is None else _held_by_load()
 
     def _on_wait(waited):
+        _refresh_mark()
+        waited = time.monotonic() - t0          # T-14023: one clock across re-entered admissions
+        if waited - beaten[0] >= beat:
+            me["position"] = len(_stage6_waiters_ahead(journal, me, _wt=_wt))
+            beaten[0] = waited
+            _emit("stage6_waiting", dict(me, state="waiting", slots=n))
         if waited - said[0] >= 60.0:
             said[0] = waited
+            if me.get("wait_reason") == "load":
+                print(f"{label}: waiting for the host's CPU before a local Stage-6 start — "
+                      f"{_stage6_load_text(me.get('load') or {})}; waited {int(waited)}s",
+                      file=sys.stderr, flush=True)
+                return
             print(f"{label}: waiting for a local Stage-6 slot — all {n} held "
-                  f"(YITC_VENUE_STAGE6_MAX_CONCURRENT={n}); waited {int(waited)}s", file=sys.stderr,
-                  flush=True)
-    return _wt._verify_admission(Path(key), n, on_wait=_on_wait, pool="stage6")
+                  f"(YITC_VENUE_STAGE6_MAX_CONCURRENT={n}); waited {int(waited)}s"
+                  + (f", {me.get('position', 0)} ahead in order" if me.get("position") else ""),
+                  file=sys.stderr, flush=True)
+
+    # Published BEFORE the first attempt, so a later arrival already sees this wait (T-14006 audit-pre).
+    me["position"] = len(_stage6_waiters_ahead(journal, me, _wt=_wt))
+    _emit("stage6_waiting", dict(me, state="waiting", slots=n))
+    t0 = time.monotonic()
+    try:
+        while not state["admitted"]:
+            with _wt._verify_admission(key, n, on_wait=_on_wait, pool="stage6", may_take=_may_take):
+                if hold is not None and not hold.commit():
+                    # T-14023: the start is refused — journal WHY at once, before the next sample
+                    me["wait_reason"] = "load"
+                    me["load"] = dict(hold.reading)
+                    _emit("stage6_waiting", dict(me, state="waiting", slots=n))
+                    continue
+                state["admitted"] = True
+                row = dict(me, waited_s=round(time.monotonic() - t0, 3), slots=n)
+                row.pop("wait_reason", None)
+                if hold is not None:
+                    row["load"] = dict(hold.reading)
+                _emit("stage6_admitted", row)
+                yield
+    finally:
+        if not state["admitted"]:
+            _emit("stage6_waiting", dict(me, state="left", slots=n))
+
+
+# ── T-14023 (SPEC-1029 rule 5) — the opt-in load hold on the local Stage-6 slot ────────────────
+def _stage6_load_settings(env=None) -> "dict | None":
+    """THE ONE READ SITE of the four Stage-6 load keys (`machine_settings.INVENTORY`, PERFORMANCE):
+    environment, then the machine settings file, then the inventoried default. A value `coerce`
+    refuses (out of band, not a number) is ignored and the default stands. Returns None — no hold,
+    nothing read from the host — while YITC_STAGE6_LOAD_BOUND has no valid value."""
+    from lib import machine_settings as _ms    # deferred: keeps the hot import graph unchanged
+    env = os.environ if env is None else env
+
+    def _val(name):
+        knob = _ms.BY_NAME[name]
+        raw = env.get(name)
+        if raw is not None and str(raw).strip() != "":
+            try:
+                return _ms.coerce(knob, str(raw).strip())
+            except _ms.SettingsRefused:
+                pass
+        try:
+            v = _ms.get_value(name)
+        except Exception:                      # noqa: BLE001 — a settings fault never gates a run
+            v = None
+        return knob.default if v is None else v
+
+    bound = _val("YITC_STAGE6_LOAD_BOUND")
+    if bound is None:
+        return None
+    cpus = _val("YITC_STAGE6_LOAD_CPU_SET")
+    return {"bound": float(bound), "window_s": float(_val("YITC_STAGE6_LOAD_WINDOW_S")),
+            "spacing_s": float(_val("YITC_STAGE6_LOAD_SPACING_S")),
+            "cpu_set": (str(cpus).strip() or None) if cpus is not None else None}
+
+
+def _stage6_parse_cpu_set(text) -> "list | None":
+    """`"0-3,8"` → [0, 1, 2, 3, 8]; None/blank → None (every online CPU). Malformed RAISES ValueError."""
+    if text is None or not str(text).strip():
+        return None
+    out = set()
+    for part in str(text).split(","):
+        part = part.strip()
+        lo, sep, hi = part.partition("-")
+        a, b = int(lo), int(hi) if sep else int(lo)
+        if a < 0 or b < a:
+            raise ValueError(f"bad CPU range {part!r}")
+        out.update(range(a, b + 1))
+    return sorted(out)
+
+
+def _stage6_cpu_sample(cpus=None, *, _path="/proc/stat"):
+    """One /proc/stat read → (busy, total) jiffies: the aggregate `cpu` line (every online CPU) when
+    `cpus` is None, else the sum of the named `cpuN` lines. idle = idle + iowait; total = the first 8
+    fields (user nice system idle iowait irq softirq steal — guest time is already inside user).
+    RAISES on an unreadable file, a short or unparsable line, or a named CPU that is absent."""
+    with open(_path, encoding="ascii") as fh:
+        lines = fh.read().splitlines()
+    rows = {}
+    for line in lines:
+        f = line.split()
+        if f and f[0].startswith("cpu"):
+            rows[f[0]] = f[1:]
+    names = ["cpu"] if cpus is None else [f"cpu{c}" for c in cpus]
+    busy = total = 0
+    for name in names:
+        f = rows.get(name)
+        if f is None or len(f) < 8:
+            raise ValueError(f"/proc/stat has no usable {name} line")
+        v = [int(x) for x in f[:8]]
+        t = sum(v)
+        busy += t - v[3] - v[4]
+        total += t
+    return busy, total
+
+
+def _stage6_iso(t: float) -> str:
+    return _dt.datetime.fromtimestamp(t, _dt.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _stage6_load_phase(me: dict) -> str:
+    """What holds a load-held run: unavailable | refused | sampling | over | spacing — a change is
+    journaled at once."""
+    r = me.get("load") or {}
+    if "unavailable" in r:
+        return "unavailable"
+    if "refused" in r:
+        return "refused"
+    if r.get("busy_share") is None:
+        return "sampling"
+    return "spacing" if r.get("spacing_left_s") else "over"
+
+
+def _stage6_load_text(r: dict) -> str:
+    """The one-line reading for the minute stderr line."""
+    if "unavailable" in r:
+        return f"CPU reading unavailable ({r['unavailable']}), bound {r.get('bound')}"
+    if "refused" in r:
+        return f"start refused ({r['refused']}), re-reading the CPU, bound {r.get('bound')}"
+    if r.get("busy_share") is None:
+        return f"sampling the CPU over {r.get('window_s')}s, bound {r.get('bound')}"
+    txt = f"busy share {r['busy_share']} vs bound {r.get('bound')} (load1 {r.get('load1')})"
+    if r.get("spacing_left_s"):
+        txt += f", {r['spacing_left_s']}s of spacing left since the newest start"
+    return txt
+
+
+class _Stage6LoadHold:
+    """T-14023 (SPEC-1029 rule 5) — may the run that holds the next Stage-6 place start on the host's
+    CPU now? Non-blocking: `ready()` is asked once per admission poll and carries a two-sample window
+    across polls, so a held run keeps its place and its rows beat as before.
+
+    `ready()`: no first sample, or one whose window began before `last_start` → take a first sample,
+    hold. Window not elapsed → hold. Else the second sample gives the busy share; at or over the bound
+    → hold, the next window starts from this sample; spacing since `last_start` not passed → hold;
+    else CLEARED — `reading` is what the start is judged on. Any read/parse fault → hold, with the
+    reading named unavailable, never a share of zero.
+    `commit()`, with a slot held: under the flock on `last_start.lock`, re-read `last_start`; a start
+    after the cleared window's start, or the spacing not passed → refuse (the caller leaves the slot
+    and waits on); else write `last_start` = now and admit. `last_start` survives the run's end. A
+    lock or write fault refuses too, the reading named unavailable: a start that cannot be recorded
+    would let the next one skip its spacing. Every refusal ends the window whole (`_reset`), so the
+    next attempt waits a full window through the admission poll — never a tight retry."""
+
+    def __init__(self, settings: dict, slot_dir: Path, *, _sample=None, _clock=None, _loadavg=None):
+        self.s = dict(settings)
+        self.dir = Path(slot_dir)
+        self._sample = _sample or _stage6_cpu_sample
+        self._clock = _clock or time.time
+        self._loadavg = _loadavg or os.getloadavg
+        self._first = None                     # (window start, busy, total)
+        self._cleared_at = None                # when a cleared reading was taken
+        self.reading = self._base()
+
+    def _base(self) -> dict:
+        return {"bound": self.s["bound"], "window_s": self.s["window_s"],
+                "cpus": self.s.get("cpu_set") or "all"}
+
+    def _take(self):
+        cpus = _stage6_parse_cpu_set(self.s.get("cpu_set"))
+        return self._sample(cpus)
+
+    def last_start(self) -> "float | None":
+        p = self.dir / "last_start"
+        try:
+            text = p.read_text(encoding="ascii").strip()
+        except FileNotFoundError:
+            return None
+        except OSError:
+            text = ""
+        try:
+            v = float(text)
+            if math.isfinite(v):
+                return v
+        except ValueError:
+            pass
+        try:
+            return p.stat().st_mtime           # corrupt / non-finite content: its write time, conservative
+        except OSError:
+            return None
+
+    def _reset(self) -> None:
+        """Every refusal ends the window whole: the next ask starts a new first sample."""
+        self._first = None
+        self._cleared_at = None
+
+    def _unavailable(self, e) -> bool:
+        self._reset()
+        self.reading = dict(self._base(), unavailable=f"{type(e).__name__}: {e}"[:200])
+        return False
+
+    def _fresh(self, now: float, last: "float | None") -> bool:
+        """THE one test of a cleared reading, asked by `ready()` and again by `commit()`: taken no
+        longer than one window ago, on a window that began at or after the newest start, and the
+        spacing since that start has passed."""
+        return (self._cleared_at is not None and self._first is not None
+                and now - self._cleared_at <= self.s["window_s"]
+                and (last is None or (self._first[0] >= last and now - last >= self.s["spacing_s"])))
+
+    def ready(self) -> bool:
+        now = self._clock()
+        try:
+            last = self.last_start()
+            if self._cleared_at is not None:
+                if self._fresh(now, last):
+                    return True
+                self._reset()                  # too old, or a start landed after it: a new full window
+            if self._first is None or (last is not None and self._first[0] < last):
+                busy, total = self._take()
+                self._first = (now, busy, total)
+                self.reading = dict(self._base(), busy_share=None, window_start=_stage6_iso(now))
+                return False
+            if now - self._first[0] < self.s["window_s"]:
+                return False
+            busy, total = self._take()
+            t0, b0, n0 = self._first
+            if total - n0 <= 0:
+                raise ValueError("no CPU time elapsed between the two /proc/stat samples")
+            share = (busy - b0) / (total - n0)  # judged unrounded; the row shows it rounded
+            if not 0.0 <= share <= 1.0:
+                raise ValueError(f"busy share {share!r} outside 0..1 (a /proc/stat counter went back)")
+            try:
+                load1 = round(float(self._loadavg()[0]), 2)
+            except Exception:                  # noqa: BLE001 — load1 is recorded, never judged
+                load1 = None
+            self.reading = dict(self._base(), busy_share=round(share, 4), window_start=_stage6_iso(t0),
+                                load1=load1)
+            self._first = (now, busy, total)   # the next window starts from this sample
+            if share >= self.s["bound"]:
+                return False
+            if last is not None and now - last < self.s["spacing_s"]:
+                self.reading["spacing_left_s"] = round(self.s["spacing_s"] - (now - last), 1)
+                return False
+            self._first = (t0, b0, n0)         # the cleared window, checked again at commit
+            self._cleared_at = now
+            return True
+        except Exception as e:                 # noqa: BLE001 — unreadable: hold, never read as zero
+            return self._unavailable(e)
+
+    def commit(self) -> bool:
+        if self._cleared_at is None or self._first is None:
+            return False
+        fd = None
+        try:
+            self.dir.mkdir(parents=True, exist_ok=True)
+            fd = lockfile.open_flock_target(self.dir / "last_start.lock", 0o666)
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            now = self._clock()
+            if not self._fresh(now, self.last_start()):
+                self._reset()                  # stale by now, or a peer started after this window
+                self.reading = dict(self._base(), busy_share=None, refused="the reading went stale "
+                                    "or a newer start landed before this one could start")
+                return False
+            self._write_last_start(now)        # a start that cannot be recorded does not start
+            return True
+        except Exception as e:                 # noqa: BLE001 — a lock or write fault: hold, re-take
+            self._unavailable(RuntimeError(f"cannot record the Stage-6 start ({type(e).__name__}: {e})"))
+            return False
+        finally:
+            if fd is not None:
+                os.close(fd)
+
+    def _write_last_start(self, now: float) -> None:
+        p = self.dir / "last_start"
+        tmp = None
+        try:
+            fd, tmp = tempfile.mkstemp(dir=str(self.dir), prefix=".last_start-")
+            with os.fdopen(fd, "w", encoding="ascii") as fh:
+                fh.write(f"{now:.6f}\n")
+            os.chmod(tmp, 0o666)
+            os.replace(tmp, p)
+            tmp = None
+        except OSError:
+            with open(p, "w", encoding="ascii") as fh:   # a peer's directory: write the file in place
+                fh.write(f"{now:.6f}\n")
+        finally:
+            if tmp is not None:
+                try:
+                    os.unlink(tmp)             # never leave a temp file behind a failed replace
+                except OSError:
+                    pass
+
+
+def _stage6_waiters_ahead(journal: Path, me: dict, *, now=None, _wt=None, _alive=None, _scan=None) -> list:
+    """T-14006 — the LIVE Stage-6 waiters that rank ahead of `me`, in order (SPEC-1029 rule 5).
+
+    Read off the `stage6_*` rows of `journal` (the main checkout's) through the time-covering tail
+    read the land readers use (`journal.tail_scan_events_covering`, horizon = the land queue's
+    freshness window `_LAND_QUEUE_FRESHNESS_SEC`), so every row young enough to count is read however
+    much else the journal took in meanwhile. A wait is LIVE when its latest row is a `stage6_waiting`
+    row in state `waiting`, that row is inside the freshness window (a waiter re-beats three times per
+    window) and its pid still answers; an admitted, left, stale or dead wait is not. Rank = a live
+    queue-jump mark first, then the oldest `since`, then `wait_id` (a total order). An unreadable
+    journal reads as nobody ahead — the pre-T-14006 poll race, never a stall."""
+    if _wt is None:
+        from lib import worktree as _wt       # lazy: the circular-import idiom used in this module
+    alive = _alive or _stage6_pid_alive
+    scan = _scan or journal_mod.tail_scan_events_covering
+    now = time.time() if now is None else now
+    try:
+        if not Path(journal).exists():
+            return []
+        rows, _covered = scan(Path(journal), '"stage6_', horizon_s=_wt._LAND_QUEUE_FRESHNESS_SEC,
+                              now=now, base_bytes=_wt._LAND_QUEUE_TAIL_BYTES)
+    except Exception:                          # noqa: BLE001 — unreadable: nobody is ahead
+        return []
+    latest: dict = {}
+    for ev in rows or []:
+        if not isinstance(ev, dict) or ev.get("type") not in ("stage6_waiting", "stage6_admitted"):
+            continue
+        data = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+        wid = data.get("wait_id")
+        if isinstance(wid, str) and wid:
+            latest[wid] = ev
+    out = []
+    for wid, ev in latest.items():
+        data = ev["data"]
+        if wid == me.get("wait_id") or ev.get("type") != "stage6_waiting" or data.get("state") != "waiting":
+            continue
+        ts = _stage6_epoch(ev.get("ts"))
+        if ts is None or abs(now - ts) > _wt._LAND_QUEUE_FRESHNESS_SEC:
+            continue
+        pid = data.get("pid")
+        if not isinstance(pid, int) or pid <= 0 or not alive(pid):
+            continue
+        since = data.get("since")
+        if not isinstance(since, str) or _stage6_epoch(since) is None:
+            continue
+        out.append({"wait_id": wid, "task": ev.get("task_id"), "since": since,
+                     "queue_jump": data.get("queue_jump") is True})
+    mine = _stage6_rank(me)
+    return sorted((w for w in out if _stage6_rank(w) < mine), key=_stage6_rank)
+
+
+def _stage6_rank(w: dict):
+    """T-14006 — a waiter's place: a live mark first, then the oldest arrival, then its id."""
+    return (0 if w.get("queue_jump") is True else 1, _stage6_epoch(w.get("since")) or 0.0,
+            str(w.get("wait_id") or ""))
+
+
+def _stage6_epoch(ts) -> "float | None":
+    """T-14006 — an ISO-8601 UTC stamp (`Z` or offset, any precision) as epoch seconds, or None."""
+    if not isinstance(ts, str) or not ts:
+        return None
+    try:
+        t = _dt.datetime.fromisoformat(ts.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=_dt.timezone.utc)
+    return t.timestamp()
+
+
+def _stage6_pid_alive(pid: int) -> bool:
+    """T-14006 — does `pid` still answer? Another user's live process counts as alive."""
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+    return True
 
 
 def _stage6_local_run_width(governor, limits: dict, budget: "dict | None" = None):
@@ -13870,6 +14370,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # taken exactly as without it. The keyword is passed only when the mark is live, so an
         # unmarked run calls the runner, the guard and the route seam as before.
         _s6_mark = _stage6_queue_jump(root, tid, _main_worktree=_main_worktree)
+        # T-14006 — the order among waiting local passes reads the LIVE mark, re-asked while waiting
+        _s6_mark_live = lambda: _stage6_queue_jump(root, tid, _main_worktree=_main_worktree)  # noqa: E731
         _s6_mark_kw = {"queue_jump": True} if _s6_mark else {}
         # T-13976 (SPEC-1032 rule 2) — A CONSUMER PASS IS DECIDED HERE, before the sweep/layers fork:
         # a routed consumer pass runs WHOLE on the box (rule 1), its sweep and its declared layers
@@ -14212,7 +14714,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 # T-13806 — the LOCAL arm reads the Stage-6 knobs the box reads, but only those the
                 # host SET (unset = no admission, full width — the arm as it was).
                 _s6_limits = _stage6_marked_limits(remote_verify.local_stage6_limits(), _s6_mark)
-                with _stage6_local_admission(root, _s6_limits, _main_worktree=_main_worktree):
+                with _stage6_local_admission(root, _s6_limits, _main_worktree=_main_worktree,
+                                             tid=tid, mark=_s6_mark_live, _append_event=_append_event):
                     # measured AFTER the slot is held: a wait cannot hand the run a stale width
                     with _stage6_width_budget() as _wb:
                         _s6_budget = dict(_wb)
@@ -14267,7 +14770,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # engine's own guard runs no layer, so it keeps the plain governor call.
         _s6_layer_budget = bool(_s6_glimits) or bool(_is_consumer_build and _is_consumer_build()
                                                      and not _venue_metrics)
-        with _stage6_local_admission(root, _s6_glimits, _main_worktree=_main_worktree), \
+        with _stage6_local_admission(root, _s6_glimits, _main_worktree=_main_worktree,
+                                     tid=tid, mark=_s6_mark_live, _append_event=_append_event), \
                 (_stage6_width_budget() if _s6_layer_budget else contextlib.nullcontext({})) as _gwb:
             if _verify_worker_governor is not None:
                 if _gwb and not _s6_budget:
@@ -14476,9 +14980,22 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                             if isinstance(_ly, dict) and str(_ly.get("layer") or "").strip() == _lk:
                                 _lroots[_first] = [_glob_literal_root(g)
                                                    for g in (_ly.get("subject_globs") or [])]
+                # T-14016 — each failing entry's own message body (the lines after the first), keyed
+                # by the SAME name the extractor / layer fallback above yields, for the named-path rule.
+                _msgs: dict = {}
+                for msg in bad:
+                    _lines = str(msg).splitlines()
+                    if not _lines:
+                        continue
+                    _head = _lines[0].replace("[pinned/last-green] ", "", 1).strip()
+                    _key = (_head[len("test failed: "):].strip() if _head.startswith("test failed: ")
+                            else _lines[0].strip())
+                    if _key:
+                        _msgs.setdefault(_key, "\n".join(_lines[1:]))
                 _changed = _stage6_changed_paths(root, _run_git_cap=_run_git_cap)
                 _layers = _verify_failure_attribution(_names, _changed, name_dirs=_dirs,
-                                                      layer_tails=_ltails, layer_roots=_lroots)
+                                                      layer_tails=_ltails, layer_roots=_lroots,
+                                                      messages=_msgs)
                 _evidence = "\n".join(str(m) for m in bad)
                 if len(_evidence) > _STAGE6_FAILURE_EVIDENCE_BOUND:
                     _evidence = _evidence[:_STAGE6_FAILURE_EVIDENCE_BOUND] + "\n[...elided]"

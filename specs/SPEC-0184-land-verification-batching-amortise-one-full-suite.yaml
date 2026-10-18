@@ -74,7 +74,7 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ a check that\nwill not run — whether it was carrying the supersession key, declaring\
   \ a rebaseline, or merely touching the verifier's own\nsurface (rule 9). This spec\
   \ remains the ONE normative home for HOW batches form and for the class set;\nSPEC-0186\
-  \ supplies only that policy input. Navigational pointer, not a second rule (SPEC-0005\
+  \ supplies only that policy input. Navigational pointer, not a second rule (<workshop-spec>\
   \ rule 8).\n\n**Red-batch BISECTION is OUT of this spec's scope** (plan-check finding\
   \ 1, 2026-08-16). A red batch is\nanswered by rule 4 — no member lands — and DISSOLVED\
   \ back into the queue. Identifying WHICH member was\nthe culprit without re-running\
@@ -159,7 +159,7 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ INVERSE of\nthe per-branch eligibility filters, which have no authority behind\
   \ them and so fail closed.\n\n**A CANDIDATE'S OWN CORPUS INTEGRITY IS A PER-BRANCH\
   \ ADMISSION QUESTION** (measured\n2026-08-20). The three corpus-integrity guards\
-  \ — spec-hand-edit (SPEC-0005), decision\ncontent-freeze (SPEC-0054), card-shape\
+  \ — spec-hand-edit (<workshop-spec>), decision\ncontent-freeze (SPEC-0054), card-shape\
   \ rationale (SPEC-0165) — are asked of EACH CANDIDATE ALONE,\nagainst ITS OWN MERGE-BASE\
   \ with the current land base, as a filter in this walk, BEFORE the\npairwise predictor\
   \ above: a candidate ineligible on its own diff never needs a coexistence answer.\n\
@@ -2133,9 +2133,9 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ world the code has\nnot made, and vanishing quietly would leave a request still\
   \ addressing this same attempt.\n\n**THE OBSERVABLE.** A completed withdrawal emits\
   \ **`land_withdrawn`**, whose payload keys are named\nin SPEC-0161's recorded run\
-  \ and NOT here (a rule body carries no payload shape — SPEC-0005 rule 8).\nNothing\
-  \ else changes on the caller-facing surface: a withdrawn land is an ordinary refusal\
-  \ reported\nthrough the ONE shipped `^LAND: (OK|ABORT)` terminal token (<workshop-spec>\
+  \ and NOT here (a rule body carries no payload shape — <workshop-spec> rule 8).\n\
+  Nothing else changes on the caller-facing surface: a withdrawn land is an ordinary\
+  \ refusal reported\nthrough the ONE shipped `^LAND: (OK|ABORT)` terminal token (<workshop-spec>\
   \ rule 2c), with no verify run,\nthe slot released or never taken, `main` untouched\
   \ and the worktree intact.\n\n**Bound, named.** The abort-only poll tick exists\
   \ only where the admission wait is POLLED. Where\nthe heartbeat is disabled the\
@@ -2448,4 +2448,4 @@ implements_signature:
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
   bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
-  bin/lib/worktree.py#cmd_land: c90ada1d99c57d8c37f13c1e725373ea87b9fc466f5f1d55a142bbb57104b6f5
+  bin/lib/worktree.py#cmd_land: f1d0e6a696fff5eb112be67c365a6b19e3df792776d1032908b1f546daab9d66

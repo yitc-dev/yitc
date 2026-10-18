@@ -38,7 +38,7 @@ body: "## Scenario\n\nA session that authored an item on the shared coordination
   \ («above», «below») and a rule cited without a spec id read as they did there.\
   \ «§Peer\n  identity below», under `cross request`, is SPEC-0086 rule 6; «the fixed-to-verify\
   \ outbox cut\n  (rule 4)», under `cross dispute`, is SPEC-0086 rule 4.\n- A new\
-  \ case of one of these three verbs is authored here, under its bullet (SPEC-0005\
+  \ case of one of these three verbs is authored here, under its bullet (<workshop-spec>\
   \ rule 8).\n\n### 1. The verb group — names pinned (D3), each a control chokepoint\
   \ for its write\n  - **`cross request`** (#1 ease + #2 error-reduction) — allocates\
   \ the immutable id under flock,\n    validates `from`/`to`/`kind`/brief, atomically\
@@ -363,10 +363,10 @@ body: "## Scenario\n\nA session that authored an item on the shared coordination
   \ fetch of it stays cheap. The rule-1 bullets of\n`cross request`, `cross dispute`\
   \ and `cross close` are one stable surface — the verbs on the\nauthor's side of\
   \ an item — and the largest one, so they leave as a whole, while everything else\n\
-  stays in SPEC-0086 (SPEC-0005 §6, split by surface).\n\n## Verification\n\n- **VP1\
-  \ (re-entry disposition, DIFFERENTIAL):** closing an item whose resolution NAMES\
-  \ a\n  re-entry condition, with neither `--re-entry` nor `--no-re-entry`, EXITS\
-  \ NONZERO and emits no\n  `cross_closed`; the SAME close carrying an UNCONDITIONAL\
+  stays in SPEC-0086 (<workshop-spec> §6, split by surface).\n\n## Verification\n\n\
+  - **VP1 (re-entry disposition, DIFFERENTIAL):** closing an item whose resolution\
+  \ NAMES a\n  re-entry condition, with neither `--re-entry` nor `--no-re-entry`,\
+  \ EXITS NONZERO and emits no\n  `cross_closed`; the SAME close carrying an UNCONDITIONAL\
   \ decline note closes cleanly and arms\n  NOTHING. A predicate widened to always-true\
   \ fails the second half; arming off the note instead of\n  the declaration fails\
   \ it too. Second axis: `--re-entry --re-entry-awaits <closed task>` reaches the\n\
@@ -384,7 +384,6 @@ cites:
 - SPEC-0085
 - SPEC-0084
 - SPEC-0095
-- SPEC-0005
 requires: []
 supersedes: null
 activation_owner_task: null

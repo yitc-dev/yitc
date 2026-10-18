@@ -894,20 +894,20 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ the outcome:\n`admission` (`admitted` | `skipped-by-flag` | `load-unreadable`\
   \ | `rollback-exempt`),\n`admission_wait_ms` and `load1_at_start`. No lock, queue,\
   \ stored admission state or event type is\nadded.\n\n## Amends (explicit replacement\
-  \ map — plan-check findings #2/#5; SPEC-0005 §3 / P7)\n\n**Amend-dependency policy\
-  \ (finding #4) — why `requires:` stays SPEC-0093-only.** This spec\nAMENDS SPEC-0028/0025/0015/0036,\
-  \ yet its `requires:` names ONLY SPEC-0093. That is deliberate, not an\nomission:\
-  \ `requires:` encodes an ACTIVATION/BUILD-ORDER prerequisite (the carrier SPEC-0093\
-  \ must exist\nfor the deploy verb + the live_probe home to be real), NOT every surface\
-  \ this spec amends. An AMENDMENT\nis a coherence relationship — recorded HERE in\
-  \ §Amends (with the explicit replacement map) and realized\nby the activating task's\
-  \ wiring — not a lifecycle-ordering edge. Folding the amend targets into\n`requires:`\
-  \ would (a) misuse `requires:` (it gates ordering, and SPEC-0028/0015 already exist\
-  \ — there is\nnothing to wait on), and (b) manufacture a false ordering coupling\
-  \ that the FSM would then enforce. So\nthe amend set lives in §Amends; `requires:`\
-  \ carries only the genuine prerequisite (SPEC-0093).\n**Build-ordering note :**\
-  \ the close-gate CODE + the SPEC-0028 `live_probe` field + the SPEC-0015\nin-place\
-  \ refinement SHIP at (work-first), while THIS umbrella spec activates (`proposed\
+  \ map — plan-check findings #2/#5; <workshop-spec> §3 / P7)\n\n**Amend-dependency\
+  \ policy (finding #4) — why `requires:` stays SPEC-0093-only.** This spec\nAMENDS\
+  \ SPEC-0028/0025/0015/0036, yet its `requires:` names ONLY SPEC-0093. That is deliberate,\
+  \ not an\nomission: `requires:` encodes an ACTIVATION/BUILD-ORDER prerequisite (the\
+  \ carrier SPEC-0093 must exist\nfor the deploy verb + the live_probe home to be\
+  \ real), NOT every surface this spec amends. An AMENDMENT\nis a coherence relationship\
+  \ — recorded HERE in §Amends (with the explicit replacement map) and realized\n\
+  by the activating task's wiring — not a lifecycle-ordering edge. Folding the amend\
+  \ targets into\n`requires:` would (a) misuse `requires:` (it gates ordering, and\
+  \ SPEC-0028/0015 already exist — there is\nnothing to wait on), and (b) manufacture\
+  \ a false ordering coupling that the FSM would then enforce. So\nthe amend set lives\
+  \ in §Amends; `requires:` carries only the genuine prerequisite (SPEC-0093).\n**Build-ordering\
+  \ note :** the close-gate CODE + the SPEC-0028 `live_probe` field + the SPEC-0015\n\
+  in-place refinement SHIP at (work-first), while THIS umbrella spec activates (`proposed\
   \ → active`)\nlater at its `activation_owner_task` — the amendments become NORMATIVE\
   \ at that activation; the code\nis coherent in the interim because each amended\
   \ home carries the framing at ship time.\n\nThis spec ADDS deploy-conditional behaviour\
@@ -1083,7 +1083,7 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
+  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7

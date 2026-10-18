@@ -20,8 +20,8 @@ body: "## Scenario\n\nWhen the owner launches an inspection, or the weekly Revie
   \ drains the acute audit-YAML surface: at/after a\ntask's closure its audit YAMLs\
   \ `git mv` out of active `decisions/` into two in-git archives, so the\nactive corpus\
   \ stays loadable while the provenance stays git-tracked.\n\n## Internal\n\nThis\
-  \ spec is a PROCESS spec (SPEC-0005 rule 1 broadened identity). It adds no cron/hook/new\
-  \ store —\nit EXTENDS the saved-view family + `cmd_triage_run` (<workshop-spec>)\
+  \ spec is a PROCESS spec (<workshop-spec> rule 1 broadened identity). It adds no\
+  \ cron/hook/new store —\nit EXTENDS the saved-view family + `cmd_triage_run` (<workshop-spec>)\
   \ + the retirement procedure\n(manual-first). Three rules + one classifier.\n\n\
   ### 1. The fired-unacted invariant (the load-bearing rule)\nFor each un-capped surface\
   \ the sweep MUST do BOTH: (a) MEASURE the current value, AND (b) resolve\nthat surface's\
@@ -151,35 +151,36 @@ body: "## Scenario\n\nWhen the owner launches an inspection, or the weekly Revie
   \ the `external_audit_completed` journal event remains the durable\nrecord — neither\
   \ needs migration.\n\n## Parameters\n\nNone consumed. Governing thresholds (10 MB\
   \ / 500 / 2500 / 2000) live in / QUEUE / CHARTER —\nreferenced, never duplicated\
-  \ or `consumed:` here (SPEC-0005 §Parameters discipline).\n\n## Rationale\n\nAnti-complexity\
-  \ (CHARTER §P1, 4 filters, written down):\n(1) Existing analog — the `views/` saved-lens\
-  \ family (`_run_view`), `cmd_triage_run`\n    (<workshop-spec>), and the retirement\
-  \ procedure. EXTENDED, not paralleled.\n(2) New entity or new view — a VIEW: a view-lens\
-  \ + a triage sub-routine; no new store/format/parser.\n(3) What gets removed — the\
-  \ ~1001-strong active `decisions/*-audit-*.yaml` accretion drains to\n    archives;\
-  \ the trend-report MEASURE-but-not-CHECK gap is closed by the fired-unacted invariant.\n\
-  (4) Real incident — the 2026-06-07 inspection measured `events.jsonl=13.1MB` twice\
-  \ yet never checked\n    it against the 10 MB trigger → no finding (the two fingerprints\
-  \ in rule 1).\nPrior-art: log-rotation / retention tooling everywhere checks a measured\
-  \ value against a configured\nthreshold and acts; the gap here was a measure step\
-  \ with no governing-threshold check. Manual-first\n (the sweep is a verb the launcher/Review\
-  \ runs, not a cron) until the steps repeat.\n\n## Verification\n\n- **VP1 (state-probe):**\
-  \ this `proposed` spec exists and `graph query SPEC-0052` resolves it,\n  defining\
-  \ the sweep, the two archive dirs, the fired-unacted invariant, and the deterministic\n\
-  \  routine/escalation classifier (rule 4).\n- **VP2 (fired-unacted behavior-probe):**\
-  \ `graph query displacement-retention` reports, for each\n  surface, BOTH the measured\
-  \ value AND its trigger's `fired`/`acted` flags; a surface past its\n  threshold\
-  \ with no recorded action shows as a FLAGGED action (RED-GREEN: a synthetic over-threshold\n\
-  \  surface flags; an under-threshold one does not).\n- **VP3 (archive behavior-probe):**\
-  \ running the sweep moves closed-task audit YAMLs AND terminal\n  adhoc/gate/consult\
-  \ YAMLs into the two archives, the active `decisions/*audit*.yaml` count\n  drops\
-  \ materially, and a re-run is idempotent (no double-move); in-flight tasks' audits\
-  \ and audits of\n  NON-terminal plans stay in `decisions/`.\n- **VP4 (consumer coherence-probe):**\
-  \ the chronology pathspec excludes the archive subtree, the\n  per-path readers\
-  \ fall back to the archive paths, and the full test suite stays green (no consumer\n\
-  \  breaks) — grep-checkable + `tests/test_displacement_retention.py`.\n- **VP5 (one\
-  \ home, P5):** the thresholds are referenced from / QUEUE / CHARTER, never\n  restated\
-  \ here; this spec owns only the fired-unacted CHECK + the archive drain.\n"
+  \ or `consumed:` here (<workshop-spec> §Parameters discipline).\n\n## Rationale\n\
+  \nAnti-complexity (CHARTER §P1, 4 filters, written down):\n(1) Existing analog —\
+  \ the `views/` saved-lens family (`_run_view`), `cmd_triage_run`\n    (<workshop-spec>),\
+  \ and the retirement procedure. EXTENDED, not paralleled.\n(2) New entity or new\
+  \ view — a VIEW: a view-lens + a triage sub-routine; no new store/format/parser.\n\
+  (3) What gets removed — the ~1001-strong active `decisions/*-audit-*.yaml` accretion\
+  \ drains to\n    archives; the trend-report MEASURE-but-not-CHECK gap is closed\
+  \ by the fired-unacted invariant.\n(4) Real incident — the 2026-06-07 inspection\
+  \ measured `events.jsonl=13.1MB` twice yet never checked\n    it against the 10\
+  \ MB trigger → no finding (the two fingerprints in rule 1).\nPrior-art: log-rotation\
+  \ / retention tooling everywhere checks a measured value against a configured\n\
+  threshold and acts; the gap here was a measure step with no governing-threshold\
+  \ check. Manual-first\n (the sweep is a verb the launcher/Review runs, not a cron)\
+  \ until the steps repeat.\n\n## Verification\n\n- **VP1 (state-probe):** this `proposed`\
+  \ spec exists and `graph query SPEC-0052` resolves it,\n  defining the sweep, the\
+  \ two archive dirs, the fired-unacted invariant, and the deterministic\n  routine/escalation\
+  \ classifier (rule 4).\n- **VP2 (fired-unacted behavior-probe):** `graph query displacement-retention`\
+  \ reports, for each\n  surface, BOTH the measured value AND its trigger's `fired`/`acted`\
+  \ flags; a surface past its\n  threshold with no recorded action shows as a FLAGGED\
+  \ action (RED-GREEN: a synthetic over-threshold\n  surface flags; an under-threshold\
+  \ one does not).\n- **VP3 (archive behavior-probe):** running the sweep moves closed-task\
+  \ audit YAMLs AND terminal\n  adhoc/gate/consult YAMLs into the two archives, the\
+  \ active `decisions/*audit*.yaml` count\n  drops materially, and a re-run is idempotent\
+  \ (no double-move); in-flight tasks' audits and audits of\n  NON-terminal plans\
+  \ stay in `decisions/`.\n- **VP4 (consumer coherence-probe):** the chronology pathspec\
+  \ excludes the archive subtree, the\n  per-path readers fall back to the archive\
+  \ paths, and the full test suite stays green (no consumer\n  breaks) — grep-checkable\
+  \ + `tests/test_displacement_retention.py`.\n- **VP5 (one home, P5):** the thresholds\
+  \ are referenced from / QUEUE / CHARTER, never\n  restated here; this spec owns\
+  \ only the fired-unacted CHECK + the archive drain.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

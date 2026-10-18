@@ -48,8 +48,8 @@ body: "## Scenario\n\nA `-C <consumer>` session operates the engine CLI against 
   \ path check.\n\n### 3. Not a new mechanism\nOne `realpath` assertion at an EXISTING\
   \ chokepoint via `_guard_consumer_engine_write` — no new gate\ncascade, FSM, ledger,\
   \ queue, or lock (CHARTER §P1 + V2 non-goals). It hardens (behavioral →\nenforced);\
-  \ is frozen history, so the standing rule is RE-HOMED here (SPEC-0005 rule 8 — the\
-  \ spec\n+ the code are the SoT). The sibling recovery runbook (`patterns/recovery-runbook.md`)\
+  \ is frozen history, so the standing rule is RE-HOMED here (<workshop-spec> rule\
+  \ 8 — the spec\n+ the code are the SoT). The sibling recovery runbook (`patterns/recovery-runbook.md`)\
   \ is a how-to\nprocedure, NOT a rule surface — no standing rule lives there.\n\n\
   ### 5. The READ-ONLY `-C` mode — the inverted boundary (resolves the breach)\n`-C\
   \ <path>` means \"become that repo\", which is CORRECT for a consumer-OPERATING\

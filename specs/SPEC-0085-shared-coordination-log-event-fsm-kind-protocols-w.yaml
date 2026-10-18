@@ -482,14 +482,14 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ as reuse-not-a-ledger (rule 6).\nAnti-complexity: REUSES the `events.jsonl` mechanism\
   \ + the union-merge model + the triage machinery +\nthe v1 archival prior-art —\
   \ adds NO new format, parser, journal-type, or status entity. The\ndeliberation\
-  \ (A-vs-B, D1-D5) lives in the plan (SPEC-0005 §3).\n\n## Verification\n\n- **VP1\
-  \ (immutable join key):** an item's status derives from its verb-allocated id alone;\
-  \ a corrupted\n  `origin_fp` does NOT break the fold or view suppression. (test\
-  \ at activation)\n- **VP2 (FSM emit-role + terminals + idempotent fold):** an event\
-  \ from the wrong role is refused; a\n  duplicated/out-of-order append folds to the\
-  \ same terminal state; a reopen is a NEW id linked via\n  origin_fp, never a reanimated\
-  \ terminal. (test)\n- **VP2b (author dispute):** an author's `cross_disputed` on\
-  \ a `done` item is accepted by\n  the fold and the item folds to `picked` (never\
+  \ (A-vs-B, D1-D5) lives in the plan (<workshop-spec> §3).\n\n## Verification\n\n\
+  - **VP1 (immutable join key):** an item's status derives from its verb-allocated\
+  \ id alone; a corrupted\n  `origin_fp` does NOT break the fold or view suppression.\
+  \ (test at activation)\n- **VP2 (FSM emit-role + terminals + idempotent fold):**\
+  \ an event from the wrong role is refused; a\n  duplicated/out-of-order append folds\
+  \ to the same terminal state; a reopen is a NEW id linked via\n  origin_fp, never\
+  \ a reanimated terminal. (test)\n- **VP2b (author dispute):** an author's `cross_disputed`\
+  \ on a `done` item is accepted by\n  the fold and the item folds to `picked` (never\
   \ a new status); the same event SET folds identically\n  under shuffled arrival\
   \ order; a later `cross_done` restores `done` and the item still reaches\n  `closed`;\
   \ a `cross_closed` on a disputed item is refused. (test —\n  `tests/test_t11423_cross_author_dispute.py`)\n\

@@ -2,7 +2,7 @@
 name: inspection-triage-launch-runbook
 class: discipline
 sourced_from: owner-directive 2026-06-07 ( — "delaem review i triazh" ("we do review and triage") must deterministically launch a named procedure) + the 2026-06-07 manual dual-track inspection+triage run (the real incident — full 8-theme inspection + test triage orchestrated by hand with no named procedure) (established the inspection construct — provenance; live home SPEC-0057) + the inspection living criteria home patterns/inspection-criteria-roster.md (the single living roster + run-mode + per-theme lens-checklists; retargeted here by from the realized roster plan) + SPEC-0056 (triage routing/sink; established by §5) + SPEC-0055 (triage-run window + §Batch-run journal isolation) + SPEC-0052/ (displacement-retention sweep) (batch emit isolation) + patterns/background-session-operation.md (foreground-default / trial-background)
-applies_to: an owner-invoked combined inspection + test-triage run — when the owner says the trigger phrase, this runbook is the named, repeatable LAUNCH procedure that sequences the existing pieces. This pattern is the SEQUENCING/navigation only — every rule it invokes homes elsewhere (it cites, it does not restate; SPEC-0005 rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
+applies_to: an owner-invoked combined inspection + test-triage run — when the owner says the trigger phrase, this runbook is the named, repeatable LAUNCH procedure that sequences the existing pieces. This pattern is the SEQUENCING/navigation only — every rule it invokes homes elsewhere (it cites, it does not restate; <workshop-spec> rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
 ---
 
 # Inspection + triage launch runbook — the owner-invoked how-to
@@ -170,7 +170,7 @@ external track has repeatedly caught residue the primary's own pass rationalized
 track specifically probes: **per-land verify-status** (a backbone land with `consumer_verify: waiver`),
 **waiver-vs-real-command coherence** (a `yitc-ops.yaml` waiver contradicting a present command), and
 **deploy-still-on-v1** (the deploy path still sourcing the v1 framework). These are the roster lenses
-T3/T6/T7 §B5-delta — pointer only, the lens bodies live there (P5 / SPEC-0005 rule 8).
+T3/T6/T7 §B5-delta — pointer only, the lens bodies live there (P5 / <workshop-spec> rule 8).
 
 ### STEP 3 — DUAL-TRACK test triage of the resulting fresh window
 
@@ -231,7 +231,7 @@ still writes to MAIN): **SPEC-0055 §Batch-run journal isolation** (`bin/yitc-v2
   order — the exact friction (2026-06-07) this runbook removes.
 - **Duplicating any step's rule here.** This doc SEQUENCES; the rules home elsewhere (run-mode,
   SPEC-0056, SPEC-0055, SPEC-0052). A change to a step's rule is made in its home, not here
-  (SPEC-0005 rule 8 one-home — a copy here would drift, P5).
+  (<workshop-spec> rule 8 one-home — a copy here would drift, P5).
 - **Comparing tracks during the run** (anchoring) instead of after both finish; **a non-blind first
   external pass** (verify-first under-counts independence).
 - **Auto-scheduling this run** (cron/hook) or **filing into-work without an explicit owner go** — both

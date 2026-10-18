@@ -36,7 +36,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ below) and WHAT it does; SPEC-0186 governs only the per-project ON/OFF gate in\
   \ front\nof it, is read PRE-MERGE from the base tree, and reaches the engine on\
   \ the same terms as any project\n(SPEC-0186 rule 6). Navigational pointer, not a\
-  \ second rule (SPEC-0005 rule 8).\n\n**WHICH tests this leg pins is additionally\
+  \ second rule (<workshop-spec> rule 8).\n\n**WHICH tests this leg pins is additionally\
   \ NARROWED, per project, by what that project DECLARES\n(`tests.classes[].timing_lane`\
   \ in its `yitc-ops.yaml`).** The narrowing is DECLARED data — the\nproject names\
   \ the test files whose verdict is a function of wall clock — never a kernel judgement\n\
@@ -45,7 +45,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ here — read it there. Read beside the\nSPEC-0186 pointer above, the pair answers\
   \ two different\nquestions about this leg: SPEC-0186 gates WHETHER it runs, SPEC-0160\
   \ rule 10 narrows WHICH tests it\npins. Navigational pointer, not a second rule\
-  \ (SPEC-0005 rule 8).\n\n### 1. Trigger — `verify-implementation-touch` (NARROW;\
+  \ (<workshop-spec> rule 8).\n\n### 1. Trigger — `verify-implementation-touch` (NARROW;\
   \ NOT the observable classifier)\nThe pinned re-run fires on a precise predicate:\
   \ the diff touches the VERIFIER'S OWN executable\nsurfaces — the verify code path\
   \ in `bin/yitc-v2`, the graph-build script, and the test files/runner\nthe verify\
@@ -62,7 +62,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ constant + helper, PLUS the project's own declaration) —**\nthe predicate's STATIC\
   \ file set is owned by a single module-level constant + helper in `bin/yitc-v2`:\n\
   `_VERIFY_IMPLEMENTATION_GLOBS` (the verify-path globs) consumed by\n`_is_verify_implementation_touch(changed_files)`.\
-  \ This prose POINTS at that constant and MUST NOT\nduplicate the file list (SPEC-0005\
+  \ This prose POINTS at that constant and MUST NOT\nduplicate the file list (<workshop-spec>\
   \ rule 3 content-boundary) — the list lives in code so it cannot drift\nbetween\
   \ spec and `land` (convergence target resolved, trial run #2).\n**AMENDED (X-0938)\
   \ — a constant alone CANNOT satisfy the coverage obligation below, because\nwhere\
@@ -618,9 +618,9 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ and CONTAIN `binding`; a differing `status` must be\n              exactly proposed→active\
   \ — narrower than the vocabulary above, because a binding token is\n           \
   \   prescribed only for the spec the close ACTIVATED, never for a `supersedes:`\
-  \ target).\n            - the SUPERSESSION RE-TARGET `land` WRITES (SPEC-0005 §4):\
-  \ on the spec this\n              close activated, its scalar `supersedes:` line\
-  \ moved to another spec id, optionally\n              together with that close's\
+  \ target).\n            - the SUPERSESSION RE-TARGET `land` WRITES (<workshop-spec>\
+  \ §4): on the spec this\n              close activated, its scalar `supersedes:`\
+  \ line moved to another spec id, optionally\n              together with that close's\
   \ own `proposed → active` flip and the `binding:` declaration\n              it\
   \ prescribes, and nothing else (the textual and semantic confinement, widened\n\
   \              by that one line); on the head it superseded — measured against the\
@@ -1309,7 +1309,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ allows; (5) the cheap land checks\nstill run — the SPEC-0163 any-author floor\n\
   and the host-leak check — and this spec's pinned leg runs as the project's policy\
   \ says. The rule and\nits conditions are homed ONCE, in SPEC-0065 §Bound (`bin/yitc-v2\
-  \ graph query SPEC-0065`); this\nparagraph is a pointer, not a second rule (SPEC-0005\
+  \ graph query SPEC-0065`); this\nparagraph is a pointer, not a second rule (<workshop-spec>\
   \ rule 8).\nNOTHING ABOUT THE PINNED LEG MOVES. §1's trigger is computed exactly\
   \ as before and is neither read\nnor written by the credit; §2's source and §3's\
   \ both-must-pass are unchanged; and a\nverify-path-touching land whose candidate\

@@ -15,7 +15,7 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
   \ the released kernel.\nThe AI proposes a placement at authoring; the external auditor\
   \ checks it (the audit-pre lens, rule 4\ncross-ref); the owner adjudicates a genuine\
   \ fork.\n\n## Internal\n\nTHE CORPUS-WIDE PLACEMENT CONTRACT. Seven rules. It is\
-  \ a PROCESS/governance spec (SPEC-0005 rule 1):\nit governs authoring discipline\
+  \ a PROCESS/governance spec (<workshop-spec> rule 1):\nit governs authoring discipline\
   \ corpus-wide; it adds no new store / parser / journal / node-type\n(CHARTER §P1\
   \ — the matrix + derivation ride the EXISTING `spec new` verb + `graph`-as-derived-view).\n\
   \n### 1. The three-way cut + the EXHAUSTIVE class-default matrix\nThree realms,\
@@ -85,15 +85,15 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
   \ for an\nexception-capable artifact — currently **`spec new`** (the only such verb):\
   \ it REQUIRES `--travels\n{kernel|v2-self|project|default}` and FAILS CLOSED (actionable\
   \ refusal, no SPEC-id burned) when\nomitted — for a NON-draft (proposed) birth.\
-  \ **A `--draft` is plan-local (SPEC-0005 §4, governs nothing): `--travels` is OPTIONAL\
-  \ and DEFAULTS to v2-self** — a draft is non-active, so §8 requires it NOT resolve\
-  \ the kernel export realm; a DEFAULTED draft realm is NOT a decision, so it is born\
-  \ carrying a draft-default marker, and the SAFEGUARD is the activation refusal:\
-  \ `task close` REFUSES to flip such a spec proposed→active, naming it and the two\
-  \ routes — re-pin to kernel, or confirm v2-self (or project) as a deliberate choice\
-  \ — until the realm is decided by removing the marker through the governed `spec\
-  \ edit` route (the gate asks for a decision, it never forces kernel, and a spec\
-  \ already active is untouched). The re-pin is never a `_birth_plan_draft_specs`\
+  \ **A `--draft` is plan-local (<workshop-spec> §4, governs nothing): `--travels`\
+  \ is OPTIONAL and DEFAULTS to v2-self** — a draft is non-active, so §8 requires\
+  \ it NOT resolve the kernel export realm; a DEFAULTED draft realm is NOT a decision,\
+  \ so it is born carrying a draft-default marker, and the SAFEGUARD is the activation\
+  \ refusal: `task close` REFUSES to flip such a spec proposed→active, naming it and\
+  \ the two routes — re-pin to kernel, or confirm v2-self (or project) as a deliberate\
+  \ choice — until the realm is decided by removing the marker through the governed\
+  \ `spec edit` route (the gate asks for a decision, it never forces kernel, and a\
+  \ spec already active is untouched). The re-pin is never a `_birth_plan_draft_specs`\
   \ side-effect (the §3↔§8 coherence fix), and a printed reminder at plan-accept is\
   \ no longer the only safeguard. `default` consciously affirms the class-default\
   \ (a NON-draft only). **ON A CONSUMER CORPUS (a `-C <path>` build, `_is_consumer_build`)\
@@ -157,55 +157,55 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
   drift-LOCKED by the suite (test_t0874 §3 fidelity).\n\n### 6. Realm-qualified reference\
   \ `<realm>:<ID>` MANDATORY at the first merged-discovery surface\nOnce kernel +\
   \ project artifacts become discoverable through ONE graph/index surface, a bare\
-  \ id is\nstructurally ambiguous (`SPEC-0005` in two realms). So the qualified form\
-  \ **`<realm>:<ID>`** (e.g.\n`kernel:SPEC-0005`, `<project>:SPEC-0001`) is **MANDATORY\
-  \ at the first merged-discovery surface**; an\nUNQUALIFIED id means the LOCAL realm\
-  \ only; a bare id used for a FOREIGN realm is INVALID (a refusal,\nnot a heuristic\
-  \ best-guess). The merged-surface WIRING (a consumer-aware merged read path + resolver)\n\
-  is the filed follow-up [[]], NOT this keystone — this rule pins the convention it\
-  \ wires to.\n\n### 7. Re-evaluate placement on consumer-relevance edits\nPlacement\
-  \ is not creation-only: an edit that changes an artifact's AUDIENCE / consumer-relevance\
-  \ /\nsemantics RE-OPENS the placement decision (e.g. a v2-self spec that becomes\
-  \ general methodology, or a\nkernel spec that becomes V2-dev-specific). The manifest\
-  \ drift check (rule 5 / [[]]) surfaces a\nmoved or re-scoped artifact whose stored\
-  \ placement no longer matches its derived class.\n\n### 8. Active-only export slice\
-  \ — the non-active history NEVER travels (structural guard)\nRule 1 already classifies\
-  \ a non-active spec (superseded / withdrawn / rejected / draft) as V2-SELF via\n\
-  its `travels: v2-self` marker, so `_resolve_placement` returns v2-self for it. Rule\
-  \ 8 makes the\nactive-only filter an EXPLICIT extraction rule, not merely an implication\
-  \ of the marker: the export\nspec slice is computed ACTIVE-ONLY by construction\
-  \ (`_release_view_spec_ids` — `status == active` AND\nrealm == kernel), and a STRUCTURAL\
-  \ guard (`_release_spec_slice_violations`, the report-at-land\npeer of the release-view\
-  \ drift check, run in `graph conformance`) RED-flags any non-active spec NOT exempt\
-  \ as `proposed` (terminal history — superseded / withdrawn / retired / rejected\
-  \ — OR a plan-local draft, which now DEFAULTS to v2-self at authoring per §3, so\
-  \ it does not reach this guard) that\nstill resolves to the kernel realm — EXEMPTING\
-  \ `proposed`, a FORWARD kernel head legitimately excluded\nfrom the active-only\
-  \ slice BY STATUS (it becomes active and TRAVELS, so it stays kernel-realm unmarked;\n\
-  the guard fires only when `status != \"proposed\"`) — catching a forgotten `travels:\
-  \ v2-self` backfill on\na future superseded spec BEFORE it could leak into a consumer's\
-  \ pin. This is the explicit input to the\nrelease-view extraction ([[]] manifest\
-  \ FLAGGED A-2): the kernel's own evolution history\nis V2-SELF and never travels.\
-  \ Additive enforcement only — it adds no new store/parser/journal and\nchanges no\
-  \ existing placement obligation (P5; SPEC-0005 §7 additive-extension → in-place).\n\
-  TWO INDEPENDENT axes gate the slice (a spec ships only if BOTH hold): (i) the STATUS\
-  \ axis —\nactive-only, the concern enforced here; (ii) the TRANSPORT axis — kernel\
-  \ placement realm, the\nrule-1 concern (an active spec marked `travels: v2-self`,\
-  \ e.g. the SPEC-0041 A-1 case [[]], is\nlegitimately dropped on the transport axis,\
-  \ not the status axis). The guard `_release_spec_slice_violations`\nfires on the\
-  \ STATUS axis specifically (non-active reaching kernel transport); the transport\
-  \ axis is the\npre-existing placement classification. Keeping the two axes named\
-  \ keeps \"active-only\" verifiable\nindependently of placement (the probe isolates\
-  \ status on a fixed-transport set).\nPRODUCTION WIRING (audit-post F1): `_release_view_spec_ids`\
-  \ is the SINGLE production source of \"which\nspecs travel\" — the guard CONSUMES\
-  \ it (flagging `kernel-realm \\ slice` at every land via `graph\nconformance`),\
-  \ and the future spec-materializing exporter ( spec slice) calls the same helper.\n\
-  So the filter is LIVE in production, not test-only; there is no second definition\
-  \ of the export slice (P5).\n\n## Parameters\n\nNone consumed. The class-default\
-  \ matrix (`_PLACEMENT_CLASS_DEFAULTS`), the exception-capable set\n(`_PLACEMENT_EXCEPTION_CAPABLE`),\
-  \ and the spec class-default (`_SPEC_CLASS_DEFAULT = kernel`) are CODE\nconstants\
-  \ in `bin/yitc-v2`, single-source — not spec-read params.\n\n## Rationale\n\nExternal-audit\
-  \ YELLOW-validated (`decisions/placement-discipline-concept-audit-adhoc.yaml`):\
+  \ id is\nstructurally ambiguous (`<workshop-spec>` in two realms). So the qualified\
+  \ form **`<realm>:<ID>`** (e.g.\n`kernel:<workshop-spec>`, `<project>:SPEC-0001`)\
+  \ is **MANDATORY at the first merged-discovery surface**; an\nUNQUALIFIED id means\
+  \ the LOCAL realm only; a bare id used for a FOREIGN realm is INVALID (a refusal,\n\
+  not a heuristic best-guess). The merged-surface WIRING (a consumer-aware merged\
+  \ read path + resolver)\nis the filed follow-up [[]], NOT this keystone — this rule\
+  \ pins the convention it wires to.\n\n### 7. Re-evaluate placement on consumer-relevance\
+  \ edits\nPlacement is not creation-only: an edit that changes an artifact's AUDIENCE\
+  \ / consumer-relevance /\nsemantics RE-OPENS the placement decision (e.g. a v2-self\
+  \ spec that becomes general methodology, or a\nkernel spec that becomes V2-dev-specific).\
+  \ The manifest drift check (rule 5 / [[]]) surfaces a\nmoved or re-scoped artifact\
+  \ whose stored placement no longer matches its derived class.\n\n### 8. Active-only\
+  \ export slice — the non-active history NEVER travels (structural guard)\nRule 1\
+  \ already classifies a non-active spec (superseded / withdrawn / rejected / draft)\
+  \ as V2-SELF via\nits `travels: v2-self` marker, so `_resolve_placement` returns\
+  \ v2-self for it. Rule 8 makes the\nactive-only filter an EXPLICIT extraction rule,\
+  \ not merely an implication of the marker: the export\nspec slice is computed ACTIVE-ONLY\
+  \ by construction (`_release_view_spec_ids` — `status == active` AND\nrealm == kernel),\
+  \ and a STRUCTURAL guard (`_release_spec_slice_violations`, the report-at-land\n\
+  peer of the release-view drift check, run in `graph conformance`) RED-flags any\
+  \ non-active spec NOT exempt as `proposed` (terminal history — superseded / withdrawn\
+  \ / retired / rejected — OR a plan-local draft, which now DEFAULTS to v2-self at\
+  \ authoring per §3, so it does not reach this guard) that\nstill resolves to the\
+  \ kernel realm — EXEMPTING `proposed`, a FORWARD kernel head legitimately excluded\n\
+  from the active-only slice BY STATUS (it becomes active and TRAVELS, so it stays\
+  \ kernel-realm unmarked;\nthe guard fires only when `status != \"proposed\"`) —\
+  \ catching a forgotten `travels: v2-self` backfill on\na future superseded spec\
+  \ BEFORE it could leak into a consumer's pin. This is the explicit input to the\n\
+  release-view extraction ([[]] manifest FLAGGED A-2): the kernel's own evolution\
+  \ history\nis V2-SELF and never travels. Additive enforcement only — it adds no\
+  \ new store/parser/journal and\nchanges no existing placement obligation (P5; <workshop-spec>\
+  \ §7 additive-extension → in-place).\nTWO INDEPENDENT axes gate the slice (a spec\
+  \ ships only if BOTH hold): (i) the STATUS axis —\nactive-only, the concern enforced\
+  \ here; (ii) the TRANSPORT axis — kernel placement realm, the\nrule-1 concern (an\
+  \ active spec marked `travels: v2-self`, e.g. the SPEC-0041 A-1 case [[]], is\n\
+  legitimately dropped on the transport axis, not the status axis). The guard `_release_spec_slice_violations`\n\
+  fires on the STATUS axis specifically (non-active reaching kernel transport); the\
+  \ transport axis is the\npre-existing placement classification. Keeping the two\
+  \ axes named keeps \"active-only\" verifiable\nindependently of placement (the probe\
+  \ isolates status on a fixed-transport set).\nPRODUCTION WIRING (audit-post F1):\
+  \ `_release_view_spec_ids` is the SINGLE production source of \"which\nspecs travel\"\
+  \ — the guard CONSUMES it (flagging `kernel-realm \\ slice` at every land via `graph\n\
+  conformance`), and the future spec-materializing exporter ( spec slice) calls the\
+  \ same helper.\nSo the filter is LIVE in production, not test-only; there is no\
+  \ second definition of the export slice (P5).\n\n## Parameters\n\nNone consumed.\
+  \ The class-default matrix (`_PLACEMENT_CLASS_DEFAULTS`), the exception-capable\
+  \ set\n(`_PLACEMENT_EXCEPTION_CAPABLE`), and the spec class-default (`_SPEC_CLASS_DEFAULT\
+  \ = kernel`) are CODE\nconstants in `bin/yitc-v2`, single-source — not spec-read\
+  \ params.\n\n## Rationale\n\nExternal-audit YELLOW-validated (`decisions/placement-discipline-concept-audit-adhoc.yaml`):\
   \ \"the core\nshape is anti-complexity-respecting … adopt only with the two hardening\
   \ moves — explicit capture at\ngoverned write points AND an exhaustive class matrix.\"\
   \ Both are absorbed here (rules 1+3). The design\nconverged across umbrella units\
@@ -222,8 +222,8 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
   \ export slice»: (reconciling deviation fingerprint\n  conformance-leak-check-vs-test0890-contradict-on-proposed-kernel-spec-post-T0883)\n\
   \n## Implementation notes\n\n### Moved from the rule body\n\nEach entry is a passage\
   \ moved word for word out of the rule text of the section it names\n(its class per\
-  \ SPEC-0005 rule 3 in brackets); every acting rule stays in the rule text.\n\n-\
-  \ From «4. Within-file placement» [MECH]: (`bin/yitc-v2#_build_audit_prompt` audit-pre\
+  \ <workshop-spec> rule 3 in brackets); every acting rule stays in the rule text.\n\
+  \n- From «4. Within-file placement» [MECH]: (`bin/yitc-v2#_build_audit_prompt` audit-pre\
   \ overlay)\n\n## Verification\n\n- **VP1 (matrix exhaustive):** every tracked top-level\
   \ corpus dir is a key in\n  `_PLACEMENT_CLASS_DEFAULTS` (and the named class taxonomy\
   \ tests/docs/examples/templates/\n  dev-utilities is present); an unlisted class\
@@ -256,7 +256,6 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
-- SPEC-0005
 - SPEC-0030
 - SPEC-0036
 - export-slice-contract-and-core-authoring-model

@@ -81,8 +81,8 @@ body: "## Scenario\n\nA deploying project ships a security/auth-surface change (
   \ or un-runnable probe stays an OWNER ESCALATION\nand is never bypassable by an\
   \ override flag — and the deploy verb refuses it BEFORE the gate leg the\noverride\
   \ applies to ever runs. One leg is overridable, the other is not, and this is the\
-  \ line between\nthem: named here, body in SPEC-0155 rule 7 (SPEC-0005 rule 8 — a\
-  \ pointer, not a restatement).\n\n### 6. Failing-demo at declaration — a security\
+  \ line between\nthem: named here, body in SPEC-0155 rule 7 (<workshop-spec> rule\
+  \ 8 — a pointer, not a restatement).\n\n### 6. Failing-demo at declaration — a security\
   \ live-probe is admitted only with a recorded RED (SPEC-0156)\nA security live-probe\
   \ is a kernel-graded check (SPEC-0156 §1 `CHECK_SURFACES` — the `security.probes`\n\
   surface), so it is admitted only WITH one recorded FAILING DEMONSTRATION: break\

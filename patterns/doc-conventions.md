@@ -102,13 +102,13 @@ the only related signal; a provenance-shaped nudge is deferred to an observed re
 built speculatively. The complementary seed-authoring cue lives at `AGENTS.md` §"Authoring the seed"
 (a new rule body lives in its spec; the seed carries a cue + pointer). Motivating strip:.
 
-**Spec bodies — one home, SPEC-0005 rule 3.** This section covers seed prose only. Where a spec keeps
-its history and its code detail is ruled by SPEC-0005 rule 3 (`bin/yitc-v2 graph query SPEC-0005`),
+**Spec bodies — one home, SPEC-1037 rule 3.** This section covers seed prose only. Where a spec keeps
+its history and its code detail is ruled by SPEC-1037 rule 3 (`bin/yitc-v2 graph query SPEC-1037`),
 the one home for spec bodies; it is not restated here.
 
 ## §Split-vs-merge — granularity
 
-**Split a spec** in two when (the volume discipline is owned by SPEC-0005 rule 6 — anti-oversplit merge-default + anti-oversize split-by-surface):
+**Split a spec** in two when (the volume discipline is owned by <workshop-spec> rule 6 — anti-oversplit merge-default + anti-oversize split-by-surface):
 - Two genuinely different normative surfaces (rule / invariant / contract) conflated in one body
 - Different lifecycle paces bundled
 
@@ -119,7 +119,7 @@ the one home for spec bodies; it is not restated here.
 - Same concern split across two files over different incidents (e.g. two patterns on same axis)
 - Pattern duplicates ≥ 50% body of existing pattern
 
-**Default — extend existing** (CHARTER §Principle 1 Filter 1). Only split when extension creates dissonance or grows past readability (~350 lines pattern — soft limit; the spec volume discipline is owned by SPEC-0005 rule 6).
+**Default — extend existing** (CHARTER §Principle 1 Filter 1). Only split when extension creates dissonance or grows past readability (~350 lines pattern — soft limit; the spec volume discipline is owned by <workshop-spec> rule 6).
 
 ## §Edge usage — existing graph edges
 
@@ -256,7 +256,7 @@ Counter-weight against accretion (V1 archetype — 508 spec artifacts grew by al
 ## Cites
 
 - `SPEC-0008` — new standing governance rules are authored as specs, not decisions (the authoring path this pattern points at; `decision new` retired)
-- `SPEC-0005` — the spec doctrine (rule 6 owns the spec split / volume discipline referenced in §Split-vs-merge)
+- `<workshop-spec>` — the spec doctrine (rule 6 owns the spec split / volume discipline referenced in §Split-vs-merge)
 - `decisions/-rejected-ideas-and-backwards-compat.yaml` — prior-art rejecting speculative slots (tags / metadata without consumer)
 - `decisions/-pattern-provider-neutrality.yaml` — provider-neutrality extends to patterns/
 - `decisions/-draft-based-doc-lifecycle.yaml` — decision lifecycle template and transitions

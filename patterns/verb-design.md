@@ -86,7 +86,7 @@ fifth aspect added, PLUS its **READ CONTRACT** (what it *costs to answer*), the 
    **BOUNDARY — refusals only:** a case with **no refusal at all** is not a member. The absence of a
    read-only way to re-read a verb's own stage cue (X-0606, fixed) is a *different*
    concern with its own shipped fix — this sub-rule does **not** stretch into a general obligation to
-   offer read-only inspection. **Pointers, not restatements (SPEC-0005 rule 8):** whether the refusal
+   offer read-only inspection. **Pointers, not restatements (<workshop-spec> rule 8):** whether the refusal
    leaves a trace is (c) above; whether the refusal should fire at all is (b); which blocks the
    refused caller may self-clear versus must escalate is **<workshop-spec>** (`graph query <workshop-spec>`).
 
@@ -103,7 +103,7 @@ fifth aspect added, PLUS its **READ CONTRACT** (what it *costs to answer*), the 
    The TELL that you are in this aspect's territory: you are about to add a cache to a view because a
    verb got slow. That is the wrong lever — the invocation needs one scope, not N caches. **Rule home:
    SPEC-0190 rule 10**, with rule 4's horizon classes (`bin/yitc-v2 graph query SPEC-0190`), including the exemption carrier and
-   what rule 10 retires; not restated here (SPEC-0005 rule 8). Prior-art: / /
+   what rule 10 retires; not restated here (<workshop-spec> rule 8). Prior-art: / /
     — three one-site fixes, each found by a human waiting, before the rule existed; then the
    2026-09-30 measurement of single verbs folding 5-15x per segment.
 

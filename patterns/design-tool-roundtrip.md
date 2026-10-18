@@ -68,7 +68,7 @@ spec.
 
 | Delta KIND | Carrier | Why |
 |---|---|---|
-| a new / changed **enforced RULE** (a checkable «must/always/never») | a **`spec`** (SPEC-0005 admission) | only a rule that could be checked earns a spec |
+| a new / changed **enforced RULE** (a checkable «must/always/never») | a **`spec`** (<workshop-spec> admission) | only a rule that could be checked earns a spec |
 | a **behavior** change (user-path logic, a new/changed affordance) | a **`task`** (a scenario step) | a work unit through the 9 stages — where its deltas live = `ui-enhancement.md` |
 | a **presentational** nudge (spacing, position, label copy, color/token) | a **`followup`** (SPEC-0095), drained as **ONE batch** | many small same-class nudges = one followup-batch hygiene task, **not N tasks** — the economy lever |
 | a whole **new screen / flow** | a **`scenario`** (a `plan` if it needs a new spec corpus) | a user-path is a scenario (SPEC-0076); a multi-spec feature escalates to a plan (LIFECYCLE §Routing) |

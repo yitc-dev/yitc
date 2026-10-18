@@ -2,7 +2,7 @@
 name: inspection-criteria-roster
 class: reference
 sourced_from: <durable artifact> (drain-at-realize rule — a plan drains durable content to a stable home before terminal) + deviation `living-criteria-home-hosted-in-realized-terminal-plan` (the grounding incident — the inspection living-criteria were homed in an FSM plan that can reach realized/terminal) + owner-directive 2026-06-08 (option A — stand up the stable pattern home now so SPEC-0057 points at a real target) + SPEC-0057 (the inspection construct — the identity home this roster serves; §3 living-criteria home, §9 cadence model) + SPEC-0034 §realized (the drain-at-realize gate this home is the drain TARGET for) / plan unify-revizia-all-checks-under-one-construct-singl (the unification drain — absorbed the QUEUE.md §Re-review-triggers checks as roster rows + drained the realized roster plans' living-home role into this single map; QUEUE/runbook now POINT here)
-applies_to: the freshness-hashed LIVING CRITERIA of the inspection roster — the `CADENCE` cadence values (parsed by `bin/lib/inspection.py parse_cadence`), the **operational-hygiene weekly checklist** (`inspect record --tier weekly` hashes it), and the **per-theme lens-checklists** (`inspect record --theme T<n>` hashes each) for **T1, T3, T7** — **T2, T4, T5** are the co-equal PART 3 (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`, SPEC-0120 split) **T6, T8** the co-equal PART 5 (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`) **T9** the co-equal PART 4 (`patterns/inspection-criteria-roster-portfolio-observation.md`, SPEC-0120 split) and **T10** the co-equal PART 6 (`patterns/inspection-criteria-roster-real-work-observation.md`, SPEC-0120 split), served and hashed there. This is PART 1; the umbrella NAVIGATION MAP (check → theme → cadence → how-to-run → rule-home, across the continuous-reflex / system-inspection / apex / consumer-local tiers) is the co-equal companion `patterns/inspection-criteria-roster-navigation-map.md` (SPEC-0120 byte-axis split), and the run-mode + cross-theme method + foundations + architecture-drift lens are PART 2 (`patterns/inspection-criteria-roster-run-and-lenses.md`, SPEC-0120 split). This pattern is the durable HOME the criteria drain INTO; it is a doc home, not a mechanism/verb/store/rule (each rule it serves homes elsewhere — SPEC-0057 construct, SPEC-0034 drain-gate, SPEC-0055/0056 triage — it cites, it does not restate; SPEC-0005 rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
+applies_to: the freshness-hashed LIVING CRITERIA of the inspection roster — the `CADENCE` cadence values (parsed by `bin/lib/inspection.py parse_cadence`), the **operational-hygiene weekly checklist** (`inspect record --tier weekly` hashes it), and the **per-theme lens-checklists** (`inspect record --theme T<n>` hashes each) for **T1, T3, T7** — **T2, T4, T5** are the co-equal PART 3 (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`, SPEC-0120 split) **T6, T8** the co-equal PART 5 (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`) **T9** the co-equal PART 4 (`patterns/inspection-criteria-roster-portfolio-observation.md`, SPEC-0120 split) and **T10** the co-equal PART 6 (`patterns/inspection-criteria-roster-real-work-observation.md`, SPEC-0120 split), served and hashed there. This is PART 1; the umbrella NAVIGATION MAP (check → theme → cadence → how-to-run → rule-home, across the continuous-reflex / system-inspection / apex / consumer-local tiers) is the co-equal companion `patterns/inspection-criteria-roster-navigation-map.md` (SPEC-0120 byte-axis split), and the run-mode + cross-theme method + foundations + architecture-drift lens are PART 2 (`patterns/inspection-criteria-roster-run-and-lenses.md`, SPEC-0120 split). This pattern is the durable HOME the criteria drain INTO; it is a doc home, not a mechanism/verb/store/rule (each rule it serves homes elsewhere — SPEC-0057 construct, SPEC-0034 drain-gate, SPEC-0055/0056 triage — it cites, it does not restate; <workshop-spec> rule 8 one-home). Provider-neutral by rule (CHARTER §P4b).
 ---
 
 # Inspection criteria roster — the living criteria (part 1: cadence · operational-hygiene · the T1 / T3 / T7 lens-checklists)
@@ -26,7 +26,7 @@ applies_to: the freshness-hashed LIVING CRITERIA of the inspection roster — th
 > carrier. This is deliberately the home a PLAN's living criteria **drain into** at the plan's
 > `realized` transition (the drain-at-realize rule, **SPEC-0034 §realized**). It introduces **no new
 > mechanism, verb, store, or rule** — it is the durable doc destination, nothing more. Each rule it
-> maps homes elsewhere (cited inline, never restated — P5 / SPEC-0005 rule 8).
+> maps homes elsewhere (cited inline, never restated — P5 / <workshop-spec> rule 8).
 
 > **Single-home invariant (plan `unify-revizia-all-checks-under-one-construct-singl`):**
 > this roster is the SOLE living list of recurring checks. `QUEUE.md §Re-review triggers` is a POINTER
@@ -178,10 +178,10 @@ pointer, not a theme — it does not match the `### T<n> ` shape the theme reade
   spec leg for the scenario leg), and a consumer running its OWN `T-NNNN`/`SPEC-NNNN`
   numbering may COLLIDE with kernel ids — so resolve per REALM, never by id shape alone; **coverage both
   ways** — spec→code dead anchors via `graph build` stderr, code→spec un-specced surface via
-  the SPEC-0005/ admission test (NOT every-file); **named-reference resolution incl VERBS** — a
+  the <workshop-spec>/ admission test (NOT every-file); **named-reference resolution incl VERBS** — a
   doc reference to a named view/verb/artifact resolves to an existing, NOT-retired one OR is explicitly
   deferred (run-1: `decision new` cited live while hard-refused in code); a NEW verb whose ONLY home is
-  a pattern does not pass by home-existence alone — record an explicit SPEC-0005 admission judgement
+  a pattern does not pass by home-existence alone — record an explicit <workshop-spec> admission judgement
   (spec anchor OR a below-admission marker; 2026-07 refresh). **Resolve by an INVOCATION-SHAPED match,
   never a bare substring** — the same guard the event-catalog probe below already carries, which this
   probe lacked while resolving references of the same shape: a bare-token search reads a verb as homed
@@ -250,7 +250,7 @@ pointer, not a theme — it does not match the `### T<n> ` shape the theme reade
   rule about what an unvalidated pass YIELDS is no longer stated here — it was lifted, realm-agnostic
   and run-wide, to **part 2 §Run-mode → «Validate before you report»** (which carries the <project>
   5-of-5 false-positive rate as one of its two groundings). Read that step; it binds this pass on any
-  repo, kernel included. One home — this note points, it does not restate (P5 / SPEC-0005 rule 8).
+  repo, kernel included. One home — this note points, it does not restate (P5 / <workshop-spec> rule 8).
   This is a
   probe-INPUT discipline, deliberately NOT an executable probe generator: SPEC-0057 is manual-first by
   declaration, so a runner would be a new owner-gated mechanism (CHARTER §P1 F4).
@@ -276,7 +276,7 @@ blind-spot: `deviation_captured#ts=`
 
 - **Probe 1 — classify each such statement by SPEC-0067:** drift-**PROOF** (a `cites`/navigational
   pointer · a `graph query` derived-view · a generated artifact like the floor-map · an explicit
-  `> Retrieved — SPEC` pointer · a declared SPEC-0005-rule-3 note) OR drift-**CAPABLE** (a
+  `> Retrieved — SPEC` pointer · a declared <workshop-spec>-rule-3 note) OR drift-**CAPABLE** (a
   hand-maintained restatement that can diverge)? Discriminating test (SPEC-0067 §3): *"if the home's
   rule-text changed, would THIS text have to be changed too, BY HAND, to stay correct?"* — YES ⇒
   drift-CAPABLE, NO ⇒ drift-PROOF.
@@ -297,7 +297,7 @@ blind-spot: `deviation_captured#ts=`
 question one axis over: «is every silently-breakable atomic RULE proven by a tripwire test, or an
 explicitly-contracted waive?». **Checklist source = the per-project rule↔test ledger**
 (`specs/<PROJECT>-rule-test-ledger.md`; kernel = `specs/yitc-v2-rule-test-ledger.md`, broad-mapped) — the ledger is the roll-call sheet: one row per atom, tripwire-or-waive (SPEC-0165 §8). The
-axis READS the ledger, it does not re-home rules (P5 / SPEC-0005 rule 8; the spec stays the rule's home,
+axis READS the ledger, it does not re-home rules (P5 / <workshop-spec> rule 8; the spec stays the rule's home,
 the test stays the proof, the ledger stays derived bookkeeping — never a parallel truth). **Scope
 (SPEC-0165 §7):** only NORMATIVE rules of ACTIVE specs — descriptive/frozen specs are not rules. **Walk
 order (SPEC-0165 §6):** by the COST of silent breakage (money → outbound mutations → isolation/access →
@@ -565,9 +565,9 @@ nine probes P1-P9, the `delivered_weight` block this theme's `inspect record` ru
 and the null ≠ clean line: the lens table is in part 2 (`patterns/inspection-criteria-roster-run-and-lenses.md`
 §Delivered-protocol-weight lens). Each run also takes two steps there : **P10 RE-CHECK** — two
 specs trimmed since the last T7 run, every line of the trimming card's committed rule inventory checked
-against the current delivered body and every MOVED home (the check: SPEC-0005 §3, `bin/yitc-v2 graph
-query SPEC-0005`); a miss is a `deviation_captured` — and **P11 RANKING** — the top 5 specs by
-`stage_entered` deliveries × current contract-view bytes, the heaviest labelled by the SPEC-0005 §3 classes. **TIMING** (mandatory) — per rule trimmed or moved since the last T7 run: meaning, first governed action, delivery to its audience before it; then constraints kept, a real application probe, the net saving (reading: SPEC-0005 §3, §6); a timing gap is a `deviation_captured`.
+against the current delivered body and every MOVED home (the check: SPEC-1037 §3, `bin/yitc-v2 graph
+query SPEC-1037`); a miss is a `deviation_captured` — and **P11 RANKING** — the top 5 specs by
+`stage_entered` deliveries × current contract-view bytes, the heaviest labelled by the <workshop-spec> §3 classes. **TIMING** (mandatory) — per rule trimmed or moved since the last T7 run: meaning, first governed action, delivery to its audience before it; then constraints kept, a real application probe, the net saving (reading: SPEC-1037 §3, §6); a timing gap is a `deviation_captured`.
 
 **T7 sub-probe — hand-executed-procedure-should-be-a-verb (report-only candidate; per the 2026-07-04 kernel prose-vs-verb meta-analysis).**
 A large AUTHORED-PROSE procedure the AI RE-READS and HAND-EXECUTES (a multi-step checklist / runbook /

@@ -60,7 +60,7 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ — a `cross` verb is\nthe ONLY path (verb-design #4 control-chokepoint), so the\
   \ id-allocation + atomic append + role-guard +\n`cross_*` emit cannot be hand-done\
   \ wrong:\n  - **`cross request`** — the AUTHOR files an item. HOMED in SPEC-1020\
-  \ §`cross request` and NOT restated\n    here (SPEC-0005 rule 8).\n  - **`cross\
+  \ §`cross request` and NOT restated\n    here (<workshop-spec> rule 8).\n  - **`cross\
   \ inbox`** (read-only) — renders the fold-derived INBOX view (non-terminal `to:me`);\
   \ a query\n    verb, no mutation. (View definition: protocol sibling rule 5a.)\n\
   \  - **`cross outbox`** (read-only) — renders the fold-derived OUTBOX view (`from:me`\
@@ -189,120 +189,121 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ stays REQUIRED and is the\n    text the guard reads alongside the chain-derived\
   \ resolution note.\n  - **`cross dispute`** — the AUTHOR records that a peer-declared\
   \ fix does not reach the case.\n    HOMED in SPEC-1020 §`cross dispute` and NOT\
-  \ restated here (SPEC-0005 rule 8).\n  - **`cross ack`** (#2+#3+#4) — receiver acknowledges\
-  \ a `note`; emits `cross_acked` (terminal).\n    **It carries the RE-ENTRY DISPOSITION\
-  \ too **, on identical terms to `cross reject` above\n    and for the identical\
-  \ reason: it is the `note` kind's ONLY terminal, so a conditional decline\n    written\
-  \ on it strands with no author close to gate. The guard reads the ack's own `--note`\
-  \ plus\n    the chain-derived resolution note, and it holds on the note-attach from\
-  \ `acked` as well.\n  **The ack MAY carry `--note <text>` (X-0889): the receiver's\
-  \ SUBSTANTIVE RETURN,\n  recorded on `cross_acked.data.note` and surfaced by `cross\
-  \ show` as the item's resolution\n  note** — the note kind's equivalent of `cross\
-  \ done --note` above, on the ONE terminal a note\n  has. A `note` that ASKED for\
-  \ work previously had no answer slot anywhere: `cross done` is\n  kind-guarded to\
-  \ `{task, bugfix}` and the ack emitted `{id, by}` only, so a receiver who did the\n\
-  \  work had to re-file the answer as a SEPARATE id (X-0872 → X-0890) while the answered\
-  \ item read\n  `resolution note: (none)`. Optional by construction on a FIRST ack\
-  \ — a bare ack emits the same\n  `{id, by}` it always did (most notes are one-way\
-  \ FYI with nothing to return, and a required\n  flag would be a new gate, CHARTER\
-  \ §P1) — and needs no read-side change, since `_NOTE_KEYS`\n  already reads a `note`\
-  \ off ANY accepted event, the LAST one winning.\n  **The ack is legal from `acked`\
-  \ as a NOTE-ATTACH, and then `--note` is REQUIRED.**\n  The exact shape of the `cross\
-  \ done` attach from `done` above, one kind over, and for the same\n  reason: the\
-  \ return is often written AFTER the terminal fired (X-0872 was acked at\n   and\
-  \ the evidence came later), so gating on `requested` alone locks the\n  receiver\
-  \ out of its own item and leaves the separate-id workaround as the only path. A\
-  \ BARE\n  repeat resolves nothing and is refused journal-observably (`cross_refused`,\
-  \ reason\n  `already-acked`), appending no event; with a `--note` it appends the\
-  \ return, which the\n  last-accepted-note read side surfaces. The data-model half\
-  \ — that this adds no state, no event\n  type, and is not terminal reanimation (same-type\
-  \ terminals leave the fold's winner, the\n  `acked` status and `contested` all unchanged)\
-  \ — is the protocol sibling SPEC-0085 rule 3's.\n  - **`cross close`** — the AUTHOR\
-  \ finalizes their own item (and, in the orphan-author case, the\n    receiver closes\
-  \ it). HOMED in SPEC-1020 §`cross close` and NOT restated here (SPEC-0005 rule 8).\n\
-  \  - **`cross archive`** (#1+#4) — the KERNEL archivist rotates terminal+old items\
-  \ to the archive\n    sibling; emits `cross_archived`. Kernel-only (authority sibling\
-  \ §3 / protocol sibling rule 5c).\n    **IMPL DEFERRED (owner-split 2026-06-18):**\
-  \ the verb surface is documented here (forward design B5) but archival rotation\
-  \ is built by the follow-up plan\n    `cross-log-archival-rotation-move-terminal-old-coor`,\
-  \ NOT by this plan's cut (the active log\n    simply grows until that plan lands).\
-  \ The other 8 verbs ship in this cut (card).\n**Failure-behaviour (#5):** every\
-  \ mutating verb appends atomically (clean-fail — no half-written\nline), refuses\
-  \ a wrong-ROLE or wrong-STATE emit (the FSM, protocol sibling rule 2), and a refusal\
-  \ is\njournal-observable (a `gate_refused`-class trace, not stderr-only — the rubric\
-  \ §3 corollary), so a\nblocked cross-write is analyzable across sessions.\n\n###\
-  \ 2. The two views are DERIVED, never a second stored state\n`cross inbox` / `cross\
-  \ outbox` compute their content by FOLDING the shared log by id at read time\n(protocol\
-  \ sibling rule 5a) — there is NO stored per-item status, NO second state model.\
-  \ A terminal\nitem is absent from both views by fold (zero maintenance). The verbs\
-  \ render; the fold is the truth.\n\n### 3. Deviation-origin discipline (router unchanged)\n\
-  A `cross request` of a DEVIATION-origin item is filed ONLY via the triage/promotion\
-  \ path (SPEC-0055/\n0056 stays the sole router); a non-deviation ask may be `cross\
-  \ request`-ed directly. The verb does not\nbypass triage — it is the carrier, not\
-  \ a second router (protocol sibling rule 3). (Pointer, not a\nrestated rule — P5.)\n\
-  \n### 4. The `outbox` session-start surface — REPLACES the <workshop-spec> inbound\
-  \ count (co-designed re-delivery)\n\n**WORKTREE EXCEPTION at the session-start seam\
-  \ (WIDENED to the checkout).**\nThis surface — and the shared-log FOLD that computes\
-  \ it — is SKIPPED when the run is inside a\nWORKTREE. That is the whole condition\
-  \ (`cli.py#_receipt_only_session_start`), two arms in this ORDER:\n(1) a main-checkout\
-  \ journal that resolves AND differs from this checkout's; (2) ONLY when that main\n\
-  lookup returns NONE, the BARE-CLONE arm — `git worktree list --porcelain` at this\
-  \ checkout\nSUCCEEDS, names NO `branch refs/heads/main`, lists a `bare` entry FIRST,\
-  \ and THIS checkout (its root\nAND the directory its journal lives in, as realpaths)\
-  \ is one of the LINKED entries: the remote-verify\nbox leg, a detached checkout\
-  \ of a bare clone in which no checkout holds main, so no main-checkout seam\nexists\
-  \ there. The second arm is never OR'd in unordered and never keyed on the\nharness-narrowed\
-  \ locus. No flag, no config, no new store; the skip prints one line naming the re-fold.\
-  \ originally keyed this on a FRESH same-ref same-epoch\n`seed_read` receipt on the\
-  \ main journal and justified it as RE-DELIVERY ONLY — such a session had\nalready\
-  \ been shown this surface on main. measured the case that ground does not reach\
-  \ (a\nFIRST-in-checkout anchor holding no receipt) and re-grounded the skip on AUDIENCE\
-  \ + SEAM: this\nsurface's session-start seam is the MAIN CHECKOUT. The re-fold this\
-  \ rule already prescribes\n(`cross outbox` / `cross inbox` — the same pointer covering\
-  \ post-`/compact` eviction below) is what\nkeeps that safe. Nothing else moves:\
-  \ report-only, suppressed-when-clean, no-auto-pull and the\nLOG-vs-queue line are\
-  \ unchanged. On the MAIN checkout the two journal paths are equal, so the\npredicate\
-  \ is False BY CONSTRUCTION and that seam is untouched; where the main checkout cannot\
-  \ be\nRESOLVED and the bare-clone arm does not hold — a FAILED listing, an unresolved\
-  \ main in a NON-bare\nrepo, or a journal redirected off the checkout — the predicate\
-  \ answers False and the run takes the\nFULL surface (fail-closed toward the prior\
-  \ behaviour, deliberately not degraded to \"assume worktree\";\nthe bare-clone arm\
-  \ is NOT that declined degrade, since its listing PROVES that no checkout holds\n\
-  main). This exception is stated\nIDENTICALLY in SPEC-0119 rule 2 — the two describe\
-  \ ONE condition, and a surface stating a different\nbound is a standing contradiction\
-  \ (CHARTER §Principle 7), not a wording variation.\n\n`session start` SURFACES the\
-  \ author's `outbox` (report-only, after the type choice): the count +\npointer of\
-  \ `from:me` items a peer has actioned and that now await MY close. This **replaces**\
-  \ the\nretired <workshop-spec> per-repo inbound-COUNT surface (the #16 over-counter\
-  \ that could not be acked):\nterminal items are gone by fold, so the surface cannot\
-  \ over-count. It COUNTS + POINTS to `cross\noutbox`; it does NOT auto-pull (surfacing\
-  \ ≠ queue-scan — the LOG-vs-queue line holds). It also\nsurfaces the `inbox` count\
-  \ — the NEEDS-DECISION subset (: items `to:me` that are EXACTLY\n`requested` AND\
-  \ not yet tracked by a local CARRIER via `resolves_cross`; `picked`/`done`/linked\n\
-  items do NOT inflate it), preserving the kernel→consumer intake direction <workshop-spec>\
-  \ §6.\nIt ALSO surfaces the ACCEPTED-BUT-UNTRACKED count : items `to:me` this side\
-  \ has PICKED that\nNO local CARRIER declares. This is the MIRROR of the needs-decision\
-  \ cut, not a\nwidening of it — the `requested` cut is UNCHANGED.\n**A local CARRIER\
-  \ is a TASK naming the id in its `resolves_cross:`, or a NON-TERMINAL PLAN naming\
-  \ it\nin its frontmatter `resolves_cross:`.** Both cuts read the ONE host-scanned\
-  \ declared set\n(`bin/lib/cross.py#_cross_linked_ids`); the fold predicates are\
-  \ carrier-agnostic. The plan carrier\nexists because the SPEC-0140 sieve routes\
-  \ an ask needing a spec corpus or a coordinated cut to a\nPLAN — so without it,\
-  \ routing an item to its CORRECT carrier made it read as tracked by NOTHING\nforever\
-  \ (measured 2026-08-26: X-0560 and X-1113 both named while each had a live plan\
-  \ carrying it).\nTwo bounds hold the widening honest. **(a) The key is `resolves_cross`,\
-  \ never `cites:`** — a\nsubtraction that drops \"already handled\" must key on a\
-  \ marker whose PRESENCE is an assertion by its\nauthor, never on provenance, or\
-  \ it goes quiet exactly where it should speak; `cites:` is any-to-any\nprovenance\
-  \ (GRAPH §Edge types), so honouring it would let an id cited for CONTEXT silence\
-  \ the\ndetector (the task side already ruled this — WARNs on cites-without-`resolves_cross`).\n\
-  **(b) A TERMINAL plan's declaration does NOT count** — a realized/partial/rejected/cancelled\
-  \ plan\ntracks nothing forward, so honouring it would be silence-by-stale-carrier,\
-  \ the very failure this cut\nexists to prevent. Nothing is auto-linked in either\
-  \ direction: the honesty test is that a\nplan-declared item drops OUT while an item\
-  \ declared by NOTHING still appears. It exists because that cut, by design,\nstops\
-  \ counting an item the moment it is picked: PICKING is therefore the act that removes\
-  \ an item\nfrom the only surface naming it, while LINKING a task — what would restore\
+  \ restated here (<workshop-spec> rule 8).\n  - **`cross ack`** (#2+#3+#4) — receiver\
+  \ acknowledges a `note`; emits `cross_acked` (terminal).\n    **It carries the RE-ENTRY\
+  \ DISPOSITION too **, on identical terms to `cross reject` above\n    and for the\
+  \ identical reason: it is the `note` kind's ONLY terminal, so a conditional decline\n\
+  \    written on it strands with no author close to gate. The guard reads the ack's\
+  \ own `--note` plus\n    the chain-derived resolution note, and it holds on the\
+  \ note-attach from `acked` as well.\n  **The ack MAY carry `--note <text>` (X-0889):\
+  \ the receiver's SUBSTANTIVE RETURN,\n  recorded on `cross_acked.data.note` and\
+  \ surfaced by `cross show` as the item's resolution\n  note** — the note kind's\
+  \ equivalent of `cross done --note` above, on the ONE terminal a note\n  has. A\
+  \ `note` that ASKED for work previously had no answer slot anywhere: `cross done`\
+  \ is\n  kind-guarded to `{task, bugfix}` and the ack emitted `{id, by}` only, so\
+  \ a receiver who did the\n  work had to re-file the answer as a SEPARATE id (X-0872\
+  \ → X-0890) while the answered item read\n  `resolution note: (none)`. Optional\
+  \ by construction on a FIRST ack — a bare ack emits the same\n  `{id, by}` it always\
+  \ did (most notes are one-way FYI with nothing to return, and a required\n  flag\
+  \ would be a new gate, CHARTER §P1) — and needs no read-side change, since `_NOTE_KEYS`\n\
+  \  already reads a `note` off ANY accepted event, the LAST one winning.\n  **The\
+  \ ack is legal from `acked` as a NOTE-ATTACH, and then `--note` is REQUIRED.**\n\
+  \  The exact shape of the `cross done` attach from `done` above, one kind over,\
+  \ and for the same\n  reason: the return is often written AFTER the terminal fired\
+  \ (X-0872 was acked at\n   and the evidence came later), so gating on `requested`\
+  \ alone locks the\n  receiver out of its own item and leaves the separate-id workaround\
+  \ as the only path. A BARE\n  repeat resolves nothing and is refused journal-observably\
+  \ (`cross_refused`, reason\n  `already-acked`), appending no event; with a `--note`\
+  \ it appends the return, which the\n  last-accepted-note read side surfaces. The\
+  \ data-model half — that this adds no state, no event\n  type, and is not terminal\
+  \ reanimation (same-type terminals leave the fold's winner, the\n  `acked` status\
+  \ and `contested` all unchanged) — is the protocol sibling SPEC-0085 rule 3's.\n\
+  \  - **`cross close`** — the AUTHOR finalizes their own item (and, in the orphan-author\
+  \ case, the\n    receiver closes it). HOMED in SPEC-1020 §`cross close` and NOT\
+  \ restated here (<workshop-spec> rule 8).\n  - **`cross archive`** (#1+#4) — the\
+  \ KERNEL archivist rotates terminal+old items to the archive\n    sibling; emits\
+  \ `cross_archived`. Kernel-only (authority sibling §3 / protocol sibling rule 5c).\n\
+  \    **IMPL DEFERRED (owner-split 2026-06-18):** the verb surface is documented\
+  \ here (forward design B5) but archival rotation is built by the follow-up plan\n\
+  \    `cross-log-archival-rotation-move-terminal-old-coor`, NOT by this plan's cut\
+  \ (the active log\n    simply grows until that plan lands). The other 8 verbs ship\
+  \ in this cut (card).\n**Failure-behaviour (#5):** every mutating verb appends atomically\
+  \ (clean-fail — no half-written\nline), refuses a wrong-ROLE or wrong-STATE emit\
+  \ (the FSM, protocol sibling rule 2), and a refusal is\njournal-observable (a `gate_refused`-class\
+  \ trace, not stderr-only — the rubric §3 corollary), so a\nblocked cross-write is\
+  \ analyzable across sessions.\n\n### 2. The two views are DERIVED, never a second\
+  \ stored state\n`cross inbox` / `cross outbox` compute their content by FOLDING\
+  \ the shared log by id at read time\n(protocol sibling rule 5a) — there is NO stored\
+  \ per-item status, NO second state model. A terminal\nitem is absent from both views\
+  \ by fold (zero maintenance). The verbs render; the fold is the truth.\n\n### 3.\
+  \ Deviation-origin discipline (router unchanged)\nA `cross request` of a DEVIATION-origin\
+  \ item is filed ONLY via the triage/promotion path (SPEC-0055/\n0056 stays the sole\
+  \ router); a non-deviation ask may be `cross request`-ed directly. The verb does\
+  \ not\nbypass triage — it is the carrier, not a second router (protocol sibling\
+  \ rule 3). (Pointer, not a\nrestated rule — P5.)\n\n### 4. The `outbox` session-start\
+  \ surface — REPLACES the <workshop-spec> inbound count (co-designed re-delivery)\n\
+  \n**WORKTREE EXCEPTION at the session-start seam (WIDENED to the checkout).**\n\
+  This surface — and the shared-log FOLD that computes it — is SKIPPED when the run\
+  \ is inside a\nWORKTREE. That is the whole condition (`cli.py#_receipt_only_session_start`),\
+  \ two arms in this ORDER:\n(1) a main-checkout journal that resolves AND differs\
+  \ from this checkout's; (2) ONLY when that main\nlookup returns NONE, the BARE-CLONE\
+  \ arm — `git worktree list --porcelain` at this checkout\nSUCCEEDS, names NO `branch\
+  \ refs/heads/main`, lists a `bare` entry FIRST, and THIS checkout (its root\nAND\
+  \ the directory its journal lives in, as realpaths) is one of the LINKED entries:\
+  \ the remote-verify\nbox leg, a detached checkout of a bare clone in which no checkout\
+  \ holds main, so no main-checkout seam\nexists there. The second arm is never OR'd\
+  \ in unordered and never keyed on the\nharness-narrowed locus. No flag, no config,\
+  \ no new store; the skip prints one line naming the re-fold. originally keyed this\
+  \ on a FRESH same-ref same-epoch\n`seed_read` receipt on the main journal and justified\
+  \ it as RE-DELIVERY ONLY — such a session had\nalready been shown this surface on\
+  \ main. measured the case that ground does not reach (a\nFIRST-in-checkout anchor\
+  \ holding no receipt) and re-grounded the skip on AUDIENCE + SEAM: this\nsurface's\
+  \ session-start seam is the MAIN CHECKOUT. The re-fold this rule already prescribes\n\
+  (`cross outbox` / `cross inbox` — the same pointer covering post-`/compact` eviction\
+  \ below) is what\nkeeps that safe. Nothing else moves: report-only, suppressed-when-clean,\
+  \ no-auto-pull and the\nLOG-vs-queue line are unchanged. On the MAIN checkout the\
+  \ two journal paths are equal, so the\npredicate is False BY CONSTRUCTION and that\
+  \ seam is untouched; where the main checkout cannot be\nRESOLVED and the bare-clone\
+  \ arm does not hold — a FAILED listing, an unresolved main in a NON-bare\nrepo,\
+  \ or a journal redirected off the checkout — the predicate answers False and the\
+  \ run takes the\nFULL surface (fail-closed toward the prior behaviour, deliberately\
+  \ not degraded to \"assume worktree\";\nthe bare-clone arm is NOT that declined\
+  \ degrade, since its listing PROVES that no checkout holds\nmain). This exception\
+  \ is stated\nIDENTICALLY in SPEC-0119 rule 2 — the two describe ONE condition, and\
+  \ a surface stating a different\nbound is a standing contradiction (CHARTER §Principle\
+  \ 7), not a wording variation.\n\n`session start` SURFACES the author's `outbox`\
+  \ (report-only, after the type choice): the count +\npointer of `from:me` items\
+  \ a peer has actioned and that now await MY close. This **replaces** the\nretired\
+  \ <workshop-spec> per-repo inbound-COUNT surface (the #16 over-counter that could\
+  \ not be acked):\nterminal items are gone by fold, so the surface cannot over-count.\
+  \ It COUNTS + POINTS to `cross\noutbox`; it does NOT auto-pull (surfacing ≠ queue-scan\
+  \ — the LOG-vs-queue line holds). It also\nsurfaces the `inbox` count — the NEEDS-DECISION\
+  \ subset (: items `to:me` that are EXACTLY\n`requested` AND not yet tracked by a\
+  \ local CARRIER via `resolves_cross`; `picked`/`done`/linked\nitems do NOT inflate\
+  \ it), preserving the kernel→consumer intake direction <workshop-spec> §6.\nIt ALSO\
+  \ surfaces the ACCEPTED-BUT-UNTRACKED count : items `to:me` this side has PICKED\
+  \ that\nNO local CARRIER declares. This is the MIRROR of the needs-decision cut,\
+  \ not a\nwidening of it — the `requested` cut is UNCHANGED.\n**A local CARRIER is\
+  \ a TASK naming the id in its `resolves_cross:`, or a NON-TERMINAL PLAN naming it\n\
+  in its frontmatter `resolves_cross:`.** Both cuts read the ONE host-scanned declared\
+  \ set\n(`bin/lib/cross.py#_cross_linked_ids`); the fold predicates are carrier-agnostic.\
+  \ The plan carrier\nexists because the SPEC-0140 sieve routes an ask needing a spec\
+  \ corpus or a coordinated cut to a\nPLAN — so without it, routing an item to its\
+  \ CORRECT carrier made it read as tracked by NOTHING\nforever (measured 2026-08-26:\
+  \ X-0560 and X-1113 both named while each had a live plan carrying it).\nTwo bounds\
+  \ hold the widening honest. **(a) The key is `resolves_cross`, never `cites:`**\
+  \ — a\nsubtraction that drops \"already handled\" must key on a marker whose PRESENCE\
+  \ is an assertion by its\nauthor, never on provenance, or it goes quiet exactly\
+  \ where it should speak; `cites:` is any-to-any\nprovenance (GRAPH §Edge types),\
+  \ so honouring it would let an id cited for CONTEXT silence the\ndetector (the task\
+  \ side already ruled this — WARNs on cites-without-`resolves_cross`).\n**(b) A TERMINAL\
+  \ plan's declaration does NOT count** — a realized/partial/rejected/cancelled plan\n\
+  tracks nothing forward, so honouring it would be silence-by-stale-carrier, the very\
+  \ failure this cut\nexists to prevent. Nothing is auto-linked in either direction:\
+  \ the honesty test is that a\nplan-declared item drops OUT while an item declared\
+  \ by NOTHING still appears. It exists because that cut, by design,\nstops counting\
+  \ an item the moment it is picked: PICKING is therefore the act that removes an\
+  \ item\nfrom the only surface naming it, while LINKING a task — what would restore\
   \ visibility — is exactly\nwhat has not happened, so the system is quietest about\
   \ the items it has already promised to do.\nMeasured 2026-08-16 on the live ledger:\
   \ 8 of 8 picked items read `task: (none)`, and hours later the\n`requested` cut\
@@ -328,10 +329,10 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ are the done-awaiting-close\nand needs-decision cuts/ — the re-fold is the durable\
   \ source, the start cut a convenience). AGENTS\n§Three-phase-startup + §After-`/compact`\
   \ are co-amended: the <workshop-spec> inbound-count text → this\noutbox/inbox surface\
-  \ (its home, SPEC-0005 §8 one-home; this spec is the authority home it points to).\n\
-  **UNREADABLE-LOG DEGRADE (<workshop-spec> rule 4).** Suppressed-when-clean means\
-  \ an empty fold\nprints nothing, so an unreadable shared log (an OSError on read)\
-  \ must NOT fold to that same silence:\nstartup prints ONE `cross-coord: DEGRADED\
+  \ (its home, <workshop-spec> §8 one-home; this spec is the authority home it points\
+  \ to).\n**UNREADABLE-LOG DEGRADE (<workshop-spec> rule 4).** Suppressed-when-clean\
+  \ means an empty fold\nprints nothing, so an unreadable shared log (an OSError on\
+  \ read) must NOT fold to that same silence:\nstartup prints ONE `cross-coord: DEGRADED\
   \ — shared log unreadable (<errno>)` line and journals a\n`cross_coord_degraded`\
   \ row, then continues fail-soft (exit unchanged). A MISSING log is a clean empty\n\
   fold, not a degrade. This names a measurement failure; it is not a surfaced count,\
@@ -487,7 +488,7 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ command, no hooks.\n\n### 7. Receiver-side premise review — before any pick /\
   \ resolves_cross association\nHOMED in SPEC-1010 §3 — the premise review, the default\
   \ disposition, the ownership judgement,\nthe outcomes and the report-only cue —\
-  \ and NOT restated here (SPEC-0005 rule 8).\n\n## Parameters\n\nNone consumed.\n\
+  \ and NOT restated here (<workshop-spec> rule 8).\n\n## Parameters\n\nNone consumed.\n\
   \n## Rationale\n\nThe pre-specs audit named the AUTHOR-side close-loop as the missing\
   \ piece: `inbox` (receiver pickup)\nalone does not make the done-criterion (\"consumer\
   \ sees fixed → verify at start\") provable, so an\nexplicit author-side `outbox`\
@@ -500,9 +501,9 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ REUSES the existing `session start` surface slot + the `task file`-style id-allocation\
   \ +\nthe fold (no stored status) — adds the verb group as the ONE governed write\
   \ path, no new gate, no\nsecond state store. The deliberation lives in the plan\
-  \ (SPEC-0005 §3).\n\n## Verification\n\n- **VP1 (verbs are the only write path):**\
-  \ a raw append to the shared store is not the sanctioned path;\n  each `cross` mutating\
-  \ verb allocates/append/emits atomically and refuses a wrong-role/wrong-state\n\
+  \ (<workshop-spec> §3).\n\n## Verification\n\n- **VP1 (verbs are the only write\
+  \ path):** a raw append to the shared store is not the sanctioned path;\n  each\
+  \ `cross` mutating verb allocates/append/emits atomically and refuses a wrong-role/wrong-state\n\
   \  emit with a journal-observable refusal. (test at activation)\n- **VP2 (views\
   \ derived, no stored status):** `cross inbox`/`outbox` fold the log at read time;\
   \ a\n  terminal item is absent from both with no stored flag. (test)\n- **VP3 (outbox\

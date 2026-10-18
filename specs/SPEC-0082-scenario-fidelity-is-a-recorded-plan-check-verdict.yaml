@@ -75,9 +75,9 @@ body: "## Scenario\n\nWhen a plan that declares scenario inputs is `plan check`'
   \ prompt cue ONLY (non-recorded, non-freshness-bearing, non-gating;\n  explicit\
   \ retirement per the external adjudication 2026-06-17).** The audit prompt MAY carry\
   \ a CUE +\n  POINTER to SPEC-0076 §5/§6 (by reference — NEVER a copy of those contracts;\
-  \ SPEC-0076 stays the SOLE\n  normative home, P5 / SPEC-0005) to orient the auditor\
-  \ toward the §5 rules — added ONLY when the plan\n  declares `scenario_roles` (a\
-  \ no-`scenario_roles` plan gets NO prompt additions — the strict no-op).\n  But\
+  \ SPEC-0076 stays the SOLE\n  normative home, P5 / <workshop-spec>) to orient the\
+  \ auditor toward the §5 rules — added ONLY when the plan\n  declares `scenario_roles`\
+  \ (a no-`scenario_roles` plan gets NO prompt additions — the strict no-op).\n  But\
   \ qualitative §5 conformance is **NOT a recorded fidelity dimension**: it does NOT\
   \ enter the saved\n  verdict's scenario-fidelity result, does NOT enter the freshness\
   \ fingerprint, and does NOT gate. **RETIREMENT\n  (named, P1 F3):** this spec does\
@@ -124,30 +124,30 @@ body: "## Scenario\n\nWhen a plan that declares scenario inputs is `plan check`'
   \ overlays (the single home for the plan-gate QUESTION\n  TEMPLATES — the accept/decomposition\
   \ template MAY gain an ADVISORY pointer-cue to SPEC-0076 §5/§6: a\n  reference only,\
   \ never a copied rule-text, and explicitly non-recorded / non-freshness-bearing\
-  \ /\n  non-gating; SPEC-0076 stays the sole normative home, P5 / SPEC-0005); and\
-  \ SPEC-0076 §6 plan-altitude\n  clause (RETIRES the convention-only/unrecorded scenario-coherence\
-  \ expectation at plan authoring; NAMES\n  `plan check` as where the DETERMINISTIC\
-  \ scenario-fidelity result is recorded). The §6 TASK-lifecycle\n  touchpoints (regression-test\
-  \ / broken-ref hard error / staleness WARN) are UNCHANGED.\n\n## Rationale\n\nF-009\
-  \ (<project> pilot): the scenario entity shipped (node/doctrine/verbs) but scenario\
-  \ coherence never\nreached the plan-lifecycle external check, so a plan could be\
-  \ vetted with a BASELINE scenario it assumes\nworking that is not. This dimension\
-  \ REUSES the `plan check` verdict + the pure `_compute_scenario_status`\n(CHARTER\
-  \ §P1 F2 — extend over a new gate) to record a DETERMINISTIC baseline-fidelity finding\n\
-  (originally baseline-not-`live`; see The check for the amendment),\nand RETIRES\
-  \ the convention-only plan-altitude scenario check (§P1 F3). **The explicit `scenario_roles`\n\
-  marker (one honest plan field) removes TWO bad overloads (external adjudication\
-  \ 2026-06-17, P1):**\n(1) \"any not-yet-proven cited scenario is a universal finding\"\
-  \ — which would dead-end a greenfield plan\nbuilding its own (legitimately not-yet-proven)\
-  \ target scenario; and (2) \"bare `cites:` is a hidden gate\nswitch\" — turning\
-  \ an informational/comparative reference into a load-bearing input. The sibling\
-  \ F-014\nfalse-flag shares the root but is NOT closed by this dimension as a load-bearing\
-  \ check — only an advisory\n§5 prompt cue is added here; load-bearing §5 enforcement,\
-  \ if wanted, is a separate follow-up. Net-new\ndimension grounded in F-009 (journal\
-  \ sweep: the 46 `fidelity` hits are the unrelated\ndecomposition-fidelity audit).\n\
-  \n## Verification\n\n- **observed (detection — baseline fidelity):** a plan whose\
-  \ `scenario_roles.baseline` lists a scenario\n  that cites no spec, or cites a spec\
-  \ that is not `active` (`cites_all_active` FALSE), yields a\n  scenario-fidelity\
+  \ /\n  non-gating; SPEC-0076 stays the sole normative home, P5 / <workshop-spec>);\
+  \ and SPEC-0076 §6 plan-altitude\n  clause (RETIRES the convention-only/unrecorded\
+  \ scenario-coherence expectation at plan authoring; NAMES\n  `plan check` as where\
+  \ the DETERMINISTIC scenario-fidelity result is recorded). The §6 TASK-lifecycle\n\
+  \  touchpoints (regression-test / broken-ref hard error / staleness WARN) are UNCHANGED.\n\
+  \n## Rationale\n\nF-009 (<project> pilot): the scenario entity shipped (node/doctrine/verbs)\
+  \ but scenario coherence never\nreached the plan-lifecycle external check, so a\
+  \ plan could be vetted with a BASELINE scenario it assumes\nworking that is not.\
+  \ This dimension REUSES the `plan check` verdict + the pure `_compute_scenario_status`\n\
+  (CHARTER §P1 F2 — extend over a new gate) to record a DETERMINISTIC baseline-fidelity\
+  \ finding\n(originally baseline-not-`live`; see The check for the amendment),\n\
+  and RETIRES the convention-only plan-altitude scenario check (§P1 F3). **The explicit\
+  \ `scenario_roles`\nmarker (one honest plan field) removes TWO bad overloads (external\
+  \ adjudication 2026-06-17, P1):**\n(1) \"any not-yet-proven cited scenario is a\
+  \ universal finding\" — which would dead-end a greenfield plan\nbuilding its own\
+  \ (legitimately not-yet-proven) target scenario; and (2) \"bare `cites:` is a hidden\
+  \ gate\nswitch\" — turning an informational/comparative reference into a load-bearing\
+  \ input. The sibling F-014\nfalse-flag shares the root but is NOT closed by this\
+  \ dimension as a load-bearing check — only an advisory\n§5 prompt cue is added here;\
+  \ load-bearing §5 enforcement, if wanted, is a separate follow-up. Net-new\ndimension\
+  \ grounded in F-009 (journal sweep: the 46 `fidelity` hits are the unrelated\ndecomposition-fidelity\
+  \ audit).\n\n## Verification\n\n- **observed (detection — baseline fidelity):**\
+  \ a plan whose `scenario_roles.baseline` lists a scenario\n  that cites no spec,\
+  \ or cites a spec that is not `active` (`cites_all_active` FALSE), yields a\n  scenario-fidelity\
   \ FINDING in its `plan check` verdict.\n- **observed (target excluded — the greenfield\
   \ case):** a plan whose `scenario_roles.target` lists a\n  scenario at `draft`/`building`\
   \ yields NO scenario-fidelity finding (the plan is building it; not a\n  dead-end).\n\

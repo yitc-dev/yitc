@@ -344,6 +344,10 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
                 if nid_d:
                     discarded_out.add(nid_d)
             continue
+        # T-14017: a historical `graph query --as-of` fetch read a PAST body — never a fetch of the
+        # current contract, so it credits no gate (the same delivery boundary as the skip above).
+        if data.get("as_of"):
+            continue
         nid = data.get("node_id")
         if nid:
             fetched.add(nid)

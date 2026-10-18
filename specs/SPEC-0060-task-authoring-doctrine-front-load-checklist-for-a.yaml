@@ -21,12 +21,12 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ home for WHAT a good task card front-loads. It is a\nCHECKLIST, not a gate (no\
   \ card-completeness validator — CHARTER non-goal #2/#7). It is POINTER-BASED:\n\
   every schema rule and every cutting rule stays normative in ITS OWN home (cited\
-  \ inline); this spec\nNEVER restates them (SPEC-0005 rule 3 content-boundary / P5\
-  \ one-home / rule 8\nprompts-checklists-cue+pointer — a front-load checklist item\
-  \ carries a discipline CUE + a POINTER,\nnever a restated corpus rule).\n\n### The\
-  \ front-load checklist — authoring PROMPTS only (accept-gate F3, 2026-06-08)\nEach\
-  \ item is the QUESTION to ask while writing the card — NOT a re-statement of the\
-  \ field's rule\n(the schema rule lives in SPEC-0028, the cutting rule in SPEC-0046;\
+  \ inline); this spec\nNEVER restates them (<workshop-spec> rule 3 content-boundary\
+  \ / P5 one-home / rule 8\nprompts-checklists-cue+pointer — a front-load checklist\
+  \ item carries a discipline CUE + a POINTER,\nnever a restated corpus rule).\n\n\
+  ### The front-load checklist — authoring PROMPTS only (accept-gate F3, 2026-06-08)\n\
+  Each item is the QUESTION to ask while writing the card — NOT a re-statement of\
+  \ the field's rule\n(the schema rule lives in SPEC-0028, the cutting rule in SPEC-0046;\
   \ this list only front-loads the\nthinking and POINTS). The load-bearing authoring\
   \ content this spec genuinely OWNS is items 3-4 (the\nfront-load thinking — scope\
   \ + acceptance/probe); items 1/2/5/6 are one-line prompts that defer\nentirely to\
@@ -77,7 +77,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ request, so it\n   reads as given rather than as something to verify.\n   **Which\
   \ seam this is, and why the existing ones do not reach it.** This cue fires BEFORE\
   \ A\n   CARD EXISTS. The two premise disciplines already in the corpus are both\
-  \ DOWNSTREAM and stay\n   where they are (pointers, not restated here — SPEC-0005\
+  \ DOWNSTREAM and stay\n   where they are (pointers, not restated here — <workshop-spec>\
   \ rule 3): SPEC-0133 rule 2f owns the\n   PRE-CLAIM seam, where a dispatched worker\
   \ that finds a ready card's premise false refuses it\n   via `task refuse` — by\
   \ then the card was cut, queued and dispatched, and a whole worker\n   bootstrap\
@@ -104,10 +104,17 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ (advisory — filing not blocked)` and\n   `retired flag named (advisory — filing\
   \ not blocked)` (registry rows 12 + 13 in `## Implementation notes`), when a\n \
   \  cited or named spec resolves in the graph index to a non-active status\n   or\
-  \ the card text names a retired `audit` CLI flag (SPEC-0204 rule 6) — the two premise\
-  \ faults the\n   graph already knew at the filing. A NECESSARY condition only (status\
-  \ and token, never\n   substance); filing is never blocked.\n4. **Acceptance WITH\
-  \ probe (front-load thinking — OWNED here, load-bearing)** — does each criterion\n\
+  \ the card text names a retired `audit` CLI flag (SPEC-0204 rule 6). A `retired`,\
+  \ `withdrawn` or\n   `rejected` target and a retired flag are the premise faults\
+  \ the graph already knew at the\n   filing. A `superseded` target is reported as\
+  \ INFORMATION, not a fault : the line names its\n   superseder and points at the\
+  \ point-lookup for the active head, and a reference to it may stay —\n   only a\
+  \ card whose PREMISE rests on the superseded text re-checks it against the active\
+  \ head. A\n   NECESSARY condition only (status and token, never substance); filing\
+  \ is never blocked.\n   **Spec-change route —** does the card change an active spec?\
+  \ Ask the <workshop-spec> rule 7 probe: must a\n   reader act differently in a case\
+  \ the spec already covers? No → `spec edit` in place; yes → a successor.\n4. **Acceptance\
+  \ WITH probe (front-load thinking — OWNED here, load-bearing)** — does each criterion\n\
   \   name a probe (event / state / measurable effect)? \"code committed\" is NOT\
   \ \"done\" (done=adopted +\n   infra-adoption → CHARTER §P3/§P8). This IS the per-unit\
   \ verification artifact SPEC-0059's\n   readiness gate checks before Tests/Closure.\n\
@@ -133,8 +140,8 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ section «Worked examples of the one question», under the same lead. Fetch it when\
   \ the\n   criterion in front of you has the shape that cue names, or when you are\
   \ not sure. A new block of\n   this kind is authored there, with its lead added\
-  \ here (SPEC-0005 §6).\n   **Give each criterion a leading `ACn` token —** that\
-  \ token is the criterion's\n   CANONICAL id, and `task plan --finalize` REFUSES\
+  \ here (<workshop-spec> §6).\n   **Give each criterion a leading `ACn` token —**\
+  \ that token is the criterion's\n   CANONICAL id, and `task plan --finalize` REFUSES\
   \ a plan that never references one, naming the\n   uncovered ids (a necessary condition\
   \ only). A tokenless entry still gets an id, assigned BY\n   POSITION — which moves\
   \ when the list is reordered, so the explicit token is what makes the id\n   stable\
@@ -167,7 +174,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   )? Then CITE the artifact or\n   owner-decision that DECIDED that exclusion. An\
   \ uncited negative probe encodes the AUTHOR'S\n   ASSUMPTION as an executable green\
   \ guarantee — and the assumption outlives the author (rule home →\n   CHARTER §P3\
-  \ + SPEC-0005 rule 3 content-boundary: a claim resolves to the home that decided\
+  \ + <workshop-spec> rule 3 content-boundary: a claim resolves to the home that decided\
   \ it, or\n   it is not a decided claim yet). An authoring PROMPT only: no card is\
   \ refused for omitting it.\n   **Test-or-waive cue —** does each criterion NAME\
   \ the executable test that verifies it (a\n   test path or a pinned-suite test id)\
@@ -526,7 +533,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ form, so the criterion was\n  unsatisfiable as written — an audit-post RED, a\
   \ ceiling pass, a worker halt, an acceptance\n  amendment and a re-dispatch.\n-\
   \ From «item 4 / axis B»: <project> AC1 demanded normative rule text NAME an implementation\n\
-  \  path, which SPEC-0005's content boundary forbids (audit-pre RED, the ceiling,\
+  \  path, which <workshop-spec>'s content boundary forbids (audit-pre RED, the ceiling,\
   \ a recorded decision\n  and a re-dispatch); <project> scope planned a third leg\
   \ of a mechanism its then-active\n  governing spec defined as two (audit-pre RED\
   \ at the ceiling, a whole prerequisite card and a\n  park/resume round-trip).\n\
@@ -554,51 +561,52 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ half already let a shipped line go unrowed while the table still stated the old\n\
   \  count.\n- From «registry anchors»: The full CHARTER §P1 filter-by-filter weighing,\
   \ including the case FOR\n  anchoring, is recorded in `analysis:`, not restated\
-  \ here (SPEC-0005 rule 3).\n- From «Triage delivery»: The doctrine itself is unchanged\
-  \ — this records an additional DELIVERY\n  point, not a normative reshape.\n- From\
-  \ «Anti-complexity note»: Admitted because it fills a real CONTENT gap (no single\n\
-  \  task-authoring home existed); the only retirement is the overlapping authoring\
-  \ prose folded in\n  from SPEC-0028/0046 on activation (replacement map above).\n\
-  \n## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
-  \ word out of the rule text of the section\neach names.\n\n- From «Delivery wiring»:\
-  \ (availability — `bin/yitc-v2#_filing_reference_howto`, printed by\n  `cmd_session_start`,\
-  \ generated from the Filing stage bundle)\n- From «Delivery wiring»: (`cmd_task_file`\
-  \ calls `_require_reads(\"stage\", {stage: Filing})`)\n- From «Registry line 1»:\
-  \ `_declared_surface_preview` PROJECTS that rule at filing time by injecting\n \
-  \ the not-yet-indexed card's declared surface into an index copy.\n- From «Under-citation\
-  \ preview»: (`_print_undercitation_preview`, one member of the registry above)\n\
-  - From «Triage delivery»: The read-gate's credit path `_fetched_spec_ids` keys ONLY\
-  \ on\n  `data.node_id` (verb-agnostic — bin/lib/gates.py), so the receipt credits\
-  \ the gate through the\n  EXISTING path with no reducer change, no new event type,\
-  \ no new gate (CHARTER §P1; the same\n  delivery-credit idiom the journal recovery-rescan\
-  \ already uses).\n\n### Moved from the rule text\n\nReference and maintainer passages\
-  \ moved word for word out of the rule text of the section\neach names; no rule an\
-  \ acting reader applies moved with them.\n\nFrom «Replacement map»:\n\n### Replacement\
-  \ map (what this spec owns vs what it must NOT duplicate — D2, P5 one-home)\n- **OWNS:**\
-  \ the authoring DOCTRINE (what a good card front-loads) + the skeleton-prompt intent.\n\
-  - **Does NOT own (pointers only):** SPEC-0028 stays the field-catalog/schema; SPEC-0046\
-  \ stays\n  decomposition/cutting; CHARTER §P3/§P8 stays done=adopted + infra-adoption.\
-  \ Any overlapping\n  AUTHORING prose in those homes is deleted/pointerized into\
-  \ this one on activation.\n\nFrom «Delivery wiring»:\n\nPer SPEC-0059's Filing carve-out:\
-  \ the doctrine is delivered as a session-start REFERENCE pointer, and the `task\
-  \ file` work-verb CHECKS it was read before writing the\ncard. `task file --skeleton`\n\
-  emits the fillable skeleton (`_emit_task_skeleton`, reusing `tasks/_template.yaml`).\
-  \ `binding:`\n(stage-entry:Filing) / `implements:` are finalized above. No new read\
-  \ verb is added (the existing\n`_require_reads` lever, SPEC-0050).\n\nFrom «Delivery\
-  \ wiring — the advisory line registry»:\n\n**The task-file advisory line REGISTRY\
-  \ — what `task file` prints, and who owns each line.**\nA DELIVERY REGISTRY, not\
-  \ a rule family: it records WHICH advisory lines `cmd_task_file` prints and\nWHERE\
-  \ each line's semantics are homed. It deliberately does NOT claim this spec owns\
-  \ all of them —\nthe thirteen lines answer different questions and keep different\
-  \ homes. The blanket reading\n\"filing previews → SPEC-0044\" is contradicted by\
-  \ this split, as is any reading that SPEC-0060 owns\nthe whole family.\n\n| # |\
-  \ enumerated key (line prefix) | anchor (`bin/lib/task.py`) | shipped | semantics\
-  \ homed in |\n|---|---|---|---|---|\n| 1 | `preview (advisory — claim-moment screen\
-  \ re-checks): <SAFE\\|WAIT\\|CLASH\\|CLAIMED>` | `_declared_surface_preview` | |\
-  \ **SPEC-0044 §2.2** (pointer — see below) |\n| 2 | `sibling-task overlap (advisory\
-  \ — filing not blocked)` | `_print_sibling_task_overlap` | | this spec |\n| 3 |\
-  \ `followup overlap (advisory — filing not blocked)` | `_print_followup_overlap`\
-  \ | | this spec |\n| 4 | `deviation overlap (advisory — filing not blocked)` | `_print_capture_overlap`\
+  \ here (<workshop-spec> rule 3).\n- From «Triage delivery»: The doctrine itself\
+  \ is unchanged — this records an additional DELIVERY\n  point, not a normative reshape.\n\
+  - From «Anti-complexity note»: Admitted because it fills a real CONTENT gap (no\
+  \ single\n  task-authoring home existed); the only retirement is the overlapping\
+  \ authoring prose folded in\n  from SPEC-0028/0046 on activation (replacement map\
+  \ above).\n\n## Implementation notes\n\nNotes for the maintainer of the code, moved\
+  \ word for word out of the rule text of the section\neach names.\n\n- From «Delivery\
+  \ wiring»: (availability — `bin/yitc-v2#_filing_reference_howto`, printed by\n \
+  \ `cmd_session_start`, generated from the Filing stage bundle)\n- From «Delivery\
+  \ wiring»: (`cmd_task_file` calls `_require_reads(\"stage\", {stage: Filing})`)\n\
+  - From «Registry line 1»: `_declared_surface_preview` PROJECTS that rule at filing\
+  \ time by injecting\n  the not-yet-indexed card's declared surface into an index\
+  \ copy.\n- From «Under-citation preview»: (`_print_undercitation_preview`, one member\
+  \ of the registry above)\n- From «Triage delivery»: The read-gate's credit path\
+  \ `_fetched_spec_ids` keys ONLY on\n  `data.node_id` (verb-agnostic — bin/lib/gates.py),\
+  \ so the receipt credits the gate through the\n  EXISTING path with no reducer change,\
+  \ no new event type, no new gate (CHARTER §P1; the same\n  delivery-credit idiom\
+  \ the journal recovery-rescan already uses).\n\n### Moved from the rule text\n\n\
+  Reference and maintainer passages moved word for word out of the rule text of the\
+  \ section\neach names; no rule an acting reader applies moved with them.\n\nFrom\
+  \ «Replacement map»:\n\n### Replacement map (what this spec owns vs what it must\
+  \ NOT duplicate — D2, P5 one-home)\n- **OWNS:** the authoring DOCTRINE (what a good\
+  \ card front-loads) + the skeleton-prompt intent.\n- **Does NOT own (pointers only):**\
+  \ SPEC-0028 stays the field-catalog/schema; SPEC-0046 stays\n  decomposition/cutting;\
+  \ CHARTER §P3/§P8 stays done=adopted + infra-adoption. Any overlapping\n  AUTHORING\
+  \ prose in those homes is deleted/pointerized into this one on activation.\n\nFrom\
+  \ «Delivery wiring»:\n\nPer SPEC-0059's Filing carve-out: the doctrine is delivered\
+  \ as a session-start REFERENCE pointer, and the `task file` work-verb CHECKS it\
+  \ was read before writing the\ncard. `task file --skeleton`\nemits the fillable\
+  \ skeleton (`_emit_task_skeleton`, reusing `tasks/_template.yaml`). `binding:`\n\
+  (stage-entry:Filing) / `implements:` are finalized above. No new read verb is added\
+  \ (the existing\n`_require_reads` lever, SPEC-0050).\n\nFrom «Delivery wiring —\
+  \ the advisory line registry»:\n\n**The task-file advisory line REGISTRY — what\
+  \ `task file` prints, and who owns each line.**\nA DELIVERY REGISTRY, not a rule\
+  \ family: it records WHICH advisory lines `cmd_task_file` prints and\nWHERE each\
+  \ line's semantics are homed. It deliberately does NOT claim this spec owns all\
+  \ of them —\nthe thirteen lines answer different questions and keep different homes.\
+  \ The blanket reading\n\"filing previews → SPEC-0044\" is contradicted by this split,\
+  \ as is any reading that SPEC-0060 owns\nthe whole family.\n\n| # | enumerated key\
+  \ (line prefix) | anchor (`bin/lib/task.py`) | shipped | semantics homed in |\n\
+  |---|---|---|---|---|\n| 1 | `preview (advisory — claim-moment screen re-checks):\
+  \ <SAFE\\|WAIT\\|CLASH\\|CLAIMED>` | `_declared_surface_preview` | | **SPEC-0044\
+  \ §2.2** (pointer — see below) |\n| 2 | `sibling-task overlap (advisory — filing\
+  \ not blocked)` | `_print_sibling_task_overlap` | | this spec |\n| 3 | `followup\
+  \ overlap (advisory — filing not blocked)` | `_print_followup_overlap` | | this\
+  \ spec |\n| 4 | `deviation overlap (advisory — filing not blocked)` | `_print_capture_overlap`\
   \ | | this spec |\n| 5 | `cross-item overlap (advisory — filing not blocked)` |\
   \ `_print_cross_overlap` | | this spec |\n| 6 | `under-citation preview (advisory\
   \ — filing not blocked)` | `_print_undercitation_preview` | | this spec (detailed\
@@ -620,9 +628,11 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ — fired at BOTH authoring seams: `task file` (off the grafted index) and the `task\
   \ update --old/--new` field-edit that changes `scope` or `acceptance` (off the committed\
   \ `graph/index.json`) | | this spec (item 3 — the premise-verify cue's mechanical\
-  \ floor: a cited or scope/acceptance-named spec whose index status is `superseded\\\
-  |retired\\|withdrawn\\|rejected`, naming its superseder; only `active` governs —\
-  \ SPEC-0005) |\n| 13 | `retired flag named (advisory — filing not blocked)` | `_print_premise_advisory`\
+  \ floor: a cited or scope/acceptance-named spec whose index status is `retired\\\
+  |withdrawn\\|rejected` is a premise fault, only `active` governs — <workshop-spec>;\
+  \ a `superseded` one is reported as information naming its superseder and pointing\
+  \ at the point-lookup for the active head, a reference to it may stay) |\n| 13 |\
+  \ `retired flag named (advisory — filing not blocked)` | `_print_premise_advisory`\
   \ (same printer, same two seams as row 12) | | **SPEC-0204 rule 6** (pointer — the\
   \ retirement authority); the flag SET is read in place off the ONE carrier `bin/lib/audit.py#RETIRED_AUDIT_FLAGS`\
   \ that the pre-parse shim and graph conformance's `retired-audit-flags` probe read,\
@@ -693,7 +703,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ the\nregistry's shared character stated above (report-not-block, fail-open, no\
   \ event, exit unchanged —\nCHARTER non-goal #2/#7; no gate, no card-completeness\
   \ validator, no new store; it rides the ONE\ngrafted index the line-1 surface preview\
-  \ already builds, no second build). Additive extension of the\nFiling delivery (SPEC-0005\
+  \ already builds, no second build). Additive extension of the\nFiling delivery (<workshop-spec>\
   \ rule 7); the cite discipline itself stays normative in item 6 above\n(cue+pointer).\n\
   \nFrom «Triage delivery»:\n\n**Triage/revizia-entry delivery — a SECOND delivery\
   \ surface for the SAME doctrine.**\nA revizia/triage scan (`bin/lib/triage.py#cmd_triage_run`)\
@@ -705,28 +715,29 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ carrying\n`verb: \"triage run\"` (deliberately NOT `\"graph query\"`, so a journal\
   \ consumer never mistakes it for\na real interactive fetch) + `node_id: SPEC-0060`\
   \ + an explicit `delivery` marker.\n\nFrom «Anti-complexity note»:\n\n### Anti-complexity\
-  \ note (SPEC-0005 §7 / CHARTER §P1)\nReuses the existing `task file` verb + the\
-  \ `_template.yaml` skeleton + the `_require_reads` lever\n(SPEC-0050) — no new gate,\
-  \ no new store, no card-completeness validator.\n\n## Verification\n\nBehavioral\
-  \ (primary):\n- `task file` checks the task-authoring doctrine was read (current\
-  \ session) before writing the card,\n  and REFUSES when unread (the SPEC-0059 Filing\
-  \ CHECK leg; emits `read_gate_refused`);\n- a card filed via `task file` carries\
-  \ the front-loaded fields (scope + acceptance-with-probe), seeded\n  by the skeleton\
-  \ prompts.\nStructural (secondary): no schema rule or decomposition rule is restated\
-  \ here — each resolves to its\nowner (SPEC-0028 / SPEC-0046) by pointer.\n\n## Drift\
-  \ review\n\nThis body has been AMENDED in place nine times (each an SPEC-0005 rule\
-  \ 7 additive extension, none a\nsupersession): the item-4 audit-post-verifiability\
-  \ sub-clause; the X-0419 cohort-complement and\ncited-desired-exclusion cues; the\
-  \ evidence-availability cue and its two limbs; the durable-field\ncue; the born-armed-carrier\
-  \ cue; the qualitative-outcome rule with the Measured-bound cue re-scoped\nbeneath\
-  \ it; plus two re-verifications of the `implements:` anchors after unrelated drift.\
-  \ Every\namendment was an AUTHORING PROMPT: none added a gate, an event, a store\
-  \ or a card-completeness\nvalidator, and none changed what an already-compliant\
-  \ criterion had to do. The dated entries, their\nmeasured grounds and the per-amendment\
-  \ CHARTER §P1 weighing are in git history for this file and in\nthe cited proposing\
-  \ plan — not restated here (SPEC-0005 rule 3 / rule 8).\n\nONE amendment ships a\
-  \ test, and it is the only one that could: the limb-(a) example land-tie\nphrasings\
-  \ are literal strings a live matcher must keep accepting, so\n`tests/test_land_emitted_cue_examples_match_the_matcher.py`\
+  \ note (<workshop-spec> §7 / CHARTER §P1)\nReuses the existing `task file` verb\
+  \ + the `_template.yaml` skeleton + the `_require_reads` lever\n(SPEC-0050) — no\
+  \ new gate, no new store, no card-completeness validator.\n\n## Verification\n\n\
+  Behavioral (primary):\n- `task file` checks the task-authoring doctrine was read\
+  \ (current session) before writing the card,\n  and REFUSES when unread (the SPEC-0059\
+  \ Filing CHECK leg; emits `read_gate_refused`);\n- a card filed via `task file`\
+  \ carries the front-loaded fields (scope + acceptance-with-probe), seeded\n  by\
+  \ the skeleton prompts.\nStructural (secondary): no schema rule or decomposition\
+  \ rule is restated here — each resolves to its\nowner (SPEC-0028 / SPEC-0046) by\
+  \ pointer.\n\n## Drift review\n\nThis body has been AMENDED in place nine times\
+  \ (each an <workshop-spec> rule 7 additive extension, none a\nsupersession): the\
+  \ item-4 audit-post-verifiability sub-clause; the X-0419 cohort-complement and\n\
+  cited-desired-exclusion cues; the evidence-availability cue and its two limbs; the\
+  \ durable-field\ncue; the born-armed-carrier cue; the qualitative-outcome rule with\
+  \ the Measured-bound cue re-scoped\nbeneath it; plus two re-verifications of the\
+  \ `implements:` anchors after unrelated drift. Every\namendment was an AUTHORING\
+  \ PROMPT: none added a gate, an event, a store or a card-completeness\nvalidator,\
+  \ and none changed what an already-compliant criterion had to do. The dated entries,\
+  \ their\nmeasured grounds and the per-amendment CHARTER §P1 weighing are in git\
+  \ history for this file and in\nthe cited proposing plan — not restated here (<workshop-spec>\
+  \ rule 3 / rule 8).\n\nONE amendment ships a test, and it is the only one that could:\
+  \ the limb-(a) example land-tie\nphrasings are literal strings a live matcher must\
+  \ keep accepting, so\n`tests/test_land_emitted_cue_examples_match_the_matcher.py`\
   \ asserts each of them against\n`bin/lib/audit.py#land_emitted_named_evidence` —\
   \ RED if an example is edited to a non-matching\nphrasing, RED if the matcher is\
   \ narrowed away from an example. Every other cue quotes no\nmatcher-bound string,\

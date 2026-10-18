@@ -35,14 +35,14 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ technical-fork consult», and «above» reads against that\n  spec. The third group\
   \ is one paragraph that stood after <workshop-spec>'s ceiling sections and reads\
   \ on\n  its own.\n- A new rare case of one of these branches is authored here, in\
-  \ the group it belongs to\n  (SPEC-0005 §6).\n\n### Rare ceiling cases\n\n#### Ledger-skip\
-  \ axes — the FAIL-CLOSED clauses of the rare axes\n\n- **Plan-freshness:** a prior-GREEN\
-  \ re-run with an UNCHANGED signature is NOT a freshness re-audit\n  (normal pass\
-  \ counting + ceiling — no blanket prior-GREEN exemption); a missing/blank signature\
-  \ on\n  either side falls through to normal counting; and a freshness re-audit that\
-  \ surfaces\n  YELLOW/RED/findings IS a real outcome — it advances `passes` +1 and\
-  \ the normal RED/YELLOW handling\n  + ceiling apply.\n- **Plan lens-version:** a\
-  \ missing prior `lens_version` (pre- record) also counts as changed\n  (it predates\
+  \ the group it belongs to\n  (<workshop-spec> §6).\n\n### Rare ceiling cases\n\n\
+  #### Ledger-skip axes — the FAIL-CLOSED clauses of the rare axes\n\n- **Plan-freshness:**\
+  \ a prior-GREEN re-run with an UNCHANGED signature is NOT a freshness re-audit\n\
+  \  (normal pass counting + ceiling — no blanket prior-GREEN exemption); a missing/blank\
+  \ signature on\n  either side falls through to normal counting; and a freshness\
+  \ re-audit that surfaces\n  YELLOW/RED/findings IS a real outcome — it advances\
+  \ `passes` +1 and the normal RED/YELLOW handling\n  + ceiling apply.\n- **Plan lens-version:**\
+  \ a missing prior `lens_version` (pre- record) also counts as changed\n  (it predates\
   \ the versioned lens); an EQUAL version is NOT exempt. It NEVER lowers `passes`\
   \ or\n  forces a verdict — a lens re-audit can still RED on a genuine finding (then\
   \ it counts a normal pass).\n- **Unchanged-fingerprint:** the carry is UNCONDITIONAL\
@@ -146,17 +146,16 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ audit passes. Rendered inside <workshop-spec> this detail\nreached every session\
   \ entering Audit-pre or Audit-post; as a reference behind one index paragraph\n\
   and the head of the acting verb's help it is met by the session that has the case\
-  \ at hand\n(SPEC-0005 §6, the rare-case option).\n\n## Verification\n\n- VP1 (one\
-  \ home): every block of §Rare ceiling cases is present in this spec and absent from\n\
-  \  <workshop-spec>, and <workshop-spec> carries exactly one index paragraph naming\
-  \ this spec and the heading to\n  search.\n- VP2 (reachable from the verb): the\
-  \ first lines of the `audit pre`, `audit post`,\n  `audit consult` and `task commit`\
-  \ help name this spec.\n- VP3 (no stage render): no stage entry delivers this spec.\n\
-  The executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
+  \ at hand\n(<workshop-spec> §6, the rare-case option).\n\n## Verification\n\n- VP1\
+  \ (one home): every block of §Rare ceiling cases is present in this spec and absent\
+  \ from\n  <workshop-spec>, and <workshop-spec> carries exactly one index paragraph\
+  \ naming this spec and the heading to\n  search.\n- VP2 (reachable from the verb):\
+  \ the first lines of the `audit pre`, `audit post`,\n  `audit consult` and `task\
+  \ commit` help name this spec.\n- VP3 (no stage render): no stage entry delivers\
+  \ this spec.\nThe executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
 cites:
 - SPEC-0204
 - SPEC-0015
-- SPEC-0005
 - SPEC-0013
 requires: []
 supersedes: null

@@ -37,8 +37,8 @@ body: "## Scenario\n\nThe owner periodically wants a SYSTEM-LEVEL read on the me
   \ — a gate\nthat never fires rots unpassable INVISIBLY (X-0366) — and that is STILL\
   \ an observation (dry-run,\nowner-invoked, non-blocking), NOT a gate: homed as the\
   \ exercise-the-gated-paths T6 lens in\n`patterns/inspection-criteria-roster.md`\
-  \ (this spec POINTS, it does not restate — P5 / SPEC-0005 rule 8).\n\n### 3. THEME\
-  \ IS THE PRIMARY IDENTITY\nAn inspection is identified by its THEME; depth×cadence\
+  \ (this spec POINTS, it does not restate — P5 / <workshop-spec> rule 8).\n\n###\
+  \ 3. THEME IS THE PRIMARY IDENTITY\nAn inspection is identified by its THEME; depth×cadence\
   \ is each theme's SETTING, not the classifying\naxis. Anti-proliferation is held\
   \ by a SMALL FIXED roster + the 4 anti-complexity filters + owner approval\nfor\
   \ any new theme (parity with the new-failure-class bar). Themes are CONTENT (a lens-checklist\
@@ -103,9 +103,9 @@ body: "## Scenario\n\nThe owner periodically wants a SYSTEM-LEVEL read on the me
   \ hashing a section relocated into a sibling would be a hollowed hash, so the\n\
   path and the hashed bytes always come from the same part), so editing the checklist\
   \ changes the hash\nand a stale theme run is\ndetectable. The thin emitter realises\
-  \ this §6 record; the construct spec stays documentary (SPEC-0005 §7).\n\n### 7.\
-  \ COUPLING TO THE SINK\nAn inspection finding IS a nonconformity → it rides the\
-  \ SAME pipeline: one journal, one\nsource-INDEPENDENT fingerprint (`captured_via:\
+  \ this §6 record; the construct spec stays documentary (<workshop-spec> §7).\n\n\
+  ### 7. COUPLING TO THE SINK\nAn inspection finding IS a nonconformity → it rides\
+  \ the SAME pipeline: one journal, one\nsource-INDEPENDENT fingerprint (`captured_via:\
   \ inspection` is provenance only, never identity), the\nrecurrence/reopen detector,\
   \ the four routes. Metric split: `inspection_completed` counts RUNS; capture\nevents\
   \ count FINDINGS — never summed. The journal-triage IS Theme T5 (meta) — the SAME\
@@ -264,7 +264,6 @@ body: "## Scenario\n\nThe owner periodically wants a SYSTEM-LEVEL read on the me
 cites:
 - SPEC-0056
 - SPEC-0025
-- SPEC-0005
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
 - inspection-list-refresh-2026-06-fresh-roster-lense

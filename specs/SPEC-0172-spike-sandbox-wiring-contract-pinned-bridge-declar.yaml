@@ -26,18 +26,18 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   \ who knows only one of the names sees all three via\n> `bin/yitc-v2 graph query\
   \ sandbox-family`. Grounds: on 2026-08-13 a reader grepped THIS key name,\n> found\
   \ none in a project that declares its sandbox under `sandbox_entry`, and concluded\
-  \ it had none\n> (X-0852). A navigational pointer (SPEC-0005 rule 8) — it changes\
-  \ nothing here.\n\n### 1. Three layers, fixed: kernel CONTRACT, library MECHANICS,\
-  \ project PIN-AND-ENABLE\nThe KERNEL carries this contract and nothing else. The\
-  \ MECHANICS live in the pinned shared library.\nThe PROJECT pins a release and enables\
-  \ the capability by declaration. **Product runtime code never\nmoves into the kernel**\
-  \ — methodology is not a place to keep an application. A change that would\nput\
-  \ bridge or product code kernel-side violates this rule rather than extending it.\n\
-  \n### 2. The declaration is a carrier SECTION, declared as a concern — never hand-written\
-  \ schema\nThe project declares its sandbox wiring in its ops-contract carrier as\
-  \ a registered concern, so\nthe born template, the declare-or-waive sweep and the\
-  \ debt lens are all GENERATED from one\ndeclaration (SPEC-0128 rule 3). No parallel\
-  \ checklist, no per-project schema editing.\n**Presence policy: DECLARE-OR-WAIVE,\
+  \ it had none\n> (X-0852). A navigational pointer (<workshop-spec> rule 8) — it\
+  \ changes nothing here.\n\n### 1. Three layers, fixed: kernel CONTRACT, library\
+  \ MECHANICS, project PIN-AND-ENABLE\nThe KERNEL carries this contract and nothing\
+  \ else. The MECHANICS live in the pinned shared library.\nThe PROJECT pins a release\
+  \ and enables the capability by declaration. **Product runtime code never\nmoves\
+  \ into the kernel** — methodology is not a place to keep an application. A change\
+  \ that would\nput bridge or product code kernel-side violates this rule rather than\
+  \ extending it.\n\n### 2. The declaration is a carrier SECTION, declared as a concern\
+  \ — never hand-written schema\nThe project declares its sandbox wiring in its ops-contract\
+  \ carrier as a registered concern, so\nthe born template, the declare-or-waive sweep\
+  \ and the debt lens are all GENERATED from one\ndeclaration (SPEC-0128 rule 3).\
+  \ No parallel checklist, no per-project schema editing.\n**Presence policy: DECLARE-OR-WAIVE,\
   \ not opt-in.** Every consumer must ANSWER the bridge question —\nby declaring the\
   \ section or by explicitly WAIVING it; answering neither is DEBT and surfaces as\n\
   such. A waiver is cheap and is a legitimate answer, so this costs a project that\
@@ -88,8 +88,8 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   \ shape — this section's waiver against this\nproject's own `spike_data_safety.data_safety`\
   \ declaration. This clause is NOT a general cross-concern\nconsistency rule, and\
   \ MUST NOT be read as licence to build one: that is a larger claim, and it would\n\
-  need its own evidence and its own spec.\n\n*Interpretive note (SPEC-0005 rule 3),\
-  \ recorded so this clause's own routing is auditable rather than\nassumed: this\
+  need its own evidence and its own spec.\n\n*Interpretive note (<workshop-spec> rule\
+  \ 3), recorded so this clause's own routing is auditable rather than\nassumed: this\
   \ is an IN-PLACE amend, not a supersede. Rule 2 governs whether a consumer must\
   \ ANSWER;\nit has never governed whether a given answer is TRUE. Truthfulness is\
   \ an axis this contract did not\npreviously address, so what a consumer must do\
@@ -108,71 +108,71 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   \ declaration shape: …`) — at the init\ndeclare-or-waive sweep and on the project's\
   \ row of the read-only `sandbox-family` view — when the\nbridge is declared and\
   \ no `bin/*.yaml` file matches. It is never a refusal: an inventory kept\nelsewhere\
-  \ is unfound, not wrong. *In-place additive amend (SPEC-0005 §7); rules 2, 4 and\
-  \ 5 are\nunchanged.*\n\n### 3. Pin discipline — a release ref, and NO local copy\n\
-  The project records the EXACT release ref of the bridge library it runs (SPEC-0122\
-  \ R2). Every\nneutral bridge symbol resolves from that pin: a surviving local copy\
-  \ of a neutral module is a\nviolation, not an optimisation, and is caught by the\
-  \ no-local-diff check. A needed fix goes\nUPSTREAM to the library and the project\
-  \ re-pins — it is never patched in place.\n\n### 4. The cage is DECLARED and CHECKED,\
-  \ never merely described\nA spike stack runs under a declared cage whose rules are\
-  \ machine-checked before it is usable.\n**Prose describing a cage does not constitute\
-  \ a cage.** A rule stated but not checked is outside\nthis contract.\n\n**The cage\
-  \ is FIVE ATOMIC rules, not one clause** (SPEC-0165 rule 2 — a composite clause\
-  \ is split\ninto atoms first, then each atom is checked on its own; bundled, a passing\
-  \ composite hides which\nproperty actually held). Each atom is stated as a REFUSAL\
-  \ CONDITION paired with its POSITIVE\nCONTROL, because a check that refuses everything\
-  \ satisfies the refusal half perfectly and is\nuseless:\n\n- **4a — isolated stack\
-  \ identity.** REFUSED: a spike stack sharing production's stack identity —\n  its\
-  \ compose project, any port, or any volume. PERMITTED: a stack whose identity is\
-  \ wholly its\n  own.\n- **4b — the scheduler is not started.** REFUSED: a spike\
-  \ stack with the scheduler started.\n  PERMITTED: a stack with no scheduler started.\n\
-  - **4c — outbound channels are dummy by default.** REFUSED: an outbound channel\
-  \ live without an\n  explicit per-case owner grant. PERMITTED: channels dummy by\
-  \ default, and a channel live under\n  its complete per-case grant.\n- **4d — the\
-  \ grant is recorded BEFORE the channel changes.** REFUSED: a channel enabled ahead\
-  \ of\n  its record, leaving a window in which it is live and unrecorded. PERMITTED:\
-  \ the record written\n  first, then the change. Stated on the failure asymmetry\
-  \ — a record without a change is\n  harmless, a change without a record is a live\
-  \ unrecorded channel.\n- **4e — the served source is kernel-authenticated** (SPEC-0205\
-  \ rule 3). REFUSED: a sandbox serving\n  code from anything but (i) an ACTIVE spike\
-  \ worktree whose stamp and its `worktree_created{spike:true}`\n  row agree on session\
-  \ ref + ts, whose row path IS the mounted path, on a non-`task/` branch, with no\n\
-  \  park row and no `spike/<slug>` tag; or (ii) a non-production image whose deploy\
-  \ fact names a landed\n  `main` SHA. An unstamped mount, an operator path, an env\
-  \ flag, a stamp without its row and an\n  unlanded image all refuse. PERMITTED:\
-  \ exactly those two sources. The kernel ships the predicate over\n  the declared\
-  \ source, but NO kernel verb invokes it : calling it over the declaration AND\n\
-  \  the running check both stay at the PROJECT layer (`cage_checks`).\n\nEach atom's\
-  \ refusal is read over the project's **DECLARED cage**, and a declaration that is\n\
-  missing, mal-shaped, or incomplete is REFUSED fail-closed — never read as absence\
-  \ (the\npresent-but-empty precedent, SPEC-0093 rule 23). The declared cage's concrete\
-  \ field shape is\ncode-level and lives with the validator this spec `implements:`,\
-  \ not in this rule text.\n**What a declaration check can and cannot claim:** it\
-  \ refuses a cage DECLARED in violation of an\natom; it says nothing about a running\
-  \ stack whose declaration lies. That refusal belongs to the\nPROJECT layer, and\
-  \ the table below names, per atom, every layer that carries a check.\n\n**This standard\
-  \ is CONTRACT-WIDE, and every rule NAMES THE LAYER THAT CARRIES ITS CHECK** (the\n\
-  rule-1 layers: kernel CONTRACT · library MECHANICS · project PIN-AND-ENABLE). Amended\
-  \ at the\ncycle-1 trial dwell (2026-08-07), where the standard was found stated\
-  \ for the cage and silently\nassumed for rules 5-6. Naming the layer is what makes\
-  \ \"stated but not checked\" ANSWERABLE instead\nof rhetorical: it says WHO owes\
-  \ the missing check, so a gap routes to an owner instead of being\nread as either\
-  \ an installation failure or a contract that overclaims.\n**Where the named layer\
-  \ does not carry the check YET, the rule says so plainly and is DISCIPLINE —\nrecorded\
-  \ and taught, never presented as prevention.** Interpretation note, not decorative:\
-  \ a later\nsurface MUST NOT re-inflate a DISCIPLINE rule into a claimed refusal,\
-  \ and MUST NOT delete this\nsentence to make the contract read stronger. (Same discipline\
-  \ as SPEC-0169 rules 8-9: state what\nthe mechanism may CLAIM.) DISCIPLINE is a\
-  \ truthful interim, never a resting place — each such rule\ncarries the work that\
-  \ would make it CHECKED.\n\n#### 4e. The CAGE-CHECK TABLE — the contract's own layer\
-  \ declarations, machine-read\n\nOne row per covered atom. **Covered set: 4a, 4b,\
-  \ 4c, 4d, 4e, 5, 6.** Adding a rule to the covered set\nobliges its row; a row without\
-  \ its rule, or a rule without its row, is a contract defect.\n\n| Atom | Refusal\
-  \ condition | Positive control | Check layer | Status | Evidence anchor | Closing\
-  \ work |\n|---|---|---|---|---|---|---|\n| 4a | a spike stack sharing production's\
-  \ compose project, any port or any volume | a stack whose identity is wholly its\
-  \ own comes up | KERNEL + PROJECT | CHECKED | test:tests/test_spec0172_cage_contract.py::test_stack_identity_violation_refused\
+  \ is unfound, not wrong. *In-place additive amend (<workshop-spec> §7); rules 2,\
+  \ 4 and 5 are\nunchanged.*\n\n### 3. Pin discipline — a release ref, and NO local\
+  \ copy\nThe project records the EXACT release ref of the bridge library it runs\
+  \ (SPEC-0122 R2). Every\nneutral bridge symbol resolves from that pin: a surviving\
+  \ local copy of a neutral module is a\nviolation, not an optimisation, and is caught\
+  \ by the no-local-diff check. A needed fix goes\nUPSTREAM to the library and the\
+  \ project re-pins — it is never patched in place.\n\n### 4. The cage is DECLARED\
+  \ and CHECKED, never merely described\nA spike stack runs under a declared cage\
+  \ whose rules are machine-checked before it is usable.\n**Prose describing a cage\
+  \ does not constitute a cage.** A rule stated but not checked is outside\nthis contract.\n\
+  \n**The cage is FIVE ATOMIC rules, not one clause** (SPEC-0165 rule 2 — a composite\
+  \ clause is split\ninto atoms first, then each atom is checked on its own; bundled,\
+  \ a passing composite hides which\nproperty actually held). Each atom is stated\
+  \ as a REFUSAL CONDITION paired with its POSITIVE\nCONTROL, because a check that\
+  \ refuses everything satisfies the refusal half perfectly and is\nuseless:\n\n-\
+  \ **4a — isolated stack identity.** REFUSED: a spike stack sharing production's\
+  \ stack identity —\n  its compose project, any port, or any volume. PERMITTED: a\
+  \ stack whose identity is wholly its\n  own.\n- **4b — the scheduler is not started.**\
+  \ REFUSED: a spike stack with the scheduler started.\n  PERMITTED: a stack with\
+  \ no scheduler started.\n- **4c — outbound channels are dummy by default.** REFUSED:\
+  \ an outbound channel live without an\n  explicit per-case owner grant. PERMITTED:\
+  \ channels dummy by default, and a channel live under\n  its complete per-case grant.\n\
+  - **4d — the grant is recorded BEFORE the channel changes.** REFUSED: a channel\
+  \ enabled ahead of\n  its record, leaving a window in which it is live and unrecorded.\
+  \ PERMITTED: the record written\n  first, then the change. Stated on the failure\
+  \ asymmetry — a record without a change is\n  harmless, a change without a record\
+  \ is a live unrecorded channel.\n- **4e — the served source is kernel-authenticated**\
+  \ (SPEC-0205 rule 3). REFUSED: a sandbox serving\n  code from anything but (i) an\
+  \ ACTIVE spike worktree whose stamp and its `worktree_created{spike:true}`\n  row\
+  \ agree on session ref + ts, whose row path IS the mounted path, on a non-`task/`\
+  \ branch, with no\n  park row and no `spike/<slug>` tag; or (ii) a non-production\
+  \ image whose deploy fact names a landed\n  `main` SHA. An unstamped mount, an operator\
+  \ path, an env flag, a stamp without its row and an\n  unlanded image all refuse.\
+  \ PERMITTED: exactly those two sources. The kernel ships the predicate over\n  the\
+  \ declared source, but NO kernel verb invokes it : calling it over the declaration\
+  \ AND\n  the running check both stay at the PROJECT layer (`cage_checks`).\n\nEach\
+  \ atom's refusal is read over the project's **DECLARED cage**, and a declaration\
+  \ that is\nmissing, mal-shaped, or incomplete is REFUSED fail-closed — never read\
+  \ as absence (the\npresent-but-empty precedent, SPEC-0093 rule 23). The declared\
+  \ cage's concrete field shape is\ncode-level and lives with the validator this spec\
+  \ `implements:`, not in this rule text.\n**What a declaration check can and cannot\
+  \ claim:** it refuses a cage DECLARED in violation of an\natom; it says nothing\
+  \ about a running stack whose declaration lies. That refusal belongs to the\nPROJECT\
+  \ layer, and the table below names, per atom, every layer that carries a check.\n\
+  \n**This standard is CONTRACT-WIDE, and every rule NAMES THE LAYER THAT CARRIES\
+  \ ITS CHECK** (the\nrule-1 layers: kernel CONTRACT · library MECHANICS · project\
+  \ PIN-AND-ENABLE). Amended at the\ncycle-1 trial dwell (2026-08-07), where the standard\
+  \ was found stated for the cage and silently\nassumed for rules 5-6. Naming the\
+  \ layer is what makes \"stated but not checked\" ANSWERABLE instead\nof rhetorical:\
+  \ it says WHO owes the missing check, so a gap routes to an owner instead of being\n\
+  read as either an installation failure or a contract that overclaims.\n**Where the\
+  \ named layer does not carry the check YET, the rule says so plainly and is DISCIPLINE\
+  \ —\nrecorded and taught, never presented as prevention.** Interpretation note,\
+  \ not decorative: a later\nsurface MUST NOT re-inflate a DISCIPLINE rule into a\
+  \ claimed refusal, and MUST NOT delete this\nsentence to make the contract read\
+  \ stronger. (Same discipline as SPEC-0169 rules 8-9: state what\nthe mechanism may\
+  \ CLAIM.) DISCIPLINE is a truthful interim, never a resting place — each such rule\n\
+  carries the work that would make it CHECKED.\n\n#### 4e. The CAGE-CHECK TABLE —\
+  \ the contract's own layer declarations, machine-read\n\nOne row per covered atom.\
+  \ **Covered set: 4a, 4b, 4c, 4d, 4e, 5, 6.** Adding a rule to the covered set\n\
+  obliges its row; a row without its rule, or a rule without its row, is a contract\
+  \ defect.\n\n| Atom | Refusal condition | Positive control | Check layer | Status\
+  \ | Evidence anchor | Closing work |\n|---|---|---|---|---|---|---|\n| 4a | a spike\
+  \ stack sharing production's compose project, any port or any volume | a stack whose\
+  \ identity is wholly its own comes up | KERNEL + PROJECT | CHECKED | test:tests/test_spec0172_cage_contract.py::test_stack_identity_violation_refused\
   \ · trial:X-0693 | no kernel verb calls `cage.refusals` on a running stack (GitHub\
   \ #29) — the PROJECT running-stack leg is DISCIPLINE, held by the consumer `cage_checks`\
   \ instrument calling the kernel predicate or by hand |\n| 4b | a spike stack with\

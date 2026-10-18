@@ -250,65 +250,65 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ carrier in the corpus.\n\n### History moved from the rule body\n\nEach entry is\
   \ a passage moved word for word out of the rule text of the section it names;\n\
   the rule it explains stays there.\n\n- From «5. Exit contract»: (in-place clarification\
-  \ of a rule that was silent, SPEC-0005 rule 7 —\n)\n- From «5. Exit contract»: Grounds\
-  \ in this spec's own text: rule 10(b) names the item as the dry\n  state of \"keep\
-  \ running cycles until A cycle surfaces nothing new\" (singular), which a\n  two-consecutive-dry-cycles\
-  \ reading would contradict.\n- From «5. Exit contract»: (in-place clarification\
-  \ of a word the rule never defined, SPEC-0005\n  rule 7)\n- From «5. Exit contract»:\
-  \ Grounds in this spec's own text: the boundary form above is stated per\n  run\
-  \ (\"what cycle N was run against\"); its real-incident grounding below already\
-  \ names \"run 3\" as\n  \"the third-cycle form\"; and rule 10(b) absorbs each defect\
-  \ \"before the next cycle\" (fix-first)\n  and \"keeps running cycles until a cycle\
-  \ surfaces nothing new\" (iterate-until-dry) — a finding is\n  surfaced by a run\
-  \ and absorbed between two runs.\n- From «5. Exit contract»: (additive carve-out,\
-  \ SPEC-0005 rule 7)\n- From «9. Autonomous-entry carve-out»: (narrowing, additive\
-  \ — SPEC-0005 rule 7)\n- From «10. Trial-reliability doctrine»: (additive, SPEC-0005\
-  \ rule 7)\n- From «10. Trial-reliability doctrine»: Two clarifications the prior\
-  \ rules left implicit:\n\n## Verification\n\nAdoption probe (activation gate, CHARTER\
-  \ §P3/§P8 — infra-class): the FIRST real plan run through\n`specs → trial → accepted`\
-  \ with journal/state evidence — `plan_stage_entered` (trial) for a live\nplan; that\
-  \ plan's baked `## Trial protocol` section present; ≥1 journaled trial run; the\n\
-  trial-summary in the plan; the subsequent `plan_stage_entered` (accepted) citing\
-  \ the journal\nrun-refs. State probes: `PLAN_STAGE_SEQUENCE` contains `trial` between\
-  \ `specs` and `accepted`;\n`graph query SPEC-0035` shows binding `plan-stage-entry:trial`\
-  \ and `plan stage trial` delivers\nthis spec in its bundle. Without this evidence\
-  \ the activating task does NOT close.\n\n**(AC1-AC4) what the unchanged-across-2-cycles\
-  \ item is counted over:** rule 5 carries the\nin-place clarification that the count\
-  \ is over DESIGN state (the plan's design body + its draft specs),\nthat recording\
-  \ a cycle's trial-summary does NOT reset it, the suppression-is-not-dryness direction,\
-  \ and\nthe third-or-later-cycle boundary form — with the real incident cited. Probe\
-  \ (additive edit to this\nactive spec, SPEC-0005 rule 7 — no re-activation): `grep\
-  \ -c 'Suppression is not dryness\\|What the third\nfloor item is counted OVER\\\
-  |spec0035-exit-floor-unchanged-vs-required-summary-ambiguity'\nspecs/SPEC-0035-*.yaml`\
-  \ ≥ 3, and rule 5's floor still lists exactly the same three items.\n\n**(AC1) the\
-  \ cycle unit is named:** rule 5 names the unit floor item 3 counts over — ONE\n\
-  journaled trial run — places a plan-declared coarser window (tick / batch / day)\
-  \ under rule 3 as an\nadditive per-plan criterion, and states the measured <project>\
-  \ shape (10 runs, 2 ticks, correction in\nrun 9, clean run 10) as SATISFIED. Probe\
-  \ (additive edit to this active spec, SPEC-0005 rule 7 — no\nre-activation): `tests/test_spec0035_cycle_unit_defined.py`\
-  \ reads this text, derives the unit from it\nand re-evaluates the worked example\
-  \ by the boundary form to the one stated answer.\n\n**(AC1) a correction restarts\
-  \ the count by its semantic effect:** rule 5 carries the\nsemantic-effect test (yes\
-  \ or unsure → behaviour-bearing → restart; spelling, formatting, equivalent\nreferences\
-  \ → the count stands; an unexercised behavioural branch → a probe for it), its record\
-  \ (one\nline in the plan's External checks / audits section) and readers (the convergence\
-  \ read, the next\nSPEC-0083 gate), and the no-dry-pair statement;\nsuppression-is-not-dryness\
-  \ and fix-first are kept. Probe (in-place edit, SPEC-0005 rule 7):\n`tests/test_t13597_semantic_evidence_invalidation.py`\
+  \ of a rule that was silent, <workshop-spec> rule 7 —\n)\n- From «5. Exit contract»:\
+  \ Grounds in this spec's own text: rule 10(b) names the item as the dry\n  state\
+  \ of \"keep running cycles until A cycle surfaces nothing new\" (singular), which\
+  \ a\n  two-consecutive-dry-cycles reading would contradict.\n- From «5. Exit contract»:\
+  \ (in-place clarification of a word the rule never defined, <workshop-spec>\n  rule\
+  \ 7)\n- From «5. Exit contract»: Grounds in this spec's own text: the boundary form\
+  \ above is stated per\n  run (\"what cycle N was run against\"); its real-incident\
+  \ grounding below already names \"run 3\" as\n  \"the third-cycle form\"; and rule\
+  \ 10(b) absorbs each defect \"before the next cycle\" (fix-first)\n  and \"keeps\
+  \ running cycles until a cycle surfaces nothing new\" (iterate-until-dry) — a finding\
+  \ is\n  surfaced by a run and absorbed between two runs.\n- From «5. Exit contract»:\
+  \ (additive carve-out, <workshop-spec> rule 7)\n- From «9. Autonomous-entry carve-out»:\
+  \ (narrowing, additive — <workshop-spec> rule 7)\n- From «10. Trial-reliability\
+  \ doctrine»: (additive, <workshop-spec> rule 7)\n- From «10. Trial-reliability doctrine»:\
+  \ Two clarifications the prior rules left implicit:\n\n## Verification\n\nAdoption\
+  \ probe (activation gate, CHARTER §P3/§P8 — infra-class): the FIRST real plan run\
+  \ through\n`specs → trial → accepted` with journal/state evidence — `plan_stage_entered`\
+  \ (trial) for a live\nplan; that plan's baked `## Trial protocol` section present;\
+  \ ≥1 journaled trial run; the\ntrial-summary in the plan; the subsequent `plan_stage_entered`\
+  \ (accepted) citing the journal\nrun-refs. State probes: `PLAN_STAGE_SEQUENCE` contains\
+  \ `trial` between `specs` and `accepted`;\n`graph query SPEC-0035` shows binding\
+  \ `plan-stage-entry:trial` and `plan stage trial` delivers\nthis spec in its bundle.\
+  \ Without this evidence the activating task does NOT close.\n\n**(AC1-AC4) what\
+  \ the unchanged-across-2-cycles item is counted over:** rule 5 carries the\nin-place\
+  \ clarification that the count is over DESIGN state (the plan's design body + its\
+  \ draft specs),\nthat recording a cycle's trial-summary does NOT reset it, the suppression-is-not-dryness\
+  \ direction, and\nthe third-or-later-cycle boundary form — with the real incident\
+  \ cited. Probe (additive edit to this\nactive spec, <workshop-spec> rule 7 — no\
+  \ re-activation): `grep -c 'Suppression is not dryness\\|What the third\nfloor item\
+  \ is counted OVER\\|spec0035-exit-floor-unchanged-vs-required-summary-ambiguity'\n\
+  specs/SPEC-0035-*.yaml` ≥ 3, and rule 5's floor still lists exactly the same three\
+  \ items.\n\n**(AC1) the cycle unit is named:** rule 5 names the unit floor item\
+  \ 3 counts over — ONE\njournaled trial run — places a plan-declared coarser window\
+  \ (tick / batch / day) under rule 3 as an\nadditive per-plan criterion, and states\
+  \ the measured <project> shape (10 runs, 2 ticks, correction in\nrun 9, clean run\
+  \ 10) as SATISFIED. Probe (additive edit to this active spec, <workshop-spec> rule\
+  \ 7 — no\nre-activation): `tests/test_spec0035_cycle_unit_defined.py` reads this\
+  \ text, derives the unit from it\nand re-evaluates the worked example by the boundary\
+  \ form to the one stated answer.\n\n**(AC1) a correction restarts the count by its\
+  \ semantic effect:** rule 5 carries the\nsemantic-effect test (yes or unsure → behaviour-bearing\
+  \ → restart; spelling, formatting, equivalent\nreferences → the count stands; an\
+  \ unexercised behavioural branch → a probe for it), its record (one\nline in the\
+  \ plan's External checks / audits section) and readers (the convergence read, the\
+  \ next\nSPEC-0083 gate), and the no-dry-pair statement;\nsuppression-is-not-dryness\
+  \ and fix-first are kept. Probe (in-place edit, <workshop-spec> rule 7):\n`tests/test_t13597_semantic_evidence_invalidation.py`\
   \ reads rule 5 and decides three worked\ncorrections by it — a wording fix keeps\
   \ the count, an eligibility change restarts it, an\nunclassifiable change restarts\
   \ it — and the same derivation over the pre-change text restarts all three.\n\n\
   **(AC5) trial-reliability doctrine + skip-is-default present:** rule 10 carries\
   \ (a)\nskip-trial-is-the-DEFAULT + the trial-vs-postcheck routing, and (b) the fix-first\
   \ → iterate-until-dry\n→ real-user → concurrent reliability ladder. Probe (additive\
-  \ edit to this active spec, SPEC-0005 rule\n7 — no re-activation): `grep -c 'skip-trial\
-  \ is the DEFAULT\\|fix-first\\|iterate-until-dry\\|Trial-reliability doctrine' specs/SPEC-0035-*.yaml`\
-  \ ≥ 2.\n"
+  \ edit to this active spec, <workshop-spec> rule\n7 — no re-activation): `grep -c\
+  \ 'skip-trial is the DEFAULT\\|fix-first\\|iterate-until-dry\\|Trial-reliability\
+  \ doctrine' specs/SPEC-0035-*.yaml` ≥ 2.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3
 - CHARTER.md#principle-5
 - CHARTER.md#principle-8
-- SPEC-0005
 - SPEC-0027
 - SPEC-0034
 - LIFECYCLE.md#plan-lifecycle

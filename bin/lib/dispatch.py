@@ -1299,7 +1299,7 @@ def _readiness_advisory_block(report: "dict", n_tasks: int, cards=None,
         "dispatch-readiness (pre-launch decision frame — ADVISORY, report-only, no admission control):",
         f"  recommended_wave_ceiling: {ceiling}  (advisory — size/confirm your wave against it; never enforced)",
         f"  server bounds (T-10386, SUGGESTED — never a coded cap): max_fleet_width={journal.max_fleet_width()}  "
-        f"watch_poll_interval={journal.WATCH_POLL_INTERVAL_SECS}s  watch_max_runtime={journal.WATCH_MAX_RUNTIME_SECS}s",
+        f"watch_poll_interval={journal.WATCH_POLL_INTERVAL_SECS}s  watch_max_runtime={journal.watch_max_runtime_secs()}s",
         f"  live_worker_count (all sessions task/+work/): {report['live_worker_count']}"
         + (f"  ({n_reused} re-used by this launch)" if n_reused else ""),
         f"  free_slots: {h['free_slots']}  (headroom: nproc={h['nproc']} "
@@ -3166,6 +3166,7 @@ again — skipping it leaves you editing a card the system still reads as paused
 
 RECORDED RESUME CONTRACT (from the card, not from controller memory):
   resume stage : {stage}
+  resume_from  : {resume_from}
   next_action  : {next_action}
 
 Re-derive the rest of your state from the journal and the on-branch card before you act, then carry
@@ -3174,7 +3175,7 @@ the task through the remaining stages as usual. Every other point of the preambl
 """
 
 
-def _resume_entry_card(card) -> "dict | None":
+def _resume_entry_card(card, wt_card=None) -> "dict | None":
     """T-12332 — is this wave card one whose re-entry is `task resume`, not a claim?
     `{paused_at, paused_reason, stage, next_action}` when it is, else None.
 
@@ -3189,9 +3190,14 @@ def _resume_entry_card(card) -> "dict | None":
     this, so a LIVE or UNVERIFIABLE holder can never reach here and the T-0351/T-0362 double-claim
     fence is untouched.
 
-    `stage` is the recorded `resume_from`, falling back to `current_stage`, falling back to
-    `Execution` — the three carriers `task pause` / `_apply_task_resume` write and read, in the order
-    `cmd_task_resume` itself prints them. Pure read; no I/O, no state, no mutation."""
+    T-14004 (<project> X-2036) — `wt_card` is the PRESERVED worktree's own copy of the card. A pause
+    recorded there after the claim reaches main only with the land, so main's card can carry an OLDER
+    pause; the contract then comes from `wt_card` when it is the same id, in-progress, paused, and its
+    `paused_at` is NEWER than main's — one source, never a mix of the two. Admission stays main's card.
+
+    T-14004 (X-2037) — `stage` is `current_stage` when it is a lifecycle stage NAME, else `Execution`.
+    `resume_from` is free prose (a step within the stage) and travels as `resume_from`, never as the
+    stage a `stage <NAME>` step is rendered from. Pure read; no I/O, no state, no mutation."""
     if not isinstance(card, dict):
         return None
     if (card.get("status") or "") != "in-progress":
@@ -3199,10 +3205,35 @@ def _resume_entry_card(card) -> "dict | None":
     paused_at = card.get("paused_at")
     if not paused_at:
         return None
-    return {"paused_at": str(paused_at),
-            "paused_reason": str(card.get("paused_reason") or "(none recorded)"),
-            "stage": str(card.get("resume_from") or card.get("current_stage") or "Execution"),
-            "next_action": str(card.get("next_action") or "(none recorded)")}
+    src = card
+    if (isinstance(wt_card, dict) and wt_card.get("id") == card.get("id")
+            and (wt_card.get("status") or "") == "in-progress" and wt_card.get("paused_at")
+            and str(wt_card.get("paused_at")) > str(paused_at)):
+        src = wt_card
+    from lib import gates   # lazy: the stage-name row (SPEC-0027 §Stage FSM per class)
+    stage = str(src.get("current_stage") or "")
+    if stage not in gates.LIFECYCLE_STAGE_POINTER_FSM["standard"]:
+        stage = "Execution"
+    return {"paused_at": str(src.get("paused_at")),
+            "paused_reason": str(src.get("paused_reason") or "(none recorded)"),
+            "stage": stage,
+            "resume_from": str(src.get("resume_from") or "(none recorded)"),
+            "next_action": str(src.get("next_action") or "(none recorded)")}
+
+
+def _preserved_worktree_card(wt, task_id) -> "dict | None":
+    """T-14004 — the preserved worktree's own copy of `task_id`'s card (`<wt>/tasks/<id>-*.yaml`,
+    exactly one match), else None. Fail-closed to None on any read error, so the caller keeps main's
+    card — the same worktree-copy read T-14001's start-echo probe makes."""
+    try:
+        import yaml
+        hits = sorted(Path(wt).glob(f"tasks/{task_id}-*.yaml"))
+        if len(hits) != 1:
+            return None
+        d = yaml.safe_load(hits[0].read_text(encoding="utf-8"))
+        return d if isinstance(d, dict) else None
+    except Exception:   # noqa: BLE001 — unreadable ⇒ main's card governs
+        return None
 
 
 # -- T-12607 (SPEC-0072 rule 7) -- the tier's PRIMARY pair and its OPTIONAL RESERVE pair -----------
@@ -4798,7 +4829,9 @@ def _arm_watch(tasks: "list[str]", args: argparse.Namespace, *, main_wt, _append
     # timeout: an EXPLICIT 0 is legitimate ("probe once, exit TIMEOUT now") — only an ABSENT value
     # takes the default (see the loop call below for the history of that rule).
     _timeout_raw = getattr(args, "watch_timeout", None)
-    _timeout = journal.WATCH_MAX_RUNTIME_SECS if _timeout_raw is None else max(0, int(_timeout_raw))
+    # T-14002: an absent value takes the default IN FORCE (the machine setting, else the built-in
+    # journal.WATCH_MAX_RUNTIME_SECS); the argparse default is None so a real CLI call reaches here.
+    _timeout = journal.watch_max_runtime_secs() if _timeout_raw is None else max(0, int(_timeout_raw))
     # T-13396 — the WHOLE arming (the live-watcher dedup read and the loop) runs inside ONE
     # watch-lifetime ReadScope (block above `_watch_read_scope`).
     with _watch_read_scope(main_wt, _timeout) as _reads:
@@ -5486,7 +5519,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
             # anyway — so before this conjunct an EMPTY paused orphan entered the destructive arm only
             # to come back out as `OrphanTeardownRefused`, i.e. a protective SKIP naming a manual fix.
             # That was the second route by which a paused card was un-dispatchable (X-1344).
-            _resume = _resume_entry_card(_wave_card_map.get(task))
+            _resume = _resume_entry_card(_wave_card_map.get(task),
+                                         _preserved_worktree_card(live[task], task))
             if cls == "hang_suspect" and not _carries_work and not _resume:
                 # CONFIRMED-DEAD orphan with NOTHING TO LOSE → tear it down (park --confirm-dead
                 # semantics: verify the task is still `ready` on main, force-remove the worktree +
@@ -5589,7 +5623,8 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
                                                          engine_root=_engine_root,
                                                          repo_root=REPO_ROOT),
                         paused_at=_resume["paused_at"], paused_reason=_resume["paused_reason"],
-                        stage=_resume["stage"], next_action=_resume["next_action"]) + "\n" + brief
+                        stage=_resume["stage"], resume_from=_resume["resume_from"],
+                        next_action=_resume["next_action"]) + "\n" + brief
                 else:
                     brief = ORPHAN_ADOPT_BRIEF_OVERRIDE.format(task=task, wt=live[task]) + "\n" + brief
                 # fall through to spawn (worktree + branch intact; the worker adopts, never re-claims)

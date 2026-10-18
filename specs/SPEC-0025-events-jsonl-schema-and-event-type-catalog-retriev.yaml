@@ -291,52 +291,53 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ another\nkey — it is simply not part of this payload:** where a severity IS wanted\
   \ it is the promoted\n`errors/E-XXXX.yaml` case file's `severity:` (the `ERROR_SEVERITIES`\
   \ vocabulary's real home), decided\nat triage like `kind`, never asserted at capture.\
-  \ IN-PLACE amend, not a supersede (SPEC-0005 rule 7):\nno already-covered case's\
-  \ required behaviour changes — this restates the obligation the code has\nenforced\
-  \ all along.\n**`fingerprint` is ALWAYS PRESENT on a capture emitted since — DERIVED\
-  \ when the author\nsupplied none, never absent and never refused.** An author-supplied\
-  \ fingerprint is stored\nbyte-for-byte and nothing below applies to it; this covers\
-  \ only the case the schema previously left\nopen, where the key was simply missing.\
-  \ It was left open because the fingerprint is OPTIONAL at\ncapture by design — capture\
-  \ is a one-command reflex — but every routing carrier is\nkeyed BY fingerprint (a\
-  \ task `cites:`, a cross `origin_fp`, an `errors/E-XXXX.yaml` file), so a row\n\
-  without one could never be routed: `triage run` counted it, showed it, WITHHELD\
-  \ it from the\n`--complete` route set, and advanced the watermark past it regardless\
-  \ (SPEC-0055 §Triage run). The\nloss was ROUTING, not data — such rows persist and\
-  \ `journal query --grep` finds them — but it was\nsilent, and 92 rows had accrued\
-  \ in the 2026-08-30 window, all through the sanctioned CLI path.\nThe emit therefore\
-  \ DERIVES one (`bin/lib/journal.py#derived_fingerprint`, pure + total): from the\n\
-  caller's substantive payload where there is any — so two captures of ONE deviation\
-  \ derive ONE key\nand recurrence-matching still works — else from the row's own\
-  \ envelope (ts + task_id + actor),\nwhich is unique per row rather than a shared\
-  \ constant that would fabricate a recurrence class. A\nderived row carries **`fingerprint_derived:\
-  \ true`**, so a reader can tell a key the author CHOSE\nfrom one the verb COMPUTED.\
-  \ The provenance/attribution exclusions above are OBSERVED by the\nderivation (`captured_via`\
-  \ / `actor` / `exempted_case` never enter it), as is `kind` — a closed\nvocabulary\
-  \ decided at TRIAGE (SPEC-0056 §1), which would otherwise let one deviation derive\
-  \ two\nkeys depending on a later judgement. `impact` enters only when it carries\
-  \ a subject\n(`journal.untriageable_impact`): a bare severity word is not a recurrence\
-  \ key, but a DESCRIPTIVE\nimpact is often a capture's only subject and excluding\
-  \ it would strand exactly those rows in the\nenvelope arm. DERIVE rather than REFUSE\
-  \ is the deliberate choice: refusing would trade an\nunroutable capture for a LOST\
-  \ one, and gating the reflex is the worse defect (the posture).\nThis is ADDITIVE\
-  \ — a case the schema did not previously answer gains an answer; no already-covered\n\
-  case's compliance changes (SPEC-0005 in-place amend).\n**`exempted_case` — the ATTRIBUTION\
-  \ end of the SPEC-0178 restoration join (additive, OPTIONAL).** A\ncapture MAY carry\
-  \ `exempted_case: <case name>`, naming the project-declared `audit_scrutiny` case\n\
-  this deviation is attributed to (SPEC-0178 rule 5). It is the BELT for a capture\
-  \ the derived join\ncannot compute — one with no `task_id`, or one naming a card\
-  \ that closed under no case; where a\nderived case exists it is canonical, and where\
-  \ the two disagree neither wins and the capture\nsurfaces at triage carrying both.\
-  \ This is the SAME key name the closure end carries above\n(`task_closed.data.exempted_case`),\
-  \ deliberately: the regime is computed by joining the two, so ONE\ncanonical name\
-  \ on both ends is what makes the join computable at all, and a documented capture\
-  \ key\nbeside an undocumented closure key would leave its load-bearing half unreadable.\
-  \ Like\n`captured_via` and `actor` it is provenance/attribution ONLY and MUST NOT\
-  \ enter the `fingerprint`,\nor one recurrence class fragments per case.\n**`actor`\
-  \ — WHO captured it (extending to this last emit site).** DERIVED host-side\nat\
-  \ the emit from the launch context (`bin/lib/memory.py#resolve_actor` over the host\
-  \ registry `users:`\nblock) — the SAME seam behind `task file`'s `created_by` (SPEC-0028),\
+  \ IN-PLACE amend, not a supersede (<workshop-spec> rule 7):\nno already-covered\
+  \ case's required behaviour changes — this restates the obligation the code has\n\
+  enforced all along.\n**`fingerprint` is ALWAYS PRESENT on a capture emitted since\
+  \ — DERIVED when the author\nsupplied none, never absent and never refused.** An\
+  \ author-supplied fingerprint is stored\nbyte-for-byte and nothing below applies\
+  \ to it; this covers only the case the schema previously left\nopen, where the key\
+  \ was simply missing. It was left open because the fingerprint is OPTIONAL at\n\
+  capture by design — capture is a one-command reflex — but every routing carrier\
+  \ is\nkeyed BY fingerprint (a task `cites:`, a cross `origin_fp`, an `errors/E-XXXX.yaml`\
+  \ file), so a row\nwithout one could never be routed: `triage run` counted it, showed\
+  \ it, WITHHELD it from the\n`--complete` route set, and advanced the watermark past\
+  \ it regardless (SPEC-0055 §Triage run). The\nloss was ROUTING, not data — such\
+  \ rows persist and `journal query --grep` finds them — but it was\nsilent, and 92\
+  \ rows had accrued in the 2026-08-30 window, all through the sanctioned CLI path.\n\
+  The emit therefore DERIVES one (`bin/lib/journal.py#derived_fingerprint`, pure +\
+  \ total): from the\ncaller's substantive payload where there is any — so two captures\
+  \ of ONE deviation derive ONE key\nand recurrence-matching still works — else from\
+  \ the row's own envelope (ts + task_id + actor),\nwhich is unique per row rather\
+  \ than a shared constant that would fabricate a recurrence class. A\nderived row\
+  \ carries **`fingerprint_derived: true`**, so a reader can tell a key the author\
+  \ CHOSE\nfrom one the verb COMPUTED. The provenance/attribution exclusions above\
+  \ are OBSERVED by the\nderivation (`captured_via` / `actor` / `exempted_case` never\
+  \ enter it), as is `kind` — a closed\nvocabulary decided at TRIAGE (SPEC-0056 §1),\
+  \ which would otherwise let one deviation derive two\nkeys depending on a later\
+  \ judgement. `impact` enters only when it carries a subject\n(`journal.untriageable_impact`):\
+  \ a bare severity word is not a recurrence key, but a DESCRIPTIVE\nimpact is often\
+  \ a capture's only subject and excluding it would strand exactly those rows in the\n\
+  envelope arm. DERIVE rather than REFUSE is the deliberate choice: refusing would\
+  \ trade an\nunroutable capture for a LOST one, and gating the reflex is the worse\
+  \ defect (the posture).\nThis is ADDITIVE — a case the schema did not previously\
+  \ answer gains an answer; no already-covered\ncase's compliance changes (<workshop-spec>\
+  \ in-place amend).\n**`exempted_case` — the ATTRIBUTION end of the SPEC-0178 restoration\
+  \ join (additive, OPTIONAL).** A\ncapture MAY carry `exempted_case: <case name>`,\
+  \ naming the project-declared `audit_scrutiny` case\nthis deviation is attributed\
+  \ to (SPEC-0178 rule 5). It is the BELT for a capture the derived join\ncannot compute\
+  \ — one with no `task_id`, or one naming a card that closed under no case; where\
+  \ a\nderived case exists it is canonical, and where the two disagree neither wins\
+  \ and the capture\nsurfaces at triage carrying both. This is the SAME key name the\
+  \ closure end carries above\n(`task_closed.data.exempted_case`), deliberately: the\
+  \ regime is computed by joining the two, so ONE\ncanonical name on both ends is\
+  \ what makes the join computable at all, and a documented capture key\nbeside an\
+  \ undocumented closure key would leave its load-bearing half unreadable. Like\n\
+  `captured_via` and `actor` it is provenance/attribution ONLY and MUST NOT enter\
+  \ the `fingerprint`,\nor one recurrence class fragments per case.\n**`actor` — WHO\
+  \ captured it (extending to this last emit site).** DERIVED host-side\nat the emit\
+  \ from the launch context (`bin/lib/memory.py#resolve_actor` over the host registry\
+  \ `users:`\nblock) — the SAME seam behind `task file`'s `created_by` (SPEC-0028),\
   \ `followup add` (SPEC-0095) and\n`cross request` (SPEC-1020). Attribution costs\
   \ the human ZERO added input, so it is never asked for;\nand it is never CALLER-supplied\
   \ — `actor` is a RESERVED `--data` key (`bin/yitc-v2#RESERVED_DATA_KEYS`),\nso a\
@@ -955,31 +956,38 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ measurement), because a red\n  run costs exactly the minutes a green one does\
   \ and the row exists to say what the run cost;\n* `failed` = the failing-entry COUNT;\
   \ `evidence` = the runner's own failure messages, bounded, so the\n  row answers\
-  \ *what failed* without a re-run;\n* `layers` = an ordered list of `{name, attribution}`,\
-  \ one per failing test file or consumer verify\n  layer (SPEC-0152). `attribution`\
-  \ is a CLOSED set: **`in-diff`** (this card's changed-path set — its\n  working\
+  \ *what failed* without a re-run;\n* `layers` = an ordered list of `{name, attribution,\
+  \ rule}`, one per failing test file or consumer\n  verify layer (SPEC-0152). `attribution`\
+  \ is a CLOSED set: **`in-diff`** (this card's changed-path set\n  — its working\
   \ tree plus untracked files versus `merge-base(HEAD, main)` — contains that layer's\
-  \ own file)\n  · **`not-in-diff`** (it does not) · **`undetermined`** (the relation\
-  \ could not be established;\n  recorded explicitly, never guessed). MATCHING IS\
-  \ EXACT: a failing TEST-FILE name is a basename and\n  is resolved only by joining\
-  \ it to the tests directory it came from, never by suffix — a changed\n  `docs/test_X.py`\
-  \ does NOT make a failing `tests/test_X.py` read `in-diff`, because a basename is\n\
-  \  not an address. A name that addresses no file at all (a consumer verify LAYER\
-  \ label) is\n  `undetermined`, since a diff-touch relation is undefined for it;\
-  \ a confident wrong attribution is\n  worse than an absent one, because a reader\
-  \ acts on it.\n* `counts_source: \"harness_measured\"` — the deliberate CONTRAST\
-  \ with `tests_passed`'s\n  `author_reported`: these numbers come from the runner\
-  \ this verb just executed, not from an author.\n* `leg: \"candidate\"` — the row\
-  \ is scoped to the CANDIDATE leg this verb runs. `land` verifies TWO\n  legs (SPEC-0077);\
-  \ the pinned last-green leg is NOT run here and is NOT described by this row.\n\
-  * `stage6_run` — OPTIONAL : the tree the failed run tested and the `main` commit\
-  \ it sat on,\n  on the terms the `tests_passed` paragraph above gives the same mark;\
-  \ absent on a bare `--run`, which\n  records no tested tree. Never a credit: the\
-  \ land credits a green newest row only.\n\n**READ `attribution` AS THE RELATION\
-  \ IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation, not\na proof of\
-  \ causation: `not-in-diff` does NOT assert the failure is pre-existing on `main`\
-  \ (a card can\nbreak a file it never opened), and `in-diff` does not assert the\
-  \ card caused it. It is the strongest\nattribution computable without materializing\
+  \ own\n  file, or by the named-path rule below a path its failure message names)\
+  \ · **`not-in-diff`**\n  (neither) · **`undetermined`** (the relation could not\
+  \ be established; recorded explicitly, never\n  guessed). The FILE rule decides\
+  \ first. Only when it says `not-in-diff`, the NAMED-PATH rule reads\n  that layer's\
+  \ own failure message (the lines after its first line) and records `in-diff` when\
+  \ a path\n  token there EXACTLY equals a changed path — a token loses only literal\
+  \ leading `./` and a trailing\n  `.`; a leading `/`, a `../`, a suffix or a basename\
+  \ never matches. `rule` names the step that decided\n  (`file` | `named-path`);\
+  \ an `undetermined` entry and a row written before the named-path rule carry\n \
+  \ none. MATCHING IS EXACT: a failing TEST-FILE name is a basename and\n  is resolved\
+  \ only by joining it to the tests directory it came from, never by suffix — a changed\n\
+  \  `docs/test_X.py` does NOT make a failing `tests/test_X.py` read `in-diff`, because\
+  \ a basename is\n  not an address. A name that addresses no file at all (a consumer\
+  \ verify LAYER label) is\n  `undetermined`, since a diff-touch relation is undefined\
+  \ for it; a confident wrong attribution is\n  worse than an absent one, because\
+  \ a reader acts on it.\n* `counts_source: \"harness_measured\"` — the deliberate\
+  \ CONTRAST with `tests_passed`'s\n  `author_reported`: these numbers come from the\
+  \ runner this verb just executed, not from an author.\n* `leg: \"candidate\"` —\
+  \ the row is scoped to the CANDIDATE leg this verb runs. `land` verifies TWO\n \
+  \ legs (SPEC-0077); the pinned last-green leg is NOT run here and is NOT described\
+  \ by this row.\n* `stage6_run` — OPTIONAL : the tree the failed run tested and the\
+  \ `main` commit it sat on,\n  on the terms the `tests_passed` paragraph above gives\
+  \ the same mark; absent on a bare `--run`, which\n  records no tested tree. Never\
+  \ a credit: the land credits a green newest row only.\n\n**READ `attribution` AS\
+  \ THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation, not\n\
+  a proof of causation: `not-in-diff` does NOT assert the failure is pre-existing\
+  \ on `main` (a card can\nbreak a file it never opened), and `in-diff` does not assert\
+  \ the card caused it. It is the strongest\nattribution computable without materializing\
   \ and re-running main's tree, and it is what the incident\nneeded — establishing\
   \ that a red sat in a layer the card had not written.\n\n**NOT A GATE, and not blocklisted\
   \ for P8.** The emit changes no verdict and no exit code: a failing\nrun refuses\

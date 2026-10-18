@@ -23,10 +23,10 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ <task>\n<reason>`), worktree intact. The owner/AI sees that escalation as the\
   \ CORRECT outcome there — the\nworker did its job — never as the abandonment the\
   \ pressure warns against.\n\n## Internal\n\nTHE DISPATCHED-WORKER SCOPE BOUNDARY.\
-  \ A process/governance rule (SPEC-0005 rule 1): a standing,\nprovider-neutral worker-safety\
-  \ boundary on the headless Build worker. It adds NO new store / parser\n/ journal\
-  \ / gate (CHARTER §P1): it is DELIVERED by the EXISTING `dispatch` preamble (the\
-  \ LAYER-1\nsurface, `implements:`) and escalates through the EXISTING `blocked-on-land`\
+  \ A process/governance rule (<workshop-spec> rule 1): a standing,\nprovider-neutral\
+  \ worker-safety boundary on the headless Build worker. It adds NO new store / parser\n\
+  / journal / gate (CHARTER §P1): it is DELIVERED by the EXISTING `dispatch` preamble\
+  \ (the LAYER-1\nsurface, `implements:`) and escalates through the EXISTING `blocked-on-land`\
   \ / `bg_dispatch_halted`\nchannels (patterns/background-session-operation.md §By-design\
   \ governance STOP). Provider-neutral\nthroughout (CHARTER §P4b — the incentive is\
   \ any headless land-pressured worker, not one provider).\n\n### 1. No out-of-scope\
@@ -140,7 +140,7 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   An INTERACTIVE session (no worker ref) prints the manual `worktree park` hint instead\
   \ — never auto-destroy\nan interactive worktree. This REPLACES §3's worktree-intact\
   \ escalation for this subclass ONLY; every other\nenvironmental/out-of-scope block\
-  \ keeps §3's intact escalation. The `worktree park` verb is SPEC-LESS by the\nSPEC-0005\
+  \ keeps §3's intact escalation. The `worktree park` verb is SPEC-LESS by the\n<workshop-spec>\
   \ admission test (its safety-invariant lives wholly in the verb, code+test enforced\
   \ — identical to\n`worktree sweep`); the outage classification + auto-park routing\
   \ is governed by SPEC-0036\n§Verdict-handling (the home of the transient-ABORT classes).\
@@ -271,7 +271,7 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ GUIDANCE, not\na code-consumed parameter. It is delivered as the printed fork\
   \ text of the covering verbs\n`cmd_task_pause` / `cmd_task_resume` (bin/lib/task.py)\
   \ and the `SYNC_TO_LAND_RULE` preamble clause\n(bin/lib/dispatch.py), which all\
-  \ POINT here. The pause/resume verb LOGIC is itself spec-less by the\nSPEC-0005\
+  \ POINT here. The pause/resume verb LOGIC is itself spec-less by the\n<workshop-spec>\
   \ admission test (its safety-invariant lives wholly in the verb + its tests, as\
   \ `worktree park`\ndoes in §3a), homed in its birth tasks — so this section is NOT\
   \ added to `implements:`;\nit NAMES the delivering verbs instead (the accurate linkage\

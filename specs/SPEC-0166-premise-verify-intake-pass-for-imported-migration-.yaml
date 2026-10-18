@@ -35,7 +35,7 @@ body: "## Scenario\nA brownfield onboarding re-files an existing backlog into v2
   \ reads for free. `task intake --task`/`--all` therefore accepts ANY `ready`\ncard\
   \ and runs the SAME verifier writing the SAME `premise:` field. For a NON-imported\
   \ card that is\nALL it does — see the premise-only guard in §Internal. Nothing about\
-  \ the imported-card scenario\nabove changes; this is an ADDITIVE case (SPEC-0005\
+  \ the imported-card scenario\nabove changes; this is an ADDITIVE case (<workshop-spec>\
   \ rule 7 in-place amend), not a reshape.\n\n## Internal\n- **Ownership split (single-source,\
   \ gate-trial finding 4):** the FIELD SCHEMA\n  (`imported_from:` string legacy-backlog\
   \ ref; `premise:` enum `verified|already-done|stale`, absent\n  on a non-imported\

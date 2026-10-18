@@ -301,7 +301,7 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ must resolve machine evidence + a differential»: (measured on\n  : no engine land\
   \ row carries the payload key its mechanism writes; every land row of the\n  consumer\
   \ that runs it does)\n- From «#### The EVENT carrier must resolve machine evidence\
-  \ + a differential»: An in-place ADDITIVE\n  extension (SPEC-0005 §additive-extension):\
+  \ + a differential»: An in-place ADDITIVE\n  extension (<workshop-spec> §additive-extension):\
   \ it adds an answer for a class the rule left with none,\n  and alters no already-covered\
   \ reference.\n- From «#### The GATE class»: NO NEW PAYLOAD WAS ADDED TO `land` TO\
   \ CARRY THIS.\n- From «### Event-based P8 adoption evidence»: (An ORDERING clarification\
@@ -318,55 +318,55 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ record behaves exactly as before.\n- From «### Audit-stage YAMLs are committed\
   \ BY `task close`, never a standalone `task commit`\n   — THE CARD-REPAIR ARM»:\
   \ Admission used to turn on WHAT THE AUDITOR HAPPENED TO WRITE.\n- From «### Ship-custody\
-  \ RE-PIN»: This is an ADDITIVE extension (SPEC-0005 §additive-extension): it adds\
-  \ an answer for a case the rule never addressed and alters no already-covered case.\n\
-  \n### Moved from the rule body\n\nEach entry is a passage moved word for word out\
-  \ of the rule text of the section it names.\n\n- From «Probe verification — FAIL-CLOSED\
-  \ BOUND»: What a post-close TERMINAL does to `probe_passed`\n  was decided by («this\
-  \ widens the SETTLE, never the close») and is deliberately NOT\n  re-decided here.\n\
-  \n### History moved from the rule body\n\nTags and history clauses moved word for\
-  \ word out of rule sentences, in body order; the rule\ninventory committed with\
-  \ names the sentence each stood in.\n\n · · · · · · · · ·\n · · · · · · · before\n\
-  \ only the command counted, and such a ship had no resolvable reference · ·\n ·\
-  \ · (E-0007) · · E-0008 · · · ·\n · (<project> X-1482) · · · · ·\n · · · · · · (E-0030)\
-  \ · ·\n · · · · (X-1251) · by · (since) ·\n(X-1240) · · (E-0030) · · · · · ·\n ·\
-  \ · the zero-ship-diff two-point precedent\n\n## Implementation notes\n\nNotes for\
-  \ the maintainer of the code, moved word for word out of the rule text of the section\n\
-  each names.\n\n- From «#### THE EVIDENCE-LOCATOR ADDRESS SPACE — EXTENSION RULE»:\
-  \ A differential test pins the two\n  halves together (every form this rule names\
-  \ is ACCEPTED, and forms it does not name are REFUSED),\n  so the record cannot\
-  \ drift from the parser.\n- From «### Infrastructure-class adoption strength — TRUE\
-  \ FLAG»: Field spellings live in the code\n  (`task._infra_adoption_seen`) and its\
-  \ tests.\n- From «### Crash-atomic ordering»: (the atomic-closure ordering — `cmd_task_close`)\n\
-  - From «### Audit-stage YAMLs — CUSTODY IS THE LAST AUTHORED SHIP»: Both readers\
-  \ ask ONE ancestry\n  predicate (`_git_ship_landed`).\n- From «### Audit-stage YAMLs\
-  \ — AMBIGUOUS RECORDED PREFIX»: Custody rows record through\n  `audit.recorded_sha`\
-  \ (SPEC-0025 `commit_landed`), so a new row names exactly one commit.\n- From «###\
-  \ Audit-stage YAMLs — guard TWO arms / honest bound»: The second arm fires only\
-  \ on\n  POSITIVE proof: `_worktree_dirty_paths` returns `[]` on ANY git failure,\
-  \ and `git status\n  --porcelain` collapses a wholly-untracked directory to a bare\
-  \ `decisions/` row the allow-list\n  reads as authored; both unprovable shapes leave\
-  \ the arm SILENT — it MISSES rather than MISFIRES.\n- From «### Audit-stage YAMLs\
-  \ — CARD-REPAIR ARM (C)»: This leg and the audit-post admission\n  (SPEC-0036) call\
-  \ ONE shared predicate (`_red_cause_is_card_record`), so the two doors cannot\n\
-  \  answer differently about one RED.\n\n### Moved from the rule body\n\n- From «Ordering\
-  \ prerequisite »: A card closed under a case records the case on its\n  own closure\
-  \ record as `task_closed.data.exempted_case` (SPEC-0025), so every skip is\n  attributable\
-  \ after the fact.\n- From «THE EVIDENCE-LOCATOR ADDRESS SPACE»: The address space\
-  \ of a NAMED, RESOLVING settlement\n  locator, recorded at one home. RECORDING ONLY:\
-  \ it names no new form and changes nothing the verb\n  accepts.\n- From «Land-emitted\
-  \ verify-layer ships — rewire proof»: Each row of a layer that executed also\n \
-  \ records the bound it actually ran under and which rung supplied it, so the land\
-  \ that\n  ships a declared bound shows that bound in force — a report-only reading\
-  \ beside the verdict,\n  which no gate reads.\n- From «Crash-atomic ordering»: Pure\
-  \ ordering — no new mechanism; it reuses the existing\n  idempotent-resume + `_recover_close_tail`\
-  \ recovery path.\n\n## Verification\n\n- Bound: `bin/yitc-v2 graph build` maps `Closure\
-  \ → SPEC-0015` in `binding_report.stage_to_specs`\n  (the stage-entry delivery axis)\
-  \ once active; `stage Closure` delivers it.\n- Pointer: `bin/yitc-v2 audit post\
-  \ --task T-XXXX` prints the closure-rules forward-pointer (element #2).\n- Non-dangling:\
-  \ empty `implements:` + non-empty `binding:` ⇒ excluded from `dangling_specs`.\n\
-  - Two-layer / topology : grep this body shows BOTH the work-first two-layer-acceptance\
-  \ rule\n  (Layer-1 audit / Layer-2 Stage-9 close-probe + \"MUST NOT RED-flag a spec\
-  \ merely because it is not yet active\") AND the\n  no-AC-on-self-blocked-consumer\
-  \ topology rule — each REFERENCING its home (<workshop-spec> §A,\n  `patterns/event-emit-only-audit-post.md`)\
-  \ without restating it.\n"
+  \ RE-PIN»: This is an ADDITIVE extension (<workshop-spec> §additive-extension):\
+  \ it adds an answer for a case the rule never addressed and alters no already-covered\
+  \ case.\n\n### Moved from the rule body\n\nEach entry is a passage moved word for\
+  \ word out of the rule text of the section it names.\n\n- From «Probe verification\
+  \ — FAIL-CLOSED BOUND»: What a post-close TERMINAL does to `probe_passed`\n  was\
+  \ decided by («this widens the SETTLE, never the close») and is deliberately NOT\n\
+  \  re-decided here.\n\n### History moved from the rule body\n\nTags and history\
+  \ clauses moved word for word out of rule sentences, in body order; the rule\ninventory\
+  \ committed with names the sentence each stood in.\n\n · · · · · · · · ·\n · · ·\
+  \ · · · · before\n only the command counted, and such a ship had no resolvable reference\
+  \ · ·\n · · (E-0007) · · E-0008 · · · ·\n · (<project> X-1482) · · · · ·\n · · ·\
+  \ · · · (E-0030) · ·\n · · · · (X-1251) · by · (since) ·\n(X-1240) · · (E-0030)\
+  \ · · · · · ·\n · · the zero-ship-diff two-point precedent\n\n## Implementation\
+  \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
+  \ rule text of the section\neach names.\n\n- From «#### THE EVIDENCE-LOCATOR ADDRESS\
+  \ SPACE — EXTENSION RULE»: A differential test pins the two\n  halves together (every\
+  \ form this rule names is ACCEPTED, and forms it does not name are REFUSED),\n \
+  \ so the record cannot drift from the parser.\n- From «### Infrastructure-class\
+  \ adoption strength — TRUE FLAG»: Field spellings live in the code\n  (`task._infra_adoption_seen`)\
+  \ and its tests.\n- From «### Crash-atomic ordering»: (the atomic-closure ordering\
+  \ — `cmd_task_close`)\n- From «### Audit-stage YAMLs — CUSTODY IS THE LAST AUTHORED\
+  \ SHIP»: Both readers ask ONE ancestry\n  predicate (`_git_ship_landed`).\n- From\
+  \ «### Audit-stage YAMLs — AMBIGUOUS RECORDED PREFIX»: Custody rows record through\n\
+  \  `audit.recorded_sha` (SPEC-0025 `commit_landed`), so a new row names exactly\
+  \ one commit.\n- From «### Audit-stage YAMLs — guard TWO arms / honest bound»: The\
+  \ second arm fires only on\n  POSITIVE proof: `_worktree_dirty_paths` returns `[]`\
+  \ on ANY git failure, and `git status\n  --porcelain` collapses a wholly-untracked\
+  \ directory to a bare `decisions/` row the allow-list\n  reads as authored; both\
+  \ unprovable shapes leave the arm SILENT — it MISSES rather than MISFIRES.\n- From\
+  \ «### Audit-stage YAMLs — CARD-REPAIR ARM (C)»: This leg and the audit-post admission\n\
+  \  (SPEC-0036) call ONE shared predicate (`_red_cause_is_card_record`), so the two\
+  \ doors cannot\n  answer differently about one RED.\n\n### Moved from the rule body\n\
+  \n- From «Ordering prerequisite »: A card closed under a case records the case on\
+  \ its\n  own closure record as `task_closed.data.exempted_case` (SPEC-0025), so\
+  \ every skip is\n  attributable after the fact.\n- From «THE EVIDENCE-LOCATOR ADDRESS\
+  \ SPACE»: The address space of a NAMED, RESOLVING settlement\n  locator, recorded\
+  \ at one home. RECORDING ONLY: it names no new form and changes nothing the verb\n\
+  \  accepts.\n- From «Land-emitted verify-layer ships — rewire proof»: Each row of\
+  \ a layer that executed also\n  records the bound it actually ran under and which\
+  \ rung supplied it, so the land that\n  ships a declared bound shows that bound\
+  \ in force — a report-only reading beside the verdict,\n  which no gate reads.\n\
+  - From «Crash-atomic ordering»: Pure ordering — no new mechanism; it reuses the\
+  \ existing\n  idempotent-resume + `_recover_close_tail` recovery path.\n\n## Verification\n\
+  \n- Bound: `bin/yitc-v2 graph build` maps `Closure → SPEC-0015` in `binding_report.stage_to_specs`\n\
+  \  (the stage-entry delivery axis) once active; `stage Closure` delivers it.\n-\
+  \ Pointer: `bin/yitc-v2 audit post --task T-XXXX` prints the closure-rules forward-pointer\
+  \ (element #2).\n- Non-dangling: empty `implements:` + non-empty `binding:` ⇒ excluded\
+  \ from `dangling_specs`.\n- Two-layer / topology : grep this body shows BOTH the\
+  \ work-first two-layer-acceptance rule\n  (Layer-1 audit / Layer-2 Stage-9 close-probe\
+  \ + \"MUST NOT RED-flag a spec merely because it is not yet active\") AND the\n\
+  \  no-AC-on-self-blocked-consumer topology rule — each REFERENCING its home (<workshop-spec>\
+  \ §A,\n  `patterns/event-emit-only-audit-post.md`) without restating it.\n"

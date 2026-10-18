@@ -366,6 +366,35 @@ INVENTORY: "tuple[Knob, ...]" = (
        "its built-in behaviour (no Stage-6 cap, full width) — the default shown here is the BOX's. PERFORMANCE: it changes how fast a Stage-6 pass finishes, never "
        "which files run or how they conclude — the leg records the width it actually ran at",
        bounds=(0.0, 1.0)),
+    _p("YITC_STAGE6_LOAD_BOUND", "float", None, "bin/lib/task.py#_stage6_load_settings",
+       "the CPU busy share (a fraction, 0 to 1) the LOCAL host must be UNDER before the next local "
+       "Stage-6 run starts (SPEC-1029 rule 5's opt-in load hold, T-14023). It applies inside the local "
+       "Stage-6 slot, so it needs YITC_VENUE_STAGE6_MAX_CONCURRENT set too. UNSET (the default) = no "
+       "hold and nothing read from the host — admission exactly as before. The share is read over "
+       "YITC_STAGE6_LOAD_WINDOW_S from two /proc/stat samples, on a window that began at or after the "
+       "newest local Stage-6 start; an unreadable reading holds the run. Admissible (0, 1] — the "
+       "inclusive pair 0.0..1.0 with `coerce` refusing 0. PERFORMANCE: it changes WHEN a Stage-6 run "
+       "starts, never which files run or how they conclude (an admission value, SPEC-0193 rule 2)",
+       bounds=(0.0, 1.0)),
+    _p("YITC_STAGE6_LOAD_WINDOW_S", "float", 5.0, "bin/lib/task.py#_stage6_load_settings",
+       "the seconds between the two /proc/stat samples the YITC_STAGE6_LOAD_BOUND busy share is read "
+       "over (T-14023). 5 s smooths a one-tick spike yet answers within a few admission polls. "
+       "Admissible 1..60. Read only while the bound is set. PERFORMANCE: it changes WHEN a Stage-6 run "
+       "starts, never how it concludes",
+       bounds=(1.0, 60.0)),
+    _p("YITC_STAGE6_LOAD_SPACING_S", "float", 60.0, "bin/lib/task.py#_stage6_load_settings",
+       "the seconds that must pass after the newest local Stage-6 start before the next one may start "
+       "under YITC_STAGE6_LOAD_BOUND (T-14023): a suite needs time to load the host before a reading "
+       "shows it — T-13810 measured three runs started on one quiet reading. The start time is kept "
+       "after the run ends, so a short run still spaces the next start. Admissible 1..3600. Read only "
+       "while the bound is set. PERFORMANCE: it changes WHEN a Stage-6 run starts, never how it concludes",
+       bounds=(1.0, 3600.0)),
+    _p("YITC_STAGE6_LOAD_CPU_SET", "str", "", "bin/lib/task.py#_stage6_load_settings",
+       "the CPUs the YITC_STAGE6_LOAD_BOUND busy share is read over, as a list like `0-15,32-47` "
+       "(T-14023); empty (the default) = every online CPU (the aggregate /proc/stat line). A list "
+       "naming a CPU the host does not have, or one that does not parse, is an unreadable reading and "
+       "holds the run. Read only while the bound is set. PERFORMANCE: it changes WHEN a Stage-6 run "
+       "starts, never how it concludes"),
     _p("YITC_VERIFY_WORKER_NICE", "int", 19, "bin/lib/verify_runner.py#_verify_child_nice",
        "the scheduler nice a DISPATCHED WORKER's per-file test child is spawned at on the LOCAL host "
        "(T-12224). The default 19 is the minimum priority: such a child receives CPU only when the "
@@ -560,6 +589,15 @@ INVENTORY: "tuple[Knob, ...]" = (
        "the pre-existing AUDIT_MAX_DIFF_LINES / AUDIT_MAX_DIFF_BYTES diff truncation stays an "
        "unregistered CODE CONSTANT, so no `config set` on any machine can change what an auditor "
        "sees. Authority: owner_directive events.jsonl#ts=2026-09-07T23:44:44Z (OPTION A)"),
+    _p("lib.journal.WATCH_MAX_RUNTIME_SECS", "int", 1500, "bin/lib/journal.py#watch_max_runtime_secs",
+       "T-14002 — how long an armed `dispatch --watch` (and the launch's self-armed watch) runs with no "
+       "wake condition before it exits `WATCH: TIMEOUT` with its re-arm cue. PERFORMANCE: the watcher "
+       "is read-only observability — its expiry judges nothing, records no verdict and stops no run, "
+       "so it changes only how often a controller re-arms. Measured need (yitc#137 item 2): workers "
+       "run 1-3 h and the 1500 s bound was re-armed by hand about ten times a day. Band: one poll "
+       "interval to 3 h; a value above the wrapper ceiling of the harness that runs the watcher is "
+       "the operator's choice (patterns/background-session-monitoring.md §Watcher)",
+       bounds=(60, 10800)),
     _p("lib.journal.MAX_FLEET_WIDTH", "int", 8, "bin/lib/journal.py#dispatch_readiness_report",
        "T-12219 — the per-SERVER owner bound on concurrent workers. PERFORMANCE and unusually "
        "clearly so: SPEC-0133 §6 forbids it from EVER clamping `recommended_wave_ceiling` («never a "

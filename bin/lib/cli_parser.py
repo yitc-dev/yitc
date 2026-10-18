@@ -3171,6 +3171,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "state. A pure numbers report — NEVER a gate/cap/scheduler, performs NO "
                          "admission control (prints numbers you may ignore). --since/--until bound the "
                          "controller-detection window (default last 24h). Honors --json.")
+    jq.add_argument("--admission", dest="admission", action="store_true",
+                    help="admission view (T-14007, read-only): per pool — the local Stage-6 slot pool "
+                         "and the land reservation — the holder(s) (task, pid, since) and the waiters "
+                         "in the order the engine admits them (a live queue-jump mark first, then the "
+                         "oldest wait). Takes no lock and writes nothing. Honors --json.")
     jq.add_argument("--dispatch-plan", dest="dispatch_plan", action="store_true",
                     help="dispatch-plan / Axis-B batch-planning ADVISOR (SPEC-0136, §6-safe read-only): "
                          "propose which ready cards pack into which warm workers, in what order, how wide, "
@@ -3715,7 +3720,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # purpose: that group is the TARGET vocabulary (`--task` xor `--branch`), and `--withdraw` is a
     # MODE that must COMPOSE with a target. Putting it inside the group would make the very form
     # this flag exists for — `land --withdraw --task T-XXXX` — an argparse mutual-exclusion error.
-    land.add_argument("--withdraw", action="store_true",
+    # T-14008: `--withdraw` (writes a request) and `--report` (writes nothing) are two MODES that never
+    # compose — refused by argparse itself, before any receipt, gate or arm runs.
+    land_mode = land.add_mutually_exclusive_group()
+    land_mode.add_argument("--withdraw", action="store_true",
                       help="WITHDRAW YOUR OWN QUEUED LAND instead of landing: record a withdrawal "
                            "request for the land attempt currently queued on the named branch, so "
                            "it withdraws itself at its admission seam without running its verify. "
@@ -3731,7 +3739,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "(the request WAS written and cannot yet be proven consumed — re-run "
                            "this same command to resolve it). An ADMITTED land is never "
                            "interrupted.")
-    land.set_defaults(func=cmd_land, no_autosync=True)   # EXCLUDED — land does its own events reconcile (D-0049). NO T-13071 attempt receipt: it would append into the worktree land just removed
+    # T-14008 — a READ-ONLY report MODE; composes with a target like --withdraw (so outside land_tgt).
+    land_mode.add_argument("--report", choices=("layers", "merge"),
+                      help="REPORT instead of landing (read-only: no lock, no write, no `LAND:` token): "
+                           "print ONE JSON object and exit 0. `layers` = the verify layers this land "
+                           "would run and skip, with each reason (the land's own subject_globs skip "
+                           "decision, against the merge-base with main); `merge` = whether the branch "
+                           "merges cleanly with main's tip and, if not, the conflicted paths (the land's "
+                           "own merge probe). Target: --task / --branch, else this checkout's branch.")
+    land.add_argument("--working-tree", action="store_true",
+                      help="with --report layers: judge the working tree's changes (committed + "
+                           "uncommitted + untracked), as the Stage-6 test run does")
+    land.set_defaults(func=cmd_land, no_autosync=True, read_only_admit=("report", RO_ZERO_WRITE))   # EXCLUDED — land does its own events reconcile (D-0049). NO T-13071 attempt receipt: it would append into the worktree land just removed
 
     wt = sub.add_parser("worktree", help="Worktree creation control-point (D-0051) — inverse of land")
     wt_sub = wt.add_subparsers(dest="worktree_action", required=True)
@@ -4293,11 +4312,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           help=f"[--watch] seconds between ticks (default {journal_mod.WATCH_POLL_INTERVAL_SECS}, "
                                f"the sanctioned WATCH_POLL_INTERVAL_SECS per §Watcher).")
     dispatch_watch.add_argument("--watch-timeout", dest="watch_timeout", type=int,
-                          default=journal_mod.WATCH_MAX_RUNTIME_SECS, metavar="SEC",
+                          default=None, metavar="SEC",
                           help=f"[--watch] give up after this long with no wake condition and exit "
                                f"`WATCH: TIMEOUT` (default {journal_mod.WATCH_MAX_RUNTIME_SECS}, the sanctioned "
-                               f"WATCH_MAX_RUNTIME_SECS). Bounded by construction — the watcher never "
-                               f"loops forever.")
+                               f"WATCH_MAX_RUNTIME_SECS, unless this machine sets "
+                               f"`config set lib.journal.WATCH_MAX_RUNTIME_SECS <sec>` — T-14002). "
+                               f"Bounded by construction — the watcher never loops forever.")
     dispatch_watch.add_argument("--watch-confirm-ticks", dest="watch_confirm_ticks", type=int, default=2,
                           metavar="N",
                           help="[--watch] consecutive ticks an actionable verdict (or an all-terminal "
@@ -4308,7 +4328,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
 
     spec = sub.add_parser("spec", help="Spec operations (per GRAPH §Schema)")
     spec_sub = spec.add_subparsers(dest="spec_action", required=True)
-    sn = spec_sub.add_parser("new", help="Allocate next SPEC-NNNN (flock) + scaffold from _template.yaml")
+    sn = spec_sub.add_parser("new", help="Allocate next SPEC-NNNN (flock) + scaffold from _template.yaml",
+                             description="Changing an ACTIVE spec? Ask first: must a reader act differently in "
+                                         "a case the spec already covers? No (a new case, a clarification) -> "
+                                         "`spec edit` in place; yes -> a successor here, its `supersedes:` "
+                                         "naming the old spec (SPEC-0005 rule 7).")
     sn.add_argument("--title", required=True, help="short statement")
     sn.add_argument("--travels", choices=[*PLACEMENT_REALMS, "default"],
                     help="REQUIRED placement decision (the corpus-wide placement contract, T-0888): "
@@ -4379,7 +4403,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="BLESS an ALREADY-MADE in-place edit of an ACTIVE spec (T-10135): derive its "
                          "diff vs `main`, emit a DIFF-BOUND spec_edited (base/new sha + fingerprint + "
                          "fields), and clear the T-9730 land guard for it — ONLY if the final base..HEAD "
-                         "diff matches the fingerprint. Fires the before-rule-change gate (SPEC-0005 read "
+                         "diff matches the fingerprint. Fires the before-rule-change gate (SPEC-1037 read "
                          "receipt). Mutually exclusive with --old/--new/--from-file/--from-stdin")
     se.set_defaults(func=cmd_spec_edit, cli_invoked_receipt="spec edit")  # T-13071: attempt receipt
 

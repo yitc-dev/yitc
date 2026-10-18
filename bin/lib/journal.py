@@ -7846,6 +7846,9 @@ WATCH_MAX_RUNTIME_SECS = 1500     # `dispatch --watch` max runtime; on expiry th
                                   # below the WRAPPER CEILING stated once in patterns/background-session-
                                   # monitoring.md §Watcher — the watcher checks its bound after a tick, so
                                   # it may run one interval past it. Move the two together, by a card.
+                                  # T-14002: this is the BUILT-IN default only; the machine setting
+                                  # `lib.journal.WATCH_MAX_RUNTIME_SECS` overrides it per machine —
+                                  # read through `watch_max_runtime_secs()`, never this name directly.
 MAX_FLEET_WIDTH = 8               # per-server owner bound on concurrent workers (replaces the ad-hoc ~5
                                   # guidance); the dispatch-readiness advisor ECHOES this as a SUGGESTED
                                   # bound the controller judges against — it is NEVER used to clamp
@@ -7870,6 +7873,18 @@ def max_fleet_width() -> int:
                                  # prerequisite either (SPEC-0193 rule 6 — the
                                  # `remote_workers_override` precedent)
         return MAX_FLEET_WIDTH
+
+
+def watch_max_runtime_secs() -> int:
+    """T-14002 — the default watch bound in force: the machine setting first, the built-in
+    `WATCH_MAX_RUNTIME_SECS` otherwise (the `max_fleet_width()` shape). Resolved per call, so a
+    `config set` reaches the next arming without a restart; never raises (SPEC-1031 rule 8)."""
+    try:
+        from lib import machine_settings      # deferred: keeps the hot import graph unchanged
+        return int(machine_settings.resolve("lib.journal.WATCH_MAX_RUNTIME_SECS",
+                                            WATCH_MAX_RUNTIME_SECS))
+    except Exception:            # noqa: BLE001 — the settings stack is never a prerequisite
+        return WATCH_MAX_RUNTIME_SECS
 
 
 def _dispatch_cause_tag(events, task_id, cls, detail, *, _dispatch_task_of):
@@ -12272,12 +12287,137 @@ def cmd_journal_dispatch_readiness(args: argparse.Namespace, *, DISPATCH_WAVE_WI
     print(f"  live_worker_count (all sessions task/+work/): {live_worker_count}")
     print(f"  recommended_wave_ceiling: {ceiling}  (advisory — you may ignore it)")
     print(f"  server bounds (T-10386, SUGGESTED — never a coded cap): max_fleet_width={max_fleet_width()}  "
-          f"watch_poll_interval={WATCH_POLL_INTERVAL_SECS}s  watch_max_runtime={WATCH_MAX_RUNTIME_SECS}s")
+          f"watch_poll_interval={WATCH_POLL_INTERVAL_SECS}s  watch_max_runtime={watch_max_runtime_secs()}s")
     print(f"  sole_controller: {str(sole_controller).lower()}  "
           f"({num_live_controllers} live controller(s) dispatching in window)")
     print(f"  in_flight_land: {str(in_flight_land).lower()}")
     if _fit:
         print(f"  {worker_fit_line(_fit)}")
+
+
+# ── admission view (T-14007) — who holds and who waits for the Stage-6 slot and the land reservation ──
+_ADMISSION_TASK_RE = re.compile(r"\bT-\d+\b")
+
+
+def _admission_holder(path, *, slot, _flock_holder, _locks_readable, _proc_cwd, now):
+    """T-14007 — the holder of ONE flock target, or None when it is provably free. `_flock_holder` reads
+    `/proc/locks` and opens no lock. When it names nobody although the target exists and `/proc/locks`
+    cannot be read, the slot is reported `state: unknown` — never as free (audit-pre finding 1). A held
+    slot's task is the first task id in the holder's argv tail, else its working directory's name (a
+    `task/T-XXXX` worktree), else None."""
+    h = _flock_holder(path)
+    if not h:
+        if Path(path).exists() and not _locks_readable():
+            return {"slot": slot, "state": "unknown", "task": None, "pid": None, "since": None,
+                    "age_s": None, "label": None}
+        return None
+    m = _ADMISSION_TASK_RE.search(str(h.get("label") or ""))
+    task = m.group(0) if m else None
+    if task is None:
+        cwd = _proc_cwd(h["pid"])
+        task = cwd if cwd and re.fullmatch(r"T-\d+", cwd) else None
+    age = h.get("age_s")
+    since = (None if age is None else _dt.datetime.fromtimestamp(now - float(age), _dt.timezone.utc)
+             .isoformat(timespec="seconds").replace("+00:00", "Z"))
+    return {"slot": slot, "state": "held", "task": task, "pid": h["pid"], "since": since,
+            "age_s": None if age is None else int(age), "label": h.get("label")}
+
+
+def _admission_report(*, main_wt, events_path, stage6_limits, _stage6_waiters, _land_queue, _queue_jump,
+                      _flock_holder, _slot_dir, _reservation_path, _proc_cwd, _locks_readable,
+                      now=None) -> dict:
+    """T-14007 — the two admission pools as they stand NOW: per pool the holder(s) and the waiters in
+    the order the engine admits them. PURE READ: it takes no lock (`_flock_holder` reads `/proc/locks`),
+    creates no file or directory (`_slot_dir` is asked not to create) and writes no journal row.
+
+    stage6 — the local Stage-6 slot pool (`YITC_VENUE_STAGE6_MAX_CONCURRENT`; unset = no admission, the
+    pool is reported `configured: false`). Holders: one flock probe per slot. Waiters: the live waiters
+    `task._stage6_waiters_ahead` ranks (SPEC-1029 rule 5: a live queue-jump mark first, then the oldest).
+
+    land_reservation — the one land reservation. Holder: its flock. Waiters: the queued branches in
+    `_land_queue_at_slot_free` order (oldest wait first), a live queue-jump mark (SPEC-0184 rule 9) moved
+    to the front. The grant also weighs the cost class (rule 9), which this view does not compute.
+
+    Both readers answer an unreadable journal with an empty queue, so the view checks the journal
+    itself: a journal that is not a readable file sets `waiters_readable: false` on both pools and the
+    text says the waiters are unknown — never "no waiters" (audit-pre finding 2)."""
+    now = time.time() if now is None else now
+    p_ev = Path(events_path)
+    readable = p_ev.is_file() and os.access(p_ev, os.R_OK)
+    slot_dir = _slot_dir(main_wt)
+    n = stage6_limits.get("max_concurrent")
+    s6_holders, s6_waiters = [], []
+    if n:
+        for i in range(int(n)):
+            h = _admission_holder(slot_dir / "stage6" / f"slot-{i}", slot=i, _flock_holder=_flock_holder,
+                                  _locks_readable=_locks_readable, _proc_cwd=_proc_cwd, now=now)
+            if h:
+                s6_holders.append(h)
+    waiting = []
+    if readable:
+        try:
+            waiting = _stage6_waiters(p_ev)
+        except Exception:                      # noqa: BLE001 — a failed read is reported, not hidden
+            readable = False
+    for pos, w in enumerate(waiting, 1):
+        s6_waiters.append({"position": pos, "task": w.get("task"), "since": w.get("since"),
+                           "queue_jump": w.get("queue_jump") is True, "wait_id": w.get("wait_id")})
+    land_holder = _admission_holder(_reservation_path(main_wt), slot=None, _flock_holder=_flock_holder,
+                                    _locks_readable=_locks_readable, _proc_cwd=_proc_cwd, now=now)
+    ages: dict = {}
+    queue = []
+    if readable:
+        try:
+            queue = list(_land_queue(p_ev, ages))
+        except Exception:                      # noqa: BLE001 — a failed read is reported, not hidden
+            readable = False
+    marked = {br: bool(_queue_jump(main_wt, br)) for br in queue}
+    queue.sort(key=lambda br: 0 if marked[br] else 1)   # stable: age order kept inside each group
+    land_waiters = []
+    for pos, br in enumerate(queue, 1):
+        ws = ages.get(br)
+        land_waiters.append({
+            "position": pos, "branch": br,
+            "task": br.split("/", 1)[1] if br.startswith("task/") else None,
+            "since": (None if ws is None else _dt.datetime.fromtimestamp(ws, _dt.timezone.utc)
+                      .isoformat(timespec="seconds").replace("+00:00", "Z")),
+            "queue_jump": marked[br]})
+    return {"pools": [
+        {"pool": "stage6", "configured": bool(n), "slots": int(n) if n else None,
+         "holders": s6_holders, "waiters": s6_waiters if readable else [], "waiters_readable": readable},
+        {"pool": "land_reservation", "configured": True, "slots": 1,
+         "holders": [land_holder] if land_holder else [], "waiters": land_waiters if readable else [],
+         "waiters_readable": readable}]}
+
+
+def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
+    """`journal query --admission` (T-14007) — print `_admission_report`, text or `--json` (one object)."""
+    report = _admission_report(**collaborators)
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, sort_keys=True))
+        return
+    print("admission (read-only — no lock taken, nothing written):")
+    for p in report["pools"]:
+        if not p["configured"]:
+            print(f"  {p['pool']}: no admission (YITC_VENUE_STAGE6_MAX_CONCURRENT unset)")
+        else:
+            print(f"  {p['pool']}: {len(p['holders'])} of {p['slots']} held or unknown")
+        for h in p["holders"]:
+            where = "" if h["slot"] is None else f"slot-{h['slot']} "
+            if h["state"] == "unknown":
+                print(f"    holder {where}unknown (/proc/locks unreadable — may be held)")
+                continue
+            print(f"    holder {where}task={h['task'] or '?'} pid={h['pid']} since={h['since'] or '?'}")
+        for w in p["waiters"]:
+            who = w.get("branch") or w.get("task") or "?"
+            print(f"    waiter {w['position']}. {who} since={w['since'] or '?'}"
+                  + ("  [queue-jump]" if w["queue_jump"] else ""))
+        if not p["waiters_readable"]:
+            print("    waiters unknown (the journal could not be read)")
+        elif not p["waiters"]:
+            print("    no waiters")
+    print("  land order: queue-jump first, then the oldest wait; the grant also weighs the cost class "
+          "(SPEC-0184 rule 9)")
 
 
 # ── dispatch-plan advisor (T-10178, SPEC-0136) — read-only Axis-B batch proposal + Handback ──────────
@@ -13386,7 +13526,7 @@ class _SessionFilter:
         return []
 
 
-def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, cmd_journal_dispatch_status, cmd_journal_fleet_verdict, cmd_journal_dispatch_readiness, cmd_journal_lifecycle_integrity, cmd_journal_dispatch_plan, _die=None, own_receipt_ref=None, _live_task_worktrees=None, REPO_ROOT=None, _task_horizon=None) -> None:
+def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, cmd_journal_dispatch_status, cmd_journal_fleet_verdict, cmd_journal_dispatch_readiness, cmd_journal_lifecycle_integrity, cmd_journal_dispatch_plan, _die=None, own_receipt_ref=None, _live_task_worktrees=None, REPO_ROOT=None, _task_horizon=None, cmd_journal_admission=None) -> None:
     """Read-only query over events.jsonl (the one journal SoT), peer to `graph query`
     (D-0039). Reuses the per-line json.loads reader (Principle 1). Un-parseable lines are
     skipped (P5 tolerance — consumers ignore malformed/opaque rows). Results are ordered by
@@ -13419,6 +13559,8 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
         return cmd_journal_dispatch_readiness(args)
     if getattr(args, "dispatch_plan", False):   # SPEC-0136: the §6-safe Axis-B dispatch-planning advisor
         return cmd_journal_dispatch_plan(args)
+    if getattr(args, "admission", False) and cmd_journal_admission is not None:   # T-14007
+        return cmd_journal_admission(args)
     if getattr(args, "lifecycle_integrity", False):   # T-9365: post-hoc lifecycle-integrity report
         return cmd_journal_lifecycle_integrity(args)
     # SPEC-0084 r4 one-parser/one-query parity: --coordination swaps the SOURCE to the shared

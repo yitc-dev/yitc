@@ -33,7 +33,7 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ / non-goal #7» stance above is unchanged. The gate MECHANIC is normative in SPEC-0034\
   \ §draft + SPEC-0059 (pointer, not restated here). It is POINTER-BASED: every\n\
   gate MECHANIC stays normative in its own home (cited inline) — this spec never restates\
-  \ a gate rule\n(SPEC-0005 rule 3 content-boundary / P5 one-home / rule 8 prompts-checklists-cue+pointer\
+  \ a gate rule\n(<workshop-spec> rule 3 content-boundary / P5 one-home / rule 8 prompts-checklists-cue+pointer\
   \ — a\nfront-load checklist item carries a discipline CUE + a POINTER, never a restated\
   \ corpus rule).\n\n### The front-load checklist (author any plan draft against these\
   \ — a checklist, NOT a gate)\n1. **Problem / intent + prior-art sweep.** State what\
@@ -107,8 +107,8 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ carries the post-specs FORK\npointer — trial-eligible → `plan stage trial`, else\
   \ → `plan stage accepted` — but that pointer is\ngoverned by SPEC-0034/SPEC-0035,\
   \ NOT this front-load doctrine; this spec's delivery rule + skeleton\nsections are\
-  \ unchanged.)\n\n### Anti-complexity note (SPEC-0005 §7 / CHARTER §P1 F3 — what\
-  \ is retired)\nNOTHING is retired by this spec. It is admitted because it fills\
+  \ unchanged.)\n\n### Anti-complexity note (<workshop-spec> §7 / CHARTER §P1 F3 —\
+  \ what is retired)\nNOTHING is retired by this spec. It is admitted because it fills\
   \ a real WIRING + CONTENT gap (the\ndraft bundle was never delivered, and no doctrine\
   \ said what a draft should front-load), NOT because\nit accretes a parallel mechanism:\
   \ it REUSES the existing plan-stage-entry axis, the existing\n`_emit_plan_stage_entered`\
@@ -117,19 +117,19 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ consumed. Every governing constant referenced (the big-plan apply-when criteria;\
   \ the audit\ntemplates; the trial-eligibility rule; the decomposition discipline)\
   \ lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec> / big-plan-checklist)\
-  \ — pointed at, NEVER duplicated or\n`consumed:` here (SPEC-0005 rule 3 / P5).\n\
-  \n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1 Analysis is a\
-  \ delivered, ordered procedure); the\nPLAN draft stage had the delivery AXIS (SPEC-0034\
-  \ binds `plan-stage-entry:draft`) but the bundle was\nnever delivered — `draft`\
-  \ is the initial status, so `plan stage draft` is never called. A session\nfiling\
-  \ a plan therefore got no front-load guidance, and a draft could stay a bare title.\
-  \ The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
+  \ — pointed at, NEVER duplicated or\n`consumed:` here (<workshop-spec> rule 3 /\
+  \ P5).\n\n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1 Analysis\
+  \ is a delivered, ordered procedure); the\nPLAN draft stage had the delivery AXIS\
+  \ (SPEC-0034 binds `plan-stage-entry:draft`) but the bundle was\nnever delivered\
+  \ — `draft` is the initial status, so `plan stage draft` is never called. A session\n\
+  filing a plan therefore got no front-load guidance, and a draft could stay a bare\
+  \ title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
   \ YELLOW) confirmed\nOption A — keep doctrine in ONE normative home, reuse the existing\
   \ stage-entry axis, add no new\ngate/verb/store — and surfaced three refinements\
   \ absorbed here: F1 (state the resume path\nexplicitly), F2 (require a planned-artifacts/corpus-impact\
   \ section), F3 (stay pointer-based; note no\nretirement needed). Split-by-surface\
-  \ from SPEC-0034 (SPEC-0005 rule 6): SPEC-0034 is the per-stage\nMECHANICS home\
-  \ delivered at every plan-stage transition; this is the draft-authoring CONTENT\n\
+  \ from SPEC-0034 (<workshop-spec> rule 6): SPEC-0034 is the per-stage\nMECHANICS\
+  \ home delivered at every plan-stage transition; this is the draft-authoring CONTENT\n\
   delivered at the distinct `plan file` moment — a stable surface boundary, materially\
   \ improving change\nanalysis (the mechanics spec stays lean; the authoring checklist\
   \ evolves independently). Prior-art:\nPEP-1 / ADR templates ship an authoring skeleton\
@@ -140,7 +140,7 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ motivating\n  ad-hoc audit)\n- From «The front-load checklist (author any plan\
   \ draft against …»: (the F2 finding of the\n  motivating ad-hoc audit)\n- From «Delivery\
   \ wiring (how this doctrine reaches the author)»: Note recorded to re-verify the\n\
-  \  anchor and clear the drift warning.\n- From «Anti-complexity note (SPEC-0005\
+  \  anchor and clear the drift warning.\n- From «Anti-complexity note (<workshop-spec>\
   \ §7 / CHARTER §P1 F3»: (The F3 finding of the motivating\n  ad-hoc audit explicitly\
   \ noted F3 needs no retirement here.)\n\n### History moved from the rule body\n\n\
   Each entry is a passage moved word for word out of the rule text of the section\
@@ -151,13 +151,13 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ reaches the author)»: (also called by `cmd_plan_stage`,\n  so the delivery print\
   \ format has ONE source — no mirror/copy)\n\n### Moved from the rule body\n\nEach\
   \ entry is a passage moved word for word out of the rule text of the section it\
-  \ names\n(its class per SPEC-0005 rule 3 in brackets); every acting rule stays in\
-  \ the rule text.\n\n- From «Delivery wiring» [MECH]: `cmd_plan_file` delivers the\
-  \ `plan-stage-entry:draft` bundle\n  (this spec) through the SAME path every other\
-  \ plan stage uses — `_emit_plan_stage_entered(slug,\n  None, \"draft\")` + the shared\
-  \ delivery print helper `_print_plan_stage_delivery`.\n- From «Delivery wiring»\
-  \ [REF]: The generated plan skeleton carries the base sections (## Problem\n  /\
-  \ intent · ## Done criterion · ## Verification plan · ## External checks / audits\
+  \ names\n(its class per <workshop-spec> rule 3 in brackets); every acting rule stays\
+  \ in the rule text.\n\n- From «Delivery wiring» [MECH]: `cmd_plan_file` delivers\
+  \ the `plan-stage-entry:draft` bundle\n  (this spec) through the SAME path every\
+  \ other plan stage uses — `_emit_plan_stage_entered(slug,\n  None, \"draft\")` +\
+  \ the shared delivery print helper `_print_plan_stage_delivery`.\n- From «Delivery\
+  \ wiring» [REF]: The generated plan skeleton carries the base sections (## Problem\n\
+  \  / intent · ## Done criterion · ## Verification plan · ## External checks / audits\
   \ · ## Planned\n  artifacts / corpus impact · ## Realization-exit criteria) as PROMPTS\
   \ + pointers.\n\n## Verification\n\nProbe CONTRACTS (RED-GREEN — observe failing\
   \ before trusting):\n- **VP1 (active + bound, AC1 — POST-close):** after `task close\
@@ -185,7 +185,6 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
 cites:
 - SPEC-0034
 - SPEC-0035
-- SPEC-0005
 - big-plan-checklist
 - LIFECYCLE.md#plan-lifecycle
 - CHARTER.md#principle-1

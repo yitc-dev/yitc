@@ -3022,6 +3022,34 @@ def _sync_corpus_integrity_lines(W, base: str, *, _corpus_integrity_verdict) -> 
     return None
 
 
+def _sync_mention_review_lines(W, task, main_tip: str, *, _run_git_cap) -> "list[str]":
+    """T-14022 — the successor mention-review phase of `worktree sync` (SPEC-1037 §7).
+
+    The activation owner of a `proposed` spec carrying `supersedes:` records its whole-repository
+    mention review in its Analysis, naming the main commit the search read and the target it reviewed
+    (`mention review snapshot: <commit> target: <id>`). A merge from main can bring a lineage change
+    (the `land` re-target onto a sibling-landed head) or new mentions after that snapshot; this phase
+    says so while the branch is still off the land queue, naming the difference to re-review. The
+    measurement is `graph._mention_review_currency` against the main commit this sync merged.
+
+    REPORT-ONLY, like every other sync phase: it prints, never refuses, and `land` does not read it.
+    Silent for every card that activates no superseding spec; a failure prints COULD NOT ANSWER rather
+    than a current verdict."""
+    if not task:
+        return []
+    try:
+        from lib import graph as _graph
+        from lib import state as _state
+        tdir = Path(W) / "tasks"
+        cards = sorted(tdir.glob(f"{task}-*.yaml")) or sorted(tdir.glob(f"{task}.yaml"))
+        card = (_state.load_path(cards[0]) or {}) if cards else {}
+        analysis = card.get("analysis") if isinstance(card, dict) else None
+        return _graph._mention_review_currency(W, task, analysis, main_tip, _run_git_cap=_run_git_cap)
+    except Exception as e:                     # noqa: BLE001 — a pre-flight never kills the sync
+        return [f"  mention review (SPEC-1037 §7): COULD NOT ANSWER (raised {type(e).__name__}: "
+                f"{str(e)[:160]}) — this is NOT a current verdict."]
+
+
 def _preflight_blocker_record(conflict_sink: "dict | None",
                              currency_lines: "list[str] | None",
                              census_lines: "list[str] | None" = None,
@@ -3802,6 +3830,10 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         corpus_lines = _sync_corpus_integrity_lines(   # T-13322 — see the helper's docstring
             W, _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap),
             _corpus_integrity_verdict=_corpus_integrity_verdict)
+        for ln in _sync_mention_review_lines(  # T-14022 — see the helper's docstring
+                W, task, _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap),
+                _run_git_cap=_run_git_cap):
+            print(ln)
         # No conflict phase runs here — there is no merge to conflict — so its sink is None, which
         # the record renders as conflicts_measured: false rather than as a clean empty set.
         _append_event("worktree_synced", task,
@@ -3916,6 +3948,10 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     corpus_lines = _sync_corpus_integrity_lines(       # T-13322 — see the helper's docstring
         W, _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap),
         _corpus_integrity_verdict=_corpus_integrity_verdict)
+    for ln in _sync_mention_review_lines(      # T-14022 — see the helper's docstring
+            W, task, _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap),
+            _run_git_cap=_run_git_cap):
+        print(ln)
     if dirt_sink:                           # T-13057 — the fifth phase; REPORT-ONLY, never a refusal
         print(f"  UNCOMMITTED DIRT — `land` will refuse (uncommitted-dirt) until these are committed "
               f"(`task commit` / `work commit`): {', '.join(dirt_sink)}")

@@ -67,7 +67,7 @@ body: "## Scenario\n\nWhen a fix-task that remediated a captured deviation close
   \ closure-record commit machinery) — closing the «link never created» gap even after\
   \ the\n  fact. This makes recording the link a PROMPTED, recoverable closure step\
   \ instead of a forgotten\n  manual edit — WITHOUT a new store, a new event type,\
-  \ or auto-detection of «fixed».\n\n### Surface touched (explicit, not silent — SPEC-0005\
+  \ or auto-detection of «fixed».\n\n### Surface touched (explicit, not silent — <workshop-spec>\
   \ §3 / P7)\nThe link-CREATION rule is homed here as a LINK-RULE extension (supersedes\
   \ <workshop-spec>). The MECHANISM\nis an ADDITIVE closure side-effect in `cmd_task_close`:\
   \ the SPEC-0015 closure contract (probe\nverification, `status: done`, audit-post-precedes-closure)\
@@ -92,10 +92,10 @@ body: "## Scenario\n\nWhen a fix-task that remediated a captured deviation close
   \ task T», not «T fixed it»; that over-link can hide a real defect — the\nrejected\
   \ design B, RED-flagged at the specs gate). Full deliberation + the read-time-vs-closure-time\n\
   fork: the proposing plan `triage-dedup-against-closed-problems-temporal-deri` §B\
-  \ (SPEC-0005 rule 3).\nSupersedes <workshop-spec> (the narrow LINK-RULE carve) rather\
-  \ than the multi-rule SPEC-0055 (the\nrejected wholesale-supersede shape of the\
-  \ withdrawn <workshop-spec> draft) — one narrow home, no lineage rupture.\n\n##\
-  \ Verification\n\n- **VP1 (RED-GREEN closure-time creation):** `task close <tid>\
+  \ (<workshop-spec> rule 3).\nSupersedes <workshop-spec> (the narrow LINK-RULE carve)\
+  \ rather than the multi-rule SPEC-0055 (the\nrejected wholesale-supersede shape\
+  \ of the withdrawn <workshop-spec> draft) — one narrow home, no lineage rupture.\n\
+  \n## Verification\n\n- **VP1 (RED-GREEN closure-time creation):** `task close <tid>\
   \ --closes-fp F` ⇒ `F` appears in the\n  task `cites:` ⇒ the next `triage run` reads\
   \ `F` owned-by-a-`done`-task (linked/owned, NOT TRULY-NEW)\n  via the REAL triage\
   \ path (`_currency_status`/`cmd_triage_run`), not merely `_fingerprint_cites_index`\n\

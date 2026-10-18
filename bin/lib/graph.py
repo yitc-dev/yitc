@@ -540,6 +540,375 @@ def _attach_superseded_by(result: dict, index: dict, spec_id: str) -> None:
         result["superseded_by"] = heads
 
 
+def _spec_head_line(index: dict, spec_id: str):
+    """The «<id> superseded -> active head <Z>» line for a spec point-lookup, or None (T-14020).
+
+    Walks the literal `supersedes:` chain FORWARD from `spec_id` over `_derived_superseded_by` — so a
+    proposed / draft / withdrawn / rejected successor never enters the walk and is never named head.
+    Printed only when the spec is superseded / retired or has a completed successor. Several active
+    heads, none, or a cycle are printed as such with the candidates — never a pick. Pure f(index)."""
+    spec = (index.get("specs", {}) or {}).get(spec_id) or {}
+    first = _derived_superseded_by(index, spec_id)
+    if not first and spec.get("status") not in ("superseded", "retired"):
+        return None
+    seen, order, frontier, terminals, cycle = {spec_id}, [spec_id], list(first), [], False
+    while frontier:
+        nxt = []
+        for sid in frontier:
+            if sid in seen:
+                cycle = True
+                continue
+            seen.add(sid)
+            order.append(sid)
+            succ = _derived_superseded_by(index, sid)
+            if succ:
+                nxt.extend(succ)
+            else:
+                terminals.append(sid)
+        frontier = nxt
+    specs = index.get("specs", {}) or {}
+    actives = sorted(s for s in order[1:] if (specs.get(s) or {}).get("status") == "active")
+    head = f"{spec_id} superseded -> "
+    if cycle:
+        return head + "cycle in the supersedes chain: " + ", ".join(order)
+    if len(actives) == 1:
+        return head + f"active head {actives[0]}"
+    if actives:
+        return head + "several active heads: " + ", ".join(actives)
+    return head + "no active head (chain ends at: " + (", ".join(sorted(terminals)) or "none") + ")"
+
+
+def _open_task_ids(tasks_dir, task_ids) -> list:
+    """The ids among `task_ids` whose card under `tasks_dir` is open (TASK_OPEN_STATUSES), sorted.
+    One listdir; only the named cards are read. A missing dir or unreadable card counts as not open."""
+    from lib.vocab import TASK_OPEN_STATUSES
+    want = set(task_ids)
+    if not want:
+        return []
+    try:
+        names = os.listdir(tasks_dir)
+    except OSError:
+        return []
+    out = set()
+    for name in names:
+        tid = "-".join(name.split("-")[:2])
+        if tid not in want or not name.endswith(".yaml"):
+            continue
+        try:
+            with open(os.path.join(tasks_dir, name), encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("status:"):
+                        if line.split(":", 1)[1].strip().strip("'\"") in TASK_OPEN_STATUSES:
+                            out.add(tid)
+                        break
+        except OSError:
+            continue
+    return sorted(out)
+
+
+def _lineage_cited_by(index: dict, spec_id: str, tasks_dir):
+    """The citers of a spec's whole lineage, for a point-lookup (T-14020) — or None.
+
+    Lineage = every id the forward walk reaches from `spec_id` (the completed-supersession heads of
+    `_derived_superseded_by` — so a proposed successor is not a member) plus the literal `supersedes:`
+    chain walked BACK from each of them (stops at a revisit; an id absent from the index still counts).
+    Omitted when the lineage is the id alone or nothing cites it, so a spec outside any lineage keeps
+    its exact output shape. Lists the specs and scenarios whose `cites` hit any lineage id (lineage
+    members excluded) and the OPEN task cards citing any of them — deduplicated. An aid to the
+    SPEC-1037 mention review, not its completeness basis."""
+    specs = index.get("specs", {}) or {}
+    lineage, frontier = [spec_id], [spec_id]
+    while frontier:
+        nxt = []
+        for sid in frontier:
+            for succ in _derived_superseded_by(index, sid):
+                if succ not in lineage:
+                    lineage.append(succ)
+                    nxt.append(succ)
+        frontier = nxt
+    for sid in list(lineage):
+        cur = sid
+        while True:
+            tgt = (specs.get(cur) or {}).get("supersedes")
+            if not isinstance(tgt, str) or not tgt or tgt in lineage:
+                break
+            lineage.append(tgt)
+            cur = tgt
+    if len(lineage) < 2:
+        return None
+    lset = set(lineage)
+    out = {}
+    s_hits = sorted(sid for sid, s in specs.items()
+                    if sid not in lset and lset & set((s or {}).get("cites") or []))
+    if s_hits:
+        out["specs"] = s_hits
+    sc_hits = sorted(k for k, sc in (index.get("scenarios", {}) or {}).items()
+                     if lset & set((sc or {}).get("cites") or []))
+    if sc_hits:
+        out["scenarios"] = sc_hits
+    tc = index.get("tasks_citing", {}) or {}
+    t_hits = _open_task_ids(tasks_dir, {t for lid in lineage for t in tc.get(lid, [])})
+    if t_hits:
+        out["open_tasks"] = t_hits
+    if not out:
+        return None
+    return {"lineage": lineage, **out}
+
+
+# ── T-14022 — the successor mention review (SPEC-1037 §7): the text search and its snapshot ─────────
+# Git access is INJECTED (`_run_git_cap(args, cwd) -> CompletedProcess`, no raise), so this module stays
+# subprocess-free. The search is the completeness basis the rule names; the citing lists above are an aid.
+
+_MENTION_FROZEN_SPEC_STATUSES = ("superseded", "retired", "withdrawn", "rejected")
+_MENTION_FROZEN_CARD_STATUSES = ("done", "wont-do")
+_MENTION_SNAPSHOT_RE = re.compile(r"mention review snapshot:\s*([0-9a-f]{7,40})\s+target:\s*(SPEC-\d{4,})")
+
+
+def _mention_id_re(ids):
+    """Identifier-boundary matcher for lineage ids: `SPEC-0005` never matches `SPEC-00050` or `XSPEC-0005`."""
+    alts = "|".join(re.escape(i) for i in sorted(set(ids), key=len, reverse=True))
+    return re.compile(r"(?<![A-Za-z0-9])(" + alts + r")(?![0-9])")
+
+
+def _git_grep_lines(root, args, rev, paths, *, _run_git_cap, globs=None):
+    """`git grep -n -z` over the work tree (tracked + untracked) or over `rev`; [(path, lineno, text)], or
+    None when git could not answer. `paths` None = the whole tree (or `globs`); [] = nothing to search.
+    `-z` separates the path and the line number with NUL, so a path holding `:` parses whole."""
+    if paths is not None and not paths:
+        return []
+    cmd = ["grep", "-n", "-z", "-I"] + ([] if rev else ["--untracked"]) + list(args) + ([rev] if rev else [])
+    if paths is not None:
+        cmd += ["--"] + [f":(literal){p}" for p in paths]
+    elif globs:
+        cmd += ["--"] + [f":(glob){g}" for g in globs]
+    p = _run_git_cap(cmd, root)
+    if p.returncode not in (0, 1):
+        return None
+    out = []
+    for line in (p.stdout or "").split("\n"):
+        parts = line.split("\0", 2)
+        if len(parts) != 3 or not parts[1].isdigit():
+            continue
+        path = parts[0][len(rev) + 1:] if rev and parts[0].startswith(rev + ":") else parts[0]
+        out.append((path, int(parts[1]), parts[2]))
+    return out
+
+
+def _spec_heads(root, *, rev=None, _run_git_cap) -> "dict | None":
+    """{spec id: {path, status, supersedes, owner}} from the top-level lines of every `specs/*.yaml` —
+    of the work tree, or of `rev`. One git process. None when git could not answer."""
+    rows = _git_grep_lines(root, ["-E", r"^(id|status|supersedes|activation_owner_task):"], rev,
+                           ["specs"], _run_git_cap=_run_git_cap)
+    if rows is None:
+        return None
+    per: dict = {}
+    for path, _n, text in rows:
+        if not path.endswith(".yaml"):
+            continue
+        key, _, val = text.partition(":")
+        val = val.split("#", 1)[0].strip().strip("'\"")
+        per.setdefault(path, {}).setdefault(key, None if val in ("", "~", "null") else val)
+    out = {}
+    for path, f in per.items():
+        if f.get("id"):
+            out[f["id"]] = {"path": path, "status": f.get("status"), "supersedes": f.get("supersedes"),
+                            "owner": f.get("activation_owner_task")}
+    return out
+
+
+def _mention_review_lineage(heads: dict, successor: str, target=None) -> dict:
+    """The lineage a successor's mention review searches: the successor plus the literal `supersedes:`
+    chain walked back from its target (complete while the successor is still `proposed`).
+
+    `target` None = the successor's own `supersedes:`, RE-TARGETED the way `land` re-targets it (SPEC-1037
+    §4): when that target is `superseded` and exactly one OTHER spec naming it in `supersedes:` is `active`,
+    the effective target is that head. A given `target` is walked as is (a recorded snapshot's target).
+    Returns {target, effective, lineage, note} — `note` names a superseded target with no single head."""
+    declared = (heads.get(successor) or {}).get("supersedes")
+    eff, note = (target or declared), None
+    if target is None and declared and (heads.get(declared) or {}).get("status") == "superseded":
+        cands = sorted(s for s, h in heads.items()
+                       if s != successor and h.get("supersedes") == declared and h.get("status") == "active")
+        if len(cands) == 1:
+            eff = cands[0]
+        elif cands or (heads.get(successor) or {}).get("status") != "active":
+            # a successor already activated by its own close (locally) is the target's head itself
+            note = (f"{declared} is superseded with "
+                    + (f"several active heads ({', '.join(cands)})" if cands else "no active head")
+                    + " — `land` refuses that re-target (SPEC-1037 §4)")
+    lineage, cur = [successor], eff
+    while cur and cur not in lineage:
+        lineage.append(cur)
+        cur = (heads.get(cur) or {}).get("supersedes")
+    return {"target": declared, "effective": eff, "lineage": lineage, "note": note}
+
+
+def _lineage_mentions(root, ids, *, rev=None, paths=None, heads=None, _run_git_cap) -> "list | None":
+    """Every literal mention of `ids` in the files of `root` (work tree, or `rev`), on identifier
+    boundaries — the SPEC-1037 §7 completeness basis. Each is {path, line, id, text, frozen}: `frozen`
+    names the frozen-history class the rule lists (journal row, frozen decision, historical test fixture,
+    a superseded / retired / withdrawn / rejected spec, a done or wont-do card and the records beside it),
+    else None = a live mention that takes a decision. One row per match: `col` is its offset in the line,
+    so two mentions on one line are two rows, each taking its own decision. None when git could not
+    answer. `heads` = `_spec_heads` of the same tree (read here when not given)."""
+    ids = [i for i in dict.fromkeys(ids) if i]
+    if not ids:
+        return []
+    args = ["-F"] + [a for i in ids for a in ("-e", i)]
+    rows = _git_grep_lines(root, args, rev, paths, _run_git_cap=_run_git_cap)
+    if rows is None:
+        return None
+    if heads is None:
+        heads = _spec_heads(root, rev=rev, _run_git_cap=_run_git_cap)
+        if heads is None:
+            return None
+    spec_status = {h["path"]: h.get("status") for h in heads.values()}
+    card_ids = sorted({"-".join(os.path.basename(p).split("-")[:2]) for p, _n, _t in rows
+                       if p.startswith("tasks/")})
+    card_status = {}
+    if card_ids:                                   # only the cards a mention sits in or beside
+        card_rows = _git_grep_lines(root, ["-E", r"^status:"], rev, None, _run_git_cap=_run_git_cap,
+                                    globs=[f"tasks/{c}-*.yaml" for c in card_ids])
+        if card_rows is None:
+            return None
+        for path, _n, text in card_rows:
+            card_status.setdefault("-".join(os.path.basename(path).split("-")[:2]),
+                                   text.partition(":")[2].split("#", 1)[0].strip().strip("'\""))
+    pat = _mention_id_re(ids)
+    out = []
+    for path, n, text in rows:
+        for m in pat.finditer(text):
+            out.append({"path": path, "line": n, "col": m.start(1), "id": m.group(1), "text": text,
+                        "frozen": _mention_frozen_class(path, spec_status, card_status)})
+    return out
+
+
+def _mention_frozen_class(path: str, spec_status: dict, card_status: dict) -> "str | None":
+    """The SPEC-1037 §7 frozen-history class of one file, or None (live)."""
+    if path == "events.jsonl" or (path.startswith("archive/") and path.endswith(".jsonl")):
+        return "journal row"
+    if path.startswith("decisions/"):
+        return "frozen decision"
+    if path.startswith("tests/fixtures/"):
+        return "historical test fixture"
+    if path.startswith("specs/"):
+        st = spec_status.get(re.sub(r"\.part\d+\.yaml$", ".yaml", path))
+        return f"{st} spec" if st in _MENTION_FROZEN_SPEC_STATUSES else None
+    if path.startswith("tasks/"):
+        st = card_status.get("-".join(os.path.basename(path).split("-")[:2]))
+        return f"{st} card" if st in _MENTION_FROZEN_CARD_STATUSES else None
+    return None
+
+
+def _mention_review_currency(root, task_id: str, analysis, main_tip: str, *, _run_git_cap) -> "list[str]":
+    """The SPEC-1037 §7 snapshot re-run check for `worktree sync` (T-14022): report-only lines for each
+    spec carrying `supersedes:` whose `activation_owner_task` is `task_id` — `proposed`, or `active`
+    after the card's own close and before its land; [] for any other card. The card's Analysis names its
+    snapshot as `mention review snapshot: <main commit> target: <id>`; per successor the record naming
+    its re-targeted target wins over one naming the declared target, and among those the newest commit
+    by ancestry counts. A successor already `active` at `main_tip` has landed: nothing is owed. Paths
+    whose frozen class is fixed by the path alone (journal, decisions, test fixtures) are not searched,
+    and a rename is followed, so neither reads as a new mention. Measured against `main_tip`, the main commit the sync merged: a changed
+    target (the `land` re-target) or a lineage id new since the snapshot, and every new or changed LIVE
+    mention line in main's changes since the snapshot, mean the review is re-run over that difference."""
+    heads = _spec_heads(root, _run_git_cap=_run_git_cap)
+    if heads is None:
+        return [f"  mention review (SPEC-1037 §7): COULD NOT ANSWER — git could not read the spec heads of "
+                f"this worktree; whether {task_id} owes a re-run is NOT known."]
+    owned = sorted(s for s, h in heads.items()
+                   if h.get("owner") == task_id and h.get("status") in ("proposed", "active")
+                   and h.get("supersedes"))
+    lines = []
+    tip_heads = _spec_heads(root, rev=main_tip, _run_git_cap=_run_git_cap) if owned else {}
+    if tip_heads is None:
+        return [f"  mention review (SPEC-1037 §7): COULD NOT ANSWER — git could not read the spec heads of "
+                f"main {main_tip[:12]}; whether {task_id} owes a re-run is NOT known."]
+    for y in owned:
+        if (tip_heads.get(y) or {}).get("status") == "active":
+            continue                                    # only its own land activates it on main: done
+        now = _mention_review_lineage(heads, y)
+        tag = f"  mention review (SPEC-1037 §7, {task_id} activates {y}, supersedes {now['target']}):"
+        recs = [r for r in _MENTION_SNAPSHOT_RE.findall(str(analysis or ""))
+                if r[1] in (now["target"], now["effective"])]
+        recs = [r for r in recs if r[1] == now["effective"]] or recs   # a record of the re-target wins
+        if not recs:
+            lines.append(f"{tag} NO SNAPSHOT RECORDED for this target — the Analysis must name the reviewed main "
+                         f"commit and target as `mention review snapshot: <commit> target: {now['effective']}` "
+                         f"before land.")
+            continue
+        snap, rec_target = recs[-1]
+        for cand in recs[:-1]:                          # the newest snapshot by ancestry, not by position
+            if _run_git_cap(["merge-base", "--is-ancestor", snap, cand[0]], root).returncode == 0:
+                snap, rec_target = cand
+        anc = _run_git_cap(["merge-base", "--is-ancestor", snap, main_tip], root)
+        if anc.returncode != 0:
+            why = "is not an ancestor of" if anc.returncode == 1 else "could not be resolved against"
+            lines.append(f"{tag} COULD NOT MEASURE — snapshot {snap[:12]} {why} main {main_tip[:12]}; re-run "
+                         f"the review on main {main_tip[:12]} and record its snapshot line.")
+            continue
+        snap_heads = _spec_heads(root, rev=snap, _run_git_cap=_run_git_cap)
+        diff = _run_git_cap(["diff", "-M", "--name-status", "-z", snap, main_tip], root)
+        if snap_heads is None or diff.returncode != 0:
+            lines.append(f"{tag} COULD NOT MEASURE — git could not read snapshot {snap[:12]}; re-run the "
+                         f"review on main {main_tip[:12]}.")
+            continue
+        reviewed = _mention_review_lineage(snap_heads, y, target=rec_target)["lineage"]
+        new_ids = [i for i in now["lineage"] if i not in reviewed]
+        renamed, changed = {}, []                       # new path -> old path; paths whose class is
+        fields = [f for f in (diff.stdout or "").split("\0")]   # fixed by path alone are never searched
+        i = 0
+        while i < len(fields) and fields[i]:
+            st = fields[i]
+            if st[:1] in ("R", "C") and i + 2 < len(fields):
+                old_p, new_p, i = fields[i + 1], fields[i + 2], i + 3
+                renamed[new_p] = old_p
+            else:
+                new_p, i = fields[i + 1] if i + 1 < len(fields) else "", i + 2
+            if new_p and _mention_frozen_class(new_p, {}, {}) is None:
+                changed.append(new_p)
+        tip = _lineage_mentions(root, now["lineage"], rev=main_tip, paths=changed, _run_git_cap=_run_git_cap)
+        old = _lineage_mentions(root, now["lineage"], rev=snap, paths=[renamed.get(p, p) for p in changed],
+                                heads=snap_heads, _run_git_cap=_run_git_cap)
+        if tip is None or old is None:
+            lines.append(f"{tag} COULD NOT MEASURE — git could not search main's changes since {snap[:12]}.")
+            continue
+        back = {v: k for k, v in renamed.items()}
+        before: dict = {}
+        for r in old:
+            if r["frozen"]:                             # a frozen mention was never decided: moving it
+                continue                                # into a live path makes it a new live mention
+            k = (back.get(r["path"], r["path"]), r["id"], r["text"].strip())
+            before[k] = before.get(k, 0) + 1
+        fresh = []
+        for r in tip:
+            k = (r["path"], r["id"], r["text"].strip())
+            if before.get(k):
+                before[k] -= 1
+            elif not r["frozen"]:
+                fresh.append(r)
+        if not new_ids and now["effective"] == rec_target and not fresh and now["note"]:
+            lines.append(f"{tag} {now['note']}; no new or changed live mention since snapshot {snap[:12]}.")
+            continue
+        if now["note"]:
+            lines.append(f"{tag} {now['note']}.")
+        if not new_ids and now["effective"] == rec_target and not fresh:
+            lines.append(f"{tag} current — snapshot {snap[:12]} target {rec_target}; main brought no lineage "
+                         f"change and no new or changed live mention since.")
+            continue
+        lines.append(f"{tag} RE-RUN REQUIRED before land — main changed since the reviewed snapshot "
+                     f"{snap[:12]} (target {rec_target}):")
+        if new_ids or now["effective"] != rec_target:
+            lines.append(f"    target now {now['effective']} (the `land` re-target); search the WHOLE repository "
+                         f"for the new lineage id(s): {', '.join(new_ids) or now['effective']}")
+        for r in fresh[:30]:
+            lines.append(f"    new or changed mention: {r['path']}:{r['line']}: {r['text'].strip()[:160]}")
+        if len(fresh) > 30:
+            lines.append(f"    … and {len(fresh) - 30} more new or changed mention(s) in main's changes")
+        lines.append(f"    decide each, then record them and `mention review snapshot: {main_tip[:12]} target: "
+                     f"{now['effective']}` in the Analysis (report-only; `land` does not refuse on it).")
+    return lines
+
+
 def _non_active_implementers(index: dict, spec_ids) -> dict:
     """{sid: {status, superseded_by?}} for the members of a code-node's `implements_specs` that are NOT
     `active` (T-13077) — so a file anchored only to superseded specs reads differently from a
@@ -2609,6 +2978,87 @@ def _kernel_pattern_path(name: str, *, ENGINE_ROOT, REPO_ROOT, _is_consumer_buil
     return None
 
 
+def _resolve_as_of_sha(as_of: str, *, REPO_ROOT, _die, _run_git_cap) -> str:
+    """Resolve a `--as-of` value to ONE full commit sha (T-0088): a `YYYY-MM-DD` value → the newest
+    commit on/before that day; otherwise a commit-ish. Dies clearly on an unresolvable ref. T-14017:
+    `cmd_graph_query` calls this ONCE and hands the sha to the index load, the body read and the
+    receipt, so all three name one immutable commit even if the ref moves mid-query."""
+    import re as _re
+    if _re.match(r"^\d{4}-\d{2}-\d{2}$", as_of):
+        rv = _run_git_cap(["rev-list", "-1", f"--before={as_of}T23:59:59", "HEAD"], REPO_ROOT)
+        sha = rv.stdout.strip()
+        if rv.returncode != 0 or not sha:
+            _die(f"graph query --as-of: no commit on or before {as_of} — pick a later date, the first commit's is "
+                 f"`git log --reverse --format=%cs`")
+    else:
+        rv = _run_git_cap(["rev-parse", "--verify", "--quiet", f"{as_of}^{{commit}}"], REPO_ROOT)
+        sha = rv.stdout.strip()
+        if rv.returncode != 0 or not sha:
+            _die(f"graph query --as-of: unresolvable commit-ish {as_of!r} — name a commit that exists: "
+                 f"`git log --oneline -20`")
+    return sha
+
+
+def _as_of_source_chain(nid: str, source_type: str, src, sha: str, *, REPO_ROOT, _run_git_cap):
+    """T-14017 — the body of a point-lookup node AS OF commit `sha`, read from git, never the working
+    tree. Returns (parts, note): `parts` is [(repo-relative path, text)] in read order (a SPEC-0120 split
+    spec: base then every continuation part); `note` is the one line printed instead when no body at
+    that commit is derived. The commit's OWN tree is searched first, by id for the node types that carry
+    an engine fallback (spec / error / pattern), so a slug rename still resolves and a consumer's own
+    node at that commit is served even when today's lookup falls back to the kernel. Only when the
+    commit holds no file AND today's source lies outside REPO_ROOT (a kernel node read in a -C
+    consumer) does the note say the kernel version is not derived and name how to read it kernel-side."""
+    from pathlib import Path
+    short = sha[:7]
+    repo = Path(REPO_ROOT).resolve()
+
+    def _in_repo(p) -> bool:
+        try:
+            Path(p).resolve().relative_to(repo)
+            return True
+        except ValueError:
+            return False
+
+    def _ls(d: str) -> list:
+        ls = _run_git_cap(["ls-tree", "--name-only", sha, f"{d}/"], REPO_ROOT)
+        return ls.stdout.splitlines() if ls.returncode == 0 else []
+
+    paths: list = []
+    if source_type in ("spec", "error"):
+        d = "specs" if source_type == "spec" else "errors"
+        names = _ls(d)
+        bases = sorted(n for n in names if n.startswith(f"{d}/{nid}-") and n.endswith(".yaml")
+                       and not state.is_spec_part(Path(n)))
+        if f"{d}/{nid}.yaml" in names:
+            bases.append(f"{d}/{nid}.yaml")
+        if bases:
+            paths = [bases[0]]
+            if source_type == "spec":
+                stem = Path(bases[0]).stem
+                parts = []
+                for n in names:
+                    m = state._SPEC_PART_RE.match(Path(n).name)
+                    if m and m.group(1) == stem and int(m.group(2)) >= 2:
+                        parts.append((int(m.group(2)), n))
+                paths += [n for _k, n in sorted(parts)]
+    elif source_type == "pattern":
+        paths = [f"patterns/{nid}.md"]
+    elif src is not None and _in_repo(src):
+        paths = [Path(src).resolve().relative_to(repo).as_posix()]
+    out = []
+    for rel in paths:
+        show = _run_git_cap(["show", f"{sha}:{rel}"], REPO_ROOT)
+        if show.returncode == 0:
+            out.append((rel, show.stdout))
+    if out:
+        return out, None
+    if src is not None and not _in_repo(src):
+        return [], (f"# ── source: {nid} — the kernel version at {short} is not derived (a kernel node "
+                    f"read from a consumer commit); read it kernel-side: `graph query {nid} --as-of "
+                    f"<kernel commit>` in the engine ──")
+    return [], f"# ── source: {nid} — no source file at {short} ──"
+
+
 def _load_index_as_of(as_of: str, *, REPO_ROOT, _die, _run_git_cap) -> dict:
     """Load the committed graph index as of a past commit-ish OR ISO date (T-0088 / D-0046 C1).
     Pure read over git history — the index is committed (CHARTER P5), so past rule-sets are
@@ -2619,18 +3069,7 @@ def _load_index_as_of(as_of: str, *, REPO_ROOT, _die, _run_git_cap) -> dict:
     `graph/index.yaml` ONLY when index.json is ABSENT at that SHA (pre-switch history — immutable,
     so this fallback is permanent, not transitional). A PRESENT-but-malformed index.json dies
     loudly — parse errors are never masked by the YAML fallback (audit-pre F1)."""
-    import re as _re
-    import yaml as _yaml
-    if _re.match(r"^\d{4}-\d{2}-\d{2}$", as_of):
-        rv = _run_git_cap(["rev-list", "-1", f"--before={as_of}T23:59:59", "HEAD"], REPO_ROOT)
-        sha = rv.stdout.strip()
-        if rv.returncode != 0 or not sha:
-            _die(f"graph query --as-of: no commit on or before {as_of}")
-    else:
-        rv = _run_git_cap(["rev-parse", "--verify", "--quiet", f"{as_of}^{{commit}}"], REPO_ROOT)
-        sha = rv.stdout.strip()
-        if rv.returncode != 0 or not sha:
-            _die(f"graph query --as-of: unresolvable commit-ish {as_of!r}")
+    sha = _resolve_as_of_sha(as_of, REPO_ROOT=REPO_ROOT, _die=_die, _run_git_cap=_run_git_cap)
     show = _run_git_cap(["show", f"{sha}:graph/index.json"], REPO_ROOT)
     if show.returncode == 0:
         try:
@@ -6460,7 +6899,7 @@ def cmd_graph_conformance(args: argparse.Namespace, *, BINDING_RESIDENCY_TOKENS,
              "delivery invariant holds (per-spec; corpus-level checks skipped — partial corpus)."))
 
 
-def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_file, _carve_out_selection, _cross_self, _die, _emit_node_list, _engine_index, _find_error_yaml, _find_spec_path, _graph_query_projected, _graph_query_recurring, _is_consumer_build, _kernel_content_file, _list_views, _load_index_as_of, _node_source_path, _parse_iso_utc, _read_yaml, _report_graft_parse_errors, _run_view, _with_live_nodes) -> None:
+def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_file, _carve_out_selection, _cross_self, _die, _emit_node_list, _engine_index, _find_error_yaml, _find_spec_path, _graph_query_projected, _graph_query_recurring, _is_consumer_build, _kernel_content_file, _list_views, _load_index_as_of, _node_source_path, _parse_iso_utc, _read_yaml, _report_graft_parse_errors, _resolve_as_of_sha, _run_git_cap, _run_view, _with_live_nodes) -> None:
     import yaml
     # T-9363 (SPEC-0092): --kernel = the kernel-prefixed retrieval path. It composes ONLY with a
     # spec-id or error-id point-lookup (the X-0038 / X-0583 kernel/consumer collision has no meaning for
@@ -6478,7 +6917,9 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
                  "`graph query --kernel E-0002`) — SPEC-0092")
     as_of = getattr(args, "as_of", None)
     if as_of:
-        index = _load_index_as_of(as_of)          # T-0088: historical rule-set (pure read over git)
+        # T-14017: resolve ONCE — the index load, the body read and the receipt all take this one sha.
+        args.as_of_sha = _resolve_as_of_sha(as_of)
+        index = _load_index_as_of(args.as_of_sha)  # T-0088: historical rule-set (pure read over git)
         # T-0491: a historical `--as-of` snapshot is a FAITHFUL point-in-time REPLAY of the committed
         # index's OWN sections (a pre-cut snapshot still carries tasks/decisions/audits/events/commits;
         # a post-cut snapshot does not). NEVER graft current YAML onto it — that would report present
@@ -6599,6 +7040,11 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         return
 
     result: dict = {}
+    # T-14020: the index that answered a SPEC lookup (+ its realm's tasks/ dir) — the lineage head line
+    # and the lineage citers are walked inside that id space only (consumer-own wins, SPEC-0092).
+    from pathlib import Path
+    answered = None
+    _engine_tasks_dir = Path(__file__).resolve().parents[2] / "tasks"
     if want_kernel:
         # T-9363 (SPEC-0092): force the KERNEL spec even when a consumer owns the same id (X-0038).
         # On a -C consumer the node + edges come from the engine index; on the engine's OWN session
@@ -6623,6 +7069,7 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
             result["implemented_by_code"] = [loc for loc, sp in kidx.get("code_to_specs", {}).items() if nid in sp]
             result["cited_by_tasks"] = kidx.get("tasks_citing", {}).get(nid, [])
             _attach_superseded_by(result, kidx, nid)
+            answered = (kidx, _engine_tasks_dir if _is_consumer_build() else REPO_ROOT / "tasks")
         else:
             _die(f"--kernel: spec {nid!r} not found in the KERNEL (engine) corpus (SPEC-0092)")
     elif nid in index.get("specs", {}):
@@ -6630,6 +7077,7 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         result["implemented_by_code"] = [loc for loc, sp in index.get("code_to_specs", {}).items() if nid in sp]
         result["cited_by_tasks"] = index.get("tasks_citing", {}).get(nid, [])
         _attach_superseded_by(result, index, nid)
+        answered = (index, REPO_ROOT / "tasks")
         # T-10700 (SPEC-0092 safeguard, X-0551): a bare lookup in a -C consumer session for a SPEC-id
         # the consumer OWNS ON DISK while the kernel owns the SAME id is a COLLISION — consumer-own
         # silently wins (resolution UNCHANGED), but a reader following a handbook retrieved-tier pointer
@@ -6651,6 +7099,7 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         result["implemented_by_code"] = [loc for loc, sp in eidx.get("code_to_specs", {}).items() if nid in sp]
         result["cited_by_tasks"] = eidx.get("tasks_citing", {}).get(nid, [])
         _attach_superseded_by(result, eidx, nid)
+        answered = (eidx, _engine_tasks_dir)
     elif nid in (index := _live_index()).get("tasks", {}):
         # T-13584: the graft runs HERE, so this branch and every branch after it read the grafted
         # index exactly as before; the spec branches above never reach it.
@@ -6738,7 +7187,17 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         else:
             _die(f"id {nid!r} not found in graph index")
 
+    head_line = None
+    if answered is not None and "spec" in result:
+        lineage = _lineage_cited_by(answered[0], nid, answered[1])
+        if lineage:
+            result["lineage_cited_by"] = lineage
+        head_line = _spec_head_line(answered[0], nid)
+
     print(state.dump(result).rstrip())
+    # T-14020: where the lineage stands, ABOVE the body — the body below stays the REQUESTED id's.
+    if head_line:
+        print(head_line)
 
     # T-0646: a point-lookup of a body-bearing node (spec / pattern / plan / error) APPENDS the node's
     # SOURCE artifact after the metadata block above, so the documented "Read it via `graph query <ID>`"
@@ -6770,6 +7229,19 @@ def cmd_graph_query(args: argparse.Namespace, *, GRAPH_PATH, REPO_ROOT, _anchor_
         # `error` source_type now honours force_engine too (the SPEC-0092 escape extended to E-ids); the
         # flag still never reaches any OTHER source_type — --kernel routes to spec or error only.
         src = _node_source_path(nid, source_type, force_engine=want_kernel)
+        if as_of:
+            # T-14017: a historical lookup serves the body AS OF the one resolved sha (git), never the
+            # working-tree file; where no body at that commit is derived it says so and appends nothing.
+            hist, note = _as_of_source_chain(nid, source_type, src, args.as_of_sha,
+                                             REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap)
+            if note:
+                print(f"\n{note}")
+            for rel, text in hist:
+                print(f"\n# ── source: {rel} @ {args.as_of_sha[:7]} ──")
+                if source_type == "spec" and nid == BORN_SECURE_SPEC:
+                    text = born_secure_render(text, REPO_ROOT)
+                print(text.rstrip())
+            return
         # T-12498: a SPEC-0120-split spec is served as ONE chain — base then every continuation part, in
         # order. `stage <NAME>` delivery renders through this same point-lookup and its read-gate receipt
         # measures this same stdout, so all three readers see the whole spec. Un-split spec = [src].

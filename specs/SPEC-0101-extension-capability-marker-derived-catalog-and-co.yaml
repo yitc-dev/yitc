@@ -34,7 +34,7 @@ body: "## Scenario\n\nA reusable engineering capability a project adopts — an 
   \  extension POINT). Same word, schema-growth — NOT an add-on.\n\n## Internal\n\n\
   The FIRST-SLICE contract — concept + marker + catalog (the adopt/cite + promotion\
   \ portions are DELEGATED, rules 4-5). Each rule is a standing invariant; design\
-  \ provenance + the\nrejected wider scope live in the proposing PLAN, not here (SPEC-0005\
+  \ provenance + the\nrejected wider scope live in the proposing PLAN, not here (<workshop-spec>\
   \ §3 content boundary).\n\n1. **Marker + adoptability state.** A capability that\
   \ is a reusable extension is declared by an\n   explicit MARKER on its capability-spec\
   \ — a field on the existing `spec` node, NOT a new graph\n   node-type (the GRAPH\
@@ -64,24 +64,24 @@ body: "## Scenario\n\nA reusable engineering capability a project adopts — an 
   \ / cite (\"install\") — DELEGATED to SPEC-0093 rule 13 (the settled amends-map).**\
   \ The adopt/\n   cite \"install\" contract — the `yitc-ops.yaml` `extensions:` adopt-declaration\
   \ section schema + the\n   governed `init --adopt-extension` path — is OWNED by\
-  \ SPEC-0093 rule 13 (landed), NOT re-homed\n   here (SPEC-0005 rule 8 — one home;\
-  \ the §4 anchor is kept stable for SPEC-0093/<project> citations).\n   THIS spec\
-  \ contributes ONLY the adoptability STATE that gates it (rule 1): an `adoptable`\
+  \ SPEC-0093 rule 13 (landed), NOT re-homed\n   here (<workshop-spec> rule 8 — one\
+  \ home; the §4 anchor is kept stable for SPEC-0093/<project> citations).\n   THIS\
+  \ spec contributes ONLY the adoptability STATE that gates it (rule 1): an `adoptable`\
   \ extension\n   has an adopt-path; an `internal-only` one does not. See SPEC-0093\
   \ rule 13.\n\n5. **Promotion boundary — DELEGATED to SPEC-0073 (the settled amends-map).**\
   \ The realm/placement +\n   promotion boundary (kernel-isolation : a project-born\
   \ extension becomes shared ONLY via an\n   EXTRACTED artifact + a governed dimension-change;\
   \ the kernel never reads project-local state nor\n   absorbs a consumer artifact\
   \ ad hoc; the consumer cites the SHARED artifact, never mutates kernel\n   truth\
-  \ directly) is OWNED by SPEC-0073, NOT re-homed here (SPEC-0005 rule 8 — one home).\
-  \ UNCHANGED\n   this slice — promotion is deferred. See SPEC-0073.\n\n6. **Scope\
-  \ bound.** This spec governs ONLY the cross-cutting extension CONCEPT + marker semantics\
-  \ + the\n   derived catalog (rules 1-3); the adopt/cite \"install\" path is OWNED\
-  \ by SPEC-0093 rule 13 (rule 4\n   above) and the promotion boundary by SPEC-0073\
-  \ (rule 5 above). The per-consumer DECLARE-OR-WAIVE\n   COMPLETENESS over the active+adoptable\
-  \ catalog set (every catalog member must be declared or\n   forward-aware-waived,\
-  \ fail-closed) is OWNED by **SPEC-0112** — a DISTINCT axis from this spec's\n  \
-  \ `adoptable | internal-only` MARKER (the marker = is-this-capability-adoptable-at-all;\
+  \ directly) is OWNED by SPEC-0073, NOT re-homed here (<workshop-spec> rule 8 — one\
+  \ home). UNCHANGED\n   this slice — promotion is deferred. See SPEC-0073.\n\n6.\
+  \ **Scope bound.** This spec governs ONLY the cross-cutting extension CONCEPT +\
+  \ marker semantics + the\n   derived catalog (rules 1-3); the adopt/cite \"install\"\
+  \ path is OWNED by SPEC-0093 rule 13 (rule 4\n   above) and the promotion boundary\
+  \ by SPEC-0073 (rule 5 above). The per-consumer DECLARE-OR-WAIVE\n   COMPLETENESS\
+  \ over the active+adoptable catalog set (every catalog member must be declared or\n\
+  \   forward-aware-waived, fail-closed) is OWNED by **SPEC-0112** — a DISTINCT axis\
+  \ from this spec's\n   `adoptable | internal-only` MARKER (the marker = is-this-capability-adoptable-at-all;\
   \ SPEC-0112 =\n   did-this-project-take-it), two distinct fields in distinct files.\
   \ The bottom-up publish/promote\n   TRANSACTION, trust/provenance/publish-authority\
   \ and version/conflict semantics are\n   explicitly OUT of this spec. The external\
@@ -140,6 +140,6 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/graph.py#cmd_graph_query: ce730fab99c0c33e1904a12ebbc4aa64c114be0dfc57198f74be838b966e572e
+  bin/lib/graph.py#cmd_graph_query: b6686bef39239aa658686f9ea5ac5d7eeb07b97296db976a04b10bc8fec79aca
   bin/lib/graph.py#graph_build_index: 0ad6c2c3a87d64530bff481e450588a68d8b99972fc1da7c00c8352dd53dc443
   bin/lib/views.py#_view_extensions_catalog: 4a36fd4d0b1ae53f8e24396a11b7d3faff85776c8e785920bd36c64a09c11685

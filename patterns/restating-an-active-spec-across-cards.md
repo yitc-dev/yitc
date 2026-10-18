@@ -1,7 +1,7 @@
 ---
 name: restating-an-active-spec-across-cards
 class: discipline
-sourced_from: 'public issue #81 (2026-10-12) — a consumer project''s five-point recipe for a plan that restated an active spec across six cards; each point read against SPEC-0005, SPEC-0046, SPEC-0070 and SPEC-0083 by '
+sourced_from: 'public issue #81 (2026-10-12) — a consumer project''s five-point recipe for a plan that restated an active spec across six cards; each point read against <workshop-spec>, SPEC-0046, SPEC-0070 and SPEC-0083 by '
 applies_to: 'cutting a plan at its `decomposition` stage when a plan spec restates an ACTIVE spec (its `supersedes:` names one) and more than one card builds the change'
 ---
 
@@ -23,7 +23,7 @@ opposite directions:
   `requires:`-ordered after every implementing card. A cut that activates the successor with its
   FIRST card is reported by the decomposition-fidelity gate.
 - **Until that card closes, the predecessor is the only rule.** `active` is the only normative
-  status and a `proposed` spec governs nothing (SPEC-0005 rule 4). A card that lands, before the
+  status and a `proposed` spec governs nothing (<workshop-spec> rule 4). A card that lands, before the
   activation, behaviour the predecessor forbids contradicts an accepted artifact (SPEC-0046 §A,
   red-flag (b)). A cut that activates LAST and lets earlier cards carry such behaviour builds that
   contradiction in.
@@ -48,7 +48,7 @@ as it stands today?
   it requires.
 
 The question is about the built result, not about how far the two wordings differ. The probe of
-SPEC-0005 rule 7 (does an edit change what a consumer does to comply in an already-covered case)
+<workshop-spec> rule 7 (does an edit change what a consumer does to comply in an already-covered case)
 answers a different question — which route a change of spec text takes — and a YES there does not
 make a change CLOSED: a tightening the predecessor already admits is OPEN.
 
@@ -60,7 +60,7 @@ the five points below. Each point is marked with what the kernel's own rules say
 Set the successor's `activation_owner_task` to the card that implements it last, and give that card
 a `requires:` edge to every other card that implements the successor.
 
-- Basis: the SPEC-0070 §3 clause itself; SPEC-0005 rule 5 (one activation owner, the other
+- Basis: the SPEC-0070 §3 clause itself; <workshop-spec> rule 5 (one activation owner, the other
   implementing cards `cite` the spec); the SPEC-0083 P5 template («`requires:` ordering encoded, not
   prose»).
 - Name the other implementing cards on the owner card directly instead of chaining them one behind
@@ -71,7 +71,7 @@ a `requires:` edge to every other card that implements the successor.
 A card ordered before the owner card builds OPEN changes only. Each such card names, in its scope or
 acceptance, the predecessor sentence its result still meets.
 
-- Basis: SPEC-0005 rule 4 (the predecessor is the rule until the activation); SPEC-0046 §A red-flag
+- Basis: <workshop-spec> rule 4 (the predecessor is the rule until the activation); SPEC-0046 §A red-flag
   (b) (a unit that contradicts an accepted artifact is mis-cut); SPEC-0046 §A execution-readiness
   rule, part (1) (a unit names the accepted artifact it aligns with — here the ACTIVE predecessor,
   since the successor is not yet an accepted rule).
@@ -79,7 +79,7 @@ acceptance, the predecessor sentence its result still meets.
 ### 3. Closed changes go into the owner card, or out of the plan — ADOPTED IN PART
 
 **Adopted.** Every CLOSED change is built by the owner card. The close of that card is the one
-write that activates the successor and flips the predecessor to `superseded` (SPEC-0005 rule 4), so
+write that activates the successor and flips the predecessor to `superseded` (<workshop-spec> rule 4), so
 the behaviour and the text that admits it reach `main` in one land. Several closed changes in one
 owner card are the keep-atomic side of SPEC-0046 §A «Bidirectional cut»: splitting them would leave
 a contradictory interim state. A reviewer's recommendation to split that card is advisory
@@ -100,13 +100,13 @@ Write the successor's rule text as the rule that holds once it is active. Do not
 text («until card X lands … afterwards …»): after the land one of its halves is dead wording that
 every later reader still receives.
 
-- Basis: SPEC-0005 rule 3 — the rule text keeps what the acting reader applies and states each
+- Basis: <workshop-spec> rule 3 — the rule text keeps what the acting reader applies and states each
   acting rule once. The «before» half stops being applied at the land; rule 3 gives text about a
   route that is retired one line at most, and sends the history of which card or change produced a
   rule to the spec's `## Rationale`. No spec forbids a two-state text in so many words; the point is
   adopted as what rule 3 leads to.
 - Where the rule depends on what ANOTHER spec decides, state it through a condition that holds
-  whichever way that spec decides, and leave the decision in that spec. Basis: SPEC-0005 rule 8 (one
+  whichever way that spec decides, and leave the decision in that spec. Basis: <workshop-spec> rule 8 (one
   home; a mention of a rule homed elsewhere is built so that a change at the home needs no edit
   here — the SPEC-0067 test). The reported example: «a key another handler has handled is not free»
   instead of naming which handler takes which key before and after the change.
@@ -175,6 +175,6 @@ lands c3 and c4 together with the activation of S; P becomes `superseded` in the
 - SPEC-0070 §3 — the owner-card clause and the decomposition-fidelity gate.
 - SPEC-0083 — the P5 fidelity template that asks the question.
 - SPEC-0046 §A, §A2, §A3, §B — the cutting rules each point is read against.
-- SPEC-0005 rules 3, 4, 5, 8 — rule-text content, spec status, the activation owner and the
+- <workshop-spec> rules 3, 4, 5, 8 — rule-text content, spec status, the activation owner and the
   one-home rule.
 - `patterns/big-plan-checklist.md` — the plan-level check that precedes the cut.

@@ -56,19 +56,19 @@ body: "## Scenario\n\nA project that runs its OWN scheduled work (e.g. a `celery
   \ / <project>) DECLARE a `celery-beat` scheduler\n— product cron is near-universal\
   \ among mature products — yet v2 had no declaration home, and the only\nsource of\
   \ truth was each project's `beat_schedule`. The 3-project study + the corrected\
-  \ declare/waive\nframing live in the proposing plan (SPEC-0005 §3 content boundary\
-  \ — not restated). Predecessor: the\nwithdrawn <workshop-spec> (re-authored here\
-  \ under the follow-on grow-plan; <workshop-spec> frozen historical).\n\n## Verification\n\
-  \nAdoption probe (CHARTER §P3 + §P8 — infra-class): the first project to pull L2\
-  \ (<project>) has its\nscheduler inventory VISIBLE in its `yitc-ops.yaml` (imported,\
-  \ not hand-entered) AND ≥1 fired-job /\njournaled run proves the governed cron actually\
-  \ runs (the rule-3 observable). FAILURE-CHECK: a\n`declared` cron with no `wired`/observed\
-  \ evidence read as \"governed\".\n\nADOPTION EVIDENCE (probe SATISFIED — activated):\
-  \ <project> pulled L2 and closed\n with all four probes passing incl. the differential\
-  \ leg (AC1 a falsified inventory entry\nFAILS the check; AC2 state-check; AC3 fired-job;\
-  \ AC4 P8), commit 2f5d15f; cross X-0200 author-closed\n2026-07-10 with a live `product-cron-inventory\
-  \ --check` OK (10 jobs) — the rule-3 observable\n(inventory VISIBLE + ≥1 observed\
-  \ fired-job) holds on a real consumer.\n"
+  \ declare/waive\nframing live in the proposing plan (<workshop-spec> §3 content\
+  \ boundary — not restated). Predecessor: the\nwithdrawn <workshop-spec> (re-authored\
+  \ here under the follow-on grow-plan; <workshop-spec> frozen historical).\n\n##\
+  \ Verification\n\nAdoption probe (CHARTER §P3 + §P8 — infra-class): the first project\
+  \ to pull L2 (<project>) has its\nscheduler inventory VISIBLE in its `yitc-ops.yaml`\
+  \ (imported, not hand-entered) AND ≥1 fired-job /\njournaled run proves the governed\
+  \ cron actually runs (the rule-3 observable). FAILURE-CHECK: a\n`declared` cron\
+  \ with no `wired`/observed evidence read as \"governed\".\n\nADOPTION EVIDENCE (probe\
+  \ SATISFIED — activated): <project> pulled L2 and closed\n with all four probes\
+  \ passing incl. the differential leg (AC1 a falsified inventory entry\nFAILS the\
+  \ check; AC2 state-check; AC3 fired-job; AC4 P8), commit 2f5d15f; cross X-0200 author-closed\n\
+  2026-07-10 with a live `product-cron-inventory --check` OK (10 jobs) — the rule-3\
+  \ observable\n(inventory VISIBLE + ≥1 observed fired-job) holds on a real consumer.\n"
 cites:
 - CHARTER.md#principle-5
 - SPEC-0093

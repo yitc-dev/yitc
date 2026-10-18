@@ -1,6 +1,6 @@
-# Release v2.16.0
+# Release v2.17.0
 
-Source commit: `afaa3a1fd82137a4d50b662e3f8d0bf92407fd55`
+Source commit: `3ef048014db8e6fe051693b8f9eae181934942a7`
 
 ## Proposals this release answers
 
@@ -11,6 +11,7 @@ answers:
   - 'yitc-dev/yitc#1'
   - 'yitc-dev/yitc#10'
   - 'yitc-dev/yitc#101'
+  - 'yitc-dev/yitc#102'
   - 'yitc-dev/yitc#103'
   - 'yitc-dev/yitc#104'
   - 'yitc-dev/yitc#105'
@@ -26,6 +27,7 @@ answers:
   - 'yitc-dev/yitc#117'
   - 'yitc-dev/yitc#119'
   - 'yitc-dev/yitc#12'
+  - 'yitc-dev/yitc#120'
   - 'yitc-dev/yitc#121'
   - 'yitc-dev/yitc#122'
   - 'yitc-dev/yitc#123'
@@ -38,7 +40,12 @@ answers:
   - 'yitc-dev/yitc#130'
   - 'yitc-dev/yitc#131'
   - 'yitc-dev/yitc#132'
+  - 'yitc-dev/yitc#133'
+  - 'yitc-dev/yitc#137'
+  - 'yitc-dev/yitc#139'
   - 'yitc-dev/yitc#14'
+  - 'yitc-dev/yitc#141'
+  - 'yitc-dev/yitc#142'
   - 'yitc-dev/yitc#15'
   - 'yitc-dev/yitc#16'
   - 'yitc-dev/yitc#17'
@@ -179,21 +186,34 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag.
+1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1037 — The spec doctrine — identity, content boundary, FSM, homing, and how to create/split/reshape a spec
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1037`
 
 ## What changed
 
-9 task(s) closed since the previous release tag, in close order:
+18 task(s) closed since the previous release tag, in close order:
 
-- T-13992 — Split the weekly verify-wall reading by venue and local per repo and hold it against the pinned wall (docs) — events.jsonl#ts=2026-10-17T04:58:36Z
-- T-13991 — Register the land batch cap as a machine PERFORMANCE setting, 1 meaning batching off (feature) — events.jsonl#ts=2026-10-17T06:14:29Z
-- T-13993 — Give a consumer verify layer SIGTERM and a short grace before SIGKILL at its time bound (feature) — events.jsonl#ts=2026-10-17T06:24:44Z
-- T-13999 — Make the Stage-6 activation lock usable by every OS user of a shared checkout (fix) — events.jsonl#ts=2026-10-17T15:13:45Z
-- T-13997 — Emit the ceiling halt row on every audit-loop ceiling reach and never spend a trend-grant pass on an unchanged subject (fix) — events.jsonl#ts=2026-10-17T15:34:07Z
-- T-13998 — Keep task-tied state_checked acceptance-evidence rows uncollapsed in the audit packet (fix) — events.jsonl#ts=2026-10-17T16:39:29Z
-- T-13995 — Make spec activation at close all-or-nothing, keep a worktree's seed receipt across a union-merged journal, and bound session start on a large journal (fix) — events.jsonl#ts=2026-10-17T18:15:17Z
-- T-13994 — Fix the consumer venue from the cryptochart pilot - install-local files out of the engine digests, a project-declared width policy, a layer empty on the box named (fix) — events.jsonl#ts=2026-10-17T18:17:22Z
-- T-13996 — Fix three small intake defects - QUEUE.md and task update on a wont-do requires target, audit --from-file repeats, the JS/TS function anchor extent (fix) — events.jsonl#ts=2026-10-17T18:43:41Z
+- T-14002 — Let the dispatch watcher bound come from a machine setting so a watch lasts as long as the workers it watches (fix) — events.jsonl#ts=2026-10-18T07:22:05Z
+- T-14001 — Stop the session-start WAITING-ON-OWNER line showing a pause a controller decision and a resume already answered (fix) — events.jsonl#ts=2026-10-18T08:01:03Z
+- T-14005 — Make audit --preview report the Stage-6 evidence precondition the on-decisions pass checks (fix) — events.jsonl#ts=2026-10-18T08:26:54Z
+- T-14009 — Show the in-place-amend-versus-successor probe where an author chooses how to change an active spec (docs) — events.jsonl#ts=2026-10-18T09:47:12Z
+- T-14003 — Resolve a land or worktree-sync merge hunk that only re-points spec ids to successors without stopping for a hand merge (feature) — events.jsonl#ts=2026-10-18T10:15:33Z
+- T-14016 — Attribute a tests_failed layer in-diff when its failure message names a path the card changed (fix) — events.jsonl#ts=2026-10-18T10:19:33Z
+- T-14008 — Expose read-only verbs for which verify layers a change runs and whether a branch merges cleanly with main (feature) — events.jsonl#ts=2026-10-18T10:40:40Z
+- T-14004 — Make dispatch --resume take the newest pause contract and a real stage name for a preserved worktree (fix) — events.jsonl#ts=2026-10-18T10:50:00Z
+- T-14018 — Refuse at write a controller-delegated owner_directive whose read fields cite no owner row, naming the field that holds the citation (fix) — events.jsonl#ts=2026-10-18T11:13:50Z
+- T-14006 — Order Stage-6 local slot waiters oldest first with queue-jump ahead and journal each wait (fix) — events.jsonl#ts=2026-10-18T11:23:58Z
+- T-14021 — Cue the mention review at Analysis for a card that activates a superseding spec (docs) — events.jsonl#ts=2026-10-18T11:28:05Z
+- T-14020 — Show the active head and the lineage citers on the spec point-lookup above the unchanged body (feature) — events.jsonl#ts=2026-10-18T11:28:44Z
+- T-14019 — Report a superseded cite as information in the filing advisory instead of as a premise fault (docs) — events.jsonl#ts=2026-10-18T11:45:42Z
+- T-14007 — Add a read-only verb that shows who holds and who waits for the Stage-6 slot and the land reservation (feature) — events.jsonl#ts=2026-10-18T12:16:11Z
+- T-13989 — Align SPEC-1031 Verification with the delivery test AC4 shipped (docs) — events.jsonl#ts=2026-10-18T12:25:08Z
+- T-14017 — Serve the spec body of the as-of commit in graph query --as-of instead of the current file (fix) — events.jsonl#ts=2026-10-18T12:50:22Z
+- T-14023 — Hold a local Stage-6 start while the host CPU busy share is over a machine bound, opt-in, on a reading taken after the newest start (feature) — events.jsonl#ts=2026-10-18T13:12:11Z
+- T-14022 — Activate SPEC-1037 as the successor of SPEC-0005 after its own mention review (docs) — events.jsonl#ts=2026-10-18T15:34:15Z
 
 ## Trust surfaces
 

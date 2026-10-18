@@ -4992,6 +4992,33 @@ def stage6_remedy_command(task_id) -> str:
             f'--evidence "{STAGE6_REMEDY_EVIDENCE_PLACEHOLDER}"')
 
 
+def stage6_preview_readiness_row(task_id, audited_commit, rows, resolve):
+    """T-14005 (X-2038) — the `--preview` readiness row for the T-12642 admission precondition, or
+    None when the ledger covers the subject.
+
+    THE DECISION IS `stage6_evidence_covers_subject`'s, CALLED, never copied, with the SAME arguments
+    the terminal-bearing pass passes it — so the preview and the refusal cannot disagree. The caller
+    asks only at the audit-loop ceiling, the one state where the next pass is terminal-bearing and
+    the refusal can fire. Display detail comes from the two display-only helpers beside it.
+
+    Pure f(rows); opens no journal; never raises (an advisory never breaks the look)."""
+    try:
+        if stage6_evidence_covers_subject(task_id, audited_commit, rows, resolve):
+            return None
+        facts = stage6_evidence_gap_facts(task_id, audited_commit, rows, resolve)
+    except Exception:                                   # noqa: BLE001 — advisory, fail-soft
+        return None
+    lines = [f"stage6 evidence: DOES-NOT-COVER {facts.get('audited_commit') or audited_commit}",
+             "    the terminal-bearing pass (`--on-decisions` / the absorption re-audit) refuses "
+             "`stage6-evidence-stale` (stage6_evidence_does_not_cover_subject, T-12642) — no pass "
+             "is spent",
+             f"    latest recorded `tests_passed`: {facts.get('latest_tests_passed_ts') or 'unrecorded'}"
+             + (f", already consumed by {facts['intervening_commit']}"
+                if facts.get("intervening_commit") else ""),
+             f"    close it first: `{stage6_remedy_command(task_id)}` at this head"]
+    return "\n".join(lines)
+
+
 def stage6_evidence_rows_line(task_id, audited_commit, rows, resolve) -> str:
     """T-12763 — the DISPLAY line naming the `tests_passed` rows the ledger DOES hold for this task,
     so a SECOND refusal is distinguishable from the first: a reader sees whether their run recorded
@@ -15953,6 +15980,26 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # STDERR, exactly like the lines it replaces — stdout carries the packet and nothing
             # else, or the T-11407 AC2 byte-identity claim breaks.
             _readiness = (packet_readiness_sink or [None])[0]
+            # T-14005 (X-2038) — the T-12642 Stage-6 admission precondition, read off the SAME
+            # at-ceiling journal view and the SAME predicate the terminal-bearing pass uses, so the
+            # preview does not say ready where `--on-decisions` refuses. Only at the ceiling: below
+            # it the next pass is not terminal-bearing and nothing refuses. Advisory, fail-soft.
+            if (target_kind == "task" and _iter_events is not None
+                    and prior_passes >= AUDIT_PASS_CEILING):
+                try:
+                    _pv_s6_rows = _decide_journal_view(
+                        tid, stage, _iter_events=_scoped_task_iter(EVENTS_PATH, tid, _iter_events),
+                        events_path=EVENTS_PATH)["rows"]
+                    _pv_s6_row = stage6_preview_readiness_row(
+                        tid, (sha if stage == "post" else None), _pv_s6_rows,
+                        (lambda _s: _git_resolve_sha(str(_s))))
+                except Exception:      # noqa: BLE001 — an advisory never breaks the look
+                    _pv_s6_row = None
+                if _pv_s6_row and _readiness:
+                    # a ROW of the block (SPEC-0036 §Packet preview), so it sits above its end marker
+                    _head, _sep, _tail = _readiness.rpartition("\n# ---- end packet readiness ----")
+                    _readiness = (_head + "\n" + _pv_s6_row + _sep + _tail) if _sep \
+                        else (_readiness + "\n" + _pv_s6_row)
             if _readiness:
                 print(_readiness, file=sys.stderr)
             print(f"# audit packet preview: assembled and printed — NO auditor invoked, NO pass "

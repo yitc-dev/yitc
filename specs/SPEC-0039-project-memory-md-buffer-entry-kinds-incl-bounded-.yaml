@@ -15,19 +15,19 @@ activation_owner_task: null
 proposed_by: null
 amends:
 - SPEC-0007 §6: the MEMORY-buffer rule is SPLIT OUT of the omnibus always-loaded-organization
-    spec into this spec (SPEC-0005 rule-6 split-by-surface — the buffer is a distinct
-    surface from "always-loaded files org"); SPEC-0007 §6 is reduced to a one-line
-    pointer here. The base contract carries over unchanged; the temp-instruction extension
-    is NEW.
+    spec into this spec (<workshop-spec> rule-6 split-by-surface — the buffer is a
+    distinct surface from "always-loaded files org"); SPEC-0007 §6 is reduced to a
+    one-line pointer here. The base contract carries over unchanged; the temp-instruction
+    extension is NEW.
 - AGENTS.md §At-session-start (the auto-read MEMORY paragraph): reflects the two entry
     kinds, the read-only reader self-filter, and the pointer to this spec.
 - §3 audience axis (T-10263, pulled by SPEC-0147 §4): ADDITIVELY EXTENDED with the
     `user(<name>)` recipient selector — a +1 value on the existing axis, mirroring
     `session(<ref>)`. Every already-covered audience keeps its exact prior compliance,
-    so this is an IN-PLACE amend of an active spec, not a supersede (SPEC-0005 rule
-    7 — the additive-extension fork; same shape as the role-value extension). §5(a)
-    is widened so "not self" spans the user axis too, and the audience-match leg gains
-    its code anchor (`implements:`). The consumer is SPEC-0147's person-onboarding
+    so this is an IN-PLACE amend of an active spec, not a supersede (<workshop-spec>
+    rule 7 — the additive-extension fork; same shape as the role-value extension).
+    §5(a) is widened so "not self" spans the user axis too, and the audience-match
+    leg gains its code anchor (`implements:`). The consumer is SPEC-0147's person-onboarding
     pointer set, scoped to ONE person and never surfaced to another.
 - §5(b) onboarding-pointer consume EXCEPTION (T-10307 / X-0274): the immediate-consume-once
     deletion gains ONE narrow direct-to-main self-commit carve-out for the SPEC-0147
@@ -257,8 +257,8 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ assistant works with them. A\n  rule for how the project's work is done is a rule,\
   \ not such a preference.\n- **Everything else goes to its governed home — the corpus\
   \ first.** Each home's own spec says\n  how: a rule or a practice → a spec, a pattern\
-  \ or a lesson (SPEC-0005, SPEC-0090); plan or card\n  state, and what was done or\
-  \ decided → the plan, the card and the journal (SPEC-0091 Rule 2);\n  continuity\
+  \ or a lesson (<workshop-spec>, SPEC-0090); plan or card\n  state, and what was\
+  \ done or decided → the plan, the card and the journal (SPEC-0091 Rule 2);\n  continuity\
   \ across a session refresh → the hand-off store (SPEC-1004); a gap in the engine\
   \ → a\n  deviation capture (SPEC-0056).\n- **At the moment of saving,** the capture-routing\
   \ view (SPEC-0157) carries the row for this\n  case.\n\n## Parameters\n\nNone consumed.\
@@ -298,8 +298,8 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ ONE home (P5) of the project-MEMORY.md buffer rule — split out of SPEC-0007 §6\
   \ (rule-6\nsplit-by-surface; SPEC-0007 §6 is now a pointer here). Base contract\
   \ + the temporary-instruction\nextension stated as FOUR BOUNDS + the three-layer\
-  \ GC.\n\n## Verification\n\nProbe CONTRACTS (not one-time results — SPEC-0005 rule\
-  \ 8):\n- **VP1 (four bounds present — AC1):** grep this body — the scratch-vs-instruction\
+  \ GC.\n\n## Verification\n\nProbe CONTRACTS (not one-time results — <workshop-spec>\
+  \ rule 8):\n- **VP1 (four bounds present — AC1):** grep this body — the scratch-vs-instruction\
   \ line\n  (§1), provisional-only + auto-drain (§2), marking + lifetime axes (§3),\
   \ authority ceiling (§4)\n  all stated; spec `active` in the graph.\n- **VP2 (AGENTS\
   \ reflects — AC2):** grep `AGENTS.md` §At-session-start MEMORY paragraph\n  for\
@@ -309,9 +309,9 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ (read-only startup):** this body states the startup self-filter is READ-ONLY with\
   \ all\n  drains at governed write points (grep `READ-ONLY`) — the audit-pre pass-2\
   \ F1 resolution.\n- **VP5 (admission, self):** cross-task, durable, analysis-shaping\
-  \ process rule (SPEC-0005\n  rule-2 criteria 1, 3, 4, 5, 7); delete-test: removing\
-  \ it reverts the buffer to an ungoverned\n  broadcast surface — materially worse\
-  \ change analysis for every startup read.\n- **VP6 (role vocabulary + authorship\
+  \ process rule (<workshop-spec>\n  rule-2 criteria 1, 3, 4, 5, 7); delete-test:\
+  \ removing it reverts the buffer to an ungoverned\n  broadcast surface — materially\
+  \ worse change analysis for every startup read.\n- **VP6 (role vocabulary + authorship\
   \ norm present):** grep this body — §3 carries the\n  `interactive | background\
   \ | auto` audience values + the SELF-DECLARED-from-launch-context note,\n  and §4\
   \ carries the authorship norm (a side-effecting instruction is idempotent OR audience-narrow;\n\
@@ -387,7 +387,6 @@ cites:
 - CHARTER.md#principle-5
 - CHARTER.md#principle-7
 - SPEC-0007
-- SPEC-0005
 - SPEC-0147
 - SPEC-1004
 - orchestrate-posture-for-the-main-session-6-amendme

@@ -15,13 +15,13 @@ body: "## Scenario\n\nThe owner and AI see ONE durable-doc corpus. A **durable d
   \ either property, the **revizia** (the periodic inspection) SURFACES\nit as a report-only\
   \ finding — never a commit/land block. A consumer inherits both the rule and the\n\
   check through the engine via `-C`; it sets nothing up of its own.\n\n## Internal\n\
-  \nA governance spec (SPEC-0005 rule 1). Adds NO new store / verb / gate — the check\
-  \ rides the existing\nrevizia (SPEC-0057 roster theme T7), report-only, exactly\
-  \ as the code Architecture-drift lens rides\nit (SPEC-0080/0081). Four rules + the\
-  \ consumer-reach clause.\n\n### 1. The governed set — what a \"durable doc\" IS\
-  \ (and what is EXEMPT)\n\n**DURABLE (governed):** normative/teaching prose — the\
-  \ handbook (`CHARTER.md`, `AGENTS.md`,\n`LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md` and\
-  \ any file the handbook read-order lists), `specs/*`,\n`patterns/*`, `lessons/*`,\
+  \nA governance spec (<workshop-spec> rule 1). Adds NO new store / verb / gate —\
+  \ the check rides the existing\nrevizia (SPEC-0057 roster theme T7), report-only,\
+  \ exactly as the code Architecture-drift lens rides\nit (SPEC-0080/0081). Four rules\
+  \ + the consumer-reach clause.\n\n### 1. The governed set — what a \"durable doc\"\
+  \ IS (and what is EXEMPT)\n\n**DURABLE (governed):** normative/teaching prose —\
+  \ the handbook (`CHARTER.md`, `AGENTS.md`,\n`LIFECYCLE.md`, `QUEUE.md`, `GRAPH.md`\
+  \ and any file the handbook read-order lists), `specs/*`,\n`patterns/*`, `lessons/*`,\
   \ `scenarios/*`.\n\n**MEASURED carrier (size axes only, report-only).** A project's\
   \ root ops-contract carrier\n`yitc-ops.yaml` (SPEC-0093) is swept by the durable-doc\
   \ scan in EVERY realm when present: its lines and\nbytes are reported and flagged\
@@ -126,7 +126,7 @@ body: "## Scenario\n\nThe owner and AI see ONE durable-doc corpus. A **durable d
   \ at the nearest **coherent seam** and aim each resulting part into the\n  ~400–500\
   \ band with headroom — prefer a balanced 400+200 at a real seam over a mechanical\
   \ 500+100\n  that hugs the ceiling and orphans a tiny remainder. A spec split reuses\
-  \ the SPEC-0005 rule-6\n  anti-oversize discipline (split by stable surface/boundary,\
+  \ the <workshop-spec> rule-6\n  anti-oversize discipline (split by stable surface/boundary,\
   \ NEVER by perspective).\n- **SPLIT, never delete content.** Splitting relocates\
   \ content into sibling files; it removes nothing.\n- **Measured on TWO axes — LINES\
   \ and BYTES (additive extension).** LINES stay the primary,\n  trivially-measured\
@@ -213,7 +213,6 @@ body: "## Scenario\n\nThe owner and AI see ONE durable-doc corpus. A **durable d
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-2
-- SPEC-0005
 - SPEC-0057
 - SPEC-0073
 - SPEC-0080

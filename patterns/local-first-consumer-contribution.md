@@ -39,7 +39,7 @@ local→kernel reconciliation to happen and stay visible.
    referencing the real local implementation as the worked example.
 3. **Kernel blesses FROM the real example.** The working local impl is **EVIDENCE** (CHARTER §P1 F4 —
    a real incident / prior-art beats an imagined need), the preferred design basis. The kernel still
-   applies its own lens (anti-complexity, the SPEC-0005 admission test, coherence) and **may bless a
+   applies its own lens (anti-complexity, the <workshop-spec> admission test, coherence) and **may bless a
    GENERALIZED shape** across projects — it ADOPTS the example, it does not rubber-stamp it.
 4. **Reconcile (the enforced anchor).** The **cross item stays OPEN** — or spawns a tracked consumer
    **reconcile task** — **until the local provisional is retired OR explicitly deferred**. When the

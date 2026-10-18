@@ -19,7 +19,7 @@ body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and 
   \ material: the AI\nvoices each station in the person's own language at its moment,\
   \ and the person just keeps working.\nA seasoned user carries no onboarding weight\
   \ at all.\n\n## Internal\n\nTHE PERSON-ONBOARDING CONTRACT. A process/governance\
-  \ spec (SPEC-0005 rule 1) that REUSES the existing\n`MEMORY.md` buffer (SPEC-0039),\
+  \ spec (<workshop-spec> rule 1) that REUSES the existing\n`MEMORY.md` buffer (SPEC-0039),\
   \ the register-gloss rule (AGENTS §Language), and the existing lifecycle\ndelivery\
   \ seams — it adds NO parallel onboarding FSM, store, or detector. Eight rules.\n\
   \n### 1. Consume-on-encounter, never detect-on-mastery (the load-bearing guard)\n\

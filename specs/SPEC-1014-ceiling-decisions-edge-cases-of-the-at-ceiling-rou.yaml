@@ -28,7 +28,7 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ read against that rule's text in SPEC-0204\n  followed by its group here; «VP<n>»\
   \ is a probe of SPEC-0204 §Verification; «this card» is the card\n  the block's\
   \ own lead cites.\n- A new edge case of one of these branches is authored here,\
-  \ under the rule it belongs to\n  (SPEC-0005 §6).\n\n### Rule 9 — the plan-gate\
+  \ under the rule it belongs to\n  (<workshop-spec> §6).\n\n### Rule 9 — the plan-gate\
   \ arm (text)\n\nMoved verbatim from SPEC-0204 rule 9; SPEC-0204 keeps the rule's\
   \ heading and every code\nanchor. Its edge cases follow under §At-ceiling edge cases,\
   \ group «Rule 9».\n\nRules 1-5 apply to a PLAN GATE, with the target pair `(plan\
@@ -478,15 +478,14 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ and each case above arises for a minority of those.\nRendered inside SPEC-0204\
   \ this detail reached every session entering Audit-pre or Audit-post; as a\nreference\
   \ behind one index line and the head of the deciding verb's help it is met by the\
-  \ session\nthat is at a ceiling (SPEC-0005 §6, the rare-case option).\n\n## Verification\n\
-  \n- VP1 (one home): every block of §At-ceiling edge cases is present in this spec\
-  \ and absent from\n  SPEC-0204, and SPEC-0204 carries exactly one index line naming\
-  \ this spec and the heading to search.\n- VP2 (reachable from the verb): the first\
-  \ lines of the `audit decide` help name this spec.\n- VP3 (no stage render): no\
-  \ stage entry delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n"
+  \ session\nthat is at a ceiling (<workshop-spec> §6, the rare-case option).\n\n\
+  ## Verification\n\n- VP1 (one home): every block of §At-ceiling edge cases is present\
+  \ in this spec and absent from\n  SPEC-0204, and SPEC-0204 carries exactly one index\
+  \ line naming this spec and the heading to search.\n- VP2 (reachable from the verb):\
+  \ the first lines of the `audit decide` help name this spec.\n- VP3 (no stage render):\
+  \ no stage entry delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n"
 cites:
 - SPEC-0204
-- SPEC-0005
 - SPEC-0013
 requires: []
 supersedes: null

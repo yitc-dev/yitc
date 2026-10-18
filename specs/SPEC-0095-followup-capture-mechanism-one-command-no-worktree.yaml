@@ -159,7 +159,7 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ count.\n\n### 2-state FSM (folded, never stored)\n`open → promoted | dropped`.\
   \ State is DERIVED by folding the journal: an id is `open` once\n`followup_added`,\
   \ and terminal once a `followup_promoted` / `followup_dropped` for that id appears\
-  \ —\nNO `status:` is stored anywhere (the cross-fold model; SPEC-0005 §single-carrier).\
+  \ —\nNO `status:` is stored anywhere (the cross-fold model; <workshop-spec> §single-carrier).\
   \ A transition verb\nREFUSES (die) an unknown id OR an already-terminal id (only\
   \ an `open` followup transitions).\n**`arm`/`unarm` do NOT extend this FSM** — they\
   \ set/clear an ATTRIBUTE and never write `status`; an\narmed followup promotes/drops\

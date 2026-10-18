@@ -34,8 +34,8 @@ body: "## Scenario\n\nThe owner sees a **scenario** as the primary HUMAN-facing 
   \nTHE SCENARIO DOCTRINE. A scenario is a FIRST-CLASS artifact (`scenarios/<slug>.md`)\
   \ + a MINIMAL 7th\ngraph node-type. Eight rules. The 4 anti-complexity filters +\
   \ the node-vs-edge / round-1..3\ndeliberation live in the proposing plan [[scenario-as-a-first-class-graph-entity-dogfood-on-]]\
-  \ (SPEC-0005\n§3 content boundary — debate is plan material, not spec body); this\
-  \ spec carries only the standing rule.\n\n### 1. Identity & purpose\nA scenario\
+  \ (<workshop-spec>\n§3 content boundary — debate is plan material, not spec body);\
+  \ this spec carries only the standing rule.\n\n### 1. Identity & purpose\nA scenario\
   \ is a **zero-normative composition of specs into a user-path** + human narration.\
   \ It is the\nhuman's primary teaching/control instrument (the daily working entity),\
   \ NOT a reference doc — which is\nwhy it is a distinct node-type, not folded under\
@@ -277,7 +277,6 @@ body: "## Scenario\n\nThe owner sees a **scenario** as the primary HUMAN-facing 
   \ conflict-detector is.\n"
 cites:
 - scenario-as-a-first-class-graph-entity-dogfood-on-
-- SPEC-0005
 - SPEC-0073
 - SPEC-0034
 - GRAPH.md#schema

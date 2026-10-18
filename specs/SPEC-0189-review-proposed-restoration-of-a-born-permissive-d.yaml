@@ -49,13 +49,13 @@ body: "## Scenario\n\nA project is born with a verification gate declined, so it
   \ block is a finite table and carries no language for\none. HOW a detector is named\
   \ from, and resolved through, the concern registry — the naming\nconvention and\
   \ the refusal when a concern declares a permissive born value without one — is registry\n\
-  mechanics and is homed in SPEC-0128, not restated here (one home, SPEC-0005 rule\
-  \ 8).\n\n### Rule 6 — A detector is adopted only once it has spoken on real data\n\
-  Adoption requires EITHER that the detector has fired with a named proposal on a\
-  \ real project corpus,\nOR that it is demonstrated silent for a stated reason on\
-  \ a corpus that WOULD have tripped a naive\ndetector. For a report-only signal the\
-  \ differential is INDISTINGUISHABILITY, not presence: a test\nasserting only that\
-  \ a line printed does not discharge this rule. A detector that has never spoken\
+  mechanics and is homed in SPEC-0128, not restated here (one home, <workshop-spec>\
+  \ rule 8).\n\n### Rule 6 — A detector is adopted only once it has spoken on real\
+  \ data\nAdoption requires EITHER that the detector has fired with a named proposal\
+  \ on a real project corpus,\nOR that it is demonstrated silent for a stated reason\
+  \ on a corpus that WOULD have tripped a naive\ndetector. For a report-only signal\
+  \ the differential is INDISTINGUISHABILITY, not presence: a test\nasserting only\
+  \ that a line printed does not discharge this rule. A detector that has never spoken\
   \ on\nany real corpus is not adopted, and is not tuned until it speaks.\n\n### Rule\
   \ 7 — Flipping a born default never flips absence\nChanging what `init` WRITES into\
   \ a new project's contract MUST NOT change what an ABSENT declaration\nreads. The\

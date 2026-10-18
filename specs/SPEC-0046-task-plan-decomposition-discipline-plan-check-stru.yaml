@@ -365,22 +365,21 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ as\n  a kernel card — route it out; split a mixed item on the territory seam).\
   \ State check: `grep -c 'Territory-aware decomposition\\|territory that can LAND\\\
   |territory seam' specs/SPEC-0046-*.yaml` ≥ 2. SPEC-0070 §5 carries the\n  matching\
-  \ POINTER (single home here, pointer there — P5). Added in-place per SPEC-0005 rule\
-  \ 7.\n- **VP13 (project-declared grouping preference present).** §A carries the\
-  \ **Project-declared\n  task-grouping preference** clause with its elements: a project\
-  \ MAY declare the preference\n  in its SPEC-0125 home (a pointer there where a project\
-  \ spec owns it); the cut follows it and\n  names its source and rationale in the\
-  \ decomposition-fidelity audit input; the project's declared\n  rules decide its\
-  \ grouping, §A being the default where none is declared; a split recommendation\
-  \ is\n  advisory and does not block the fidelity gate; without a declaration §A\
-  \ alone applies;\n  approving one cut establishes no standing convention. State\
-  \ check: `graph query SPEC-0046`. The\n  SPEC-0083 P5 template carries the matching\
-  \ QUESTION and the advisory bound —\n  `tests/test_decomposition_fidelity_gate.py`\
+  \ POINTER (single home here, pointer there — P5). Added in-place per <workshop-spec>\
+  \ rule 7.\n- **VP13 (project-declared grouping preference present).** §A carries\
+  \ the **Project-declared\n  task-grouping preference** clause with its elements:\
+  \ a project MAY declare the preference\n  in its SPEC-0125 home (a pointer there\
+  \ where a project spec owns it); the cut follows it and\n  names its source and\
+  \ rationale in the decomposition-fidelity audit input; the project's declared\n\
+  \  rules decide its grouping, §A being the default where none is declared; a split\
+  \ recommendation is\n  advisory and does not block the fidelity gate; without a\
+  \ declaration §A alone applies;\n  approving one cut establishes no standing convention.\
+  \ State check: `graph query SPEC-0046`. The\n  SPEC-0083 P5 template carries the\
+  \ matching QUESTION and the advisory bound —\n  `tests/test_decomposition_fidelity_gate.py`\
   \ reads both from the real template and from the prompt\n  the real gate hands the\
-  \ auditor. Added in-place per SPEC-0005 rule 7.\n"
+  \ auditor. Added in-place per <workshop-spec> rule 7.\n"
 cites:
 - SPEC-0103
-- SPEC-0005
 - SPEC-0008
 - SPEC-0013
 - SPEC-0044

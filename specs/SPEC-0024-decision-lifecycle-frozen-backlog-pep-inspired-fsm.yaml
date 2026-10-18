@@ -32,27 +32,28 @@ body: "## Scenario\n\nV2 decisions are PEP-shaped governance artifacts with an e
   \ `new` (refuse) is now the sole one).\n> Prior-art (the PEP-first evolution discipline\
   \ at this section's end): PEP / ADR / Specification-by-\n> Example converge that\
   \ rule-text + deliberation UNIFY, not split (external prior-art); the internal\n\
-  > analog SPEC-0005 proved a *process* rule lives in a spec without recreating a\
-  \ decision (Principle 1 F1).\n>\n> **Authority-flip — the plan is the standing successor\
-  \ of `decision finalize` for AGGREGATE\n> finalization (Part B).** The aggregate-finalization\
-  \ role that `decision finalize` carried\n> (an `Accepted → Final` audit-post grading\
-  \ the WHOLE realization across all implementing tasks) is\n> inherited by the **PLAN**:\
-  \ `plan accept` births the change-corpus (its `draft` specs → `proposed`),\n> and\
-  \ `plan close --resolution realized` is gated by an aggregate `audit post --plan`\
-  \ over the plan +\n> its `proposed_by` specs (mirror of the retired decision-finalize\
-  \ gate). A NEW governance\n> lifecycle therefore routes its aggregate finalization\
-  \ through the plan, **never** `decision finalize`\n> — the latter is backlog-only\
-  \ (`decision new` is retired, so no new lifecycle can reach it). See\n> `patterns/plan-lifecycle.md`\
-  \ + AGENTS §Planning-artifacts / §External-auditor-contract.\n\n**Three lifecycle\
-  \ vocabularies — do not conflate:**\n- **Decision lifecycle** (this section): `Draft\
-  \ → Accepted → Final / Superseded / Withdrawn`\n- **Task lifecycle** (QUEUE.md §State\
-  \ transitions): `ready → in-progress → done / blocked / parked / wont-do`\n- **Task\
-  \ execution stages** (LIFECYCLE.md): 9 internal stages of a Build session per task\
-  \ (Analysis → Closure)\n- **Spec lifecycle** (GRAPH.md): `active → superseded →\
-  \ retired`\n\nDifferent artifact classes carry different lifecycle vocabularies\
-  \ intentionally — decisions are\nproposal-shaped (PEP-aligned), tasks are work-shaped,\
-  \ specs are versioning-shaped.\n\n**External reference:** Python PEP process (https://peps.python.org/pep-0001)\
-  \ selected as\narchitectural base via after independent AI + external auditor (full-capability\
+  > analog <workshop-spec> proved a *process* rule lives in a spec without recreating\
+  \ a decision (Principle 1 F1).\n>\n> **Authority-flip — the plan is the standing\
+  \ successor of `decision finalize` for AGGREGATE\n> finalization (Part B).** The\
+  \ aggregate-finalization role that `decision finalize` carried\n> (an `Accepted\
+  \ → Final` audit-post grading the WHOLE realization across all implementing tasks)\
+  \ is\n> inherited by the **PLAN**: `plan accept` births the change-corpus (its `draft`\
+  \ specs → `proposed`),\n> and `plan close --resolution realized` is gated by an\
+  \ aggregate `audit post --plan` over the plan +\n> its `proposed_by` specs (mirror\
+  \ of the retired decision-finalize gate). A NEW governance\n> lifecycle therefore\
+  \ routes its aggregate finalization through the plan, **never** `decision finalize`\n\
+  > — the latter is backlog-only (`decision new` is retired, so no new lifecycle can\
+  \ reach it). See\n> `patterns/plan-lifecycle.md` + AGENTS §Planning-artifacts /\
+  \ §External-auditor-contract.\n\n**Three lifecycle vocabularies — do not conflate:**\n\
+  - **Decision lifecycle** (this section): `Draft → Accepted → Final / Superseded\
+  \ / Withdrawn`\n- **Task lifecycle** (QUEUE.md §State transitions): `ready → in-progress\
+  \ → done / blocked / parked / wont-do`\n- **Task execution stages** (LIFECYCLE.md):\
+  \ 9 internal stages of a Build session per task (Analysis → Closure)\n- **Spec lifecycle**\
+  \ (GRAPH.md): `active → superseded → retired`\n\nDifferent artifact classes carry\
+  \ different lifecycle vocabularies intentionally — decisions are\nproposal-shaped\
+  \ (PEP-aligned), tasks are work-shaped, specs are versioning-shaped.\n\n**External\
+  \ reference:** Python PEP process (https://peps.python.org/pep-0001) selected as\n\
+  architectural base via after independent AI + external auditor (full-capability\
   \ model)\nconvergent recommendation 2026-05-26. V2 adapts PEP's lifecycle shape\
   \ and template structure — does NOT\nimport PEP corpus as operational dependency.\n\
   \n**Decision YAML uniform header fields:**\n\n| Field | Required | Description |\n\

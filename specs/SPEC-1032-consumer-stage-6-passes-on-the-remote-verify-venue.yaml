@@ -189,8 +189,8 @@ body: "## Scenario\n\nA consumer project whose Stage-6 run is heavy declares, in
   \ and box-free, as SPEC-1029 requires.\n- The venue record gains `serves`, written\
   \ only by `venue publish -C <consumer>`; a record without it is\n  a kernel venue.\n\
   - SPEC-1029 rule 2's paragraph «Consumers are OPT-IN ONLY and out of this slice\
-  \ … » is replaced,\n  in place (`spec edit`, additive per SPEC-0005 rule 7), by\
-  \ one line pointing at this spec; that edit\n  ships with the card that activates\
+  \ … » is replaced,\n  in place (`spec edit`, additive per <workshop-spec> rule 7),\
+  \ by one line pointing at this spec; that edit\n  ships with the card that activates\
   \ this spec.\n- A routed consumer pass is composed in `remote_verify.consumer_route`\
   \ and never goes through\n  `execute_remote_verify`, which stays the kernel executor's\
   \ one call site.\n- `per-live-pass` : the box divides the request's width by the\

@@ -199,7 +199,7 @@ body: "## Scenario\n\nWhen a project is activated onto the kernel, the kernel wa
   \ (only declared instances surface):** a universal-tier concern with NO built instance\
   \ produces\n  NO row (rule 4 — no reserved empty schema).\n- **VP3a (active-only):**\
   \ the checklist derives from status:ACTIVE specs only — a\n  `draft`/`proposed`\
-  \ spec's `init_concern` produces NO row (non-authoritative until activation, SPEC-0005\n\
+  \ spec's `init_concern` produces NO row (non-authoritative until activation, <workshop-spec>\n\
   \  §4; the sibling of the concern-registry gate; a status-less synthetic fixture\
   \ is admitted so the\n  mechanics tests stay status-agnostic). Probe: `tests/test_t10176_activation_active_only.py`.\n\
   - **VP4 (deterministic regeneration / no hand-edit):** the generated doc-checklist\

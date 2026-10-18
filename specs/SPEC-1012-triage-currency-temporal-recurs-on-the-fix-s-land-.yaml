@@ -250,11 +250,11 @@ body: "## Scenario\n\nAfter a fix-task closes a defect, a later triage run must 
   \ are owned by a `done`\ntask yet read perpetual `REGRESSED` under the bare all-time\
   \ count (false into-work); Section A's\nexact-match misses near-synonym aliases\
   \ of fixed roots. Full deliberation + alternatives: the\nproposing plan `triage-dedup-against-closed-problems-temporal-deri`\
-  \ (SPEC-0005 rule 3 — not here).\nThe land-time boundary answers one measured false-REGRESSED\
-  \ shape: a fix-task closed\nabout two hours before its land (one aborted land in\
-  \ between) dated a capture made in\nthat interval — against code that did not carry\
-  \ the fix yet — as a regression.\n\n## Verification\nRED-GREEN (RED on the current\
-  \ bare-count / exact-match code):\n- R-A (`tests/test_t13668_triage_land_time_boundary.py`):\
+  \ (<workshop-spec> rule 3 — not here).\nThe land-time boundary answers one measured\
+  \ false-REGRESSED shape: a fix-task closed\nabout two hours before its land (one\
+  \ aborted land in between) dated a capture made in\nthat interval — against code\
+  \ that did not carry the fix yet — as a regression.\n\n## Verification\nRED-GREEN\
+  \ (RED on the current bare-count / exact-match code):\n- R-A (`tests/test_t13668_triage_land_time_boundary.py`):\
   \ fixture done-task closed at T whose own\n  branch landed successfully at L>T;\
   \ a capture at or before L — one between T and L included —\n  (and count≥2) ⇒ `ALREADY-FIXED`,\
   \ into-work=no; a capture after L ⇒ `REGRESSED`, into-work=yes.\n  The same fixture\

@@ -217,24 +217,24 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep, it needs the pr
   \ / routed-exactly-once\ncontract but its watermark BASIS (the completion-event\
   \ `ts`) silently broke it for a same-second\ncapture. The boundary basis change\
   \ (`ts` → `window_through`) changes WHICH capture is in-window —\nobservable consumer\
-  \ behaviour — so per SPEC-0005 rule 7 it is a normative reshape routed through the\n\
-  FSM (new `proposed` spec + `supersedes:`), not an in-place clarification. The window-section\
-  \ is the\nonly substantive change; the link rule, batch-run isolation, discovery\
-  \ stem-clustering, and queue\nlineage are carried forward verbatim.\n\n**Queue lineage\
-  \ (what this REPLACES from v1 — provenance for the per-entry queue model):** the\
-  \ V2\nqueue model replaced v1's scattered single-file aggregates with per-entry\
-  \ YAML in one directory\n(CHARTER §P5):\n- `yitc-backlog.md` (single-file aggregate)\
-  \ → `tasks/*.yaml` (per-entry)\n- `.yitc/index/backlog.yaml` (separate aggregate)\
-  \ → derived only, not source\n- `yitc-deferred.md` → parking lot bucket (same `tasks/`\
-  \ directory)\n- `yitc-decisions.md` → `decisions/*.yaml` (separate, per-entry)\n\
-  - `REVIEW-TASKS.md` → `tasks/*.yaml` created by Review session (same directory)\n\
-  One directory (`tasks/`), one format, one parser — CHARTER Principle 5. V1 split\
-  \ storage (aggregate\nindex + per-entry workspace) caused 200-tool-call debugging;\
-  \ V2 does not repeat it.\n\n## Verification\n\n- **Watermark basis hardened (RED-GREEN):**\
-  \ the phrase `Watermark BASIS = ` + `window_through`\n  resolves in THIS spec §Internal;\
-  \ a `deviation_captured` emitted in a later second than the\n  completing run's\
-  \ max-observed capture is RECOVERED into the next window (RED before the fix on\
-  \ the\n  `ts` basis, GREEN after) — probe tests/test_triage.py::{test_same_second_after_complete_not_lost,\n\
+  \ behaviour — so per <workshop-spec> rule 7 it is a normative reshape routed through\
+  \ the\nFSM (new `proposed` spec + `supersedes:`), not an in-place clarification.\
+  \ The window-section is the\nonly substantive change; the link rule, batch-run isolation,\
+  \ discovery stem-clustering, and queue\nlineage are carried forward verbatim.\n\n\
+  **Queue lineage (what this REPLACES from v1 — provenance for the per-entry queue\
+  \ model):** the V2\nqueue model replaced v1's scattered single-file aggregates with\
+  \ per-entry YAML in one directory\n(CHARTER §P5):\n- `yitc-backlog.md` (single-file\
+  \ aggregate) → `tasks/*.yaml` (per-entry)\n- `.yitc/index/backlog.yaml` (separate\
+  \ aggregate) → derived only, not source\n- `yitc-deferred.md` → parking lot bucket\
+  \ (same `tasks/` directory)\n- `yitc-decisions.md` → `decisions/*.yaml` (separate,\
+  \ per-entry)\n- `REVIEW-TASKS.md` → `tasks/*.yaml` created by Review session (same\
+  \ directory)\nOne directory (`tasks/`), one format, one parser — CHARTER Principle\
+  \ 5. V1 split storage (aggregate\nindex + per-entry workspace) caused 200-tool-call\
+  \ debugging; V2 does not repeat it.\n\n## Verification\n\n- **Watermark basis hardened\
+  \ (RED-GREEN):** the phrase `Watermark BASIS = ` + `window_through`\n  resolves\
+  \ in THIS spec §Internal; a `deviation_captured` emitted in a later second than\
+  \ the\n  completing run's max-observed capture is RECOVERED into the next window\
+  \ (RED before the fix on the\n  `ts` basis, GREEN after) — probe tests/test_triage.py::{test_same_second_after_complete_not_lost,\n\
   \  test_window_through_recorded_on_complete, test_watermark_backcompat_falls_back_to_ts,\n\
   \  test_no_op_complete_does_not_regress_boundary, test_exact_equal_second_remainder_deferred}.\n\
   - **Per-capture routed-marker — residuals (a)/(b) CLOSED :** the `triage-state`\
@@ -256,7 +256,7 @@ body: "## Scenario\n\nWhen a Review session runs a triage sweep, it needs the pr
   \ lists ONLY `cmd_triage_run` (the code-backed rule);\n  the manual Review cadence\
   \ remains MANDATORY in QUEUE.md (grep: weekly/monthly bullets still present).\n\
   - **Non-dangling:** non-empty `implements:` ⇒ excluded from `dangling_specs` once\
-  \ active.\n- **Supersession (P7, SPEC-0005 rule 4):** `supersedes: <workshop-spec>`;\
+  \ active.\n- **Supersession (P7, <workshop-spec> rule 4):** `supersedes: <workshop-spec>`;\
   \ on this spec's activation (\n  close) <workshop-spec> flips active→superseded\
   \ atomically. One active lineage ( B6).\n- **Batch-run journal isolation — state-probe:**\
   \ the phrase\n  `emit ALL its run events from its OWN ` + `fold them into ` + `with\

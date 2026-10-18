@@ -24,7 +24,7 @@ body: "## Scenario\n\nAn author writing an acceptance criterion asks the one que
   \  also stay in item 4, as its cue — the same words in both places. Inside a block\
   \ «this item» is\n  SPEC-0060 item 4, «item 5» is item 5 of the same checklist,\
   \ and «above» reads against the order\n  of the cues in item 4.\n- A new block of\
-  \ this kind is authored here, with its lead added to SPEC-0060 item 4\n  (SPEC-0005\
+  \ this kind is authored here, with its lead added to SPEC-0060 item 4\n  (<workshop-spec>\
   \ §6).\n\n### Worked examples of the one question\n\n**Conforming-run satisfiability\
   \ cue (X-1054) —** does a criterion constrain the SHAPE OF THE\nDIFF (\"the diff\
   \ touches only `<file>`\" / \"any file outside `<path>` fails this\")? Then ask\n\
@@ -262,7 +262,7 @@ body: "## Scenario\n\nAn author writing an acceptance criterion asks the one que
   \ the shape its cue\nnames. Rendered inside SPEC-0060 this text reached every session\
   \ that files a card; as a\nreference behind one index paragraph and the head of\
   \ the filing verb's help it is met by the author\nwhose criterion answers a cue\
-  \ (SPEC-0005 §6, the rare-case option).\n\n## Verification\n\n- VP1 (one home):\
+  \ (<workshop-spec> §6, the rare-case option).\n\n## Verification\n\n- VP1 (one home):\
   \ every block of §Worked examples of the one question is present in this spec, and\n\
   \  of each block SPEC-0060 item 4 carries only the words that form its cue; SPEC-0060\
   \ carries\n  exactly one index paragraph naming this spec and the heading to search.\n\
@@ -273,7 +273,6 @@ body: "## Scenario\n\nAn author writing an acceptance criterion asks the one que
   \ `tests/test_t13695_acceptance_worked_examples_reference.py`; of\nVP4, `tests/test_t12593_spec0060_item4_one_question.py`.\n"
 cites:
 - SPEC-0060
-- SPEC-0005
 - SPEC-0013
 requires: []
 supersedes: null

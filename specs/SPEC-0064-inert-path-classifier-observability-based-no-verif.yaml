@@ -235,7 +235,7 @@ body: '## Scenario
   (`decisions/land-canary-conditional-audit-adhoc.yaml`) + the plan-check (the deliberation
   lives in
 
-  the plan, per SPEC-0005 rule 3).
+  the plan, per <workshop-spec> rule 3).
 
 
   ## Verification

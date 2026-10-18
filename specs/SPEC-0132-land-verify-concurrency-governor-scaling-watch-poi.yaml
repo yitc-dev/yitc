@@ -674,9 +674,9 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ proposal → the serialize fork), `` (contention-aware cap → the share fork),\n\
   `SPEC-0077` (pinned double-verify), `SPEC-0071` (per-file timeout). Why measurement\
   \ resolves the fork\nrather than a prose pick, and the full share/serialize/hybrid\
-  \ deliberation, live in the proposing plan\n(SPEC-0005 §3 content boundary — not\
-  \ restated here).\n\n## Verification\n\n- **Rule 1:** the postcheck record names\
-  \ the ladder level in effect with the A4 numbers that\n  selected it (replayable\
+  \ deliberation, live in the proposing plan\n(<workshop-spec> §3 content boundary\
+  \ — not restated here).\n\n## Verification\n\n- **Rule 1:** the postcheck record\
+  \ names the ladder level in effect with the A4 numbers that\n  selected it (replayable\
   \ from the journaled trial runs); the governor's multi-resource bound is\n  fail-closed\
   \ (a synthetic over-bound admission is refused).\n- **Rule 2:** a `land_completed`\
   \ event carries the verify-metrics payload (grep the journal); the\n  minimal subset\

@@ -189,8 +189,8 @@ carries only a pointer there.
 ```yaml
 deliverables_mapping:
   - deliverable: "Part A — meta-spec doctrine"
-    artifact: SPEC-0005 # tracked id (task / spec / parked-task) — NOT prose
-    adoption_probe: "SPEC-0005 status: active (state-check)"
+    artifact: <workshop-spec> # tracked id (task / spec / parked-task) — NOT prose
+    adoption_probe: "<workshop-spec> status: active (state-check)"
 prose_only_deferrals: none # any "deferred to Part N" with no id = a hole (now also auto-checked)
 ```
 

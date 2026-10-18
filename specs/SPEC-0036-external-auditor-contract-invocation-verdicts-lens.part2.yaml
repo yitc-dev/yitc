@@ -11,48 +11,48 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ leaves implicit (`spec new` fails closed without a `--travels` decision). ALSO\
   \ inline relevant `lessons/` entries to the design-judging auditor via the EXISTING\
   \ `audit pre --from-file <lesson>` carrier — the audit lessons read-surface (SPEC-0091\
-  \ Rule 1). CONTENT-BOUNDARY BINDING (SPEC-0005 §3): when a forecast change AUTHORS\
-  \ or EDITS a spec, implementation detail — DTO / payload / schema SHAPES, field\
-  \ / function signatures, data-structure layouts, runtime flags / env-var names /\
-  \ config keys / CLI spellings — is METHODOLOGY-FORBIDDEN in a spec's rule text (it\
-  \ lives in the code or the plan; a note the code's maintainer needs has its own\
-  \ section of the spec, outside the rule text); the audit-pre lens binds the auditor\
-  \ to NOT flag the ABSENCE of such impl detail as a defect and NOT DEMAND that a\
-  \ spec ADD it, because demanding it asks the author to VIOLATE SPEC-0005 §3 — a\
-  \ spec that states its rule and omits the wire-level / code-level shape is CORRECT\
-  \ and complete, not 'under-specified' / 'missing detail'. A command, flag or refusal\
-  \ text that the reader acting under the rule applies is rule text, not implementation\
-  \ detail: its presence in a spec is never flagged under the content boundary (SPEC-0005\
-  \ §3 names what stays in the rule text). This is DERIVED prompt wording; the canonical\
-  \ content-boundary rule stays single-homed in SPEC-0005 §3 / SPEC-0046 (cue + pointer,\
-  \ SPEC-0005 rule 8), guarded by a drift-probe test.\n- **audit-post is CONDITIONAL\
-  \ on exactly one thing — a project-declared exemption case (SPEC-0178,\n  additive\
-  \ amendment; rule 8 makes this a PRECONDITION of that spec's activation).** A project\
-  \ MAY\n  declare, in its own `yitc-ops.yaml`, named cases whose matching cards close\
-  \ WITHOUT the Stage-8\n  audit-post below, each carrying a mandatory reason recording\
-  \ who accepted the risk and why.\n  Everything else about this contract is unchanged.\
-  \ The bounds are stated identically here, in\n  SPEC-0015 and in the CHARTER — a\
-  \ surface stating a DIFFERENT bound is a standing contradiction\n  (CHARTER §P7),\
-  \ not a wording variation:\n  **audit-post ONLY (rule 2)** — a case never reaches\
-  \ audit-pre, the Tests stage, the land-verify\n  layers, the worktree-before-write\
-  \ rule, or the Closure probes;\n  **a skipped audit-post burns NO audit-loop pass\
-  \ and CANNOT satisfy Principle-8 adoption evidence\n  (rule 4)** — an absent audit\
-  \ is not a failed one, so nothing is counted against the audit-loop\n  ceiling,\
-  \ and an infra-class card takes audit-post regardless of any case matching it;\n\
-  \  **a card whose diff touches a GOVERNANCE surface takes audit-post whatever a\
-  \ case says (rule 3)**\n  — computed on the diff, never on the declaration;\n  **automation\
-  \ may only RESTORE this gate, never remove one (rule 5)** — removing it is always\
-  \ an\n  explicit project act — **AND that automatic restoration is INOPERATIVE wherever\
-  \ the `kind`\n  judgement is not made**, since it counts only captures judged a\
-  \ DEFECT at triage, a call that is\n  optional and never made; where it is not made,\n\
-  \  restoration is carried by the SPEC-0178 rule 7 periodic review.\n- **audit-post\
-  \ (Stage 8) — ship quality:** shipped-diff drift from plan; each AC has a probe\n\
-  \  result; missing adoption (code shipped but not invoked) — for an infra-class\
-  \ task confirm a\n  Principle-8 adoption artifact exists. **The P8 artifact has\
-  \ THREE equally-valid forms per CHARTER\n  §8: a `consumer_read_evidence` event,\
-  \ a `live_trigger_evidence` event, OR — the THIRD\n  satisfier — an EXPLICITLY BLOCKING\
-  \ ADOPTION FOLLOW-UP FILED. ANY one is sufficient.\n  NEVER RED because the task\
-  \ used one valid form when you expected the other.**\n  **The third satisfier's\
+  \ Rule 1). CONTENT-BOUNDARY BINDING (<workshop-spec> §3): when a forecast change\
+  \ AUTHORS or EDITS a spec, implementation detail — DTO / payload / schema SHAPES,\
+  \ field / function signatures, data-structure layouts, runtime flags / env-var names\
+  \ / config keys / CLI spellings — is METHODOLOGY-FORBIDDEN in a spec's rule text\
+  \ (it lives in the code or the plan; a note the code's maintainer needs has its\
+  \ own section of the spec, outside the rule text); the audit-pre lens binds the\
+  \ auditor to NOT flag the ABSENCE of such impl detail as a defect and NOT DEMAND\
+  \ that a spec ADD it, because demanding it asks the author to VIOLATE <workshop-spec>\
+  \ §3 — a spec that states its rule and omits the wire-level / code-level shape is\
+  \ CORRECT and complete, not 'under-specified' / 'missing detail'. A command, flag\
+  \ or refusal text that the reader acting under the rule applies is rule text, not\
+  \ implementation detail: its presence in a spec is never flagged under the content\
+  \ boundary (<workshop-spec> §3 names what stays in the rule text). This is DERIVED\
+  \ prompt wording; the canonical content-boundary rule stays single-homed in <workshop-spec>\
+  \ §3 / SPEC-0046 (cue + pointer, <workshop-spec> rule 8), guarded by a drift-probe\
+  \ test.\n- **audit-post is CONDITIONAL on exactly one thing — a project-declared\
+  \ exemption case (SPEC-0178,\n  additive amendment; rule 8 makes this a PRECONDITION\
+  \ of that spec's activation).** A project MAY\n  declare, in its own `yitc-ops.yaml`,\
+  \ named cases whose matching cards close WITHOUT the Stage-8\n  audit-post below,\
+  \ each carrying a mandatory reason recording who accepted the risk and why.\n  Everything\
+  \ else about this contract is unchanged. The bounds are stated identically here,\
+  \ in\n  SPEC-0015 and in the CHARTER — a surface stating a DIFFERENT bound is a\
+  \ standing contradiction\n  (CHARTER §P7), not a wording variation:\n  **audit-post\
+  \ ONLY (rule 2)** — a case never reaches audit-pre, the Tests stage, the land-verify\n\
+  \  layers, the worktree-before-write rule, or the Closure probes;\n  **a skipped\
+  \ audit-post burns NO audit-loop pass and CANNOT satisfy Principle-8 adoption evidence\n\
+  \  (rule 4)** — an absent audit is not a failed one, so nothing is counted against\
+  \ the audit-loop\n  ceiling, and an infra-class card takes audit-post regardless\
+  \ of any case matching it;\n  **a card whose diff touches a GOVERNANCE surface takes\
+  \ audit-post whatever a case says (rule 3)**\n  — computed on the diff, never on\
+  \ the declaration;\n  **automation may only RESTORE this gate, never remove one\
+  \ (rule 5)** — removing it is always an\n  explicit project act — **AND that automatic\
+  \ restoration is INOPERATIVE wherever the `kind`\n  judgement is not made**, since\
+  \ it counts only captures judged a DEFECT at triage, a call that is\n  optional\
+  \ and never made; where it is not made,\n  restoration is carried by the SPEC-0178\
+  \ rule 7 periodic review.\n- **audit-post (Stage 8) — ship quality:** shipped-diff\
+  \ drift from plan; each AC has a probe\n  result; missing adoption (code shipped\
+  \ but not invoked) — for an infra-class task confirm a\n  Principle-8 adoption artifact\
+  \ exists. **The P8 artifact has THREE equally-valid forms per CHARTER\n  §8: a `consumer_read_evidence`\
+  \ event, a `live_trigger_evidence` event, OR — the THIRD\n  satisfier — an EXPLICITLY\
+  \ BLOCKING ADOPTION FOLLOW-UP FILED. ANY one is sufficient.\n  NEVER RED because\
+  \ the task used one valid form when you expected the other.**\n  **The third satisfier's\
   \ SHAPE is three-part and fail-closed (SPEC-0119 rule 31):** a followup\n  whose\
   \ text DECLARES `P8-CARRIER: <the audited task id>`, carrying BOTH (a) a named trigger\n\
   \  condition and (b) a machine-resolvable awaited artifact (`--awaits`, the SPEC-0095\
@@ -395,8 +395,8 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ for a touched\n`implements:` anchor whose spec was not updated. BOTH task overlays\
   \ carry the two questions this\nsection exists to let the auditor answer — closing\
   \ the «code born/changed outside the documentation»\nfear at both gates: (1) code\
-  \ touched with NO governing spec → justified spec-less (SPEC-0005\nadmission) or\
-  \ a documentation gap? (2) a touched active-spec `implements:` anchor whose spec\
+  \ touched with NO governing spec → justified spec-less (<workshop-spec>\nadmission)\
+  \ or a documentation gap? (2) a touched active-spec `implements:` anchor whose spec\
   \ is NOT\nupdated in the same change → justified (unrelated symbol / deliberate)\
   \ or undeclared doc drift?\nBOTH questions are about the DOCUMENTATION of the code,\
   \ never about the COMPLETENESS of the\nforecast itself. A file or spec missing FROM\

@@ -43,9 +43,9 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ bounds / watermarks that work and state what is reused — or record that\n   none\
   \ exists (this change then owns the first one). Classes, detect heuristics and the\
   \ severity\n   rubric: `patterns/repeated-work-lens.md` (the single home — never\
-  \ restated here, SPEC-0005 rule 8).\n   Report-only, like the rest of this checklist:\
-  \ no verb refuses on it, and the `analysis:` record is\n   its only carrier. The\
-  \ KERNEL-VERB counterpart of this check — the read contract for composed kernel\n\
+  \ restated here, <workshop-spec> rule 8).\n   Report-only, like the rest of this\
+  \ checklist: no verb refuses on it, and the `analysis:` record is\n   its only carrier.\
+  \ The KERNEL-VERB counterpart of this check — the read contract for composed kernel\n\
   \   seams — is SPEC-0190 rule 10.\n2. **Cite-the-proof** — (failure classes #7/#8):\
   \ an asserted existence/absence MUST cite the\n   grep/path that proves it, and\
   \ sweep `decisions/` (not only code). «I think it exists» is not prior-art.\n  \
@@ -72,44 +72,48 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ neither extends nor re-gates it. The duty is homed HERE so it\n     reaches every\
   \ executing session, including a Controller self-executing.\n3. **Standing-rule\
   \ check** — does this establish/change a rule / invariant / contract / design-boundary\n\
-  \   / governing parameter? If yes it is a candidate `proposed` spec (SPEC-0005)\
-  \ — name it now, STAGE it\n   in Plan (it is NOT authored in Analysis).\n4. **Decomposition\
-  \ check** — ONE provable claim per accept-unit (<workshop-spec>): if the unit proves\
-  \ >1\n   claim, SPLIT (encode the order via `requires:`); a deferral MUST be a tracked\
-  \ task, never prose.\n   - **Amending a criterion here is acceptance design** —\
-  \ SPEC-0060 item 4 holds its authoring cues\n     (`graph query SPEC-0060`); among\
-  \ them, an adoption probe drives the consumer round-trip and\n     needs no consumer\
-  \ whose `requires:` names this card before it closes (SPEC-0015 §Infra\n     adoption\
-  \ probe, §Work-first).\n5. **Spec-coverage reverse-lookup** — for EACH file/symbol\
-  \ this task EXPECTS TO TOUCH (its\n   `expected_touch`), run the reverse lookup\
-  \ `bin/yitc-v2 graph query <file>` (code→specs, SPEC-0031)\n   → READ the governing\
-  \ active spec(s) → DECLARE in `implementation_plan` one line PER DIRECTION: (1)\n\
-  \   the touched code IS governed by spec(s) → `spec update: yes <which>` OR `no,\
-  \ because <reason>`; (2)\n   the touched code has NO governing spec → either justified\
-  \ spec-less (the SPEC-0005 admission test\n   does not warrant one) OR name the\
-  \ candidate `proposed` spec (this JOINS step 3 standing-rule check,\n   it does\
-  \ not duplicate it).\n6. **Read the cited specs / decisions / prior tasks.**\n7.\
-  \ **Scope unclear?** File a clarification to a Review session — do NOT proceed on\
-  \ a guess.\n\n**Done when** you can name: (a) what already exists, (b) what changes,\
-  \ (c) the smallest concrete edit.\n\nCROSS-TERRITORY ROUTING HINT (additive —, SPEC-0005\
-  \ §7). Alongside the structural pre-pass, the\nclaim path ALSO surfaces a **report-only\
-  \ cross-territory routing hint**:\nwhen the claimed task's forecast paths (`expected_touch`)\
-  \ resolve OUTSIDE own territory (a path-based\nsignal — AGENTS §Scope boundary),\
-  \ the work looks like ANOTHER project's, so the hint names the\nterritory-safe route\
-  \ — file a coordination item via `yitc-v2 cross request --to <project>` (the shared\n\
-  coordination log) instead of `task file`-ing it into THIS queue. The SAME hint fires\
-  \ at `cmd_task_file`\n(filing time, before the write). It is **report-not-block**\
-  \ like the pre-pass (never gates — CHARTER\nnon-goal #7), and a **navigational POINTER**\
-  \ (SPEC-0005 rule 8): the governing routing CONTRACT lives\nsingle-SoT in **SPEC-0084**\
-  \ (the cross system) — this spec does not restate it, it only wires the\nwrite-side\
-  \ surfacing of it at the Analysis claim + filing moments.\n\n## Rationale\n\nProvenance\
-  \ (the founding incidents, the refinement history and the rejected alternatives)\
-  \ lives in\ngit history and the authoring plan — not here.\n\n### History moved\
-  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
-  \ text of the section it names;\nthe rule it explains stays there.\n\nFrom «Internal»:\n\
-  \nThis spec HOMES the ordered SEQUENCE + the delivery contract — NOT a copy of each\
-  \ step's discipline\n(those are CHARTER §1 / / SPEC-0005 / <workshop-spec>). LIFECYCLE\
-  \ §Stage 1 prose is demoted INTO this\nspec, and the standalone before-file decomposition\
+  \   / governing parameter? If yes it is a candidate `proposed` spec (<workshop-spec>)\
+  \ — name it now, STAGE it\n   in Plan (it is NOT authored in Analysis).\n   - **Activating\
+  \ a successor:** a card named in the `activation_owner_task` of a spec carrying\n\
+  \     `supersedes:` runs the successor mention review of SPEC-1037 §7 and records\
+  \ it in this\n     Analysis, before activation (`stage Analysis` prints the cue\
+  \ for such a card).\n4. **Decomposition check** — ONE provable claim per accept-unit\
+  \ (<workshop-spec>): if the unit proves >1\n   claim, SPLIT (encode the order via\
+  \ `requires:`); a deferral MUST be a tracked task, never prose.\n   - **Amending\
+  \ a criterion here is acceptance design** — SPEC-0060 item 4 holds its authoring\
+  \ cues\n     (`graph query SPEC-0060`); among them, an adoption probe drives the\
+  \ consumer round-trip and\n     needs no consumer whose `requires:` names this card\
+  \ before it closes (SPEC-0015 §Infra\n     adoption probe, §Work-first).\n5. **Spec-coverage\
+  \ reverse-lookup** — for EACH file/symbol this task EXPECTS TO TOUCH (its\n   `expected_touch`),\
+  \ run the reverse lookup `bin/yitc-v2 graph query <file>` (code→specs, SPEC-0031)\n\
+  \   → READ the governing active spec(s) → DECLARE in `implementation_plan` one line\
+  \ PER DIRECTION: (1)\n   the touched code IS governed by spec(s) → `spec update:\
+  \ yes <which>` OR `no, because <reason>`; (2)\n   the touched code has NO governing\
+  \ spec → either justified spec-less (the <workshop-spec> admission test\n   does\
+  \ not warrant one) OR name the candidate `proposed` spec (this JOINS step 3 standing-rule\
+  \ check,\n   it does not duplicate it).\n6. **Read the cited specs / decisions /\
+  \ prior tasks.**\n7. **Scope unclear?** File a clarification to a Review session\
+  \ — do NOT proceed on a guess.\n\n**Done when** you can name: (a) what already exists,\
+  \ (b) what changes, (c) the smallest concrete edit.\n\nCROSS-TERRITORY ROUTING HINT\
+  \ (additive —, <workshop-spec> §7). Alongside the structural pre-pass, the\nclaim\
+  \ path ALSO surfaces a **report-only cross-territory routing hint**:\nwhen the claimed\
+  \ task's forecast paths (`expected_touch`) resolve OUTSIDE own territory (a path-based\n\
+  signal — AGENTS §Scope boundary), the work looks like ANOTHER project's, so the\
+  \ hint names the\nterritory-safe route — file a coordination item via `yitc-v2 cross\
+  \ request --to <project>` (the shared\ncoordination log) instead of `task file`-ing\
+  \ it into THIS queue. The SAME hint fires at `cmd_task_file`\n(filing time, before\
+  \ the write). It is **report-not-block** like the pre-pass (never gates — CHARTER\n\
+  non-goal #7), and a **navigational POINTER** (<workshop-spec> rule 8): the governing\
+  \ routing CONTRACT lives\nsingle-SoT in **SPEC-0084** (the cross system) — this\
+  \ spec does not restate it, it only wires the\nwrite-side surfacing of it at the\
+  \ Analysis claim + filing moments.\n\n## Rationale\n\nProvenance (the founding incidents,\
+  \ the refinement history and the rejected alternatives) lives in\ngit history and\
+  \ the authoring plan — not here.\n\n### History moved from the rule body\n\nEach\
+  \ entry is a passage moved word for word out of the rule text of the section it\
+  \ names;\nthe rule it explains stays there.\n\nFrom «Internal»:\n\nThis spec HOMES\
+  \ the ordered SEQUENCE + the delivery contract — NOT a copy of each step's discipline\n\
+  (those are CHARTER §1 / / <workshop-spec> / <workshop-spec>). LIFECYCLE §Stage 1\
+  \ prose is demoted INTO this\nspec, and the standalone before-file decomposition\
   \ surfacing is retired — the decomposition step now\nreaches the session at CLAIM,\
   \ before filing.\n\n## Implementation notes\n\nNotes for the maintainer of the code,\
   \ moved word for word out of the rule text of the section\neach names.\n\n- From\
@@ -152,10 +156,10 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ (stage delivery):** `stage_to_specs[\"Analysis\"]` (graph/index.yaml binding_report)\
   \ contains\n  SPEC-0032, so `stage Analysis` delivers it. PROBE: inspect the index\
   \ / run `stage Analysis`.\n- **VP3 (references, not duplication):** the §Internal\
-  \ steps reference <workshop-spec> + SPEC-0005 + CHARTER §1 without restating their\
-  \ rules. PROBE: grep this body.\n- **VP4 (control-point, not pointer-only):** the\
-  \ binding-completeness report shows SPEC-0032 delivered\n  (non-empty binding) with\
-  \ 0 unexplained dangling, and the `implements:` anchors resolve. PROBE: graph\n\
+  \ steps reference <workshop-spec> + <workshop-spec> + CHARTER §1 without restating\
+  \ their rules. PROBE: grep this body.\n- **VP4 (control-point, not pointer-only):**\
+  \ the binding-completeness report shows SPEC-0032 delivered\n  (non-empty binding)\
+  \ with 0 unexplained dangling, and the `implements:` anchors resolve. PROBE: graph\n\
   \  build / binding report.\n- **VP5 (dup-check sub-step present + executed):** step\
   \ 1 carries the explicit Already-SHIPPED\n  dup-check sub-bullet (grep the core\
   \ implementation SYMBOL + check the cited plan's done tasks +\n  `closed_into` BEFORE\
@@ -182,7 +186,6 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ path).\n"
 cites:
 - CHARTER.md#principle-1
-- SPEC-0005
 - SPEC-0031
 - SPEC-0007
 - SPEC-0084

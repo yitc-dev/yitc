@@ -796,16 +796,16 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \          # events.jsonl#ts=). Longer than the live\n                         \
   \         # window, so a summary reader folds the archive segments inside\n    \
   \                              # it, and only those. Changing it is a governed spec\
-  \ edit.\n\n## Rationale\n\nHeld to what interprets the rules (SPEC-0005 rule 3);\
-  \ the deliberation, the rejected one-off cut,\nand the ratification history live\
-  \ in the proposing plan.\n\n- Rules 1-3 exist because the cost being removed is\
-  \ git-object churn, not parse time: a full parse\n  of the whole file measured 1.45s,\
-  \ while ~293 commits/day each wrote a fresh ~6 MB loose object,\n  and `.git` twice\
-  \ reached tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after a\n\
-  \  clear). Read rule 2's age boundary against that: the ground for the change is\
-  \ UNBOUNDEDNESS,\n  which is why a one-off cut cannot satisfy it and why the trigger\
-  \ cannot be a size.\n- Rule 5's phrasing is the one an earlier draft got wrong,\
-  \ and the correction is the point: the\n  honest guarantee is multiset identity,\
+  \ edit.\n\n## Rationale\n\nHeld to what interprets the rules (<workshop-spec> rule\
+  \ 3); the deliberation, the rejected one-off cut,\nand the ratification history\
+  \ live in the proposing plan.\n\n- Rules 1-3 exist because the cost being removed\
+  \ is git-object churn, not parse time: a full parse\n  of the whole file measured\
+  \ 1.45s, while ~293 commits/day each wrote a fresh ~6 MB loose object,\n  and `.git`\
+  \ twice reached tens of gigabytes (42 GB over 34 blocked days; 16 GB one day after\
+  \ a\n  clear). Read rule 2's age boundary against that: the ground for the change\
+  \ is UNBOUNDEDNESS,\n  which is why a one-off cut cannot satisfy it and why the\
+  \ trigger cannot be a size.\n- Rule 5's phrasing is the one an earlier draft got\
+  \ wrong, and the correction is the point: the\n  honest guarantee is multiset identity,\
   \ and every downstream acceptance criterion must be phrased\n  against it rather\
   \ than against \"identical output\".\n- Rule 8 names a real, live instance rather\
   \ than a hypothetical: a bound whose whole purpose is to\n  expire a standing deferral\

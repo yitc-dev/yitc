@@ -62,7 +62,7 @@ body: '## Scenario
   default changes outside the mode. This amendment is the amending §Rule requires;
   the mode''s own rule
 
-  is homed in **SPEC-0078 §5** and is not restated here (SPEC-0005 rule 8).
+  is homed in **SPEC-0078 §5** and is not restated here (<workshop-spec> rule 8).
 
 
   **ZERO-WRITE VIEW amendment — one FLAG-scoped opt-out, `nightly --status`.** The

@@ -109,7 +109,7 @@ the steps without risking the canonical corpus (the U-3 realization probe).
 
 This pattern is **documentation of a recovery procedure, not a new mechanism.** It adds NO verb, hook,
 gate, ledger, flag, file format, detector, or "recovery FSM"; it introduces NO standing rule (a standing
-rule would be re-homed to a spec per SPEC-0005 rule 8 — this is a how-to, not a rule surface). It reuses
+rule would be re-homed to a spec per <workshop-spec> rule 8 — this is a how-to, not a rule surface). It reuses
 the existing escape hatches (`git revert`, a plain git tag, `bin/yitc-v2 worktree new` / `land` /
 `graph build` / `graph conformance` / `session start` / `init`). `patterns/emergency-mode.md` scope is
 UNCHANGED — this is its sibling for the working-tool / corrupt-corpus case, not an extension of it. A

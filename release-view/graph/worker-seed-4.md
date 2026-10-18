@@ -72,7 +72,7 @@ lightest-first order, per-branch conditions, escalate-a-genuine-decision-not-the
 **Goal:** understand the task before doing anything.
 
 > **Retrieved — moved to SPEC-0032**. The full ordered Stage-1 procedure (prior-art grep incl. the
-> plan-layer sweep → cite-the-proof → standing-rule?→SPEC-0005 → decomposition?→SPEC-0046 → read-cited →
+> plan-layer sweep → cite-the-proof → standing-rule?→SPEC-1037 → decomposition?→SPEC-0046 → read-cited →
 > file-clarification; + Done-when a/b/c) is **delivered at the Analysis stage-entry** ( — the claim
 > `worktree new --task` IS Analysis-entry; SPEC-0032 binds `stage-entry:Analysis`, delivered by `stage Analysis`).
 > Fetch via `bin/yitc-v2 graph query SPEC-0032`. (Supersedes always-loaded retention — same model as §Stage 3.)
@@ -348,7 +348,7 @@ No other transitions. No "in-review", "under-audit", "awaiting-critic", "release
 
 Minimal graph. 8 node types, 4 edge types, one query CLI. Bounded by the schema below — additions require anti-complexity check (CHARTER Principle 1).
 
-**The graph is small by intent.** As the spec corpus grows, the SPEC-0005 admission discipline + the anti-complexity check govern — there is no numeric count-gate (see §When to add specs vs just code).
+**The graph is small by intent.** As the spec corpus grows, the SPEC-1037 admission discipline + the anti-complexity check govern — there is no numeric count-gate (see §When to add specs vs just code).
 
 ## Schema
 
@@ -420,7 +420,7 @@ before code, then reconciled, then activated. Modeled on PEP/ADR proposal-shape 
 
 - **`draft`** — exploratory, plan-local: lives in a plan-draft (`spec new --draft --proposed-by <plan>`),
   indexed for plan-local reasoning but **non-authoritative** and EXCLUDED from default
-  `graph query --projected`. Authoritative home: SPEC-0005 §4 (`graph query SPEC-0005`).
+  `graph query --projected`. Authoritative home: SPEC-1037 §4 (`graph query SPEC-1037`).
 - **`proposed`** — design-grade, **non-authoritative**: it documents a planned spec/change so the
   graph can show «what will be» (`graph query --projected`, §Query layer). It does NOT govern, and
   **cannot satisfy adoption/closure** (only `active` does — §What a spec is FOR). `proposed` ⇒
@@ -428,7 +428,7 @@ before code, then reconciled, then activated. Modeled on PEP/ADR proposal-shape 
 - **`proposed → active`** is **GATED by an adoption probe** (CHARTER §Principle 3 + 8) — graph
   presence ≠ done. On activation, any `supersedes:` target flips to `superseded` (atomic, one commit).
   **The activation WRITE is performed by `task close` ONLY** (per Part C): closing the spec's
-  **`activation_owner_task`** (the single explicit activation carrier — SPEC-0005 §5, the authority; see
+  **`activation_owner_task`** (the single explicit activation carrier — SPEC-1037 §5, the authority; see
   §Schema) flips `proposed → active` as a deterministic closure side-effect, and atomically flips its
   `supersedes:` target (an active target → `superseded`, a still-proposed target → `withdrawn`). The
   owning task is named **EXPLICITLY** in `activation_owner_task`, never derived: **work-first**
@@ -449,17 +449,17 @@ before code, then reconciled, then activated. Modeled on PEP/ADR proposal-shape 
 `proposed` children of the same spec MUST be either `requires`-ordered (spec-level `requires:`) OR
 in a `supersedes:` chain. Two concurrent proposers with neither = **INVALID** — surfaced by the
 `multi-proposer-unordered` structural flag in `graph query --projected`. The schema carrier
-is spec-level `requires` / `supersedes` + the `activation_owner_task` carrier (SPEC-0005 §5 — the single
+is spec-level `requires` / `supersedes` + the `activation_owner_task` carrier (SPEC-1037 §5 — the single
 explicit activation owner; the ownership VALUE is never in `cites` — cites is informational only, §Schema).
 The rule locks now; richer tooling is deferred until an incident pulls it.
 
 ## When to add specs vs just code
 
-> **Homed in SPEC-0005** (the spec doctrine) — the admission test (7 criteria + delete-test +
+> **Homed in SPEC-1037** (the spec doctrine) — the admission test (7 criteria + delete-test +
 > NOT-a-spec), the governing-parameter rule, and the two-bound volume discipline (anti-oversplit
 > merge-default + anti-oversize split-by-surface) live there as **rules 2 + 6** (re-homed from).
-> This GRAPH section was a duplicate; per one-home (CHARTER §P5 / SPEC-0005 rule 8) it now points at the
-> single home. Read it via `bin/yitc-v2 graph query SPEC-0005` (also fetched before `spec new`). The
+> This GRAPH section was a duplicate; per one-home (CHARTER §P5 / SPEC-1037 rule 8) it now points at the
+> single home. Read it via `bin/yitc-v2 graph query SPEC-1037` (also fetched before `spec new`). The
 > spec count cap is likewise replaced by that admission + two-bound discipline. There is **no numeric
 > node-volume trigger** for the other node types either — consolidation is a regular Review judgement on
 > observed cost, never a count-gate (counts grow with work; owner directive 2026-06-06). The

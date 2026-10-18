@@ -71,7 +71,7 @@ body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay
   \  outcome (every declaration that predates this axis, and every project with no\
   \ reachability target)\n  keeps EXACTLY its prior grade: `fresh` grades ok, `stale`/`miss`\
   \ grade alert. No existing obligation\n  is reshaped — only a case the rule did\
-  \ not previously address gains an answer (SPEC-0005 rule 7,\n  in-place additive\
+  \ not previously address gains an answer (<workshop-spec> rule 7,\n  in-place additive\
   \ extension). The `concern:` born declaration template stays CORRECT as written.\n\
   - **The `fresh` half is load-bearing.** An `unreachable` outcome carried on a `stale`\
   \ or `miss` record\n  is itself stale news — a subject cannot be declared down from\
@@ -176,7 +176,7 @@ body: "## Scenario\n\nA project that REQUIRES regular work (its output must stay
   \ machinery is removed by\nmigration with nothing on the v2 side to replace it;\
   \ <project> has NO `registry.yaml pipelines:`\nblock so `watchdog.sh` skips it (a\
   \ freshness GAP); <project>'s alarm is single-point-of-failure. The\n3-project study\
-  \ lives in the proposing plan (SPEC-0005 §3 content boundary — not restated).\n\
+  \ lives in the proposing plan (<workshop-spec> §3 content boundary — not restated).\n\
   Predecessor: the withdrawn <workshop-spec> (re-authored here under the follow-on\
   \ grow-plan; <workshop-spec>\nfrozen historical).\n\n## Verification\n\nAdoption\
   \ probe (CHARTER §P3 + §P8 — infra-class): the v2 monitor CATCHES a (synthetic/injected)\n\

@@ -92,7 +92,6 @@ body: "## Scenario\n\nWhen the owner/AI needs to establish a NEW standing govern
   \  never re-asserts the authority rule).\n"
 cites:
 - CHARTER.md#decision-lifecycle
-- SPEC-0005
 - phase-1-narrow-spec-as-rule-proven-plus-cut-decisi
 requires: []
 supersedes: null

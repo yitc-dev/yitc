@@ -381,8 +381,8 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   \ **Rule body homed in SPEC-0155 rule 7** (owner-invoked ·\n  reason-bearing · bounded\
   \ to the severity-blocking reject class · must NAME every blocking finding ·\n \
   \ journaled as `deploy_security_gate_overridden` · frequency-visible via SPEC-0119\
-  \ rule 14) — named\n  here, not restated (SPEC-0005 rule 8). It does not touch this\
-  \ spec's class gate: an overridden\n  security gate still pays the full A/S/C1/C2\
+  \ rule 14) — named\n  here, not restated (<workshop-spec> rule 8). It does not touch\
+  \ this spec's class gate: an overridden\n  security gate still pays the full A/S/C1/C2\
   \ evidence requirement, and a Class-C2 deploy still needs\n  `--owner-approved`\
   \ on top.\n- The gate guards **kind==deploy only** — a rollback is the always-available\
   \ reversal (§2), never gated.\n- **Fail-closed on a malformed carrier (§9):** an\
@@ -618,14 +618,14 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   \ gate along the way — it is filed, not absorbed.\n\n## Parameters\n\nNone `consumed`.\
   \ The carrier's `policy:` values are PER-PROJECT ops config (the per-class commands\
   \ +\nthe declared/waived stance), explicitly NOT kernel-read governance scalars\
-  \ (SPEC-0093 §Parameters /\nSPEC-0005 §Parameters whitelist forbids per-deploy /\
-  \ command / path values) — so `consumed: false`.\n\n## Rationale\n\nSPEC-0093 §2\
-  \ explicitly DEFERRED the A/S/C1/C2 reversibility classification out of the deploy\
+  \ (SPEC-0093 §Parameters /\n<workshop-spec> §Parameters whitelist forbids per-deploy\
+  \ / command / path values) — so `consumed: false`.\n\n## Rationale\n\nSPEC-0093\
+  \ §2 explicitly DEFERRED the A/S/C1/C2 reversibility classification out of the deploy\
   \ carrier\nslice-1 to \"its own vetted step (plan tracked id)\"; this spec is that\
   \ step. The reversibility/RTO-RPO\naxis (over \"data-touching\") and the C-class\
   \ split by rollback-safety-by-design are the external-consult\nrefinement of the\
   \ policy concept (the plan's Concept section carries the full deliberation, per\n\
-  SPEC-0005 rule 3 — not restated here). Real incident class: data-loss / exposure\
+  <workshop-spec> rule 3 — not restated here). Real incident class: data-loss / exposure\
   \ on an autonomous\ndeploy; the empty owner-rubber-stamp the policy removes (the\
   \ <project> observation).\n\n### History moved from the rule body\n\nEach entry\
   \ is a passage moved word for word out of the rule text of the section it names;\n\

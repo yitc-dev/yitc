@@ -306,21 +306,21 @@ body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity gua
   \ in the CLI, which is precisely the new gate this rule's own card refused to add.\n\
   \n## Rationale\n\nThe rule is the external auditor's wording, from the third consult\
   \ on\n(`decisions/check-placement-rule-audit-adhoc.yaml`, YELLOW/2) — recorded here\
-  \ because it interprets\nthe rule, not to narrate the deliberation (SPEC-0005 rule\
-  \ 3). Two of its findings are rules 5 and 4\nabove. The incident that makes this\
-  \ worth a standing rule rather than one relocation is stated in\n§Scenario: every\
-  \ non-test check on the land path had been appended to the END, and the measured\n\
+  \ because it interprets\nthe rule, not to narrate the deliberation (<workshop-spec>\
+  \ rule 3). Two of its findings are rules 5 and 4\nabove. The incident that makes\
+  \ this worth a standing rule rather than one relocation is stated in\n§Scenario:\
+  \ every non-test check on the land path had been appended to the END, and the measured\n\
   bill for that habit was three innocent branches per burst — one of them, task/,\
   \ spending\n735s + 1906s + 2495s across three lands, two of the aborts caused by\
   \ other branches' off-path spec\nedits.\n\n## Verification\n\n- **VP1 (the rule\
   \ is normative):** this spec resolves and is `active` — a `proposed` spec governs\n\
-  \  nothing (SPEC-0005 §4), so the status is asserted independently of the body.\n\
-  \  PROBE: `tests/test_t11367_check_placement_rule.py`.\n- **VP2 (all five elements):**\
-  \ §Internal rule 2 carries all five named elements. PROBE: the same\n  file asserts\
-  \ each of the five INDEPENDENTLY and names which one is missing on failure — never\
-  \ one\n  aggregate match, because a four-element author is exactly the failure mode.\n\
-  - **VP3 (vocabulary reuse):** the body names `land_completed.abort_preflight` and\
-  \ declares no\n  parallel placement enum or constant. PROBE: the same file asserts\
+  \  nothing (<workshop-spec> §4), so the status is asserted independently of the\
+  \ body.\n  PROBE: `tests/test_t11367_check_placement_rule.py`.\n- **VP2 (all five\
+  \ elements):** §Internal rule 2 carries all five named elements. PROBE: the same\n\
+  \  file asserts each of the five INDEPENDENTLY and names which one is missing on\
+  \ failure — never one\n  aggregate match, because a four-element author is exactly\
+  \ the failure mode.\n- **VP3 (vocabulary reuse):** the body names `land_completed.abort_preflight`\
+  \ and declares no\n  parallel placement enum or constant. PROBE: the same file asserts\
   \ the key is named, that every\n  placement token this spec declares already resolves\
   \ in the land implementation, and that no new\n  placement constant exists in `bin/lib/`.\n\
   - **VP4 (adoption — CHARTER §P8, infra-class):** the rule is CONSUMED — §Worked\
@@ -365,7 +365,6 @@ body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity gua
   \  takes no lock and kills no write. PROBE: `tests/test_engine_git_launch_guard.py`.\n"
 cites:
 - CHARTER.md#principle-1
-- SPEC-0005
 - SPEC-0032
 - SPEC-0054
 - SPEC-0132

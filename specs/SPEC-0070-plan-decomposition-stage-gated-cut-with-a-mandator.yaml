@@ -20,9 +20,9 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ of SPEC-0036; the `plan-stage-entry:<NAME>` delivery\naxis) — it adds NO parallel\
   \ mechanism. SPEC-0034 stays the per-stage-mechanics home and is EDITED to\ninsert\
   \ this stage + delegate its detail here (§Realization surface); this spec is the\
-  \ single home for\nthe cut-as-a-stage rules (P5 / SPEC-0005 rule 8 — other surfaces\
-  \ point here, never restate).\n\n### 1. FSM position\nThe plan FSM becomes\n`draft\
-  \ → specs → trial → accepted → decomposition → executing → postcheck → realized`\n\
+  \ single home for\nthe cut-as-a-stage rules (P5 / <workshop-spec> rule 8 — other\
+  \ surfaces point here, never restate).\n\n### 1. FSM position\nThe plan FSM becomes\n\
+  `draft → specs → trial → accepted → decomposition → executing → postcheck → realized`\n\
   (terminals `partial | rejected | cancelled`, unchanged — reachable from any active\
   \ stage). The\n`plan stage` verb stays the SOLE writer, advancing exactly ONE linear\
   \ step; the verb GATES the prior\nstage's completion, so \"enter N\" == \"exit N-1\"\
@@ -294,8 +294,8 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ a cut that activated it last landed behaviour the\nstill-active predecessor forbids.\
   \ The recipe is in the pattern the pointer names.\n\n## Implementation notes\n\n\
   ### Moved from the rule body\n\nEach entry is a passage moved word for word out\
-  \ of the rule text of the section it names\n(its class per SPEC-0005 rule 3 in brackets);\
-  \ every acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity\
+  \ of the rule text of the section it names\n(its class per <workshop-spec> rule\
+  \ 3 in brackets); every acting rule stays in the rule text.\n\n- From «3. The decomposition-fidelity\
   \ gate» [MECH]: (the new gate fn\n  `_require_plan_decomposition_fidelity`)\n- From\
   \ «5. Claim-block» [MECH]: The member-set carrier is `_plan_cut_cards` (tasks whose\n\
   \  `decomposed_from` names the plan); `_plan_card_set_fingerprint` (§4), `_plan_card_set_context`\n\
@@ -336,7 +336,6 @@ cites:
 - SPEC-0036
 - SPEC-0035
 - SPEC-0007
-- SPEC-0005
 - GRAPH.md#spec-lifecycle
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

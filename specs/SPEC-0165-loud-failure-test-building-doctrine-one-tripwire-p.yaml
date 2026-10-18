@@ -98,8 +98,8 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ question decides whether such an assertion should EXIST; this clause decides\n\
   \   whether its message DESCRIBES it. Neither answer implies the other, and the\
   \ example above\n   violates both. (That question is stated in its own paragraph\
-  \ above and is not restated here —\n   one home per rule, SPEC-0005 rule 8.)\n \
-  \  Like the rest of this item,\n   this is AUTHORING doctrine: no classifier of\
+  \ above and is not restated here —\n   one home per rule, <workshop-spec> rule 8.)\n\
+  \   Like the rest of this item,\n   this is AUTHORING doctrine: no classifier of\
   \ assertion messages is admitted, here or later.\n4. **Waive contract** — a waive\
   \ names the mechanism, its pre-harm fail point, the covered path,\n   and a representative\
   \ violating input — otherwise build the tripwire. Every waive carries\n   class,\
@@ -124,9 +124,9 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ query <workshop-spec>`. The class is RECORDED, never guessed: the local-probe\
   \ class\n   is carried by `tests/local-probe-files.json`, whose per-file reasons\
   \ live in\n   `dev-utilities/remote-verify-local-probe-classification.md`. A CUE\
-  \ plus a POINTER, per SPEC-0005\n   rule 8: rule 8 has exactly ONE home and this\
-  \ is not it.\n6. **Walk order** — rules are mapped/closed in order of the COST of\
-  \ silent breakage\n   (money → outbound mutations → isolation/access → data mutations\
+  \ plus a POINTER, per <workshop-spec>\n   rule 8: rule 8 has exactly ONE home and\
+  \ this is not it.\n6. **Walk order** — rules are mapped/closed in order of the COST\
+  \ of silent breakage\n   (money → outbound mutations → isolation/access → data mutations\
   \ → background jobs).\n7. **Scope** — only NORMATIVE rules of active specs; descriptive/frozen\
   \ specs are not rules and\n   need no tripwire.\n8. **Ledger role** — the per-project\
   \ ledger stores ONLY rule→tripwire/waive links and waive\n   contracts: derived\
@@ -169,37 +169,37 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ in code, and it is NOT restated here:\n     SPEC-0190 rule 9** (with its construction\
   \ contract in rule 9a and its fixture boundary in\n     the clause beside them)\
   \ — read it before writing such a test: `yitc-v2 graph query SPEC-0190`.\n     A\
-  \ CUE plus a POINTER, per SPEC-0005 rule 8: rule 9 has exactly ONE home and this\
-  \ is not it.\n     Do NOT inline its normative sentences here — a second copy would\
-  \ drift the day SPEC-0190 is\n     amended, and a stale copy delivered at the authoring\
-  \ moment is worse than no copy at all,\n     which is the precise failure this bullet\
-  \ is written to avoid.\n   **PROVISIONAL, and named as such so it cannot harden\
-  \ by default.** Its evidential basis\n   supports this PLACEMENT doctrine only,\
-  \ not a broader standing cost discipline.\n   **Review trigger:** accumulated slow-tail\
-  \ observations from the\n   report-only per-file duration delta (SPEC-0119 rule\
-  \ 19, which owns the DRIFT half of this\n   axis — this item owns ADMISSION only\
-  \ and neither restates nor gates on it). Revisit this item\n   when those observations\
-  \ have accumulated: confirm it, sharpen it, or retire it.\n\n10. **Machine-attributable\
-  \ failure — a failing tripwire NAMES ITSELF.** Items 1-9 decide whether a\n    tripwire\
-  \ must EXIST and what it must PROVE; this one decides what it must LEAVE BEHIND\
-  \ when it\n    fires. **A failing test MUST leave, in its captured output, a failure\
-  \ identity a machine can tie\n    back to the test** — either (a) a naturally RAISED\
-  \ exception carrying its message, or (b) a\n    SELF-REPORTED failure summary in\
-  \ a form the land-verify failing-assertion extractor recognizes.\n    Either binding\
-  \ satisfies this item; a failure that leaves NEITHER is the violating case.\n  \
-  \  **The recognized forms are the EXTRACTOR's, and are deliberately NOT restated\
-  \ here** — read them\n    at `bin/lib/cli.py#_extract_failing_assertion` and its\
-  \ producer\n    `bin/lib/verify_runner.py#_verify_failure_excerpt`, which is where\
-  \ they will also CHANGE. A cue plus a\n    pointer, per SPEC-0005 rule 8: a copy\
-  \ of the accepted shapes in this body would be a second home\n    that silently\
-  \ rots the day the extractor widens, and this item must stay correct across exactly\n\
-  \    that event.\n    A tripwire whose failure carries no bindable identity is loud\
-  \ to a HUMAN and silent to every\n    machine downstream of it: the batch-attribution\
-  \ oracle names no culprit, evicts nobody, and\n    requeues the innocent members\
-  \ alongside the guilty one. Loudness no consumer can attribute is\n    loudness\
-  \ spent, so this is an obligation of the tripwire, not of the reader.\n    **What\
-  \ this does NOT require.** No style: a `__main__` print-runner is as compliant as\
-  \ a\n    `unittest` case, provided the line it prints on failure is one the extractor\
+  \ CUE plus a POINTER, per <workshop-spec> rule 8: rule 9 has exactly ONE home and\
+  \ this is not it.\n     Do NOT inline its normative sentences here — a second copy\
+  \ would drift the day SPEC-0190 is\n     amended, and a stale copy delivered at\
+  \ the authoring moment is worse than no copy at all,\n     which is the precise\
+  \ failure this bullet is written to avoid.\n   **PROVISIONAL, and named as such\
+  \ so it cannot harden by default.** Its evidential basis\n   supports this PLACEMENT\
+  \ doctrine only, not a broader standing cost discipline.\n   **Review trigger:**\
+  \ accumulated slow-tail observations from the\n   report-only per-file duration\
+  \ delta (SPEC-0119 rule 19, which owns the DRIFT half of this\n   axis — this item\
+  \ owns ADMISSION only and neither restates nor gates on it). Revisit this item\n\
+  \   when those observations have accumulated: confirm it, sharpen it, or retire\
+  \ it.\n\n10. **Machine-attributable failure — a failing tripwire NAMES ITSELF.**\
+  \ Items 1-9 decide whether a\n    tripwire must EXIST and what it must PROVE; this\
+  \ one decides what it must LEAVE BEHIND when it\n    fires. **A failing test MUST\
+  \ leave, in its captured output, a failure identity a machine can tie\n    back\
+  \ to the test** — either (a) a naturally RAISED exception carrying its message,\
+  \ or (b) a\n    SELF-REPORTED failure summary in a form the land-verify failing-assertion\
+  \ extractor recognizes.\n    Either binding satisfies this item; a failure that\
+  \ leaves NEITHER is the violating case.\n    **The recognized forms are the EXTRACTOR's,\
+  \ and are deliberately NOT restated here** — read them\n    at `bin/lib/cli.py#_extract_failing_assertion`\
+  \ and its producer\n    `bin/lib/verify_runner.py#_verify_failure_excerpt`, which\
+  \ is where they will also CHANGE. A cue plus a\n    pointer, per <workshop-spec>\
+  \ rule 8: a copy of the accepted shapes in this body would be a second home\n  \
+  \  that silently rots the day the extractor widens, and this item must stay correct\
+  \ across exactly\n    that event.\n    A tripwire whose failure carries no bindable\
+  \ identity is loud to a HUMAN and silent to every\n    machine downstream of it:\
+  \ the batch-attribution oracle names no culprit, evicts nobody, and\n    requeues\
+  \ the innocent members alongside the guilty one. Loudness no consumer can attribute\
+  \ is\n    loudness spent, so this is an obligation of the tripwire, not of the reader.\n\
+  \    **What this does NOT require.** No style: a `__main__` print-runner is as compliant\
+  \ as a\n    `unittest` case, provided the line it prints on failure is one the extractor\
   \ binds. No verbosity:\n    one identifying line is the whole obligation. No retro-fit:\
   \ an existing suite that already\n    self-reports is reached by WIDENING the extractor,\
   \ never by editing the tests — the identity is\n    already in the output, and the\
@@ -238,7 +238,7 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \    the SEGMENT RESOLVER, never the live file.** The rule it is an instance of\
   \ has exactly ONE\n    home and is NOT restated here: **SPEC-0190 rule 4** (a reader\
   \ declares its horizon; the fold\n    honours it) — read it before writing such\
-  \ a check: `yitc-v2 graph query SPEC-0190`. A cue\n    plus a pointer, per SPEC-0005\
+  \ a check: `yitc-v2 graph query SPEC-0190`. A cue\n    plus a pointer, per <workshop-spec>\
   \ rule 8, exactly as item 9's journal-cost bullet does for the\n    same spec; inlining\
   \ rule 4's sentences here would be the second home that drifts the day\n    SPEC-0190\
   \ is amended.\n    **THE FAILURE IT PREVENTS, NAMED: SILENT ABSENCE READ AS EVIDENCE\
@@ -321,11 +321,11 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ so that a heavy layer runs only when its\n    own area changes.\n    **The mechanics\
   \ of that split have exactly ONE home and are NOT restated here:**\n    `patterns/consumer-suite-parallelization.md`\
   \ §Splitting a monolithic layer, and the sections\n    of its SPLIT lever that follow\
-  \ it — read them before you cut. A cue plus a pointer, per\n    SPEC-0005 rule 8;\
-  \ the layer contract those globs and that prepared environment belong to is\n  \
-  \  SPEC-0152 rule 16 (`yitc-v2 graph query SPEC-0152`).\n    **(c) Keep one test\
-  \ file from setting its layer's wall.** A layer whose files run side by side\n \
-  \   finishes no sooner than its longest file, so one slow file is paid again by\
+  \ it — read them before you cut. A cue plus a pointer, per\n    <workshop-spec>\
+  \ rule 8; the layer contract those globs and that prepared environment belong to\
+  \ is\n    SPEC-0152 rule 16 (`yitc-v2 graph query SPEC-0152`).\n    **(c) Keep one\
+  \ test file from setting its layer's wall.** A layer whose files run side by side\n\
+  \    finishes no sooner than its longest file, so one slow file is paid again by\
   \ every later change\n    that selects the layer. The card that writes or grows\
   \ a test file reads that file's time at the\n    Tests stage and cuts the file when\
   \ it has become the longest file of such a layer, or when a\n    single test in\

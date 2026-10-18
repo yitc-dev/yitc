@@ -63,8 +63,8 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   \ logs, one objective\nRouting an alert answers where an incident GOES. It does\
   \ not answer how anyone would SEE one. A\nproject carrying real users is asked three\
   \ further things, as OPTIONAL keys on this SAME\n`alert_routing:` section (no new\
-  \ section — SPEC-0005 §7, in place):\n\n- `health:` — the endpoint a human or a\
-  \ monitor can hit to ask \"is it up?\".\n- `logs:` — the structured-log stance,\
+  \ section — <workshop-spec> §7, in place):\n\n- `health:` — the endpoint a human\
+  \ or a monitor can hit to ask \"is it up?\".\n- `logs:` — the structured-log stance,\
   \ and WHERE the logs are read.\n- `slo:` — at least ONE named objective, carrying\
   \ BOTH `objective:` (what is promised) and\n  `target:` (the number that decides\
   \ whether it was kept).\n\nEach is declare-or-waive LOOSE per rule 1, and each is\

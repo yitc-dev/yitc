@@ -39,7 +39,7 @@ The affordance itself — the concrete button / field / form step / screen the u
 - a **scenario step** (`scenarios/<slug>.md`) — the user-path the affordance participates in,
   narrated zero-normatively and annotated with the governing anchor for each step (SPEC-0076 §5).
 
-Do **not** mint a spec for an affordance. A `spec` homes an enforced **rule** (SPEC-0005
+Do **not** mint a spec for an affordance. A `spec` homes an enforced **rule** (<workshop-spec>
 admission: it must assert a rule that could be checked). "There is a Cancel button on the order
 screen" is not a rule — it is a deliverable (task) walked by a path (scenario). Reaching for a
 spec here is the accretion the anti-complexity filter (CHARTER §Principle 1) exists to stop.
@@ -62,7 +62,7 @@ bounded set with one source of truth. Do not inline the same label string across
 not let two surfaces carry divergent wording for the same concept. A bounded labels SSoT means:
 the allowed values live in one place (an enum / a labels module / a single config), and every
 surface renders from it. This is the UI analog of the kernel's general "one home, no divergent
-copy" discipline (SPEC-0005 rule 8 single-SoT) — a label that exists in two places will drift.
+copy" discipline (<workshop-spec> rule 8 single-SoT) — a label that exists in two places will drift.
 
 ## Procedure
 

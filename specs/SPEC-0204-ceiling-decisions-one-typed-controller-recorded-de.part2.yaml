@@ -308,7 +308,7 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ obligation (a non-empty\n  reason, the quoted words for an `accept`, resolution\
   \ of `--directive` / `--receiving` /\n  `--evidence`, and every refusal kind above)\
   \ is UNCHANGED — so it is an in-place ADDITIVE extension,\n  not a normative reshape\
-  \ (SPEC-0005 §7).\n\n- **3. The one bounded re-audit — `audit pre|post --on-decisions`:**\
+  \ (<workshop-spec> §7).\n\n- **3. The one bounded re-audit — `audit pre|post --on-decisions`:**\
   \ (ADDITIVE; measured on\n   2026-09-29, deviation events.jsonl#ts=)\n\n- **3. The\
   \ one bounded re-audit — `audit pre|post --on-decisions`:** (ADDITIVE)\n\n- **3.\
   \ The one bounded re-audit — `audit pre|post --on-decisions`:** (ADDITIVE)\n\n-\

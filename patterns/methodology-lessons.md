@@ -1,7 +1,7 @@
 ---
 name: methodology-lessons
 class: discipline
-sourced_from: V2 orchestrate-posture trial (2026-06) + the retired `decision new` rule→spec split (SPEC-0005 §rule 8 / §rule 3 content-boundary)
+sourced_from: V2 orchestrate-posture trial (2026-06) + the retired `decision new` rule→spec split (<workshop-spec> §rule 8 / §rule 3 content-boundary)
 applies_to: at Stage-1 Analysis prior-art sweep (SPEC-0032 step 1) + plan currency-check — BEFORE re-proposing or re-litigating a methodological approach, consult this catalog for an already-rejected/withdrawn option + its why-rationale (anti-reinvention #5)
 ---
 
@@ -11,7 +11,7 @@ applies_to: at Stage-1 Analysis prior-art sweep (SPEC-0032 step 1) + plan curren
 
 When the `decision new` class was retired (a standing rule's text moves to a SPEC), the
 **other half of a decision lost its home**: the *rejected alternatives* and the *why-it's-done-this-way*
-rationale. A spec deliberately CANNOT hold that material — SPEC-0005 rule 3 (content boundary) forbids
+rationale. A spec deliberately CANNOT hold that material — <workshop-spec> rule 3 (content boundary) forbids
 rejected-alternatives narratives and deliberation chronology in a spec body, keeping specs pure
 rule-text. MEMORY.md is a non-durable buffer (SPEC-0039), not a home. So a *settled methodological
 lesson* — «we tried option X, rejected it, here's why» — had nowhere durable to live, and a later
@@ -176,7 +176,7 @@ lesson is its why and worked example, never a second home of the rule. [relates:
 - **Re-litigating a settled lesson because its «why» had no home** — e.g. re-proposing in-process
   subagent fan-out for Build *workers* (the 2026-06-06 visible-mode candidate) without first consulting
   this catalog and seeing it was already weighed + rejected with the agent-identity reason.
-- **Putting the rejected-option narrative in the wrong lane** — into a SPEC (violates SPEC-0005 rule 3
+- **Putting the rejected-option narrative in the wrong lane** — into a SPEC (violates <workshop-spec> rule 3
   content-boundary), or into MEMORY.md (a non-durable buffer, SPEC-0039), or treating it as a
   `deviation`/`errors` case (that lane is for nonconformities, not deliberation outcomes).
 - **Growing this into a mechanism** — a per-lesson folder, a journal, a parser, or a normative
@@ -184,7 +184,7 @@ lesson is its why and worked example, never a second home of the rule. [relates:
 
 ## Cites
 
-- `SPEC-0005` — the spec doctrine; rule 3 (content boundary — why a spec cannot hold rejected-alternatives/why) + rule 8 (one home).
+- `<workshop-spec>` — the spec doctrine; rule 3 (content boundary — why a spec cannot hold rejected-alternatives/why) + rule 8 (one home).
 - `SPEC-0032` — Stage-1 Analysis procedure; step 1 prior-art sweep consults this catalog (anti-reinvention #5).
 - `SPEC-0039` — MEMORY.md buffer (the non-durable lane this catalog is distinct from).
 - `patterns/error-friction-tracking.md` — the deviations/`errors/E-XXXX` lane (distinct from methodology lessons).

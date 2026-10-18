@@ -32,25 +32,25 @@ body: "## Scenario\n\nA project meets something the kernel does not handle the w
   \ / friction-only decline, the duplicate link, «every proposal is answered» and\
   \ the worked\n> example), are carried from <workshop-spec> word for word.\n> Routed\
   \ as a SUPERSEDE because (1) and (2) change what a receiver must do in an already-covered\n\
-  > case (SPEC-0005 rule 7's discriminating probe): a reproduced DEFECT is taken today,\
-  \ and after this\n> spec is first judged for ownership and may be declined with\
-  \ a project remedy.\n\nTHE GOVERNING AIM, against which every rule below is read:\
-  \ a project is free in what is its own\nspecifics, and it is not made to wait. The\
-  \ receiver side exists to serve that aim.\n\n### 1. The ownership judgement — one\
-  \ question, asked on both sides\nWhoever asks it, the question is the same: is this\
-  \ a violation of a contract the RECEIVER already\ncarries, or a convention the REQUESTER\
-  \ selected for itself? The two classes are named **receiver\ncontract** and **requester\
-  \ convention**, for every receiver — the kernel, or a project that\nreceives a request\
-  \ from another project.\n  - **A receiver contract** is the receiver's own obligation\
-  \ and is repaired by the receiver. On\n    the project-kernel boundary the kernel's\
-  \ contracts are: encoding and path correctness, the\n    faithful reading of a valid\
-  \ declaration, syntax the kernel already promises to recognize, a\n    crash, a\
-  \ refusal whose own stated reason is false.\n  - **A requester convention** is the\
-  \ requester's. It is answered with a declaration the requester\n    fills, never\
-  \ with a special case in the receiver.\n  - **Where an incident surfaced does not\
-  \ establish whose it is.** A Cyrillic path the kernel failed\n    to decode (X-1237)\
-  \ surfaced in a project and was the kernel's own defect (SPEC-0185 §2a(i)).\n**A\
-  \ third honest answer — a NEW receiver capability.** A request for something the\
+  > case (<workshop-spec> rule 7's discriminating probe): a reproduced DEFECT is taken\
+  \ today, and after this\n> spec is first judged for ownership and may be declined\
+  \ with a project remedy.\n\nTHE GOVERNING AIM, against which every rule below is\
+  \ read: a project is free in what is its own\nspecifics, and it is not made to wait.\
+  \ The receiver side exists to serve that aim.\n\n### 1. The ownership judgement\
+  \ — one question, asked on both sides\nWhoever asks it, the question is the same:\
+  \ is this a violation of a contract the RECEIVER already\ncarries, or a convention\
+  \ the REQUESTER selected for itself? The two classes are named **receiver\ncontract**\
+  \ and **requester convention**, for every receiver — the kernel, or a project that\n\
+  receives a request from another project.\n  - **A receiver contract** is the receiver's\
+  \ own obligation and is repaired by the receiver. On\n    the project-kernel boundary\
+  \ the kernel's contracts are: encoding and path correctness, the\n    faithful reading\
+  \ of a valid declaration, syntax the kernel already promises to recognize, a\n \
+  \   crash, a refusal whose own stated reason is false.\n  - **A requester convention**\
+  \ is the requester's. It is answered with a declaration the requester\n    fills,\
+  \ never with a special case in the receiver.\n  - **Where an incident surfaced does\
+  \ not establish whose it is.** A Cyrillic path the kernel failed\n    to decode\
+  \ (X-1237) surfaced in a project and was the kernel's own defect (SPEC-0185 §2a(i)).\n\
+  **A third honest answer — a NEW receiver capability.** A request for something the\
   \ receiver never\npromised and that is not specific to the requester (a general\
   \ capability any project could use) is\nneither class: it is named **new receiver\
   \ capability**, and the existing triage classes alone\ndecide it (section 3 — a\
@@ -243,56 +243,56 @@ body: "## Scenario\n\nA project meets something the kernel does not handle the w
   \ receiver** — kernel and consumer alike; nothing here is kernel-only.\n\n**Delivery\
   \ is a REPORT-ONLY cue, never a gate.** Both named surfaces print one cue line\n\
   (`cross.premise_review_cue`, the single emitter both share) naming the discipline\
-  \ and POINTING here;\nper SPEC-0005 §8 the cue carries no restated rule-text — this\
-  \ clause is the one home, so the cue cannot\ndrift from it. It never blocks a pick\
-  \ or a filing (non-goal #7): the judgement is the receiver's, the\ncue only guarantees\
-  \ the question is ASKED at the moment the intake happens ( extend-the-verb).\n\n\
-  ### 4. The bound — what neither side's freedom loosens\nA report-only fallback applies\
-  \ SOLELY to best-effort recognition of an UNDECLARED project convention\non an ADVISORY\
-  \ surface, on the terms of SPEC-0185 §2a(ii); an interpretation left unresolved\
-  \ is\nREPORTED explicitly and supplies NO verification evidence. Safety, secrets,\
-  \ authorization, trust and\npath-containment boundaries, governed-state and release-integrity\
-  \ requirements, and required\nverification, audit and evidence gates KEEP their\
-  \ governing contracts: only an exemption one of\nthose contracts expressly authorizes\
-  \ applies. This judgement grants none; neither does a local\narrangement, a workaround,\
-  \ a reconciliation lesson or an override-ledger entry.\nA gate that refuses on purpose\
-  \ is not a kernel defect (SPEC-1000 rule 1). Where the kernel machinery\nthat produces\
-  \ a required outcome is itself the broken part, the outcome may be reproduced by\
-  \ hand\nONLY where an applicable contract already authorizes that and its entry\
-  \ conditions are met —\nSPEC-1000 rule 3 on the installations it covers, the emergency\
-  \ mode on its own entry conditions.\nThis spec authorizes no reproduction of its\
-  \ own.\n**The waits that remain — each blocks ONE action, never the project.** (1)\
-  \ A required gate for which\nno applicable contract authorizes a substitute blocks\
-  \ the action it guards, even where a manual\nsubstitute would be technically possible;\
-  \ removing that wait would be a gate waiver. (2) An action\nblocked by a kernel\
-  \ defect on an installation SPEC-1000 does not cover waits for the kernel's fix\n\
-  ONLY where no other applicable contract authorizes a path — where the emergency\
-  \ mode applies and\nits entry conditions are met, that path is taken instead.\n\
-  All other project work continues in both.\n\n### 5. The public proposal intake —\
-  \ how the workshop sorts what arrives\nThe sorting classes, the default disposition\
-  \ and the ownership judgement are section 3's; this\nsection applies them to the\
-  \ public proposal intake of SPEC-0197.\nApplied to this intake: a DEFECT reproduced\
-  \ on the published release is routed under section 3,\nincluding its ownership and\
-  \ existing-remedy judgement — a kernel card is filed when that judgement\nrequires\
-  \ kernel work; a PROVEN NEED — the SPEC-0197 rule-5 recurrence, or a block on the\n\
-  newcomer path — is routed under section 3 in the same way, and becomes a card or\
-  \ a plan only where\nthat judgement requires receiver work; a want, a one-off or\
-  \ a friction-only report is answered with a\nreasoned decline (naming the class\
-  \ and the filter that failed) or kept as an idea; a duplicate is\nlinked to the\
-  \ existing card. Every proposal is answered (SPEC-0197 rule 4), whichever way it\
-  \ is\nsorted. Worked example: the v2.0.4 trial report (`events.jsonl#ts=`) — twelve\n\
-  DEFECT cards, two items already fixed on main, one duplicate linked to.\n\n### 6.\
-  \ Delivery — cues and pointers only, never a gate\nThis spec is reached through\
-  \ EXISTING surfaces, each carrying a cue and a pointer and none of the\nrule text\
-  \ (SPEC-0005 rule 8): the premise-review cue printed at `cross pick` and at a\n\
-  `resolves_cross` filing (the receiver side); the consumer kernel-signaling line\
-  \ at session start\nand the capture-routing view (the requester side); the plan\
-  \ front-load item that names the judgement\nfor a plan that would change the kernel\
-  \ in answer to a project (SPEC-0043). No surface refuses a\npick, a filing or a\
-  \ capture on this spec's account.\n\n### 7. Anti-complexity record (CHARTER §Principle\
-  \ 1, four filters)\n1. **Existing analog?** Extended, not paralleled: the triage\
-  \ of section 3, the declaration bar of\n   SPEC-0185, the escape of SPEC-1000, the\
-  \ routing of SPEC-0085 §3 and the ledger of SPEC-0196\n   existed and were joined\
+  \ and POINTING here;\nper <workshop-spec> §8 the cue carries no restated rule-text\
+  \ — this clause is the one home, so the cue cannot\ndrift from it. It never blocks\
+  \ a pick or a filing (non-goal #7): the judgement is the receiver's, the\ncue only\
+  \ guarantees the question is ASKED at the moment the intake happens ( extend-the-verb).\n\
+  \n### 4. The bound — what neither side's freedom loosens\nA report-only fallback\
+  \ applies SOLELY to best-effort recognition of an UNDECLARED project convention\n\
+  on an ADVISORY surface, on the terms of SPEC-0185 §2a(ii); an interpretation left\
+  \ unresolved is\nREPORTED explicitly and supplies NO verification evidence. Safety,\
+  \ secrets, authorization, trust and\npath-containment boundaries, governed-state\
+  \ and release-integrity requirements, and required\nverification, audit and evidence\
+  \ gates KEEP their governing contracts: only an exemption one of\nthose contracts\
+  \ expressly authorizes applies. This judgement grants none; neither does a local\n\
+  arrangement, a workaround, a reconciliation lesson or an override-ledger entry.\n\
+  A gate that refuses on purpose is not a kernel defect (SPEC-1000 rule 1). Where\
+  \ the kernel machinery\nthat produces a required outcome is itself the broken part,\
+  \ the outcome may be reproduced by hand\nONLY where an applicable contract already\
+  \ authorizes that and its entry conditions are met —\nSPEC-1000 rule 3 on the installations\
+  \ it covers, the emergency mode on its own entry conditions.\nThis spec authorizes\
+  \ no reproduction of its own.\n**The waits that remain — each blocks ONE action,\
+  \ never the project.** (1) A required gate for which\nno applicable contract authorizes\
+  \ a substitute blocks the action it guards, even where a manual\nsubstitute would\
+  \ be technically possible; removing that wait would be a gate waiver. (2) An action\n\
+  blocked by a kernel defect on an installation SPEC-1000 does not cover waits for\
+  \ the kernel's fix\nONLY where no other applicable contract authorizes a path —\
+  \ where the emergency mode applies and\nits entry conditions are met, that path\
+  \ is taken instead.\nAll other project work continues in both.\n\n### 5. The public\
+  \ proposal intake — how the workshop sorts what arrives\nThe sorting classes, the\
+  \ default disposition and the ownership judgement are section 3's; this\nsection\
+  \ applies them to the public proposal intake of SPEC-0197.\nApplied to this intake:\
+  \ a DEFECT reproduced on the published release is routed under section 3,\nincluding\
+  \ its ownership and existing-remedy judgement — a kernel card is filed when that\
+  \ judgement\nrequires kernel work; a PROVEN NEED — the SPEC-0197 rule-5 recurrence,\
+  \ or a block on the\nnewcomer path — is routed under section 3 in the same way,\
+  \ and becomes a card or a plan only where\nthat judgement requires receiver work;\
+  \ a want, a one-off or a friction-only report is answered with a\nreasoned decline\
+  \ (naming the class and the filter that failed) or kept as an idea; a duplicate\
+  \ is\nlinked to the existing card. Every proposal is answered (SPEC-0197 rule 4),\
+  \ whichever way it is\nsorted. Worked example: the v2.0.4 trial report (`events.jsonl#ts=`)\
+  \ — twelve\nDEFECT cards, two items already fixed on main, one duplicate linked\
+  \ to.\n\n### 6. Delivery — cues and pointers only, never a gate\nThis spec is reached\
+  \ through EXISTING surfaces, each carrying a cue and a pointer and none of the\n\
+  rule text (<workshop-spec> rule 8): the premise-review cue printed at `cross pick`\
+  \ and at a\n`resolves_cross` filing (the receiver side); the consumer kernel-signaling\
+  \ line at session start\nand the capture-routing view (the requester side); the\
+  \ plan front-load item that names the judgement\nfor a plan that would change the\
+  \ kernel in answer to a project (SPEC-0043). No surface refuses a\npick, a filing\
+  \ or a capture on this spec's account.\n\n### 7. Anti-complexity record (CHARTER\
+  \ §Principle 1, four filters)\n1. **Existing analog?** Extended, not paralleled:\
+  \ the triage of section 3, the declaration bar of\n   SPEC-0185, the escape of SPEC-1000,\
+  \ the routing of SPEC-0085 §3 and the ledger of SPEC-0196\n   existed and were joined\
   \ by no decision rule.\n2. **New entity or new view?** Neither — rule text and pointers.\
   \ No store, verb, event, status or\n   field is added on either side.\n3. **What\
   \ is removed?** Case-by-case kernel accommodation as the default answer to a\n \
@@ -307,7 +307,7 @@ body: "## Scenario\n\nA project meets something the kernel does not handle the w
   \ project-to-kernel bugfix item took a median of 18.3 hours\nand 50.6 hours at the\
   \ 90th percentile, and 314 of 827 took more than a day. Both gaps are the same\n\
   missing question, so one rule answers both. The deliberation — the rejected carrier\
-  \ shapes, the\nconsult rounds — lives in the proposing plan, not here (SPEC-0005\
+  \ shapes, the\nconsult rounds — lives in the proposing plan, not here (<workshop-spec>\
   \ rule 3).\n\n## Verification\n\n- **VP1 (carried from <workshop-spec> — the triage\
   \ classes):** section 3's \"Default disposition at\n  triage\" block carries the\
   \ three classes DEFECT / PROVEN NEED / WANT-or-ONE-OFF, the default\n  DECLINE,\
@@ -370,7 +370,6 @@ cites:
 - SPEC-0093
 - SPEC-0090
 - SPEC-0043
-- SPEC-0005
 - CHARTER.md#principle-1
 requires: []
 supersedes: null

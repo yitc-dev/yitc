@@ -171,8 +171,8 @@ body: "## Scenario\n\nThe owner/AI needs to make a HOST-level config change — 
   \ the invisible, ungoverned, prod-dangerous step this contract eliminates. Prior-art\
   \ it extends:\nSPEC-0094 (deploy verb + per-change live_probe + close-gate) and\
   \ SPEC-0097 (deploy class + per-class\nevidence). Full deliberation + the owner\
-  \ ratification of Fork-1(A)/Fork-2/Fork-3: the parent plan\n(SPEC-0005 §3 — debate\
-  \ is plan material, not restated here).\n\n## Verification\n\n- **VP1 (human-apply\
+  \ ratification of Fork-1(A)/Fork-2/Fork-3: the parent plan\n(<workshop-spec> §3\
+  \ — debate is plan material, not restated here).\n\n## Verification\n\n- **VP1 (human-apply\
   \ gate):** no apply-confirmation for a host-config change rests on a SELF-authorized\n\
   \  session — every `apply_confirmed` carries `confirmed_by`, the authorizing owner\
   \ directive (§1). A\n  CONTROLLER-DISPATCHED `--confirm` naming no directive is\

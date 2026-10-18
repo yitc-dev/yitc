@@ -275,7 +275,7 @@ body: "## Scenario\n\nWhen a standing rule lives in the `retrieved` tier (fetche
   \ + `_release_spec_slice_violations`,\nSPEC-0074 §6 / SPEC-0073 §8). Three further\
   \ surfaces are REPORT-ONLY and NEVER part of the RED/GREEN\nverdict (they do not\
   \ affect the exit code): the SPEC-0070 §5 unmarked-cut-card advisory, the\nSPEC-0085\
-  \ dangling-resolved-coordination advisory, and the SPEC-0005 §4/§5 phantom-activation-owner\n\
+  \ dangling-resolved-coordination advisory, and the <workshop-spec> §4/§5 phantom-activation-owner\n\
   advisory ( — a `proposed` spec whose `activation_owner_task` names no local task:\
   \ it governs\nnothing and can never activate, so the advisory names both terminal\
   \ routes; the route is a SEMANTIC\nchoice no check can synthesize, hence report-only).\
@@ -397,7 +397,6 @@ body: "## Scenario\n\nWhen a standing rule lives in the `retrieved` tier (fetche
   \ spec bodies are current.\n"
 cites:
 - part-i-a-retrieval-delivery-mechanism
-- SPEC-0005
 - SPEC-0006
 - SPEC-0007
 - SPEC-0010

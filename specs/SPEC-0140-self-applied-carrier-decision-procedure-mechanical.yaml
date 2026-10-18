@@ -35,13 +35,13 @@ body: "## Scenario\n\nA change arises (from an owner cue, a cross-log intake, a 
   \ rule 10 exception applies (the exceptions live\nthere, not here). A record-only\
   \ change still takes S0 first.\n\n- **S1 — Plan-warranted?** Does the change need\
   \ AT LEAST ONE of these three (each self-checkable)?\n    (a) a **new or changed\
-  \ standing-rule SPEC corpus** (SPEC-0005) — not a one-off edit but a\n        rule\
-  \ others will read;\n    (b) a **coordinated multi-task cut** whose slicing must\
-  \ be fidelity-audited (SPEC-0070 /\n        SPEC-0034 / SPEC-0046) — several interdependent\
-  \ tasks that must land as one shaped set;\n    (c) **design-convergence on real\
-  \ data** — the answer is not yet known and must be found by\n        trialling against\
-  \ live data (the `trial` stage, SPEC-0035).\n  If YES → **PLAN** (it adds the heavy\
-  \ plan-only cascade — gate-specs, draft `plan check`,\n  decomposition-fidelity\
+  \ standing-rule SPEC corpus** (<workshop-spec>) — not a one-off edit but a\n   \
+  \     rule others will read;\n    (b) a **coordinated multi-task cut** whose slicing\
+  \ must be fidelity-audited (SPEC-0070 /\n        SPEC-0034 / SPEC-0046) — several\
+  \ interdependent tasks that must land as one shaped set;\n    (c) **design-convergence\
+  \ on real data** — the answer is not yet known and must be found by\n        trialling\
+  \ against live data (the `trial` stage, SPEC-0035).\n  If YES → **PLAN** (it adds\
+  \ the heavy plan-only cascade — gate-specs, draft `plan check`,\n  decomposition-fidelity\
   \ audit, aggregate `audit post --plan`). If a change proves ONE claim and\n  establishes\
   \ no new spec corpus, S1 is NO — it is a task, never a plan. Never route a\n  tiny/presentational\
   \ change through a plan (the X-0074 ~8-10-audit cascade).\n\n- **S2 — Default →\
@@ -80,7 +80,7 @@ body: "## Scenario\n\nA change arises (from an owner cue, a cross-log intake, a 
   \ SPEC-0034 plan\nlifecycle, SPEC-0072 effort-tier on a different axis) but was\
   \ not framed as a mechanical\nself-answerable procedure, so it read as an adjudication.\
   \ This spec is the ONE home of the\nprocedure body; LIFECYCLE §Routing keeps only\
-  \ a cue+pointer (SPEC-0005 rule 8).\n\n## Verification\n\n- State-probe: `bin/yitc-v2\
+  \ a cue+pointer (<workshop-spec> rule 8).\n\n## Verification\n\n- State-probe: `bin/yitc-v2\
   \ graph query SPEC-0140` resolves this spec + body (query-only tier).\n- State-probe:\
   \ LIFECYCLE §Routing contains a cue+pointer naming SPEC-0140 (reachable at the\n\
   \  routing moment) — grep `SPEC-0140` in LIFECYCLE.md.\n- Adoption (live-trigger):\

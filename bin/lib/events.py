@@ -1558,6 +1558,36 @@ def append_event(
 
 _MID_TURN_MACHINERY_MARKERS = ("<task-notification>", "<cross-session-message", "<system-reminder>")
 
+_BARE_TS_CITATION_RE = re.compile(r"(?<!events\.jsonl)#ts=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)")
+
+
+def _delegated_citation_refusal(data: dict, *, row_text, locator_re):
+    """T-14018 (public issue #142) — refuse at the write a `controller-delegated` owner_directive whose
+    prose cites no owner row, or return None. SPEC-0204 rule 2 resolves such a row ONLY through the
+    `events.jsonl#ts=<ISO>` locator its prose carries, and `row_text` / `locator_re` are the read side's
+    own (`audit_ceiling._directive_row_text` / `_DIRECTIVE_LOCATOR_RE`), so the write admits exactly what
+    the read can resolve. A mid-turn row (`mid_turn` present) has its own proof (T-12801) and is not
+    judged here. The read fields are NOT widened: a citation in `summary` is named, never read."""
+    if data.get("captured_via") != "controller-delegated" or data.get("mid_turn") is not None:
+        return None
+    if locator_re.search(row_text({"data": data})):
+        return None
+    msg = ("a `captured_via: controller-delegated` owner_directive must cite the owner row it stands in "
+           "for as `events.jsonl#ts=<ISO>` in `text`, `directive` or `owner_text` — the only fields "
+           "`audit decide` reads (SPEC-0204 rule 2); none of them carries one")
+    elsewhere = sorted(k for k, v in data.items()
+                       if k not in ("text", "directive", "owner_text") and isinstance(v, str)
+                       and locator_re.search(v))
+    if elsewhere:
+        msg += (f". The locator sits in {', '.join(f'`{k}`' for k in elsewhere)}, which no reader of the "
+                "chain reads — move it into `text`")
+    bare = sorted({m.group(1) for v in data.values() if isinstance(v, str)
+                   for m in _BARE_TS_CITATION_RE.finditer(v)})
+    if bare:
+        msg += (". A bare `#ts=` citation is not a locator — spell it "
+                + ", ".join(f"`events.jsonl#ts={ts}`" for ts in bare))
+    return msg
+
 
 def _mid_turn_owner_text_refusal(data: dict, source_ref, *, _classify_cc_entry, _extract_text):
     """T-12801 — prove a mid-turn delegated owner_directive's `owner_text` at the write, or return the
@@ -1799,6 +1829,14 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                      "if supplied it must be the owner's COMPLETE message, verbatim)")
             data["owner_text"] = _proof["owner_text"]
             data["owner_text_verified"] = True
+        _citation_refusal = _delegated_citation_refusal(
+            caller_data, row_text=audit._directive_row_text, locator_re=audit._DIRECTIVE_LOCATOR_RE)
+        if _citation_refusal:
+            _die(f"owner_directive refused: {_citation_refusal}. Nothing was appended.\n"
+                 "  the route (SPEC-0204 rule 2): `bin/yitc-v2 event owner_directive --source-ref "
+                 "<owner-transcript-locator> --data '{\"captured_via\": \"controller-delegated\", "
+                 "\"cards\": [\"T-XXXX\"], \"text\": \"<what the owner authorized> cites "
+                 "events.jsonl#ts=<owner row ts>\"}'`")
 
     if args.commit and event_type == "live_trigger_evidence":
         # T-12592 — `--commit` IS live_trigger_evidence's custody writer (it has no dedicated emitter):
@@ -2597,6 +2635,11 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
         realm = getattr(args, "resolved_realm", None)
         if nid and realm:
             data["node_realm"] = realm
+        # T-14017: a HISTORICAL (`--as-of`) lookup records the one sha it read, ADDITIVE key — and
+        # `gates.py#_fetched_spec_ids` never credits such a row: a past body is not the current contract.
+        as_of_sha = getattr(args, "as_of_sha", None)
+        if as_of_sha:
+            data["as_of"] = as_of_sha
     # T-9786 (X-0158): the top-level `--help` fetch-receipt records the verb-inventory sentinel as its
     # node_id — the SAME ADDITIVE key `graph query` uses — so `_require_help_read` credits the scan via
     # the existing `_fetched_spec_ids` reader (NO new event/store, P1 F1). Emitted from `_HelpInventoryAction`.

@@ -227,30 +227,47 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ yields NO pointer, and the key is OMITTED entirely\n  when there is no head (never\
   \ an empty list). Closes X-0290: before this, the reverse link existed\n  ONLY inside\
   \ `--projected` for the pending case, so once a supersession completed no query\
-  \ surface\n  showed what replaced a superseded spec.\n- `<id>` is `<file-path>`\
-  \ → return all specs that this file implements; when any listed implementer is not\
-  \ `active`, a sibling `non_active_implementers` map names each such spec with its\
-  \ `status` and, where a supersession completed, its `superseded_by` head(s) — OMITTED\
-  \ when every implementer is active (never an empty map), so `implements_specs` keeps\
-  \ its exact shape\n- `<id>` is `<file-path>#<symbol>` (the anchor form SPEC-0088\
-  \ prefers) → return the specs whose `implements:` carry that exact anchor, over\
-  \ the same locations index; a known file with an unknown symbol is refused naming\
-  \ the file, the symbol and the known symbols; its non-active implementers are annotated\
-  \ exactly as the `<file-path>` form's\n- `<id>` is `T-NNNN` / `D-NNNN` → the node\
-  \ is re-sourced ON DEMAND from the authored `tasks/` / `decisions/` YAML ( — the\
-  \ task/decision build sections were cut, so there is no index section; the graft\
-  \ restores T-/D- point-lookup + the spec→T-/D- `requires:` known-id universe). `E-NNNN`\
-  \ resolves its `error` node from the index. The post-cut task point-lookup payload\
-  \ is the node only (no `commits_from`/`events`/`audits` — those edges are cut);\
-  \ the plan point-lookup likewise drops its `audits` line (plan-check verdicts read\
-  \ directly from `decisions/<plan>-audit-*.yaml`).\nOutput: structured YAML or markdown\
-  \ table. No JSON-only mode (humans read this too).\n\n**Point-lookup appends the\
-  \ SOURCE artifact.** After the metadata block, a point-lookup of\na body-bearing\
-  \ node — `spec` / `pattern` / `plan` / `error` — ALSO appends the full source artifact\n\
-  of that node (the spec `body:` + structured fields; the pattern/plan markdown body;\
-  \ the error\nstructured YAML), so the documented \"Read it via `bin/yitc-v2 graph\
-  \ query <ID>`\" path delivers the\nrule itself, not only the index node. The body\
-  \ is read from the SOURCE FILE at query time via a\nshared by-type loader (`specs/SPEC-XXXX-*.yaml`\
+  \ surface\n  showed what replaced a superseded spec.\n+ WHERE THE LINEAGE STANDS,\
+  \ additive above an UNCHANGED read: the served body and the\n  `cli_invoked` receipt\
+  \ stay those of the REQUESTED id. (1) Between the node and the body, one line\n\
+  \  `<id> superseded -> active head <Z>`, walked FORWARD over the literal `supersedes:`\
+  \ chain through\n  the same completed-supersession heads as `superseded_by` — so\
+  \ a `proposed` / `draft` / `withdrawn`\n  / `rejected` successor is never the head.\
+  \ Printed only when the spec is `superseded` / `retired`\n  or has a completed successor.\
+  \ No active head, several active heads or a cycle is printed as such\n  (`no active\
+  \ head (chain ends at: …)` / `several active heads: …` / `cycle in the supersedes\n\
+  \  chain: …`) with the candidates, never a pick. (2) Beside `cited_by_tasks`, `lineage_cited_by:`\n\
+  \  — the `lineage` (every id the forward walk above reaches from the requested id,\
+  \ plus the literal\n  `supersedes:` chain walked BACK from each of them; a proposed\
+  \ successor is not a member) and the\n  `specs` and `scenarios` citing any lineage\
+  \ id (lineage members excluded) and the\n  `open_tasks` (ready / in-progress / blocked\
+  \ cards) citing any of them, each deduplicated; omitted\n  when the lineage is the\
+  \ id alone or nothing cites it. It is an aid to the SPEC-1037 mention\n  review,\
+  \ not its completeness basis. Both are walked inside the id space that answered\
+  \ the\n  lookup (`--kernel` / own index / `-C` engine fallback — consumer-own wins,\
+  \ SPEC-0092).\n- `<id>` is `<file-path>` → return all specs that this file implements;\
+  \ when any listed implementer is not `active`, a sibling `non_active_implementers`\
+  \ map names each such spec with its `status` and, where a supersession completed,\
+  \ its `superseded_by` head(s) — OMITTED when every implementer is active (never\
+  \ an empty map), so `implements_specs` keeps its exact shape\n- `<id>` is `<file-path>#<symbol>`\
+  \ (the anchor form SPEC-0088 prefers) → return the specs whose `implements:` carry\
+  \ that exact anchor, over the same locations index; a known file with an unknown\
+  \ symbol is refused naming the file, the symbol and the known symbols; its non-active\
+  \ implementers are annotated exactly as the `<file-path>` form's\n- `<id>` is `T-NNNN`\
+  \ / `D-NNNN` → the node is re-sourced ON DEMAND from the authored `tasks/` / `decisions/`\
+  \ YAML ( — the task/decision build sections were cut, so there is no index section;\
+  \ the graft restores T-/D- point-lookup + the spec→T-/D- `requires:` known-id universe).\
+  \ `E-NNNN` resolves its `error` node from the index. The post-cut task point-lookup\
+  \ payload is the node only (no `commits_from`/`events`/`audits` — those edges are\
+  \ cut); the plan point-lookup likewise drops its `audits` line (plan-check verdicts\
+  \ read directly from `decisions/<plan>-audit-*.yaml`).\nOutput: structured YAML\
+  \ or markdown table. No JSON-only mode (humans read this too).\n\n**Point-lookup\
+  \ appends the SOURCE artifact.** After the metadata block, a point-lookup of\na\
+  \ body-bearing node — `spec` / `pattern` / `plan` / `error` — ALSO appends the full\
+  \ source artifact\nof that node (the spec `body:` + structured fields; the pattern/plan\
+  \ markdown body; the error\nstructured YAML), so the documented \"Read it via `bin/yitc-v2\
+  \ graph query <ID>`\" path delivers the\nrule itself, not only the index node. The\
+  \ body is read from the SOURCE FILE at query time via a\nshared by-type loader (`specs/SPEC-XXXX-*.yaml`\
   \ / `errors/E-XXXX-*.yaml` / `patterns/<name>.md` /\n`plans/<slug>.md` | `ideas/<slug>.md`)\
   \ — it is NEVER stored in `graph/index.json` (§NOT a caching\nlayer / CHARTER §P5:\
   \ the body lives in ONE place). **A SPEC-0120-SPLIT spec's source is a CHAIN,\n\
@@ -491,49 +508,53 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ count threshold: counts grow with the work, so a fixed number signals nothing\
   \ (owner\ndirective 2026-06-06). The arbitrary per-node-type count thresholds that\
   \ once lived here\nare removed. The **spec count cap is likewise REPLACED** by the\
-  \ admission test + two-bound volume\ndiscipline (homed in SPEC-0005 rules 2 + 6;\
-  \ GRAPH.md §When-to-add points there) — anti-bloat is held\nby that discipline +\
-  \ retrieval precision + currency, not a count cap (SPEC-0005 rule 6).\n\n## Rationale\n\
-  \nDemoted to the retrieved tier (SPEC-0007 §5a query-only): the build walk + query-CLI\
-  \ surface are\nconsulted only when working ON the graph tooling — not before a gated\
-  \ control-point — so the\nalways-loaded GRAPH core stays small (node/edge schema\
-  \ + Spec lifecycle FSM + What-a-spec-is-FOR). The\nbuild↔query contract (the `index.json`\
-  \ format) is kept in ONE spec so the producer-doc and\nconsumer-doc do not drift\
-  \ apart (rule-1 merge: separating them would worsen change analysis).\n\nThe fence\
-  \ bullet «NOT validation layer» was written, when the stored-status check was\n\
-  the only one that failed a build and a dangling `covers` anchor was only reported.\
-  \ then\nput the broken-reference check into the build (June 2026) and added the\
-  \ cited-spec case,\nwhile the bullet kept its earlier wording. (2026-10-10) corrected\
-  \ the bullet to that\nshipped behaviour and counted the second exception; the build\
-  \ itself did not change.\n\n## Verification\n\n- **Fidelity (RED-GREEN):** substantive\
-  \ phrases (e.g. `keyed by the normalized FILE component` /\n  `it stores the QUERY,\
-  \ never a materialized output`) resolve in THIS spec and are ABSENT from\n  GRAPH.md\
-  \ after the demote. RED before strip, GREEN after.\n- **Delivery (query-only):**\
-  \ `bin/yitc-v2 graph query SPEC-0031` resolves; the GRAPH.md pointer-stub\n  names\
-  \ `SPEC-0031` + lookup command. NO floor-trigger.\n- **Non-dangling:** non-empty\
-  \ `implements:` (cmd_graph_build + cmd_graph_query) ⇒ excluded from\n  `dangling_specs`\
-  \ once active.\n- **Boundary:** the 7-node / 4-edge schema (post the 11->6 node\
-  \ / 6->3 edge cut, then the\n  SPEC-0076 scenario node + covers edge re-grow to\
-  \ 7/4) + Spec lifecycle FSM stay MANDATORY in\n  GRAPH.md (grep).\n- **Re-verified\
-  \ current (refreshed):** the build-walk (specs/tasks/decisions/patterns/\n  plans/ideas/errors/scenarios\
-  \ + `from:` trailers + events + audits + rule-extraction) confirmed against `graph_build_index`;\
-  \ the\n  `index.yaml` format and the `--projected` structural flags (`added`/`changed`/`superseded`/`stale`/\n\
-  \  `multi-proposer-unordered`/`dangling`) confirmed all-present in code. `cmd_graph_query`\
-  \ region is\n  IDENTICAL to the spec last-touch baseline (no code-drift). The only\
-  \ freshness signal was the cosmetic\n   `cmd_graph_build` path-derivation refactor\
-  \ — no format impact. The query-CLI implemented-vs-\n  design split was clarified\
-  \ above (`graph query --help`). Anchor refreshed by this touch.\n- **Re-verified\
-  \ current :** the index serialization switched YAML→JSON (graph/index.json;\n  the\
-  \ single write helper `_write_graph_index` serves both build sites; `_read_yaml`\n\
-  \  suffix-dispatches `.json` via json.loads, un-memoized). The `--as-of` json-first/yaml-fallback\n\
-  \  split verified by tests/test_graph_asof.py. Anchor refreshed by this touch.\n\
-  - **Re-verified current (2026-06-07 — E-0019 reconcile):** `cmd_graph_query`'s region\
-  \ drifted\n  since last-touch ( graph-slim cut reshaped the build/query node assembly).\
-  \ GOVERNED SURFACE\n  re-verified ACCURATE vs current code (scope = the `index.json`\
-  \ format + the query-CLI surface\n  `cmd_graph_query` owns, NOT the full body) —\
-  \ the index format + point-lookup/filters/--projected/\n  saved-views the spec documents\
-  \ are intact; the cut dropped the task/decision/commit/audit/event\n  NODE-types\
-  \ (re-sourced on demand), which the body already reflects via the §What-graph-is-NOT\
+  \ admission test + two-bound volume\ndiscipline (homed in <workshop-spec> rules\
+  \ 2 + 6; GRAPH.md §When-to-add points there) — anti-bloat is held\nby that discipline\
+  \ + retrieval precision + currency, not a count cap (<workshop-spec> rule 6).\n\n\
+  ## Rationale\n\nDemoted to the retrieved tier (SPEC-0007 §5a query-only): the build\
+  \ walk + query-CLI surface are\nconsulted only when working ON the graph tooling\
+  \ — not before a gated control-point — so the\nalways-loaded GRAPH core stays small\
+  \ (node/edge schema + Spec lifecycle FSM + What-a-spec-is-FOR). The\nbuild↔query\
+  \ contract (the `index.json` format) is kept in ONE spec so the producer-doc and\n\
+  consumer-doc do not drift apart (rule-1 merge: separating them would worsen change\
+  \ analysis).\n\nThe fence bullet «NOT validation layer» was written, when the stored-status\
+  \ check was\nthe only one that failed a build and a dangling `covers` anchor was\
+  \ only reported. then\nput the broken-reference check into the build (June 2026)\
+  \ and added the cited-spec case,\nwhile the bullet kept its earlier wording. (2026-10-10)\
+  \ corrected the bullet to that\nshipped behaviour and counted the second exception;\
+  \ the build itself did not change.\n\nThe lineage head line and `lineage_cited_by`\
+  \ (§Query CLI) were added in place by (plan\nspec-references-resolve-to-the-active-head-of-a-sp,\
+  \ card 1b), as additive output above an unchanged\nread (<workshop-spec> rule 7):\
+  \ before it, the point-lookup showed one hop of `superseded_by` and nothing\nabout\
+  \ where a lineage stands or who cites its earlier ids.\n\n## Verification\n\n- **Fidelity\
+  \ (RED-GREEN):** substantive phrases (e.g. `keyed by the normalized FILE component`\
+  \ /\n  `it stores the QUERY, never a materialized output`) resolve in THIS spec\
+  \ and are ABSENT from\n  GRAPH.md after the demote. RED before strip, GREEN after.\n\
+  - **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0031` resolves; the GRAPH.md\
+  \ pointer-stub\n  names `SPEC-0031` + lookup command. NO floor-trigger.\n- **Non-dangling:**\
+  \ non-empty `implements:` (cmd_graph_build + cmd_graph_query) ⇒ excluded from\n\
+  \  `dangling_specs` once active.\n- **Boundary:** the 7-node / 4-edge schema (post\
+  \ the 11->6 node / 6->3 edge cut, then the\n  SPEC-0076 scenario node + covers edge\
+  \ re-grow to 7/4) + Spec lifecycle FSM stay MANDATORY in\n  GRAPH.md (grep).\n-\
+  \ **Re-verified current (refreshed):** the build-walk (specs/tasks/decisions/patterns/\n\
+  \  plans/ideas/errors/scenarios + `from:` trailers + events + audits + rule-extraction)\
+  \ confirmed against `graph_build_index`; the\n  `index.yaml` format and the `--projected`\
+  \ structural flags (`added`/`changed`/`superseded`/`stale`/\n  `multi-proposer-unordered`/`dangling`)\
+  \ confirmed all-present in code. `cmd_graph_query` region is\n  IDENTICAL to the\
+  \ spec last-touch baseline (no code-drift). The only freshness signal was the cosmetic\n\
+  \   `cmd_graph_build` path-derivation refactor — no format impact. The query-CLI\
+  \ implemented-vs-\n  design split was clarified above (`graph query --help`). Anchor\
+  \ refreshed by this touch.\n- **Re-verified current :** the index serialization\
+  \ switched YAML→JSON (graph/index.json;\n  the single write helper `_write_graph_index`\
+  \ serves both build sites; `_read_yaml`\n  suffix-dispatches `.json` via json.loads,\
+  \ un-memoized). The `--as-of` json-first/yaml-fallback\n  split verified by tests/test_graph_asof.py.\
+  \ Anchor refreshed by this touch.\n- **Re-verified current (2026-06-07 — E-0019\
+  \ reconcile):** `cmd_graph_query`'s region drifted\n  since last-touch ( graph-slim\
+  \ cut reshaped the build/query node assembly). GOVERNED SURFACE\n  re-verified ACCURATE\
+  \ vs current code (scope = the `index.json` format + the query-CLI surface\n  `cmd_graph_query`\
+  \ owns, NOT the full body) — the index format + point-lookup/filters/--projected/\n\
+  \  saved-views the spec documents are intact; the cut dropped the task/decision/commit/audit/event\n\
+  \  NODE-types (re-sourced on demand), which the body already reflects via the §What-graph-is-NOT\
   \ bound.\n  Last-touch refreshed. Kind-(B) symbol-level TRUE-positive — durable\
   \ fix (content-signature, new store)\n  is owner-Review-gated; legitimate one-time\
   \ reconcile, not a cosmetic re-pin. (The ## Verification §Boundary stale pre- node/edge\
@@ -545,10 +566,10 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ graft callsites. Body re-verified ACCURATE vs current code — the graft\n  parse-error\
   \ observability the spec already documents (lines ~42-45, ~99) is unchanged; only\n\
   \  widened WHICH callsites honor it. Last-touch refreshed.\n- **Touched (2026-06-09):**\
-  \ ADDITIVE extension (SPEC-0005 §7 in-place) — the point-lookup now\n  appends the\
-  \ SOURCE artifact of a body-bearing node (spec/pattern/plan/error) after the metadata\
-  \ block\n  via the shared `_node_source_path` by-type loader (read at query time,\
-  \ NOT indexed — §NOT a caching\n  layer). Every prior query form (`--type`/`--projected`/`--carve-out`/view/file/`T-`/`D-`)\
+  \ ADDITIVE extension (<workshop-spec> §7 in-place) — the point-lookup now\n  appends\
+  \ the SOURCE artifact of a body-bearing node (spec/pattern/plan/error) after the\
+  \ metadata block\n  via the shared `_node_source_path` by-type loader (read at query\
+  \ time, NOT indexed — §NOT a caching\n  layer). Every prior query form (`--type`/`--projected`/`--carve-out`/view/file/`T-`/`D-`)\
   \ is\n  UNCHANGED. `cmd_graph_query` last-touch refreshed by this touch.\n- **Re-verified\
   \ current (2026-06-16):** both anchors re-verified ACCURATE vs current code. The\n\
   \  `cmd_graph_build` walk (`graph_build_index` over specs/patterns/plans/errors\
@@ -565,11 +586,11 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ READ-side resolution (\"resolves kernel\n  patterns\"); the ONE genuine drift\
   \ was the §DELIVERY-vs-DOC-SET enumeration, which named `--type view`\n  but not\
   \ the now-merged `--type pattern` (`_emit_node_list` include_kernel) — added above\
-  \ (additive,\n  SPEC-0005 §7 in-place). Engine self-build byte-identical (branches\
+  \ (additive,\n  <workshop-spec> §7 in-place). Engine self-build byte-identical (branches\
   \ `_is_consumer_build`-guarded).\n  Last-touch refreshed by this reverify.\n- **Touched\
-  \ (2026-07-11 / cross X-0290):** ADDITIVE extension (SPEC-0005 §7 in-place) — the\n\
-  \  spec point-lookup now carries the DERIVED `superseded_by` reverse link for a\
-  \ COMPLETED supersession\n  (§Query CLI). Query-time derivation over the heads'\
+  \ (2026-07-11 / cross X-0290):** ADDITIVE extension (<workshop-spec> §7 in-place)\
+  \ — the\n  spec point-lookup now carries the DERIVED `superseded_by` reverse link\
+  \ for a COMPLETED supersession\n  (§Query CLI). Query-time derivation over the heads'\
   \ durable `supersedes:` (`_derived_superseded_by`,\n  a pure f(index) sibling of\
   \ `_graph_query_projected`), attached in all three spec-resolving branches\n  (`--kernel`\
   \ / own-index / `-C` engine-fallback) from the index that resolved the node. NOT\
@@ -590,7 +611,7 @@ proposed_by: null
 implements_signature:
   bin/lib/graph.py#_regen_manifest_managed_regions: 57c4a9252b57e07fdaaec5fc111ba3b675bc4edc23b6bad582a147a4f8e98e01
   bin/lib/graph.py#cmd_graph_build: 61800845eae162d948ccceac985792753c5d41ff91134f0a14b48bcb3766a4a4
-  bin/lib/graph.py#cmd_graph_query: ce730fab99c0c33e1904a12ebbc4aa64c114be0dfc57198f74be838b966e572e
+  bin/lib/graph.py#cmd_graph_query: b6686bef39239aa658686f9ea5ac5d7eeb07b97296db976a04b10bc8fec79aca
   bin/lib/graph.py#graph_cache_report_lines: f6531ec48ac729e790ee9020b118372b073deb54446b84c94c5b5d69633c1d24
   bin/lib/graph.py#index_cache_lookup: cbeab808408aae3ddc3bf0deb7a33d9e4aff6b9e601d71a04257213f7c2cb6ba
   bin/lib/graph.py#index_cache_store: 92c5c9bc9a8b8260f9cf13827d67f52514db4c3ef6b5902d820f6a72e5a6b1b2

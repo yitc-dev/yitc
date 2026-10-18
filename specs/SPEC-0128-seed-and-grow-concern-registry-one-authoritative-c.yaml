@@ -64,7 +64,7 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   derives from LIVE (active) specs ONLY.** A concern enters the registry — and thus\
   \ every\nderived surface, incl. the consumer-shipped `born-ops.yaml` and the pinned\
   \ registry set — only when\nits owning spec is `active`; a `draft`/`proposed` concern\
-  \ is non-authoritative (SPEC-0005 §4 — \"active\nis the only normative status\"\
+  \ is non-authoritative (<workshop-spec> §4 — \"active\nis the only normative status\"\
   ) and `superseded`/`retired` is history, so a concern goes live at spec\nACTIVATION,\
   \ not at declaration. The gate is the\nONE shared `_active_concern_blocks` helper\
   \ feeding BOTH the registry roster (`_concern_registry_entries`)\nand the born roster\
@@ -245,8 +245,8 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ `_key_ownership_violations`\n  precedent); registry-derived, so it covers the\
   \ NEXT concern with no code edit.\n\n### Moved from the rule body\n\nEach entry\
   \ is a passage moved word for word out of the rule text of the section it names\n\
-  (its class per SPEC-0005 rule 3 in brackets); every acting rule stays in the rule\
-  \ text.\n\n- From «Rule 2» [MECH]: This mirrors `graph query --projected` (which\
+  (its class per <workshop-spec> rule 3 in brackets); every acting rule stays in the\
+  \ rule text.\n\n- From «Rule 2» [MECH]: This mirrors `graph query --projected` (which\
   \ already excludes drafts) and\n  keeps the shipped surfaces from carrying a concern\
   \ the corpus does not yet govern.\n\n## Verification\n\n- **state-check:** a concern\
   \ declared ONLY via a `concern:` block appears on every generated surface\n  (born\

@@ -695,6 +695,18 @@ def _held_line(tid, title, ref) -> str:
     return f"  {tid} — {no_runnable_cli(title or '(no title)')} — held by live session {ref}"
 
 
+def _resumed_line(tid, title, paused_at, wt) -> str:
+    """T-14001: the start line for a paused card whose pause a resume cleared in its live task
+    worktree, not yet landed. Printed `REPORT_ONLY`: no owner question is open for it."""
+    return (f"  RESUMED {tid} — {no_runnable_cli(title or '(no title)')} — pause of {paused_at} "
+            f"cleared by a resume in worktree {wt} (not yet landed)")
+
+
+def _card_rel(p, TASKS_DIR) -> str:
+    """The card's path relative to the checkout root (`tasks/<file>`), for a worktree's copy."""
+    return f"{Path(TASKS_DIR).name}/{Path(p).name}"
+
+
 def _print_task_resume(t: dict, label: str = "build", holder=None) -> None:
     """Print a task's resume contract (the non-mutating resume report). Factored (T-0140) so the
     branch-identified resume and the single-in-progress resume share one shape. T-9698: `label`
@@ -834,6 +846,15 @@ def _waiting_on_owner_lines(*, TASKS_DIR, _read_yaml, _awaits_arrived=None, skip
         holder = held.get(tid) if held is not None else None
         if holder:
             out.append(_held_line(tid, title, holder) + " " + REPORT_ONLY)
+            continue
+        # T-14001 (yitc#133) — a pause a resume already cleared in the card's live task worktree,
+        # not yet landed: reported as RESUMED, not as an open owner question. `resumed_in` is an
+        # optional method of the injected `held` lookup; absent, every line below is unchanged.
+        _resumed_in = getattr(held, "resumed_in", None)
+        wt = (_resumed_in(tid, _card_rel(p, TASKS_DIR), d.get("paused_at"))
+              if callable(_resumed_in) else None)
+        if wt:
+            out.append(_resumed_line(tid, title, d.get("paused_at"), wt) + " " + REPORT_ONLY)
             continue
         awaits = d.get("paused_awaits")
         # The UNDECLARED case, unchanged char-for-char (invariant 1 above). `artifact-wait` cannot

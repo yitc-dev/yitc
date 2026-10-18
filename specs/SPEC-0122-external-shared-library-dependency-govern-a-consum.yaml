@@ -235,8 +235,8 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ pinned library), no shared-credential chokepoint forcing a\n  gateway → stays\
   \ a library, not a runtime gateway.\n\n### Route-check (carrier of a change to THIS\
   \ doctrine)\nThis doctrine is a standing rule. A change to it may need a PLAN escalation\
-  \ (SPEC-0005) rather than a\nbare in-place edit — the EXECUTOR decides the carrier\
-  \ at Analysis (an in-place amendment when the\nchange deepens the same judgement;\
+  \ (<workshop-spec>) rather than a\nbare in-place edit — the EXECUTOR decides the\
+  \ carrier at Analysis (an in-place amendment when the\nchange deepens the same judgement;\
   \ a PLAN when it opens a new standing-rule surface).\n\n## Rationale\n\nReal incident:\
   \ **X-0146** (<project> → yitc-v2, 2026-07-01) — a consumer needed to GOVERN a fix\n\
   to load-bearing code in a shared external library (`<host-home>/lib/apify-client`)\
@@ -302,8 +302,8 @@ body: "## Scenario\n\nA v2 consumer depends on a shared library whose source liv
   \ clean). Verifiable in the spec diff /\n  `graph query SPEC-0122` and the named\
   \ code/test. This BODY-ONLY probe (not an `implements:`\n  code anchor) is the INTENDED\
   \ coverage carrier: SPEC-0122 is a distributed-enforcement empty-mode\n  governance\
-  \ spec (`consumed: false`, `implements: []` — SPEC-0005 §7 mode (a), see the header\n\
-  \  comments), so its report-only delivery code is governed by this verification\
+  \ spec (`consumed: false`, `implements: []` — <workshop-spec> §7 mode (a), see the\
+  \ header\n  comments), so its report-only delivery code is governed by this verification\
   \ pointer, exactly like\n  the reuse-doctrine probe above — a code-binding anchor\
   \ is deliberately NOT added (it would\n  mis-mode a report-only doctrine spec as\
   \ consumed code).\n"

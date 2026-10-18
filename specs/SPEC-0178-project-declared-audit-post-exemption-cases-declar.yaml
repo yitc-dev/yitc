@@ -503,22 +503,23 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ by joining the two, so a documented capture key and an undocumented closure key\
   \ leave the\n  computation resting on an uncatalogued field (plan-check F2, 2026-08-15).\n\
   \n## Rationale\n\nHistory of this spec's rules is recorded in this section (placement\
-  \ rule: SPEC-0005 rule 3).\n\n### History moved from the rule body\n\nEach entry\
-  \ is a passage moved word for word out of the rule text of the section it names;\n\
-  the rule it explains stays there.\n\n- From «Rule 1 — The declaration»: (owner ruling\
-  \ 2026-08-14)\n- From «Rule 5 — Automatic restoration (automation may only RESTORE)»:\
-  \ Measured end-to-end over\n  four projects' whole history, the chain collapses\
-  \ to ZERO at the triage hop on every consumer\n  (no consumer has ever written `kind:\
-  \ defect`).\n\n### The pinned-test member per repository\n\nUntil the guard held\
-  \ the root `bin/**` member in every repository;, which took\nthat member out of\
-  \ a project's verify-infrastructure set (SPEC-0152 rule 16), had kept it here\n\
-  as this rule's own. The owner then decided that a card touching a project's root\
-  \ `bin/` may be\nfreed from audit-post as well, where the project's own declared\
-  \ case covers it\n(events.jsonl#ts=), and the guard was brought to the same definition\
-  \ of a\nproject's pinned-test surface the verify side already reads: what the contract\
-  \ names\n(events.jsonl#ts=). Known cost at that change: a class-only case declared\n\
-  before it reaches the root `bin/` files a project's verifier runs that its contract\
-  \ does not\nname, until the project lists them under `verify.infra_globs`.\n"
+  \ rule: <workshop-spec> rule 3).\n\n### History moved from the rule body\n\nEach\
+  \ entry is a passage moved word for word out of the rule text of the section it\
+  \ names;\nthe rule it explains stays there.\n\n- From «Rule 1 — The declaration»:\
+  \ (owner ruling 2026-08-14)\n- From «Rule 5 — Automatic restoration (automation\
+  \ may only RESTORE)»: Measured end-to-end over\n  four projects' whole history,\
+  \ the chain collapses to ZERO at the triage hop on every consumer\n  (no consumer\
+  \ has ever written `kind: defect`).\n\n### The pinned-test member per repository\n\
+  \nUntil the guard held the root `bin/**` member in every repository;, which took\n\
+  that member out of a project's verify-infrastructure set (SPEC-0152 rule 16), had\
+  \ kept it here\nas this rule's own. The owner then decided that a card touching\
+  \ a project's root `bin/` may be\nfreed from audit-post as well, where the project's\
+  \ own declared case covers it\n(events.jsonl#ts=), and the guard was brought to\
+  \ the same definition of a\nproject's pinned-test surface the verify side already\
+  \ reads: what the contract names\n(events.jsonl#ts=). Known cost at that change:\
+  \ a class-only case declared\nbefore it reaches the root `bin/` files a project's\
+  \ verifier runs that its contract does not\nname, until the project lists them under\
+  \ `verify.infra_globs`.\n"
 implements_signature:
   bin/lib/inspection.py#cmd_inspect_record: 012349010f0643cf7d01ea535f924f6cdc632730c1379df85c73e99b091df071
   bin/lib/task.py#_audit_scrutiny_cases: 0018ff3946d76e03188f6fc1f12c21bd495c5f5f6c2f3bb4ecc12df10b33e60d

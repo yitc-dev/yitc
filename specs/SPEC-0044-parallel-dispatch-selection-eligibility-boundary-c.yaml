@@ -90,19 +90,19 @@ body: "## Scenario\n\nA session dispatching parallel work (the controller) asks 
   \ real controller runs (2026-06-04/05/06): chains,\npredicate-held releases (×3,\
   \ one requiring retarget), and a same-function collision invisible\nto an output-file\
   \ screen all confirmed the rule's content empirically. Full evidence +\ndeliberation:\
-  \ the authoring plan (content boundary, SPEC-0005 rule 3 — only the rule lives here).\n\
-  Reviewed coherent vs the current _carve_out_selection at 9cea9f27b : the symbol\
-  \ region\nshifted when the per-task projection _task_safety_verdict landed nearby,\
-  \ but the SELECTION\nRULE itself (§2-4) is unchanged — _task_safety_verdict PROJECTS\
-  \ this whole-graph carve onto one id,\nit does not alter the rule — so no drift;\
-  \ this is an in-place currency re-touch, not a reshape.\n\n## Verification\n\n-\
-  \ **VP1 (substrate honesty):** a selection computation demonstrably reads the projection\
-  \ +\n  `git worktree list` (query-observability evidence: the existing `cli_invoked`\
-  \ journal events\n  for the underlying reads), and the frontier is never derived\
-  \ from `status:` on `main`.\n- **VP2 (screen correctness, synthetic):** a synthetic\
-  \ pair of ready tasks whose activating\n  specs share an UNORDERED lineage yields\
-  \ a clash-report entry; the same pair `requires:`-ordered\n  yields a silent wait\
-  \ with the `all(requires) done on main` predicate — no owner question.\n- **VP3\
+  \ the authoring plan (content boundary, <workshop-spec> rule 3 — only the rule lives\
+  \ here).\nReviewed coherent vs the current _carve_out_selection at 9cea9f27b : the\
+  \ symbol region\nshifted when the per-task projection _task_safety_verdict landed\
+  \ nearby, but the SELECTION\nRULE itself (§2-4) is unchanged — _task_safety_verdict\
+  \ PROJECTS this whole-graph carve onto one id,\nit does not alter the rule — so\
+  \ no drift; this is an in-place currency re-touch, not a reshape.\n\n## Verification\n\
+  \n- **VP1 (substrate honesty):** a selection computation demonstrably reads the\
+  \ projection +\n  `git worktree list` (query-observability evidence: the existing\
+  \ `cli_invoked` journal events\n  for the underlying reads), and the frontier is\
+  \ never derived from `status:` on `main`.\n- **VP2 (screen correctness, synthetic):**\
+  \ a synthetic pair of ready tasks whose activating\n  specs share an UNORDERED lineage\
+  \ yields a clash-report entry; the same pair `requires:`-ordered\n  yields a silent\
+  \ wait with the `all(requires) done on main` predicate — no owner question.\n- **VP3\
   \ (currency):** after a `land_completed`, a re-computation yields an updated selection\n\
   \  (released waits / shrunk frontier) — observable as two journaled selections around\
   \ one land.\n- **VP4 (read-only):** a selection run leaves task/spec/queue/source\

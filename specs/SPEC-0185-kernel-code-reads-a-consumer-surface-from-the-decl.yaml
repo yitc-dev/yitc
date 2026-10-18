@@ -189,10 +189,10 @@ body: "## Scenario\n\nA project keeps its tests at `backend/tests/`, says so in 
   \ record (CHARTER §Principle 1, four filters — AGENTS §When NOT to add a mechanism)\n\
   \n1. **Existing analog?** REUSED, not paralleled — SPEC-0093 / SPEC-0152 own the\
   \ declaration\n   surface (its SHAPE); this spec adds a read-discipline over it\
-  \ (kernel READ behaviour). Not\n   folded INTO either, per SPEC-0005 rule 6: both\
-  \ are at the anti-oversize bound.\n2. **New entity or new view?** No new entity\
-  \ — no carrier, no store, no section; a standing rule\n   over existing data, with\
-  \ one tripwire, plus the two OPTIONAL fields §5 names.\n3. **What gets removed?**\
+  \ (kernel READ behaviour). Not\n   folded INTO either, per <workshop-spec> rule\
+  \ 6: both are at the anti-oversize bound.\n2. **New entity or new view?** No new\
+  \ entity — no carrier, no store, no section; a standing rule\n   over existing data,\
+  \ with one tripwire, plus the two OPTIONAL fields §5 names.\n3. **What gets removed?**\
   \ §4 — root-layout fallback guessing and the per-language regex growth\n   path:\
   \ both named and removed, neither replaced by a mechanism.\n4. **Real incident?**\
   \ Four, by id, in §3 — all shipped and closed, each carrying its own part.\n\n##\

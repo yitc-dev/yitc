@@ -457,10 +457,26 @@ def _print_premise_advisory(tid, title, cites, scope, acceptance, specs, *, _car
     `task update --old/--new` field-edit arm (the POST-edit parse). ADVISORY ONLY at both seams: never
     blocks, never emits an event, never changes the exit code; callers own the fail-open wrapping."""
     spec_hits = _non_active_spec_refs(cites, scope, acceptance, specs)
-    if spec_hits:
-        print(f"non-active spec cited (advisory — filing not blocked): {len(spec_hits)} spec(s) {tid} "
+    # T-14019 (SPEC-0060 item 3 / row 12): a SUPERSEDED target is information — a reference to it may
+    # stay; it names the IMMEDIATE superseder (which may itself be superseded) and points at the
+    # point-lookup for the active head. Retired / withdrawn / rejected targets keep the fault wording.
+    superseded = [h for h in spec_hits if h["status"] == "superseded"]
+    faults = [h for h in spec_hits if h["status"] != "superseded"]
+    if superseded:
+        print(f"non-active spec cited (advisory — filing not blocked): {len(superseded)} spec(s) {tid} "
+              f"cites or names are SUPERSEDED — information, not a fault")
+        for h in superseded:
+            if h["superseded_by"]:
+                print(f"  {h['spec']}  (superseded by {h['superseded_by']} — information; the active head: "
+                      f"`graph query {h['superseded_by']}`)")
+            else:
+                print(f"  {h['spec']}  (superseded; superseder not recorded in the index — information)")
+        print("  disposition: a reference to a superseded spec may stay; only a card whose PREMISE rests "
+              "on the superseded text re-checks it against the active head — SPEC-0060 item 3")
+    if faults:
+        print(f"non-active spec cited (advisory — filing not blocked): {len(faults)} spec(s) {tid} "
               f"cites or names resolve to a NON-ACTIVE status — only `active` governs (SPEC-0005)")
-        for h in spec_hits:
+        for h in faults:
             tail = f"; superseded by {h['superseded_by']}" if h["superseded_by"] else ""
             print(f"  {h['spec']}  ({h['status']}{tail})")
         print("  disposition: re-check the premise against the ACTIVE successor and amend the card "

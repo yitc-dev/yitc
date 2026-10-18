@@ -36,7 +36,7 @@ body: "## Scenario\n\nAn ACTIVE spec that tells the system to BEHAVE somehow alw
   \   keeps the mandate scoping.\n4. A FOURTH disposition satisfies (c): the line-anchored\
   \ declaration `execution: documentary`\n   FOLLOWED BY a non-empty reason on the\
   \ same line (e.g. `execution: documentary — <reason>`) —\n   the machine-recognizable\
-  \ form of SPEC-0005 §7 empty-implements mode (a). A bare documentary\n   declaration\
+  \ form of <workshop-spec> §7 empty-implements mode (a). A bare documentary\n   declaration\
   \ with no reason does NOT satisfy (an unexplained opt-out is the silence this rule\n\
   \   forbids), and a prose mention stays not-a-marker as in (c). Separately, the\
   \ check has an\n   explicit ALL-SPECS evaluation scope that drops the mandate-scoping\
@@ -59,7 +59,6 @@ body: "## Scenario\n\nAn ACTIVE spec that tells the system to BEHAVE somehow alw
   \ body carries a mandate, and a code anchor or a\ndocumentary declaration with a\
   \ reason silences it.\n"
 cites:
-- SPEC-0005
 - CHARTER.md#principle-3
 - CHARTER.md#principle-8
 requires: []

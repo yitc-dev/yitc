@@ -37,37 +37,38 @@ body: "## Scenario\nA plan author has finished a stage's work and is about to la
   \ whose route is not stated; a\n  correction line not classified by SPEC-0035 rule\
   \ 5's semantic-effect test.\n- **Three disciplines, each read from its own home**\
   \ in the same re-read (named here, not restated):\n  (i) one normative home per\
-  \ rule, across the plan AND its draft specs — SPEC-0005 rule 8; (ii) the\n  correction\
-  \ record, for every change made in answer to a gate, consult, review or owner row\
-  \ since the\n  last gate's read — SPEC-0083 «The record»; (iii) deferrals — SPEC-0046\
-  \ §B — and the order between\n  draft specs — GRAPH.md §Spec lifecycle (the concurrent-change\
-  \ invariant).\n- **No separate record line.** What the re-read changed is recorded\
-  \ where every correction already is —\n  the plan's correction record (SPEC-0083\
-  \ «The record»); a re-read that changes nothing writes nothing.\n\n### 2. Before\
-  \ a trial run — will the run count\n- **Before launching a trial run**, check in\
-  \ this order: (1) the harness works on a known case;\n  (2) the run can reach the\
-  \ branch or leg it is meant to answer; (3) its expectation is written\n  down before\
-  \ the run; (4) the design state or correction it answers is named; (5) the run row\
-  \ will\n  carry every field the trial protocol asks. A run that fails a step is\
-  \ fixed before it is launched,\n  not launched and then discarded. The order follows\
-  \ what most often voided a run: an unchecked\n  harness and a run that never reached\
-  \ its branch, ahead of a forgotten statement.\n\n### 3. One re-read, not a checklist\n\
-  The anchors are texts that already exist — the owner rows, SPEC-0034, the SPEC-0083\
-  \ templates, the\ntrial protocol. This rule adds none of its own and asks for no\
-  \ list to be filled in; only who reads\nthose texts, and when, changes. A re-read,\
-  \ not a gate: no verb reads it, nothing refuses on it.\n\n### 4. Scope\nEvery plan,\
-  \ in every project, that passes a plan gate. A plan that runs no trial meets §1\
-  \ only. The\nrule changes nothing about what a gate judges or when it passes.\n\n\
-  ### 5. Who executes it\nexecution: operator-owned — the session that authors the\
-  \ plan performs the re-read itself, at the\nmoments §1 and §2 name. The rule reaches\
-  \ the author at two points: the plan-stage-entry bundle at the\nstart of that stage's\
-  \ work, and a one-line cue in the next-action hint `plan stage` and `plan show`\
-  \ print\nwhere the author reads which gate comes next. No code performs the re-read\
-  \ and no code checks it.\n\n## Rationale\nMeasured on 2026-10-08 (plan `author-self-check-before-a-plan-gate-and-a-simpler`,\
-  \ its step-1\nsamples): about 85% of first-pass plan-gate defects were of a kind\
-  \ the author could have caught by\nre-reading the plan — two passages disagreeing\
-  \ (31%), a definition left open (24%), a claim not\nchecked against the system (23%)\
-  \ — and 20 of the 44 unchecked claims were the gate's own questions\nleft unanswered;\
+  \ rule, across the plan AND its draft specs — <workshop-spec> rule 8; (ii) the\n\
+  \  correction record, for every change made in answer to a gate, consult, review\
+  \ or owner row since the\n  last gate's read — SPEC-0083 «The record»; (iii) deferrals\
+  \ — SPEC-0046 §B — and the order between\n  draft specs — GRAPH.md §Spec lifecycle\
+  \ (the concurrent-change invariant).\n- **No separate record line.** What the re-read\
+  \ changed is recorded where every correction already is —\n  the plan's correction\
+  \ record (SPEC-0083 «The record»); a re-read that changes nothing writes nothing.\n\
+  \n### 2. Before a trial run — will the run count\n- **Before launching a trial run**,\
+  \ check in this order: (1) the harness works on a known case;\n  (2) the run can\
+  \ reach the branch or leg it is meant to answer; (3) its expectation is written\n\
+  \  down before the run; (4) the design state or correction it answers is named;\
+  \ (5) the run row will\n  carry every field the trial protocol asks. A run that\
+  \ fails a step is fixed before it is launched,\n  not launched and then discarded.\
+  \ The order follows what most often voided a run: an unchecked\n  harness and a\
+  \ run that never reached its branch, ahead of a forgotten statement.\n\n### 3. One\
+  \ re-read, not a checklist\nThe anchors are texts that already exist — the owner\
+  \ rows, SPEC-0034, the SPEC-0083 templates, the\ntrial protocol. This rule adds\
+  \ none of its own and asks for no list to be filled in; only who reads\nthose texts,\
+  \ and when, changes. A re-read, not a gate: no verb reads it, nothing refuses on\
+  \ it.\n\n### 4. Scope\nEvery plan, in every project, that passes a plan gate. A\
+  \ plan that runs no trial meets §1 only. The\nrule changes nothing about what a\
+  \ gate judges or when it passes.\n\n### 5. Who executes it\nexecution: operator-owned\
+  \ — the session that authors the plan performs the re-read itself, at the\nmoments\
+  \ §1 and §2 name. The rule reaches the author at two points: the plan-stage-entry\
+  \ bundle at the\nstart of that stage's work, and a one-line cue in the next-action\
+  \ hint `plan stage` and `plan show` print\nwhere the author reads which gate comes\
+  \ next. No code performs the re-read and no code checks it.\n\n## Rationale\nMeasured\
+  \ on 2026-10-08 (plan `author-self-check-before-a-plan-gate-and-a-simpler`, its\
+  \ step-1\nsamples): about 85% of first-pass plan-gate defects were of a kind the\
+  \ author could have caught by\nre-reading the plan — two passages disagreeing (31%),\
+  \ a definition left open (24%), a claim not\nchecked against the system (23%) —\
+  \ and 20 of the 44 unchecked claims were the gate's own questions\nleft unanswered;\
   \ the SPEC-0083 templates reach only the auditor. Of 342 trial runs, 97 were not\n\
   credited and 77 of those for a cause checkable before the run, led by an unchecked\
   \ harness and a run\nthat never reached its branch. The task-side analog, <workshop-spec>,\

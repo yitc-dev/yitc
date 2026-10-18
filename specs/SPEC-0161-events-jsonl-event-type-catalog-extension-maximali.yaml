@@ -190,9 +190,9 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   ```jsonc\n{\"ts\": \"...\", \"type\": \"spec_activated\", \"task_id\": \"T-XXXX\"\
   ,\n \"data\": {\"spec_id\": \"SPEC-XXXX\", \"supersedes\": \"SPEC-YYYY\", \"supersedes_status\"\
   : \"superseded\"}}\n```\n- `task_id` — the ACTIVATING task (the closing task that\
-  \ owns the spec per SPEC-0005 §5 — work-first\n  `proposed_by == tid` or an explicit\
-  \ `activation_owner_task == tid`). The envelope slot: this event's\n  subject IS\
-  \ that task.\n- `spec_id` — the spec that reached `active`. One event per activated\
+  \ owns the spec per <workshop-spec> §5 — work-first\n  `proposed_by == tid` or an\
+  \ explicit `activation_owner_task == tid`). The envelope slot: this event's\n  subject\
+  \ IS that task.\n- `spec_id` — the spec that reached `active`. One event per activated\
   \ spec (a close may activate several).\n- `supersedes` / `supersedes_status` — present\
   \ ONLY when the activation flipped a target, reporting the\n  flip that ACTUALLY\
   \ happened: `superseded` (the target was active) or `withdrawn` (still proposed),\n\
@@ -200,9 +200,9 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ the ONE write, so both call paths are covered: the normal `cmd_task_close` AND\
   \ the\n  `_recover_close_tail` crash-heal re-run. IDEMPOTENT by construction — the\
   \ writer's `status == proposed`\n  filter skips an already-active spec, so the heal\
-  \ re-run re-emits nothing.\n- **Also appended by `land` (SPEC-0005 §4)** when it\
-  \ re-targets an activated spec onto a\n  successor a sibling landed first: the same\
-  \ shape in that spec's activation-owner slot, `supersedes`\n  / `supersedes_status`\
+  \ re-run re-emits nothing.\n- **Also appended by `land` (<workshop-spec> §4)** when\
+  \ it re-targets an activated spec onto a\n  successor a sibling landed first: the\
+  \ same shape in that spec's activation-owner slot, `supersedes`\n  / `supersedes_status`\
   \ naming the head it superseded, plus `retargeted_from` — the target the spec\n\
   \  named before. A row carrying `retargeted_from` records a re-target, never an\
   \ activation.\n- Append-only + P5-safe : additive — no existing event type changes,\
@@ -310,11 +310,11 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ the byte ceiling). The §Event-type catalog extension section\n re-homes VERBATIM\
   \ here (SPLIT-never-delete, aggregate-neutral) at the document's own\ntop-level\
   \ seam — the section already carried its own append-only compatibility preamble\
-  \ and is a\nstable-surface boundary (SPEC-0005 rule-6: split by surface, never perspective).\
-  \ Prior art: /\nSPEC-0153 carved the terminal-marker + per-dispatch sections from\
-  \ this same spec identically.\n\n### Catalog completeness reconcile (2026-07-17)\n\
-  \n**The catalog is FEDERATED — absence from SPEC-0025/SPEC-0161 alone is NOT a gap.**\
-  \ Recorded because\nthree T1 sweeps (fp `spec-0025-event-catalog-lags-emitted-types`,\
+  \ and is a\nstable-surface boundary (<workshop-spec> rule-6: split by surface, never\
+  \ perspective). Prior art: /\nSPEC-0153 carved the terminal-marker + per-dispatch\
+  \ sections from this same spec identically.\n\n### Catalog completeness reconcile\
+  \ (2026-07-17)\n\n**The catalog is FEDERATED — absence from SPEC-0025/SPEC-0161\
+  \ alone is NOT a gap.** Recorded because\nthree T1 sweeps (fp `spec-0025-event-catalog-lags-emitted-types`,\
   \ 2026-06-06 + 2026-07-17 x2) measured\nthe emitted surface against SPEC-0025+SPEC-0161\
   \ ONLY and so over-counted ~2x (110 raw \"missing\" vs 61\nreal). A type is **cataloged\
   \ iff SOME active spec homes it**. The homes:\n- **SPEC-0025** — the universal envelope\
@@ -1025,7 +1025,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ branches on it. Not added to the count, on the same terms as the blocks above.\n\
   \n**ONE MORE PAIR NAMED FORWARD — the supersession re-target key (2026-10-16).**\n\
   `spec_activated.retargeted_from` (the spec id an activated spec named in `supersedes:`\
-  \ before `land`\nre-targeted it onto a successor a sibling landed first — SPEC-0005\
+  \ before `land`\nre-targeted it onto a successor a sibling landed first — <workshop-spec>\
   \ §4). GOVERNING: the land\naudit-currency gate reads it back to admit the re-target's\
   \ written shape and never counts a row\ncarrying it as an activation (SPEC-0077\
   \ §3a). Not added to the count, on the same terms as the\nblocks above.\n\n**THREE\

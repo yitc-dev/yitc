@@ -14,7 +14,7 @@ applies_to: PART 2 of the single living inspection home (SPEC-0057) — the run-
 > (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`),
 > T9 in **part 4**, T6 / T8 in **part 5** and T10 in **part 6**; THIS part carries the run-mode, the cross-theme
 > method, the inspection foundations, the architecture-drift lens, and the orientation + drain/homes
-> pointers. Each rule it maps homes elsewhere (cited inline, never restated — P5 / SPEC-0005 rule 8).
+> pointers. Each rule it maps homes elsewhere (cited inline, never restated — P5 / <workshop-spec> rule 8).
 
 
 ## On an «inspection» request — CLARIFY scope first (do not silently pick a tier)
@@ -346,7 +346,7 @@ the owner asked (`decisions/monolith-split-readiness-audit-adhoc.yaml` = YELLOW)
 | **Architecture-drift** | the engine corpus's CODE — `bin/` + any `*.py` / `*.sh` | the 3 surface-probes below |
 
 - **Probe 1 — SIZE (P-A1):** a code FILE past SPEC-0080 §Trigger-surface's **line budget** is a
-  candidate. (Threshold BY POINTER to SPEC-0080 — never restated here; P5 / SPEC-0005 rule 3.)
+  candidate. (Threshold BY POINTER to SPEC-0080 — never restated here; P5 / <workshop-spec> rule 3.)
 - **Probe 2 — DUPLICATION (P-A1):** a coherent **subsystem** (state I/O, a verb family, a prompt
   builder) copy-pasted past SPEC-0080 §Trigger-surface's **duplication threshold** is a candidate.
 - **Probe 3 — UNREALIZED DECLARED SEAM (P-A2):** a charter/spec-PROMISED module left unbuilt is a
@@ -506,7 +506,7 @@ last 30 days).
 | Probe | What it reads | How to run |
 |---|---|---|
 | **P1** history + code-detail share per delivered spec | the estimated share of a delivered spec's text — in the form its trigger delivers it — that is history (provenance, incident narrative, dates) or code detail (file, function, test names); **threshold 5% per spec** (owner directive 2026-10-08) | the `delivered_weight` block `bin/yitc-v2 inspect record --theme T7` attaches: `specs[*]` + `over_threshold`; the block names its calibration factors and says the figure is an estimate |
-| **P2** retired-route text in delivered specs | a delivered spec still describing a route another rule retired (e.g. a retired continuation still written out in full) | read each over-threshold spec's history text against the retiring rule; fetch the spec with `graph query` (e.g. `bin/yitc-v2 graph query SPEC-0005`) |
+| **P2** retired-route text in delivered specs | a delivered spec still describing a route another rule retired (e.g. a retired continuation still written out in full) | read each over-threshold spec's history text against the retiring rule; fetch the spec with `graph query` (e.g. `bin/yitc-v2 graph query <workshop-spec>`) |
 | **P3** contract-view leaks | text the stage contract view should cut that still reaches the reader: YAML comments, a column-0 list under a dropped key, a part whose Rationale / Verification cut was rejected | compare the spec card with the contract view the stage entry prints for it |
 | **P4** bundle bytes per trigger × firings | each task stage, each plan stage, the Filing read, each before-* floor trigger and the seed: bytes per firing × firings in the window | the block's `triggers[*]` (`form`, `basis`, `bytes`, `complete`, `firings`, `delivered_bytes`): a task stage is measured as its contract view and the seed as its cue lines (`delivered`); a plan stage, a floor trigger and the Filing read as the full render they name (`named-fetch-upper-bound` — it reaches the reader only when fetched); a trigger with an unresolved spec has no total; a floor trigger records no firing row, so its count reads unknown, never 0 |
 | **P5** same-session re-fetches per spec | `graph query` receipts for one spec in one session with no `session_started` between (an upper bound: a compaction leaves no row) | `bin/yitc-v2 journal query --type cli_invoked --since <window start> --json`, grouped by session and `node_id` |
@@ -514,8 +514,8 @@ last 30 days).
 | **P7** verbs that NAME spec ids instead of delivering | a new or changed verb that prints spec ids for a hand fetch instead of rendering them through `_deliver_stage_bundle_contracts` | grep the verbs changed in the window for printed `graph query SPEC-` hints |
 | **P8** dispatch preamble + per-verb help bytes | the bytes of the dispatched-worker preamble and of each verb's help text | `wc -c` over the preamble a dispatch prints and over each verb's help output |
 | **P9** external-auditor packet p50 / p90 | the packet size the auditor receives, by stage | observation only — from the saved audit packets / `audit_*` rows in the window |
-| **P10** RE-CHECK: trimmed specs still state their rules | two specs whose delivered body a card trimmed since the last T7 run: every line of that card's committed rule inventory against the CURRENT delivered body (the stage contract view), and every MOVED home against the rule it should hold. What the inventory is and when a line holds: the rule-preservation check, SPEC-0005 §3 | read the inventory (`tasks/<card-id>-rule-inventory.md` or the card's commit body) beside the spec's current contract view; a line changed since by another card's own edit is recorded with that card's id; a line lost with no such card is a miss — capture it at once as `deviation_captured` |
-| **P11** RANKING: where delivered weight goes | the top 5 specs by `stage_entered` deliveries in the review window × the spec's current contract-view bytes; for the heaviest, its non-acting share by the SPEC-0005 §3 line classes (ACT, MECH, REF, PTR, RETIRED, HIST) | `bin/yitc-v2 journal query --type stage_entered --since <window start> --limit 100000 --json`, counting each id in `delivered`; label each line of the heaviest view by hand |
+| **P10** RE-CHECK: trimmed specs still state their rules | two specs whose delivered body a card trimmed since the last T7 run: every line of that card's committed rule inventory against the CURRENT delivered body (the stage contract view), and every MOVED home against the rule it should hold. What the inventory is and when a line holds: the rule-preservation check, <workshop-spec> §3 | read the inventory (`tasks/<card-id>-rule-inventory.md` or the card's commit body) beside the spec's current contract view; a line changed since by another card's own edit is recorded with that card's id; a line lost with no such card is a miss — capture it at once as `deviation_captured` |
+| **P11** RANKING: where delivered weight goes | the top 5 specs by `stage_entered` deliveries in the review window × the spec's current contract-view bytes; for the heaviest, its non-acting share by the <workshop-spec> §3 line classes (ACT, MECH, REF, PTR, RETIRED, HIST) | `bin/yitc-v2 journal query --type stage_entered --since <window start> --limit 100000 --json`, counting each id in `delivered`; label each line of the heaviest view by hand |
 
 - **Severity (the §T7 table in part 1 applies):** a delivered spec over the 5% threshold with **no open
   card** carrying it = **MEDIUM**; one already carried by an open card is acted. P2-P9 readings are LOW
@@ -533,7 +533,7 @@ last 30 days).
 The drain-at-realize RULE (when/what must drain into this home before a plan reaches `realized`) lives
 SINGLE-HOME in **SPEC-0034 §realized**; the finalization auditor check lives in **SPEC-0036
 `PLAN_FINALIZATION_LENS`**. This pattern is only the destination HOME — it does NOT restate the
-obligation (P5 one-home, SPEC-0005 rule 8).
+obligation (P5 one-home, <workshop-spec> rule 8).
 
 ## What homes elsewhere (cite, do not restate)
 

@@ -178,7 +178,7 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ tests not touching the host checkout. Cited for\ndisambiguation, not as a dependency.\n\
   \n## Parameters\n\nNone consumed.\n\n## Rationale\n\nA DESIGN/teaching spec : it\
   \ tells the AI what to inspect and how to isolate before writing a\nself-tooling\
-  \ test, and a spec is its right home (SPEC-0005 rule 1/2 — a standing, cross-task,\n\
+  \ test, and a spec is its right home (<workshop-spec> rule 1/2 — a standing, cross-task,\n\
   analysis-shaping, probeable PROCESS rule). It codifies an ALREADY-shipped idiom\
   \ rather than inventing behaviour, and is\ncarried by the sandbox-leak incident\
   \ family — repeated one-test-at-a-time fixes sharing one root:\nan engine self-tooling\
@@ -207,8 +207,8 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ block); the env overrides `YITC_REPO_ROOT` / `YITC_EVENTS_SINK` / `YITC_CANARY_RUN`\n\
   \  are referenced, not duplicated — they live in `bin/yitc-v2` + the canary, the\
   \ single source.\n\n## Verification\n\nProbe CONTRACTS (the rule's `## Verification`\
-  \ per SPEC-0005 §8 — contracts, not one-time results):\n- **VP1 (body carries the\
-  \ contract):** this `## Internal` names ALL seven host-mutable surfaces\n  (REPO_ROOT\
+  \ per <workshop-spec> §8 — contracts, not one-time results):\n- **VP1 (body carries\
+  \ the contract):** this `## Internal` names ALL seven host-mutable surfaces\n  (REPO_ROOT\
   \ / TASKS_DIR / DECISIONS_DIR / EVENTS_PATH / GRAPH_PATH / FLOOR_MAP_PATH / git),\
   \ BOTH\n  isolation techniques (monkeypatch the path globals OR a tmp repo), the\
   \ canonical helper\n  (`tests/_graph_build_sandbox.build_index_in_temp_copy` + `YITC_REPO_ROOT`\
@@ -232,7 +232,6 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   - **VP5 (work-first activation):** `activation_owner_task: `; `task close ` flips\
   \ this\n  spec proposed→active ( deterministic side-effect).\n"
 cites:
-- SPEC-0005
 - SPEC-0013
 - SPEC-0027
 - CHARTER.md#principle-1

@@ -43,7 +43,7 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ carrier as the floor trigger-map (P5) — just the task vs plan slice; the\n  axis\
   \ SELECTS the slice, it is NOT a new kind (the seed/action expansion stays).\n-\
   \ `kind=action` — RESERVED, non-normative (rule 6): the floor-map gated action set\n\
-  \  (before-rule-change → SPEC-0005; the existing `_consumed_contract_for` derivation).\n\
+  \  (before-rule-change → SPEC-1037; the existing `_consumed_contract_for` derivation).\n\
   - `kind=seed` — RESERVED, non-normative (rule 6): the fixed SPEC-0007 §5 session\
   \ seed (handbook\n  5 + floor-trigger-map + MEMORY.md). When, seed-check covers\
   \ governed-DOCUMENT reads\n  ONLY — it does NOT assert the rest of the startup protocol\
@@ -325,8 +325,8 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ behavior,\nNOT this spec's. A close-path symbol change that leaves the read-gate\
   \ prologue unchanged is\ntherefore OUTSIDE this spec's governed behavior — the co-anchor\
   \ `possibly-stale` flag is a false\npositive cleared by a last-touch refresh (the\
-  \ collateral co-anchor class; SPEC-0005\nrule-7 in-place). Instance : the SPEC-0052\
-  \ at-closure audit-YAML displacement is appended\nto the END of `cmd_task_close`\
+  \ collateral co-anchor class; <workshop-spec>\nrule-7 in-place). Instance : the\
+  \ SPEC-0052 at-closure audit-YAML displacement is appended\nto the END of `cmd_task_close`\
   \ (after the closure-record commit), leaving the read-gate prologue\nuntouched —\
   \ no-drift for this spec; refreshed last-touch. Instance : the read_gate_refused\n\
   observability emit is added to `_require_reads` BEFORE each `_die` refusal path,\
@@ -679,7 +679,6 @@ cites:
 - CHARTER.md#principle-3
 - CHARTER.md#principle-5
 - CHARTER.md#principle-8
-- SPEC-0005
 - SPEC-0007
 - SPEC-0013
 - SPEC-0014
@@ -696,14 +695,14 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e73d2b938f6fc04c1eb7573f7b5b3ca10dc9bf8fe0ab8232103b05f614087de0
+  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
   bin/lib/cli.py#_deliver_stage_bundle_contracts: 43dc04a2189c3a257017ea907c982671b71cfb8044f0b9e8cbf545105c189d8d
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
   bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
-  bin/lib/events.py#_emit_cli_invoked: 623edbb57a9b533417faa4069b968f28c6dbf66bf6a44b1355292019be59c49b
-  bin/lib/gates.py#_fetched_spec_ids: bd89d532c1caa100984be88c08658b59bd2971c829b1ad13690030bb5f7d9f46
+  bin/lib/events.py#_emit_cli_invoked: 5d1e4ab8dc407eca56e3c449c39f841271d747ce1e789177fd14b1fec630425f
+  bin/lib/gates.py#_fetched_spec_ids: 385cf31488d87631d178633790b44484f7d073963704783c745cf6e20ae1ca20
   bin/lib/gates.py#_require_reads: ac08593a04786f860a54d8edc2d123df7f47d5c28f6ac7e4c27fa3e8086c97ee
   bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
   bin/lib/gates.py#_seed_receipt_epochs: c41d8270ea3553a47a8ed7a84959dde9aee36079b52e75637bc6ab2120b77af5

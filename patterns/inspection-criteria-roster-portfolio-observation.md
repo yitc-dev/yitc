@@ -36,7 +36,7 @@ applies_to: PART 4 of the single living inspection home (SPEC-0057) — the fres
 > (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`).
 > The umbrella navigation map (check → theme → cadence → how-to-run → rule-home) →
 > **`patterns/inspection-criteria-roster-navigation-map.md`**. Each rule these checklists map homes
-> elsewhere (cited inline, never restated — P5 / SPEC-0005 rule 8).
+> elsewhere (cited inline, never restated — P5 / <workshop-spec> rule 8).
 
 ## Per-theme lens-checklists (part 4) — the living criteria
 

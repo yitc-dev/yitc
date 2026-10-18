@@ -140,9 +140,9 @@ body: "## Scenario\n\nThe owner authorizes a PLAN (takes it into work) or a back
   \ (its `## Autonomy frame`). Driver: owner\ndirective 2026-07-02 (`events.jsonl#ts=`)\
   \ + the foreseen successor\n(`events.jsonl#ts=`). Full deliberation (alternatives,\
   \ the fence analysis, the\ntrial-autonomy fork) lives in the proposing plan, not\
-  \ here (SPEC-0005 rule 3 content-boundary).\nThe §1(a) start cue : the owner, after\
-  \ choosing a plan's option, called a later\nper-seam question confusion — the plan's\
-  \ order is defined («план веди дальше»,\n`events.jsonl#ts=`).\n\n## Verification\n\
+  \ here (<workshop-spec> rule 3 content-boundary).\nThe §1(a) start cue : the owner,\
+  \ after choosing a plan's option, called a later\nper-seam question confusion —\
+  \ the plan's order is defined («план веди дальше»,\n`events.jsonl#ts=`).\n\n## Verification\n\
   \nBehavioral rule — delivered via binding:[seed], not code-enforced. Probes (journal-observed,\
   \ the\nplan's postcheck block):\n- a plan advanced across ≥3 FSM stages with NO\
   \ intervening decision-class `owner_directive`\n  (`plan_stage_entered` sequence),\

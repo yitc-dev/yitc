@@ -799,7 +799,7 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ IN CODE, NOT HERE. What counts as a recognised marker is the\ntuple `bin/lib/worktree.py#_VERIFY_FAILURE_MARKER_RES`\
   \ (plus the enumerated-list reader that same\nextractor applies beneath a count-only\
   \ header). This rule NAMES that home and deliberately\ndoes NOT restate the shapes\
-  \ (SPEC-0005 rule 8 — one home): a layer author reads the tuple, not a\nparaphrase\
+  \ (<workshop-spec> rule 8 — one home): a layer author reads the tuple, not a\nparaphrase\
   \ that would drift from it. The tuple's own comment block records each shape's bound\
   \ and why\nit is POSITIVE and anchored — that is the layer author's reading, and\
   \ this rule adds no list beside\nit. The simplest conformance for a shell-delegated\
@@ -842,7 +842,7 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ 1a (`graph query SPEC-0125`). Born templates are UNCHANGED (no init seed, no sweep).\n\
   \n## Parameters\n\nThe carrier's values are PER-PROJECT ops config — commands, base\
   \ URLs, probe dialects,\nwaiver reasons. They are explicitly NOT kernel-read governance\
-  \ scalars (the SPEC-0005 §Parameters\nwhitelist FORBIDS env/secret/per-deploy/path/flag\
+  \ scalars (the <workshop-spec> §Parameters\nwhitelist FORBIDS env/secret/per-deploy/path/flag\
   \ values) — so this spec is `consumed: false`.\n\n## Rationale\n\nPrior-art (extend,\
   \ not create — CHARTER §P1 F1): the kernel ALREADY seeds — but as a REPEATED PATTERN,\n\
   not one shared file. A 3-project survey (accurate, 2026-06-21): <project> consumes\
@@ -969,24 +969,24 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ fires for the break it\n  exists to catch AND that it stays silent for the near-miss\
   \ it must not nag about (SPEC-0156 /\n  SPEC-0060 §4). The READING half (broken/degraded/unproven)\
   \ is verified by SPEC-0119 rule 17's own\n  `## Verification` — verification travels\
-  \ with the rule (SPEC-0005 rule 8), and this rule owns only the\n  SHAPE.\n- the\
-  \ CROSS-SECTION CORRESPONDENCE + COVERING-WAIVER rule (rule 26) is REPORT-ONLY and\n\
-  \  reader-applied, so its guard is a DIFFERENTIAL tripwire rather than a sweep state-check\n\
-  \  (SPEC-0165: one tripwire per silently-breakable atomic rule).\n  `tests/test_t11079_covering_waiver_correspondence.py`\
-  \ reads rule 26's REQUIRED TOKENS OUT OF THIS\n  SPEC BODY at runtime — so excising\
-  \ the rule turns the probe RED instead of leaving it asserting a\n  constant — and\
-  \ applies the rule to carrier fixtures: a COVERING WAIVER whose reason is a BARE\n\
-  \  covered-by claim (no shared-setup-cost basis, coverer without `subject_globs`)\
-  \ is FLAGGED, while\n  the SAME carrier once the setup-cost basis is stated and\
-  \ the coverer carries `subject_globs` is\n  SILENT. Both legs run in ONE pass with\
-  \ the POSITIVE CONTROL alongside them (a conforming\n  declared-layer carrier stays\
-  \ silent; an UNANSWERED `moment: verify` class is flagged), so a reader\n  that\
-  \ resolves nothing fails loudly instead of passing vacuously. The differential is\
-  \ verified\n  MECHANICALLY, not by construction: mutating the conforming fixture's\
-  \ reason back to a bare\n  covered-by claim turns the leg RED, and restoring it\
-  \ turns it GREEN. The rule's NO-GATE half is\n  verified by the ABSENCE of any sweep\
-  \ / `init` / `land` change in the shipping diff — no `concern:`\n  block, no `shape_hook`,\
-  \ no exit path moved.\n"
+  \ with the rule (<workshop-spec> rule 8), and this rule owns only the\n  SHAPE.\n\
+  - the CROSS-SECTION CORRESPONDENCE + COVERING-WAIVER rule (rule 26) is REPORT-ONLY\
+  \ and\n  reader-applied, so its guard is a DIFFERENTIAL tripwire rather than a sweep\
+  \ state-check\n  (SPEC-0165: one tripwire per silently-breakable atomic rule).\n\
+  \  `tests/test_t11079_covering_waiver_correspondence.py` reads rule 26's REQUIRED\
+  \ TOKENS OUT OF THIS\n  SPEC BODY at runtime — so excising the rule turns the probe\
+  \ RED instead of leaving it asserting a\n  constant — and applies the rule to carrier\
+  \ fixtures: a COVERING WAIVER whose reason is a BARE\n  covered-by claim (no shared-setup-cost\
+  \ basis, coverer without `subject_globs`) is FLAGGED, while\n  the SAME carrier\
+  \ once the setup-cost basis is stated and the coverer carries `subject_globs` is\n\
+  \  SILENT. Both legs run in ONE pass with the POSITIVE CONTROL alongside them (a\
+  \ conforming\n  declared-layer carrier stays silent; an UNANSWERED `moment: verify`\
+  \ class is flagged), so a reader\n  that resolves nothing fails loudly instead of\
+  \ passing vacuously. The differential is verified\n  MECHANICALLY, not by construction:\
+  \ mutating the conforming fixture's reason back to a bare\n  covered-by claim turns\
+  \ the leg RED, and restoring it turns it GREEN. The rule's NO-GATE half is\n  verified\
+  \ by the ABSENCE of any sweep / `init` / `land` change in the shipping diff — no\
+  \ `concern:`\n  block, no `shape_hook`, no exit path moved.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

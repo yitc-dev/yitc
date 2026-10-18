@@ -14,29 +14,29 @@ body: "## Scenario\n\nWhen the owner/AI evolves CODE (the engine's own self-tool
   \ enforced as a\ngate. So code architecture stays legible the way the handbook size-cap\
   \ (§P2) keeps docs legible —\nwithout a build-time validator or a pre-commit wall.\n\
   \n## Internal\n\nTHE CODE-ARCHITECTURE EVOLUTION PRINCIPLES. A process/governance\
-  \ spec (SPEC-0005 rule 1) — it governs\nauthoring discipline corpus-wide and adds\
-  \ NO new store / verb / gate (the report surface is the\nsibling inspection lens;\
-  \ the §P2-shaped budget rides existing review). Six principles + the trigger\nsurface.\
-  \ Each is a standing rule; the deliberation that produced them lives in the proposing\
-  \ plan\n(SPEC-0005 rule 3 content-boundary), not here.\n\n### P-A1. Code grows by\
-  \ EXTRACTION, not ACCRETION\nWhen a single code file crosses the size budget (§Trigger\
-  \ surface) OR a coherent subsystem (state\nI/O, a verb family, a prompt builder)\
-  \ is duplicated past the duplication threshold, the NEXT change\nthat touches it\
-  \ EXTRACTS the subsystem to its own module rather than appending to the existing\
-  \ file.\nThis is the code-axis mirror of §P2's doc compaction-trigger.\n\n**Complement\
-  \ — net-new code is born in its OWN module (PROACTIVE).** The trigger above is\n\
-  REACTIVE: it fires on an EXISTING file crossing the size budget OR a duplicated\
-  \ subsystem — it does\nNOT speak to NET-NEW code. So §P-A1 also carries a proactive\
-  \ rule: a NEW verb (or any net-new\ncoherent subsystem) is authored DIRECTLY in\
-  \ its own `bin/lib/<name>.py` module from the first\ncommit — as a thin injecting\
-  \ RESIDUE + argparse registration in the host, with leaf-up imports (the\nmodule\
-  \ imports only already-extracted lower leaves + stdlib, never back-imports the host)\
-  \ — never\ngrown into the host body. Why proactive and not only reactive: appending\
-  \ net-new to a\nfreshly-slimmed host re-starts accretion BELOW the reactive §Trigger\
-  \ surface (the file is not yet\nover budget, nothing is yet duplicated), so the\
-  \ monolith silently re-grows until the reactive\ntrigger eventually fires; authoring\
-  \ in-module from the start prevents the re-accretion the reactive\ntrigger cannot\
-  \ yet. (Non-normative HOW — the seam recipe + pitfalls — see-also\n`lessons/library-extraction.md`;\
+  \ spec (<workshop-spec> rule 1) — it governs\nauthoring discipline corpus-wide and\
+  \ adds NO new store / verb / gate (the report surface is the\nsibling inspection\
+  \ lens; the §P2-shaped budget rides existing review). Six principles + the trigger\n\
+  surface. Each is a standing rule; the deliberation that produced them lives in the\
+  \ proposing plan\n(<workshop-spec> rule 3 content-boundary), not here.\n\n### P-A1.\
+  \ Code grows by EXTRACTION, not ACCRETION\nWhen a single code file crosses the size\
+  \ budget (§Trigger surface) OR a coherent subsystem (state\nI/O, a verb family,\
+  \ a prompt builder) is duplicated past the duplication threshold, the NEXT change\n\
+  that touches it EXTRACTS the subsystem to its own module rather than appending to\
+  \ the existing file.\nThis is the code-axis mirror of §P2's doc compaction-trigger.\n\
+  \n**Complement — net-new code is born in its OWN module (PROACTIVE).** The trigger\
+  \ above is\nREACTIVE: it fires on an EXISTING file crossing the size budget OR a\
+  \ duplicated subsystem — it does\nNOT speak to NET-NEW code. So §P-A1 also carries\
+  \ a proactive rule: a NEW verb (or any net-new\ncoherent subsystem) is authored\
+  \ DIRECTLY in its own `bin/lib/<name>.py` module from the first\ncommit — as a thin\
+  \ injecting RESIDUE + argparse registration in the host, with leaf-up imports (the\n\
+  module imports only already-extracted lower leaves + stdlib, never back-imports\
+  \ the host) — never\ngrown into the host body. Why proactive and not only reactive:\
+  \ appending net-new to a\nfreshly-slimmed host re-starts accretion BELOW the reactive\
+  \ §Trigger surface (the file is not yet\nover budget, nothing is yet duplicated),\
+  \ so the monolith silently re-grows until the reactive\ntrigger eventually fires;\
+  \ authoring in-module from the start prevents the re-accretion the reactive\ntrigger\
+  \ cannot yet. (Non-normative HOW — the seam recipe + pitfalls — see-also\n`lessons/library-extraction.md`;\
   \ this rule's required shape is stated self-contained here, P5.)\n\n### P-A2. REALIZE\
   \ the declared seam\nA module/seam that the charter or an active spec already PROMISED\
   \ (the canonical instance: CHARTER §P5\n\"one parser library `bin/lib/state.py`\"\

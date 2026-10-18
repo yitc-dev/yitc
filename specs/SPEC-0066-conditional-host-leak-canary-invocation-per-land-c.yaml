@@ -95,7 +95,7 @@ body: "## Scenario\n\nLand's per-land verification runs the host-leak canary (`_
   \ code the suite executes), but a fail-closed conditional canary is acceptable when\n\
   narrowed to (i) a narrow proven-inert set, (ii) evaluation on the final merged tree,\
   \ (iii) a backstop\nfor the misclassification residual. The deliberation + the rejected\
-  \ forms live in the plan (SPEC-0005\nrule 3); this body carries only the resulting\
+  \ forms live in the plan (<workshop-spec>\nrule 3); this body carries only the resulting\
   \ rule.\n\n## Verification\n\nBehavioural probes (Principle 3 — observed behaviour):\n\
   - **Gating:** a land whose final merged tree touches only inert paths → canary SKIPPED\
   \ (journal shows\n  the skip + the classifier reason); a land touching `bin/**`/`tests/**`/config/fixture\

@@ -113,7 +113,6 @@ body: "## Scenario\n\nThe owner/AI sees decisions/ as FROZEN history. A `decisio
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
-- SPEC-0005
 - finalize-decisions-to-specs-migration-inventory-cl
 - decisions-full-retirement-vs-guard
 requires: []

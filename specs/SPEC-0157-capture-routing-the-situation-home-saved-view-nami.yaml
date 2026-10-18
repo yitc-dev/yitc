@@ -26,11 +26,11 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ The view is a DERIVED discovery surface, not a new store (no-new-entity)\n`capture-routing`\
   \ is a saved query-lens. It renders the situation→home table\nROWS, each ANCHORED\
   \ to the OWNING SPEC that homes the rule (SPEC-0056 §4/§4a, SPEC-0055, SPEC-0095,\n\
-  SPEC-0090, SPEC-0005, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039, SPEC-0093)\
-  \ — so the rule text\nis NEVER duplicated (SPEC-0005 rule 8, one home); the view\
-  \ ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER §P1 F2),\
-  \ adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2. The E-case\
-  \ incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the multi-error\
+  SPEC-0090, <workshop-spec>, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039, SPEC-0093)\
+  \ — so the rule text\nis NEVER duplicated (<workshop-spec> rule 8, one home); the\
+  \ view ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER §P1\
+  \ F2), adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2. The\
+  \ E-case incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the multi-error\
   \ incident-narrative row: a multi-error ARC → the promoted\n`errors/E-XXXX.yaml`\
   \ BODY (one arc = one E-case, cites-linked), homed at SPEC-0056 §4a.\n\n### 3. Worker\
   \ escalation-doc convention (R3) — the de-facto home, NOW named\nA dispatched worker\
@@ -79,30 +79,29 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ text\n\nReference and maintainer passages moved word for word out of the rule\
   \ text of the section\neach names; no rule an acting reader applies moved with them.\n\
   \n### 5. Pointer-only seed line (Single-SoT + seed budget)\nThis spec restates NO\
-  \ rule its rows point at (SPEC-0005 rule 8). Its `binding:[seed]` makes\n`_seed_howto`\
-  \ render its TITLE as ONE session-start seed line — a cue+pointer to the view, NOT\
-  \ the\ntable (the table is the view's job; putting it in the seed would blow the\
-  \ CHARTER §P2 budget). Exactly\nthe SPEC-0051 write-flow-pointer shape.\n\n## Verification\n\
-  \n- **VP1 (view renders):** `bin/yitc-v2 graph query capture-routing` renders the\
-  \ situation→home table\n  INCLUDING the E-case incident-narrative row (SPEC-0056\
-  \ §4a), the escalation-doc convention row\n  (`decisions/<task>-escalation.md`),\
+  \ rule its rows point at (<workshop-spec> rule 8). Its `binding:[seed]` makes\n\
+  `_seed_howto` render its TITLE as ONE session-start seed line — a cue+pointer to\
+  \ the view, NOT the\ntable (the table is the view's job; putting it in the seed\
+  \ would blow the CHARTER §P2 budget). Exactly\nthe SPEC-0051 write-flow-pointer\
+  \ shape.\n\n## Verification\n\n- **VP1 (view renders):** `bin/yitc-v2 graph query\
+  \ capture-routing` renders the situation→home table\n  INCLUDING the E-case incident-narrative\
+  \ row (SPEC-0056 §4a), the escalation-doc convention row\n  (`decisions/<task>-escalation.md`),\
   \ and the environment-facts flavors (lessons/ vs yitc-ops).\n- **VP2 (discoverable):**\
   \ `bin/yitc-v2 graph query --type view` lists `capture-routing` with its\n  description\
   \ (the catalog line).\n- **VP3 (seed pointer):** after activation, `bin/yitc-v2\
   \ session start` renders the generated seed\n  line carrying SPEC-0157 + its title\
   \ (the capture-routing pointer), via `_seed_howto` derived SOLELY\n  from binding:[seed]\
   \ (P5, no hand list).\n- **VP4 (single-SoT):** each row's rule text lives in its\
-  \ OWNING spec, NOT restated in this spec body\n  or the view (grep — SPEC-0005 rule\
-  \ 8); the view ROUTES, the specs GOVERN.\n- **VP5 (no new store):** the change adds\
-  \ `views/capture-routing.yaml` + the lens fn + this pointer\n  spec ONLY — no new\
-  \ node-type/edge/store; escalation-doc → `decisions/`, env-facts → `lessons/` /\n\
-  \  `yitc-ops.yaml` (all existing homes).\n"
+  \ OWNING spec, NOT restated in this spec body\n  or the view (grep — <workshop-spec>\
+  \ rule 8); the view ROUTES, the specs GOVERN.\n- **VP5 (no new store):** the change\
+  \ adds `views/capture-routing.yaml` + the lens fn + this pointer\n  spec ONLY —\
+  \ no new node-type/edge/store; escalation-doc → `decisions/`, env-facts → `lessons/`\
+  \ /\n  `yitc-ops.yaml` (all existing homes).\n"
 cites:
 - SPEC-0056
 - SPEC-0055
 - SPEC-0095
 - SPEC-0090
-- SPEC-0005
 - SPEC-0076
 - SPEC-0084
 - SPEC-0085

@@ -23,8 +23,8 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ FINDINGS ARE NOT REFUTED · THE ALL-REFUTED\n  FOLD · GOVERNED CARD-REPAIR SUBJECT\
   \ · PASS-1 SHIP-RIDING CARD REPAIR), so a search of this spec for\n  one of them\
   \ lands on the whole rule.\n- A new edge case of either shape is authored here,\
-  \ not in SPEC-0036 (SPEC-0005 rule 6).\n\n### 2. Rare task-audit shapes\n\n####\
-  \ 2a. Machine-refuted findings (task audit-pre and audit-post)\n\n**MACHINE-REFUTED\
+  \ not in SPEC-0036 (<workshop-spec> rule 6).\n\n### 2. Rare task-audit shapes\n\n\
+  #### 2a. Machine-refuted findings (task audit-pre and audit-post)\n\n**MACHINE-REFUTED\
   \ P8-adoption finding on a NON-infra card — the second admissible class\nof the\
   \ machine-refutation seam.** CHARTER §8 (Adoption Verification Strength) binds\n\
   INFRA-class work only; Principle-3 probe evidence governs a product / feature card,\
@@ -172,7 +172,6 @@ cites:
 - SPEC-0036
 - SPEC-0015
 - SPEC-0204
-- SPEC-0005
 - SPEC-0013
 requires: []
 supersedes: null
