@@ -262,7 +262,7 @@ auditor only the fixes, through `bin/yitc-v2 audit adhoc`, before paying for the
 - **When to stop.** About two consults in a row is a suggested stopping point, not a limit.
 - **What it is not.** A consult does not satisfy or refresh a gate verdict, does not supersede a RED, and
   does not authorize another round. The next full check stays subject to the existing round-admission
-  contract — SPEC-0204 rule 9 (`bin/yitc-v2 graph query SPEC-0204`), cited here, not restated — and
+  contract — SPEC-1039 rule 9 (`bin/yitc-v2 graph query SPEC-1039`), cited here, not restated — and
   reviews the whole assembled package with the full lens (SPEC-0034 «Audit posture: FULL»).
 
 ## Dry-run rehearsal — survives the plan contact with real material? (complementary method)

@@ -3633,7 +3633,7 @@ def cmd_blocked_on_land(args: argparse.Namespace, *, REPO_ROOT, _append_event, _
                 if ceiling:
                     _die(f"{window} AUDIT-LOOP CEILING reached ({ceiling}): the covering verb is "
                          f"`yitc-v2 task pause {tid} --reason audit-ceiling` (run INSIDE the worktree, "
-                         f"SPEC-0204 rule 6) — the audit verb has ALREADY emitted the "
+                         f"SPEC-1039 rule 6) — the audit verb has ALREADY emitted the "
                          f"bg_dispatch_halted(blocked_on_land) row carrying residual_fingerprints, so "
                          f"you owe no second halt row; the Controller decides (`audit decide`) and you "
                          f"resume with `task resume` + `audit pre|post --on-decisions`.{unusable_note}")

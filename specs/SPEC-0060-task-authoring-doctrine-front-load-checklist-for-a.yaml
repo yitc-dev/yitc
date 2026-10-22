@@ -46,21 +46,21 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ the filer guessed. The under-citation cue at item 6(a) still reads whatever IS\n\
   \   declared, and is unchanged by this: it asks you to CITE the spec governing a\
   \ surface you named,\n   never to name more surfaces. On the AUDIT side the completeness\
-  \ of this forecast is CONTEXT and\n   is never a finding (SPEC-0036 §Universal lens)\
-  \ — so an incomplete forecast costs a filer nothing,\n   which is exactly why over-forecasting\
-  \ to be safe is the wrong instinct here.\n   **Observation-vs-hypothesis cue (2026-08-12)\
-  \ —** does a scope line\n   state a CAUSE? Separate what you MEASURED from what\
-  \ you SUSPECT. A card may report measured\n   observations and may PROPOSE a suspected\
-  \ cause; but a causal claim made BEFORE this task's own\n   Analysis defaults to\
-  \ HYPOTHESIS, and becomes load-bearing only when the card carries the probe\n  \
-  \ evidence and its `from:` chain (evidence discipline → CHARTER §Principle 2 `from:`\
-  \ + §Principle 3\n   probe evidence; the Analysis re-confirmation is this item's\
-  \ own rule above → SPEC-0032). Labelling\n   a cause does not license it as the\
-  \ card's premise — write it as the hypothesis the work TESTS, so\n   the reader\
-  \ can tell which half is proven. The same separation applies to a MEASURED claim:\
-  \ name the\n   surface and scope you actually measured whenever that scope is narrower\
-  \ than the claim you draw\n   from it. The same holds for the INSTRUMENT and not\
-  \ only the scope (X-1012): when you report a\n   VISUAL or USER-FACING property,\
+  \ of this forecast is CONTEXT and\n   is never a finding (<workshop-spec> §Universal\
+  \ lens) — so an incomplete forecast costs a filer nothing,\n   which is exactly\
+  \ why over-forecasting to be safe is the wrong instinct here.\n   **Observation-vs-hypothesis\
+  \ cue (2026-08-12) —** does a scope line\n   state a CAUSE? Separate what you MEASURED\
+  \ from what you SUSPECT. A card may report measured\n   observations and may PROPOSE\
+  \ a suspected cause; but a causal claim made BEFORE this task's own\n   Analysis\
+  \ defaults to HYPOTHESIS, and becomes load-bearing only when the card carries the\
+  \ probe\n   evidence and its `from:` chain (evidence discipline → CHARTER §Principle\
+  \ 2 `from:` + §Principle 3\n   probe evidence; the Analysis re-confirmation is this\
+  \ item's own rule above → SPEC-0032). Labelling\n   a cause does not license it\
+  \ as the card's premise — write it as the hypothesis the work TESTS, so\n   the\
+  \ reader can tell which half is proven. The same separation applies to a MEASURED\
+  \ claim: name the\n   surface and scope you actually measured whenever that scope\
+  \ is narrower than the claim you draw\n   from it. The same holds for the INSTRUMENT\
+  \ and not only the scope (X-1012): when you report a\n   VISUAL or USER-FACING property,\
   \ do not claim more than you DIRECTLY OBSERVED — either back it\n   with rendered\
   \ evidence (a screenshot, a rendered read, a gate re-run), OR scope the claim to\
   \ the\n   PROXY you actually checked. A cheap DOM / selector / console / timing\
@@ -104,7 +104,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ (advisory — filing not blocked)` and\n   `retired flag named (advisory — filing\
   \ not blocked)` (registry rows 12 + 13 in `## Implementation notes`), when a\n \
   \  cited or named spec resolves in the graph index to a non-active status\n   or\
-  \ the card text names a retired `audit` CLI flag (SPEC-0204 rule 6). A `retired`,\
+  \ the card text names a retired `audit` CLI flag (<workshop-spec> rule 6). A `retired`,\
   \ `withdrawn` or\n   `rejected` target and a retired flag are the premise faults\
   \ the graph already knew at the\n   filing. A `superseded` target is reported as\
   \ INFORMATION, not a fault : the line names its\n   superseder and points at the\
@@ -155,7 +155,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ cue (X-0089) —** does the card ship a mechanism whose success depends on an\n\
   \   external trigger firing (scheduler/hook/event/periodic)? Then `class:infra`\
   \ + a live-trigger/\n   synthetic-load probe, NOT a direct-call unit test (rule\
-  \ home → CHARTER §P8 + SPEC-0036 audit-post\n   overlay).\n   **Differential-probe\
+  \ home → CHARTER §P8 + SPEC-1040 audit-post\n   overlay).\n   **Differential-probe\
   \ cue (X-0246) —** would this criterion still pass if the thing under test were\n\
   \   BROKEN? If yes it is a smoke check, not a probe — name the input that must make\
   \ it FAIL (rule home\n   → CHARTER §P3 done=adopted). An authoring PROMPT only:\
@@ -234,7 +234,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ it instead as one of\n   the SPEC-0028 OPTIONAL deferred-proof DECLARATIONS —\
   \ the family each of whose members is the\n   trust anchor of its own Stage-8 `audit\
   \ post` carve-out, so the absence is told to the auditor\n   as the NORMAL ordering\
-  \ for that ship (rule home → SPEC-0028's field catalog for the forms,\n   SPEC-0036\
+  \ for that ship (rule home → SPEC-0028's field catalog for the forms,\n   SPEC-1040\
   \ for the matching overlays; nothing about them is restated here). Point at the\n\
   \   FAMILY and pick the member whose shape fits — and treat a shape NO member fits\
   \ as the finding\n   to capture, never a declaration to improvise. An authoring\
@@ -254,7 +254,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ its audit-loop ceiling. The fix is always\n   the wording, NEVER a request to\
   \ widen the matcher to fit it: naming WHICH evidence is pending is\n   the whole\
   \ reason the carve-out is not a blanket excuse (rule home → the guard and its phrase\
-  \ set\n   at `bin/lib/audit.py#land_emitted_named_evidence`, the overlay at SPEC-0036;\
+  \ set\n   at `bin/lib/audit.py#land_emitted_named_evidence`, the overlay at SPEC-1040;\
   \ neither is\n   restated here beyond the examples above).\n   AND THE TIE IS ONLY\
   \ HALF — THE ENTRY MUST ALSO NAME THE EVENT TOKEN. The guard admits on TWO\n   things\
   \ present in the SAME acceptance entry: a phrase from the set above, AND the snake_case\n\
@@ -441,7 +441,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   when the last one is discharged (SPEC-0015 §`probe_passed` is THREE-STATE).\n\n\
   WHY it is worth the sentence. A DECLARED deferral is rendered to the auditor as\n\
   `### DEFERRED BY DECLARATION` and its absence is then EXPECTED — never a finding,\
-  \ never a RED\n(SPEC-0036). An UNDECLARED one is indistinguishable from missing\
+  \ never a RED\n(<workshop-spec>). An UNDECLARED one is indistinguishable from missing\
   \ evidence, and the auditor is right\nto red it. The declaration is what\nmakes\
   \ «not yet» legible as an ordering rather than a gap — and a deferral that names\
   \ no reading, no\ndue date and no settle carrier is still a defect, so declaring\
@@ -470,7 +470,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ declared deferred probes\nunder `### DEFERRED PROBES — settled after landing by\
   \ the Controller` at BOTH task stage overlays,\nand the RED parse floor REFUSES\
   \ a RED whose ONLY findings are P8-adoption-class against a DECLARED\ncriterion\
-  \ — no pass spent, no record written (SPEC-0036, the reading home; the rule is not\
+  \ — no pass spent, no record written (SPEC-1040, the reading home; the rule is not\
   \ restated\nhere). It buys NOTHING ELSE: a RED carrying any other finding is recorded\
   \ unchanged, a P8 finding\nagainst an UNDECLARED criterion is judged exactly as\
   \ today, and whether the declaration actually\ncorresponds to the criterion it defers\
@@ -633,7 +633,7 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ a `superseded` one is reported as information naming its superseder and pointing\
   \ at the point-lookup for the active head, a reference to it may stay) |\n| 13 |\
   \ `retired flag named (advisory — filing not blocked)` | `_print_premise_advisory`\
-  \ (same printer, same two seams as row 12) | | **SPEC-0204 rule 6** (pointer — the\
+  \ (same printer, same two seams as row 12) | | **SPEC-1039 rule 6** (pointer — the\
   \ retirement authority); the flag SET is read in place off the ONE carrier `bin/lib/audit.py#RETIRED_AUDIT_FLAGS`\
   \ that the pre-parse shim and graph conformance's `retired-audit-flags` probe read,\
   \ matched by that probe's own whole-token matcher — never a second list |\n\nFrom\
@@ -745,7 +745,6 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3
-- SPEC-0036
 - SPEC-0043
 - SPEC-0028
 - SPEC-0046

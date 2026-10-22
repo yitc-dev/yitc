@@ -1869,7 +1869,7 @@ def _is_dispositioned(c: dict, keys: set) -> bool:
 def _in_triage_window(c: dict, cutover, keys: set) -> bool:
     """T-13015: a deviation_captured is in the window iff it has no recorded disposition and is not
     governed by the legacy cut-over (ts at or before it)."""
-    if c.get("type") != "deviation_captured" or _is_dispositioned(c, keys):
+    if c.get("type") not in journal_mod.ROUTABLE_CAPTURE_TYPES or _is_dispositioned(c, keys):
         return False
     return cutover is None or not c.get("ts") or c["ts"] > cutover
 
@@ -2053,7 +2053,7 @@ def _scan_captures(events_path, since=None) -> list:
     # DECLARED read: the two capture types only, served from an installed one-pass scope (`task file`'s,
     # which declares them whole) or one bounded walk — the same rows in the same order as the T-13036
     # pre-filtered line stream it replaces. T-13330 — a `since` horizon reads the typed lines it admits.
-    caps = ("deviation_captured", "friction_captured")
+    caps = journal_mod.CAPTURE_EVENT_TYPES
     if since is None:
         src = journal_mod.segment_rows(events_path, types=caps)
     else:
@@ -2067,7 +2067,7 @@ def _scan_captures(events_path, since=None) -> list:
             except json.JSONDecodeError:
                 continue
     for e in src:
-        if e.get("type") not in ("deviation_captured", "friction_captured"):
+        if e.get("type") not in caps:
             continue
         d = e.get("data") or {}
         if d.get("probe") is True:

@@ -654,16 +654,16 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ without a test-only suppression knob.\n- **`ceiling_decision`** — `bin/lib/audit.py`\
   \ `audit decide` (the EMITTER lands with / C2; the payload is DEFINED here and by\
   \ the code declarations `CEILING_DECISION_PAYLOAD_KEYS` / `validate_ceiling_payload`\
-  \ in `bin/lib/audit.py`, both landed by / C1). Mechanism home: **SPEC-0204** rule\
-  \ 2 — ONE append-only journal event per residual at the audit-loop ceiling, Controller-only,\
-  \ recording a typed disposition instead of a consult episode. The eleven rule-2\
-  \ payload keys, none omitted: `task_id` · `stage` (pre|post) · `subject_revision`\
+  \ in `bin/lib/audit.py`, both landed by / C1). Mechanism home: **<workshop-spec>**\
+  \ rule 2 — ONE append-only journal event per residual at the audit-loop ceiling,\
+  \ Controller-only, recording a typed disposition instead of a consult episode. The\
+  \ eleven rule-2 payload keys, none omitted: `task_id` · `stage` (pre|post) · `subject_revision`\
   \ (the audited subject — the recorded commit SHA at audit-post, the plan fingerprint\
   \ at audit-pre) · `ceiling_ref` (the ceiling row's durable identity `<task>/<stage>/pass-<N>`,\
   \ whose `<N>` is that row's own <workshop-spec> `passes` COUNTER and never a count\
   \ of rows) · `finding_fingerprint` (the engine key of the residual this decision\
-  \ binds to — SPEC-0204 rule 1, `fp1:`) · `disposition` (the PER-FINDING set `fix`\
-  \ | `accept` | `defer`; a card-TERMINAL disposition is never a `ceiling_decision`)\
+  \ binds to — <workshop-spec> rule 1, `fp1:`) · `disposition` (the PER-FINDING set\
+  \ `fix` | `accept` | `defer`; a card-TERMINAL disposition is never a `ceiling_decision`)\
   \ · `reason` (non-empty) · `directive` (the owner-directive locator `events.jsonl#ts=<ISO>`,\
   \ RESOLVED at write) · `receiving_task` (REQUIRED for `defer`) · `evidence_revision`\
   \ (REQUIRED for `fix`) · `decided_by` (the session ref). **Why it is rostered before\
@@ -716,7 +716,14 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ — SPEC-0169 rule 5). Mechanism home: **SPEC-0169**.\n- **`worktree_synced`** —\
   \ `bin/lib/worktree.py` — `worktree sync` brought a live worktree up to date with\
   \ `main`.\n- **`probe_settled`** — `bin/lib/task.py` — a declared probe reached\
-  \ a settled disposition at the closure seam.\n- **`audit_prompt_sent`** — `bin/lib/audit.py`\
+  \ a settled disposition at the closure seam.\n- **`own_tests_ran`** — `bin/lib/task.py#cmd_task_test_own`\
+  \ — `task test <T> --own` ran the test files the card's diff adds or changes (the\
+  \ rule's home is SPEC-1038 §Execution); carries `current_stage` / `files` (one `{file,\
+  \ runner, result}` per changed test file, `result` = `passed` | `failed` | `not-determined`,\
+  \ plus `reason` on a not-determined one) / `outcome` (`green` | `red` | `not-determined`\
+  \ | `empty`) / `partial: true` / `blobs` (`{file: git blob id}` of each file as\
+  \ it ran, so a reader proves which version ran). Never runner-marked (no `stage6_run`),\
+  \ so it is not a Stage-6 verdict row.\n- **`audit_prompt_sent`** — `bin/lib/audit.py`\
   \ — the external-auditor prompt was dispatched (the pre-verdict half of the audit\
   \ pair; SPEC-0004 names it only as NOT in the adapter's output set, which is a mention,\
   \ not an entry).\n- **`state_checked`** — hand-emitted, **READ-CONSUMED by `bin/yitc-v2`**\
@@ -1062,7 +1069,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ recorded set above BEFORE any row carrying them\nhas reached `main`. They are\
   \ NOT added to the 71 count, for exactly the reason the pair was\nnot added to 69:\
   \ naming a pair the recomputation cannot yet find is free, and inflating the count\n\
-  states a figure nobody can reproduce.\n\n**NINE MORE KEYS NAMED FORWARD — the SPEC-0204\
+  states a figure nobody can reproduce.\n\n**NINE MORE KEYS NAMED FORWARD — the <workshop-spec>\
   \ ceiling extension on `external_audit_completed`\n(2026-09-08).** Named here BEFORE\
   \ any row carrying most of them has reached `main`, on\nexactly the terms the /\
   \ blocks above use: naming a key the recomputation cannot yet\nfind is free, and\
@@ -1073,7 +1080,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ COUNTER the saved record\ncarries, NEVER a count of rows — reset/merge-triggered\
   \ passes are ledger-skipped, so the two genuinely\ndiffer; `ceiling_ref`'s `pass-<N>`\
   \ reads this) · `external_audit_completed.finding_fingerprint` (the\nper-finding\
-  \ engine key, `fp1:` + 16 hex over the SPEC-0204 rule-1 canonical tuple; `fp1d:`\
+  \ engine key, `fp1:` + 16 hex over the <workshop-spec> rule-1 canonical tuple; `fp1d:`\
   \ is READ-TIME\nonly and is never written to a row) · `external_audit_completed.basis`\
   \ (`on-decisions` on the ONE\nbounded post-ceiling pass) · `external_audit_completed.ceiling_ref`\
   \ (the ceiling row that pass's\ndecisions bind to) · `external_audit_completed.decisions_applied`\
@@ -1087,7 +1094,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   the code declaration `EXTERNAL_AUDIT_COMPLETED_CEILING_KEYS` in `bin/lib/audit.py`\
   \ lists the same nine\nand a drift test pins this text against that tuple, so the\
   \ catalog and the code cannot silently\ndisagree while three separate cards write\
-  \ against them. Their meaning is spec-carried by SPEC-0204\nrules 1-3 and 8, which\
+  \ against them. Their meaning is spec-carried by SPEC-1039\nrules 1-3 and 8, which\
   \ is where it belongs. This introduces NO new event type — the row is the\nexisting\
   \ `external_audit_completed` — so the event-catalog gate is untouched by that card.\n\
   \n**ONE MORE PAIR NAMED FORWARD, and it is a NESTED one (2026-09-08).** The venue\n\
@@ -1277,8 +1284,8 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ in their place.** `external_audit_completed.owner_reopen`\n( — the owner grant\
   \ locator of a consult episode re-open) and `external_audit_completed.withdrawn`\n\
   ( — the ids a rule-4 WITHDRAWAL took out of the open set) were named FORWARD here\
-  \ for rows that\nwere about to land. SPEC-0204 rule 6 retires both PRODUCERS: `audit\
-  \ consult --reopen` no longer exists,\nand the `CUT to` / `WITHDRAWN … out-of-subject`\
+  \ for rows that\nwere about to land. <workshop-spec> rule 6 retires both PRODUCERS:\
+  \ `audit consult --reopen` no longer exists,\nand the `CUT to` / `WITHDRAWN … out-of-subject`\
   \ card markers a withdrawal was read from are refused at\naudit time. So neither\
   \ key is written by any route, and each is REMOVED from the recorded set rather\n\
   than left standing as a pair nothing can produce — a catalog entry for an unreachable\
@@ -1608,36 +1615,36 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ 128 cataloged\ntypes and 2141 corpus-absent keys, and named 36 candidate pairs\
   \ across 21 types. The 2026-08-21\nre-run refreshed that set to 48 pairs across\
   \ 28 types against the corpus and journal of\nthat day. then spec-carried its own\
-  \ two new pairs in SPEC-0036, restoring 31/37.\nThe 2026-08-26 run\n(window cutoff\
-  \ ``, corpus digest 7d7af7c8d982) read 203 live types, 134\ncataloged types and\
-  \ 2461 corpus-absent keys, and named 38 candidate pairs across 20 types. The\n2026-09-01\
-  \ run (window cutoff ``, corpus digest ddcb10c28515) read 216\nlive types, 146 cataloged\
-  \ types and 3046 corpus-absent keys, and named 58 candidate pairs across 34\ntypes.\
-  \ The earlier 2026-09-04 run (window cutoff ``, corpus digest\n356fd7fc1024) read\
-  \ 218 live types, 147 cataloged types and 3115 corpus-absent keys, and named 66\n\
-  candidate pairs across 36 types — the reading the current 2026-09-04 run above.\
-  \ Its\ndigest had gone stale against the live corpus within hours of landing, which\
-  \ is the shortest such\ninterval this record has recorded and the reason the count\
-  \ half is re-measured every pass rather\nthan carried forward: staleness here is\
-  \ a function of how many peers land `specs/` text, not of how\nlong ago the run\
-  \ was. The set is\nREFRESHED at each run, never topped up to its floor; the counts\
-  \ move because the journal and the\ncorpus both grow, which is what the record exists\
-  \ to TRACK.\n\n**Pairs that GOVERNED IN AN EARLIER WINDOW and no longer do in the\
-  \ current one — kept NAMED, on\npurpose.** Refreshing the set is not the same as\
-  \ un-naming what earlier runs measured,\nand this distinction is load-bearing rather\
-  \ than tidy-minded: this record is read against MORE THAN\nONE journal window. The\
-  \ land-verify gate recomputes over the live journal, while the SPEC-0119\nrule-28\
-  \ debt probe folds a PINNED journal SLICE — an older, frozen event set that still\
-  \ yields\npairs the current window no longer does. Dropping a name because today's\
-  \ window stopped yielding it\nwould therefore re-open, against that older window,\
-  \ exactly the unnamed-pair gap this card closes.\nSo the earlier runs' names are\
-  \ retained verbatim here, with the CANDIDATE standing they were\nrecorded under;\
-  \ they are HISTORY of what governed, not a claim about the current window:\n`land_completed.abort_preflight|cause_identity_absent`\
-  \ · `audit_post_completed.final_verdict` ·\n`audit_pre_completed.final_verdict`\
-  \ · `audit_yamls_archived.nontask_swept|tasks_swept` ·\n`consumer_read_evidence.halt_ts`\
-  \ ·\n`land_audited_footprint.audit_commit|own_post_audit|mechanical_resolve` ·\n\
-  `draft_closed.reverse_linked` · `land_member_verdict.batch_ineligible` ·\n`dispatch_outcome.land_sha`\
-  \ · `error_reopened.reopen_count` ·\n`authorization_decided.identity_source|rights_held`\
+  \ two new pairs in <workshop-spec>, restoring 31/37.\nThe 2026-08-26 run\n(window\
+  \ cutoff ``, corpus digest 7d7af7c8d982) read 203 live types, 134\ncataloged types\
+  \ and 2461 corpus-absent keys, and named 38 candidate pairs across 20 types. The\n\
+  2026-09-01 run (window cutoff ``, corpus digest ddcb10c28515) read 216\nlive types,\
+  \ 146 cataloged types and 3046 corpus-absent keys, and named 58 candidate pairs\
+  \ across 34\ntypes. The earlier 2026-09-04 run (window cutoff ``, corpus digest\n\
+  356fd7fc1024) read 218 live types, 147 cataloged types and 3115 corpus-absent keys,\
+  \ and named 66\ncandidate pairs across 36 types — the reading the current 2026-09-04\
+  \ run above. Its\ndigest had gone stale against the live corpus within hours of\
+  \ landing, which is the shortest such\ninterval this record has recorded and the\
+  \ reason the count half is re-measured every pass rather\nthan carried forward:\
+  \ staleness here is a function of how many peers land `specs/` text, not of how\n\
+  long ago the run was. The set is\nREFRESHED at each run, never topped up to its\
+  \ floor; the counts move because the journal and the\ncorpus both grow, which is\
+  \ what the record exists to TRACK.\n\n**Pairs that GOVERNED IN AN EARLIER WINDOW\
+  \ and no longer do in the current one — kept NAMED, on\npurpose.** Refreshing the\
+  \ set is not the same as un-naming what earlier runs measured,\nand this distinction\
+  \ is load-bearing rather than tidy-minded: this record is read against MORE THAN\n\
+  ONE journal window. The land-verify gate recomputes over the live journal, while\
+  \ the SPEC-0119\nrule-28 debt probe folds a PINNED journal SLICE — an older, frozen\
+  \ event set that still yields\npairs the current window no longer does. Dropping\
+  \ a name because today's window stopped yielding it\nwould therefore re-open, against\
+  \ that older window, exactly the unnamed-pair gap this card closes.\nSo the earlier\
+  \ runs' names are retained verbatim here, with the CANDIDATE standing they were\n\
+  recorded under; they are HISTORY of what governed, not a claim about the current\
+  \ window:\n`land_completed.abort_preflight|cause_identity_absent` · `audit_post_completed.final_verdict`\
+  \ ·\n`audit_pre_completed.final_verdict` · `audit_yamls_archived.nontask_swept|tasks_swept`\
+  \ ·\n`consumer_read_evidence.halt_ts` ·\n`land_audited_footprint.audit_commit|own_post_audit|mechanical_resolve`\
+  \ ·\n`draft_closed.reverse_linked` · `land_member_verdict.batch_ineligible` ·\n\
+  `dispatch_outcome.land_sha` · `error_reopened.reopen_count` ·\n`authorization_decided.identity_source|rights_held`\
   \ · `grant_reach_reported.intent_tension_actors`.\n\nAdded to that kept-NAMED history\
   \ by the 2026-09-01 run : three pairs that governed in the\n`` window and do NOT\
   \ in the `` one —\n`bg_dispatch_halted.ra_key` · `consumer_read_evidence.report_only`\
@@ -1956,7 +1963,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \  refusal, so a terminal-bearing pass that finds no Stage-6 proof can NAME the\
   \ subject, the latest\n  recorded `tests_passed` run and the commit that consumed\
   \ it. They decide nothing — the decision is\n  `stage6_evidence_covers_subject`'s\
-  \ alone.\n- `read_gate_refused.named_revision` — `bin/lib/audit.py` (SPEC-1014\n\
+  \ alone.\n- `read_gate_refused.named_revision` — `bin/lib/audit.py` (<workshop-spec>\n\
   \  «Rule 3 — admission of the one bounded pass, and what the pass reports», and\n\
   \  «Rule 2 — recording a decision»): on\n  a `decisions-not-for-this-revision` refusal,\
   \ the revision the recorded decisions NAME (the `fix`\n  evidence revision, or the\

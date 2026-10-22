@@ -200,7 +200,7 @@ These are read-only provenance, not maintenance obligations.
 
 For every task, work through the 9-stage lifecycle in order:
 
-**Analysis → Filing → Plan → Audit-pre → Execution → Tests → Commit → Audit-post → Closure**
+**Analysis → Filing → Plan → Audit-pre → Execution → Commit → Audit-post → Tests → Closure**
 
 The full per-stage contract (goal, done-when, the verbs and the retrieved spec each stage
 delivers) lives at its single home — **LIFECYCLE.md §The 9 stages** (§Stage 1-9). This list is a
@@ -284,7 +284,7 @@ Use lighter-capability mode for:
 - Routine pre/post audits on small changes
 - Quick verdict on absorption iterations
 
-Audit-loop ceiling — homed in **SPEC-1034 §Audit-loop ceiling**; what happens ONCE IT IS REACHED in **SPEC-0204** (the Controller records one typed decision per residual, then ONE bounded `--on-decisions` pass; consult episodes / `--owner-reset` / `--reopen` are retired and REFUSE). Never a silent loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
+Audit-loop ceiling — homed in **SPEC-1034 §Audit-loop ceiling**; what happens ONCE IT IS REACHED in **SPEC-1039** (the Controller records one typed decision per residual, then ONE bounded `--on-decisions` pass; consult episodes / `--owner-reset` / `--reopen` are retired and REFUSE). Never a silent loop. **That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-1039 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
 
 ## Anti-recurrence discipline checks
 
@@ -312,7 +312,7 @@ If any of these gets requested mid-V2 — anti-complexity filter #4 («real inci
 
 ## External auditor invocation contract
 
-> **Retrieved — SPEC-0036** — the external-auditor invocation contract: who the auditor is, WHEN invoked across TASK/DECISION/PLAN gates, GREEN/YELLOW/RED/ABORT handling + the audit-loop ceiling; delivered at the Audit-pre + Audit-post stage-entries. `bin/yitc-v2 graph query SPEC-0036`
+> **Retrieved — SPEC-1040** — the external-auditor invocation contract: who the auditor is, WHEN invoked across TASK/DECISION/PLAN gates, GREEN/YELLOW/RED/ABORT handling + the audit-loop ceiling; delivered at the Audit-pre + Audit-post stage-entries. `bin/yitc-v2 graph query SPEC-1040`
 
 ## events.jsonl schema
 
@@ -320,15 +320,15 @@ If any of these gets requested mid-V2 — anti-complexity filter #4 («real inci
 
 ## External auditor prompt principles (universal + per-stage)
 
-> **Retrieved — SPEC-0036** (the universal V2 evaluation lens + the TASK per-stage overlays for audit-pre/audit-post; delivered at the Audit-pre + Audit-post stage-entries). `bin/yitc-v2 graph query SPEC-0036`
+> **Retrieved — SPEC-1040** (the universal V2 evaluation lens + the TASK per-stage overlays for audit-pre/audit-post; delivered at the Audit-pre + Audit-post stage-entries). `bin/yitc-v2 graph query SPEC-1040`
 
 The DECISION-audit overlays are homed with the decision audit gates they belong to —
 **SPEC-0024** (a frozen class; `bin/yitc-v2 graph query SPEC-0024`). The ad-hoc form below is NOT
-hosted by SPEC-0036 — it remains always-loaded:
+hosted by SPEC-1040 — it remains always-loaded:
 
 ### Saved audit result schema (canonical YAML)
 
-> **Retrieved — SPEC-0036 §Saved audit result** — the canonical annotated audit-result YAML schema (every field + the annotated example + the audit-trail purpose) is homed in SPEC-0036's `## Implementation notes` — reference material the audit-pre / audit-post stage entries do not deliver (demoted from this seed). `bin/yitc-v2 graph query SPEC-0036`
+> **Retrieved — SPEC-1040 §Saved audit result** — the canonical annotated audit-result YAML schema (every field + the annotated example + the audit-trail purpose) is homed in SPEC-1040's `## Implementation notes` — reference material the audit-pre / audit-post stage entries do not deliver (demoted from this seed). `bin/yitc-v2 graph query SPEC-1040`
 
 ## Instruction injection protocol
 

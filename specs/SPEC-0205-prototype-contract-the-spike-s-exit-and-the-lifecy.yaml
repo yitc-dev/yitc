@@ -250,7 +250,7 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ as the ТЗ, under the overlay: «the prototype is the specification, not the\ndeliverable;\
   \ a plan that reduces to copying named paths from it is RED; the plan must state\
   \ its own\ndesign, its own tests, and which prototype findings it deliberately does\
-  \ NOT carry». The overlay is\na per-case flag in the SPEC-0036 family, additive\
+  \ NOT carry». The overlay is\na per-case flag in the <workshop-spec> family, additive\
   \ in place. Filing a card WITH a spike branch named\nin its scope but WITHOUT `prototype_ref`\
   \ prints a report-only advisory at `task file`. **Required once\nan identity hit\
   \ exists:** when the pre-land preview (rule 2a) reports an IDENTITY hit (rule 2's\
@@ -394,11 +394,11 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ Deliberately ABSENT tunables:\na similarity threshold, a changed-line minimum,\
   \ a grace period.\n\n## Rationale\n\nEvery rule here EXTENDS an existing analog\
   \ (the `--spike` stamp, `_spike_land_verdict`, the\nwork-batch product-source gate,\
-  \ SPEC-0094 targets + facts, SPEC-0036 overlays, `worktree park`) and\nadds no new\
-  \ entity or store — refusals on existing verbs, a git ref, a folded set, packet\
-  \ fields.\nThe per-rule CHARTER §P1 filter record, the incidents behind each rule,\
-  \ and the alternatives\nrejected at the consults are DELIBERATION HISTORY, not rule\
-  \ text: they live in plan\n`prototype-never-a-transfer-close-every-path-by-whi`\
+  \ SPEC-0094 targets + facts, <workshop-spec> overlays, `worktree park`) and\nadds\
+  \ no new entity or store — refusals on existing verbs, a git ref, a folded set,\
+  \ packet fields.\nThe per-rule CHARTER §P1 filter record, the incidents behind each\
+  \ rule, and the alternatives\nrejected at the consults are DELIBERATION HISTORY,\
+  \ not rule text: they live in plan\n`prototype-never-a-transfer-close-every-path-by-whi`\
   \ §Deliberation chronology (<workshop-spec> rule 8 —\nthe spec keeps rules, the\
   \ plan keeps the why).\n\n### History moved from the rule body\n\nEach entry is\
   \ a passage moved word for word out of the rule text of the section it names;\n\
@@ -553,7 +553,6 @@ cites:
 - SPEC-0175
 - SPEC-0094
 - SPEC-0028
-- SPEC-0036
 - SPEC-0035
 - spike-mode
 - spike-is-a-prototype-never-a-transfer-close-every-
@@ -566,7 +565,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
-  bin/lib/audit_packet.py#build_audit_prompt: fa3b65b4f1242ea93fd9ea0fc21b287cbffd7143dacf7d18b67a2e50c49ae1f6
+  bin/lib/audit_packet.py#build_audit_prompt: b0d77f67635d020c950ec7ea0c0b836cc73259611e32d056128d7fdfd60d24f8
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
   bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
@@ -581,4 +580,4 @@ implements_signature:
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
   bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a
-  bin/lib/worktree_lifecycle.py#cmd_worktree_new: cf4302d81075fc8ad7bee036293ee6d4313e2566dfb5b33009bf6f16937dd515
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 852bf428ed1ecc6c6216483718e5326fb2364be22bf3624bdef8a90f73e75a09

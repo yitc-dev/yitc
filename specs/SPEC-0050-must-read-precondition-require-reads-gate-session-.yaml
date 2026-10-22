@@ -311,7 +311,7 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
   \ `task\ncommit` (Commit contracts), then GRADUATED (each its OWN first-connection\
   \ step — never bulk)\nonto the remaining stage work-verbs: `audit pre`/`audit post`\
-  \ (TASK Audit-pre/post, SPEC-0036), `spec\nnew --draft` (plan `specs`, SPEC-0034),\
+  \ (TASK Audit-pre/post, <workshop-spec>), `spec\nnew --draft` (plan `specs`, SPEC-0034),\
   \ and `plan check` (plan `accepted`, SPEC-0034) — the latter two\non the cross-axis\
   \ `axis==\"plan\"` derivation (§1). `kind=seed` / `kind=action` are RESERVED API\
   \ shape ONLY — non-normative,\ncarrying NO code and NO obligation until a first-connection\
@@ -408,19 +408,19 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ ack} hold; drop any one and the ordinary\nread-gate + stage-correspondence + in-progress-only\
   \ path runs unchanged. The explicit flag + done-only\nscope IS the operator ack\
   \ standing in for the unreachable stage-entry read. Invocation-contract\nsibling:\
-  \ SPEC-0036 (the in-progress-only carve-out); rebaseline-honoring sibling: SPEC-0077\
-  \ §3a.\n\n### 7. What is removed alongside (P1 F3; ordering)\nThis spec SUPERSEDES\
-  \ <workshop-spec> by **NET-REMOVAL of the worktree-attribution layer** and\nRESTORES\
-  \ the <workshop-spec> session_ref-only evidence model. Removed in code : the\n`_worktree_ref_of`\
-  \ + `_credits_under_worktree` helpers, the `worktree_ref` stamping on BOTH emit\n\
-  paths (live `_emit_cli_invoked` + the materializer `_journal_sync`), and the `current_ref`\
-  \ param\nof `_fetched_spec_ids` / its derivation in `_require_reads`. KEPT: the\
-  \ per-checkout\nmaterialization (§3) — the worktree_ref layer sat ON TOP of it and\
-  \ is the only thing removed. The\nunconditional pointer-only \"read before acting\"\
-  \ promise on the piloted gates stays retired (the\n`stage Commit` / `stage Closure`\
-  \ pointer is delivery ECHO; the OBLIGATION lives in the verb\nprecondition) — carried\
-  \ over verbatim from <workshop-spec>/<workshop-spec>. EXTENDS this retirement to\
-  \ the\ngraduated gates: the `stage Audit-pre` / `stage Audit-post` and the plan\
+  \ <workshop-spec> (the in-progress-only carve-out); rebaseline-honoring sibling:\
+  \ SPEC-0077 §3a.\n\n### 7. What is removed alongside (P1 F3; ordering)\nThis spec\
+  \ SUPERSEDES <workshop-spec> by **NET-REMOVAL of the worktree-attribution layer**\
+  \ and\nRESTORES the <workshop-spec> session_ref-only evidence model. Removed in\
+  \ code : the\n`_worktree_ref_of` + `_credits_under_worktree` helpers, the `worktree_ref`\
+  \ stamping on BOTH emit\npaths (live `_emit_cli_invoked` + the materializer `_journal_sync`),\
+  \ and the `current_ref` param\nof `_fetched_spec_ids` / its derivation in `_require_reads`.\
+  \ KEPT: the per-checkout\nmaterialization (§3) — the worktree_ref layer sat ON TOP\
+  \ of it and is the only thing removed. The\nunconditional pointer-only \"read before\
+  \ acting\" promise on the piloted gates stays retired (the\n`stage Commit` / `stage\
+  \ Closure` pointer is delivery ECHO; the OBLIGATION lives in the verb\nprecondition)\
+  \ — carried over verbatim from <workshop-spec>/<workshop-spec>. EXTENDS this retirement\
+  \ to the\ngraduated gates: the `stage Audit-pre` / `stage Audit-post` and the plan\
   \ `specs` / `accepted`\nstage-entry pointers are likewise delivery ECHO — the OBLIGATION\
   \ now lives in `audit pre`/`audit post`,\n`spec new --draft`, and `plan check`.\
   \ The generic shared stage-entry echo LINE is intentionally NOT\nreworded per-stage\
@@ -695,7 +695,7 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
+  bin/lib/audit.py#cmd_audit: 214e64890574e647821ef7914f9508c3e322a810a5c609d9ecb5ca25b444539c
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
   bin/lib/cli.py#_deliver_stage_bundle_contracts: 43dc04a2189c3a257017ea907c982671b71cfb8044f0b9e8cbf545105c189d8d
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
@@ -712,5 +712,5 @@ implements_signature:
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: 4251f762cbe9110f6bc674b04c32ca234b2c6d0c8b6806941a7c20c783a3a488
-  bin/lib/task.py#cmd_task_commit: be0d945a859e0f8af4fa4afa1b1695c28536dcdd398c1c3619ea2dc2d488f87c
+  bin/lib/task.py#cmd_task_close: 9f41d93cfef7602f775bab89958f1b98dc7665c50e8ae574cd665f4d9a00ee50
+  bin/lib/task.py#cmd_task_commit: 3278713b18d1899bfb21e9b6fc3fd50f705216913fe9dd638f33911d684821b8

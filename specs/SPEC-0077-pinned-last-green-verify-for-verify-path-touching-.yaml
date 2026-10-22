@@ -445,7 +445,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ **THAT AUDIT IS A CURRENCY CHECK, AND IS BOUNDED AS ONE.** It asks whether the\n\
   \  sign-off is still current for the tree that reaches `main`, on a `status: done`\
   \ card — never\n  whether the card's absorption loop converged — so it consumes\
-  \ no <workshop-spec> ceiling pass, is\n  exempt from the ceiling and from SPEC-0204\
+  \ no <workshop-spec> ceiling pass, is\n  exempt from the ceiling and from <workshop-spec>\
   \ rule 4 in both directions, records `basis: currency`,\n  and bounds its NEW findings\
   \ (all medium/low → YELLOW and the land PROCEEDS; a high, an absent\n  severity,\
   \ or an open `fix` residual keeps RED and STOPS the land for the ordinary fix route).\n\
@@ -453,7 +453,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ own\n  `land: bookkeeping` self-commit, which an aborting land takes back off\
   \ the branch. Requirement\n  (ii) is UNCHANGED — a RED still refuses this land,\
   \ and nothing here waives the audit; what is\n  bounded is what a CHECK may COST\
-  \ and END, never what it may REFUSE. Rule home: SPEC-0204 rule 3.\n  **This STRENGTHENS\
+  \ and END, never what it may REFUSE. Rule home: SPEC-1039 rule 3.\n  **This STRENGTHENS\
   \ the requirement and must never be read as relaxing it.** The auditor now\n  sees\
   \ a SUPERSET of what it saw before (the pre-merge branch tree PLUS everything main\
   \ added),\n  i.e. exactly the tree that reaches main. Promoted followup `fu_e9edf59a86ca`\
@@ -712,7 +712,7 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ tree (a NON-empty\n  delta) — the empty-delta scan correctly refuses, and a DONE\
   \ task previously could not re-audit, so the\n  only escape was again the blunt\
   \ `--no-tests` (the deadlock live-hit on). RESOLVED WITHOUT a new\n  honoring path:\
-  \ `audit post --reaudit-after-close --task T-XXXX` (SPEC-0036's in-progress-only\
+  \ `audit post --reaudit-after-close --task T-XXXX` (<workshop-spec>'s in-progress-only\
   \ carve-out\n  — that rule is now TOUCHED, superseding this bullet's earlier \"\
   needs NO re-audit-after-close path\"\n  statement) records a FRESH GREEN/YELLOW\
   \ `audit_post_completed` at the CURRENT tree (HEAD). The\n  `_change_is_audited`\
@@ -720,8 +720,8 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \  fresh audit's recorded commit IS HEAD, so its delta to HEAD is empty → audited);\
   \ on a `task/T-NNNN`\n  branch the task-path picks it as the LATEST audit, on a\
   \ `work/<slug>` branch the empty-delta scan\n  accepts it. So this is purely an\
-  \ audit-INVOCATION extension (SPEC-0036) + read-gate carve-out\n  (SPEC-0050) —\
-  \ the §3a honoring logic here is UNCHANGED. A non-empty delta with NO fresh re-audit\
+  \ audit-INVOCATION extension (<workshop-spec>) + read-gate carve-out\n  (SPEC-0050)\
+  \ — the §3a honoring logic here is UNCHANGED. A non-empty delta with NO fresh re-audit\
   \ still\n  stays REFUSED (the real audit requirement is NOT loosened — the re-audit\
   \ is the way to satisfy it,\n  never to bypass it).\n- **Why it is NOT a self-approval\
   \ hole.** The candidate verify STILL runs green (the new checks gate),\n  and an\

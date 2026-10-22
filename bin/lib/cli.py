@@ -1317,7 +1317,7 @@ class _TaskFileReads:
     and every served archive counts in `reads.segments_skipped`. MAIN is opened only when a reader asks
     for it; otherwise its segments count as `reads.segments_skipped` too."""
 
-    _KEEP = ("deviation_captured", "friction_captured", "triage_run_completed")
+    _KEEP_EXTRA = ("triage_run_completed",)   # beside journal.CAPTURE_EVENT_TYPES, read at call time (T-14032)
 
     def __init__(self, adv, main, sref):
         self.adv, self.main, self.sref = adv, main, sref
@@ -1331,7 +1331,7 @@ class _TaskFileReads:
         self.scans: list = []
 
     def declaration(self) -> dict:
-        return {"needles": self.needles, "keep": {t: None for t in self._KEEP},
+        return {"needles": self.needles, "keep": {t: None for t in (*journal_mod.CAPTURE_EVENT_TYPES, *self._KEEP_EXTRA)},
                 "reducers": {"followup": _TaskFileFold}, "remainder": True, "index": True}
 
     def is_main(self, path) -> bool:
@@ -1575,7 +1575,7 @@ def cmd_task_close(args: argparse.Namespace) -> None:
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
     with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
-        task_mod.cmd_task_close(args, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
+        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -1638,6 +1638,15 @@ def _stage6_close_activation_writer():
 
 def cmd_task_test(args: argparse.Namespace) -> None:
     task_mod.refuse_kernel_local_placement(args, kernel=not _is_consumer_build(), _die=_die)   # T-13975: SPEC-1032 rule 6
+    if getattr(args, "own", False):
+        # T-14034: the own-tests check is its own function, never a branch of the Stage-6 path below.
+        return task_mod.cmd_task_test_own(
+            args, _append_event=_append_event, _die=_die, _load_task_for_transition=_load_task_for_transition,
+            _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()),
+            _declared_test_sweep_paths=_declared_test_sweep_paths, _run_git_cap=_run_git_cap,
+            _test_basename_re=_TEST_BASENAME_RE, REPO_ROOT=REPO_ROOT,
+            _consumer_tests_delegation=_consumer_tests_delegation,
+            _verify_test_timeout_seconds=_verify_test_timeout_seconds)
     # T-13982: a `--run` tests the tree its close will land — the card's close-time spec activation is
     # held on disk for the run (task.py#_stage6_close_activation) and put back after it; the graph is
     # rebuilt once the bytes are back, on green, red and any exception alike.
@@ -1648,7 +1657,7 @@ def cmd_task_test(args: argparse.Namespace) -> None:
     flipped: list = []
     try:
         with held as flipped:
-            return task_mod.cmd_task_test(args, _append_event=_append_event, _declared_test_sweep_paths=_declared_test_sweep_paths, _die=_die, _governing_rule_pointer=_governing_rule_pointer, _load_task_for_transition=_load_task_for_transition, _post_action_hint=_post_action_hint, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _write_task_transition=_write_task_transition, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _consumer_zero_probe_guard=_consumer_zero_probe_guard, _consumer_tests_delegation=_consumer_tests_delegation, _render_tests_delegation_note=worktree_mod._render_tests_delegation_note, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _uncommitted_layer_surface=_uncommitted_layer_surface, _render_uncommitted_layer_surface_note=worktree_mod._render_uncommitted_layer_surface_note, _auto_rebuild_graph=_auto_rebuild_graph, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _is_consumer_build=_is_consumer_build, _governed_selection=_stage6_governed_selection, _classify_inert_paths=_classify_inert_paths, _verify_worker_governor=worktree_mod._verify_worker_governor, _main_worktree=_main_worktree, _layer_step_lines=lambda cur: _scaling_signals_lines(stage6=cur))   # T-13520: the main-checkout resolver the PASS line's pinned-leg clause reads the land's policy tree through.   # T-12589: Stage-6 publishes the governor's W to consumer layers.   # T-12496: the ONE SPEC-0064 inert authority, injected so Stage 6 excludes inert changed paths from the tripwire's needles exactly as land does.   # T-12221: the SPEC-0181 selection ladder (the ONE home `verify_runner.governed_selection`, host collaborators bound at call time) — injected so the Stage-6 venue decision reads the RESOLVED breadth, never re-implemented there.   # T-12199: the SPEC-0203 rule-2 kernel/consumer predicate the routing decision reads — injected, never re-implemented.   # T-11975: the Stage-6 stale-anchor report reuses the SAME assembler the audit packet's `### Spec coverage of touched files` section calls (`_spec_coverage_section`) — one detector, forwarded here rather than re-derived, so the two surfaces cannot drift.   # T-11935: the Stage-6 uncommitted-inside-a-declared-layer-surface signal (SPEC-0152 rule 16 §stage-6-reads-a-working-tree) — report-only, injected like its sibling gap/renderer pair. # T-10975: _run_git_cap drives the done-but-UNLANDED closure determination
+            return task_mod.cmd_task_test(args, _append_event=_append_event, _declared_test_sweep_paths=_declared_test_sweep_paths, _die=_die, _governing_rule_pointer=_governing_rule_pointer, _load_task_for_transition=_load_task_for_transition, _post_action_hint=_post_action_hint, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _write_task_transition=_write_task_transition, _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()), _consumer_zero_probe_guard=_consumer_zero_probe_guard, _consumer_tests_delegation=_consumer_tests_delegation, _render_tests_delegation_note=worktree_mod._render_tests_delegation_note, _delegated_tests_execution_gap=_delegated_tests_execution_gap, _uncommitted_layer_surface=_uncommitted_layer_surface, _render_uncommitted_layer_surface_note=worktree_mod._render_uncommitted_layer_surface_note, _auto_rebuild_graph=_auto_rebuild_graph, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _governed_selection=_stage6_governed_selection, _classify_inert_paths=_classify_inert_paths, _verify_worker_governor=worktree_mod._verify_worker_governor, _main_worktree=_main_worktree, _layer_step_lines=lambda cur: _scaling_signals_lines(stage6=cur), _stage_pointer_facts=_stage_pointer_facts)   # T-14037: the pointer's journal facts (a move into Tests needs a commit; the exempt move).   # T-13520: the main-checkout resolver the PASS line's pinned-leg clause reads the land's policy tree through.   # T-12589: Stage-6 publishes the governor's W to consumer layers.   # T-12496: the ONE SPEC-0064 inert authority, injected so Stage 6 excludes inert changed paths from the tripwire's needles exactly as land does.   # T-12221: the SPEC-0181 selection ladder (the ONE home `verify_runner.governed_selection`, host collaborators bound at call time) — injected so the Stage-6 venue decision reads the RESOLVED breadth, never re-implemented there.   # T-12199: the SPEC-0203 rule-2 kernel/consumer predicate the routing decision reads — injected, never re-implemented.   # T-11935: the Stage-6 uncommitted-inside-a-declared-layer-surface signal (SPEC-0152 rule 16 §stage-6-reads-a-working-tree) — report-only, injected like its sibling gap/renderer pair. # T-10975: _run_git_cap drives the done-but-UNLANDED closure determination
     finally:
         if flipped:
             _auto_rebuild_graph("task_test")
@@ -1690,7 +1699,7 @@ def cmd_task_commit(args: argparse.Namespace) -> None:
             if scope.set_horizon(since) and tid:   # a no-op once the scope has walked
                 scope.task_floors.setdefault(str(tid), since)
         with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: never commit a transient Stage-6 activation
-            return task_mod.cmd_task_commit(args, _set_read_horizon=_set_read_horizon, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _audit_commit_shift_hazard=_audit_commit_shift_hazard, _bookkeeping_only_custody_shift=_bookkeeping_only_custody_shift, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _commit_worktree=_commit_worktree, _count_audit_passes=_count_audit_passes, _die=_die, _dump_state_yaml=_dump_state_yaml, _governing_contract_for=_governing_contract_for, _load_task_for_transition=_load_task_for_transition, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, write_text_atomic=write_text_atomic, _write_task_transition=_write_task_transition, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _red_fix_authored_paths=_red_fix_authored_paths, _card_repair_staged_card=_card_repair_staged_card, _folded_audit_post_hazard=_folded_audit_post_hazard, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _prior_audit_record=_prior_audit_record, _red_cause_is_card_record=_red_cause_is_card_record, _lifecycle_bookkeeping_path=_forecast_excluded_path, _worktree_dirty_paths=_worktree_dirty_paths, _worktree_path_statuses=_worktree_path_statuses, _zero_ship_diff_bookkeeping=_zero_ship_diff_bookkeeping, _reverify_spec_signature=_reverify_spec_signature, _run_git_cap=_run_git_cap, _anchor_moved_since=_anchor_moved_since)
+            return task_mod.cmd_task_commit(args, _set_read_horizon=_set_read_horizon, AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _audit_commit_shift_hazard=_audit_commit_shift_hazard, _bookkeeping_only_custody_shift=_bookkeeping_only_custody_shift, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _commit_worktree=_commit_worktree, _count_audit_passes=_count_audit_passes, _die=_die, _dump_state_yaml=_dump_state_yaml, _governing_contract_for=_governing_contract_for, _load_task_for_transition=_load_task_for_transition, _require_reads=_require_reads, _require_stage_correspondence=_require_stage_correspondence, write_text_atomic=write_text_atomic, _write_task_transition=_write_task_transition, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _red_fix_authored_paths=_red_fix_authored_paths, _card_repair_staged_card=_card_repair_staged_card, _folded_audit_post_hazard=_folded_audit_post_hazard, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _prior_audit_record=_prior_audit_record, _red_cause_is_card_record=_red_cause_is_card_record, _lifecycle_bookkeeping_path=_forecast_excluded_path, _worktree_dirty_paths=_worktree_dirty_paths, _worktree_path_statuses=_worktree_path_statuses, _zero_ship_diff_bookkeeping=_zero_ship_diff_bookkeeping, _reverify_spec_signature=_reverify_spec_signature, _run_git_cap=_run_git_cap, _anchor_moved_since=_anchor_moved_since, _stage_pointer_facts=_stage_pointer_facts)
 def _list_sort_key(task: dict) -> tuple:
     return task_mod._list_sort_key(task)
 def cmd_task_show(args: argparse.Namespace) -> None:
@@ -4645,7 +4654,9 @@ def _post_compact_refold_plans(ref: str) -> list:
 # T-13995 — the types `session start` reads whole after the debt echo's pass (`journal.typed_handdown`):
 # the capture-fingerprint dedupe (`_record_unobserved_version_deviation`, both capture names) and the
 # worker-fit line (`journal.worker_fit`). The debt echo's walk keeps each of them whole (`debt_echo_scan`).
-START_HANDDOWN_TYPES = ("deviation_captured", "friction_captured", "land_completed")
+# T-14032: the capture types come from `journal.CAPTURE_EVENT_TYPES` at call time (`journal` is a deferred
+# load here, T-11540), so only the non-capture member is held at module level.
+_START_HANDDOWN_EXTRA = ("land_completed",)
 
 
 def cmd_session_start(args: argparse.Namespace) -> None:
@@ -4738,6 +4749,7 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         # pass instead of re-walking every archived segment (`journal.typed_handdown`). Only a scope
         # keeping all three types whole fills it (the debt echo's), so a receipt-only start, which runs
         # no debt echo, leaves it empty and reads as before.
+        START_HANDDOWN_TYPES = (*journal_mod.CAPTURE_EVENT_TYPES, *_START_HANDDOWN_EXTRA)
         _read_scope.enter_context(journal_mod.typed_handdown(EVENTS_PATH, START_HANDDOWN_TYPES))
         _live_memo = _read_scope.enter_context(journal_mod.rows_memo([EVENTS_PATH]))
         if _live_memo is not None:      # a test that nulls the memo hands back None
@@ -8068,7 +8080,7 @@ def _as_list(name: str, val) -> list:
 # The substantive post-claim lifecycle stages in order (Filing skipped — by claim time the task is
 # already filed/claimed). Analysis is listed so the one sequence also shows its FETCH contracts +
 # finalize verb; the claim ITSELF is Analysis-entry (T-9741).
-_SEQUENCE_STAGES = ("Analysis", "Plan", "Audit-pre", "Execution", "Tests", "Commit", "Audit-post", "Closure")
+_SEQUENCE_STAGES = ("Analysis", "Plan", "Audit-pre", "Execution", "Commit", "Audit-post", "Tests", "Closure")
 
 
 def _stage_sequence_skeleton(tid: str = "T-XXXX", corpus: "dict | None" = None,
@@ -15346,18 +15358,17 @@ def cmd_stage(args: argparse.Namespace) -> None:
                 if _chits:
                     sys.stderr.write("(Commit stage — re-readable here, read-only; no commit made)\n"
                                      + task_mod.commit_stage_spec_drift_warn(tid, _chits))
-        # T-13602 (public proposal #44): the Stage-6 stale-anchor report, delivered at Tests ENTRY as
-        # well as by `task test` — the last moment a re-sign is free. A re-sign made after the final
-        # full run changes `specs/` (observable, `_inert_path_class`), so the land does not credit that
-        # run and repeats it (SPEC-0065 §Bound condition 2); the report says so and names `spec
-        # reverify` first. Same working-tree touched set, same assembler and the SAME renderer `task
-        # test` uses (task_mod.tests_stage_spec_drift_warn), so the two surfaces cannot drift into two
-        # wordings. Print-only, like every other cmd_stage cue: no gate, no field, no event; a failure
-        # of the signal fails toward silence.
-        if name == "Tests":
+        # T-13602 (public proposal #44), moved by T-14037 (SPEC-1038 §Execution «Re-sign specs before the
+        # commit»): the working-tree stale-anchor report, delivered at Commit ENTRY — the last moment a
+        # re-sign is free. A re-sign after audit-post changes the audited subject and needs a new commit
+        # and a re-audit; the report says so and names `spec reverify` first. Same working-tree touched
+        # set, same assembler and the SAME renderer (task_mod.commit_entry_spec_drift_warn). Print-only,
+        # like every other cmd_stage cue: no gate, no field, no event; a failure of the signal fails
+        # toward silence.
+        if name == "Commit":
             try:
                 _tt = task_mod.tests_stage_touched_files(REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap)
-                _tnote = task_mod.tests_stage_spec_drift_warn(
+                _tnote = task_mod.commit_entry_spec_drift_warn(
                     tid, _changed_anchor_spec_drift(_tt, {})) if _tt else ""
             except Exception:                  # noqa: BLE001 — a report-only signal never breaks the verb
                 _tnote = ""
@@ -16655,6 +16666,63 @@ def _task_events_for(task_id: str, event_types) -> list:
     rows: list = []
     _latest_event_for(task_id, tuple(event_types or ()), collect=rows)
     return rows
+
+
+def _stage_pointer_facts(task: dict) -> dict:
+    """T-14037 (SPEC-1038 §Stage FSM per class) — the journal facts ONE card's pointer moves read:
+    `has_commit` (a move into Tests needs a recorded `commit_landed`), `red_after_commit` (the `return`
+    move, `gates.red_run_after_last_commit`) and `exempt` (the `exempt` move, `gates.exempt_move` at the
+    card's recorded ship commit, through the audit-post spend seam's own gatherer). The exemption is
+    asked only on
+    the one edge it can open (a non-hygiene card at Commit), so every other move reads no declaration.
+    The rows come from `_task_pointer_rows` (declared, task-scoped)."""
+    tid = (task or {}).get("id")
+    rows = _task_pointer_rows(tid) if tid else []
+    has_commit = any(isinstance(ev, dict) and ev.get("type") == "commit_landed" for ev in rows)
+    exempt = False
+    if has_commit and (task or {}).get("current_stage") == "Commit" and (task or {}).get("class") != "hygiene":
+        exempt = gates.exempt_move(task, _recorded_commit_sha(tid),
+                                   _audit_scrutiny_note_for=_audit_scrutiny_note_for)
+    return {"has_commit": has_commit, "red_after_commit": gates.red_run_after_last_commit(rows),
+            "exempt": exempt}
+
+
+def _commit_is_substantive(sha: str) -> bool:
+    """T-14037 (SPEC-1038 §Tests «Closure-time coverage») — does commit `sha` change a path outside the
+    inert bookkeeping paths? Judged by the ONE inert-path authority the land's Stage-6 credit uses
+    (`_classify_inert_paths`, SPEC-0065 / SPEC-0064), never a second list. A commit git cannot answer
+    for counts as substantive: the fact fails toward asking for a run.
+
+    A commit is judged against its FIRST PARENT (a root commit against the empty tree): `git diff-tree`
+    prints nothing for a merge commit, so a merge recorded as the card's commit — a hand-resolved sync,
+    say — would otherwise read as changing nothing and let an older run cover code it never tested."""
+    parent = _run_git_cap(["rev-parse", "--verify", "-q", f"{sha}^1"], REPO_ROOT)
+    if parent.returncode == 0 and parent.stdout.strip():
+        r = _run_git_cap(["diff", "--name-only", "-z", parent.stdout.strip(), str(sha)], REPO_ROOT)
+    else:
+        r = _run_git_cap(["diff-tree", "--no-commit-id", "--name-only", "-r", "--root", "-z", str(sha)], REPO_ROOT)
+    if r.returncode != 0:
+        return True
+    names = [n for n in (r.stdout or "").split("\0") if n]
+    return bool(names) and _classify_inert_paths(names)[0] != "inert"
+
+
+def _closure_coverage_gap(tid: str) -> "str | None":
+    """T-14037 — the Closure-time coverage fact for `tid` (`gates.closure_coverage_gap` over its
+    `commit_landed` and Tests verdict rows, journal order, `_task_pointer_rows`). None = covered."""
+    return gates.closure_coverage_gap(_task_pointer_rows(tid), _commit_is_substantive)
+
+
+def _task_pointer_rows(tid: str) -> list:
+    """T-14037 — `tid`'s `commit_landed` and Tests verdict rows in JOURNAL ORDER, read declared and
+    task-scoped the way the other close readers read (`_task_commit_landed_chain`, T-13330): the
+    segment-aware `iter_rows` from the task's floor, so a verb's declared read scope (SPEC-0190 rule 10)
+    serves it and no undeclared whole-history read is made."""
+    if not EVENTS_PATH.exists():
+        return []
+    return list(journal_mod.iter_rows(EVENTS_PATH, types=("commit_landed", "tests_passed", "tests_failed"),
+                                      since=journal_mod.task_floor(EVENTS_PATH, tid),
+                                      pred=lambda e: e.get("task_id") == tid))
 
 
 def _task_rows_or_journal(tid, lines):

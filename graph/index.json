@@ -30,26 +30,6 @@
    "warn": "bin/lib/journal.py#_journal_sync: content changed since last verified-accurate signature (19314fda8) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
-   "anchor": "bin/lib/audit.py#cmd_audit",
-   "spec": "SPEC-0027",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (33b205dcd) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/gates.py#advance_stage_pointer",
-   "spec": "SPEC-0027",
-   "warn": "bin/lib/gates.py#advance_stage_pointer: content changed since last verified-accurate signature (80d13c9ba) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/task.py#cmd_task_plan",
-   "spec": "SPEC-0027",
-   "warn": "bin/lib/task.py#cmd_task_plan: content changed since last verified-accurate signature (e09dfcb6b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/task.py#cmd_task_test",
-   "spec": "SPEC-0027",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (09629320a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
    "anchor": "tasks/_template.yaml",
    "spec": "SPEC-0028",
    "warn": "tasks/_template.yaml: content changed since last verified-accurate signature (ffeef8ff9) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
@@ -77,7 +57,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0038",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (9f41d93cf) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "tasks/_template.yaml",
@@ -97,7 +77,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (33b205dcd) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (214e64890) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
@@ -132,12 +112,12 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (9f41d93cf) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_commit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (be0d945a8) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (3278713b1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/triage.py#cmd_triage_run",
@@ -177,7 +157,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0069",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (9f41d93cf) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/effort-routing-config.yaml",
@@ -307,7 +287,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (33b205dcd) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (214e64890) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#_DeployRunRecorder",
@@ -392,7 +372,7 @@
   {
    "anchor": "bin/lib/worktree.py#cmd_blocked_on_land",
    "spec": "SPEC-0103",
-   "warn": "bin/lib/worktree.py#cmd_blocked_on_land: content changed since last verified-accurate signature (fbd30050a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#cmd_blocked_on_land: content changed since last verified-accurate signature (770d978ce) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree_lifecycle.py#cmd_worktree_park",
@@ -577,7 +557,7 @@
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
    "spec": "SPEC-0125",
-   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (1bfe64fc0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (a7b3c24f6) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#_concern_surface_warnings",
@@ -692,7 +672,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-0152",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (09629320a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (22a05bd9d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/verify_runner.py#_consumer_tests_delegation",
@@ -757,7 +737,7 @@
   {
    "anchor": "bin/lib/audit_packet.py#build_audit_prompt",
    "spec": "SPEC-0168",
-   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (fa3b65b4f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (b0d77f676) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#_ac_probe_evidence_events_for",
@@ -787,17 +767,17 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0176",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (33b205dcd) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (214e64890) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0177",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (9f41d93cf) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0178",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (4251f762c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (9f41d93cf) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt_adoption.py#open_known_broken",
@@ -852,87 +832,12 @@
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
    "spec": "SPEC-0202",
-   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (1bfe64fc0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#blocked_on_land_ceiling_disposition: content changed since last verified-accurate signature (a14d1669d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit.py#cmd_audit",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (33b205dcd) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit.py#contentless_findings",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#contentless_findings: content changed since last verified-accurate signature (acd721c69) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit.py#plan_gate_live_terminal_reasons",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#plan_gate_live_terminal_reasons: content changed since last verified-accurate signature (ffac9102c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit.py#suspected_echo_findings",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit.py#suspected_echo_findings: content changed since last verified-accurate signature (d62e80f30) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit_ceiling.py#on_decisions_admission",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit_ceiling.py#on_decisions_admission: content changed since last verified-accurate signature (005b972fc) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit_ceiling.py#on_decisions_matrix",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit_ceiling.py#on_decisions_matrix: content changed since last verified-accurate signature (d1294c1f7) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit_ceiling.py#residual_finding_records",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit_ceiling.py#residual_finding_records: content changed since last verified-accurate signature (42386a01e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit_ceiling.py#row_residual_fingerprints",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit_ceiling.py#row_residual_fingerprints: content changed since last verified-accurate signature (8dc0ced2f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit_consult.py#_consult_basis",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit_consult.py#_consult_basis: content changed since last verified-accurate signature (c3353e48e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/audit_consult.py#cmd_audit_consult",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/audit_consult.py#cmd_audit_consult: content changed since last verified-accurate signature (a9eb93a07) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/cli_parser.py#build_parser",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (e345d2911) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/graph.py#retired_plan_gate_terminal_violations",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/graph.py#retired_plan_gate_terminal_violations: content changed since last verified-accurate signature (a6a95d27d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/plan.py#_run_plan_gate_audit",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/plan.py#_run_plan_gate_audit: content changed since last verified-accurate signature (a8f25295f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
-  },
-  {
-   "anchor": "bin/lib/plan.py#cmd_plan_check",
-   "spec": "SPEC-0204",
-   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (cc9f1f071) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (a7b3c24f6) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit_packet.py#build_audit_prompt",
    "spec": "SPEC-0205",
-   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (fa3b65b4f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (b0d77f676) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
@@ -947,7 +852,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-0209",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (e345d2911) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (f95bcaa41) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/textutil.py#ARGV_PROSE_SEAMS",
@@ -1002,7 +907,7 @@
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
    "spec": "SPEC-1024",
-   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (1bfe64fc0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli.py#cmd_session_start: content changed since last verified-accurate signature (a7b3c24f6) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_land",
@@ -1012,7 +917,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-1029",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (09629320a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (22a05bd9d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
@@ -1027,7 +932,112 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1034",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (33b205dcd) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (214e64890) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit.py#cmd_audit",
+   "spec": "SPEC-1038",
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (214e64890) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/gates.py#advance_stage_pointer",
+   "spec": "SPEC-1038",
+   "warn": "bin/lib/gates.py#advance_stage_pointer: content changed since last verified-accurate signature (4d2945a97) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/task.py#cmd_task_close",
+   "spec": "SPEC-1038",
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (9f41d93cf) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/task.py#cmd_task_commit",
+   "spec": "SPEC-1038",
+   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (3278713b1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/task.py#cmd_task_plan",
+   "spec": "SPEC-1038",
+   "warn": "bin/lib/task.py#cmd_task_plan: content changed since last verified-accurate signature (e09dfcb6b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/task.py#cmd_task_test",
+   "spec": "SPEC-1038",
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (22a05bd9d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit.py#blocked_on_land_ceiling_disposition: content changed since last verified-accurate signature (a14d1669d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit.py#cmd_audit",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (214e64890) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit.py#contentless_findings",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit.py#contentless_findings: content changed since last verified-accurate signature (acd721c69) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit.py#plan_gate_live_terminal_reasons",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit.py#plan_gate_live_terminal_reasons: content changed since last verified-accurate signature (ffac9102c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit.py#suspected_echo_findings",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit.py#suspected_echo_findings: content changed since last verified-accurate signature (d62e80f30) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit_ceiling.py#on_decisions_admission",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_ceiling.py#on_decisions_admission: content changed since last verified-accurate signature (d372a4c1f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit_ceiling.py#on_decisions_matrix",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_ceiling.py#on_decisions_matrix: content changed since last verified-accurate signature (d1294c1f7) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit_ceiling.py#residual_finding_records",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_ceiling.py#residual_finding_records: content changed since last verified-accurate signature (42386a01e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit_ceiling.py#row_residual_fingerprints",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_ceiling.py#row_residual_fingerprints: content changed since last verified-accurate signature (8dc0ced2f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit_consult.py#_consult_basis",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_consult.py#_consult_basis: content changed since last verified-accurate signature (c3353e48e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/audit_consult.py#cmd_audit_consult",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_consult.py#cmd_audit_consult: content changed since last verified-accurate signature (a9eb93a07) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/cli_parser.py#build_parser",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (f95bcaa41) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/graph.py#retired_plan_gate_terminal_violations",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/graph.py#retired_plan_gate_terminal_violations: content changed since last verified-accurate signature (a6a95d27d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/plan.py#_run_plan_gate_audit",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/plan.py#_run_plan_gate_audit: content changed since last verified-accurate signature (8db855fee) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/plan.py#cmd_plan_check",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (cc9f1f071) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   }
  ],
  "_implements_warnings": [
@@ -1134,11 +1144,11 @@
     "SPEC-0091"
    ],
    "Audit-post": [
-    "SPEC-0036"
+    "SPEC-1040"
    ],
    "Audit-pre": [
-    "SPEC-0036",
-    "SPEC-0091"
+    "SPEC-0091",
+    "SPEC-1040"
    ],
    "Closure": [
     "SPEC-0015",
@@ -1150,22 +1160,22 @@
     "SPEC-0014"
    ],
    "Execution": [
-    "SPEC-0027",
     "SPEC-0041",
-    "SPEC-1026"
+    "SPEC-1026",
+    "SPEC-1038"
    ],
    "Filing": [
     "SPEC-0060",
     "SPEC-0165"
    ],
    "Plan": [
-    "SPEC-0027",
-    "SPEC-1026"
+    "SPEC-1026",
+    "SPEC-1038"
    ],
    "Tests": [
-    "SPEC-0027",
     "SPEC-0041",
-    "SPEC-0165"
+    "SPEC-0165",
+    "SPEC-1038"
    ]
   },
   "unknown_tokens": [],
@@ -1182,7 +1192,6 @@
    "SPEC-0072"
   ],
   "bin/lib/audit.py": [
-   "SPEC-0027",
    "SPEC-0050",
    "SPEC-0052",
    "SPEC-0094",
@@ -1191,15 +1200,16 @@
    "SPEC-0176",
    "SPEC-0201",
    "SPEC-0202",
-   "SPEC-0204",
    "SPEC-0205",
-   "SPEC-1034"
+   "SPEC-1034",
+   "SPEC-1038",
+   "SPEC-1039"
   ],
   "bin/lib/audit_ceiling.py": [
-   "SPEC-0204"
+   "SPEC-1039"
   ],
   "bin/lib/audit_consult.py": [
-   "SPEC-0204"
+   "SPEC-1039"
   ],
   "bin/lib/audit_packet.py": [
    "SPEC-0168",
@@ -1265,7 +1275,6 @@
    "SPEC-0195",
    "SPEC-0198",
    "SPEC-0202",
-   "SPEC-0204",
    "SPEC-0209",
    "SPEC-1003",
    "SPEC-1020",
@@ -1273,11 +1282,12 @@
    "SPEC-1024",
    "SPEC-1029",
    "SPEC-1031",
-   "SPEC-1032"
+   "SPEC-1032",
+   "SPEC-1039"
   ],
   "bin/lib/cli_parser.py": [
-   "SPEC-0204",
-   "SPEC-0209"
+   "SPEC-0209",
+   "SPEC-1039"
   ],
   "bin/lib/cross.py": [
    "SPEC-0084",
@@ -1358,10 +1368,10 @@
    "SPEC-0171"
   ],
   "bin/lib/gates.py": [
-   "SPEC-0027",
    "SPEC-0050",
    "SPEC-0059",
-   "SPEC-1023"
+   "SPEC-1023",
+   "SPEC-1038"
   ],
   "bin/lib/git_env.py": [
    "SPEC-0188"
@@ -1382,7 +1392,7 @@
    "SPEC-0127",
    "SPEC-0128",
    "SPEC-0152",
-   "SPEC-0204"
+   "SPEC-1039"
   ],
   "bin/lib/host_apply.py": [
    "SPEC-0111"
@@ -1484,7 +1494,7 @@
    "SPEC-0082",
    "SPEC-0083",
    "SPEC-0151",
-   "SPEC-0204"
+   "SPEC-1039"
   ],
   "bin/lib/profile.py": [
    "SPEC-0198"
@@ -1529,7 +1539,6 @@
   ],
   "bin/lib/task.py": [
    "SPEC-0011",
-   "SPEC-0027",
    "SPEC-0028",
    "SPEC-0038",
    "SPEC-0046",
@@ -1548,10 +1557,11 @@
    "SPEC-0177",
    "SPEC-0178",
    "SPEC-0186",
-   "SPEC-0204",
    "SPEC-0205",
    "SPEC-1029",
-   "SPEC-1032"
+   "SPEC-1032",
+   "SPEC-1038",
+   "SPEC-1039"
   ],
   "bin/lib/task_card_io.py": [
    "SPEC-0094"
@@ -1780,7 +1790,7 @@
   },
   "audit-ceiling-consult-reopen-worked-example": {
    "class": "discipline",
-   "sourced_from": "SPEC-0204 (the rule home for what happens once the audit-loop ceiling is reached) + <workshop-spec> §Audit-loop ceiling (the ceiling itself). Rewritten by (fu_e2241c8fa6c4) for the SPEC-0204 decision route. The path keeps its historical name because <workshop-spec> part2 links it; the earlier consult -> `--owner-reset` example (re-homed, extended by) describes a route SPEC-0204 rule 6 retired."
+   "sourced_from": "SPEC-1039 (the rule home for what happens once the audit-loop ceiling is reached) + <workshop-spec> §Audit-loop ceiling (the ceiling itself). Rewritten by (fu_e2241c8fa6c4) for the SPEC-1039 decision route. The path keeps its historical name because <workshop-spec> part2 links it; the earlier consult -> `--owner-reset` example (re-homed, extended by) describes a route SPEC-1039 rule 6 retired."
   },
   "audit-trail-field-level": {
    "class": "architecture",
@@ -1972,7 +1982,7 @@
   },
   "plan-finalization-runbook": {
    "class": "discipline",
-   "sourced_from": "owner-directive 2026-06-28 ( — \"make the finalization runbook\") + the migrate-<project>-onto-yitc-v2-v1-incumbent-gat finalization done ad hoc (re-grade→COMPLETE→close→plan realized orchestrated by hand) + SPEC-0034 (plan lifecycle per-stage mechanics + plan↔spec finalization chain) + SPEC-0070 (decomposition-fidelity audit) + SPEC-0036 (audit-loop ceiling) + patterns/realize-on-evidenced-soak-not-just-the-gate.md (the EVIDENCED-soak gate) + LIFECYCLE §Plan lifecycle + patterns/plan-lifecycle.md + the sibling navigational runbook patterns/inspection-triage-launch-runbook.md (format model)"
+   "sourced_from": "owner-directive 2026-06-28 ( — \"make the finalization runbook\") + the migrate-<project>-onto-yitc-v2-v1-incumbent-gat finalization done ad hoc (re-grade→COMPLETE→close→plan realized orchestrated by hand) + SPEC-0034 (plan lifecycle per-stage mechanics + plan↔spec finalization chain) + SPEC-0070 (decomposition-fidelity audit) + <workshop-spec> (audit-loop ceiling) + patterns/realize-on-evidenced-soak-not-just-the-gate.md (the EVIDENCED-soak gate) + LIFECYCLE §Plan lifecycle + patterns/plan-lifecycle.md + the sibling navigational runbook patterns/inspection-triage-launch-runbook.md (format model)"
   },
   "plan-lifecycle": {
    "class": "discipline",
@@ -2999,26 +3009,16 @@
   },
   {
    "content": "`user_facing` lives inside the waiver and only governs whether `recheck_by` is required). A project",
-   "id": "rule:spec-0015:deploy-conditional-live-probe-declaratio:206:must",
+   "id": "rule:spec-0015:deploy-conditional-live-probe-declaratio:209:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 206,
+   "source_line": 209,
    "source_section": "deploy-conditional-live-probe-declaratio",
    "status": "active"
   },
   {
    "content": "answer to «now that this exists, where ELSE must it be applied?». `task close` REFUSES an infra",
-   "id": "rule:spec-0015:forward-propagation-disposition-at-infra:224:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
-   "source_domain": "spec",
-   "source_line": 224,
-   "source_section": "forward-propagation-disposition-at-infra",
-   "status": "active"
-  },
-  {
-   "content": "probe-set rejection above (a DECISION must be present, never a completeness check). This is the",
    "id": "rule:spec-0015:forward-propagation-disposition-at-infra:227:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
@@ -3028,67 +3028,77 @@
    "status": "active"
   },
   {
-   "content": "mode — the `task close` verb/CLI genuinely cannot run (`patterns/emergency-mode.md`); or (b) a genuine",
-   "id": "rule:spec-0015:hand-edit-fallback-emergency-genuine-gap:66:must",
+   "content": "probe-set rejection above (a DECISION must be present, never a completeness check). This is the",
+   "id": "rule:spec-0015:forward-propagation-disposition-at-infra:230:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 66,
+   "source_line": 230,
+   "source_section": "forward-propagation-disposition-at-infra",
+   "status": "active"
+  },
+  {
+   "content": "mode — the `task close` verb/CLI genuinely cannot run (`patterns/emergency-mode.md`); or (b) a genuine",
+   "id": "rule:spec-0015:hand-edit-fallback-emergency-genuine-gap:69:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
+   "source_domain": "spec",
+   "source_line": 69,
    "source_section": "hand-edit-fallback-emergency-genuine-gap",
    "status": "active"
   },
   {
    "content": "An infra-class adoption probe (CHARTER §Principle 8) must drive a REAL active artifact through the",
-   "id": "rule:spec-0015:infra-adoption-probe-must-exercise-the-c:411:must",
+   "id": "rule:spec-0015:infra-adoption-probe-must-exercise-the-c:414:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 411,
+   "source_line": 414,
    "source_section": "infra-adoption-probe-must-exercise-the-c",
    "status": "active"
   },
   {
    "content": "carrier, per §The EVENT carrier must resolve machine evidence + a differential) — or, for a REMOVAL",
-   "id": "rule:spec-0015:infrastructure-class-adoption-strength-p:239:must",
+   "id": "rule:spec-0015:infrastructure-class-adoption-strength-p:242:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 239,
+   "source_line": 242,
    "source_section": "infrastructure-class-adoption-strength-p",
    "status": "active"
   },
   {
    "content": "is manufactured). The capture is fail-OPEN: a followup that cannot be written never fails a closure.",
-   "id": "rule:spec-0015:infrastructure-class-adoption-strength-p:273:must",
+   "id": "rule:spec-0015:infrastructure-class-adoption-strength-p:276:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 273,
+   "source_line": 276,
    "source_section": "infrastructure-class-adoption-strength-p",
    "status": "active"
   },
   {
    "content": "layer name. The differential failing input stays demanded independently, so the carve-out cannot",
-   "id": "rule:spec-0015:land-emitted-verify-layer-ships-the-carr:440:must",
+   "id": "rule:spec-0015:land-emitted-verify-layer-ships-the-carr:443:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 440,
+   "source_line": 443,
    "source_section": "land-emitted-verify-layer-ships-the-carr",
    "status": "active"
   },
   {
    "content": "on that layer's row. The reader must NOT infer a rewire by comparing rows across lands. FAIL-CLOSED: an",
-   "id": "rule:spec-0015:land-emitted-verify-layer-ships-the-carr:471:must",
+   "id": "rule:spec-0015:land-emitted-verify-layer-ships-the-carr:474:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 471,
+   "source_line": 474,
    "source_section": "land-emitted-verify-layer-ships-the-carr",
    "status": "active"
   },
   {
-   "content": "For substantive tasks, the Stage 8 audit-post verdict MUST be durably recorded in",
+   "content": "For substantive tasks, the Stage 7 audit-post verdict MUST be durably recorded in",
    "id": "rule:spec-0015:ordering-prerequisite:17:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
@@ -3098,72 +3108,82 @@
    "status": "active"
   },
   {
+   "content": "commit is green — is required by SPEC-1038 §Tests.",
+   "id": "rule:spec-0015:ordering-prerequisite:22:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
+   "source_domain": "spec",
+   "source_line": 22,
+   "source_section": "ordering-prerequisite",
+   "status": "active"
+  },
+  {
    "content": "spec's activation).** A project MAY declare, in its own `yitc-ops.yaml`, named cases whose matching",
-   "id": "rule:spec-0015:ordering-prerequisite:23:may",
+   "id": "rule:spec-0015:ordering-prerequisite:26:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 23,
+   "source_line": 26,
    "source_section": "ordering-prerequisite",
    "status": "active"
   },
   {
    "content": "- **A skipped audit-post burns NO audit-loop pass and CANNOT satisfy Principle-8 adoption evidence",
-   "id": "rule:spec-0015:ordering-prerequisite:30:must",
+   "id": "rule:spec-0015:ordering-prerequisite:33:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 30,
+   "source_line": 33,
    "source_section": "ordering-prerequisite",
    "status": "active"
   },
   {
    "content": "- **Automation may only RESTORE this gate, never remove one (SPEC-0178 rule 5).** Removing it is",
-   "id": "rule:spec-0015:ordering-prerequisite:37:may",
+   "id": "rule:spec-0015:ordering-prerequisite:40:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 37,
+   "source_line": 40,
    "source_section": "ordering-prerequisite",
    "status": "active"
   },
   {
    "content": "The aggregate answers «does this card HAVE the proof it claims», so it must not say `true` while a",
-   "id": "rule:spec-0015:probe-passed-is-three-state-true-deferre:80:must",
+   "id": "rule:spec-0015:probe-passed-is-three-state-true-deferre:83:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 80,
+   "source_line": 83,
    "source_section": "probe-passed-is-three-state-true-deferre",
    "status": "active"
   },
   {
    "content": "legs cannot drift; on a leg that does not mutate `probes:` it is an idempotent re-assertion.",
-   "id": "rule:spec-0015:probe-passed-is-three-state-true-deferre:93:must",
+   "id": "rule:spec-0015:probe-passed-is-three-state-true-deferre:96:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 93,
+   "source_line": 96,
    "source_section": "probe-passed-is-three-state-true-deferre",
    "status": "active"
   },
   {
    "content": "report that names WHOSE failure it was), its closure evidence must tie back either to **that",
-   "id": "rule:spec-0015:reporter-originated-defect-the-closure-e:104:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
-   "source_domain": "spec",
-   "source_line": 104,
-   "source_section": "reporter-originated-defect-the-closure-e",
-   "status": "active"
-  },
-  {
-   "content": "cannot make that tie-back, closure must SAY SO: record the reporter-specific claim as **UNPROVEN**,",
    "id": "rule:spec-0015:reporter-originated-defect-the-closure-e:107:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
    "source_line": 107,
+   "source_section": "reporter-originated-defect-the-closure-e",
+   "status": "active"
+  },
+  {
+   "content": "cannot make that tie-back, closure must SAY SO: record the reporter-specific claim as **UNPROVEN**,",
+   "id": "rule:spec-0015:reporter-originated-defect-the-closure-e:110:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
+   "source_domain": "spec",
+   "source_line": 110,
    "source_section": "reporter-originated-defect-the-closure-e",
    "status": "active"
   },
@@ -3188,149 +3208,139 @@
    "status": "active"
   },
   {
-   "content": "A probe may be closed `deferred` — for the SPEC-0036 deferred-adoption variant (d) it is the ONLY",
-   "id": "rule:spec-0015:settling-a-deferred-probe-on-an-already-:153:may",
+   "content": "A probe may be closed `deferred` — for the <workshop-spec> deferred-adoption variant (d) it is the ONLY",
+   "id": "rule:spec-0015:settling-a-deferred-probe-on-an-already-:156:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 153,
+   "source_line": 156,
    "source_section": "settling-a-deferred-probe-on-an-already-",
    "status": "active"
   },
   {
    "content": "**THE MOMENT REQUIREMENT.** A probe deferred at closure MUST name the moment it returns —",
-   "id": "rule:spec-0015:settling-a-deferred-probe-on-an-already-:160:must",
+   "id": "rule:spec-0015:settling-a-deferred-probe-on-an-already-:163:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 160,
+   "source_line": 163,
    "source_section": "settling-a-deferred-probe-on-an-already-",
    "status": "active"
   },
   {
    "content": "out-of-repo shared coordination store MUST fill `evidence:` with the SHARED-STORE ROW REFS the",
-   "id": "rule:spec-0015:shared-store-evidence-spelling-a-state-c:121:must",
+   "id": "rule:spec-0015:shared-store-evidence-spelling-a-state-c:124:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 121,
+   "source_line": 124,
    "source_section": "shared-store-evidence-spelling-a-state-c",
    "status": "active"
   },
   {
    "content": "ON THE KERNEL THE ARM IS ADMITTED UNDER A STRICTLY STRONGER BOUND: the ref must ALSO name a second,",
-   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:360:must",
+   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:363:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 360,
+   "source_line": 363,
    "source_section": "the-consumer-arm-a-mechanism-that-emits-",
    "status": "active"
   },
   {
    "content": "DISTINCT RED-CONTRAST node, and BOTH nodes must be real DEFINITIONS in the one named test surface —",
-   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:361:must",
+   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:364:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 361,
+   "source_line": 364,
    "source_section": "the-consumer-arm-a-mechanism-that-emits-",
    "status": "active"
   },
   {
    "content": "ON A CONSUMER INSTANCE the arm carries its ORIGINAL, WEAKER bound: a machine-evidence ref may name the",
-   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:366:may",
+   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:369:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 366,
+   "source_line": 369,
    "source_section": "the-consumer-arm-a-mechanism-that-emits-",
    "status": "active"
   },
   {
    "content": "required. It resolves only against a real test SURFACE that EXISTS in the repo and carries that node;",
-   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:368:must",
+   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:371:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 368,
+   "source_line": 371,
    "source_section": "the-consumer-arm-a-mechanism-that-emits-",
    "status": "active"
   },
   {
    "content": "may appear inside a P8 event's evidence payload — never the executable test SPEC-0060 §4 asks each AC",
-   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:379:may",
+   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:382:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 379,
+   "source_line": 382,
    "source_section": "the-consumer-arm-a-mechanism-that-emits-",
    "status": "active"
   },
   {
    "content": "NAME a resolvable machine event plus the differential; it CANNOT judge whether that event is",
-   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:385:must",
+   "id": "rule:spec-0015:the-consumer-arm-a-mechanism-that-emits-:388:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 385,
+   "source_line": 388,
    "source_section": "the-consumer-arm-a-mechanism-that-emits-",
    "status": "active"
   },
   {
    "content": "referenced evidence may not be a P8 event (those are session-hand-emitted, so citing one to prove",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:286:may",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:289:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 286,
+   "source_line": 289,
    "source_section": "the-event-carrier-must-resolve-machine-e",
    "status": "active"
   },
   {
    "content": "itself proves nothing), may not be `tests_passed` (CHARTER §P8 states outright that tests green BY",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:287:may",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:290:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 287,
+   "source_line": 290,
    "source_section": "the-event-carrier-must-resolve-machine-e",
    "status": "active"
   },
   {
    "content": "ITSELF is not infra adoption), and may not be the closure bookkeeping every task earns for free (those",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:288:may",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:291:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 288,
+   "source_line": 291,
    "source_section": "the-event-carrier-must-resolve-machine-e",
    "status": "active"
   },
   {
    "content": "**A reference may name a row in a REGISTERED CONSUMER's journal — the `<project>:<form>`",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:306:may",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:309:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 306,
+   "source_line": 309,
    "source_section": "the-event-carrier-must-resolve-machine-e",
    "status": "active"
   },
   {
    "content": "in THAT project's journal, where no reference could reach it. So a pinned event reference, or a land-row selector reference, may be prefixed with the",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:308:may",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:311:may",
    "severity": "may",
-   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
-   "source_domain": "spec",
-   "source_line": 308,
-   "source_section": "the-event-carrier-must-resolve-machine-e",
-   "status": "active"
-  },
-  {
-   "content": "without the prefix, unchanged; this repository's journal cannot answer it, and that journal cannot",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:311:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
    "source_line": 311,
@@ -3338,82 +3348,92 @@
    "status": "active"
   },
   {
+   "content": "without the prefix, unchanged; this repository's journal cannot answer it, and that journal cannot",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:314:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
+   "source_domain": "spec",
+   "source_line": 314,
+   "source_section": "the-event-carrier-must-resolve-machine-e",
+   "status": "active"
+  },
+  {
    "content": "This is NOT an acceptance-criterion address. A kernel card still may not carry a criterion whose",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:325:may",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:328:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 325,
+   "source_line": 328,
    "source_section": "the-event-carrier-must-resolve-machine-e",
    "status": "active"
   },
   {
    "content": "evidence is produced in a repository it cannot write to (SPEC-0060, the external-territory probe",
-   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:326:must",
+   "id": "rule:spec-0015:the-event-carrier-must-resolve-machine-e:329:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 326,
+   "source_line": 329,
    "source_section": "the-event-carrier-must-resolve-machine-e",
    "status": "active"
   },
   {
    "content": "PASSES, so none of the forms above can cite it. A ref may therefore name the GATE'S TEST FILE against",
-   "id": "rule:spec-0015:the-gate-class-a-kernel-land-verify-gate:331:may",
+   "id": "rule:spec-0015:the-gate-class-a-kernel-land-verify-gate:334:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 331,
+   "source_line": 334,
    "source_section": "the-gate-class-a-kernel-land-verify-gate",
    "status": "active"
   },
   {
    "content": "keys, and the two surfaces cannot drift apart. This is a DELIVERY-point rule (print-only, on an",
-   "id": "rule:spec-0015:the-payload-contract-is-delivered-at-com:394:must",
+   "id": "rule:spec-0015:the-payload-contract-is-delivered-at-com:397:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 394,
+   "source_line": 397,
    "source_section": "the-payload-contract-is-delivered-at-com",
    "status": "active"
   },
   {
    "content": "So **audit-pre / audit-post MUST NOT RED-flag a spec merely because it is not yet active** — its",
-   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:523:must",
+   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:526:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 523,
+   "source_line": 526,
    "source_section": "work-first-spec-activating-bootstrap-tas",
    "status": "active"
   },
   {
    "content": "proposed head IS an audit target (<workshop-spec> §7: the declaration precedes audit-post), so audit-post MAY",
-   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:525:may",
+   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:528:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 525,
+   "source_line": 528,
    "source_section": "work-first-spec-activating-bootstrap-tas",
    "status": "active"
   },
   {
    "content": "**No-AC-on-self-blocked-consumer (topology).** An adoption / AC probe MUST NOT depend on a downstream",
-   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:530:must",
+   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:533:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 530,
+   "source_line": 533,
    "source_section": "work-first-spec-activating-bootstrap-tas",
    "status": "active"
   },
   {
    "content": "CIRCULAR: the consumer cannot run until this task closes, yet this task cannot close until the",
-   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:532:must",
+   "id": "rule:spec-0015:work-first-spec-activating-bootstrap-tas:535:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0015-closure-contract-stage-9-ordering-probe-and-infra-.yaml",
    "source_domain": "spec",
-   "source_line": 532,
+   "source_line": 535,
    "source_section": "work-first-spec-activating-bootstrap-tas",
    "status": "active"
   },
@@ -4828,116 +4848,6 @@
    "status": "active"
   },
   {
-   "content": "named. A fixture refresh cannot be told from a test-logic change by its paths, so the Controller",
-   "id": "rule:spec-0027:fast-path-refusal:342:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 342,
-   "source_section": "fast-path-refusal",
-   "status": "active"
-  },
-  {
-   "content": "- New file creation → full lifecycle, filing required.",
-   "id": "rule:spec-0027:hygiene-fast-path:212:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 212,
-   "source_section": "hygiene-fast-path",
-   "status": "active"
-  },
-  {
-   "content": "A task may interrupt mid-stage (owner-wait blocking, auditor abort, session boundary). When the AI",
-   "id": "rule:spec-0027:resume-contract:177:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 177,
-   "source_section": "resume-contract",
-   "status": "active"
-  },
-  {
-   "content": "- Plan must name: files to touch, order of changes, test strategy, risks.",
-   "id": "rule:spec-0027:stage-3-plan-detail:24:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 24,
-   "source_section": "stage-3-plan-detail",
-   "status": "active"
-  },
-  {
-   "content": "successor only when a reader must act differently in a case the spec already covers (<workshop-spec> rule 7).",
-   "id": "rule:spec-0027:stage-3-plan-detail:37:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 37,
-   "source_section": "stage-3-plan-detail",
-   "status": "active"
-  },
-  {
-   "content": "may legitimately exceed it).",
-   "id": "rule:spec-0027:stage-3-plan-detail:41:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 41,
-   "source_section": "stage-3-plan-detail",
-   "status": "active"
-  },
-  {
-   "content": "If the task staged a `proposed` spec in Plan (Stage 3), Execution may act on it. The four moves are",
-   "id": "rule:spec-0027:stage-5-execution-detail:83:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 83,
-   "source_section": "stage-5-execution-detail",
-   "status": "active"
-  },
-  {
-   "content": "narrower (SPEC-0181 §Stage-6 seam): Stage 6 cannot read land's two optional refinement channels,",
-   "id": "rule:spec-0027:stage-6-tests-detail:114:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 114,
-   "source_section": "stage-6-tests-detail",
-   "status": "active"
-  },
-  {
-   "content": "- Output must be visible (Evidence Rule — not «tests pass», but actual output).",
-   "id": "rule:spec-0027:stage-6-tests-detail:125:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 125,
-   "source_section": "stage-6-tests-detail",
-   "status": "active"
-  },
-  {
-   "content": "behaviour-change test MUST be observed FAILING without the fix before its green is trusted (or it",
-   "id": "rule:spec-0027:stage-6-tests-detail:127:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 127,
-   "source_section": "stage-6-tests-detail",
-   "status": "active"
-  },
-  {
-   "content": "included, and an unprivileged process cannot raise its priority back. On a host with no such",
-   "id": "rule:spec-0027:stage-6-tests-detail:146:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0027-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
-   "source_domain": "spec",
-   "source_line": 146,
-   "source_section": "stage-6-tests-detail",
-   "status": "active"
-  },
-  {
    "content": "# next_action prose. REQUIRED with paused_reason: artifact-wait,",
    "id": "rule:spec-0028:ended-pause-not-the-card-s-state-so-a-re:562:must",
    "severity": "must",
@@ -6085,106 +5995,6 @@
    "source_domain": "spec",
    "source_line": 285,
    "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "GREEN/YELLOW on the CURRENT subject — a subsequent ROUTINE re-audit MUST NOT relitigate that",
-   "id": "rule:spec-0036:auditor-tier-policy-routine-vs-full-and-:100:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 100,
-   "source_section": "auditor-tier-policy-routine-vs-full-and-",
-   "status": "active"
-  },
-  {
-   "content": "against that delta. Only THEN may it raise a finding, and a NEW finding MUST be justified as",
-   "id": "rule:spec-0036:monotonic-per-pass-re-audit-prompt-pass-:202:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 202,
-   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
-   "status": "active"
-  },
-  {
-   "content": "since the prior pass. A resolution may live OUTSIDE the audited diff: an ENGINE / environment fix",
-   "id": "rule:spec-0036:monotonic-per-pass-re-audit-prompt-pass-:212:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 212,
-   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
-   "status": "active"
-  },
-  {
-   "content": "finding forward — the auditor must re-check the FINDINGS CONDITION, and mark it RESOLVED when",
-   "id": "rule:spec-0036:monotonic-per-pass-re-audit-prompt-pass-:216:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 216,
-   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
-   "status": "active"
-  },
-  {
-   "content": "finding. This NEVER becomes a blanket clear-on-no-change: resolution must be GENUINE — RESOLVED",
-   "id": "rule:spec-0036:monotonic-per-pass-re-audit-prompt-pass-:219:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 219,
-   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
-   "status": "active"
-  },
-  {
-   "content": "nothing — the whole history is never dumped); an amendment is EVIDENCE the auditor must engage,",
-   "id": "rule:spec-0036:monotonic-per-pass-re-audit-prompt-pass-:227:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 227,
-   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
-   "status": "active"
-  },
-  {
-   "content": "Before the AI runs an audit it must hold the audit contract: that the auditor is an INDEPENDENT",
-   "id": "rule:spec-0036:scenario:3:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 3,
-   "source_section": "scenario",
-   "status": "active"
-  },
-  {
-   "content": "prompt must carry — otherwise audits drift to generic \"good practice\" and lose their",
-   "id": "rule:spec-0036:scenario:5:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 5,
-   "source_section": "scenario",
-   "status": "active"
-  },
-  {
-   "content": "files` forecast, is NOT a defect at any severity and the auditor MUST NOT raise it as a finding —",
-   "id": "rule:spec-0036:universal-v2-evaluation-lens-include-in-:168:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 168,
-   "source_section": "universal-v2-evaluation-lens-include-in-",
-   "status": "active"
-  },
-  {
-   "content": "requires (a done task cannot enter `stage Audit-post`) is governed by SPEC-0050's Instance.",
-   "id": "rule:spec-0036:when-invoked:48:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0036-external-auditor-contract-invocation-verdicts-lens.yaml",
-   "source_domain": "spec",
-   "source_line": 48,
-   "source_section": "when-invoked",
    "status": "active"
   },
   {
@@ -9198,7 +9008,7 @@
    "status": "active"
   },
   {
-   "content": "bounded is what a CHECK may COST and END, never what it may REFUSE. Rule home: SPEC-0204 rule 3.",
+   "content": "bounded is what a CHECK may COST and END, never what it may REFUSE. Rule home: SPEC-1039 rule 3.",
    "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:390:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
@@ -15018,7 +14828,7 @@
    "status": "active"
   },
   {
-   "content": "cannot obtain a verdict (`could-not-run`) or when the SPEC-0204 ladder refuses its one bounded",
+   "content": "cannot obtain a verdict (`could-not-run`) or when the <workshop-spec> ladder refuses its one bounded",
    "id": "rule:spec-0119:rule-20-remote-lag-the-declared-offsite-:1724:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
@@ -19969,51 +19779,51 @@
   },
   {
    "content": "a hand-append that should not have been invented is to NAME it, never to rewrite the journal. The",
-   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:509:should",
+   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:510:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 509,
+   "source_line": 510,
    "source_section": "explicitly-deferred-the-ad-hoc-one-shot-",
    "status": "active"
   },
   {
    "content": "hand-append that should not have been invented is to NAME it, never to rewrite the journal. Naming",
-   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:525:should",
+   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:526:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 525,
+   "source_line": 526,
    "source_section": "explicitly-deferred-the-ad-hoc-one-shot-",
    "status": "active"
   },
   {
    "content": "erased because `events.jsonl` is append-only: the honest fix for a hand-append that should not have",
-   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:538:should",
+   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:539:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 538,
+   "source_line": 539,
    "source_section": "explicitly-deferred-the-ad-hoc-one-shot-",
    "status": "active"
   },
   {
    "content": "the honest fix for a hand-append that should not have been invented is to NAME it, never to rewrite",
-   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:568:should",
+   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:569:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 568,
+   "source_line": 569,
    "source_section": "explicitly-deferred-the-ad-hoc-one-shot-",
    "status": "active"
   },
   {
    "content": "honest fix for a hand-append that should not have been invented is to NAME it, never to rewrite the",
-   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:586:should",
+   "id": "rule:spec-0161:explicitly-deferred-the-ad-hoc-one-shot-:587:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 586,
+   "source_line": 587,
    "source_section": "explicitly-deferred-the-ad-hoc-one-shot-",
    "status": "active"
   },
@@ -20039,126 +19849,116 @@
   },
   {
    "content": "reason it was not inflated for them: the recomputation cannot yet reproduce this pair on `main`'s",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1012:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1013:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1012,
+   "source_line": 1013,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "reason it was not inflated for them: the recomputation cannot yet reproduce this pair, so stating a",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1045:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1046:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1045,
+   "source_line": 1046,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "card rather than left to a probe that cannot reach it.",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1058:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1059:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1058,
+   "source_line": 1059,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "amends the SEMANTICS of the three names above, it adds none).** Since a Stage-6 pass may",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1091:may",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1092:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1091,
+   "source_line": 1092,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "(P5 — one object, two surfaces). It exists because an empty stage bundle should be disclosed rather",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1133:should",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1134:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1133,
+   "source_line": 1134,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "BEFORE the disclosure is computed, precisely so the disclosure cannot move it.",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1136:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1137:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1136,
+   "source_line": 1137,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "`worker_parked.discarded_commit_shas` was of the prior seven, and it should be read with that",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1142:should",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1143:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1142,
+   "source_line": 1143,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "it (the recomputation cannot yet reproduce the pair). ABSENT — never an empty list — on a commit",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1198:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1199:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1198,
+   "source_line": 1199,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "cannot see it — and it does not move the recorded corpus digest either, since that digest is taken",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1226:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1227:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1226,
+   "source_line": 1227,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "`--expect-rebaseline`), and adoption is the one thing that cannot be measured from a line nobody",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1240:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1241:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1240,
+   "source_line": 1241,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "the probe reads exactly one live triple and cannot lock onto a stale one. The 2026-08-19 run",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1326:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1327:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1326,
+   "source_line": 1327,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "this is written, so the recomputation cannot yet reproduce these two pairs; naming a pair the",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1434:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
-   "source_domain": "spec",
-   "source_line": 1434,
-   "source_section": "payload-key-level-the-emitter-is-the-per",
-   "status": "active"
-  },
-  {
-   "content": "oracle cannot find is free, stating a count nobody can reproduce is not. The actionable cut",
    "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1435:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
@@ -20168,252 +19968,262 @@
    "status": "active"
   },
   {
+   "content": "oracle cannot find is free, stating a count nobody can reproduce is not. The actionable cut",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1436:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
+   "source_domain": "spec",
+   "source_line": 1436,
+   "source_section": "payload-key-level-the-emitter-is-the-per",
+   "status": "active"
+  },
+  {
    "content": "2026-09-05 run above and were NOT recomputed here — so the digest may since have moved",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1446:may",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1447:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1446,
+   "source_line": 1447,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "payload-key catalog entry — so a re-run must EXCLUDE it from the corpus it reads, or the measurement",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1471:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1472:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1471,
+   "source_line": 1472,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "`bin/lib/debt_spec0161.py#spec0161_payload_key_coverage`; a hand re-run must too.",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1474:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1475:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1474,
+   "source_line": 1475,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "\"measured over the whole journal\" triple cannot be equality-pinned: the journal is APPEND-ONLY, and",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1477:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1478:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1477,
+   "source_line": 1478,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "these counts must EACH fail the predicate, and a corruption that fails to bite (because the sentence",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1494:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:1495:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1494,
+   "source_line": 1495,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "opaque map and MUST tolerate unknown keys — so a payload key added by its emitter is **not** a catalog",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:618:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:619:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 618,
+   "source_line": 619,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "run date, so a peer worktree's still-unlanded rows cannot enter the window later; it is re-derived",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:641:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:642:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 641,
+   "source_line": 642,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "checkout elsewhere may read this record in the +/-10% mode with no spec edited (capture",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:651:may",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:652:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 651,
+   "source_line": 652,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "the recomputation cannot yet find is free while inflating the count states a figure nobody can",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:724:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:725:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 724,
+   "source_line": 725,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "`blocked-on-land` from its required `--rung N` / explicit `--unclassified` and rendered by",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:738:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:739:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 738,
+   "source_line": 739,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "pair were not: naming a pair the recomputation cannot yet find is free, and inflating the count",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:799:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:800:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 799,
+   "source_line": 800,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "count, for the same reason: naming a pair the recomputation cannot yet find is free, inflating the",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:811:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:812:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 811,
+   "source_line": 812,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "**SIX MORE PAIRS NAMED FORWARD, and THREE keys that this measurement structurally cannot see",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:817:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:818:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 817,
+   "source_line": 818,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "not added to 69: naming a pair the recomputation cannot yet find is free, and inflating the count",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:822:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:823:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 822,
+   "source_line": 823,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "exactly the terms the / blocks above use: naming a key the recomputation cannot yet",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:827:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:828:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 827,
+   "source_line": 828,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "and a drift test pins this text against that tuple, so the catalog and the code cannot silently",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:845:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:846:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 845,
+   "source_line": 846,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "and NOT added to the count, because the recomputation cannot yet find them. `live` is UNCHANGED and",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:874:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:875:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 874,
+   "source_line": 875,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "`verify_metrics`, so this measurement cannot see it and the recomputation does NOT move; recorded",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:900:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:901:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 900,
+   "source_line": 901,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "only) cannot see it and the recomputation does NOT move; recorded here for the same reason the five",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:913:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:914:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 913,
+   "source_line": 914,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "TOP-LEVEL `data` keys only) cannot see it and the recomputation does NOT move; recorded here for the",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:939:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:940:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 939,
+   "source_line": 940,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "verdict to a reader who cannot tell them apart, which is what the key exists to fix. The pair",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:950:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:951:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 950,
+   "source_line": 951,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "inflated, for the same reason it was not inflated for them: the recomputation cannot yet reproduce",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:955:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:956:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 955,
+   "source_line": 956,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "the reading is recorded on card rather than left to a probe that cannot reach it.",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:962:must",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:963:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 962,
+   "source_line": 963,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "oracle reads them as recorded; the rule still holds — the introducing card should have.",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:977:should",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:978:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 977,
+   "source_line": 978,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
   {
    "content": "the introducing card should have (fu_9a5cbd189e36 names the missing pre-land check).",
-   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:986:should",
+   "id": "rule:spec-0161:payload-key-level-the-emitter-is-the-per:987:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 986,
+   "source_line": 987,
    "source_section": "payload-key-level-the-emitter-is-the-per",
    "status": "active"
   },
@@ -20619,26 +20429,16 @@
   },
   {
    "content": "than silently passed: the next content addition here should cut at a coherent seam.",
-   "id": "rule:spec-0161:verification:1719:should",
+   "id": "rule:spec-0161:verification:1720:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1719,
+   "source_line": 1720,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "structural occurrence, per charged key. A charge the charged party cannot check is a",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1535:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
-   "source_domain": "spec",
-   "source_line": 1535,
-   "source_section": "who-is-charged-for-an-unnamed-payload-ke",
-   "status": "active"
-  },
-  {
-   "content": "charge they must re-derive the structural scan by hand to locate, at a gate that fires seconds",
    "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1536:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
@@ -20648,77 +20448,77 @@
    "status": "active"
   },
   {
-   "content": "charge, so the message and the verdict cannot name different places. A pair charged by count 2",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1538:must",
+   "content": "charge they must re-derive the structural scan by hand to locate, at a gate that fires seconds",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1537:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1538,
+   "source_line": 1537,
+   "source_section": "who-is-charged-for-an-unnamed-payload-ke",
+   "status": "active"
+  },
+  {
+   "content": "charge, so the message and the verdict cannot name different places. A pair charged by count 2",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1539:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
+   "source_domain": "spec",
+   "source_line": 1539,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "`\"k\":` (the key as a payload-dict KEY LITERAL, needed because a branch may add the emitting dict",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1547:may",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1548:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1547,
+   "source_line": 1548,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "contain the literal — must NOT charge a branch, because a false positive at a REFUSING gate is the",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1575:must",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1576:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1575,
+   "source_line": 1576,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "charges the branch and refuses its land. Prose in this span may be freely edited; only removing a",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1586:may",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1587:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1586,
+   "source_line": 1587,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "is refused. The added lines ALONE cannot decide this — a line added INSIDE a pre-existing",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1591:must",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1592:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1591,
+   "source_line": 1592,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "**THE TWO FAIL-SAFE DIRECTIONS ARE DELIBERATELY OPPOSITE.** When the diff cannot be computed the",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1616:must",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1617:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1616,
+   "source_line": 1617,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "is to make a refusal CHEAPER must never invent one out of a fact about the checker. The two",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1619:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
-   "source_domain": "spec",
-   "source_line": 1619,
-   "source_section": "who-is-charged-for-an-unnamed-payload-ke",
-   "status": "active"
-  },
-  {
-   "content": "land-verify GATES fall back to the whole-corpus bar on unknown: a governance gate that cannot",
    "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1620:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
@@ -20728,22 +20528,32 @@
    "status": "active"
   },
   {
-   "content": "this rule, whose incident and reasoning are identical): a gate that cannot name a responsible party",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1628:must",
+   "content": "land-verify GATES fall back to the whole-corpus bar on unknown: a governance gate that cannot",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1621:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1628,
+   "source_line": 1621,
+   "source_section": "who-is-charged-for-an-unnamed-payload-ke",
+   "status": "active"
+  },
+  {
+   "content": "this rule, whose incident and reasoning are identical): a gate that cannot name a responsible party",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1629:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
+   "source_domain": "spec",
+   "source_line": 1629,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
   {
    "content": "hand-adding to every worker brief («a NEW journal payload key in your diff MUST be named in the",
-   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1633:must",
+   "id": "rule:spec-0161:who-is-charged-for-an-unnamed-payload-ke:1634:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0161-events-jsonl-event-type-catalog-extension-maximali.yaml",
    "source_domain": "spec",
-   "source_line": 1633,
+   "source_line": 1634,
    "source_section": "who-is-charged-for-an-unnamed-payload-ke",
    "status": "active"
   },
@@ -23929,41 +23739,31 @@
   },
   {
    "content": "an escape, never as a fail-closed fallback: a reader who cannot tell a deliberate whole-suite",
-   "id": "rule:spec-0181:internal:274:must",
+   "id": "rule:spec-0181:internal:279:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 274,
+   "source_line": 279,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "pass from a selector that gave up cannot act on either. The three invariants this extension",
-   "id": "rule:spec-0181:internal:275:must",
+   "id": "rule:spec-0181:internal:280:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 275,
+   "source_line": 280,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "a matching re-implementation, which is the only way they cannot drift.",
-   "id": "rule:spec-0181:internal:278:must",
+   "id": "rule:spec-0181:internal:283:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 278,
-   "source_section": "internal",
-   "status": "active"
-  },
-  {
-   "content": "test the full suite would have failed on must ITSELF FAIL. Before anything is dropped, an",
-   "id": "rule:spec-0181:internal:288:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 288,
+   "source_line": 283,
    "source_section": "internal",
    "status": "active"
   },
@@ -23978,57 +23778,47 @@
    "status": "active"
   },
   {
-   "content": "answers it with a proof — an inert path is one a change confined to it cannot alter the outcome",
-   "id": "rule:spec-0181:internal:303:must",
+   "content": "test the full suite would have failed on must ITSELF FAIL. Before anything is dropped, an",
+   "id": "rule:spec-0181:internal:293:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 303,
+   "source_line": 293,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "answers it with a proof — an inert path is one a change confined to it cannot alter the outcome",
+   "id": "rule:spec-0181:internal:308:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 308,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "and never re-encoded (SPEC-0064 §4), and it defaults to EMPTY, so a caller that cannot establish",
-   "id": "rule:spec-0181:internal:311:must",
+   "id": "rule:spec-0181:internal:316:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 311,
+   "source_line": 316,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "diff that ADDS a path contributes a needle it cannot; and a recorded land row carries no",
-   "id": "rule:spec-0181:internal:365:must",
+   "id": "rule:spec-0181:internal:370:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 365,
+   "source_line": 370,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "`switch-off` / `ladder-full-suite` / `governor-cannot-count` / `empty-selection`.",
-   "id": "rule:spec-0181:internal:408:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 408,
-   "source_section": "internal",
-   "status": "active"
-  },
-  {
-   "content": "(lessons/a-negative-control-must-fail-without-the-intervention): they are runs that genuinely",
-   "id": "rule:spec-0181:internal:412:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 412,
-   "source_section": "internal",
-   "status": "active"
-  },
-  {
-   "content": "govern and genuinely narrow, so they cannot pass with the rollback deleted. The threshold NUMBER",
    "id": "rule:spec-0181:internal:413:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
@@ -24038,22 +23828,42 @@
    "status": "active"
   },
   {
-   "content": "inverts from the shadow era: a governor that raises, a journal whose misses cannot be counted, a",
-   "id": "rule:spec-0181:internal:422:must",
+   "content": "(lessons/a-negative-control-must-fail-without-the-intervention): they are runs that genuinely",
+   "id": "rule:spec-0181:internal:417:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 422,
+   "source_line": 417,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "govern and genuinely narrow, so they cannot pass with the rollback deleted. The threshold NUMBER",
+   "id": "rule:spec-0181:internal:418:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 418,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "inverts from the shadow era: a governor that raises, a journal whose misses cannot be counted, a",
+   "id": "rule:spec-0181:internal:427:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 427,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "opposite proof — that a test CANNOT read the live journal — and none is held, so both are",
-   "id": "rule:spec-0181:internal:516:must",
+   "id": "rule:spec-0181:internal:521:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 516,
+   "source_line": 521,
    "source_section": "internal",
    "status": "active"
   },
@@ -24089,121 +23899,121 @@
   },
   {
    "content": "RULE 1a — WHAT THE FOLD MUST NEVER READ, each named with its incident. NOT `fail_class`: it is",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:601:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:606:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 601,
+   "source_line": 606,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "re-stamps that instant — the record is a fact about the newest tree, so evidence must post-date the",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:632:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:637:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 632,
+   "source_line": 637,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "both exist because COUNTS cannot say which files ran, and a recorded selection says exactly",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:644:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:649:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 644,
+   "source_line": 649,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "WHAT (c) DOES NOT CHANGE, each stated because a reader must be able to check it: rule 3's VACATE",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:705:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:710:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 705,
+   "source_line": 710,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "differ only in whether a clearing row exists MUST fold to different answers; two that differ only",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:730:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:735:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 730,
+   "source_line": 735,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "in how OLD the establishing row is MUST fold to the same one. Everything the fold cannot establish",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:731:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:736:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 731,
+   "source_line": 736,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "under. This makes a broken main CHEAP TO KNOW ABOUT and must never make it cheap to bypass.",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:740:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:745:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 740,
+   "source_line": 745,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "indistinguishable from no fold: the second branch to meet a broken main must learn it from a line,",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:746:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:751:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 746,
+   "source_line": 751,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "refusal that reads this record refused only a branch whose diff the ladder proves CANNOT",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:750:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:755:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 750,
+   "source_line": 755,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "row to `main`'s journal, naming the route and every standing pair. An admission whose row cannot",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:771:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:776:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 771,
+   "source_line": 776,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "path the classifier calls observable, or whose merge cannot be computed, is judged by rule 7 as",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:773:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:778:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 773,
+   "source_line": 778,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "this spec; this body states the RULE the map must satisfy, never the map's contents (which would",
-   "id": "rule:spec-0181:parameters:781:must",
+   "id": "rule:spec-0181:parameters:786:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 781,
+   "source_line": 786,
    "source_section": "parameters",
    "status": "active"
   },
@@ -27558,186 +27368,6 @@
    "status": "active"
   },
   {
-   "content": "the file may be one the change will CREATE, so the card's OWN machine-readable `expected_touch`",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:112:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 112,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "FAIL-OPEN BOUND applies: a card declaring no forecast cannot prove the symbol unplanned, so at PRE",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:122:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 122,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "cannot PROVE a file uncreated and every absent file admits at PRE, exactly as today. Unlike the",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:126:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 126,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "beside a real defect is still an address that must be re-cited.",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:129:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 129,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "numbers and absolute prefixes never split a finding). THE STRUCTURED FIELDS ARE REQUIRED",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:71:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 71,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "spent. The engine may derive `class_id` from the finding text when the auditor omits it (a finding",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:75:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 75,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "missing fields it MUST carry; the second, a RED carrying every field but nothing the lens admits as",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:86:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 86,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "its reason and asks the auditor to RE-CITE on the next pass — a genuine defect merely MIS-CITED must",
-   "id": "rule:spec-0204:1-the-residual-list-is-the-last-red-s-fi:99:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 99,
-   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
-   "status": "active"
-  },
-  {
-   "content": "`events.jsonl#ts=<ISO>` — REQUIRED and RESOLVED at write: it must name an `owner_directive` row that",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:145:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 145,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "MUST quote the authorizing words. A row with `captured_via: controller-delegated` resolves ONLY",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:152:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 152,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "through its chain: it must cite the owner row that delegated it, and that row must itself resolve.",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:153:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 153,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "three arms above, whose prose CITES the owner row it stands in for by locator; the cited row must",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:156:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 156,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "(REQUIRED for `defer` — a FILED card of any non-terminal status (ready / parked / in-progress), found",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:166:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 166,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "id as `--receiving`), `evidence_revision` (REQUIRED",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:169:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 169,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "ceiling row nor a recorded `late_finding` (rule 8); a required field is missing; the receiving card is not filed; or a decision",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:189:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 189,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "worker-context gate, which keeps its checked-FIRST property (a Worker must not learn the",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:211:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 211,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "surviving backtick is therefore NOT certified intact, and the refusal must never be read as",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:221:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 221,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "`--reason` is consequently no longer argparse-required: it may arrive in the mapping instead, so its",
-   "id": "rule:spec-0204:2-ceiling-decision-one-append-only-journ:223:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0204-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 223,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
    "content": "is the hand copy the owner ruled must be refused; a partial or reformatted variant is not a copy of",
    "id": "rule:spec-0205:2-content-identity-at-land-spike-content:33:must",
    "severity": "must",
@@ -28928,156 +28558,6 @@
    "status": "active"
   },
   {
-   "content": "BOUNDED ON BOTH SIDES, and each bound is load-bearing — the row must be GREEN (a YELLOW may list",
-   "id": "rule:spec-1014:rule-1-which-row-is-the-ceiling-row-and-:170:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 170,
-   "source_section": "rule-1-which-row-is-the-ceiling-row-and-",
-   "status": "active"
-  },
-  {
-   "content": "the displacing record must be provably a currency pass's (anything else — no record, a record stating",
-   "id": "rule:spec-1014:rule-1-which-row-is-the-ceiling-row-and-:172:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 172,
-   "source_section": "rule-1-which-row-is-the-ceiling-row-and-",
-   "status": "active"
-  },
-  {
-   "content": "The locator is second-granular, so several `owner_directive` rows may share the second it names, and",
-   "id": "rule:spec-1014:rule-2-recording-a-decision:179:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 179,
-   "source_section": "rule-2-recording-a-decision",
-   "status": "active"
-  },
-  {
-   "content": "resolve, an object that is not a commit, or an ancestry git cannot answer leave no E and are still",
-   "id": "rule:spec-1014:rule-3-admission-of-the-one-bounded-pass:250:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 250,
-   "source_section": "rule-3-admission-of-the-one-bounded-pass",
-   "status": "active"
-  },
-  {
-   "content": "still absorbing never reaches it. Descent stays REQUIRED, STRICT and fail-closed (an unanswerable OR",
-   "id": "rule:spec-1014:rule-3-admission-of-the-one-bounded-pass:270:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 270,
-   "source_section": "rule-3-admission-of-the-one-bounded-pass",
-   "status": "active"
-  },
-  {
-   "content": "**THE CEILING ROW'S OWN SUBJECT MAY BE A `--card-repair` COMMIT, AND THAT SUBJECT IS ADMITTED",
-   "id": "rule:spec-1014:rule-3-admission-of-the-one-bounded-pass:304:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 304,
-   "source_section": "rule-3-admission-of-the-one-bounded-pass",
-   "status": "active"
-  },
-  {
-   "content": "**A FINDING RECORDED ON A `basis: currency` ROW IS DECIDABLE, WITHOUT BEING A RESIDUAL THIS PASS MUST",
-   "id": "rule:spec-1014:rule-3-admission-of-the-one-bounded-pass:324:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 324,
-   "source_section": "rule-3-admission-of-the-one-bounded-pass",
-   "status": "active"
-  },
-  {
-   "content": "finding is not something this pass must have decided, so no card admitted today starts being refused.",
-   "id": "rule:spec-1014:rule-3-admission-of-the-one-bounded-pass:330:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 330,
-   "source_section": "rule-3-admission-of-the-one-bounded-pass",
-   "status": "active"
-  },
-  {
-   "content": "ONLY, the follow-up re-audit is still REQUIRED before closure, and no decision inherits",
-   "id": "rule:spec-1014:rule-4-custody:392:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 392,
-   "source_section": "rule-4-custody",
-   "status": "active"
-  },
-  {
-   "content": "triggered passes are not charged, so the count and the counter differ». So a card may hold two",
-   "id": "rule:spec-1014:rule-4-custody:411:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 411,
-   "source_section": "rule-4-custody",
-   "status": "active"
-  },
-  {
-   "content": "ONE pass and the advance the SAME act: the pass cannot be spent without the FSM moving, and there",
-   "id": "rule:spec-1014:rule-9-the-plan-gate-arm-text:108:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 108,
-   "source_section": "rule-9-the-plan-gate-arm-text",
-   "status": "active"
-  },
-  {
-   "content": "the source that answered. A record stating no explicit pass counter cannot name a `ceiling_ref` and",
-   "id": "rule:spec-1014:rule-9-the-plan-gate-arm-text:43:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 43,
-   "source_section": "rule-9-the-plan-gate-arm-text",
-   "status": "active"
-  },
-  {
-   "content": "verdict about the plan and must not spend the bounded budget.",
-   "id": "rule:spec-1014:rule-9-the-plan-gate-arm-text:66:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 66,
-   "source_section": "rule-9-the-plan-gate-arm-text",
-   "status": "active"
-  },
-  {
-   "content": "of scraped — the floor is the belt for what the parser still cannot read.",
-   "id": "rule:spec-1014:rule-9-the-plan-gate-arm-text:98:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 98,
-   "source_section": "rule-9-the-plan-gate-arm-text",
-   "status": "active"
-  },
-  {
-   "content": "degrading to a stable sentinel hash when the cut cannot be read. A sentinel is a CONSTANT, so it",
-   "id": "rule:spec-1014:rule-9-the-plan-gate-arm:432:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1014-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
-   "source_domain": "spec",
-   "source_line": 432,
-   "source_section": "rule-9-the-plan-gate-arm",
-   "status": "active"
-  },
-  {
    "content": ": the shared consult continuation semantics must already be safe before this entry shares the",
    "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:100:must",
    "severity": "must",
@@ -29919,12 +29399,12 @@
   },
   {
    "content": "(2) per acceptance criterion and per item listed under §1, the BROKEN VARIANT its check must fail on",
-   "id": "rule:spec-1026:2-the-change-hand-in-before-stage-tests:28:must",
+   "id": "rule:spec-1026:2-the-change-hand-in-before-task-commit:28:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1026-change-hand-in-with-evidence-edges-and-chosen-inte.yaml",
    "source_domain": "spec",
    "source_line": 28,
-   "source_section": "2-the-change-hand-in-before-stage-tests",
+   "source_section": "2-the-change-hand-in-before-task-commit",
    "status": "active"
   },
   {
@@ -31446,6 +30926,616 @@
    "source_line": 561,
    "source_section": "verification",
    "status": "active"
+  },
+  {
+   "content": "named. A fixture refresh cannot be told from a test-logic change by its paths, so the Controller",
+   "id": "rule:spec-1038:fast-path-refusal:477:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 477,
+   "source_section": "fast-path-refusal",
+   "status": "active"
+  },
+  {
+   "content": "- New file creation → full lifecycle, filing required.",
+   "id": "rule:spec-1038:hygiene-fast-path:312:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 312,
+   "source_section": "hygiene-fast-path",
+   "status": "active"
+  },
+  {
+   "content": "A task may interrupt mid-stage (owner-wait blocking, auditor abort, session boundary). When the AI",
+   "id": "rule:spec-1038:resume-contract:277:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 277,
+   "source_section": "resume-contract",
+   "status": "active"
+  },
+  {
+   "content": "- Plan must name: files to touch, order of changes, test strategy, risks.",
+   "id": "rule:spec-1038:stage-3-plan-detail:27:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 27,
+   "source_section": "stage-3-plan-detail",
+   "status": "active"
+  },
+  {
+   "content": "successor only when a reader must act differently in a case the spec already covers (<workshop-spec> rule 7).",
+   "id": "rule:spec-1038:stage-3-plan-detail:40:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 40,
+   "source_section": "stage-3-plan-detail",
+   "status": "active"
+  },
+  {
+   "content": "may legitimately exceed it).",
+   "id": "rule:spec-1038:stage-3-plan-detail:44:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 44,
+   "source_section": "stage-3-plan-detail",
+   "status": "active"
+  },
+  {
+   "content": "If the task staged a `proposed` spec in Plan (Stage 3), Execution may act on it. The four moves are",
+   "id": "rule:spec-1038:stage-5-execution-detail:105:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 105,
+   "source_section": "stage-5-execution-detail",
+   "status": "active"
+  },
+  {
+   "content": "the declarations cannot map to a runner is recorded `not-determined`, never an empty green, and",
+   "id": "rule:spec-1038:stage-5-execution-detail:97:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 97,
+   "source_section": "stage-5-execution-detail",
+   "status": "active"
+  },
+  {
+   "content": "entry cannot carry an unaudited or untested commit to Closure.",
+   "id": "rule:spec-1038:stage-fsm-per-class-current-stage-semant:374:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 374,
+   "source_section": "stage-fsm-per-class-current-stage-semant",
+   "status": "active"
+  },
+  {
+   "content": "run may run and record its row at any time, a run recorded before the card's last substantive",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:129:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 129,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "most one governed run after its last substantive commit before Closure. The only state the rows cannot continue",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:141:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 141,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "fix cannot reset the row (accept-gate round 3 F1). The new-row rule keeps governing only",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:165:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 165,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "narrower (SPEC-0181 §Stage-6 seam): the Tests run cannot read land's two optional refinement channels,",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:213:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 213,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "- Output must be visible (Evidence Rule — not «tests pass», but actual output).",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:224:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 224,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "behaviour-change test MUST be observed FAILING without the fix before its green is trusted (or it",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:226:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 226,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "included, and an unprivileged process cannot raise its priority back. On a host with no such",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:246:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 246,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "its reason and asks the auditor to RE-CITE on the next pass — a genuine defect merely MIS-CITED must",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:105:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 105,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "the file may be one the change will CREATE, so the card's OWN machine-readable `expected_touch`",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:118:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 118,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "FAIL-OPEN BOUND applies: a card declaring no forecast cannot prove the symbol unplanned, so at PRE",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:128:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 128,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "cannot PROVE a file uncreated and every absent file admits at PRE, exactly as today. Unlike the",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:132:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 132,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "beside a real defect is still an address that must be re-cited.",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:135:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 135,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "numbers and absolute prefixes never split a finding). THE STRUCTURED FIELDS ARE REQUIRED",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:77:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 77,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "spent. The engine may derive `class_id` from the finding text when the auditor omits it (a finding",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:81:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 81,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "missing fields it MUST carry; the second, a RED carrying every field but nothing the lens admits as",
+   "id": "rule:spec-1039:1-the-residual-list-is-the-last-red-s-fi:92:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 92,
+   "source_section": "1-the-residual-list-is-the-last-red-s-fi",
+   "status": "active"
+  },
+  {
+   "content": "`events.jsonl#ts=<ISO>` — REQUIRED and RESOLVED at write: it must name an `owner_directive` row that",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:151:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 151,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "MUST quote the authorizing words. A row with `captured_via: controller-delegated` resolves ONLY",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:158:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 158,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "through its chain: it must cite the owner row that delegated it, and that row must itself resolve.",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:159:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 159,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "three arms above, whose prose CITES the owner row it stands in for by locator; the cited row must",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:162:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 162,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "(REQUIRED for `defer` — a FILED card of any non-terminal status (ready / parked / in-progress), found",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:172:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 172,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "id as `--receiving`), `evidence_revision` (REQUIRED",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:175:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 175,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "ceiling row nor a recorded `late_finding` (rule 8); a required field is missing; the receiving card is not filed; or a decision",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:195:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 195,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "worker-context gate, which keeps its checked-FIRST property (a Worker must not learn the",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:217:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 217,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "surviving backtick is therefore NOT certified intact, and the refusal must never be read as",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:227:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 227,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "`--reason` is consequently no longer argparse-required: it may arrive in the mapping instead, so its",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:229:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 229,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "GREEN/YELLOW on the CURRENT subject — a subsequent ROUTINE re-audit MUST NOT relitigate that",
+   "id": "rule:spec-1040:auditor-tier-policy-routine-vs-full-and-:112:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 112,
+   "source_section": "auditor-tier-policy-routine-vs-full-and-",
+   "status": "active"
+  },
+  {
+   "content": "against that delta. Only THEN may it raise a finding, and a NEW finding MUST be justified as",
+   "id": "rule:spec-1040:monotonic-per-pass-re-audit-prompt-pass-:214:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 214,
+   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
+   "status": "active"
+  },
+  {
+   "content": "since the prior pass. A resolution may live OUTSIDE the audited diff: an ENGINE / environment fix",
+   "id": "rule:spec-1040:monotonic-per-pass-re-audit-prompt-pass-:228:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 228,
+   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
+   "status": "active"
+  },
+  {
+   "content": "finding forward — the auditor must re-check the FINDINGS CONDITION, and mark it RESOLVED when",
+   "id": "rule:spec-1040:monotonic-per-pass-re-audit-prompt-pass-:232:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 232,
+   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
+   "status": "active"
+  },
+  {
+   "content": "finding. This NEVER becomes a blanket clear-on-no-change: resolution must be GENUINE — RESOLVED",
+   "id": "rule:spec-1040:monotonic-per-pass-re-audit-prompt-pass-:235:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 235,
+   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
+   "status": "active"
+  },
+  {
+   "content": "nothing — the whole history is never dumped); an amendment is EVIDENCE the auditor must engage,",
+   "id": "rule:spec-1040:monotonic-per-pass-re-audit-prompt-pass-:243:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 243,
+   "source_section": "monotonic-per-pass-re-audit-prompt-pass-",
+   "status": "active"
+  },
+  {
+   "content": "auditor must verify in an already-covered case, so it is a supersede — accept-gate round 3 F2).",
+   "id": "rule:spec-1040:root:9:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 9,
+   "source_section": "root",
+   "status": "active"
+  },
+  {
+   "content": "Before the AI runs an audit it must hold the audit contract: that the auditor is an INDEPENDENT",
+   "id": "rule:spec-1040:scenario:13:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 13,
+   "source_section": "scenario",
+   "status": "active"
+  },
+  {
+   "content": "prompt must carry — otherwise audits drift to generic \"good practice\" and lose their",
+   "id": "rule:spec-1040:scenario:15:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 15,
+   "source_section": "scenario",
+   "status": "active"
+  },
+  {
+   "content": "files` forecast, is NOT a defect at any severity and the auditor MUST NOT raise it as a finding —",
+   "id": "rule:spec-1040:universal-v2-evaluation-lens-include-in-:180:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 180,
+   "source_section": "universal-v2-evaluation-lens-include-in-",
+   "status": "active"
+  },
+  {
+   "content": "requires (a done task cannot enter `stage Audit-post`) is governed by SPEC-0050's Instance.",
+   "id": "rule:spec-1040:when-invoked:60:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1040-external-auditor-contract-invocation-verdicts-lens.yaml",
+   "source_domain": "spec",
+   "source_line": 60,
+   "source_section": "when-invoked",
+   "status": "active"
+  },
+  {
+   "content": "from <workshop-spec> (SPEC-1037 rule 7: the change alters what a card must do in an already-covered",
+   "id": "rule:spec-1041:root:6:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 6,
+   "source_section": "root",
+   "status": "active"
+  },
+  {
+   "content": "BOUNDED ON BOTH SIDES, and each bound is load-bearing — the row must be GREEN (a YELLOW may list",
+   "id": "rule:spec-1041:rule-1-which-row-is-the-ceiling-row-and-:178:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 178,
+   "source_section": "rule-1-which-row-is-the-ceiling-row-and-",
+   "status": "active"
+  },
+  {
+   "content": "the displacing record must be provably a currency pass's (anything else — no record, a record stating",
+   "id": "rule:spec-1041:rule-1-which-row-is-the-ceiling-row-and-:180:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 180,
+   "source_section": "rule-1-which-row-is-the-ceiling-row-and-",
+   "status": "active"
+  },
+  {
+   "content": "The locator is second-granular, so several `owner_directive` rows may share the second it names, and",
+   "id": "rule:spec-1041:rule-2-recording-a-decision:187:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 187,
+   "source_section": "rule-2-recording-a-decision",
+   "status": "active"
+  },
+  {
+   "content": "resolve, an object that is not a commit, or an ancestry git cannot answer leave no E and are still",
+   "id": "rule:spec-1041:rule-3-admission-of-the-one-bounded-pass:258:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 258,
+   "source_section": "rule-3-admission-of-the-one-bounded-pass",
+   "status": "active"
+  },
+  {
+   "content": "still absorbing never reaches it. Descent stays REQUIRED, STRICT and fail-closed (an unanswerable OR",
+   "id": "rule:spec-1041:rule-3-admission-of-the-one-bounded-pass:278:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 278,
+   "source_section": "rule-3-admission-of-the-one-bounded-pass",
+   "status": "active"
+  },
+  {
+   "content": "**THE CEILING ROW'S OWN SUBJECT MAY BE A `--card-repair` COMMIT, AND THAT SUBJECT IS ADMITTED",
+   "id": "rule:spec-1041:rule-3-admission-of-the-one-bounded-pass:312:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 312,
+   "source_section": "rule-3-admission-of-the-one-bounded-pass",
+   "status": "active"
+  },
+  {
+   "content": "**A FINDING RECORDED ON A `basis: currency` ROW IS DECIDABLE, WITHOUT BEING A RESIDUAL THIS PASS MUST",
+   "id": "rule:spec-1041:rule-3-admission-of-the-one-bounded-pass:332:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 332,
+   "source_section": "rule-3-admission-of-the-one-bounded-pass",
+   "status": "active"
+  },
+  {
+   "content": "finding is not something this pass must have decided, so no card admitted today starts being refused.",
+   "id": "rule:spec-1041:rule-3-admission-of-the-one-bounded-pass:338:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 338,
+   "source_section": "rule-3-admission-of-the-one-bounded-pass",
+   "status": "active"
+  },
+  {
+   "content": "ONLY, the follow-up re-audit is still REQUIRED before closure, and no decision inherits",
+   "id": "rule:spec-1041:rule-4-custody:403:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 403,
+   "source_section": "rule-4-custody",
+   "status": "active"
+  },
+  {
+   "content": "triggered passes are not charged, so the count and the counter differ». So a card may hold two",
+   "id": "rule:spec-1041:rule-4-custody:422:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 422,
+   "source_section": "rule-4-custody",
+   "status": "active"
+  },
+  {
+   "content": "of scraped — the floor is the belt for what the parser still cannot read.",
+   "id": "rule:spec-1041:rule-9-the-plan-gate-arm-text:106:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 106,
+   "source_section": "rule-9-the-plan-gate-arm-text",
+   "status": "active"
+  },
+  {
+   "content": "ONE pass and the advance the SAME act: the pass cannot be spent without the FSM moving, and there",
+   "id": "rule:spec-1041:rule-9-the-plan-gate-arm-text:116:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 116,
+   "source_section": "rule-9-the-plan-gate-arm-text",
+   "status": "active"
+  },
+  {
+   "content": "the source that answered. A record stating no explicit pass counter cannot name a `ceiling_ref` and",
+   "id": "rule:spec-1041:rule-9-the-plan-gate-arm-text:51:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 51,
+   "source_section": "rule-9-the-plan-gate-arm-text",
+   "status": "active"
+  },
+  {
+   "content": "verdict about the plan and must not spend the bounded budget.",
+   "id": "rule:spec-1041:rule-9-the-plan-gate-arm-text:74:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 74,
+   "source_section": "rule-9-the-plan-gate-arm-text",
+   "status": "active"
+  },
+  {
+   "content": "degrading to a stable sentinel hash when the cut cannot be read. A sentinel is a CONSTANT, so it",
+   "id": "rule:spec-1041:rule-9-the-plan-gate-arm:443:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1041-ceiling-decisions-edge-cases-of-the-at-ceiling-rou.yaml",
+   "source_domain": "spec",
+   "source_line": 443,
+   "source_section": "rule-9-the-plan-gate-arm",
+   "status": "active"
   }
  ],
  "scenarios": {},
@@ -31757,7 +31847,6 @@
     "CHARTER.md#principle-8",
     "LIFECYCLE.md#stage-9-closure",
     "SPEC-0013",
-    "SPEC-0036",
     "SPEC-0060",
     "part-i-a-retrieval-delivery-mechanism"
    ],
@@ -31857,39 +31946,6 @@
    "status": "active",
    "supersedes": null,
    "title": "Instruction-injection protocol and rule-visibility reverse-mapping — retrieved reference"
-  },
-  "SPEC-0027": {
-   "activation_owner_task": null,
-   "binding": [
-    "stage-entry:Execution",
-    "stage-entry:Plan",
-    "stage-entry:Tests"
-   ],
-   "cites": [
-    "CHARTER.md#principle-1",
-    "CHARTER.md#principle-5",
-    "LIFECYCLE.md#the-9-stages",
-    "SPEC-0007",
-    "SPEC-0013",
-    "SPEC-0036",
-    "part-i-b-tier-split-carving-floor-wiring-first-the"
-   ],
-   "cites_unresolved": [],
-   "concern": null,
-   "implements": [
-    "bin/lib/audit.py#cmd_audit",
-    "bin/lib/gates.py#advance_stage_pointer",
-    "bin/lib/gates.py#stage_pointer_move",
-    "bin/lib/task.py#cmd_task_execute",
-    "bin/lib/task.py#cmd_task_plan",
-    "bin/lib/task.py#cmd_task_test"
-   ],
-   "init_concern": null,
-   "proposed_by": null,
-   "requires": [],
-   "status": "active",
-   "supersedes": null,
-   "title": "Lifecycle stage mechanics (non-gated) — plan/execute/test detail + resume, hygiene fast-path, stage-FSM"
   },
   "SPEC-0028": {
    "activation_owner_task": null,
@@ -32059,7 +32115,6 @@
     "CHARTER.md#principle-8",
     "GRAPH.md#spec-lifecycle",
     "SPEC-0013",
-    "SPEC-0027",
     "SPEC-0035",
     "SPEC-0070",
     "SPEC-0083",
@@ -32094,7 +32149,6 @@
     "CHARTER.md#principle-5",
     "CHARTER.md#principle-8",
     "LIFECYCLE.md#plan-lifecycle",
-    "SPEC-0027",
     "SPEC-0034",
     "add-a-controlled-real-data-trial-stage-between-pla",
     "plan-lifecycle-delivery-parity-redesign-lifecycle-"
@@ -32108,31 +32162,6 @@
    "status": "active",
    "supersedes": null,
    "title": "Plan stage trial — controlled real-data design-convergence between specs and accepted"
-  },
-  "SPEC-0036": {
-   "activation_owner_task": null,
-   "binding": [
-    "stage-entry:Audit-post",
-    "stage-entry:Audit-pre"
-   ],
-   "cites": [
-    "AGENTS.md#external-auditor-invocation-contract",
-    "CHARTER.md#principle-4",
-    "SPEC-0013",
-    "SPEC-0034",
-    "SPEC-0035",
-    "patterns/trial-methods.md",
-    "per-stage-external-audit-question-templates-for-th"
-   ],
-   "cites_unresolved": [],
-   "concern": null,
-   "implements": [],
-   "init_concern": null,
-   "proposed_by": "per-stage-external-audit-question-templates-for-th",
-   "requires": [],
-   "status": "active",
-   "supersedes": null,
-   "title": "External auditor contract — invocation, verdicts, lens, per-stage overlays incl. plan-stage templates"
   },
   "SPEC-0038": {
    "activation_owner_task": null,
@@ -32203,8 +32232,7 @@
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-3",
     "CHARTER.md#principle-8",
-    "SPEC-0013",
-    "SPEC-0027"
+    "SPEC-0013"
    ],
    "cites_unresolved": [],
    "concern": null,
@@ -32546,7 +32574,6 @@
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-3",
     "SPEC-0013",
-    "SPEC-0027",
     "SPEC-0032",
     "SPEC-0034",
     "SPEC-0046",
@@ -32578,7 +32605,6 @@
     "SPEC-0015",
     "SPEC-0028",
     "SPEC-0032",
-    "SPEC-0036",
     "SPEC-0043",
     "SPEC-0046",
     "SPEC-0050",
@@ -32739,7 +32765,6 @@
     "SPEC-0007",
     "SPEC-0034",
     "SPEC-0035",
-    "SPEC-0036",
     "SPEC-0046",
     "mandatory-external-decomposition-fidelity-audit-of"
    ],
@@ -32833,7 +32858,6 @@
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-5",
     "SPEC-0030",
-    "SPEC-0036",
     "conformance-contract-as-one-unit",
     "export-slice-contract-and-core-authoring-model",
     "kernel-extraction-evidence-driven-engine-consumabi",
@@ -33034,7 +33058,6 @@
    "cites": [
     "CHARTER.md#principle-1",
     "SPEC-0034",
-    "SPEC-0036",
     "SPEC-0043",
     "SPEC-0070",
     "SPEC-0076",
@@ -33063,7 +33086,6 @@
     "CHARTER.md#principle-5",
     "SPEC-0034",
     "SPEC-0035",
-    "SPEC-0036",
     "SPEC-0070"
    ],
    "cites_unresolved": [],
@@ -33284,7 +33306,6 @@
    "cites": [
     "CHARTER.md#principle-1",
     "SPEC-0032",
-    "SPEC-0036",
     "SPEC-0039",
     "SPEC-0043",
     "SPEC-0083",
@@ -33912,7 +33933,6 @@
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-4",
     "CHARTER.md#principle-7",
-    "SPEC-0036",
     "SPEC-0133"
    ],
    "cites_unresolved": [],
@@ -35781,7 +35801,6 @@
    "cites": [
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-3",
-    "SPEC-0036",
     "SPEC-0046"
    ],
    "cites_unresolved": [],
@@ -35835,7 +35854,6 @@
    ],
    "cites": [
     "SPEC-0015",
-    "SPEC-0036",
     "SPEC-0093",
     "SPEC-0119",
     "SPEC-0128"
@@ -36172,7 +36190,6 @@
    ],
    "cites": [
     "CHARTER.md#principle-7",
-    "SPEC-0036",
     "SPEC-0077",
     "SPEC-0103",
     "SPEC-0169",
@@ -36480,7 +36497,6 @@
    "cites": [
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-4",
-    "SPEC-0036",
     "SPEC-0202"
    ],
    "cites_unresolved": [],
@@ -36507,7 +36523,6 @@
     "CHARTER.md#principle-1",
     "CHARTER.md#principle-4",
     "SPEC-0007",
-    "SPEC-0036",
     "SPEC-0119",
     "SPEC-0171",
     "SPEC-0201"
@@ -36539,78 +36554,6 @@
    "supersedes": null,
    "title": "The external-auditor binding: a machine-level binding class in the settings file (provider, binary, home, model), stamped on every verdict, with the session-start hint until an external one is bound"
   },
-  "SPEC-0204": {
-   "activation_owner_task": null,
-   "binding": [
-    "query-only"
-   ],
-   "cites": [
-    "CHARTER.md#principle-1",
-    "CHARTER.md#principle-5",
-    "CHARTER.md#principle-7",
-    "CHARTER.md#principle-8",
-    "SPEC-0036",
-    "SPEC-0077",
-    "SPEC-0103",
-    "SPEC-0161",
-    "SPEC-0165",
-    "SPEC-0168",
-    "SPEC-0191",
-    "ceiling-decisions-one-typed-controller-decision-pe"
-   ],
-   "cites_unresolved": [],
-   "concern": null,
-   "implements": [
-    "bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE",
-    "bin/lib/audit.py#audit_ceiling_blocked",
-    "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
-    "bin/lib/audit.py#bounded_auditor_output",
-    "bin/lib/audit.py#cmd_audit",
-    "bin/lib/audit.py#contentless_findings",
-    "bin/lib/audit.py#findings_block_parse_failure",
-    "bin/lib/audit.py#locator_content_unchanged",
-    "bin/lib/audit.py#plan_gate_ceiling_row_payload",
-    "bin/lib/audit.py#plan_gate_live_terminal_reasons",
-    "bin/lib/audit.py#plan_gate_response_malformed",
-    "bin/lib/audit.py#reship_opens_new_ceiling_row",
-    "bin/lib/audit.py#stage6_evidence_covers_subject",
-    "bin/lib/audit.py#stage6_evidence_gap_facts",
-    "bin/lib/audit.py#suspected_echo_findings",
-    "bin/lib/audit.py#unactionable_findings",
-    "bin/lib/audit.py#unactionable_findings_refusal",
-    "bin/lib/audit.py#unparsed_findings_refusal",
-    "bin/lib/audit_ceiling.py#maximal_evidence_revision",
-    "bin/lib/audit_ceiling.py#on_decisions_absorption_grant",
-    "bin/lib/audit_ceiling.py#on_decisions_admission",
-    "bin/lib/audit_ceiling.py#on_decisions_matrix",
-    "bin/lib/audit_ceiling.py#plan_gate_synthetic_ceiling_row",
-    "bin/lib/audit_ceiling.py#residual_finding_records",
-    "bin/lib/audit_ceiling.py#row_residual_fingerprints",
-    "bin/lib/audit_ceiling.py#sync_merge_subject",
-    "bin/lib/audit_ceiling.py#worktree_sync_merges",
-    "bin/lib/audit_consult.py#_consult_basis",
-    "bin/lib/audit_consult.py#cmd_audit_consult",
-    "bin/lib/audit_consult.py#consult_prompt_overlay",
-    "bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES",
-    "bin/lib/cli.py#_audit_help_texts",
-    "bin/lib/cli_parser.py#build_parser",
-    "bin/lib/graph.py#retired_audit_flag_violations",
-    "bin/lib/graph.py#retired_plan_gate_terminal_violations",
-    "bin/lib/plan.py#_run_plan_gate_audit",
-    "bin/lib/plan.py#cmd_plan_check",
-    "bin/lib/task.py#sync_merge_closure_custody"
-   ],
-   "init_concern": null,
-   "proposed_by": "ceiling-decisions-one-typed-controller-decision-pe",
-   "requires": [
-    "SPEC-0036",
-    "SPEC-0161",
-    "SPEC-0168"
-   ],
-   "status": "active",
-   "supersedes": null,
-   "title": "Ceiling decisions — one typed Controller-recorded decision per residual, one bounded re-audit, first-round delta discipline; replaces consult episodes, owner-reset and withdrawal markers"
-  },
   "SPEC-0205": {
    "activation_owner_task": null,
    "binding": [
@@ -36621,7 +36564,6 @@
     "CHARTER.md#principle-3",
     "SPEC-0028",
     "SPEC-0035",
-    "SPEC-0036",
     "SPEC-0094",
     "SPEC-0172",
     "SPEC-0175",
@@ -36907,9 +36849,7 @@
    ],
    "cites": [
     "SPEC-0013",
-    "SPEC-0015",
-    "SPEC-0036",
-    "SPEC-0204"
+    "SPEC-0015"
    ],
    "cites_unresolved": [],
    "concern": null,
@@ -36921,25 +36861,6 @@
    "supersedes": null,
    "title": "Rare task-audit shapes — machine-refuted findings and the card-repair audit-post subject (reference, fetched on demand from the audit contract and the audit help)"
   },
-  "SPEC-1014": {
-   "activation_owner_task": null,
-   "binding": [
-    "query-only"
-   ],
-   "cites": [
-    "SPEC-0013",
-    "SPEC-0204"
-   ],
-   "cites_unresolved": [],
-   "concern": null,
-   "implements": [],
-   "init_concern": null,
-   "proposed_by": null,
-   "requires": [],
-   "status": "active",
-   "supersedes": null,
-   "title": "Ceiling decisions — edge cases of the at-ceiling route (reference, read at a ceiling before audit decide or the one further pass)"
-  },
   "SPEC-1018": {
    "activation_owner_task": null,
    "binding": [
@@ -36947,8 +36868,7 @@
    ],
    "cites": [
     "SPEC-0013",
-    "SPEC-0015",
-    "SPEC-0204"
+    "SPEC-0015"
    ],
    "cites_unresolved": [],
    "concern": null,
@@ -37016,8 +36936,7 @@
    ],
    "cites": [
     "SPEC-0013",
-    "SPEC-0015",
-    "SPEC-0036"
+    "SPEC-0015"
    ],
    "cites_unresolved": [],
    "concern": null,
@@ -37140,7 +37059,6 @@
    ],
    "cites": [
     "SPEC-0015",
-    "SPEC-0027",
     "SPEC-0165",
     "author-passes-audit-on-the-first-try-give-the-auth",
     "self-check-with-evidence-task-side-edges-and-async"
@@ -37418,9 +37336,7 @@
    ],
    "cites": [
     "CHARTER.md#principle-1",
-    "SPEC-0015",
-    "SPEC-0036",
-    "SPEC-0204"
+    "SPEC-0015"
    ],
    "cites_unresolved": [],
    "concern": null,
@@ -37505,6 +37421,165 @@
    "status": "active",
    "supersedes": null,
    "title": "The spec doctrine — identity, content boundary, FSM, homing, and how to create/split/reshape a spec"
+  },
+  "SPEC-1038": {
+   "activation_owner_task": null,
+   "binding": [
+    "stage-entry:Execution",
+    "stage-entry:Plan",
+    "stage-entry:Tests"
+   ],
+   "cites": [
+    "CHARTER.md#principle-1",
+    "CHARTER.md#principle-5",
+    "LIFECYCLE.md#the-9-stages",
+    "SPEC-0007",
+    "SPEC-0013",
+    "SPEC-0065",
+    "SPEC-0178",
+    "SPEC-0181",
+    "SPEC-1034",
+    "part-i-b-tier-split-carving-floor-wiring-first-the"
+   ],
+   "cites_unresolved": [],
+   "concern": null,
+   "implements": [
+    "bin/lib/audit.py#cmd_audit",
+    "bin/lib/gates.py#advance_stage_pointer",
+    "bin/lib/gates.py#stage_pointer_move",
+    "bin/lib/task.py#cmd_task_close",
+    "bin/lib/task.py#cmd_task_commit",
+    "bin/lib/task.py#cmd_task_execute",
+    "bin/lib/task.py#cmd_task_plan",
+    "bin/lib/task.py#cmd_task_test"
+   ],
+   "init_concern": null,
+   "proposed_by": "run-the-full-governed-test-stage-after-audit-post-",
+   "requires": [],
+   "status": "active",
+   "supersedes": null,
+   "title": "Lifecycle stage mechanics (non-gated) — plan/execute/test detail + resume, hygiene fast-path, stage-FSM with the governed test run after audit-post"
+  },
+  "SPEC-1039": {
+   "activation_owner_task": null,
+   "binding": [
+    "query-only"
+   ],
+   "cites": [
+    "CHARTER.md#principle-1",
+    "CHARTER.md#principle-5",
+    "CHARTER.md#principle-7",
+    "CHARTER.md#principle-8",
+    "SPEC-0077",
+    "SPEC-0103",
+    "SPEC-0161",
+    "SPEC-0165",
+    "SPEC-0168",
+    "SPEC-0191",
+    "SPEC-1038",
+    "ceiling-decisions-one-typed-controller-decision-pe",
+    "run-the-full-governed-test-stage-after-audit-post-"
+   ],
+   "cites_unresolved": [],
+   "concern": null,
+   "implements": [
+    "bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE",
+    "bin/lib/audit.py#audit_ceiling_blocked",
+    "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
+    "bin/lib/audit.py#bounded_auditor_output",
+    "bin/lib/audit.py#cmd_audit",
+    "bin/lib/audit.py#contentless_findings",
+    "bin/lib/audit.py#findings_block_parse_failure",
+    "bin/lib/audit.py#locator_content_unchanged",
+    "bin/lib/audit.py#plan_gate_ceiling_row_payload",
+    "bin/lib/audit.py#plan_gate_live_terminal_reasons",
+    "bin/lib/audit.py#plan_gate_response_malformed",
+    "bin/lib/audit.py#reship_opens_new_ceiling_row",
+    "bin/lib/audit.py#stage6_evidence_covers_subject",
+    "bin/lib/audit.py#stage6_evidence_gap_facts",
+    "bin/lib/audit.py#suspected_echo_findings",
+    "bin/lib/audit.py#unactionable_findings",
+    "bin/lib/audit.py#unactionable_findings_refusal",
+    "bin/lib/audit.py#unparsed_findings_refusal",
+    "bin/lib/audit_ceiling.py#maximal_evidence_revision",
+    "bin/lib/audit_ceiling.py#on_decisions_absorption_grant",
+    "bin/lib/audit_ceiling.py#on_decisions_admission",
+    "bin/lib/audit_ceiling.py#on_decisions_matrix",
+    "bin/lib/audit_ceiling.py#plan_gate_synthetic_ceiling_row",
+    "bin/lib/audit_ceiling.py#residual_finding_records",
+    "bin/lib/audit_ceiling.py#row_residual_fingerprints",
+    "bin/lib/audit_ceiling.py#sync_merge_subject",
+    "bin/lib/audit_ceiling.py#worktree_sync_merges",
+    "bin/lib/audit_consult.py#_consult_basis",
+    "bin/lib/audit_consult.py#cmd_audit_consult",
+    "bin/lib/audit_consult.py#consult_prompt_overlay",
+    "bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES",
+    "bin/lib/cli.py#_audit_help_texts",
+    "bin/lib/cli_parser.py#build_parser",
+    "bin/lib/graph.py#retired_audit_flag_violations",
+    "bin/lib/graph.py#retired_plan_gate_terminal_violations",
+    "bin/lib/plan.py#_run_plan_gate_audit",
+    "bin/lib/plan.py#cmd_plan_check",
+    "bin/lib/task.py#sync_merge_closure_custody"
+   ],
+   "init_concern": null,
+   "proposed_by": "run-the-full-governed-test-stage-after-audit-post-",
+   "requires": [
+    "SPEC-0161",
+    "SPEC-0168",
+    "SPEC-1038"
+   ],
+   "status": "active",
+   "supersedes": null,
+   "title": "Ceiling decisions — one typed Controller-recorded decision per residual, one bounded re-audit, first-round delta discipline; the pre-audit Stage-6 coverage precondition retired by the post-audit Tests order"
+  },
+  "SPEC-1040": {
+   "activation_owner_task": null,
+   "binding": [
+    "stage-entry:Audit-post",
+    "stage-entry:Audit-pre"
+   ],
+   "cites": [
+    "AGENTS.md#external-auditor-invocation-contract",
+    "CHARTER.md#principle-4",
+    "SPEC-0013",
+    "SPEC-0034",
+    "SPEC-0035",
+    "patterns/trial-methods.md",
+    "per-stage-external-audit-question-templates-for-th",
+    "run-the-full-governed-test-stage-after-audit-post-"
+   ],
+   "cites_unresolved": [],
+   "concern": null,
+   "implements": [],
+   "init_concern": null,
+   "proposed_by": "run-the-full-governed-test-stage-after-audit-post-",
+   "requires": [
+    "SPEC-1038"
+   ],
+   "status": "active",
+   "supersedes": null,
+   "title": "External auditor contract — invocation, verdicts, lens, per-stage overlays incl. plan-stage templates; the task audit-post judged before the governed test run"
+  },
+  "SPEC-1041": {
+   "activation_owner_task": null,
+   "binding": [
+    "query-only"
+   ],
+   "cites": [
+    "SPEC-0013",
+    "SPEC-1038",
+    "SPEC-1039"
+   ],
+   "cites_unresolved": [],
+   "concern": null,
+   "implements": [],
+   "init_concern": null,
+   "proposed_by": "run-the-full-governed-test-stage-after-audit-post-",
+   "requires": [],
+   "status": "active",
+   "supersedes": null,
+   "title": "Ceiling decisions — edge cases of the at-ceiling route (reference); a re-ship after a governed Tests run stays on the same ceiling row"
   }
  },
  "tasks_citing": {},

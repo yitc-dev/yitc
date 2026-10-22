@@ -466,7 +466,7 @@ Read the verdict/class from the verb; pick the ACTION here. The verb never presc
   REPORTS by contract — durable state intact, main untouched — emitting `bg_dispatch_halted`. The common
   cases auto-emit it (audit-ceiling, land repeated-abort) — a recoverable block, never a
   hang/orphan. The audit-ceiling halt names the residual FINGERPRINTS and carries NO
-  `needs_owner_reset` (SPEC-0103 §3; the owner reset is retired, SPEC-0204 rule 6): the Controller
+  `needs_owner_reset` (SPEC-0103 §3; the owner reset is retired, <workshop-spec> rule 6): the Controller
   records one `audit decide` per residual and the resumed worker runs ONE `audit pre|post
   --on-decisions` pass. Controller path for an owner-gated stop:
   escalate to the OWNER → on authorization, **RESPAWN a fresh worker by DEFAULT** to adopt the holder's

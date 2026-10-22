@@ -4793,6 +4793,9 @@ def on_decisions_absorption_grant(*a, **kw):
     return audit_ceiling.on_decisions_absorption_grant(*a, **kw)
 
 
+# T-14037 (SPEC-1039 §3) — the precondition below is RETIRED: nothing calls these five helpers any more
+# (the (b3) refusal and the T-14005 preview row are gone). SPEC-1039 keeps the first two as its
+# RETIRED anchors; their removal is followup fu_d8719592da15.
 def stage6_evidence_covers_subject(task_id, audited_commit, rows, resolve) -> bool:
     """T-12642 (SPEC-0204 rules 3-4) — does the engine's OWN Stage-6 ledger COVER the commit a
     terminal-bearing audit pass is about to audit? A PURE view over recorded rows; no I/O.
@@ -6811,7 +6814,7 @@ def is_passable_absorption_reaudit(stage: str, target_kind: str, prior_passes: i
 # caller's own token back to them is answering a question they asked; enumerating dead tokens to a
 # caller who asked nothing about them is inventing three more things to try.
 RETIRED_CEILING_POINTER = (
-    "THE ROUTE PAST THE CEILING (SPEC-0204 rule 6): (1) the CONTROLLER records ONE "
+    "THE ROUTE PAST THE CEILING (SPEC-1039 rule 6): (1) the CONTROLLER records ONE "
     "typed decision per residual of the ceiling row — `yitc-v2 audit decide --task <T-XXXX> --stage "
     "<pre|post> --finding <fp1:...> --disposition <fix|accept|defer> --reason \"<why>\" --directive "
     "<events.jsonl#ts=...> [--evidence <revision>]` (rule 2; a `fix` REQUIRES --evidence: the fixing "
@@ -9362,8 +9365,8 @@ CEILING_ROW_RESET_KEY = "ceiling_row_reset_for"
 
 
 def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_sha,
-                                 resolve_sha) -> "str | None":
-    """T-12444 (SPEC-1014 «Rule 4 — custody», T-12038) — does THIS audit-post open a NEW ceiling row?
+                                 resolve_sha, run_since_audit: bool = False) -> "str | None":
+    """T-12444 (SPEC-1041 «Rule 4 — custody», T-12038) — does THIS audit-post open a NEW ceiling row?
 
     Returns `subject_sha` when the revision being audited is a `task commit --reship` ship that opens
     a new ceiling row (so its audit-post is pass 1 of that row and the ordinary SPEC-0124 2-pass
@@ -9413,9 +9416,18 @@ def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_s
           pass on the new commit would re-open the row at 1, leaving the stage unbounded. With it:
           pass 1 opens and stamps, pass 2 reads the stamp matching and counts normally, pass 3 hits
           the ceiling.
+
+    A6 (T-14037, SPEC-1039 §4) — `run_since_audit`: a re-ship on a card with ANY governed Tests run
+    (green or red) recorded after its NEWEST `audit_post_completed` (`gates.run_since_newest_audit_post`,
+    journal order) does NOT open a row: its re-audit is the next pass on the SAME row, so repeated
+    fixes after a red Tests run reach the ceiling and its decision route. Decided by that fact alone,
+    never by the run's verdict or by how the card reached Commit; the GREEN second ship with no run
+    since keeps its new row.
     """
     if not isinstance(recorded_commit_landed, dict) or not recorded_commit_landed.get("reship"):
         return None                                        # (a)
+    if run_since_audit:
+        return None                                        # A6 — the reopened row stays
     subject = str(subject_sha or "").strip()
     if not subject or resolve_sha is None:
         return None
@@ -13130,6 +13142,31 @@ def _scoped_latest_event_for(events_path, fallback):
     return _latest
 
 
+def tests_stage_next_cue(tid) -> str:
+    """T-14037 (SPEC-1038 §Tests) — the next step after an admitting audit-post: the governed test run
+    at the Tests stage, then Closure. Pure f(tid)."""
+    return (f"next: `yitc-v2 stage Tests --task {tid}` → `yitc-v2 task test {tid} --run --evidence "
+            f"\"<what ran, at which head>\"` (the governed run, after audit-post — SPEC-1038 §Tests) → "
+            f"`yitc-v2 task close {tid}`")
+
+
+def _task_rows_of(events_path, tid, types, _latest_event_for):
+    """T-14037 — `tid`'s rows of `types` in JOURNAL ORDER: the seam's scope rows when it holds the
+    journal, else the injected `_latest_event_for` fold with `collect=` (the segment-aware reader).
+    None when neither can answer (no reader wired, or the read failed) — never an empty list."""
+    rows = _scope_task_rows(events_path, tid)
+    if rows is not None:
+        return [r for r in rows if isinstance(r, dict) and r.get("task_id") == tid and r.get("type") in types]
+    if _latest_event_for is None:
+        return None
+    got: list = []
+    try:
+        _latest_event_for(tid, tuple(types), collect=got)
+    except Exception:              # noqa: BLE001 — an unreadable journal is unknown, not empty
+        return None
+    return got
+
+
 def _scoped_task_iter(events_path, tid, fallback, explicit=False):
     """An `_iter_events`-shaped reader for `_decide_journal_view`: the scope's task rows when it holds
     `events_path`, else `fallback` (the injected full reader) unchanged.
@@ -14107,7 +14144,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 if _t12614_ship:
                     print(f"# {tid} audit-post: the on-decisions subject {sha[:12]} is a RECORD-ONLY "
                           f"revision containing this card's audited ship — auditing the SHIP "
-                          f"{_t12614_ship[:12]} instead (T-12614, SPEC-1014 «Rule 2 — recording a decision»).",
+                          f"{_t12614_ship[:12]} instead (T-12614, SPEC-1041 «Rule 2 — recording a decision»).",
                           file=sys.stderr)
                     sha = _t12614_ship
 
@@ -14359,7 +14396,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # The ONE admitted continuation is `--on-decisions` (rules 2-3), decided at its own seam below.
     owner_reset = False
     prior_passes = _count_audit_passes(tid, stage)
-    # T-12444 (SPEC-1014 «Rule 4 — custody») — A RESHIP SHIP OPENS A NEW CEILING ROW, so its REQUIRED
+    # T-12444 (SPEC-1041 «Rule 4 — custody»; A6, T-14037) — A RESHIP SHIP OPENS A NEW CEILING ROW unless a
+    # governed Tests run is recorded since the newest audit-post (then its re-audit stays on the row), so its REQUIRED
     # follow-up audit-post is pass 1 of that row rather than a pass the ceiling has no room for.
     # MEASURED (T-12038 phase 2): a GREEN row AT the ceiling with ZERO residuals left `--reship`'s own
     # contracted next step unreachable — the ceiling blocked it and rule 3's `--on-decisions` had no
@@ -14388,9 +14426,15 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     ceiling_row_reset_for = None
     if target_kind == "task" and stage == "post":
         _crr_prior = _prior_audit_record(tid, "post")
+        # T-14037 (SPEC-1039 §4, A6) — the card's audit-post and Tests verdict rows in journal order, read
+        # through the seam's scope (else the injected `_latest_event_for` fold, `collect=`). Unreadable =
+        # treated as a run since: the re-audit stays on the bounded row (fail-closed toward the ceiling).
+        _a6_rows = _task_rows_of(EVENTS_PATH, tid, ("audit_post_completed", "tests_passed", "tests_failed"),
+                                 _latest_event_for)
         _crr_opened = reship_opens_new_ceiling_row(
             _recorded_commit_landed(tid) if _recorded_commit_landed else None,
-            _crr_prior, sha, _git_resolve_sha)
+            _crr_prior, sha, _git_resolve_sha,
+            run_since_audit=(True if _a6_rows is None else gates.run_since_newest_audit_post(_a6_rows)))
         if _crr_opened:
             # The row OPENS here: this pass is its pass 1. `passes` is what every downstream fork
             # reads (the record's own counter, the rule-8 round fork, the at-ceiling fold guard and
@@ -14403,8 +14447,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                   f"`task commit --reship` ship over a GREEN audit-post (T-12410), so this is pass 1 "
                   f"of a new row and not pass {prior_passes + 1} of the superseded one "
                   f"({prior_passes} pass(es), GREEN, covering the OLD commit only). The ordinary "
-                  f"{AUDIT_PASS_CEILING}-pass ceiling applies to THIS row from here (SPEC-0204 "
-                  f"rules 3-4, T-12444).", file=sys.stderr)
+                  f"{AUDIT_PASS_CEILING}-pass ceiling applies to THIS row from here (SPEC-1039 "
+                  f"rules 3-4, T-12444; no governed Tests run is recorded since the GREEN audit-post — "
+                  f"A6).", file=sys.stderr)
             prior_passes = 0
         elif (isinstance(_crr_prior, dict)
               and str(_crr_prior.get(CEILING_ROW_RESET_KEY) or "").strip() == str(sha or "").strip()
@@ -14861,78 +14906,17 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         except Exception:   # noqa: BLE001 — a text refinement never masks the ceiling refusal
             ceiling_spent_green = None
         # T-12376 — THE ABSORPTION GRANT, resolved ONCE here rather than inside the `else` arm that
-        # consumes it, because the (b3) admission below needs the SAME reading to know whether THIS
-        # run is terminal-bearing. One derivation at the wiring site, never a reader per consumer
-        # (SPEC-0190 rule 10); a second call could disagree with this one. Only an ORDINARY pass can
-        # be the absorption re-audit, so the flag short-circuits it.
+        # consumes it. One derivation at the wiring site, never a reader per consumer (SPEC-0190
+        # rule 10); a second call could disagree with this one. Only an ORDINARY pass can be the
+        # absorption re-audit, so the flag short-circuits it.
         _od_grant = None if on_decisions else on_decisions_absorption_grant(_od_stage_rows)
         _od_absorption_available = (_od_grant is not None and _od_res is not None
                                     and not _od_res.get("unresolvable"))
-        # (b3) T-12642 (SPEC-0204 rules 3-4) — A TERMINAL-BEARING PASS IS NOT ADMITTED WHILE THE
-        # ENGINE'S OWN STAGE-6 LEDGER PROVABLY DOES NOT COVER THE SUBJECT. Rule 3 makes this stage
-        # TERMINAL the moment the pass returns RED, and that irreversibility was spent once (T-12622,
-        # 2026-09-16) on a residual that asserted only MISSING PROOF — the Stage-6 evidence did not
-        # postdate the audited commit. Proof can be supplied; a broken artifact cannot.
-        #
-        # THE SHAPE IS ADMISSION, NOT CLASSIFICATION, and that is the whole design. An earlier draft
-        # withheld terminality AFTER the verdict, which spared the CROSS-PRODUCT (a SUBSTANTIVE defect
-        # audited on a stale-evidence subject would also escape) — removing the gate rather than
-        # narrowing it, which AC2 forbids. Deciding BEFORE the auditor is invoked means no auditor
-        # runs, no verdict is recorded, no pass is spent, and NO FINDING IS EVER CLASSIFIED: at the
-        # moment of decision there is no prose, no `severity` and no `class_id` to read even by
-        # accident (AC3, by construction rather than by discipline). Terminality itself is UNCHANGED —
-        # nothing that reaches a verdict is spared — so CHARTER §Principle 7's re-run-vs-resolve fork
-        # is intact. Only the ORDER changes: supply the proof the lifecycle already requires, then
-        # take the pass.
-        #
-        # PLACED AFTER the rule-4 terminal check of (b), so an ALREADY-terminal stage keeps saying
-        # TERMINAL and is never re-reported as a stale-evidence problem, and BEFORE the auditor.
-        # NARROW BY DESIGN — only the two TERMINAL-BEARING passes (the rule-3 `--on-decisions` pass
-        # and the ONE bounded absorption re-audit). An ordinary pass-1/pass-2 RED is not terminal, so
-        # refusing there would add friction with no safety gain, and the pass arithmetic is out of
-        # this card's scope. A currency re-audit spends no pass and can never become a terminal row
-        # (T-12370), so it is exempt too.
-        #
-        # THE HONEST LIMIT: this closes the class where the gap is ENGINE-PROVABLE BEFORE the pass.
-        # A residual asserting missing proof of some OTHER kind — one the engine cannot itself
-        # compute — can still reach a verdict and still terminalize. No claim is made beyond the
-        # measured class. The predicate FAILS OPEN on every unprovable ledger shape.
-        if ((on_decisions or _od_absorption_available) and not currency_reaudit
-                and not stage6_evidence_covers_subject(
-                    tid, (sha if stage == "post" else None), _od_view["rows"],
-                    (lambda _s: _git_resolve_sha(str(_s))))):
-            _od_gap = stage6_evidence_gap_facts(
-                tid, sha, _od_view["rows"], (lambda _s: _git_resolve_sha(str(_s))))
-            _od_gap_ref = (on_decisions_ceiling_ref
-                           or (_od_grant or {}).get("ceiling_ref")
-                           or f"{tid}/{stage}/pass-{prior_passes}")
-            _od_refuse(
-                "stage6-evidence-stale", "stage6_evidence_does_not_cover_subject",
-                f"{tid} audit-{stage}: the Stage-6 ledger does not cover the commit this pass would "
-                f"audit, so the pass is NOT SPENT. Audited commit {_od_gap.get('audited_commit')}; "
-                f"the latest recorded `tests_passed` run is "
-                f"{_od_gap.get('latest_tests_passed_ts') or 'unrecorded'}"
-                + (f", already consumed by the earlier commit {_od_gap['intervening_commit']}"
-                   if _od_gap.get("intervening_commit") else "")
-                + f". `tests_passed` recorded for {tid}: "
-                + stage6_evidence_rows_line(
-                    tid, (sha if stage == "post" else None), _od_view["rows"],
-                    (lambda _s: _git_resolve_sha(str(_s))))
-                + f". This pass is TERMINAL-BEARING (SPEC-0204 rules 3-4): a RED here would END "
-                f"audit-{stage} for this card irreversibly, and spending that on MISSING PROOF is "
-                f"the exposure T-12642 removes. CLOSE THE GAP WITH ONE COMMAND — "
-                f"`{stage6_remedy_command(tid)}` at THIS head, then re-enter "
-                f"Stage 8 (`stage Audit-post`) and re-run this same pass. `--evidence` is what "
-                f"RECORDS: a bare `--run` runs the suite and appends NO `tests_passed` row by design "
-                f"(SPEC-0025 / D-0033 — `--run` runs, `--evidence` records), so without it the suite "
-                f"is spent and this refusal repeats identically. NO pass was spent, no "
-                f"verdict was recorded and the ledger is unchanged, so re-running after the test run "
-                f"costs nothing.",
-                {"ceiling_ref": _od_gap_ref,
-                 "audited_commit": _od_gap.get("audited_commit"),
-                 "latest_tests_passed_ts": _od_gap.get("latest_tests_passed_ts"),
-                 "intervening_commit": _od_gap.get("intervening_commit"),
-                 "terminal_bearing": ("on-decisions" if on_decisions else "absorption-reaudit")})
+        # (b3) RETIRED by T-14037 (SPEC-1039 §3, the successor of SPEC-0204): a terminal-bearing pass is no
+        # longer refused on Stage-6 ledger coverage (T-12642's `stage6-evidence-stale`). Under the
+        # post-audit Tests order (SPEC-1038) the governed run comes AFTER audit-post, so a missing run
+        # before the pass is the normal ordering; the coverage obligation is carried at Closure
+        # (SPEC-1038 §Tests «Closure-time coverage»). Terminality itself is unchanged.
         # (c) RULE 3 — THE ADMISSION. Computed only when the flag was passed; every refusal emits ONE
         # `read_gate_refused` with its own `kind`, invokes no auditor and spends no pass.
         if on_decisions:
@@ -14945,7 +14929,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                            f"{_od_mi_row.get('ts')}, {(_od_mi_row.get('data') or {}).get('verdict')}) "
                            f"is FINAL for this stage — no `--on-decisions` pass follows it (T-13260, "
                            f"SPEC-0124). A YELLOW there proceeds to closure with its findings filed "
-                           f"as a followup (LIFECYCLE §Stage 8); a RED is terminal.",
+                           f"as a followup (LIFECYCLE §Stage 7); a RED is terminal.",
                            {"merge_integration_at": _od_mi_row.get("ts")})
             if _od_ceiling_row is None:
                 _od_refuse("below-ceiling", "no_completion_row",
@@ -15188,7 +15172,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     print(f"# audit-currency re-audit at {_cur_ref}: {len(_cur_by_fp)} recorded "
                           f"ceiling decision(s) GOVERN this check — rendered in the packet, and a "
                           f"re-raised `accept`/`defer` residual is recorded `overruled_by_decision` "
-                          f"(T-13169, SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass "
+                          f"(T-13169, SPEC-1041 «Rule 3 — admission of the one bounded pass, and what the pass "
                           f"reports»). No pass is spent.", file=sys.stderr)
     elif on_decisions:
         # AT/PAST-CEILING is rule 3's own precondition, and the guard above is where it is decided.
@@ -15980,26 +15964,6 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # STDERR, exactly like the lines it replaces — stdout carries the packet and nothing
             # else, or the T-11407 AC2 byte-identity claim breaks.
             _readiness = (packet_readiness_sink or [None])[0]
-            # T-14005 (X-2038) — the T-12642 Stage-6 admission precondition, read off the SAME
-            # at-ceiling journal view and the SAME predicate the terminal-bearing pass uses, so the
-            # preview does not say ready where `--on-decisions` refuses. Only at the ceiling: below
-            # it the next pass is not terminal-bearing and nothing refuses. Advisory, fail-soft.
-            if (target_kind == "task" and _iter_events is not None
-                    and prior_passes >= AUDIT_PASS_CEILING):
-                try:
-                    _pv_s6_rows = _decide_journal_view(
-                        tid, stage, _iter_events=_scoped_task_iter(EVENTS_PATH, tid, _iter_events),
-                        events_path=EVENTS_PATH)["rows"]
-                    _pv_s6_row = stage6_preview_readiness_row(
-                        tid, (sha if stage == "post" else None), _pv_s6_rows,
-                        (lambda _s: _git_resolve_sha(str(_s))))
-                except Exception:      # noqa: BLE001 — an advisory never breaks the look
-                    _pv_s6_row = None
-                if _pv_s6_row and _readiness:
-                    # a ROW of the block (SPEC-0036 §Packet preview), so it sits above its end marker
-                    _head, _sep, _tail = _readiness.rpartition("\n# ---- end packet readiness ----")
-                    _readiness = (_head + "\n" + _pv_s6_row + _sep + _tail) if _sep \
-                        else (_readiness + "\n" + _pv_s6_row)
             if _readiness:
                 print(_readiness, file=sys.stderr)
             print(f"# audit packet preview: assembled and printed — NO auditor invoked, NO pass "
@@ -16887,13 +16851,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             f"no GREEN banking on unchanged HEAD). The prior RED STANDS and is recorded as pass "
             f"{_flip_pass}: the auditor ran, so the pass is CHARGED (T-13146). Absorb the finding for "
             f"REAL: {_mode_a_route}.{_p8_route} Nothing to change? "
-            + (f"The audit-loop ceiling is now reached — the route is SPEC-0204: the Controller records "
+            + (f"The audit-loop ceiling is now reached — the route is SPEC-1039: the Controller records "
                f"one `yitc-v2 audit decide --task {tid} --stage post --finding <fp> --disposition "
                f"accept|defer|fix ...` per residual, then ONE `yitc-v2 audit post --task {tid} "
                f"--on-decisions` pass."
                if _flip_pass >= AUDIT_PASS_CEILING else
                f"Don't re-roll the auditor to fish for a GREEN; each re-roll is charged and at the "
-               f"audit-loop ceiling the SPEC-0204 route (`audit decide` per residual) applies.")
+               f"audit-loop ceiling the SPEC-1039 route (`audit decide` per residual) applies.")
             + "\n")
         verdict = prior_verdict
         findings = _carried_findings
@@ -18346,11 +18310,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # (re-audit) when it should have been mode-b, and confirm NO pass was burned.
         print(f"# {tid} audit-post: PASSABLE re-audit — prior YELLOW re-audited to YELLOW with no "
               f"high-severity finding (T-9650, E-0008). A passable finding should be absorbed via "
-              f"mode-b: record it in the verdict notes and PROCEED to `task close` — NO re-audit was "
+              f"mode-b: record it in the verdict notes and PROCEED to the Tests stage — NO re-audit was "
               f"needed. NO audit pass consumed (passes={prior_passes}, ledger NOT advanced); a passable "
               f"finding must not burn a ceiling pass. Use mode-a (re-audit) ONLY for a finding that "
               f"genuinely changes the plan/diff.", file=sys.stderr)
-        print(_governing_rule_pointer("close"))
+        print(tests_stage_next_cue(tid))
     elif verdict in ("RED", "ABORT"):
         print(f"# {verdict} — Stage progression blocked. See {audit_path.relative_to(REPO_ROOT)}",
               file=sys.stderr)
@@ -18359,14 +18323,14 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # T-0370 (the T-0357 wrong-path gap): state the Stage-8 YELLOW rule AT the verdict moment.
             # Default = record/file follow-up + proceed to close; the inline mode-a cycle is the
             # sanctioned alternative — never a hand-deletion of the verdict file.
-            print(f"YELLOW at Stage 8 — two routes (LIFECYCLE §Stage 8): (default) record/file a "
-                  f"follow-up for the findings and proceed to `task close` — the dirty verdict stays "
-                  f"for close to commit; OR absorb INLINE (mode-a): fix, `yitc-v2 stage Commit --task "
+            print(f"YELLOW at audit-post — two routes (LIFECYCLE §Stage 7): (default) record/file a "
+                  f"follow-up for the findings and proceed to the Tests stage, then `task close` — the "
+                  f"dirty verdict stays for close to commit; OR absorb INLINE (mode-a): fix, `yitc-v2 stage Commit --task "
                   f"{tid}` → `yitc-v2 task commit {tid} --absorb --message ...` → re-audit (counts a "
                   f"pass; ceiling {AUDIT_PASS_CEILING}). NEVER hand-delete the verdict file (T-0370).")
-        # element #2 (T-0232) — `audit post` is the verb BEFORE `close`; print the closure-rules
-        # forward-pointer (reminder, not the guarantee — the floor trigger-map is load-bearing).
-        print(_governing_rule_pointer("close"))
+        # T-14037 (SPEC-1038 §Tests) — the governed run comes AFTER audit-post, so the next step is the
+        # Tests stage (`task test` now prints the closure-rules forward-pointer, element #2 / T-0232).
+        print(tests_stage_next_cue(tid))
     # T-13151 (SPEC-0180 rule 9) — carry the verdict ON the SystemExit (the T-0269 `yitc_reason`
     # shape: no global, no store) so the outermost `cmd_audit` wrapper can render the terminal
     # `AUDIT: <verdict>` token. The exit CODE is unchanged.
@@ -18498,7 +18462,7 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     if _steer:
         print(f"# NOTE ({slug}): an ad-hoc consult is NOT a ceiling-convergence basis — no pass "
               f"past the audit-loop ceiling reads decisions/{slug}-audit-adhoc.yaml.\n"
-              f"#   {slug} is at/over the audit-loop ceiling. The route past it is SPEC-0204's: the "
+              f"#   {slug} is at/over the audit-loop ceiling. The route past it is SPEC-1039's: the "
               f"Controller records one decision per residual (`yitc-v2 audit decide --help`), then "
               f"ONE bounded pass runs on them:\n"
               f"#     {_adhoc_ceiling_steer_route(slug, _steer)}\n"
@@ -19467,7 +19431,7 @@ def consult_pick_held_record(*a, **kw):
 #: divergence rule 8's "no new mechanism" forbids.
 _CONSULT_ROUND0_FRAME = (
     "## Full verdict — enumerate EVERY defect, never one per round (retired ceiling consult —\n"
-    "superseded SPEC-0200 rule 2, now SPEC-0204 rule 8)\n\n"
+    "superseded SPEC-0200 rule 2, now SPEC-1039 rule 8)\n\n"
     "This is the BASELINE round (round 0) of this ceiling episode, and it is the ONLY round that\n"
     "surveys the whole subject. Your survey is FROZEN as this card's defect baseline; every later\n"
     "round judges ONLY the ids you name here. A defect you omit now does not get a later round to\n"

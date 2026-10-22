@@ -466,14 +466,14 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ the same acting rules\nsaved about 5 percent (44.1 kB of acting lines against\
   \ 45.8 kB for a terse rewrite covering more\nrules) at unchanged accuracy, while\
   \ line labelling found 25 to 44 percent of the stage-delivered\nbodies non-acting\
-  \ (SPEC-0036 39 percent: maintainer mechanics 20, reference fields 12, bare\npointers\
-  \ 5, retired-route text 2). Of 51 trim cards of 2026-10-07/08, two recorded a full\
-  \ rule\ninventory and twelve no preservation check at all.\n\n### History moved\
-  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
-  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «1.\
-  \ Identity (broadened)»: (Amends identity.)\n- From «7. How to create / split /\
-  \ reshape»: Prior-art: docs / docs corrected\n  active spec bodies in-place; added\
-  \ a binding field + an authoring sub-rule in-place.\n- From «8. Homing a standing\
+  \ (<workshop-spec> 39 percent: maintainer mechanics 20, reference fields 12, bare\n\
+  pointers 5, retired-route text 2). Of 51 trim cards of 2026-10-07/08, two recorded\
+  \ a full rule\ninventory and twelve no preservation check at all.\n\n### History\
+  \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
+  - From «1. Identity (broadened)»: (Amends identity.)\n- From «7. How to create /\
+  \ split / reshape»: Prior-art: docs / docs corrected\n  active spec bodies in-place;\
+  \ added a binding field + an authoring sub-rule in-place.\n- From «8. Homing a standing\
   \ rule»: (Incident: — a planning sizing rule was directed into\n  the decomposition\
   \ DOCTRINE itself, the SPEC-0043 front-load checklist POINTING to it, not\n  restating\
   \ it.)\n- From «7. How to create / split / reshape»: (absorbing the external auditor's\
@@ -481,9 +481,9 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
   \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
   - From «1. Identity (broadened)»: — the <project>-migration incident (X-0195 / X-0197)\n\
-  - From «7. How to create / split / reshape»: Prior-art (in-place on the ACTIVE SPEC-0036\n\
+  - From «7. How to create / split / reshape»: Prior-art (in-place on the ACTIVE <workshop-spec>\n\
   \  audit-loop ceiling): (commit 965af137) added a new ceiling-EXEMPT case — the\n\
-  \  plan-freshness re-audit ledger-skip — directly in SPEC-0036's body; (6c7e5021,\
+  \  plan-freshness re-audit ledger-skip — directly in <workshop-spec>'s body; (6c7e5021,\
   \ a\n  consult-reopened owner-reset pass) and (66efb620, a uniform ceiling-continuation\
   \ carrier)\n  likewise EXTENDED that ceiling in-place.\n- From «7. How to create\
   \ / split / reshape»: watermark basis change (`now →\n  window_through`) kept the\
@@ -498,7 +498,7 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ edit left NO journal trace at all, so the bypass was\n  invisible, not merely\
   \ lineage-less).\n- From «8. Homing a standing rule»: (This is the THIRD home the\
   \ spec/plan/task-field split\n  omitted.)\n\n### Delivery timing\nThe rule-level\
-  \ analysis of SPEC-0036 and SPEC-0015 (2026-10-09) found acting rules delivered\
+  \ analysis of <workshop-spec> and SPEC-0015 (2026-10-09) found acting rules delivered\
   \ after\nthe action they govern: the SPEC-0015 acceptance-design rules reach the\
   \ agent at Closure, after the\nprobes were designed. The external consult on it\
   \ (YELLOW, 5 findings) showed that rarity, the right\nstage and the delivery route\
@@ -544,7 +544,7 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \  case as IN-PLACE, distinct from a normative reshape, with the \"already-covered\
   \ case\" qualifier on\n  the discriminating probe AND a CONCRETE prior-art citation\
   \ (commit 965af137 — the\n  plan-freshness re-audit ledger-skip added in-place to\
-  \ the active SPEC-0036 ceiling). Probe = grep\n  this spec for `ADDITIVE EXTENSION`\
+  \ the active <workshop-spec> ceiling). Probe = grep\n  this spec for `ADDITIVE EXTENSION`\
   \ + `already-covered` + ``; a future additive\n  ceiling-extension cites this carve-out\
   \ instead of drawing a spurious supersede-RED.\n- **VP10 (internal-basis-under-preserved-text\
   \ discriminator / E-0025):** §7 names the\n  INTERNAL-BASIS-change-under-PRESERVED-rule-text\

@@ -874,7 +874,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                         f"NO journal row carries the cited ts {cited}. Journals searched: "
                         + "; ".join(searched)
                         + ("" if other else " (no other checkout instance was folded)")
-                        + ". Owner rows are recorded on MAIN (SPEC-0204): a row sitting in an "
+                        + ". Owner rows are recorded on MAIN (SPEC-1039): a row sitting in an "
                           "unlanded sibling worktree is not visible here — land it (or record it on "
                           "main) rather than writing a second owner row.")
                 cause_line = f" CAUSE ({cause}): {cause_line}"
@@ -2042,7 +2042,7 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
                 "message": (f"{tid} audit-{stage}: the ceiling row {ceiling_ref} has no residuals and "
                             f"the current plan fingerprint ({current_subject}) is the one it already "
                             f"audited — an unchanged plan has nothing new for a pass to judge, so none "
-                            f"is admitted (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the "
+                            f"is admitted (SPEC-1041 «Rule 3 — admission of the one bounded pass, and what the "
                             f"pass reports», T-13400). Amend `implementation_plan` "
                             f"first if the plan must change. No auditor was invoked and no pass was "
                             f"spent."),

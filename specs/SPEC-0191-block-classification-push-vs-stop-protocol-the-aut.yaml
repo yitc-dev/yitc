@@ -40,7 +40,7 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   restriction record, both in §Rationale. The rest of this spec REUSES the existing\
   \ machinery: the governed\nrebaseline path and its recorded-reason gate (SPEC-0077\
   \ — the A-prime authority home for who may\nauthorize it: owner ack OR a qualifying-Worker\
-  \ self-clear); the audit-loop ceiling\n(SPEC-0036); the dispatched-worker scope\
+  \ self-clear); the audit-loop ceiling\n(SPEC-1040); the dispatched-worker scope\
   \ boundary + escalation channels (SPEC-0103 — blocked-on-land\n/ bg_dispatch_halted\
   \ / graceful park); and the Worker→Controller→Owner ladder homed in\npatterns/background-session-operation.md.\n\
   \n### 1. CORE INVARIANT — never clear a block silently\nA block is CLEARED only\
@@ -77,7 +77,7 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ UNCERTAIN, never assumed-flake.\n  4. **DELIBERATE GUARD or UNCERTAIN** — a guard\
   \ / allowlist / F5-class check / human-checkpoint,\n     OR any block you cannot\
   \ confidently place in 1–3 → HALT and escalate to the Controller. Never\n     self-authorize\
-  \ past a deliberate guard.\n\n**AUDIT-class blocks additionally obey the SPEC-0036\
+  \ past a deliberate guard.\n\n**AUDIT-class blocks additionally obey the SPEC-1040\
   \ audit-loop ceiling:** a passable residual\n(mode-b) needs no re-audit and burns\
   \ no pass; a plan/diff-changing finding (mode-a) consumes a pass\nand the ceiling\
   \ bounds it to ≤2 passes; at the ceiling the decision goes to the Controller (the\n\
@@ -121,8 +121,8 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ §5a adds) ADDS NO new mechanism (<workshop-spec> rule 1): rung-1 is\nthe EXISTING\
   \ §2.1 governed self-clear / diff inspection, rung-2 is the EXISTING <workshop-spec>\
   \ adversarial\nconsult engine, rung-3 is the EXISTING escalation gate (blocked-on-land\
-  \ / `--ack-repeated-abort` /\nthe SPEC-0204 ceiling decisions, which replaced the\
-  \ retired `--owner-reset`) — an EXISTING gate,\nunchanged in code by this spec;\
+  \ / `--ack-repeated-abort` /\nthe <workshop-spec> ceiling decisions, which replaced\
+  \ the retired `--owner-reset`) — an EXISTING gate,\nunchanged in code by this spec;\
   \ §5a widens only WHO may answer\nat that rung. It adds no VERB and no STORE of\
   \ its own; what it does add is named in full in the\n§Internal preamble above (one\
   \ gate function, plus one optional `--cause` flag on the existing\n`grants authorize`),\
@@ -147,17 +147,17 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ collapses rung-2 → for anything\n    ambiguous the question goes straight rung-1→owner.\n\
   \    - **WHICH CONSULT.** For a BELOW-ceiling technical fork this rung is the on-demand\n\
   \      variant-pick `audit consult --on-demand --task <T-XXXX> --option... --option...`,\
-  \ which\n      SPEC-0204 rule 6 leaves unchanged. The AT-CEILING consult it used\
-  \ to name is RETIRED: past the\n      audit-loop ceiling a residual is not adjudicated\
-  \ by an auditor at all, it is settled by\n      **Controller typed decisions (SPEC-0204)**\
-  \ — one recorded `ceiling_decision` per residual\n      (`audit decide`, rule 2),\
-  \ then ONE bounded verifying pass (`audit pre|post --on-decisions`,\n      rule\
-  \ 3). A dispatched Worker never records one: it halts naming its residual fingerprints\
-  \ and\n      the Controller decides. So at the ceiling the ladder's rung 2 IS that\
-  \ decision route, and the\n      adversarial-consult shape above applies to the\
-  \ below-ceiling fork it still governs.\n  - **Rung 3 — THE AUTHORITY (the owner,\
-  \ or a `decide-authority` holder for that project — §5a).**\n    Reached only for\
-  \ a genuine dead-end (rung-2 non-convergence / degrade) OR an AUTHORITY-CLASS\n\
+  \ which\n      <workshop-spec> rule 6 leaves unchanged. The AT-CEILING consult it\
+  \ used to name is RETIRED: past the\n      audit-loop ceiling a residual is not\
+  \ adjudicated by an auditor at all, it is settled by\n      **Controller typed decisions\
+  \ (<workshop-spec>)** — one recorded `ceiling_decision` per residual\n      (`audit\
+  \ decide`, rule 2), then ONE bounded verifying pass (`audit pre|post --on-decisions`,\n\
+  \      rule 3). A dispatched Worker never records one: it halts naming its residual\
+  \ fingerprints and\n      the Controller decides. So at the ceiling the ladder's\
+  \ rung 2 IS that decision route, and the\n      adversarial-consult shape above\
+  \ applies to the below-ceiling fork it still governs.\n  - **Rung 3 — THE AUTHORITY\
+  \ (the owner, or a `decide-authority` holder for that project — §5a).**\n    Reached\
+  \ only for a genuine dead-end (rung-2 non-convergence / degrade) OR an AUTHORITY-CLASS\n\
   \    cause (below). It is the backstop for AUTHORITY and true forks, not a routing\
   \ default for every\n    block. A genuine dead-end that is NOT authority-class stays\
   \ the OWNER's: the right admits the\n    authority class, and nothing beyond it.\n\
@@ -260,7 +260,7 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   independent evidence, quarantine is not a Worker self-clear, and deliberate guards\
   \ take precedence.\nPrior-art the rule reuses (not duplicates): SPEC-0103 (worker\
   \ scope boundary + escalation), SPEC-0077\n(pinned/last-green + governed rebaseline\
-  \ — the A-prime authority home: owner ack OR qualifying-Worker\nself-clear), SPEC-0036\
+  \ — the A-prime authority home: owner ack OR qualifying-Worker\nself-clear), <workshop-spec>\
   \ (audit-loop ceiling), CHARTER §P7.\n\nWHY §5a EXISTS, and why the ONE mechanism\
   \ it adds is the minimum that could work (CHARTER §P1; the\nfour filters are recorded\
   \ in the §Internal preamble, and what it adds is named there). The measured cost\
@@ -393,7 +393,6 @@ body: "## Scenario\n\nA session's verify gate BLOCKS — a failing or pinned tes
   \ of which means the\n  atomic flip at the activating `task close` did not happen.\n"
 cites:
 - CHARTER.md#principle-7
-- SPEC-0036
 - SPEC-0077
 - SPEC-0103
 - SPEC-0169

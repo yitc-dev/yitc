@@ -181,7 +181,7 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ LACKS the kernel's methodology CONTENT locally, so a point-lookup\nof a KERNEL\
   \ spec absent from the consumer index resolves its node + source body from the ENGINE\n\
   index/specs (consumer-OWN specs still WIN per-id). The same ENGINE_ROOT fallback\
-  \ resolves kernel\npatterns + scaffolding templates + the SPEC-0036 gate-template\
+  \ resolves kernel\npatterns + scaffolding templates + the <workshop-spec> gate-template\
   \ for a consumer. The TASK-axis read-gate\nDOC-SET (`_stage_bundle_specs`) IS engine-merged\
   \ under `-C` (amended / F-016 — supersedes the\n own-only rule): it resolves `include_kernel=_is_consumer_build`,\
   \ SYMMETRIC with the delivery\nsurfaces below, so a consumer's stage read-check\

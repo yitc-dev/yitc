@@ -58,8 +58,8 @@ body: "## Scenario\n\nThe owner/AI keeps `lessons/` (repo-local craft) and `patt
   \ «Rule 1»:\n\nNo new audit mechanism, store, event, FLAG, or gate — this REUSES\
   \ each verb's EXISTING corpus-inline\ncarrier (`audit pre --from-file`, `audit adhoc\
   \ --read-corpus`), the read-receipt\njournal, and the existing stage-entry delivery.\
-  \ SPEC-0032 / SPEC-0043 / SPEC-0036 keep their\ndelivery mechanics UNCHANGED and\
-  \ gain only a one-line pointer to this rule.\n\n## Verification\n\n- **Read-surfaces\
+  \ SPEC-0032 / SPEC-0043 / <workshop-spec> keep their\ndelivery mechanics UNCHANGED\
+  \ and gain only a one-line pointer to this rule.\n\n## Verification\n\n- **Read-surfaces\
   \ (Rule 1) — deterministic:** a Stage-1 / plan-draft read-receipt NAMES a `lessons/`\n\
   \  id at a LATER work item (yes/no); a gate-specs / audit-pre saved artifact NAMES\
   \ an inlined lesson\n  id (yes/no) — both replayable from the journal / `decisions/`,\
@@ -78,7 +78,6 @@ cites:
 - CHARTER.md#principle-1
 - SPEC-0032
 - SPEC-0043
-- SPEC-0036
 - SPEC-0083
 - SPEC-0039
 - SPEC-0089

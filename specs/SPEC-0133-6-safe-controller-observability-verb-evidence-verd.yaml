@@ -711,53 +711,54 @@ body: "## Scenario\n\nThe controller no longer hand-executes ~880 lines of monit
   **The recovery is REASON-SPECIFIC, never a blanket resume.** The row's recovery\
   \ names the route for\nits recorded reason — a controller-cued stop relaunches from\
   \ its recorded contract; an audit-loop\nceiling pause takes one typed decision per\
-  \ residual (SPEC-0204) before the ordinary relaunch; any\nother reason is resolved\
-  \ as that reason names, then relaunched — so no reader treats a pause as a\nfinished\
-  \ task or as one resumable command.\n\n**Bounds.** `--fleet-verdict` keeps its own\
-  \ reading (class TERMINAL + the report-only `pause_detail`), the shared dispatch\
-  \ classifier is not changed, and the dispatch in-flight guard keeps its\nsettled-pause\
-  \ override. Still §6-safe (rule 1): one more read of a field already on main,\n\
-  no store, no event, no new class token.\n\n**In-place amend, not a supersede** (<workshop-spec>\
-  \ rule 5 — the additive-extension fork, as rule 5c):\nrules 2, 3 and 5c were SILENT\
-  \ on a landed pause; a genuinely closed task, a halt, and every other\nalready-covered\
-  \ case read exactly as before. This answers a case the rule did not address.\n\n\
-  ### 5e. A caller-named task set narrows what ONE read reports — the default stays\
-  \ fleet-wide\nThe reader is fleet-wide by default (rule 3, rule 5a) and stays so:\
-  \ a read that names no task reports\nevery in-flight worker, exactly as before.\
-  \ A caller that DOES name tasks is asking about those tasks,\nso the read answers\
-  \ for them: it keeps the worker records whose `task_ids` INTERSECT the requested\
-  \ set\n— rule 5a's scope test, intersection never equality, so a warm worker draining\
-  \ a requested task\nalongside others is reported as its WHOLE record (rule 4) —\
-  \ and it NAMES every requested id that no\nkept record holds, in the order asked,\
-  \ in both output forms. A named id is not a worker record: it\ncarries none of rule\
-  \ 2's fields, because «no in-flight worker record holds it» says nothing about the\n\
-  task's own dispatch, which the dispatch-status reader answers. (The flag spelling\
-  \ is an interface\ndetail and lives in the verb's help, per the rule-5a precedent.)\n\
-  \nThe scope is applied AFTER classification. No class, verdict, evidence line or\
-  \ in-flight membership\ndepends on what was asked, so a scoped read and a fleet-wide\
-  \ read agree on every record both emit.\nRule 5a's fail-closed judgement is untouched\
-  \ and still the watcher's: the watcher names no task to\nthis reader and keeps reading\
-  \ the whole fleet.\n\n**In-place amend, not a supersede** (<workshop-spec> rule\
-  \ 5 — the rule-4a / 5a precedent): rule 2 said what\na record carries and was SILENT\
-  \ on a caller-named subset. The shipped reader read that silence as\n«ignore the\
-  \ request», so a one-task question returned twelve unrelated records with no word\
-  \ that the\nrequest was not applied (measured 2026-10-05). No already-covered case's\
-  \ required behaviour changes.\n\n### 6. The dispatch-readiness advisor is REPORT-ONLY,\
-  \ and `dispatch` self-serves it in the decision frame\nThe sibling wave-sizing advisor\
-  \ `journal query --dispatch-readiness` is a pure current-state\nread under rule\
-  \ 1 — `headroom` / `live_worker_count` / `recommended_wave_ceiling` / `sole_controller`\
-  \ /\n`in_flight_land`. Two bounds are NORMATIVE and neither is optional:\n  - **REPORT-ONLY,\
-  \ FOREVER (the anti-drift bound).** The advisory is telemetry the controller reads;\n\
-  \    it MUST NOT refuse, queue, clamp, delay, auto-resize, or require compliance\
-  \ with\n    `recommended_wave_ceiling`. The moment it caps/gates/paces a dispatch\
-  \ it is the forbidden\n    orchestrator (CHARTER §Principle 6). `recommended_wave_ceiling`\
-  \ is an integer the controller MAY\n    ignore; wave size stays a controller JUDGEMENT\
-  \ bound (patterns/background-session-operation.md\n    §Dispatch), never a coded\
-  \ cap.\n  - **`dispatch` DELIVERS it in the pre-launch DECISION FRAME.** The `dispatch`\
-  \ launcher runs\n    the readiness fold ITSELF and PRINTS the advisory BEFORE the\
-  \ first launch line — fold → visible\n    advisory → launch — so wave sizing is\
-  \ decided against LIVE fleet-width, not memory or a separate\n    manual pre-wave\
-  \ read (the missed-read failure the consult verdict A-with-bounds closed,\n    `decisions/dispatch-readiness-delivery-audit-adhoc.yaml`).\
+  \ residual (<workshop-spec>) before the ordinary relaunch; any\nother reason is\
+  \ resolved as that reason names, then relaunched — so no reader treats a pause as\
+  \ a\nfinished task or as one resumable command.\n\n**Bounds.** `--fleet-verdict`\
+  \ keeps its own reading (class TERMINAL + the report-only `pause_detail`), the shared\
+  \ dispatch classifier is not changed, and the dispatch in-flight guard keeps its\n\
+  settled-pause override. Still §6-safe (rule 1): one more read of a field already\
+  \ on main,\nno store, no event, no new class token.\n\n**In-place amend, not a supersede**\
+  \ (<workshop-spec> rule 5 — the additive-extension fork, as rule 5c):\nrules 2,\
+  \ 3 and 5c were SILENT on a landed pause; a genuinely closed task, a halt, and every\
+  \ other\nalready-covered case read exactly as before. This answers a case the rule\
+  \ did not address.\n\n### 5e. A caller-named task set narrows what ONE read reports\
+  \ — the default stays fleet-wide\nThe reader is fleet-wide by default (rule 3, rule\
+  \ 5a) and stays so: a read that names no task reports\nevery in-flight worker, exactly\
+  \ as before. A caller that DOES name tasks is asking about those tasks,\nso the\
+  \ read answers for them: it keeps the worker records whose `task_ids` INTERSECT\
+  \ the requested set\n— rule 5a's scope test, intersection never equality, so a warm\
+  \ worker draining a requested task\nalongside others is reported as its WHOLE record\
+  \ (rule 4) — and it NAMES every requested id that no\nkept record holds, in the\
+  \ order asked, in both output forms. A named id is not a worker record: it\ncarries\
+  \ none of rule 2's fields, because «no in-flight worker record holds it» says nothing\
+  \ about the\ntask's own dispatch, which the dispatch-status reader answers. (The\
+  \ flag spelling is an interface\ndetail and lives in the verb's help, per the rule-5a\
+  \ precedent.)\n\nThe scope is applied AFTER classification. No class, verdict, evidence\
+  \ line or in-flight membership\ndepends on what was asked, so a scoped read and\
+  \ a fleet-wide read agree on every record both emit.\nRule 5a's fail-closed judgement\
+  \ is untouched and still the watcher's: the watcher names no task to\nthis reader\
+  \ and keeps reading the whole fleet.\n\n**In-place amend, not a supersede** (<workshop-spec>\
+  \ rule 5 — the rule-4a / 5a precedent): rule 2 said what\na record carries and was\
+  \ SILENT on a caller-named subset. The shipped reader read that silence as\n«ignore\
+  \ the request», so a one-task question returned twelve unrelated records with no\
+  \ word that the\nrequest was not applied (measured 2026-10-05). No already-covered\
+  \ case's required behaviour changes.\n\n### 6. The dispatch-readiness advisor is\
+  \ REPORT-ONLY, and `dispatch` self-serves it in the decision frame\nThe sibling\
+  \ wave-sizing advisor `journal query --dispatch-readiness` is a pure current-state\n\
+  read under rule 1 — `headroom` / `live_worker_count` / `recommended_wave_ceiling`\
+  \ / `sole_controller` /\n`in_flight_land`. Two bounds are NORMATIVE and neither\
+  \ is optional:\n  - **REPORT-ONLY, FOREVER (the anti-drift bound).** The advisory\
+  \ is telemetry the controller reads;\n    it MUST NOT refuse, queue, clamp, delay,\
+  \ auto-resize, or require compliance with\n    `recommended_wave_ceiling`. The moment\
+  \ it caps/gates/paces a dispatch it is the forbidden\n    orchestrator (CHARTER\
+  \ §Principle 6). `recommended_wave_ceiling` is an integer the controller MAY\n \
+  \   ignore; wave size stays a controller JUDGEMENT bound (patterns/background-session-operation.md\n\
+  \    §Dispatch), never a coded cap.\n  - **`dispatch` DELIVERS it in the pre-launch\
+  \ DECISION FRAME.** The `dispatch` launcher runs\n    the readiness fold ITSELF\
+  \ and PRINTS the advisory BEFORE the first launch line — fold → visible\n    advisory\
+  \ → launch — so wave sizing is decided against LIVE fleet-width, not memory or a\
+  \ separate\n    manual pre-wave read (the missed-read failure the consult verdict\
+  \ A-with-bounds closed,\n    `decisions/dispatch-readiness-delivery-audit-adhoc.yaml`).\
   \ The self-read emits ONE\n    `consumer_read_evidence` receipt tied to the advisor\
   \ surface, which by journal ordering PRECEDES\n    the wave's `bg_dispatch_launched`.\
   \ This delivery adds NO admission control: there is deliberately\n    NO branch\
@@ -869,7 +870,7 @@ implements_signature:
   bin/lib/dispatch.py#_watch_wake_decision: 809242e0063386cb679f42b6d8ea5e1b55613afe7f714117909ac9ae0381b5ab
   bin/lib/dispatch.py#cmd_dispatch: 89677868feb62a8de29252bf5c33c1628a9eb965875861a20743c6d58ecfc56d
   bin/lib/dispatch.py#cmd_dispatch_watch: 4c4124068e600beac01f1afc822e932a50be0d7a87c144f919b4877573f4280f
-  bin/lib/journal.py#DISPATCH_CLASS_VOCAB: 451758aa547817399cfd5ea10ee7ebf67b66359326c2402c20ab18f5a68f2f4f
+  bin/lib/journal.py#DISPATCH_CLASS_VOCAB: 28ae6af44fcd1c4a6494c56d574916817a41ca95a6c70c195f35955804bc919b
   bin/lib/journal.py#_dispatch_status_landed_pause: ce76f65f58e887e873287dea5132abc4272b3a94c1803258433b3961bb4da060
   bin/lib/journal.py#_halt_resolution: d83afc21f135863e4a6515a6ad07f9c76502005cdaefa490dd157507335ac3c6
   bin/lib/journal.py#cmd_journal_fleet_verdict: b3dba891d819b7b7292bb83ac92e4f596c68a3831296774fb4fe12750f46087b

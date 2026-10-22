@@ -132,7 +132,7 @@ body: "## Scenario\n\nA park, a pause or a wont-do self-commit was recorded afte
   \ a row the operator just resolved; (3) **the span starts\n  AFTER the card's last\
   \ RENDERED audit-post verdict** (GREEN/YELLOW/RED — an ABORT rendered none and\n\
   \  bounds nothing): a further ship past a GREEN (`task commit --reship`, the landed-pause\
-  \ further\n  ship) is audited alone, as SPEC-0036 (a) no-relitigation requires.\
+  \ further\n  ship) is audited alone, as <workshop-spec> (a) no-relitigation requires.\
   \ The bound never narrows on\n  doubt — a prior custody sha that names no chain\
   \ row, or more than one, bounds nothing. **THE FORM\n  IS DECIDED ONCE, in `get_audit_post_span_diff`:**\
   \ an UNLANDED last member keeps the RANGE form\n  (`merge-base..custody`), which\
@@ -160,7 +160,6 @@ body: "## Scenario\n\nA park, a pause or a wont-do self-commit was recorded afte
   The executable form of VP1-VP3 is `tests/test_t13693_repin_reference_spec.py`.\n"
 cites:
 - SPEC-0015
-- SPEC-0036
 - SPEC-0013
 requires: []
 supersedes: null

@@ -218,8 +218,8 @@ body: "## Scenario\n\nThe owner periodically wants a SYSTEM-LEVEL read on the me
   \ namespace**; the run register is\na VIEW over `inspection_completed` events (§6).\
   \ It adds no cron / pipeline (§2 manual-first; Build+Review-\nonly stays CHARTER\
   \ §P6's rule, not restated). It does NOT change the audit-pre/post GATE semantics\n\
-  (LIFECYCLE / SPEC-0036) nor the GRAPH node/edge schema (GRAPH.md) — inspection stays\
-  \ inside its own lane:\nan observation feeding the existing sink. (These cross-cutting\
+  (LIFECYCLE / <workshop-spec>) nor the GRAPH node/edge schema (GRAPH.md) — inspection\
+  \ stays inside its own lane:\nan observation feeding the existing sink. (These cross-cutting\
   \ limits are sole-homed in CHARTER / GRAPH /\nLIFECYCLE; named here only as the\
   \ construct's boundary, not re-legislated — P5.)\n\n## Parameters\n\nNone consumed.\
   \ The fixed roster size, the severity tags, the `open HIGH?` binary, and the\n`inspection_completed`\

@@ -30,7 +30,7 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ copy (drift between them = a bug, fix here).\n\n```yaml\nid: # sequential\ntitle:\
   \ Add metric for X # one line, imperative\nclass: feature # feature | fix | refactor\
   \ | docs | infra | hygiene. Keys the stage-FSM /\n                             \
-  \  # Fast-Path eligibility (SPEC-0027). CHANGED ONLY via `task update --class`\n\
+  \  # Fast-Path eligibility (<workshop-spec>). CHANGED ONLY via `task update --class`\n\
   \                               # (governed, emits task_reclassified) — the hand-edit\
   \ is retired;\n                               # the field-edit mode refuses a `class`\
   \ change, routing to the verb.\npriority: medium # high | medium | low\nstatus:\
@@ -245,7 +245,7 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ the project-level base url/dialect live\n                               # on the\
   \ carrier (one SoT each, SPEC-0094 §4). Absent = no declaration (a\n           \
   \                    # non-deploying project's tasks never carry it). Additive +\
-  \ optional.\n\npost_ship_observation: # OPTIONAL deferred-proof declaration (SPEC-0036\
+  \ optional.\n\npost_ship_observation: # OPTIONAL deferred-proof declaration (<workshop-spec>\
   \ §POST-SHIP\n                               # OBSERVATION / X-0710) — the trust\
   \ anchor of the Stage-8 `audit post\n                               # --post-ship-observation`\
   \ carve-out, for an acceptance whose probe is a\n                              \
@@ -308,10 +308,10 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \        # requires it nor checks its content, no seam REFUSES a declaration for\
   \ omitting it, and no\n                               # exit code moves. `audit\
   \ post --post-ship-observation` prints a report-only reminder when\n           \
-  \                    # it is absent; the SPEC-0036 variant-(e) overlay names the\
-  \ evidence to the auditor when it\n                               # is present and\
-  \ states that its absence is an authoring prompt, NEVER a RED on its own. NO\n \
-  \                              # gate and NO predicate analyser was added (CHARTER\
+  \                    # it is absent; the <workshop-spec> variant-(e) overlay names\
+  \ the evidence to the auditor when it\n                               # is present\
+  \ and states that its absence is an authoring prompt, NEVER a RED on its own. NO\n\
+  \                               # gate and NO predicate analyser was added (CHARTER\
   \ non-goals #2/#7) — the reporter framed\n                               # the cheap\
   \ fix as a discipline and it stays one.\n\nanswers: # OPTIONAL SPEC-0197 rule-4\
   \ LINK-BACK — a YAML list of the outside\n                               # proposal\

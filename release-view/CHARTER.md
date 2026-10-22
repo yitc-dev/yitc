@@ -16,7 +16,7 @@ A minimal AI-assisted development methodology for **one developer (the owner)** 
 The non-goals list is critical anti-recurrence discipline. V1 accreted to 95 pre-commit gates / 60 hooks / 5 journals / 22 design principles / 508 spec artifacts precisely because it kept saying yes to "just one more mechanism". V2 says no by default.
 
 - **NOT** a multi-role pipeline framework (no PM/Architect/Developer/Tester/Critic split — see `LIFECYCLE.md`). The bounded orchestrate controller-selector (Principle 6) is **not** such a framework — it is the Controller selecting + dispatching independent tasks to ordinary full Worker sessions; the §6 named retirements still forbid a framework.
-- **NOT** a hook-laden enforcement platform (no pre-commit gate cascade; tests green = commit) — ONE named exception: the in-repository post-compaction entry (it runs the print-only brief only, bounded in time and output, and never blocks a compaction); any other hook still takes the four filters + owner approval
+- **NOT** a hook-laden enforcement platform (no pre-commit gate cascade; tests green = close) — ONE named exception: the in-repository post-compaction entry (it runs the print-only brief only, bounded in time and output, and never blocks a compaction); any other hook still takes the four filters + owner approval
 - **NOT** a multi-format documentation corpus (one handbook within the Principle 2 size budget — see Principle 2)
 - **NOT** a multi-storage system (one YAML format, one parser, one journal)
 - **NOT** a self-improving platform that consumes more development effort than it saves
@@ -158,9 +158,9 @@ Mirror to the Principle 2 Bootstrap exception for inaugural decisions.
 <!--AUDIENCE:core-->
 
 A project MAY declare, in its own operating contract, named **cases** whose matching cards close
-WITHOUT the Stage-8 audit-post — each with a mandatory reason recording who accepted the risk and
+WITHOUT the Stage-7 audit-post — each with a mandatory reason recording who accepted the risk and
 why. This authorises the policy at the principle level; the rules live in SPEC-0178 and the
-contract-level conditions in SPEC-0015 + SPEC-0036.
+contract-level conditions in SPEC-0015 + SPEC-1040.
 
 **Absent a declaration, every substantive task takes audit-post — the fail-closed default.** What a
 project is BORN with gains a ratified exception: it is **the state every project starts in, absent an

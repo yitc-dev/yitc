@@ -603,7 +603,7 @@ DISPATCH_CLASS_VOCAB = (
      "pause of ANY reason whose record LANDED (T-12916, SPEC-0133 rule 5d) — `--dispatch-status` "
      "re-reads the landed branch\'s TERMINAL(done) against the card on main. The route is "
      "REASON-SPECIFIC, never a blanket resume: `--resume` serves controller-wait ONLY; "
-     "`audit-ceiling` = one `audit decide` per residual fingerprint (SPEC-0204), then the ordinary "
+     "`audit-ceiling` = one `audit decide` per residual fingerprint (SPEC-1039), then the ordinary "
      "`dispatch --task` relaunch; `artifact-wait` = no decision is pending, relaunch the same way "
      "once the artifact its card declares (`paused_awaits`) has arrived; any other reason "
      "(owner-wait, …) = resolve the decision it names, "
@@ -948,6 +948,16 @@ CAPTURE_CONTENT_KEYS = (
     "fix", "suggested_fix", "remedy", "resolution", "next", "action",
     "evidence", "scope", "expected", "actual",
 )
+
+
+# T-14032 — the capture event's TYPE vocabulary, beside its content vocabulary above: every capture
+# reader selects rows by one of these two sets, never by a literal of its own. The rule they carry is
+# SPEC-0025's (the legacy name is read-only: readers count BOTH, new captures write the current name).
+# CAPTURE_EVENT_TYPES — every capture type, the D-0086 legacy name included: what a COUNTING reader
+# (recurrence, fingerprint dedupe, outcome ratio, the start hand-down) takes.
+# ROUTABLE_CAPTURE_TYPES — the subset triage ROUTES: a legacy row feeds the counts, never the window.
+CAPTURE_EVENT_TYPES = ("deviation_captured", "friction_captured")
+ROUTABLE_CAPTURE_TYPES = ("deviation_captured",)
 
 
 def _capture_content_values(data: object) -> list:
@@ -8721,7 +8731,7 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
             # T-13980 (X-2023) — the audit-pre order is the ONE phrase the decide refusal names too.
             from lib import audit_ceiling   # noqa: PLC0415 — lazy, like the audit import above
             return (f"paused at the audit-loop ceiling — record one `bin/yitc-v2 audit decide` per residual "
-                    f"fingerprint (SPEC-0204), then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
+                    f"fingerprint (SPEC-1039), then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
                     f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions`); "
                     f"at audit-pre: {audit_ceiling.ceiling_pre_decide_order(t)}")
         if detail == "artifact-wait":

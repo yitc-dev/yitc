@@ -303,57 +303,61 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ ran FEWER tests than\n  land will is exactly the false-green the verb exists to\
   \ prevent. The claim is\n  therefore SAME SELECTOR, SAME INPUTS-AS-SUPPLIED, never\
   \ byte-identity with a land reading two\n  channels Stage 6 structurally cannot.\n\
-  \n  THE STAGE-6 RUN NAMES ITS OWN SCOPE, AND SO DOES ITS EVIDENCE. The run prints\n\
-  \  `selection: affected (n of N)` / `selection: full (fail-closed) — <reason>` /\n\
-  \  `selection: full (--full)` plus the omitted-and-recovered set, and the `tests_passed`\
-  \ payload\n  records the mode + counts. `--run --full` is the explicit full-suite\
-  \ escape and is REPORTED as\n  an escape, never as a fail-closed fallback: a reader\
-  \ who cannot tell a deliberate whole-suite\n  pass from a selector that gave up\
-  \ cannot act on either. The three invariants this extension\n  preserves — fail-closed-to-full\
-  \ selection, omitted-test recovery + capture, and the attribution\n  of remaining\
-  \ not-in-diff failures — are preserved BY CALLING the same entry point rather than\
-  \ by\n  a matching re-implementation, which is the only way they cannot drift.\n\
-  \n  THE GOVERNED POPULATION IS WHAT THE LADDER ALREADY EARNS. No second narrowing\
-  \ rule is added:\n  governing acts exactly when the ladder returns an earned omission\
-  \ (`reason is None`), which R1\n  already withholds from any `bin/**` or shared-test-infra\
-  \ touch. So the activated class is every\n  land not touching the verifier's own\
-  \ surface — roughly half of lands — and it is NOT narrowed\n  further to a safer-looking\
-  \ subset, because evidence about a subset would be evidence about the\n  subset\
-  \ rather than about the mechanism.\n\n  THE DIFFERENTIAL TRIPWIRE SHIPS WITH THE\
-  \ ACTIVATION, NOT AFTER IT. A land whose selector omits a\n  test the full suite\
-  \ would have failed on must ITSELF FAIL. Before anything is dropped, an\n  INDEPENDENT\
-  \ oracle (`_selection_omission_tripwire`) asks a FINER question than the selector\
-  \ did:\n  the selector maps a changed path to its FIRST SEGMENT and thence to tests,\
-  \ while the oracle asks\n  whether an OMITTED test's source literally NAMES this\
-  \ diff's changed path. Different granularity\n  by a different method, so it can\
-  \ disagree — which is the only reason to have it. What it finds is\n  ADDED BACK\
-  \ to the executed set, so a defect reachable only through an omitted test is REACHED\
-  \ and\n  fails the land through the ordinary verdict path. It can only ever ADD\
-  \ tests: it can never\n  license an omission, and when the map is right it finds\
-  \ nothing and costs nothing. A firing is a\n  coverage-map DEFECT and is recorded\
-  \ as one — a durable `deviation_captured`\n  (`selection-omitted-a-test-naming-a-changed-path`)\
-  \ plus `selection_tripwire_recovered` on the run.\n\n  THE ORACLE IS ASKED ONLY\
-  \ ABOUT CHANGED PATHS THAT COULD CHANGE AN OUTCOME. The paths\n  the oracle looks\
-  \ for are the diff's OBSERVABLE ones: a changed path the SPEC-0064 inert authority\n\
-  \  classifies INERT is EXCLUDED from the needle set, contributing neither its full\
-  \ path nor its\n  basename. The reason is that SPEC-0064 answers THIS ORACLE'S OWN\
-  \ QUESTION for such a path, and\n  answers it with a proof — an inert path is one\
-  \ a change confined to it cannot alter the outcome\n  of land's verification, which\
-  \ is why a wholly-inert diff is already licensed to skip\n  re-verification entirely.\
-  \ Recovering a test because its source mentions such a path recovers on a\n  needle\
-  \ that carries no signal, and it contradicts a contract the same land relies on\
-  \ elsewhere.\n\n  THIS NARROWS THE ORACLE'S INPUT, NEVER ITS PREDICATE. Over an\
-  \ OBSERVABLE path the oracle stays\n  exactly as coarse as it was — a raw-source\
-  \ mention, prose included, still recovers a test —\n  because that coarseness is\
-  \ its fail-safe. The exclusion is CONSUMED from the one inert authority\n  and never\
-  \ re-encoded (SPEC-0064 §4), and it defaults to EMPTY, so a caller that cannot establish\n\
-  \  the classification recovers MORE. It therefore adds no exposure the inert allowlist\
-  \ does not\n  already carry: it can skip a genuinely affected test only if that\
-  \ allowlist is wrong, and in that\n  case the far larger whole-diff re-verify skip\
-  \ is already open.\n\n  A RULED MENTION PAIR IS NOT RECOVERED. A (changed path,\
-  \ test) pair the\n  read-vs-mention classification ruled MENTION has no map edge\
-  \ BY RULING, so a needle hit on it\n  re-asks a settled question. The ruled pairs\
-  \ live in ONE carrier the oracle consumes\n  (`_SELECTION_TRIPWIRE_KEEP_OUT_PAIRS`,\
+  \n  The own-tests check of a card on the post-audit Tests order (SPEC-1038 §Execution)\
+  \ is NOT this\n  seam: it runs only the test files the diff adds or changes, its\
+  \ row is never runner-marked as the\n  governed run, and it never satisfies \"the\
+  \ governed run covers at least the land's set\". The\n  governed run at the Tests\
+  \ stage is this seam, unchanged.\n\n  THE STAGE-6 RUN NAMES ITS OWN SCOPE, AND SO\
+  \ DOES ITS EVIDENCE. The run prints\n  `selection: affected (n of N)` / `selection:\
+  \ full (fail-closed) — <reason>` /\n  `selection: full (--full)` plus the omitted-and-recovered\
+  \ set, and the `tests_passed` payload\n  records the mode + counts. `--run --full`\
+  \ is the explicit full-suite escape and is REPORTED as\n  an escape, never as a\
+  \ fail-closed fallback: a reader who cannot tell a deliberate whole-suite\n  pass\
+  \ from a selector that gave up cannot act on either. The three invariants this extension\n\
+  \  preserves — fail-closed-to-full selection, omitted-test recovery + capture, and\
+  \ the attribution\n  of remaining not-in-diff failures — are preserved BY CALLING\
+  \ the same entry point rather than by\n  a matching re-implementation, which is\
+  \ the only way they cannot drift.\n\n  THE GOVERNED POPULATION IS WHAT THE LADDER\
+  \ ALREADY EARNS. No second narrowing rule is added:\n  governing acts exactly when\
+  \ the ladder returns an earned omission (`reason is None`), which R1\n  already\
+  \ withholds from any `bin/**` or shared-test-infra touch. So the activated class\
+  \ is every\n  land not touching the verifier's own surface — roughly half of lands\
+  \ — and it is NOT narrowed\n  further to a safer-looking subset, because evidence\
+  \ about a subset would be evidence about the\n  subset rather than about the mechanism.\n\
+  \n  THE DIFFERENTIAL TRIPWIRE SHIPS WITH THE ACTIVATION, NOT AFTER IT. A land whose\
+  \ selector omits a\n  test the full suite would have failed on must ITSELF FAIL.\
+  \ Before anything is dropped, an\n  INDEPENDENT oracle (`_selection_omission_tripwire`)\
+  \ asks a FINER question than the selector did:\n  the selector maps a changed path\
+  \ to its FIRST SEGMENT and thence to tests, while the oracle asks\n  whether an\
+  \ OMITTED test's source literally NAMES this diff's changed path. Different granularity\n\
+  \  by a different method, so it can disagree — which is the only reason to have\
+  \ it. What it finds is\n  ADDED BACK to the executed set, so a defect reachable\
+  \ only through an omitted test is REACHED and\n  fails the land through the ordinary\
+  \ verdict path. It can only ever ADD tests: it can never\n  license an omission,\
+  \ and when the map is right it finds nothing and costs nothing. A firing is a\n\
+  \  coverage-map DEFECT and is recorded as one — a durable `deviation_captured`\n\
+  \  (`selection-omitted-a-test-naming-a-changed-path`) plus `selection_tripwire_recovered`\
+  \ on the run.\n\n  THE ORACLE IS ASKED ONLY ABOUT CHANGED PATHS THAT COULD CHANGE\
+  \ AN OUTCOME. The paths\n  the oracle looks for are the diff's OBSERVABLE ones:\
+  \ a changed path the SPEC-0064 inert authority\n  classifies INERT is EXCLUDED from\
+  \ the needle set, contributing neither its full path nor its\n  basename. The reason\
+  \ is that SPEC-0064 answers THIS ORACLE'S OWN QUESTION for such a path, and\n  answers\
+  \ it with a proof — an inert path is one a change confined to it cannot alter the\
+  \ outcome\n  of land's verification, which is why a wholly-inert diff is already\
+  \ licensed to skip\n  re-verification entirely. Recovering a test because its source\
+  \ mentions such a path recovers on a\n  needle that carries no signal, and it contradicts\
+  \ a contract the same land relies on elsewhere.\n\n  THIS NARROWS THE ORACLE'S INPUT,\
+  \ NEVER ITS PREDICATE. Over an OBSERVABLE path the oracle stays\n  exactly as coarse\
+  \ as it was — a raw-source mention, prose included, still recovers a test —\n  because\
+  \ that coarseness is its fail-safe. The exclusion is CONSUMED from the one inert\
+  \ authority\n  and never re-encoded (SPEC-0064 §4), and it defaults to EMPTY, so\
+  \ a caller that cannot establish\n  the classification recovers MORE. It therefore\
+  \ adds no exposure the inert allowlist does not\n  already carry: it can skip a\
+  \ genuinely affected test only if that allowlist is wrong, and in that\n  case the\
+  \ far larger whole-diff re-verify skip is already open.\n\n  A RULED MENTION PAIR\
+  \ IS NOT RECOVERED. A (changed path, test) pair the\n  read-vs-mention classification\
+  \ ruled MENTION has no map edge BY RULING, so a needle hit on it\n  re-asks a settled\
+  \ question. The ruled pairs live in ONE carrier the oracle consumes\n  (`_SELECTION_TRIPWIRE_KEEP_OUT_PAIRS`,\
   \ which the replay also reads). The exclusion is\n  PAIR-level, never path-level:\
   \ the pair's path still recovers every other test, and a test whose\n  source also\
   \ names an observable changed path is still recovered, reporting only that path.\

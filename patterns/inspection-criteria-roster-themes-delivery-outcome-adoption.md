@@ -51,7 +51,7 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   OUT-OF-BAND delivery surface**: an obligation delivered ONLY in the dispatched-Worker launch
   preamble (`bin/lib/dispatch.py`) and on NO re-readable surface — a Worker's post-`/compact`
   restoration IS its seed chain, so a preamble-only rule is simply GONE (measured 2026-09:
-  SPEC-0191's block-classification ladder, <workshop-spec>'s over-cap held-turn land exit, SPEC-0204's
+  SPEC-0191's block-classification ladder, <workshop-spec>'s over-cap held-turn land exit, <workshop-spec>'s
   ceiling halt VERB) — and the seed's own **citation currency** (every `SPEC-NNNN` the always-loaded
   seed cites resolving `active`, or framed as history).
 - **Probes:** **DIFF each instruction against the LIVE canon + implementation — «I read it» is NOT a
@@ -287,8 +287,8 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   pattern-mining** — FULL walk of all passes≥3 + RED cases clustered by root-cause (which finding-classes
   force a 2nd pass; pre↔post asymmetry) — root = the journal `findings[]` where carried (from
   2026-09-08), else the saved YAML `passes_trail` finding_class, coverage reconciled to the group count;
-  ceiling-escalation discipline — every pass past the ceiling carries a SPEC-0204 `ceiling_decision` row,
-  a `trend_ceiling_grant`, or an EMPTY residual set (a GREEN ceiling row — SPEC-0204), journal
+  ceiling-escalation discipline — every pass past the ceiling carries a <workshop-spec> `ceiling_decision` row,
+  a `trend_ceiling_grant`, or an EMPTY residual set (a GREEN ceiling row — <workshop-spec>), journal
   row AND saved YAML read together (`owner_reset` / consult carriers are pre-2026-09-10 legacy reads);
   the RED-drill SPLITS observation/adhoc audits from task-gate REDs (the conveyor split);
   rung-distribution reads `bg_dispatch_halted.block_classification` over ALL blocked-on-land halts as its

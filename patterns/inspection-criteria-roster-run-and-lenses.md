@@ -531,7 +531,7 @@ last 30 days).
 ## Drain obligation — homed elsewhere (pointer only, P5)
 
 The drain-at-realize RULE (when/what must drain into this home before a plan reaches `realized`) lives
-SINGLE-HOME in **SPEC-0034 §realized**; the finalization auditor check lives in **SPEC-0036
+SINGLE-HOME in **SPEC-0034 §realized**; the finalization auditor check lives in **SPEC-1040
 `PLAN_FINALIZATION_LENS`**. This pattern is only the destination HOME — it does NOT restate the
 obligation (P5 one-home, <workshop-spec> rule 8).
 

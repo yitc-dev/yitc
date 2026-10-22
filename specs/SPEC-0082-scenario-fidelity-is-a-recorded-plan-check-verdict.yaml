@@ -120,7 +120,7 @@ body: "## Scenario\n\nWhen a plan that declares scenario inputs is `plan check`'
   \ dimension; the `_plan_accept_freshness_hash` inputs gain the\n  `baseline` slice\
   \ of `scenario_roles` + each baseline scenario's `cites`/`covers`/status — the `target`\n\
   \  list is NOT a freshness input); SPEC-0043 plan-draft template (AMENDED to seed\
-  \ the `scenario_roles`\n  field — the authoring surface); SPEC-0036\n  §Plan-stage\
+  \ the `scenario_roles`\n  field — the authoring surface); <workshop-spec>\n  §Plan-stage\
   \ overlays (the single home for the plan-gate QUESTION\n  TEMPLATES — the accept/decomposition\
   \ template MAY gain an ADVISORY pointer-cue to SPEC-0076 §5/§6: a\n  reference only,\
   \ never a copied rule-text, and explicitly non-recorded / non-freshness-bearing\
@@ -173,7 +173,6 @@ body: "## Scenario\n\nWhen a plan that declares scenario inputs is `plan check`'
 cites:
 - CHARTER.md#principle-1
 - SPEC-0034
-- SPEC-0036
 - SPEC-0043
 - SPEC-0076
 - SPEC-0070

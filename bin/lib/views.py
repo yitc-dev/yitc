@@ -630,7 +630,7 @@ def _view_postcheck_plans_readiness(index: dict, *, AUDIT_VERDICT_CLOSURE_OK=Non
     # captures_routed is plan-independent (the GLOBAL since-watermark backlog) — compute ONCE.
     prior = _last_triage_watermark(EVENTS_PATH)
     unrouted = [c for c in _scan_captures(EVENTS_PATH)
-                if c["type"] == "deviation_captured" and (prior is None or c["ts"] > prior)]
+                if c["type"] in journal_mod.ROUTABLE_CAPTURE_TYPES and (prior is None or c["ts"] > prior)]
     captures_routed = not unrouted
 
     out: dict = {}
@@ -1297,10 +1297,11 @@ def _view_trend_report(index: dict, since=None, until=None, *, EVENTS_PATH=None,
     for (t, dt, _d, tid) in win:
         if t == "commit_landed" and tid and tid in closed_ts and dt is not None and dt > closed_ts[tid]:
             post_close += 1
-    # deviation recurrence: deviation_captured grouped by fingerprint, N>=2 (window-scoped)
+    # deviation recurrence: every capture row (BOTH names, legacy friction_captured included —
+    # a COUNTING reader, SPEC-0025) grouped by fingerprint, N>=2 (window-scoped)
     fp_counts: dict = {}
     for (t, _dt2, d, _tid) in win:
-        if t == "deviation_captured":
+        if t in journal_mod.CAPTURE_EVENT_TYPES:
             fp = d.get("fingerprint")
             if fp:
                 fp_counts[fp] = fp_counts.get(fp, 0) + 1
@@ -2392,7 +2393,7 @@ def _view_triage_state(events_path: "Path", *, _last_triage_watermark=None, _sca
     unrouted: list = []
     boundary_tie: list = []
     for c in _scan_captures(events_path):
-        if c["type"] != "deviation_captured":   # legacy friction_captured is not a routing subject
+        if c["type"] not in journal_mod.ROUTABLE_CAPTURE_TYPES:   # legacy friction_captured is not a routing subject
             continue
         ts = c["ts"]
         if _triage._is_dispositioned(c, keys):
@@ -2491,7 +2492,7 @@ def _view_journal_hygiene(events_path: "Path", *, _last_triage_watermark=None, _
     unrouted = routed = boundary_tie = 0
     kind_absent = 0
     for c in _scan_captures(events_path):
-        if c["type"] != "deviation_captured":   # legacy friction_captured feeds recurrence, not routing
+        if c["type"] not in journal_mod.ROUTABLE_CAPTURE_TYPES:   # legacy friction_captured feeds recurrence, not routing
             continue
         if c.get("kind") is None:
             kind_absent += 1
@@ -2828,9 +2829,6 @@ def _view_discipline_ratio(events_path: "Path", since=None, until=None, *,
 _OUTCOME_AUDIT_GATES = {"pre": "audit_pre_completed", "post": "audit_post_completed"}
 # The canonical audit verdicts (SPEC-0036). A verdict outside this set is surfaced, never dropped.
 _OUTCOME_VERDICTS = ("GREEN", "YELLOW", "RED", "ABORT")
-# The deviation-capture event + its retired legacy name (D-0086 renamed friction_captured →
-# deviation_captured; the historical rows keep the old type, so BOTH count or the metric under-reports).
-_OUTCOME_DEVIATION_TYPES = ("deviation_captured", "friction_captured")
 
 def _normalize_audit_verdict(data: dict) -> "str | None":
     """An audit event's verdict, normalized (T-10361).
@@ -2900,7 +2898,7 @@ def _view_outcome_ratio(events_path: "Path", since=None, until=None, *,
             continue
         if t == "task_closed":
             closes += 1
-        elif t in _OUTCOME_DEVIATION_TYPES:
+        elif t in journal_mod.CAPTURE_EVENT_TYPES:   # BOTH names, or the metric under-reports (SPEC-0025)
             deviations += 1
         elif t in event_to_gate:
             gate = event_to_gate[t]

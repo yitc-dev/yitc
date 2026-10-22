@@ -184,9 +184,9 @@ body: "## Internal\n\n`events.jsonl` is the single append-only governance journa
   \ and a pointer — NOT a supersession: this spec spans the\nenvelope, provenance,\
   \ the per-line size cap and ordering, none of which the re-home touches,\nso superseding\
   \ it to relocate one surface would be the wrong instrument (the same\nstable-surface\
-  \ split <workshop-spec> took out of SPEC-0036). Nothing else in this spec moved.\n\
-  \n**What stays HERE and is referenced from the new home: §Violations below** — it\
-  \ still forbids\na second event-log file alongside events.jsonl and any in-place\
+  \ split <workshop-spec> took out of <workshop-spec>). Nothing else in this spec\
+  \ moved.\n\n**What stays HERE and is referenced from the new home: §Violations below**\
+  \ — it still forbids\na second event-log file alongside events.jsonl and any in-place\
   \ rewrite of it (CHARTER\n§Principle 5, one journal), and so still reserves PHYSICAL\
   \ rotation to explicit owner\napproval. SPEC-0190 §Rotation policy cites it rather\
   \ than restating it, so the prohibition has\none home too.\n\n### Orphan-tail recovery\n\

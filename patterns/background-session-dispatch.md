@@ -105,7 +105,7 @@ Controller used to retype into every brief is **DERIVED at launch from durable s
 the card (title, class, tier, `requires`/`cites`, scope, and its **acceptance VERBATIM**); every
 `owner_directive` journal row covering that card, its plan (`decomposed_from`) or the `all` wildcard,
 rendered **VERBATIM with its `events.jsonl#ts=` locator** (coverage through the same token-exact
-SPEC-0204 rule 2 predicate `audit._directive_covers_task`, never a substring match); one «as shipped»
+<workshop-spec> rule 2 predicate `audit._directive_covers_task`, never a substring match); one «as shipped»
 block per `requires` id the journal records as closed (title + closing commit + its P8 probe results);
 the **stop/land contract**, which renders from the ONE template `dispatch.DISPATCH_STOP_LAND_CONTRACT`
 — itself `_build_sync_to_land_rule(controller_lands=True)`, the SAME single source `SYNC_TO_LAND_RULE`
@@ -404,7 +404,7 @@ coupled guarantees, both in `bin/yitc-v2` code (CHARTER §P4b — concrete carri
 worker MUST: **(a) CLAIM via `bin/yitc-v2 worktree new --task T-XXXX`** (the worktree creation IS the
 claim option B) and **NEVER `task pick`** (a READ-ONLY inspector that does NOT claim — the
  trap); **(b) WORKTREE-BEFORE-WRITE** every source/artifact edit (only journal `event` appends
-are no-worktree); **(c)** run the external **`audit pre` (Stage 4) + `audit post` (Stage 8)** —
+are no-worktree); **(c)** run the external **`audit pre` (Stage 4) + `audit post` (Stage 7)** —
 not skipped because the change "looks correct"; **(d)** integrate via a **REAL `bin/yitc-v2 land`** to
 the `LAND: OK` token, **never hand-emit a `land_completed`** event to fake completion (the verb owns
 that emit). This is the SAME standing claim/worktree/land rule the interactive flow follows (AGENTS
@@ -646,7 +646,7 @@ launches detached and then *yields* has not applied this recipe — it has commi
 section exists to prevent. Nor is this a licence to force a blocked step through: the **SPEC-0103**
 scope boundary is untouched — a block from an out-of-scope or environmental cause still STOPs and
 escalates (`blocked-on-land <task> <reason>`), and no gate/test/guard is ever weakened to make a long
-command pass. **The audit-loop CEILING is the one block with a DIFFERENT named verb (SPEC-0204
+command pass. **The audit-loop CEILING is the one block with a DIFFERENT named verb (SPEC-1039
 rule 6):** the halt row is emitted by `audit pre|post` itself, and the worker halts with
 `task pause --reason audit-ceiling` (inside the worktree — work-carrying shape, worktree INTACT, SPEC-0103
 §5). `blocked-on-land` REFUSES in the pre-commit window (a Stage-4 ceiling precedes every commit route, so

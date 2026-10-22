@@ -11,17 +11,17 @@ implements:
 body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial → accepted\
   \ → decomposition → executing →\npostcheck → realized), the transition verb (`plan\
   \ stage <NEXT>`) asks the external auditor a\nper-gate question template (homed\
-  \ in THIS spec §Plan-stage question templates — re-homed from\nSPEC-0036). This\
-  \ spec answers the\nORTHOGONAL question for each gate: does a bad verdict (RED/ABORT)\
+  \ in THIS spec §Plan-stage question templates — re-homed from\n<workshop-spec>).\
+  \ This spec answers the\nORTHOGONAL question for each gate: does a bad verdict (RED/ABORT)\
   \ HOLD the transition, or is the\nverdict merely recorded while the transition proceeds?\
   \ The owner sees ONE table: which plan\ntransitions are mandatory-blocking gates\
   \ and which are advisory.\n\n## Internal\n\nTHE PLAN-STAGE GATE POLICY. Re-homed\
-  \ from SPEC-0036 §Plan-stage overlays ( stable-surface\nsplit, <workshop-spec> §7)\
-  \ so the policy table has ONE home (P5). The per-gate QUESTION TEMPLATES (a\ndifferent\
-  \ concern — WHAT is asked, not WHETHER it blocks) followed it here in (§Plan-stage\n\
-  question templates below); SPEC-0036 keeps a pointer.\n\n**Gate policy (one contract-line\
-  \ per gate):**\n| Gate | Policy | Effect on transition |\n|---|---|---|\n| draft\
-  \ shaping (P1) | ON-DEMAND | owner-invoked `plan check`; advisory |\n| draft→specs\
+  \ from <workshop-spec> §Plan-stage overlays ( stable-surface\nsplit, <workshop-spec>\
+  \ §7) so the policy table has ONE home (P5). The per-gate QUESTION TEMPLATES (a\n\
+  different concern — WHAT is asked, not WHETHER it blocks) followed it here in (§Plan-stage\n\
+  question templates below); <workshop-spec> keeps a pointer.\n\n**Gate policy (one\
+  \ contract-line per gate):**\n| Gate | Policy | Effect on transition |\n|---|---|---|\n\
+  | draft shaping (P1) | ON-DEMAND | owner-invoked `plan check`; advisory |\n| draft→specs\
   \ (P2) | MANDATORY-BLOCKING | `plan stage specs` asks `gate-specs`; RED/ABORT HOLDS\
   \ the transition (status unchanged); the 2-pass audit-loop ceiling applies (ABORT\
   \ burns no pass) |\n| specs→trial (P3) | MANDATORY-BLOCKING (trial-eligible plans)\
@@ -45,7 +45,7 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ in `cmd_plan_stage` (bin/yitc-v2). A\nMANDATORY-BLOCKING gate `_die`s on a RED/ABORT\
   \ verdict (transition held, status unchanged) and\nenforces the 2-pass audit-loop\
   \ ceiling (<workshop-spec> §Audit-loop ceiling); an ABORT burns no pass.\nWhat happens\
-  \ AT that ceiling is homed in SPEC-0204 rule 9 (the plan-gate arm): the Controller\
+  \ AT that ceiling is homed in SPEC-1039 rule 9 (the plan-gate arm): the Controller\
   \ records\none typed decision per residual and ONE bounded pass then rides the FSM\
   \ advance this gate blocks. The\nconsult-governed continuation this policy previously\
   \ pointed at is retired there (rule 6).\nAn ADVISORY gate records the verdict and\
@@ -89,7 +89,7 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   plan, its draft specs, its cut or its evidence as they now stand, or by a conclusion\
   \ or run-ref\nthe gate relies on that it cannot re-establish. Every correction still\
   \ gets its line and its\nclassification.\n\n### Plan-stage question templates (re-homed\
-  \ VERBATIM from SPEC-0036 §Plan-stage overlays)\n\n**Selection carrier (deterministic\
+  \ VERBATIM from <workshop-spec> §Plan-stage overlays)\n\n**Selection carrier (deterministic\
   \ — the VERB invocation, never bare `status`):**\n- **ad-hoc check** (`plan check\
   \ <slug>` [+`--focus`]) → the ONE shaping template that exists:\n  `draft` → P1\
   \ below. Ad-hoc shaping is DRAFT-ONLY; at `specs`+ the checks ride the gate\n  templates\
@@ -320,7 +320,7 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ its own home (<workshop-spec>) — not\nduplicated here.\n\n## Rationale\n\nPrior-art:\
   \ <workshop-spec> carved a stable surface out of SPEC-0055 (`supersedes: ~`, parent\
   \ lives on)\n— the same carve shape used here. The P2-P5 gate infrastructure already\
-  \ existed; the\npolicy table was a sub-surface of the large multi-concern SPEC-0036.\
+  \ existed; the\npolicy table was a sub-surface of the large multi-concern <workshop-spec>.\
   \ Splitting the policy into\nits own spec lets the normative P2 reshape (advisory→blocking)\
   \ route cleanly through the spec FSM\n(<workshop-spec> §7) without a normative in-place\
   \ edit of an active spec, and gives the gate policy one\nlegible home (P5). Real\
@@ -338,7 +338,7 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \n- VP1 (P2 blocks): `plan stage specs <slug>` with a RED/ABORT `gate-specs` verdict\
   \ REFUSES\n  (non-zero, no status write). Probe: tests/test_plan_stage.py RED-GREEN.\n\
   - VP2 (one home, P5): the gate-policy table AND the P1-P5 question templates live\
-  \ ONLY here;\n  SPEC-0036 carries a POINTER, not the table. Probe: `_plan_gate_template_text`\
+  \ ONLY here;\n  <workshop-spec> carries a POINTER, not the table. Probe: `_plan_gate_template_text`\
   \ resolves every\n  PLAN_GATE_TEMPLATE_ANCHORS key from this spec (tests/test_t0349_plan_gate_templates.py).\n\
   - VP3 (code link): `graph build` resolves `implements: bin/lib/plan.py#cmd_plan_stage`\
   \ (non-dangling\n  without a binding).\n- VP4 (activation): this spec resolves to\
@@ -355,7 +355,6 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ a disagreement with a\n  label alone as a note that holds no gate, and still holds\
   \ the gate on what the re-examination\n  finds or cannot re-establish. Probe: tests/test_t13859_correction_label_report_only.py.\n"
 cites:
-- SPEC-0036
 - SPEC-0034
 - SPEC-0070
 - SPEC-0035

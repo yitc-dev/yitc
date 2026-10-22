@@ -53,7 +53,7 @@ HELP_INVENTORY_NODE_ID = "cli:help"
 SEED_READ_NODE_ID = "cli:seed"   # T-10081 — the audience-seed read receipt sentinel (SPEC-0042/0050 seed floor); emitted by `session start` after it delivers the audience seed.
 
 
-# T-11551 — the STAGE POINTER model (the pointer axis of SPEC-0027 §Stage FSM per class).
+# T-11551 — the STAGE POINTER model (the pointer axis of SPEC-1038 §Stage FSM per class).
 #
 # WHY THIS EXISTS. `_stage_correspondence_status` below is a POINT check: proceed iff `current_stage`
 # is already the verb's stage. Since T-0288 the ONLY writer of `current_stage` is the explicit `stage
@@ -65,10 +65,13 @@ SEED_READ_NODE_ID = "cli:seed"   # T-10081 — the audience-seed read receipt se
 # WHAT CHANGES — the POINTER, never the CONTRACT. Which stage delivers what, what each stage gates,
 # and every readiness precondition are UNTOUCHED; `stage <NAME>` remains the explicit stage-ENTRY verb
 # and the SOLE deliverer of a stage BUNDLE. What this adds is that the pointer ALSO moves along the
-# per-class row when the verb sequence itself implies the move. Three admitted moves, one refusal:
+# per-class row when the verb sequence itself implies the move. Five admitted moves, one refusal:
 #   explicit — current == expected                                  -> proceed (T-0288, unchanged)
 #   advance  — expected is the SUCCESSOR of current in this row     -> record the move, then proceed
 #   absorb   — current is an AUDIT stage and expected is EARLIER    -> record the move, then proceed
+#   return   — Tests -> Commit, the newest governed run is red and
+#              recorded after the last `commit_landed` (T-14037)   -> record the move, then proceed
+#   exempt   — Commit -> Tests on a declared SPEC-0178 case (T-14037) -> record the move, then proceed
 #   (none)   — anything else                                        -> the EXISTING refusal, verbatim
 # The refusal is reached by the SAME `_require_stage_correspondence` call as before, so an OUT-OF-ORDER
 # sequence (a forward SKIP, a backward move from a non-audit stage, or an absent / numeric-legacy /
@@ -82,35 +85,140 @@ SEED_READ_NODE_ID = "cli:seed"   # T-10081 — the audience-seed read receipt se
 # other stage still refuses (fail-closed; this is a guard, not a free pointer).
 #
 # NOT an FSM engine (CHARTER non-goal #7): no new field, status, event type, verb or state machine —
-# the successor relation is a READ of the ordered row SPEC-0027 already publishes, and the write goes
+# the successor relation is a READ of the ordered row SPEC-1038 publishes, and the write goes
 # through the SAME `_write_task_transition` the `stage` verb uses.
 #
-# The rows are transcribed from SPEC-0027 §Stage FSM per class. FILING is deliberately absent: no
+# The rows are transcribed from SPEC-1038 §Stage FSM per class: the governed test run (Tests) comes
+# AFTER audit-post, so a RED audit-post is answered by a fix commit and a re-audit with no full run in
+# between (T-14037). FILING is deliberately absent: no
 # work-verb declares it as an expected stage (`cmd_task_file` runs no correspondence check — the card
 # does not exist yet), and LIFECYCLE §Stage 2 sends an already-filed card straight to Stage 3, so
 # including it would make the ordinary Analysis->Plan move read as a SKIP.
 LIFECYCLE_STAGE_POINTER_FSM = {
-    "standard": ("Analysis", "Plan", "Audit-pre", "Execution", "Tests", "Commit", "Audit-post", "Closure"),
-    "hygiene":  ("Analysis", "Execution", "Tests", "Commit", "Closure"),
+    "standard": ("Analysis", "Plan", "Audit-pre", "Execution", "Commit", "Audit-post", "Tests", "Closure"),
+    "hygiene":  ("Analysis", "Execution", "Commit", "Tests", "Closure"),
 }
 ABSORPTION_RETURN_STAGES = ("Audit-pre", "Audit-post")   # the two seams a sanctioned return departs FROM
 
 
+# T-14037 (SPEC-1038 §Tests) — the journal FACTS the `return` move, the Closure-time coverage check and
+# the A6 ceiling-row fact read. Each is a PURE fold over one card's rows in the journal's OWN order, as
+# the segment-aware reader returns them (SPEC-0190): "after" and "newest" are positions in that list,
+# never a comparison of second-resolution `ts` values (SPEC-1038 «Order of journal rows»). The callers
+# own the read; nothing here opens the journal or runs git.
+def governed_run_verdict(ev) -> "str | None":
+    """'green' / 'red' for a RUNNER-MARKED governed Tests-stage verdict row, else None.
+
+    A green row counts only when it carries the runner's tree mark `stage6_run` — the key no route but
+    the runner may write (`event --data` refuses it), so a hand-recorded `tests_passed` is never a
+    green governed run. A red row counts on that mark OR `leg: candidate`, which every `task test
+    --run` red row carries (a bare `--run` records no tree): a forged red row can only refuse.
+    An own-tests row (`own_tests_ran`) is another type and never counts."""
+    if not isinstance(ev, dict):
+        return None
+    d = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+    if ev.get("type") == "tests_passed" and d.get("stage6_run"):
+        return "green"
+    if ev.get("type") == "tests_failed" and (d.get("stage6_run") or d.get("leg") == "candidate"):
+        return "red"
+    return None
+
+
+def red_run_after_last_commit(rows) -> bool:
+    """The `return` move's fact: the card's NEWEST governed verdict row is red and is recorded after
+    its last `commit_landed`. False with no commit, no governed run, or a green newest run."""
+    last_commit = newest = None
+    for i, ev in enumerate(rows or ()):
+        if not isinstance(ev, dict):
+            continue
+        if ev.get("type") == "commit_landed":
+            last_commit = i
+        v = governed_run_verdict(ev)
+        if v:
+            newest = (v, i)
+    return bool(newest and newest[0] == "red" and last_commit is not None and newest[1] > last_commit)
+
+
+def run_since_newest_audit_post(rows) -> bool:
+    """The A6 ceiling-row fact (SPEC-1039 §4): ANY governed run, green or red, recorded after the
+    card's NEWEST `audit_post_completed`. False with no audit-post row."""
+    rows = [ev for ev in (rows or ()) if isinstance(ev, dict)]
+    last = max((i for i, ev in enumerate(rows) if ev.get("type") == "audit_post_completed"), default=None)
+    return last is not None and any(governed_run_verdict(ev) for ev in rows[last + 1:])
+
+
+def closure_coverage_gap(rows, is_substantive) -> "str | None":
+    """The Closure-time coverage fact (SPEC-1038 §Tests): is the newest governed run recorded after
+    the card's LAST SUBSTANTIVE COMMIT green? `rows` are the card's `commit_landed` and Tests verdict
+    rows in journal order; `is_substantive(sha)` says whether that commit changes a path outside the
+    inert bookkeeping paths (the caller's git read, failing toward True). None = covered, or no
+    substantive commit (nothing owed); else the reason, naming the commit."""
+    rows = [ev for ev in (rows or ()) if isinstance(ev, dict)]
+    last = None
+    for i in range(len(rows) - 1, -1, -1):
+        ev = rows[i]
+        if ev.get("type") == "commit_landed":
+            sha = str((ev.get("data") or {}).get("commit") or "") if isinstance(ev.get("data"), dict) else ""
+            if not sha or is_substantive(sha):
+                last = (i, sha)
+                break
+    if last is None:
+        return None
+    runs = [v for v in (governed_run_verdict(ev) for ev in rows[last[0] + 1:]) if v]
+    commit = (last[1] or "<unrecorded sha>")[:10]
+    if not runs:
+        return f"no runner-marked governed run is recorded after the last substantive commit {commit}"
+    if runs[-1] != "green":
+        return f"the newest governed run recorded after the last substantive commit {commit} is RED"
+    return None
+
+
+def exempt_move(task: dict, sha, *, _audit_scrutiny_note_for) -> bool:
+    """T-14036 — the `exempt` move predicate of SPEC-1038's pointer table (Commit -> Tests for an
+    audit-exempt card): True iff this card, at its recorded ship commit `sha`, matches a declared
+    SPEC-0178 audit-post exemption case.
+
+    ONE CARRIER, NO SECOND READING. The answer is the audit-post SPEND seam's (T-11581): the injected
+    host gatherer `_audit_scrutiny_note_for(tid, class, sha, seam="spend")` resolves the shipped
+    footprint, the `audit_scrutiny.cases` carrier (`task._audit_scrutiny_cases`), the governance set,
+    SPEC-0178's status and the rule-5 fold through the readers `task close` uses, and decides through
+    `task._audit_scrutiny_case_outcome`. This function reads no declaration, no git and no journal of
+    its own, and caches nothing — the gatherer recomputes every call, so `task close` decides on its
+    own fresh reading whatever this move answered.
+
+    FAIL-CLOSED: no task id or no commit, a gatherer that says nothing (unproven footprint, no case,
+    spec not active, an infra card, a governance take-back) or a gatherer that raises -> False, and
+    the pointer falls through to the existing stage-correspondence refusal. Nothing calls this yet;
+    the cut-over card T-14037 wires it into `stage_pointer_move`."""
+    tid = (task or {}).get("id")
+    if not tid or not sha:
+        return False
+    try:
+        got = _audit_scrutiny_note_for(tid, (task or {}).get("class"), sha, seam="spend")
+    except Exception:              # noqa: BLE001 — an unanswerable read never hands out an exemption
+        return False
+    return bool(got) and got[1] is True
+
+
 def stage_pointer_row(task: dict) -> tuple:
-    """The ordered stage row this task's `class` selects (SPEC-0027 §Stage FSM per class). `hygiene`
+    """The ordered stage row this task's `class` selects (SPEC-1038 §Stage FSM per class). `hygiene`
     takes the fast-path row; every other class takes the standard row — matching the spec's own table,
     where a future class adds a row rather than a branch."""
     return LIFECYCLE_STAGE_POINTER_FSM["hygiene" if (task or {}).get("class") == "hygiene"
                                        else "standard"]
 
 
-def stage_pointer_move(task: dict, expected_stage: str) -> "str | None":
+def stage_pointer_move(task: dict, expected_stage: str, facts: "dict | None" = None) -> "str | None":
     """PURE classifier — the move `expected_stage` would be FROM this task's recorded `current_stage`.
 
-    Returns 'explicit' | 'advance' | 'absorb', or **None** when the move is not admitted (the caller
-    then falls through to the existing strict refusal). Total and side-effect-free: an absent, numeric
-    -legacy or unrecognized `current_stage` is not in the row, so it yields None — the T-0288
-    remediation leg is preserved exactly."""
+    Returns 'explicit' | 'advance' | 'absorb' | 'return' | 'exempt', or **None** when the move is not
+    admitted (the caller then falls through to the existing strict refusal). Total and side-effect-free:
+    an absent, numeric-legacy or unrecognized `current_stage` is not in the row, so it yields None — the
+    T-0288 remediation leg is preserved exactly.
+
+    `facts` (T-14037, SPEC-1038 §Stage FSM per class) carries the two journal facts the `return` and
+    `exempt` moves read — `red_after_commit` (`red_run_after_last_commit`) and `exempt` (`exempt_move`).
+    Absent facts admit neither move, so a caller that reads no journal keeps the three moves above."""
     current = (task or {}).get("current_stage")
     if current == expected_stage:
         return "explicit"
@@ -122,11 +230,21 @@ def stage_pointer_move(task: dict, expected_stage: str) -> "str | None":
         return "advance"                                     # the one-step-behind arm
     if j < i and current in ABSORPTION_RETURN_STAGES:
         return "absorb"                                      # the mode-(a) absorption return
+    facts = facts or {}
+    if current == "Tests" and expected_stage == "Commit" and facts.get("red_after_commit"):
+        return "return"                                      # a red governed run returns the card to Commit
+    if current == "Commit" and expected_stage == "Tests" and facts.get("exempt"):
+        return "exempt"                                      # an audit-exempt card skips Audit-post
     return None
 
 
+_MOVE_LABEL = {"advance": "advanced", "absorb": "absorption return", "return": "return after a red run",
+               "exempt": "audit-exempt move"}
+
+
 def advance_stage_pointer(task: dict, expected_stage: str, *, task_path, yaml_mod, verb: str,
-                          _write_task_transition, _append_event, _readiness=None) -> "str | None":
+                          _write_task_transition, _append_event, _readiness=None,
+                          _facts=None) -> "str | None":
     """Move the pointer to `expected_stage` when `stage_pointer_move` admits the move; otherwise do
     NOTHING and return None, leaving the caller's `_require_stage_correspondence` to refuse unchanged.
 
@@ -145,8 +263,26 @@ def advance_stage_pointer(task: dict, expected_stage: str, *, task_path, yaml_mo
     and emits `stage_entered` — the same event, carrying `from_stage` + `mode` + `advanced_by` so the
     journal distinguishes a pointer move from an explicit stage entry. It deliberately does NOT carry
     `delivered` / `delivered_patterns` / `delivered_verbs`: this path delivers no BUNDLE, and an empty
-    list would claim a delivery that did not happen. `stage <NAME>` remains the bundle deliverer."""
+    list would claim a delivery that did not happen. `stage <NAME>` remains the bundle deliverer.
+
+    `_facts` (T-14037) is the caller's zero-argument reader of the card's journal facts
+    (`has_commit`, `red_after_commit`, `exempt`), called only for a move that needs one: the `return`
+    / `exempt` moves, and any pointer move INTO Tests, which requires a recorded `commit_landed`
+    (SPEC-1038 §Tests). With no `_facts`, or a reader that raises, neither move is admitted and no
+    move into Tests is made — the caller's refusal stands (fail-closed)."""
+    current = (task or {}).get("current_stage")
     move = stage_pointer_move(task, expected_stage)
+    needs_facts = (expected_stage == "Tests" and current != "Tests") or (
+        move is None and (current, expected_stage) in (("Tests", "Commit"), ("Commit", "Tests")))
+    if needs_facts:
+        try:
+            facts = dict(_facts() or {}) if _facts is not None else {}
+        except Exception:          # noqa: BLE001 — an unreadable fact admits no move
+            facts = {}
+        if move is None:
+            move = stage_pointer_move(task, expected_stage, facts)
+        if move is not None and expected_stage == "Tests" and not facts.get("has_commit"):
+            return None            # a pointer move into Tests requires a recorded `commit_landed`
     if move is None or move == "explicit":
         return None if move is None else move
     if _readiness is not None:
@@ -157,7 +293,7 @@ def advance_stage_pointer(task: dict, expected_stage: str, *, task_path, yaml_mo
                   {"stage": expected_stage, "from_stage": from_stage, "mode": move,
                    "advanced_by": verb})
     print(f"stage pointer: {from_stage} -> {expected_stage} "
-          f"({'advanced' if move == 'advance' else 'absorption return'} by `{verb}`; "
+          f"({_MOVE_LABEL.get(move, move)} by `{verb}`; "
           f"run `yitc-v2 stage {expected_stage} --task {(task or {}).get('id')}` to read this "
           f"stage's bundle)")
     return move
@@ -1438,7 +1574,9 @@ def _require_audit_post_for_commit(yaml, tid: str, full_sha: str, *, _audit_yaml
     if verdict not in AUDIT_VERDICT_CANONICAL:
         _die(f"audit-post verdict {verdict!r} not canonical (expected one of {list(AUDIT_VERDICT_CANONICAL)})")
     if verdict not in AUDIT_VERDICT_CLOSURE_OK:
-        _die(f"audit-post verdict {verdict!r} blocks Stage 9 — revert or escalate per LIFECYCLE Stage 8")
+        _die(f"audit-post verdict {verdict!r} blocks Stage 9 — revert or escalate per LIFECYCLE Stage 7; "
+             f"an in-scope fix ships as `yitc-v2 task commit {tid} --fix-red --message ...`, then "
+             f"`yitc-v2 audit post --task {tid}` re-audits it.")
     ap_commit = (ap.get("commit") or "").strip()
     if not ap_commit:
         _die(f"audit-post {audit_post.name} has no commit: field (predates the D-0082 commit-binding) — "

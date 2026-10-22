@@ -410,7 +410,7 @@ data mutations → background jobs).
   decision, never silent acceptance. Read POSTURE at the row's ts (the session's latest
   `session_started` `type` before it), never by dispatch-set membership: a `build` session emitting
   `bg_dispatch_launched` or `ceiling_decision` is a breach (a Worker never dispatches or decides —
-  SPEC-0204). Fences (rule at its home) and their carriers: ceiling decisions SPEC-0191/SPEC-0204 —
+  SPEC-1039). Fences (rule at its home) and their carriers: ceiling decisions SPEC-0191/SPEC-1039 —
   each `ceiling_decision.directive` resolves to an `owner_directive` row · decide-authority SPEC-0169 —
   `authorization_*`/`right_exercised` over registry projects · advisor read-only <workshop-spec> — its verb
   (`journal query --dispatch-plan`) appends only its receipt · execution-cue SPEC-0141 + batch-bounded

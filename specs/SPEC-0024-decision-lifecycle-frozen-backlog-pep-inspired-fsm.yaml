@@ -101,7 +101,7 @@ body: "## Scenario\n\nV2 decisions are PEP-shaped governance artifacts with an e
   \ decisions with no such event were grandfather-EXEMPT — this is how the 2026-06-08\
   \ drain finalized the remaining Accepted backlog. Full contract: `decisions/`.\n\
   \n**Decision per-stage audit overlays — what the external auditor was asked at the\
-  \ two\ngates above.** HISTORICAL with those gates; the audit contract SPEC-0036\
+  \ two\ngates above.** HISTORICAL with those gates; the audit contract SPEC-1040\
   \ names the decision target.\n\n**decision audit-pre (Draft → Accepted)** — «is\
   \ this design sound to commit task resource to?»:\n- the 4 anti-complexity filters\
   \ genuinely pass (a decision is a governance change);\n- it EXPLICITLY amends the\

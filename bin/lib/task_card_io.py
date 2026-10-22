@@ -489,7 +489,7 @@ def _print_premise_advisory(tid, title, cites, scope, acceptance, specs, *, _car
         for tok in flag_hits:
             print(f"  {tok}  — {_truncate_advisory_text(audit.RETIRED_AUDIT_FLAGS[tok])}")
         print("  disposition: a card that extends or amends a retired surface rests on a false premise — "
-              "re-read SPEC-0204 and re-aim it at the live route; a mention of the same token on a "
+              "re-read SPEC-1039 and re-aim it at the live route; a mention of the same token on a "
               "NON-audit surface (`plan stage --owner-reset`) is a different flag — ignore this line")
 
 

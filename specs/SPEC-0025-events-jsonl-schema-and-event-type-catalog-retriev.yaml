@@ -32,12 +32,12 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ is why it is homed\nhere in the universal schema rather than in one type's catalog\
   \ entry. Shape:\n\n```jsonc\n\"unresolved_locators\": [{\"field\": \"<the governed\
   \ field>\", \"locator\": \"<the ts as written>\",\n                         \"why\"\
-  : \"malformed | no-row\"}]\n```\n\n**What it records.** SPEC-0204 rule 2 holds that\
-  \ authority is proven by RESOLUTION, never by a\nnon-empty string — but it enforced\
-  \ that for one TYPED argument only, so a governed FREE-TEXT reason\ncould cite a\
-  \ locator that resolves to nothing. It did: `task update --status wont-do` accepted\n\
-  \ placeholder `events.jsonl#ts=2026-09-16T12:5x` (the real row is at 14:58:18Z)\
-  \ and LANDED\nit unchecked (deviation events.jsonl#ts=). `bin/lib/cli.py#_check_reason_locators`\n\
+  : \"malformed | no-row\"}]\n```\n\n**What it records.** <workshop-spec> rule 2 holds\
+  \ that authority is proven by RESOLUTION, never by a\nnon-empty string — but it\
+  \ enforced that for one TYPED argument only, so a governed FREE-TEXT reason\ncould\
+  \ cite a locator that resolves to nothing. It did: `task update --status wont-do`\
+  \ accepted\n placeholder `events.jsonl#ts=2026-09-16T12:5x` (the real row is at\
+  \ 14:58:18Z) and LANDED\nit unchecked (deviation events.jsonl#ts=). `bin/lib/cli.py#_check_reason_locators`\n\
   now scans the governed reason fields once per invocation and stamps this key onto\
   \ the row in flight.\n\n**PRESENT ONLY ON AN OFFENDING ROW — never `false`, never\
   \ an empty list.** `why` distinguishes the\ntwo failures that both had to be caught:\
@@ -72,23 +72,23 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ provider for this session>\"}}\n```\nONE row per SAME-PROVIDER audit — the audit\
   \ ran on the primary AI's own provider because NO external\nprovider resolved for\
   \ the tier. It is the journal counterpart of the verdict's\n`auditor_independence:\
-  \ same-provider` stamp (SPEC-0036 §Saved audit result), emitted at the SAME\nsingle\
-  \ invocation chokepoint; an `external` audit emits NOTHING. The payload is exactly\
-  \ these SEVEN\nkeys: `target_kind` (task | plan | ad-hoc) · `target_id` (the audited\
-  \ node id) · `stage`\n(pre | post | ad-hoc | consult-*) · `tier` (the audit tier\
-  \ resolved for this invocation) ·\n`provider` (the auditor's resolved provider)\
-  \ · `model` (the model the adapter actually ran) ·\n`primary_provider` (the primary\
-  \ AI's provider for this session; the value the stamp compared\n`provider` against).\
-  \ Provider-neutral by construction — the values are resolved identifiers, and no\n\
-  brand name is named in this catalog. The row is what makes «how often did this install\
-  \ audit itself?»\nanswerable from the durable journal rather than from a count of\
-  \ verdict files. Rule home:\n`bin/yitc-v2 graph query SPEC-0201`.\n\n**CATALOGUED\
-  \ BEFORE ITS EMITTER, deliberately** — the emitter is (`bin/lib/audit.py`), and\n\
-  this row is the definition that emitter writes against. Same discipline, and the\
-  \ same reason, as\n`ceiling_decision` (SPEC-0161 §Roster): the card that BIRTHS\
-  \ a shared payload owns its definition\nfirst, so the writers that follow cannot\
-  \ each agree with one another and disagree with the catalog.\nUntil that emitter\
-  \ lands, no live row carries this type — additive and P5-safe.\n\n**external_audit_completed\
+  \ same-provider` stamp (<workshop-spec> §Saved audit result), emitted at the SAME\n\
+  single invocation chokepoint; an `external` audit emits NOTHING. The payload is\
+  \ exactly these SEVEN\nkeys: `target_kind` (task | plan | ad-hoc) · `target_id`\
+  \ (the audited node id) · `stage`\n(pre | post | ad-hoc | consult-*) · `tier` (the\
+  \ audit tier resolved for this invocation) ·\n`provider` (the auditor's resolved\
+  \ provider) · `model` (the model the adapter actually ran) ·\n`primary_provider`\
+  \ (the primary AI's provider for this session; the value the stamp compared\n`provider`\
+  \ against). Provider-neutral by construction — the values are resolved identifiers,\
+  \ and no\nbrand name is named in this catalog. The row is what makes «how often\
+  \ did this install audit itself?»\nanswerable from the durable journal rather than\
+  \ from a count of verdict files. Rule home:\n`bin/yitc-v2 graph query SPEC-0201`.\n\
+  \n**CATALOGUED BEFORE ITS EMITTER, deliberately** — the emitter is (`bin/lib/audit.py`),\
+  \ and\nthis row is the definition that emitter writes against. Same discipline,\
+  \ and the same reason, as\n`ceiling_decision` (SPEC-0161 §Roster): the card that\
+  \ BIRTHS a shared payload owns its definition\nfirst, so the writers that follow\
+  \ cannot each agree with one another and disagree with the catalog.\nUntil that\
+  \ emitter lands, no live row carries this type — additive and P5-safe.\n\n**external_audit_completed\
   \ — the ELEVEN CEILING-CONSULT EPISODE FIELDS (defined by rule 9 of\n<workshop-spec>,\
   \ now superseded, and added INERT by / plan card C4).** An EXTENSION of THIS\nevent,\
   \ never a new event type (CHARTER §P1 F1/F2). They ride a `stage: consult-*` row\

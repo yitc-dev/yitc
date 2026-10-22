@@ -1,7 +1,7 @@
 body: "### Saved audit result\nThe annotated schema of the saved verdict record (`decisions/<id>-audit-<stage>.yaml`)\
   \ and of the\nconsult record (`decisions/<tid>-audit-consult-<stage>.yaml`) is reference\
   \ material, printed under\n`## Implementation notes` by `bin/yitc-v2 graph query\
-  \ SPEC-0036`.\n\n```yaml\n# OPTIONAL markers — the ceiling-skip / re-audit markers\
+  \ SPEC-1040`.\n\n```yaml\n# OPTIONAL markers — the ceiling-skip / re-audit markers\
   \ (tooling_absence_abort · timeout_abort ·\n# unchanged_fp_reaudit · concurrent_merge_reaudit\
   \ · task_lens_reaudit · passable_absorption_reaudit ·\n# consult_governed) each\
   \ mark a no-real-outcome re-audit whose `passes` is NOT advanced (the\n# ledger-skip);\
@@ -9,7 +9,7 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   # was rendered under (PLAN audit-post). Per-marker presence + pass-count semantics\
   \ are homed in\n# <workshop-spec> §Audit-loop ceiling. Absent on every normal run.\
   \ `bin/yitc-v2 graph query <workshop-spec>`\n```\n\n**WHICH CONSULTS STILL WRITE\
-  \ THIS RECORD.** SPEC-0204 rule 6 retired the CEILING-adjudication\nconsult on both\
+  \ THIS RECORD.** SPEC-1039 rule 6 retired the CEILING-adjudication\nconsult on both\
   \ axes — the TASK `--task --stage` form and, by its plan-gate arm, the\n`--plan\
   \ <slug> --gate <id>` form — so this schema is now written by ONE surviving form\
   \ only:\n`audit consult --on-demand` (the below-ceiling technical-fork pick, key\
@@ -41,29 +41,31 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ failures that dominate RED verdicts are visible\nBEFORE a pass is spent. The rows,\
   \ ONE per line, with fixed labels (downstream surfaces parse them, so the\nshape\
   \ is a contract, not a rendering choice):\n  `AC<n>: verifier <PRESENT|ABSENT|WAIVED>;\
-  \ evidence <PRESENT|ABSENT>`\n  `P8 carrier: <PRESENT|DEFERRED-DECLARED <field>|ABSENT|n/a\
-  \ (class <x>)>`\n  `stale anchors: <file> -> <SPEC-ID>` (one row per pair) or `stale\
-  \ anchors: none`\n  `touch: declared <n> audited <m> outside-forecast <k>`\n  `prior\
-  \ findings without response: <n>`\n  `stage6 evidence: DOES-NOT-COVER <commit>`\
-  \ — printed only at the audit-loop ceiling, and only\n  when the next terminal-bearing\
-  \ pass would refuse `stage6-evidence-stale` (SPEC-0204 rules 3-4):\n  the row is\
-  \ that admission predicate's answer, never a second reading of the ledger; absent\
-  \ otherwise\nAnything else the block prints is an INDENTED detail line beneath its\
-  \ row, never a row itself.\n`AC<n>` is the criterion's own leading `ACn` token when\
-  \ it carries one, else its positional index;\nthe verifier state reuses the SPEC-0060\
-  \ item 4 test-or-waive predicate (`test-not-applicable:\n<reason>` reads WAIVED);\
-  \ evidence is PRESENT only when the packet carries a row the criterion's own\ntext\
-  \ points at, or a task-tied `state_checked` row naming the criterion's `ACn` id.\
-  \ A\ncriterion naming a directory that holds a test file the predicate recognizes\
-  \ reads verifier PRESENT;\none matching nothing gets an indented `not matched` detail\
-  \ line quoting the criterion text.\nThe P8 row is `n/a` outside `class: infra`,\
-  \ and `DEFERRED-DECLARED <field>` names\nthe SPEC-0028 deferred-proof declaration\
-  \ the card carries.\nIT IS ADVISORY, and that is the X-1060 ruling carried forward\
-  \ UNCHANGED: exit 0, no verdict, no\nceiling pass, no gate, no counted set — nothing\
-  \ branches on a row, here or downstream. It is made\nmandatory by DELIVERY (the\
-  \ audit stage bundles and the worker preamble name the preview step), never\nby\
-  \ a gate.\nNO PACKET TO PREVIEW. On the two short-circuit branches that record a\
-  \ verdict without\nassembling a packet (consult-governed carry-forward, unchanged-fingerprint\
+  \ evidence <PRESENT|OWED AT TESTS|ABSENT>`\n  `P8 carrier: <PRESENT|DEFERRED-DECLARED\
+  \ <field>|ABSENT|n/a (class <x>)>`\n  `stale anchors: <file> -> <SPEC-ID>` (one\
+  \ row per pair) or `stale anchors: none`\n  `touch: declared <n> audited <m> outside-forecast\
+  \ <k>`\n  `prior findings without response: <n>`\nAnything else the block prints\
+  \ is an INDENTED detail line beneath its row, never a row itself.\n`AC<n>` is the\
+  \ criterion's own leading `ACn` token when it carries one, else its positional index;\n\
+  the verifier state reuses the SPEC-0060 item 4 test-or-waive predicate (`test-not-applicable:\n\
+  <reason>` reads WAIVED); evidence is PRESENT only when the packet carries a row\
+  \ the criterion's own\ntext points at, or a task-tied `state_checked` row naming\
+  \ the criterion's `ACn` id. A\ncriterion naming a directory that holds a test file\
+  \ the predicate recognizes reads verifier PRESENT;\none matching nothing gets an\
+  \ indented `not matched` detail line quoting the criterion text.\nOn the post-audit\
+  \ Tests order (SPEC-1038) a criterion whose verifier is PRESENT and that has no\n\
+  evidence row reads `OWED AT TESTS` (optionally followed by a parenthetical note),\
+  \ never ABSENT:\nthe run proof is owed at Tests. Its own-tests state is an indented\
+  \ detail line beneath the row,\n`own-tests: <passed|FAILED|not run or stale|not\
+  \ determined>` — FAILED, stale (or not run), missing\nand not determined are distinct,\
+  \ and only FAILED is a finding (the A2 audit-post clause).\nThe P8 row is `n/a`\
+  \ outside `class: infra`, and `DEFERRED-DECLARED <field>` names\nthe SPEC-0028 deferred-proof\
+  \ declaration the card carries.\nIT IS ADVISORY, and that is the X-1060 ruling carried\
+  \ forward UNCHANGED: exit 0, no verdict, no\nceiling pass, no gate, no counted set\
+  \ — nothing branches on a row, here or downstream. It is made\nmandatory by DELIVERY\
+  \ (the audit stage bundles and the worker preamble name the preview step), never\n\
+  by a gate.\nNO PACKET TO PREVIEW. On the two short-circuit branches that record\
+  \ a verdict without\nassembling a packet (consult-governed carry-forward, unchanged-fingerprint\
   \ carry-forward) the\npreview NAMES the governing branch and prints no packet —\
   \ printing one the real invocation never\nbuilds is the failure mode the preview\
   \ exists to prevent.\nBOUND: the preview runs the same stage-correspondence and\
@@ -88,10 +90,10 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ on : the original audit no longer covers the changed\n  tree, and a done task\
   \ previously refused re-audit)\n\n- **When invoked:** This SUPERSEDES the prior\
   \ SPEC-0077 §3a claim that the post-close case \"needs NO\n  re-audit-after-close\
-  \ path, so SPEC-0036's in-progress-only audit rule is untouched\" — it is now\n\
-  \  touched, exactly here.\n\n- **Verdict handling (uniform across pre / post / ad-hoc\
-  \ / plan-gates):** (the incident)\n\n- **Verdict handling (uniform across pre /\
-  \ post / ad-hoc / plan-gates):** **What OVERRIDES,\n  named so it is traceable:**\
+  \ path, so <workshop-spec>'s in-progress-only audit rule is untouched\" — it is\
+  \ now\n  touched, exactly here.\n\n- **Verdict handling (uniform across pre / post\
+  \ / ad-hoc / plan-gates):** (the incident)\n\n- **Verdict handling (uniform across\
+  \ pre / post / ad-hoc / plan-gates):** **What OVERRIDES,\n  named so it is traceable:**\
   \ clause held it DELIBERATE that a non-124 no-outcome failure\n  still advances\
   \ the ledger; that is overridden.\n\n- **Verdict handling (uniform across pre /\
   \ post / ad-hoc / plan-gates):** (the X-0098/X-0092 incident\n  — twice in one session)\n\
@@ -138,42 +140,43 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ would have duplicated two live analogs (F1) and removed\n  nothing (F3).\n\n-\
   \ **Saved audit result:** # codified audit-pre F2 absorption — de-facto used in\
   \ 10+\n  artifacts\n\n- **Saved audit result:** HISTORY: the six were the must-not-land\
-  \ classes of <workshop-spec> rule 3;\n  SPEC-0204 # superseded that spec, and they\
-  \ remain as names of this vocabulary.\n\n- **Saved audit result:** (X-1488 — <project>\
-  \ recorded GREEN # with the auditor never\n  invoked; CHARTER §P4a rests a verdict's\
-  \ authority on # who produced it)\n\n- **What was JUDGED, beside what custody PINS\
-  \ (audit-post only):** the\n  `owner_reset_basis: consult:<file> | owner-authorized`\
-  \ line this section used to describe is retired\n  with the flag that read it, and\
-  \ records already carrying it stay readable history\n\n- **Packet preview — `audit\
-  \ pre|post --preview` (X-1060):** The comparisons, their data on\n  the `audit_packet_previewed`\
-  \ receipt, and the advisory ruling are unchanged; what is retired is the\n  third\
-  \ redundant surface (`packet_touch_advisory`), leaving ONE report surface, not three\
-  \ (CHARTER\n  §P1 F3).\n\n- **Packet preview — `audit pre|post --preview` (X-1060):**\
-  \ (The zero-ship-diff waive was a\n  third such branch until returned it to the\
-  \ re-lens family; its preview now prints the\n  packet.)\n\n### History moved out\
-  \ of the delivered body\n\nHistory and retired-route explanation moved verbatim\
-  \ out of the delivered body; each entry\nnames the section it left.\n\n- **Scenario:**\
-  \ The PLAN-STAGE QUESTION TEMPLATES (the owner-visible, durable question sets asked\n\
-  \  at each plan-FSM gate, appendable via `--focus`) were born in this head and are\
-  \ now homed in\n  SPEC-0083; the universal lens below stays single-homed here and\
-  \ the plan-gate prompts reference\n  it (P5).\n\n- **Universal V2 evaluation lens\
-  \ (include in EVERY prompt):** No auditor surface carries the\n  clause and no verdict\
-  \ schema asks for the declaration. The NARROWED successor — ONE exhaustive\n  survey\
-  \ at the baseline-establishing consult, later rounds scoped to that baseline's closure\
-  \ plus\n  fix-induced regressions — is being designed in plan\n  `frozen-defect-baseline-at-the-audit-loop-ceiling-d`;\
-  \ read the rule there, not here. The CONSULT\n  half was withdrawn on the same terms\
-  \ in <workshop-spec> §Ceiling-convergence triage.\n\n- **Task per-stage overlays:**\
-  \ That qualification is not optional wording: without it this\n  contract would\
-  \ promise a stronger safeguard than SPEC-0178 provides.\n\n- **Plan-stage overlays\
-  \ — the per-gate question templates (NEW in this head):** The moved blocks,\n  by\
-  \ label: Selection carrier · Gate policy pointer · Plan-FINALIZATION overlay (reached-active\n\
-  \  acceptance) · Plan-FINALIZATION overlay (drain-at-realize correctness) · P1 plan-draft\
-  \ shaping\n  template · P2 draft→specs gate template · P3 specs→trial gate template\
-  \ · P4 trial→accepted\n  trial-evidence block · P5 decomposition→executing fidelity\
-  \ template · `--focus` composable\n  append · Verdict recording (ONE canonical schema)\
-  \ · Retirement.\n\n## Implementation notes\n\nCode detail moved verbatim out of\
-  \ the rule text — what the code's maintainer reads.\n\n- **Auditor selection — provider\
-  \ + model + EFFORT (per-tier):** The override is read in\n  `bin/lib/audit.py` resolve_audit_provider/model/effort\
+  \ classes of <workshop-spec> rule 3;\n  <workshop-spec> # superseded that spec,\
+  \ and they remain as names of this vocabulary.\n\n- **Saved audit result:** (X-1488\
+  \ — <project> recorded GREEN # with the auditor never\n  invoked; CHARTER §P4a rests\
+  \ a verdict's authority on # who produced it)\n\n- **What was JUDGED, beside what\
+  \ custody PINS (audit-post only):** the\n  `owner_reset_basis: consult:<file> |\
+  \ owner-authorized` line this section used to describe is retired\n  with the flag\
+  \ that read it, and records already carrying it stay readable history\n\n- **Packet\
+  \ preview — `audit pre|post --preview` (X-1060):** The comparisons, their data on\n\
+  \  the `audit_packet_previewed` receipt, and the advisory ruling are unchanged;\
+  \ what is retired is the\n  third redundant surface (`packet_touch_advisory`), leaving\
+  \ ONE report surface, not three (CHARTER\n  §P1 F3).\n\n- **Packet preview — `audit\
+  \ pre|post --preview` (X-1060):** (The zero-ship-diff waive was a\n  third such\
+  \ branch until returned it to the re-lens family; its preview now prints the\n \
+  \ packet.)\n\n### History moved out of the delivered body\n\nHistory and retired-route\
+  \ explanation moved verbatim out of the delivered body; each entry\nnames the section\
+  \ it left.\n\n- **Scenario:** The PLAN-STAGE QUESTION TEMPLATES (the owner-visible,\
+  \ durable question sets asked\n  at each plan-FSM gate, appendable via `--focus`)\
+  \ were born in this head and are now homed in\n  SPEC-0083; the universal lens below\
+  \ stays single-homed here and the plan-gate prompts reference\n  it (P5).\n\n- **Universal\
+  \ V2 evaluation lens (include in EVERY prompt):** No auditor surface carries the\n\
+  \  clause and no verdict schema asks for the declaration. The NARROWED successor\
+  \ — ONE exhaustive\n  survey at the baseline-establishing consult, later rounds\
+  \ scoped to that baseline's closure plus\n  fix-induced regressions — is being designed\
+  \ in plan\n  `frozen-defect-baseline-at-the-audit-loop-ceiling-d`; read the rule\
+  \ there, not here. The CONSULT\n  half was withdrawn on the same terms in <workshop-spec>\
+  \ §Ceiling-convergence triage.\n\n- **Task per-stage overlays:** That qualification\
+  \ is not optional wording: without it this\n  contract would promise a stronger\
+  \ safeguard than SPEC-0178 provides.\n\n- **Plan-stage overlays — the per-gate question\
+  \ templates (NEW in this head):** The moved blocks,\n  by label: Selection carrier\
+  \ · Gate policy pointer · Plan-FINALIZATION overlay (reached-active\n  acceptance)\
+  \ · Plan-FINALIZATION overlay (drain-at-realize correctness) · P1 plan-draft shaping\n\
+  \  template · P2 draft→specs gate template · P3 specs→trial gate template · P4 trial→accepted\n\
+  \  trial-evidence block · P5 decomposition→executing fidelity template · `--focus`\
+  \ composable\n  append · Verdict recording (ONE canonical schema) · Retirement.\n\
+  \n## Implementation notes\n\nCode detail moved verbatim out of the rule text — what\
+  \ the code's maintainer reads.\n\n- **Auditor selection — provider + model + EFFORT\
+  \ (per-tier):** The override is read in\n  `bin/lib/audit.py` resolve_audit_provider/model/effort\
   \ (the single resolution chokepoint).\n\n- **Universal V2 evaluation lens (include\
   \ in EVERY prompt):**\n  (`bin/lib/task.py#refresh_expected_touch`)\n\n- **Monotonic\
   \ per-pass re-audit prompt (pass N>=2):** the code home is `build_audit_prompt`\
@@ -328,9 +331,9 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ — additive-optional at schema level ──\n# A finding MAY additionally carry the\
   \ keys below. They are consumed ONLY at a baseline-bearing\n# post-ceiling consult;\
   \ the SEMANTICS (what makes a finding blocking, how a retest echo is judged)\n#\
-  \ live single-SoT in SPEC-0204 rule 1 (the per-finding contract) and rule 8 (first-round\
+  \ live single-SoT in SPEC-1039 rule 1 (the per-finding contract) and rule 8 (first-round\
   \ delta\n# discipline) — this table declares WHICH keys exist and WHO supplies each,\
-  \ never the blocking\n# definition. `bin/yitc-v2 graph query SPEC-0204`\n#\n# ELEVEN\
+  \ never the blocking\n# definition. `bin/yitc-v2 graph query SPEC-1039`\n#\n# ELEVEN\
   \ new key names in total, split by SUPPLIER — the auditor is never asked for an\
   \ engine field:\n#\n# AUDITOR-supplied — NINE key names occupying EIGHT slots, because\
   \ `criterion_ref` and `class_id`\n# are two ALTERNATIVE keys sharing ONE slot (a\
@@ -342,7 +345,7 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ |\n# required-check-broken | security-boundary — PLUS the finding-class names\
   \ P8-adoption |\n# spec-coherence | scope-fidelity | test-evidence, and a finding\
   \ that fails no ACn MUST carry\n# class_id; an omitted one may be engine-derived,\
-  \ marked class_id_derived: true — SPEC-0204\n# rule 1.)\n# locator: file:symbol\
+  \ marked class_id_derived: true — SPEC-1039\n# rule 1.)\n# locator: file:symbol\
   \ or scope ref\n# failing_input: the concrete input/state that fails\n# causality:\
   \ introduced-by-subject | pre-existing-in-subject\n# baseline_ref: the baseline/residual\
   \ id this finding echoes (a retest echo)\n# resolution: open | closed\n# resolution_evidence:\
@@ -357,44 +360,47 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ no defaulting and no validation. Every missing-value judgement belongs to the\n\
   # READER that classifies them (lessons/fail-closed-belongs-to-the-reader-not-the-parser.md),\
   \ not to\n# the parser. Absent on every audit that is not a baseline-bearing consult.\n\
-  findings_complete: true # OPTIONAL report-only metadata: did the auditor VOLUNTEER\
+  findings_complete: true # OPTIONAL report-only metadata: did the auditor DECLARE\
   \ that the\n                    # findings list above is exhaustive? true | false\
   \ | absent (\"not stated\").\n                    # REPORT-ONLY on this record:\
   \ no gate, verdict, exit code or pass count reads\n                    # it, and\
-  \ nothing INFERS it — since withdrew the full-verdict rule\n                   \
-  \ # (§Universal lens) no prompt surface asks for the declaration, so in practice\n\
-  \                    # it is absent unless an auditor volunteers it. The field is\
-  \ kept because it is\n                    # additive, harmless, and reused by the\
-  \ narrowed successor in plan\n                    # `frozen-defect-baseline-at-the-audit-loop-ceiling-d`.\
-  \ The CONSULT record\n                    # carries the same field — see <workshop-spec>\
+  \ nothing INFERS it. withdrew the EVERY-pass ask (§Universal\n                 \
+  \   # lens); the declaration is still asked where the whole subject is surveyed\
+  \ —\n                    # a task audit's full first review (pass 1, the re-audit\
+  \ rule above) and a\n                    # consult's baseline round (<workshop-spec>\
+  \ rule 4) — and not on later passes, where\n                    # it is present\
+  \ only if an auditor volunteers it. The field is kept because it\n             \
+  \       # is additive, harmless, and reused by the narrowed successor in plan\n\
+  \                    # `frozen-defect-baseline-at-the-audit-loop-ceiling-d`. The\
+  \ CONSULT record\n                    # carries the same field — see <workshop-spec>\
   \ §Ceiling-convergence triage.\nabsorbed: [] # finding indices absorbed inline this\
   \ commit\nfollowups: [] # follow-up ids (T-NNNN task or fu_ followup) filed for\
-  \ residual findings; recorded per LIFECYCLE §Stage 8\nauditor_provider: <abstract\
-  \ identifier — not a provider brand>\nauditor_independence: external | same-provider\n\
-  \                    # REQUIRED on every saved verdict (task pre/post, plan gates,\
-  \ ad-hoc, consult).\n                    # `external` = the auditor's resolved provider\
-  \ differs from the primary AI's\n                    # provider for this session;\
-  \ `same-provider` = it does NOT, or the primary\n                    # cannot be\
-  \ determined (fail-closed toward the honest reading). A\n                    # `same-provider`\
-  \ verdict is ADMITTED on every gate — never refused, never a\n                 \
-  \   # wait — and ALSO journals one `audit_self_provider_used` row (SPEC-0025).\n\
-  \                    # Written at the ONE invocation chokepoint, no second writer.\n\
-  \                    # Rule home: `bin/yitc-v2 graph query SPEC-0201`.\nauditor_model:\
-  \ <the model id the adapter actually ran>\n                    # REQUIRED beside\
-  \ the stamp above: which model produced this verdict, as the\n                 \
-  \   # adapter actually invoked it (never the configured default re-stated). What\n\
-  \                    # makes a bound non-default model honest rather than silent.\
-  \ Same rule home.\nverdict_producer: # — WHO PRODUCED THIS VERDICT (task pre/post).\
-  \ Derived, never declared.\n  kind: auditor | carry-forward | none\n  fresh_invocation:\
-  \ true | false\n  from: <prior record path> # carry-forward only — the record the\
-  \ verdict was read from\n  auditor: {pair, model, effort} # the auditor the verdict\
-  \ ROOTS in (fresh, or copied from `from`)\n  auditor_root: unrecorded # carry-forward\
-  \ from a LEGACY UNSTAMPED source only — in place\n                             \
-  \        # of `auditor`; the root is unknown, not absent\n  reason: <why none> #\
-  \ kind none only\n                    # §Verdict producer (the rule): `auditor`\
-  \ is rooted SOLELY in the INVOCATION\n                    # RECEIPT the adapter\
-  \ seam writes AFTER the adapter callable returns — never in\n                  \
-  \  # verdict / stdout / rc / duration state. A CARRIED verdict (the <workshop-spec>\
+  \ residual findings; recorded per LIFECYCLE §Stage 7 (Audit-post)\nauditor_provider:\
+  \ <abstract identifier — not a provider brand>\nauditor_independence: external |\
+  \ same-provider\n                    # REQUIRED on every saved verdict (task pre/post,\
+  \ plan gates, ad-hoc, consult).\n                    # `external` = the auditor's\
+  \ resolved provider differs from the primary AI's\n                    # provider\
+  \ for this session; `same-provider` = it does NOT, or the primary\n            \
+  \        # cannot be determined (fail-closed toward the honest reading). A\n   \
+  \                 # `same-provider` verdict is ADMITTED on every gate — never refused,\
+  \ never a\n                    # wait — and ALSO journals one `audit_self_provider_used`\
+  \ row (SPEC-0025).\n                    # Written at the ONE invocation chokepoint,\
+  \ no second writer.\n                    # Rule home: `bin/yitc-v2 graph query SPEC-0201`.\n\
+  auditor_model: <the model id the adapter actually ran>\n                    # REQUIRED\
+  \ beside the stamp above: which model produced this verdict, as the\n          \
+  \          # adapter actually invoked it (never the configured default re-stated).\
+  \ What\n                    # makes a bound non-default model honest rather than\
+  \ silent. Same rule home.\nverdict_producer: # — WHO PRODUCED THIS VERDICT (task\
+  \ pre/post). Derived, never declared.\n  kind: auditor | carry-forward | none\n\
+  \  fresh_invocation: true | false\n  from: <prior record path> # carry-forward only\
+  \ — the record the verdict was read from\n  auditor: {pair, model, effort} # the\
+  \ auditor the verdict ROOTS in (fresh, or copied from `from`)\n  auditor_root: unrecorded\
+  \ # carry-forward from a LEGACY UNSTAMPED source only — in place\n             \
+  \                        # of `auditor`; the root is unknown, not absent\n  reason:\
+  \ <why none> # kind none only\n                    # §Verdict producer (the rule):\
+  \ `auditor` is rooted SOLELY in the INVOCATION\n                    # RECEIPT the\
+  \ adapter seam writes AFTER the adapter callable returns — never in\n          \
+  \          # verdict / stdout / rc / duration state. A CARRIED verdict (the <workshop-spec>\
   \ /\n                    # unchanged-fingerprint re-run) is judged THREE ways on\
   \ its SOURCE\n                    # record (owner decision 2026-09-19 — ABSENCE\
   \ OF A STAMP IS NOT PROOF NO\n                    # AUDITOR RAN, a record written\
@@ -414,17 +420,17 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ `audit_{stage}_completed` AND\n                    # `external_audit_completed`\
   \ (present on every row, never absent), and it is\n                    # the ONE\
   \ condition the independence stamp above is written under.\nprompt_excerpt: <first\
-  \ ~200 chars of prompt sent>\nnotes: <free-form context, optional>\n# ── SPEC-0204\
+  \ ~200 chars of prompt sent>\nnotes: <free-form context, optional>\n# ── SPEC-1039\
   \ ceiling-decision keys — additive-optional, absent on an ordinary pass ─────\n\
   findings[].finding_fingerprint: fp1:<16 hex>\n# The ENGINE-computed matching key\
-  \ for this finding (SPEC-0204 rule 1), written on EVERY RED\n# verdict's findings.\
+  \ for this finding (SPEC-1039 rule 1), written on EVERY RED\n# verdict's findings.\
   \ Here it is a HUMAN-READABLE PROJECTION: the CANONICAL value rides the\n# `external_audit_completed`\
   \ journal row, and every reader resolves fingerprints from the journal\n# ONLY —\
   \ so hand-editing this line changes nothing. Never supplied by the auditor: an\n\
   # auditor-written key is dropped and the engine's written in its place. A finding\
   \ the engine could\n# not key fully carries the marked degraded form `fp1d:`.\n\
   basis: on-decisions\n# Present ONLY on the ONE bounded pass past the audit-loop\
-  \ ceiling that SPEC-0204 rule 3 admits —\n# the pass whose authority is the Controller's\
+  \ ceiling that SPEC-1039 rule 3 admits —\n# the pass whose authority is the Controller's\
   \ recorded `ceiling_decision` rows rather than an\n# auditor or an owner grant.\
   \ It rides beside `ceiling_ref: <tid>/<stage>/pass-<N>`, which names the\n# ceiling\
   \ row those decisions were bound to. A RED on this pass is TERMINAL for that (task,\
@@ -435,57 +441,58 @@ body: "### Saved audit result\nThe annotated schema of the saved verdict record 
   \ only)\n\n`commit:` above is the CUSTODY pin — the repository state the verdict\
   \ is tied to at the moment\nof judgement. It is NOT, and never was, a statement\
   \ of what the auditor read: `get_audit_post_diff`\nsends a cumulative RANGE (`merge-base(commit,\
-  \ main)..commit`). Those two facts differ routinely,\nbecause Stages 6 and 7 append\
-  \ their own records on top of the ship, so the commit standing at Stage 8\nis frequently\
-  \ a record rather than a ship.\n\nSo an audit-post verdict records BOTH, and a reader\
-  \ needs both:\n\n```yaml\ncommit: <git-sha> # CUSTODY — what this verdict is pinned\
-  \ to (unchanged, still required)\naudited_base: <git-sha> # the merge-base the judged\
-  \ diff was taken from\naudited_files: <int> # how many files the judged range carried\n\
-  ```\n\n- The pair is ADDITIVE-OPTIONAL and appears on audit-POST only. It is derived\
-  \ (`audit_post_range`),\n  never authored, and is bounded by the SAME exclude list\
-  \ that bounds the diff — so the count\n  describes exactly the material the auditor\
-  \ saw, not a second notion of what counts as bookkeeping.\n- It is FAIL-SAFE: an\
-  \ underivable range omits both keys rather than refusing the audit or recording\
-  \ a\n  zero. These are observability fields; absent means \"not derivable\", never\
-  \ \"nothing was judged\".\n- The SAME pair rides the `audit_post_completed` event,\
-  \ from the same value, so the record and the\n  event cannot disagree.\n- It DOES\
-  \ NOT re-point custody. `commit:` keeps its meaning and every chain-of-custody rule\
-  \ standing\n  on it is untouched — the range is recorded BESIDE the sha, never instead\
-  \ of it.\n\nThis is the audit trail. Trail enables post-hoc analysis (which auditor\
-  \ verdict governed which ship),\naudit-loop ceiling enforcement (count passes per\
-  \ task per stage), and methodology drift detection\n(per-stage finding patterns\
-  \ over time).\n\nThe ceiling ledger-skip MARKER catalog (the `tooling_absence_abort`\
-  \ / `freshness_reaudit` /\n`consult_governed` / `unchanged_fp_reaudit` / `concurrent_merge_reaudit`\
-  \ / `task_lens_reaudit` /\n`passable_absorption_reaudit` additive-optional markers\
-  \ documenting which re-audits do NOT advance\n`passes`) is RE-HOMED to <workshop-spec>\
-  \ §Saved-result ledger-skip markers — fetch via\n`bin/yitc-v2 graph query <workshop-spec>`.\n\
-  \n**Consult verdict — `decisions/<tid>-audit-consult-<stage>.yaml`, `target_kind:\
-  \ consult`,\n`stage: consult-<pre|post>`.** A task consult (today the on-demand\
-  \ fork pick; the ceiling-convergence\ntriage that first wrote this record is retired\
-  \ by SPEC-0204 rule 6) saves the canonical schema PLUS the\nstructured triage fields:\
-  \ `options` (the submitted candidate resolutions), `survivors` (a list of\n{option,\
-  \ text}, a SUBSET of `options` — fail-closed: an out-of-set survivor or a recommendation\n\
-  that is not exactly one survivor → verdict ABORT, no usable basis), `recommendation`\
-  \ (the single\nsurviving option number)\n— **and the RENDERINGS an option index\
-  \ may be named in, on the way back IN (X-0835).** The\nreader normalizes an index\
-  \ written as a plain integer (`survivors: [2]`), as a QUOTED string\n(`[\"2\"]`\
-  \ / `recommendation: \"2\"`), or as a MAPPING carrying an `option:` key (`- option:\
-  \ 2`, with or\nwithout its `text:` sibling) — the last being this very schema's\
-  \ OWN saved survivor shape. **This widens which RENDERING is recognised, never which\n\
-  INDICES are admissible:** the subset check, the exactly-one-survivor convergence\
-  \ requirement and\nevery fail-closed downgrade are unchanged, so an out-of-set index,\
-  \ a mapping naming no `option:`, a\nnon-list `survivors:` scalar, and a genuinely\
-  \ non-converged verdict (zero survivors, or more than\none) are all still refused\
-  \ and still escalate, and `basis_fingerprint` (the exact-match freshness\ncarrier\
-  \ — pre = plan_fingerprint, post = recorded commit SHA). A consult emits ONE audit-family\
-  \ event\nsurface (`external_audit_completed` with `target_kind: consult` + `stage:\
-  \ consult-<pre|post>`), never\na second parallel event.\n\n## Verification\n\n-\
-  \ Bound: `graph build` maps the Audit-pre + Audit-post stage-entries to this spec\
-  \ once active\n  (the ONE delivery axis — `binding:`); the plan gates carry NO plan-stage-entry\
-  \ binding: `plan\n  stage specs|trial` and the accept-gate `plan check` ASK the\
-  \ matching template themselves (the\n  prompt builders consume the template text\
-  \ from its one home, SPEC-0083 since —; dissonance\n  spec-0036-verification-vs-binding-axis-contradiction\
-  \ resolved toward the binding carrier).\n- A saved plan-gate verdict YAML carries\
-  \ `stage_template:` + `gate_policy:` (state check).\n- A `--focus` text appears\
-  \ verbatim in a saved verdict (live-trigger, P8).\n- On activation <workshop-spec>\
-  \ flips `superseded` atomically (activation_owner_task close).\n"
+  \ main)..commit`). Those two facts differ routinely,\nbecause the Commit stage appends\
+  \ its own records (the card's stage fields, the journal) on top of the\nship, so\
+  \ the commit standing at audit-post is frequently a record rather than a ship.\n\
+  \nSo an audit-post verdict records BOTH, and a reader needs both:\n\n```yaml\ncommit:\
+  \ <git-sha> # CUSTODY — what this verdict is pinned to (unchanged, still required)\n\
+  audited_base: <git-sha> # the merge-base the judged diff was taken from\naudited_files:\
+  \ <int> # how many files the judged range carried\n```\n\n- The pair is ADDITIVE-OPTIONAL\
+  \ and appears on audit-POST only. It is derived (`audit_post_range`),\n  never authored,\
+  \ and is bounded by the SAME exclude list that bounds the diff — so the count\n\
+  \  describes exactly the material the auditor saw, not a second notion of what counts\
+  \ as bookkeeping.\n- It is FAIL-SAFE: an underivable range omits both keys rather\
+  \ than refusing the audit or recording a\n  zero. These are observability fields;\
+  \ absent means \"not derivable\", never \"nothing was judged\".\n- The SAME pair\
+  \ rides the `audit_post_completed` event, from the same value, so the record and\
+  \ the\n  event cannot disagree.\n- It DOES NOT re-point custody. `commit:` keeps\
+  \ its meaning and every chain-of-custody rule standing\n  on it is untouched — the\
+  \ range is recorded BESIDE the sha, never instead of it.\n\nThis is the audit trail.\
+  \ Trail enables post-hoc analysis (which auditor verdict governed which ship),\n\
+  audit-loop ceiling enforcement (count passes per task per stage), and methodology\
+  \ drift detection\n(per-stage finding patterns over time).\n\nThe ceiling ledger-skip\
+  \ MARKER catalog (the `tooling_absence_abort` / `freshness_reaudit` /\n`consult_governed`\
+  \ / `unchanged_fp_reaudit` / `concurrent_merge_reaudit` / `task_lens_reaudit` /\n\
+  `passable_absorption_reaudit` additive-optional markers documenting which re-audits\
+  \ do NOT advance\n`passes`) is RE-HOMED to <workshop-spec> §Saved-result ledger-skip\
+  \ markers — fetch via\n`bin/yitc-v2 graph query <workshop-spec>`.\n\n**Consult verdict\
+  \ — `decisions/<tid>-audit-consult-<stage>.yaml`, `target_kind: consult`,\n`stage:\
+  \ consult-<pre|post>`.** A task consult (today the on-demand fork pick; the ceiling-convergence\n\
+  triage that first wrote this record is retired by SPEC-1039 rule 6) saves the canonical\
+  \ schema PLUS the\nstructured triage fields: `options` (the submitted candidate\
+  \ resolutions), `survivors` (a list of\n{option, text}, a SUBSET of `options` —\
+  \ fail-closed: an out-of-set survivor or a recommendation\nthat is not exactly one\
+  \ survivor → verdict ABORT, no usable basis), `recommendation` (the single\nsurviving\
+  \ option number)\n— **and the RENDERINGS an option index may be named in, on the\
+  \ way back IN (X-0835).** The\nreader normalizes an index written as a plain integer\
+  \ (`survivors: [2]`), as a QUOTED string\n(`[\"2\"]` / `recommendation: \"2\"`),\
+  \ or as a MAPPING carrying an `option:` key (`- option: 2`, with or\nwithout its\
+  \ `text:` sibling) — the last being this very schema's OWN saved survivor shape.\
+  \ **This widens which RENDERING is recognised, never which\nINDICES are admissible:**\
+  \ the subset check, the exactly-one-survivor convergence requirement and\nevery\
+  \ fail-closed downgrade are unchanged, so an out-of-set index, a mapping naming\
+  \ no `option:`, a\nnon-list `survivors:` scalar, and a genuinely non-converged verdict\
+  \ (zero survivors, or more than\none) are all still refused and still escalate,\
+  \ and `basis_fingerprint` (the exact-match freshness\ncarrier — pre = plan_fingerprint,\
+  \ post = recorded commit SHA). A consult emits ONE audit-family event\nsurface (`external_audit_completed`\
+  \ with `target_kind: consult` + `stage: consult-<pre|post>`), never\na second parallel\
+  \ event.\n\n## Verification\n\n- Bound: `graph build` maps the Audit-pre + Audit-post\
+  \ stage-entries to this spec once active\n  (the ONE delivery axis — `binding:`);\
+  \ the plan gates carry NO plan-stage-entry binding: `plan\n  stage specs|trial`\
+  \ and the accept-gate `plan check` ASK the matching template themselves (the\n \
+  \ prompt builders consume the template text from its one home, SPEC-0083 since —;\
+  \ dissonance\n  spec-0036-verification-vs-binding-axis-contradiction resolved toward\
+  \ the binding carrier).\n- A saved plan-gate verdict YAML carries `stage_template:`\
+  \ + `gate_policy:` (state check).\n- A `--focus` text appears verbatim in a saved\
+  \ verdict (live-trigger, P8).\n- On activation SPEC-1040 becomes `active` and <workshop-spec>\
+  \ flips `superseded` in the same close\n  (activation_owner_task close).\n"

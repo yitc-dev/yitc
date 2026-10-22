@@ -26,7 +26,7 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ (the `plan-stage-entry:<NAME>`\naxis) — exactly as `task stage <NAME>` delivers\
   \ a task stage bundle since. So when a\nsession enters `decomposition`, it receives\
   \ the cut + fidelity-gate + big-plan-check rules; when it\nenters `postcheck`, the\
-  \ real-data-soak proof rules; and so on. This is the PLAN-axis mirror of SPEC-0027.\n\
+  \ real-data-soak proof rules; and so on. This is the PLAN-axis mirror of <workshop-spec>.\n\
   \n## Internal\n\nTHE PLAN-LIFECYCLE STAGE DETAIL — the retrieved home for the per-stage\
   \ mechanics, the plan↔spec\nlinkage chain, and the mandatory big-plan check. This\
   \ is a RULE home (no new store/parser/schema):\nit documents behaviour the shipped\
@@ -269,7 +269,7 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ it). Full procedure: the linkage chain below + the §\"Planning-artifact handling\"\
   \ subsection.\n  - Exit gate (`decomposition → executing`) = the cut is verified\
   \ — `_require_plan_decomposition_fidelity`:\n    a FRESH GREEN/YELLOW external decomposition-fidelity\
-  \ verdict over the task SET (the SPEC-0036\n    `gate-executing` mandatory-blocking\
+  \ verdict over the task SET (the <workshop-spec>\n    `gate-executing` mandatory-blocking\
   \ template — RED/ABORT HOLDS the transition; the 2-pass audit-loop\n    ceiling\
   \ applies) whose canonical CARD-SET FINGERPRINT matches (REFUSE → re-audit on mismatch).\
   \ WHAT it\n    audits (set-level coverage / cross-task `requires:` ordering / a\
@@ -289,7 +289,7 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ verdict, its detail\n    homed in SPEC-0070 §3-§5.\n  - Work = PURE BUILD: the\
   \ cut already happened in `decomposition`; here each filed task runs its OWN\n \
   \   9-stage lifecycle. No \"incidental\" cutting at this stage. The delivered bundle\
-  \ narrows to \"how to\n    build\" (SPEC-0027 / SPEC-0041 / the per-task stage bundles).\
+  \ narrows to \"how to\n    build\" (SPEC-1038 / SPEC-0041 / the per-task stage bundles).\
   \ **Who builds the cards (POINTER, not\n    restated here — <workshop-spec> rule\
   \ 8): by DEFAULT the interactive Controller DISPATCHES the independent\n    ready\
   \ cut cards to background Workers and coordinates their order; self-execution (the\
@@ -390,7 +390,7 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ trial carrier-boundary) to the plan-realize boundary: no\n    durable content\
   \ is orphaned in a terminal carrier (P5 one-home / P7). The framing is\n    drain-AT-realize,\
   \ NOT \"plans never hold durable content\". The `audit post --plan` finalization\n\
-  \    overlay checks drain-correctness (SPEC-0036 `PLAN_FINALIZATION_LENS`); discipline\
+  \    overlay checks drain-correctness (SPEC-1040 `PLAN_FINALIZATION_LENS`); discipline\
   \ + auditor-checked,\n    no new code-gate (CHARTER non-goal #7).\n  - **Standing\
   \ realize-trigger (owner-light cadence) — DETECT in Review, EXECUTE in a worktree.**\n\
   \    Finished postcheck plans must not pile up unfinalized. The weekly Review-cadence\
@@ -617,7 +617,6 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ / §decomposition entry-gate. Bring-order is that gate applied\n  to a plan whose\
   \ scope moved, not a new mechanism.\n"
 cites:
-- SPEC-0027
 - SPEC-0013
 - SPEC-0070
 - SPEC-0035

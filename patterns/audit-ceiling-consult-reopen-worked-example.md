@@ -1,19 +1,19 @@
 ---
 name: audit-ceiling-consult-reopen-worked-example
 class: discipline
-sourced_from: SPEC-0204 (the rule home for what happens once the audit-loop ceiling is reached) + <workshop-spec> §Audit-loop ceiling (the ceiling itself). Rewritten by (fu_e2241c8fa6c4) for the SPEC-0204 decision route. The path keeps its historical name because <workshop-spec> part2 links it; the earlier consult -> `--owner-reset` example (re-homed, extended by) describes a route SPEC-0204 rule 6 retired.
+sourced_from: SPEC-1039 (the rule home for what happens once the audit-loop ceiling is reached) + <workshop-spec> §Audit-loop ceiling (the ceiling itself). Rewritten by (fu_e2241c8fa6c4) for the SPEC-1039 decision route. The path keeps its historical name because <workshop-spec> part2 links it; the earlier consult -> `--owner-reset` example (re-homed, extended by) describes a route SPEC-1039 rule 6 retired.
 applies_to: a session standing at an exhausted audit-loop ceiling, TASK audit-pre or audit-post — the Worker that halts there, and the Controller that records the decisions
 ---
 
-# Pattern: at the audit-loop ceiling — the SPEC-0204 decision route (worked example)
+# Pattern: at the audit-loop ceiling — the <workshop-spec> decision route (worked example)
 
-> **NON-NORMATIVE illustration. The RULE lives in SPEC-0204** (`bin/yitc-v2 graph query SPEC-0204`);
-> the ceiling arithmetic itself stays in <workshop-spec> §Audit-loop ceiling. On ANY conflict, SPEC-0204
+> **NON-NORMATIVE illustration. The RULE lives in SPEC-1039** (`bin/yitc-v2 graph query SPEC-1039`);
+> the ceiling arithmetic itself stays in <workshop-spec> §Audit-loop ceiling. On ANY conflict, SPEC-1039
 > WINS. This file teaches the sequence; it establishes no rule and adds no gate.
 >
-> **Why it lives here:** a worked example inside SPEC-0204 would be paid by everyone who fetches the
+> **Why it lives here:** a worked example inside <workshop-spec> would be paid by everyone who fetches the
 > rule, before anyone needs the walk-through. It is read ON DEMAND, when a ceiling is actually reached
-> (no stage entry renders SPEC-0204 or <workshop-spec> since; SPEC-0036 §Audit-loop ceiling names them).
+> (no stage entry renders <workshop-spec> or <workshop-spec> since; SPEC-1040 §Audit-loop ceiling names them).
 
 ## When to read this
 
@@ -59,9 +59,9 @@ went on to Execution.
 
 ## The retired route — history only
 
-Before SPEC-0204, a ceiling was re-opened by an `audit consult` episode whose converged survivor let
+Before <workshop-spec>, a ceiling was re-opened by an `audit consult` episode whose converged survivor let
 `audit pre|post --owner-reset` grant one more pass, re-openable by a fresh consult (and `--reopen`).
-SPEC-0204 rule 6 RETIRED all of it: consult episodes for ceiling adjudication, `--reopen`,
+<workshop-spec> rule 6 RETIRED all of it: consult episodes for ceiling adjudication, `--reopen`,
 `--owner-reset`, and the dispatched-worker auto-consult. Each retired flag now REFUSES with a pointer to
 `audit decide` / `--on-decisions`. If you find older records or lessons that describe the consult →
 `--owner-reset` sequence, read them as history. `audit consult --on-demand` (the BELOW-ceiling
@@ -69,9 +69,9 @@ technical-fork pick) is a different thing and is unchanged.
 
 ## References
 
-- **SPEC-0204** — the rule home: residuals (rule 1), `ceiling_decision` (rule 2), the one bounded
+- **SPEC-1039** — the rule home: residuals (rule 1), `ceiling_decision` (rule 2), the one bounded
   pass (rule 3), custody (rule 4), retirements (rule 6).
 - **<workshop-spec>** — the ceiling itself (pass arithmetic, ledger-skips).
 - **SPEC-0103 §3 / §5** — the Worker's halt and the work-carrying pause shape.
-- **LIFECYCLE §Stage 4 / §Stage 8** — the mode-a / mode-b absorption fork. Most ceilings are reached
+- **LIFECYCLE §Stage 4 / §Stage 7** — the mode-a / mode-b absorption fork. Most ceilings are reached
   by pushing a PASSABLE finding through mode-a; recording it with mode-b (`--absorb`) spends no pass.

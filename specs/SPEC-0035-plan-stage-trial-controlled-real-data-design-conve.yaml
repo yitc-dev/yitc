@@ -32,7 +32,7 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \ the exit convergence read is DUAL — primary + external, rule 5); the safety envelope;\
   \ the\n   eligibility rationale (rule 2b). The baked protocol makes the plan SELF-SUFFICIENT:\
   \ `trial` is\n   long-running and multi-session — fresh sessions read the PLAN,\
-  \ not this spec (the\n   `implementation_plan`/resume-contract analog, SPEC-0027).\n\
+  \ not this spec (the\n   `implementation_plan`/resume-contract analog, <workshop-spec>).\n\
   \n4. **Dwell contract.** The plan AND its draft specs are corrected in place, together,\
   \ as findings\n   accumulate (co-evolution). A trial NEVER mutates real working\
   \ data: permitted forms are\n   emulation/modulation of the planned flow, or manual\
@@ -125,7 +125,7 @@ body: "## Scenario\n\nA mechanism-class plan (one that births a spec / verb / fl
   \   AUDITOR independent convergence read — applying CHARTER §Principle 4a auditor-independence\
   \ to the\n   convergence JUDGMENT itself, so \"did the design converge?\" no longer\
   \ rests on the single running\n   (primary-only) perspective. The external read\
-  \ REUSES `audit adhoc` (SPEC-0036) — NO new\n   verb/gate/store/detector (CHARTER\
+  \ REUSES `audit adhoc` (<workshop-spec>) — NO new\n   verb/gate/store/detector (CHARTER\
   \ §Principle 1); it DERIVES its verdict from the baked trial\n   criteria (rule\
   \ 3) + the journal run-refs, treating the primary trial-summary as CONTEXT/carrier\n\
   \   only (not the thing it ratifies). The two reads are produced independently,\
@@ -309,7 +309,6 @@ cites:
 - CHARTER.md#principle-3
 - CHARTER.md#principle-5
 - CHARTER.md#principle-8
-- SPEC-0027
 - SPEC-0034
 - LIFECYCLE.md#plan-lifecycle
 - add-a-controlled-real-data-trial-stage-between-pla

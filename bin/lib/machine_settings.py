@@ -201,7 +201,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "ran (SPEC-0202 rule 2a) and a bound-vs-default difference is named at session start (2b)"),
     _b("auditor.full.provider", "bin/lib/audit.py#resolve_audit_provider",
        "WHICH adapter judges at full tier on THIS machine — an adapter name the registry knows "
-       "(SPEC-0036 §Auditor selection / bin/audit-config.yaml); a locator, not a verdict input"),
+       "(SPEC-1040 §Auditor selection / bin/audit-config.yaml); a locator, not a verdict input"),
     _b("auditor.full.reserve.effort", "bin/lib/audit.py#resolve_audit_reserve",
        "T-12853 — the full-tier RESERVE pair's effort (SPEC-0202 rule 6); overrides the repo "
        "config's `full.reserve.effort` per machine"),
@@ -224,7 +224,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "as its full-tier twin (SPEC-0202 rule 2: the verdict stamp + the session-start naming)"),
     _b("auditor.routine.provider", "bin/lib/audit.py#resolve_audit_provider",
        "WHICH adapter judges at routine tier on THIS machine — an adapter name the registry knows "
-       "(SPEC-0036 §Auditor selection / bin/audit-config.yaml); a locator, not a verdict input"),
+       "(SPEC-1040 §Auditor selection / bin/audit-config.yaml); a locator, not a verdict input"),
     _b("auditor.routine.reserve.effort", "bin/lib/audit.py#resolve_audit_reserve",
        "T-12853 — the routine-tier RESERVE pair's effort (see its full-tier twin)"),
     _b("auditor.routine.reserve.model", "bin/lib/audit.py#resolve_audit_reserve",

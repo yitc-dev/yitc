@@ -553,7 +553,7 @@ and did not transform the project's other docs — so the migration plan is held
 
 > **Born:** <project> gate-3, 2026-07-01. **Not post-completion cleanup — a gate that must run BEFORE
 > `plan realized`.** After you dispatch a PARALLEL batch of fixes across OVERLAPPING modules, run an
-> **external-auditor (SPEC-0036) cross-interaction review** of the landed batch AS A WHOLE — do not treat
+> **external-auditor (<workshop-spec>) cross-interaction review** of the landed batch AS A WHOLE — do not treat
 > the batch as done just because each task landed green.
 
 - **The trap it catches:** individually-green tasks can CONFLICT when combined. Per-worktree hermetic

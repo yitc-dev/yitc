@@ -10,7 +10,7 @@ sourced_from: <durable artifact> (move governed audit to the official unconfined
 > **`class: adapter` — NON-NORMATIVE, NOT a governance source.** This file is the concrete HOW-to-run
 > for the <external-auditor> CLI on this server. It establishes no rule/gate. The governance lives in
 > **`bin/audit-config.yaml`** (the provider-binding SoT — CHARTER §Principle 4b: concrete model/binary/auth
-> bindings live in config, not handbook prose), **SPEC-0036** (the external-auditor invocation contract),
+> bindings live in config, not handbook prose), **SPEC-1040** (the external-auditor invocation contract),
 > and **<workshop-spec>** (the role→provider binding policy). On any conflict, those WIN. <external-auditor> mechanics change
 > upstream — when they do, update THIS file; the specs stay provider-neutral. History:.
 
@@ -139,6 +139,6 @@ OpenAI lifts it, and we already run gpt-5.5 (i.e. already at that ceiling). Refs
 
 - `bin/audit-config.yaml` — provider-binding SoT (binary / home / per-tier model+effort), CHARTER §P4b.
 - `bin/effort-routing-config.yaml` `worker_providers.<external-auditor>.min_version` — per-model minimum <external-auditor>.
-- `SPEC-0036` — external-auditor invocation contract · `<workshop-spec>` — role→provider binding policy.
+- `SPEC-1040` — external-auditor invocation contract · `<workshop-spec>` — role→provider binding policy.
 - `` — migration off the third-party snap onto the official unconfined <external-auditor> + bwrap.
 - `patterns/claude-code-mcp-runbook.md` — sibling adapter-runbook shape (provider mechanics for a neutral rule).

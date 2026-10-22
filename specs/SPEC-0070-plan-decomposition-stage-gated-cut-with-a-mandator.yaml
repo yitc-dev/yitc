@@ -17,43 +17,43 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   gates, the card-set fingerprint freshness contract, the claim-block rule, and the\
   \ applicability rule.\nThis EXTENDS the existing plan-FSM machinery (SPEC-0034 per-stage\
   \ mechanics; the `plan stage` verb;\nthe `_run_plan_gate_audit` plan-gate family\
-  \ of SPEC-0036; the `plan-stage-entry:<NAME>` delivery\naxis) — it adds NO parallel\
-  \ mechanism. SPEC-0034 stays the per-stage-mechanics home and is EDITED to\ninsert\
-  \ this stage + delegate its detail here (§Realization surface); this spec is the\
-  \ single home for\nthe cut-as-a-stage rules (P5 / <workshop-spec> rule 8 — other\
-  \ surfaces point here, never restate).\n\n### 1. FSM position\nThe plan FSM becomes\n\
-  `draft → specs → trial → accepted → decomposition → executing → postcheck → realized`\n\
-  (terminals `partial | rejected | cancelled`, unchanged — reachable from any active\
-  \ stage). The\n`plan stage` verb stays the SOLE writer, advancing exactly ONE linear\
-  \ step; the verb GATES the prior\nstage's completion, so \"enter N\" == \"exit N-1\"\
-  .\n\n### 2. The cut is its own stage (what `decomposition` IS)\n- **Entry gate `accepted\
-  \ → decomposition`** = the plan is verified — a fresh GREEN/YELLOW\n  `plan check`\
-  \ (canonical shape + fresh `content_hash`) **+** the `implementation_plan` composed\
-  \ **+**\n  the plan's specs `proposed` (the deliberate-never-active `withdrawn`/`rejected`\
-  \ exemption\n  carries over unchanged). **The MANDATORY big-plan check (LARGE plans)\
-  \ RELOCATES to THIS gate** — it\n  audits the plan TEXT + the `implementation_plan`\
-  \ decomposition MAP, which is the TEXT boundary that\n  sits BEFORE the cut (the\
-  \ cards do not exist yet), so it belongs at the entry to the cut, not at the\n \
-  \ entry to build.\n- **Work** = the CUT, relocated from `executing`: slice the plan\
-  \ into task cards per SPEC-0046 (ONE\n  provable claim per accept-unit; order via\
-  \ `requires:`; the verifier-after-settled rule), file them\n  via `task file`, and\
-  \ SET the single `activation_owner_task` on each `proposed` spec (the HARD\n  invariant\
-  \ — one activating task per spec; the others `cite` it). The plan↔spec linkage-chain\n\
-  \  born→activate slice (SPEC-0034) is exercised HERE — the cut SETS these, so it\
-  \ is cut-bundle content.\n- **Exit gate `decomposition → executing`** = the cut\
-  \ is verified (§3).\n- **`executing`** narrows to PURE BUILD: the cards run their\
-  \ own 9 stages; no \"incidental\" cutting.\n  Its delivered bundle narrows to \"\
-  how to build\" (SPEC-0027 / SPEC-0041 / the per-task stage bundles).\n\n### 3. The\
-  \ decomposition-fidelity gate (`decomposition → executing`) — MANDATORY-BLOCKING\n\
+  \ of <workshop-spec>; the `plan-stage-entry:<NAME>` delivery\naxis) — it adds NO\
+  \ parallel mechanism. SPEC-0034 stays the per-stage-mechanics home and is EDITED\
+  \ to\ninsert this stage + delegate its detail here (§Realization surface); this\
+  \ spec is the single home for\nthe cut-as-a-stage rules (P5 / <workshop-spec> rule\
+  \ 8 — other surfaces point here, never restate).\n\n### 1. FSM position\nThe plan\
+  \ FSM becomes\n`draft → specs → trial → accepted → decomposition → executing → postcheck\
+  \ → realized`\n(terminals `partial | rejected | cancelled`, unchanged — reachable\
+  \ from any active stage). The\n`plan stage` verb stays the SOLE writer, advancing\
+  \ exactly ONE linear step; the verb GATES the prior\nstage's completion, so \"enter\
+  \ N\" == \"exit N-1\".\n\n### 2. The cut is its own stage (what `decomposition`\
+  \ IS)\n- **Entry gate `accepted → decomposition`** = the plan is verified — a fresh\
+  \ GREEN/YELLOW\n  `plan check` (canonical shape + fresh `content_hash`) **+** the\
+  \ `implementation_plan` composed **+**\n  the plan's specs `proposed` (the deliberate-never-active\
+  \ `withdrawn`/`rejected` exemption\n  carries over unchanged). **The MANDATORY big-plan\
+  \ check (LARGE plans) RELOCATES to THIS gate** — it\n  audits the plan TEXT + the\
+  \ `implementation_plan` decomposition MAP, which is the TEXT boundary that\n  sits\
+  \ BEFORE the cut (the cards do not exist yet), so it belongs at the entry to the\
+  \ cut, not at the\n  entry to build.\n- **Work** = the CUT, relocated from `executing`:\
+  \ slice the plan into task cards per SPEC-0046 (ONE\n  provable claim per accept-unit;\
+  \ order via `requires:`; the verifier-after-settled rule), file them\n  via `task\
+  \ file`, and SET the single `activation_owner_task` on each `proposed` spec (the\
+  \ HARD\n  invariant — one activating task per spec; the others `cite` it). The plan↔spec\
+  \ linkage-chain\n  born→activate slice (SPEC-0034) is exercised HERE — the cut SETS\
+  \ these, so it is cut-bundle content.\n- **Exit gate `decomposition → executing`**\
+  \ = the cut is verified (§3).\n- **`executing`** narrows to PURE BUILD: the cards\
+  \ run their own 9 stages; no \"incidental\" cutting.\n  Its delivered bundle narrows\
+  \ to \"how to build\" (SPEC-1038 / SPEC-0041 / the per-task stage bundles).\n\n\
+  ### 3. The decomposition-fidelity gate (`decomposition → executing`) — MANDATORY-BLOCKING\n\
   Entry to `executing` REQUIRES a FRESH GREEN/YELLOW external **decomposition-fidelity**\
   \ verdict over\nthe task SET. The verdict is produced by the\nEXISTING `_run_plan_gate_audit`\
-  \ plan-gate machinery (SPEC-0036) under a NEW template\n`gate-executing` / `gate_policy:\
-  \ mandatory-blocking` — the same family as `gate-specs` (P2) /\n`gate-trial` (P3)\
-  \ / `gate-accepted` (P4); it is NOT `audit adhoc` and NOT an `audit post --plan`\n\
+  \ plan-gate machinery (<workshop-spec>) under a NEW template\n`gate-executing` /\
+  \ `gate_policy: mandatory-blocking` — the same family as `gate-specs` (P2) /\n`gate-trial`\
+  \ (P3) / `gate-accepted` (P4); it is NOT `audit adhoc` and NOT an `audit post --plan`\n\
   overlay. FULL auditor (PLAN-level audit posture,\nSPEC-0034). RED/ABORT HOLDS the\
   \ transition; the 2-pass audit-loop ceiling applies (CHARTER\n§audit-loop ceiling).\
   \ The verdict saves to the canonical plan-gate YAML with\n`stage_template: gate-executing`\
-  \ (SPEC-0036 §Verdict recording).\n- **What it audits = the SET, not one card**\
+  \ (<workshop-spec> §Verdict recording).\n- **What it audits = the SET, not one card**\
   \ (the blind-spot per-task audit-pre cannot reach):\n  coverage (every plan part\
   \ mapped 1:1), cross-task `requires:` ordering, verifier-after-settled\n  edges,\
   \ a singular `activation_owner_task` across siblings, probe quality (no future-bound\
@@ -207,7 +207,7 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ design choice, not\n  a silent omission.\n\n## Parameters\n\nNone consumed. Referenced\
   \ constants live in their own homes (audit-loop ceiling = 2 → CHARTER;\nbig-plan\
   \ apply-when → `patterns/big-plan-checklist.md`; the plan-gate family + verdict\
-  \ schema →\nSPEC-0036) — not duplicated or `consumed:` here.\n\n## Rationale\n\n\
+  \ schema →\nSPEC-1040) — not duplicated or `consumed:` here.\n\n## Rationale\n\n\
   The fidelity audit is ALREADY run BY HAND via `audit adhoc`, twice in two days,\
   \ both YELLOW with real\nabsorbed findings — a manual, skippable memo for a missing\
   \ checkpoint:\n`decisions/lifecycle-path-decomp-fidelity-audit-adhoc.yaml` (2026-06-08,\
@@ -271,7 +271,7 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ → the `accepted → decomposition`\n  gate (rename), add `_require_plan_decomposition_fidelity`\
   \ (the fingerprint-fresh GREEN/YELLOW\n  verdict) as the `decomposition → executing`\
   \ gate, wire `_require_reads(axis=plan,\n  stage=\"decomposition\")` on the executing\
-  \ leg, relocate the big-plan check to the\n  decomposition-entry gate. 4. **SPEC-0036**\
+  \ leg, relocate the big-plan check to the\n  decomposition-entry gate. 4. **<workshop-spec>**\
   \ — add the `gate-executing` decomposition-fidelity\n  template (P5) + its gate-policy\
   \ row (`mandatory-blocking`) to the plan-gate family. 5.\n  **SPEC-0046** — ADD\
   \ `plan-stage-entry:decomposition` to its `binding:` (carry BOTH the\n  task-Analysis\
@@ -333,7 +333,6 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
 cites:
 - SPEC-0034
 - SPEC-0046
-- SPEC-0036
 - SPEC-0035
 - SPEC-0007
 - GRAPH.md#spec-lifecycle

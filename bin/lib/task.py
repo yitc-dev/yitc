@@ -3059,7 +3059,7 @@ def _render_live_dependents(tid: str, target: str, dependents: list) -> str:
                  "precisely because the right edit depends on what else that card requires) if the "
                  "requirement turned out not to be needed; or RE-POINT that entry at the SUCCESSOR "
                  "card if this closure had one (succession is the documented outcome of a terminal "
-                 "RED, SPEC-0204); or close the dependent `wont-do` too if the requirement was the "
+                 "RED, SPEC-1039); or close the dependent `wont-do` too if the requirement was the "
                  "point")
     else:
         why = ("a `parked` target does not satisfy `requires:`, so each of these stays "
@@ -9605,7 +9605,7 @@ def sync_merge_closure_custody(record, sha, *, _git_resolve_sha, repo_root) -> "
     return None
 
 
-def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _unflippable_supersedes_targets=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
+def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _unflippable_supersedes_targets=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
                    _task_commit_landed_chain=None,
                    _bookkeeping_commit_authored_paths=None, _BOOKKEEPING_COMMIT_KINDS=None,
                    _live_probe_settled_unresolved=None, _require_post_ship_observation=None,
@@ -11474,6 +11474,26 @@ def cmd_task_close(args: argparse.Namespace, *, _set_read_horizon=None, REPO_ROO
                          f"observation cannot be re-verified at the close seam, so closing would record "
                          f"an untracked deferral (T-10916, SPEC-0036 / X-0710). Refusing fail-closed.")
                 _require_post_ship_observation(verb="task close", stage="Closure", tid=tid)
+
+    # T-14037 (SPEC-1038 §Tests «Closure-time coverage») — ONE journal fact: the newest runner-marked
+    # governed run recorded after the card's LAST SUBSTANTIVE COMMIT is green. Read AFTER the audit-post
+    # and fast-path checks above, so their refusals keep coming first and unchanged, and BEFORE any
+    # closure write (the activation flips included). A card with no substantive `commit_landed` owes no
+    # run (the hygiene `--batch-close` route, a bookkeeping-only card). No tree is compared here: the
+    # land credits a run only for the tree it tested (SPEC-0065 condition 2). The reader is host-wired;
+    # a caller that wires none cannot show the fact, so the close refuses (fail-closed).
+    if _closure_coverage_gap is None:
+        _die(f"{tid}: closure REFUSED — this caller wires no Closure-time coverage reader, so whether a "
+             f"green governed run follows the card's last substantive commit cannot be shown "
+             f"(SPEC-1038 §Tests). Nothing was written. Route: close through the host verb "
+             f"`yitc-v2 task close {tid}`, which wires the reader.")
+    _coverage_gap = _closure_coverage_gap(tid)
+    if _coverage_gap:
+        _die(f"{tid}: closure REFUSED — Closure-time coverage (SPEC-1038 §Tests): {_coverage_gap}. Route: "
+             f"`yitc-v2 stage Tests --task {tid}` → `yitc-v2 task test {tid} --run --evidence \"<what ran, "
+             f"at which head>\"` (the governed run), then re-run `yitc-v2 task close {tid}`. A red run "
+             f"returns the card to Commit: fix, commit (an audited card through the re-ship arm its "
+             f"verdict admits, then `audit post`), and run Tests again. Nothing was written.")
 
     # Parse probes (--probe + --probe-deferred либо --from-stdin)
     probes: dict[str, str] = {}
@@ -14139,7 +14159,7 @@ def refuse_kernel_local_placement(args, *, kernel: bool, _die) -> None:
 
 
 @_pinned_suite_edit_preaudit_marker
-def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _changed_anchor_spec_drift=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None) -> None:
+def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None, _stage_pointer_facts=None) -> None:
     """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
     writes current_stage). Without --evidence: ENTER Tests (emit tests_entered, print
     ACs as a manual checklist). With --evidence: RECORD the Stage-6 result durably — emit a
@@ -14180,13 +14200,15 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
               f"the card in place; commit the fix via `yitc-v2 work commit` (T-0367), then re-audit with "
               f"`yitc-v2 audit post --task {tid} --reaudit-after-close` (T-10094) and land.")
     else:
-        # T-11551 — pointer advance (Execution->Tests forward, or the mode-(a) return from Audit-post,
-        # which the fold measured at 142 of 200 `task test` refusals). Not on the post-close-rework
-        # branch above: a done card has no live stage to move.
+        # T-11551 — pointer advance (Audit-post->Tests forward; hygiene Commit->Tests; the `exempt` move
+        # Commit->Tests of a SPEC-0178 card — T-14037). A move INTO Tests needs a recorded
+        # `commit_landed` (SPEC-1038 §Tests), read through `_stage_pointer_facts`. Not on the
+        # post-close-rework branch above: a done card has no live stage to move.
         if _write_task_transition is not None:
             gates.advance_stage_pointer(
                 task, "Tests", task_path=path, yaml_mod=yaml, verb="task test",
-                _write_task_transition=_write_task_transition, _append_event=_append_event)
+                _write_task_transition=_write_task_transition, _append_event=_append_event,
+                _facts=(lambda: _stage_pointer_facts(task)) if _stage_pointer_facts is not None else None)
         _require_stage_correspondence(task, tid, "Tests", verb="task test")   # T-0288: strict — requires current_stage==Tests
     # T-0598 — verification-artifact-exists readiness (SPEC-0059 §contract leg 2b): the Tests stage PROVES
     # the task against its `acceptance`, so the criteria must EXIST first. `task file` mandates ≥1
@@ -14224,41 +14246,6 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     _s6_tree_before = None
     _s6_routed = False
     _s6_venue_tree = None
-    # T-11975 — THE STALE-ANCHOR REPORT, delivered to the WORKER at Stage 6.
-    #
-    # The audit packet already computes, per touched file, which governing `implements:` anchors read
-    # possibly-stale (`### Spec coverage of touched files`, SPEC-0036 §T-0444, assembled by
-    # `_spec_coverage_section` in bin/lib/cli.py). But that section is rendered to the AUDITOR, so the
-    # worker meets it only after a pass has been spent reporting what the packet already knew:
-    # measured on the kernel journal 2026-08-18..09-02, `finding_class: spec-coherence` is 64/383 RED
-    # audit-post passes (17%) and 54/237 RED audit-pre (23%); <project> adds 16 pre + 6 post naming
-    # stale anchors. Every one of those is a paid pass saying something free at this seam.
-    #
-    # ONE ASSEMBLER, NOT A SECOND IMPLEMENTATION: `_changed_anchor_spec_drift` is the exact symbol
-    # `_spec_coverage_section` calls, and the same one the Stage-7 (`cmd_task_commit` /
-    # `stage Commit`) and Stage-9 (`cmd_task_close`) WARNs call. Nothing is re-derived here.
-    # `diff_range=None` = file-level granularity, deliberately: that is the audit-pre forecast path's
-    # own scoping, and a dirty working tree has no head rev to scope symbols against. Over-inclusion
-    # is the right error for a report-only surface.
-    #
-    # PLACED BEFORE THE `--run` BRANCH so ONE call site serves all three invocation shapes — the bare
-    # Stage-6 ENTER (where it lands just above the AC checklist), `--run`, and `--evidence`.
-    #
-    # REPORT-ONLY, and bounded by construction: it prints, and does nothing else. It appends nothing
-    # to `bad`, moves no exit path, writes no field and emits no event — the `tests_passed` /
-    # `tests_failed` payloads are byte-unchanged. OPTIONAL (skip-if-None), like `_auto_rebuild_graph`
-    # and `_consumer_tests_delegation` above: a harness driving this fn directly degrades to silence,
-    # never a wiring abort. Wrapped, because a SIGNAL fails toward silence, never toward breaking the
-    # verb (the `_uncommitted_layer_surface` precedent below).
-    if _changed_anchor_spec_drift is not None and REPO_ROOT is not None and _run_git_cap is not None:
-        try:
-            _touched = tests_stage_touched_files(REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap)
-            _drift_note = tests_stage_spec_drift_warn(
-                tid, _changed_anchor_spec_drift(_touched, {})) if _touched else ""
-        except Exception:
-            _drift_note = None
-        if _drift_note:
-            print(_drift_note, end="")
     # T-10108 — `--run` executes the SAME subprocess suite `land` verifies (`_run_verify_tests` globs
     # tests/test_*.py and runs each via `python3 <f>`, exit 0 = pass). This is the canonical V2 test
     # interface (tests/README.md §Run all tests) that EXECUTES the `__main__` block — unlike `pytest
@@ -15279,11 +15266,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 _s6_note = (f"{tid} stage6_run NOT recorded — {_s6_why}; the land runs its candidate "
                             f"verify as usual (SPEC-0065 §Bound).")
         _append_event("tests_passed", tid, data)
-        print(f"{tid} tests_passed recorded ({len(evidence)} chars) — audit-post will read it")
+        print(f"{tid} tests_passed recorded ({len(evidence)} chars) — the Closure-time coverage check "
+              f"(SPEC-1038 §Tests) reads it")
         if _s6_note:
             print(_s6_note)
-        print(_post_action_hint(f"`yitc-v2 task commit {tid} --message ...`"))   # T-0297 post-action hint
-        print(_governing_rule_pointer("commit"))   # element #2 — the verb BEFORE commit (T-0232)
+        print(_post_action_hint(f"`yitc-v2 task close {tid} --probe ...`"))   # T-0297 post-action hint
+        print(_governing_rule_pointer("close"))   # element #2 — the verb BEFORE close (T-0232, T-14037)
         # T-12431 — the terminal token for the RUN-THEN-RECORD form (`--run --evidence`), the
         # invocation the detached over-cap recipe prescribes. It prints LAST, and strictly AFTER the
         # `tests_passed` append above: on this form the row IS the Stage-6 evidence, so a token
@@ -15299,7 +15287,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     # (the precondition just asserted it).
     _append_event("tests_entered", tid, {"current_stage": task.get("current_stage")})
     print(f"{tid} -> stage=Tests")
-    print("run the project's test command; capture VISIBLE output (Evidence Rule, LIFECYCLE §Stage 6).")
+    print("run the project's test command; capture VISIBLE output (Evidence Rule, LIFECYCLE §Stage 8).")
     if acceptance:
         print("acceptance criteria to verify (manual checklist — probe auto-run deferred per D-0033):")
         for ac in acceptance:
@@ -16709,7 +16697,8 @@ def commit_stage_next_cue(task: dict, *, commit_short: str | None = None, absorb
     # is wrong guidance — point it at the next REAL stage (Closure). Human `stage Closure` phrasing
     # carries no `stage-entry:`/SPEC-id pairing, so it is NOT a routing payload (test_t0297 stays green).
     if (task.get("class") or "") == "hygiene":
-        return f"next: `yitc-v2 stage Closure --task {tid}` → `yitc-v2 task close {tid} --hygiene-fast-path`"
+        return (f"next: `yitc-v2 stage Tests --task {tid}` → `yitc-v2 task test {tid} --run --evidence ...` "
+                f"→ `yitc-v2 task close {tid} --hygiene-fast-path`")
     return f"next: `yitc-v2 audit post --task {tid} --commit {sha}`"
 
 
@@ -16810,15 +16799,14 @@ def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
         f"re-stamp ships in the audited diff — or do both in ONE command (re-signs only the anchors "
         f"this diff moved; still a second commit HERE, because this one already exists):\n"
         f"  yitc-v2 task commit {tid} {one_step} --message ...\n"
-        f"    A re-sign made HERE comes after any Stage-6 run you have made, and `specs/` is not an "
-        f"inert path: the tree the land integrates is then no longer the tree that run tested, so "
-        f"where the land would have credited the run, a re-sign after it ends the land's Stage-6 "
-        f"credit and the land runs the full suite itself (SPEC-0065 §Bound condition 2). Re-signing "
-        f"is still the right thing to do; it costs at most that one run (T-13602).\n"
-        f"    Next time, re-sign with `yitc-v2 spec reverify <SPEC>` BEFORE your final `task test "
-        f"--run` (`stage Tests` and the Stage-6 report name it): the re-stamp is then in the tested "
-        f"tree and rides the product commit. `--reverify` on the FIRST `task commit` also gives one "
-        f"commit, no re-sign commit (T-13056) — but it too re-signs after the run.\n"
+        f"    A re-sign made HERE, before audit-post, is a second commit that audit-post then judges; "
+        f"AFTER audit-post a re-sign changes the audited subject and needs a new commit and a "
+        f"re-audit (SPEC-1038 §Execution «Re-sign specs before the commit»). Re-signing is still the "
+        f"right thing to do (T-13602).\n"
+        f"    Next time, re-sign with `yitc-v2 spec reverify <SPEC>` BEFORE `task commit` (`stage "
+        f"Commit` and its stale-anchor report name it): the re-stamp then rides the product commit. "
+        f"`--reverify` on the FIRST `task commit` also gives one commit, no re-sign commit "
+        f"(T-13056).\n"
         f"  - behaviour genuinely changed? `yitc-v2 spec edit <SPEC>` (SPEC-0005 rule-7 in-place).\n"
         f"A spec file outside the card's expected_touch is fine to re-sign: expected_touch is a "
         f"forecast that `task commit` refreshes from the diff (T-12302), so it needs no amendment "
@@ -16831,7 +16819,238 @@ def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
         f"commit` just to look (T-11093).\n")
 
 
-def tests_stage_touched_files(*, REPO_ROOT, _run_git_cap) -> list:
+def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_paths, _test_basename_re,
+                  _run_git_cap, _verify_test_timeout_seconds, _consumer_tests_delegation=None) -> list:
+    """T-14034 (SPEC-1038 §Execution, the own-tests check) — run ONLY the changed test files, each
+    through the project's OWN test declarations by the machinery the governed run uses, and return
+    one entry per changed test file: `{file, runner, result: passed|failed|not-determined}` (+
+    `reason` on a not-determined one). `changed` is repo-relative paths that exist on disk.
+
+    Three selections, in this order, a file taken by the first that maps it:
+      (1) SCRIPT SWEEP — a file the declared sweep enumerates (`_declared_test_sweep_paths`, the
+          resolver `task test --run` uses; `test_discovery.test_files` per directory) runs through
+          `_run_verify_tests(only=...)`, the SAME runner, narrowed to these names (T-11479: `only`
+          narrows the file set, never the verdict rule). Per directory, so two directories holding
+          one basename never share a call. Skipped where the project DELEGATES its sweep to a layer
+          (`_consumer_tests_delegation`) — the governed run does not run those files as scripts.
+      (2) ADAPTER LAYERS — every declared `verify.layers[]` entry with an adapter `list`, read as
+          `_stage6_deciding_layers` reads them (the land path's ONE ops-carrier reader,
+          `_land_batch_engagement(ops_out=)`, then `_declared_layer_adapters`; each pass bounded by
+          the layer's `timeout:`, else the section's `timeout_seconds:`, through
+          `_verify_test_timeout_seconds` — SPEC-1031 rule 4): a pass whose launcher starts `list` alone names the layer's
+          inventory (the `_stage6_partial_needs` way), and the inventory units naming a remaining
+          file run through a second pass with `rerun=<units>` — the layer's own `run`, exactly those
+          units. A unit row `passed` is passed, `failed`/`error` is failed; a unit with no row, or a
+          pass that is not usable, is not-determined.
+      (3) EVERY OTHER changed test-shaped file — the project's declared `tests.classes[].globs`
+          (`declared_test_globs`, SPEC-0185 §1(c)), else the kernel basename shape — is
+          `not-determined`, never an empty green.
+    A changed file that is no test (by (1)-(3)) is not listed. Never raises on a project fault: an
+    unreadable declaration maps nothing and its files fall to (3)."""
+    from lib import land_verify_legs as _lv, worktree as _wt
+    root = Path(root)
+    left = sorted(set(changed))
+    out: list = []
+    delegated = _consumer_tests_delegation(root) if _consumer_tests_delegation is not None else None
+    for d in ([] if delegated else [Path(p) for p in _declared_test_sweep_paths(root)]):
+        if not d.is_dir():
+            continue
+        mine = {}
+        for f in test_discovery.test_files(d):
+            try:
+                rel = f.resolve().relative_to(root.resolve()).as_posix()
+            except ValueError:
+                continue
+            if rel in left:
+                mine[f.name] = rel
+        if not mine:
+            continue
+        durations: list = []
+        bad = list(_run_verify_tests(d, root, fail_fast=False, select=False, only=set(mine),
+                                     durations_out=durations))
+        ran = {name for name, _ms, _outcome in durations}
+        # The runner's one failure shape is a first line `test failed: <name>` (a launch error, a
+        # timeout and a zero-collect file alike); attribute by that EXACT name, never a substring —
+        # `test_a.py` is a substring of `test_test_a.py`. Any other entry names no file.
+        failed, unattributed = set(), False
+        for entry in bad:
+            head = str(entry).splitlines()[0].strip() if str(entry).strip() else ""
+            name = head[len("test failed: "):] if head.startswith("test failed: ") else None
+            if name in mine:
+                failed.add(name)
+            else:
+                unattributed = True
+        for name, rel in sorted(mine.items(), key=lambda kv: kv[1]):
+            if name in failed:
+                res = {"result": "failed"}
+            elif name in ran and not unattributed:
+                res = {"result": "passed"}
+            else:
+                res = {"result": "not-determined",
+                       "reason": "a failure the runner reported names no file" if unattributed
+                       else "the runner reported no verdict for this file"}
+            out.append({"file": rel, "runner": "script", **res})
+            left.remove(rel)
+    seen: list = []
+    engaged = _wt._land_batch_engagement(root, ops_out=seen) if left else (True, "")
+    ops = seen[0] if seen else {}
+    ver = ops.get("verify") if isinstance(ops.get("verify"), dict) else {}
+    layers = [ly if isinstance(ly, dict) else {} for ly in (ver.get("layers") or [])] \
+        if isinstance(ver.get("layers"), list) and not isinstance(ver.get("waiver"), dict) else []
+    adapters = {}
+    why = ("the project's ops carrier could not be read" if engaged[1] == "ops-carrier-unreadable" else "")
+    if layers:
+        ls = _run_git_cap(["ls-files", "-z", "--cached", "--others", "--exclude-standard"], root)
+        repo_files = ({p for p in (ls.stdout or "").split("\0") if p}
+                      if ls is not None and ls.returncode == 0 else None)
+        try:
+            adapters = _lv._declared_layer_adapters(layers, repo_files=repo_files)
+        except ValueError as exc:
+            why = f"the declared verify layers could not be read: {exc}"
+
+    def _list_only(cmd, worktree, timeout, env, **kw):
+        """Start `list`; every other invocation is not started and answers as one that hit its bound."""
+        try:
+            action = json.loads(Path(env[_lv._VERIFY_ADAPTER_MANIFEST_ENV]).read_text(encoding="utf-8")).get("action")
+        except Exception:                                  # noqa: BLE001 — no readable manifest: not started
+            action = None
+        if action != "list":
+            return None, 0, ""
+        return _lv._run_layer_command(cmd, worktree, timeout, env, **kw)
+
+    for idx, decl in sorted(adapters.items()):
+        if not left or not decl.get("list"):
+            continue
+        name = str(layers[idx].get("layer") or "").strip() or f"layer-{idx}"
+        try:
+            own_t = _lv._declared_verify_timeout(layers[idx], "timeout")
+            timeout = _verify_test_timeout_seconds(
+                _lv._declared_verify_timeout(ver, "timeout_seconds") if own_t is None else own_t)
+        except Exception as exc:                           # noqa: BLE001 — a malformed bound maps nothing
+            why = why or f"layer {name!r}: its declared timeout could not be read: {exc}"
+            continue
+        sink: dict = {}
+        with contextlib.redirect_stdout(io.StringIO()):
+            rec = _lv._layer_adapter_report_pass(root, name, decl, timeout=timeout, sink=sink,
+                                                 _run_layer_command=_list_only)
+        inventory = sink.get("inventory")
+        if rec.get("list") != "ok" or not isinstance(inventory, list):
+            continue
+        units = [u for u in inventory if isinstance(u, dict) and u.get("file") in left]
+        if not units:
+            continue
+        with contextlib.redirect_stdout(io.StringIO()):
+            rec = _lv._layer_adapter_report_pass(root, name, decl, timeout=timeout, rerun=units,
+                                                 _run_layer_command=_lv._run_layer_command)
+        usable = bool(rec.get("usable")) and not rec.get("error") and not rec.get("outer")
+        statuses: dict = {}
+        for row in rec.get("units") or ():
+            if isinstance(row, dict) and isinstance(row.get("file"), str):
+                statuses.setdefault(row["file"], []).append(row.get("status"))
+        for f in sorted({u["file"] for u in units}):
+            got = statuses.get(f) or []
+            if usable and got and any(st in ("failed", "error") for st in got):
+                res = {"result": "failed"}
+            elif usable and got and all(st == "passed" for st in got):
+                res = {"result": "passed"}
+            else:
+                res = {"result": "not-determined",
+                       "reason": "the layer's run report is not usable" if not usable
+                       else "the layer's report holds no passed/failed row for this file"}
+            out.append({"file": f, "runner": f"layer:{name}", **res})
+            left.remove(f)
+    globs = [g for g in declared_test_globs(root, ops) if isinstance(g, str) and g.strip()]
+    for f in left:
+        shaped = (any(fnmatch.fnmatchcase(f, g) for g in globs) if globs
+                  else bool(_test_basename_re.match(f.rsplit("/", 1)[-1])))
+        if shaped:
+            out.append({"file": f, "runner": None, "result": "not-determined",
+                        "reason": why or "no declared test runner maps this file"})
+    return sorted(out, key=lambda e: e["file"])
+
+
+def _git_blob_id(path) -> "str | None":
+    """T-14035 — the git blob id of a file's bytes as they are on disk (`sha1("blob <n>\\0" + bytes)`,
+    git's own object id for content no filter rewrites), computed without a git launch. None when the
+    file cannot be read. A filtered file (eol / smudge) hashes differently from its index blob, so a
+    reader comparing the two reads it as not matching — never as a match."""
+    try:
+        data = Path(path).read_bytes()
+    except OSError:
+        return None
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_task_for_transition,
+                      _run_verify_tests, _declared_test_sweep_paths, _run_git_cap, _test_basename_re,
+                      _verify_test_timeout_seconds, REPO_ROOT, _consumer_tests_delegation=None) -> None:
+    """T-14034 — `task test <T> --own`, the own-tests check of SPEC-1038 §Execution (proposed; the
+    rule's home): run ONLY the test files the card's diff adds or changes (`own_tests_run`) and record
+    ONE `own_tests_ran` row `{current_stage, files, outcome, partial: true}`.
+
+    NOT the Stage-6 run, and never readable as one: the row type is neither `tests_passed` nor
+    `tests_failed`, and it never carries `stage6_run` — so the land's Stage-6 credit (which folds only
+    those two types and requires the mark, `worktree._land_stage6_credit`) and SPEC-0181's coverage
+    never read it. It moves no stage pointer and writes no card field.
+
+    Admitted at every stage of the card's row before Closure (both stage orders: Execution, Commit,
+    Audit-post and Tests included); refused on Closure, on a stage the row does not hold, on a card
+    that is not in-progress, and beside any Stage-6 flag. A diff with no test file records an empty
+    `files` list. Exit 1 when a file failed, after the row is written."""
+    yaml, path, task = _load_task_for_transition(args.task)
+    tid = task.get("id")
+    stray = [flag for flag, on in (("--run", getattr(args, "run", False)), ("--full", getattr(args, "full", False)),
+                                   ("--evidence", getattr(args, "evidence", None) is not None),
+                                   ("--duration-ms", getattr(args, "duration_ms", None) is not None),
+                                   ("--passed", getattr(args, "passed", None) is not None),
+                                   ("--failed", getattr(args, "failed", None) is not None),
+                                   ("--placement", getattr(args, "placement", "auto") not in (None, "auto"))) if on]
+    if stray:
+        _die(f"{tid}: `--own` is the own-tests check, not the Stage-6 run — it takes none of "
+             f"{', '.join(stray)}. Run it alone (`bin/yitc-v2 task test {tid} --own`); the governed run "
+             f"is `bin/yitc-v2 task test {tid} --run --evidence ...` at Tests.")
+    if task.get("status") != "in-progress":
+        _die(f"{tid} status={task.get('status')!r} — the own-tests check runs on a claimed card only "
+             f"(`bin/yitc-v2 worktree new --task {tid}` claims it).")
+    stage = task.get("current_stage")
+    if stage not in gates.stage_pointer_row(task) or stage == "Closure":
+        _die(f"{tid}: `task test --own` runs at a stage before Closure (current_stage={stage!r}); after "
+             f"Closure no own-tests check is taken. Enter a stage first: `bin/yitc-v2 stage Execution --task {tid}`.")
+    root = Path(REPO_ROOT)
+    changed = tests_stage_touched_files(REPO_ROOT=root, _run_git_cap=_run_git_cap, strict=True)
+    if changed is None:
+        _die(f"{tid}: the own-tests check could not read what this worktree changes against `main` "
+             f"(a git call failed), so it cannot name its test files and records nothing. Check "
+             f"`git merge-base HEAD main` here, then re-run `bin/yitc-v2 task test {tid} --own`.")
+    present = [p for p in changed if (root / p).is_file()]
+    before = {p: _git_blob_id(root / p) for p in present}   # T-14035: hashed BEFORE the run ...
+    files = own_tests_run(root, present,
+                          _run_verify_tests=_run_verify_tests,
+                          _declared_test_sweep_paths=_declared_test_sweep_paths,
+                          _test_basename_re=_test_basename_re, _run_git_cap=_run_git_cap,
+                          _consumer_tests_delegation=_consumer_tests_delegation,
+                          _verify_test_timeout_seconds=_verify_test_timeout_seconds)
+    results = {e["result"] for e in files}
+    outcome = ("empty" if not files else "red" if "failed" in results
+               else "not-determined" if "not-determined" in results else "green")
+    # T-14035 — ... and AFTER it: a file's blob is recorded only when both reads agree, so the row
+    # proves the version the run saw (the audit-post packet matches it against the diff's
+    # `index ..<blob>`); a file that changed while it ran gets no blob and reads stale there.
+    blobs = {e["file"]: b for e in files
+             if (b := before.get(e["file"])) and _git_blob_id(root / e["file"]) == b}
+    _append_event("own_tests_ran", tid, {"current_stage": stage, "files": files, "outcome": outcome,
+                                         "partial": True, "blobs": blobs})
+    for e in files:
+        print(f"own-tests: {e['file']} [{e['runner'] or 'no runner'}] -> {e['result']}"
+              + (f" ({e['reason']})" if e.get("reason") else ""))
+    print(f"{tid}: own-tests {outcome.upper()} over {len(files)} changed test file(s) at {stage} — "
+          + ("the diff adds or changes no test file" if not files else
+             "partial evidence, NOT the Stage-6 run (`task test --run --evidence` at Tests)"))
+    if outcome == "red":
+        sys.exit(1)
+
+
+def tests_stage_touched_files(*, REPO_ROOT, _run_git_cap, strict: bool = False) -> "list | None":
     """T-11975 — the Stage-6 touched set: what THIS worktree changes relative to `main`, read from
     the WORKING TREE rather than from a commit.
 
@@ -16845,26 +17064,38 @@ def tests_stage_touched_files(*, REPO_ROOT, _run_git_cap) -> list:
 
     Returns sorted repo-relative paths. [] on ANY git failure (no `main`, detached HEAD, a non-git
     sandbox): this feeds a REPORT-ONLY surface, so it fails toward silence and never toward
-    breaking the verb. Same purity/never-raise contract as the sibling `_worktree_dirty_paths`."""
+    breaking the verb. Same purity/never-raise contract as the sibling `_worktree_dirty_paths`.
+
+    T-14034 — `strict=True` is the own-tests reader's form (`cmd_task_test_own`): there an empty set
+    would read as "the diff changes no test file", an empty green, so EVERY git failure — the
+    untracked listing included — answers None instead, and the caller refuses. It also DECODES every
+    listed path through `textutil.git_unquote_path` (SPEC-0185 §2a(i)): an escaped non-ASCII name
+    matches no file on disk and would drop out of the own-tests set unseen."""
+    fail = None if strict else []
+    keep = textutil.git_unquote_path if strict else (lambda x: x)
     out: set = set()
     base_r = _run_git_cap(["merge-base", "HEAD", "main"], REPO_ROOT)
     if base_r.returncode != 0:
-        return []
+        return fail
     base = base_r.stdout.strip()
     if not base:
-        return []
+        return fail
     d = _run_git_cap(["diff", "--name-only", base], REPO_ROOT)
     if d.returncode != 0:
-        return []
-    out.update(p for p in d.stdout.splitlines() if p.strip())
+        return fail
+    out.update(keep(p) for p in d.stdout.splitlines() if p.strip())
     u = _run_git_cap(["ls-files", "--others", "--exclude-standard"], REPO_ROOT)
     if u.returncode == 0:
-        out.update(p for p in u.stdout.splitlines() if p.strip())
+        out.update(keep(p) for p in u.stdout.splitlines() if p.strip())
+    elif strict:
+        return None
     return sorted(out)
 
 
-def tests_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
-    """T-11975 — render the Stage-6 stale-anchor report for `tid` from `drift_hits`. PURE: no I/O,
+def commit_entry_spec_drift_warn(tid: str, drift_hits: list) -> str:
+    """T-11975 — render the pre-commit stale-anchor report for `tid` from `drift_hits`. Delivered at
+    Commit ENTRY since T-14037 (SPEC-1038 §Execution «Re-sign specs before the commit»; it ran at Tests
+    entry while Tests preceded the commit). PURE: no I/O,
     no state, no event — the same contract as its Stage-7 sibling `commit_stage_spec_drift_warn`
     directly above. An empty set renders "": a tree that moved no anchored symbol says NOTHING.
 
@@ -16872,18 +17103,18 @@ def tests_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
     `_changed_anchor_spec_drift` that the audit packet's `### Spec coverage of touched files`
     section calls (`_spec_coverage_section`, bin/lib/cli.py) and that the Stage-7 and Stage-9 WARNs
     call. There is exactly one assembler; what differs per seam is the RECIPE, because the correct
-    next command differs. The Stage-7 text says «re-sign, then re-run `task commit` so the
-    re-stamp ships in the audited diff» — at Stage 6 no commit exists yet, so repeating that text
+    next command differs. The post-commit text says «re-sign, then re-run `task commit` so the
+    re-stamp ships in the audited diff» — before the commit none exists yet, so repeating that text
     here would tell the worker to re-run a commit it has not made.
 
-    WHY STAGE 6 AT ALL. The packet section this reuses is rendered to the AUDITOR, i.e. the worker
+    WHY BEFORE THE COMMIT. The packet section this reuses is rendered to the AUDITOR, i.e. the worker
     reads it only after a pass has been spent saying what the packet already computed: measured on
     the kernel journal 2026-08-18..09-02, `finding_class: spec-coherence` is 64/383 RED audit-post
-    passes (17%) and 54/237 RED audit-pre (23%). Stage 6 is the last seam before the commit and
-    both audits, and re-signing is free here.
+    passes (17%) and 54/237 RED audit-pre (23%). Commit entry is the last seam before audit-post, and
+    re-signing is free here; after audit-post a re-sign changes the audited subject.
 
     REPORT-ONLY, and the text says so itself: nothing is gated, the exit code is untouched and the
-    `tests_passed`/`tests_failed` emits are unchanged (GRAPH §"NOT a validation layer" / CHARTER
+    commit is unchanged (GRAPH §"NOT a validation layer" / CHARTER
     non-goal #7 / the E-0005 + T-0298 WARN precedent).
 
     ONE `--anchor` COMMAND PER NAMED ANCHOR (T-13673). The before-the-run recipe prints, for every
@@ -16910,42 +17141,41 @@ def tests_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
         for sid, anchor in pairs if anchor and anchor == anchor.strip())
     one_step = " ".join(f"--reverify {sid}" for sid in drifted)
     return (
-        f"stale-anchor report (Stage 6, report-only): {tid}'s working tree changes code anchored by "
+        f"stale-anchor report (Commit entry, report-only): {tid}'s working tree changes code anchored by "
         f"active spec(s) {', '.join(drifted)} — their implements_signature reads possibly-stale:\n"
         f"{detail}\n"
         f"This is the SAME computation the audit packet's `### Spec coverage of touched files` "
-        f"section runs — delivered HERE, before `task commit` and before either audit, so you can "
+        f"section runs — delivered HERE, before `task commit` and before audit-post, so you can "
         f"act on it for free instead of spending an auditor pass to be told it.\n"
         f"Re-read each spec against your new code, then:\n"
-        f"  - body still accurate (the move was cosmetic/orthogonal)? re-sign NOW, BEFORE your final "
-        f"full run (`yitc-v2 task test {tid} --run --evidence ...`):\n"
+        f"  - body still accurate (the move was cosmetic/orthogonal)? re-sign NOW, BEFORE "
+        f"`yitc-v2 task commit {tid}`:\n"
         f"{reverify_cmds}\n"
         f"    Each command re-signs the ONE anchor it names and leaves the signature of every other "
         f"declared anchor of that spec unchanged; run the ones whose anchor you re-read.\n"
-        f"    The re-stamp is then part of the tree that run tests and your commit ships it with the "
-        f"code, so the land can credit that run instead of repeating it.\n"
-        f"    A re-sign AFTER the run changes `specs/`, which is not an inert path: the tree the land "
-        f"integrates is then no longer the tree the run tested, so where the land would have credited "
-        f"the run this ends the land's Stage-6 credit and the land runs the full suite itself "
-        f"(SPEC-0065 §Bound condition 2; T-13602). That includes the one-command form, which re-signs "
-        f"at commit time — ONE commit carries the code AND the re-stamp (only the anchors this diff "
-        f"moved; T-13056), at the price of that credit:\n"
+        f"    Your commit then ships the re-stamp with the code, so audit-post judges it and the "
+        f"governed run at Tests tests it.\n"
+        f"    A re-sign AFTER audit-post changes `specs/` — the audited subject — so it needs a new "
+        f"commit and a re-audit (SPEC-1038 §Execution «Re-sign specs before the commit»). The "
+        f"one-command form re-signs at commit time — ONE commit carries the code AND the re-stamp "
+        f"(only the anchors this diff moved; T-13056):\n"
         f"  yitc-v2 task commit {tid} {one_step} --message ...\n"
         f"  - behaviour genuinely changed? `yitc-v2 spec edit <SPEC>` (SPEC-0005 rule-7 in-place) — "
         f"`spec reverify` is the WRONG tool there (it asserts the rule is UNCHANGED).\n"
         f"  - the anchor itself is wrong? correct the spec's `implements:` anchor.\n"
-        f"    Either of these is a change under `specs/` too: make it before the final run for the "
+        f"    Either of these is a change under `specs/` too: make it before the commit for the "
         f"same reason.\n"
         f"A spec file outside the card's expected_touch is fine to re-sign: expected_touch is a "
         f"forecast that `task commit` refreshes from the diff (T-12302), so it needs no amendment "
         f"and no escalation — `task commit --reverify` ships the re-stamp (T-13175).\n"
         f"Left unsigned it reaches `audit post` as undeclared doc-drift (T-0444) and recurs as "
         f"possibly-stale on every build/land (T-0298). Report-only — nothing here is gated, the "
-        f"exit code is unchanged, and the Stage-6 result stands.\n")
+        f"exit code is unchanged.\n")
 
 
 def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, _append_event, _audit_commit_shift_hazard, _bookkeeping_only_custody_shift, _changed_anchor_spec_drift, _commit_worktree, _count_audit_passes, _die, _governing_contract_for, _load_task_for_transition, _require_reads, _require_stage_correspondence, _task_diff_files, _task_diff_range, _write_task_transition=None,
                     _dump_state_yaml=None, write_text_atomic=None, _worktree_dirty_paths=None,
+                    _stage_pointer_facts=None,
                     _red_fix_authored_paths=None,
                     _card_repair_staged_card=None,
                     _folded_audit_post_hazard=None,
@@ -17046,7 +17276,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
             f"then refuses the contentless subject (T-11405) and `--repin-ship` refuses a shape it "
             f"does not recognise (T-11386), which is the T-11503 deadlock (T-11509). Leave these "
             f"paths DIRTY — `yitc-v2 task close {tid} …` folds them into its closure-record "
-            f"commit, which does not re-shift custody (LIFECYCLE §Stage 8 / T-0275, SPEC-0015 "
+            f"commit, which does not re-shift custody (LIFECYCLE §Stage 7 / T-0275, SPEC-0015 "
             f"§Internal). Genuinely shipping authored work? Stage it and commit it WITH this "
             f"record, so the commit that moves custody is the one that carries the work."
             # T-11765 — '' for every non-parked card; a PARKED one cannot reach the `task close`
@@ -17582,7 +17812,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                  f"ship and the GREEN stands → you are DONE with Stage 8, so {_stage9_lead} "
                  f"`yitc-v2 task close {tid} --commit {hazard[1][:7]} "
                  f"--probe AC1:pass ...`, which {_stage9_effect} "
-                 f"WITHOUT re-shifting custody (LIFECYCLE §Stage 8 / T-0275, SPEC-0015 §Internal). "
+                 f"WITHOUT re-shifting custody (LIFECYCLE §Stage 7 / T-0275, SPEC-0015 §Internal). "
                  f"Do NOT weaken the audit to get past this.")
         # VERIFY THE PROMISED REMEDY IS AVAILABLE BEFORE GRANTING THE RISK — this leg's whole custody
         # story is the REQUIRED follow-up re-audit, and a grant justified by a backstop is void
@@ -17671,7 +17901,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                         f"in rather than deleting it, and admits ONLY a commit that carries AUTHORED "
                         f"content — so it is not a way around this refusal.")
             elif superseded_verdict in ("RED", "ABORT"):
-                _why = (f"{superseded_verdict} means STOP (LIFECYCLE §Stage 8) — re-plan or escalate, "
+                _why = (f"{superseded_verdict} means STOP (LIFECYCLE §Stage 7) — re-plan or escalate, "
                         f"NEVER absorb. Absorbing here would commit over a verdict that refused the "
                         f"work, displace audit custody onto a commit no verdict covers, and leave the "
                         f"card unable to re-audit, rebaseline or land (the T-11550 circular deadlock). "
@@ -17899,13 +18129,33 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
             f"(re-pins custody + carries the passes trail).")
     else:
         _stage_hint = "(filing a new task? commit a work/<slug> batch with `work commit`)"
-    # T-11551 — pointer advance (Tests->Commit forward, or the mode-(a) return from Audit-post — the
-    # fold's largest absorption arm at 177 of 226 `task commit` refusals). The `_stage_hint` below is
-    # unchanged and still reaches every move the model does not admit.
+    # T-11551 — pointer advance (Execution->Commit forward, the mode-(a) return from Audit-post — the
+    # fold's largest absorption arm at 177 of 226 `task commit` refusals — or, T-14037, the `return`
+    # move Tests->Commit after a red governed run recorded after the last `commit_landed`). The
+    # `_stage_hint` below is unchanged and still reaches every move the model does not admit.
+    _facts = (lambda: _stage_pointer_facts(task)) if _stage_pointer_facts is not None else None
     if _write_task_transition is not None:
         gates.advance_stage_pointer(
             task, "Commit", task_path=path, yaml_mod=yaml, verb="task commit",
-            _write_task_transition=_write_task_transition, _append_event=_append_event)
+            _write_task_transition=_write_task_transition, _append_event=_append_event, _facts=_facts)
+    # T-14037 (SPEC-1038 «One order for every card», D8) — a card AT Tests with NOTHING committed entered
+    # Tests under the old rows (Tests before Commit). The new rows have no Tests->Commit move for it: the
+    # `return` move needs a red governed run recorded after a commit. The route is a fresh card, never a
+    # legacy edge. Read only when the pointer is still at Tests, so every other refusal is unchanged.
+    if task.get("current_stage") == "Tests" and _facts is not None:
+        try:
+            _committed = bool(_facts().get("has_commit"))
+        except Exception:          # noqa: BLE001 — an unreadable fact leaves the generic refusal below
+            _committed = True
+        if not _committed:
+            _die(f"{tid}: this card is at Tests with NOTHING committed — it entered Tests under the old "
+                 f"stage rows (Tests before Commit), and the post-audit Tests order (SPEC-1038 «One order "
+                 f"for every card») has no Tests -> Commit move for it. Route: close it wont-do "
+                 f"(`yitc-v2 task update {tid} --status wont-do ...`) and re-file its scope as a NEW card "
+                 f"(`yitc-v2 task file ...`), which runs the new rows from the start. Its uncommitted work "
+                 f"may be carried into the new card's worktree; discard it from THIS worktree before "
+                 f"`yitc-v2 land --task {tid}` lands the wont-do record (land refuses uncommitted "
+                 f"non-journal changes).")
     _require_stage_correspondence(
         task, tid, "Commit", verb="task commit", extra_hint=_stage_hint)
     # SPEC-0042 (T-0418) — must-read entry gate: REFUSE the commit unless this session fetched the

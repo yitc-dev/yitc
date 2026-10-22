@@ -2,12 +2,12 @@
 name: event-emit-only-audit-post
 class: discipline
 sourced_from: <durable artifact> closure (commit 5ec3114) — first observed case 2026-05-28; codified
-applies_to: Stage 8 audit-post on tasks where ship = single events.jsonl emission (adoption probe per CHARTER §Principle 8), not accompanying code diff
+applies_to: Stage 7 audit-post on tasks where ship = single events.jsonl emission (adoption probe per CHARTER §Principle 8), not accompanying code diff
 ---
 
 # Pattern: event-emit-only audit-post category mismatch
 
-Stage 8 audit-post template assumes ship = substantive code/spec diff
+Stage 7 audit-post template assumes ship = substantive code/spec diff
 auditable in isolation. **Event-emit-only ships** (1-line `events.jsonl`
 addition where the emission IS the substance, not accompanying code) trigger
 auditor structural-incompleteness flag — closure-metadata absence misread
@@ -24,7 +24,7 @@ as defect.
 - Auditor's own notes field explicitly validated AC1+AC2 satisfied by event
   content: «AC1 appears satisfied... AC2 appears satisfied... the blocker is
   missing adoption/closure, not the event content itself»
-- Finding type = category mismatch: Stage 9 work absence flagged as Stage 8
+- Finding type = category mismatch: Stage 9 work absence flagged as Stage 7
   ship defect
 
 ## When this pattern applies
@@ -44,7 +44,7 @@ All three must hold:
 - Multi-event or event+code ships → whole-ship evaluation appropriate
 - Hygiene fast-path tasks (skip audit-post entirely per LIFECYCLE §Hygiene
   Fast-Path) — adoption-probe events are NOT hygiene by semantics; lifecycle
-  Stage 8 still applies
+  Stage 7 still applies
 
 ## Resolution paths
 
@@ -62,12 +62,12 @@ audit-post overlay (`_build_audit_prompt`): the P8 event lands in a SEPARATE
 Stage-9 commit AFTER this audit, so its absence at audit-post is EXPECTED and is
 NEVER a finding / RED — the auditor judges ONLY diff-drift / non-adoption AC /
 coherence. This operationalizes the contract's own "closure-time emission would
-post-date you" exemption (SPEC-0036 audit-post overlay). The flag is:
+post-date you" exemption (<workshop-spec> audit-post overlay). The flag is:
 
 - `--task`-scoped (rejected for `--decision` / `--plan`);
 - registered ONLY on the `post` subparser (parse-rejected on `audit pre`);
 - the explicit per-task opt-in signal (same trust model as `--focus`, and as the
-  now-retired `--owner-reset`, which REFUSES since SPEC-0204) — recorded as
+  now-retired `--owner-reset`, which REFUSES since <workshop-spec>) — recorded as
   `event_emit_only: true` in the saved audit YAML for a durable trail of which
   verdicts were carve-out-gated.
 
@@ -128,15 +128,15 @@ The SAME deferred-adoption family has a sibling flag, `audit post --task T-XXXX 
 for a serve/deploy task whose ship is a live deploy (an ACTION, not a code diff): live-adoption is
 proven at the deploy seam + recorded at Stage-9 Closure (the per-change `live_probe` evidence), so adoption-absent at the diff-only audit-post is EXPECTED, never RED. It removes the
 X-0039 owner-reset/ceiling-burn. Same overlay/recording shape as `--event-emit-only`
-(records `serve_deploy: true` in the saved verdict YAML). Home: SPEC-0036 §SERVE/DEPLOY carve-out
-+ LIFECYCLE §Stage 8.
+(records `serve_deploy: true` in the saved verdict YAML). Home: SPEC-1040 §SERVE/DEPLOY carve-out
++ LIFECYCLE §Stage 7.
 
-## Sibling carve-out — land-emitted non-P8 acceptance event (SPEC-0036 / X-0188)
+## Sibling carve-out — land-emitted non-P8 acceptance event (<workshop-spec> / X-0188)
 
 The GENERALIZATION of `--event-emit-only` to a NON-P8 event. `--event-emit-only` exempts ONLY a
 Stage-9-recorded **P8** closure event (`consumer_read_evidence` / `live_trigger_evidence`). But a
 task's acceptance probe can instead be a NON-P8 event **emitted by `land` at Stage 9** — e.g.
-`verify_layer_prep` (a layer-prep event the `land` verb records). At the diff-only, pre-land Stage-8
+`verify_layer_prep` (a layer-prep event the `land` verb records). At the diff-only, pre-land Stage-7
 audit-post that event legitimately does not exist yet, and because the event-emit-only overlay text
 is P8-closure-event-specific, the auditor does NOT extend the exemption to it → the base audit-post
 false-REDs "acceptance probe not satisfied" (the X-0188 gap — burned 2 RED passes + a
@@ -152,13 +152,13 @@ It adds a carve-out paragraph telling the auditor a declared land-emitted NON-P8
 absence at audit-post is EXPECTED (the event is recorded when `land` runs at Stage 9, AFTER the
 audit), never a finding / RED — the auditor judges ONLY diff-drift / any non-deferred AC / coherence.
 Same overlay/recording shape as `--event-emit-only` (`--task`-scoped, registered ONLY on the `post`
-subparser, records `land_emitted_event: true` in the saved verdict YAML). Home: SPEC-0036
-§LAND-EMITTED-EVENT carve-out + LIFECYCLE §Stage 8.
+subparser, records `land_emitted_event: true` in the saved verdict YAML). Home: SPEC-1040
+§LAND-EMITTED-EVENT carve-out + LIFECYCLE §Stage 7.
 
 ## References
 
 - CHARTER §Principle 8 (Adoption Verification Strength for Infrastructure)
-- LIFECYCLE Stage 8 (Audit-post)
+- LIFECYCLE Stage 7 (Audit-post)
 - LIFECYCLE Stage 9 (Closure) — hand-edit fallback path
 - closure (commit `5ec3114`) — first absorption example
 - AGENTS §audit-prompt-principles — per-stage overlays section (future mechanism location)
@@ -168,5 +168,5 @@ subparser, records `land_emitted_event: true` in the saved verdict YAML). Home: 
 **Active — mechanism SHIPPED (2026-06-06).** The `bin/yitc-v2 audit post --task X
 --event-emit-only` flag (§Resolution paths PRIMARY) is the standing mechanism: it adds an
 audit-post overlay carve-out so a Stage-9-recorded P8 adoption event is not RED-flagged as a
-Stage-8 ship defect. Plan-time absorption (resolution (a)) is DEMOTED to a documented fallback
+Stage-7 ship defect. Plan-time absorption (resolution (a)) is DEMOTED to a documented fallback
 (degraded/emergency mode, or auditor-REDs-despite-overlay). Reopen trigger (N≥3:) is CLOSED.

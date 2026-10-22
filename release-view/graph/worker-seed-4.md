@@ -18,7 +18,7 @@
 ## Two flow types
 
 - **Non-hygiene (substantive):** all 9 stages.
-- **Hygiene fast-path:** stages 1, 5, 6, 7, 9. Skip 2-3-4-8 (no plan, no audits).
+- **Hygiene fast-path:** stages 1, 5, 6, 8, 9. Skip 2-3-4-7 (no plan, no audits).
 
 **Fast-path eligibility — a governance-surface-touching change is NOT hygiene.** A change whose
 diff touches a **SPEC** (`specs/*.yaml`), a **PINNED-TEST surface** (the SPEC-0077 pinned last-green
@@ -117,7 +117,7 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
 
 **Goal:** explicit implementation plan before code touched.
 
-> **Retrieved — SPEC-0027 — stage-DELIVERED at Plan entry** : `bin/yitc-v2 stage Plan --task T-XXXX` delivers SPEC-0027 in its stage bundle (the lifecycle delivery axis — a lighter pointer, NOT a floor-trigger; this stage stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-0027`.
+> **Retrieved — SPEC-1038 — stage-DELIVERED at Plan entry** : `bin/yitc-v2 stage Plan --task T-XXXX` delivers SPEC-1038 in its stage bundle (the lifecycle delivery axis — a lighter pointer, NOT a floor-trigger; this stage stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-1038`.
 
 **Done when:** `implementation_plan:` field non-empty in the task YAML.
 
@@ -147,12 +147,12 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
   no re-fingerprint → no forced re-audit → this does **not** generate a new pass. The SAME route serves a **plan-gate**
   residual — `bin/yitc-v2 audit pre --plan <slug> --gate <id> --absorb "<text>"`, gate id per SPEC-1034
   §Plan-target parity — on identical terms.
-- **Either mode — sweep before you absorb (rule: SPEC-0036 §Absorption sweep).** Search the whole audited subject for the
+- **Either mode — sweep before you absorb (rule: SPEC-1040 §Absorption sweep).** Search the whole audited subject for the
   same defect class and fix or record each instance; state the sweep — where you looked, what you found — as `--sweep "<text>"`: beside `--absorb "<text>"` for mode (b), and on a TASK's `audit pre|post` re-run after the edited plan/card text for mode (a). A plan gate's mode-(a) re-audit writes no absorption row, so there the sweep is stated in the edited plan text, not through the flag. On the routes that write a row, an absorption without the statement still proceeds and its `audit_finding_absorbed` row records `sweep: not stated`, so a miss stays countable.
 
-> **At the audit-loop ceiling — the core is SPEC-0036 §Audit-loop ceiling** (this stage's bundle delivers it); it names **SPEC-1034** (§Audit-loop ceiling: what counts as a pass) **+ SPEC-0204** (what happens once the ceiling is reached), fetched at their trigger. `bin/yitc-v2 graph query SPEC-0204`
+> **At the audit-loop ceiling — the core is SPEC-1040 §Audit-loop ceiling** (this stage's bundle delivers it); it names **SPEC-1034** (§Audit-loop ceiling: what counts as a pass) **+ SPEC-1039** (what happens once the ceiling is reached), fetched at their trigger. `bin/yitc-v2 graph query SPEC-1039`
 
-**That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-0204 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
+**That ceiling is the TASK budget — a plan has NO pass-count ceiling** (decision-bounded: each round runs once every open finding carries a recorded decision — SPEC-1039 rule 9(f), `patterns/methodology-lessons.md` Lesson 11).
 
 **Done when:** audit verdict GREEN or YELLOW-absorbed. Event `audit_pre_completed` emitted with verdict + finding count.
 
@@ -160,58 +160,50 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
 
 **Goal:** code change matches plan.
 
-> **Retrieved — SPEC-0027.** `bin/yitc-v2 graph query SPEC-0027`
+> **Retrieved — SPEC-1038.** `bin/yitc-v2 graph query SPEC-1038`
 
 **Done when:** code on disk, plan items checked off mentally.
 
-### Stage 6 — Tests
-
-**Goal:** project tests green with the new code.
-
-> **Retrieved — SPEC-0027 — stage-DELIVERED at Tests entry** : `bin/yitc-v2 stage Tests --task T-XXXX` delivers SPEC-0027 in its stage bundle (same delivery axis as Stage 3 Plan — a lighter pointer, NOT a floor-trigger; stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-0027`.
-
-**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. For a consumer project (`-C`) that run executes the project's declared `verify.layers` — a layer whose `subject_globs` are disjoint from the working tree's changes is skipped, as at `land` — plus its test sweep where a test directory exists and no layer covers it, and its `land` runs the pinned leg only as the project's `verify_policy` says (SPEC-0186). The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not advanced since the run — the base the run recorded is its merge-base with `main` — or advanced only by inert paths no declared test names; any other advance ends the credit; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, marked row — never a red or hand-recorded one; (4) the run's set covers the land's set, a partial run only as that condition allows; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
-
-### Stage 7 — Commit
+### Stage 6 — Commit
 
 **Goal:** atomic commit landing the change.
 
 - **One logical change-set per task — not literally one git object.** The CANONICAL
   model of a task's commit footprint on `main`: (a) the **ship commit(s)** for the task's diff
-  via `task commit` (aim for one; it is callable ×N — Stage 7); (b) a small **closure-record
+  via `task commit` (aim for one; it is callable ×N — Stage 6); (b) a small **closure-record
   commit** (status:done + probes — Stage 9 bookkeeping); (c) `land`'s own **bookkeeping commits**
   (reconcile events+graph, `land_completed`). "Atomic" means one coherent change-set + one storage
   format (CHARTER §Principle 5 — single source of truth governs storage FORMAT/parser/journal, NOT
-  git-commit count), not a single git commit. AGENTS §Stage 7 + CHARTER §P5 cross-reference HERE.
+  git-commit count), not a single git commit. AGENTS §Stage 6 + CHARTER §P5 cross-reference HERE.
 - Format: `<type>(<task-id>): <subject>\n\n<body>\n\nfrom: <durable artifact>`
 - `from:` cites durable artifact: task YAML (`tasks/T-XXXX-*.yaml`) / decision YAML / spec YAML / handbook section / **materialized journal entry (`events.jsonl#source_ref=<locator>` or `events.jsonl#ts=<ISO>`)**. NOT raw provider session log.
-- Tests must be green BEFORE commit (T4 rule)
+- The governed test run comes AFTER audit-post (Stage 8); before the commit, run the card's own tests (`task test --own`) and re-sign specs (SPEC-1038 §Execution)
 - Commit body includes Co-Authored-By trailer
 
 **Done when:** `git log -1` shows commit, exit 0.
 
-### Stage 8 — Audit-post (substantive tasks only)
+### Stage 7 — Audit-post (substantive tasks only)
 
 **Goal:** external auditor confirms shipped diff matches plan.
 
 - **Recommended path** : `bin/yitc-v2 audit post --task T-XXXX [--commit SHA] [--full]` — same wrapper as Stage 4 plus auto-fetches commit diff via `git show`, includes in prompt. **The subject is the task's RECORDED commit, never HEAD** — `--commit` when given, else the last `commit_landed` for this task, and it REFUSES when neither resolves ( chain-of-custody: audit a recorded commit, not a guess). Only `--reaudit-after-close` targets HEAD, by its own contract. It also refuses when the resolved subject provably carries **no authored content** — every path in it lifecycle bookkeeping — naming the empty subject rather than spending a pass on a diff with none of the card's work in it (a ship that genuinely has no diff says so with its own overlay flag).
 - **Manual fallback (emergency only)**: as Stage 4 (emergency-mode `patterns/emergency-mode.md`; the verb is the obligatory path per AGENTS §Verb-execution discipline), plus diff context in the hand-authored prompt.
 - Verdict: GREEN / YELLOW / RED / ABORT
-- **GREEN** = proceed to Stage 9
+- **GREEN** = proceed to Stage 8 (Tests)
 - **YELLOW** = file follow-up task for findings, proceed (its id goes onto the verdict's `followups:` via `bin/yitc-v2 audit post --task T-XXXX --followup <T-NNNN|fu_…>` — a field edit: no auditor, no ceiling pass, never a hand-edit) — OR absorb INLINE (mode-a): fix +
   `task commit --absorb` + re-audit of the new commit (counts a pass against the §audit-loop ceiling)
 - **RED** = STOP. Never silent-pass. Fix the named cause IN SCOPE and re-audit the new commit
-  (`task commit --fix-red` —, admitted only on a commit carrying authored content; when the RED's ONLY fix is the card's own record, its `--card-repair` arm —, admitted instead on proof the audited ship it rides on exists), else revert or escalate (`blocked-on-land`, SPEC-0103) when the cause is out-of-scope or environmental. AT the audit-loop ceiling the route is **SPEC-0204**, not a consult or a reset (§Stage 4 ceiling).
+  (`task commit --fix-red` —, admitted only on a commit carrying authored content; when the RED's ONLY fix is the card's own record, its `--card-repair` arm —, admitted instead on proof the audited ship it rides on exists), else revert or escalate (`blocked-on-land`, SPEC-0103) when the cause is out-of-scope or environmental. AT the audit-loop ceiling the route is **SPEC-1039**, not a consult or a reset (§Stage 4 ceiling).
 - **ABORT** = STOP. Auditor unavailable or output malformed. Surface to owner.
 
-**Deferred-adoption edge cases — one family** (event-emit-only ships, serve/deploy ships, host-config ships, land-emitted non-P8 acceptance-event ships, post-ship-observation ships). For these ships the adoption proof legitimately does not exist yet at the diff-only, pre-land Stage-8 audit-post, so a base audit-post false-REDs "adoption missing"; run audit-post with the variant's overlay flag, which tells the auditor the absence is the NORMAL ordering for that ship, never a defect.
+**Deferred-adoption edge cases — one family** (event-emit-only ships, serve/deploy ships, host-config ships, land-emitted non-P8 acceptance-event ships, post-ship-observation ships). For these ships the adoption proof legitimately does not exist yet at the diff-only, pre-land Stage-7 audit-post, so a base audit-post false-REDs "adoption missing"; run audit-post with the variant's overlay flag, which tells the auditor the absence is the NORMAL ordering for that ship, never a defect.
 
-> **Retrieved — SPEC-0036** (§Task per-stage overlays — the overlay table: each variant's flag, scope, guard and recorded marker, and which overlays the verb derives from the card's own declaration; delivered at the Audit-post stage-entry). `bin/yitc-v2 graph query SPEC-0036`
+> **Retrieved — SPEC-1040** (§Task per-stage overlays — the overlay table: each variant's flag, scope, guard and recorded marker, and which overlays the verb derives from the card's own declaration; delivered at the Audit-post stage-entry). `bin/yitc-v2 graph query SPEC-1040`
 
 **Event-emit-only ships.** See `patterns/event-emit-only-audit-post.md` for the absorption protocol; closure proceeds via Stage 9 hand-edit fallback if AC probes verified independently.
 
 **The family is CLOSED against a declaring-card variant — that shape is the card-repair ROUTE, not a
-sixth member (X-1240).** Rule: SPEC-0036, the same section.
+sixth member (X-1240).** Rule: SPEC-1040, the same section.
 
 **Done when:** audit verdict GREEN or YELLOW-with-followup-filed (ids recorded by `audit post --followup`; `task close` does not gate on it).
 
@@ -223,10 +215,18 @@ chain-of-custody trap). `task close` folds the dirty audit YAML into its own clo
 (`task commit --absorb` — YELLOW) and the RED in-scope-fix leg (`task commit --fix-red` —
 RED, and only on positive proof the commit carries authored content, so a fixless RED absorption stays
 refused at both doors; its `--card-repair` arm, admits the card-record repair on the
-different proof that the audited ship it rides on exists), and the GREEN second-ship leg (`task commit --reship` — GREEN, same authored-content proof: audit-post passed and a further IN-SCOPE ship is still needed; nothing further to ship means the GREEN stands and Stage 9 is the route). Each folds the superseded verdict INTO its commit (NEVER hand-delete it — that
+different proof that the audited ship it rides on exists), and the GREEN second-ship leg (`task commit --reship` — GREEN, same authored-content proof: audit-post passed and a further IN-SCOPE ship is still needed; nothing further to ship means the GREEN stands and Stage 8 is next). Each folds the superseded verdict INTO its commit (NEVER hand-delete it — that
 zeroes the passes counter), then the REQUIRED `audit post --commit <new>` re-pins custody and carries the
 trail (`passes_trail`). Full rule + the `cmd_task_commit` foot-gun guard: SPEC-0015 §Internal
 (`bin/yitc-v2 graph query SPEC-0015`).
+
+### Stage 8 — Tests
+
+**Goal:** the governed test run green on the committed (and, for a substantive card, audited) change — AFTER audit-post, so a RED audit-post is answered by a fix commit and a re-audit with no full run in between. A red run returns the card to Commit (Stage 6); Closure reads the newest governed run after the last substantive commit (SPEC-1038 §Tests).
+
+> **Retrieved — SPEC-1038 — stage-DELIVERED at Tests entry** : `bin/yitc-v2 stage Tests --task T-XXXX` delivers SPEC-1038 in its stage bundle (same delivery axis as Stage 3 Plan — a lighter pointer, NOT a floor-trigger; stays non-gated). Also fetchable on demand: `bin/yitc-v2 graph query SPEC-1038`.
+
+**Done when:** test runner exits 0 with output captured — verify via `bin/yitc-v2 task test --run` (the full subprocess suite = land's CANDIDATE leg; a bare `pytest tests/` skips script-style `__main__` tests → false-GREEN). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is not run here. For a consumer project (`-C`) that run executes the project's declared `verify.layers` — a layer whose `subject_globs` are disjoint from the working tree's changes is skipped, as at `land` — plus its test sweep where a test directory exists and no layer covers it, and its `land` runs the pinned leg only as the project's `verify_policy` says (SPEC-0186). The land MAY credit a `--run --evidence` green as its CANDIDATE leg instead of repeating it — only on its OWN proof of five conditions: (1) `main` has not advanced since the run — the base the run recorded is its merge-base with `main` — or advanced only by inert paths no declared test names; any other advance ends the credit; (2) its candidate tree is the tested tree apart from inert paths; (3) the row is the runner's own green, marked row — never a red or hand-recorded one; (4) the run's set covers the land's set, a partial run only as that condition allows; (5) the any-author floor and the host-leak check still run, and the pinned leg runs as the project's policy says. ON by default; a project may opt out (SPEC-0186). Rule home: `bin/yitc-v2 graph query SPEC-0065` (§Bound).
 
 ### Stage 9 — Closure
 
@@ -241,20 +241,20 @@ trail (`passes_trail`). Full rule + the `cmd_task_commit` foot-gun guard: SPEC-0
 
 > **⚠ Verify BEFORE you close — closure has no clean undo; close LAST in a batch.** Closure is safe
 > only after a **land-equivalent verify** passes — the SPEC-0077 pinned suite `land` re-runs, self-checked
-> at Stage 6 by `task test --run`. Bare `pytest tests/` skips script-style `__main__` tests and
+> at Stage 8 by `task test --run`. Bare `pytest tests/` skips script-style `__main__` tests and
 > reads **false-GREEN**; a done-but-unlanded task is no fix and has no clean reopen.
 
 ## Resume contract
 
-> **Retrieved — SPEC-0027.** `bin/yitc-v2 graph query SPEC-0027`
+> **Retrieved — SPEC-1038.** `bin/yitc-v2 graph query SPEC-1038`
 
 ## Hygiene Fast-Path
 
-> **Retrieved — SPEC-0027.** `bin/yitc-v2 graph query SPEC-0027`
+> **Retrieved — SPEC-1038.** `bin/yitc-v2 graph query SPEC-1038`
 
 ## Stage FSM per class — current_stage semantic names
 
-> **Retrieved — SPEC-0027.** `bin/yitc-v2 graph query SPEC-0027`
+> **Retrieved — SPEC-1038.** `bin/yitc-v2 graph query SPEC-1038`
 
 ## Search-Before-Build cross-cutting
 
@@ -331,7 +331,7 @@ No other transitions. No "in-review", "under-audit", "awaiting-critic", "release
 
 **Waiting on owner / external — `task pause`, never `blocked` (the SINGLE HOME of this answer).** A task waiting on an owner answer (the SPEC-0126 §4 non-blocking-batch park) or on anything external is parked with **`bin/yitc-v2 task pause --reason owner-wait`**: it writes `paused_at`/`paused_reason` + the resume contract (`resume_from` / `next_action`) onto the still-`in-progress` card, self-commits, and SURFACES at session start as the WAITING-ON-OWNER signal. The `blocked` status is **NOT** that carrier and is prescribed by NOTHING: no verb has ever written it (`TASK_FILING_STATUSES` excludes it, so `task update --status` cannot reach it) — zero observed usage in the system's whole history, so per CHARTER §P1 F4 the blocked-leg verbs are NOT added; the reachable `task pause` already covers the need (F1), and what this removes (F3) is the verbless prescription itself. `blocked` survives only as a read-tolerated legacy value (§Active queue). **A Controller-cued clean STOP is the sibling reason `--reason controller-wait`** : a worker whose brief ends in «STOP and report» records it the same way, and that row is TERMINAL — `journal query --dispatch-status/--fleet-verdict` read it as `paused(controller-wait)` / needs-decision naming the recorded `next_action` (never `working`), the dispatch in-flight guard yields to it without `--force`, and `bin/yitc-v2 dispatch --resume T-XXXX [--brief <delta>]` relaunches with the recorded contract heading the worker's task-specific brief. Hitting a genuine need `task pause` cannot express = capture a deviation → verb extension.
 
-**Park-mid-audit land path (X-0118):** when the owner parks a task whose Stage-8 audit-post is RED, its park record still reaches main — read the recipe before parking: `bin/yitc-v2 graph query rare-task-recovery-recipes` (lead «Park-mid-audit land path»). The one land-side exception stays named here: `land` refuses a `status: wont-do` branch that carries unaudited authored content (`wont-do-unaudited-ship` — rule home SPEC-0103).
+**Park-mid-audit land path (X-0118):** when the owner parks a task whose Stage-7 audit-post is RED, its park record still reaches main — read the recipe before parking: `bin/yitc-v2 graph query rare-task-recovery-recipes` (lead «Park-mid-audit land path»). The one land-side exception stays named here: `land` refuses a `status: wont-do` branch that carries unaudited authored content (`wont-do-unaudited-ship` — rule home SPEC-0103).
 
 **Prematurely-closed UNLANDED task — rework in place, or discard + re-claim; NEVER hand-edit status:** a task `task close`d before its land-verify passed is `done` only on its un-integrated branch — on **main the task is still `ready`**. It has two sanctioned recoveries and needs no reopen verb — read the recipe before acting: `bin/yitc-v2 graph query rare-task-recovery-recipes` (lead «Prematurely-closed UNLANDED task»).
 

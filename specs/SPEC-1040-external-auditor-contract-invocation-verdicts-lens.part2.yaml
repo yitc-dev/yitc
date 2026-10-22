@@ -29,7 +29,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ test.\n- **audit-post is CONDITIONAL on exactly one thing — a project-declared\
   \ exemption case (SPEC-0178,\n  additive amendment; rule 8 makes this a PRECONDITION\
   \ of that spec's activation).** A project MAY\n  declare, in its own `yitc-ops.yaml`,\
-  \ named cases whose matching cards close WITHOUT the Stage-8\n  audit-post below,\
+  \ named cases whose matching cards close WITHOUT the Stage-7\n  audit-post below,\
   \ each carrying a mandatory reason recording who accepted the risk and why.\n  Everything\
   \ else about this contract is unchanged. The bounds are stated identically here,\
   \ in\n  SPEC-0015 and in the CHARTER — a surface stating a DIFFERENT bound is a\
@@ -46,7 +46,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ restoration is INOPERATIVE wherever the `kind`\n  judgement is not made**, since\
   \ it counts only captures judged a DEFECT at triage, a call that is\n  optional\
   \ and never made; where it is not made,\n  restoration is carried by the SPEC-0178\
-  \ rule 7 periodic review.\n- **audit-post (Stage 8) — ship quality:** shipped-diff\
+  \ rule 7 periodic review.\n- **audit-post (Stage 7) — ship quality:** shipped-diff\
   \ drift from plan; each AC has a probe\n  result; missing adoption (code shipped\
   \ but not invoked) — for an infra-class task confirm a\n  Principle-8 adoption artifact\
   \ exists. **The P8 artifact has THREE equally-valid forms per CHARTER\n  §8: a `consumer_read_evidence`\
@@ -218,7 +218,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ as on every other overlay). CLOSING an already-LIVE task whose ship diff is **zero**\
   \ after subtracting governed lifecycle bookkeeping (task YAML, `events.jsonl`, the\
   \ task's own audit records): NO change in ANY authored artifact. An invariant of\
-  \ delivery SHAPE, **NOT a size tier**. Affects Stage-8 audit-post only — **NEVER\
+  \ delivery SHAPE, **NOT a size tier**. Affects Stage-7 audit-post only — **NEVER\
   \ audit-pre**. **Guard (fail-closed):** the overlay entry AND the `task close` seam\
   \ both REFUSE (emitting the EXISTING `read_gate_refused`) on ANY unresolved git\
   \ delta beyond the allow-listed bookkeeping, and both REQUIRE an `evidence-locator`\
@@ -229,7 +229,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ + `evidence_locator` + `verdict_producer` (§Verdict producer) |\n\n**`### DEFERRED\
   \ BY DECLARATION` — the FAMILY-WIDE reading of every carve-out above.**\nA TASK\
   \ `audit pre` packet, a TASK `audit post` packet AND the on-demand CONSULT packet\
-  \ (the\nbelow-ceiling fork pick; the ceiling-convergence consult is retired by SPEC-0204\
+  \ (the\nbelow-ceiling fork pick; the ceiling-convergence consult is retired by SPEC-1039\
   \ rule 6) all render a\n`### DEFERRED BY DECLARATION — judge the declaration, not\
   \ the absence` section, derived from the\ncard ALONE (pure f(card); no store, no\
   \ field, no flag, no new event type — CHARTER §P1 F1/F2). It\nenumerates each deferred\
@@ -283,7 +283,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ of\n  recording it. A card whose acceptance names no parseable criterion ids yields\
   \ NO rows.\n\n**The RED parse floor — the ENFORCED half (the shape, reused).** A\
   \ RED whose ONLY findings\nare P8-adoption-class AND every one of which names, by\
-  \ the SPEC-0204 rule-1 key precedence, a\ncriterion this card DECLARED deferred\
+  \ the SPEC-1039 rule-1 key precedence, a\ncriterion this card DECLARED deferred\
   \ is REFUSED at the parse floor: no verdict recorded, no pass\nspent, so re-running\
   \ costs nothing.\n\n**How it binds, and how it does NOT.** «EVERY finding», not\
   \ «any», is the whole safety of it: a RED\nthat raises a real defect ALONGSIDE a\
@@ -373,9 +373,25 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ status field'\nfinding. Fires whenever a scenario file is in the shipped diff.\n\
   \  An\n  adoption-honesty finding routes to a FILED follow-up (not absorb-by-narrowing,\
   \ E-0005);\n  coherence with other docs/state; Review-only : the auditor does NOT\
-  \ execute the test\n  suite — Stage 6 owns test runs; VERIFY the recorded Stage-6\
-  \ evidence exists + is plausible +\n  matches the probes.\n  **Anchor-less activation\
-  \ is a RED-class closure defect (SPEC-0151).** When the audited\n  card is the `activation_owner_task`\
+  \ execute the test\n  suite — the Tests stage owns test runs, and it runs AFTER\
+  \ this audit (SPEC-1038). No governed\n  test run exists yet at audit-post, by construction.\
+  \ The packet shows the card's OWN-TESTS result\n  (the test files its diff adds\
+  \ or changes — partial) and, per acceptance criterion, one of:\n  «verifier present\
+  \ and passed in own-tests» / «verifier is an existing unchanged test — run proof\n\
+  \  owed at the Tests stage» / «non-test probe». On a re-audit after a red Tests\
+  \ run the packet also\n  shows the newest red governed run (its `tests_failed` row,\
+  \ evidence and failing tests). VERIFY\n  that every test-named criterion has its\
+  \ verifier in the diff or in the existing suite and that\n  the own-tests result\
+  \ is plausible; the absence of a governed run is the NORMAL ordering and is\n  never\
+  \ a finding, and «run proof owed at Tests» is never «evidence ABSENT». Own-tests\
+  \ evidence that\n  is NOT a pass is shown as what it is, per criterion: «own-tests\
+  \ FAILED», «own-tests not run or\n  stale for the current diff», or «own-tests not\
+  \ determined» (no declared runner maps the changed\n  test file). Judge it: a FAILED\
+  \ own-tests verifier is a finding. A missing, stale or undetermined\n  own-tests\
+  \ result is INFORMATION, never a finding and never a reason to lower the verdict\
+  \ (owner,\n  events.jsonl#ts=): the run proof is owed at Tests and enforced at Closure\n\
+  \  (SPEC-1038 §Tests), not here.\n  **Anchor-less activation is a RED-class closure\
+  \ defect (SPEC-0151).** When the audited\n  card is the `activation_owner_task`\
   \ of a `proposed` spec, its `task close` performs the\n  `proposed → active` flip\
   \ and nothing re-checks the spec after it. So the audit-post packet carries\n  an\
   \ `## Activates at closure` section listing each such spec's `implements:`, `binding:`,\n\
@@ -410,7 +426,7 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ the card, and is not a readiness `stale anchors:` row.\nThe exception settles\
   \ ATTRIBUTION ONLY: the card's own delta is still judged against every\ngoverning\
   \ spec's CURRENT meaning at HEAD and on the resolved tree. Land preflight, `spec\
-  \ reverify`,\nthe SPEC-0077 §3a re-audit and the SPEC-0204 ceiling are unchanged\
+  \ reverify`,\nthe SPEC-0077 §3a re-audit and the SPEC-1039 ceiling are unchanged\
   \ by it.\n**Plan activation ordering (X-1564).** When a `proposed` spec's activation\
   \ owner — through\nits recorded `requires:` chain — comes AFTER the audited card,\
   \ the section also names that owner,\nthe chain, and the LAGGING CORPUS the owner\

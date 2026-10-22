@@ -1,6 +1,6 @@
-# Release v2.18.0
+# Release v2.19.0
 
-Source commit: `3f25d3ba7a60fabcb7ab79568b4be402bb5e7bd5`
+Source commit: `5b7fea07287e95224eb26e01080d9b0824b5988b`
 
 ## Proposals this release answers
 
@@ -190,18 +190,31 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag.
+4 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1038 — Lifecycle stage mechanics (non-gated) — plan/execute/test detail + resume, hygiene fast-path, stage-FSM with the governed test run after audit-post
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1038`
+- SPEC-1039 — Ceiling decisions — one typed Controller-recorded decision per residual, one bounded re-audit, first-round delta discipline; the pre-audit Stage-6 coverage precondition retired by the post-audit Tests order
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1039`
+- SPEC-1040 — External auditor contract — invocation, verdicts, lens, per-stage overlays incl. plan-stage templates; the task audit-post judged before the governed test run
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1040`
+- SPEC-1041 — Ceiling decisions — edge cases of the at-ceiling route (reference); a re-ship after a governed Tests run stays on the same ceiling row
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1041`
 
 ## What changed
 
 6 task(s) closed since the previous release tag, in close order:
 
-- T-14026 — Make worktree sync withdraw its pre-flight conflict blocker when the real merge completes clean (fix) — events.jsonl#ts=2026-10-18T18:10:13Z
-- T-14027 — State that a one-process verify layer stays undeclared in layer worker shares, and name the unfollowed npm forms in the advisory (docs) — events.jsonl#ts=2026-10-18T18:47:45Z
-- T-14025 — Let task commit --fix-red admit a dirty audit-post RED pinned to the custody ship after a task pause (fix) — events.jsonl#ts=2026-10-18T19:07:50Z
-- T-14029 — Add a read-only land --batch-eligibility answer from the same head-solo predicate batch formation uses (feature) — events.jsonl#ts=2026-10-18T20:15:00Z
-- T-14028 — Name the base sha and failing ids on a land ATTRIBUTION MAIN line and decline digest-only base matches to UNDECIDABLE (fix) — events.jsonl#ts=2026-10-18T21:30:49Z
-- T-14030 — Decline a land ATTRIBUTION MAIN matched only on a file-granular unit id unless the failing assertion text matches too (fix) — events.jsonl#ts=2026-10-18T23:13:58Z
+- T-14032 — Give the capture event-type set one home in the journal reader instead of per-reader literals (refactor) — events.jsonl#ts=2026-10-19T13:57:59Z
+- T-14033 — Make the trend-report churn recurrence count legacy capture rows too (fix) — events.jsonl#ts=2026-10-19T14:51:01Z
+- T-14034 — Add an own-tests mode to task test that runs only the test files the card's diff adds or changes (feature) — events.jsonl#ts=2026-10-21T21:53:51Z
+- T-14035 — Show per-criterion readiness, own-tests results and the newest red governed run in the audit-post packet (feature) — events.jsonl#ts=2026-10-21T23:20:05Z
+- T-14036 — Add the SPEC-0178 exempt-move predicate and one shared fixture helper for post-audit-order cards (refactor) — events.jsonl#ts=2026-10-21T23:57:37Z
+- T-14037 — Switch the task lifecycle to Execution, Commit, Audit-post, Tests, Closure and activate SPEC-1038 to SPEC-1041 (infra) — events.jsonl#ts=2026-10-22T02:56:51Z
 
 ## Trust surfaces
 

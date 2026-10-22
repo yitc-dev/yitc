@@ -65,12 +65,12 @@ body: "## Scenario\n\nThe owner/AI needs to make a HOST-level config change — 
   \ `events.jsonl#ts=<ISO>` locator of a real `owner_directive` row\n  in the project\
   \ journal, AND that row must name the target of THIS apply — the card id (a\n  `data.cards`\
   \ element or a whole token in its prose) or a host file being changed (its full\
-  \ path or\n  basename as a whole token). Every arm is TOKEN-EXACT, the SPEC-0204\
+  \ path or\n  basename as a whole token). Every arm is TOKEN-EXACT, the <workshop-spec>\
   \ rule 2 coverage primitives\n  (`` never covers ``). A generic owner line («prepare\
   \ so you can deploy without me»)\n  resolves but names nothing, so it is REFUSED\
   \ **before any backup or write**, the refusal naming the\n  card id and the target\
   \ paths it looked for (`_directive_names_target`).\n  A SAME-SECOND locator is resolved\
-  \ on THIS axis, never by journal order ( — the same-second\n  rule of SPEC-1014\
+  \ on THIS axis, never by journal order ( — the same-second\n  rule of <workshop-spec>\
   \ «Rule 2 — recording a decision», applied to the target test): among the `owner_directive`\
   \ rows sharing\n  the named second, exactly one naming the target (the same words\
   \ captured twice count once) is\n  the authorizing row wherever it sits in the journal;\

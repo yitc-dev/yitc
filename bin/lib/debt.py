@@ -9954,7 +9954,7 @@ def debt_echo_scan(*, window_sec, followup_mod, views, profile_mod, journal_mod,
     # fingerprint lookup (`cli._record_unobserved_version_deviation`) reads them whole through its own
     # indexed scope, which this walk's summaries then cover — so a cold start folds each archived
     # segment once, not once here and again there.
-    whole |= {"deviation_captured", "friction_captured"}
+    whole |= set(journal.CAPTURE_EVENT_TYPES)
     keep = {t: None for t in sorted(whole)}
     keep["cli_invoked"] = ("row", SEAM_READ_WINDOW_DAYS)      # seam_read_amplification's own window
     return {

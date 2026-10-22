@@ -2358,14 +2358,14 @@ def consult_prompt_overlay(prior, *, round_kind, revision=None, lens=None,
         return (
             "\n" + _AUDIT_FULL_VERDICT_CLAUSE
             + consult_lens_block(lens, is_plan=is_plan)
-            + "\n## Baseline output — add these to the YAML block below (superseded SPEC-0200 rules 2-3, now SPEC-0204 rule 1)\n\n"
+            + "\n## Baseline output — add these to the YAML block below (superseded SPEC-0200 rules 2-3, now SPEC-1039 rule 1)\n\n"
             + "```yaml\n" + _CONSULT_BASELINE_OUTPUT_BLOCK + "```\n"
             "A finding claiming `blocking` WITHOUT all of criterion_ref-or-class_id + locator +\n"
             "failing_input + causality reads `deferrable` immediately — an unproven block does not\n"
             "block, and there is no second ask. `severity` derives NOTHING.\n"
         )
     return (
-        "\n## Delta retest — judge ONLY the ids below (superseded SPEC-0200 rule 4, now SPEC-0204 rule 8)\n\n"
+        "\n## Delta retest — judge ONLY the ids below (superseded SPEC-0200 rule 4, now SPEC-1039 rule 8)\n\n"
         "This is a RETEST round of an OPEN ceiling episode. The whole-subject survey was FROZEN at\n"
         "round 0 and is NOT re-opened: do NOT re-survey the subject, and do NOT enumerate defects\n"
         "over the whole tree. Judge EXACTLY two things:\n"

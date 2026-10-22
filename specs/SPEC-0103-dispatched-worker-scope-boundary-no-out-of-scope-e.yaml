@@ -60,45 +60,45 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ THESE BLOCKS, and the worker HALTS WITH FINGERPRINTS\nA dispatched Worker that\
   \ reaches the <workshop-spec> audit-loop ceiling does NOT consult, does NOT adjudicate\n\
   and does NOT grant itself a continuation — the auto-consult that once did is retired\
-  \ (SPEC-0204 rule\n6). It takes the §3 escalation above, through the SAME `bg_dispatch_halted`\
-  \ marker, and that marker\nNAMES `residual_fingerprints[]`: the engine fingerprints\
-  \ (SPEC-0204 rule 1) of the ceiling row's\nfindings, which is exactly what the Controller\
-  \ must act on. It carries NO `needs_owner_reset` — the\nkey is retired with the\
-  \ flag it named, so a halt still carrying it would ask for a continuation no\nverb\
-  \ can grant. `journal query --dispatch-status` reads the halt as needs-CONTROLLER.\n\
-  \nWHAT THE CONTROLLER DOES, and why the split is a rule and not a convention: it\
-  \ records ONE typed\n`ceiling_decision` per fingerprint (`yitc-v2 audit decide`,\
-  \ SPEC-0204 rule 2, which REFUSES in a\nworker context) and re-dispatches; the worker\
-  \ then resumes with `audit pre|post --on-decisions`\n(rule 3). Deciding a residual\
-  \ is a scope judgement, which §4's authority boundary already reserves —\nthe worker\
-  \ halting is the CORRECT outcome here, never abandonment.\n\nHOW the worker halts\
-  \ (X-1468/X-1469): the halt ROW above is emitted by `audit pre|post`\nitself; the\
-  \ worker's own verb is `task pause --reason audit-ceiling` (inside the worktree\
-  \ — the §5\nWORK-CARRYING shape, worktree intact, resume via `task resume`). NOT\
-  \ `blocked-on-land`: a Stage-4\nceiling precedes every commit route, so the claim\
-  \ `worktree new --task` wrote is still uncommitted\nand the branch carries none\
-  \ — `blocked-on-land` REFUSES there by design (§3b) and its refusal names\nthe pause\
-  \ verb; `task refuse` remains the exit for a genuinely UNCLAIMED card only (SPEC-0133).\n\
-  Rule home for the ceiling route: SPEC-0204 rule 6.\n\n#### 3-arm. WHEN the land\
-  \ backstop may arm — consecutive-only, and never on a known flake\nThe escalation\
-  \ above is owed to a REPEAT. So the backstop that raises it arms on the streak of\n\
-  CONSECUTIVE land attempts that are provably the same cause, and on nothing else.\
-  \ Every\n`land_completed` row for the branch falls in exactly ONE of three tiers\n\
-  (`worktree.py#_land_repeated_abort_count`):\n\n- **INVISIBLE — non-attempts only,\
-  \ and there are exactly two.** The backstop's OWN refusal (it may\n  neither form\
-  \ nor break a streak) and a cheap-deterministic-preflight abort class ( — refused\n\
-  \  before the land is an attempt at all). These neither count nor reset.\n- **RESET\
-  \ — a real attempt whose sameness cannot be proven.** It never COUNTS and it BREAKS\
-  \ the run:\n  any successful/non-abort land; a row with no failing-ASSERTION identity\
-  \ (`cause_identity_absent`); a preflight-SHAPED abort (`abort_preflight` — e.g.\
-  \ a reservation park); and a\n  FLAKE-ONLY abort (below). An intervening abort of\
-  \ a materially DIFFERENT cause — a merge conflict,\n  a reservation park — therefore\
-  \ resets the run rather than being skipped over, so two same-cause\n  aborts on\
-  \ either side of one no longer read as consecutive.\n- **COUNT — a real attempt\
-  \ with a provable cause identity**, streaked on its cause key.\n\n**KNOWN-FLAKE\
-  \ EXEMPTION.** An abort whose failing set consists ONLY of tests carried in the\n\
-  known-flake register measured the shared HOST, not the branch, so it NEVER arms\
-  \ the backstop; it is\nrecorded as a flake re-run (the `land_completed.flake_only_rerun`\
+  \ (<workshop-spec> rule\n6). It takes the §3 escalation above, through the SAME\
+  \ `bg_dispatch_halted` marker, and that marker\nNAMES `residual_fingerprints[]`:\
+  \ the engine fingerprints (<workshop-spec> rule 1) of the ceiling row's\nfindings,\
+  \ which is exactly what the Controller must act on. It carries NO `needs_owner_reset`\
+  \ — the\nkey is retired with the flag it named, so a halt still carrying it would\
+  \ ask for a continuation no\nverb can grant. `journal query --dispatch-status` reads\
+  \ the halt as needs-CONTROLLER.\n\nWHAT THE CONTROLLER DOES, and why the split is\
+  \ a rule and not a convention: it records ONE typed\n`ceiling_decision` per fingerprint\
+  \ (`yitc-v2 audit decide`, <workshop-spec> rule 2, which REFUSES in a\nworker context)\
+  \ and re-dispatches; the worker then resumes with `audit pre|post --on-decisions`\n\
+  (rule 3). Deciding a residual is a scope judgement, which §4's authority boundary\
+  \ already reserves —\nthe worker halting is the CORRECT outcome here, never abandonment.\n\
+  \nHOW the worker halts (X-1468/X-1469): the halt ROW above is emitted by `audit\
+  \ pre|post`\nitself; the worker's own verb is `task pause --reason audit-ceiling`\
+  \ (inside the worktree — the §5\nWORK-CARRYING shape, worktree intact, resume via\
+  \ `task resume`). NOT `blocked-on-land`: a Stage-4\nceiling precedes every commit\
+  \ route, so the claim `worktree new --task` wrote is still uncommitted\nand the\
+  \ branch carries none — `blocked-on-land` REFUSES there by design (§3b) and its\
+  \ refusal names\nthe pause verb; `task refuse` remains the exit for a genuinely\
+  \ UNCLAIMED card only (SPEC-0133).\nRule home for the ceiling route: SPEC-1039 rule\
+  \ 6.\n\n#### 3-arm. WHEN the land backstop may arm — consecutive-only, and never\
+  \ on a known flake\nThe escalation above is owed to a REPEAT. So the backstop that\
+  \ raises it arms on the streak of\nCONSECUTIVE land attempts that are provably the\
+  \ same cause, and on nothing else. Every\n`land_completed` row for the branch falls\
+  \ in exactly ONE of three tiers\n(`worktree.py#_land_repeated_abort_count`):\n\n\
+  - **INVISIBLE — non-attempts only, and there are exactly two.** The backstop's OWN\
+  \ refusal (it may\n  neither form nor break a streak) and a cheap-deterministic-preflight\
+  \ abort class ( — refused\n  before the land is an attempt at all). These neither\
+  \ count nor reset.\n- **RESET — a real attempt whose sameness cannot be proven.**\
+  \ It never COUNTS and it BREAKS the run:\n  any successful/non-abort land; a row\
+  \ with no failing-ASSERTION identity (`cause_identity_absent`); a preflight-SHAPED\
+  \ abort (`abort_preflight` — e.g. a reservation park); and a\n  FLAKE-ONLY abort\
+  \ (below). An intervening abort of a materially DIFFERENT cause — a merge conflict,\n\
+  \  a reservation park — therefore resets the run rather than being skipped over,\
+  \ so two same-cause\n  aborts on either side of one no longer read as consecutive.\n\
+  - **COUNT — a real attempt with a provable cause identity**, streaked on its cause\
+  \ key.\n\n**KNOWN-FLAKE EXEMPTION.** An abort whose failing set consists ONLY of\
+  \ tests carried in the\nknown-flake register measured the shared HOST, not the branch,\
+  \ so it NEVER arms the backstop; it is\nrecorded as a flake re-run (the `land_completed.flake_only_rerun`\
   \ key) instead of escalating. The\nregister has exactly ONE carrier — `nightly.py#_TIMING_INSTRUMENTS`,\
   \ the SPEC-0105 quiet-lane\nregistry. A file leaves the exemption by leaving that\
   \ registry; no second list exists, and\nauthoring one is the drift this clause forbids.\
@@ -143,7 +143,7 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ keeps §3's intact escalation. The `worktree park` verb is SPEC-LESS by the\n<workshop-spec>\
   \ admission test (its safety-invariant lives wholly in the verb, code+test enforced\
   \ — identical to\n`worktree sweep`); the outage classification + auto-park routing\
-  \ is governed by SPEC-0036\n§Verdict-handling (the home of the transient-ABORT classes).\
+  \ is governed by SPEC-1040\n§Verdict-handling (the home of the transient-ABORT classes).\
   \ Real incident: X-0098 / X-0092 — a dispatched\nworker blocked by a <external-auditor>\
   \ workspace-write config fault died as a dead-but-unlanded orphan TWICE in one\n\
   session, forcing the controller to hand `git worktree remove` + `branch -D` + re-dispatch.\n\
@@ -151,18 +151,18 @@ body: "## Scenario\n\nA headless dispatched Build worker drives one task toward 
   \ to destroy rests entirely on «there is nothing in-scope to preserve». That premise\
   \ is a\nclaim about the STAGE, not about the outage: it is TRUE for a block at audit-PRE\
   \ (Stage 4), which\nPRECEDES Execution, and FALSE for a block at audit-POST (Stage\
-  \ 8), where the worker holds a finished,\ntested build. The relevant structural\
-  \ fact is measured, not argued — the 9-stage order commits at\nSTAGE 7, AFTER Tests,\
-  \ so a worker accumulates its ENTIRE diff UNCOMMITTED across Execution and Tests,\n\
-  and the bigger the change the longer that window. §3a as first written read the\
-  \ same for both ends of\nit, so the destructive path scaled with the value at risk.\n\
-  \nTHE BOUND. The teardown — auto-park AND the manual `worktree park --task` — is\
-  \ PRECONDITIONED on the\nworktree carrying no un-landed work. The discriminator\
-  \ is the EXISTING `_orphan_carries_work`\n, REUSED rather than re-written: any commit\
-  \ above `main`, or any uncommitted path outside the\nRE-DERIVABLE CLAIM FOOTPRINT\
-  \ (`events.jsonl` + `tasks/<task>-*.yaml`), is work. It is\nPOSITIVE-EVIDENCE-FOR-EMPTY\
-  \ — an unreadable tree, an unparseable count, any uncertainty at all returns\n«carries\
-  \ work» — because the branch it guards cannot be undone\n(`lessons/carving-an-exception-into-a-fail-closed-gate`\
+  \ 7), where the worker holds a finished,\ncommitted build. The relevant structural\
+  \ fact is measured, not argued — the 9-stage order commits\nAFTER Execution, so\
+  \ a worker accumulates its ENTIRE diff UNCOMMITTED across Execution,\nand the bigger\
+  \ the change the longer that window. §3a as first written read the same for both\
+  \ ends of\nit, so the destructive path scaled with the value at risk.\n\nTHE BOUND.\
+  \ The teardown — auto-park AND the manual `worktree park --task` — is PRECONDITIONED\
+  \ on the\nworktree carrying no un-landed work. The discriminator is the EXISTING\
+  \ `_orphan_carries_work`\n, REUSED rather than re-written: any commit above `main`,\
+  \ or any uncommitted path outside the\nRE-DERIVABLE CLAIM FOOTPRINT (`events.jsonl`\
+  \ + `tasks/<task>-*.yaml`), is work. It is\nPOSITIVE-EVIDENCE-FOR-EMPTY — an unreadable\
+  \ tree, an unparseable count, any uncertainty at all returns\n«carries work» — because\
+  \ the branch it guards cannot be undone\n(`lessons/carving-an-exception-into-a-fail-closed-gate`\
   \ §1). Note the polarity: most gates here fail\nclosed by REFUSING; this one fails\
   \ closed by PRESERVING. An orphan worktree is a nuisance the sweep\nverbs already\
   \ handle; an erased two-hour refactor is not recoverable at all.\n\nWHEN THE BOUND\
@@ -319,7 +319,6 @@ cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-4
 - CHARTER.md#principle-7
-- SPEC-0036
 - SPEC-0133
 requires: []
 supersedes: null
@@ -333,5 +332,5 @@ implements_signature:
   bin/lib/cli.py#_branch_carried_claim: fc71f8988a4599865c25921528a3db115926bceb94f2c3cb5abbb0fc9cdee320
   bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
   bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
-  bin/lib/worktree.py#cmd_blocked_on_land: fbd30050ae5590d2674dd9573e92d906428f37951d8ce033fef197261e2756f5
+  bin/lib/worktree.py#cmd_blocked_on_land: 770d978ce3ef43d00eaf297d0d7d4b99ab75c27453c4edbcb7f0e94c652b8ef5
   bin/lib/worktree_lifecycle.py#cmd_worktree_park: ddb52db48faff4941506ad8c40e0a56ef47d6239a697a8640f9842b55e757654

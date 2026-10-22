@@ -36,7 +36,7 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ and audited at the evidence revision — the `accept`/`defer`\ndecisions stay bound\
   \ to their (`ceiling_ref`, fingerprint) and a recurrence of that fingerprint there\
   \ is\nmatched to the decision (`overruled_by_decision`), never re-raised. AUDIT-PRE:\
-  \ `subject_revision` and\n`evidence_revision` are PLAN fingerprints (SPEC-0036's\
+  \ `subject_revision` and\n`evidence_revision` are PLAN fingerprints (<workshop-spec>'s\
   \ recorded `plan_fingerprint`); a `fix` at pre is an\n`implementation_plan` edit\
   \ and admission requires the CURRENT plan fingerprint to EQUAL the named\nevidence\
   \ revision — the descendant clause is post-only. **AN ALL-`accept`/`defer` SET AT\
@@ -127,69 +127,66 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ main — QUEUE §Prematurely-\nclosed-unlanded) for a done-but-unlanded card; or\
   \ a NEW card. RED audit status is DISTINCT from land\neligibility: `land` keeps\
   \ its SPEC-0077 audit-currency gate unchanged and reads nothing here.\n\n**THE ADMISSION\
-  \ PRECONDITION ON A TERMINAL-BEARING PASS.** A terminal-bearing pass — the\nrule-3\
-  \ `--on-decisions` pass, or the ONE bounded absorption re-audit, and ONLY those\
-  \ — is NOT\nADMITTED while the engine's OWN Stage-6 ledger PROVABLY DOES NOT COVER\
-  \ the commit it would audit.\nThe refusal emits `read_gate_refused` kind `stage6-evidence-stale`,\
-  \ invokes no auditor, records no\nverdict and spends no pass; the session closes\
-  \ the gap with the one command it names\n(`task test --run` at that head), re-enters\
-  \ the stage and re-runs the same pass at no cost.\n(a) THE ONE DECIDING INPUT is\
-  \ the ledger — this task's `tests_passed` rows (`ts`) and its\n`commit_landed` rows\
-  \ (`ts`, `commit`) — and NO finding field is read, because at the moment of\ndecision\
-  \ NO FINDING EXISTS: the decision precedes the auditor. Coverage holds on EITHER\
-  \ disjunct —\n(A) a `tests_passed` row POSTDATING the audited commit's own `commit_landed`\
-  \ row (the corrective\nrun the refusal prescribes, which is what makes a refused\
-  \ pass admissible again), or (B) the\naudited commit is the FIRST `commit_landed`\
-  \ at-or-after the LATEST `tests_passed` preceding it\n(the ordinary Stage-6-then-Stage-7\
-  \ flow). Commit identity is RESOLVED, never string-compared.\n(b) FAIL-OPEN on every\
-  \ unprovable shape (no run recorded, no land naming the subject, an\nunresolvable\
-  \ sha, an unparseable `ts`): the pass is admitted exactly as before, so the engine\
-  \ can\nnever refuse a pass it has not earned the right to refuse.\n(c) TERMINALITY\
-  \ ITSELF IS UNCHANGED. Nothing that reaches a verdict is spared — a substantive\
-  \ RED\nterminalizes exactly as it does today, which is what keeps CHARTER §Principle\
-  \ 7's\nre-run-vs-resolve fork intact. Only the ORDER changes: supply the proof the\
-  \ lifecycle already\nrequires, then take the pass. An ordinary pass-1/pass-2 audit\
-  \ and an audit-currency check are\nnever refused by this axis (neither is terminal-bearing),\
-  \ and an ALREADY-terminal stage keeps\nsaying TERMINAL — this precondition is read\
-  \ AFTER rule 4's terminal refusal, never instead of it.\n(d) THE HONEST LIMIT: this\
-  \ closes the class where the gap is ENGINE-PROVABLE BEFORE the pass. A\nresidual\
-  \ asserting missing proof of some OTHER kind — one the engine cannot itself compute\
-  \ — can\nstill reach a verdict and still terminalize.\nDecisions from `main`'s journal\
-  \ are visible to an audit running in the card's worktree through the\nEXISTING SPEC-0168\
-  \ folded corpus (`_folded_journal_events`: worktree journal ∪ main journal); the\
-  \ packet ADMITS a folded row by type CLASS (SPEC-0168 rule 2),\nso `ceiling_decision`\
-  \ is REGISTERED as a task-subject evidence class in that reader and the\n`--on-decisions`\
-  \ admission reads the same corpus — no new transport, one explicit registration.\n\
-  \n### 4. Custody — a decision binds to its ceiling row and is SPENT by the pass\n\
-  A `ceiling_decision` binds to ONE `ceiling_ref` + fingerprint (computed at the ceiling\
-  \ row's\n`subject_revision`) and STAYS bound there while a `fix`'s new revision\
-  \ is audited — the new revision is\nexactly what the decision names, so it never\
-  \ invalidates the decision that admits the pass. The\n`--on-decisions` pass consumes\
-  \ the decisions: a later RED\nat the same stage is a NEW ceiling row (new fingerprints,\
-  \ no inherited decisions) — and by rule 3 it\nis terminal, so it is reached only\
-  \ through the one admitted pass — and only once the rule-3 ADMISSION PRECONDITION\
-  \ above is met, since a pass the engine refuses to spend on a stale-evidence subject\
-  \ consumes no decision. A `fix` never makes any revision\nother than its named `evidence_revision`\
-  \ auditable; `accept` never carries across revisions at\naudit-POST — at audit-PRE\
-  \ an all-`accept`/`defer` set is plan-fingerprint-agnostic (rule 3),\nso a plan\
-  \ edited after the ceiling pass is answered at ADMISSION, never by a re-recorded\
-  \ decision. Done-but-\nunlanded cards take rules 2-3 under `--reaudit-after-close`\
-  \ exactly as the rework-in-place route does\ntoday (QUEUE §Prematurely-closed-unlanded);\
-  \ the subject is HEAD of the branch, by that route's own\ncontract.\n**APPEND-ONLY\
-  \ HOLDS, AND RULE 3's ANCESTRY CLAUSE IS WHY IT COSTS NOTHING.** The continued\n\
-  validity of a decision across the commits the lifecycle mandates after it is DERIVED\
-  \ at ADMISSION, by\nancestry (rule 3) — NEVER by re-recording the decision. A recorded\
-  \ `ceiling_decision` is never edited,\nre-issued or superseded to track a moved\
-  \ subject, by the Controller or by anyone else; the row stays\nexactly as written\
-  \ and the admission asks git whether the CURRENT subject CONTAINS the revision that\n\
-  row names.\n\n### 5. No-answer\nAn auditor response with no payload (timeout, transport\
-  \ failure, empty stdout) on the `--on-decisions`\npass is the EXISTING no-outcome\
-  \ class (SPEC-0036 `is_no_data_verdict`): ABORT/environmental, never\nGREEN, never\
-  \ a spent pass, the decisions untouched. ONE attempt per trigger; a retry is an\
-  \ explicit\nController re-invocation of the same verb, never automatic.\n\n### 6.\
-  \ Retirements (CHARTER §P1 F3 — a POSITIVE list; nothing outside it changes)\nThe\
-  \ retired list and its refusals are homed in SPEC-0036 §Audit-loop ceiling. `audit\
-  \ consult\n--on-demand` (the BELOW-ceiling technical-fork pick, <workshop-spec>)\
+  \ PRECONDITION ON A TERMINAL-BEARING PASS — RETIRED (SPEC-1038).** <workshop-spec>\
+  \ refused a\nterminal-bearing pass while the engine's own Stage-6 ledger provably\
+  \ did not cover the audited\ncommit (its items (a)-(d)). Under the post-audit Tests\
+  \ order every card runs its governed\ntest run AFTER audit-post, so a missing run\
+  \ before a terminal-bearing pass is the normal ordering:\nno pass is refused on\
+  \ ledger coverage, and no `stage6-evidence-stale` refusal exists. The coverage\n\
+  obligation that precondition protected is carried at Closure by SPEC-1038 §Tests\
+  \ «Closure-time\ncoverage», the one home of that check (not restated here). An auditor\n\
+  finding that asserts missing test proof for a card is not a substantive RED (SPEC-1040,\
+  \ the\npost-audit packet clause). TERMINALITY ITSELF IS UNCHANGED: a substantive\
+  \ RED terminalizes exactly\nas before, and an ALREADY-terminal stage keeps saying\
+  \ TERMINAL. There is one order for every card\nfrom the moment the land that activates\
+  \ this spec and SPEC-1038 together reaches it — an engine\ncard at that land, a\
+  \ consumer's card once that engine version serves the consumer (SPEC-1038\n§Tests\
+  \ «One order for every card»; owner, option A,\nevents.jsonl#ts=); passes recorded\
+  \ before that land were judged under <workshop-spec>\nand are not re-judged.\nDecisions\
+  \ from `main`'s journal are visible to an audit running in the card's worktree through\
+  \ the\nEXISTING SPEC-0168 folded corpus (`_folded_journal_events`: worktree journal\
+  \ ∪ main journal); the packet ADMITS a folded row by type CLASS (SPEC-0168 rule\
+  \ 2),\nso `ceiling_decision` is REGISTERED as a task-subject evidence class in that\
+  \ reader and the\n`--on-decisions` admission reads the same corpus — no new transport,\
+  \ one explicit registration.\n\n### 4. Custody — a decision binds to its ceiling\
+  \ row and is SPENT by the pass\nA `ceiling_decision` binds to ONE `ceiling_ref`\
+  \ + fingerprint (computed at the ceiling row's\n`subject_revision`) and STAYS bound\
+  \ there while a `fix`'s new revision is audited — the new revision is\nexactly what\
+  \ the decision names, so it never invalidates the decision that admits the pass.\
+  \ The\n`--on-decisions` pass consumes the decisions: a later RED\nat the same stage\
+  \ is a NEW ceiling row (new fingerprints, no inherited decisions) — and by rule\
+  \ 3 it\nis terminal, so it is reached only through the one admitted pass. A `fix`\
+  \ never makes any revision\nother than its named `evidence_revision` auditable;\
+  \ `accept` never carries across revisions at\naudit-POST — at audit-PRE an all-`accept`/`defer`\
+  \ set is plan-fingerprint-agnostic (rule 3),\nso a plan edited after the ceiling\
+  \ pass is answered at ADMISSION, never by a re-recorded decision. Done-but-\nunlanded\
+  \ cards take rules 2-3 under `--reaudit-after-close` exactly as the rework-in-place\
+  \ route does\ntoday (QUEUE §Prematurely-closed-unlanded); the subject is HEAD of\
+  \ the branch, by that route's own\ncontract.\n**APPEND-ONLY HOLDS, AND RULE 3's\
+  \ ANCESTRY CLAUSE IS WHY IT COSTS NOTHING.** The continued\nvalidity of a decision\
+  \ across the commits the lifecycle mandates after it is DERIVED at ADMISSION, by\n\
+  ancestry (rule 3) — NEVER by re-recording the decision. A recorded `ceiling_decision`\
+  \ is never edited,\nre-issued or superseded to track a moved subject, by the Controller\
+  \ or by anyone else; the row stays\nexactly as written and the admission asks git\
+  \ whether the CURRENT subject CONTAINS the revision that\nrow names.\n**A RE-SHIP\
+  \ AFTER A GOVERNED TESTS RUN STAYS ON THE SAME ROW (SPEC-1038).** A re-ship on a\
+  \ card with\nANY runner-marked governed run (`tests_passed` or `tests_failed`) recorded\
+  \ after its NEWEST\n`audit_post_completed` (journal order, never second-resolution\
+  \ `ts` — SPEC-1038 §Tests) does NOT open a new ceiling row: its re-audit is the\
+  \ next pass on the SAME\nrow as the audit it reopens, so repeated fixes after Tests\
+  \ reach the ceiling and this spec's\ndecision route. Decided by those facts — never\
+  \ by how the card reached Commit, an explicit\n`stage Commit` included, and never\
+  \ by that run's verdict, so a green run on an unaudited fix\ncannot reset the row.\
+  \ The new-row rule (SPEC-1041 «At-ceiling edge cases», the successor of <workshop-spec>)\
+  \ keeps\ngoverning only the GREEN second ship: a re-ship after a GREEN audit-post\
+  \ with no governed run\nsince it.\n\n### 5. No-answer\nAn auditor response with\
+  \ no payload (timeout, transport failure, empty stdout) on the `--on-decisions`\n\
+  pass is the EXISTING no-outcome class (<workshop-spec> `is_no_data_verdict`): ABORT/environmental,\
+  \ never\nGREEN, never a spent pass, the decisions untouched. ONE attempt per trigger;\
+  \ a retry is an explicit\nController re-invocation of the same verb, never automatic.\n\
+  \n### 6. Retirements (CHARTER §P1 F3 — a POSITIVE list; nothing outside it changes)\n\
+  The retired list and its refusals are homed in <workshop-spec> §Audit-loop ceiling.\
+  \ `audit consult\n--on-demand` (the BELOW-ceiling technical-fork pick, <workshop-spec>)\
   \ is not on the list and is unchanged. Retired flags survive only as refusal\nshims\
   \ (print the pointer, exit nonzero) until this contract's plan is `realized`, then\
   \ are deleted.\nALSO RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication\
@@ -207,15 +204,15 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ <workshop-spec> is SUPERSEDED by this spec\non activation; <workshop-spec>'s post-ceiling\
   \ paragraphs (ceiling-convergence triage, dispatched-worker\nauto-consult, owner-authorized\
   \ continuation) are replaced by a pointer here; SPEC-0191 §5 rung 2\n(«adversarial\
-  \ consult») becomes «Controller typed decisions (this spec)»; SPEC-0036's overlay\
-  \ table\ndrops the consult-governed short-circuit and its saved-result schema gains\
-  \ `finding_fingerprint` +\n`basis: on-decisions`; SPEC-0161 gains the `ceiling_decision`\
+  \ consult») becomes «Controller typed decisions (this spec)»; <workshop-spec>'s\
+  \ overlay table\ndrops the consult-governed short-circuit and its saved-result schema\
+  \ gains `finding_fingerprint` +\n`basis: on-decisions`; SPEC-0161 gains the `ceiling_decision`\
   \ payload keys; SPEC-0103 §3's worker\nceiling route halts with the fingerprints\
   \ (no auto-consult). The dispatched Worker at the ceiling\ntherefore HALTS (`bg_dispatch_halted`,\
   \ the existing SPEC-0103 §3 escalation) naming its residual\nfingerprints; the Controller\
   \ decides; the worker resumes with `--on-decisions`.\nHOW THE WORKER HALTS — one\
   \ named verb, and it is not `blocked-on-land`.\nThe halt row and the worker's covering\
-  \ verb, `task pause --reason audit-ceiling`, are homed in\nSPEC-0036 §Audit-loop\
+  \ verb, `task pause --reason audit-ceiling`, are homed in\n<workshop-spec> §Audit-loop\
   \ ceiling. It is the ONLY verb reachable in the PRE-COMMIT window: a Stage-4\nceiling\
   \ precedes every commit route, so the claim `worktree new --task` wrote is still\
   \ uncommitted, and\n`blocked-on-land` — which admits on a COMMITTED branch claim\
@@ -271,9 +268,9 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ fills silence, it never overrides a stated cause), and a locator that does not\
   \ resolve, whose\ncontent moved, or that carries an out-of-vocabulary value counts\
   \ at its severity exactly as before.\nHow a late finding is decided is homed in\
-  \ SPEC-0036 §Audit-loop ceiling. Late findings per pass are\ncounted (a debt-view\
+  \ <workshop-spec> §Audit-loop ceiling. Late findings per pass are\ncounted (a debt-view\
   \ line).\n\n## Parameters\n\nNone consumed. `AUDIT_PASS_CEILING` (2) stays homed\
-  \ in <workshop-spec> / `bin/lib/audit.py` (stated in the\nSPEC-0036 §Audit-loop\
+  \ in <workshop-spec> / `bin/lib/audit.py` (stated in the\n<workshop-spec> §Audit-loop\
   \ ceiling core); the fingerprint\nversion prefix (`fp1:`) is a code constant beside\
   \ the hash, bumped on any change to the canonical\ntuple (a bump invalidates nothing\
   \ retroactively — an old-version fingerprint simply matches no current\nresidual,\
@@ -282,16 +279,16 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ fingerprint; typed dispositions with `accept` terminal and a post-decision\nRED\
   \ needing an explicit terminal owner disposition; a directive locator on every decision\
   \ and the\njournal as the single store. Prior-art it EXTENDS rather than re-invents:\
-  \ SPEC-0036's per-finding\nfields (the fingerprint inputs already exist); no-worktree\
-  \ journal append; SPEC-0168's\ncross-instance fold; the existing `task update --status`\
-  \ / `worktree park` terminals.\n\n### History moved out of the rule body\n\nThe\
-  \ passages below stood in the rule text and were moved here verbatim; the rule they\n\
-  sat in is unchanged.\n\n- **1. The residual list IS the last RED's findings — fingerprinted\
-  \ by the engine:** (`green`\n  joined the set when admitted RED/YELLOW/GREEN as\
-  \ severity words)\n\n- **1. The residual list IS the last RED's findings — fingerprinted\
-  \ by the engine:**\n  (`read_gate_refused` kind `finding-locator-unresolvable` and\
-  \ its `findings_all` key are RETIRED:\n  nothing is refused, and a refusal row on\
-  \ a recorded verdict would misreport it to every later\n  reader)\n\n- **1. The\
+  \ <workshop-spec>'s per-finding\nfields (the fingerprint inputs already exist);\
+  \ no-worktree journal append; SPEC-0168's\ncross-instance fold; the existing `task\
+  \ update --status` / `worktree park` terminals.\n\n### History moved out of the\
+  \ rule body\n\nThe passages below stood in the rule text and were moved here verbatim;\
+  \ the rule they\nsat in is unchanged.\n\n- **1. The residual list IS the last RED's\
+  \ findings — fingerprinted by the engine:** (`green`\n  joined the set when admitted\
+  \ RED/YELLOW/GREEN as severity words)\n\n- **1. The residual list IS the last RED's\
+  \ findings — fingerprinted by the engine:**\n  (`read_gate_refused` kind `finding-locator-unresolvable`\
+  \ and its `findings_all` key are RETIRED:\n  nothing is refused, and a refusal row\
+  \ on a recorded verdict would misreport it to every later\n  reader)\n\n- **1. The\
   \ residual list IS the last RED's findings — fingerprinted by the engine:** (the\
   \ same\n  fingerprinted projection, so a YELLOW pass is journaled like a RED; residual\
   \ identity is unchanged,\n  since a YELLOW ceiling row resolved the same findings\
@@ -452,10 +449,11 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ for this contract names those rows; a card that exited by the old route\n  before\
   \ the implementing card landed is covered by the trial's journaled replay, not by\
   \ VP7.\n- **VP10 (reship opens a new ceiling row, rules 3-4 as amended):** on a\
-  \ card whose saved\n  audit-post record is GREEN at `passes: 2` with ZERO residuals,\
-  \ a `task commit --reship` ship\n  followed by `audit post --commit <new>` is ADMITTED\
-  \ and records `passes: 1` for the new commit,\n  stamping `ceiling_row_reset_for:\
-  \ <new sha>` on the record while the superseded 2-pass row survives\n  in `passes_trail`.\
+  \ card whose saved\n  audit-post record is GREEN at `passes: 2` with ZERO residuals\
+  \ and NO runner-marked governed run\n  recorded after that audit-post (§4), a `task\
+  \ commit --reship` ship\n  followed by `audit post --commit <new>` is ADMITTED and\
+  \ records `passes: 1` for the new commit,\n  stamping `ceiling_row_reset_for: <new\
+  \ sha>` on the record while the superseded 2-pass row survives\n  in `passes_trail`.\
   \ DIFFERENTIALS, each of which must REFUSE exactly as before: the SAME fixture\n\
   \  with the `reship` marker ABSENT is refused at the ceiling, no auditor invoked\
   \ and the record\n  untouched (VP4's «a new commit does not re-admit», verbatim);\
@@ -464,22 +462,25 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ conjunct); a record that ALREADY stamps this subject\n  meets the ordinary ceiling\
   \ instead of re-opening the row (the one-shot — without it the stage is\n  unbounded);\
   \ and a reship naming a DIFFERENT revision, or a sha the git of record cannot resolve,\n\
-  \  opens nothing. The completion EVENT carries no `ceiling_row_reset_for`, so no\
-  \ SPEC-0161 catalog\n  entry is owed (probe: tests/test_reship_new_ceiling_row.py).\n\
-  - **VP9 (parse floor, rule 1):** a RED finding of the base audit-pre/post response\
-  \ lacking\n  `criterion_ref|class_id`, `locator` or `failing_input` is MALFORMED.\
-  \ When EVERY finding is\n  malformed the whole response is refused at parse (no\
-  \ pass spent, no record). When some are\n  malformed and some are not, the malformed\
-  \ ones alone are DROPPED and the WELL-FORMED\n  siblings are RECORDED with the verdict\
-  \ standing — findings are independent, and the floor's own\n  reason (a fieldless\
-  \ finding cannot be fingerprinted, so a ceiling decision has nothing to bind\n \
-  \ to) is true of the malformed finding and false of its siblings. This puts the\
-  \ contract-fields\n  floor on the same footing as its two already-narrowed siblings\
-  \ below. Either way the discarded\n  content is DURABLE, never only in a refusal\
-  \ line: the partial path records it VERBATIM under\n  `malformed_findings:` in the\
-  \ saved verdict YAML, naming each dropped finding by its 1-based\n  INDEX with the\
-  \ fields it lacked, and the wholly-malformed refusal carries the same rows in its\n\
-  \  `read_gate_refused` payload (probe: tests/test_t12646_partial_findings_survive_malformed_sibling.py).\n\
+  \  opens nothing; and the OPPOSITE control — the same fixture with a runner-marked\
+  \ `tests_passed` or\n  `tests_failed` row recorded after the GREEN audit-post —\
+  \ opens NO new row: the re-audit is pass 3 on\n  the same row and meets the ceiling\
+  \ (§4). The completion EVENT carries no `ceiling_row_reset_for`, so no SPEC-0161\
+  \ catalog\n  entry is owed (probe: tests/test_reship_new_ceiling_row.py).\n- **VP9\
+  \ (parse floor, rule 1):** a RED finding of the base audit-pre/post response lacking\n\
+  \  `criterion_ref|class_id`, `locator` or `failing_input` is MALFORMED. When EVERY\
+  \ finding is\n  malformed the whole response is refused at parse (no pass spent,\
+  \ no record). When some are\n  malformed and some are not, the malformed ones alone\
+  \ are DROPPED and the WELL-FORMED\n  siblings are RECORDED with the verdict standing\
+  \ — findings are independent, and the floor's own\n  reason (a fieldless finding\
+  \ cannot be fingerprinted, so a ceiling decision has nothing to bind\n  to) is true\
+  \ of the malformed finding and false of its siblings. This puts the contract-fields\n\
+  \  floor on the same footing as its two already-narrowed siblings below. Either\
+  \ way the discarded\n  content is DURABLE, never only in a refusal line: the partial\
+  \ path records it VERBATIM under\n  `malformed_findings:` in the saved verdict YAML,\
+  \ naming each dropped finding by its 1-based\n  INDEX with the fields it lacked,\
+  \ and the wholly-malformed refusal carries the same rows in its\n  `read_gate_refused`\
+  \ payload (probe: tests/test_t12646_partial_findings_survive_malformed_sibling.py).\n\
   \  What a WELL-FORMED finding must carry is unchanged — only the consequence for\
   \ its SIBLINGS moved.\n  An `echo_of` naming a fingerprint NOT on the ceiling row\
   \ is dropped and the finding counted NEW.\n  Its SIBLING : a RED whose only findings\

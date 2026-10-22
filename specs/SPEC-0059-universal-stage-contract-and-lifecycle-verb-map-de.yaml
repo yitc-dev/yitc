@@ -41,7 +41,7 @@ body: "## Scenario\n\nEvery lifecycle stage — on BOTH axes (the task 9-stage l
   \ `_require_*` code gates + each per-stage spec's entry-gate.\n   Invariant: the\
   \ gate confirms BOTH (a) the prior stage's exit AND (b) the per-unit verification\n\
   \   artifact EXISTS (the per-axis specifics — task `acceptance` / plan realization-exit\
-  \ — are\n   SPEC-0027 / SPEC-0034's, not restated here).\n3. **Work-verb CHECKS\
+  \ — are\n   SPEC-1038 / SPEC-0034's, not restated here).\n3. **Work-verb CHECKS\
   \ its stage's docs were read (current context) AND does the work** — home: the\n\
   \   read-check primitive SPEC-0050 (session-scope + the `read_gate_refused` emission)\
   \ + the\n   stage-correspondence guard `_require_stage_correspondence`. Invariant:\
@@ -102,7 +102,7 @@ body: "## Scenario\n\nEvery lifecycle stage — on BOTH axes (the task 9-stage l
   \ must close. **The INVARIANT:** each first stage MUST gain\na check carrier. The\
   \ CONCRETE realization (the carrier verb + any stage-artifact field it records,\
   \ and\nthe one-carrier-per-datum rule for that field) is owned by the per-stage\
-  \ mechanics spec (SPEC-0027\ntask / SPEC-0034 plan) and built by the plan's activation\
+  \ mechanics spec (SPEC-1038\ntask / SPEC-0034 plan) and built by the plan's activation\
   \ tasks — named THERE, not here (the\nderived-view discipline above; concrete carriers\
   \ are realizations, not contract text).\n\n## Parameters\n\nNone consumed.\n\n##\
   \ Rationale\n\nReal incident: the `postcheck-to-realized` plan re-designed a procedure\
@@ -110,7 +110,7 @@ body: "## Scenario\n\nEvery lifecycle stage — on BOTH axes (the task 9-stage l
   \ that was never fetched, and no verb gated the\nread before `plan stage specs`.\
   \ The SPEC-0050 pilot (`task commit` / `task close`) proves the\nread-check lever\
   \ works; this contract GENERALIZES that proven pilot to every stage's work-verb.\
-  \ The\ncontract is CROSS-AXIS — neither SPEC-0034 (plan-axis mechanics) nor SPEC-0027\
+  \ The\ncontract is CROSS-AXIS — neither SPEC-0034 (plan-axis mechanics) nor <workshop-spec>\
   \ (task-axis FSM) nor\nSPEC-0013 (delivery binding) owns it — so it lives here,\
   \ in one home, pointed to from LIFECYCLE.\n\n## Verification\n\nBehavioral (primary):\n\
   - each mapped work-verb REFUSES when its stage docs are unread (read-check) and\
@@ -137,7 +137,6 @@ cites:
 - CHARTER.md#principle-3
 - SPEC-0050
 - SPEC-0034
-- SPEC-0027
 - SPEC-0013
 - SPEC-0046
 - SPEC-0032

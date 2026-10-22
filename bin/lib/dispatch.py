@@ -36,6 +36,7 @@ from pathlib import Path
 
 from lib import events   # the `_byte_tail` bound the watcher's premature_exit row uses (T-12896)
 from lib import journal  # lower extracted leaf — the DISPATCH_CLASS_VOCAB carrier (T-10253)
+from lib import gates    # lower leaf — the stage row the brief's order line is read from (T-14037)
 from lib import task as task_mod  # SPEC-0166: the pure `_premise_dispatch_block` predicate (single
                                   # home in task.py) the dispatch preflight refuses on (acyclic)
 
@@ -463,12 +464,12 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "PAUSE-SHAPE FORK (SPEC-0103 §5): a BOOKKEEPING-ONLY pause commits+lands its record (re-enter via "
     "`worktree new --task`); a WORK-CARRYING pause keeps the worktree INTACT (re-enter via `task "
     "resume`). "
-    "AUDIT-LOOP CEILING (SPEC-0204 rule 6 / T-12679): at the ceiling `audit pre|post` ITSELF emits "
+    "AUDIT-LOOP CEILING (SPEC-1039 rule 6 / T-12679): at the ceiling `audit pre|post` ITSELF emits "
     "the bg_dispatch_halted(blocked_on_land) row carrying residual_fingerprints; you halt with "
     "`task pause <task> --reason audit-ceiling` INSIDE the worktree; the Controller records `audit "
     "decide` per fingerprint and you resume with `task resume` + `audit pre|post --on-decisions`. At "
     "audit-POST, for a residual you fix in scope: `task commit --fix-red` FIRST and name its sha in "
-    "the pause next_action. TERMINAL RED (SPEC-0204 rules 3-4 / T-13537): when the `--on-decisions` "
+    "the pause next_action. TERMINAL RED (SPEC-1039 rules 3-4 / T-13537): when the `--on-decisions` "
     "pass (or its one absorption re-audit) is RED, the stage is OVER — the verb's halt row names the "
     "terminal exits (`task update --status parked|wont-do`, `worktree park`, or a new card) and NO "
     "residual_fingerprints: NO `audit decide`, NO further pass. You still halt with `task pause <task> --reason audit-ceiling`, and those "
@@ -488,9 +489,11 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
 # comes from. It carries NO detached-land recipe: a worker that never lands cannot meet the SPEC-1028
 # per-call cap ON a land, so handing it that recipe would be an instruction it can only misapply.
 _CONTROLLER_LANDS_HEAD = (
-    "DO NOT LAND YOURSELF. Run EVERY stage of your card's flow — the test suite, its external audits "
+    "DO NOT LAND YOURSELF. Run EVERY stage of your card's flow, in its stage order "
+    f"({' → '.join(gates.LIFECYCLE_STAGE_POINTER_FSM['standard'][3:])}: the governed test suite runs AFTER "
+    "audit-post — SPEC-1038) — the commit, its external audits "
     "(a `class: hygiene` fast-path card has none — LIFECYCLE §Two flow "
-    "types), the commit, the close — synchronously in the FOREGROUND, blocking, inline in your turn; run long commands "
+    "types), the test suite, the close — synchronously in the FOREGROUND, blocking, inline in your turn; run long commands "
     "(tests, audits) synchronously/blocking and NEVER background-and-await an async notification. "
     "Then STOP: after `task close <task>` report the CLOSING SHA + the worktree PATH and yield. The "
     "CONTROLLER lands from main — you do NOT invoke `land`, and the `LAND: OK <sha>` token is the "
@@ -608,16 +611,19 @@ def _build_point1(sync_rule: str, *, controller_lands: bool = False) -> str:
     LAND YOURSELF» a SECOND time — the residual fp1:07ecc4bac144bfad that killed T-12349's plan. Under
     this branch the brief is also free of the lead-in phrase «all the way to the `LAND: OK <sha>`
     token» and of the ff-race trailer, neither of which a worker that never lands can act on."""
+    _STAGE_ORDER = " → ".join(gates.LIFECYCLE_STAGE_POINTER_FSM["standard"][3:])
     if controller_lands:
-        return """\
-1. SYNCHRONOUS-TO-CLOSE. Run EVERY step of your card's flow — the test suite, its external audits
-   (point 3), the commit, AND the close — synchronously in the FOREGROUND, blocking, inline in your
-   turn, all the way to the CLOSING
+        return f"""\
+1. SYNCHRONOUS-TO-CLOSE. Run EVERY step of your card's flow, in its stage order
+   ({_STAGE_ORDER}: the governed test suite runs AFTER audit-post — SPEC-1038) — the commit,
+   its external audits (point 3), the test suite, AND the close — synchronously in the FOREGROUND,
+   blocking, inline in your turn, all the way to the CLOSING
    SHA. The land contract for this dispatch is the STOP / LAND CONTRACT block in the composed preamble
    below — read it there; this point does not restate it."""
     return f"""\
-1. SYNCHRONOUS-TO-LAND. Run EVERY step of your card's flow — the test suite, its external audits
-   (point 3), commit, close, AND land —
+1. SYNCHRONOUS-TO-LAND. Run EVERY step of your card's flow, in its stage order
+   ({_STAGE_ORDER}: the governed test suite runs AFTER audit-post — SPEC-1038) — commit,
+   its external audits (point 3), the test suite, close, AND land —
    synchronously in the FOREGROUND, blocking, inline in your turn, all the way to the `LAND: OK <sha>`
    token. {sync_rule} `land` may need retries under concurrent
    landing (ff-race): re-invoke it inline until `LAND: OK`, never yielding between attempts."""
@@ -707,7 +713,7 @@ your life: when you yield the turn, your process EXITS. Therefore:
    - WORKTREE-BEFORE-WRITE: every source/artifact edit happens INSIDE that worktree, never directly on the
      main checkout (journal `event` appends are the only no-worktree exception, D-0049).
    - AUDIT — MANDATORY ON A SUBSTANTIVE CARD: run the external `audit pre` (Stage 4) AND `audit post`
-     (Stage 8) — do NOT skip them because the change "looks correct" (X-0044 shipped
+     (Stage 7) — do NOT skip them because the change "looks correct" (X-0044 shipped
      correct-but-UNAUDITED code). The OTHER flow is the hygiene fast path: a `class: hygiene` card has
      no Plan and no audit stage, so it runs neither audit (LIFECYCLE §Two flow types — the stage
      sequence your claim prints is your card's). The label alone decides nothing: that same section's

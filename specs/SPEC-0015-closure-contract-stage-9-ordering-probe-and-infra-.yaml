@@ -17,15 +17,17 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ — by `stage Closure`; the `audit post` forward-pointer) is a\ndelivery ECHO of\
   \ that obligation, not the guarantee on its own (<workshop-spec> §7).\n\n## Internal\n\
   \nTHE CLOSURE CONTRACT (the retrieved home of LIFECYCLE §Stage 9).\n\n### Ordering\
-  \ prerequisite\nFor substantive tasks, the Stage 8 audit-post verdict MUST be durably\
+  \ prerequisite\nFor substantive tasks, the Stage 7 audit-post verdict MUST be durably\
   \ recorded in\n`decisions/<task>-audit-post.yaml` BEFORE the closure fields below\
-  \ are populated. Hygiene fast-path\n(which skips Stage 8) is exempt.\n\n**The ONE\
-  \ other condition under which this precondition does not apply — a project-declared\n\
-  audit-post exemption case (SPEC-0178, additive amendment; rule 8 makes this a PRECONDITION\
+  \ are populated. Hygiene fast-path\n(which skips Stage 7) is exempt.\n\nClosure-time\
+  \ coverage — the newest runner-marked governed run after the card's last substantive\n\
+  commit is green — is required by SPEC-1038 §Tests.\n\n**The ONE other condition\
+  \ under which this precondition does not apply — a project-declared\naudit-post\
+  \ exemption case (SPEC-0178, additive amendment; rule 8 makes this a PRECONDITION\
   \ of that\nspec's activation).** A project MAY declare, in its own `yitc-ops.yaml`,\
   \ named cases whose matching\ncards close WITHOUT audit-post — with a mandatory\
   \ reason recording who accepted the risk and why.\nThe exemption is bounded, and\
-  \ the bounds are stated identically here, in SPEC-0036 and in the\nCHARTER, because\
+  \ the bounds are stated identically here, in SPEC-1040 and in the\nCHARTER, because\
   \ a surface stating a DIFFERENT bound would be a standing contradiction (CHARTER\
   \ §P7)\nrather than a wording variation:\n- **audit-post ONLY (SPEC-0178 rule 2).**\
   \ A case NEVER reaches audit-pre, the Tests stage, the\n  land-verify layers, the\
@@ -143,14 +145,14 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   criterion, a filed-for item, an item not held — still needs the rows spelled first.\
   \ The store read\nis fail-open: an unreadable store fills nothing, so the gate refuses\
   \ as before.\n\n### Settling a DEFERRED probe on an already-closed card (X-0885)\n\
-  A probe may be closed `deferred` — for the SPEC-0036 deferred-adoption variant (d)\
-  \ it is the ONLY\nhonest close, because the acceptance evidence is emitted BY `land`\
-  \ AFTER the pre-land audit-post.\n\n**THE RETURNING SURFACE.** An unsettled `probes:\
-  \ {ACx: deferred}` is folded by the derived\noverdue-recheck lens and gets its own\
-  \ report-only session-start echo line (SPEC-0119 rule 3, single\nhome). Deferring\
-  \ stays the honest move, stays cheap, and is still gated by nothing.\n\n**THE MOMENT\
-  \ REQUIREMENT.** A probe deferred at closure MUST name the moment it returns —\n\
-  `--probe-deferred <AC>:<due_by ISO-date | awaits T-NNNN|X-NNNN|events.jsonl#type=<t>[@after=<ISO\
+  A probe may be closed `deferred` — for the <workshop-spec> deferred-adoption variant\
+  \ (d) it is the ONLY\nhonest close, because the acceptance evidence is emitted BY\
+  \ `land` AFTER the pre-land audit-post.\n\n**THE RETURNING SURFACE.** An unsettled\
+  \ `probes: {ACx: deferred}` is folded by the derived\noverdue-recheck lens and gets\
+  \ its own report-only session-start echo line (SPEC-0119 rule 3, single\nhome).\
+  \ Deferring stays the honest move, stays cheap, and is still gated by nothing.\n\
+  \n**THE MOMENT REQUIREMENT.** A probe deferred at closure MUST name the moment it\
+  \ returns —\n`--probe-deferred <AC>:<due_by ISO-date | awaits T-NNNN|X-NNNN|events.jsonl#type=<t>[@after=<ISO\
   \ ts>]>`,\nstored in the sibling mapping `probe_moments:` — and a BARE key is REFUSED\
   \ at every close-time door\nonto `probes:`; the RETURNING SURFACE above then headlines\
   \ only the DUE ones (SPEC-0119 rule 3, the\nsingle home of the reporting half).\
@@ -369,7 +371,7 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ of this predicate.** It rejects prose and circularity and forces the closer to\n\
   NAME a resolvable machine event plus the differential; it CANNOT judge whether that\
   \ event is\nSEMANTICALLY the right evidence — that belongs to the audit-post differential-probe\
-  \ lens (SPEC-0036\n§audit-post overlay). Close checks the claim is CHECKABLE, audit-post\
+  \ lens (SPEC-1040\n§audit-post overlay). Close checks the claim is CHECKABLE, audit-post\
   \ checks it is TRUE. Neither is a\nhard gate.\n\n#### The payload contract is DELIVERED\
   \ at composition time, not first at the WARN (X-0342)\nThe two keys the predicate\
   \ above demands are CUED to the composer BEFORE the event is written — at the\n\
@@ -413,8 +415,8 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ whose deliverable is a `verify.layers` wiring (SPEC-0093\nrule 16): its only mechanism\
   \ trace is the per-layer outcome `land` records on its own land event —\nthe record\
   \ §The EVENT carrier refuses as closure bookkeeping. Stage 8 already sanctions the\
-  \ same\nabsence (SPEC-0036 variant (d), `audit post --land-emitted-event`).\n\n\
-  **The STANDING RULE.** For a land-emitted verify-layer ship the P8 adoption carrier\
+  \ same\nabsence (<workshop-spec> variant (d), `audit post --land-emitted-event`).\n\
+  \n**The STANDING RULE.** For a land-emitted verify-layer ship the P8 adoption carrier\
   \ is a P8 event\nwhose machine-evidence reference is a LAYER-ROW REFERENCE — it\
   \ names the land record AND the one\nverify layer the ship, rather than the land\
   \ record alone. It reads as adoption ONLY with the\ncorrelation a bare land record\
@@ -536,7 +538,6 @@ cites:
 - CHARTER.md#principle-3
 - CHARTER.md#principle-8
 - SPEC-0060
-- SPEC-0036
 requires: []
 supersedes: null
 proposed_by: null

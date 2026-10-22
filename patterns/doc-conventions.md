@@ -160,8 +160,8 @@ Both short and path forms accepted in YAML fields. Citation in commit `from:` tr
   `decisions/<subject>-<date>-<kind>.yaml`, e.g. `decisions/spec-0080-remeasure-2026-08-25-finding.yaml`.
   The `decisions/<task-id>-*.yaml` prefix is RESERVED for a card's own audit / consult records (the row
   above), and a card that names its DELIVERABLE that way ships an empty authored-path set, so `audit post`
-  refuses to audit the very record it delivered. Rule home: **SPEC-0036** `--zero-ship-diff` row
-  (`bin/yitc-v2 graph query SPEC-0036`) — this bullet points at it, it does not restate it.
+  refuses to audit the very record it delivered. Rule home: **SPEC-1040** `--zero-ship-diff` row
+  (`bin/yitc-v2 graph query SPEC-1040`) — this bullet points at it, it does not restate it.
 
 **ID allocation — always via the allocator verb, NEVER hand-pick an ID:**
 - Tasks: `bin/yitc-v2 task file` allocates next T-NNNN, validates schema, emits `task_filed` event

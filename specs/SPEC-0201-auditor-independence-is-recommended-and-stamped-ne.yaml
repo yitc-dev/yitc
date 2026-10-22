@@ -30,8 +30,8 @@ body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool �
   \ использовать другого провайдера - не запрещать работу». Independence is a recommendation\
   \ the\nsystem keeps voicing, never a wall. §4a's OTHER half (§4b, provider-neutral\
   \ methodology text) is\nuntouched.\n\n### Rule 2 — Every verdict is STAMPED; a same-provider\
-  \ audit is journaled\nEvery saved audit verdict (SPEC-0036 §Saved audit result —\
-  \ task pre/post, plan gates, ad-hoc,\nconsult) carries TWO additive fields: `auditor_independence:\
+  \ audit is journaled\nEvery saved audit verdict (<workshop-spec> §Saved audit result\
+  \ — task pre/post, plan gates, ad-hoc,\nconsult) carries TWO additive fields: `auditor_independence:\
   \ external | same-provider` and\n`auditor_model: <the model id the adapter actually\
   \ ran>` (beside the existing `auditor_provider`).\n`same-provider` = the auditor's\
   \ resolved provider equals the primary AI's provider for this\nsession (the primary\
@@ -81,7 +81,7 @@ body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool �
   \ text and the stamp values are code constants, not governing scalars).\n\n## Rationale\n\
   Real incident: the v2.0.0 adopter probe (2026-09-05) — on a clean machine every\
   \ audit\nABORTs with no exit; the trial host would be blocked on day one. Prior-art\
-  \ (CHARTER §P1 F1):\n`invoke_claude` and `YITC_AUDIT_PROVIDER` already exist (SPEC-0036\
+  \ (CHARTER §P1 F1):\n`invoke_claude` and `YITC_AUDIT_PROVIDER` already exist (<workshop-spec>\
   \ §Auditor selection) — the\nMECHANISM to audit on any provider is present; only\
   \ the doctrine forbade it. What is REMOVED (F3):\nthe hard ABORT-with-no-exit and\
   \ §4a's MUST. What stays: the ceiling, the tiers, the bench carve-out.\nOwner directives\
@@ -99,7 +99,6 @@ body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool �
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-4
-- SPEC-0036
 - SPEC-0202
 requires: []
 supersedes: null

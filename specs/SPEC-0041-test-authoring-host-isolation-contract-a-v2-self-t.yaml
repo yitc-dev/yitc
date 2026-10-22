@@ -233,7 +233,6 @@ body: "## Scenario\n\nA worker (the AI in a Build session) is at the Execution /
   \ this\n  spec proposed→active ( deterministic side-effect).\n"
 cites:
 - SPEC-0013
-- SPEC-0027
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3
 - CHARTER.md#principle-8

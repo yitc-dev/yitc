@@ -300,7 +300,7 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ — declare it\n`attested:` and record its reading; filing \"no data\" for a proof\
   \ that ran is not a waiver, it is an\ninaccuracy. The `settled_by` discharge below\
   \ remains the route for a waiver already authored.\nSECOND CARRIER ON THE SAME LENS\
-  \ (SPEC-0036 / X-0710). The `overdue-recheck` lens folds a\nSECOND dated deferred-proof\
+  \ (<workshop-spec> / X-0710). The `overdue-recheck` lens folds a\nSECOND dated deferred-proof\
   \ carrier alongside the `live_probe` waiver: a task's `post_ship_observation:\n\
   {observation, due_by}` — the declaration the Stage-8 `--post-ship-observation` carve-out\
   \ requires when an\nacceptance proof is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION.\
@@ -950,7 +950,7 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ debt on the not-adopted surface, §2/§3) — the OPPOSITE of silent. The\n  literal\
   \ \"passing probe before close\" reading is consciously refined for deploy-closure\
   \ ONLY; a\n  non-deploying project's closure is UNCHANGED, and no other closure\
-  \ precondition is altered.\n  ADDITIVE-conditional.\n- **SPEC-0036 / the audit-post\
+  \ precondition is altered.\n  ADDITIVE-conditional.\n- **<workshop-spec> / the audit-post\
   \ interpretation (LIFECYCLE §Stage 8):** §5 adds a serve/deploy case to\n  the existing\
   \ event-emit-only edge-case family — live-adoption is deferred to Closure rather\
   \ than\n  RED-flagged at the diff-only audit-post. It reuses the existing deferred-adoption\
@@ -1083,7 +1083,7 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
+  bin/lib/audit.py#cmd_audit: 214e64890574e647821ef7914f9508c3e322a810a5c609d9ecb5ca25b444539c
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7

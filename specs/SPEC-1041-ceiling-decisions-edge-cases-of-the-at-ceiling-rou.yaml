@@ -1,42 +1,51 @@
-id: SPEC-1014
-title: Ceiling decisions — edge cases of the at-ceiling route (reference, read at
-  a ceiling before audit decide or the one further pass)
+id: SPEC-1041
+title: Ceiling decisions — edge cases of the at-ceiling route (reference); a re-ship
+  after a governed Tests run stays on the same ceiling row
 status: active
-created_at: 2026-10-08 00:59:01+00:00
+created_at: 2026-10-21 19:28:43+00:00
+travels: null
 consumed: false
 implements: []
-body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reached\
-  \ the audit-loop ceiling, and the plain\nroute of SPEC-0204 — one typed decision\
-  \ per residual, then one further pass — meets a case its rules\nonly name: there\
-  \ is no residual to decide, a second `fix` follows a later re-audit, the directive\n\
+body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-after-audit-post-`).**\
+  \ ONE normative change: rule 4's\nnew-row rule for a `--reship` ship no longer opens\
+  \ a row when a governed Tests run is recorded\nafter the newest audit-post (SPEC-1039\
+  \ rule 4, the one home of that condition, under the\npost-audit Tests order of SPEC-1038).\
+  \ The reference now reads against SPEC-1039, the successor\nof <workshop-spec>,\
+  \ which carries <workshop-spec>'s rules verbatim. Every other block is carried VERBATIM\n\
+  from <workshop-spec> (SPEC-1037 rule 7: the change alters what a card must do in\
+  \ an already-covered\ncase, so it is a supersede — accept-gate round 6, F1).\n\n\
+  ## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reached the\
+  \ audit-loop ceiling, and the plain\nroute of SPEC-1039 — one typed decision per\
+  \ residual, then one further pass — meets a case its rules\nonly name: there is\
+  \ no residual to decide, a second `fix` follows a later re-audit, the directive\n\
   shares its second with another, the subject is a bookkeeping commit. These cases\
   \ are rare and each is\nannounced by a refusal or by the ceiling row itself, so\
   \ their detail is a REFERENCE: no stage entry\nrenders it. A session at a ceiling\
-  \ meets a pointer to it in two places — the index line at the head of\nSPEC-0204\
+  \ meets a pointer to it in two places — the index line at the head of\nSPEC-1039\
   \ §Internal and the first lines of the `audit decide` help — and fetches it on demand.\
   \ What a\nceiling is, who decides, the three dispositions, the admission of the\
-  \ one pass and its terminal stay\nin SPEC-0204.\n\n## Internal\n\n### Delivery and\
+  \ one pass and its terminal stay\nin SPEC-1039.\n\n## Internal\n\n### Delivery and\
   \ lookup\n\n- This spec is rendered at NO stage entry and is fetched before no verb:\
   \ reading it is not checked.\n  What guards each case below is the engine's own\
   \ fail-closed admission or refusal, named in its\n  block, and that holds whether\
-  \ or not this text was read.\n- Fetch it on demand with `graph query SPEC-1014`\
-  \ (under `-C`: `graph query --kernel SPEC-1014`).\n- Lookup: every block opens with\
-  \ its own lead in capitals and sits under the SPEC-0204 rule it belongs\n  to, so\
+  \ or not this text was read.\n- Fetch it on demand with `graph query SPEC-1041`\
+  \ (under `-C`: `graph query --kernel SPEC-1041`).\n- Lookup: every block opens with\
+  \ its own lead in capitals and sits under the SPEC-1039 rule it belongs\n  to, so\
   \ a search of this spec for a refusal kind, a card id or a lead lands on the whole\
-  \ block.\n- Reading: each block is text of that SPEC-0204 rule, moved here sentence\
-  \ for sentence. Inside a\n  block «rule N» is SPEC-0204 rule N; «above» and «below»\
-  \ read against that rule's text in SPEC-0204\n  followed by its group here; «VP<n>»\
-  \ is a probe of SPEC-0204 §Verification; «this card» is the card\n  the block's\
+  \ block.\n- Reading: each block is text of that SPEC-1039 rule, moved here sentence\
+  \ for sentence. Inside a\n  block «rule N» is SPEC-1039 rule N; «above» and «below»\
+  \ read against that rule's text in SPEC-1039\n  followed by its group here; «VP<n>»\
+  \ is a probe of SPEC-1039 §Verification; «this card» is the card\n  the block's\
   \ own lead cites.\n- A new edge case of one of these branches is authored here,\
   \ under the rule it belongs to\n  (<workshop-spec> §6).\n\n### Rule 9 — the plan-gate\
-  \ arm (text)\n\nMoved verbatim from SPEC-0204 rule 9; SPEC-0204 keeps the rule's\
-  \ heading and every code\nanchor. Its edge cases follow under §At-ceiling edge cases,\
-  \ group «Rule 9».\n\nRules 1-5 apply to a PLAN GATE, with the target pair `(plan\
-  \ slug, gate id)` in place of\n`(task id, stage)`. The gate id is the <workshop-spec>\
-  \ gate identity (INV-1) — the ceiling row's `stage`,\nthe `ceiling_ref`, and what\
-  \ the decision names; the gate's audit-TEMPLATE name is the RECORD's name\nand is\
-  \ never the identity. What differs from the task arm, and nothing else does:\n \
-  \ (a) THE CEILING ROW. A plan gate records its verdict on the SAME `external_audit_completed`\
+  \ arm (text)\n\nMoved verbatim from <workshop-spec> rule 9; SPEC-1039, its successor,\
+  \ keeps the rule's heading and every code\nanchor. Its edge cases follow under §At-ceiling\
+  \ edge cases, group «Rule 9».\n\nRules 1-5 apply to a PLAN GATE, with the target\
+  \ pair `(plan slug, gate id)` in place of\n`(task id, stage)`. The gate id is the\
+  \ <workshop-spec> gate identity (INV-1) — the ceiling row's `stage`,\nthe `ceiling_ref`,\
+  \ and what the decision names; the gate's audit-TEMPLATE name is the RECORD's name\n\
+  and is never the identity. What differs from the task arm, and nothing else does:\n\
+  \  (a) THE CEILING ROW. A plan gate records its verdict on the SAME `external_audit_completed`\
   \ event,\n  with the SAME rule-1 ceiling-extension keys, ALONGSIDE its own gate\
   \ record. A gate whose ceiling was\n  reached before this arm existed has no such\
   \ row and never will, so its ceiling row is RESOLVED at\n  read time from the gate's\
@@ -418,23 +427,27 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ SHIP OPENS A NEW CEILING ROW (ADDITIVE; cites).** A\nfurther IN-SCOPE ship committed\
   \ through `task commit --reship` makes its follow-up\n`audit post --commit <new>`\
   \ **pass 1 of a NEW ceiling row** for that commit, and the ordinary\n<workshop-spec>\
-  \ 2-pass ceiling then applies to THAT row. THIS IS NOT A RELAXATION OF THE CEILING,\
-  \ and the bound is\nSTRUCTURAL rather than promised: the ceiling bounds a card's\
-  \ ABSORPTION LOOP on ONE subject (RED →\nabsorb → RED at the same revision), and\
-  \ opening a row COSTS a GREEN auditor verdict on the prior\nsubject — a RED is never\
-  \ reshippable, `--reship` refuses non-GREEN at the commit door — PLUS a\ncommit\
-  \ that provably carries AUTHORED content. That is a NEW subject, and a new subject\
-  \ has always\nearned its own passes. CUSTODY RULES 3-4 ARE UNCHANGED: the superseded\
-  \ GREEN covers the OLD commit\nONLY, the follow-up re-audit is still REQUIRED before\
-  \ closure, and no decision inherits\nacross the rows. DERIVED, never asserted, and\
-  \ FAIL-CLOSED on four conjuncts — the LAST\n`commit_landed` for the task carries\
-  \ the `reship` marker (an ordinary ship, a bookkeeping\nself-commit, an `--absorb`\
-  \ or a `--fix-red` leg all leave it ABSENT); that row's commit RESOLVES to\nthe\
-  \ revision being audited (resolved identity, never a string compare — discipline);\
-  \ the\nprior saved record reads GREEN; and that record does not ALREADY name this\
-  \ subject. The THIRD\nconjunct is what keeps rule 4 intact: a rule-3 pass that came\
-  \ back RED leaves the record RED, so no\nrow opens and the `ceiling-terminal` refusal\
-  \ stands byte-unchanged. The FOURTH is the ONE-SHOT —\nthe opening pass stamps `ceiling_row_reset_for:\
+  \ 2-pass ceiling then applies to THAT row — UNLESS a runner-marked governed Tests\
+  \ run\n(`tests_passed` or `tests_failed`) is recorded after the card's NEWEST `audit_post_completed`,\
+  \ in\njournal order: then the re-ship opens NO row and its re-audit is the next\
+  \ pass on the SAME row\n(SPEC-1039 rule 4, the one home of that condition; SPEC-1038\
+  \ §Tests). THIS IS NOT A RELAXATION OF THE CEILING, and the bound is\nSTRUCTURAL\
+  \ rather than promised: the ceiling bounds a card's ABSORPTION LOOP on ONE subject\
+  \ (RED →\nabsorb → RED at the same revision), and opening a row COSTS a GREEN auditor\
+  \ verdict on the prior\nsubject — a RED is never reshippable, `--reship` refuses\
+  \ non-GREEN at the commit door — PLUS a\ncommit that provably carries AUTHORED content.\
+  \ That is a NEW subject, and a new subject has always\nearned its own passes. CUSTODY\
+  \ RULES 3-4 ARE UNCHANGED: the superseded GREEN covers the OLD commit\nONLY, the\
+  \ follow-up re-audit is still REQUIRED before closure, and no decision inherits\n\
+  across the rows. DERIVED, never asserted, and FAIL-CLOSED on four conjuncts (plus\
+  \ that condition) — the LAST\n`commit_landed` for the task carries the `reship`\
+  \ marker (an ordinary ship, a bookkeeping\nself-commit, an `--absorb` or a `--fix-red`\
+  \ leg all leave it ABSENT); that row's commit RESOLVES to\nthe revision being audited\
+  \ (resolved identity, never a string compare — discipline); the\nprior saved record\
+  \ reads GREEN; and that record does not ALREADY name this subject. The THIRD\nconjunct\
+  \ is what keeps rule 4 intact: a rule-3 pass that came back RED leaves the record\
+  \ RED, so no\nrow opens and the `ceiling-terminal` refusal stands byte-unchanged.\
+  \ The FOURTH is the ONE-SHOT —\nthe opening pass stamps `ceiling_row_reset_for:\
   \ <sha>` on the saved record and every later pass of\nthat row CARRIES it, so pass\
   \ 2 counts normally and pass 3 meets the ceiling; without the stamp the\nmarker\
   \ would name the subject forever and the stage would be unbounded. WITHOUT a reship\
@@ -475,22 +488,23 @@ body: "## Scenario\n\nA card's audit-pre or audit-post, or a plan gate, has reac
   \ an unwired collaborator, or\none that raises — takes the SAME uncomputable refusal\
   \ this clause already had, which is exactly\nwhat the state is.\n\n## Parameters\n\
   \nNone consumed.\n\n## Rationale\n\nA minority of cards reach the audit-loop ceiling,\
-  \ and each case above arises for a minority of those.\nRendered inside SPEC-0204\
+  \ and each case above arises for a minority of those.\nRendered inside <workshop-spec>\
   \ this detail reached every session entering Audit-pre or Audit-post; as a\nreference\
   \ behind one index line and the head of the deciding verb's help it is met by the\
   \ session\nthat is at a ceiling (<workshop-spec> §6, the rare-case option).\n\n\
   ## Verification\n\n- VP1 (one home): every block of §At-ceiling edge cases is present\
-  \ in this spec and absent from\n  SPEC-0204, and SPEC-0204 carries exactly one index\
+  \ in this spec and absent from\n  SPEC-1039, and SPEC-1039 carries exactly one index\
   \ line naming this spec and the heading to search.\n- VP2 (reachable from the verb):\
   \ the first lines of the `audit decide` help name this spec.\n- VP3 (no stage render):\
   \ no stage entry delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n"
 cites:
-- SPEC-0204
+- SPEC-1039
+- SPEC-1038
 - SPEC-0013
 requires: []
 supersedes: null
 activation_owner_task: null
-proposed_by: null
+proposed_by: run-the-full-governed-test-stage-after-audit-post-
 binding:
 - query-only
 init_concern: null

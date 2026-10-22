@@ -41,6 +41,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from lib import gates   # T-14035: a lower leaf (imports only `lib.state`) — the governed-run predicate (T-14037)
+
 
 # ---------------------------------------------------------------------------
 # Constants exclusive to the move-set (referenced by movers only — verified across the host,
@@ -99,7 +101,7 @@ _AUDIT_POST_ABSORPTION_CLAUSE = (
     "  committed with `task commit --absorb`, then a re-audit of that new commit, which costs a pass.\n"
     "Do NOT escalate a passable finding into mode-a — pushing passable findings through re-audit is\n"
     "the E-0008 false-ceiling defect. Severity-tag findings honestly, but prefer a follow-up task\n"
-    "over forcing a re-audit. (Fuller treatment: LIFECYCLE §Stage 8.)\n"
+    "over forcing a re-audit. (Fuller treatment: LIFECYCLE §Stage 7.)\n"
     "\n"
     "A follow-up task or a mode-a fix is for findings the session ACCEPTS. A THIRD disposition is\n"
 ) + _AUDIT_REJECT_RATIONALE_CLAUSE
@@ -146,6 +148,7 @@ _PACKET_PROTECTED_PREFIXES = (
     "## audit-pre overlay",
     "## audit-post overlay",
     "## Activates at closure",   # T-12977 — never elided: its absence would read as "activates nothing"
+    "### Post-audit Tests order",   # T-14035 — bounds itself; an elided red run would read as "no red run"
     "## ad-hoc overlay",
     "## Task:",
     "## Plan:",
@@ -208,7 +211,9 @@ INJECTS = {
     "_format_monotonic_reaudit_section": ("_amend_note_body", "_amend_notes_since", "_is_no_data_prior",
                                           "_md_cell", "_passes_recorded", "parse_resolution_note"),
     "delta_discipline_block": (),
-    "build_audit_prompt": ("BASE_PASS1_SURVEY_CLAUSE", "PROTOTYPE_PRE_OVERLAY", "_bound_packet_total",
+    "build_audit_prompt": ("BASE_PASS1_SURVEY_CLAUSE", "PROTOTYPE_PRE_OVERLAY",
+                           "_ac_canonical_id",   # T-14035: the per-criterion own-tests labels
+                           "_bound_packet_total",
                            "_keep_within_budget",   # T-13538: the Stage-6 section bounds itself
                            "_format_adoption_evidence_lines", "_format_collector_shape_note",
                            "_format_monotonic_reaudit_section", "_format_sandbox_evidence_exclusion_note",
@@ -538,8 +543,8 @@ def stage6_evidence_section(shown, omitted_older: int, pre_claim: int, *, churn_
                  f"{'is' if pre_claim == 1 else 'are'} EXCLUDED from this section: a run recorded under an\n"
                  "earlier claim of the card is not this build's evidence. Excluded, not absent from the journal.")
     if not shown:
-        return ("(no `tests_passed` event recorded for this task — verify Stage-6 evidence via the\n"
-                "shipped diff / commit context; its absence here is not itself a finding per D-0043)" + notes)
+        return ("(no `tests_passed` event recorded for this task — the governed test run comes AFTER this\n"
+                "audit-post (SPEC-1038 §Tests), so its absence is the normal ordering, never a finding)" + notes)
     earlier, tp = list(shown[:-1]), shown[-1]
     head = ""
     if earlier or omitted_older > 0:
@@ -565,6 +570,145 @@ def stage6_evidence_section(shown, omitted_older: int, pre_claim: int, *, churn_
     # The belt: the segment budgets already sum under the section budget, but the whole is what the
     # protected heading has to guarantee — so the assembled section is bounded once more, as a unit.
     return _bounded("Stage-6 test evidence section", section, STAGE6_SECTION_MAX_BYTES - 400)
+
+
+# T-14035 — the audit-post Review-only clause on the post-audit Tests order (SPEC-1040 §Task per-stage
+# overlays, the A2 clause; the order every card runs since T-14037). Derived wording:
+# the rule's home is SPEC-1040 / SPEC-1038 §Tests.
+POST_AUDIT_REVIEW_ONLY_CLAUSE = (
+    "Review-only contract (per D-0043; SPEC-1040 on the post-audit Tests order): do NOT execute the\n"
+    "test suite. The Tests stage owns test execution and is the sole authority that tests passed — and on\n"
+    "this card it runs AFTER this audit-post, BY CONSTRUCTION (SPEC-1038): no governed test run exists\n"
+    "yet, and its absence is the NORMAL ordering — NEVER a finding. The `### Post-audit Tests order`\n"
+    "section below shows the card's OWN-TESTS result (the test files its diff adds or changes — PARTIAL\n"
+    "evidence) and, per acceptance criterion that names a changed test file, its own-tests state. VERIFY\n"
+    "that every test-named criterion has its verifier in the diff or in the existing suite and that the\n"
+    "own-tests result is plausible. «Run proof owed at Tests» is never «evidence ABSENT»: the run proof is\n"
+    "enforced at Closure, not here. Own-tests evidence that is NOT a pass is shown as what it is:\n"
+    "«own-tests FAILED», «own-tests not run or stale», «own-tests not determined» (no declared runner\n"
+    "maps the changed test file). Judge it: a FAILED own-tests verifier is a finding. A missing, stale or\n"
+    "undetermined own-tests result is INFORMATION — never a finding and never a reason to lower the\n"
+    "verdict. On a re-audit after a red Tests run, the same section shows the NEWEST red governed run —\n"
+    "the failure the fix in the delta must answer. You being unable to run tests in your sandbox is OUT\n"
+    "OF SCOPE — never a finding.\n\n"
+)
+_OWN_TESTS_STATE_RANK = ("FAILED", "not run or stale", "not determined", "passed")   # worst first
+
+
+def _rows_since_claim(rows) -> list:
+    """T-14035 — the dict rows after the card's CURRENT claim (its last `task_picked`), journal order
+    kept — the same window `stage6_rows_since_claim` opens, so an earlier claim's runs are not this
+    build's evidence. No claim row = every row."""
+    rows = [ev for ev in (rows or ()) if isinstance(ev, dict)]
+    claim_at = max((i for i, ev in enumerate(rows) if ev.get("type") == "task_picked"), default=-1)
+    return rows[claim_at + 1:]
+
+
+def diff_new_blobs(diff) -> dict:
+    """T-14035 — `{path: blob}` from a unified git diff: each file's `index <old>..<new>` blob (git
+    abbreviates it), keyed by the path on its `+++ b/` line (quoted paths decoded through the ONE
+    decoder, `textutil.git_unquote_path`). A deleted file (its `+++` side is the null device) and a
+    file whose header carries no `index` line yield nothing. Pure f(text)."""
+    from lib import textutil   # a lower leaf
+    out, pending = {}, None
+    for line in str(diff or "").splitlines():
+        if line.startswith("diff --git "):
+            pending = None
+        elif line.startswith("index ") and ".." in line:
+            pending = (line[6:].split("..", 1)[1].split() or [None])[0]
+        elif line.startswith("+++ ") and pending:
+            raw = line[4:].strip()
+            path = textutil.git_unquote_path(raw)
+            if path.startswith("b/"):
+                out[path[2:]] = pending
+            pending = None
+    return out
+
+
+def own_tests_criterion_states(acceptance, rows, diff_blobs, names_test, *, _ac_canonical_id) -> dict:
+    """T-14035 (SPEC-1040 §Packet preview / A2 audit-post clause, SPEC-1038 §Execution own-tests) —
+    `{ACn: state}` for each criterion that names a test file the audited diff CHANGES (`diff_blobs`,
+    from `diff_new_blobs`); a criterion naming no such file gets no entry (its run proof is owed at
+    Tests, or it is not a test probe).
+
+    `rows` are the task's `task_picked` / `own_tests_ran` rows in JOURNAL ORDER; the NEWEST own-tests
+    row since the claim is read (newest = last, never a `ts` compare — SPEC-1038 «Order of journal
+    rows»). Per named file: `not run or stale` unless that row ran the file AND recorded for it the
+    blob the audited diff carries (the row's `blobs`, matched against the diff's abbreviated id) —
+    so a test edited after its run reads stale whatever the commit count; then `FAILED` / `not
+    determined` / `passed` from the file's recorded result. Several files: the worst state wins.
+    Pure f(inputs)."""
+    rows = _rows_since_claim(rows)
+    own = next((ev.get("data") for ev in reversed(rows) if ev.get("type") == "own_tests_ran"), None)
+    own = own if isinstance(own, dict) else {}
+    results = {str(f.get("file")): f.get("result") for f in (own.get("files") or []) if isinstance(f, dict)}
+    ran = own.get("blobs") if isinstance(own.get("blobs"), dict) else {}
+    blobs = {str(k): str(v) for k, v in (diff_blobs or {}).items() if v}
+    out = {}
+    for i, crit in enumerate(list(acceptance or []), start=1):
+        text = str(crit)
+        named = {tok.rstrip(".,;:)") for tok in re.findall(r"[\w./-]+", text) if "/" in tok}
+        mine = sorted(p for p in named if p in blobs and names_test(p))
+        if not mine:
+            continue
+        states = []
+        for p in mine:
+            res, tested = results.get(p), str(ran.get(p) or "")
+            states.append("not run or stale" if not (tested and tested.startswith(blobs[p])) else
+                          "FAILED" if res == "failed" else
+                          "passed" if res == "passed" else "not determined")
+        out[_ac_canonical_id(text, i)] = min(states, key=_OWN_TESTS_STATE_RANK.index)
+    return out
+
+
+def _governed_run(ev) -> bool:
+    """A runner-marked governed Tests verdict row — `gates.governed_run_verdict`, the ONE predicate the
+    Closure-time coverage fact, the `return` move and the A6 fact read (T-14037)."""
+    return gates.governed_run_verdict(ev) is not None
+
+
+def post_audit_tests_section(rows, states, *, keep_within_budget) -> str:
+    """T-14035 — the body of `### Post-audit Tests order (SPEC-1038)`: the card's newest own-tests row
+    (PARTIAL evidence), the per-criterion own-tests states, and — when the NEWEST governed run since
+    the claim is red — that ONE `tests_failed` row (its ts, failed count, failing layers, evidence).
+    `rows` are the task's `task_picked` / `own_tests_ran` / `tests_passed` / `tests_failed` rows in JOURNAL ORDER; newest = last, never a `ts` compare (two rows in the same
+    second keep their append order). A VIEW: nothing here is counted evidence. Pure f(rows).
+
+    The heading is PROTECTED from the total packet bound (`_PACKET_PROTECTED_PREFIXES`), so the
+    section bounds itself on the byte axis through the one budget primitive, as the Stage-6 section
+    does: the red run is placed FIRST, so a cut takes the own-tests row's tail, never that run."""
+    rows = _rows_since_claim(rows)
+    own = [ev for ev in rows if ev.get("type") == "own_tests_ran"]
+    if own:
+        data = own[-1].get("data") if isinstance(own[-1].get("data"), dict) else {}
+        out = [f"#### Own-tests check @ {own[-1].get('ts')} (PARTIAL — the test files this diff adds or "
+               "changes; the governed run is owed at the Tests stage after this audit)",
+               json.dumps(data, indent=1, ensure_ascii=False, sort_keys=True, default=str)]
+    else:
+        out = ["#### Own-tests check",
+               "(no own-tests row since this card's claim — the governed run is owed at the Tests stage "
+               "after this audit; not a finding)"]
+    if states:
+        out += ["", "#### Own-tests per acceptance criterion"]
+        out += [f"{ac}: own-tests {st}" for ac, st in states.items()]
+    gov = [ev for ev in rows if _governed_run(ev)]
+    if gov and gov[-1].get("type") == "tests_failed":
+        d = gov[-1].get("data") if isinstance(gov[-1].get("data"), dict) else {}
+        failing = [str(l.get("name")) for l in (d.get("layers") or []) if isinstance(l, dict) and l.get("name")]
+        out = [f"#### Newest governed Tests run — RED @ {gov[-1].get('ts')} (the cause of this re-ship; "
+               "the fix in the delta answers it)",
+               json.dumps({"failed": d.get("failed"), "failing": failing,
+                           "evidence": str(d.get("evidence") or "")}, indent=1, ensure_ascii=False, default=str),
+               ""] + out
+    text = "\n".join(out)
+    cap = STAGE6_SECTION_MAX_BYTES - 400        # the same section-class budget as the Stage-6 section
+    total = len(text.encode("utf-8", "replace"))
+    if total <= cap:
+        return text
+    lines = text.split("\n")
+    kept, kept_b, _cut = keep_within_budget(lines, len(lines), cap)
+    return "\n".join(kept + [_packet_elision_marker("Post-audit Tests order section", len(kept), len(lines),
+                                                     kept_b, total)])
 
 
 def _format_window_exclusion_note(excluded_count: int) -> str:
@@ -1214,7 +1358,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                        activation_section=None,
                        readiness_sink=None, readiness_journal_silent: bool = False,
                        cross_evidence_section_for=None, p8_carrier_section_for=None,
-                       repo_root=None, cross_section_sink=None, optin_excluded_sink=None, task_events_for=None, BASE_PASS1_SURVEY_CLAUSE, PROTOTYPE_PRE_OVERLAY, _bound_packet_total, _keep_within_budget, _format_adoption_evidence_lines, _format_collector_shape_note, _format_monotonic_reaudit_section, _format_sandbox_evidence_exclusion_note, _format_type_optin_exclusion_note, _format_window_exclusion_note, _merge_tie_ordering_note, class_id_vocabulary, decision_audit_prompt_parts, declared_deferred_probes_block, deferred_by_declaration_block, delta_discipline_block, land_emitted_named_evidence, on_decisions_packet_block, p8_carrier_ids_in_section, packet_readiness_section, packet_touch_reconciliation, packet_touch_section) -> str:
+                       repo_root=None, cross_section_sink=None, optin_excluded_sink=None, task_events_for=None, BASE_PASS1_SURVEY_CLAUSE, PROTOTYPE_PRE_OVERLAY, _ac_canonical_id, _bound_packet_total, _keep_within_budget, _format_adoption_evidence_lines, _format_collector_shape_note, _format_monotonic_reaudit_section, _format_sandbox_evidence_exclusion_note, _format_type_optin_exclusion_note, _format_window_exclusion_note, _merge_tie_ordering_note, class_id_vocabulary, decision_audit_prompt_parts, declared_deferred_probes_block, deferred_by_declaration_block, delta_discipline_block, land_emitted_named_evidence, on_decisions_packet_block, p8_carrier_ids_in_section, packet_readiness_section, packet_touch_reconciliation, packet_touch_section) -> str:
     """Construct codex prompt с V2 universal lens + per-stage overlay + task/decision context (D-0055).
     `focus` (T-0350, SPEC-0036 --focus): an owner/session question block appended AFTER the overlay+body
     — it never replaces the template/overlay; deterministic order: focus part precedes ## Extra context.
@@ -1735,12 +1879,8 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             "## audit-post overlay\n\n"
             "Focus: shipped diff drift from plan, acceptance probes verified (each AC has probe result),\n"
             "missing adoption (code shipped but not invoked), coherence with other docs/state.\n\n"
-            "Review-only contract (per D-0043): do NOT execute the test suite. Stage 6 (the primary AI)\n"
-            "owns test execution and is the sole authority that tests passed. Instead VERIFY that\n"
-            "Stage-6 test evidence exists + is plausible (see the `### Stage-6 test evidence` section\n"
-            "below + the diff) and matches the acceptance probes. You being unable to run tests in your\n"
-            "sandbox is OUT OF SCOPE — never a finding.\n\n"
-            "STAGE BOUNDARY (per T-0123): this audit IS Stage 8. The task is CORRECTLY still\n"
+            + POST_AUDIT_REVIEW_ONLY_CLAUSE
+            + "STAGE BOUNDARY (per T-0123): this audit IS Stage 7 (audit-post). The task is CORRECTLY still\n"
             "`in-progress` and NOT yet closed — closure metadata (status: done, the task_closed event,\n"
             "recorded probes in the YAML) is written at Stage 9 AFTER you return. Its ABSENCE now is\n"
             "EXPECTED and is NEVER a finding. Judge ADOPTION (is the shipped artifact actually used /\n"
@@ -2266,6 +2406,21 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             _s6_shown, _s6_omitted, _s6_pre_claim,
             churn_note=_merge_tie_ordering_note(churn_tie) if (tp and churn_tie) else "",   # T-12718
             yaml_dump_block=yaml_dump_block, keep_within_budget=_keep_within_budget)
+        # T-14035 (SPEC-1038 / SPEC-1040 A2) — on the post-audit Tests order ONLY: the own-tests
+        # evidence per criterion and the newest red governed run, in a section of their own, from ONE
+        # journal-order read. With the order off nothing below runs — no read, no render — so the
+        # packet is byte-identical to the one before this card.
+        post_audit_tests, own_states = "", {}
+        if task_events_for is not None:
+            from lib.task import criterion_names_test as _names_test, declared_test_globs as _dtg  # lazy: cycle
+            _pa_globs = _dtg(repo_root) if repo_root is not None else ()
+            _pa_rows = list(task_events_for(task.get("id"), ("task_picked", "own_tests_ran",
+                                                              "tests_passed", "tests_failed")) or [])
+            own_states = own_tests_criterion_states(
+                task.get("acceptance"), _pa_rows, diff_new_blobs(diff),
+                lambda p: _names_test(p, _pa_globs), _ac_canonical_id=_ac_canonical_id)
+            post_audit_tests = post_audit_tests_section(_pa_rows, own_states,
+                                                        keep_within_budget=_keep_within_budget)
         # Adoption / AC-probe evidence (T-0236 + T-0290 + T-0551): surface the task's diff-invisible
         # journal events HERE because events.jsonl is excluded from the audit diff (T-0219) — without
         # this the auditor cannot see an event-based AC probe. T-0290 broadens beyond the two P8 types
@@ -2437,7 +2592,8 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             # missing. Heading emitted UNCONDITIONALLY with the same absent-marker, for the same
             # reason as in pre: a vanishing section would turn this false RED into a false GREEN.
             f"### Analysis (Stage-1 record from the card)\n{_analysis_block}\n\n"
-            f"### Stage-6 test evidence\n{stage6}\n\n"
+            + (f"### Post-audit Tests order (SPEC-1038)\n{post_audit_tests}\n\n" if post_audit_tests else "")
+            + f"### Stage-6 test evidence\n{stage6}\n\n"
             f"### Adoption evidence (CHARTER §P8 + journal-event AC probes)\n{adoption}\n\n"
             f"### Shipped diff\n```diff\n{diff or '(no diff captured)'}\n```\n"
         )
@@ -2666,7 +2822,11 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                                      if repo_root is not None else ()),
                     state_checked_rows=[(ev or {}).get("data") for ev in (evidence_events or [])
                                         if str((ev or {}).get("type") or "") == "state_checked"
-                                        and str((ev or {}).get("task_id") or "") == str(task.get("id") or "")]))
+                                        and str((ev or {}).get("task_id") or "") == str(task.get("id") or "")],
+                    # T-14035 / T-14037 — the post-audit Tests order, at audit-post: a verifier's run
+                    # proof is OWED AT TESTS, never ABSENT, and the own-tests state rides each row.
+                    **({"post_audit_order": True, "own_states": own_states}
+                       if stage == "post" else {})))
             except Exception as exc:      # noqa: BLE001 — report-only; an audit never fails on a derived fact
                 # T-13666 — NAMED, not swallowed: a silent `pass` here hid an UnboundLocalError on
                 # every `audit pre --preview` for weeks, and an absent block reads exactly like "no
@@ -3094,7 +3254,7 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
                              p8_present, deferred_field, stale_anchors, touch_recon,
                              prior_findings_unanswered, p8_carrier_ids=(),
                              declared_test_globs=(), test_dir_tokens=(), state_checked_rows=(),
-                             *, _ac_canonical_id) -> str:
+                             post_audit_order=False, own_states=None, *, _ac_canonical_id) -> str:
     """T-11977 (SPEC-0036 §Packet preview) — the REPORT-ONLY packet-readiness block the `--preview`
     path prints, built from parts `build_audit_prompt` has ALREADY computed in the same pass.
 
@@ -3114,7 +3274,7 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
     count. One report surface, not three — still advisory.
 
     ROWS ARE THE CONTRACT (machine-stable, ONE per line, fixed labels — downstream cards parse them):
-      `AC<n>: verifier <PRESENT|ABSENT|WAIVED>; evidence <PRESENT|ABSENT>`
+      `AC<n>: verifier <PRESENT|ABSENT|WAIVED>; evidence <PRESENT|OWED AT TESTS|ABSENT>`
       `P8 carrier: <PRESENT|DEFERRED-DECLARED <field>|ABSENT|n/a (class <x>)>`
       `stale anchors: <file> -> <SPEC-ID>`  (one row per pair) | `stale anchors: none`
       `touch: declared <n> audited <m> outside-forecast <k>`
@@ -3151,7 +3311,14 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
       • `state_checked_rows` — the `data` of the task-tied `state_checked` rows the packet counted.
         A row whose payload names a criterion's own `ACn` id is that criterion's evidence.
     A criterion that matches nothing keeps its machine-stable row and gets an INDENTED detail line
-    reading «not matched» with the probe text quoted — what was read, so the worker sees why."""
+    reading «not matched» with the probe text quoted — what was read, so the worker sees why.
+
+    T-14035 (SPEC-1040 §Packet preview, the post-audit Tests order of SPEC-1038) — two keyword
+    inputs, both inert at their defaults: with `post_audit_order` a criterion whose verifier is
+    PRESENT and that has no evidence row reads `evidence OWED AT TESTS` — the governed run comes
+    after this audit, so its absence is owed, never ABSENT; `own_states` (`{ACn: state}`, from
+    `own_tests_criterion_states`) adds the indented detail `own-tests: <passed|FAILED|not run or
+    stale|not determined>` beneath that criterion's row."""
     from lib.task import _AC_WAIVE_RE, criterion_names_test   # lazy: task.py imports THIS module
 
     crits = list(acceptance or [])
@@ -3191,7 +3358,11 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
         named_row = any(id_re.search(r) for r in rows)
         evidence = "PRESENT" if (named_type or named_row
                                  or (stage6_present and verifier == "PRESENT")) else "ABSENT"
+        if post_audit_order and evidence == "ABSENT" and verifier == "PRESENT":
+            evidence = "OWED AT TESTS"
         lines.append(f"{ac_id}: verifier {verifier}; evidence {evidence}")
+        if (own_states or {}).get(ac_id):
+            lines.append(f"    own-tests: {own_states[ac_id]}")
         if verifier == "ABSENT" and evidence == "ABSENT":
             quoted = " ".join(text.split())
             if len(quoted) > 240:

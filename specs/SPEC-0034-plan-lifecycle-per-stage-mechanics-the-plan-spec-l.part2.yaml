@@ -12,15 +12,16 @@ body: "## Parameters\n\nNone consumed. Governing constants referenced (audit-loo
   \ (that two-carrier framing was dropped, parent plan §2b). The\nnecessity of THIS\
   \ spec (vs a pattern) is symmetry with the task stage-entry specs: a pattern is\
   \ not a\nstage-entry delivery target (the verb delivers `plan-stage-entry:`-bound\
-  \ SPECS), so the spec is the right\nhost, on the SAME ground as SPEC-0027. Prior-art\
-  \ (PEP/ADR): the lifecycle of an artifact class is\ndocumented at the same altitude\
-  \ as the artifacts themselves, in ONE entry doc (PEP-1 documents the PEP\nprocess;\
-  \ ADR keeps the process doc beside the ADRs); and the PEP **Provisional → Final**\
-  \ shape is the\n`postcheck → realized` real-data-proof boundary. Parent plan: [[plan-lifecycle-delivery-parity-redesign-lifecycle-]].\n\
-  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
-  \ word out of the rule text of the section it names;\nthe rule it explains stays\
-  \ there.\n\n- From «Per-stage mechanics (one rule per linear stage»: **Live proof\
-  \ (real incident):** the\n  SPEC-FREE correct-verify plan (`correct-verify-the-full-project-user-collaboration`,\
+  \ SPECS), so the spec is the right\nhost, on the SAME ground as <workshop-spec>.\
+  \ Prior-art (PEP/ADR): the lifecycle of an artifact class is\ndocumented at the\
+  \ same altitude as the artifacts themselves, in ONE entry doc (PEP-1 documents the\
+  \ PEP\nprocess; ADR keeps the process doc beside the ADRs); and the PEP **Provisional\
+  \ → Final** shape is the\n`postcheck → realized` real-data-proof boundary. Parent\
+  \ plan: [[plan-lifecycle-delivery-parity-redesign-lifecycle-]].\n\n### History moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «Per-stage\
+  \ mechanics (one rule per linear stage»: **Live proof (real incident):** the\n \
+  \ SPEC-FREE correct-verify plan (`correct-verify-the-full-project-user-collaboration`,\
   \ no draft\n  specs) ran `gate-specs` and drew SIX findings — W2 under-specification,\
   \ an ambiguous trial path,\n  an untracked W4 carve-out, provider-name leakage in\
   \ normative-looking criteria, plus the two\n  gate answers\n  (`decisions/correct-verify-the-full-project-user-collaboration-audit-gate-specs.yaml`,\

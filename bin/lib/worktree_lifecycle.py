@@ -57,6 +57,7 @@ _DERIVE_WT_PARENT = object()
 _SANDBOX_PREFIX_GLOB = "/tmp/yitc-verify-sandbox-*"
 
 
+
 def _self_proc_ancestry(pid: "int | None" = None) -> "set[int]":
     """THIS process plus its ancestor chain (T-10885) — so a holder READ never counts the reader.
 
@@ -6609,8 +6610,12 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
             except Exception:  # noqa: BLE001 — advisory; never fatal to a claim
                 pass
         print(f"cd {path}")
+        # T-14037 (SPEC-1038) — the order follows the stage row: the governed run (Tests) after audit-post.
+        from lib import gates as _gates   # lazy, as this module's other leaf imports
+        _row = _gates.LIFECYCLE_STAGE_POINTER_FSM["standard"]
         print(f"next: edit per plan, then (substantive) `yitc-v2 task plan --finalize {task}` "
-              f"→ `audit pre` → `task execute` → tests → `task commit` → `audit post` → `task close` → `land`")
+              f"→ `audit pre` → `task execute` → `task commit` → `audit post` → `task test --run --evidence` "
+              f"(Tests) → `task close` → `land` — stage order {' → '.join(_row[_row.index('Execution'):])}")
     else:
         print(f"cd {path}")
         # T-10782 (SPEC-0051, X-0616): the SAME report-only spike-mode hint the task-claim branch

@@ -4,13 +4,14 @@ body: '### Post-close reaudit exit — a done-but-UNLANDED task IS admitted (the
   **The canonical exit for a done-but-UNLANDED task that needs a pass past the ceiling
   is the
 
-  DECISION route, not park+redo (amended, SPEC-0204 rule 6).** A task on the sanctioned
+  DECISION route, not park+redo (amended, <workshop-spec> rule 6).** A task on the
+  sanctioned
 
   `--reaudit-after-close` post-close rebaseline flow is `status: done` while its closure
   lives
 
-  only on the un-integrated branch. It is NOT stranded: SPEC-0204 rule 3''s admission
-  carries its own
+  only on the un-integrated branch. It is NOT stranded: <workshop-spec> rule 3''s
+  admission carries its own
 
   `--reaudit-after-close` arm, so once every residual of the ceiling row carries a
   recorded
@@ -39,7 +40,7 @@ body: '### Post-close reaudit exit — a done-but-UNLANDED task IS admitted (the
   consult, and no `status:` hand-edit re-opens it.
 
 
-  ### Worked example — the SPEC-0204 ceiling decision route
+  ### Worked example — the <workshop-spec> ceiling decision route
 
 
   A step-by-step worked example of what happens once the ceiling is reached — the
@@ -56,7 +57,7 @@ body: '### Post-close reaudit exit — a done-but-UNLANDED task IS admitted (the
   it ON DEMAND at the moment a ceiling is actually reached. It is a NON-NORMATIVE
   illustration: the
 
-  rule home is SPEC-0204, which WINS on any conflict.
+  rule home is SPEC-1039, which WINS on any conflict.
 
 
   **Plan-target parity — the gate identities.** The ceiling applies IDENTICALLY to
@@ -74,15 +75,15 @@ body: '### Post-close reaudit exit — a done-but-UNLANDED task IS admitted (the
   tokens are the gate ids every plan-gate verb form takes. What happens AT a plan-gate
   ceiling is
 
-  homed in SPEC-0204 rule 9 (typed decisions, then `plan stage <NEXT> --on-decisions`),
+  homed in SPEC-1039 rule 9 (typed decisions, then `plan stage <NEXT> --on-decisions`),
   not here.
 
 
-  ### Post-ceiling continuations — RETIRED (SPEC-0204 rule 6)
+  ### Post-ceiling continuations — RETIRED (<workshop-spec> rule 6)
 
 
   The routes once described here — consult episodes, the audit-side owner reset, the
   reopen gate, the spent-budget commit bypass and the plan-gate reset — are RETIRED
-  and refuse; what happens at the ceiling is homed in SPEC-0204 rule 6.
+  and refuse; what happens at the ceiling is homed in SPEC-1039 rule 6.
 
   '

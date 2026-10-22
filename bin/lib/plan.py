@@ -90,11 +90,11 @@ _PLAN_DRAFT_SKELETON = """\
 
 ## External checks / audits
 
-<!-- Which external audits at which boundaries (SPEC-0036 / SPEC-0034 §Audit-posture). Trial-eligibility
+<!-- Which external audits at which boundaries (SPEC-1040 / SPEC-0034 §Audit-posture). Trial-eligibility
      (SPEC-0035): is this mechanism/behavioral (soak in `trial`) or text-audit-verifiable (skips trial)?
      HISTORY STAYS OUT OF THIS BODY: gate-pass and trial-run history lives in the journal (raw run
      observations — SPEC-0035 rule 6) and in the saved audit records under `decisions/` (each pass's
-     findings and dispositions — SPEC-0036 §Saved audit result; an overwritten record keeps its earlier
+     findings and dispositions — SPEC-1040 §Saved audit result; an overwritten record keeps its earlier
      passes in its git history). Here, and in a `## Trial summary`, keep ONE CURRENT summary per check
      with REFERENCES to those rows and records — update it in place, never append a pass-by-pass or
      run-by-run log. The per-correction record lines of SPEC-0083 §Correction invalidation still go here. -->
@@ -1501,7 +1501,7 @@ def _require_captures_routed(slug: str, *, EVENTS_PATH, _last_triage_watermark, 
     finalization + retire-on-proof gates."""
     prior = _last_triage_watermark(EVENTS_PATH)
     unrouted = [c for c in _scan_captures(EVENTS_PATH)
-                if c["type"] == "deviation_captured" and (prior is None or c["ts"] > prior)]
+                if c["type"] in journal_mod.ROUTABLE_CAPTURE_TYPES and (prior is None or c["ts"] > prior)]
     if unrouted:
         sys.stderr.write(
             f"WARN: {slug} realizing with {len(unrouted)} un-routed deviation_captured event(s) since "
@@ -2863,7 +2863,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                     "pass_ceiling": AUDIT_PASS_CEILING})
             _die(f"{slug}: audit-loop ceiling reached at the {template} gate ({prior_passes} passes on "
                  f"record in {audit_path.name}); pass {prior_passes + 1} is admitted ONLY by the "
-                 f"SPEC-0204 decision route — never a silent loop, and no longer a consult or an "
+                 f"SPEC-1039 decision route — never a silent loop, and no longer a consult or an "
                  f"owner reset (rule 6, plan-gate arm).\n"
                  + (f"RESIDUAL FINGERPRINT(S) of this gate's ceiling row ({len(_fps)}): "
                     f"{', '.join(_fps)}\n" if _fps else

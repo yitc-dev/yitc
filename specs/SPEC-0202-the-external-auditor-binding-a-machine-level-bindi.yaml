@@ -35,7 +35,7 @@ body: "## Scenario\n\nThe person says «ок, ставим внешнего». T
   \ the operator declares:\nWHICH auditor runs on this machine. It is neither cadence\
   \ (performance) nor a threshold a refusal\nreads (gate): it changes WHO judges,\
   \ not whether a judged thing passes. Exactly EIGHT keys per tier\n(`routine` | `full`):\
-  \ `auditor.<tier>.provider` (an adapter name the ADAPTER REGISTRY knows —\nSPEC-0036\
+  \ `auditor.<tier>.provider` (an adapter name the ADAPTER REGISTRY knows —\nSPEC-1040\
   \ §Auditor selection + `bin/audit-config.yaml`, where the adapter names live and\
   \ where a\nnew adapter is added as one function; no brand is restated here, CHARTER\
   \ §P4b),\n`auditor.<tier>.binary`\n(a path), `auditor.<tier>.home` (the provider's\
@@ -191,18 +191,18 @@ body: "## Scenario\n\nThe person says «ок, ставим внешнего». T
   \ — owner directive 2026-09-06); no change to\n`config set`'s GATE refusal; no new\
   \ store, no new file (the machine-settings file already exists,\n<workshop-spec>\
   \ rule 3); no provider brand in this spec's normative sentences (CHARTER §P4b —\
-  \ adapter NAMES\nlive in SPEC-0036's config description and in `bin/audit-config.yaml`).\n\
+  \ adapter NAMES\nlive in SPEC-1040's config description and in `bin/audit-config.yaml`).\n\
   \n## Parameters\nNone consumed (the binding keys are machine values read through\
   \ `machine_settings.get_value`, never a\ngoverning scalar out of this spec).\n\n\
   ## Rationale\nReal incidents: pre-claim refusal (2026-09-06) measured that the auditor\
   \ binary is\nGATE-class today and `config set` refuses it — so a per-machine binding\
   \ is impossible without this\nclass; the adopter probe measured audits ABORTing\
   \ on this workshop's paths carried in the\nkernel config. Prior-art: <workshop-spec>\
-  \ (the file, the classes, the precedence), SPEC-0036 §Auditor\nselection (the three\
-  \ knobs + env), SPEC-0119/SPEC-0171 (the echo + re-fold shape) (PATH +\nnamed refusal).\
-  \ REMOVED (P1 F3): the implicit «external auditor = this workshop's binding»\nassumption;\
-  \ ADDED: one class value, one verb — the minimum that makes «три строки в одном\
-  \ файле»\ntrue.\n\n## Verification\n  bin/yitc-v2 config set auditor.routine.provider\
+  \ (the file, the classes, the precedence), <workshop-spec> §Auditor\nselection (the\
+  \ three knobs + env), SPEC-0119/SPEC-0171 (the echo + re-fold shape) (PATH +\nnamed\
+  \ refusal). REMOVED (P1 F3): the implicit «external auditor = this workshop's binding»\n\
+  assumption; ADDED: one class value, one verb — the minimum that makes «три строки\
+  \ в одном файле»\ntrue.\n\n## Verification\n  bin/yitc-v2 config set auditor.routine.provider\
   \ the AI provider # accepted (binding class); config_changed row\n  bin/yitc-v2\
   \ config set auditor.full.reserve.model <m> # accepted (binding class); warns if\
   \ = primary\n  bin/yitc-v2 config set auditor.routine.anything x # REFUSED (unclassified\
@@ -214,7 +214,6 @@ body: "## Scenario\n\nThe person says «ок, ставим внешнего». T
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-4
-- SPEC-0036
 - SPEC-0119
 - SPEC-0171
 - SPEC-0007
@@ -236,6 +235,6 @@ implements_signature:
   bin/lib/audit.py#resolve_audit_reserve: f12a4953da99d5d394b2556a94172754e7e4f5fd08af2b27f4f9770fcf4758c2
   bin/lib/audit.py#resolve_codex_binary: 1ff787172d8394d20c09ae5243ab89a77b024aa5dc88627b5eae0c940d804785
   bin/lib/audit.py#stamp_auditor_verdict: 92795c18be5fbe2f22cb43c8cc1608872679d7934fe4d365e77451b972e31695
-  bin/lib/cli.py#cmd_session_start: 1bfe64fc0bdd8e763735038782dad220bc85427887faf7487399055a2f171637
-  bin/lib/machine_settings.py#INVENTORY: d9fccd13d315bedd7fc6d511071bda07b0a496659c01e5fa87c5b0b2833448a9
+  bin/lib/cli.py#cmd_session_start: a7b3c24f640c3495769d976e03db29692c869bebf2931a9ea30eccdfe57e10bb
+  bin/lib/machine_settings.py#INVENTORY: 19fdb0b7ccd1cfd01947455b0e51533ee3b6b879798897730be5c74321926fdf
   bin/lib/observe.py#auditor_triple: 0b9260fb966c9a0e8113042276a9ded694e20b6c0ee2c5c6fc38143a9ef3c310

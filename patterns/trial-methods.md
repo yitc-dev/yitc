@@ -106,7 +106,7 @@ SPEC-0035 rule 5; this is the rule-6 METHOD carrier for HOW to run it.)
 
 - **How to run it (reuse `audit adhoc` — no new verb, CHARTER §Principle 1):** after the runs have
   settled and the primary trial-summary is drafted, invoke
-  `bin/yitc-v2 audit adhoc --slug <plan>-trial-convergence` (SPEC-0036) with a prompt asking the
+  `bin/yitc-v2 audit adhoc --slug <plan>-trial-convergence` (<workshop-spec>) with a prompt asking the
   external auditor to judge convergence **INDEPENDENTLY**: derive the verdict from the baked trial
   criteria (rule 3) + the journal run-refs, treating the primary trial-summary as **context/carrier
   only** (not the thing it ratifies). The prompt ALSO asks it to scrutinize each correction line the
@@ -285,7 +285,7 @@ distinguished by WHAT is bounded, and picking the wrong one wastes the entry:
 - `plans/add-a-controlled-real-data-trial-stage-between-pla.md` — the proposing plan (modes A/B §4, full deliberation)
 - `plans/fresh-session-task-dispatch-context-economics-hand.md` — the dogfood runs (motivating incident)
 - `specs/SPEC-0034` — the plan FSM (`trial` between `specs` and `accepted`)
-- `specs/SPEC-0027` — `implementation_plan` / resume-contract (the bake-the-protocol analog)
+- `specs/<workshop-spec>` — `implementation_plan` / resume-contract (the bake-the-protocol analog)
 - `tasks/` — distilled the observed convergence criteria into §Lessons (≥2 real trial journal runs; return_trigger fired)
 - `CHARTER.md §Principle 5` (single source of truth — the carrier-boundary basis), `§Principle 1` (anti-complexity), `§Principle 3` + `§Principle 8` (Done = Adopted)
 - `patterns/doc-conventions.md` — §Authority boundary (pattern recommends; spec/handbook own norms)

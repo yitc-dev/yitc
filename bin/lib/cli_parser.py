@@ -1206,6 +1206,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     tx.set_defaults(func=cmd_task_execute, cli_invoked_receipt="task execute")  # T-13071: attempt receipt
     tt = task_sub.add_parser("test", help="Stage 6: requires current_stage==Tests (set via `stage Tests`) + print ACs checklist (no auto-run); --evidence records tests_passed")
     tt.add_argument("task", help="T-NNNN id")
+    tt.add_argument("--own", action="store_true",
+                    help="T-14034 (SPEC-1038 §Execution): the own-tests check — run ONLY the test files this card's diff adds or changes, each through the project's own test declarations (a declared script sweep runs the file as the sweep does; an adapter-backed verify layer runs the units it lists through its own `run`; any other changed test file is recorded not-determined), at any stage before Closure; records ONE `own_tests_ran` row. Partial evidence, NOT the Stage-6 run: the land never credits it. Takes no other flag")
     tt.add_argument("--run", action="store_true",
                     help="run land's CANDIDATE verify leg only — this worktree's tests/test_*.py, each via python3, exit 0 = pass — catching script-style __main__ tests that `pytest tests/` skips (T-10097) — and, in the mirror direction, failing loudly as `zero-collect-script-run:<file>` on a pytest-style file with `def test_*` but no __main__ driver, which exits 0 here having executed nothing (T-12764). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is NOT run here; composes with --evidence (run-then-record)")
     tt.add_argument("--full", action="store_true",
@@ -1315,9 +1317,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "T-11550 shape), as is any non-GREEN verdict, an audit-PRE hazard, and an "
                           "absent hazard state. Not combinable with --absorb / --fix-red / "
                           "--card-repair. Nothing further to ship? The GREEN stands — leave the "
-                          "audit YAML dirty and go to Stage 9 (`task close`), which commits it "
+                          "audit YAML dirty, run the Tests stage (`stage Tests`, then the governed "
+                          "`task test` run), then `task close`, which commits it "
                           "without re-shifting custody. No owner-reset arm: past the ceiling the "
-                          "route is `audit decide` + `audit post --on-decisions` (SPEC-0204).")
+                          "route is `audit decide` + `audit post --on-decisions` (SPEC-1039).")
     tcm.add_argument("--card-repair", dest="card_repair", action="store_true",
                      help="ARM of --fix-red (T-11991), never a leg of its own — pass BOTH. It admits "
                           "the ONE shape --fix-red's SCOPE BOUND above otherwise sends to escalation: "
@@ -1846,10 +1849,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
             stage_name, help=f"Run audit-{stage_name} via external auditor",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             description=f"Run audit-{stage_name} via external auditor.\n\n"
-                        "AT THE AUDIT-LOOP CEILING — its core is SPEC-0036 §Audit-loop ceiling, which\n"
+                        "AT THE AUDIT-LOOP CEILING — its core is SPEC-1040 §Audit-loop ceiling, which\n"
                         "both audit stage entries render. What counts as a pass (the ledger-skip axes,\n"
                         "the trend grant) is SPEC-0124 — `graph query SPEC-0124`; what happens once the\n"
-                        "ceiling is reached is SPEC-0204 — `graph query SPEC-0204`.\n\n"
+                        "ceiling is reached is SPEC-1039 — `graph query SPEC-1039`.\n\n"
                         "RARE SHAPES — a returned finding marked machine-refuted, or a card-repair\n"
                         "commit as the audit-post subject: their rules are the reference SPEC-1013 —\n"
                         "`graph query SPEC-1013`, heading «Rare task-audit shapes».\n\n"
@@ -2102,7 +2105,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
         # a recorded `ceiling_decision` (`yitc-v2 audit decide`, rule 2). The two are not combinable —
         # a pass admitted by one must not record the other as its basis.
         ap.add_argument("--on-decisions", dest="on_decisions", action="store_true",
-                        help="Run the SPEC-0204 rule-3 pass: the ONE bounded audit pass PAST the "
+                        help="Run the SPEC-1039 rule-3 pass: the ONE bounded audit pass PAST the "
                              "2-pass ceiling, governed by the Controller's recorded `ceiling_decision` "
                              "rows instead of by an owner reset. ADMITTED only when EVERY residual of "
                              "the ceiling row (its findings plus any rule-8 late findings) carries a "
@@ -2323,8 +2326,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                           "to decide, a second fix after a later re-audit, a directive "
                                           "sharing its second with another, a subject that does not "
                                           "resolve, a plan-gate fix: the edge cases of the ceiling route "
-                                          "are the reference SPEC-1014 — `graph query SPEC-1014`. The "
-                                          "rule itself is SPEC-0204 rules 2-3.",
+                                          "are the reference SPEC-1041 — `graph query SPEC-1041`. The "
+                                          "rule itself is SPEC-1039 rules 2-3.",
                               help="Record ONE typed Controller decision for ONE residual of a "
                                    "ceiling row (SPEC-0204 rule 2): appends a single append-only "
                                    "`ceiling_decision` journal row — no worktree, no store, no "
@@ -3329,7 +3332,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # T-12927 — the RED clause states rule 9(f)'s plan-gate budget (`audit.PLAN_GATE_BUDGET`), not the
     # TASK arm's rule-4 terminal; the below-ceiling refusal is T-12928's.
     dst.add_argument("--on-decisions", dest="on_decisions", action="store_true",
-                     help="Run the SPEC-0204 rule-3 pass at this stage's mandatory-blocking plan GATE: "
+                     help="Run the SPEC-1039 rule-3 pass at this stage's mandatory-blocking plan GATE: "
                           "ONE bounded audit pass PAST the 2-pass ceiling, governed by the "
                           "Controller's recorded `ceiling_decision` rows (`audit decide --plan <slug> "
                           "--gate <id>`). Below the ceiling (or at an advisory gate) REFUSED "

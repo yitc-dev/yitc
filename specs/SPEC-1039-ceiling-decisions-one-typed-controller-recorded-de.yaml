@@ -1,9 +1,9 @@
-id: SPEC-0204
+id: SPEC-1039
 title: Ceiling decisions — one typed Controller-recorded decision per residual, one
-  bounded re-audit, first-round delta discipline; replaces consult episodes, owner-reset
-  and withdrawal markers
+  bounded re-audit, first-round delta discipline; the pre-audit Stage-6 coverage precondition
+  retired by the post-audit Tests order
 status: active
-created_at: 2026-09-08 14:31:56+00:00
+created_at: 2026-10-21 02:49:17+00:00
 travels: null
 consumed: false
 extension: null
@@ -46,7 +46,13 @@ implements:
 - bin/lib/audit.py#stage6_evidence_gap_facts
 - bin/lib/audit.py#suspected_echo_findings
 - bin/lib/audit_ceiling.py#residual_finding_records
-body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ceiling\
+body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-after-audit-post-`).**\
+  \ ONE normative change:\n<workshop-spec>'s admission precondition on a terminal-bearing\
+  \ pass (§3) is RETIRED, because\nunder the post-audit Tests order (SPEC-1038) no\
+  \ governed test run precedes audit-post. Every other\nrule is carried VERBATIM from\
+  \ <workshop-spec> (SPEC-1037 rule 7: the change removes an obligation in an\nalready-covered\
+  \ case, so it is a supersede, not an in-place amend — accept-gate round 2, F1).\n\
+  \n## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ceiling\
   \ (<workshop-spec>: two absorption passes).\nNothing is consulted, re-surveyed or\
   \ re-tested. The residuals ARE the findings of that last RED,\neach carrying an\
   \ engine-computed fingerprint. The Controller — never a Worker — records ONE typed\n\
@@ -65,29 +71,29 @@ body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ce
   \ normative home of (a) what happens AFTER the audit-loop\nceiling is reached, for\
   \ TASK audit-pre and audit-post, and (b) the first-round DELTA discipline that\n\
   keeps cards from being pushed there (rule 8). <workshop-spec> keeps the ceiling\
-  \ itself (pass\narithmetic, ledger-skips) and points here; SPEC-0036 keeps the invocation/verdict/lens\
-  \ contract and the\nper-finding response fields this contract reads. Eight rules.\n\
-  \n**EDGE CASES OF THE CEILING ROUTE → SPEC-1014 (index).** The rules below keep\
-  \ what is needed to\nrecognise the ceiling and to decide whether a decision or the\
-  \ one further pass is permitted. The\ndetail of their rare edge cases — which row\
-  \ is the ceiling row and when its residual set is empty,\na directive sharing its\
-  \ second with another, a subject that does not resolve, the writer-side\nadmission\
-  \ check, record-only and nested `fix` evidence, a pass over an empty residual set,\
-  \ a\ncard-repair subject, a finding on a currency row, the unbound-echo report,\
-  \ the new ceiling row a\nreship opens, and the plan-gate `fix` routes — is the reference\
-  \ SPEC-1014: read it when a ceiling\nrefusal or `audit decide` meets one of them\
-  \ (`graph query SPEC-1014`), from its heading\n«At-ceiling edge cases».\n\n### 1.\
-  \ The residual list IS the last RED's findings — fingerprinted by the engine\nAt\
-  \ the ceiling there is no separate survey: the residuals of a (task, stage) are\
-  \ the `findings` of the\nlast `external_audit_completed` row for that task+stage\
-  \ (the CEILING ROW). A NON-DEFECT row — a finding\nwhose severity is in the closed\
-  \ set {pass, ok, none, info, green}, e.g. an auditor's «No change.» row — is NOT\
-  \ a\nresidual: it is skipped at READ time in every row shape (so an already-saved\
-  \ record is read the same way),\nnever written into a plan-gate ceiling row, needs\
-  \ no decision, and is counted in the packet as\n`non_defect_rows_skipped`. An unknown\
-  \ severity stays a residual (fail-closed). Each finding carries an\nENGINE-computed\
-  \ `finding_fingerprint` = `fp<v>:` + a hash over the canonical tuple\n{task, stage,\
-  \ class_id|criterion_ref, locator, normalized(failing_input)} — a REVISION-FREE\
+  \ itself (pass\narithmetic, ledger-skips) and points here; <workshop-spec> keeps\
+  \ the invocation/verdict/lens contract and the\nper-finding response fields this\
+  \ contract reads. Eight rules.\n\n**EDGE CASES OF THE CEILING ROUTE → SPEC-1041\
+  \ (index).** The rules below keep what is needed to\nrecognise the ceiling and to\
+  \ decide whether a decision or the one further pass is permitted. The\ndetail of\
+  \ their rare edge cases — which row is the ceiling row and when its residual set\
+  \ is empty,\na directive sharing its second with another, a subject that does not\
+  \ resolve, the writer-side\nadmission check, record-only and nested `fix` evidence,\
+  \ a pass over an empty residual set, a\ncard-repair subject, a finding on a currency\
+  \ row, the unbound-echo report, the new ceiling row a\nreship opens, and the plan-gate\
+  \ `fix` routes — is the reference SPEC-1041: read it when a ceiling\nrefusal or\
+  \ `audit decide` meets one of them (`graph query SPEC-1041`), from its heading\n\
+  «At-ceiling edge cases».\n\n### 1. The residual list IS the last RED's findings\
+  \ — fingerprinted by the engine\nAt the ceiling there is no separate survey: the\
+  \ residuals of a (task, stage) are the `findings` of the\nlast `external_audit_completed`\
+  \ row for that task+stage (the CEILING ROW). A NON-DEFECT row — a finding\nwhose\
+  \ severity is in the closed set {pass, ok, none, info, green}, e.g. an auditor's\
+  \ «No change.» row — is NOT a\nresidual: it is skipped at READ time in every row\
+  \ shape (so an already-saved record is read the same way),\nnever written into a\
+  \ plan-gate ceiling row, needs no decision, and is counted in the packet as\n`non_defect_rows_skipped`.\
+  \ An unknown severity stays a residual (fail-closed). Each finding carries an\n\
+  ENGINE-computed `finding_fingerprint` = `fp<v>:` + a hash over the canonical tuple\n\
+  {task, stage, class_id|criterion_ref, locator, normalized(failing_input)} — a REVISION-FREE\
   \ matching key,\nstable across revisions of one (task, stage); the binding to a\
   \ revision lives on the decision (rule 2's\n`ceiling_ref`), never inside the hash\
   \ — versioned (`fp1:`), computed ONCE at record time and carried CANONICALLY on\
@@ -96,12 +102,12 @@ body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ce
   \ PROJECTION, and every reader resolves fingerprints from the journal ONLY\n(a hand-edited\
   \ YAML value changes nothing). Never supplied by the auditor, never an episode-relative\
   \ id. `subject_revision` is the audited\nsubject: the recorded commit SHA at audit-post,\
-  \ the plan fingerprint at audit-pre (the same basis\nidentities SPEC-0036 already\
-  \ records) — and at audit-post that recorded commit is the last AUTHORED\nship,\
-  \ a PROVEN record-only bookkeeping self-commit ({`park`, `pause`, `wont-do`}) being\
-  \ TRANSPARENT to\ncustody while that ship has NOT landed (where it has, the `--repin-ship`\
-  \ route applies and the\nreading is unchanged)\n(rule 3 consequently pins the ONE\
-  \ `--on-decisions` pass to that\nauthored ship, which is what the authored-content\
+  \ the plan fingerprint at audit-pre (the same basis\nidentities <workshop-spec>\
+  \ already records) — and at audit-post that recorded commit is the last AUTHORED\n\
+  ship, a PROVEN record-only bookkeeping self-commit ({`park`, `pause`, `wont-do`})\
+  \ being TRANSPARENT to\ncustody while that ship has NOT landed (where it has, the\
+  \ `--repin-ship` route applies and the\nreading is unchanged)\n(rule 3 consequently\
+  \ pins the ONE `--on-decisions` pass to that\nauthored ship, which is what the authored-content\
   \ guard admits — see SPEC-0015 §Audit-stage\nYAMLs for the custody rule's home).\
   \ A fingerprint is a MATCHING key within {task, stage}: at the rule-3 pass the\n\
   auditor's findings are fingerprinted identically at the audited revision — a match\
@@ -140,31 +146,31 @@ body: "## Scenario\n\nA card's audit-pre or audit-post reaches the audit-loop ce
   \ of the superseded <workshop-spec> rule 3's six closed blocking classes and never\
   \ becomes one — it is declared\nprecisely so it can be refused by name. Its\nground\
   \ is a LENS ruling, not a shape defect: a touch-forecast / coverage gap is CONTEXT,\
-  \ never a\nfinding (SPEC-0036 §Universal lens), because `expected_touch` is a plan-time\
-  \ forecast `task commit`\nrefreshes from the committed diff. The two floors differ\
-  \ in what they judge — the first, a RED\nmissing fields it MUST carry; the second,\
-  \ a RED carrying every field but nothing the lens admits as\na defect — so the forecast\
-  \ floor is checked FIRST and a forecast-only RED is never mis-reported as\nMALFORMED.\
-  \ It fires only when EVERY finding is of that class, so a RED raising a real defect\n\
-  alongside a forecast remark is recorded unchanged and no genuine finding can be\
-  \ lost through it.\nA FOURTH REFUSAL AT THE SAME FLOOR,\non the same terms — no\
-  \ record written, no pass spent, TASK targets and a real auditor response only\n\
-  : a RED finding whose `file:symbol` LOCATOR is PROVEN not to resolve in the audited\
-  \ tree.\n**this fourth floor JUDGES on the same terms but its CONSEQUENCE IS A MARK,\n\
-  NOT A REFUSAL.** So now: each offending finding is stamped IN PLACE `locator_unresolved:\
-  \ <reason>` (an ENGINE fact — an\nauditor-spelled one is dropped first, the `class_id_derived`\
-  \ rule), the verdict IS recorded, the\npass COUNTS, and the mark is projected onto\
-  \ the `external_audit_completed` row's `findings[]` beside\n`locator` as one more\
-  \ additive-optional key — so rule 2's canonical store carries it and NO second\n\
-  row or event type exists. A stderr notice NAMES each unresolved locator verbatim\
-  \ with\nits reason and asks the auditor to RE-CITE on the next pass — a genuine\
-  \ defect merely MIS-CITED must\nnever read as one REJECTED, and a wrong address\
-  \ degrades ONE FIELD, never the judgement.\nIt judges RESOLUTION, never SUBSTANCE:\
-  \ the third floor above already requires `locator` to be\nPRESENT, and this one\
-  \ asks only whether the address NAMES ANYTHING. Checked LAST of the four, so a\n\
-  MISSING locator is still reported as missing rather than as unresolvable. That cost\
-  \ is carried by the MARK, which lets\nthe Controller and the re-cite prompt see\
-  \ the address failed without the record being withheld.\nEVERY UNPROVABLE SHAPE\
+  \ never a\nfinding (<workshop-spec> §Universal lens), because `expected_touch` is\
+  \ a plan-time forecast `task commit`\nrefreshes from the committed diff. The two\
+  \ floors differ in what they judge — the first, a RED\nmissing fields it MUST carry;\
+  \ the second, a RED carrying every field but nothing the lens admits as\na defect\
+  \ — so the forecast floor is checked FIRST and a forecast-only RED is never mis-reported\
+  \ as\nMALFORMED. It fires only when EVERY finding is of that class, so a RED raising\
+  \ a real defect\nalongside a forecast remark is recorded unchanged and no genuine\
+  \ finding can be lost through it.\nA FOURTH REFUSAL AT THE SAME FLOOR,\non the same\
+  \ terms — no record written, no pass spent, TASK targets and a real auditor response\
+  \ only\n: a RED finding whose `file:symbol` LOCATOR is PROVEN not to resolve in\
+  \ the audited tree.\n**this fourth floor JUDGES on the same terms but its CONSEQUENCE\
+  \ IS A MARK,\nNOT A REFUSAL.** So now: each offending finding is stamped IN PLACE\
+  \ `locator_unresolved: <reason>` (an ENGINE fact — an\nauditor-spelled one is dropped\
+  \ first, the `class_id_derived` rule), the verdict IS recorded, the\npass COUNTS,\
+  \ and the mark is projected onto the `external_audit_completed` row's `findings[]`\
+  \ beside\n`locator` as one more additive-optional key — so rule 2's canonical store\
+  \ carries it and NO second\nrow or event type exists. A stderr notice NAMES each\
+  \ unresolved locator verbatim with\nits reason and asks the auditor to RE-CITE on\
+  \ the next pass — a genuine defect merely MIS-CITED must\nnever read as one REJECTED,\
+  \ and a wrong address degrades ONE FIELD, never the judgement.\nIt judges RESOLUTION,\
+  \ never SUBSTANCE: the third floor above already requires `locator` to be\nPRESENT,\
+  \ and this one asks only whether the address NAMES ANYTHING. Checked LAST of the\
+  \ four, so a\nMISSING locator is still reported as missing rather than as unresolvable.\
+  \ That cost is carried by the MARK, which lets\nthe Controller and the re-cite prompt\
+  \ see the address failed without the record being withheld.\nEVERY UNPROVABLE SHAPE\
   \ FAILS OPEN and is admitted exactly as today: a locator with no file or no\nsymbol\
   \ half (a bare-file or `file:line` citation is not a file:symbol claim), a symbol\
   \ that does not\nREDUCE to a bare identifier (a dotted member, prose — an `-> target`\
@@ -315,7 +321,7 @@ cites:
 - CHARTER.md#principle-5
 - CHARTER.md#principle-7
 - CHARTER.md#principle-8
-- SPEC-0036
+- SPEC-1038
 - SPEC-0191
 - SPEC-0161
 - SPEC-0103
@@ -323,13 +329,14 @@ cites:
 - SPEC-0165
 - SPEC-0077
 - ceiling-decisions-one-typed-controller-decision-pe
+- run-the-full-governed-test-stage-after-audit-post-
 requires:
-- SPEC-0036
 - SPEC-0161
 - SPEC-0168
+- SPEC-1038
 supersedes: null
 activation_owner_task: null
-proposed_by: ceiling-decisions-one-typed-controller-decision-pe
+proposed_by: run-the-full-governed-test-stage-after-audit-post-
 binding:
 - query-only
 init_concern: null
@@ -337,13 +344,13 @@ implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: cec7de584e38045317a1dc6695ac6145c608804d4661f5820b5f9ccdbfc1a48c
   bin/lib/audit.py#blocked_on_land_ceiling_disposition: a14d1669d5ef988351c98c6187cc4dde05e83ba5c84908d2ca2cb9fcb8b8a539
-  bin/lib/audit.py#cmd_audit: 33b205dcd100633ff128e60bcdff31fac6ff6271baff101382a38cccc141eb0f
+  bin/lib/audit.py#cmd_audit: 214e64890574e647821ef7914f9508c3e322a810a5c609d9ecb5ca25b444539c
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
   bin/lib/audit.py#plan_gate_live_terminal_reasons: ffac9102c87cbf187c12947fe03557fb704d5c250f226c13c036b5803d83950b
   bin/lib/audit.py#plan_gate_response_malformed: 7c7a70503be03b13ce7547f371b643f7280d7259a59b6e2fa784d0edc0e1c306
-  bin/lib/audit.py#reship_opens_new_ceiling_row: 08c0978bf79e6fdbd2e0edaa80c51b41dd9b2711c66110ea008571c690e14a70
+  bin/lib/audit.py#reship_opens_new_ceiling_row: f829ef38b003797ad28cee582f4b3f0db072b794e45d878aa48fa8dcee520d90
   bin/lib/audit.py#stage6_evidence_covers_subject: 887ad70a187c7a867227c3791fbee473eb1be075db3a19966fb97d6e60c0c72a
   bin/lib/audit.py#stage6_evidence_gap_facts: dc2972e935d875b96566e632110c4753c162df5106cb648c464fed1736fcce9b
   bin/lib/audit.py#suspected_echo_findings: d62e80f30394bd16906bf41b62c2635746a1efa4b77dde7674e7eb90b71fbac0
@@ -351,18 +358,18 @@ implements_signature:
   bin/lib/audit.py#unactionable_findings_refusal: cc938479c247934c3053fd0f5f5d346deda4f1ad4245b234b27da62597fe577f
   bin/lib/audit_ceiling.py#maximal_evidence_revision: 5eb5fc1e59f28a3ac39f2a04b246fd4a98f0c29548e648f2afe71766f6de82e5
   bin/lib/audit_ceiling.py#on_decisions_absorption_grant: 4e289fc88996d5e32829a7bacaf5faab33230d40e57ca8f11cdb90cb083c8083
-  bin/lib/audit_ceiling.py#on_decisions_admission: 005b972fc86159a3403dbc8a7e46f6cea424c8a192e85e931b2f15854de987a2
+  bin/lib/audit_ceiling.py#on_decisions_admission: d372a4c1fd341898f5c38cc470b5315ff21a1497cf864606c70d4c0017223394
   bin/lib/audit_ceiling.py#on_decisions_matrix: d1294c1f756f1160221b132daab146ad0ec0cd5f0662231cbd2c257b6e721b47
   bin/lib/audit_ceiling.py#plan_gate_synthetic_ceiling_row: 371fb303fb8d251d050c4cea88e1d77ea4ba53f13472dd75be1814c9394d5c79
   bin/lib/audit_ceiling.py#residual_finding_records: 42386a01ed3ee65dc52959e9f95af21f502e948cbde3369766fbbef30d5d673c
   bin/lib/audit_ceiling.py#row_residual_fingerprints: 8dc0ced2fa3e700494e211b1a09aa7b072cf972faf7249ff504423aace91b70d
   bin/lib/audit_consult.py#_consult_basis: c3353e48eb43d7a0ea21b4f73b65d7036c7bf1383a6c8c9e72b68afe1d7e6dfa
   bin/lib/audit_consult.py#cmd_audit_consult: a9eb93a073ef8e9b34f7d8357214463d2460480c9273d85f6cbf3fd70769eedb
-  bin/lib/audit_consult.py#consult_prompt_overlay: 56f5461826dd5ca135dbe005cd3f078aed29239219be8f903c558e530327bc20
+  bin/lib/audit_consult.py#consult_prompt_overlay: f7776a3f50843ad0514b16fc69fbe55b42ef14e7af84528368d403ee1849d193
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: e345d2911b9e8fba66c695ae9ef6169bb34b54d7844bb798503f18ce78e7f6c1
+  bin/lib/cli_parser.py#build_parser: f95bcaa419711bf431049fe4005bbb18a9deb03f4c8b4c15702f5366a4ceff7d
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
-  bin/lib/plan.py#_run_plan_gate_audit: a8f25295f6edce0a82fb7c736717f6f32976742171c6b99e17010c266630afc7
+  bin/lib/plan.py#_run_plan_gate_audit: 8db855fee18b938b951b734a9c514169a15241210075b46fe1babf02b265b49b
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0

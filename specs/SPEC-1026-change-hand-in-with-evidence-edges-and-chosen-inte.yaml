@@ -27,9 +27,9 @@ body: "## Scenario\nA worker plans a change. In the task plan, before audit-pre,
   \ each with what the code does then. A chosen few, never a full state × event sweep.\n\
   For each item: what the code does and which test or check will cover it, or the\
   \ waive the test\ndoctrine admits (SPEC-0165).\n\n### 2. The change hand-in — before\
-  \ `stage Tests`\nRe-read the working diff against the audited plan and each acceptance\
+  \ `task commit`\nRe-read the working diff against the audited plan and each acceptance\
   \ criterion, and fix on the spot:\n(1) a departure from the plan — bring the code\
-  \ back to the plan, or handle it as a plan change (the\n re-fingerprint, SPEC-0027\
+  \ back to the plan, or handle it as a plan change (the\n re-fingerprint, SPEC-1038\
   \ §Stage 5);\n(2) per acceptance criterion and per item listed under §1, the BROKEN\
   \ VARIANT its check must fail on\n(the guard removed, the branch inverted, the boundary\
   \ off by one, the wrong subject read) — a check that\nwould still pass on it is\
@@ -51,12 +51,12 @@ body: "## Scenario\nA worker plans a change. In the task plan, before audit-pre,
   \ «covered by another test» is not\na waive — that test is the one the item names.\n\
   The hand-in adds NO test obligation of its own: whether an item is covered by a\
   \ test, a recorded waive\nor another check the Tests stage admits is decided by\
-  \ the test doctrine (SPEC-0165) and SPEC-0027\n§Stage 6. A re-read with evidence,\
+  \ the test doctrine (SPEC-0165) and SPEC-1038\n§Tests. A re-read with evidence,\
   \ not a gate: no verb reads it, nothing refuses on it.\n\n### 3. Scope\nA card that\
   \ takes audit-post — the substantive flow. A hygiene fast-path card has no audited\
   \ plan and\nno audit-post; nothing here is asked of it.\n\n### 4. Who executes it\n\
   execution: operator-owned — the session that authors the change performs §1 while\
-  \ writing the task\nplan and §2 before `stage Tests`. The Plan and Execution stage\
+  \ writing the task\nplan and §2 before `task commit`. The Plan and Execution stage\
   \ bundles deliver this rule at the start\nof each, and the dispatch-composed brief\
   \ carries its cue for a dispatched worker. No code performs it\nand no code checks\
   \ it.\n\n## Rationale\nIt supersedes <workshop-spec> (the change hand-in), which\
@@ -88,7 +88,6 @@ body: "## Scenario\nA worker plans a change. In the task plan, before audit-pre,
   \ per first audit-post, defects found later) — its §Realization-exit.\n"
 cites:
 - SPEC-0165
-- SPEC-0027
 - SPEC-0015
 - self-check-with-evidence-task-side-edges-and-async
 - author-passes-audit-on-the-first-try-give-the-auth

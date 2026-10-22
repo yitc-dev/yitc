@@ -271,7 +271,7 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ is a TAIL on whichever followup line already prints and NEVER forces one\n   (a\
   \ waiter is not yet actionable, so it must never nag). The tail rides exactly ONE\
   \ line, never both.\n   **POST-SHIP OBSERVATIONS — a FOURTH clause, UNFLOORED, off\
-  \ the SAME `_view_overdue_recheck` call\n   (SPEC-0036 / X-0710).** The overdue-recheck\
+  \ the SAME `_view_overdue_recheck` call\n   (<workshop-spec> / X-0710).** The overdue-recheck\
   \ view folds a second dated deferred-proof\n   carrier: a task's `post_ship_observation:\
   \ {observation, due_by}` — the declaration the Stage-8\n   `--post-ship-observation`\
   \ carve-out requires when an acceptance proof is a multi-day post-ship\n   production\
@@ -2146,9 +2146,9 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ THREE REFUSALS, NOT TWO, AND THE MARKER LEG IS WHAT\n    SEPARATES THEM.** The\
   \ union this rule was written against was under-counted: alongside the\n    authorization\
   \ and waive-coverage arms sits MID-LAND RE-AUDIT, which refuses when it\n    cannot\
-  \ obtain a verdict (`could-not-run`) or when the SPEC-0204 ladder refuses its one\
-  \ bounded\n    pass (`ceiling-refused`). Its remedy is an audit that can RUN, or\
-  \ `audit decide` — neither of\n    which is \"earn an audit-post\", so counting\
+  \ obtain a verdict (`could-not-run`) or when the <workshop-spec> ladder refuses\
+  \ its one bounded\n    pass (`ceiling-refused`). Its remedy is an audit that can\
+  \ RUN, or `audit decide` — neither of\n    which is \"earn an audit-post\", so counting\
   \ it as authorization described it wrongly rather than\n    coarsely. MEASURED :\
   \ every `abort_preflight` row in the fold reached the first rule\n    and landed\
   \ in the authorization bucket. The cause was not the reader: each `_die` site already\n\
@@ -2918,10 +2918,10 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ WARN stays exactly as non-blocking as it was (SPEC-0015 §Infrastructure-class\
   \ adoption\n    strength, the third-satisfier clause, is the rule home; this bullet\
   \ is its debt-view face).\n    **THE OTHER TWO CARRIERS ARE THE CARD'S OWN AND ARE\
-  \ SUBTRACTED TOO** — a\n    `post_ship_observation:` (SPEC-0036 variant (e)) and\
-  \ a `probes: {ACx: deferred}`.\n    Each already has its own echo clause under rule\
-  \ 3, and naming one obligation on two lines\n    tells the reader neither.\n   \
-  \ **THE FOURTH TEST READS A PROOF, NOT A PROMISE — the later-evidence arm (X-1170\
+  \ SUBTRACTED TOO** — a\n    `post_ship_observation:` (<workshop-spec> variant (e))\
+  \ and a `probes: {ACx: deferred}`.\n    Each already has its own echo clause under\
+  \ rule 3, and naming one obligation on two lines\n    tells the reader neither.\n\
+  \    **THE FOURTH TEST READS A PROOF, NOT A PROMISE — the later-evidence arm (X-1170\
   \ +\n    X-1190).** The three carriers above are all ways of saying *the proof is\
   \ still OWED*, and\n    until this arm nothing here re-read the journal for the\
   \ adoption evidence ITSELF. So emitting\n    the genuine `consumer_read_evidence`\
@@ -4070,7 +4070,7 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ — at the\n    debt seams, and it stays the standing sweep for cards ALREADY stranded.\
   \ What it cannot do is\n    speak at the MOMENT the strand is created. This rule\
   \ adds that second delivery.\n    **THE OCCASION IS MEASURED, not anticipated.**\
-  \ <project> closed `wont-do` after a\n    SPEC-0204 rule-3 terminal RED (2026-09-16).\
+  \ <project> closed `wont-do` after a\n    <workshop-spec> rule-3 terminal RED (2026-09-16).\
   \ Two READY cards carried `requires: `, so\n    BOTH became permanently unclaimable\
   \ at the moment of closure, and the closure output — which\n    warned about `post_verification`\
   \ and about scoped-staging dirt — named neither. The block is\n    invisible from\
@@ -4150,13 +4150,13 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ the closed loop in which a\n    branch shipping protected code could not also\
   \ declare its probe. Tests:\n    `tests/test_t12982_new_probe_admitted_pending.py`.\n\
   \n45. **LATE AUDIT FINDINGS — recorded history, and a closure blocker ONLY where\
-  \ the close gate says\n    so.** The line SPEC-0204 rule 8 asks for («late findings\
-  \ per pass are\n    counted»): an OPTIONAL injected report-only fold over the audit\
-  \ completion rows inside a\n    trailing window, UNFLOORED, suppressed-when-clean.\
+  \ the close gate says\n    so.** The line <workshop-spec> rule 8 asks for («late\
+  \ findings per pass are\n    counted»): an OPTIONAL injected report-only fold over\
+  \ the audit completion rows inside a\n    trailing window, UNFLOORED, suppressed-when-clean.\
   \ Its COUNT is recorded history — the measured\n    cost of an incomplete pass-1\
   \ survey — and includes findings already decided and findings on\n    cards already\
   \ closed; nothing is ever dropped from it. What the line says about CLOSURE is not\n\
-  \    its own judgement: it is the close gate's (SPEC-0204 rule 8 — the judgement\
+  \    its own judgement: it is the close gate's (<workshop-spec> rule 8 — the judgement\
   \ `task close`\n    refuses on), joined to the card's status. A finding is named\
   \ a blocker ONLY when that judgement\n    lists it undecided AND its card is not\
   \ terminal (`done` / `wont-do` have no close left to\n    block). When the judgement\

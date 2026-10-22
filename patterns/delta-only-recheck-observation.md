@@ -68,7 +68,7 @@ Bounds on C (U counted as not-C → as C):
 | high | 35 (24%) | 49 (34%) | 51 (36%) |
 | medium | 63 (31%) | 84 (41%) | 92 (45%) |
 
-U composition: high 16 = 14 B-vs-C calls + 1 external change (a SPEC-0204 budget rule landed between passes, making unchanged plan text wrong) + 1 audit-packet artifact; medium 29 = 21 B-vs-C + 8 other (window-unattributable, mixed A+C, cut not committed at the previous pass). Where analysts recorded a lean on a U (10 high+medium items), 9 leaned C and 1 leaned B.
+U composition: high 16 = 14 B-vs-C calls + 1 external change (a <workshop-spec> budget rule landed between passes, making unchanged plan text wrong) + 1 audit-packet artifact; medium 29 = 21 B-vs-C + 8 other (window-unattributable, mixed A+C, cut not committed at the previous pass). Where analysts recorded a lean on a U (10 high+medium items), 9 leaned C and 1 leaned B.
 
 **Sensitivity — only exact-state pairs without gaps (E)**
 
@@ -156,7 +156,7 @@ Other observations from the classification:
 
 - **Record overwrites:** the accept-gate record is overwritten per pass, so only COMMITTED passes are visible. 13 pairs bridge 1–2 lost passes (`+gap`): an A there may have been changed before the lost pass, and an R/C may have been reported by it. Before ~2026-09-13 the gate-* journal rows carry no findings, so 46 sequences were skipped.
 - **State reconstruction:** draft specs and cards are taken at the latest commit at or before the pass time. An edit sitting uncommitted in the worktree when the auditor ran is invisible, which biases toward 'unchanged' and so toward C. Window-mode pairs (28) needed hunk attribution from commit messages and in-plan notes. The approximate subsets show slightly LOWER C for highs (20% vs 26% exact), so the result does not hinge on them.
-- **What the auditor saw:** the packet also includes context (parent specs, corpus slices, prior decisions on 'on-decisions' passes, adapters' engine context). 'Changed' was judged on the plan + its draft specs (cards); a few findings were caused by changes OUTSIDE the subject (e.g. landing a new SPEC-0204 budget between passes) — counted as U.
+- **What the auditor saw:** the packet also includes context (parent specs, corpus slices, prior decisions on 'on-decisions' passes, adapters' engine context). 'Changed' was judged on the plan + its draft specs (cards); a few findings were caused by changes OUTSIDE the subject (e.g. landing a new <workshop-spec> budget between passes) — counted as U.
 - **Judgement calls:**
   - A vs C when the defect is old but its line was re-worded in the diff ('prex_in_hunk', 6 items: 3 were classed A because a line-level delta would see them, 3 were classed C).
   - B vs C (45 high+medium U items).

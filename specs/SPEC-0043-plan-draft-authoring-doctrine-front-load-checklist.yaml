@@ -53,7 +53,7 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ postcheck probe-block\n   contract is normative in SPEC-0034 §postcheck — this\
   \ is a pointer to fill the stub there.\n4. **External-checks map + trial-eligibility\
   \ question.** Note which external audits apply at which\n   boundaries (gate templates:\
-  \ SPEC-0036 / SPEC-0034 §Audit-posture), and answer the\n   trial-eligibility question\
+  \ SPEC-1040 / SPEC-0034 §Audit-posture), and answer the\n   trial-eligibility question\
   \ (SPEC-0035) — does this plan need a real-data trial?\n5. **Deferrals as tracked\
   \ tasks, never prose — and only for this plan's own deliverable.** Two\n   cases,\
   \ two homes:\n   (a) A part of THIS plan's own deliverable that is postponed: name\

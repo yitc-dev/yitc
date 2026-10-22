@@ -10,9 +10,9 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ audit-post subject is a record-only card-repair commit.\nBoth are rare, and both\
   \ are decided by the audit verb from governed records, so their rules are a\nREFERENCE:\
   \ no stage entry renders this spec. A session that meets either shape finds a pointer\
-  \ to\nit in two places — the index paragraph of SPEC-0036 §Task per-stage overlays\
+  \ to\nit in two places — the index paragraph of SPEC-1040 §Task per-stage overlays\
   \ and the first lines of\nthe `audit pre` and `audit post` help — and fetches it\
-  \ on demand. What every audit needs stays in\nthe audit contract (SPEC-0036).\n\n\
+  \ on demand. What every audit needs stays in\nthe audit contract (SPEC-1040).\n\n\
   ## Internal\n\n### 1. Delivery — a plain reference\n- This spec is rendered at NO\
   \ stage entry and is fetched before no verb: reading it is not checked.\n  What\
   \ holds its rules is the audit verb's own code — the refutation seam and the subject\
@@ -23,7 +23,7 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ FINDINGS ARE NOT REFUTED · THE ALL-REFUTED\n  FOLD · GOVERNED CARD-REPAIR SUBJECT\
   \ · PASS-1 SHIP-RIDING CARD REPAIR), so a search of this spec for\n  one of them\
   \ lands on the whole rule.\n- A new edge case of either shape is authored here,\
-  \ not in SPEC-0036 (<workshop-spec> rule 6).\n\n### 2. Rare task-audit shapes\n\n\
+  \ not in SPEC-1040 (<workshop-spec> rule 6).\n\n### 2. Rare task-audit shapes\n\n\
   #### 2a. Machine-refuted findings (task audit-pre and audit-post)\n\n**MACHINE-REFUTED\
   \ P8-adoption finding on a NON-infra card — the second admissible class\nof the\
   \ machine-refutation seam.** CHARTER §8 (Adoption Verification Strength) binds\n\
@@ -36,10 +36,10 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ p8-adoption-on-non-infra`, the card's `task_class`, the reason «CHARTER §8 binds\
   \ infra-class\nonly; packet readiness: P8 carrier n/a», `charter_ref`, `checked_at`,\
   \ the policy string) — the\nfinding's own text is never edited. The class is read\
-  \ BOTH from the SPEC-0204 rule-1 structured\n`class_id` slot (`P8-adoption` or the\
-  \ auditor-spelled `adoption-gap`) AND from prose naming the P8\nevidence types /\
-  \ the principle over EVERY prose field; the prose arm reads ONLY the §8 carrier\
-  \ vocabulary — the P8 evidence types\n(consumer_read_evidence / live_trigger_evidence)\
+  \ BOTH from the <workshop-spec> rule-1 structured\n`class_id` slot (`P8-adoption`\
+  \ or the auditor-spelled `adoption-gap`) AND from prose naming the P8\nevidence\
+  \ types / the principle over EVERY prose field; the prose arm reads ONLY the §8\
+  \ carrier vocabulary — the P8 evidence types\n(consumer_read_evidence / live_trigger_evidence)\
   \ or the principle itself (P8 / Principle 8 /\nCHARTER §8): it never admits the\
   \ bare `adopt` token, so a correctness finding that merely says\n«adopts» is never\
   \ touched, and it never admits a generic «no adoption evidence / probe» complaint\n\
@@ -86,12 +86,12 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   verbatim `machine_refutation` block; `notes` states the fold and names the kinds.\
   \ `passes` is\nUNCHANGED — the existing ledger-skip already leaves it at `prior_passes`,\
   \ and this fold neither reads\nnor writes it. SEAM ORDER is load-bearing: the fold\
-  \ runs AFTER the SPEC-0204 rule-8 record seam (so\nrule 1's fingerprints and every\
-  \ verdict-driven upstream guard — the unchanged-HEAD GREEN-flip refusal\nin particular\
-  \ — judge the AUDITOR's own word) and BEFORE the rule-3 on-decisions seam (so rule\
-  \ 3's\nabsolute «a `fix` residual echoed OPEN forces RED» clause can still re-raise\
-  \ a folded verdict; a\nrecorded Controller decision outranks a category-error fold).\
-  \ Home of the fence and the seam:\n`bin/lib/audit.py#machine_refutation_folds_to_green`\
+  \ runs AFTER the <workshop-spec> rule-8 record seam (so\nrule 1's fingerprints and\
+  \ every verdict-driven upstream guard — the unchanged-HEAD GREEN-flip refusal\n\
+  in particular — judge the AUDITOR's own word) and BEFORE the rule-3 on-decisions\
+  \ seam (so rule 3's\nabsolute «a `fix` residual echoed OPEN forces RED» clause can\
+  \ still re-raise a folded verdict; a\nrecorded Controller decision outranks a category-error\
+  \ fold). Home of the fence and the seam:\n`bin/lib/audit.py#machine_refutation_folds_to_green`\
   \ / `#FOLDABLE_REFUTATION_KINDS`, and the policy\nstring `MACHINE_REFUTATION_POLICY`\
   \ every saved verdict carries states the same rule.\n\n#### 2b. Card-repair subject\
   \ (audit-post)\n\n**GOVERNED CARD-REPAIR SUBJECT (X-1233) — an admission on the\
@@ -136,10 +136,10 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ it. The provenance read\nreuses the EXISTING `_recorded_commit_landed` payload\
   \ reader, so no new journal consumer enters the\nsystem (CHARTER §P1 F1/F2; the\
   \ SPEC-0190 census is untouched).\n**Deliberately NOT a member of the exempt-flag\
-  \ family of SPEC-0036 (§Task per-stage overlays).** Those rows are for ships that\
-  \ are not\ndiffs AT ALL, and they are operator-DECLARED; a card repair IS a diff,\
-  \ and this admission is derived\nfrom governed records with no flag for an operator\
-  \ to get wrong. Every other empty subject — a\npark/pause/wont-do displacement,\
+  \ family of <workshop-spec> (§Task per-stage overlays).** Those rows are for ships\
+  \ that are not\ndiffs AT ALL, and they are operator-DECLARED; a card repair IS a\
+  \ diff, and this admission is derived\nfrom governed records with no flag for an\
+  \ operator to get wrong. Every other empty subject — a\npark/pause/wont-do displacement,\
   \ an empty ship, an ordinary bookkeeping commit — carries no marker\nand is refused\
   \ byte-identically to before.\n**PASS-1 SHIP-RIDING CARD REPAIR — the same admission\
   \ when conjunct (c) cannot derive.**\nThe commit arm already ran its OWN cause check\
@@ -148,7 +148,7 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ (measured : a decimal pair `4.00/20.00` in an evidence-gap finding lexed as an\n\
   authored path), leaving a pass-1 repair with no executable audit route. So the guard\
   \ ALSO admits a\nsubject when, all fail-closed: (1) it IS the custody commit and\
-  \ that row carries `card_repair: true`;\nAND (2) `_ship_contained_record_only` (SPEC-1014\
+  \ that row carries `card_repair: true`;\nAND (2) `_ship_contained_record_only` (<workshop-spec>\
   \ «Rule 2 — recording a decision») proves it is record-only, that\nthe governed\
   \ audit-post record names an authored ship, and that the subject reaches that ship\
   \ along a\nTRANSPARENT first-parent chain. The pass audits AT the repair — the cumulative\
@@ -162,16 +162,14 @@ body: "## Scenario\n\nA task audit sometimes takes a shape the session did not c
   \ or Audit-post; as a reference behind an index paragraph and the\nhead of the audit\
   \ help they are met by the session that has the shape in front of it.\n\n## Verification\n\
   \n- VP1 (one home): every sentence of the two families is present in this spec and\
-  \ absent from\n  SPEC-0036, and SPEC-0036 carries exactly one index paragraph naming\
+  \ absent from\n  SPEC-1040, and SPEC-1040 carries exactly one index paragraph naming\
   \ this spec and the heading to\n  search.\n- VP2 (reachable from the verb): the\
   \ first lines of the `audit pre` and `audit post` help name this\n  spec.\n- VP3\
   \ (no stage render): no stage entry delivers this spec, and the Audit-pre and Audit-post\
-  \ stage\n  views of SPEC-0036 carry none of the moved sentences.\nThe executable\
+  \ stage\n  views of SPEC-1040 carry none of the moved sentences.\nThe executable\
   \ form of VP1-VP3 is `tests/test_t13691_audit_reference_spec.py`.\n"
 cites:
-- SPEC-0036
 - SPEC-0015
-- SPEC-0204
 - SPEC-0013
 requires: []
 supersedes: null

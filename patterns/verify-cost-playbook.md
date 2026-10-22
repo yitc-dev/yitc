@@ -275,7 +275,7 @@ selected units (X-2009). <project>: whole-layer answers on about 70 % of runs (X
 **Cuts.** The land re-running the suite the card's self-check just ran.
 **Applies when.** Lands repeat a full verify after a green `task test --run`.
 **Do.** Nothing to declare: the credit is on by default; its five conditions are SPEC-0186 and
-SPEC-0065 §Bound, and LIFECYCLE §Stage 6 summarizes them.
+SPEC-0065 §Bound, and LIFECYCLE §Stage 8 (Tests) summarizes them.
 **Risk.** None of its own; it voids itself when its conditions fail.
 **Measured.** cryptochart: land verify fell from a 704 s median to 28–35 s (public issue #33,
 cryptochart `docs/research/2026-10-04-verify-cost/trial-report.md`).
@@ -284,7 +284,7 @@ cryptochart `docs/research/2026-10-04-verify-cost/trial-report.md`).
 
 **Cuts.** A second full self-check paid for a signature line.
 **Applies when.** A card edits a signed spec or another file the run's tree includes after the run.
-**Do.** Finish every edit and re-sign, then take the Stage-6 run once, last (SPEC-0027 §Stage 6).
+**Do.** Finish every edit and re-sign before `task commit`, then take the governed run once, at the Tests stage after audit-post (SPEC-1038 §Tests).
 **Risk.** None.
 **Measured.** cryptochart: one card paid a second 665 s run for two signature lines (cryptochart
 `docs/research/2026-10-04-verify-cost/trial-report.md`).
