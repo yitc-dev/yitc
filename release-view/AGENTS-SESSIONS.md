@@ -140,11 +140,12 @@ cwd-independent verbs), not by removing isolation. So:
   `work/<slug>` worktree→land; SPEC-0039 §5(b) / SPEC-0147 §7), `task claim-landed` (ONLY a card whose
   deliverable is derivably already on `main` — every ordinary card still claims via
   `worktree new --task`), `task refuse` (the SPEC-0133 pre-claim refusal), `task update --queue-jump`
-  (the SPEC-0184 rule-9 land-admission mark), `task update --note` on a terminal card, and the
-  `task close` settle arms `--settle-probe` (SPEC-1011) / `--settle-observation`. From the **main
-  checkout** each stages its one artifact (MEMORY.md, or the card) + the journal receipt ONLY (never
-  `git add -A`), refuses on preexisting dirt in that artifact, and is idempotent on re-run (a
-  terminal-card note appends one entry per run). Inside a `task/` or `work/` **writing worktree**
+  (the SPEC-0184 rule-9 land-admission mark), `task update --note` on a terminal card, the
+  `task close` settle arms `--settle-probe` (SPEC-1011) / `--settle-observation`, and
+  `config set --project` (one THRESHOLD value in the project's `thresholds:` — SPEC-1031 rule 7). From
+  the **main checkout** each stages its one artifact (MEMORY.md, the card, or yitc-ops.yaml) + the
+  journal receipt ONLY (never `git add -A`), refuses on preexisting dirt in that artifact, and is
+  idempotent on re-run (a terminal-card note appends one entry per run). Inside a `task/` or `work/` **writing worktree**
   none commits to `main`: each defers to the ordinary in-worktree path, so its write reaches `main`
   only with that batch's `land` (`task claim-landed` refuses there and names the ordinary claim). A
   settle arm writes NOTHING to git there — the batch's own `task commit` carries it; the

@@ -13,6 +13,7 @@ cites:
   - <workshop-spec>
   - <workshop-spec>
   - SPEC-1030
+  - SPEC-1042
   -
 ---
 
@@ -197,7 +198,7 @@ not taken there (cryptochart `lessons/measuring-on-this-host.md`).
 
 **Cuts.** A long run that ends red on a check that takes seconds.
 **Applies when.** Red causes include file-size limits, lint or formatting.
-**Do.** A first layer of the cheap checks, or the adapter's `required:` commands (<workshop-spec> rule 1).
+**Do.** A first layer of the cheap checks, or the adapter's `required:` commands (SPEC-1035 rule 1).
 **Risk.** None beyond one more layer to declare.
 **Measured.** <project>: the file-size limit reddened 40 Stage-6 runs and lint 13, each found at the end of
 a 4–5 min run (X-2006).
@@ -249,7 +250,7 @@ pixel ran 3.9 minutes (cryptochart `lessons/browser-tests-of-the-chart.md`).
 
 **Cuts.** Whole layers re-run because one timing-bound test failed under load.
 **Applies when.** The same tests go red together on loaded runs and pass alone.
-**Do.** The lane and its automatic entry are <workshop-spec> rule 11; a group that fails together leaves too few
+**Do.** The lane and its automatic entry are SPEC-1035 rule 11; a group that fails together leaves too few
 single rescues for the automatic entry, so append it by hand.
 **Risk.** The lane runs one file at a time and lengthens the tail.
 **Measured.** <project>: five browser specs went red 12 times each in 6 days; in 52 runs, 4–6 of them were
@@ -262,7 +263,7 @@ red at once (X-2014, X-2022). <project>: the coupling tests caused 30+ reds (X-2
 **Cuts.** Running a whole layer for a change that reaches a few of its files.
 **Applies when.** A runner can list its files and name the files a change reaches.
 **Do.** The adapter protocol and samples (`patterns/verify-layer-adapter-protocol.md`); `selection:` and
-`credit:` start at `shadow`, which only records (<workshop-spec> rule 8); `deciding` is SPEC-1030, with its
+`credit:` start at `shadow`, which only records (SPEC-1035 rule 8); `deciding` is SPEC-1030, with its
 recorded reason.
 **Risk.** Under `deciding` a skipped file's failure is not seen on that run and can reach `main`.
 **Measured.** <project> frontend: shadow answered `unknown-path` on 193 of 220 runs, and only 5 would have
@@ -304,7 +305,7 @@ cryptochart `docs/research/2026-10-04-verify-cost/trial-report.md`).
 **Cuts.** Re-running every layer after a red run or a failed land attempt.
 **Applies when.** A fix touches one layer, yet the next run repeats all of them.
 **Do.** The engine carries per-layer credit between runs and attempts; what still voids it (a timed-out
-layer's report, a card-wide full layer) is <workshop-spec> and SPEC-0186.
+layer's report, a card-wide full layer) is SPEC-1035 and SPEC-0186.
 **Risk.** None of its own.
 **Measured.** cryptochart: three cards re-ran all 15 layers after a red, at 456, 330 and 466 s
 (public issue #106); five land retries threw away about 40 min (public issue #107).
@@ -350,10 +351,102 @@ in flight averaging 0.6–1.3 for 19 of 24 hours.
 
 **Cuts.** Verify load on a small or shared development machine.
 **Applies when.** The suite is long, lands are frequent, and running it slows everything else.
-**Do.** `patterns/verify-venue-when-it-pays.md`; the venue contract is <workshop-spec>.
+**Do.** `patterns/verify-venue-when-it-pays.md`; the venue contract is SPEC-1029.
 **Risk.** Money per hour and one session's attention per working window.
 **Measured.** Kernel: raising the box takes about a minute and refreshing its snapshot about seven
 (`patterns/verify-venue-when-it-pays.md` §What it costs).
+
+## What to move before a deploy, and how to check it
+
+The rule for a declared pre-deploy class — what a land skips, what the deploy runs on the candidate,
+which targets it gates — is SPEC-1042; this section is how a project reads its own numbers before it
+moves anything. The numbers come from one saved view over the project's own journal:
+`bin/yitc-v2 graph query verify-unit-cost [<layer:file...>] [--since <date>] [--until <date>]`
+(SPEC-1042 rule 7). It prints, per unit and place, runs, median and total time, real and flaky
+failures, the land-wait model and each pre-deploy class's catch record; it decides nothing. Every
+reading below quotes the plan `plans/deferred-checks-a-project-moves-costly-checks-out-.md` (plan), by
+its section.
+
+### Read each file's cost and catches, with the common-mode caveat
+
+**Cuts.** A move chosen from a feeling about which tests are slow or useless.
+**Applies when.** Always first, before naming any candidate.
+**Do.** Per file: runs in the window, median, week total, real vs flaky failures (a failure is real
+when the same card's tree never passed the file afterwards). Read the run count beside every catch
+count, and read a long window: a short quiet window lies.
+**Risk.** Real vs flaky is a proxy. An identical flaky count on several files of one layer is one
+common-mode layer failure, not per-file flakiness.
+**Measured.** <project>, one week, 1,627 layer runs: four files took 1,676 min with 0 real catches
+(plan §Model: what <project> would move, events.jsonl#ts=); four 258-run files
+all showed «15 flaky» — one layer failure (same plan section, Caveats, events.jsonl#ts=).
+cryptochart: 44 of 636 files «zero-catch» over 4 days did catch real defects over two weeks (plan
+§Field check done, Placement per check; public issue #140).
+
+### Model the land wait before promising faster lands
+
+**Cuts.** A move sold as «faster lands» that only lowers load.
+**Applies when.** Layers run side by side, so the land waits for the slowest one.
+**Do.** Find which layer is slowest per run; recompute median, mean and p90 with the named files
+removed (the view's land-wait model). A file outside the slowest layer moves load, not wait.
+**Risk.** The model subtracts file time serially; a layer that runs files in parallel gains less.
+**Measured.** <project>: removing the four candidates moved median 298 → 298 s, mean 327 → 315 s, p90
+561 → 533 s; adding six zero-catch browser files gave median 236 s (−21 %), because the browser layer
+was the slowest in 23 of 49 runs (plan §Model: what <project> would move, Browser files,
+events.jsonl#ts=).
+
+### Candidate signs and never-move signs
+
+**Cuts.** Moving a check that catches real defects, or keeping one that only costs.
+**Applies when.** A file is on the shortlist from the two readings above.
+**Candidate.** Costly, runs on most cards, no real catch over a long window, and guards what only a
+deploy brings to the host — compose loop ceilings, a sandbox secret cage, memory under load (plan
+§Model: what <project> would move, the candidates table; cryptochart's heap test, 482.6 s, plan
+§Cryptochart's working implementation).
+**Never move.** A file with real catches on lands: <project>'s top browser files held most of the
+week's real catches (3, 2, 4, 1 — plan §Model: what <project> would move); moving the whole browser
+layer would have moved 21 real catches away (same section, Browser files).
+**Measured.** <project>'s week (events.jsonl#ts=, events.jsonl#ts=);
+cryptochart's heap test (events.jsonl#ts=, the plan's read of its implementation).
+
+### Shadow before moving
+
+**Cuts.** A move decided on one reading that a longer one would have overturned.
+**Applies when.** A candidate set is named and the project is about to declare it.
+**Do.** Keep the candidates running on lands for a window and record whether each would have been
+caught only before the deploy — the shadow-then-decide shape <workshop-spec> uses for selection; then the
+project decides, as an explicit act (SPEC-0178).
+**Measured.** <project>'s six zero-catch browser files are a reasonable candidate set, to be decided by
+<project> only after such a window (plan §Model: what <project> would move, Reading,
+events.jsonl#ts=).
+
+### Traps the three projects met
+
+**Measured.** Each trap names the plan section its numbers come from; the readings are the owner
+requests events.jsonl#ts= (<project>), events.jsonl#ts= (<project>
+and cryptochart), events.jsonl#ts= (the stand run) and the field check of public
+issue #161.
+
+- **Run before the switch.** A class that runs after production is recreated leaves the bad build
+  serving until rollback: <project>'s e2e gate, 97 deploys, 9 failed, 3 auto-rollbacks (plan §What
+  <project> and cryptochart already moved out, <project>; across-projects item 3).
+- **Per target.** cryptochart deployed acceptance 6 times without a run; <project>'s cage tests guard
+  its sandbox target, not production (plan §What <project> and cryptochart already moved out,
+  across-projects item 4; §Model: what <project> would move, Targets).
+- **Rescue before red.** canvas-parity flakes in ~7 % of runs and would stop ~1 deploy in 14 without
+  the land's rescue; cryptochart rescued 13 flakes in 10 green runs (plan §Model: what <project> would
+  move, Flaky files in a gate; across-projects item 5).
+- **Contention.** A red whose failures are timeouts beside other runs is CONTENDED, not red:
+  cryptochart had one contention red (5 browser files, 34 runs beside it) and 9 of 13 runs with lands
+  beside them; <project> 5 timeouts at host load 43–57 (plan §What <project> and cryptochart already
+  moved out).
+- **A new check meets its stand first.** A pre-deploy check never runs on lands, so its own fault
+  first shows at a deploy: 3 cryptochart release blockers were runner-check faults, and 2 of 3
+  rollbacks after a green run were the checks' own faults (plan §A new or changed pre-deploy check
+  runs once on a stand at its card).
+- **A release-only regression waits on main until the next release.** cryptochart's heap test caught
+  two product regressions that sat on main until the release; `live-ticks.test.tsx` stayed unseen
+  ~13 h through ~20 lands (plan §What <project> and cryptochart already moved out, across-projects
+  item 2; §Field check done). Keep releases frequent.
 
 ## Tried and not taken
 

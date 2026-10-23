@@ -448,6 +448,13 @@ over the lens window (the last week), never restate or rebuild them here.
 - **Reading 4 — WAITING AND SLOTS.** Over the window's verify runs: the wall spent waiting (for a verify
   slot or a lock) against the wall spent running, and the worker slots the runs used against the
   host's cores (`nproc`). A repo with no recorded verify run records `no runs`.
+- **Reading 5 — MOVES.** The weekly verify-cost reading over the `graph query verify-unit-cost` view, over
+  the repo's whole recorded history (SPEC-1042 rule 7 is its home): it PROPOSES moving a costly
+  (median above the median unit's) zero-catch (no real or unjudged failure) unit into a pre-deploy class
+  only when the window covers `pre_deploy_move_min_window_days` and the unit ran
+  `pre_deploy_move_min_runs` times on lands and Stage-6 runs (THRESHOLD keys, `config list`), saying why
+  when it does not; it PROPOSES moving back a pre-deploy unit that caught there, on any window. It writes
+  no move. The record computes and carries it; a record without it is refused as incomplete.
 
 **Against:** `patterns/verify-cost-playbook.md` — the catalog of verify-cost techniques with their measured
 cases; a reading names the technique it points to, and a candidate it files cites the entry.

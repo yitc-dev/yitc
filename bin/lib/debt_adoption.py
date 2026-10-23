@@ -42,6 +42,7 @@ import bisect
 import json
 import re
 from array import array
+from collections import Counter
 from datetime import date, datetime, timezone
 from pathlib import Path
 
@@ -2454,9 +2455,10 @@ def uncarried_p8_warns(events_path, *, root, window_hours: int = P8_WARN_WINDOW_
 # `_p8_evidence_is_substantive` resolves each evidence ref against a list of journal rows. Every ref
 # form but one reads rows of ONE known type — `land_completed@…#…` the land rows, `…#surface=` the
 # nightly rows, `exit:` the `cli_invoked` rows of a read-only conformance verb — and those rows are
-# kept, in walk order. The bare `<TYPE>` / `<TYPE>@<ts>` form asks whether ANY row of a named type
-# carries this task's top-level `task_id` / this exact `ts`, over every type the ref may name: that is
-# an EXISTENCE question, answered from an exact index (`_P8TypeIndex`) instead of a copy of the journal.
+# kept, in walk order. The bare `<TYPE>` form asks whether ANY row of a named type carries this task's
+# top-level `task_id`, and the `<TYPE>@<ts>` form whether the pin names ONE row (T-14152: a count and a
+# tie count), over every type the ref may name — answered from an exact index (`_P8TypeIndex`) instead
+# of a copy of the journal.
 # The old corpus also held every non-dict JSON value, and the resolvers' `.get` raised on the first one
 # they reached; the sentinels keep that, in the same relative order, and the index stops recording at
 # the first one exactly as the old loop stopped answering there.
@@ -2471,14 +2473,37 @@ def _canon_ts_key(ts: str):
     return None
 
 
-class _P8TypeIndex:
-    """Exact answers to the bare-ref questions: does a row of type `t` carry `ts` / top-level `task_id`?"""
+# T-14152 — the tie half of a `TYPE@<ts>` pin: (ts, tied task) packed into one int for the common shape
+# (a canonical ts of 2000-2099 and a canonical `T-%04d` id below T-1000000), so the index stays an
+# array; any other tied row (`T-00101`, a consumer id, an odd ts) is counted exactly in a per-type
+# Counter of (ts, tid). The packing is a bijection on that shape: the id is re-spelled and compared.
+_PACKABLE_TID = re.compile(r"T-([0-9]{4,6})\Z")
 
-    def __init__(self, ts_keys, ts_other, tids, stopped):
+
+def _tied_pack(key, tid):
+    m = _PACKABLE_TID.match(tid) if key is not None else None
+    if m is None or not 20000101000000 <= key < 21000101000000 or tid != "T-%04d" % int(m.group(1)):
+        return None
+    return (key % 10 ** 12) * 10 ** 6 + int(m.group(1))
+
+
+def _sorted_count(arr, value) -> int:
+    if arr is None:
+        return 0
+    return bisect.bisect_right(arr, value) - bisect.bisect_left(arr, value)
+
+
+class _P8TypeIndex:
+    """Exact answers to the bare-ref questions: does a row of type `t` carry top-level `task_id`, and
+    does a `t@<ts>` pin name ONE row by the T-13342 rule (T-14152)?"""
+
+    def __init__(self, ts_keys, ts_other, tids, stopped, tied_keys=None, tied_other=None):
         self._ts_keys = ts_keys
         self._ts_other = ts_other
         self._tids = tids
         self._stopped = stopped
+        self._tied_keys = tied_keys or {}
+        self._tied_other = tied_other or {}
 
     def _answer(self, found: bool) -> bool:
         if found:
@@ -2487,13 +2512,24 @@ class _P8TypeIndex:
             raise AttributeError("a non-dict journal value precedes any match")
         return False
 
-    def has_ts(self, etype, ts) -> bool:
+    def ts_pin_resolves(self, etype, ts, tid) -> bool:
+        """The list loop's answer (`_resolve_evidence_ref`): one row of `etype` at `ts`, or several of
+        which exactly one ties to `tid` (`_event_task_id`). `etype` is never a receipt type here."""
         key = _canon_ts_key(ts) if isinstance(ts, str) else None
         if key is not None:
-            arr = self._ts_keys.get(etype)
-            i = bisect.bisect_left(arr, key) if arr is not None else 0
-            return self._answer(arr is not None and i < len(arr) and arr[i] == key)
-        return self._answer(ts in self._ts_other.get(etype, ()))
+            n = _sorted_count(self._ts_keys.get(etype), key)
+        else:
+            n = self._ts_other.get(etype, Counter())[ts]
+        if n <= 1:
+            return n == 1
+        from lib.task_closure_evidence import _TS_RECEIPT_TYPES
+        if etype in _TS_RECEIPT_TYPES:
+            return False                  # receipts are never citable among several (`_ts_locator_row`)
+        tid = tid if isinstance(tid, str) else ""
+        packed = _tied_pack(key, tid) if tid else None
+        tied = (_sorted_count(self._tied_keys.get(etype), packed) if packed is not None
+                else self._tied_other.get(etype, Counter())[(ts, tid)] if tid else 0)
+        return tied == 1
 
     def has_task(self, etype, tid) -> bool:
         return self._answer(tid in self._tids.get(etype, ()))
@@ -2510,6 +2546,7 @@ class P8EvidenceReducer:
 
     def __init__(self):
         from lib import task_closure_evidence as _tce   # local import: debt family back-imports no host
+        self._task_of = _tce._event_task_id
         self._skip = frozenset(_tce._NON_EVIDENTIAL_EVIDENCE_TYPES)
         self._verbs = frozenset(_tce._READ_ONLY_CONFORMANCE_SURFACES)
         self._keep_types = frozenset(P8_ADOPTION_EVENT_TYPES) | {P8_WARN_EVENT}
@@ -2518,6 +2555,8 @@ class P8EvidenceReducer:
         self._ts_keys: dict = {}
         self._ts_other: dict = {}
         self._tids: dict = {}
+        self._tied_keys: dict = {}    # T-14152 — the tie half of a `TYPE@<ts>` pin
+        self._tied_other: dict = {}
         self._stopped = False
         self._src: list = []      # T-13309 — per `_entries` entry, what its summary stores
         self._fill: list = []     # T-13309 — a served summary's land-row places, filled by `replay`
@@ -2543,8 +2582,11 @@ class P8EvidenceReducer:
                                               "data": {"verb": data.get("verb"),
                                                        "exit_code": data.get("exit_code")}}))
                 self._src.append(["cli", row.get("ts"), data.get("verb"), data.get("exit_code")])
-        if self._stopped or not isinstance(t, str) or t in self._skip:
+        if not isinstance(t, str) or t in self._skip:
             return
+        # T-14152 — a `TYPE@<ts>` pin counts EVERY row of its second (an unreadable value is skipped, as
+        # `_journal_locator_matches` skips it), so the ts and tie halves record past a non-dict value;
+        # only the bare form's `_tids` keeps the old loop's stop.
         ts = str(row.get("ts") or "")
         key = _canon_ts_key(ts)
         if key is not None:
@@ -2553,10 +2595,20 @@ class P8EvidenceReducer:
                 arr = self._ts_keys[t] = array("q")
             arr.append(key)
         else:
-            self._ts_other.setdefault(t, set()).add(ts)
+            self._ts_other.setdefault(t, Counter())[ts] += 1
         tid = row.get("task_id")
-        if isinstance(tid, str):
+        if isinstance(tid, str) and not self._stopped:
             self._tids.setdefault(t, set()).add(tid)
+        tied = self._task_of(row)
+        if isinstance(tied, str) and tied:
+            packed = _tied_pack(key, tied)
+            if packed is not None:
+                arr = self._tied_keys.get(t)
+                if arr is None:
+                    arr = self._tied_keys[t] = array("q")
+                arr.append(packed)
+            else:
+                self._tied_other.setdefault(t, Counter())[(ts, tied)] += 1
 
     def nondict(self, seg, value) -> None:
         self._entries.append(("raw", value))
@@ -2570,7 +2622,7 @@ class P8EvidenceReducer:
     # the type index of an instance whose older half already STOPPED is dropped — no row after the
     # first non-dict value ever reached it.
     def summary_key(self):
-        return {"v": 2, "skip": sorted(self._skip), "verbs": sorted(self._verbs),
+        return {"v": 3, "skip": sorted(self._skip), "verbs": sorted(self._verbs),
                 "keep": sorted(self._keep_types)}
 
     def summary(self):
@@ -2582,8 +2634,11 @@ class P8EvidenceReducer:
         entries = [list(s) for s in self._src]
         return {"kept": list(self._kept), "entries": entries,
                 "ts_keys": [[t, list(a)] for t, a in self._ts_keys.items()],
-                "ts_other": [[t, sorted(v)] for t, v in self._ts_other.items()],
-                "tids": [[t, sorted(v)] for t, v in self._tids.items()], "stopped": self._stopped}
+                "ts_other": [[t, sorted(v.elements())] for t, v in self._ts_other.items()],
+                "tids": [[t, sorted(v)] for t, v in self._tids.items()], "stopped": self._stopped,
+                "tied_keys": [[t, list(a)] for t, a in self._tied_keys.items()],
+                "tied_other": [[t, sorted([list(k) for k in v.elements()])]
+                               for t, v in self._tied_other.items()]}
 
     def load_summary(self, state) -> None:
         self._kept = list(state["kept"])
@@ -2605,8 +2660,10 @@ class P8EvidenceReducer:
                 raise ValueError(f"unknown entry kind {s[0]!r}")
             self._src.append(list(s))
         self._ts_keys = {t: array("q", a) for t, a in state["ts_keys"]}
-        self._ts_other = {t: set(v) for t, v in state["ts_other"]}
+        self._ts_other = {t: Counter(v) for t, v in state["ts_other"]}
         self._tids = {t: set(v) for t, v in state["tids"]}
+        self._tied_keys = {t: array("q", a) for t, a in state["tied_keys"]}
+        self._tied_other = {t: Counter(tuple(k) for k in v) for t, v in state["tied_other"]}
         self._stopped = bool(state["stopped"])
 
     def summary_replay_types(self):
@@ -2622,22 +2679,25 @@ class P8EvidenceReducer:
             raise ValueError("a served summary's land rows were not all replayed")
         self._kept = older._kept + self._kept
         self._entries, self._src = older._entries + self._entries, older._src + self._src
-        if older._stopped:
-            self._ts_keys = {t: array("q", a) for t, a in older._ts_keys.items()}
-            self._ts_other = {t: set(v) for t, v in older._ts_other.items()}
-            self._tids = {t: set(v) for t, v in older._tids.items()}
-            self._stopped = True
-            return
+        tids = {t: set(v) for t, v in older._tids.items()}
+        if not older._stopped:
+            for t, v in self._tids.items():
+                tids.setdefault(t, set()).update(v)
         keys = {t: array("q", a) for t, a in older._ts_keys.items()}
         for t, a in self._ts_keys.items():
             keys.setdefault(t, array("q")).extend(a)
-        other = {t: set(v) for t, v in older._ts_other.items()}
+        other = {t: Counter(v) for t, v in older._ts_other.items()}
         for t, v in self._ts_other.items():
-            other.setdefault(t, set()).update(v)
-        tids = {t: set(v) for t, v in older._tids.items()}
-        for t, v in self._tids.items():
-            tids.setdefault(t, set()).update(v)
+            other.setdefault(t, Counter()).update(v)
+        tied = {t: array("q", a) for t, a in older._tied_keys.items()}
+        for t, a in self._tied_keys.items():
+            tied.setdefault(t, array("q")).extend(a)
+        tied_other = {t: Counter(v) for t, v in older._tied_other.items()}
+        for t, v in self._tied_other.items():
+            tied_other.setdefault(t, Counter()).update(v)
         self._ts_keys, self._ts_other, self._tids = keys, other, tids
+        self._tied_keys, self._tied_other = tied, tied_other
+        self._stopped = self._stopped or older._stopped
 
     def p8_rows(self):
         """The P8 adoption and WARN rows, parsed fresh, in walk order."""
@@ -2648,7 +2708,9 @@ class P8EvidenceReducer:
         for kind, payload in self._entries:
             corpus.append(json.loads(payload) if kind == "line" else payload)
         keys = {t: array("q", sorted(arr)) for t, arr in self._ts_keys.items()}
-        corpus.type_index = _P8TypeIndex(keys, self._ts_other, self._tids, self._stopped)
+        tied = {t: array("q", sorted(arr)) for t, arr in self._tied_keys.items()}
+        corpus.type_index = _P8TypeIndex(keys, self._ts_other, self._tids, self._stopped,
+                                         tied, self._tied_other)
         return corpus
 
 

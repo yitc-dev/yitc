@@ -15,7 +15,8 @@ environment variable YITC_VERIFY_ADAPTER_MANIFEST; the manifest's `action` says 
       (`vitest list --filesOnly --json --changed <base>`: Vitest diffs `<base>...HEAD` plus
       staged, unstaged and untracked files by itself)
   run — exactly the requested files in ONE Vitest run, Vitest's own retries off (`--retry=0`),
-      the JUnit report and the JSON report written where the manifest says
+      the JUnit report and the JSON report written where the manifest says. When every requested
+      unit carries `cases` (a re-run), `-t` selects those tests by their exact full names.
 
 A unit's `file` is repository-relative. Vitest's JUnit report names a suite by its path relative
 to Vitest's root directory, so every unit carries that name as `report_id`. The root directory
@@ -25,9 +26,11 @@ name that root, or the names in the report will not match and the kernel drops t
 One limit to know: `vitest run` reads a file argument as a filter that matches by substring, so
 asking for `a.test.js` beside an existing `a.test.jsx` runs both. The kernel then finds a unit
 it did not ask for, drops the report and runs the layer's full `command:` instead.
+
 """
 import json
 import os
+import re
 import subprocess
 import sys
 
@@ -72,6 +75,15 @@ def listed(extra):
     return sorted(units, key=lambda u: (u.get("project", ""), u["file"])), []
 
 
+def named_cases(units):
+    """A `-t` pattern matching exactly the named cases, or None to run the files whole. Vitest
+    matches `-t` against a test's full name — its titles joined with ` > `, the very name its
+    report gives the case — so the pattern is those names, escaped and anchored at both ends."""
+    if not units or not all(u.get("cases") for u in units):
+        return None
+    return "^(?:%s)$" % "|".join(sorted({re.escape(case) for u in units for case in u["cases"]}))
+
+
 def runner_version(command):
     """The version word of `vitest --version`, which prints `vitest/5.0.3 linux-x64 node-v22`."""
     proc = subprocess.run([*command, "--version"], cwd=HOME, capture_output=True, text=True)
@@ -111,6 +123,9 @@ def main(argv):
             cmd.append("--no-file-parallelism")
         units = manifest.get("units")
         files = [to_runner(u["file"]) for u in units] if units is not None else []
+        pattern = named_cases(units)
+        if pattern is not None:
+            cmd += ["-t", pattern]
         return subprocess.run(cmd + files, cwd=HOME).returncode
     print("vitest-adapter: unknown action %r" % action, file=sys.stderr)
     return 2

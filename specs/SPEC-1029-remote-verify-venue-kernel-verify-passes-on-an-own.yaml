@@ -1031,7 +1031,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#cmd_venue_publish: 89e3ab569f74c622bf9a5b9fdab67895504df7771143a8c6ef7dd3fe8b01c634
+  bin/lib/cli.py#cmd_venue_publish: b338dea07e1a473ef5cf838496e9e0b30e4d9a1b972cdf6ececfd11125bf7d7e
   bin/lib/remote_verify.py#ParkedPreship: 0faeee925227453f0ad571bcd11393c1729e55ad23ce78bff9819a8bcfbdb1ac
   bin/lib/remote_verify.py#SHIP_PUSH_TIMEOUT_S: 2c319cde46aece5469cebfff02bfbe21ddf7659aefe0dc7fb7065d49809596ef
   bin/lib/remote_verify.py#box_lease_prologue: 5519e46317f9b8cfae6bfc08efcf06a6c9708c3975f1043aea2e68104db6613a
@@ -1055,7 +1055,7 @@ implements_signature:
   bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
   bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
-  bin/lib/task.py#cmd_task_test: 22a05bd9dbbbeed6fcf0abd981245a931eed70f1012a6b6438b3bfdba1c4eedd
+  bin/lib/task.py#cmd_task_test: 6830566d5e705de4766bf1e011f3e4022340681d48abe2de024ae13b442bea51
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd
@@ -1069,4 +1069,4 @@ implements_signature:
   bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
+  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5

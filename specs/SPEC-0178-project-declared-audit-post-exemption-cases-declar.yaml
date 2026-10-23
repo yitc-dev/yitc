@@ -110,29 +110,29 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ `paths:`, or BOTH.**\n- `class:` takes ONE task class or a LIST of them (`class:\
   \ [docs, refactor]`). A list is a plain\n  OR — it exists so a project expresses\
   \ one intent as one entry instead of N near-duplicate entries\n  it then has to\
-  \ keep in step.\n- `paths:` is unchanged: a list of globs.\n- `paths_mode:` (optional)\
-  \ says how the `paths:` leg reads the card's ship diff. `any`, the\n  default when\
-  \ the key is absent, is the intersection: the leg holds when ANY shipped path matches\n\
-  \  a glob. `all` is containment: the leg holds only when EVERY shipped path matches\
-  \ one of the\n  globs, so a documentation-only case is not matched by a card that\
-  \ also ships code. A value other\n  than `any` or `all`, a `paths_mode:` with no\
-  \ `paths:` leg, and an `all` case over a ship diff with\n  no path all make the\
-  \ case NOT match. Rule 6's out-of-path observation has nothing to report for a\n\
-  \  card an `all` case matched.\n- **When BOTH are present they are a CONJUNCTION\
-  \ — both must hold.** `class: docs` + `paths:\n  [docs/**]` means \"a docs card\
-  \ whose diff stays inside docs/**\", which is NARROWER than either leg\n  alone.\
-  \ This is the form that lets a project keep the rule 6 out-of-path observation while\
-  \ still\n  matching by class: the observation is computed for any case that declares\
-  \ `paths:`, so a\n  conjunction case has it, and a class-only case still gives it\
-  \ up (rule 6 unchanged).\n\n**A class-only declaration is the WIDE form and the\
-  \ project should know how wide.** Widening\n`class:` multiplies the reachable surface\
-  \ several-fold, and the class label does not describe the\ndiff: docs/refactor cards\
-  \ routinely ship into executable directories. **Rule 3 reaches PART of\nthat**:\
-  \ its governance set includes the pinned-test surface of the repository — for a\
-  \ project the\nroot `tests/`, `yitc-ops.yaml` and the check surface its contract\
-  \ names (rule 3 says which members\nhold where) — so a card shipping into `tests/`,\
-  \ or into a file the contract names as its verifier,\nIS taken back; what rule 3\
-  \ leaves outside that surface — the rest of the root `bin/`,\n`app/`/`backend/`/`frontend/`/`scripts/`\
+  \ keep in step.\n- `paths:` is unchanged: a list of globs.\n- The `paths:` leg is\
+  \ CONTAINMENT: it holds only when EVERY path of the card's ship diff matches one\n\
+  \  of the globs, and at least one does — so a case is never matched by a card that\
+  \ also ships outside\n  its paths. The card's own lifecycle records in that diff\
+  \ (the ones rule 6 names) are not judged; a\n  ship diff holding nothing else does\
+  \ not match. The Audit-post stage cue, `audit post` and\n  `task close` read this\
+  \ one answer.\n- `paths_mode:` is optional; `all` states the same containment. Any\
+  \ other value — `any` included —\n  and a `paths_mode:` with no `paths:` leg make\
+  \ the case NOT match.\n- **When BOTH are present they are a CONJUNCTION — both must\
+  \ hold.** `class: docs` + `paths:\n  [docs/**]` means \"a docs card whose diff stays\
+  \ inside docs/**\", which is NARROWER than either leg\n  alone. This is the form\
+  \ that lets a project keep the rule 6 out-of-path observation while still\n  matching\
+  \ by class: the observation is computed for any case that declares `paths:`, so\
+  \ a\n  conjunction case has it, and a class-only case still gives it up (rule 6\
+  \ unchanged).\n\n**A class-only declaration is the WIDE form and the project should\
+  \ know how wide.** Widening\n`class:` multiplies the reachable surface several-fold,\
+  \ and the class label does not describe the\ndiff: docs/refactor cards routinely\
+  \ ship into executable directories. **Rule 3 reaches PART of\nthat**: its governance\
+  \ set includes the pinned-test surface of the repository — for a project the\nroot\
+  \ `tests/`, `yitc-ops.yaml` and the check surface its contract names (rule 3 says\
+  \ which members\nhold where) — so a card shipping into `tests/`, or into a file\
+  \ the contract names as its verifier,\nIS taken back; what rule 3 leaves outside\
+  \ that surface — the rest of the root `bin/`,\n`app/`/`backend/`/`frontend/`/`scripts/`\
   \ — it does NOT reach. That is why `paths:` is the PREFERRED form, why the\nborn\
   \ template states the exposure at the point of declaration, and why rule 9 reports\
   \ the live\nshare. The choice stays the project's, and it is an informed one.\n\n\
@@ -316,10 +316,11 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ had been exempted, so it is\nprovenance, not causal attribution. This is a comparison\
   \ of two timestamps the join already holds —\nno counter, cap, predicate or store.\n\
   \n### Rule 6 — Out-of-path observation (report-only; PATH-declared cases ONLY)\n\
-  For a case declared by `paths:`, a card closed under it whose diff went OUTSIDE\
-  \ those paths is\nsurfaced report-only to the periodic review. This never blocks\
-  \ a close and never un-applies a case;\nit is the evidence a reviewer needs to propose\
-  \ narrowing a declaration.\n\n**WHICH diff — the SHIP diff, and DELIBERATELY not\
+  For a case declared by `paths:`, a card whose ship diff reaches those paths AND\
+  \ goes OUTSIDE them is\nsurfaced report-only to the periodic review. Under rule\
+  \ 1's containment the case does not cover\nsuch a card, so it takes audit-post;\
+  \ the row is the evidence a reviewer needs to propose re-scoping\nthe declaration.\
+  \ This never blocks a close.\n\n**WHICH diff — the SHIP diff, and DELIBERATELY not\
   \ rule 3's.** This rule reads the **ship diff\nONLY**. Rule 3 guards SAFETY, so\
   \ it must see every governance touch however late it lands; rule 6\nshows a reviewer\
   \ the scope the AUTHOR chose, so a write the author did not make (e.g. `task close`'s\n\
@@ -469,29 +470,34 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ a class-a card inside `p/**` and does NOT match a class-a card outside it (the\n\
   \  conjunction narrows rather than widens). Probe: four fixtures, two matching and\
   \ two not — a\n  conjunction that matched on either leg alone would be the defect\
-  \ this catches.\n- **VP12b (rule 1, `paths_mode`) — differential:** under `paths:\
-  \ [docs/**]` a card shipping\n  `docs/a.md` and `app/foo.py` matches the case without\
-  \ `paths_mode:` and does NOT match it with\n  `paths_mode: all`, while a card shipping\
-  \ only `docs/a.md` matches both. Probe:\n  tests/test_t13735_case_match_paths_mode.py.\n\
-  - **VP13 (rule 9, report-only + live):** a review run over a window in which a case\
-  \ exempted cards\n  reports that case's ACTUAL share, and a wide share still ACCEPTS\
-  \ every close — the number informs,\n  it never refuses. Probe: two review runs\
-  \ over windows with different exempted shares for the same\n  case produce different\
-  \ reported shares (so it tracks the live population, not a stored estimate),\n \
-  \ and a case that exempted nothing in the window reports zero rather than being\
-  \ omitted.\n  **Differential on WHICH window:** over ONE fixed journal, (i) two\
-  \ review runs on the SAME day report\n  the SAME share, computed over the case's\
-  \ `window_days`; and (ii) the same journal read under a case\n  declaring a SHORTER\
-  \ `window_days` reports a DIFFERENT share — the share must be INSENSITIVE to when\n\
-  \  the previous review ran and SENSITIVE to the case's own `W`. Default `W` = 90\
-  \ where the case\n  declares none.\n- **VP23 (rules 3+9, the re-sign-only takeback)\
-  \ — differential on WHAT changed in the spec, not on its path:** under\n  one live\
-  \ case, a matching card whose only governance paths are specs changed in their signature\n\
-  \  map alone — re-stamped, or written for the first time — is taken back by rule\
-  \ 3 AND named on the\n  rule 9 line; the otherwise identical card whose spec diff\
-  \ also edits rule text, or edits a\n  signature-shaped line outside the map, is\
-  \ taken back and NOT named there. Probe:\n  `tests/test_t13599_resign_only_takeback.py`\
-  \ — a count keyed on \"any spec path\" names all and fails.\n- **VP10 (rule 5, attribution\
+  \ this catches.\n- **VP12b (rule 1, containment) — differential:** under `paths:\
+  \ [docs/**]` a card shipping\n  `docs/a.md` and `app/foo.py` does NOT match the\
+  \ case, with or without `paths_mode: all`, while a\n  card shipping only `docs/a.md`\
+  \ matches both, and `paths_mode: any` matches neither. Probe:\n  tests/test_t13735_case_match_paths_mode.py.\
+  \ At the three seams — under `paths: [app/**,\n  packages/**]` a card shipping `packages/x`\
+  \ and `ops/runner/y` gets no stage cue naming the case,\n  spends the auditor at\
+  \ `audit post` and is refused by `task close` without audit-post, while a card\n\
+  \  shipping only paths inside them, beside its own card and journal, is matched\
+  \ at all three. Probe:\n  tests/test_t14039_case_membership_containment.py.\n- **VP13\
+  \ (rule 9, report-only + live):** a review run over a window in which a case exempted\
+  \ cards\n  reports that case's ACTUAL share, and a wide share still ACCEPTS every\
+  \ close — the number informs,\n  it never refuses. Probe: two review runs over windows\
+  \ with different exempted shares for the same\n  case produce different reported\
+  \ shares (so it tracks the live population, not a stored estimate),\n  and a case\
+  \ that exempted nothing in the window reports zero rather than being omitted.\n\
+  \  **Differential on WHICH window:** over ONE fixed journal, (i) two review runs\
+  \ on the SAME day report\n  the SAME share, computed over the case's `window_days`;\
+  \ and (ii) the same journal read under a case\n  declaring a SHORTER `window_days`\
+  \ reports a DIFFERENT share — the share must be INSENSITIVE to when\n  the previous\
+  \ review ran and SENSITIVE to the case's own `W`. Default `W` = 90 where the case\n\
+  \  declares none.\n- **VP23 (rules 3+9, the re-sign-only takeback) — differential\
+  \ on WHAT changed in the spec, not on its path:** under\n  one live case, a matching\
+  \ card whose only governance paths are specs changed in their signature\n  map alone\
+  \ — re-stamped, or written for the first time — is taken back by rule 3 AND named\
+  \ on the\n  rule 9 line; the otherwise identical card whose spec diff also edits\
+  \ rule text, or edits a\n  signature-shaped line outside the map, is taken back\
+  \ and NOT named there. Probe:\n  `tests/test_t13599_resign_only_takeback.py` — a\
+  \ count keyed on \"any spec path\" names all and fails.\n- **VP10 (rule 5, attribution\
   \ carrier) — BOTH ends of the join are catalogued:** SPEC-0025 documents\n  `exempted_case`\
   \ as an optional key on **both** the `deviation_captured` payload (the attribution\n\
   \  end) and the `task_closed` payload (the closure end rule 4 records) before this\
@@ -508,25 +514,32 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ (owner ruling 2026-08-14)\n- From «Rule 5 — Automatic restoration (automation\
   \ may only RESTORE)»: Measured end-to-end over\n  four projects' whole history,\
   \ the chain collapses to ZERO at the triage hop on every consumer\n  (no consumer\
-  \ has ever written `kind: defect`).\n\n### The pinned-test member per repository\n\
-  \nUntil the guard held the root `bin/**` member in every repository;, which took\n\
-  that member out of a project's verify-infrastructure set (SPEC-0152 rule 16), had\
-  \ kept it here\nas this rule's own. The owner then decided that a card touching\
-  \ a project's root `bin/` may be\nfreed from audit-post as well, where the project's\
-  \ own declared case covers it\n(events.jsonl#ts=), and the guard was brought to\
-  \ the same definition of a\nproject's pinned-test surface the verify side already\
-  \ reads: what the contract names\n(events.jsonl#ts=). Known cost at that change:\
-  \ a class-only case declared\nbefore it reaches the root `bin/` files a project's\
-  \ verifier runs that its contract does not\nname, until the project lists them under\
-  \ `verify.infra_globs`.\n"
+  \ has ever written `kind: defect`).\n\n### Containment as the only reading of `paths:`\n\
+  \nUntil the `paths:` leg defaulted to the intersection (one shipped path inside\
+  \ sufficed),\nwith containment an opt-in `paths_mode: all`, so that rule 6 kept\
+  \ a referent. Reported\non a project's public tracker (issues 150 and 160): cards\
+  \ shipping `ops/` code beside one in-case\npath were told at the Audit-post cue\
+  \ and at `audit post` that their case matched, skipped\naudit-post, and only the\
+  \ closing rule-6 warning said the ship went outside. Containment became the\nonly\
+  \ reading; rule 6 now reports the cards a case did not cover.\n\n### The pinned-test\
+  \ member per repository\n\nUntil the guard held the root `bin/**` member in every\
+  \ repository;, which took\nthat member out of a project's verify-infrastructure\
+  \ set (SPEC-0152 rule 16), had kept it here\nas this rule's own. The owner then\
+  \ decided that a card touching a project's root `bin/` may be\nfreed from audit-post\
+  \ as well, where the project's own declared case covers it\n(events.jsonl#ts=),\
+  \ and the guard was brought to the same definition of a\nproject's pinned-test surface\
+  \ the verify side already reads: what the contract names\n(events.jsonl#ts=). Known\
+  \ cost at that change: a class-only case declared\nbefore it reaches the root `bin/`\
+  \ files a project's verifier runs that its contract does not\nname, until the project\
+  \ lists them under `verify.infra_globs`.\n"
 implements_signature:
-  bin/lib/inspection.py#cmd_inspect_record: 012349010f0643cf7d01ea535f924f6cdc632730c1379df85c73e99b091df071
+  bin/lib/inspection.py#cmd_inspect_record: b2f29d71790db26a64a533af60b5cebcea899fc63e3543d7ea159d1e4100e474
   bin/lib/task.py#_audit_scrutiny_cases: 0018ff3946d76e03188f6fc1f12c21bd495c5f5f6c2f3bb4ecc12df10b33e60d
   bin/lib/task.py#_case_exempt_refusal: 85308d8da223a74ec9362761325864f8ca71dcb5d89750b9cbdb31d616fa277c
-  bin/lib/task.py#_case_match: 5002cea43d867fd7d3ac1e31118115d81fe18da504fdd187b070b9d776634aa0
+  bin/lib/task.py#_case_match: f98fa0d67e22e523776c2afee00ddb22d9fae69dda0293f5f53d79abe5a75197
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: 9f41d93cfef7602f775bab89958f1b98dc7665c50e8ae574cd665f4d9a00ee50
+  bin/lib/task.py#cmd_task_close: 595eea6e8159447332a90490bb62879bc1077ce0fd6b0368e4af6ca2c0c270ce
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
   bin/lib/task_closure_evidence.py#_case_closure_index: a68a8461d86f6fa975f4c5d523e5c081c7e724a2fa7015bc781e15ead3561103
   bin/lib/task_closure_evidence.py#_case_covered_share: bf05701807cfd853476788117b2cbaa470923898841f3a423ae5ce59b273ba8d

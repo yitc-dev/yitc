@@ -148,14 +148,15 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ / verbatim share, CITED by `events.jsonl#ts=`, never recomputed; context for judging\
   \ the derivation, never a verdict | a card built on a spike. **Refusal (governed,\
   \ before any auditor call, no pass counted):** `audit post` on a card with NO `prototype_ref`\
-  \ whose preview reports a NON-ZERO share numerator refuses, naming the spike and\
-  \ `task update <id> --prototype-ref spike/<slug>`; a zero-share card (whatever its\
-  \ T1 hits) and a preview that errored proceed and are never asked to declare. Content\
-  \ refusals live at `land` (SPEC-0205 rule 2), never at the auditor | the card's\
-  \ `prototype_ref:` (SPEC-0028); on audit-pre the saved verdict also states which\
-  \ declared-identical entries its packet showed (`prototype_identical_shown:`), written\
-  \ only by a pass that invoked the auditor |\n| `--post-ship-observation` (X-0710)\
-  \ | the acceptance-probe-not-satisfied / no-observation-result / adoption-missing\
+  \ whose preview reports an IDENTITY hit (verdict identity, a T1 whole-file hit or\
+  \ T3 identity) refuses, naming the spike and `task update <id> --prototype-ref spike/<slug>`;\
+  \ a partial share is context, never a refusal (SPEC-0205 rule 6), and a card with\
+  \ no identity hit and a preview that errored proceed and are never asked to declare.\
+  \ Content refusals live at `land` (SPEC-0205 rule 2), never at the auditor | the\
+  \ card's `prototype_ref:` (SPEC-0028); on audit-pre the saved verdict also states\
+  \ which declared-identical entries its packet showed (`prototype_identical_shown:`),\
+  \ written only by a pass that invoked the auditor |\n| `--post-ship-observation`\
+  \ (X-0710) | the acceptance-probe-not-satisfied / no-observation-result / adoption-missing\
   \ category — judge ONLY diff-drift / non-deferred AC / coherence / whether the declared\
   \ observation actually corresponds to the AC it defers | an acceptance whose probe\
   \ is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION (<project> : «the daily count\

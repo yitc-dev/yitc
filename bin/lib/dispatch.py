@@ -467,7 +467,8 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "AUDIT-LOOP CEILING (SPEC-1039 rule 6 / T-12679): at the ceiling `audit pre|post` ITSELF emits "
     "the bg_dispatch_halted(blocked_on_land) row carrying residual_fingerprints; you halt with "
     "`task pause <task> --reason audit-ceiling` INSIDE the worktree; the Controller records `audit "
-    "decide` per fingerprint and you resume with `task resume` + `audit pre|post --on-decisions`. At "
+    "decide` per fingerprint and you resume with `task resume` + `audit pre|post --on-decisions "
+    "--sweep '<where you looked for the same defect class and what you found>'`. At "
     "audit-POST, for a residual you fix in scope: `task commit --fix-red` FIRST and name its sha in "
     "the pause next_action. TERMINAL RED (SPEC-1039 rules 3-4 / T-13537): when the `--on-decisions` "
     "pass (or its one absorption re-audit) is RED, the stage is OVER — the verb's halt row names the "
@@ -642,6 +643,13 @@ def _build_point1(sync_rule: str, *, controller_lands: bool = False) -> str:
 # in 3 days were journaled onto the OWNER channel, which AGENTS §Recovery tells every session to grep
 # FIRST for the owner's original wording (<project> X-1364 / <project> X-1345).
 DISPATCH_PREAMBLE_MARKER = "=== DISPATCHED WORKER EXECUTION DISCIPLINE (standing preamble"
+
+
+def _other_delivery_verbs(invoke: str) -> str:
+    """T-14153 (PURE) — point 9's list of the contract-delivering verbs its head sentence does not name,
+    rendered from `gates.CONTRACT_DELIVERY_VERBS` (the one carrier), each as the reader types it."""
+    return ", ".join(f"`{invoke} {verb}`" for verb, _fn in gates.CONTRACT_DELIVERY_VERBS
+                     if verb not in gates.POINT9_HEAD_VERBS)
 
 
 def _build_worker_preamble(session_start_cue: str = _WORKER_SESSION_START_BARE,
@@ -821,7 +829,8 @@ names who may occupy it — being re-dispatched is not being granted the right).
    Rule home: `patterns/background-session-dispatch.md §Long-command-exceeds-tool-timeout`.
 
 9. STAGE AND CONTRACT OUTPUT IS A DELIVERY — IT MUST REACH YOU WHOLE (T-13392). What `{invoke} stage
-   <NAME>`, the in-worktree `session start --type build` of point 3, and `{invoke} graph query {kernel_flag}SPEC-XXXX` print IS the
+   <NAME>`, the in-worktree `session start --type build` of point 3, and `{invoke} graph query {kernel_flag}SPEC-XXXX` print — and
+   what every other verb that delivers a contract prints: {_other_delivery_verbs(invoke)} — IS the
    read the gated verbs check for (T-13934: when contract bodies were printed, its LAST lines say so), so:
    - **NEVER send it to the null device.** A `stage` whose stdout is `/dev/null` exits 6, renders
      nothing and credits NOTHING (T-13028); a `graph query` whose stdout went nowhere is recorded
@@ -2825,7 +2834,8 @@ def _default_proc_scan_is_takeable() -> bool:
 def _orphan_holder_liveness(wt, *, _read_worktree_stamp, _session_proc_alive,
                             _live_path_holders, _session_terminally_over=None,
                             _proc_scan_is_takeable=None, _resolve_holder_sessions=None,
-                            main_wt=None) -> "tuple[bool, str | None, str, list]":
+                            main_wt=None, _git_maintenance_holders=None,
+                            ignored_out: "list | None" = None) -> "tuple[bool, str | None, str, list]":
     """T-10985 — is a task worktree's holder DETERMINED dead? `(confirmed_dead, holder_ref, why_not,
     orphan_holders)`.
 
@@ -2850,7 +2860,16 @@ def _orphan_holder_liveness(wt, *, _read_worktree_stamp, _session_proc_alive,
                              "git), so its holder is unidentifiable and its death UNVERIFIABLE", [])
     if _session_proc_alive(ref):
         return (False, ref, f"the stamped holder session {ref} has a LIVE process", [])
-    holders = _live_path_holders(wt)
+    # T-14045 (public intake #163) — an orphaned `git gc --auto` with the worktree as its cwd is not
+    # the worker: it is set aside here and named, never counted as a holder (the predicate's docstring
+    # is the rule home). `ignored_out` hands the ignored holders to the caller, which prints them.
+    from lib import worktree_lifecycle as _wl_gm
+    holders, _ignored = (_git_maintenance_holders or _wl_gm._git_maintenance_holders)(
+        _live_path_holders(wt))
+    if ignored_out is not None:
+        ignored_out.extend(_ignored)
+    _ign_txt = (f"; ignored git-maintenance cwd holders {[h['pid'] for h in _ignored]}"
+                if _ignored else "")
     if holders:
         # T-12683 (X-1479) — a cwd holder is NOT automatically a LIVE holder. A verify step that
         # starts a long-lived server inside the worktree (<project> T-0679: `vite preview`, PPID 1,
@@ -2895,7 +2914,7 @@ def _orphan_holder_liveness(wt, *, _read_worktree_stamp, _session_proc_alive,
             return (True, ref, "", list(holders))
         return (False, ref, f"a LIVE process holds the worktree path as its cwd "
                             f"(pids {[h['pid'] for h in holders]}; attributed to session {ref}, "
-                            f"verdict {res.get('verdict')})", [])
+                            f"verdict {res.get('verdict')}){_ign_txt}", [])
     return (True, ref, "", [])
 
 
@@ -3200,6 +3219,8 @@ def _resume_entry_card(card, wt_card=None) -> "dict | None":
     recorded there after the claim reaches main only with the land, so main's card can carry an OLDER
     pause; the contract then comes from `wt_card` when it is the same id, in-progress, paused, and its
     `paused_at` is NEWER than main's — one source, never a mix of the two. Admission stays main's card.
+    T-14077 — the same-id in-progress `wt_card` with NO `paused_at` was resumed on the branch (a
+    `task resume` reaches main only with the land): None, so the brief takes the adopt-first flavour.
 
     T-14004 (X-2037) — `stage` is `current_stage` when it is a lifecycle stage NAME, else `Execution`.
     `resume_from` is free prose (a step within the stage) and travels as `resume_from`, never as the
@@ -3213,9 +3234,11 @@ def _resume_entry_card(card, wt_card=None) -> "dict | None":
         return None
     src = card
     if (isinstance(wt_card, dict) and wt_card.get("id") == card.get("id")
-            and (wt_card.get("status") or "") == "in-progress" and wt_card.get("paused_at")
-            and str(wt_card.get("paused_at")) > str(paused_at)):
-        src = wt_card
+            and (wt_card.get("status") or "") == "in-progress"):
+        if not wt_card.get("paused_at"):
+            return None   # T-14077: resumed on the branch — main's pause is stale
+        if str(wt_card.get("paused_at")) > str(paused_at):
+            src = wt_card
     from lib import gates   # lazy: the stage-name row (SPEC-0027 §Stage FSM per class)
     stage = str(src.get("current_stage") or "")
     if stage not in gates.LIFECYCLE_STAGE_POINTER_FSM["standard"]:
@@ -5471,13 +5494,20 @@ def cmd_dispatch(args: argparse.Namespace, *, _as_list, _die, _main_worktree, _l
             # teardown on the journal-recency axis alone and the T-0362 double-claim door was held only
             # by `_park_worktree`'s downstream `_assert_no_live_holder`; one guard site, asserted here,
             # is what the audit-pre pass-2 finding asked for.
+            _gm_ignored: list = []
             _dead_ok, _dead_ref, _dead_why, _orphans = _orphan_holder_liveness(
                 live[task], _read_worktree_stamp=_read_worktree_stamp,
                 _session_proc_alive=_session_proc_alive,
                 _live_path_holders=_live_path_holders,
                 # T-12683 — the terminal-session orphan classification's two reads; main-bound.
                 _session_terminally_over=_session_terminally_over,
-                _proc_scan_is_takeable=_proc_scan_is_takeable, main_wt=main_wt)
+                _proc_scan_is_takeable=_proc_scan_is_takeable, main_wt=main_wt,
+                ignored_out=_gm_ignored)
+            if _gm_ignored:
+                # T-14045 — name every cwd holder the read set aside, on both outcomes.
+                print(f"dispatch: {task} — ignored git-maintenance cwd holder(s) pids "
+                      f"{[h['pid'] for h in _gm_ignored]} (a detached git gc/maintenance/repack, "
+                      f"not a worker; T-14045)", flush=True)
             if not _dead_ok:
                 # LIVE or UNVERIFIABLE holder → the protective SKIP (T-0362, never auto-adopt).
                 msg, holder = _dispatch_inflight_report(task, live[task], main_wt,

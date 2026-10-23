@@ -324,6 +324,8 @@ ENV_TRACKED=${ENV_TRACKED:-0}
 
 # CHECK 3 — dependency lockfile inventory + content hashes (§5 dependency-lockfile hash(es)).
 # Deterministic sha256 over each known lockfile in scope; absence recorded as an empty inventory.
+# That empty `{}` beside the SEC-DEP-LOCK check's `lockfiles=0` is the pair SPEC-0145 §5 names as
+# the no-lockfile representation the gate accepts as complete.
 # Emitted under the PINNED canonical key `dependency_lockfile_hashes` as a MAPPING `{path: sha256_16}`
 # (SPEC-0145 §5 pin — NOT the retired `dependency_lockfiles`-as-a-list spelling the gate never read).
 LOCK_TS="$(date -u +%FT%TZ)"

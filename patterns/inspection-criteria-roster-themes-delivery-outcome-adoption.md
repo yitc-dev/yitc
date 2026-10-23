@@ -51,7 +51,7 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   OUT-OF-BAND delivery surface**: an obligation delivered ONLY in the dispatched-Worker launch
   preamble (`bin/lib/dispatch.py`) and on NO re-readable surface — a Worker's post-`/compact`
   restoration IS its seed chain, so a preamble-only rule is simply GONE (measured 2026-09:
-  SPEC-0191's block-classification ladder, <workshop-spec>'s over-cap held-turn land exit, <workshop-spec>'s
+  SPEC-0191's block-classification ladder, SPEC-1028's over-cap held-turn land exit, <workshop-spec>'s
   ceiling halt VERB) — and the seed's own **citation currency** (every `SPEC-NNNN` the always-loaded
   seed cites resolving `active`, or framed as history).
 - **Probes:** **DIFF each instruction against the LIVE canon + implementation — «I read it» is NOT a

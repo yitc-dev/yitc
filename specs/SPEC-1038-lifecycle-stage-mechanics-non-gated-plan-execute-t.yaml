@@ -101,36 +101,40 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ project's OWN test\n  declarations (the engine's script-style `tests/test_*.py`\
   \ set; a consumer's declared verify layers\n  and their adapters, SPEC-0186 — the\
   \ same selection machinery the governed run uses, restricted to\n  the changed test\
-  \ files; plan-check round 1 F4), through the governed own-tests mode of\n  `task\
-  \ test` admitted at EVERY stage before Closure — Execution, Commit, Audit-post (the\
-  \ fix after\n  a RED audit-post) and Tests (the fix after a red governed run) are\
-  \ checked the same way (trial\n  cycles 1-2, D-e / N3). It is the early evidence\
+  \ files; plan-check round 1 F4), plus the declared always-run tests of each swept\n\
+  \  test directory (the consistency tripwires; the declaration's home is SPEC-0181\
+  \ R5), which run on\n  every check because a corpus-wide registry or ratchet test\
+  \ names none of the changed paths,\n  through the governed own-tests mode of\n \
+  \ `task test` admitted at EVERY stage before Closure — Execution, Commit, Audit-post\
+  \ (the fix after\n  a RED audit-post) and Tests (the fix after a red governed run)\
+  \ are checked the same way (trial\n  cycles 1-2, D-e / N3). It is the early evidence\
   \ audit-post reads,\n  labelled PARTIAL.\n  Its row is NOT a Tests-stage verdict\
   \ row: it is never runner-marked as the governed run, so it\n  never becomes the\
   \ land's credited row, never satisfies SPEC-0181's \"the governed run covers at\n\
   \  least the land's set\", and never satisfies the Closure-time coverage check (§Tests).\
-  \ A diff that\n  adds or changes no test file records an empty own-tests result,\
-  \ not an error; a changed test file\n  the declarations cannot map to a runner is\
-  \ recorded `not-determined`, never an empty green, and\n  the audit packet shows\
-  \ it so. Iterate on one test\n  by its own file while it goes from red to green,\
-  \ as before.\n- **Re-sign specs before the commit.** Every spec re-sign the change\
-  \ needs is done before\n  `task commit`: a re-sign after audit-post would change\
-  \ the audited subject and need a new commit\n  and a re-audit. (The spec-drift report\
-  \ that used to run at Tests entry runs at Commit entry.)\n\n**Spec mutation during\
-  \ Execution — the EXISTING spec FSM edges, no new mechanism (per Part C narrow).**\n\
-  If the task staged a `proposed` spec in Plan (Stage 3), Execution may act on it.\
-  \ The four moves are\njust NAMES for transitions the spec FSM (GRAPH §Spec lifecycle)\
-  \ already provides — there is\n**no new verb, no new state, no stored taxonomy**:\n\
-  \n| Move | What it is (existing edge) |\n|---|---|\n| **confirm** | leave the spec\
-  \ `proposed` — no edge; it activates (`proposed → active`) at THIS task's closure\
-  \ (Stage 9, work-first scope) |\n| **correct** | set the proposed spec's `supersedes:`\
-  \ to the prior spec — atomic supersession (the target flips at closure) |\n| **cancel**\
-  \ | move the spec to terminal `withdrawn` / `rejected` (abandon) |\n| **birth**\
-  \ | create a fresh `proposed` spec via the existing spec-creation path (`bin/yitc-v2\
-  \ spec new --draft --proposed-by T-XXXX`) |\n\n- **Reopen boundary — NO new guard\
-  \ (the EXISTING rule covers it).** Changing the `proposed`\n  spec SET during Execution\
-  \ is a plan/scope change, so it re-fingerprints the plan and the existing\n   rule\
-  \ (`task execute` requires an audit-pre bound to the current plan —\n  `_require_audit_pre_matches_plan`)\
+  \ A diff that\n  adds or changes no test file, in a tree that declares no always-run\
+  \ test, records an empty\n  own-tests result, not an error; a changed test file\n\
+  \  the declarations cannot map to a runner is recorded `not-determined`, never an\
+  \ empty green, and\n  the audit packet shows it so. Iterate on one test\n  by its\
+  \ own file while it goes from red to green, as before.\n- **Re-sign specs before\
+  \ the commit.** Every spec re-sign the change needs is done before\n  `task commit`:\
+  \ a re-sign after audit-post would change the audited subject and need a new commit\n\
+  \  and a re-audit. (The spec-drift report that used to run at Tests entry runs at\
+  \ Commit entry.)\n\n**Spec mutation during Execution — the EXISTING spec FSM edges,\
+  \ no new mechanism (per Part C narrow).**\nIf the task staged a `proposed` spec\
+  \ in Plan (Stage 3), Execution may act on it. The four moves are\njust NAMES for\
+  \ transitions the spec FSM (GRAPH §Spec lifecycle) already provides — there is\n\
+  **no new verb, no new state, no stored taxonomy**:\n\n| Move | What it is (existing\
+  \ edge) |\n|---|---|\n| **confirm** | leave the spec `proposed` — no edge; it activates\
+  \ (`proposed → active`) at THIS task's closure (Stage 9, work-first scope) |\n|\
+  \ **correct** | set the proposed spec's `supersedes:` to the prior spec — atomic\
+  \ supersession (the target flips at closure) |\n| **cancel** | move the spec to\
+  \ terminal `withdrawn` / `rejected` (abandon) |\n| **birth** | create a fresh `proposed`\
+  \ spec via the existing spec-creation path (`bin/yitc-v2 spec new --draft --proposed-by\
+  \ T-XXXX`) |\n\n- **Reopen boundary — NO new guard (the EXISTING rule covers it).**\
+  \ Changing the `proposed`\n  spec SET during Execution is a plan/scope change, so\
+  \ it re-fingerprints the plan and the existing\n   rule (`task execute` requires\
+  \ an audit-pre bound to the current plan —\n  `_require_audit_pre_matches_plan`)\
   \ already REFUSES until a fresh audit-pre re-verifies it.\n- **Escalate-to-plan\
   \ escape:** a big or contested spec design does NOT get crammed into the task —\n\
   \  escalate it to a `plans/` entry (Stage 3 / `patterns/plan-lifecycle.md`) and\
@@ -139,12 +143,21 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ Commit) and precedes\n  Closure. The stage keeps its name and its journal vocabulary\
   \ — `tests_passed` / `tests_failed`,\n  the `stage6_*` rows and the land's \"Stage-6\
   \ credit\" keep their names, which are identifiers,\n  not positions. A pointer\
-  \ move into Tests requires a recorded `commit_landed`. Which run covers\n  Closure\
-  \ is decided ONCE, at Closure, from journal facts (§Closure-time coverage below):\
-  \ a governed\n  run may run and record its row at any time, a run recorded before\
-  \ the card's last substantive\n  commit never covers Closure, and the land's Stage-6\
-  \ credit compares the candidate tree with the\n  tested tree itself (SPEC-0065 condition\
-  \ 2) — the worst case is one wasted run, never a wrong\n  closure or credit (trial\
+  \ move into Tests requires a recorded `commit_landed` and, for a card\n  that takes\
+  \ audit-post, a GREEN or YELLOW `audit_post_completed` on its last substantive commit\n\
+  \  (the commit §Closure-time coverage reads) — through `advance` from Audit-post\
+  \ and through an\n  explicit `stage Tests` alike; otherwise the move is refused\
+  \ with a `read_gate_refused` row and\n  the route «run `yitc-v2 audit post --task\
+  \ <T>` first; Tests follows the audit-post (SPEC-1038)».\n  Not asked: a card matching\
+  \ a declared SPEC-0178 audit-post exemption case (from Commit or from\n  Audit-post),\
+  \ a hygiene fast-path card, the `return` move, and the governed run itself — `task\n\
+  \  test --run` still runs and records while the pointer waits at Audit-post. Which\
+  \ run covers\n  Closure is decided ONCE, at Closure, from journal facts (§Closure-time\
+  \ coverage below): a governed\n  run may run and record its row at any time, a run\
+  \ recorded before the card's last substantive\n  commit never covers Closure, and\
+  \ the land's Stage-6 credit compares the candidate tree with the\n  tested tree\
+  \ itself (SPEC-0065 condition 2, or with a passed post-sync proof's tree, §Bound)\
+  \ — the worst case is one wasted run, never a wrong\n  closure or credit (trial\
   \ cycle 1, D-b; cycle 2, N1; the pre-run call site removed by the owner's\n  simplification,\
   \ events.jsonl#ts=).\n- **One order for every card (owner, option A, events.jsonl#ts=).**\
   \ From the\n  land that activates this spec every ENGINE card — in flight or new\
@@ -204,55 +217,73 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ never counts. A card\n  with no substantive `commit_landed` owes no run at Closure:\
   \ the hygiene `--batch-close` route (the\n  fix rides the work batch's own commit,\
   \ and its land verifies it) and a card whose only commits are\n  bookkeeping close\
-  \ as they do today. Nothing else is compared at Closure — no tree comparison, no\n\
-  \  provenance split, no list of admitted differences. The tree stays guarded where\
-  \ it is guarded\n  today: the closure record commits only what the close itself\
-  \ wrote, the land refuses uncommitted\n  non-bookkeeping changes and credits a run\
-  \ only for the tree it tested (SPEC-0065 condition 2), and\n  otherwise runs its\
-  \ own verify; changes a sync brings from main are not the card's commits and are\n\
-  \  judged by that land; the closure's own activation writes come after this check.\
-  \ Custody is\n  unchanged: a substantive commit after the audit-post needs its own\
-  \ audit-post, so for an\n  audited card the last substantive commit is the audited\
-  \ one. A refusal names that commit and the\n  route (`task test --run --evidence`\
-  \ at Tests) (accept-gate round 5; owner,\n  events.jsonl#ts=).\n  The planned absence\
-  \ of a governed run BEFORE an audit never blocks that audit — including a\n  terminal-bearing\
-  \ pass under SPEC-1039. The coverage check runs AFTER `task close`'s existing\n\
-  \  audit-post and fast-path checks, so their refusals keep coming first and unchanged\
-  \ (trial cycle\n  1, D-a). It and the `return` / `exempt` move predicates read the\
-  \ journal through the segment-aware\n  reader (SPEC-0190), never one physical journal\
-  \ file (trial cycle 1, D-c); a new reader site\n  carries the SPEC-0190 obligations\
-  \ — the regenerated reader census and a recorded read-contract\n  exemption or its\
-  \ drive in the multiset-identity suite — and every existing fixture that closes\
-  \ a\n  card or runs Tests gains a commit and a governed-run row in the cut-over\
-  \ card (trial cycle 2, N4).\n- Run the project's own test command (`pytest`, `bats`,\
-  \ `npm test`...).\n- **V2 convention:** plain Python scripts in `tests/test_<area>.py`,\
-  \ runnable via\n  `python3 tests/test_<area>.py`; exit 0 = pass. No pytest/bats\
-  \ overhead. See `tests/README.md`.\n- **The self-check is `bin/yitc-v2 task test\
-  \ --run`, and it runs the SELECTED suite, not the whole\n  one (SPEC-0181).** `--run`\
-  \ executes land's CANDIDATE leg, and that candidate run is\n  GOVERNED by the affected-test\
-  \ selection at BOTH seams it happens — here and at `land` — through\n  the SAME\
-  \ runner entry point, so the same fail-closed-to-full ladder, the same omitted-test\n\
-  \  tripwire and the same `selection-omitted-a-test-naming-a-changed-path` capture\
-  \ apply. The run\n  prints `selection: affected (n of N)` / `selection: full (fail-closed)\
-  \ — <reason>` /\n  `selection: full (--full)` plus any omitted-and-recovered tests,\
-  \ and the `tests_passed` evidence\n  records the mode + counts — so a green row\
-  \ says WHICH suite it is green over. `--run --full` is\n  the explicit whole-enumeration\
-  \ escape. The Stage-6 set is SUPERSET-OR-EQUAL of land's, never\n  narrower (SPEC-0181\
-  \ §Stage-6 seam): the Tests run cannot read land's two optional refinement channels,\n\
-  \  and their absence frees less and recovers more. **Unchanged:** a green here is\
-  \ still NOT the land\n  verdict — `land` verifies TWO legs (SPEC-0077) and the pinned\
-  \ last-green leg is not run here\n  — and a bare `pytest tests/` still reads FALSE-GREEN\
-  \ on script-style `__main__` tests.\n- **A consumer project's run (`-C`).** There\
-  \ `--run` executes the project's DECLARED\n  `verify.layers` (SPEC-0152 rule 16)\
-  \ — each layer's command, one after another unless the project\n  names them under\
-  \ `verify.independent_layers`, a layer whose `subject_globs` are disjoint from the\n\
-  \  working tree's changes against the merge-base with `main` skipped exactly as\
-  \ `land` skips it —\n  plus the project's test sweep where a test directory exists\
-  \ and no declared layer covers it; the\n  result line names the layers that ran\
-  \ and the ones skipped or waived, and it states the\n  pinned-leg bound only where\
-  \ the project's `verify_policy` has its `land` run that leg (SPEC-0186).\n- Output\
-  \ must be visible (Evidence Rule — not «tests pass», but actual output).\n- **RED-GREEN\
-  \ — trust green only after seeing red** (failure class #8): a\n  behaviour-change\
+  \ as they do today. **A run that executed nothing because every declared layer\n\
+  \  was skipped as DISJOINT SUBJECT** (`task test --run --evidence` prints `TEST:\
+  \ NONE`) records ONE\n  `tests_passed` row with `outcome: none-disjoint` and the\
+  \ runner's `stage6_run` tree mark — only\n  when every declared layer row is `skipped-disjoint-subject`,\
+  \ no test sweep ran, and the runner\n  can name the tree it judged; a NONE for any\
+  \ other reason (no layers declared, a declaration that\n  cannot be read, a waived\
+  \ layer, a section-level waiver) records nothing and the card stays\n  refused.\
+  \ Closure takes that row as covering only while it is the newest governed run after\
+  \ the\n  last substantive commit AND its tree is the card head apart from the inert\
+  \ paths above\n  (`git diff <tree> HEAD`, the same inert classification); otherwise\
+  \ the refusal names it. The\n  land judges the row like any runner-marked row: it\
+  \ credits it as its candidate leg only on the\n  SPEC-0065 conditions, a skipped\
+  \ layer only where the land's own skip set skips it too. Apart from\n  that one\
+  \ head check, nothing else is compared at Closure — no tree comparison, no\n  provenance\
+  \ split, no list of admitted differences. The tree stays guarded where it is guarded\n\
+  \  today: the closure record commits only what the close itself wrote, the land\
+  \ refuses uncommitted\n  non-bookkeeping changes and credits a run only for the\
+  \ tree it tested (SPEC-0065 condition 2) or a passed post-sync proof's tree (§Bound),\
+  \ and\n  otherwise runs its own verify; changes a sync brings from main are not\
+  \ the card's commits and are\n  judged by that land; the closure's own activation\
+  \ writes come after this check. Custody is\n  unchanged: a substantive commit after\
+  \ the audit-post needs its own audit-post, so for an\n  audited card the last substantive\
+  \ commit is the audited one. A refusal names that commit and the\n  route (`task\
+  \ test --run --evidence` at Tests) (accept-gate round 5; owner,\n  events.jsonl#ts=).\n\
+  \  The planned absence of a governed run BEFORE an audit never blocks that audit\
+  \ — including a\n  terminal-bearing pass under SPEC-1039. The coverage check runs\
+  \ AFTER `task close`'s existing\n  audit-post and fast-path checks, so their refusals\
+  \ keep coming first and unchanged (trial cycle\n  1, D-a). It and the `return` /\
+  \ `exempt` move predicates read the journal through the segment-aware\n  reader\
+  \ (SPEC-0190), never one physical journal file (trial cycle 1, D-c); a new reader\
+  \ site\n  carries the SPEC-0190 obligations — the regenerated reader census and\
+  \ a recorded read-contract\n  exemption or its drive in the multiset-identity suite\
+  \ — and every existing fixture that closes a\n  card or runs Tests gains a commit\
+  \ and a governed-run row in the cut-over card (trial cycle 2, N4).\n- Run the project's\
+  \ own test command (`pytest`, `bats`, `npm test`...).\n- **V2 convention:** plain\
+  \ Python scripts in `tests/test_<area>.py`, runnable via\n  `python3 tests/test_<area>.py`;\
+  \ exit 0 = pass. No pytest/bats overhead. See `tests/README.md`.\n- **The self-check\
+  \ is `bin/yitc-v2 task test --run`, and it runs the SELECTED suite, not the whole\n\
+  \  one (SPEC-0181).** `--run` executes land's CANDIDATE leg, and that candidate\
+  \ run is\n  GOVERNED by the affected-test selection at BOTH seams it happens — here\
+  \ and at `land` — through\n  the SAME runner entry point, so the same fail-closed-to-full\
+  \ ladder, the same omitted-test\n  tripwire and the same `selection-omitted-a-test-naming-a-changed-path`\
+  \ capture apply. The run\n  prints `selection: affected (n of N)` / `selection:\
+  \ full (fail-closed) — <reason>` /\n  `selection: full (--full)` plus any omitted-and-recovered\
+  \ tests, and the `tests_passed` evidence\n  records the mode + counts — so a green\
+  \ row says WHICH suite it is green over. `--run --full` is\n  the explicit whole-enumeration\
+  \ escape. `--run --whole` is the MEASURING form: every declared verify\n  layer\
+  \ and the test sweep run whole on the current tree — no `subject_globs` skip, no\
+  \ deciding\n  selection, no unit credit (it is not the candidate run of one card,\
+  \ SPEC-1030 rule 4) — and its row\n  carries `whole: true`; Closure-time coverage\
+  \ reads it like any governed run, and the land credits it\n  only on its own SPEC-0065\
+  \ conditions. The Stage-6 set is SUPERSET-OR-EQUAL of land's, never\n  narrower\
+  \ (SPEC-0181 §Stage-6 seam): the Tests run cannot read land's two optional refinement\
+  \ channels,\n  and their absence frees less and recovers more. **Unchanged:** a\
+  \ green here is still NOT the land\n  verdict — `land` verifies TWO legs (SPEC-0077)\
+  \ and the pinned last-green leg is not run here\n  — and a bare `pytest tests/`\
+  \ still reads FALSE-GREEN on script-style `__main__` tests.\n- **A consumer project's\
+  \ run (`-C`).** There `--run` executes the project's DECLARED\n  `verify.layers`\
+  \ (SPEC-0152 rule 16) — each layer's command, one after another unless the project\n\
+  \  names them under `verify.independent_layers`, a layer whose `subject_globs` are\
+  \ disjoint from the\n  working tree's changes against the merge-base with `main`\
+  \ skipped exactly as `land` skips it —\n  plus the project's test sweep where a\
+  \ test directory exists and no declared layer covers it; the\n  result line names\
+  \ the layers that ran and the ones skipped or waived, and it states the\n  pinned-leg\
+  \ bound only where the project's `verify_policy` has its `land` run that leg (SPEC-0186).\n\
+  - Output must be visible (Evidence Rule — not «tests pass», but actual output).\n\
+  - **RED-GREEN — trust green only after seeing red** (failure class #8): a\n  behaviour-change\
   \ test MUST be observed FAILING without the fix before its green is trusted (or\
   \ it\n  asserts the negative case — e.g. the guard DOES block without the escape\
   \ hatch, as\n  `test_write_isolation_guard` does). A test that passes whether or\
@@ -383,14 +414,21 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ edge, not a free pointer.\n\n**Scope of the move rules (trial cycle 7).** The\
   \ `return` and `exempt` predicates and the\n(refuse) row govern the POINTER axis\
   \ — the moves a work-verb makes on its own. The explicit\n`stage <NAME>` entry is\
-  \ unchanged and is not edge-checked, under either order: a card the pointer\naxis\
-  \ refuses to move from Tests to Commit can still be put there by an explicit `stage\
-  \ Commit`.\nFrom there every path still runs through the existing guards — a new\
-  \ commit needs the re-ship arm\nits verdict admits and a fresh audit-post, and Closure\
-  \ coverage refuses a card whose last\nsubstantive commit has no green governed run\
-  \ after it — so the explicit\nentry cannot carry an unaudited or untested commit\
-  \ to Closure.\n\nWhat does NOT change: the stage CONTRACT (which stage delivers\
-  \ what, and what each gates), every readiness precondition (notably the advance-out-of-Analysis\
+  \ unchanged and is not edge-checked, under either order — except an entry\ninto\
+  \ Tests, which takes the audit-post check of §Tests «Position»: a card the pointer\n\
+  axis refuses to move from Tests to Commit can still be put there by an explicit\
+  \ `stage Commit`.\nFrom there every path still runs through the existing guards\
+  \ — a new commit needs the re-ship arm\nits verdict admits and a fresh audit-post,\
+  \ and Closure coverage refuses a card whose last\nsubstantive commit has no green\
+  \ governed run after it — so the explicit\nentry cannot carry an unaudited or untested\
+  \ commit to Closure. One artifact gate does apply to the\nexplicit entry: on the\
+  \ standard row, every `stage` entry into a stage after Audit-pre (Execution,\nCommit,\
+  \ Audit-post, Tests, Closure), whatever the recorded `current_stage`, requires the\
+  \ audit-pre\n`task execute` requires — GREEN or YELLOW and bound to the current\
+  \ plan — and a refusal\nnames the route (`audit pre`, or `audit decide` then `audit\
+  \ pre --on-decisions` at the ceiling). The\nhygiene row has no Audit-pre and is\
+  \ not gated.\n\nWhat does NOT change: the stage CONTRACT (which stage delivers what,\
+  \ and what each gates), every readiness precondition (notably the advance-out-of-Analysis\
   \ gate, which runs on the edge BEFORE the pointer is written, so a refusal leaves\
   \ no half-entry), and the refusal itself. A pointer move emits the same `stage_entered`\
   \ event marked with its `from_stage` / `mode` / `advanced_by`, and carries NO `delivered`\
@@ -597,11 +635,11 @@ supersedes: null
 activation_owner_task: null
 proposed_by: run-the-full-governed-test-stage-after-audit-post-
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 214e64890574e647821ef7914f9508c3e322a810a5c609d9ecb5ca25b444539c
-  bin/lib/gates.py#advance_stage_pointer: 4d2945a97af4eb33466b2b8f7b8a740e75c9680b72f72b639ac0f85c885a91fc
+  bin/lib/audit.py#cmd_audit: f3aef2d80ca649b235c78f1727f1ff89e2749cc741b559fa089c1bb8e2d0abf1
+  bin/lib/gates.py#advance_stage_pointer: f2c4432ca2437c59d0d708dc73e7fb9f64d57d610427925044db52f8a0c05089
   bin/lib/gates.py#stage_pointer_move: a4d7b90fa1c95f4ce44d604dcaa78fd898bbcb079543dcf990c91e7efc7e76a3
-  bin/lib/task.py#cmd_task_close: 9f41d93cfef7602f775bab89958f1b98dc7665c50e8ae574cd665f4d9a00ee50
-  bin/lib/task.py#cmd_task_commit: 3278713b18d1899bfb21e9b6fc3fd50f705216913fe9dd638f33911d684821b8
+  bin/lib/task.py#cmd_task_close: 595eea6e8159447332a90490bb62879bc1077ce0fd6b0368e4af6ca2c0c270ce
+  bin/lib/task.py#cmd_task_commit: 1317d70eeb13675f0401985cfef4fbc267f22ca146ae6974d6871a32dde6f3ae
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 22a05bd9dbbbeed6fcf0abd981245a931eed70f1012a6b6438b3bfdba1c4eedd
+  bin/lib/task.py#cmd_task_test: 6830566d5e705de4766bf1e011f3e4022340681d48abe2de024ae13b442bea51

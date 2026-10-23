@@ -332,5 +332,5 @@ implements_signature:
   bin/lib/cli.py#_branch_carried_claim: fc71f8988a4599865c25921528a3db115926bceb94f2c3cb5abbb0fc9cdee320
   bin/lib/dispatch.py#DISPATCH_WORKER_PREAMBLE: 67acc043535ddca0bbae6d51507a1d681c9b26380155b8be1b95fccf8e9f21bc
   bin/lib/dispatch.py#SYNC_TO_LAND_RULE: cb4aa215dac49b0f7196a1206719ce0b9b5e34877d0d7e5be57515d6f1a21019
-  bin/lib/worktree.py#cmd_blocked_on_land: 770d978ce3ef43d00eaf297d0d7d4b99ab75c27453c4edbcb7f0e94c652b8ef5
+  bin/lib/worktree.py#cmd_blocked_on_land: cb0b9703421a1ef91e54ee37ec43b4505427c9bf13214f4be66ec42cc869acb1
   bin/lib/worktree_lifecycle.py#cmd_worktree_park: ddb52db48faff4941506ad8c40e0a56ef47d6239a697a8640f9842b55e757654

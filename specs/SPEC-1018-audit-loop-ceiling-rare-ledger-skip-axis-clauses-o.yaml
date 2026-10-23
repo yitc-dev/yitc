@@ -111,42 +111,48 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ consult) via the shared engine.\n- **Retirement named (P1 F3):** the consult's\
   \ ceiling-exhaust-ONLY precondition is NARROWED — it no\n  longer fires for this\
   \ below-ceiling technical-fork entry. Scope: TASK only (a plan gate is a ceiling\
-  \ surface, not a design fork — `--on-demand`\n  REFUSES `--plan`/`--gate`).\n\n\
-  #### Late finding after the audit-post budget is spent — the commit-side door\n\n\
-  **Exhaustion-with-late-finding — the COMMIT-side owner-reset door (E-0030).** A\
-  \ distinct\nfailure mode (E-0030, DISTINCT from E-0008's premature false-block):\
-  \ a LEGITIMATE, non-deferrable\nfinding surfaces AFTER the audit-post budget is\
-  \ spent and its fix is NOT YET committed — so the\nin-CLI exits are blocked together:\
-  \ `task commit --absorb` REFUSES past the ceiling (the\ncarve-out interlock) unless\
-  \ the record it supersedes is the YELLOW-absorbable verdict <workshop-spec>\nrule\
-  \ 3 admits, a standalone `task commit` trips the chain-of-custody guard, and `task\
-  \ close`\nrequires a non-RED audit-post. The door still admitted for that state\
-  \ is an OWNER-AUTHORIZED\n`task commit {tid} --absorb --owner-reset`: it COMMITS\
-  \ the late fix past the exhausted ceiling.\nIts sole purpose is to MATERIALIZE a\
-  \ committed subject — it is a BOOTSTRAP, never a verdict and\nnever a pass. OWNER-GATED\
-  \ (the session passes the flag only on explicit owner authorization) and\njournal-observable\
-  \ (the `commit_landed` event carries `owner_reset: true`). FAIL-CLOSED: WITHOUT\n\
-  the flag the exhausted-ceiling `--absorb` REFUSAL stands — the ceiling is never\
-  \ silently disabled.\nStructurally NON-STACKABLE (NOT a repeatable ceiling bypass):\
-  \ the escape commit folds the dirty\naudit-post YAML in (now clean) AND shifts the\
-  \ recorded commit, so the hazard the `--absorb`\ncarve-out REQUIRES — a DIRTY audit-post\
-  \ pinned to the recorded commit — is dissolved, and a SECOND\nescape is REFUSED\
-  \ until a further audit-post pass has re-pinned custody. It widens the COMMIT door\n\
-  ONLY: the AUDIT ceiling is untouched.\nCUSTODY RE-PIN (amended): the step this door\
-  \ was first paired with — `audit post --commit\n<new>` under the audit-side owner\
-  \ reset — no longer exists: <workshop-spec> rule 6 withdrew it and the\nflag refuses.\
-  \ A pass on the new commit is admitted ONLY by the <workshop-spec> route: the Controller\
-  \ records one `audit decide` per\nresidual, then the ONE bounded `audit post --on-decisions`\
-  \ pass runs — on that spec's own terms\n(its rules 3-4 bind each decision to its\
-  \ ceiling row and spend it on the pass). This door creates\nno pass of its own:\
-  \ where <workshop-spec> admits none, the commit stays un-re-pinned and closure stays\n\
-  blocked. The COMMIT-side refusal + its escape are co-homed in SPEC-0015 §\"Audit-stage\
-  \ YAMLs\ncommitted BY task close \" (the guard's home) — kept in sync, not duplicated\
-  \ (P7).\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nEach case above arises\
-  \ on a small minority of audit passes. Rendered inside <workshop-spec> this detail\n\
-  reached every session entering Audit-pre or Audit-post; as a reference behind one\
-  \ index paragraph\nand the head of the acting verb's help it is met by the session\
-  \ that has the case at hand\n(<workshop-spec> §6, the rare-case option).\n\n## Verification\n\
+  \ surface, not a design fork — `--on-demand`\n  REFUSES `--plan`/`--gate`).\n- **Each\
+  \ call keeps its own record.** A card may run several on-demand consults; none replaces\
+  \ an\n  earlier record. The first call saves `decisions/<tid>-audit-consult-on-demand.yaml`,\
+  \ each later\n  call `decisions/<tid>-audit-consult-on-demand-<N>.yaml` (N = 2,\
+  \ 3, …), and the verb prints the\n  path it saved. Every one of these names holds\
+  \ the decoupling above (`passes: 0`, no\n  `basis_fingerprint`, never read by `_consult_basis`).\
+  \ Cite a fork's record by the path its call\n  printed.\n\n#### Late finding after\
+  \ the audit-post budget is spent — the commit-side door\n\n**Exhaustion-with-late-finding\
+  \ — the COMMIT-side owner-reset door (E-0030).** A distinct\nfailure mode (E-0030,\
+  \ DISTINCT from E-0008's premature false-block): a LEGITIMATE, non-deferrable\n\
+  finding surfaces AFTER the audit-post budget is spent and its fix is NOT YET committed\
+  \ — so the\nin-CLI exits are blocked together: `task commit --absorb` REFUSES past\
+  \ the ceiling (the\ncarve-out interlock) unless the record it supersedes is the\
+  \ YELLOW-absorbable verdict <workshop-spec>\nrule 3 admits, a standalone `task commit`\
+  \ trips the chain-of-custody guard, and `task close`\nrequires a non-RED audit-post.\
+  \ The door still admitted for that state is an OWNER-AUTHORIZED\n`task commit {tid}\
+  \ --absorb --owner-reset`: it COMMITS the late fix past the exhausted ceiling.\n\
+  Its sole purpose is to MATERIALIZE a committed subject — it is a BOOTSTRAP, never\
+  \ a verdict and\nnever a pass. OWNER-GATED (the session passes the flag only on\
+  \ explicit owner authorization) and\njournal-observable (the `commit_landed` event\
+  \ carries `owner_reset: true`). FAIL-CLOSED: WITHOUT\nthe flag the exhausted-ceiling\
+  \ `--absorb` REFUSAL stands — the ceiling is never silently disabled.\nStructurally\
+  \ NON-STACKABLE (NOT a repeatable ceiling bypass): the escape commit folds the dirty\n\
+  audit-post YAML in (now clean) AND shifts the recorded commit, so the hazard the\
+  \ `--absorb`\ncarve-out REQUIRES — a DIRTY audit-post pinned to the recorded commit\
+  \ — is dissolved, and a SECOND\nescape is REFUSED until a further audit-post pass\
+  \ has re-pinned custody. It widens the COMMIT door\nONLY: the AUDIT ceiling is untouched.\n\
+  CUSTODY RE-PIN (amended): the step this door was first paired with — `audit post\
+  \ --commit\n<new>` under the audit-side owner reset — no longer exists: <workshop-spec>\
+  \ rule 6 withdrew it and the\nflag refuses. A pass on the new commit is admitted\
+  \ ONLY by the <workshop-spec> route: the Controller records one `audit decide` per\n\
+  residual, then the ONE bounded `audit post --on-decisions` pass runs — on that spec's\
+  \ own terms\n(its rules 3-4 bind each decision to its ceiling row and spend it on\
+  \ the pass). This door creates\nno pass of its own: where <workshop-spec> admits\
+  \ none, the commit stays un-re-pinned and closure stays\nblocked. The COMMIT-side\
+  \ refusal + its escape are co-homed in SPEC-0015 §\"Audit-stage YAMLs\ncommitted\
+  \ BY task close \" (the guard's home) — kept in sync, not duplicated (P7).\n\n##\
+  \ Parameters\n\nNone consumed.\n\n## Rationale\n\nEach case above arises on a small\
+  \ minority of audit passes. Rendered inside <workshop-spec> this detail\nreached\
+  \ every session entering Audit-pre or Audit-post; as a reference behind one index\
+  \ paragraph\nand the head of the acting verb's help it is met by the session that\
+  \ has the case at hand\n(<workshop-spec> §6, the rare-case option).\n\n## Verification\n\
   \n- VP1 (one home): every block of §Rare ceiling cases is present in this spec and\
   \ absent from\n  <workshop-spec>, and <workshop-spec> carries exactly one index\
   \ paragraph naming this spec and the heading to\n  search.\n- VP2 (reachable from\

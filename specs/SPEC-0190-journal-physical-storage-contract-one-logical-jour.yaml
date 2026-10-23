@@ -585,67 +585,68 @@ body: "## Scenario\n\nThe owner asks \"why is the repo big again?\" — and toda
   \n> **Re-homed from SPEC-0002 by — this is the SINGLE normative home for rotation.**\n\
   > SPEC-0002 carries a pointer here and no rotation rule of its own. What did NOT\
   \ move, and is\n> referenced across specs below because of it: SPEC-0002 §Violations,\
-  \ which still forbids a\n> second event-log file and any in-place rewrite, and still\
-  \ reserves PHYSICAL rotation to\n> explicit owner approval. The section text is\
-  \ otherwise unchanged from its SPEC-0002 form.\n\nDay 1: NONE. One file, append-only\
-  \ (~50 KB / ~330 events at 2026-05-28). Rotation is\ntriggered (each → a separate\
-  \ future decision with empirical evidence, NOT pre-built):\n- events.jsonl > 10\
-  \ MB → **REVIEW-and-decide flag, NOT a rotate prescription.** At the\n  threshold\
-  \ the SPEC-0052 displacement-retention lens FLAGS the journal for a query-perf\n\
-  \  REVIEW; it does NOT owe a rotation, and there is no \"missing covering verb\"\
-  \ — the\n  STANDING VERDICT is `ROTATION_STANDING_VERDICT: DEFER` (below) and PHYSICAL\
-  \ rotation is\n  FORBIDDEN by SPEC-0002 §Violations (no second event-log file, no\
-  \ in-place rewrite). So the governed\n  decision at 10 MB is *to review, and (twice\
-  \ affirmed) NOT to rotate* — a consumer must\n  NOT read this line as «rotation\
-  \ owed but no verb covers it». Reopen only on a REAL\n  perf-threshold crossing\
-  \ (below).\n- graph build > 5 s → consider rotation OR graph index optimization\n\
-  - a specific query degraded due to full rescan → pivot strategy\n- multi-project\
-  \ setup → per-project journal segregation may help\n- the journal's ON-DISK VOLUME,\
-  \ read as a REPORTED TRAJECTORY and never as a threshold →\n  **REVIEW-and-decide\
-  \ flag, exactly like the `> 10 MB` line above** — the reading may reopen the\n \
-  \ rotation QUESTION; it decrees no byte number at which rotation is owed. See the\
-  \ disk-volume\n  axis below for what is read, the bound on what a review may conclude,\
-  \ and why no number.\n\n**The disk-volume axis — REPORTED, never a decreed number.**\
-  \ The four conditions above\nare all SPEED conditions: they fire when the journal\
-  \ makes something SLOW. None of them fires on\nwhat the journal COSTS to store,\
-  \ so before this axis existed no amount of disk growth could reopen\nthe rotation\
-  \ question through this policy. This axis closes that gap on the storage side, and\n\
-  nothing else — speed is healthy at the sizes recorded here, and this amendment makes\
-  \ no perf claim.\n\n**What it reads** — three readings taken together, none of them\
-  \ a trigger on its own: the live\n`events.jsonl` bytes and line count; the storage\
-  \ the journal's rewrite-on-nearly-every-commit\npattern generates in git (loose-object\
-  \ count and bytes, pack bytes); and host filesystem headroom.\nThe three are read\
-  \ as a CURVE against the origin datum below, not compared to a limit.\n\n**The bound\
-  \ — a REVIEW only, and SPEC-0002 §Violations is untouched.** This axis changes WHEN\
-  \ the rotation\nquestion is reviewed; it never changes WHAT is permitted. SPEC-0002\
-  \ §Violations still forbids a second\nevent-log file alongside events.jsonl and\
-  \ any in-place rewrite of events.jsonl (CHARTER\n§Principle 5, one journal), so\
-  \ a review that concluded \"rotate\" would still have to clear\nSPEC-0002 §Violations\
-  \ AND explicit owner approval, exactly as before this axis existed. The standing\n\
-  `ROTATION_STANDING_VERDICT: DEFER` above is NOT disturbed by this axis, and neither\
-  \ are the\naffirmations that produced it. A reader of THIS section needs to follow\
-  \ no citation to see that\nbound: a disk reading, however large, authorizes a conversation\
-  \ and nothing more.\n\n**Why no number, and the shape this must never become.**\
-  \ The corpus has already ruled on this exact\nshape one level up. CHARTER §Principle\
-  \ 2 \"Byte/token axis\" (owner ruling 2026-07-17) faced\nthe identical problem —\
-  \ a line cap blind to density — and chose a REPORTED outcome plus a trajectory\n\
-  warn, with \"no second hard cap and no token number\", on the stated ground that\
-  \ a decreed number is\nvoluntaristic. This axis follows that precedent rather than\
-  \ inventing a byte threshold beside it.\nThe named failing shape this section must\
-  \ therefore NEVER carry is a trigger of the form\n`events.jsonl > N MB → rotate`:\
-  \ it would both decree a voluntaristic number and prescribe an outcome\nSPEC-0002\
-  \ §Violations forbids. (The host's `check-jsonl-size.sh`, `WARN_MB=2000`, is such\
-  \ a decreed threshold\nover a DIFFERENT directory — named here as the shape not\
-  \ copied, not as prior art.) Distinguish the\none number this section already carries:\
-  \ `ROTATION_VERDICT_REREVIEW_MB` bounds how long the standing\nDEFER counts as `acted`\
-  \ for the SPEC-0052 lens. That is a bound on a VERDICT's currency,\nnot a rotation\
-  \ prescription, and this axis adds no second number beside it.\n\n**Origin datum\
-  \ — the zero point the trajectory is a trajectory FROM** (the analog of CHARTER\n\
-  §Principle 2's own origin datum), kernel repo, each figure with the command it came\
-  \ from:\n- 2026-08-22 — `ls -l events.jsonl`: 179,767,105 B = **171.44 MB**; `wc\
-  \ -l < events.jsonl`:\n  **382,455 lines**; `git count-objects -vH`: **424 loose\
-  \ objects / 2.38 GiB**, in-pack 231,158\n  objects in **4 packs / 4.45 GiB**; `df\
-  \ -h /`: **67% full** (362G used of 564G, 180G free).\n- 2026-08-21, the preceding\
+  \ which still forbids a\n> second event-log file and any in-place rewrite. PHYSICAL\
+  \ rotation itself runs at the land seam\n> under rule 3 above — one logical journal\
+  \ across bounded segments (rule 1) — so the standing\n> verdict below governs only\
+  \ the review question, never whether rotation runs. The section text is\n> otherwise\
+  \ unchanged from its SPEC-0002 form.\n\nDay 1: NONE. One file, append-only (~50\
+  \ KB / ~330 events at 2026-05-28). Rotation is\ntriggered (each → a separate future\
+  \ decision with empirical evidence, NOT pre-built):\n- events.jsonl > 10 MB → **REVIEW-and-decide\
+  \ flag, NOT a rotate prescription.** At the\n  threshold the SPEC-0052 displacement-retention\
+  \ lens FLAGS the journal for a query-perf\n  REVIEW; it does NOT owe a rotation,\
+  \ and there is no \"missing covering verb\" — the\n  STANDING VERDICT is `ROTATION_STANDING_VERDICT:\
+  \ DEFER` (below), and physical rotation itself\n  already runs at the land seam\
+  \ under rule 3, so the DEFER governs only this review question. So\n  the governed\
+  \ decision at 10 MB is *to review, and (twice affirmed) to owe nothing further*\
+  \ — a\n  consumer must NOT read this line as «rotation owed but no verb covers it».\
+  \ Reopen only on a REAL\n  perf-threshold crossing (below).\n- graph build > 5 s\
+  \ → consider rotation OR graph index optimization\n- a specific query degraded due\
+  \ to full rescan → pivot strategy\n- multi-project setup → per-project journal segregation\
+  \ may help\n- the journal's ON-DISK VOLUME, read as a REPORTED TRAJECTORY and never\
+  \ as a threshold →\n  **REVIEW-and-decide flag, exactly like the `> 10 MB` line\
+  \ above** — the reading may reopen the\n  rotation QUESTION; it decrees no byte\
+  \ number at which rotation is owed. See the disk-volume\n  axis below for what is\
+  \ read, the bound on what a review may conclude, and why no number.\n\n**The disk-volume\
+  \ axis — REPORTED, never a decreed number.** The four conditions above\nare all\
+  \ SPEED conditions: they fire when the journal makes something SLOW. None of them\
+  \ fires on\nwhat the journal COSTS to store, so before this axis existed no amount\
+  \ of disk growth could reopen\nthe rotation question through this policy. This axis\
+  \ closes that gap on the storage side, and\nnothing else — speed is healthy at the\
+  \ sizes recorded here, and this amendment makes no perf claim.\n\n**What it reads**\
+  \ — three readings taken together, none of them a trigger on its own: the live\n\
+  `events.jsonl` bytes and line count; the storage the journal's rewrite-on-nearly-every-commit\n\
+  pattern generates in git (loose-object count and bytes, pack bytes); and host filesystem\
+  \ headroom.\nThe three are read as a CURVE against the origin datum below, not compared\
+  \ to a limit.\n\n**The bound — a REVIEW only, and SPEC-0002 §Violations is untouched.**\
+  \ This axis changes WHEN the rotation\nquestion is reviewed; it never changes WHAT\
+  \ is permitted. SPEC-0002 §Violations still forbids a second\nevent-log file alongside\
+  \ events.jsonl and any in-place rewrite of events.jsonl (CHARTER\n§Principle 5,\
+  \ one journal), and rotation itself runs only at the land seam under rule 3, so\
+  \ a\nreview that concluded rotation should change would change rule 3, never act\
+  \ beside it. The standing\n`ROTATION_STANDING_VERDICT: DEFER` above is NOT disturbed\
+  \ by this axis, and neither are the\naffirmations that produced it. A reader of\
+  \ THIS section needs to follow no citation to see that\nbound: a disk reading, however\
+  \ large, authorizes a conversation and nothing more.\n\n**Why no number, and the\
+  \ shape this must never become.** The corpus has already ruled on this exact\nshape\
+  \ one level up. CHARTER §Principle 2 \"Byte/token axis\" (owner ruling 2026-07-17)\
+  \ faced\nthe identical problem — a line cap blind to density — and chose a REPORTED\
+  \ outcome plus a trajectory\nwarn, with \"no second hard cap and no token number\"\
+  , on the stated ground that a decreed number is\nvoluntaristic. This axis follows\
+  \ that precedent rather than inventing a byte threshold beside it.\nThe named failing\
+  \ shape this section must therefore NEVER carry is a trigger of the form\n`events.jsonl\
+  \ > N MB → rotate`: it would both decree a voluntaristic number and prescribe an\
+  \ outcome\nSPEC-0002 §Violations forbids. (The host's `check-jsonl-size.sh`, `WARN_MB=2000`,\
+  \ is such a decreed threshold\nover a DIFFERENT directory — named here as the shape\
+  \ not copied, not as prior art.) Distinguish the\none number this section already\
+  \ carries: `ROTATION_VERDICT_REREVIEW_MB` bounds how long the standing\nDEFER counts\
+  \ as `acted` for the SPEC-0052 lens. That is a bound on a VERDICT's currency,\n\
+  not a rotation prescription, and this axis adds no second number beside it.\n\n\
+  **Origin datum — the zero point the trajectory is a trajectory FROM** (the analog\
+  \ of CHARTER\n§Principle 2's own origin datum), kernel repo, each figure with the\
+  \ command it came from:\n- 2026-08-22 — `ls -l events.jsonl`: 179,767,105 B = **171.44\
+  \ MB**; `wc -l < events.jsonl`:\n  **382,455 lines**; `git count-objects -vH`: **424\
+  \ loose objects / 2.38 GiB**, in-pack 231,158\n  objects in **4 packs / 4.45 GiB**;\
+  \ `df -h /`: **67% full** (362G used of 564G, 180G free).\n- 2026-08-21, the preceding\
   \ reading (recorded on the card): 170 MB / 377,619 lines;\n  82 loose objects /\
   \ 298.94 MiB; 2 packs / 4.33 GiB; 67% full. The one-day delta between the two\n\
   \  readings is itself the first segment of the curve, which is the point of recording\
@@ -910,7 +911,7 @@ concern:
     '
 implements_signature:
   bin/lib/cli.py#_iter_events: 52b325c121e77eb9002c87a7e0436ba2163ce676d12fd5f8eab703b6f4146f57
-  bin/lib/cli.py#_iter_events_tail: cc5f3aa67ff28ae9447615191948a3226398ec706ffd1cd08541625e48401b0a
+  bin/lib/cli.py#_iter_events_tail: bc06b80a173dd9f2efe9748fd948e62ab6ed57b73c320cc7104eb39ab21442c0
   bin/lib/cli.py#_land_integrate: b512e43484431fd6c01a301e2136b6c16faffa0351418b660b479f4749ee1599
   bin/lib/events.py#append_event: ee30e6290cd567ce67cf153a726844efeb355364ef783d61f69495943354c091
   bin/lib/events.py#logical_journal: 156d804643353bdc779b7d0729696c205a5bd1ef00973b74f9315c1ebd65b735

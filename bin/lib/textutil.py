@@ -711,6 +711,34 @@ def anchor_symbol_patterns(sym: str, is_md: bool, is_js: bool = False) -> tuple:
     ) if is_js else ())
 
 
+#: T-14087 — the `anchor_symbol_patterns` tuple index of the test describe/it label form.
+_LABEL_FORM = 4
+#: a NAME-form label call starts at an identifier boundary: `contest(` or `re.test(` is not a test label.
+_LABEL_CALL = r"(?<![\w$.])(?:describe|it|test)\(\s*"
+_NAME_HEAD_RE = re.compile(_LABEL_CALL + r"['\"`][^'\"`:\s]+:")
+
+
+@functools.lru_cache(maxsize=1024)
+def _label_name_patterns(sym: str) -> tuple:
+    e = re.escape(sym)
+    return (re.compile(_LABEL_CALL + rf"(['\"`]){e}\1"),       # the label IN FULL
+            re.compile(_LABEL_CALL + rf"['\"`]{e}:"))          # a label whose NAME is sym
+
+
+def test_label_name_heads(text: str, sym: str) -> tuple:
+    """`(full, heads)` for a test anchor NAME (SPEC-0076 §5, T-14087): `full` — a label in `text` is
+    exactly `sym`; `heads` — how many labels start with `<sym>:`, i.e. carry `sym` as their NAME, the
+    leading token up to the label's first colon. A name resolves only when `heads` is exactly one."""
+    full, head = _label_name_patterns(sym)
+    return bool(full.search(text)), sum(1 for _ in head.finditer(text))
+
+
+def uses_name_heads(text: str) -> bool:
+    """True when `text` carries at least one test label that starts with a NAME and a colon — the
+    files where a not-found name anchor also reports its zero count (T-14087)."""
+    return _NAME_HEAD_RE.search(text) is not None
+
+
 # T-13647 — PROJECT-DECLARED SYMBOL FORMS. The tuple above is the kernel's own grammar; a project's own
 # code shape (a callback named inside a call, a framework macro) is answered by a form the project
 # declares in its ops contract, never by one more kernel form (rule home: SPEC-0006). This module stays

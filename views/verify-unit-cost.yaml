@@ -1,0 +1,24 @@
+# YITC v2 — saved view (query-lens).
+# A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
+name: verify-unit-cost
+description: Per test unit of an adapter-backed verify layer (SPEC-1042 rule 7) — runs, median and total duration, real and flaky failures by place (land, Stage-6 run, pre-deploy run); the land-wait model (slowest layer; median, mean, p90 with and without named units); each pre-deploy class's catch record. Derived from the journal at read time, report-only. Run `graph query verify-unit-cost [<layer:file,...>] [--since <date>] [--until <date>]`.
+lens:
+  kind: verify-unit-cost   # pure f over the journal: the adapter `units` rows on `land_completed` /
+                           # `tests_passed` / `tests_failed` and on the per-class `test_class_executed`
+                           # rows of a pre-deploy run (SPEC-1042 rule 4); writes nothing.
+why: >-
+  SPEC-1042 rule 7: before a project moves a costly check out of its lands into a pre-deploy class, it
+  reads what the check costs and what it caught, and what moving it would change for the land wait.
+  Every number is already in the unit rows each adapter-backed layer writes; this lens prints them, so
+  a project does not assemble the table by hand from its journal.
+
+  Each reading prints its window and, per unit and place, the run count inside it — a short quiet
+  window lies (a unit quiet for days can catch over weeks), so a count is never shown without its base.
+  Real and flaky failures are a proxy, not a verdict: a failure is flaky when a re-run on its own record
+  passed the unit or a later run of the same card (and, for a Stage-6 run, the same tree) passed it. A
+  pre-deploy run records per unit only its classes' own units, so an ordinary unit's pre-deploy place
+  reads «not recorded», never a zero.
+
+  Report-only (D-0053): it names and ranks nothing into action; units are listed by identity, never by
+  cost. The move itself stays an explicit project act (SPEC-0178). No new store, event type or command
+  family; it reuses the segment-aware journal reader and the shared window predicate.

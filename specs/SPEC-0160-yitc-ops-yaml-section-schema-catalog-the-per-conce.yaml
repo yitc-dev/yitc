@@ -146,31 +146,33 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   \ be present for a moment NOT already owned by another single-home — but NEVER for\n\
   `moment: verify` once the carrier `verify:` section lands (rule 16 owns the executable\
   \ land command,\nP5); it is a taxonomy pointer for the OTHER moments, not the land-gate\
-  \ SoT (rules 5/16).\n\n**OPTIONAL per-class `globs:` — WHERE that class's test FILES\
-  \ live (added by X-1235; the rule this\nserves is SPEC-0185 half (c)).** An entry\
-  \ MAY carry a `globs:` key: a NON-EMPTY list of NON-EMPTY,\nREPO-RELATIVE glob strings\
-  \ naming the files that class comprises (e.g.\n`frontend/src/**/*.test.{js,ts}`).\
-  \ A glob MUST NOT be absolute (no leading `/`) and MUST NOT\ntraverse upward (no\
-  \ `..` segment) — a test class lives inside the repo that declares it, and a\ndeclaration\
-  \ reaching outside it is REFUSED rather than resolved. This is the field that lets\
-  \ a\nproject SAY what the kernel would otherwise GUESS from a filename pattern:\
-  \ before it, `tests:` could\nname a class and its moment but not where the class's\
-  \ files ARE, so a kernel-carried filename regex\nwas the only recognizer there was.\n\
-  \n**DATA, never a second command home (rule 16 untouched).** `globs:` is inert declared\
-  \ data a kernel\nreader may resolve; it executes nothing, and it is NOT a coverage\
-  \ claim, a subject-glob, or a verify\nlayer. The NON-STRADDLE with `verify` above\
-  \ is UNCHANGED and this field does not weaken it:\n`verify.layers[].covers` describes\
-  \ the SUBJECTS a layer covers and may legitimately include non-test\nsource, while\
-  \ `globs:` names TEST FILES — different questions, so neither answers the other\
-  \ and\nneither is derived from the other.\n\n**OPTIONAL, and checked ONLY IF PRESENT.**\
-  \ Absence is a STANCE, not a defect: a carrier with no\n`globs:` is fully conforming\
-  \ and reads exactly as it did before this field existed (the same\nbackward-compat\
-  \ precedent this section already follows). Declaring `globs:` neither satisfies\
-  \ nor\nsubstitutes for the declare-or-waive stance, and the classes-XOR-waiver exclusivity\
-  \ below is\nunchanged — a WAIVED `tests:` section declares no classes, and therefore\
-  \ no globs.\n\n**OPTIONAL per-class `timing_lane:` — WHICH of that class's tests\
-  \ are TIMING-SENSITIVE, and the\nONE thing the kernel does with the answer.** An\
-  \ entry MAY carry a `timing_lane:` key: a\nNON-EMPTY list of NON-EMPTY, REPO-RELATIVE\
+  \ SoT (rules 5/16).\n\n**`moment: pre-deploy`** — `reason:`, `targets:` (incl. `default`),\
+  \ `layers:`, `stand:`; the shape and its refusals: SPEC-1042 rule 1.\n\n**OPTIONAL\
+  \ per-class `globs:` — WHERE that class's test FILES live (added by X-1235; the\
+  \ rule this\nserves is SPEC-0185 half (c)).** An entry MAY carry a `globs:` key:\
+  \ a NON-EMPTY list of NON-EMPTY,\nREPO-RELATIVE glob strings naming the files that\
+  \ class comprises (e.g.\n`frontend/src/**/*.test.{js,ts}`). A glob MUST NOT be absolute\
+  \ (no leading `/`) and MUST NOT\ntraverse upward (no `..` segment) — a test class\
+  \ lives inside the repo that declares it, and a\ndeclaration reaching outside it\
+  \ is REFUSED rather than resolved. This is the field that lets a\nproject SAY what\
+  \ the kernel would otherwise GUESS from a filename pattern: before it, `tests:`\
+  \ could\nname a class and its moment but not where the class's files ARE, so a kernel-carried\
+  \ filename regex\nwas the only recognizer there was.\n\n**DATA, never a second command\
+  \ home (rule 16 untouched).** `globs:` is inert declared data a kernel\nreader may\
+  \ resolve; it executes nothing, and it is NOT a coverage claim, a subject-glob,\
+  \ or a verify\nlayer. The NON-STRADDLE with `verify` above is UNCHANGED and this\
+  \ field does not weaken it:\n`verify.layers[].covers` describes the SUBJECTS a layer\
+  \ covers and may legitimately include non-test\nsource, while `globs:` names TEST\
+  \ FILES — different questions, so neither answers the other and\nneither is derived\
+  \ from the other.\n\n**OPTIONAL, and checked ONLY IF PRESENT.** Absence is a STANCE,\
+  \ not a defect: a carrier with no\n`globs:` is fully conforming and reads exactly\
+  \ as it did before this field existed (the same\nbackward-compat precedent this\
+  \ section already follows). Declaring `globs:` neither satisfies nor\nsubstitutes\
+  \ for the declare-or-waive stance, and the classes-XOR-waiver exclusivity below\
+  \ is\nunchanged — a WAIVED `tests:` section declares no classes, and therefore no\
+  \ globs.\n\n**OPTIONAL per-class `timing_lane:` — WHICH of that class's tests are\
+  \ TIMING-SENSITIVE, and the\nONE thing the kernel does with the answer.** An entry\
+  \ MAY carry a `timing_lane:` key: a\nNON-EMPTY list of NON-EMPTY, REPO-RELATIVE\
   \ glob strings naming the test files whose verdict is a\nfunction of WALL CLOCK\
   \ — a duration assertion, a rate, a timeout margin. Its glob shape is the\n`globs:`\
   \ shape above, VERBATIM and for the same reasons: non-empty list, non-empty strings,\

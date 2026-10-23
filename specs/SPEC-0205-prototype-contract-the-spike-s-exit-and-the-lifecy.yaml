@@ -565,10 +565,10 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
-  bin/lib/audit_packet.py#build_audit_prompt: b0d77f67635d020c950ec7ea0c0b836cc73259611e32d056128d7fdfd60d24f8
+  bin/lib/audit_packet.py#build_audit_prompt: aefa42ca885409c74caffcc8c75f1498b6570431e1d9e8eef527b69413bd86c4
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
-  bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
+  bin/lib/deploy.py#cmd_deploy: 5fce274590e43905fedd9395366baa8a69b00f37cd5b13b082646bf6312cd997
   bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
   bin/lib/spike_identity.py#content_verdict: 74ee1480574d0386dc9aa7ab0094be38b71bf68dbf7ee47f03d62b13ef480ab8
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
@@ -576,7 +576,7 @@ implements_signature:
   bin/lib/spike_identity.py#refusal_message: 1cc76242268d27b3004503ca514f0a10069e84635e506ebeab5bf151e24660c6
   bin/lib/task.py#prototype_identical_error: ba0adb9f28a6b50ebefef840452f26e583a54885fe37a90e93aca7c1da43338d
   bin/lib/task.py#prototype_ref_error: 976fed2553c45f8cb9ebee95330ccf5cb85028b1cfd3aaee1e8c21a99238bc05
-  bin/lib/worktree.py#cmd_land: 7f758fab8b85715bc9e10e5993bd757b5cabdd44b6f55ea05840759e726d011d
+  bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
   bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a

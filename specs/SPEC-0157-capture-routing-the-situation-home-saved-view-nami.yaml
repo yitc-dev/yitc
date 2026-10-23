@@ -116,5 +116,5 @@ cites:
 requires: []
 supersedes: null
 implements_signature:
-  bin/lib/cli.py#_run_view: 11893691c852ab3879e4c5a857f66917a834716f39938f801a2497bf92eb6331
+  bin/lib/cli.py#_run_view: f3a41ae29bc7cc951331c14b3c8afb0fbd24dc67910d8fd2da3b70b8853930cf
   bin/lib/views.py#_view_capture_routing: 1819c3eb999fc8845ff07322a2671f931d8da47ac4561c6c96b56621ee3ac35b

@@ -2516,7 +2516,7 @@ def _plan_gate_decision_route(slug, gate_id, template) -> str:
             f"the undecided ones)\n"
             f"  2) yitc-v2 plan stage <NEXT> {slug} --on-decisions\n"
             f"NOTE the two identifiers are DIFFERENT and both are real: `{template}` is the "
-            f"audit-record/template name, `{gate}` is the value `--gate` takes (SPEC-0124 gate "
+            f"audit-record/template name, `{gate}` is the value `--gate` takes (SPEC-1034 gate "
             f"identity). A plan-gate `fix` is a PLAN-BODY edit whose `--evidence` is the plan's "
             f"CURRENT signature; at the `decomposition-executing` gate it is a CUT edit whose "
             f"`--evidence` is the CURRENT card-set fingerprint (SPEC-0204 rule 9(d)); at the "
@@ -2705,7 +2705,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
             # `(tid, stage)`: no second reader, no second matrix, no second event type.
             if not gate_id:
                 _die(f"{slug}: --on-decisions is not available at the {template} gate — the template "
-                     f"maps to no SPEC-0124 gate id, so a ceiling row cannot be keyed (fail-closed).")
+                     f"maps to no SPEC-1034 gate id, so a ceiling row cannot be keyed (fail-closed).")
             if _folded_events is None:
                 _die("plan stage --on-decisions: the folded journal reader is not wired at this call "
                      "site (engine defect — report it).")

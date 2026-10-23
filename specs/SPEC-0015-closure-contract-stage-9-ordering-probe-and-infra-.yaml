@@ -163,7 +163,9 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ — what a settlement records, the three\nrefusals, the two non-pass terminals —\
   \ is the reference SPEC-1011: read it first (`graph query SPEC-1011`),\nfrom its\
   \ heading «The settle procedure». The evidence-locator address space below stays\
-  \ here: it is\nshared by all three locator consumers.\n\n#### THE EVIDENCE-LOCATOR\
+  \ here: it is\nshared by all three locator consumers. A card whose diff touches\
+  \ a pre-deploy check gets its\n`stand-<class>` deferred probe at close and settles\
+  \ it only on a stand row of a landed revision:\nSPEC-1042 rule 6.\n\n#### THE EVIDENCE-LOCATOR\
   \ ADDRESS SPACE — all three kinds, at one rule home\n\n**THE THREE KINDS.** A settlement\
   \ evidence locator is EXACTLY one of:\n- `events.jsonl#ts=<ISO-instant>` — a journal\
   \ row addressed by its instant;\n- `events.jsonl#source_ref=<ref>` — a journal row\

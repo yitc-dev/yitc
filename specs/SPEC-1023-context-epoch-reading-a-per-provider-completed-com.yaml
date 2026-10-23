@@ -195,42 +195,44 @@ body: "## Scenario\n\nA provider may compact a session's context at any moment �
   \ version observed | trigger kinds seen | evidence |\n|---|---|---|---|---|---|\n\
   | the AI provider-code | OBSERVED | one record with `type: system` and `subtype:\
   \ compact_boundary`, matched on those two fields ONLY (its metadata's key set differs\
-  \ between versions) | 2.1.283–2.1.294 | `manual`, `auto` — the field does NOT tell\
+  \ between versions) | 2.1.283–2.1.306 | `manual`, `auto` — the field does NOT tell\
   \ an idle compaction from a user-issued one (idle was recorded `manual` on 2.1.289\
   \ and `auto` on 2.1.292); an idle compaction adds an informational record «Compacted\
   \ while idle» | trial runs R-retro `events.jsonl#ts=` (41 recorded compactions,\
-  \ 14 real), R-live-1/2, R-brief-2 `events.jsonl#ts=` |\n| <external-auditor> | OBSERVED\
-  \ | one record with top-level `type: compacted`, written when the compaction finished;\
-  \ its payload carries `window_number` (1, 2, … — a provider-given ordinal) and `window_id`,\
-  \ which give rule 5 its distinct identity | 0.142.5–0.159.2, `codex_exec` and `<external-auditor>-tui`\
-  \ | user-issued `/compact` (live); the record names no trigger, and the 9 `codex_exec`\
-  \ compactions are automatic by inference only (an exec run issues no `/compact`)\
-  \ — detection does not depend on the trigger, the record type is the same | trial\
-  \ run R-live-<external-auditor> `events.jsonl#ts=` — one live compaction run by\
-  \ the owner + 10 recorded in 9 sessions, one session holding two |\n\n**Provider\
-  \ bindings** (the names the rules above keep out of their text — CHARTER §Principle\
-  \ 4b):\n\n| provider kind | carrier | home override | record identity (rule 5) |\
-  \ start-row tool | launch-row value | runtime record | versions observed (rule 3)\
-  \ |\n|---|---|---|---|---|---|---|---|\n| the AI provider-code | `<provider-session-env>`\
-  \ | — | the record's `uuid` | `session_config: AI_AGENT=the AI provider-code_<version>_agent`\
-  \ (the `provider` field holds the vendor, `the provider`) | `provider: the AI provider`\
-  \ | `provider_session_id` / `provider_meta` | 2.1.283–2.1.294 (each record's `version`)\
-  \ |\n| <external-auditor> | `CODEX_THREAD_ID` | `CODEX_HOME` | payload `window_id`\
-  \ | not observed (no <external-auditor> session has written a `session_started`\
-  \ row on this host — 0 in 10 project journals) | not launched by the dispatcher\
-  \ | `provider_session_id` / `provider_meta` | 0.142, 0.146, 0.159 (`cli_version`\
-  \ in the rollout's first record) |\n\nThe unknown value of rule 4(b): a carrier-less\
-  \ engine run writes `provider: unknown` and\n`session_config: unknown` (live in\
-  \ a scratch clone; 562 scheduled runs since 2026-10-01, 561 with no\ntranscript).\n\
-  \n**Measurements behind the rules** (trial runs R-live-<external-auditor>, R-reader-2,\
-  \ R-closed-design `events.jsonl#ts=`\nand cycles 16 and 19): rule 1's home override\
-  \ — the engine's default <external-auditor> root was empty on this\nhost while <external-auditor>\
-  \ wrote under its home override (R-live-<external-auditor>); the `isolated_verify`\
-  \ runtime marker is never written (0 of 6932 runtime\nrecords; wont-do); 422 of\
-  \ 625 dispatched Workers ran their first governed verb on the bootstrap\nreceipt\
-  \ (2026-10-01..08); the AI provider-code continues a resumed session in the same\
-  \ file (0 of 4901 files hold\nanother session's records; 40 compacted sessions have\
-  \ a copy in the transcript archive with the same\nmarker `uuid`); <external-auditor>\
+  \ 14 real), R-live-1/2, R-brief-2 `events.jsonl#ts=`; 2.1.303 live (`auto`, read\
+  \ as the epoch — its record adds metadata keys the two-field match ignores) `events.jsonl#ts=`;\
+  \ 2.1.306 one recorded `auto` marker examined at Analysis (2.1.299–2.1.305 admitted\
+  \ by range) |\n| <external-auditor> | OBSERVED | one record with top-level `type:\
+  \ compacted`, written when the compaction finished; its payload carries `window_number`\
+  \ (1, 2, … — a provider-given ordinal) and `window_id`, which give rule 5 its distinct\
+  \ identity | 0.142.5–0.159.2, `codex_exec` and `<external-auditor>-tui` | user-issued\
+  \ `/compact` (live); the record names no trigger, and the 9 `codex_exec` compactions\
+  \ are automatic by inference only (an exec run issues no `/compact`) — detection\
+  \ does not depend on the trigger, the record type is the same | trial run R-live-<external-auditor>\
+  \ `events.jsonl#ts=` — one live compaction run by the owner + 10 recorded in 9 sessions,\
+  \ one session holding two |\n\n**Provider bindings** (the names the rules above\
+  \ keep out of their text — CHARTER §Principle 4b):\n\n| provider kind | carrier\
+  \ | home override | record identity (rule 5) | start-row tool | launch-row value\
+  \ | runtime record | versions observed (rule 3) |\n|---|---|---|---|---|---|---|---|\n\
+  | the AI provider-code | `<provider-session-env>` | — | the record's `uuid` | `session_config:\
+  \ AI_AGENT=the AI provider-code_<version>_agent` (the `provider` field holds the\
+  \ vendor, `the provider`) | `provider: the AI provider` | `provider_session_id`\
+  \ / `provider_meta` | 2.1.283–2.1.306 (each record's `version`) |\n| <external-auditor>\
+  \ | `CODEX_THREAD_ID` | `CODEX_HOME` | payload `window_id` | not observed (no <external-auditor>\
+  \ session has written a `session_started` row on this host — 0 in 10 project journals)\
+  \ | not launched by the dispatcher | `provider_session_id` / `provider_meta` | 0.142,\
+  \ 0.146, 0.159 (`cli_version` in the rollout's first record) |\n\nThe unknown value\
+  \ of rule 4(b): a carrier-less engine run writes `provider: unknown` and\n`session_config:\
+  \ unknown` (live in a scratch clone; 562 scheduled runs since 2026-10-01, 561 with\
+  \ no\ntranscript).\n\n**Measurements behind the rules** (trial runs R-live-<external-auditor>,\
+  \ R-reader-2, R-closed-design `events.jsonl#ts=`\nand cycles 16 and 19): rule 1's\
+  \ home override — the engine's default <external-auditor> root was empty on this\n\
+  host while <external-auditor> wrote under its home override (R-live-<external-auditor>);\
+  \ the `isolated_verify` runtime marker is never written (0 of 6932 runtime\nrecords;\
+  \ wont-do); 422 of 625 dispatched Workers ran their first governed verb on the bootstrap\n\
+  receipt (2026-10-01..08); the AI provider-code continues a resumed session in the\
+  \ same file (0 of 4901 files hold\nanother session's records; 40 compacted sessions\
+  \ have a copy in the transcript archive with the same\nmarker `uuid`); <external-auditor>\
   \ names each rollout file after its thread (0 of 15080 threads span two files);\n\
   a live transcript's earlier bytes were unchanged when re-read later in the same\
   \ session (cycle 19) —\nthe provider appends; of 562 sessions whose start rows record\
@@ -317,7 +319,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#PROVIDER_TRANSCRIPT_DESCRIPTORS: ee124a3e67bd221d5dc041679be409ff2d51c46c09d567c3d7f0d5a998cb85f4
+  bin/lib/cli.py#PROVIDER_TRANSCRIPT_DESCRIPTORS: 98c16e8869f496316fe75356516c07dbe2e1f36a4299c64ed28a2f4a34adec0f
   bin/lib/cli.py#_context_epoch_reading: 69bcb0dae5e86de343149fd4fc995122d94ced49f04624cb110e18ea71ed03a7
   bin/lib/cli.py#_session_epoch_reading: 7b824ff186def65176e07c9bd657a8d6247d0e41a95fd33a34d0fbff3c4626d6
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4

@@ -93,6 +93,31 @@ def _resolve_c_flag(*a, **kw):
     return _resolve_host("_resolve_c_flag")(*a, **kw)
 
 
+class _ResumeTaskAction(argparse.Action):
+    """T-14044 — `dispatch --resume [T-NNNN]`: sets `resume`, and a given id is appended to `task`
+    exactly as a `--task T-NNNN` would be (the form QUEUE.md and the recovery lines print)."""
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        setattr(namespace, self.dest, True)
+        if values:
+            setattr(namespace, "task", (getattr(namespace, "task", None) or []) + [values])
+
+
+def _require_dispatch_task(parser: argparse.ArgumentParser) -> None:
+    """T-14044 — `dispatch` needs a task id from `--task` or `--resume T-NNNN`; none = the same parser
+    error argparse gave while `--task` was required (exit 2)."""
+    inner = parser.parse_known_args
+
+    @functools.wraps(inner)
+    def parse_known_args(args=None, namespace=None):
+        ns, rest = inner(args, namespace)
+        if not getattr(ns, "task", None):
+            parser.error("the following arguments are required: --task")
+        return ns, rest
+
+    parser.parse_known_args = parse_known_args
+
+
 class _HelpInventoryAction(argparse.Action):
     """Top-level `--help`/`-h` that ALSO emits a session fetch-receipt (T-9786 / X-0158): scanning the
     verb inventory is the read the `_require_help_read` gate requires at `worktree new` / `task file` /
@@ -1207,11 +1232,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     tt = task_sub.add_parser("test", help="Stage 6: requires current_stage==Tests (set via `stage Tests`) + print ACs checklist (no auto-run); --evidence records tests_passed")
     tt.add_argument("task", help="T-NNNN id")
     tt.add_argument("--own", action="store_true",
-                    help="T-14034 (SPEC-1038 §Execution): the own-tests check — run ONLY the test files this card's diff adds or changes, each through the project's own test declarations (a declared script sweep runs the file as the sweep does; an adapter-backed verify layer runs the units it lists through its own `run`; any other changed test file is recorded not-determined), at any stage before Closure; records ONE `own_tests_ran` row. Partial evidence, NOT the Stage-6 run: the land never credits it. Takes no other flag")
+                    help="T-14034 (SPEC-1038 §Execution): the own-tests check — run the test files this card's diff adds or changes, each through the project's own test declarations (a declared script sweep runs the file as the sweep does; an adapter-backed verify layer runs the units it lists through its own `run`; any other changed test file is recorded not-determined), plus the declared always-run tests (the SPEC-0181 consistency tripwires, T-14082), at any stage before Closure; records ONE `own_tests_ran` row. Partial evidence, NOT the Stage-6 run: the land never credits it. Takes no other flag")
     tt.add_argument("--run", action="store_true",
                     help="run land's CANDIDATE verify leg only — this worktree's tests/test_*.py, each via python3, exit 0 = pass — catching script-style __main__ tests that `pytest tests/` skips (T-10097) — and, in the mirror direction, failing loudly as `zero-collect-script-run:<file>` on a pytest-style file with `def test_*` but no __main__ driver, which exits 0 here having executed nothing (T-12764). A green here is NOT the land verdict: `land` verifies TWO legs (SPEC-0077) and the pinned last-green leg is NOT run here; composes with --evidence (run-then-record)")
     tt.add_argument("--full", action="store_true",
                     help="T-11987: with --run, the explicit FULL-SUITE escape — run every discovered test_*.py, opting OUT of the SPEC-0181 affected-test selection that otherwise governs this run exactly as it governs land's candidate leg. Use it when you want the whole enumeration regardless of the diff; without it the run prints `selection: affected (n of N)` or `selection: full (fail-closed)` and records the mode on tests_passed")
+    tt.add_argument("--whole", action="store_true",
+                    help="T-14098: with --run, the MEASURING form — every declared verify layer and the test sweep run whole on this tree: no subject_globs skip, no deciding selection, no unit credit (it is not the candidate run of one card, SPEC-1030 rule 4); implies --full. The row is marked `whole: true`; the land takes it only on its own SPEC-0065 conditions")
     tt.add_argument("--evidence", help="record Stage-6 result: emit a tests_passed event with this evidence summary (T-0123) — call after tests are green")
     tt.add_argument("--duration-ms", type=int, dest="duration_ms",
                     help="T-0375: test-run wall (author-reported, with --evidence) — all-or-nothing with --passed/--failed")
@@ -1320,7 +1347,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "audit YAML dirty, run the Tests stage (`stage Tests`, then the governed "
                           "`task test` run), then `task close`, which commits it "
                           "without re-shifting custody. No owner-reset arm: past the ceiling the "
-                          "route is `audit decide` + `audit post --on-decisions` (SPEC-1039).")
+                          "route is `audit decide` + `audit post --on-decisions "
+                          "--sweep '<where you looked for the same defect class and what you found>'` (SPEC-1039).")
     tcm.add_argument("--card-repair", dest="card_repair", action="store_true",
                      help="ARM of --fix-red (T-11991), never a leg of its own — pass BOTH. It admits "
                           "the ONE shape --fix-red's SCOPE BOUND above otherwise sends to escalation: "
@@ -1343,7 +1371,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "commit_landed. Its former follow-ups — the ceiling-adjudication auditor "
                           "pass and the audit-side owner reset that re-pinned custody — are RETIRED "
                           "(SPEC-0204 rule 6) and refuse: a pass on the new commit is admitted only "
-                          "by `audit decide` per residual, then `audit post --on-decisions`. "
+                          "by `audit decide` per residual, then `audit post --on-decisions "
+                          "--sweep '<where you looked for the same defect class and what you found>'`. "
                           "Structurally non-stackable (a second escape is refused until a further "
                           "audit-post pass re-pins custody), NOT a blanket ceiling disable.")
     tcm.add_argument("--reverify", action="append",
@@ -1505,7 +1534,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "mode; refused on done/wont-do cards EXCEPT for answers.")
     tu.add_argument("--from-file", dest="from_file", metavar="PATH",
                     help="with --replace-acceptance / --set-field ONLY: read the value from PATH "
-                         "(`-` = stdin), so no shell quoting touches it.")
+                         "(`-` = stdin), so argv quoting never touches it; "
+                         "write prose with the file tool or a QUOTED <<'EOF' heredoc, then pass it "
+                         "with --from-file — an unquoted heredoc substitutes `...` before the verb "
+                         "reads it (T-14074)")
     # T-11663 (SPEC-0184 rule 9) — the OPT-IN emergency place in the land-admission order. Its own
     # mode on this verb, for the same reason every other field-setter here is: the mark is set on an
     # EXISTING stuck card, and the alternative was hand-editing governed state. The REASON is the
@@ -1734,7 +1766,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "the shell-proof path, since a stdin mapping never rides argv. "
                          "--status/--class stay on argv (enums, no prose); any of the seven PROSE "
                          "flags on argv alongside --from-stdin is REFUSED, as is --old/--new "
-                         "(field-edit is its own mode)")
+                         "(field-edit is its own mode). Stdin is shell-proof only from the file tool "
+                         "or a QUOTED <<'EOF' heredoc (else write a file and pass it with --from-file) "
+                         "— an unquoted heredoc substitutes `...` first (T-14074)")
     tu.set_defaults(func=cmd_task_update)
 
     # T-0381: pause / resume — the resume-contract writer + re-entry verbs (parent plan
@@ -1851,7 +1885,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
             description=f"Run audit-{stage_name} via external auditor.\n\n"
                         "AT THE AUDIT-LOOP CEILING — its core is SPEC-1040 §Audit-loop ceiling, which\n"
                         "both audit stage entries render. What counts as a pass (the ledger-skip axes,\n"
-                        "the trend grant) is SPEC-0124 — `graph query SPEC-0124`; what happens once the\n"
+                        "the trend grant) is SPEC-1034 — `graph query SPEC-1034`; what happens once the\n"
                         "ceiling is reached is SPEC-1039 — `graph query SPEC-1039`.\n\n"
                         "RARE SHAPES — a returned finding marked machine-refuted, or a card-repair\n"
                         "commit as the audit-post subject: their rules are the reference SPEC-1013 —\n"
@@ -2156,7 +2190,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                  "cross-session. Refused on a non-YELLOW record and on a record whose "
                                  "custody was re-pinned (T-10770). With `--plan <slug> --gate <id>` it "
                                  "absorbs into that PLAN GATE's verdict instead, on the same terms "
-                                 "(T-11167, SPEC-0124 §Audit-loop ceiling / X-0928). REPEATABLE: "
+                                 "(T-11167, SPEC-1034 §Audit-loop ceiling / X-0928). REPEATABLE: "
                                  "every occurrence is recorded, in order, as its own entry — a "
                                  "second --absorb is never silently dropped (T-12734)")
             # T-11167 (X-0928) — the plan-gate half of --absorb. REUSES SPEC-0124's existing gate
@@ -2168,7 +2202,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
             ap.add_argument("--gate", dest="gate", choices=PLAN_CONSULT_GATES,
                             type=lambda s: _SELF._PLAN_TEMPLATE_TO_GATE_ID.get(s, s),
                             help="(with --absorb --plan) which ceiling-bearing PLAN GATE's verdict holds "
-                                 "the residual being absorbed. Same SPEC-0124 gate identity as `audit "
+                                 "the residual being absorbed. Same SPEC-1034 gate identity as `audit "
                                  "decide --plan --gate` (T-11167). The stage name `plan stage` prints "
                                  "(gate-specs, gate-trial, gate-accepted, gate-executing) is accepted "
                                  "as an alias of its gate id (T-12987). "
@@ -2258,7 +2292,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                    "--task). Both ceiling-adjudication forms — --task --stage and the "
                                    "plan-gate --plan --gate — are RETIRED (SPEC-0204 rule 6) and "
                                    "REFUSE with a pointer to `audit decide` (then `audit post "
-                                   "--on-decisions` / `audit pre --on-decisions`, or `plan stage <NEXT> "
+                                   "--on-decisions --sweep '<where you looked for the same defect class and what you found>'` / `audit pre --on-decisions --sweep '<where you looked for the same defect class and what you found>'`, or `plan stage <NEXT> "
                                    "--on-decisions` at a plan gate).")
     ac.add_argument("--task", help="T-NNNN task id. LIVE only with --on-demand. With --stage and no "
                                    "--on-demand it is the RETIRED ceiling-adjudication form "
@@ -2307,7 +2341,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "value/draft fork); fail-closed single-survivor; the owner keeps a lightweight "
                          "ratify/veto. NOT retired by SPEC-0204 rule 6 and unchanged by it: it is a "
                          "BELOW-ceiling design-fork pick on its own distinct consult key, never a "
-                         "post-ceiling basis. Not for --plan/--gate (SPEC-0124 §On-demand technical-fork "
+                         "post-ceiling basis. Not for --plan/--gate (SPEC-1034 §On-demand technical-fork "
                          "consult).")
     # SPEC-0204 rule 6 (T-12290) — `--reopen` (and its `--reason` grant locator) is RETIRED and is
     # therefore NOT registered: there are no consult EPISODES left to re-open, so nothing can allocate
@@ -2348,7 +2382,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "--gate for a plan")
     ad.add_argument("--gate", choices=PLAN_CONSULT_GATES,
                     help="REQUIRED with --plan — the ceiling-bearing plan gate the ceiling row belongs "
-                         "to (the SAME SPEC-0124 gate identity `audit pre --plan --gate` takes: "
+                         "to (the SAME SPEC-1034 gate identity `audit pre --plan --gate` takes: "
                          + " | ".join(PLAN_CONSULT_GATES) + ")")
     ad.add_argument("--finding", required=True, metavar="FP",
                     help="ONE residual per call: the key the ENGINE assigned to the residual being "
@@ -2402,7 +2436,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "id is not a card")
     ad.add_argument("--evidence", metavar="REVISION",
                     help="(fix) the revision carrying the change — at post a STRICT descendant of "
-                         "the audited commit, at pre the card's CURRENT plan fingerprint, at a plan "
+                         "the audited commit, at pre the card's CURRENT plan fingerprint at record time "
+                         "(the --on-decisions pass then binds the plan fingerprint current when it "
+                         "runs, admitted once it differs from the audited one — SPEC-1039 rule 3, "
+                         "T-14058; a later plan edit needs no new decision), at a plan "
                          "gate the plan body's CURRENT signature. At the decomposition-executing gate "
                          "`fix` IS admitted: its subject is the filed card set, so the evidence is the "
                          "CURRENT card-set fingerprint of the repaired cut (SPEC-0204 rule 9(d)). At "
@@ -2678,13 +2715,22 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                           "a GATE-class key is REFUSED (no bypass flag exists)")
     cfgs.add_argument("key", help="knob name (see `config list`)")
     cfgs.add_argument("value", help="the new value — type/range validated against the inventory")
+    cfgs.add_argument("--project", action="store_true",
+                      help="the PROJECT door (T-14056): set a THRESHOLD-class key, inside its band, in "
+                           "this project's yitc-ops.yaml `thresholds:` section — every other class, an "
+                           "unknown key and an out-of-band value are refused, writing nothing. "
+                           "SELF-COMMIT: from the main checkout it commits its own record (yitc-ops.yaml "
+                           "+ its journal receipt only); inside a writing worktree it makes no commit — "
+                           "the write rides that batch's own commit and land — never hand-commit it "
+                           "(family rule: AGENTS-SESSIONS §Writes happen in a worktree; this door's "
+                           "rule: SPEC-1031 rule 7).")
     cfgs.set_defaults(func=cmd_config_set)
 
     # The verify venue (SPEC-0203 rule 6, T-12197) — placed beside `config`, the analog it copies:
     # a thin argparse+journal residue over `lib/venue.py`, with NO worktree gate, because the venue
     # record lives OUTSIDE every checkout exactly as the machine settings file does.
-    vnp = sub.add_parser("venue", help="The remote verify venue (SPEC-0203): raise, publish, unpublish, delete, show",
-                         description="The remote verify venue (SPEC-0203): raise the box from the "
+    vnp = sub.add_parser("venue", help="The remote verify venue (SPEC-1029): raise, publish, unpublish, delete, show",
+                         description="The remote verify venue (SPEC-1029): raise the box from the "
                                        "seed snapshot, publish it as this machine's verify venue, "
                                        "unpublish (break-glass), delete, show.")
     vn_sub = vnp.add_subparsers(dest="venue_action", required=True)
@@ -3749,7 +3795,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "would run and skip, with each reason (the land's own subject_globs skip "
                            "decision, against the merge-base with main); `merge` = whether the branch "
                            "merges cleanly with main's tip and, if not, the conflicted paths (the land's "
-                           "own merge probe). Target: --task / --branch, else this checkout's branch.")
+                           "own merge probe), plus `tree` — the merged tree id exactly as the land builds "
+                           "it — and per-branch `members` rows. Merge is the seam for a project-side "
+                           "merged-tree check: run your whole-repository check on `tree` (read it with "
+                           "--objects-dir). Target: --task / --branch, else this checkout's branch.")
     land_mode.add_argument("--batch-eligibility", dest="report", action="store_const",
                            const="batch-eligibility",
                            help="ANSWER whether this branch must land alone (read-only, as --report: no "
@@ -3759,6 +3808,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                 "uncommitted dirt) — then a note that queue-relative exclusions are "
                                 "decided only at formation. Target: --task / --branch, else this "
                                 "checkout's branch.")
+    land.add_argument("--then", dest="report_then", action="append", metavar="BRANCH",
+                      help="with --report merge: merge BRANCH after the target, in the order given "
+                           "(repeatable) — the land's own batch probe + accumulator; the walk stops at "
+                           "the first branch that does not merge, and `tree` is then null (T-14062)")
+    land.add_argument("--objects-dir", metavar="DIR",
+                      help="with --report merge: write the probe's git objects into DIR (an existing "
+                           "directory OUTSIDE the repository) instead of a throwaway one, so `tree` "
+                           "stays readable after exit: GIT_OBJECT_DIRECTORY=DIR "
+                           "GIT_ALTERNATE_OBJECT_DIRECTORIES=<the report's `alternates`> git ls-tree -r "
+                           "<tree>. Nothing is written into the repository (T-14062)")
     land.add_argument("--working-tree", action="store_true",
                       help="with --report layers: judge the working tree's changes (committed + "
                            "uncommitted + untracked), as the Stage-6 test run does")
@@ -3954,6 +4013,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "is NOT an audit-currency exemption: a hand resolution is authored content, "
                          "so SPEC-0077 §3a still requires the re-audit — the row makes the shift "
                          "attributable, not excused.")
+    wy.add_argument("--from", dest="from_branch", metavar="BRANCH",
+                    help="MERGE ANOTHER BRANCH, not main (T-14101). BRANCH is a local task/T-NNNN or "
+                         "work/<slug> branch. Runs the same steps as the main sync — folds the dirty "
+                         "journal first, union-merges events.jsonl, carries other uncommitted "
+                         "changes, auto-resolves what it can prove mechanical — then drops duplicate "
+                         "journal rows with land's dedup. A non-union conflict stays open for "
+                         "`--resolved`. The main-measured pre-flight phases do not run; a plain "
+                         "`worktree sync` or `land` still runs them. Not combinable with --resolved.")
     wy.set_defaults(func=cmd_worktree_sync, cli_invoked_receipt="worktree sync")  # T-13071: attempt receipt
 
     work = sub.add_parser("work", help="Non-task work-batch operations (D-0051)")
@@ -4143,9 +4210,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # split (an operator mixed a LAUNCH brief with --watch and burned 2 invocations). Group the flags
     # by mode so `--help` renders LAUNCH / WATCH / STOP as titled sections; --task is shared (every
     # mode names its target tasks) so it stays at the parser level. Help-text only, no behavior change.
-    dispatch.add_argument("--task", action="append", required=True,
+    # T-14044: not argparse-required — `--resume T-NNNN` also names the task, so the required check
+    # runs after the parse (`_require_dispatch_task`), with argparse's own text and exit 2.
+    dispatch.add_argument("--task", action="append",
                           help="T-NNNN target task(s) — SHARED by all three modes below (REPEATABLE — "
                                "one worker per id in LAUNCH mode, launched in the given order)")
+    _require_dispatch_task(dispatch)
     dispatch_launch = dispatch.add_argument_group(
         "LAUNCH mode (the default) — spawn background worker(s)",
         "--task + --brief/-f. These flags are LAUNCH-ONLY; passing them with --watch or --stop is "
@@ -4210,8 +4280,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     dispatch_launch.add_argument("--force", action="store_true",
                           help="override the in-flight-dispatch SKIP guard (X-0131 escape) — launch even "
                                "when a recent bg_dispatch_launched without a live worktree is detected.")
-    dispatch_launch.add_argument("--resume", action="store_true",
-                          help="LAUNCH MODE (T-12304) — relaunch a task whose worker STOPPED CLEANLY as "
+    dispatch_launch.add_argument("--resume", action=_ResumeTaskAction, nargs="?", default=False,
+                          metavar="T-NNNN",
+                          help="LAUNCH MODE (T-12304) — `--resume T-NNNN` is the same as `--resume "
+                               "--task T-NNNN` (T-14044). Relaunch a task whose worker STOPPED CLEANLY as "
                                "cued and recorded it with `task pause --reason controller-wait`. Heads "
                                "the worker\'s task-specific brief with that row\'s RECORDED RESUME "
                                "CONTRACT (paused_at / stage / resume_from / next_action) — read from "
@@ -4405,12 +4477,24 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     se.add_argument("--from-file", dest="from_file",
                     help="read the edit as a YAML mapping {old, new, replace_all?} from this file — "
                          "carries multi-line/full-section body replacements the flat --old/--new cannot "
-                         "(mirrors `task file --from-stdin`); the verb, not a hand-edit (T-10051)")
+                         "(mirrors `task file --from-stdin`); the verb, not a hand-edit (T-10051). "
+                         "Write the mapping with the file tool or a QUOTED <<'EOF' heredoc, then pass "
+                         "it with --from-file — an unquoted heredoc substitutes `...` (T-14074)")
     se.add_argument("--from-stdin", dest="from_stdin", action="store_true",
                     help="read the edit as a YAML mapping {old, new, replace_all?} from stdin "
-                         "(same shape as --from-file)")
+                         "(same shape as --from-file). Shell-proof only from a QUOTED <<'EOF' heredoc; "
+                         "for prose with backticks prefer the file tool, then --from-file — an "
+                         "unquoted heredoc substitutes `...` before the verb reads it (T-14074)")
     se.add_argument("--replace-all", dest="replace_all", action="store_true",
                     help="replace ALL occurrences of --old (default: require a single unique match)")
+    se.add_argument("--new-part", dest="new_part", type=int, metavar="N",
+                    help="CREATE continuation part N of this spec (`SPEC-NNNN-<slug>.partN.yaml` beside "
+                         "the base, the SPEC-0120 §3 split shape), its body the plain text of "
+                         "--from-file (here NOT an {old, new} mapping). N must be the next part: 2 for "
+                         "an un-split spec, else one past the last part. Refused, with no file written, "
+                         "when the part exists, N leaves a gap, the body is empty or does not round-trip "
+                         "as a YAML literal block, or with --old/--new/--from-stdin/--bless/--replace-all "
+                         "(T-14075)")
     se.add_argument("--bless", action="store_true",
                     help="BLESS an ALREADY-MADE in-place edit of an ACTIVE spec (T-10135): derive its "
                          "diff vs `main`, emit a DIFF-BOUND spec_edited (base/new sha + fingerprint + "

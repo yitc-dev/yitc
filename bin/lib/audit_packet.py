@@ -77,7 +77,7 @@ _AUDIT_REJECT_RATIONALE_CLAUSE = (
     "REJECTING a YELLOW finding as WRONG — judged mistaken, so the session declines to absorb it AND\n"
     "files no follow-up. When the session rejects a YELLOW finding as wrong it MUST record a one-line\n"
     "rejection rationale in the verdict notes: (e.g. \"rejected finding N: <why the auditor is\n"
-    "wrong>\"), so the override is auditable rather than a silent decline. (Rule home: SPEC-0124\n"
+    "wrong>\"), so the override is auditable rather than a silent decline. (Rule home: SPEC-1034\n"
     "§Audit-loop ceiling — reject-as-wrong rationale.)\n"
 )
 
@@ -1698,7 +1698,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             # design-fork variant-pick (no prior absorption loop). The auditor RATIFIES technical merit;
             # it does NOT hold value/draft authority — a value/draft fork is ESCALATED, never picked.
             overlay = (
-                "## ON-DEMAND TECHNICAL-FORK consult (SPEC-0124 §On-demand technical-fork consult)\n\n"
+                "## ON-DEMAND TECHNICAL-FORK consult (SPEC-1034 §On-demand technical-fork consult)\n\n"
                 "This is NOT a ceiling triage — there is no prior absorption loop and NO prior verdict\n"
                 "trail. The session stands at a TECHNICAL DESIGN FORK (e.g. a plan's specs, the\n"
                 "decomposition cut, or a task's Analysis) and has formulated >=2 candidate VARIANTS below.\n"
@@ -1721,13 +1721,13 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             )
         else:
             overlay = (
-                "## CEILING-CONVERGENCE TRIAGE consult (SPEC-0124 §Audit-loop ceiling)\n\n"
+                "## CEILING-CONVERGENCE TRIAGE consult (SPEC-1034 §Audit-loop ceiling)\n\n"
                 "The audit-loop ceiling (2 absorption passes) is EXHAUSTED for this task at the named\n"
                 "audit stage. This is the pass-3 triage step — NOT a fresh audit. The session has\n"
                 "formulated the candidate RESOLUTION OPTIONS below; evaluate EACH against the task scope\n"
                 "+ acceptance + the prior verdict trail, decide which SURVIVE (are defensible resolutions),\n"
                 "and give a SINGLE recommendation that is EXACTLY ONE surviving option.\n"
-                "Per the SPEC-0124 contract: exactly ONE survivor + session agreement enables ONE\n"
+                "Per the SPEC-1034 contract: exactly ONE survivor + session agreement enables ONE\n"
                 "standing-authorized `--owner-reset` continuation; >1 survivor / disagreement / ABORT\n"
                 "escalate to the owner. Review-only: judge — never perform the work.\n"
             )
@@ -3250,6 +3250,10 @@ def _ac_canonical_id(criterion: str, position: int, *, _AC_CANONICAL_ID_RE) -> s
     return m.group(1).upper() if m else f"AC{position}"
 
 
+_CRITERION_KEYS = frozenset({"criterion", "criteria", "check", "ac"})
+_ROW_AC_ID_RE = re.compile(r"(?<![A-Za-z0-9_])AC\d+(?![A-Za-z0-9_])")
+
+
 def packet_readiness_section(acceptance, task_class, evidence_types, stage6_present,
                              p8_present, deferred_field, stale_anchors, touch_recon,
                              prior_findings_unanswered, p8_carrier_ids=(),
@@ -3318,14 +3322,37 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
     PRESENT and that has no evidence row reads `evidence OWED AT TESTS` — the governed run comes
     after this audit, so its absence is owed, never ABSENT; `own_states` (`{ACn: state}`, from
     `own_tests_criterion_states`) adds the indented detail `own-tests: <passed|FAILED|not run or
-    stale|not determined>` beneath that criterion's row."""
+    stale|not determined>` beneath that criterion's row.
+
+    T-14100 (public intake #171 item 2) — a `state_checked` row whose `criterion` / `criteria` /
+    `check` / `ac` key names an `ACn` id is evidence for THOSE criteria only: it no longer lets every
+    criterion whose text names `state_checked` read evidence PRESENT by type. A row naming no
+    criterion keeps the type fallback and the whole-row id reading."""
     from lib.task import _AC_WAIVE_RE, criterion_names_test   # lazy: task.py imports THIS module
 
     crits = list(acceptance or [])
     types = {str(t) for t in (evidence_types or []) if str(t)}
     dirs = sorted({str(d).strip().rstrip("/") for d in (test_dir_tokens or ()) if str(d).strip().rstrip("/")})
-    rows = [json.dumps(r, ensure_ascii=False, sort_keys=True, default=str)
-            for r in (state_checked_rows or ()) if r]
+    # T-14100: a row whose criterion keys name an ACn is KEYED and credits only those criteria; a
+    # row naming none (keys absent, null, '' or []) keeps the whole-JSON T-13742 reading, and the
+    # `state_checked` type match counts only while no row exists or at least one row is unkeyed.
+    keyed_ids, rows = [], []
+    for r in (state_checked_rows or ()):
+        if not r:
+            continue
+        ids = set()
+        if isinstance(r, dict):
+            for k, v in r.items():
+                if str(k).lower() in _CRITERION_KEYS:
+                    for x in (v if isinstance(v, (list, tuple)) else [v]):
+                        if isinstance(x, str):
+                            ids.update(_ROW_AC_ID_RE.findall(x))
+        if ids:
+            keyed_ids.append(ids)
+        else:
+            rows.append(json.dumps(r, ensure_ascii=False, sort_keys=True, default=str))
+    if keyed_ids and not rows:
+        types.discard("state_checked")
     lines = [
         "# ---- packet readiness (T-11977; REPORT-ONLY — ADVISORY, gates nothing) ----",
         "# Every row below is DATA about the packet printed above: no verdict, no ceiling pass, no",
@@ -3355,7 +3382,7 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
         if verifier == "ABSENT" and (_criterion_dir_tokens(text) & set(dirs)):
             verifier = "PRESENT"
         id_re = re.compile(r"(?<![A-Za-z0-9_])" + re.escape(ac_id) + r"(?![A-Za-z0-9_])")
-        named_row = any(id_re.search(r) for r in rows)
+        named_row = any(ac_id in ids for ids in keyed_ids) or any(id_re.search(r) for r in rows)
         evidence = "PRESENT" if (named_type or named_row
                                  or (stage6_present and verifier == "PRESENT")) else "ABSENT"
         if post_audit_order and evidence == "ABSENT" and verifier == "PRESENT":

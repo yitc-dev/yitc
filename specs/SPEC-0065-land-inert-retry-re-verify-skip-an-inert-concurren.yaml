@@ -7,6 +7,7 @@ consumed: false
 implements:
 - bin/lib/worktree.py#_land_integrate
 - bin/lib/worktree.py#_land_stage6_credit
+- bin/lib/worktree.py#_land_post_sync_proof_credit
 - bin/lib/worktree.py#_stage6_run_record
 body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency retry\
   \ re-runs the FULL verify every time\n`main` advanced during its verify window —\
@@ -111,43 +112,78 @@ body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency r
   \ a changed readable path of it (the reader derivation of condition\n      (d) above).\
   \ Any other advance ends the credit: an observable path, a card a test\n      names,\
   \ a rewrite of the verify duration table (a test-directory path, so never inert),\
-  \ or a\n      delta that cannot be read.\n  (2) THE SAME TREE — the land's candidate\
-  \ tree differs from the tree the run recorded only by inert\n      paths (the ONE\
-  \ SPEC-0064 authority, tree to tree with renames off — the closure bookkeeping a\n\
-  \      branch adds after its tests), and no declared test file names a changed readable\
-  \ path\n      (condition (d) above). The comparison is the land's own, from git.\n\
-  \  (3) A RUNNER'S ROW — the NEWEST Stage-6 verdict row of that task is green and\
-  \ carries the mark only\n      the runner of a measured run writes (`stage6_run`:\
-  \ the tree it tested and the base it sat on).\n      The mark is RESERVED: the hand\
-  \ event route refuses it, a hand-recorded evidence row carries\n      none, and\
-  \ a red run writes a different row — so a red, a hand-recorded or an unmarked newest\n\
-  \      row is never credited. The runner records a tree only when the files on disk\
-  \ after the run are\n      that tree apart from the journal's own growth and, on\
-  \ a routed run, the venue reports having\n      tested that tree. A failed run's\
-  \ row may carry the same mark; it is still a red row,\n      refused as red before\
-  \ the mark is read.\n  (4) THE RUN COVERS THE LAND — where the land would sweep\
-  \ a declared test directory the run must\n      have swept ALL of it (a narrowed\
-  \ run records counts, not names, so it is a PARTIAL run for this\n      purpose\
-  \ and is never credited); on a consumer every declared layer must have passed in\
-  \ the run,\n      or have been subject-skipped there AND be skipped by the land's\
-  \ own decision. A layer whose\n      row in the run records a PARTIAL run (SPEC-1030:\
-  \ a deciding selection left units out, a\n      deciding credit reused passes) is\
-  \ the one case with a rule of its own: when the land takes\n      such a row and\
-  \ when it refuses it is SPEC-1030 rule 6 (`bin/yitc-v2 graph query SPEC-1030`),\n\
-  \      not restated here.\n  (5) THE REST OF THE LAND STILL RUNS — the credit replaces\
-  \ the candidate leg and nothing else. The\n      SPEC-0163 any-author floor runs\
-  \ over the same branch delta and its refusal aborts the land with\n      `main`\
-  \ untouched; the host-leak check runs; and the SPEC-0077 pinned leg runs exactly\
-  \ when its\n      trigger and the project's policy (SPEC-0186) say so — the credit\
-  \ neither reads nor moves\n      either. Where the pinned leg is due the head is\
-  \ verified ALONE (no batch is formed onto a\n      credited tree) and a pinned failure\
-  \ refuses the land as on any other.\nA project MAY switch the credit off (`verify_policy.stage6_credit`,\
-  \ SPEC-0186 rule 10); absent a\ndeclaration it is ON, for the engine as for a consumer.\
-  \ Every credited land records WHICH Stage-6 row\nit credited (`land_completed.stage6_credit`)\
-  \ and, having run no candidate verify of its own, records\nno tested tree — so it\
-  \ never anchors a later inert first-attempt skip ((b) reads only a land that\nverified).\
-  \ A retry re-proves from scratch against the `main` it then merged: (1) holds only\
-  \ while\nmain's whole advance since the run is still inert and named by no test,\
+  \ or a\n      delta that cannot be read.\n      **The post-sync-proof arm (owner,\
+  \ events.jsonl#ts= and\n      events.jsonl#ts=).** Where (1) fails, the land MAY\
+  \ still credit the run when\n      the card was synced with `main` after it and\
+  \ that sync's post-sync proof passed (SPEC-0152 rule\n      16 §post_sync_set: the\
+  \ merged tree is the tested tree plus main's own advance, and the declared\n   \
+  \   quick set ran green on it). The proof stands in for the run's base when ALL\
+  \ of these hold — any\n      unproven part, or any error, keeps the refusal (fail-closed),\
+  \ naming the proof's reason on the\n      `main-moved` delta when a passed proof\
+  \ existed:\n        (a) it is the NEWEST post-sync proof recorded for this card\
+  \ and branch — in each of main's\n            and the worktree's bounded journal\
+  \ tails, by journal order; two journals whose newest\n            differ at the\
+  \ same time are ambiguous and refuse — and it says `passed`: a later failed\n  \
+  \          or ineligible proof is never bypassed by an older passed one;\n     \
+  \   (b) it judged the Stage-6 row (3) proves — the same row time, tested tree and\
+  \ base;\n        (c) its merged tree resolves and its base is on the `main` this\
+  \ attempt merged;\n        (d) `main`'s advance past the proof's base is judged\
+  \ STEP BY STEP along main's own ref log,\n            one step per update of `main`\
+  \ (a land's fast-forward, a direct commit): each step is\n            inert by the\
+  \ ONE SPEC-0064 authority, or is the fast-forward of a land whose OWN ok\n     \
+  \       `land_completed` row records `reverify_skipped: true` — read off the row,\
+  \ never\n            re-derived — so a land is exempt for its own step only. Any\
+  \ other step (a verified land's\n            non-inert change, a direct commit of\
+  \ code) refuses, and so does a log that no longer\n            reaches the proof's\
+  \ base, has a gap (an entry whose old value is not the previous\n            entry's\
+  \ new one) or rewinds between it and the merged tip;\n        (e) the land's candidate\
+  \ tree differs from the proof's tree only by inert paths, or by paths\n        \
+  \    such a verify-exempt land brought whose content the candidate still holds as\
+  \ `main` has it;\n        (f) no declared test names an inert readable path of (d)\
+  \ or (e) (the reader derivation above).\n      Conditions (3), (4) and (5) still\
+  \ hold and (2) is replaced by (e). The facts taken from the\n      rows are that\
+  \ the quick set ran green and which land skipped its verify; both keys\n      (`post_sync_proof`,\
+  \ `reverify_skipped`) are reserved, so the hand `event` route refuses them.\n  (2)\
+  \ THE SAME TREE — the land's candidate tree differs from the tree the run recorded\
+  \ only by inert\n      paths (the ONE SPEC-0064 authority, tree to tree with renames\
+  \ off — the closure bookkeeping a\n      branch adds after its tests), and no declared\
+  \ test file names a changed readable path\n      (condition (d) above). The comparison\
+  \ is the land's own, from git.\n  (3) A RUNNER'S ROW — the NEWEST Stage-6 verdict\
+  \ row of that task is green and carries the mark only\n      the runner of a measured\
+  \ run writes (`stage6_run`: the tree it tested and the base it sat on).\n      The\
+  \ mark is RESERVED: the hand event route refuses it, a hand-recorded evidence row\
+  \ carries\n      none, and a red run writes a different row — so a red, a hand-recorded\
+  \ or an unmarked newest\n      row is never credited. The runner records a tree\
+  \ only when the files on disk after the run are\n      that tree apart from the\
+  \ journal's own growth and, on a routed run, the venue reports having\n      tested\
+  \ that tree. A failed run's row may carry the same mark; it is still a red row,\n\
+  \      refused as red before the mark is read.\n  (4) THE RUN COVERS THE LAND —\
+  \ where the land would sweep a declared test directory the run must\n      have\
+  \ swept ALL of it (a narrowed run records counts, not names, so it is a PARTIAL\
+  \ run for this\n      purpose and is never credited); on a consumer every declared\
+  \ layer must have passed in the run,\n      or have been subject-skipped there AND\
+  \ be skipped by the land's own decision. A layer whose\n      row in the run records\
+  \ a PARTIAL run (SPEC-1030: a deciding selection left units out, a\n      deciding\
+  \ credit reused passes) is the one case with a rule of its own: when the land takes\n\
+  \      such a row and when it refuses it is SPEC-1030 rule 6 (`bin/yitc-v2 graph\
+  \ query SPEC-1030`),\n      not restated here.\n  (5) THE REST OF THE LAND STILL\
+  \ RUNS — the credit replaces the candidate leg and nothing else. The\n      SPEC-0163\
+  \ any-author floor runs over the same branch delta and its refusal aborts the land\
+  \ with\n      `main` untouched; the host-leak check runs; and the SPEC-0077 pinned\
+  \ leg runs exactly when its\n      trigger and the project's policy (SPEC-0186)\
+  \ say so — the credit neither reads nor moves\n      either. Where the pinned leg\
+  \ is due the head is verified ALONE (no batch is formed onto a\n      credited tree)\
+  \ and a pinned failure refuses the land as on any other.\nA project MAY switch the\
+  \ credit off (`verify_policy.stage6_credit`, SPEC-0186 rule 10); absent a\ndeclaration\
+  \ it is ON, for the engine as for a consumer. Every credited land records WHICH\
+  \ Stage-6 row\nit credited (`land_completed.stage6_credit`) — on the post-sync-proof\
+  \ arm also the proof it took\n(`stage6_credit.post_sync_proof`: its row time, tree,\
+  \ base and quick set, the verify-exempt lands it\npassed over, and main's advance\
+  \ past its base) — and, having run no candidate verify of its own, records\nno tested\
+  \ tree — so it never anchors a later inert first-attempt skip ((b) reads only a\
+  \ land that\nverified). A retry re-proves from scratch against the `main` it then\
+  \ merged: (1) holds only while\nmain's whole advance since the run is still inert\
+  \ and named by no test, or while the post-sync-proof\narm still holds for that attempt;\
   \ else the candidate verify runs.\nA land that REFUSED the credit to a runner-marked\
   \ green newest Stage-6 row records WHY\n(`land_completed.stage6_credit_refused`\
   \ — the one reason of the condition that failed, `main-moved`\nfor (1)), so what\
@@ -369,6 +405,7 @@ proposed_by: speed-up-land-under-concurrency-inert-retry-re-ver
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
-  bin/lib/worktree.py#_land_stage6_credit: be6e7f40f988b975e614f8353d4569c3596aa3626db579981fb9659639079691
+  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5
+  bin/lib/worktree.py#_land_post_sync_proof_credit: 928f58ed18292da2f6133616deeafc6aaa7c4ee3b5e953d18dbea5230f9a501b
+  bin/lib/worktree.py#_land_stage6_credit: 474e83bef970d6caae190d80a1fa7b2724bec2986f8062363e763d849281e04c
   bin/lib/worktree.py#_stage6_run_record: 01a55bc7b202be3fdf2e2f6de6c0b28a6cafeda89088c6f73d70c6ec8e81cf8d

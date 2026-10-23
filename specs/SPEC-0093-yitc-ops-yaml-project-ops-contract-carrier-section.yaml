@@ -1320,7 +1320,7 @@ binding:
 - before-project-dimension-judgement
 implements_signature:
   bin/lib/init.py#_hook_runtime_delivery: e0c6fa9fca99bceea855db55be7086b3a5e6a0cdfb31ef16b3382a427e5566a3
-  bin/lib/init.py#_hook_tests: 3796c282504dc47c844e21f1681ee7f72fca15172b927a776df3c139793d65c5
+  bin/lib/init.py#_hook_tests: 4a2cf77add16ea3c6192e7242fa70e130c3fe93335799968ad529ad80b4753af
   bin/lib/init.py#_inject_nested_subfield: 105851197d6f39cf750d5575a3d752f05406947e932653f130297c1ac40b8a42
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
   bin/lib/init.py#cmd_init: 0d133fa805b26a739aad09ddb92f67bd9d2345f8242986e6c49177f9ef5e0834

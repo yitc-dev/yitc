@@ -1688,12 +1688,13 @@ def _surface4_engine_carrier_freed():
 
 
 def _surface4_engine_named_root_bin():
-    """T-13915 — the engine's OWN «the project's contract names this root bin/ file» reader, or REFUSE.
+    """T-13915 — the engine's OWN «the project's contract names this changed path» reader, or REFUSE.
 
-    Since T-13915 a project's root `bin/` path takes the full-run edge only when the declared check
-    surface names it (a layer's `command:`, an adapter's `sources:`, `verify.infra_globs`). A replay
-    that judged every root `bin/` path by layer globs alone would report a FALSE SKIP on lands the
-    engine runs in full. Imported on the same terms as its siblings (SPEC-0189 rule 5)."""
+    A project path the fixed set does not hold takes the full-run edge exactly when the declared check
+    surface names it (a layer's `command:`, an adapter's `sources:`, `verify.infra_globs`) — a root
+    `bin/` file since T-13915, any path since T-14068. A replay that judged such a path by layer globs
+    alone would report a FALSE SKIP on lands the engine runs in full. Imported on the same terms as its
+    siblings (SPEC-0189 rule 5)."""
     try:
         from lib import worktree as _wt
         return _wt._named_root_bin_touch
@@ -1884,8 +1885,8 @@ def surface4_false_skip_cases(*, rows, layers, diff_paths, repairs_after, _predi
             if isinstance(texts, (tuple, list)) and len(texts) == 2:
                 freed = (frozenset(carrier_freed(paths, texts[0], texts[1]) or ())
                          | frozenset(owned_test_freed(paths, texts[0], texts[1]) or ())) or None
-                # T-13915 — a root `bin/` file the project's own contract names (asked the way the
-                # land asks it, over the same two carrier texts) is a full run, as it is at the land.
+                # T-13915 / T-14068 — a changed path the project's own contract names (asked the way
+                # the land asks it, over the same two carrier texts) is a full run, as it is at the land.
                 named = bool(named_root_bin(paths, texts[0], texts[1]))
         # The kwarg is passed only when a freed set exists, so an injected edge stub that predates
         # the seam is called exactly as before.
@@ -6119,19 +6120,14 @@ def nonterminal_plan_census(plans_dir, *, tasks_dir=None, events_path=None, now=
     return _plan_census_result(total, by_status, unknown, terminal, stale)
 
 
-# ── SPEC-0119 rule 36 (T-11868): a READY card blocked FOREVER by a wont-do requirement ────────────
+# ── SPEC-0119 rule 36 (T-11868, reworded T-14073): a READY card requiring a `wont-do` target ───────
 #
-# The gap this closes: `requires:` is the picker's blocking edge — a card is pickable only once every
-# id it requires is DONE. `wont-do` is the OTHER terminal status, and it is terminal in the direction
-# that never satisfies: the required work was decided against and will not be done. A `ready` card
-# requiring one is therefore PERMANENTLY unpickable, and NOTHING says so. It reads `ready` at every
-# surface that folds card status, sits in the queue forever, and the only way anyone learns is by
-# picking it and hitting the block — which is the reading this line replaces.
-#
-# WHY IT IS NOT THE PICKER'S JOB. The picker REFUSES the card at selection, correctly, and says so to
-# whoever asked. But nobody asks: a card that is never selected is never refused, so the refusal is
-# reachable only along the path the blockage makes nobody take. The debt seam is the surface a
-# controller passes ANYWAY, which is what makes it the one that can say this unprompted.
+# What the picker does with such a card: `requires:` is its blocking edge, and a `wont-do` target is
+# TERMINAL and never a blocker (`graph.requires_blockers_in_index`, T-0384 / T-11122). So the card IS
+# pickable — it will be claimed and built WITHOUT the requirement, though that requirement was decided
+# against. The picker prints one report line when it admits such a card, but only to whoever asks it
+# at that moment; the debt seam is the surface a controller passes ANYWAY, so it says it unprompted,
+# before the card is built on a prerequisite nobody is going to deliver.
 #
 # THE REMEDY IS A DECISION, NEVER A SWEEP, and the line says so. Two honest exits: drop the dead
 # `requires:` edge if the requirement turned out not to be needed, or close the card `wont-do` itself
@@ -6140,16 +6136,14 @@ def nonterminal_plan_census(plans_dir, *, tasks_dir=None, events_path=None, now=
 # ONLY A PROVABLE wont-do FIRES IT (fail-closed toward SILENCE here, unlike the sibling halt fold —
 # the asymmetry is deliberate). A required id whose card is ABSENT, unreadable, malformed, or carries
 # any other status contributes NOTHING: absence is the ordinary state of an id this checkout has not
-# got, and a view that nagged on it would fire on every consumer repo and every fixture tree. The
-# claim this line makes is strong ("this can never be picked"), so it is made only where the evidence
-# is a wont-do card sitting right there.
+# got, and a view that nagged on it would fire on every consumer repo and every fixture tree.
 
 _REQUIRES_TASK_ID_RE = re.compile(r"^T-\d+$")
 
 
 def unpickable_ready_cards(tasks_dir) -> dict:
     """Fold `tasks/*.yaml` → the READY cards whose `requires:` names a `wont-do` target (SPEC-0119
-    rule 36, T-11868).
+    rule 36, T-11868) — cards the picker admits although a requirement was decided against.
 
     Args:
       tasks_dir: this repo's `tasks/` directory (missing / unreadable ⇒ a clean zero-count result — a
@@ -6160,7 +6154,7 @@ def unpickable_ready_cards(tasks_dir) -> dict:
     across folds. Pure: reads files, writes nothing, no clock, no subprocess (SPEC-0149 §2) — the
     `nonterminal_plan_census` shape, reused rather than re-invented.
 
-    SURFACING IS NOT PICKING. This names the STUCK cards, which is the opposite of naming a candidate:
+    SURFACING IS NOT PICKING. This names the cards to decide on, which is not naming a candidate:
     it ranks nothing and selects nothing, and deciding which of the two exits a card takes stays the
     reader's (SPEC-0085 §8, «surfacing != queue-scan»).
 
@@ -6238,25 +6232,24 @@ def _unpickable_ready_result(cards: list) -> dict:
     """The ONE place this view's lens/next wording lives, so the fold's two exits cannot describe it
     differently (the `_unexecuted_subject_result` precedent)."""
     return {
-        "lens": "unpickable-ready-cards (SPEC-0119 rule 36) — cards sitting `ready` whose `requires:` "
-                "names a target that is `wont-do`. `requires:` is the picker's BLOCKING edge and "
-                "`wont-do` is the terminal status that never satisfies it, so such a card can NEVER be "
-                "picked — yet it reads `ready` at every surface that folds card status, and the "
-                "picker's refusal is reachable only by selecting the card, which is exactly what the "
-                "blockage stops anyone doing. DERIVED at read time from `tasks/` alone — zero stored "
-                "state; only a PROVABLE `wont-do` card fires a row (an absent / unreadable / "
-                "otherwise-statused requirement contributes nothing), so a repo whose cards this "
-                "checkout does not hold owes nothing. Report-only, never a gate.",
+        "lens": "ready-cards-requiring-wont-do (SPEC-0119 rule 36) — cards sitting `ready` whose "
+                "`requires:` names a target that is `wont-do`. The picker treats a `wont-do` target "
+                "as terminal and never a blocker (T-0384 / T-11122), so such a card IS pickable: it "
+                "will be claimed and built WITHOUT the requirement, which was decided against. "
+                "DERIVED at read time from `tasks/` alone — zero stored state; only a PROVABLE "
+                "`wont-do` card fires a row (an absent / unreadable / otherwise-statused requirement "
+                "contributes nothing), so a repo whose cards this checkout does not hold owes "
+                "nothing. Report-only, never a gate.",
         "count": len(cards),
         "cards": cards,
-        "next": ("each of these will never be picked. TWO honest exits, and which one is a judgement "
-                 "about the WORK, not a sweep: DROP the dead edge (`requires:` no longer needed — edit "
-                 "the card) if the requirement turned out to be unnecessary, or CLOSE the card itself "
-                 "`wont-do` (`bin/yitc-v2 task close <id> --status wont-do --reason …`) if the "
-                 "requirement was the point. Never silently delete the edge to make the row go away — "
-                 "that re-admits the card to a queue nothing has re-justified."
+        "next": ("each of these can be picked and built without a requirement that was decided "
+                 "against. TWO honest exits, and which one is a judgement about the WORK, not a "
+                 "sweep: DROP the dead edge (`requires:` no longer needed — edit the card) if the "
+                 "requirement turned out to be unnecessary, or CLOSE the card itself `wont-do` "
+                 "(`bin/yitc-v2 task close <id> --status wont-do --reason …`) if the requirement was "
+                 "the point."
                  if cards else
-                 "no ready card is blocked by a wont-do requirement — nothing owed."),
+                 "no ready card requires a wont-do target — nothing owed."),
     }
 
 
@@ -8381,7 +8374,9 @@ def seam_read_amplification(events_path, *, root=None, now=None,
             if etype not in ("cli_invoked", "task_closed"):
                 continue
             ts = _parse_stamped_deadline(event.get("ts"))
-            if ts is None or (now - ts).days > span:
+            # T-14132 — the window is bounded at BOTH ends: a row dated after `now` is outside an
+            # as-of replay's window, so it is dropped like one older than the floor.
+            if ts is None or ts > now or (now - ts).days > span:
                 continue
             data = event.get("data") if isinstance(event.get("data"), dict) else {}
             if etype == "task_closed":
@@ -9003,7 +8998,8 @@ GAP_LENS_RISK_ORDER = debt_adoption.GAP_LENS_RISK_ORDER   # T-12707 host re-expo
 #: audit-post). `webhook_verification` / `key_rotation` are not born-seeded, so those rows stay
 #: UNMET until the project declares them — the fail-safe direction. The block's reasoned `waiver:`
 #: still answers every key through the section-waiver fallback, exactly as for alert_routing.
-#: `classification-and-deletion` reads its own `classification_and_deletion` key the same way.
+#: `classification-and-deletion` is answered by the `data_obligation` section (SPEC-0199), its one
+#: home — never by a key under `security.audit` (T-14120).
 #:
 #: The labels are the SPEC-0100 authoring-moment defaults in their own words, so the summary line
 #: reads as the question the owner is actually being asked.
@@ -9018,11 +9014,11 @@ _GAP_ITEMS = (
      "the public surface is covered by a dated security audit", "security.audit", "cadence"),
     ("input-validation", "request-body-floor",
      "validation / rate-limit / CSRF / log-redaction on request intake", "security", None),
-    # ID PRESERVED (T-13040 audit-post): consumer followups are keyed on it. Its own key, never born-
-    # seeded, so the audit block's cadence cannot answer it — UNMET until declared or waived.
+    # ID PRESERVED (T-13040 audit-post): consumer followups are keyed on it. Answered by the
+    # SPEC-0199 `data_obligation` section, which states classification, retention and deletion; the
+    # former `data-obligation-declared` row asked the same question and was retired into it (T-14120).
     ("data-retention", "classification-and-deletion",
-     "PII classification, retention and deletion are stated", "security.audit",
-     "classification_and_deletion"),
+     "PII classification, retention and deletion are stated", "data_obligation", None),
     ("payment-integrity", "webhook-verification",
      "payment webhook verification and a cost threshold", "security.audit",
      "webhook_verification"),
@@ -9080,8 +9076,6 @@ _GAP_ITEMS = (
      "where config comes from, and whether staging mirrors prod", "environments", None),
     ("deploy-readiness", "runbook-logs-rollback-contact",
      "where the logs are, how to roll back, who to contact", "runbook", None),
-    ("data-retention", "data-obligation-declared",
-     "what personal data is held, for how long, and how it is deleted", "data_obligation", None),
     (("payment-integrity", "deploy-readiness"), "cost-threshold-declared",
      "the spend at which cost becomes a task, and where the number is read", "cost", None),
     ("dependency-hygiene", "dependency-cadence-declared",

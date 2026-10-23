@@ -2935,7 +2935,7 @@ def _check_forgotten_box(results, *, now: _dt.datetime, idle_buffer_min=None,
     elif record is None:
         return {"verdict": "none", "findings": [], "live_boxes": 0, "published": False,
                 "idle_buffer_min": buffer_min,
-                "reason": "no provider API token on this host — the verify venue (SPEC-0203) is not "
+                "reason": "no provider API token on this host — the verify venue (SPEC-1029) is not "
                           "adopted here; nothing to forget"}
 
     # The machine-idle half — cards this run already counted, plus the live writing worktrees.

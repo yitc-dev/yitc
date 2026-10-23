@@ -170,8 +170,8 @@ body: "## Scenario\n\nA project whose full verify is too slow to pay on every ca
   \ Tests-stage run\nunder rule 6 never runs those units itself — and the kernel runs\
   \ no full verify after it: the failure is\nseen when a later land runs that layer\
   \ wider or in full, or by a full run the project itself makes before\nit deploys.\
-  \ This contract names no miss and gates no deploy; a kernel-run full verify before\
-  \ deploy and\na reading that names a miss are a later contract's.\n\n## Parameters\n\
+  \ This contract names no miss and gates no deploy; the full run before a gated deploy\
+  \ is\nSPEC-1042's, a reading naming a miss a later contract's.\n\n## Parameters\n\
   \nNone.\n\n## Rationale\n\nPublic proposal 89 on the kernel's public tracker (consumer\
   \ cryptochart): one full verify of its 12 layers took about ten\nminutes and kept\
   \ about 17 of 32 cores busy, so the host admitted one worker full run at a time;\
@@ -264,8 +264,8 @@ implements_signature:
   bin/lib/land_verify_legs.py#_adapter_passed_outcome: 6de38cddf3d476ecb6ce9df2df40bd12d172c64da24e05af390fa5a1f3c43f01
   bin/lib/land_verify_legs.py#_adapter_previous_attempt: 6f1e1777718fd01983b639e8401e9adf31171ea362167eb7c0decd226e96817f
   bin/lib/land_verify_legs.py#_adapter_run_plan: 45d27fa94d7eab6edd051d5b723921ce3ed73e3e615daf7b1c1d87fa97b10c4a
-  bin/lib/land_verify_legs.py#_declared_layer_adapters: f23a16f9afb057d9f857fe8181bce56eec8255001b27c1f7683239d4b92cc5b3
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: d385fd3b5708dc14efb63793728c6d808498a6ce0e92067936c2a659a0ca1653
+  bin/lib/land_verify_legs.py#_declared_layer_adapters: 2a39b7ac020431b16e1e97fef6e77ddc76a1b7cd971a0e2d10b85dc195891c7e
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 4baf2c10fcce6c901d7531a2be8f510af140a00763dce8188024bc96c042383b
   bin/lib/land_verify_legs.py#_layer_row_is_partial_run: 3ea94e55b8b232807647ffbdbed0710b3bc16c3d9dc21f18fcc85963f74a9e31
   bin/lib/land_verify_legs.py#_one_card_candidate_kw: ac919cfe304064caeeafb01205bcfc796226802d5bb484e5c9cc064659277329
   bin/lib/land_verify_legs.py#_payload_partial_layers: a75c7c0150397b06ef5f6eddc7f0f3de77896c954e3a3fd54e9380385b2ea084

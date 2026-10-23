@@ -1,76 +1,84 @@
 body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmitted\
   \ iff EVERY residual of the ceiling row has a `ceiling_decision` bound to that `ceiling_ref`\n\
   AND the subject being audited is the ONE revision the decisions collectively name:\
-  \ the ceiling row's\nown `subject_revision` when no decision is `fix`, else the\
-  \ single `evidence_revision` every `fix`\ndecision names (all `fix` decisions on\
-  \ one ceiling row MUST name the same revision, which for\naudit-post MUST be a descendant\
-  \ of the audited commit — or, at audit-POST, a NESTED chain of\nrevisions, named\
-  \ by its unique newest one). Any other subject → refused (`decisions-not-\nfor-this-revision`);\
-  \ any undecided residual → refused (`residual-undecided`), naming it.\nA `worktree\
-  \ sync` MERGE IS AN ADMISSIBLE AUDIT-POST SUBJECT. When the ONE revision the `fix`\n\
-  decisions name is a merge `worktree sync` recorded on the card's branch (its `worktree_synced`\
-  \ row's\n`head_after`) and it STRICTLY descends from the recorded commit, the `--on-decisions`\
-  \ pass is audited\nAT that merge: the packet grades the cumulative `merge-base(merge,\
-  \ main)..merge` range (ship +\nmerge), the record pins `commit:` to the merge and\
-  \ names the recorded commit as `sync_merge_ship`,\nand `task close` moves custody\
-  \ onto the merge only when git re-proves both. The merge carries no\nauthored content\
-  \ of its own, so the guard judges the recorded commit and the rule-3\nauthored-content\
-  \ arm skips the recorded merge; arms 1-2, the split and every other refusal are\n\
-  unchanged, and a non-descendant subject is still refused. `audit decide` refuses\
-  \ UP FRONT\n(`evidence-unreachable`, after every other write-time refusal so none\
-  \ changes its kind) a post\n`fix` evidence that is neither a recorded commit of\
-  \ the card (`commit_landed`) nor a recorded sync\nmerge — no pass could be audited\
-  \ at it.\nA DECISION PER RESIDUAL, NOT PER KEY (amended, <project> X-1489). «Every\
-  \ residual carries a\ndecision» is counted over DISTINCT RESIDUALS: a residual set\
-  \ in which ONE key stands for MORE THAN\nONE finding of the ceiling row is COLLAPSED\
-  \ and is refused `residual-undecided` (cause\n`residual_keys_collapsed`, naming\
-  \ each such key and how many findings it carries) — a decision binds\nto a key,\
-  \ so a decision per key over a collapsed set would let one recorded decision discharge\
-  \ N\nfindings the Controller never read as separate. Same kind, a THIRD cause of\
-  \ the same fact (this pass\ncannot prove every residual is decided); the ladder\
-  \ stays closed at three kinds. How such a row READS after is rule 9(b)'s.\nDONE-BUT-UNLANDED\n\
-  cards (`--reaudit-after-close`): the subject is HEAD of the branch by that route's\
-  \ own contract, for an\nall-`accept`/`defer` set too — the decisions bind to the\
-  \ ceiling row, the pass audits HEAD (rule 4\ngoverns; «the ceiling row's own `subject_revision`»\
-  \ is the ORDINARY-route reading). A MIXED set\n(`fix` + `accept`/`defer`) is admitted\
-  \ and audited at the evidence revision — the `accept`/`defer`\ndecisions stay bound\
-  \ to their (`ceiling_ref`, fingerprint) and a recurrence of that fingerprint there\
-  \ is\nmatched to the decision (`overruled_by_decision`), never re-raised. AUDIT-PRE:\
-  \ `subject_revision` and\n`evidence_revision` are PLAN fingerprints (<workshop-spec>'s\
-  \ recorded `plan_fingerprint`); a `fix` at pre is an\n`implementation_plan` edit\
-  \ and admission requires the CURRENT plan fingerprint to EQUAL the named\nevidence\
-  \ revision — the descendant clause is post-only. **AN ALL-`accept`/`defer` SET AT\
-  \ AUDIT-PRE IS\nPLAN-FINGERPRINT-AGNOSTIC.** Such a set names no\nrevision of its\
-  \ own — no `fix`, so no `evidence_revision` — and the residual it decides stands\
-  \ whatever\nthe plan text now says; so when the plan was edited AFTER the ceiling\
-  \ pass, the pass is admitted at\nthe CURRENT plan fingerprint (and names it), and\
-  \ anything the edit introduced counts NEW at its own\nseverity. BOUNDED: task audit-pre\
-  \ only\n(plan gates and audit-post unchanged), a NON-EMPTY decision set only, and\
-  \ ANY `fix` — alone or mixed —\nkeeps the current-plan-fingerprint EQUALITY above\
-  \ verbatim. Nothing is re-recorded or edited (rule 4).\n**THE SUBJECT PIN IS CHECKED\
-  \ BY ANCESTRY AT\nAUDIT-POST:** the subject is the named revision **or any STRICT\
-  \ DESCENDANT of\nit**, because the descendant CONTAINS the evidence the decisions\
-  \ name and anything authored on top is\nput before the auditor as THIS pass's own\
-  \ diff and counts NEW at its own severity — so auditing a\ndescendant is never less\
-  \ safe than auditing the named revision. This is what lets a binding survive\nthe\
-  \ commits the LIFECYCLE ITSELF mandates after the decisions were recorded: the merge-fallout\
-  \ round and the `task commit --fix-red --card-repair` custody move\n. A NON-descendant\
-  \ is still refused `subject_not_named_revision`, fail-closed on any ancestry\ngit\
-  \ cannot answer; at AUDIT-PRE the subject is a plan fingerprint with no ancestry,\
-  \ so equality is\nkept verbatim.\nThe pass is\nexactly ONE beyond the ceiling; the\
-  \ auditor receives the ceiling row's findings with their decisions\nrendered beside\
-  \ them and is asked to VERIFY `fix` residuals against the evidence revision, to\
-  \ treat\n`accept` residuals as authority-accepted (recorded, not re-argued — `accept`\
-  \ is TERMINAL for that\nfinding), and to treat `defer` residuals as out of this\
-  \ subject (their receiving card is named). ECHO MATCHING: the packet prints every\
-  \ residual WITH its fingerprint AND the fields its record carries, and the auditor\
-  \ MUST put\n`echo_of: <fingerprint>` on each finding that re-raises one; the engine\
-  \ VERIFIES the reference (it must\nbe a fingerprint of the ceiling row — otherwise\
-  \ the field is dropped). A finding without a valid\n`echo_of` whose ENGINE-recomputed\
-  \ rule-1 key EQUALS a residual's key is that residual's echo, bound on\nthe same\
-  \ arms and recorded with `echo_of` set to that key — rule 1's own identity, since\
-  \ only reworded\n`what`/`where` prose lies outside the key; the key is recomputed\
-  \ from\nthe structured fields, never read from a carried `finding_fingerprint`.\
+  \ the ceiling row's\nown `subject_revision` when no decision is `fix`, else — at\
+  \ audit-POST — the single\n`evidence_revision` every `fix` decision names, and at\
+  \ audit-PRE the plan fingerprint current at the\npass (below) (at audit-POST all\
+  \ `fix` decisions on one ceiling row MUST name the same revision, which for\naudit-post\
+  \ MUST be a descendant of the audited commit — or, at audit-POST, a NESTED chain\
+  \ of\nrevisions, named by its unique newest one). Any other subject → refused (`decisions-not-\n\
+  for-this-revision`); any undecided residual → refused (`residual-undecided`), naming\
+  \ it.\nA `worktree sync` MERGE IS AN ADMISSIBLE AUDIT-POST SUBJECT. When the ONE\
+  \ revision the `fix`\ndecisions name is a merge `worktree sync` recorded on the\
+  \ card's branch (its `worktree_synced` row's\n`head_after`) and it STRICTLY descends\
+  \ from the recorded commit, the `--on-decisions` pass is audited\nAT that merge:\
+  \ the packet grades the cumulative `merge-base(merge, main)..merge` range (ship\
+  \ +\nmerge), the record pins `commit:` to the merge and names the recorded commit\
+  \ as `sync_merge_ship`,\nand `task close` moves custody onto the merge only when\
+  \ git re-proves both. The merge carries no\nauthored content of its own, so the\
+  \ guard judges the recorded commit and the rule-3\nauthored-content arm skips the\
+  \ recorded merge; arms 1-2, the split and every other refusal are\nunchanged, and\
+  \ a non-descendant subject is still refused. `audit decide` refuses UP FRONT\n(`evidence-unreachable`,\
+  \ after every other write-time refusal so none changes its kind) a post\n`fix` evidence\
+  \ that is neither a recorded commit of the card (`commit_landed`) nor a recorded\
+  \ sync\nmerge — no pass could be audited at it.\nA DECISION PER RESIDUAL, NOT PER\
+  \ KEY (amended, <project> X-1489). «Every residual carries a\ndecision» is counted\
+  \ over DISTINCT RESIDUALS: a residual set in which ONE key stands for MORE THAN\n\
+  ONE finding of the ceiling row is COLLAPSED and is refused `residual-undecided`\
+  \ (cause\n`residual_keys_collapsed`, naming each such key and how many findings\
+  \ it carries) — a decision binds\nto a key, so a decision per key over a collapsed\
+  \ set would let one recorded decision discharge N\nfindings the Controller never\
+  \ read as separate. Same kind, a THIRD cause of the same fact (this pass\ncannot\
+  \ prove every residual is decided); the ladder stays closed at three kinds. How\
+  \ such a row READS after is rule 9(b)'s.\nDONE-BUT-UNLANDED\ncards (`--reaudit-after-close`):\
+  \ the subject is HEAD of the branch by that route's own contract, for an\nall-`accept`/`defer`\
+  \ set too — the decisions bind to the ceiling row, the pass audits HEAD (rule 4\n\
+  governs; «the ceiling row's own `subject_revision`» is the ORDINARY-route reading).\
+  \ A MIXED set\n(`fix` + `accept`/`defer`) is admitted and audited at the evidence\
+  \ revision (at audit-PRE: the plan\nfingerprint current at the pass, below) — the\
+  \ `accept`/`defer`\ndecisions stay bound to their (`ceiling_ref`, fingerprint) and\
+  \ a recurrence of that fingerprint there is\nmatched to the decision (`overruled_by_decision`),\
+  \ never re-raised. AUDIT-PRE: `subject_revision` and\n`evidence_revision` are PLAN\
+  \ fingerprints (<workshop-spec>'s recorded `plan_fingerprint`); a `fix` at pre is\
+  \ an\n`implementation_plan` edit, and it is BOUND AT THE PASS: the pass takes the\
+  \ plan fingerprint CURRENT\nwhen `audit pre --on-decisions` runs, admits it only\
+  \ when it DIFFERS from the ceiling row's audited\nplan fingerprint (the fix was\
+  \ applied), and names it as the audited subject; an UNCHANGED plan, or an\nunknown\
+  \ fingerprint on either side, is refused `decisions-not-for-this-revision`\n(`plan_unchanged_since_ceiling`).\
+  \ The `evidence_revision` a pre `fix` recorded is the fingerprint at\nrecord time:\
+  \ the pass does not compare it, and two different ones never split. The descendant\
+  \ clause\nis post-only. **AN ALL-`accept`/`defer` SET AT AUDIT-PRE IS\nPLAN-FINGERPRINT-AGNOSTIC.**\
+  \ Such a set names no\nrevision of its own — no `fix`, so no `evidence_revision`\
+  \ — and the residual it decides stands whatever\nthe plan text now says; so when\
+  \ the plan was edited AFTER the ceiling pass, the pass is admitted at\nthe CURRENT\
+  \ plan fingerprint (and names it), and anything the edit introduced counts NEW at\
+  \ its own\nseverity. BOUNDED: task audit-pre only\n(plan gates and audit-post unchanged),\
+  \ a NON-EMPTY decision set only, and ANY `fix` — alone or mixed —\ntakes the pass-time\
+  \ binding above instead. Nothing is re-recorded or edited (rule 4).\n**THE SUBJECT\
+  \ PIN IS CHECKED BY ANCESTRY AT\nAUDIT-POST:** the subject is the named revision\
+  \ **or any STRICT DESCENDANT of\nit**, because the descendant CONTAINS the evidence\
+  \ the decisions name and anything authored on top is\nput before the auditor as\
+  \ THIS pass's own diff and counts NEW at its own severity — so auditing a\ndescendant\
+  \ is never less safe than auditing the named revision. This is what lets a binding\
+  \ survive\nthe commits the LIFECYCLE ITSELF mandates after the decisions were recorded:\
+  \ the merge-fallout round and the `task commit --fix-red --card-repair` custody\
+  \ move\n. A NON-descendant is still refused `subject_not_named_revision`, fail-closed\
+  \ on any ancestry\ngit cannot answer; at AUDIT-PRE the subject is a plan fingerprint\
+  \ with no ancestry, so a `fix` is\nbound at the pass as above.\nThe pass is\nexactly\
+  \ ONE beyond the ceiling; the auditor receives the ceiling row's findings with their\
+  \ decisions\nrendered beside them and is asked to VERIFY `fix` residuals at the\
+  \ subject the pass names (at\naudit-POST the evidence revision, at audit-PRE the\
+  \ plan fingerprint current at the pass), to treat\n`accept` residuals as authority-accepted\
+  \ (recorded, not re-argued — `accept` is TERMINAL for that\nfinding), and to treat\
+  \ `defer` residuals as out of this subject (their receiving card is named). ECHO\
+  \ MATCHING: the packet prints every residual WITH its fingerprint AND the fields\
+  \ its record carries, and the auditor MUST put\n`echo_of: <fingerprint>` on each\
+  \ finding that re-raises one; the engine VERIFIES the reference (it must\nbe a fingerprint\
+  \ of the ceiling row — otherwise the field is dropped). A finding without a valid\n\
+  `echo_of` whose ENGINE-recomputed rule-1 key EQUALS a residual's key is that residual's\
+  \ echo, bound on\nthe same arms and recorded with `echo_of` set to that key — rule\
+  \ 1's own identity, since only reworded\n`what`/`where` prose lies outside the key;\
+  \ the key is recomputed from\nthe structured fields, never read from a carried `finding_fingerprint`.\
   \ Any other finding is new and\nfingerprinted: a differing criterion, `locator`\
   \ or `failing_input` is a different key and stays NEW.\nNeither the revision-free\
   \ key nor a coarser\n{criterion|class, file} key can match alone on real auditor\
@@ -174,23 +182,25 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ after its NEWEST\n`audit_post_completed` (journal order, never second-resolution\
   \ `ts` — SPEC-1038 §Tests) does NOT open a new ceiling row: its re-audit is the\
   \ next pass on the SAME\nrow as the audit it reopens, so repeated fixes after Tests\
-  \ reach the ceiling and this spec's\ndecision route. Decided by those facts — never\
-  \ by how the card reached Commit, an explicit\n`stage Commit` included, and never\
-  \ by that run's verdict, so a green run on an unaudited fix\ncannot reset the row.\
-  \ The new-row rule (SPEC-1041 «At-ceiling edge cases», the successor of <workshop-spec>)\
-  \ keeps\ngoverning only the GREEN second ship: a re-ship after a GREEN audit-post\
-  \ with no governed run\nsince it.\n\n### 5. No-answer\nAn auditor response with\
-  \ no payload (timeout, transport failure, empty stdout) on the `--on-decisions`\n\
-  pass is the EXISTING no-outcome class (<workshop-spec> `is_no_data_verdict`): ABORT/environmental,\
-  \ never\nGREEN, never a spent pass, the decisions untouched. ONE attempt per trigger;\
-  \ a retry is an explicit\nController re-invocation of the same verb, never automatic.\n\
-  \n### 6. Retirements (CHARTER §P1 F3 — a POSITIVE list; nothing outside it changes)\n\
-  The retired list and its refusals are homed in <workshop-spec> §Audit-loop ceiling.\
-  \ `audit consult\n--on-demand` (the BELOW-ceiling technical-fork pick, <workshop-spec>)\
-  \ is not on the list and is unchanged. Retired flags survive only as refusal\nshims\
-  \ (print the pointer, exit nonzero) until this contract's plan is `realized`, then\
-  \ are deleted.\nALSO RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication\
-  \ consult and with it\nevery episode a plan gate could open — so the `malformed-exhausted`\
+  \ reach the ceiling and this spec's\ndecision route — or, ONCE, after a GREEN rule-3\
+  \ pass, the test-found-fix pass (the edge-case\nreference, «A test-found fix after\
+  \ a spent GREEN»). Decided by those facts — never by how the card reached Commit,\
+  \ an explicit\n`stage Commit` included, and never by that run's verdict, so a green\
+  \ run on an unaudited fix\ncannot reset the row. The new-row rule (SPEC-1041 «At-ceiling\
+  \ edge cases», the successor of <workshop-spec>) keeps\ngoverning only the GREEN\
+  \ second ship: a re-ship after a GREEN audit-post with no governed run\nsince it.\n\
+  \n### 5. No-answer\nAn auditor response with no payload (timeout, transport failure,\
+  \ empty stdout) on the `--on-decisions`\npass is the EXISTING no-outcome class (<workshop-spec>\
+  \ `is_no_data_verdict`): ABORT/environmental, never\nGREEN, never a spent pass,\
+  \ the decisions untouched. ONE attempt per trigger; a retry is an explicit\nController\
+  \ re-invocation of the same verb, never automatic.\n\n### 6. Retirements (CHARTER\
+  \ §P1 F3 — a POSITIVE list; nothing outside it changes)\nThe retired list and its\
+  \ refusals are homed in <workshop-spec> §Audit-loop ceiling. `audit consult\n--on-demand`\
+  \ (the BELOW-ceiling technical-fork pick, <workshop-spec>) is not on the list and\
+  \ is unchanged. Retired flags survive only as refusal\nshims (print the pointer,\
+  \ exit nonzero) until this contract's plan is `realized`, then are deleted.\nALSO\
+  \ RETIRED, on the PLAN-GATE axis (rule 9): the plan-gate ceiling-adjudication consult\
+  \ and with it\nevery episode a plan gate could open — so the `malformed-exhausted`\
   \ episode terminal is UNREACHABLE\nfor a plan gate, asserted by a `graph conformance`\
   \ probe that reads the SAME retirement carrier the\nrefusal shim reads; the plan-gate\
   \ `--owner-reset` continuation on the FSM-advancing gate verb, whose\nbasis WAS\
@@ -281,14 +291,19 @@ body: "### 3. The one bounded re-audit — `audit pre|post --on-decisions`\nAdmi
   \ and the\njournal as the single store. Prior-art it EXTENDS rather than re-invents:\
   \ <workshop-spec>'s per-finding\nfields (the fingerprint inputs already exist);\
   \ no-worktree journal append; SPEC-0168's\ncross-instance fold; the existing `task\
-  \ update --status` / `worktree park` terminals.\n\n### History moved out of the\
-  \ rule body\n\nThe passages below stood in the rule text and were moved here verbatim;\
-  \ the rule they\nsat in is unchanged.\n\n- **1. The residual list IS the last RED's\
-  \ findings — fingerprinted by the engine:** (`green`\n  joined the set when admitted\
-  \ RED/YELLOW/GREEN as severity words)\n\n- **1. The residual list IS the last RED's\
-  \ findings — fingerprinted by the engine:**\n  (`read_gate_refused` kind `finding-locator-unresolvable`\
-  \ and its `findings_all` key are RETIRED:\n  nothing is refused, and a refusal row\
-  \ on a recorded verdict would misreport it to every later\n  reader)\n\n- **1. The\
+  \ update --status` / `worktree park` terminals.\n\n### A pre `fix` bound at the\
+  \ pass\n\nUntil a pre `fix` held the pass to the plan fingerprint typed at `audit\
+  \ decide`, and the\ncurrent plan had to EQUAL it. Public issue yitc#155 (cryptochart)\
+  \ measured the wedge: the\nplan was edited again after the decision to apply the\
+  \ fix, the pass refused, and rule 4 forbids\nre-recording. The owner chose binding\
+  \ at the pass (events.jsonl#ts=).\n\n### History moved out of the rule body\n\n\
+  The passages below stood in the rule text and were moved here verbatim; the rule\
+  \ they\nsat in is unchanged.\n\n- **1. The residual list IS the last RED's findings\
+  \ — fingerprinted by the engine:** (`green`\n  joined the set when admitted RED/YELLOW/GREEN\
+  \ as severity words)\n\n- **1. The residual list IS the last RED's findings — fingerprinted\
+  \ by the engine:**\n  (`read_gate_refused` kind `finding-locator-unresolvable` and\
+  \ its `findings_all` key are RETIRED:\n  nothing is refused, and a refusal row on\
+  \ a recorded verdict would misreport it to every later\n  reader)\n\n- **1. The\
   \ residual list IS the last RED's findings — fingerprinted by the engine:** (the\
   \ same\n  fingerprinted projection, so a YELLOW pass is journaled like a RED; residual\
   \ identity is unchanged,\n  since a YELLOW ceiling row resolved the same findings\

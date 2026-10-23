@@ -15,7 +15,10 @@ environment variable YITC_VERIFY_ADAPTER_MANIFEST; the manifest's `action` says 
       (`playwright test --only-changed=<base> --list`: Playwright compares the working tree
       with `<base>`, untracked files included, by itself)
   run — exactly the requested pairs in ONE Playwright run, Playwright's own retries off
-      (`--retries=0`), the JUnit report and the JSON report written where the manifest says
+      (`--retries=0`), the JUnit report and the JSON report written where the manifest says. When
+      every requested pair carries `cases` (a re-run), `--grep` selects those tests by their exact
+      titles — but only when, over Playwright's own listing, that selection hits the named tests
+      and no other; otherwise the files run whole, which the protocol allows.
 
 A unit is a spec file inside a Playwright project: `file` is repository-relative and `project`
 is the project's name. Playwright's JUnit report names a suite by the spec's path relative to
@@ -25,6 +28,7 @@ One limit to know: a run is asked for by project names and file names, so it exe
 requested file in every requested project that holds it. When the requested pairs are not all
 of those combinations, the report names a pair the kernel did not ask for; the kernel then drops
 the report and runs the layer's full `command:` instead.
+
 """
 import json
 import os
@@ -71,6 +75,51 @@ def listed(extra):
     return units, errors, config.get("version")
 
 
+def listed_tests(projects, files):
+    """Every test `playwright test --list` finds in `files` for `projects`, as (project, spec name,
+    titles, tags). Returns None when the listing cannot be read."""
+    proc = subprocess.run([*PLAYWRIGHT, "test", "--list", "--reporter=json",
+                           *["--project=" + p for p in projects], *files], cwd=HOME, capture_output=True, text=True)
+    try:
+        doc = json.loads(proc.stdout)
+    except ValueError:
+        return None
+    tests = []
+    queue = [(suite, None) for suite in doc.get("suites") or []]
+    while queue:
+        suite, titles = queue.pop(0)
+        # a top-level suite is the spec file, named by the file; a nested one is a describe block
+        inner = [] if titles is None else titles + [suite.get("title") or ""]
+        queue.extend((child, inner) for child in suite.get("suites") or [])
+        for spec in suite.get("specs") or []:
+            for test in spec.get("tests") or []:
+                tests.append((test.get("projectName") or "", spec.get("file"), inner + [spec.get("title") or ""],
+                              ["@" + tag for tag in spec.get("tags") or []]))
+    return tests
+
+
+def named_cases(units, files):
+    """A `--grep` pattern matching exactly the named cases, or None to run the files whole.
+    Playwright matches `--grep`, case-insensitively, against the project, the spec's name, the
+    titles and the tags joined with spaces, so the pattern ends with the spec's name, the titles
+    and any tags. Joining with spaces can make two tests read alike (`sum › adds two` and a test
+    titled `sum adds two`), so the pattern is used only when, over Playwright's own listing of
+    these files, it matches the named tests and no other."""
+    if not units or not all(u.get("cases") for u in units):
+        return None
+    pattern = "^.* (?:%s)(?: @\\S+)*$" % "|".join(sorted(
+        {re.escape(u.get("report_id") or u["file"]) + " " + " ".join(re.escape(p) for p in case.split(" \u203a "))
+         for u in units for case in u["cases"]}))
+    tests = listed_tests(sorted({u["project"] for u in units if u.get("project")}), files)
+    if tests is None:
+        return None
+    wanted = {(u.get("project") or "", u.get("report_id") or u["file"], case) for u in units for case in u["cases"]}
+    grep = re.compile(pattern, re.IGNORECASE)
+    hit = {(project, name, " \u203a ".join(titles)) for project, name, titles, tags in tests
+           if grep.search(" ".join(["", project, name, *titles, *tags]))}
+    return pattern if hit == wanted else None
+
+
 def answer(manifest, units, errors, versions):
     """Write the answer of `list` or `related` where the manifest says. Returns the exit code."""
     doc = {"schema": 1, "units": units, "errors": errors}
@@ -101,7 +150,11 @@ def main(argv):
             for project in sorted({u["project"] for u in units if u.get("project")}):
                 cmd.append("--project=" + project)
             # a file argument is a regular expression matched against the spec's full path
-            cmd += sorted({re.escape(os.path.join(ROOT, u["file"])) + "$" for u in units})
+            files = sorted({re.escape(os.path.join(ROOT, u["file"])) + "$" for u in units})
+            cmd += files
+            pattern = named_cases(units, files)
+            if pattern is not None:
+                cmd.append("--grep=" + pattern)
         env = dict(os.environ, PLAYWRIGHT_JUNIT_OUTPUT_FILE=manifest["report"],
                    PLAYWRIGHT_JSON_OUTPUT_FILE=manifest["second_report"])
         return subprocess.run(cmd, cwd=HOME, env=env).returncode

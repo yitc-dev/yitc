@@ -268,9 +268,9 @@ that are not there. Before drawing ANY conclusion from per-land numbers:
    function over the carrier at the two revisions (SPEC-0152 rule 16): for a diff that lists
    `yitc-ops.yaml`, the section comparison (`_ops_carrier_freed_paths`); for a diff that lists a path
    under `tests/`, the ownership proof (`_owned_test_freed_paths`). Hand the UNION of the two freed
-   sets to the edge, as the land does. For a diff that lists a path under your root `bin/`, ask a
-   third question the same way: does your contract name that file (`_named_root_bin_touch`, over
-   the carrier at the two revisions)? A named file is a full run, as it is at the land; one
+   sets to the edge, as the land does. For every other path of the diff — under your root `bin/` or
+   anywhere else — ask a third question the same way: does your contract name that file
+   (`_named_root_bin_touch`, over the carrier at the two revisions)? A named file is a full run, as it is at the land; one
    nothing names is judged by the layers' globs. A replay that omits either freed set reconstructs
    a full run the engine did not take, one that omits the third question reconstructs a skip it
    did not take, and neither can reach the 100% of step 3. Not a re-derivation of what the globs

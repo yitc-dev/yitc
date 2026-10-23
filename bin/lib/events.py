@@ -740,6 +740,32 @@ def recombine_journal(journal_path, *, dedup, write_text_atomic) -> "dict | None
     return {"rows": len(merged), "segments_dropped": len(archives)}
 
 
+def dedup_segments_in_place(journal_path, root, *, dedup, write_text_atomic) -> "tuple[int, list]":
+    """T-14101 — drop journal rows a union merge kept twice, segment by segment, in place.
+
+    A row BOTH merged branches carry, sitting at different places on each side, survives the
+    `merge=union` driver twice. `land` drops such rows at integration with this same per-segment
+    keep-first rewrite; `worktree sync --from` and `worktree sync --resolved` call this so the merge
+    they commit already holds each row once. Each segment is deduped INDEPENDENTLY, as land does:
+    rotation MOVES a row between segments rather than copying it, so no cross-segment dedup is
+    invented here. A segment absent on disk is skipped; a segment with nothing to drop is not
+    rewritten. Returns (rows dropped, pathspecs of the rewritten segments relative to `root`)."""
+    dropped, changed = 0, []
+    root = Path(root)
+    for seg in segment_paths(journal_path):
+        p = Path(seg)
+        if not p.exists():
+            continue
+        rows = [ln for ln in p.read_text(encoding="utf-8").splitlines() if ln]
+        kept = dedup(rows)
+        if len(kept) == len(rows):
+            continue
+        write_text_atomic(p, "".join(ln + "\n" for ln in kept))
+        dropped += len(rows) - len(kept)
+        changed.append(os.path.relpath(p, root))
+    return dropped, changed
+
+
 def _dedup_identity(line: str) -> str:
     """The keep-first identity used to VALIDATE the archive write — deliberately the raw line.
 
@@ -1817,6 +1843,19 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
         if "owner_text_verified" in caller_data:
             _die("--data may not contain `owner_text_verified`: it is stamped by this verb only after "
                  "it proves `owner_text` against the anchored transcript entry (T-12801). Nothing was appended.")
+        # T-14117 (X-2039): a PRESENT `mid_turn` (null included) that is not the literal true is refused
+        # naming the FULL-TURN route too — never stripped, since the citation check below skips any row
+        # carrying `mid_turn`, and a decision with a parser-born owner row cites that row instead.
+        if "mid_turn" in caller_data and caller_data["mid_turn"] is not True:
+            _die(f"owner_directive refused: `mid_turn` is {json.dumps(caller_data['mid_turn'])}, "
+                 "not the JSON literal true. Nothing was appended.\n"
+                 "  a decision with a parser-born owner row — the full-turn route (SPEC-1039 rule 2): "
+                 "omit `mid_turn` and cite that row as `events.jsonl#ts=<owner row ts>` in `text`: "
+                 "`bin/yitc-v2 event owner_directive --data '{\"captured_via\": \"controller-delegated\", "
+                 "\"cards\": [\"T-XXXX\"], \"text\": \"<what the owner authorized> cites "
+                 "events.jsonl#ts=<owner row ts>\"}'`\n"
+                 "  a decision that arrived MID-TURN (no owner row): \"mid_turn\": true with "
+                 "--source-ref <transcript>#uuid:<owner entry uuid>")
         if caller_data.get("mid_turn") is not None:
             _proof = dict(caller_data)
             _mid_turn_refusal = _mid_turn_owner_text_refusal(

@@ -40,6 +40,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -2790,6 +2791,916 @@ def _await_deploy_window(headroom, max_wait_s, *, read_load=None, sleep=None, cl
             "load1_at_start": first, "load1_last": load}
 
 
+# ── T-14105 — THE PRE-DEPLOY RUN, A GATED DEPLOY'S LAST GATE (SPEC-1042 rules 3-4, `proposed`) ─────
+# A forward deploy to a target a pre-deploy class guards runs, as its last gate before the command,
+# every verify layer whole plus that class's units, on a fresh checkout of the revision it was told to
+# ship, on the land runner; a red run refuses the deploy. No contract reaches this before the turn-on
+# card T-14114: the contract reader refuses `moment: pre-deploy` (init `_hook_tests`), and only a
+# caller handing `cmd_deploy` the PARSED `tests.classes` list (`pre_deploy_classes=`) gates a deploy.
+# Each run writes one `test_class_executed` row per guarding class — a record, never read to admit a
+# deploy — and the deploy's own row names the run.
+#: SPEC-1042 rule 1 (T-14108) — the reserved `targets:` name of the PLAIN deploy (no `--target`: the
+#: `deploy.command`). Its runs are recorded under this name.
+PRE_DEPLOY_DEFAULT_TARGET = "default"
+
+
+def _pre_deploy_guarding(classes, target, deploy_targets=None) -> list:
+    """SPEC-1042 rules 1, 3, 5 — the pre-deploy classes GUARDING `target`: the names of the PARSED
+    `tests.classes[]` entries with `moment: pre-deploy` whose `targets:` list names it, in declaration
+    order, each once — so a target stays gated while ANY class names it. An entry that is not a
+    mapping, names no class or carries no list of target names guards nothing here (the contract
+    reader refuses those shapes).
+
+    The plain deploy is `target` == PRE_DEPLOY_DEFAULT_TARGET (`cmd_deploy` passes it when no
+    `--target` was given). FAIL-CLOSED (rule 1): a class also guards it when it names any target that
+    `deploy_targets` (the parsed `deploy.targets` mapping) does not POSITIVELY declare
+    `production: false` — a `production: true` target, and equally one whose stance is absent or not
+    a boolean, or a name it does not declare: only a positive non-production declaration proves a
+    target is not production, so a plain deploy can never reach production around the gate. PURE."""
+    if not (isinstance(target, str) and target):
+        return []
+    tmap = deploy_targets if isinstance(deploy_targets, dict) else {}
+
+    def _names(t):
+        if not isinstance(t, str) or not t.strip():
+            return False
+        t = t.strip()
+        if t == target:
+            return True
+        if target != PRE_DEPLOY_DEFAULT_TARGET:
+            return False
+        entry = tmap.get(t)
+        return not (isinstance(entry, dict) and entry.get("production") is False)
+
+    out: list = []
+    for c in classes if isinstance(classes, list) else ():
+        if not (isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"):
+            continue
+        name, targets = str(c.get("class") or "").strip(), c.get("targets")
+        if name and name not in out and isinstance(targets, list) and any(_names(t) for t in targets):
+            out.append(name)
+    return out
+
+
+def _pre_deploy_recordable(guarding, *, REPO_ROOT, _record_probe) -> list:
+    """T-14107 (SPEC-1042 rule 3, recordability first) — the checks a gated deploy's rows would fail,
+    asked BEFORE the run: [] when this session can record the run's class rows and its own deploy
+    rows, else one named line per failed check. `_record_probe` is the host's write-path probe (the
+    SPEC-0078 boundary and the journal append, `cli._journal_record_probe`; "" = can write); without
+    one nothing shows the rows can be written, so that is a failed check too. Each guarding class must
+    also pass the SPEC-0152 rule-24 declared-class check its row meets on the `event` path
+    (`debt.undeclared_class_remedy`, which abstains where the contract declares no class)."""
+    from lib import debt
+    failed = []
+    if _record_probe is None:
+        failed.append("journal: no record probe was handed in, so nothing shows the rows can be written")
+    else:
+        why = _record_probe()
+        if why:
+            failed.append(why)
+    for c in guarding:
+        remedy = debt.undeclared_class_remedy(Path(REPO_ROOT) / "yitc-ops.yaml", c)
+        if remedy:
+            failed.append(f"declared-class: {' '.join(remedy.split())}")
+    return failed
+
+
+def _pre_deploy_run_history(target, *, _iter_events) -> dict:
+    """SPEC-1042 rules 3-4 — what the earlier pre-deploy runs for `target` say, in ONE read of the
+    `test_class_executed` rows whose `target` is it: `{last_passed, next_seq, unordered}`.
+
+    `seq` is each run's place among this target's runs, written on its rows (`next_seq` = 1 + the
+    greatest recorded, 1 when none). Every gated deploy reads it and writes its own under the
+    SPEC-0094 §8 per-project deploy lock, so it orders the runs as they completed — by construction,
+    never by a timestamp or the journal's physical order (SPEC-0190 rule 5 lets the latter move).
+    `last_passed` is the `candidate` (a full commit id) of the passed run (`run_outcome: passed`)
+    with the greatest `seq`. A run whose own history read failed wrote its rows WITHOUT a `seq`: such
+    a passed run has no place, so when one is recorded at or after the `ts` of that run — or there is
+    no placed passed run at all — the last passed run cannot be told: `last_passed` is None and
+    `unordered` True, and the report says UNKNOWN rather than guess. The fail-to-end report reads it
+    to name the cards landed since; nothing admits a deploy on these rows."""
+    best, top, unplaced = None, 0, None
+    for ev in _iter_events(types=("test_class_executed",)):
+        data = ev.get("data") if isinstance(ev, dict) else None
+        if not (isinstance(data, dict) and data.get("target") == target):
+            continue
+        seq = data.get("seq")
+        seq = seq if isinstance(seq, int) and not isinstance(seq, bool) and seq > 0 else None
+        top = max(top, seq or 0)
+        cand = data.get("candidate")
+        if data.get("run_outcome") != "passed" or not (
+                isinstance(cand, str) and re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", cand)):
+            continue
+        ts = ev.get("ts") if isinstance(ev.get("ts"), str) else ""
+        if seq is None:
+            unplaced = ts if unplaced is None else max(unplaced, ts)
+        elif best is None or (seq, ts, cand) > best:
+            best = (seq, ts, cand)
+    unordered = unplaced is not None and (best is None or unplaced >= best[1])
+    return {"last_passed": None if unordered or best is None else best[2], "next_seq": top + 1,
+            "unordered": unordered}
+
+
+def _pre_deploy_cards_since(last, candidate, *, REPO_ROOT, _run_git_cap) -> "list | None":
+    """SPEC-1042 rule 3 — the cards LANDED between `last` (the candidate of the last passed run) and
+    `candidate`: each card `T-<n>` one of whose files `tasks/T-<n>-*.yaml` the two revisions differ
+    on, that reads `status: done` at `candidate` and did not at `last` — however it reached `main`
+    (its own land, a batch, a work batch). Ids in number order. [] when none; None when git cannot
+    answer (an unknown `last` included). Paths are read NUL-separated, never through git's quoting."""
+    d = _run_git_cap(["diff", "-z", "--name-only", "--no-renames", last, candidate, "--", "tasks/"],
+                     REPO_ROOT)
+    if d.returncode != 0:
+        return None
+    cards: dict = {}
+    for path in (d.stdout or "").split("\0"):
+        m = re.fullmatch(r"tasks/(T-\d+)-[^/]*\.yaml", path)
+        if m:
+            cards.setdefault(m.group(1), set()).add(path)
+    if not cards:
+        return []
+    paths = sorted(set().union(*cards.values()))
+
+    def _done_at(rev):
+        g = _run_git_cap(["grep", "-z", "-l", "-E", "^status: ['\"]?done['\"]?[[:space:]]*$", rev, "--",
+                          *paths], REPO_ROOT)
+        if g.returncode not in (0, 1):            # 1 = no file matched
+            return None
+        return {hit[len(rev) + 1:] for hit in (g.stdout or "").split("\0") if hit.startswith(rev + ":")}
+
+    now, then = _done_at(candidate), _done_at(last)
+    if now is None or then is None:
+        return None
+    return sorted((cid for cid, own in cards.items() if own & now and not own & then),
+                  key=lambda cid: int(cid[2:]))
+
+
+def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
+    """PURE — what SPEC-1042 rules 3-4 ask of the land runner's result over a pre-deploy run
+    (`_consumer_zero_probe_guard` handed `pre_deploy={..., run: True}`, no base):
+
+      {run_outcome, failing, rescued, bad, classes: {class: {outcome, consumer_verify_layers, count,
+       unattributed?}}}
+
+    `run_outcome` is the land's own verdict: `passed` only when the runner ran its declared layers
+    (`mode: layers`) and returned no `bad` line — a layer's verdict as a land reads it, after the
+    land's per-unit rescue, never a raw unit status. `failing` names every unit of every layer that
+    FAILED (any outcome but `passed` / `passed-partial` and the land's non-failing `waived` /
+    `skipped-disjoint-subject` / `credited-stage6-run`) — `{layer, file, project?}` for each unit
+    whose status is not `passed` / `skipped` and that no re-run rescued, `{layer}` for a layer that
+    failed with no such unit (its command, a `required:` check, its bound); `rescued` every unit or
+    group a re-run rescued (`flaky_retry.rows[].rescued`) and every layer its isolated re-run rescued
+    whole (a `flaky_retry` row naming only the layer, `isolated: pass`, `rescue` not `off`) — such a
+    layer's row keeps its FIRST run's unit statuses, so each of its units that FAILED there counts as
+    passed; a unit it skipped stays skipped.
+
+    A class's OWN units: the units the run's `pre_deploy` record names with that class (an adapter
+    layer), or every unit of a layer the class names whole (`whole_layers`, `{layer: class}`; the row
+    itself for a layer with no adapter). Its row's `consumer_verify_layers` carries those units only,
+    in the land row's shape `{layer, outcome, adapter: {units}}`. Its `outcome` is `pass` only when it
+    has at least one own unit, every one passed (or was rescued), and no layer's membership could not
+    be read (`unattributed` — a `list` that did not answer, or a membership refused as malformed):
+    a class none of whose units is SHOWN to have passed is not recorded as passing."""
+    res = result if isinstance(result, dict) else {}
+    rows = [r for r in res.get("layers") or () if isinstance(r, dict)] \
+        if isinstance(res.get("layers"), list) else []
+    bad = [str(b) for b in res.get("bad") or ()] if isinstance(res.get("bad"), list) else []
+    if res.get("mode") != "layers" and not bad:
+        bad = [f"the land runner did not run the declared verify layers (mode {res.get('mode')!r}) — "
+               f"the pre-deploy run runs every layer whole, so it cannot pass without them"]
+    retry = res.get("flaky_retry") if isinstance(res.get("flaky_retry"), dict) else {}
+    rescued, saved, saved_layers = [], set(), set()
+    for r in retry.get("rows") or ():
+        if not isinstance(r, dict):
+            continue
+        if r.get("rescued") and (r.get("unit") or r.get("group")):
+            what = "unit" if r.get("unit") else "group"
+            rescued.append({"layer": r.get("layer"), what: r[what],
+                            **({"project": r["project"]} if r.get("project") else {})})
+            saved.add((r.get("layer"), r.get("project") or "", what, r[what]))
+        elif not (r.get("unit") or r.get("group")) and r.get("isolated") == "pass" \
+                and r.get("rescue", "on") == "on":           # the layer's isolated re-run rescued it
+            rescued.append({"layer": r.get("layer")})
+            saved_layers.add(r.get("layer"))
+
+    def _ok(layer, u):
+        return u.get("status") == "passed" \
+            or (layer in saved_layers and u.get("status") in ("failed", "error")) \
+            or (layer, u.get("project") or "", "unit", u.get("file")) in saved \
+            or (bool(u.get("group")) and (layer, u.get("project") or "", "group", u.get("group")) in saved)
+
+    def _name(layer, u):
+        return {"layer": layer, "file": u.get("file"), **({"project": u["project"]} if u.get("project") else {})}
+
+    failing: list = []
+    classes = {c: {"layers": [], "units": 0, "ok": True, "unattributed": []} for c in guarding}
+    for row in rows:
+        layer = row.get("layer")
+        adapter = row.get("adapter") if isinstance(row.get("adapter"), dict) else {}
+        units = [u for u in adapter.get("units") or () if isinstance(u, dict) and u.get("file")] \
+            if isinstance(adapter.get("units"), list) else []
+        passed = row.get("outcome") in ("passed", "passed-partial")
+        if not passed and row.get("outcome") not in ("waived", "skipped-disjoint-subject",
+                                                     "credited-stage6-run"):
+            down = [_name(layer, u) for u in units if u.get("status") != "skipped" and not _ok(layer, u)]
+            failing.extend(down or [{"layer": layer}])
+        whole = whole_layers.get(layer) if isinstance(whole_layers, dict) else None
+        if whole in classes:
+            got = classes[whole]
+            got["layers"].append({"layer": layer, "outcome": row.get("outcome"),
+                                  **({"adapter": {"units": units}} if units else {})})
+            got["units"] += max(1, len(units))
+            got["ok"] = got["ok"] and passed and all(_ok(layer, u) for u in units)
+            continue
+        pd = adapter.get("pre_deploy")
+        if not isinstance(pd, dict):
+            continue                    # no unit of this layer's inventory is a pre-deploy unit
+        if pd.get("reason") != "pre-deploy-run":
+            for got in classes.values():        # membership unreadable here: who owns what is unknown,
+                got["unattributed"].append(layer)   # so no class can be shown to have passed
+                got["ok"] = False
+            continue
+        by_key = {(u.get("project") or "", u.get("file")): u for u in units}
+        for c, got in classes.items():
+            mine = [n for n in pd.get("units") or () if isinstance(n, dict) and n.get("class") == c]
+            if not mine:
+                continue
+            own = [by_key.get((n.get("project") or "", n.get("file"))) or
+                   {"file": n.get("file"), **({"project": n["project"]} if n.get("project") else {}),
+                    "status": "missing"} for n in mine]
+            got["layers"].append({"layer": layer, "outcome": row.get("outcome"), "adapter": {"units": own}})
+            got["units"] += len(own)
+            got["ok"] = got["ok"] and all(_ok(layer, u) for u in own)
+    run_passed = res.get("mode") == "layers" and not bad
+    return {"run_outcome": "passed" if run_passed else "failed", "failing": failing, "rescued": rescued,
+            "bad": bad,
+            "classes": {c: {"outcome": "pass" if got["ok"] and got["units"] else "fail",
+                            "consumer_verify_layers": got["layers"], "count": got["units"],
+                            **({"unattributed": got["unattributed"]} if got["unattributed"] else {})}
+                        for c, got in classes.items()}}
+
+
+class _PreDeployTee:
+    """Writes to every stream it holds — the terminal and the run's log (T-14105)."""
+
+    def __init__(self, *streams):
+        self.streams = streams
+
+    def write(self, text):
+        for stream in self.streams:
+            stream.write(text)
+        return len(text)
+
+    def flush(self):
+        for stream in self.streams:
+            stream.flush()
+
+
+def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROOT, _run_git_cap,
+                    _append_event, _iter_events, _consumer_zero_probe_guard, attempt=1, run_ref=None,
+                    history=None, _pre_deploy_beside=None, _pre_deploy_journal=None) -> dict:
+    """SPEC-1042 rules 3-4 — RUN one attempt of the pre-deploy run of one gated deploy and RECORD it;
+    returns `{run_ref, passed, contended, history, log, unrecorded?}`. Nothing here refuses: the caller
+    refuses on `passed: False` and on `unrecorded` (a class row that could not be written, T-14107 —
+    rows written before it stay), and re-runs once on `contended: True`.
+
+    A fresh scratch checkout of `candidate` (`git worktree add --detach`, removed after); in it the
+    land runner, base-less — so every declared layer runs whole: no subject skip, no deciding
+    selection, no exclusion — handed the parsed declaration with `run: True`, so each adapter layer's
+    record names its pre-deploy units with their class and removes none. The runner's own rescue and
+    verdict apply. Its output goes to the terminal and to the run's log
+    `.yitc/pre-deploy-runs/<run_ref>.log` (the rows' `evidence:`). Then ONE report — every failing
+    unit, every rescued one, each guarding class's outcome and the cards landed since the last passed
+    run for `target` — and one `test_class_executed` row per guarding class (`attempt: 1`, and the
+    run's `seq` among this target's runs, `_pre_deploy_run_history`; omitted only when the journal
+    could not be read). A
+    checkout that cannot be made, or a runner that raises, is a red run, recorded like any other.
+
+    T-14106 — THE CONTENDED RE-RUN. Attempt 1, handed `_pre_deploy_beside` (which land or Stage-6 run
+    of the repository runs beside it NOW, `_pre_deploy_beside`), samples it while the runner runs
+    (`_PreDeployBesideWatch`), and takes the runner call's wall-clock window. A red whose every
+    failure reason is a unit's own runner timeout (`_pre_deploy_timeout_only`) with anybody seen
+    beside it — or, when the samples saw nobody, anybody `_pre_deploy_journal(lo, hi)`
+    (`_pre_deploy_journal_beside`) places in that window from the rows lands and Stage-6 runs already
+    write — is recorded `run_outcome: contended`, and the report says so, naming who and how it is
+    known; otherwise it says why the red is read at once. The journal is read only then: a green
+    run, any other red, or a neighbour seen reads none. The caller then runs attempt 2 with the same
+    `run_ref` and attempt 1's `history` (one run, one `seq`), logged to `<run_ref>.attempt-2.log`;
+    attempt 2 reads no contention and records `passed` or `failed`."""
+    import contextlib
+    import shutil
+    from lib import land_verify_legs
+    run_ref = run_ref or f"pdr-{candidate[:12]}-{os.urandom(4).hex()}"
+    decl = land_verify_legs._pre_deploy_declaration(pre_deploy_classes) or {"classes": [], "layers": {}}
+    if history is not None:              # T-14106: the contended re-run keeps attempt 1's reading
+        history, last_fault = history
+    else:
+        try:                             # before this run's own rows; a read fault names no cards
+            history, last_fault = _pre_deploy_run_history(target, _iter_events=_iter_events), None
+        except Exception as exc:  # noqa: BLE001 — the report says so; the run is not changed by it
+            history, last_fault = {"last_passed": None, "next_seq": None, "unordered": False}, repr(exc)
+    last = history["last_passed"]
+    log_rel = f".yitc/pre-deploy-runs/{run_ref}{'' if attempt == 1 else f'.attempt-{attempt}'}.log"
+    watch = _PreDeployBesideWatch(_pre_deploy_beside) \
+        if attempt == 1 and _pre_deploy_beside is not None else None
+    reads = attempt == 1 and (watch is not None or _pre_deploy_journal is not None)
+    window = [None, None]                # T-14106: the runner call's wall-clock window, inside the watch
+    log_path = Path(REPO_ROOT) / log_rel
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    scratch = Path(tempfile.mkdtemp(prefix="yitc-pre-deploy-run-"))
+    scratch.rmdir()                      # `git worktree add` makes the directory itself
+    if watch is not None:                # T-14106: the run's own nested CLI runs are not beside it
+        _own = os.path.realpath(scratch)
+        watch.sample = (lambda _s=watch.sample: [h for h in (_s() or ()) if not (
+            str(h.get("checkout") or "") == _own or str(h.get("checkout") or "").startswith(_own + os.sep))])
+    with open(log_path, "w", encoding="utf-8") as log:
+        out = _PreDeployTee(sys.stdout, log)
+        print(f"deploy: PRE-DEPLOY RUN {run_ref} — every verify layer whole plus the pre-deploy "
+              f"class(es) {', '.join(guarding)} guarding target `{target}`, on a fresh checkout of "
+              f"{candidate} (SPEC-1042 rule 3); log {log_rel}", file=out)
+        added = _run_git_cap(["worktree", "add", "--detach", str(scratch), candidate], REPO_ROOT)
+        try:
+            if added.returncode != 0:
+                result = {"mode": "checkout-failed", "layers": [], "bad": [
+                    f"the fresh checkout of {candidate} could not be made (`git worktree add` exit "
+                    f"{added.returncode}: {(added.stderr or added.stdout or '').strip()[:300]})"]}
+            else:
+                try:
+                    with contextlib.redirect_stdout(out), (watch or contextlib.nullcontext()):
+                        window[0] = time.time()
+                        try:
+                            result = _consumer_zero_probe_guard(scratch, pre_deploy={
+                                "classes": decl["classes"], "layers": decl["layers"], "run": True})
+                        finally:
+                            window[1] = time.time()
+                except Exception as exc:  # noqa: BLE001 — a runner fault is a red run, recorded
+                    result = {"mode": "runner-raised", "layers": [],
+                              "bad": [f"the land runner raised {exc!r}"]}
+        finally:
+            if added.returncode == 0:
+                _run_git_cap(["worktree", "remove", "--force", str(scratch)], REPO_ROOT)
+            shutil.rmtree(scratch, ignore_errors=True)
+            _run_git_cap(["worktree", "prune"], REPO_ROOT)
+        reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
+        passed = reading["run_outcome"] == "passed"
+        contended, why, beside = False, "", []
+        if reads and not passed:          # T-14106 — every reason of the red, and who ran beside it
+            timeout_only, why = _pre_deploy_timeout_only(result, reading)
+            if timeout_only:
+                beside = [{**h, "source": "seen"} for h in (watch.seen.values() if watch is not None else ())]
+                if not beside and _pre_deploy_journal is not None and None not in window:
+                    try:                  # read only now: nobody was seen, and it can change the answer
+                        beside = [{**h, "source": "journal"} for h in _pre_deploy_journal(window[0], window[1]) or ()
+                                  if isinstance(h, dict)]
+                    except Exception:  # noqa: BLE001 — a journal that cannot be read places nobody
+                        beside = []
+                contended = bool(beside)
+                if not contended:
+                    why = ("no land or Stage-6 run of this repository was seen beside it, and the "
+                           "journal places none in its window")
+        run_outcome = "contended" if contended else reading["run_outcome"]
+        cards = _pre_deploy_cards_since(last, candidate, REPO_ROOT=REPO_ROOT,
+                                        _run_git_cap=_run_git_cap) if last else None
+        lines = [f"PRE-DEPLOY RUN: {'PASS' if passed else 'CONTENDED' if contended else 'FAIL'} {candidate} "
+                 f"target={target} run_ref={run_ref} attempt={attempt}"]
+        if contended:
+            lines.append(f"  CONTENDED — every failure is a unit's own runner timeout and a land or Stage-6 run "
+                         f"of this repository ran beside the run ({_pre_deploy_beside_said(beside)}): it is "
+                         f"re-run once, as attempt 2 (SPEC-1042 rule 3)")
+        elif reads and not passed:
+            lines.append(f"  red at once, no re-run — {why} (SPEC-1042 rule 3)")
+        elif attempt > 1 and not passed:
+            lines.append("  the contended re-run is red too — recorded `failed`, no further run (SPEC-1042 rule 3)")
+        lines += [f"  {b}" for b in reading["bad"]]
+        lines += [f"  FAILING  {f['layer']}" + (f" :: {f['file']}" if f.get("file") else " (the layer)")
+                  + (f" [{f['project']}]" if f.get("project") else "") for f in reading["failing"]]
+        lines += [f"  rescued  {r['layer']} :: {r.get('unit') or r.get('group')}" for r in reading["rescued"]]
+        for c, got in reading["classes"].items():
+            lines.append(f"  class {c}: {got['outcome']} ({got['count']} unit(s) of its own"
+                         + (f"; membership unreadable on layer(s) {', '.join(got['unattributed'])}"
+                            if got.get("unattributed") else "") + ")")
+        if last_fault:
+            lines.append(f"  cards landed since the last passed run for `{target}`: UNKNOWN — the "
+                         f"journal could not be read ({last_fault})")
+        elif history["unordered"]:
+            lines.append(f"  cards landed since the last passed run for `{target}`: UNKNOWN — a passed "
+                         f"run for it was recorded without its place (`seq`; its history read had "
+                         f"failed), so which passed run is the last cannot be told")
+        elif last is None:
+            lines.append(f"  cards landed since the last passed run for `{target}`: none recorded — no "
+                         f"pre-deploy run for this target has passed yet")
+        elif cards is None:
+            lines.append(f"  cards landed since the last passed run for `{target}` ({last[:12]}): "
+                         f"UNKNOWN — `git log {last[:12]}..{candidate[:12]}` did not answer")
+        else:
+            lines.append(f"  cards landed since the last passed run for `{target}` ({last[:12]}): "
+                         + (", ".join(cards) if cards else "none"))
+        print("\n".join(lines), file=out)
+    unrecorded = None
+    try:                                 # T-14107: a row that cannot be written refuses the deploy
+        for c, got in reading["classes"].items():
+            _append_event("test_class_executed", None, {
+                "class": c, "outcome": got["outcome"], "evidence": log_rel, "run_ref": run_ref,
+                "candidate": candidate, "target": target, "run_outcome": run_outcome,
+                "failing": reading["failing"], "rescued": reading["rescued"], "attempt": attempt,
+                **({"seq": history["next_seq"]} if history["next_seq"] else {}),
+                "consumer_verify_layers": got["consumer_verify_layers"],
+                **({"unattributed": got["unattributed"]} if got.get("unattributed") else {})})
+    except (Exception, SystemExit) as exc:  # noqa: BLE001 — the caller refuses; nothing is launched
+        unrecorded = f"the `test_class_executed` row of class `{c}` could not be written ({exc!r})"
+    return {"run_ref": run_ref, "passed": passed, "contended": contended, "history": (history, last_fault),
+            "log": log_rel, **({"unrecorded": unrecorded} if unrecorded else {})}
+
+
+# ── T-14106 — A CONTENDED RUN IS RE-RUN ONCE; A GREEN RUN HOLDS THE PROJECT'S LANDS OFF (SPEC-1042 rule 3)
+# A red is CONTENDED only when every one of its failure reasons is a single unit's own runner timeout
+# and a land or Stage-6 run of the project ran a verify beside it: it is re-run once in the same deploy,
+# and a second red is `failed`. Any other reason, or nobody beside the run, reads red at once. After a
+# green run the deploy takes the project's land reservation — the one lock a land holds through its
+# verify and its move of `main` — waiting as a parked land waits, and keeps it until the verb ends.
+
+#: A unit's OWN runner timeout as its runner words it on the failed test case (SPEC-1035 §4 «a test's
+#: own timeout inside the runner»): Vitest `Test timed out in <N>ms`, Jest `Exceeded timeout of <N> ms`,
+#: Playwright `Test timeout of <N>ms exceeded`, pytest-timeout `Timeout ><N>s` — the runner phrases
+#: worktree.py's `_JS_RUNNER_TIMEOUT_RE` / `_PLAYWRIGHT_TIMEOUT_RE` read off a layer's log. A failure
+#: recorded in any other words (a script adapter's own `unit exited N` included) is not a timeout.
+_PRE_DEPLOY_UNIT_TIMEOUT_RE = re.compile(
+    r"Test timed out in \d+\s*ms|Exceeded timeout of \d+\s*ms|Test timeout of \d+\s*ms exceeded"
+    r"|\bTimeout >\s*\d+(?:\.\d+)?s\b", re.IGNORECASE)
+
+
+def _pre_deploy_failure_texts(rec) -> "list | None":
+    """The recorded failure text(s) of ONE failed unit row or re-run attempt: each failed case's
+    excerpt, or the record's own excerpt when it names no case. None when the record does not show
+    them all — a case count beyond the cases kept (`failed_cases_more`), a case or excerpt that is not
+    text, or no failure text at all. PURE."""
+    if not isinstance(rec, dict) or rec.get("failed_cases_more"):
+        return None
+    cases = rec.get("failed_cases")
+    if cases is not None:
+        if not isinstance(cases, list) or not cases or not all(isinstance(c, dict) for c in cases):
+            return None
+        texts = [c.get("excerpt") for c in cases]
+    else:
+        texts = [rec.get("excerpt")]
+    return texts if all(isinstance(t, str) and t.strip() for t in texts) else None
+
+
+def _pre_deploy_timeout_only(result, reading) -> "tuple[bool, str]":
+    """PURE — is EVERY failure reason of a red pre-deploy run a single unit's own runner timeout
+    (SPEC-1042 rule 3, SPEC-1035 §4-5)? `(True, "")`, or `(False, why)` naming the first reason that
+    is not. Read over the land runner's result (`result`) and its reading (`_pre_deploy_run_reading`).
+
+    NOT a timeout-only red: a run whose runner did not run the declared layers; a failed layer row
+    whose outcome is not `failed` (an outer timeout `timed-out`, a `prep-failed`, a `malformed`
+    declaration); a failed layer with no adapter record, or whose first-attempt record
+    (`land_verify_legs._adapter_first_attempt`) is not `units-failed` — a `required:` check, an outer
+    timeout inside the adapter pass, a void or unread report, a fault of the pass; a failing entry that
+    names a layer and no unit; a failing unit whose row is not a `failed` test failure, or one of whose
+    recorded failures does not carry its runner's timeout message (`_PRE_DEPLOY_UNIT_TIMEOUT_RE`), or
+    whose failures are not all recorded; and a re-run attempt of such a unit (`flaky_retry`) that
+    ended otherwise than `passed` or in such a timeout."""
+    from lib import land_verify_legs
+    res = result if isinstance(result, dict) else {}
+    rd = reading if isinstance(reading, dict) else {}
+    if rd.get("run_outcome") != "failed":
+        return False, "the run did not fail"
+    if res.get("mode") != "layers":
+        return False, f"the land runner did not run the declared layers (mode {res.get('mode')!r})"
+    failing = rd.get("failing") if isinstance(rd.get("failing"), list) else []
+    if not failing:
+        return False, "it names no failing unit"
+    rows = [r for r in res.get("layers") or () if isinstance(r, dict)] \
+        if isinstance(res.get("layers"), list) else []
+    passing = ("passed", "passed-partial", "waived", "skipped-disjoint-subject", "credited-stage6-run")
+    failed: dict = {}
+    for row in rows:
+        layer, outcome = row.get("layer"), row.get("outcome")
+        if outcome in passing:
+            continue
+        if outcome != "failed":
+            return False, f"layer {layer!r} ended `{outcome}`, not on its units"
+        rec = row.get("adapter")
+        how = land_verify_legs._adapter_first_attempt(rec) if isinstance(rec, dict) else "no adapter record"
+        if how != "units-failed":
+            return False, f"layer {layer!r} failed as `{how}`, not on its units"
+        failed[layer] = rec
+    retry = res.get("flaky_retry") if isinstance(res.get("flaky_retry"), dict) else {}
+    reruns = [r for r in retry.get("rows") or () if isinstance(r, dict)] \
+        if isinstance(retry.get("rows"), list) else []
+    for f in failing:
+        if not (isinstance(f, dict) and isinstance(f.get("file"), str) and f["file"]):
+            return False, f"layer {(f or {}).get('layer') if isinstance(f, dict) else f!r} failed with no unit named"
+        layer, proj = f.get("layer"), f.get("project") or ""
+        rec = failed.get(layer)
+        unit = next((u for u in (rec or {}).get("units") or () if isinstance(u, dict)
+                     and u.get("file") == f["file"] and (u.get("project") or "") == proj), None)
+        if unit is None or unit.get("status") != "failed":
+            return False, (f"unit {f['file']} of layer {layer!r} ended "
+                           f"`{(unit or {}).get('status', 'unrecorded')}`, not in a test failure")
+        texts = _pre_deploy_failure_texts(unit)
+        if texts is None or not all(_PRE_DEPLOY_UNIT_TIMEOUT_RE.search(t) for t in texts):
+            return False, f"unit {f['file']} of layer {layer!r} failed otherwise than on its runner's timeout"
+        group = unit.get("group")
+        for r in reruns:
+            if r.get("layer") != layer or (r.get("project") or "") != proj \
+                    or not (r.get("unit") == f["file"] or (group and r.get("group") == group)):
+                continue
+            for a in r.get("attempts") or ():
+                if isinstance(a, dict) and a.get("status") == "passed":
+                    continue
+                texts = _pre_deploy_failure_texts(a) if isinstance(a, dict) and a.get("status") == "failed" else None
+                if texts is None or not all(_PRE_DEPLOY_UNIT_TIMEOUT_RE.search(t) for t in texts):
+                    return False, (f"a re-run of unit {f['file']} of layer {layer!r} ended "
+                                   f"`{a.get('status') if isinstance(a, dict) else a!r}` otherwise than on "
+                                   f"its runner's timeout")
+    return True, ""
+
+
+def _pre_deploy_git_common_dir(path) -> "str | None":
+    """The git COMMON dir of the checkout holding `path`, read from the files git keeps — no git
+    call, so it can be asked on every sample: walk up from `realpath(path)` to the first `.git`; a
+    directory is the common dir itself; a file (a linked worktree) names its gitdir, whose
+    `commondir` file names the common dir (else the gitdir is it). None when there is none or it
+    cannot be read."""
+    try:
+        here = Path(os.path.realpath(path))
+        for d in (here, *here.parents):
+            g = d / ".git"
+            if g.is_dir():
+                return os.path.realpath(g)
+            if g.is_file():
+                text = g.read_text(encoding="utf-8").strip()
+                if not text.startswith("gitdir:"):
+                    return None
+                gitdir = Path(os.path.realpath(d / text[len("gitdir:"):].strip()))
+                common = gitdir / "commondir"
+                return os.path.realpath(gitdir / common.read_text(encoding="utf-8").strip()) \
+                    if common.is_file() else str(gitdir)
+        return None
+    except (OSError, ValueError):
+        return None
+
+
+#: The CLI's top-level options, as `cli_parser.build_parser` declares them (its one home): what
+#: `_pre_deploy_cli_globals` parses before the verb. tests/test_t14106_contended_rerun_and_land_hold.py
+#: compares this mirror with the real parser's top level.
+_PRE_DEPLOY_CLI_GLOBAL_OPTIONS = (("-h", "--help"), ("-C", "--directory"), ("--read-only",))
+
+#: The interpreter's one-letter flags that take no value, and the two that take one (`-X` / `-W`) —
+#: what may stand between `python3` and the script it runs, alone or grouped in one element as the
+#: interpreter groups them (`-uWignore`, `-Bu`, `-X importtime`). `-c` / `-m` (no script) and any other
+#: letter end the reading: no script is named.
+_PRE_DEPLOY_PY_FLAGS = frozenset("bBdEhiIOPqRsSuvx")
+_PRE_DEPLOY_PY_VALUED = frozenset("XW")
+
+
+def _pre_deploy_cli_index(argv) -> "int | None":
+    """PURE — the index of the `yitc-v2` script a process RUNS, read as the program and the
+    interpreter read it: `argv[0]` itself when it is `yitc-v2`, else — when `argv[0]` is a Python
+    interpreter — the first element after the interpreter's own options, when that element is
+    `yitc-v2`. Each option element is read letter by letter as the interpreter reads a group: a flag
+    of `_PRE_DEPLOY_PY_FLAGS` goes on to the next letter; `-X` / `-W` take the rest of the element as
+    their value, or the next element when nothing follows; `--` ends the options. None for every
+    other process: one that merely NAMES the CLI as an argument (an editor, a pager, a wrapper such as
+    `timeout` — its child is the process that runs it), a `python3 -c` / `-m` run, an interpreter
+    option this reading does not know (a long one included)."""
+    if not argv:
+        return None
+    if os.path.basename(argv[0]) == "yitc-v2":
+        return 0
+    if not re.fullmatch(r"python(\d+(\.\d+)*)?", os.path.basename(argv[0])):
+        return None
+    i = 1
+    while i < len(argv) and argv[i].startswith("-") and argv[i] != "-":
+        tok = argv[i]
+        i += 1
+        if tok == "--":
+            break
+        if tok.startswith("--"):
+            return None
+        for at, letter in enumerate(tok[1:], start=1):
+            if letter in _PRE_DEPLOY_PY_VALUED:
+                if at == len(tok) - 1:
+                    i += 1                   # the value is the next element
+                break                        # else the rest of this element is the value
+            if letter not in _PRE_DEPLOY_PY_FLAGS:
+                return None
+    return i if i < len(argv) and os.path.basename(argv[i]) == "yitc-v2" else None
+
+
+def _pre_deploy_cli_globals(rest) -> "tuple | None":
+    """PURE — the CLI's top-level options read off `rest` (the elements after the script) as the
+    CLI's own argparse reads them (`_PRE_DEPLOY_CLI_GLOBAL_OPTIONS`: the joined `-C<path>`, the
+    `--directory=<path>` spelling, an unambiguous abbreviation of a long option): `(checkout or None,
+    the verb and its arguments)`. None when the CLI would exit before any verb runs: an option it
+    does not know, `-C` with no value, the help option, no verb."""
+    class _Refuse(argparse.ArgumentParser):
+        def error(self, message):
+            raise ValueError(message)
+    p = _Refuse(prog="yitc-v2", add_help=False)
+    help_, where, read_only = _PRE_DEPLOY_CLI_GLOBAL_OPTIONS
+    p.add_argument(*help_, dest="help", action="store_true")
+    p.add_argument(*where, dest="where")
+    p.add_argument(*read_only, dest="read_only", action="store_true")
+    p.add_argument("verb", nargs=argparse.REMAINDER)
+    try:
+        ns = p.parse_args(list(rest))
+    except (ValueError, SystemExit):
+        return None
+    if ns.help or not ns.verb or ns.verb[0].startswith("-"):
+        return None
+    return ns.where, list(ns.verb)
+
+
+def _pre_deploy_project_run(proc, common) -> "tuple | None":
+    """PURE over one process snapshot `{argv, cwd}` (`_scan_procs`) — `(kind, checkout)`, kind `land`
+    or `stage6`, when it is a `yitc-v2 land` or a `yitc-v2 task test --run` invocation on a checkout
+    of the repository whose git common dir is `common` (`checkout` its real path), else None.
+
+    The process must RUN the CLI (`_pre_deploy_cli_index`), never merely name it — a worker's prompt
+    names `land` inside ONE big element, an editor or a wrapper names the script as an argument. Its
+    top-level options are read as the CLI reads them (`_pre_deploy_cli_globals`); the verb is the
+    next element: `land`, or `task test` with a `--run` element (or a prefix of it argparse admits —
+    no other `task test` option starts `--r`) after it, and no `-h` / `--help` (the CLI then prints
+    help and exits). The checkout is the `-C` path, else the process's cwd (a process whose cwd
+    cannot be read — another OS user's — is placed by its `-C` path alone); a relative `-C` path the
+    CLI refuses before any verb runs (T-11763), so it is no run. It belongs to the repository when its
+    git common dir (`_pre_deploy_git_common_dir`) is `common`."""
+    if not (isinstance(proc, dict) and isinstance(common, str) and common):
+        return None
+    argv = [a for a in proc.get("argv") or () if isinstance(a, str)]
+    at = _pre_deploy_cli_index(argv)
+    parsed = _pre_deploy_cli_globals(argv[at + 1:]) if at is not None else None
+    if parsed is None:
+        return None
+    where, rest = parsed
+    if any(a in ("-h", "--help") for a in rest):
+        return None
+    if rest[:1] == ["land"]:
+        kind = "land"
+    elif rest[:2] == ["task", "test"] and any(len(a) >= 3 and "--run".startswith(a) for a in rest[2:]):
+        kind = "stage6"
+    else:
+        return None
+    if where is None:
+        where = proc.get("cwd") if isinstance(proc.get("cwd"), str) else None
+    elif not os.path.isabs(where):
+        return None
+    return (kind, os.path.realpath(where)) if where and _pre_deploy_git_common_dir(where) == common else None
+
+
+def _pre_deploy_beside(common, *, _scan_procs) -> "list | None":
+    """Who runs beside the pre-deploy run NOW: every OTHER live process that is a land or a Stage-6
+    run of this repository (`_pre_deploy_project_run` over `_scan_procs()`), as `{kind, pid, label,
+    checkout}` — whatever slot it does or does not hold, so a Stage-6 run on a host that bounds none
+    is seen as a land is; `label` is the last 120 characters of its argv's last four elements, where
+    the verb is. None when the repository's common dir is unknown or the scan faulted."""
+    if not common:
+        return None
+    try:
+        found = []
+        for proc in _scan_procs():
+            if not isinstance(proc, dict) or proc.get("pid") == os.getpid():
+                continue
+            run = _pre_deploy_project_run(proc, common)
+            if run:
+                argv = [a for a in proc.get("argv") or () if isinstance(a, str)]
+                found.append({"kind": run[0], "pid": proc.get("pid"), "label": " ".join(argv[-4:])[-120:],
+                              "checkout": run[1]})
+        return found
+    except Exception:  # noqa: BLE001 — a faulted scan shows nobody beside the run
+        return None
+
+
+class _PreDeployBesideWatch:
+    """Samples `sample()` (`_pre_deploy_beside`) while one attempt of the pre-deploy run goes — at
+    its start, every `every` seconds, and at its end — and keeps each distinct `(kind, pid)` seen in
+    `seen`. Every land that runs a verify lives longer than a second (measured over this repository's
+    journal: the 529 recorded `land` invocations under one second were 4, all refusals of 70-393 ms;
+    the one `task test --run` under one second a 12 ms refusal), so each one alive at any moment of
+    the run is seen. A sample that cannot be read adds nobody (T-14106)."""
+
+    def __init__(self, sample, every=1.0):
+        self.sample, self.every, self.seen = sample, every, {}
+        self._stop, self._thread = threading.Event(), None
+
+    def _take(self):
+        try:
+            got = self.sample()
+        except Exception:  # noqa: BLE001 — a fault of one sample is a sample that saw nobody
+            got = None
+        for h in got or ():
+            if isinstance(h, dict):
+                self.seen.setdefault((h.get("kind"), h.get("pid")), h)
+
+    def _loop(self):
+        while not self._stop.wait(self.every):
+            self._take()
+
+    def __enter__(self):
+        self._take()
+        self._thread = threading.Thread(target=self._loop, name="pre-deploy-beside", daemon=True)
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc):
+        self._stop.set()
+        self._thread.join()
+        self._take()
+        return False
+
+
+def _pre_deploy_stage6_rows_beside(journals, lo, hi, *, _rows) -> list:
+    """PURE over its injected reader `_rows` (`journal.segment_rows_since`, typed) — the Stage-6 runs
+    whose own result row places them inside the wall-clock window `[lo, hi]` of one attempt of the
+    pre-deploy run, read from the journals `journals` in the order given (T-14106, SPEC-1042 rule 3).
+
+    A Stage-6 run writes no row when it starts; it writes ONE result row (`tests_passed` /
+    `tests_failed`) when it ends, stamped at the second, carrying the run's own measured wall
+    `duration_ms`. A row whose stamp `t` reads and whose `duration_ms` is a finite number >= 0 places
+    its run over `[t - duration_ms / 1000, t + 1 s)`; it is beside the attempt when that meets
+    `[lo, hi]`. A row with no such wall — a hand-recorded evidence row carries none — or with a stamp
+    that does not read places nothing. Rows stamped more than a day before `lo` are not read. The SAME
+    row read from two journals (a land moved it from its worktree into main between the two reads) is
+    one run. A journal that cannot be read adds nobody from it; the others are still read.
+    Returns `[{kind: "stage6", task, ts}]`, sorted by `(ts, task)`."""
+    from fractions import Fraction
+    try:
+        lo, hi = Fraction(lo), Fraction(hi)
+    except (TypeError, ValueError, OverflowError):
+        return []
+    if not lo <= hi:
+        return []
+    since = datetime.fromtimestamp(float(lo) - 86400, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    epoch = datetime(1970, 1, 1, tzinfo=timezone.utc)
+    hits, seen = [], set()
+    for path in journals or ():
+        try:
+            rows = list(_rows(path, since, types=("tests_passed", "tests_failed")))
+        except Exception:  # noqa: BLE001 — an unreadable journal adds nobody from it
+            continue
+        for row in rows:
+            if not isinstance(row, dict) or row.get("type") not in ("tests_passed", "tests_failed"):
+                continue
+            data, ts = row.get("data"), row.get("ts")
+            wall = data.get("duration_ms") if isinstance(data, dict) else None
+            if isinstance(wall, bool) or not isinstance(wall, (int, float)) or not 0 <= wall < float("inf"):
+                continue
+            m = re.match(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.\d+)?(?:Z|\+00:00)?$", ts) \
+                if isinstance(ts, str) else None
+            if m is None:
+                continue
+            try:
+                t = Fraction(int((datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%S")
+                                  .replace(tzinfo=timezone.utc) - epoch).total_seconds()))
+            except (ValueError, OverflowError):
+                continue
+            if t + 1 <= lo - 86400:
+                continue
+            same = json.dumps(row, sort_keys=True, ensure_ascii=False, default=repr)
+            if same in seen:
+                continue
+            seen.add(same)
+            if t - Fraction(wall) / 1000 <= hi and t + 1 > lo:
+                hits.append({"kind": "stage6", "task": row.get("task_id") if isinstance(row.get("task_id"), str)
+                             else None, "ts": ts})
+    return sorted(hits, key=lambda h: (h["ts"], h["task"] or ""))
+
+
+def _pre_deploy_journal_beside(lo, hi, *, main_journal, task_worktrees, _land_verifies_beside,
+                               _rows) -> list:
+    """WHO RAN BESIDE, from the rows lands and Stage-6 runs already write (T-14106, SPEC-1042 rule 3)
+    — the half of the contention reading no sample can miss: a land or a Stage-6 run that started
+    AND ended between two samples of `_PreDeployBesideWatch` left its result row. Read once, after the
+    attempt, against its wall-clock window `[lo, hi]`; no row is written, no lock taken.
+
+    LANDS — the Stage-6 run's own reading of the land verifies beside it (`_land_verifies_beside`,
+    task.py `_stage6_land_verifies_beside`, T-13905), whole and unchanged, over the MAIN checkout's
+    journal `main_journal` (a land runs from there): beside when it counts a land whose verify its
+    row places inside the window, or one it cannot place either side (`undecided_lands` — a verify
+    the walls do not place, a started land with no result row and a live process). A refused land
+    that recorded no verify is not beside. A reading that cannot be taken adds nobody.
+    STAGE-6 RUNS — `_pre_deploy_stage6_rows_beside` over every live `task/` worktree's journal
+    (`task_worktrees()`: a Stage-6 run writes its row there until its land), THEN the main
+    checkout's, so a row a land moves into main between the two reads is read in main. A worktree
+    removed without a land between its run and this read has left no row anywhere: not seen.
+    Returns the hits, lands first; `[]` when nobody is placed."""
+    from lib import events as _ev
+    hits = []
+    if main_journal is not None:
+        try:
+            got = _land_verifies_beside(main_journal, lo, hi)
+        except Exception:  # noqa: BLE001 — a reading that cannot be taken adds nobody
+            got = None
+        counts = (got.get("count"), got.get("undecided_lands", 0)) if isinstance(got, dict) else (None, None)
+        if all(isinstance(n, int) and not isinstance(n, bool) and n >= 0 for n in counts) and sum(counts):
+            hits.append({"kind": "land", "count": counts[0], "undecided": counts[1]})
+    try:
+        live = task_worktrees() or {}
+        paths = [_ev.scope_guarded_default(Path(p)) for _t, p in sorted(live.items())]
+    except Exception:  # noqa: BLE001 — no worktree list: only the main journal is read
+        paths = []
+    hits += _pre_deploy_stage6_rows_beside([*paths, *([main_journal] if main_journal is not None else [])],
+                                           lo, hi, _rows=_rows)
+    return hits
+
+
+def _pre_deploy_beside_said(beside) -> str:
+    """PURE — who ran beside a contended attempt and how it is known, as its report says it: a
+    process SEEN by a sample (`_PreDeployBesideWatch`), or a land or Stage-6 run the JOURNAL placed in
+    the attempt's window (`_pre_deploy_journal_beside`)."""
+    said = []
+    for h in beside or ():
+        if not isinstance(h, dict):
+            continue
+        if h.get("source") == "journal" and h.get("kind") == "land":
+            said.append(f"land verifies the main journal's land rows place in the run's window: "
+                        f"{h.get('count')} proven, {h.get('undecided')} undecided (journal)")
+        elif h.get("source") == "journal":
+            said.append(f"stage6 run of {h.get('task') or 'an unnamed card'}, its result row stamped "
+                        f"{h.get('ts')} (journal)")
+        else:
+            said.append(f"{h.get('kind')} pid {h.get('pid')}" + (f" `{h['label']}`" if h.get("label") else "")
+                        + " (seen)")
+    return "; ".join(said)
+
+
+def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_land_reservation,
+                                 _land_reservation_path, _flock_holder, _flock_holder_record_path,
+                                 _proc_starttime, every=30.0) -> "tuple[bool, str]":
+    """SPEC-1042 rule 3 — after a green pre-deploy run, TAKE the project's land reservation (SPEC-0132
+    rule 1a / SPEC-0184: the flock every land takes at its first attempt and holds through its verify
+    and its move of `main`), so no land moves the checkout while the deploy command builds it.
+    `(True, "")` holding it — its fd, and the holder record when one was written, are appended to
+    `hold`, which `_pre_deploy_release` empties when the verb ends — or `(False, why)` holding nothing.
+
+    IT WAITS AS A PARKED LAND WAITS — through `_acquire_land_reservation` itself, under its rules as
+    they stand: its park limit (`_land_reservation_park_limit_seconds`); its abstention while a venue
+    publisher waits or a live yield offer names a land, so an addressed handover goes first. It asks
+    as `deploy:<target>`, which cannot be a branch (no ref name holds a `:`), so it is never an
+    addressee and consumes no offer. It journals no `waiting_for_land_reservation` row — those rows are
+    the land queue a yield picks its addressee from — and, holding, it makes no yield offer (that is
+    a land's act at its span end). Every `every` seconds of waiting it prints who holds the reservation.
+    The HOLDER RECORD (`_flock_holder_record_path`: {pid, starttime, label}, published as the deploy
+    lock's holder record is, `_publish_holder_record`) names the deploy, its target and the candidate,
+    so a parked land's wait row names what it waits for (`_flock_holder`'s `label`). It is written BEFORE
+    the wait — `_flock_holder` reads a record only for the process holding the flock, so while another
+    holds it the record names nobody, and a land parking the instant the deploy takes it already reads
+    the deploy's name — and removed again when the reservation is not taken. A record that cannot be
+    written leaves the label to the process's argv and changes nothing else."""
+    path = _land_reservation_path(main_wt)
+    said, spent = [None], []
+    record = Path(_flock_holder_record_path(path))
+    try:
+        _publish_holder_record(record, json.dumps({"pid": os.getpid(), "starttime": _proc_starttime(),
+                                                   "label": f"deploy --target {target} @ {candidate}"}).encode())
+        hold.append(("record", record))
+    except OSError:
+        record = None
+
+    def on_wait(waited):
+        if said[0] is not None and waited - said[0] < every:
+            return
+        said[0] = waited
+        h = _flock_holder(path)
+        who = (f"held by pid {h['pid']}" + (f" `{h['label']}`" if h.get("label") else "")) if h \
+            else "holder unknown (not resolvable from /proc/locks)"
+        print(f"deploy: WAITING for the land reservation — {waited:.0f}s so far; {who}. The pre-deploy "
+              f"run is green; the `deploy:` command starts once the reservation is free (SPEC-1042 "
+              f"rule 3).", file=sys.stderr, flush=True)
+
+    fd = _acquire_land_reservation(main_wt, on_wait=on_wait, on_degrade=spent.append,
+                                   self_branch=f"deploy:{target}")
+    if fd is None:
+        if record is not None:
+            _pre_deploy_release([hold.pop(hold.index(("record", record)))])
+        if spent:
+            return False, (f"the land reservation was still held when the land park limit was spent "
+                           f"({spent[0]:.0f}s waited, SPEC-0132 rule 1a)")
+        return False, "the land reservation is held by this very process, so it cannot be taken for the command"
+    hold.append(("reservation", fd))
+    print(f"deploy: holding the land reservation for the `deploy:` command — a land of this project "
+          f"started now parks until this deploy ends (SPEC-1042 rule 3).")
+    return True, ""
+
+
+def _pre_deploy_release(hold) -> None:
+    """Release what `_pre_deploy_take_reservation` took, when the verb ends, in the reverse order: the
+    reservation flock first (closing its fd releases it; the OS does the same on process death), then
+    the holder record (once the flock is another process's, the record names nobody). Never raises;
+    empties `hold`."""
+    for kind, what in reversed(list(hold or ())):
+        try:
+            if kind == "record":
+                Path(what).unlink(missing_ok=True)
+            elif kind == "reservation":
+                os.close(what)
+        except OSError:
+            pass
+    if hold:
+        hold.clear()
+
+
 class _DeployRunRecorder:
     """T-13398 / SPEC-0094 §1 — exactly ONE terminal journal row for a deploy whose project command
     STARTED, however it ends.
@@ -3286,7 +4197,12 @@ def deploy_lock_refusal(outcome: DeployLockOutcome, root) -> str:
 
 def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_worktree,
                _git_resolve_sha, _die, _run_git_cap, _worktree_dirty_paths,
-               _is_ignorable_dirt, _iter_events, _journal_dirt_is_valid_append, _dedup_events) -> None:
+               _is_ignorable_dirt, _iter_events, _journal_dirt_is_valid_append, _dedup_events,
+               pre_deploy_classes=None, _consumer_zero_probe_guard=None, _record_probe=None,
+               _acquire_land_reservation=None, _land_reservation_path=None, _flock_holder=None,
+               _flock_holder_record_path=None, _proc_starttime=None, _scan_procs=None,
+               _land_hold=None, _stage6_land_verifies_beside=None, _pre_deploy_main_journal=None,
+               _live_task_worktrees=None) -> None:
     """Run the project-declared deploy/rollback command (the executable gate) + emit deploy_completed
     on exit-0 (SPEC-0094 §1). `--rollback` selects the `rollback:` section + records `kind: rollback`.
 
@@ -3308,7 +4224,31 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     gate's verdict, the owner/AI must see it live. A non-zero exit is propagated as the verb's exit code
     with NO deploy_completed (the broken revision is never recorded live) — and, once the command has
     STARTED, with exactly one `deploy_failed` row naming the revision, the last step reached and the
-    exit code or caught signal (T-13398, `_DeployRunRecorder`)."""
+    exit code or caught signal (T-13398, `_DeployRunRecorder`).
+
+    THE PRE-DEPLOY RUN (T-14105, SPEC-1042 rules 3-4, `proposed`). `pre_deploy_classes` is the PARSED
+    `tests.classes` list, with the land runner `_consumer_zero_probe_guard`; no call site passes them
+    before the turn-on card T-14114, so every deploy today is unchanged. Given them, a forward deploy
+    to a target a pre-deploy class guards (`_pre_deploy_guarding`; the plain deploy is the target
+    `default`, T-14108) — on every per-class path — REFUSES without `--expect-revision`
+    before any gate runs, and runs `_pre_deploy_run` on that revision as its last gate — after the §9
+    load window, before the §6 last-moment check; a red run refuses with no command launched and no
+    row of the deploy, a green one is named on the deploy's row (`pre_deploy_run_ref`). Recordability
+    first (T-14107): right after that refusal it asks `_pre_deploy_recordable` (the host's
+    `_record_probe` and the declared-class check) and refuses, naming each failed check, before any
+    gate and before the run; a class row that still cannot be written after the run refuses the deploy
+    before the command.
+
+    T-14106 (SPEC-1042 rule 3) — a CONTENDED red (every failure a unit's own runner timeout, a land or
+    Stage-6 run of the repository beside it — seen by `_pre_deploy_beside` over `_scan_procs`, or,
+    seen by none, placed in the run's window by `_pre_deploy_journal_beside` over the main journal
+    `_pre_deploy_main_journal` (lands, `_stage6_land_verifies_beside`) and the journals of
+    `_live_task_worktrees()` then main (Stage-6 runs)) is run once more; a GREEN run then takes the project's land reservation (`_acquire_land_reservation`,
+    `_pre_deploy_take_reservation`, its holder record at `_flock_holder_record_path` stamped with
+    `_proc_starttime`) before the §6
+    moment-(b) check, refusing with nothing launched when the land park limit is spent, and holds it
+    through the command and moment (c): what it holds goes into `_land_hold`, which the cli residue
+    empties when the verb ends (`_pre_deploy_release`; the OS releases it if the process dies)."""
     # --print-guard: emit the canonical guard snippet a consumer embeds in its deploy.sh (SPEC-0094 §1,
     # X-0160) + exit. A pure delivery surface — needs no ops carrier / -C context / git, so it is handled
     # FIRST, before any of the deploy machinery below.
@@ -3427,6 +4367,41 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
               f"emitted.", file=sys.stderr)
         sys.exit(3)
     command = dtarget.command
+    # T-14105 / SPEC-1042 rule 3 — a deploy to a target a pre-deploy class guards runs the full verify
+    # on the revision it ships, so it must be TOLD that revision: refused without `--expect-revision`
+    # HERE, before any gate, dump or probe runs and before any row is written. `[]` — today's every
+    # deploy — when no parsed declaration was handed in (no call site hands one before T-14114).
+    # T-14108 / SPEC-1042 rules 1, 5 — the plain deploy is the reserved target `default`, gated also
+    # by a class naming a production target (fail-closed). Decided HERE, above the SPEC-0097 class
+    # gate, so no per-class path (`production: false`, `--owner-approved`, a waived policy, `--now`)
+    # reaches the command around the run below; a rollback (`kind` != "deploy") is never gated.
+    pre_deploy_target = dtarget.name if dtarget.name is not None else PRE_DEPLOY_DEFAULT_TARGET
+    pre_deploy_guarding = (_pre_deploy_guarding(pre_deploy_classes, pre_deploy_target,
+                                                section.get("targets"))
+                           if kind == "deploy" and pre_deploy_classes is not None else [])
+    if pre_deploy_guarding and expected_revision is None:
+        print(f"deploy: REFUSED — target `{pre_deploy_target}`"
+              f"{' (the plain deploy, no --target)' if dtarget.name is None else ''} is guarded by "
+              f"the pre-deploy class(es) "
+              f"{', '.join(pre_deploy_guarding)} (SPEC-1042 rule 3): a deploy to it first runs every "
+              f"verify layer whole plus those classes on the exact revision it ships, so it REQUIRES "
+              f"`--expect-revision <full commit id>` naming that revision. Nothing was run; no "
+              f"deploy_completed emitted.", file=sys.stderr)
+        sys.exit(3)
+    # T-14107 / SPEC-1042 rule 3 — recordability first: a gated deploy whose rows (the run's class rows,
+    # its own deploy row) could not be written is refused HERE, before any gate and before the run, so a
+    # long run is never spent on a record that would then be refused (public issue #161).
+    if pre_deploy_guarding:
+        unrecordable = _pre_deploy_recordable(pre_deploy_guarding, REPO_ROOT=REPO_ROOT,
+                                              _record_probe=_record_probe)
+        if unrecordable:
+            print(f"deploy: REFUSED — target `{dtarget.name}` is guarded by the pre-deploy class(es) "
+                  f"{', '.join(pre_deploy_guarding)}, and this session cannot record the run's rows and "
+                  f"its own deploy rows (SPEC-1042 rule 3, recordability first). Failed check(s):\n"
+                  + "\n".join(f"  - {why}" for why in unrecordable)
+                  + "\nNothing was run (no gate, no pre-deploy run, no log); no deploy_completed emitted.",
+                  file=sys.stderr)
+            sys.exit(3)
     # A NON-PRODUCTION target may not ALSO assert a production deploy class. The SPEC-0097 §5 per-class
     # evidence gate measures a PRODUCTION worst case (§1: reversibility within the project's RTO/RPO), so
     # accepting `--class` here would stamp a class onto a record nothing measured — the card's own
@@ -3874,6 +4849,67 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             print(f"deploy: load window — waited {window['admission_wait_ms'] / 1000:.0f}s for load1 "
                   f"{window['load1_at_start']} -> {window['load1_last']} (headroom {headroom:g}).")
 
+    # T-14105 / SPEC-1042 rule 3 — THE PRE-DEPLOY RUN, the last gate: after every gate above and the
+    # §9 window, before the moment-(b) check below, which so also covers the time the run took. A red
+    # run refuses here, above the launch, so it writes no row of the deploy (its class rows are
+    # written); nothing else starts a run and no earlier run's row stands in for this one.
+    pre_deploy_run_ref = None
+    if pre_deploy_guarding:
+        _main_wt = Path(_main_worktree(REPO_ROOT) or REPO_ROOT)
+        _common = _pre_deploy_git_common_dir(_main_wt)
+        _pdr = dict(candidate=expected_revision, target=pre_deploy_target, guarding=pre_deploy_guarding,
+                    pre_deploy_classes=pre_deploy_classes, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap,
+                    _append_event=_append_event, _iter_events=_iter_events,
+                    _consumer_zero_probe_guard=_consumer_zero_probe_guard,
+                    _pre_deploy_beside=((lambda: _pre_deploy_beside(_common, _scan_procs=_scan_procs))
+                                        if _scan_procs is not None else None),
+                    _pre_deploy_journal=((lambda lo, hi: _pre_deploy_journal_beside(
+                        lo, hi, main_journal=_pre_deploy_main_journal, task_worktrees=_live_task_worktrees,
+                        _land_verifies_beside=_stage6_land_verifies_beside,
+                        _rows=journal_mod.segment_rows_since))
+                        if None not in (_stage6_land_verifies_beside, _pre_deploy_main_journal,
+                                        _live_task_worktrees) else None))
+        _run = _pre_deploy_run(**_pdr)
+        # T-14106: a timeout-only red with a verify beside it runs once more — never an unrecorded one
+        if _run["contended"] and not _run.get("unrecorded"):
+            _run = _pre_deploy_run(**_pdr, attempt=2, run_ref=_run["run_ref"], history=_run["history"])
+        if _run.get("unrecorded"):
+            print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} "
+                  f"({'green' if _run['passed'] else 'RED'}) could not be recorded: {_run['unrecorded']} "
+                  f"(SPEC-1042 rule 3 — a command is never launched beside an unrecorded run). Its log "
+                  f"is kept at {_run['log']}. The project `deploy:` command was NOT launched, so nothing "
+                  f"was deployed; no deploy_completed emitted.", file=sys.stderr)
+            sys.exit(3)
+        if not _run["passed"]:
+            print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} is RED "
+                  f"(SPEC-1042 rule 3); its report above names every failing unit. The project "
+                  f"`deploy:` command was NOT launched, so nothing was deployed; no deploy_completed "
+                  f"emitted. The next deploy starts a new run on its own candidate.", file=sys.stderr)
+            sys.exit(3)
+        pre_deploy_run_ref = _run["run_ref"]
+        # T-14106 / SPEC-1042 rule 3 — HOLD THE PROJECT'S LANDS OFF FOR THE COMMAND. The run held
+        # nothing; now take the land reservation every land holds through its verify and its move of
+        # `main`, waiting as a parked land waits, and only then make the moment-(b) check below, which
+        # so covers the run AND the wait. Held through the command and moment (c), released when the
+        # verb ends. Refused above the launch, so it writes no row of the deploy.
+        if _land_hold is None:
+            _land_hold = []              # a caller that releases nothing leaves it to process exit
+        _seam = (_acquire_land_reservation, _land_reservation_path, _flock_holder, _flock_holder_record_path,
+                 _proc_starttime)
+        _held, _why = (_pre_deploy_take_reservation(
+            _main_wt, target=pre_deploy_target, candidate=expected_revision, hold=_land_hold,
+            _acquire_land_reservation=_acquire_land_reservation, _land_reservation_path=_land_reservation_path,
+            _flock_holder=_flock_holder, _flock_holder_record_path=_flock_holder_record_path,
+            _proc_starttime=_proc_starttime)
+            if all(f is not None for f in _seam) else (False, "this deploy was handed no land reservation seam"))
+        if not _held:
+            print(f"deploy: REFUSED — {_why}. The pre-deploy run {pre_deploy_run_ref} of {expected_revision} "
+                  f"is green, but the command runs only while this deploy holds the project's land "
+                  f"reservation (SPEC-1042 rule 3). The project `deploy:` command was NOT launched, so "
+                  f"nothing was deployed; no deploy_completed emitted. The next deploy runs again on its "
+                  f"own candidate.", file=sys.stderr)
+            sys.exit(3)
+
     # T-13874 / SPEC-0094 §6, moment (b) — the gates above can run for minutes (a Class-C1 dump, the
     # security-audit producer), and a `land` in that time moves the tree the command is about to build.
     # Ask again at the last moment before the launch: refusing HERE leaves production untouched, where
@@ -3901,6 +4937,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     failure_base = {"revision": revision, "project": project, "kind": kind, **admission}
     if dtarget.name is not None:
         failure_base["target"] = dtarget.name
+    if pre_deploy_run_ref is not None:          # T-14105 / SPEC-1042 rule 4: the run this deploy ran
+        failure_base["pre_deploy_run_ref"] = pre_deploy_run_ref
     recorder = _DeployRunRecorder(failure_base, _append_event=_append_event)
     # INHERIT stdout/stderr: the project command runs its own smoke/health check inline and its output
     # is the gate's verdict — the owner/AI must see it live (never captured/swallowed). shell=True so a
@@ -4094,6 +5132,10 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             "production": dtarget.production,
             "deploy_class": (gate.deploy_class if kind == "deploy" and gate is not None else None),
         }
+
+    # T-14105 / SPEC-1042 rule 4 — the pre-deploy run this gated deploy ran (absent on every other).
+    if pre_deploy_run_ref is not None:
+        payload["pre_deploy_run_ref"] = pre_deploy_run_ref
 
     # SPEC-0097 §11 — carry the PROOF, not just the claim: which services were verified, what each
     # reported, and which were declared out of scope. A payload FIELD on the existing event, never a

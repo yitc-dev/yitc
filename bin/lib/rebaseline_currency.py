@@ -2776,7 +2776,7 @@ def _inland_reaudit_ceiling_refusal_text(rec: dict) -> str:
     _msg = (_ref.get("message") or "").strip()
     _cref = _od.get("ceiling_ref") or f"{_t}/post/pass-<N>"
     return ("land: --rebaseline REFUSED — the in-land audit-post over the MERGED tree is AT or PAST "
-            "the SPEC-0124 audit-loop ceiling, and the SPEC-0204 rule-3 admission REFUSED the one "
+            "the SPEC-1034 audit-loop ceiling, and the SPEC-0204 rule-3 admission REFUSED the one "
             f"bounded pass ({_kind}). Worktree intact, main untouched.\n"
             "NO auditor was invoked and NO pass was spent — this is not an auditor failure and not a "
             "stale-audit refusal.\n"

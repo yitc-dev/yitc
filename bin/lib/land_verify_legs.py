@@ -142,6 +142,9 @@ _FLAKY_SENSITIVE_ENTER_RANGE = (1, 100)
 _FLAKY_SENSITIVE_WINDOW_DAYS_DEFAULT = 14
 _FLAKY_SENSITIVE_WINDOW_DAYS_ENV = "YITC_FLAKY_SENSITIVE_WINDOW_DAYS"
 _FLAKY_SENSITIVE_WINDOW_DAYS_RANGE = (1, 365)
+#: T-14053 — the row types the entry fold counts isolated passes on: a land's own record, and a
+#: governed Stage-6 run's (`task test --run`), whose routed pass keeps the venue-prefixed key.
+_FLAKY_ENTRY_ROW_TYPES = ("land_completed", "tests_passed", "tests_failed")
 
 
 def _running_engine_code_hash() -> str:
@@ -392,10 +395,10 @@ _OPS_CARRIER_SECTION_ABSENT = ("absent",)   # distinct from an explicit null (`v
 _YAML_MERGE_TAG = "tag:yaml.org,2002:merge"
 
 
-def _root_bin_paths(paths) -> list:
-    """T-13915 — the changed paths at or under the repository's root `bin/`, each spelled as the
-    verify-touch predicate spells a path (a leading `./` dropped). Pure; anything that is not a
-    string contributes nothing."""
+def _changed_path_strings(paths) -> list:
+    """T-13915, widened by T-14068 — the changed paths, each spelled as the verify-touch predicate
+    spells a path (a leading `./` dropped). Pure; anything that is not a string contributes nothing.
+    (Until T-14068 it kept only the paths at or under the root `bin/`.)"""
     out = []
     for raw in paths or ():
         if not isinstance(raw, str):
@@ -403,63 +406,62 @@ def _root_bin_paths(paths) -> list:
         p = raw
         while p.startswith("./"):
             p = p[2:]
-        if p == "bin" or p.startswith("bin/"):
-            out.append(p)
+        out.append(p)
     return out
 
 
 def _root_bin_aware_touch(bound_touch, worktree: Path, base_ref: str, *, _run_git_cap, _declared_check_surface_touch):
-    """T-13915 (SPEC-0152 rule 16) — the land's verify-implementation-touch predicate, made to answer
-    for a root `bin/` path the project's OWN CONTRACT names.
+    """T-13915, widened by T-14068 (SPEC-0152 rule 16) — the land's verify-implementation-touch
+    predicate, made to answer for any changed path the project's OWN CONTRACT names.
 
     `bound_touch` is the predicate bound to the verify-infrastructure set of this repository (the one
-    home, `verify_wiring._verify_infrastructure_globs`). For a project that set holds no root `bin/**`
-    member, so a root `bin/` file the declared check surface names — a layer's `command:` path token,
-    an adapter's `sources:` entry under the root `bin/`, a `verify.infra_globs` entry — would be an
-    ordinary path to every reader of the land that asks the bound predicate ALONE (batch formation's
-    cost rank, the failure attribution), while the per-layer skip decision and the pinned trigger,
-    which ask the declared-check-surface companion beside it, run everything on that file. The
-    returned predicate closes that: it answers True where `bound_touch` does, and otherwise asks the
-    SAME companion about the changed paths at or under the root `bin/`, and about those only — so
-    what any reader answers for a declared check path ELSEWHERE is unchanged. Before T-13915 the
-    fixed set's root `bin/**` member gave this answer in every repository.
+    home, `verify_wiring._verify_infrastructure_globs`). A path the declared check surface names — a
+    layer's `command:` path token (a root `bin/` script or a `scripts/check.sh` alike), an adapter's
+    `sources:` entry under the root `bin/`, a `verify.infra_globs` entry — but the set does not hold
+    would be an ordinary path to every reader of the land that asks the bound predicate ALONE (batch
+    formation's cost rank, the failure attribution), while the per-layer skip decision and the pinned
+    trigger, which ask the declared-check-surface companion beside it, run everything on that file.
+    The returned predicate closes that: it answers True where `bound_touch` does, and otherwise asks
+    the SAME companion about every changed path — the question the skip decision asks. T-13915 asked
+    it about root `bin/` paths only, so a red on a named check path elsewhere was attributed to a
+    layer the change "could not reach" (T-14068).
 
     Read at CALL time, over `worktree`'s carrier and the carrier at `base_ref`, as the companion
     reads them. Any doubt (the companion raises) is a touch: it arms more verification and exempts
-    no layer. In the kernel's own repository `bound_touch` already answers True for every root
-    `bin/` path, so the companion is never asked there. Keyword arguments pass through to
-    `bound_touch` unchanged."""
+    no layer. A repository whose carrier declares no check surface (the kernel's own) gets the
+    companion's empty answer, so `bound_touch` decides alone there. Keyword arguments pass through
+    to `bound_touch` unchanged."""
     def _touch(changed_files, **kw):
         if bound_touch(changed_files, **kw):
             return True
         try:
-            root_bin = _root_bin_paths(changed_files)
-            return bool(root_bin) and bool(_declared_check_surface_touch(
-                root_bin, worktree, base_ref, _run_git_cap=_run_git_cap))
+            paths = _changed_path_strings(changed_files)
+            return bool(paths) and bool(_declared_check_surface_touch(
+                paths, worktree, base_ref, _run_git_cap=_run_git_cap))
         except Exception:                  # noqa: BLE001 — a doubt is a touch
             return True
     return _touch
 
 
 def _named_root_bin_touch(diff_paths, base_text, cand_text, *, _declared_check_surface_globs_of, _is_verify_implementation_touch) -> bool:
-    """T-13915 (SPEC-0152 rule 16) — does THE PROJECT'S OWN CONTRACT name a changed root `bin/` path?
+    """T-13915, widened by T-14068 (SPEC-0152 rule 16) — does THE PROJECT'S OWN CONTRACT name a
+    changed path? (The name is T-13915's, when only root `bin/` paths were judged.)
 
-    The fixed set no longer holds a project's root `bin/**`, so a root `bin/` file is verify
-    infrastructure there exactly when the declared check surface names it: a layer's `command:` path
-    token, an adapter's `sources:` entry, a `verify.infra_globs` entry. The per-layer skip decision
-    learns that from its declared-check-surface companion. The two readers that take the SAME answer
-    about a land but hold only the two carrier TEXTS — the failure attribution and the false-skip
-    replay — ask it here, through the same per-carrier reader (`_declared_check_surface_globs_of`),
-    so none of the three can call such a file ordinary while another runs every layer on it.
+    A path is verify infrastructure in a project exactly when the fixed set holds it or the declared
+    check surface names it: a layer's `command:` path token, an adapter's `sources:` entry, a
+    `verify.infra_globs` entry. The per-layer skip decision learns that from its
+    declared-check-surface companion, for every changed path. The reader that takes the SAME answer
+    about a land but holds only the two carrier TEXTS — the false-skip replay — asks it here,
+    through the same per-carrier reader (`_declared_check_surface_globs_of`), so it cannot call such
+    a file ordinary while the skip runs every layer on it. T-13915 judged root `bin/` paths only, so
+    a named `scripts/` check or a `verify.infra_globs` entry elsewhere read as a false skip (T-14068).
 
     BOTH carriers are read and the union taken, as the companion does (a surface named at either side
     arms it). True also on every DOUBT about a carrier that is present — text that does not parse to
     a mapping, a reader that raises — because a doubt must never turn a named verifier file into an
-    ordinary path. False when the diff holds no root `bin/` path at all, or neither carrier names
-    one. Only root `bin/` paths are judged: what these two readers answer for a declared check path
-    ELSEWHERE is unchanged by this card."""
-    root_bin = _root_bin_paths(diff_paths)
-    if not root_bin:
+    ordinary path. False when the diff holds no path, or neither carrier names a changed one."""
+    paths = _changed_path_strings(diff_paths)
+    if not paths:
         return False
     globs: set = set()
     for text in (base_text, cand_text):
@@ -472,7 +474,7 @@ def _named_root_bin_touch(diff_paths, base_text, cand_text, *, _declared_check_s
             globs.update(_declared_check_surface_globs_of(ops))
         except Exception:                 # noqa: BLE001 — a doubt keeps the file on the full run
             return True
-    return bool(globs) and bool(_is_verify_implementation_touch(root_bin, _VERIFY_IMPLEMENTATION_GLOBS=sorted(globs)))
+    return bool(globs) and bool(_is_verify_implementation_touch(paths, _VERIFY_IMPLEMENTATION_GLOBS=sorted(globs)))
 
 
 def _ops_carrier_duplicate_key(text: str) -> bool:
@@ -2515,6 +2517,25 @@ _layer_kill = threading.local()   # T-13993: `.ending` = how the last bound-kill
                                   # ended: None (no grace given), "exited-in-grace" or "killed-hard"
 
 
+def _group_size(pgid) -> int:
+    """T-14085 — how many live processes are in process group `pgid`, read from `/proc/<pid>/stat`
+    (field 5, after the parenthesised name). 0 where `/proc` cannot be read."""
+    n = 0
+    try:
+        pids = [d for d in os.listdir("/proc") if d.isdigit()]
+    except OSError:
+        return 0
+    for d in pids:
+        try:
+            with open(f"/proc/{d}/stat", "rb") as f:
+                fields = f.read().rsplit(b")", 1)[1].split()
+        except (OSError, IndexError):
+            continue
+        if len(fields) > 2 and fields[0] != b"Z" and fields[2] == str(pgid).encode():
+            n += 1
+    return n
+
+
 def _layer_term_grace():
     """T-13993 — `(sentence, row_fields)` for the timeout this thread's last `_run_layer_command` hit:
     the sentence the TIMED OUT assertion appends and the `term_grace` key of the timed-out layer row.
@@ -2721,7 +2742,7 @@ class _LayerProcessTree:
             return None
 
 
-def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None):
+def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None, shell: bool = True):
     """T-12589 — run ONE verify layer command on the terms `subprocess.run(cmd, shell=True, cwd,
     capture_output=True, text=True, timeout, env)` had, but reap it with `os.wait4` so the reading is
     the command's OWN rusage (the shell plus every descendant it waited for) — not the process-wide
@@ -2744,17 +2765,23 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
     The deadline is read again after the first attempt is reaped and its streams are collected: once
     it has passed, no second run starts and the invocation returns None as a timeout does.
     The CPU reading is the sum of both attempts; the captured stream is the first attempt's, one
-    line saying it was restarted, then the second's. A probe that raises restarts nothing."""
+    line saying it was restarted, then the second's. A probe that raises restarts nothing.
+
+    T-14085 (public issue #166) — `shell=False` runs an argv list with no shell (the floor-atom
+    caller, `land_floors._floor_project_commands`), on the same group-reaping launch. A bound kill
+    leaves `_layer_kill.reaped` = `(pgid, N)`: the processes of the group alive just before the
+    SIGTERM; it is None when the bound did not kill the command."""
     import signal
     import subprocess
     import threading
     deadline = None if timeout is None else time.monotonic() + timeout
     proc_ms, streams = 0, []
     _layer_kill.ending = None       # T-13993: set below only when the bound kills this command
+    _layer_kill.reaped = None       # T-14085: `(pgid, N)` set below only when the bound kills it
     tree = getattr(_layer_tree, "reading", None)    # T-13931: the layer's process-tree reading, if one is open
     while True:     # at most twice: the attempt, and (T-13811) its ONE restart at normal priority
         _nice_kw = {"preexec_fn": (lambda: os.nice(max(0, nice - os.nice(0))))} if nice else {}
-        p = subprocess.Popen(cmd, shell=True, cwd=str(worktree), stdout=subprocess.PIPE,
+        p = subprocess.Popen(cmd, shell=shell, cwd=str(worktree), stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, text=True, env=env, start_new_session=True, **_nice_kw)
         box = {}
         readers = [threading.Thread(target=lambda k=k, s=s, b=box: b.__setitem__(k, s.read()), daemon=True)
@@ -2799,6 +2826,7 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None)
                     # T-13993: the BOUND — SIGTERM the group and give it `_LAYER_TERM_GRACE_S` to exit
                     # (the T-12645 reap shape). It has exited when the shell is reaped AND no member
                     # of the group is left. A starvation restart (T-13811) stays an immediate kill.
+                    _layer_kill.reaped = (p.pid, _group_size(p.pid))
                     try:
                         os.killpg(p.pid, signal.SIGTERM)
                     except ProcessLookupError:
@@ -3184,6 +3212,14 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str, *,
     `land_completed` journal row whose `ts` lies in `[since, until]` — the fold the automatic entry is
     decided on. One record per file per retry, so a file's list length IS its count.
 
+    T-14053 — AND on a governed Stage-6 run's `tests_passed` / `tests_failed` row: a file that flakes
+    mostly in Stage-6 pools never reached this count, because `task test --run` keeps its routed
+    record under the venue-prefixed `verify_metrics.venue_flaky_retry` (unfolded) and no land row
+    carries it. Those rows are read on that key and on `flaky_retry` (the T-13545 layer fragment,
+    whose rows name no `file` and so count nothing), under the SAME row predicate below; a
+    `land_completed` row is read on `flaky_retry` alone, as before (the land folds the venue key onto
+    it). The locator then names the Stage-6 row.
+
     READS THE ONE RECORD T-12357 ALREADY WRITES (CHARTER §P1 F1 — never a second counter):
     `data.verify_metrics.flaky_retry`, in BOTH shapes it takes — the LOCAL land's `{rows: [...]}` and a
     ROUTED land's per-leg `{cand: {rows}, pinned: {rows}}` (a leg that recorded nothing is `null`; the
@@ -3214,24 +3250,28 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str, *,
     seen: set = set()
     try:
         rows = journal_mod.segment_rows_since(journal_path, since, until=until,
-                                              types=("land_completed", *rows_out_types))
+                                              types=(*_FLAKY_ENTRY_ROW_TYPES, *rows_out_types))
     except OSError:
         return out
     if rows_out is not None:
         rows = list(rows)
         rows_out.extend(rows)
     for e in rows:
-        if not isinstance(e, dict) or e.get("type") != "land_completed":
+        etype = e.get("type") if isinstance(e, dict) else None
+        if etype not in _FLAKY_ENTRY_ROW_TYPES:
             continue
         ts = str(e.get("ts") or "")
         if not ts or ts < since or ts > until:
             continue
         data = e.get("data")
         metrics = data.get("verify_metrics") if isinstance(data, dict) else None
-        rec = metrics.get("flaky_retry") if isinstance(metrics, dict) else None
-        if not isinstance(rec, dict):
+        if not isinstance(metrics, dict):
             continue
-        legs = [(None, rec)] if "rows" in rec else [(k, v) for k, v in rec.items()]
+        keys = ("flaky_retry",) if etype == "land_completed" else ("venue_flaky_retry", "flaky_retry")
+        legs = []
+        for rec in (metrics.get(k) for k in keys):
+            if isinstance(rec, dict):
+                legs += [(None, rec)] if "rows" in rec else [(k, v) for k, v in rec.items()]
         for leg, lrec in legs:
             if not isinstance(lrec, dict):
                 continue
@@ -3250,7 +3290,7 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str, *,
                 if not isinstance(name, str) or not name:
                     continue
                 stamped = row.get("leg") if isinstance(row.get("leg"), str) else leg
-                key = (ts, stamped, name)
+                key = (etype, ts, stamped, name)
                 if key in seen:
                     continue
                 seen.add(key)
@@ -3474,7 +3514,7 @@ def _per_unit_flaky_rate(events_path, since=None, until=None, *, _iter_events, _
                      "flaky_rate": round(c["rescued"] / c["runs"], 4),
                      **{k: c[k] for k in ("passed_alone_unrescued", "failed_alone") if c[k]}})
     rows.sort(key=lambda r: (-r["flaky_rate"], -r["rescued"]))          # stable: ties keep identity order
-    out = {"lens": "per-unit-flaky-rate (T-13608 / SPEC-1006 rule 13) — per unit of an adapter-backed "
+    out = {"lens": "per-unit-flaky-rate (T-13608 / SPEC-1035 rule 13) — per unit of an adapter-backed "
                    "verify layer: first-attempt failures a re-run rescued, over the unit's runs. "
                    "Derived from the journal at read time; report-only.",
            "window": _views._window_block(since, until), "records": records}
@@ -3557,7 +3597,7 @@ def _per_case_rescued_failures(events_path, since=None, until=None, *, _iter_eve
 
     rows = [{**_ident(key), "case": key[4], "rescued_first_failures": n}
             for key, n in sorted(cases.items(), key=lambda kv: (-kv[1], kv[0]))]
-    out = {"lens": "per-case-rescued-failures (T-13615 / SPEC-1006 rule 13) — per test case of an "
+    out = {"lens": "per-case-rescued-failures (T-13615 / SPEC-1035 rule 13) — per test case of an "
                    "adapter-backed verify layer: how often it failed on a first attempt that a re-run "
                    "of its unit then rescued. Derived from the journal at read time; diagnostic, "
                    "report-only. The per-unit rate is the lens `per-unit-flaky-rate`.",
@@ -4820,7 +4860,7 @@ def _declared_layer_adapters(layers, *, repo_files) -> dict:
                 if not any(path == s or path.startswith(s + "/") for s in sources):
                     raise ValueError(f"{where} `{key}:` names the repository file {path!r}, which "
                                      f"`sources:` does not list — list every script and runner "
-                                     f"configuration the adapter's commands use (SPEC-1006 rule 1)")
+                                     f"configuration the adapter's commands use (SPEC-1035 rule 1)")
         out[i] = decl
     return out
 
@@ -5829,7 +5869,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                                max_output_bytes: int = 16 * 1024 * 1024, first_attempt: bool = False,
                                rerun=None, sink=None, max_kept_output_chars: int = 1024 * 1024,
                                change=None, _subject_globs_would_skip=None, credit=None,
-                               lane=None, one_card_candidate: bool = False, shipped=None) -> dict:
+                               lane=None, one_card_candidate: bool = False, shipped=None,
+                               pre_deploy=None) -> dict:
     """SPEC-1006 rules 3-4 — the REPORT-ONLY adapter pass of ONE layer: `list`, then `run`, inside
     the layer's prepared worktree, read through the layer's report profile. Returns the record that
     rides the layer's outcome row as `adapter` (registered in SPEC-0025):
@@ -5887,7 +5928,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                      report_id?, group?}`): `list` and `required:` are not invoked, `list` reads
                      `given`, and every `run` manifest carries `isolated: true`.
       sink           a dict the pass fills for its caller, never part of the record: `inventory`
-                     (the listed units), `proc_ms` (the summed process CPU of every invocation
+                     (the listed units) — and, when the caller seeds the key `memberships`, that
+                     answer's `{(project, file): _pre_deploy_membership(classes)}` (T-14111) —, `proc_ms` (the summed process CPU of every invocation
                      that reported one), and `invocations` — ONE entry per `required:` and `run`
                      invocation, in order: `{label, command, exit, output}`, `exit` None when it
                      hit the bound, `output` its whole captured stream. Nothing an invocation
@@ -6040,7 +6082,17 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     credit or with no previous-attempt reference — narrows nothing: the whole
     inventory runs, each deciding record reads `void` / `shipped-plan-mismatch` (toward MORE
     testing, never fewer). The host's pass fills the caller's `sink["plan"]` with
-    the plan it took, which is where a shipped decision comes from."""
+    the plan it took, which is where a shipped decision comes from.
+
+    THE PRE-DEPLOY EXCLUSION (T-14104 — SPEC-1042 rules 1-2, `proposed`). `pre_deploy` is the PARSED
+    pre-deploy declaration (`_pre_deploy_declaration`'s `{classes, layers}`, plus `change` — `{paths,
+    edge}`), handed by a land's candidate leg or a Stage-6 run only; None, the default, changes
+    nothing, byte for byte. Given one, `list` units' `classes:` are read, and on a pass that is not a
+    re-run `_pre_deploy_exclusion` is applied LAST — after the deciding selection and credit — to
+    the units `run` is invoked with: a removed unit has no row, the run is a narrowed one
+    (`partial`, so a pass reads `passed-partial`), and the record's `pre_deploy` names each removed
+    unit with its class, or says why the layer ran whole. Its `run: true` (T-14105) is the deploy's
+    pre-deploy run: nothing is removed and the record names every pre-deploy unit with its class."""
     import posixpath
     import shutil
     import tempfile
@@ -6066,6 +6118,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
         if crediting:
             rec["credit"] = _no_credit("outer-failure")
         return rec
+    memberships: dict = {}  # T-14104: `list` units' `classes:` — read only when `pre_deploy` is given
     planned: dict = {}      # T-13907: `narrowed` (the run plan, when it leaves units out) and the
     launched: list = []     # units of every `run` invocation that was STARTED
     checks_passed: list = []    # ... and the index of every `required:` check that ran and passed
@@ -6175,6 +6228,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 for k in ("report_id", "group"):
                     if u.get(k):
                         unit[k] = u[k]
+                if pre_deploy is not None or (sink is not None and "memberships" in sink):   # T-14104/T-14111: membership, beside the unit — never in it
+                    memberships[(unit["project"], unit["file"])] = _pre_deploy_membership(u.get("classes"))
                 if unit["project"] in files.setdefault(unit["file"], set()):
                     return None, "duplicate-unit"
                 if files[unit["file"]] and not prof["project_in_report"]:
@@ -6521,6 +6576,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 print(f"land(consumer): verify layer {layer!r} adapter `list` is unusable for this run "
                       f"({reason}) — no per-unit report; the layer's verdict is its `command:` exit code"
                       + (f"\n{tail}" if tail else ""))
+                if pre_deploy is not None and rerun is None:    # T-14104: the layer runs whole
+                    rec["pre_deploy"] = {"applied": False, "reason": "list-unanswered"}
                 if not ((deciding or crediting) and first_attempt):
                     _decide(None)
                     _select(None, None)
@@ -6532,6 +6589,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 rec["list"] = "ok"
                 if sink is not None:
                     sink["inventory"] = units
+                    if "memberships" in sink:              # T-14111: asked by the weekly reading only
+                        sink["memberships"] = memberships
         if first_attempt and rerun is None and decl.get("required") \
                 and (units is not None or deciding or crediting):
             # T-13607 (SPEC-1006 rule 5): the layer's mandatory non-test checks. They run on every
@@ -6555,7 +6614,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     rec["required"] = {"ran": j + 1, "failed": j, "exit": got[0].returncode}
                     print(f"land(consumer): verify layer {layer!r} `required:` check {j + 1} FAILED "
                           f"(exit {got[0].returncode}) — the layer fails; `run` is not invoked and "
-                          f"nothing re-runs a required check (SPEC-1006 rule 5)")
+                          f"nothing re-runs a required check (SPEC-1035 rule 5)")
                     if deciding:        # T-13907: the layer failed before any decision
                         rec["selection"] = _no_decision("required-failed")
                     if crediting:
@@ -6565,6 +6624,38 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
             rec["required"] = {"ran": len(decl["required"])}
         # T-13907 (SPEC-1030 rule 2): the units THIS run executes — None = the whole inventory.
         to_run = _decide(units)
+        if pre_deploy is not None and rerun is None and "pre_deploy" not in rec:
+            # T-14104 (SPEC-1042 rule 2): the pre-deploy exclusion, LAST — over what the run needs now.
+            to_run, _pd = _pre_deploy_exclusion(
+                units, to_run, memberships, pre_deploy.get("classes"), decl=decl,
+                change=pre_deploy.get("change"), first_attempt=first_attempt,
+                run=bool(pre_deploy.get("run")))           # T-14105: the deploy's pre-deploy run
+            if _pd is not None:
+                rec["pre_deploy"] = _pd
+                if _pd.get("reason") in _PRE_DEPLOY_WHOLE_REASONS and to_run is not None:
+                    to_run = None                          # the layer runs whole: no narrowing stands
+                    planned.pop("narrowed", None)
+                    if sink is not None and "plan" in sink:
+                        sink["plan"] = {"units": None, "left_out": None}
+                    _adapter_pre_deploy_whole(rec)
+                if _pd["applied"]:
+                    gone = {(u.get("project") or "", u["file"]) for u in _pd["removed"]}
+                    if "narrowed" in planned:
+                        planned["narrowed"]["units"] = [u for u in planned["narrowed"]["units"]
+                                                        if (u.get("project") or "", u["file"]) not in gone]
+                    else:
+                        planned["narrowed"] = {"inventory": units, "units": to_run, "left_out": []}
+                    print(f"land(consumer): verify layer {layer!r} pre-deploy exclusion: "
+                          f"{len(_pd['removed'])} unit(s) of a pre-deploy class NOT run here ("
+                          + ", ".join(f"{u['file']} [{u['class']}]" for u in _pd["removed"][:5])
+                          + ("" if len(_pd["removed"]) <= 5 else f" (+{len(_pd['removed']) - 5} more)")
+                          + ") — the deploy's pre-deploy run runs them (SPEC-1042 rule 2)")
+                elif _pd.get("refused"):
+                    print(f"land(consumer): verify layer {layer!r} pre-deploy declaration REFUSED "
+                          f"({_pd['reason']}) — the layer runs whole and the verify fails on it")
+                else:
+                    print(f"land(consumer): verify layer {layer!r} pre-deploy exclusion NOT applied "
+                          f"({_pd['reason']}) — the layer runs whole, pre-deploy units included")
         if (deciding or crediting) and first_attempt and units is None:
             # No inventory on a deciding layer's first attempt (`list` absent or unusable): the
             # full `command:` decides, and `run` is not invoked ahead of it.
@@ -6658,7 +6749,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                   f"unit(s) ran AFTER the batch, one at a time ("
                   + ", ".join(u["file"] for u in laned[:5])
                   + ("" if len(laned) <= 5 else f" (+{len(laned) - 5} more)")
-                  + ") — each decides the verdict as any unit does (SPEC-1006 rule 11)")
+                  + ") — each decides the verdict as any unit does (SPEC-1035 rule 11)")
         _select(units, rows)
         _credit(units, rows)
         return rec
@@ -6980,6 +7071,242 @@ def _adapter_passed_outcome(rec) -> str:
     return "passed-partial" if isinstance(rec, dict) and isinstance(rec.get("partial"), dict) else "passed"
 
 
+# ───────── T-14104 — the PRE-DEPLOY exclusion, applied LAST (SPEC-1042 rules 1-2, `proposed`) ─────────
+#
+# A pre-deploy class names its units in the ONE adapter inventory (each `list` unit's optional
+# `classes:`, SPEC-1035 rule 3) or whole layers (`layers:`). On a land's candidate leg and a Stage-6
+# run the units of such a class leave the set the layer would run today — after the selection
+# ladder, the SPEC-1030 deciding selection and credit and the `command:` fallback — and the row
+# names each with its class. Never on a forced full run, a `shadow` layer's full side, a re-run or
+# the pinned last-green leg. No contract reaches this before the turn-on card: the contract reader
+# refuses `moment: pre-deploy` (init.py `_hook_tests`), and only a caller handed the PARSED
+# declaration (`pre_deploy=`) applies it.
+def _pre_deploy_declaration(classes) -> "dict | None":
+    """SPEC-1042 rule 1 — the pre-deploy part of a PARSED `tests.classes[]`: `{classes, layers}` —
+    `classes` the names of the `moment: pre-deploy` entries, `layers` `{layer: class}` for the layers
+    such an entry names whole in `layers:`. None when no entry is a pre-deploy one. The entry shape
+    is the contract reader's to refuse; here an entry that is not a mapping, or names no class, is
+    no pre-deploy class. PURE."""
+    names, layers = [], {}
+    for c in classes if isinstance(classes, list) else ():
+        if not (isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"):
+            continue
+        name = str(c.get("class") or "").strip()
+        if not name:
+            continue
+        names.append(name)
+        for ly in c.get("layers") if isinstance(c.get("layers"), list) else ():
+            if isinstance(ly, str) and ly.strip():
+                layers.setdefault(ly.strip(), name)
+    return {"classes": names, "layers": layers} if names else None
+
+
+def _pre_deploy_contract_verdict(ops) -> dict:
+    """T-14114 (SPEC-1042 rule 1) — the contract read's verdict on the pre-deploy declaration of the
+    parsed contract `ops`: `{"classes": <its tests.classes>, "refused": [errors]}` when it carries a
+    `moment: pre-deploy` entry (`refused` = `init.pre_deploy_declaration_errors`, [] when admitted),
+    else `{"classes": None, "refused": []}`. PURE."""
+    tests = ops.get("tests") if isinstance(ops, dict) else None
+    classes = tests.get("classes") if isinstance(tests, dict) else None
+    if _pre_deploy_declaration(classes) is None:
+        return {"classes": None, "refused": []}
+    from lib import init as _init                        # lazy: init reaches worktree, which imports this module
+    return {"classes": classes, "refused": _init.pre_deploy_declaration_errors(ops)}
+
+
+def _pre_deploy_admitted_classes(ops) -> "list | None":
+    """T-14114 — the PARSED `tests.classes` of `ops` when it declares a pre-deploy class the contract
+    read admits, else None. A refused declaration skips no land unit and owes no stand probe — the
+    land runs every unit — while the deploy refuses on it (`_pre_deploy_contract_read`). PURE."""
+    v = _pre_deploy_contract_verdict(ops)
+    return None if v["refused"] else v["classes"]
+
+
+def _pre_deploy_contract_read(tree) -> dict:
+    """T-14114 — `_pre_deploy_contract_verdict` of the contract `tree/yitc-ops.yaml`; no carrier, or
+    one that cannot be read, declares nothing. The ONE reader the land, Stage-6 and deploy seams
+    share."""
+    path = Path(tree) / "yitc-ops.yaml"
+    try:
+        ops = state.load_ops(path) if path.is_file() else None
+    except Exception:                                    # noqa: BLE001 — unreadable = not declared
+        ops = None
+    return _pre_deploy_contract_verdict(ops)
+
+
+def _pre_deploy_contract_kw(tree) -> dict:
+    """T-14114 (SPEC-1042 rule 2) — the keyword a land's candidate leg and a Stage-6 run hand the layer
+    runner: `{"pre_deploy": <the declaration>}` when `tree`'s contract declares an admitted pre-deploy
+    class (`_pre_deploy_contract_read`), else `{}` — so a project declaring none, or one whose
+    declaration the contract read refuses, calls the runner exactly as before: every unit runs."""
+    v = _pre_deploy_contract_read(tree)
+    decl = None if v["refused"] else _pre_deploy_declaration(v["classes"])
+    return {"pre_deploy": decl} if decl is not None else {}
+
+
+def _pre_deploy_forced_full(decl, change) -> "str | None":
+    """SPEC-1042 rule 2 — why this run of a layer is a FORCED FULL run, on which no pre-deploy unit is
+    removed; None when it is not. `change` is `{paths, edge}`: the changed paths and the reason the
+    SPEC-0152 rule-16 skip decision ran every layer (the verify section, the pinned set, the
+    land/verify implementation, `verify.infra_globs` — whatever edge it names). The answer: that
+    edge; `adapter-sources` for a changed path under the layer adapter's `sources:`; `change-unknown`
+    where the run has no change facts or no path list (it cannot show it is not forced). PURE."""
+    if not isinstance(change, dict):
+        return "change-unknown"
+    if change.get("edge"):
+        return str(change["edge"])
+    paths = change.get("paths")
+    if not paths:
+        return "change-unknown"
+    sources = (decl or {}).get("sources") or ()
+    if any(str(p) == s or str(p).startswith(s + "/") for p in paths for s in sources):
+        return "adapter-sources"
+    return None
+
+
+#: a unit whose `classes:` is not a list of non-empty strings
+_PRE_DEPLOY_MALFORMED = object()
+#: the `pre_deploy` reasons that read the `list` answer as one that did not answer for the exclusion:
+#: the layer runs WHOLE — a narrowing the deciding modes took is undone (`_adapter_pre_deploy_whole`)
+_PRE_DEPLOY_WHOLE_REASONS = frozenset(("mixed-group", "membership-malformed", "unit-names-two-pre-deploy-classes"))
+
+
+def _adapter_pre_deploy_whole(rec):
+    """SPEC-1042 rule 1 — a run whose `list` answer did not answer for the pre-deploy exclusion
+    (`_PRE_DEPLOY_WHOLE_REASONS`) runs its layer WHOLE, so a narrowing a deciding mode took is not
+    kept: a deciding `selection` that narrowed reads `decision: full`, `reason: pre-deploy-whole`,
+    the ladder's reason kept as `ladder_reason`; a deciding `credit` that credited reads `void` /
+    `pre-deploy-whole`. Changes `rec` in place and returns it."""
+    sel = rec.get("selection")
+    if isinstance(sel, dict) and sel.get("mode") == "deciding" and sel.get("decision") == "units":
+        sel.update({"ladder_reason": sel.get("reason"), "decision": "full", "reason": "pre-deploy-whole"})
+    cred = rec.get("credit")
+    if isinstance(cred, dict) and cred.get("mode") == "deciding" and cred.get("decision") == "units":
+        cred.update({"decision": "void", "reason": "pre-deploy-whole"})
+    return rec
+
+
+def _pre_deploy_membership(raw):
+    """SPEC-1035 rule 3 — a `list` unit's `classes:` as a tuple of names, or the malformed mark. A
+    unit with no `classes:` belongs to no class (the empty tuple). PURE."""
+    if raw is None:
+        return ()
+    if isinstance(raw, list) and all(isinstance(c, str) and c.strip() for c in raw):
+        return tuple(c.strip() for c in raw)
+    return _PRE_DEPLOY_MALFORMED
+
+
+def _pre_deploy_exclusion(inventory, to_run, memberships, declared, *, decl, change,
+                          first_attempt=True, run=False) -> tuple:
+    """SPEC-1042 rule 2 — the pre-deploy exclusion of ONE run of an adapter-backed layer, applied
+    LAST: `to_run` is the set the run would execute today (`_adapter_run_plan`'s units, None = the
+    whole `inventory`), `memberships` `{(project, file): _pre_deploy_membership(...)}` from the
+    `list` answer, `declared` the declared pre-deploy class names. Returns `(units, record)`:
+    the units to run (None = unchanged whole) and the `pre_deploy` record of the adapter record, or
+    None where there is nothing to say (no unit of the inventory is a pre-deploy unit — the run and
+    its row are exactly today's).
+
+    THE RECORD: `{applied, reason?, removed?, units?, groups?}`, entries `{file, project?, class?}`
+    in inventory order. `applied: true` with `removed` — the units taken out of this run, each with
+    its class. Otherwise `applied: false` and `reason` says why the layer runs whole:
+    `list-unanswered` (no inventory — the `command:` fallback), `membership-malformed` /
+    `unit-names-two-pre-deploy-classes` (`units` names them; both carry `refused: true` — a malformed
+    declaration the verify then fails on, `_pre_deploy_refusal_line`), `mixed-group` (`groups` names each
+    declared group mixing a class and none), `shadow-full-side`, `command-decided` (not the
+    layer's first attempt) or the forced-full reason of `_pre_deploy_forced_full` — `units` then
+    names the pre-deploy units that ran.
+
+    `run` (T-14105 — SPEC-1042 rule 3) marks the deploy's PRE-DEPLOY RUN: nothing is removed, and
+    the record reads `pre-deploy-run` with `units` naming every pre-deploy unit of the inventory with
+    its class (`groups` beside them for a declared group mixing a class and none — the run names its
+    units all the same), so the deploy can give each class its own units. The malformed-membership
+    refusals above hold in the run as on a land. PURE."""
+    if inventory is None:
+        return to_run, {"applied": False, "reason": "list-unanswered"}
+    declared = set(declared or ())
+
+    def _name(u, **more):
+        return {"file": u["file"], **({"project": u["project"]} if u.get("project") else {}), **more}
+
+    cls, bad, two = {}, [], []
+    for u in inventory:
+        key = (u.get("project") or "", u["file"])
+        got = (memberships or {}).get(key, ())
+        if got is _PRE_DEPLOY_MALFORMED:
+            bad.append(_name(u))
+            continue
+        hit = sorted({c for c in got if c in declared})
+        if len(hit) > 1:
+            two.append(_name(u, classes=hit))
+        cls[key] = hit[0] if hit else None
+    if bad:
+        return to_run, {"applied": False, "reason": "membership-malformed", "refused": True, "units": bad}
+    if two:                 # SPEC-1042 rule 1: a malformed declaration — the land refuses it
+        return to_run, {"applied": False, "reason": "unit-names-two-pre-deploy-classes", "refused": True,
+                        "units": two}
+    members = [u for u in inventory if cls[(u.get("project") or "", u["file"])]]
+    if not members:
+        return to_run, None
+    by_group: dict = {}
+    for u in inventory:
+        if u.get("group"):
+            by_group.setdefault((u.get("project") or "", u["group"]), set()).add(
+                cls[(u.get("project") or "", u["file"])])
+    mixed = [{"group": g, **({"project": p} if p else {})}
+             for (p, g), seen in by_group.items() if len(seen) > 1]
+    if run:                 # T-14105: the pre-deploy run removes nothing and names every class unit
+        named = [_name(u, **{"class": cls[(u.get("project") or "", u["file"])]}) for u in inventory
+                 if cls.get((u.get("project") or "", u["file"]))]
+        return to_run, {"applied": False, "reason": "pre-deploy-run", "units": named,
+                        **({"groups": mixed} if mixed else {})}
+    if mixed:
+        return to_run, {"applied": False, "reason": "mixed-group", "groups": mixed}
+    base = inventory if to_run is None else to_run
+    named = [_name(u, **{"class": cls[(u.get("project") or "", u["file"])]}) for u in base
+             if cls.get((u.get("project") or "", u["file"]))]       # the pre-deploy units this run requests
+    if (decl or {}).get("selection") == "shadow":
+        return to_run, {"applied": False, "reason": "shadow-full-side", "units": named}
+    if not first_attempt:
+        return to_run, {"applied": False, "reason": "command-decided", "units": named}
+    forced = _pre_deploy_forced_full(decl, change)
+    if forced:
+        return to_run, {"applied": False, "reason": forced, "units": named}
+    keep, removed = [], []
+    for u in base:
+        c = cls.get((u.get("project") or "", u["file"]))
+        (removed.append(_name(u, **{"class": c})) if c else keep.append(u))
+    if not removed:         # the selection already left every pre-deploy unit out
+        return to_run, None
+    return keep, {"applied": True, "removed": removed}
+
+
+def _pre_deploy_refusal_line(layer, record) -> str:
+    """SPEC-1042 rule 1 — the `bad` line of a layer whose `list` answer carries a malformed class
+    membership (`record` is its `pre_deploy` record, `refused: true`): a unit in TWO declared
+    pre-deploy classes, or a `classes:` that is not a list of names. The verify fails on it. PURE."""
+    if record.get("reason") == "unit-names-two-pre-deploy-classes":
+        named = ", ".join(f"{u.get('file')} [{', '.join(u.get('classes') or ())}]" for u in record.get("units") or ())
+        what = (f"names a unit in TWO pre-deploy classes ({named}); a unit belongs to at most one "
+                f"pre-deploy class")
+    else:
+        named = ", ".join(str(u.get("file")) for u in record.get("units") or ())
+        what = f"gives a unit a `classes:` that is not a list of class names ({named})"
+    return (f"land(consumer): verify layer {layer!r} — its adapter `list` {what} (SPEC-1042 rule 1, "
+            f"SPEC-1035 rule 3). Fix the unit's `classes:` in the adapter's `list` answer, then re-land.")
+
+
+def _pre_deploy_layer_skip_row(name: str, cls: str, change, decl=None) -> "dict | None":
+    """SPEC-1042 rule 2 — the row of a layer a pre-deploy class names WHOLE (`layers:`) on a run the
+    exclusion applies to: `{layer, outcome: passed-partial, pre_deploy: {applied: true, layer: {class}}}`
+    — the layer is skipped and the skip is never silent. `decl` is the layer's parsed adapter
+    declaration, None for a layer with no adapter. None — the layer runs whole as today — on a
+    forced full run (its adapter `sources:` included) and on a `selection: shadow` layer. PURE."""
+    if (decl or {}).get("selection") == "shadow" or _pre_deploy_forced_full(decl or {}, change):
+        return None
+    return {"layer": name, "outcome": "passed-partial",
+            "pre_deploy": {"applied": True, "layer": {"class": str(cls)}}}
+
+
 def _layer_row_listed_none(row) -> bool:
     """T-13994 (SPEC-1032 rule 5) — is this `consumer_verify_layers[]` row the row of a layer whose
     `list` named NO unit on the consumer venue while the plan the host shipped had listed units for it?
@@ -7194,6 +7521,9 @@ def _adapter_full_command_ran(rec):
     if not (isinstance(rec, dict) and isinstance(rec.get("partial"), dict)):
         return rec
     del rec["partial"]
+    pd = rec.get("pre_deploy")
+    if isinstance(pd, dict) and pd.get("applied"):      # T-14104: every unit ran after all
+        rec["pre_deploy"] = {"applied": False, "reason": "full-command-ran", "units": pd.get("removed") or []}
     sel = rec.get("selection")
     if isinstance(sel, dict) and sel.get("mode") == "deciding":
         sel.update({"ladder_reason": sel.get("reason"), "decision": "full", "reason": "full-command-ran"})

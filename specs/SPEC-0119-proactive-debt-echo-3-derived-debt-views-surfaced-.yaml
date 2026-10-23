@@ -112,6 +112,7 @@ implements:
 - bin/lib/debt.py#unpickable_ready_cards
 - bin/lib/debt.py#_unpickable_ready_result
 - bin/lib/cli.py#_unpickable_ready_view
+- bin/lib/cli.py#_wont_do_task_shipped
 - bin/lib/debt_landing.py#branch_unlanded_attempt_burn
 - bin/lib/debt_landing.py#_branch_burn_land_row
 - bin/lib/cli.py#_debt_branch_burn_min_attempts
@@ -287,28 +288,31 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ already folds — and clears only when the card's\n   `settled_by` names where the\
   \ recorded reading landed.\n   **AN OBSERVATION ON A `wont-do` CARD THAT NEVER SHIPPED\
   \ IS NOT OWED, AND IS COUNTED APART\n.** The clause above counts an obligation on\
-  \ a SHIPPED change. A card that went\n   `wont-do` with no recorded `commit` shipped\
-  \ nothing, so its declared observation has no subject\n   — and no verb can settle\
-  \ it, since `task close --settle-observation` admits a `done` card only.\n   Such\
-  \ an observation leaves the pending / overdue counts and is reported on its OWN\
-  \ named,\n   counted set, each row carrying its task id. It is MOVED, never dropped:\
-  \ the echo names the\n   group beside the observation line, and alone when the group\
-  \ is all that is left. A `wont-do`\n   card that DID record a `commit` is a partial\
-  \ ship with something to observe and stays counted;\n   every other status is counted\
-  \ exactly as before.\n   **A WAIVER ON A `wont-do` CARD LEAVES THE OVERDUE-RECHECK\
-  \ COUNT AND IS REPORTED APART.** A\n   user-facing waiver past its `recheck_by`\
-  \ on a card whose status is `wont-do` is not counted in\n   the overdue-recheck\
-  \ line, and the echo does not name it: neither settle route admits such a\n   card\
-  \ (the settle arms of `task close` admit a `done` card only, and the live-probe\
-  \ arms of\n   `task update` refuse a terminal card). The overdue-recheck view reports\
-  \ it on its OWN named,\n   counted set, each row carrying its task id, and a triage\
-  \ reads it there with `bin/yitc-v2\n   graph query overdue-recheck`. It is MOVED,\
-  \ never dropped. The test is the card's status\n   alone: it says nothing about\
-  \ whether any of the card's work. A waiver on a card of\n   any other status is\
-  \ counted exactly as before, and the line stays unfloored: a row moves by\n   its\
-  \ card's status, never by the size of the count.\n   **DEFERRED ACCEPTANCE PROBES\
-  \ — a FIFTH clause, UNFLOORED, off the SAME `_view_overdue_recheck`\n   call (SPEC-0015\
-  \ / <project> X-1066).** The overdue-recheck view folds a THIRD\n   deferred-proof\
+  \ a SHIPPED change. A card that went\n   `wont-do` and never shipped has no subject\
+  \ for its declared observation — and no verb can settle\n   it, since `task close\
+  \ --settle-observation` admits a `done` card only. A `wont-do` card SHIPPED\n  \
+  \ when its card carries a `commit`, or when one of its `task commit` ship commits\
+  \ (a\n   `commit_landed` row of the card with no `kind`) is reachable from `main`;\
+  \ where that check\n   cannot be answered, the observation stays counted.\n   An\
+  \ observation on a never-shipped `wont-do` card leaves the pending / overdue counts\
+  \ and is\n   reported on its OWN named,\n   counted set, each row carrying its task\
+  \ id. It is MOVED, never dropped: the echo names the\n   group beside the observation\
+  \ line, and alone when the group is all that is left. A `wont-do`\n   card that\
+  \ DID ship is a partial ship with something to observe and stays counted;\n   every\
+  \ other status is counted exactly as before.\n   **A WAIVER ON A `wont-do` CARD\
+  \ LEAVES THE OVERDUE-RECHECK COUNT AND IS REPORTED APART.** A\n   user-facing waiver\
+  \ past its `recheck_by` on a card whose status is `wont-do` is not counted in\n\
+  \   the overdue-recheck line, and the echo does not name it: neither settle route\
+  \ admits such a\n   card (the settle arms of `task close` admit a `done` card only,\
+  \ and the live-probe arms of\n   `task update` refuse a terminal card). The overdue-recheck\
+  \ view reports it on its OWN named,\n   counted set, each row carrying its task\
+  \ id, and a triage reads it there with `bin/yitc-v2\n   graph query overdue-recheck`.\
+  \ It is MOVED, never dropped. The test is the card's status\n   alone: it says nothing\
+  \ about whether any of the card's work. A waiver on a card of\n   any other status\
+  \ is counted exactly as before, and the line stays unfloored: a row moves by\n \
+  \  its card's status, never by the size of the count.\n   **DEFERRED ACCEPTANCE\
+  \ PROBES — a FIFTH clause, UNFLOORED, off the SAME `_view_overdue_recheck`\n   call\
+  \ (SPEC-0015 / <project> X-1066).** The overdue-recheck view folds a THIRD\n   deferred-proof\
   \ carrier: a card's own `probes: {ACx: deferred}` — a proof the CLOSURE recorded\
   \ as\n   owed. The state was first-class and its settle already existed (`task close\
   \ --settle-probe`, fail-closed against a probe that was never deferred); what was\
@@ -859,16 +863,16 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ own openness belongs to rule 11 (the sub-critical\n    fold) — one concern per\
   \ view, never two readers of the same fact.\n    UNFLOORED, on the same ground as\
   \ rules 11/12/13: a SINGLE deliberate gate bypass is precisely what\n    must never\
-  \ be count-hidden. The line names the fix (the findings are still open — fix each\
-  \ or record\n    an accepted-risk waiver, then re-run the producer) AND the meta-signal:\
-  \ a REPEATING override means\n    the BLOCKING RULE, not the deploy, is what needs\
-  \ to change. It rides rules 2/3/5 verbatim — the SAME\n    seams (session-start\
-  \ / `debt` re-fold), SUPPRESSED-WHEN-CLEAN, REPORT-ONLY, never a\n    gate, NO new\
-  \ store / event / verb / knob (one more OPTIONAL injected collaborator; P1 — it\
-  \ folds the\n    event rule 7 already emits). A repo that never overrode the gate\
-  \ ⇒ count 0 ⇒ suppressed.\n\n15. **Per-user capability preflight (SPEC-0093, X-0364).**\
-  \ A report-only line\n    (`session.capability_preflight_lines`, APPENDED by the\
-  \ `_debt_echo_lines` host residue exactly as\n    the rule-7 `startup_check_lines`\
+  \ be count-hidden. The line names the fix (the findings were open at override time\
+  \ — fix each still open or record\n    an accepted-risk waiver, then re-run the\
+  \ producer) AND the meta-signal: a REPEATING override means\n    the BLOCKING RULE,\
+  \ not the deploy, is what needs to change. It rides rules 2/3/5 verbatim — the SAME\n\
+  \    seams (session-start / `debt` re-fold), SUPPRESSED-WHEN-CLEAN, REPORT-ONLY,\
+  \ never a\n    gate, NO new store / event / verb / knob (one more OPTIONAL injected\
+  \ collaborator; P1 — it folds the\n    event rule 7 already emits). A repo that\
+  \ never overrode the gate ⇒ count 0 ⇒ suppressed.\n\n15. **Per-user capability preflight\
+  \ (SPEC-0093, X-0364).** A report-only line\n    (`session.capability_preflight_lines`,\
+  \ APPENDED by the `_debt_echo_lines` host residue exactly as\n    the rule-7 `startup_check_lines`\
   \ append) naming which DECLARED lifecycle commands the CURRENT user\n    cannot\
   \ RUN. It reads the commands the lifecycle ALREADY declares — `yitc-ops.yaml`\n\
   \    `verify.layers[].command` (the land-verify gate) + `tests.classes[].command`\
@@ -3463,44 +3467,36 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ the one-run-one-attempt atom, each DIFFERENTIAL against an\n    inline copy of\
   \ the pre-change count; and the whole-window atom, DIFFERENTIAL against the\n  \
   \  live segment's rows read alone, over a journal the test builds in more than one\
-  \ segment.\n\n36. **A `ready` CARD BLOCKED FOREVER BY A `wont-do` REQUIREMENT —\
-  \ the permanently-unpickable set\n.** An OPTIONAL injected report-only fold over\
-  \ `tasks/` alone\n    (`debt.unpickable_ready_cards`), wired at the ONE shared host\
-  \ residue like every sibling and\n    riding all seams (session-start / the `debt`\
-  \ re-fold).\n    **SUBJECT.** A card whose own status is `ready` and whose `requires:`\
-  \ names an id whose card,\n    in THIS checkout, is `wont-do`.\n    **THE GAP.**\
-  \ `requires:` is the picker's BLOCKING edge — a card is pickable only once every\
-  \ id\n    it requires is DONE — and `wont-do` is the OTHER terminal status, terminal\
-  \ in the direction\n    that NEVER satisfies: the required work was decided against.\
-  \ Such a card can therefore never be\n    picked, while reading `ready` at every\
-  \ surface that folds card status; measured 2026-08-30, no\n    lens read `requires:`\
-  \ at all and `wont-do` appeared in this module only in\n    `TERMINAL_CARD_STATUSES`.\n\
-  \    **WHY THE PICKER'S OWN REFUSAL DOES NOT COVER IT — the load-bearing part.**\
-  \ The picker refuses\n    the card at SELECTION, correctly, and says so to whoever\
-  \ asked. But nobody asks: a card that is\n    never selected is never refused, so\
-  \ the refusal is reachable only along the path the blockage\n    makes nobody take.\
-  \ The debt seam is the surface a controller passes ANYWAY, which is what makes\n\
-  \    it the one that can say this unprompted.\n    **IT CLAIMS ONLY WHAT IT CAN\
-  \ PROVE — fail-closed toward SILENCE, and the asymmetry with rule 18\n    is deliberate.**\
-  \ A required id whose card is ABSENT, unreadable, malformed, not id-shaped, or\n\
-  \    carrying any other status contributes NOTHING. Absence is the ORDINARY state\
-  \ of an id a\n    checkout has not got, and the claim this line makes is strong\
-  \ («this can never be picked»), so\n    it is made only where a `wont-do` card is\
-  \ sitting right there — otherwise every consumer repo\n    and every fixture tree\
-  \ would nag. Rule 18's opposite posture (every uncertainty KEEPS the row)\n    belongs\
-  \ to a view whose subject is a stopped worker awaiting a decision; here an uncertain\
-  \ read\n    would manufacture a permanence nobody can verify.\n    **THE REMEDY\
-  \ IS A DECISION, NEVER A SWEEP, and the line says so.** Two honest exits — DROP\
-  \ the\n    dead `requires:` edge if the requirement turned out not to be needed,\
-  \ or CLOSE the card itself\n    `wont-do` if it was the point. Which one applies\
-  \ is a judgement about the WORK, so the view\n    names the pair and picks neither.\
-  \ It never suggests deleting the edge to make the row go away:\n    that re-admits\
-  \ the card to a queue nothing has re-justified.\n    **SURFACING IS NOT PICKING**\
-  \ (SPEC-0085 §8): it names the STUCK cards — the opposite of naming\n    a candidate\
-  \ — ranks nothing and selects nothing. Report-only, suppressed-when-clean, UNFLOORED\n\
-  \    (one card stuck forever is debt at count 1, and count-hiding it restores the\
-  \ silence the rule\n    ends), zero stored state, NEVER gates. A repo with no `tasks/`\
-  \ folds to a clean zero, so\n    history is never retro-charged (SPEC-0149 §2 —\
+  \ segment.\n\n36. **A `ready` CARD REQUIRING A `wont-do` TARGET — picked and built\
+  \ without that requirement\n.** An OPTIONAL injected report-only fold over `tasks/`\
+  \ alone\n    (`debt.unpickable_ready_cards`), wired at the ONE shared host residue\
+  \ like every sibling and\n    riding all seams (session-start / the `debt` re-fold).\n\
+  \    **SUBJECT.** A card whose own status is `ready` and whose `requires:` names\
+  \ an id whose card,\n    in THIS checkout, is `wont-do`.\n    **THE GAP.** `requires:`\
+  \ is the picker's blocking edge, and the picker treats a `wont-do`\n    target as\
+  \ TERMINAL, never a blocker (`graph.requires_blockers_in_index`). Such a card is\n\
+  \    therefore pickable: it will be claimed and built WITHOUT the requirement, though\
+  \ that\n    requirement was decided against.\n    **WHY THE PICKER'S OWN REPORT\
+  \ DOES NOT COVER IT.** The picker prints one line when it admits\n    such a card,\
+  \ but only to whoever is selecting at that moment. The debt seam is the surface\
+  \ a\n    controller passes ANYWAY, so it can say this before the card is built.\n\
+  \    **IT CLAIMS ONLY WHAT IT CAN PROVE — fail-closed toward SILENCE, and the asymmetry\
+  \ with rule 18\n    is deliberate.** A required id whose card is ABSENT, unreadable,\
+  \ malformed, not id-shaped, or\n    carrying any other status contributes NOTHING.\
+  \ Absence is the ORDINARY state of an id a\n    checkout has not got, so the claim\
+  \ is made only where a `wont-do` card is sitting right\n    there — otherwise every\
+  \ consumer repo and every fixture tree would nag. Rule 18's opposite\n    posture\
+  \ (every uncertainty KEEPS the row) belongs to a view whose subject is a stopped\
+  \ worker\n    awaiting a decision; here an uncertain read would manufacture a claim\
+  \ nobody can verify.\n    **THE REMEDY IS A DECISION, NEVER A SWEEP, and the line\
+  \ says so.** Two honest exits — DROP the\n    dead `requires:` edge if the requirement\
+  \ turned out not to be needed, or CLOSE the card itself\n    `wont-do` if it was\
+  \ the point. Which one applies is a judgement about the WORK, so the view\n    names\
+  \ the pair and picks neither.\n    **SURFACING IS NOT PICKING** (SPEC-0085 §8):\
+  \ it names the cards to decide on — not a\n    candidate — ranks nothing and selects\
+  \ nothing. Report-only, suppressed-when-clean, UNFLOORED\n    (one such card is\
+  \ debt at count 1), zero stored state, NEVER gates. A repo with no `tasks/`\n  \
+  \  folds to a clean zero, so\n    history is never retro-charged (SPEC-0149 §2 —\
   \ pure: files in, no clock, no subprocess).\n\n35. **A DECLARED `subject_globs:`\
   \ SUBJECT WHOSE SUITE FILE IS EXECUTED BY NOTHING — the EXECUTION\n    axis of subject-scoping.**\
   \ An OPTIONAL injected report-only fold over the ops CARRIER\n    plus the CHECKOUT\
@@ -4223,6 +4219,7 @@ implements_signature:
   bin/lib/cli.py#_unmonitored_dispatch_view: 0065165b67a4f81e57c931535b67d2fb30538581a74ad706386d67c4bb641b6d
   bin/lib/cli.py#_unpickable_ready_view: 5963c40ee58d397311fc1917a731ad670f583ffdefde5efaffb05da76612de75
   bin/lib/cli.py#_unresolved_halt_view: 0b1e04327fa5731e45fdd06c4b821c670cbb0ee6bbd2f458dd7998a24b3176e4
+  bin/lib/cli.py#_wont_do_task_shipped: 769186656f75ba395323a4e98dc890d15ebeb2a4255d65a4042cb6c9da94af19
   bin/lib/debt.py#NIGHTLY_CHRONIC_CHECKS: d9b164bd34fabd3c1145deddaab4f1922eba2f97fe27dd8c47f711282ed31b9f
   bin/lib/debt.py#NIGHTLY_CHRONIC_REMEDY: fa796ef40d5cf86783bbd93e9a547153dcdc08d178a8b7f378c21f75577b990b
   bin/lib/debt.py#NIGHTLY_CHRONIC_VERDICT: 4f9854e02ca9658ea021542d274e00b17498288c64c8e08bed1c0787a942edd9
@@ -4247,7 +4244,7 @@ implements_signature:
   bin/lib/debt.py#_plan_slice_recent: cda9a07767f3d23524f076e60be258514b1de4e01f35ee7378d900434e771660
   bin/lib/debt.py#_plan_slice_staleness: c85ec1fef298d508ea969c008dffa6343cffe7c058c6238d91ce5daf1e42de6d
   bin/lib/debt.py#_run_invariant_probe: c51614534aab95d52bed0bcc9bcfafeb528177914dfe5b71363ad682f2fb0898
-  bin/lib/debt.py#_unpickable_ready_result: 4b2ee637961891df40349ad9eaac203f50af387bbf2bd52f4736624a9ba3866a
+  bin/lib/debt.py#_unpickable_ready_result: 39da94eacbdda84919ec33de70ce97dcfc369c20efa0b2ddc2f841dfb7183b1b
   bin/lib/debt.py#_younger_than: 0a9c5459e7b95505db55ad2c54b9d3a387968d5e47b17ba6a74923a19ba18718
   bin/lib/debt.py#broken_outcome_invariants: e0120f1edfbeadc2f42fe3d09f767e2476b70f9a2781c5e9e39fd409ee4162f4
   bin/lib/debt.py#debt_echo_table: 879260852cff41dbc635b0151f68dffbeb116981fda7977a552fb8f635f52bec
@@ -4271,7 +4268,7 @@ implements_signature:
   bin/lib/debt.py#selection_rollback: 873068ffcd3c7f45d3de1314cb5866964f1797704c8d677dbaa569603693a214
   bin/lib/debt.py#source_mount_evidence: 74a23e0a40baf495c15743b110a887a86c4174c39dadd9a846d5804180aad704
   bin/lib/debt.py#unmonitored_dispatches: cf84cb437afea4b677956328d86553151c008132c72f83f394391d47127af6b0
-  bin/lib/debt.py#unpickable_ready_cards: 6f52bef0f93cfd773c262911a5cf607fe3af0b1508c08a7e854ff6ee0145a0cf
+  bin/lib/debt.py#unpickable_ready_cards: b744f798cf0d843163ffdfe839404d0516655705fb8a808e064114d6a918537f
   bin/lib/debt_adoption.py#P8_ADOPTION_EVENT_TYPES: 0839882dca70b529cfcdb88caa797e23d87a6db5d5ec90c040e8f618d46fd511
   bin/lib/debt_adoption.py#P8_CARRIER_MARKER: 7ca55ce542f77dd391b2275602802e4ccc49e04a911f5771769e1d6dc69de71a
   bin/lib/debt_adoption.py#_gap_waiver_answer: deae6fdfb0beeba647a616e65b463af8c65d75a1c4a92793e026e2bfc79ce212
@@ -4343,16 +4340,16 @@ implements_signature:
   bin/lib/session.py#born_skew_check_line: 01c8dd8bcee9171140b41bfcfa3573bba4caa561492c708b1f7318b54be777a8
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
   bin/lib/session.py#cmd_session_start: 3e3f9d346b226777570b5a88d0a8e83bdd944beaadba93bbdf83a45777ee6482
-  bin/lib/task.py#_render_live_dependents: c49af7bd2b0b6c7165967e759313652b0cb7849e5aefb0442acd86b6a79dae78
-  bin/lib/task.py#cmd_task_update: ce7e8259e5abd8c335c5e400cbe6779965b76fe2b815c2be36fdaa033f2281db
+  bin/lib/task.py#_render_live_dependents: 02e538bf32a90192c8b9f576da4fbde037c70ebd8d3eab47cb21286e5fc53aa7
+  bin/lib/task.py#cmd_task_update: f2098bcb6c65c71c94b8478a3f3d80b763ae2beeaff1e80524b5b00b7a1d37ff
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: beb6e6658134a40a4b41c61eff2db64326ddd9556aef9cd376c21a4bc908fb7e
+  bin/lib/views.py#_render_debt_echo: d2733346b02b4e55413a5b18fe187d03730a434b979013847ef7790570751e78
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_load_sensitive_file_card: e18678b2d56985f14fc3021ee4247db7c1eb3b6b61d58de0c19b13b23335b66a
-  bin/lib/worktree.py#cmd_land: 7f758fab8b85715bc9e10e5993bd757b5cabdd44b6f55ea05840759e726d011d
+  bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c

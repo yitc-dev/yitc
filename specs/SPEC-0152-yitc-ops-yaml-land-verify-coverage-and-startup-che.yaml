@@ -36,6 +36,7 @@ implements:
 - bin/lib/land_verify_legs.py#_root_bin_aware_touch
 - bin/lib/land_verify_legs.py#_named_root_bin_touch
 - bin/lib/land_verify_legs.py#_adapter_sources_under_root_bin
+- bin/lib/worktree_lifecycle.py#_post_sync_proof
 body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check facets\
   \ of a project's `yitc-ops.yaml`\nops-contract carrier (SPEC-0093). In the SAME\
   \ one carrier file a project declares which land-verify\nLAYERS the `land` gate\
@@ -275,6 +276,30 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ executes nothing (waived / malformed /\nskipped-disjoint-subject, or a layer whose\
   \ verdict the land took from the Stage-6 run — SPEC-0065\n§Bound) is not a barrier,\
   \ so a `subject_globs` skip between two named layers does not\nserialize them.\n\
+  \n**The `post_sync_set:` sub-field — the layers a POST-SYNC PROOF runs (a SECTION-level\
+  \ sub-rule of\n`verify:`, not a new section).** The OPTIONAL `verify.post_sync_set:`\
+  \ is a list of names of layers\ndeclared above, in the `independent_layers:` shape\
+  \ and checked by the same init shape hook. When the\nMAIN checkout's carrier declares\
+  \ it non-empty, a `worktree sync --task` that merges `main` into the\ncard checks\
+  \ that the merged HEAD is the tree of the card's newest green runner-marked Stage-6\
+  \ run plus\n`main`'s own advance and nothing else, then runs ONLY those layers (no\
+  \ subject skip), and records the\noutcome as `post_sync_proof` on its `worktree_synced`\
+  \ row: `passed`, `failed`, `not-needed` (the run's\nbase already is the merged `main`;\
+  \ nothing runs) or `ineligible` with the first reason found. It is\n`ineligible`,\
+  \ and names the full run `task test <T> --run`, when: there is no green runner-marked\n\
+  newest run (`no-green-run`, `newest-run-red`, `row-not-runner-marked`); a hand-resolved\
+  \ merge was\nrecorded after the run (`hand-resolved-merge`); a non-inert change\
+  \ is uncommitted\n(`uncommitted-changes`); an own non-merge commit not on the merged\
+  \ `main`, made at or after the run\nstarted, leaves a non-inert path at another\
+  \ content than the tested tree's — also when a later commit\nreverts it (`own-change-after-run`);\
+  \ a non-inert path differs from the tested tree where `main` did not\nchange it\
+  \ (`own-change-after-run`), or from `main`'s where it did (`main-change-not-taken`),\
+  \ or both\nsides changed it (`merged-both-sides`); a declared test names an inert\
+  \ path of that difference\n(`read-by`); a set name is not declared in the worktree's\
+  \ carrier (`undeclared-layer`); or any read\nfails (`unknown:`). Inert is the SPEC-0064\
+  \ classifier. ABSENT or empty = no proof, and the row carries\nno such key. `land`\
+  \ reads a passed proof only when `main` moved since the run (SPEC-0065 §Bound, the\n\
+  post-sync-proof arm of condition (1)); the key is reserved, `event` refuses it.\n\
   \n**The `layer_worker_shares:` sub-field — HOW THE PROJECT SPLITS the land's worker\
   \ allotment across\nits layers (a SECTION-level sub-rule of `verify:`, not a new\
   \ section).** The OPTIONAL\n`verify.layer_worker_shares:` is a MAPPING from a `verify.layers[].layer`\
@@ -784,30 +809,30 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ In the KERNEL'S OWN repository the\nroot `bin/` is the land/verify implementation\
   \ and stays a member, beside `tests/**` and the\ncarrier.\nONE ANSWER PER REPOSITORY.\
   \ Every reader of the set takes it from one place, for the repository it\nruns in.\
-  \ A root `bin/` file the contract names — a layer's `command:` path, an adapter's\n\
-  `sources:` entry at or under the root `bin/`, a `verify.infra_globs` entry — is\
-  \ a\nverify-infrastructure path for this skip and the pinned trigger, for the land's\
-  \ cost rank at\nbatch formation and its attribution of a layer red, and for the\
-  \ false-skip replay that watches\nthis skip (SPEC-0189); a replay that does not\
-  \ hold the carrier at the two replayed revisions\njudges such a path by the layers'\
-  \ globs alone, which can only report more. The per-file selector\nof the script-run\
-  \ suite (SPEC-0181) reads the set alone and never the declared check surface:\n\
-  there a project's root `bin/` path is selected like any other path of the project.\n\
-  \n**The ops-carrier member of that verify-infrastructure set is SECTION-AWARE at\
-  \ this skip, and only\nat this skip.** A `yitc-ops.yaml` change does NOT disable\
-  \ a layer's skip when the\ncarrier's PARSED `verify`, `verify_policy` and `tests`\
-  \ sections are equal at the merge-base and in\nthe candidate. Those three sections\
-  \ are everything a land reads from the carrier to decide which\nlayers exist, what\
-  \ they run and how they are bounded; a change confined to any OTHER section is then\n\
-  judged like any other path — by each layer's own `subject_globs`. So a layer that\
-  \ LISTS\n`yitc-ops.yaml` in its globs still runs, and a layer whose command reads\
-  \ another carrier section\nmust list the carrier: the exhaustiveness this sub-rule\
-  \ already asks of `subject_globs` now carries\nfor the carrier what the whole-file\
-  \ rule used to carry for it. Measured basis: in two consumers, 35\nof 42 and 20\
-  \ of 29 carrier commits over 30 days left those three sections unchanged, each paying\
-  \ a\nfull run of every declared layer.\n\nEQUALITY IS A PROOF, and every doubt is\
-  \ «changed» — the whole-file full run, exactly as before this\nparagraph: a carrier\
-  \ absent at either side (born, deleted, renamed away), unreadable or unparseable;\n\
+  \ A path the contract names — a layer's `command:` path, an adapter's `sources:`\
+  \ entry\nat or under the root `bin/`, a `verify.infra_globs` entry — is a verify-infrastructure\
+  \ path,\nunder the root `bin/` or anywhere else, for this skip and the pinned trigger,\
+  \ for the land's cost rank at\nbatch formation and its attribution of a layer red,\
+  \ and for the false-skip replay that watches\nthis skip (SPEC-0189); a replay that\
+  \ does not hold the carrier at the two replayed revisions\njudges such a path by\
+  \ the layers' globs alone, which can only report more. The per-file selector\nof\
+  \ the script-run suite (SPEC-0181) reads the set alone and never the declared check\
+  \ surface:\nthere a project's root `bin/` path is selected like any other path of\
+  \ the project.\n\n**The ops-carrier member of that verify-infrastructure set is\
+  \ SECTION-AWARE at this skip, and only\nat this skip.** A `yitc-ops.yaml` change\
+  \ does NOT disable a layer's skip when the\ncarrier's PARSED `verify`, `verify_policy`\
+  \ and `tests` sections are equal at the merge-base and in\nthe candidate. Those\
+  \ three sections are everything a land reads from the carrier to decide which\n\
+  layers exist, what they run and how they are bounded; a change confined to any OTHER\
+  \ section is then\njudged like any other path — by each layer's own `subject_globs`.\
+  \ So a layer that LISTS\n`yitc-ops.yaml` in its globs still runs, and a layer whose\
+  \ command reads another carrier section\nmust list the carrier: the exhaustiveness\
+  \ this sub-rule already asks of `subject_globs` now carries\nfor the carrier what\
+  \ the whole-file rule used to carry for it. Measured basis: in two consumers, 35\n\
+  of 42 and 20 of 29 carrier commits over 30 days left those three sections unchanged,\
+  \ each paying a\nfull run of every declared layer.\n\nEQUALITY IS A PROOF, and every\
+  \ doubt is «changed» — the whole-file full run, exactly as before this\nparagraph:\
+  \ a carrier absent at either side (born, deleted, renamed away), unreadable or unparseable;\n\
   a duplicate key at ANY depth in either text (the loader keeps the last one, so an\
   \ ambiguous text can\nparse equal to an unambiguous one); a working-tree carrier\
   \ that is not BYTE-FOR-BYTE the committed\none (a line-ending difference included);\
@@ -1265,18 +1290,29 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ its root `bin/` that no declaration named broke a layer the blanket member used\
   \ to run.\nAdapter `sources:` entries at or under the root `bin/` joined the declared\
   \ check surface in the\nsame change: the blanket member had been the only thing\
-  \ keeping them on the full run.\n\n## Verification\n\n- the declared-share load\
-  \ reading (rule 16): a land of a fixture project whose shares times the\n  published\
-  \ allotment exceed the processor count prints the one line and carries the same\
-  \ reading\n  on its row, a land within the bound or with no shares carries neither,\
-  \ the land's verdict and\n  its other row fields are the same with and without the\
-  \ reading, and setting the per-verify\n  ceiling prints the statement only on a\
-  \ change — checks in\n  tests/test_t12589_layer_worker_budget.py.\n- the `verify:`\
-  \ section (rule 16) is checked-if-present declare-or-waive: `init` on a fresh consumer\n\
-  \  seeds it born WAIVED (section-level); a non-empty `layers:` list passes when\
-  \ EVERY layer is declared\n  (`command:`) or waived (`waiver: {reason}`); an UNANSWERED\
-  \ layer (neither), a layer carrying BOTH, a\n  layer missing its `layer:` name,\
-  \ and a `layers:` + section-`waiver:` together each FAIL closed; a\n  pre-`verify:`\
+  \ keeping them on the full run.\n gave the cost rank, the attribution and the replay\
+  \ that answer for root `bin/` paths\nonly; (a deviation triage of 2026-10-22) extended\
+  \ it to every path the contract names,\nafter a named `scripts/` check outside the\
+  \ root `bin/` was found running every layer at the\nskip while the attribution called\
+  \ a disjoint failing layer unreachable.\n\nThe `post_sync_set:` sub-field was added\
+  \ by on the owner's go of 2026-10-22, answering a\npublic report (GitHub issue 156).\
+  \ Over 51 task lands of one project, full Stage-6 re-runs after a\nsync were 24\
+  \ to 30 percent of runs; 26 of 49 sync-after-green episodes were eligible for a\
+  \ quick\nproof, and 5 eligible syncs still paid a full run because the step was\
+  \ left to the worker. The\nkernel charges nothing for a sync at `task close`, and\
+  \ its land re-verifies when `main` moved\nobservably, so the proof is a record the\
+  \ land does not yet read; teaching the land credit to read\nit is followup fu_ffe7c6b812b8.\n\
+  \n## Verification\n\n- the declared-share load reading (rule 16): a land of a fixture\
+  \ project whose shares times the\n  published allotment exceed the processor count\
+  \ prints the one line and carries the same reading\n  on its row, a land within\
+  \ the bound or with no shares carries neither, the land's verdict and\n  its other\
+  \ row fields are the same with and without the reading, and setting the per-verify\n\
+  \  ceiling prints the statement only on a change — checks in\n  tests/test_t12589_layer_worker_budget.py.\n\
+  - the `verify:` section (rule 16) is checked-if-present declare-or-waive: `init`\
+  \ on a fresh consumer\n  seeds it born WAIVED (section-level); a non-empty `layers:`\
+  \ list passes when EVERY layer is declared\n  (`command:`) or waived (`waiver: {reason}`);\
+  \ an UNANSWERED layer (neither), a layer carrying BOTH, a\n  layer missing its `layer:`\
+  \ name, and a `layers:` + section-`waiver:` together each FAIL closed; a\n  pre-`verify:`\
   \ carrier still passes; the report-only verify-layer coverage WARN fires at `graph\
   \ build`\n  for a load-bearing surface covered by no declared layer (rule-15 `coverage:`\
   \ shape reused) — state\n  checks in tests/test_t9718_verify_layers_carrier.py.\
@@ -1374,9 +1410,19 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ selection\n  record answers the same, and the land's own predicate answers for\
   \ a named root `bin/` path at\n  the cost rank — tests/test_verify_implementation_touch.py;\
   \ the attribution takes the same\n  answer — tests/test_t11464_failure_attribution.py;\
-  \ the replay does —\n  tests/test_surface4_detector.py; the SPEC-0178 governance\
-  \ set keeps the root `bin/**` member in\n  the kernel's own repository and holds,\
-  \ for a project, the root `bin/` files its contract names —\n  tests/test_spec0178_rule3_governance_guard.py.\n\
+  \ the replay does —\n  tests/test_surface4_detector.py; for a path outside the root\
+  \ `bin/` that a layer's `command:`\n  or a `verify.infra_globs` entry names, the\
+  \ predicate, the attribution (a red in a disjoint\n  layer blames the branch) and\
+  \ the replay (no false skip) give the same answer, beside a control\n  path nothing\
+  \ names, in the same three files; the SPEC-0178 governance set keeps the root `bin/**`\
+  \ member in\n  the kernel's own repository and holds, for a project, the root `bin/`\
+  \ files its contract names —\n  tests/test_spec0178_rule3_governance_guard.py.\n\
+  - §post_sync_set: on a fixture consumer with three layers and `post_sync_set: [alpha]`,\
+  \ a card\n  green at Stage-6 and synced with another card's change runs alpha alone\
+  \ and records one\n  `post_sync_proof` passed; an own commit after the run, one\
+  \ made and reverted, a backdated one, a\n  hand-resolved merge and no run each record\
+  \ `ineligible` naming the full run; no declared set, an\n  already-current sync,\
+  \ a red quick layer and a git fault are told apart —\n  tests/test_t14060_post_sync_proof.py.\n\
   - AC2 aggregate-neutrality : the concatenated SPEC-0093-remaining + SPEC-0152 `###\
   \ N.` rule\n  blocks reproduce the pre-split rule text byte-for-byte (a reconstruction\
   \ check, not an eyeball).\n"
@@ -1408,15 +1454,15 @@ implements_signature:
   bin/lib/land_verify_legs.py#_declared_layer_worker_shares: 570880f1904f70f04d92e3d54504eb9683c8b7995edeb29c2f25d60903d4cd18
   bin/lib/land_verify_legs.py#_declared_verify_infra_globs: 6a01477ca4038b25296d2d0ddb40f31a5a9f57b764bee6d3d4ab47d2cb1d3d59
   bin/lib/land_verify_legs.py#_delegated_tests_execution_gap: cba017264e89f4114726489b3f64c5800839860b0d6afe52faa0f4f51fce8574
-  bin/lib/land_verify_legs.py#_named_root_bin_touch: 1c507d77b89c3040569d1fabf6386d413104542e1394e77b8b0f8b89b440f5ef
+  bin/lib/land_verify_legs.py#_named_root_bin_touch: 51d734fbcb2fd835f10e662d44568cb3bece36d451179af897f6a937b06424ad
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
-  bin/lib/land_verify_legs.py#_root_bin_aware_touch: cee2491a9e6f135d3f3d70c1ba4c2b125d57d7440a18a191d6608e6b66dcc39a
+  bin/lib/land_verify_legs.py#_root_bin_aware_touch: b2bec83b16fb6a7d1eff24655a91cd5560f0da305ca358858a3bdb69c3bda38f
   bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
-  bin/lib/task.py#cmd_task_test: 22a05bd9dbbbeed6fcf0abd981245a931eed70f1012a6b6438b3bfdba1c4eedd
+  bin/lib/task.py#cmd_task_test: 6830566d5e705de4766bf1e011f3e4022340681d48abe2de024ae13b442bea51
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
   bin/lib/verify_wiring.py#_verify_infrastructure_globs: 24b9da17eacfdc1d6fa4bd2dcfa4dae66744eed2a379c0dfa2233fa8b1389099
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 9dd221c3026ed850cc3c7a661391854ca7b29a894d4bc170a71d1a635f8d1fc2
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 25127a18d9a4dcc3b6fb3f90bfacf88fb27e4624bc2768e06e35510705a3bcc4
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279
@@ -1426,3 +1472,4 @@ implements_signature:
   bin/lib/worktree.py#_work_batch_unanswered_paths: 6b8dc699863474bb55f09ea9ed722c3ca2ec4e7a009c33705f6ad3de34f1823a
   bin/lib/worktree.py#_work_batch_verify_covers: 23c1ec3257f3951e8bea8850a1647881ad725c3e004ccf08bca5bd6eab674ae5
   bin/lib/worktree.py#_working_tree_delta_paths: ce5411910bf1d01b4c169ac84f3770d5ca22e5d8b2cf38a467fb8aa03992b61b
+  bin/lib/worktree_lifecycle.py#_post_sync_proof: 6e9ae5618b7ccebc797f6120ddebffaabe75f22100f5ad72d5648551bdc3fd1f

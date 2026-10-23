@@ -71,6 +71,30 @@ def _commit_only_paths(repo_root, paths, msg, _run_git_cap, label) -> bool:
     return False
 
 
+#: T-14040 — the git operations that leave a checkout mid-way: a commit made under one of them
+#: consumes or corrupts it. Ref markers are read with `rev-parse --verify`; rebase leaves a
+#: directory, not a ref. All are per-worktree, so a linked worktree answers for itself.
+OPERATION_IN_PROGRESS_REFS = (("MERGE_HEAD", "merge"), ("CHERRY_PICK_HEAD", "cherry-pick"),
+                              ("REVERT_HEAD", "revert"))
+OPERATION_IN_PROGRESS_DIRS = ("rebase-merge", "rebase-apply")
+
+
+def _operation_in_progress(repo_root, _run_git_cap) -> str:
+    """The ONE marker list (T-14040): name the operation in progress in `repo_root` — e.g.
+    "an in-progress merge (MERGE_HEAD present)" — or "" when none is. Pure read. A git
+    call that fails (non-git, unborn) reads as no operation: there is nothing to finish there."""
+    from pathlib import Path
+    for marker, word in OPERATION_IN_PROGRESS_REFS:
+        if _run_git_cap(["rev-parse", "-q", "--verify", marker], repo_root).returncode == 0:
+            return f"an in-progress {word} ({marker} present)"
+    for sub in OPERATION_IN_PROGRESS_DIRS:
+        res = _run_git_cap(["rev-parse", "--git-path", sub], repo_root)
+        rel = (res.stdout or "").strip()
+        if res.returncode == 0 and rel and (Path(repo_root) / rel).is_dir():
+            return f"an in-progress rebase ({sub} present)"
+    return ""
+
+
 def _commit_from_scoped_index(repo_root, present, removal_specs, msg, _run_git_cap, seed=None,
                               entries=None) -> "tuple[bool, str]":
     """Create ONE commit carrying exactly a named set of index entries (plus this caller's own
@@ -102,18 +126,17 @@ def _commit_from_scoped_index(repo_root, present, removal_specs, msg, _run_git_c
     CONSEQUENCES, named: plumbing runs no commit hook and does not apply `commit.gpgsign`, so a
     project's own hooks do not run on a commit made here (the kernel installs none). `commit-tree`
     is in `_COMMIT_CREATING_GIT_SUBCOMMANDS`, so an identity-less host still commits. Refused while
-    MERGE_HEAD / CHERRY_PICK_HEAD / REVERT_HEAD exists: moving HEAD under an operation in progress
-    would corrupt it."""
+    an operation is in progress (`_operation_in_progress`): moving HEAD under it would corrupt it."""
     import os
     import tempfile
 
     def _why(step, res):
         return f"{step}: {(res.stderr or res.stdout or '').strip() or 'git exited ' + str(res.returncode)}"
 
-    for marker in ("MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD"):
-        if _run_git_cap(["rev-parse", "-q", "--verify", marker], repo_root).returncode == 0:
-            return (False, f"{marker} is present — an operation is in progress, and moving HEAD "
-                           f"under it would corrupt it. Finish or abort it, then re-run.")
+    op = _operation_in_progress(repo_root, _run_git_cap)
+    if op:
+        return (False, f"{op}: moving HEAD under it would corrupt it. "
+                       f"Finish or abort it, then re-run.")
     subject = (msg.splitlines() or [""])[0]
     why = ""
     for _attempt in range(1 if seed else 3):
@@ -851,6 +874,106 @@ def _glob_list_errors(value, where: str, purpose: str, *, what: str = "a test-cl
     return errs
 
 
+#: T-14104 (SPEC-1042 rule 1) — the `moment:` value of a pre-deploy class.
+_PRE_DEPLOY_MOMENT = "pre-deploy"
+#: SPEC-1042 rule 1 — the reserved `targets:` name of the plain `deploy` (no `--target`).
+_PRE_DEPLOY_DEFAULT_TARGET = "default"
+
+
+def _pre_deploy_entry_errors(label: str, i: int, c: dict, ops: dict) -> list:
+    """T-14104 / T-14114 (SPEC-1042 rule 1) — the declaration checks of ONE `moment: pre-deploy` entry
+    of `tests.classes[]`, against the carrier `ops` it sits in. A non-empty `reason:`; a non-empty
+    `targets:` list whose every name is a declared `deploy.targets` key or `default` (the plain
+    `deploy`, so only where `deploy.command` is declared) — a class gating no deploy would let lands
+    skip units no deploy ever runs; no `globs:` (the units are named by the ONE adapter inventory,
+    SPEC-1035 rule 3); an OPTIONAL `layers:` naming declared verify layers; an OPTIONAL `stand:` — a
+    declared `production: false` target, or `{none: <reason>}` (rule 6). PURE."""
+    at = f"{label}.classes[{i}]"
+    errs: list = []
+    if "globs" in c:
+        errs.append(f"{at}.globs: a `moment: {_PRE_DEPLOY_MOMENT}` class names its units in the "
+                    "adapter `list` inventory (each unit's `classes:`, SPEC-1035 rule 3) or whole layers in "
+                    "`layers:` — never by `globs:`, so membership has one source (SPEC-1042 rule 1).")
+    if not (isinstance(c.get("reason"), str) and c.get("reason").strip()):
+        errs.append(f"{at}: missing/empty `reason:` — a `moment: {_PRE_DEPLOY_MOMENT}` class records why "
+                    "its checks leave the lands (SPEC-1042 rule 1).")
+    deploy = ops.get("deploy") if isinstance(ops.get("deploy"), dict) else {}
+    declared = deploy.get("targets") if isinstance(deploy.get("targets"), dict) else {}
+    targets = c.get("targets")
+    if not (isinstance(targets, list) and targets):
+        errs.append(f"{at}: missing/empty `targets:` — a non-empty list of the deploy targets this class "
+                    f"guards (`deploy.targets` keys, or `{_PRE_DEPLOY_DEFAULT_TARGET}` for the plain "
+                    "`deploy`); a class guarding no deploy would let lands skip units no deploy runs "
+                    "(SPEC-1042 rule 1).")
+    else:
+        for j, t in enumerate(targets):
+            name = t.strip() if isinstance(t, str) else ""
+            if not name:
+                errs.append(f"{at}.targets[{j}]: not a non-empty string (SPEC-1042 rule 1)")
+            elif name == _PRE_DEPLOY_DEFAULT_TARGET:
+                if not (isinstance(deploy.get("command"), str) and deploy.get("command").strip()):
+                    errs.append(f"{at}.targets[{j}]: `{_PRE_DEPLOY_DEFAULT_TARGET}` names the plain "
+                                "`deploy`, but no `deploy.command` is declared — the class would gate no "
+                                "deploy (SPEC-1042 rule 1).")
+            elif name not in declared:
+                errs.append(f"{at}.targets[{j}]: {name!r} is not a declared target — name a "
+                            f"`deploy.targets` key or `{_PRE_DEPLOY_DEFAULT_TARGET}` (SPEC-1042 rule 1).")
+    if "layers" in c:
+        layers = c.get("layers")
+        ver = ops.get("verify") if isinstance(ops.get("verify"), dict) else {}
+        known = {str(ly.get("layer")).strip() for ly in (ver.get("layers") if isinstance(ver.get("layers"), list) else [])
+                 if isinstance(ly, dict) and isinstance(ly.get("layer"), str) and ly.get("layer").strip()}
+        if not (isinstance(layers, list) and layers):
+            errs.append(f"{at}.layers: present but not a NON-EMPTY list of declared verify layer names "
+                        "(SPEC-1042 rule 1) — or omit it.")
+        else:
+            for j, ly in enumerate(layers):
+                if not (isinstance(ly, str) and ly.strip()):
+                    errs.append(f"{at}.layers[{j}]: not a non-empty string (SPEC-1042 rule 1)")
+                elif ly.strip() not in known:
+                    errs.append(f"{at}.layers[{j}]: {ly.strip()!r} is not a declared `verify.layers` "
+                                "layer (SPEC-1042 rule 1).")
+    if "stand" in c:
+        stand = c.get("stand")
+        if isinstance(stand, dict):
+            if not (set(stand) == {"none"} and isinstance(stand.get("none"), str) and stand["none"].strip()):
+                errs.append(f"{at}.stand: a mapping must be exactly `{{none: <reason>}}` with a non-empty "
+                            "reason — the class has no stand target (SPEC-1042 rule 6).")
+        elif not (isinstance(stand, str) and stand.strip()) or stand.strip() == "none":
+            errs.append(f"{at}.stand: name a declared `production: false` target, or write "
+                        "`stand: {none: <reason>}` (SPEC-1042 rule 6).")
+        elif not (isinstance(declared.get(stand.strip()), dict)
+                  and declared[stand.strip()].get("production") is False):
+            errs.append(f"{at}.stand: {stand.strip()!r} is not a declared `production: false` target "
+                        "(SPEC-1042 rule 6).")
+    return errs
+
+
+def pre_deploy_declaration_errors(ops, label: str = "tests") -> list:
+    """T-14114 (SPEC-1042 rule 1) — every contract-read error of the `moment: pre-deploy` entries of
+    the carrier `ops`: each entry's own checks, and a layer named whole by two such classes (a unit
+    names at most one pre-deploy class). [] when there is none or all are well-formed — the land,
+    Stage-6, deploy and close seams apply a declaration only then. `_hook_tests` reports the same
+    list. PURE."""
+    ops = ops if isinstance(ops, dict) else {}
+    sec = ops.get(label) if isinstance(ops.get(label), dict) else {}
+    classes = sec.get("classes")
+    errs: list = []
+    owner: dict = {}
+    for i, c in enumerate(classes if isinstance(classes, list) else ()):
+        if not (isinstance(c, dict) and str(c.get("moment") or "").strip() == _PRE_DEPLOY_MOMENT):
+            continue
+        errs.extend(_pre_deploy_entry_errors(label, i, c, ops))
+        for ly in c.get("layers") if isinstance(c.get("layers"), list) else ():
+            if isinstance(ly, str) and ly.strip():
+                if ly.strip() in owner and owner[ly.strip()] != i:
+                    errs.append(f"{label}.classes[{i}].layers: {ly.strip()!r} is already named whole by "
+                                f"{label}.classes[{owner[ly.strip()]}] — a layer's units name at most one "
+                                "pre-deploy class (SPEC-1042 rule 1).")
+                owner.setdefault(ly.strip(), i)
+    return errs
+
+
 def _hook_tests(label: str, sec: dict, ops: dict) -> list:
     """SPEC-0093 rule 10 residual: the per-class TAXONOMY entry shape (class/moment non-empty strings, an
     OPTIONAL non-empty `command:`), plus the cross-section rule 10/16 — once the carrier `verify:` section
@@ -920,6 +1043,8 @@ def _hook_tests(label: str, sec: dict, ops: dict) -> list:
                         errs.append(f"{where}: missing/empty `reason:` — a non-empty string recording "
                                     "who accepted the flake risk of pinning a declared timing test, and "
                                     "why (rule 10 / SPEC-0160 rule 10 — the rule-6 LOOSE waiver shape).")
+        # T-14104 / T-14114 (SPEC-1042 rule 1) — the `moment: pre-deploy` entries, one shared check.
+        errs.extend(pre_deploy_declaration_errors({**(ops if isinstance(ops, dict) else {}), label: sec}, label))
     return errs
 
 
@@ -1060,7 +1185,7 @@ def _is_worker_share(v) -> bool:
     return isinstance(v, (int, float)) and not isinstance(v, bool) and 0 < v <= 1
 
 
-def _independent_layers_shape_errors(label: str, raw, layers) -> list:
+def _independent_layers_shape_errors(label: str, raw, layers, key: str = "independent_layers") -> list:
     """T-12585 (SPEC-0152 rule 16 §independent_layers, X-1396): the shape of a PRESENT
     `verify.independent_layers:` — a list of non-empty strings, no duplicates, every name matching a
     `layers[].layer` declared in the same section. Returns the violations (`[]` = well-formed).
@@ -1070,9 +1195,12 @@ def _independent_layers_shape_errors(label: str, raw, layers) -> list:
     carrier `init` rejects would still run at land. Shape, not value (rule 3): the kernel never judges
     whether the named layers ARE independent of each other — that is the project's assertion, on the
     same grounds as `combined_candidate_safe`. A name matching no declared layer is a BROKEN
-    declaration (the `health.layers` stance), never a silent no-op."""
+    declaration (the `health.layers` stance), never a silent no-op.
+
+    T-14060: `key` names the section key being checked — `post_sync_set` (the layers the post-sync
+    proof runs, SPEC-0152 rule 16) takes the SAME shape: a list of distinct declared layer names."""
     if not isinstance(raw, list):
-        return [f"{label}.independent_layers: present but not a list of layer names (rule 16 — shape, "
+        return [f"{label}.{key}: present but not a list of layer names (rule 16 — shape, "
                 "not value)"]
     errs: list = []
     declared = {str(ly.get("layer")).strip() for ly in (layers if isinstance(layers, list) else [])
@@ -1080,16 +1208,16 @@ def _independent_layers_shape_errors(label: str, raw, layers) -> list:
     seen: set = set()
     for j, name in enumerate(raw):
         if not (isinstance(name, str) and name.strip()):
-            errs.append(f"{label}.independent_layers[{j}]: not a non-empty layer name string (rule 16 — "
+            errs.append(f"{label}.{key}[{j}]: not a non-empty layer name string (rule 16 — "
                         "shape, not value)")
             continue
         name = name.strip()
         if name in seen:
-            errs.append(f"{label}.independent_layers[{j}]: duplicate layer name {name!r} (rule 16)")
+            errs.append(f"{label}.{key}[{j}]: duplicate layer name {name!r} (rule 16)")
             continue
         seen.add(name)
         if name not in declared:
-            errs.append(f"{label}.independent_layers[{j}]: {name!r} matches no declared `layers[].layer` "
+            errs.append(f"{label}.{key}[{j}]: {name!r} matches no declared `layers[].layer` "
                         "— it SELECTS from the declared layer universe, never names a layer of its own "
                         "(rule 16)")
     return errs
@@ -1159,6 +1287,9 @@ def _hook_verify(label: str, sec: dict, ops: dict) -> list:
         errs.extend(_independent_layers_shape_errors(label, sec.get("independent_layers"), layers))
     if "layer_worker_shares" in sec:
         errs.extend(_layer_worker_shares_shape_errors(label, sec.get("layer_worker_shares"), layers))
+    if "post_sync_set" in sec:              # T-14060 — the post-sync proof's quick set, same shape
+        errs.extend(_independent_layers_shape_errors(label, sec.get("post_sync_set"), layers,
+                                                     key="post_sync_set"))
     if isinstance(layers, list) and len(layers) > 0:
         for i, ly in enumerate(layers):
             if not isinstance(ly, dict):
@@ -7110,12 +7241,17 @@ def _mirror_adoption_status(ops: dict, entry: dict) -> str:
     that `na` SILENCED the concern's drift; it does not — `concern_drift` tests version equality alone,
     whatever the status. The defect is the false record, not a silenced signal.) The stance still comes
     from `_ops_declared`, so the mirror cannot drift from the sweep verdict. A self-carried concern that
-    is instead WAIVED carries a mapping (`startup_checks: {waiver: …}`) and takes the mapping branch."""
+    is instead WAIVED carries a mapping (`startup_checks: {waiver: …}`) and reads `waive`.
+
+    A self-carried concern whose declaration IS a mapping (T-14043, public intake #149: `thresholds:`,
+    declare_type `mapping`) is read the same way — the mapping leaf is the declaration itself, never a
+    wrapper to look inside for a `thresholds` key. Only a `waiver` key in it reads `waive`."""
     cp = entry.get("carrier_path") or entry.get("section")
     present, val = _ops_navigate(ops, cp) if isinstance(cp, str) else (False, None)
     declare_key = entry.get("declare_key")
-    if present and isinstance(declare_key, str) and cp.split(".")[-1] == declare_key \
-            and not isinstance(val, dict):
+    if present and isinstance(declare_key, str) and cp.split(".")[-1] == declare_key:
+        if isinstance(val, dict) and "waiver" in val:
+            return "waive"
         return "adopt" if _ops_declared(val, entry.get("declare_type")) else "na"
     if present and isinstance(val, dict):
         if isinstance(declare_key, str) and declare_key in val and _ops_declared(val.get(declare_key),

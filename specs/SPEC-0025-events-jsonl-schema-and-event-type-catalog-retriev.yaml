@@ -892,111 +892,114 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ — the\n discipline).\n\n**tests_passed** — Stage-6 evidence capture emitted by\
   \ `task test --evidence` (`--evidence`\nalone does not run tests). `--run --evidence`\
   \ does NOT emit it when zero verify layers\nexecuted ( — that run prints `TEST:\
-  \ NONE`; a row there would attest a pass nothing produced). `data: {current_stage,\
-  \ evidence, acceptance, duration_ms}` +\nOPTIONAL author-reported run numbers :\
-  \ `duration_ms` + `passed` + `failed` — an\nALL-OR-NOTHING flag group (a partial\
-  \ set is refused, never written), always accompanied by\n`counts_source: \"author_reported\"\
-  `.\n\n**`consumer_verify` + `consumer_verify_layers` — which declared layers a consumer's\
-  \ run executed\n.** OPTIONAL, and present ONLY on a `--run --evidence` row whose\
-  \ run engaged the consumer\nverify: ABSENT on the engine's own build and on a hand-authored\
-  \ `--evidence`, which ran nothing\n(never a fabricated value — the discipline).\
-  \ `consumer_verify` is the verify mode;\n`consumer_verify_layers` is the per-layer\
-  \ outcome trail — the SAME rows, in the SAME shape, that\n`land_completed.consumer_verify_layers`\
-  \ carries for the land's candidate leg (described under\n`land_completed` below;\
-  \ not restated here). They ride this row because a consumer's Stage-6 run\nmay skip\
-  \ a subject-disjoint layer (rule home: SPEC-0152 rule 16 `subject_globs`), so a\
-  \ green row\nhas to say WHICH layers it is green over, and a reader setting a Stage-6\
-  \ pass beside a land\ncompares like with like.\n**`verify_metrics.flaky_retry` on\
-  \ this row — a layer the run had to re-run.** OPTIONAL,\npresent ONLY when THIS\
-  \ run's layer guard re-ran (or declined to re-run) a failed verify layer: the\n\
-  SAME record, in the SAME shape, as `land_completed.verify_metrics.flaky_retry` (its\
-  \ LAYER ROWS\nparagraph below; not restated here), so a green row that needed a\
-  \ re-run names the layer and keeps\nthe first-run failure excerpt. ABSENT on a first-try\
-  \ green and on a hand-authored `--evidence`.\n**`layer_duration_step` — a layer\
-  \ step this run printed.** OPTIONAL, present ONLY on a\n`--run --evidence` row whose\
-  \ run printed a SPEC-0132 Rule 7 layer step line: those lines, verbatim,\nas a list\
-  \ of strings. ABSENT when no line printed and on a hand-authored `--evidence`. Report-only:\n\
-  nothing reads it to decide.\n**`land_verifies_beside` — the land verifies beside\
-  \ this run.** OPTIONAL, present on the row of an\ninvocation that RAN the suite\
-  \ — this row and `tests_failed` alike: how many lands of this\nrepository their\
-  \ own result rows prove were in their verify step (its wait for a verify slot\n\
-  included) during the run's wall time, and how many more those rows leave undecided\
-  \ (a land still\nrunning at the run's end included); where the reading was not taken,\
-  \ the field says so in place of\nthe numbers. Read from the MAIN checkout's land\
-  \ rows once the run is over. ABSENT on a\nhand-authored `--evidence`. Report-only:\
-  \ nothing reads it to decide.\n\n**`stage6_run` — the RUNNER's mark: which tree\
-  \ this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence` row:\
-  \ `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
-  \ which the run left unchanged apart from the journal) and the `main` commit that\n\
-  tree sat on. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever\
-  \ the runner\ncould not establish the tree (never a fabricated value — the discipline).\
-  \ It is RESERVED at\nthe hand route: `event --data` refuses it, so only the runner\
-  \ writes it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its\
-  \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\nThe same mark, recorded\
-  \ the same way, also rides a failed run's `tests_failed` row : there\nit says only\
-  \ which tree the failed run tested, and the land never credits it.\n\n**`duration_ms`\
-  \ is REQUIRED on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the\
-  \ delegated-layer leg and the tests/ sweep alike) and writes the measured wall in\
-  \ ms, so the\nTests-stage wall splits into machine time and worker time without\
-  \ inference. An explicitly passed\n`--duration-ms` still WINS (and still stamps\
-  \ `counts_source: \"author_reported\"`). THE ONE EXEMPT\nSHAPE, stated so the requirement\
-  \ is honest rather than aspirational: a hand-authored `--evidence`\nwith NO run\
-  \ attached measured nothing, so it carries the field only via the author-reported\
-  \ group —\nnever a fabricated 0 (the discipline). Before the field was author-reported-only\
-  \ and\n25 of 511 kernel rows in 2026-08-19..09-02 carried one.\n\n**tests_failed**\
-  \ — the RED half of `tests_passed`, emitted by `task test --run` when the Stage-6\n\
-  self-check FAILS. It exists because a green run had a home and a red one had none:\
-  \ the run\nhappened, cost its minutes, and left no row, so a later session could\
-  \ not see that a suite had\nalready failed here or why (<project> X-1112; measured\
-  \ on <project>, where the only surviving\ntrace of a full failing run was prose\
-  \ in an unrelated message an hour later). `data: {current_stage,\nfailed, layers,\
-  \ evidence, duration_ms, counts_source: \"harness_measured\", leg: \"candidate\"\
-  }` —\n* `duration_ms` — **REQUIRED **: the same measured subprocess wall `tests_passed`\
-  \ carries,\n  written on the SAME rule (an explicit `--duration-ms` wins, else the\
-  \ measurement), because a red\n  run costs exactly the minutes a green one does\
-  \ and the row exists to say what the run cost;\n* `failed` = the failing-entry COUNT;\
-  \ `evidence` = the runner's own failure messages, bounded, so the\n  row answers\
-  \ *what failed* without a re-run;\n* `layers` = an ordered list of `{name, attribution,\
-  \ rule}`, one per failing test file or consumer\n  verify layer (SPEC-0152). `attribution`\
-  \ is a CLOSED set: **`in-diff`** (this card's changed-path set\n  — its working\
-  \ tree plus untracked files versus `merge-base(HEAD, main)` — contains that layer's\
-  \ own\n  file, or by the named-path rule below a path its failure message names)\
-  \ · **`not-in-diff`**\n  (neither) · **`undetermined`** (the relation could not\
-  \ be established; recorded explicitly, never\n  guessed). The FILE rule decides\
-  \ first. Only when it says `not-in-diff`, the NAMED-PATH rule reads\n  that layer's\
-  \ own failure message (the lines after its first line) and records `in-diff` when\
-  \ a path\n  token there EXACTLY equals a changed path — a token loses only literal\
-  \ leading `./` and a trailing\n  `.`; a leading `/`, a `../`, a suffix or a basename\
-  \ never matches. `rule` names the step that decided\n  (`file` | `named-path`);\
-  \ an `undetermined` entry and a row written before the named-path rule carry\n \
-  \ none. MATCHING IS EXACT: a failing TEST-FILE name is a basename and\n  is resolved\
-  \ only by joining it to the tests directory it came from, never by suffix — a changed\n\
-  \  `docs/test_X.py` does NOT make a failing `tests/test_X.py` read `in-diff`, because\
-  \ a basename is\n  not an address. A name that addresses no file at all (a consumer\
-  \ verify LAYER label) is\n  `undetermined`, since a diff-touch relation is undefined\
-  \ for it; a confident wrong attribution is\n  worse than an absent one, because\
-  \ a reader acts on it.\n* `counts_source: \"harness_measured\"` — the deliberate\
-  \ CONTRAST with `tests_passed`'s\n  `author_reported`: these numbers come from the\
-  \ runner this verb just executed, not from an author.\n* `leg: \"candidate\"` —\
-  \ the row is scoped to the CANDIDATE leg this verb runs. `land` verifies TWO\n \
-  \ legs (SPEC-0077); the pinned last-green leg is NOT run here and is NOT described\
-  \ by this row.\n* `stage6_run` — OPTIONAL : the tree the failed run tested and the\
-  \ `main` commit it sat on,\n  on the terms the `tests_passed` paragraph above gives\
-  \ the same mark; absent on a bare `--run`, which\n  records no tested tree. Never\
-  \ a credit: the land credits a green newest row only.\n\n**READ `attribution` AS\
-  \ THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation, not\n\
-  a proof of causation: `not-in-diff` does NOT assert the failure is pre-existing\
-  \ on `main` (a card can\nbreak a file it never opened), and `in-diff` does not assert\
-  \ the card caused it. It is the strongest\nattribution computable without materializing\
-  \ and re-running main's tree, and it is what the incident\nneeded — establishing\
-  \ that a red sat in a layer the card had not written.\n\n**NOT A GATE, and not blocklisted\
-  \ for P8.** The emit changes no verdict and no exit code: a failing\nrun refuses\
-  \ exactly what it refused before it existed. And unlike `tests_passed`, this type\
-  \ is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES` — the green row\
-  \ is blocklisted because\nCHARTER §P8 says tests green BY ITSELF proves nothing\
-  \ (every task earns one for free, zero\ndifferential), whereas this row exists ONLY\
-  \ when a run actually failed, so its presence IS a\ndifferential. Same reasoning\
-  \ as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
+  \ NONE`; a row there would attest a pass nothing produced),\nwith ONE exception:\
+  \ when every declared layer was skipped as disjoint subject and the runner can name\n\
+  the tree it judged, it emits the row with `outcome: \"none-disjoint\"` + `stage6_run`\
+  \ +\n`consumer_verify` / `consumer_verify_layers` (rule home: SPEC-1038 §Closure-time\
+  \ coverage). `data: {current_stage, evidence, acceptance, duration_ms}` +\nOPTIONAL\
+  \ author-reported run numbers : `duration_ms` + `passed` + `failed` — an\nALL-OR-NOTHING\
+  \ flag group (a partial set is refused, never written), always accompanied by\n\
+  `counts_source: \"author_reported\"`.\n\n**`consumer_verify` + `consumer_verify_layers`\
+  \ — which declared layers a consumer's run executed\n.** OPTIONAL, and present ONLY\
+  \ on a `--run --evidence` row whose run engaged the consumer\nverify: ABSENT on\
+  \ the engine's own build and on a hand-authored `--evidence`, which ran nothing\n\
+  (never a fabricated value — the discipline). `consumer_verify` is the verify mode;\n\
+  `consumer_verify_layers` is the per-layer outcome trail — the SAME rows, in the\
+  \ SAME shape, that\n`land_completed.consumer_verify_layers` carries for the land's\
+  \ candidate leg (described under\n`land_completed` below; not restated here). They\
+  \ ride this row because a consumer's Stage-6 run\nmay skip a subject-disjoint layer\
+  \ (rule home: SPEC-0152 rule 16 `subject_globs`), so a green row\nhas to say WHICH\
+  \ layers it is green over, and a reader setting a Stage-6 pass beside a land\ncompares\
+  \ like with like.\n**`verify_metrics.flaky_retry` on this row — a layer the run\
+  \ had to re-run.** OPTIONAL,\npresent ONLY when THIS run's layer guard re-ran (or\
+  \ declined to re-run) a failed verify layer: the\nSAME record, in the SAME shape,\
+  \ as `land_completed.verify_metrics.flaky_retry` (its LAYER ROWS\nparagraph below;\
+  \ not restated here), so a green row that needed a re-run names the layer and keeps\n\
+  the first-run failure excerpt. ABSENT on a first-try green and on a hand-authored\
+  \ `--evidence`.\n**`layer_duration_step` — a layer step this run printed.** OPTIONAL,\
+  \ present ONLY on a\n`--run --evidence` row whose run printed a SPEC-0132 Rule 7\
+  \ layer step line: those lines, verbatim,\nas a list of strings. ABSENT when no\
+  \ line printed and on a hand-authored `--evidence`. Report-only:\nnothing reads\
+  \ it to decide.\n**`land_verifies_beside` — the land verifies beside this run.**\
+  \ OPTIONAL, present on the row of an\ninvocation that RAN the suite — this row and\
+  \ `tests_failed` alike: how many lands of this\nrepository their own result rows\
+  \ prove were in their verify step (its wait for a verify slot\nincluded) during\
+  \ the run's wall time, and how many more those rows leave undecided (a land still\n\
+  running at the run's end included); where the reading was not taken, the field says\
+  \ so in place of\nthe numbers. Read from the MAIN checkout's land rows once the\
+  \ run is over. ABSENT on a\nhand-authored `--evidence`. Report-only: nothing reads\
+  \ it to decide.\n\n**`stage6_run` — the RUNNER's mark: which tree this green run\
+  \ tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence` row: `{tree, base}`\
+  \ — the tree the run tested (the files on\ndisk when it started, which the run left\
+  \ unchanged apart from the journal) and the `main` commit that\ntree sat on. ABSENT\
+  \ on a hand-authored `--evidence`, which ran nothing, and whenever the runner\n\
+  could not establish the tree (never a fabricated value — the discipline). It is\
+  \ RESERVED at\nthe hand route: `event --data` refuses it, so only the runner writes\
+  \ it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its candidate-leg\
+  \ verdict (rule home: SPEC-0065 §Bound).\nThe same mark, recorded the same way,\
+  \ also rides a failed run's `tests_failed` row : there\nit says only which tree\
+  \ the failed run tested, and the land never credits it.\n\n**`duration_ms` is REQUIRED\
+  \ on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the delegated-layer\
+  \ leg and the tests/ sweep alike) and writes the measured wall in ms, so the\nTests-stage\
+  \ wall splits into machine time and worker time without inference. An explicitly\
+  \ passed\n`--duration-ms` still WINS (and still stamps `counts_source: \"author_reported\"\
+  `). THE ONE EXEMPT\nSHAPE, stated so the requirement is honest rather than aspirational:\
+  \ a hand-authored `--evidence`\nwith NO run attached measured nothing, so it carries\
+  \ the field only via the author-reported group —\nnever a fabricated 0 (the discipline).\
+  \ Before the field was author-reported-only and\n25 of 511 kernel rows in 2026-08-19..09-02\
+  \ carried one.\n\n**tests_failed** — the RED half of `tests_passed`, emitted by\
+  \ `task test --run` when the Stage-6\nself-check FAILS. It exists because a green\
+  \ run had a home and a red one had none: the run\nhappened, cost its minutes, and\
+  \ left no row, so a later session could not see that a suite had\nalready failed\
+  \ here or why (<project> X-1112; measured on <project>, where the only surviving\n\
+  trace of a full failing run was prose in an unrelated message an hour later). `data:\
+  \ {current_stage,\nfailed, layers, evidence, duration_ms, counts_source: \"harness_measured\"\
+  , leg: \"candidate\"}` —\n* `duration_ms` — **REQUIRED **: the same measured subprocess\
+  \ wall `tests_passed` carries,\n  written on the SAME rule (an explicit `--duration-ms`\
+  \ wins, else the measurement), because a red\n  run costs exactly the minutes a\
+  \ green one does and the row exists to say what the run cost;\n* `failed` = the\
+  \ failing-entry COUNT; `evidence` = the runner's own failure messages, bounded,\
+  \ so the\n  row answers *what failed* without a re-run;\n* `layers` = an ordered\
+  \ list of `{name, attribution, rule}`, one per failing test file or consumer\n \
+  \ verify layer (SPEC-0152). `attribution` is a CLOSED set: **`in-diff`** (this card's\
+  \ changed-path set\n  — its working tree plus untracked files versus `merge-base(HEAD,\
+  \ main)` — contains that layer's own\n  file, or by the named-path rule below a\
+  \ path its failure message names) · **`not-in-diff`**\n  (neither) · **`undetermined`**\
+  \ (the relation could not be established; recorded explicitly, never\n  guessed).\
+  \ The FILE rule decides first. Only when it says `not-in-diff`, the NAMED-PATH rule\
+  \ reads\n  that layer's own failure message (the lines after its first line) and\
+  \ records `in-diff` when a path\n  token there EXACTLY equals a changed path — a\
+  \ token loses only literal leading `./` and a trailing\n  `.`; a leading `/`, a\
+  \ `../`, a suffix or a basename never matches. `rule` names the step that decided\n\
+  \  (`file` | `named-path`); an `undetermined` entry and a row written before the\
+  \ named-path rule carry\n  none. MATCHING IS EXACT: a failing TEST-FILE name is\
+  \ a basename and\n  is resolved only by joining it to the tests directory it came\
+  \ from, never by suffix — a changed\n  `docs/test_X.py` does NOT make a failing\
+  \ `tests/test_X.py` read `in-diff`, because a basename is\n  not an address. A name\
+  \ that addresses no file at all (a consumer verify LAYER label) is\n  `undetermined`,\
+  \ since a diff-touch relation is undefined for it; a confident wrong attribution\
+  \ is\n  worse than an absent one, because a reader acts on it.\n* `counts_source:\
+  \ \"harness_measured\"` — the deliberate CONTRAST with `tests_passed`'s\n  `author_reported`:\
+  \ these numbers come from the runner this verb just executed, not from an author.\n\
+  * `leg: \"candidate\"` — the row is scoped to the CANDIDATE leg this verb runs.\
+  \ `land` verifies TWO\n  legs (SPEC-0077); the pinned last-green leg is NOT run\
+  \ here and is NOT described by this row.\n* `stage6_run` — OPTIONAL : the tree the\
+  \ failed run tested and the `main` commit it sat on,\n  on the terms the `tests_passed`\
+  \ paragraph above gives the same mark; absent on a bare `--run`, which\n  records\
+  \ no tested tree. Never a credit: the land credits a green newest row only.\n\n\
+  **READ `attribution` AS THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH\
+  \ relation, not\na proof of causation: `not-in-diff` does NOT assert the failure\
+  \ is pre-existing on `main` (a card can\nbreak a file it never opened), and `in-diff`\
+  \ does not assert the card caused it. It is the strongest\nattribution computable\
+  \ without materializing and re-running main's tree, and it is what the incident\n\
+  needed — establishing that a red sat in a layer the card had not written.\n\n**NOT\
+  \ A GATE, and not blocklisted for P8.** The emit changes no verdict and no exit\
+  \ code: a failing\nrun refuses exactly what it refused before it existed. And unlike\
+  \ `tests_passed`, this type is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES`\
+  \ — the green row is blocklisted because\nCHARTER §P8 says tests green BY ITSELF\
+  \ proves nothing (every task earns one for free, zero\ndifferential), whereas this\
+  \ row exists ONLY when a run actually failed, so its presence IS a\ndifferential.\
+  \ Same reasoning as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
   \ — emitted on BOTH outcomes of a `land` attempt ( — the journal mirror of\nthe\
   \ `LAND: OK|ABORT` stdout token contract). **Consumers MUST key off `data.status`\
   \ — NEVER\nread land_completed as success-only** (duration trend views filter `status:\
@@ -1731,24 +1734,46 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ run of one card), `no-change`,\n`outer-failure`, `required-failed`, `pass-error`\
   \ or `selection-error`; `full-command-ran` marks\na run whose first attempt was\
   \ narrowed and whose full `command:` then ran, the ladder's own\nreason kept as\
-  \ `ladder_reason`. A narrowed run also carries `partial` on the `adapter` record\n\
-  (dict): `units_total` (int) and, by name, `ran` (the units of the `run` invocations\
-  \ that were\nstarted), `not_reached` (requested units whose invocation never started),\
-  \ `left_out` and\n`credited` — lists of `file` / `project` entries in inventory\
-  \ order, `credited` empty where no\ncredit acted. `partial` is ABSENT on every other\
-  \ run — a full layer, a full `command:` run\nwith no inventory — and so is any count.\
-  \ The row `outcome` of a layer that passed on a\nnarrowed run is `passed-partial`,\
-  \ on a first attempt and after a per-unit rescue alike: a\nvalue of its own, so\
-  \ a reader that matches `passed` does not match it. On such a layer\n`required`\
-  \ may carry `exit` null: the pass faulted before the check `failed` names had\n\
-  completed, which fails the layer; `ran` then counts the checks that had run and\
-  \ passed.\nWriters: `bin/lib/land_verify_legs.py#_adapter_deciding_record`,\n`#_adapter_run_plan`,\
-  \ `#_adapter_partial_record`, `#_adapter_passed_outcome` and\n`#_adapter_full_command_ran`.\n\
-  \n`credit` on that `adapter` record (dict — <workshop-spec> rule 14) = THE WOULD-BE\
-  \ CREDIT OF A\nFIX ATTEMPT, RECORDED AND NEVER ACTED ON. Present only on a layer\
-  \ declaring `credit: shadow`\nwhose adapter pass ran to its end; the full layer\
-  \ ran whatever the record says, and no outcome,\nexit code or admission decision\
-  \ reads it. Shape and semantics are homed at the writers\n(`bin/lib/land_verify_legs.py#_adapter_credit_basis`\
+  \ `ladder_reason`; `pre-deploy-whole` a run whose narrowing was undone\nbecause\
+  \ its `list` answer did not answer for the pre-deploy exclusion (`pre_deploy.reason`\n\
+  `mixed-group` or a refused membership — the layer runs whole), the ladder's reason\
+  \ kept the same\nway, and a deciding `credit` that had credited then reads `void`\
+  \ / `pre-deploy-whole`\n(`#_adapter_pre_deploy_whole`). A narrowed run also carries\
+  \ `partial` on the `adapter` record\n(dict): `units_total` (int) and, by name, `ran`\
+  \ (the units of the `run` invocations that were\nstarted), `not_reached` (requested\
+  \ units whose invocation never started), `left_out` and\n`credited` — lists of `file`\
+  \ / `project` entries in inventory order, `credited` empty where no\ncredit acted.\
+  \ `partial` is ABSENT on every other run — a full layer, a full `command:` run\n\
+  with no inventory — and so is any count. The row `outcome` of a layer that passed\
+  \ on a\nnarrowed run is `passed-partial`, on a first attempt and after a per-unit\
+  \ rescue alike: a\nvalue of its own, so a reader that matches `passed` does not\
+  \ match it. On such a layer\n`required` may carry `exit` null: the pass faulted\
+  \ before the check `failed` names had\ncompleted, which fails the layer; `ran` then\
+  \ counts the checks that had run and passed.\nWriters: `bin/lib/land_verify_legs.py#_adapter_deciding_record`,\n\
+  `#_adapter_run_plan`, `#_adapter_partial_record`, `#_adapter_passed_outcome` and\n\
+  `#_adapter_full_command_ran`.\n\n`pre_deploy` on that `adapter` record (dict — SPEC-1042\
+  \ rule 2) = THE PRE-DEPLOY EXCLUSION\nof a land's candidate leg or a Stage-6 run\
+  \ handed a parsed pre-deploy declaration; absent where\nnone is handed, or where\
+  \ no listed unit is a pre-deploy unit. `applied: true` with `removed` — the\nunits\
+  \ taken out of the run, `file` / `project` / `class`, in inventory order; the run\
+  \ is then a\nnarrowed one (`partial`, outcome `passed-partial`). `applied: false`\
+  \ with `reason` — the layer ran\nwhole: `list-unanswered`, `membership-malformed`\
+  \ or `unit-names-two-pre-deploy-classes` (with\n`units`; both also `refused: true`\
+  \ — a malformed declaration the verify fails on, its `bad`\nline naming each such\
+  \ unit, `#_pre_deploy_refusal_line`), `mixed-group` (with `groups`, `group` / `project`),\
+  \ `shadow-full-side`,\n`command-decided`, `full-command-ran`, `change-unknown`,\
+  \ `adapter-sources` or the SPEC-0152\nrule-16 edge reason (each with `units`, the\
+  \ pre-deploy units that ran). In a deploy's pre-deploy\nrun ( — SPEC-1042 rule 3)\
+  \ it is `pre-deploy-run`: nothing removed, `units` naming every\npre-deploy unit\
+  \ with its `class` (`groups` beside them for a mixed group). A layer a pre-deploy\
+  \ class\nnames whole has the row `{layer, outcome: passed-partial, pre_deploy: {applied:\
+  \ true, layer:\n{class}}}` and no `adapter` record. Writers: `bin/lib/land_verify_legs.py#_pre_deploy_exclusion`,\n\
+  `#_pre_deploy_layer_skip_row` and `#_adapter_full_command_ran`.\n\n`credit` on that\
+  \ `adapter` record (dict — <workshop-spec> rule 14) = THE WOULD-BE CREDIT OF A\n\
+  FIX ATTEMPT, RECORDED AND NEVER ACTED ON. Present only on a layer declaring `credit:\
+  \ shadow`\nwhose adapter pass ran to its end; the full layer ran whatever the record\
+  \ says, and no outcome,\nexit code or admission decision reads it. Shape and semantics\
+  \ are homed at the writers\n(`bin/lib/land_verify_legs.py#_adapter_credit_basis`\
   \ and `#_adapter_credit_decision`; the\nprevious attempt is read from its journal\
   \ row by `#_adapter_previous_attempt` through\n`bin/lib/worktree.py#_adapter_credit_bases`;\
   \ the comparison with the full run by\n`#_layer_adapter_report_pass`) and not restated;\
@@ -1949,78 +1974,102 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ a presence rule\nthat differed by outcome would split it into two.\nREPORT-ONLY\
   \ — nothing gates on these keys and nothing auto-escalates from them (CHARTER non-goal\n\
   #7); they are read by a human or by the existing report-only scaling signals.\n\
-  BOTH OUTCOMES CARRY THIS KEY SET (same plan slice S4) — the ABORT payload records\n\
-  `attempt_count` / `attempt_breakdown` / `pre_attempt_ms` with the SAME spellings,\
-  \ the SAME\nsemantics and the SAME presence rule (breakdown + `pre_attempt_ms` only\
-  \ above one attempt), so\nthere is ONE description here and no parallel abort-side\
-  \ one. Rationale identical to the ok side:\nan abort at attempt 3 has already paid\
-  \ two full suite runs, and before this the row showed a\nsingle `duration_ms` (measured:\
-  \ 33.3h of abort cost in 7d that nothing attributed per attempt).\nThe dying attempt\
-  \ is CLOSED into the breakdown before the row is emitted, so the parts stay\ngap-free\
-  \ — and since a verify-failure abort means the suite RAN, that last part is usually\
-  \ the\nexpensive one. The SUM INVARIANT holds on the abort row against ITS OWN `duration_ms`,\
-  \ and holds\nEXACTLY there too : the abort row's `duration_ms` is measured off the\
-  \ SAME `t0` that\n`cmd_land` hands `_land_integrate` as its `t_start`, so one origin\
-  \ and one clock cover both ends,\nand `unattributed_ms` NAMES the unwind between\
-  \ closing the parts and measuring it rather than\nleaving it as a caveat (the attribution\
-  \ is still composed as the LAST act before the abort raises,\nwhich is what keeps\
-  \ that span small — the key now says how small). PRESENT ONLY when the land reached\n\
-  the retry loop at all: a PREFLIGHT abort (every refusal raised before attempt 1\
-  \ — unauthorized\n`--no-tests`, `rebaseline-unauthorized`, the spike gate, the concurrent-land\
-  \ guard) carries NONE\nof these keys, because it has no attempt to attribute and\
-  \ an `attempt_count: 1` there would be a\nfabricated fact (the no-fabricated-0s\
-  \ discipline). Absence therefore MEANS \"never entered\nthe loop\", and must not\
-  \ be read as one attempt.\nNAME NOTE (deliberate, not a collision to fix): the task-scorecard\
-  \ VIEW in `bin/lib/views.py` also\nemits a key spelled `attempt_count`, meaning\
-  \ \"how many `land_completed` rows this TASK has\" — a\ndifferent artifact with\
-  \ a different denominator. This one is a single land's OWN retry count. The\nspelling\
-  \ is the one the governing plan's P5 probe names.\n`actor` (str) = WHO RAN THIS\
-  \ LAND. The ONE key on this event that is ALWAYS PRESENT on\nBOTH outcomes (ok and\
-  \ abort) and is therefore NOT additive/conditional like every key described\naround\
-  \ it — a payload comparison written before sees one new key on every row from that\n\
-  point on. It exists because the bypass keys below record that a verify bypass happened\
-  \ and WHY, and\nrecorded no actor: measured on this repo, of 7419 land_completed\
-  \ rows the 17 carrying a\n`no_tests_reason` had a null `source_ref` and no actor\
-  \ of any kind (<project> measured 67 of 67), so\nthe acting person was recoverable\
-  \ only by joining `session_ref` against sibling rows of the same\nsession that happen\
-  \ to carry one — reconstruction, not a record, and the forensic step nobody takes\n\
-  until something has already gone wrong. Producer: `bin/lib/cli.py#_server_actor`\
-  \ ->\n`bin/lib/memory.py#resolve_server_actor`, stamped in the single host append\
-  \ wrapper\n(`_append_event`) so all three emit sites — the ok emit, `_emit_land_abort`,\
-  \ and its\nclearing copy — are covered by one home. SERVER-ISSUED and NOT CALLER-ASSERTABLE\
-  \ (SPEC-0169 rule 3\napplied to a record): the identity is the passwd name of the\
-  \ uid the process runs as\n(`memory.os_identity`, deliberately NOT `getpass.getuser`,\
-  \ which an exported `USER`/`LOGNAME` can\nmove), no argument or environment variable\
-  \ reaches it, and the stamp OVERWRITES any `actor` a\ncaller pre-seeded into the\
-  \ payload (`actor` is additionally a RESERVED `--data` key).\nVALUES: a provisioned\
-  \ registry user's NAME when a non-owner acted; `ai-agent` when the owner-role\n\
-  host user did (unchanged corpus meaning); and the literal `\"unresolved\"` when\
-  \ the identity could not\nbe resolved at all — never a null and never an absent\
-  \ key, so \"nobody was distinguishable\" stays\ndistinguishable from both \"not\
-  \ recorded\" and \"the agent acted\" (the non-fabrication line).\nUnlike the SPEC-0169\
-  \ gate it borrows its derivation from, this NEVER refuses: a land must not fail\n\
-  because a passwd lookup did.\n`no_tests` (bool), `owner_authorized` (bool), `no_tests_reason`\
-  \ (str, present only when set)\n(SPEC-0077 §2a owner-gate) = the recorded OWNER-AUTHORIZED\
-  \ test-skip — PRESENT ONLY on a\n`land --no-tests` land (ABSENT on every normal\
-  \ land, so normal payloads are byte-unchanged; additive /\nP5-safe). The durable,\
-  \ queryable, never-silent surface (CHARTER §P2 accountability — `grep no_tests\n\
-  events.jsonl` is the >1/30d frequency audit). `rebaselined` (bool), `rebaseline_reason`\
-  \ (str, when set),\n`pinned_superseded` (list[str], the waived old-behaviour assertions)\
-  \ (SPEC-0077 §3a) = the\nrecorded owner-acked graceful re-baseline of a candidate-GREEN\
-  \ / pinned-RED audited behaviour change —\nPRESENT ONLY on a re-baselined land (ABSENT\
-  \ otherwise; additive / P5-safe), with `verify_mode=\nrebaselined+candidate`. Durable\
-  \ + queryable (`grep rebaselined events.jsonl`). `rebaseline_waived`\n(list[dict]\
-  \ `{assertion, test_file, class, covered_by:{source,ref}}`, SPEC-0077 §3a) = the\n\
-  PER-ASSERTION waive record — each waived pinned assertion PAIRED with the operator's\n\
-  `--rebaseline-waive` declaration that covered it, so the journal shows exactly what\
-  \ the ack BOUGHT\nand not only what was given up (`pinned_superseded`, its flat\
-  \ list[str] sibling, is unchanged).\nPRESENT ONLY on a re-baselined land (additive\
-  \ / P5-safe). A failing pinned assertion NO declaration\ncovers does not appear\
-  \ here — it REFUSES the land (`abort_class=rebaseline-unauthorized`), which is\n\
-  the point: before the waive was all-or-nothing and absorbed unnamed failures into\
-  \ the next\nlast-green baseline (the incident). `rebaseline_kind` (str, closed vocabulary\n\
-  `broken` | `unrunnable-here`, SPEC-0077 §3a) = WHY the pinned check was waived —\
-  \ DECLARED by\nthe authorizer at grant (`--rebaseline-kind`, REQUIRED with `--rebaseline`,\
+  `phase_ms` (dict[str,int]) = the same attributed span split by LAND PHASE, one key\
+  \ per\nentry of `bin/lib/worktree.py#_LAND_PHASES`, in land order: `setup` (the\
+  \ `pre_attempt_ms` span),\n`reservation_wait` (the land-reservation waits, `reservation_wait_ms`),\
+  \ `sync` (step 2, update\nfrom main), `events_union` (step 2b, the main journal\
+  \ fold), `spike_check` (step 2d),\n`graph_rebuild` (step 3: graph rebuild, events\
+  \ dedup, reconcile commit), `verify_prep` (step 4\nfrom `verify_t0` to the suite\
+  \ start: the journal validity gate, the leak-surface and pinned-verdict\nsetup),\
+  \ `footprint_check` (the pre-verify audited-footprint gate), `admission_wait` (the\
+  \ SPEC-0132\nadmission-slot waits of every attempt, the parts' `admission_wait_ms`\
+  \ summed), `verify` (the suite\nrun, from the SPEC-0132 governor read on, those\
+  \ admission waits excluded — so `verify_duration_ms`\nequals `verify` + `verify_prep`\
+  \ + `footprint_check` + `admission_wait`), `ff_cleanup` (the in-lock\nHEAD re-check,\
+  \ fold and ff, a repo-lock wait\nincluded) and `other` (attempt time outside every\
+  \ named phase, the reservation waits excluded).\nThe two `*_wait` phases are read\
+  \ off the records that already measure them and subtracted from the\nclock phase\
+  \ they occur inside, so no wait is counted twice. A retried land's phases\nACCUMULATE\
+  \ across its attempts. IDENTITY: `sum(phase_ms.values) + unattributed_ms == duration_ms`\n\
+  within int rounding (one ms per phase and per attempt part) — the clock runs exactly\
+  \ over the\npre-loop slice and the attempt parts, so the post-ff footprint record\
+  \ derivation stays in\n`unattributed_ms`, and the worktree removal, which runs after\
+  \ the row is written, is outside\n`duration_ms`. Present on an ok land on the SAME\
+  \ rule as `unattributed_ms` (the land entered the\nretry loop with a measurable\
+  \ `t_start`); every phase is named, a phase never reached reads `0`.\nAbsent on\
+  \ the abort row. REPORT-ONLY, like the keys above.\nBOTH OUTCOMES CARRY THIS KEY\
+  \ SET (same plan slice S4) — the ABORT payload records\n`attempt_count` / `attempt_breakdown`\
+  \ / `pre_attempt_ms` with the SAME spellings, the SAME\nsemantics and the SAME presence\
+  \ rule (breakdown + `pre_attempt_ms` only above one attempt), so\nthere is ONE description\
+  \ here and no parallel abort-side one. Rationale identical to the ok side:\nan abort\
+  \ at attempt 3 has already paid two full suite runs, and before this the row showed\
+  \ a\nsingle `duration_ms` (measured: 33.3h of abort cost in 7d that nothing attributed\
+  \ per attempt).\nThe dying attempt is CLOSED into the breakdown before the row is\
+  \ emitted, so the parts stay\ngap-free — and since a verify-failure abort means\
+  \ the suite RAN, that last part is usually the\nexpensive one. The SUM INVARIANT\
+  \ holds on the abort row against ITS OWN `duration_ms`, and holds\nEXACTLY there\
+  \ too : the abort row's `duration_ms` is measured off the SAME `t0` that\n`cmd_land`\
+  \ hands `_land_integrate` as its `t_start`, so one origin and one clock cover both\
+  \ ends,\nand `unattributed_ms` NAMES the unwind between closing the parts and measuring\
+  \ it rather than\nleaving it as a caveat (the attribution is still composed as the\
+  \ LAST act before the abort raises,\nwhich is what keeps that span small — the key\
+  \ now says how small). PRESENT ONLY when the land reached\nthe retry loop at all:\
+  \ a PREFLIGHT abort (every refusal raised before attempt 1 — unauthorized\n`--no-tests`,\
+  \ `rebaseline-unauthorized`, the spike gate, the concurrent-land guard) carries\
+  \ NONE\nof these keys, because it has no attempt to attribute and an `attempt_count:\
+  \ 1` there would be a\nfabricated fact (the no-fabricated-0s discipline). Absence\
+  \ therefore MEANS \"never entered\nthe loop\", and must not be read as one attempt.\n\
+  NAME NOTE (deliberate, not a collision to fix): the task-scorecard VIEW in `bin/lib/views.py`\
+  \ also\nemits a key spelled `attempt_count`, meaning \"how many `land_completed`\
+  \ rows this TASK has\" — a\ndifferent artifact with a different denominator. This\
+  \ one is a single land's OWN retry count. The\nspelling is the one the governing\
+  \ plan's P5 probe names.\n`actor` (str) = WHO RAN THIS LAND. The ONE key on this\
+  \ event that is ALWAYS PRESENT on\nBOTH outcomes (ok and abort) and is therefore\
+  \ NOT additive/conditional like every key described\naround it — a payload comparison\
+  \ written before sees one new key on every row from that\npoint on. It exists because\
+  \ the bypass keys below record that a verify bypass happened and WHY, and\nrecorded\
+  \ no actor: measured on this repo, of 7419 land_completed rows the 17 carrying a\n\
+  `no_tests_reason` had a null `source_ref` and no actor of any kind (<project> measured\
+  \ 67 of 67), so\nthe acting person was recoverable only by joining `session_ref`\
+  \ against sibling rows of the same\nsession that happen to carry one — reconstruction,\
+  \ not a record, and the forensic step nobody takes\nuntil something has already\
+  \ gone wrong. Producer: `bin/lib/cli.py#_server_actor` ->\n`bin/lib/memory.py#resolve_server_actor`,\
+  \ stamped in the single host append wrapper\n(`_append_event`) so all three emit\
+  \ sites — the ok emit, `_emit_land_abort`, and its\nclearing copy — are covered\
+  \ by one home. SERVER-ISSUED and NOT CALLER-ASSERTABLE (SPEC-0169 rule 3\napplied\
+  \ to a record): the identity is the passwd name of the uid the process runs as\n\
+  (`memory.os_identity`, deliberately NOT `getpass.getuser`, which an exported `USER`/`LOGNAME`\
+  \ can\nmove), no argument or environment variable reaches it, and the stamp OVERWRITES\
+  \ any `actor` a\ncaller pre-seeded into the payload (`actor` is additionally a RESERVED\
+  \ `--data` key).\nVALUES: a provisioned registry user's NAME when a non-owner acted;\
+  \ `ai-agent` when the owner-role\nhost user did (unchanged corpus meaning); and\
+  \ the literal `\"unresolved\"` when the identity could not\nbe resolved at all —\
+  \ never a null and never an absent key, so \"nobody was distinguishable\" stays\n\
+  distinguishable from both \"not recorded\" and \"the agent acted\" (the non-fabrication\
+  \ line).\nUnlike the SPEC-0169 gate it borrows its derivation from, this NEVER refuses:\
+  \ a land must not fail\nbecause a passwd lookup did.\n`no_tests` (bool), `owner_authorized`\
+  \ (bool), `no_tests_reason` (str, present only when set)\n(SPEC-0077 §2a owner-gate)\
+  \ = the recorded OWNER-AUTHORIZED test-skip — PRESENT ONLY on a\n`land --no-tests`\
+  \ land (ABSENT on every normal land, so normal payloads are byte-unchanged; additive\
+  \ /\nP5-safe). The durable, queryable, never-silent surface (CHARTER §P2 accountability\
+  \ — `grep no_tests\nevents.jsonl` is the >1/30d frequency audit). `rebaselined`\
+  \ (bool), `rebaseline_reason` (str, when set),\n`pinned_superseded` (list[str],\
+  \ the waived old-behaviour assertions) (SPEC-0077 §3a) = the\nrecorded owner-acked\
+  \ graceful re-baseline of a candidate-GREEN / pinned-RED audited behaviour change\
+  \ —\nPRESENT ONLY on a re-baselined land (ABSENT otherwise; additive / P5-safe),\
+  \ with `verify_mode=\nrebaselined+candidate`. Durable + queryable (`grep rebaselined\
+  \ events.jsonl`). `rebaseline_waived`\n(list[dict] `{assertion, test_file, class,\
+  \ covered_by:{source,ref}}`, SPEC-0077 §3a) = the\nPER-ASSERTION waive record —\
+  \ each waived pinned assertion PAIRED with the operator's\n`--rebaseline-waive`\
+  \ declaration that covered it, so the journal shows exactly what the ack BOUGHT\n\
+  and not only what was given up (`pinned_superseded`, its flat list[str] sibling,\
+  \ is unchanged).\nPRESENT ONLY on a re-baselined land (additive / P5-safe). A failing\
+  \ pinned assertion NO declaration\ncovers does not appear here — it REFUSES the\
+  \ land (`abort_class=rebaseline-unauthorized`), which is\nthe point: before the\
+  \ waive was all-or-nothing and absorbed unnamed failures into the next\nlast-green\
+  \ baseline (the incident). `rebaseline_kind` (str, closed vocabulary\n`broken` |\
+  \ `unrunnable-here`, SPEC-0077 §3a) = WHY the pinned check was waived — DECLARED\
+  \ by\nthe authorizer at grant (`--rebaseline-kind`, REQUIRED with `--rebaseline`,\
   \ never inferred or\ndefaulted) and written from that declaration alone. It separates\
   \ a waive of a check whose failure is\nREAL here from one of a check that is HEALTHY\
   \ but cannot RUN here at all (X-0739); before it the two\nwere indistinguishable\
@@ -2295,18 +2344,21 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ `YITC_FLAKY_SENSITIVE_ENTER` tunable;\n`window_days` the `YITC_FLAKY_SENSITIVE_WINDOW_DAYS`\
   \ one — both `config`-class, <workshop-spec>) and\n`locators` names every one of\
   \ those retries by its `land_completed` row (`events.jsonl#ts=<ts>`,\nleg-suffixed\
-  \ on a routed land), so the entry is reconstructible from the journal alone. THE\n\
-  DIFFERENTIAL A READER MUST HOLD: a carrier line WITHOUT a matching row was hand-added,\
-  \ and a row\nis never emitted for a REMOVAL — there is no automatic exit and no\
-  \ event for one, because a file in\nthe serialized lane cannot prove pool-robustness;\
-  \ the line leaves only in a card's ship diff.\n`card` is the id of the ready card\
-  \ the entry auto-filed for this file; `card_preexisting`\n(bool — named 2026-09-11\
-  \ after its first row at 17:02:16Z reddened the SPEC-0161 refresh\ncorpus-wide)\
-  \ is present and true ONLY when a card for the same fingerprint already existed,\
-  \ i.e.\nthe file RE-ENTERED the carrier (the class: a re-entry on pre-removal evidence);\
-  \ absent on\na first entry.\nPER-UNIT ENTRY ( — <workshop-spec> rule 11): the same\
-  \ event, ONE row per unit of a consumer's\nadapter-backed verify layer that the\
-  \ land tail entered into that project's per-unit list\n`yitc-load-sensitive-units.txt`.\
+  \ on a routed land), so the entry is reconstructible from the journal alone. A governed\n\
+  Stage-6 run's `tests_passed` / `tests_failed` row counts the same way: its per-file\
+  \ isolated-pass\nrows, read on `verify_metrics.venue_flaky_retry` (the routed run's\
+  \ unfolded record) and on\n`verify_metrics.flaky_retry`, count toward `count`, and\
+  \ its locator names that row. THE\nDIFFERENTIAL A READER MUST HOLD: a carrier line\
+  \ WITHOUT a matching row was hand-added, and a row\nis never emitted for a REMOVAL\
+  \ — there is no automatic exit and no event for one, because a file in\nthe serialized\
+  \ lane cannot prove pool-robustness; the line leaves only in a card's ship diff.\n\
+  `card` is the id of the ready card the entry auto-filed for this file; `card_preexisting`\n\
+  (bool — named 2026-09-11 after its first row at 17:02:16Z reddened the SPEC-0161\
+  \ refresh\ncorpus-wide) is present and true ONLY when a card for the same fingerprint\
+  \ already existed, i.e.\nthe file RE-ENTERED the carrier (the class: a re-entry\
+  \ on pre-removal evidence); absent on\na first entry.\nPER-UNIT ENTRY ( — <workshop-spec>\
+  \ rule 11): the same event, ONE row per unit of a consumer's\nadapter-backed verify\
+  \ layer that the land tail entered into that project's per-unit list\n`yitc-load-sensitive-units.txt`.\
   \ `data: {layer, unit | group, project?, count, threshold,\nwindow_days, locators[],\
   \ carrier}` — the row names a `layer` and carries no `file`, which is what\ntells\
   \ it from the row above. `count` is the number of RESCUED per-unit `flaky_retry`\

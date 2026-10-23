@@ -4457,7 +4457,7 @@ def _view_consult_postcheck(events_path: "Path", since=None, until=None, *,
             "ceilinged_rows_seen": len(ceilinged),
             "consulted_groups": len(by_group),
             "rule": "the ceilinged audit keys (non-consult rows whose `passes` reached the "
-                    f"SPEC-0124 ceiling of {ceiling}) LEFT-JOINED with the consult episodes — a "
+                    f"SPEC-1034 ceiling of {ceiling}) LEFT-JOINED with the consult episodes — a "
                     "ceilinged key with NO consult row folds `open` and never leaves the "
                     "denominator (R2.3, the worst case).",
         },
@@ -4490,7 +4490,7 @@ def _view_consult_postcheck(events_path: "Path", since=None, until=None, *,
 def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
                           _terminal_cross_ids=None, _seen_event_types=None,
                           _latest_event_ts=None, _land_completed_order=None,
-                          _latest_event_order=None) -> dict:
+                          _latest_event_order=None, _task_shipped=None) -> dict:
     """overdue-recheck lens (T-9394 / SPEC-0094 §3): the DERIVED "which user-facing `none` waivers are
     PAST their recheck_by date" surface — the overdue-`recheck_by` revisit path raised at the weekly
     Review sweep (QUEUE.md §Re-review triggers). A user-facing `none` waiver is a DATED non-adoption
@@ -4514,7 +4514,8 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
 
     A past-due waiver on a `wont-do` card (T-13897 / X-1941) is NOT in `overdue`: it sits on its own
     counted set `wont_do_waivers`, read at triage. The test is the card's status alone (rule home:
-    SPEC-0119 rule 3)."""
+    SPEC-0119 rule 3). An attested proof still ungraded and past due on a `wont-do` card goes to the
+    same set (T-14121); a `failing` attested row stays in `overdue`."""
     import datetime as _dt
     # T-10750 — the settled-waiver predicate has ONE home (lib.task, beside the grammar it validates).
     # Imported function-locally, matching this file's existing local-import style and keeping the
@@ -4575,6 +4576,9 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             lp = d.get("live_probe")
             if not isinstance(lp, dict):
                 continue
+            # T-13897 / T-14121 — the card's STATUS, read once for both legs below (the waiver leg and
+            # the attested leg's ungraded branch route a past-due row on a wont-do card to its own set).
+            _on_wont_do_card = str(d.get("status") or "").strip() == "wont-do"
             # T-11674 (X-1130) — the ATTESTED leg. A card declaring a live proof the PROJECT runs
             # (SPEC-0094 §4b) carries the SAME dated debt as a waiver until its reading is recorded,
             # and this lens is the surface that reading has to reach. THREE states, and the middle one
@@ -4635,7 +4639,12 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
                 }
                 if _att_error is not None:
                     row["settle_error"] = _att_error
-                overdue.append(row)
+                # T-14121 — an ungraded attested proof on a `wont-do` card moves to `wont_do_waivers`,
+                # as the waiver leg's row does: no verb grades it (`task close --live-probe-outcome-result`
+                # takes a done card only), so in `overdue` it was a row nobody could clear. A `failing`
+                # row above stays in `overdue` whatever the status (a recorded negative, T-11674).
+                _dest = wont_do_waivers if _on_wont_do_card else overdue
+                _dest.append(row)
                 continue
             if "none" not in lp:
                 continue
@@ -4700,7 +4709,6 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             # read `commit` (a field only `task close` writes), so it says nothing about what
             # shipped. It sits AFTER the settled branch above, so a grammar-valid discharge on a
             # wont-do card still leaves the lens, or lands on its terminal set, exactly as before.
-            _on_wont_do_card = str(d.get("status") or "").strip() == "wont-do"
             (wont_do_waivers if _on_wont_do_card else overdue).append(row)
     # Sort oldest-debt-first; a `failing` row has no meaningful date, so it sorts FIRST — a
     # recorded negative outranks every dated pending item (T-11674).
@@ -4851,14 +4859,28 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             if due is None:
                 continue           # unreachable for a grammar-valid declaration; tolerant by construction
             # T-13470 — an unsettled observation on a `wont-do` card that NEVER SHIPPED is not owed:
-            # the card recorded no `commit`, so no change went out and there is nothing to observe,
-            # and no verb could discharge it either (`task close --settle-observation` refuses a
-            # non-done card, T-11529). Measured 2026-10-03: 5 of the 6 overdue rows were exactly this.
-            # It MOVES to its own named, counted set and is never dropped (the T-11657 rule: what
-            # leaves a count arrives somewhere a reader can see). A wont-do card that DID record a
-            # commit is a partial ship with something to observe, so it stays counted below.
+            # no change went out, so there is nothing to observe, and no verb could discharge it
+            # either (`task close --settle-observation` refuses a non-done card, T-11529). It MOVES
+            # to its own named, counted set and is never dropped (the T-11657 rule: what leaves a
+            # count arrives somewhere a reader can see). A wont-do card that DID ship is a partial
+            # ship with something to observe, so it stays counted below.
+            # T-14073 — WHAT "shipped" READS. The card's `commit` field is written by `task close`
+            # alone, so a verb-made wont-do card never carries it (measured 2026-10-13: 0 of 576).
+            # The ship signal is the injected `_task_shipped(task_id)`: a `task commit` ship row of
+            # the task whose commit is reachable from `main` (the host residue reads it). True ->
+            # shipped, counted; None -> could not tell, counted (never a silent move); False -> moved.
+            # Not injected (a direct caller) -> the `commit` field alone, as before.
+            _wont_do_unshipped = False
             if (str(d.get("status") or "").strip() == "wont-do"
                     and not str(d.get("commit") or "").strip()):
+                _wont_do_unshipped = True
+                if _task_shipped is not None:
+                    try:
+                        _shipped = _task_shipped(str(d.get("id") or p.stem))
+                    except Exception:
+                        _shipped = None
+                    _wont_do_unshipped = _shipped is False
+            if _wont_do_unshipped:
                 wont_do_observations.append({
                     "task": d.get("id") or p.stem,
                     "observation": str(pso.get("observation") or "").strip(),
@@ -4976,8 +4998,10 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
             "admits a wont-do card (`task close --settle-live-probe-*` takes a done card only, `task "
             "update --live-probe-*` refuses a terminal one), so in the overdue count each was a row "
             "nobody could clear. Read them at triage. The test is the card's STATUS alone: it says "
-            "nothing about whether any of the card's work shipped. Never adoption evidence (CHARTER "
-            "Principle 8)."
+            "nothing about whether any of the card's work shipped. An attested proof still ungraded "
+            "past recheck_by on such a card is listed here too (T-14121; its row carries `state: "
+            "ungraded`): `task close --live-probe-outcome-result` takes a done card only. Never adoption "
+            "evidence (CHARTER Principle 8)."
             if wont_do_waivers else
             "no user-facing live_probe waiver past recheck_by sits on a wont-do card."),
         # T-11657 — the two terminals, as TWO SEPARATE counted sets. Deliberately NOT folded into
@@ -5072,12 +5096,14 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
         "wont_do_observations": wont_do_observations,
         "wont_do_observations_count": len(wont_do_observations),
         "wont_do_observations_note": (
-            "post-ship observations DECLARED on a `wont-do` card that recorded NO `commit` (T-13470) — "
-            "the card never shipped, so there is no shipped change to observe and nothing is owed. "
-            "They are listed here, on their own counted set, instead of in `observations`: no verb can "
-            "settle one (`task close --settle-observation` refuses a non-done card), so counting them "
-            "as overdue reported work nobody can do. A wont-do card that DID record a `commit` is a "
-            "partial ship and stays in `observations`. Never adoption evidence (CHARTER Principle 8)."
+            "post-ship observations DECLARED on a `wont-do` card that never shipped (T-13470) — no "
+            "`task commit` ship commit of the card is reachable from `main` (T-14073), so there is no "
+            "shipped change to observe and nothing is owed. They are listed here, on their own counted "
+            "set, instead of in `observations`: no verb can settle one (`task close "
+            "--settle-observation` refuses a non-done card), so counting them as overdue reported work "
+            "nobody can do. A wont-do card with such a ship commit is a partial ship and stays in "
+            "`observations`, and so does one whose ship could not be checked. Never adoption evidence "
+            "(CHARTER Principle 8)."
             if wont_do_observations else
             "no post-ship observation sits on a wont-do card that never shipped."),
         "observations": observations,
@@ -5119,12 +5145,13 @@ def _view_overdue_recheck(today=None, *, TASKS_DIR=None, _read_yaml=None,
                 "actionable observation counts nor merged with the probe or waiver sets — an "
                 "observation whose specimen is gone, or whose baseline was never recorded, could "
                 "otherwise only sit on this lens forever. PLUS (T-13470) `wont_do_observations`: an "
-                "unsettled observation on a `wont-do` card that recorded no `commit` — nothing "
-                "shipped, nothing to observe, and no verb can settle it — counted on its own set and "
+                "unsettled observation on a `wont-do` card with no ship commit reachable from `main` — "
+                "nothing shipped, nothing to observe, and no verb can settle it — counted on its own set and "
                 "never in the actionable observation counts. PLUS (T-13897 / X-1941) "
                 "`wont_do_waivers`: a user-facing waiver past its recheck_by on a `wont-do` card, by "
                 "the card's status alone — counted on its own set and never in the actionable "
-                "`overdue` count. All three of the first group are deferred-proof "
+                "`overdue` count; an attested proof still ungraded past its recheck_by on such a card "
+                "joins it (T-14121). All three of the first group are deferred-proof "
                 "debts; the first two are dated, the third is not, which is why it could go quiet "
                 "forever. DERIVED at read time from the task-YAML live_probe / post_ship_observation / "
                 "probes carriers + today; "
@@ -6679,7 +6706,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             lines.append(
                 f"debt: load-sensitive unit lane, layer {_l.get('layer')} ({_lc} unit(s)) [{_fig}] — "
                 f"{_lc} listed unit(s) of verify layer `{_l.get('layer')}` run one at a time after the "
-                f"layer's batch, so this is wall a land pays in sequence (SPEC-1006 rule 11, the "
+                f"layer's batch, so this is wall a land pays in sequence (SPEC-1035 rule 11, the "
                 f"engine lane's rule applied per unit){_tail}. The figures come from the layer's latest "
                 f"full run, not the duration table. Report-only; nothing here acts.")
 
@@ -8136,15 +8163,12 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"`bin/yitc-v2 plan show <slug>`, list them with `bin/yitc-v2 plan list`, then "
                 f"advance or close it. SURFACING ONLY — this names no candidate and selects nothing; "
                 f"taking a plan into work stays an OWNER CUE (SPEC-0119 rule 21)." + _stale_clause)
-    # UNPICKABLE-READY-CARDS view (SPEC-0119 rule 36, T-11868): the OPTIONAL injected fold over
-    # `tasks/` — cards sitting `ready` whose `requires:` names a `wont-do` target. `requires:` is the
-    # picker's BLOCKING edge and `wont-do` never satisfies it, so the card can NEVER be picked while
-    # reading `ready` at every surface that folds card status. The picker's own refusal does not cover
-    # this: it fires at SELECTION, and a card nobody selects is never refused — the blockage is exactly
-    # what stops anyone taking that path. Report-only, suppressed-when-clean, UNFLOORED (one card stuck
-    # forever is debt at count 1, and count-hiding it restores the silence the rule ends), NEVER gates.
-    # It names the STUCK cards, which is the opposite of naming a candidate: the remedy is a DECISION
-    # (drop the dead edge, or close the card wont-do) and this line picks neither.
+    # READY-CARDS-REQUIRING-WONT-DO view (SPEC-0119 rule 36, T-11868; reworded T-14073): the OPTIONAL
+    # injected fold over `tasks/` — cards sitting `ready` whose `requires:` names a `wont-do` target.
+    # The picker treats a `wont-do` target as terminal and never a blocker (T-0384 / T-11122), so the
+    # card IS pickable and will be built WITHOUT a requirement that was decided against. Report-only,
+    # suppressed-when-clean, UNFLOORED (one such card is debt at count 1), NEVER gates. The remedy is a
+    # DECISION (drop the dead edge, or close the card wont-do) and this line picks neither.
     if _unpickable_ready is not None:
         _ur = _unpickable_ready() or {}
         urc = _n(_ur.get("count")) if isinstance(_ur, dict) else None
@@ -8161,15 +8185,13 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             _named_ur = ", ".join(_one_stuck(c) for c in _cards[:_CAP_UR])
             _more_ur = f" (+{urc - _CAP_UR} more)" if urc > _CAP_UR else ""
             lines.append(
-                f"debt: {urc} READY card(s) blocked FOREVER by a `wont-do` requirement — "
-                f"{_named_ur}{_more_ur}. `requires:` is the picker's blocking edge and `wont-do` is the "
-                f"terminal status that never satisfies it, so these can NEVER be picked — yet they read "
-                f"`ready` everywhere card status is folded, and the picker's refusal is reachable only "
-                f"by selecting the card, which is precisely what the blockage prevents. TWO honest "
-                f"exits, and choosing between them is a judgement about the WORK: DROP the dead "
-                f"`requires:` edge if the requirement is no longer needed, or CLOSE the card itself "
-                f"`wont-do` if it was the point. SURFACING ONLY — this names no candidate, ranks nothing "
-                f"and selects nothing (SPEC-0119 rule 36).")
+                f"debt: {urc} READY card(s) requiring a `wont-do` target — "
+                f"{_named_ur}{_more_ur}. The picker treats a `wont-do` target as terminal and never a "
+                f"blocker, so these can be picked and built WITHOUT a requirement that was decided "
+                f"against. TWO honest exits, and choosing between them is a judgement about the WORK: "
+                f"DROP the dead `requires:` edge if the requirement is no longer needed, or CLOSE the "
+                f"card itself `wont-do` if it was the point. SURFACING ONLY — this names no candidate, "
+                f"ranks nothing and selects nothing (SPEC-0119 rule 36).")
     # LOAD-SENSITIVE-UNCARDED view (SPEC-0119 rule 41, T-12359): the OPTIONAL injected fold over the
     # declared load-sensitive carrier + `tasks/` — files that entered `tests/load-sensitive.txt` and
     # that NO non-terminal card is holding. Entry is automatic and exit is never automatic BY DESIGN
@@ -10093,4 +10115,530 @@ def _view_ceiling_clusters(*, DECISIONS_DIR=None, pass_ceiling: int = 2,
         "next": ("report-only (D-0053) — a dominant cluster names WHERE the ceiling cost is actually "
                  "generated, so a remedy can be evidenced instead of hypothesised (X-0587). Pair with "
                  "`graph query outcome-ratio` for the first-pass-GREEN side of the same gates."),
+    }
+
+
+def _nearest_rank(vals: list, pct: int):
+    """The nearest-rank percentile of a non-empty numeric list: the smallest value with at least
+    `pct` percent of the values at or below it."""
+    s = sorted(vals)
+    return s[max(0, -(-pct * len(s) // 100) - 1)]
+
+
+def _declared_pre_deploy_classes(repo_root) -> "dict":
+    """The project's declared pre-deploy classes for the verify-unit-cost lens (T-14110): each
+    `tests.classes[]` entry of its `yitc-ops.yaml` with `moment: pre-deploy` (SPEC-1042 rule 1), read
+    as written — the turn-on refusal of the contract reader is not this lens's concern — with the
+    commit time from which it has been declared so: walking the commits that touched that file,
+    oldest first, the last commit at which the class went from not declared `moment: pre-deploy` to
+    declared so (an earlier mention — a comment, another moment, a removed declaration — never
+    counts); `not determined` when git cannot say. Answers `{"read": bool, "classes": [...]}`;
+    `read: false` when the carrier is absent or unreadable — unknown, never «none declared»."""
+    path = Path(repo_root) / "yitc-ops.yaml"
+    if not path.is_file():
+        return {"read": False, "reason": "no yitc-ops.yaml", "classes": []}
+    try:
+        ops = state.load_ops(path)
+    except Exception:                                            # noqa: BLE001 — unreadable = unknown
+        return {"read": False, "reason": "yitc-ops.yaml unreadable", "classes": []}
+    tests = ops.get("tests") if isinstance(ops, dict) else None
+    entries = tests.get("classes") if isinstance(tests, dict) else None
+    def _names(entries) -> set:
+        return {c["class"].strip() for c in (entries if isinstance(entries, list) else [])
+                if isinstance(c, dict) and isinstance(c.get("class"), str) and c["class"].strip()
+                and c.get("moment") == "pre-deploy"}
+
+    now = _names(entries)
+    since = {n: "not determined" for n in now}
+    log = _git_read(repo_root, "log", "--reverse", "--format=%H %cI", "--", "yitc-ops.yaml")
+    if log:
+        prev: set = set()
+        for line in log.splitlines():
+            sha, _, when = line.partition(" ")
+            text = _git_read(repo_root, "show", f"{sha}:yitc-ops.yaml")
+            try:
+                parsed = state.load_ops_str(text) if text is not None else None
+            except Exception:                                    # noqa: BLE001 — an unparseable revision declares nothing
+                parsed = None
+            ptests = parsed.get("tests") if isinstance(parsed, dict) else None
+            cur = _names(ptests.get("classes") if isinstance(ptests, dict) else None)
+            for n in (cur - prev) & now:
+                since[n] = when
+            prev = cur
+    return {"read": True, "classes": [{"class": n, "declared_at": since[n]} for n in sorted(now)]}
+
+
+def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=None, declared=None, *,
+                           _iter_events=None, _ev_dt=None) -> dict:
+    """verify-unit-cost lens (T-14110, SPEC-1042 rule 7) — the analysis aid a project reads before
+    moving a check out of its lands: per test unit of its adapter-backed verify layers, what the unit
+    costs and what it caught at each PLACE; the land-wait model; and each pre-deploy class's catch
+    record. Derived from the journal at read time; it stores nothing, names and ranks nothing into
+    action, decides nothing (D-0053).
+
+    WHAT IS READ, in one pass of the segment-aware iterator:
+      * PLACE `land` — a `land_completed` row; PLACE `stage6` — a `tests_passed` / `tests_failed` row;
+        both through `data.consumer_verify_layers[].adapter.units` of every layer whose adapter
+        record reads `usable: true` (a void report counts nothing, under `records.not_usable`);
+      * PLACE `pre-deploy` — a `test_class_executed` row carrying a `consumer_verify_layers` list (the
+        per-class row of a pre-deploy run, SPEC-1042 rule 4); every other `test_class_executed` row is
+        not a per-unit record and is not read.
+    A RUN is a unit row whose `status` is `passed`, `failed` or `error`; the unit is SPEC-1035's
+    `(layer, runner project, file)`, a declared group counted whole — read as `_per_unit_flaky_rate`
+    reads it, a malformed identity naming no unit. A land or Stage-6 record gives a unit one run. A
+    pre-deploy run is keyed `(run_ref, attempt)` (the row's `ts` when it carries no `run_ref`), so a
+    unit two class rows of one run name is ONE run, and the contended re-run (attempt 2) is another.
+
+    A pre-deploy class row counts only its own class's units: a unit row carrying `classes:` counts
+    only when that list names the row's class; a unit row carrying none is the writer's restriction
+    (SPEC-1042 rule 4 — the class row carries only its class's units).
+
+    PER UNIT, over every place and then PER PLACE: runs, median and total duration (from integer
+    `duration_ms` only; a run without one is counted under `no_duration`), and failures split FLAKY /
+    REAL / UNJUDGED — the version a failure ran on decides, never a name alone:
+      * FLAKY — a re-run on its own record passed the unit (a `verify_metrics.flaky_retry` unit row
+        reading `isolated: pass`), or a later run of the same subject passed it on the SAME version;
+      * REAL — the version is known, no later run passed the unit on it, and a later run of the same
+        subject passed it on another version (a fix followed);
+      * UNJUDGED — anything else: no version recorded (a land row records none), or no later pass.
+    The subject and version: a land — its branch past `task/` / `work/`, no version; a Stage-6 run —
+    its `task_id` (the same card as that branch) and `stage6_run.tree`; a pre-deploy run — its
+    `target` and `candidate`. A proxy, not a verdict. A pre-deploy run records per unit only its
+    classes' own units, so a unit with no pre-deploy unit row prints `not recorded` at that place —
+    never a zero.
+
+    THE LAND-WAIT MODEL, over the land and Stage-6 records with at least one layer carrying an integer
+    `duration_ms`: layers run side by side, so a record's wall is its slowest layer. Printed: the
+    record count, how often each layer was the slowest, median / mean / p90 (nearest rank) in
+    seconds; and the same WITHOUT the named units — each layer's duration less the named units'
+    `duration_ms` in that record (never below 0) — with the count of records it shortens by more
+    than 30 s. Named units: `named` (a comma list of `layer:file` or a bare `file` for any layer),
+    else every unit recorded at place pre-deploy; a named unit no row matches is listed. Serial
+    subtraction is an upper bound for a layer that runs its files in parallel.
+
+    THE CATCH RECORD per pre-deploy class — every class `declared` names (`_declared_pre_deploy_classes`:
+    the project's contract, with the time the class first appeared in it) and every class a row
+    names: its declaration time, first and last recorded run, runs, failed and contended runs
+    (`run_outcome`), and the REAL pre-deploy failures recorded by that class's own rows (a failure is
+    the catch of the class rows that recorded it, never of every class naming the unit). A declared class with no run reads
+    `no run recorded`; a row class the contract does not declare says so; an unread contract says so.
+
+    WINDOW: `[since, until)` over `ts`, the shared predicate; the reading prints the window and the
+    first and last row it read. An exact duplicate line is read once; a malformed row or field skips
+    itself. No usable record answers `no_data` naming what was absent. Every list is ordered by the
+    rows' own fields (units by identity, never by cost), so the answer is a function of the rows as a
+    multiset."""
+    in_window = _window_predicate(since, until, _ev_dt=_ev_dt)
+    places_order = ("land", "stage6", "pre-deploy")
+    kinds = ("land_completed", "tests_passed", "tests_failed", "test_class_executed")
+    place_of = {"land_completed": "land", "tests_passed": "stage6", "tests_failed": "stage6",
+                "test_class_executed": "pre-deploy"}
+    records = {"land": 0, "stage6": 0, "pre-deploy": 0, "not_usable": 0}
+    seen: set = set()
+    runs: list = []                 # (ts, place, subject, run key, {entity: (status, duration)}, rescued set)
+    walls: list = []                # [{layer: (duration_ms, {entity: duration_ms})}] per land / Stage-6 record
+    classes: dict = {}
+    first = last = None
+
+    def _entity(layer, project, group, name):
+        if not (isinstance(layer, str) and layer) or not (project is None or isinstance(project, str)):
+            return None
+        if group is not None and group != "":
+            return (layer, project or "", "group", group) if isinstance(group, str) else None
+        return (layer, project or "", "unit", name) if isinstance(name, str) and name else None
+
+    def _ms(v):
+        return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
+
+    for e in _iter_events(events_path, types=kinds):
+        if not isinstance(e, dict) or e.get("type") not in kinds or not in_window(e):
+            continue
+        data = e.get("data")
+        layers = data.get("consumer_verify_layers") if isinstance(data, dict) else None
+        if not isinstance(layers, list):
+            continue
+        try:
+            ident = json.dumps(e, sort_keys=True, default=str)
+        except (TypeError, ValueError):
+            continue
+        if ident in seen:
+            continue
+        seen.add(ident)
+        ts = e.get("ts") if isinstance(e.get("ts"), str) else ""
+        place = place_of[e["type"]]
+        if place == "land":
+            br = data.get("branch")
+            subject = ("card", br.split("/", 1)[-1] if isinstance(br, str) and br else None, None)   # no version
+            key = ("land", ident)
+        elif place == "stage6":
+            s6 = data.get("stage6_run") if isinstance(data.get("stage6_run"), dict) else {}
+            subject = ("card", e.get("task_id") if isinstance(e.get("task_id"), str) and e["task_id"] else None,
+                       s6.get("tree") if isinstance(s6.get("tree"), str) and s6["tree"] else None)
+            key = ("stage6", ident)
+        else:
+            cand, tgt = data.get("candidate"), data.get("target")
+            subject = ("target", tgt if isinstance(tgt, str) and tgt else None,
+                       cand if isinstance(cand, str) and cand else None)
+            rref = data.get("run_ref") if isinstance(data.get("run_ref"), str) and data.get("run_ref") else ts
+            att = data.get("attempt") if isinstance(data.get("attempt"), int) else 1
+            key = ("pre-deploy", rref, att)
+        cls = data.get("class") if place == "pre-deploy" else None
+        if place == "pre-deploy" and not (isinstance(cls, str) and cls):
+            continue                                 # a pre-deploy row names its class (SPEC-1042 rule 4)
+        units: dict = {}
+        wall: dict = {}
+        usable = False
+        for lrow in layers:
+            if not isinstance(lrow, dict) or not (isinstance(lrow.get("layer"), str) and lrow["layer"]):
+                continue
+            rec = lrow.get("adapter")
+            lunits: dict = {}
+            if isinstance(rec, dict):
+                if rec.get("usable") is True:
+                    usable = True
+                    for u in rec.get("units") if isinstance(rec.get("units"), list) else []:
+                        if not isinstance(u, dict) or u.get("status") not in ("passed", "failed", "error"):
+                            continue
+                        if cls is not None and "classes" in u and not (
+                                isinstance(u["classes"], list) and cls in u["classes"]):
+                            continue                 # a unit of another class, or of none
+                        ent = _entity(lrow["layer"], u.get("project"), u.get("group"), u.get("file"))
+                        if ent is None:
+                            continue
+                        prev = units.get(ent)
+                        failed = u["status"] != "passed" or (prev is not None and prev[0])
+                        dur = _ms(u.get("duration_ms"))
+                        dur = (prev[1] or 0) + (dur or 0) if prev is not None and (prev[1] or dur) else dur
+                        units[ent] = (failed, dur)
+                        lunits[ent] = dur
+                else:
+                    records["not_usable"] += 1
+            if place != "pre-deploy" and _ms(lrow.get("duration_ms")) is not None:
+                wall[lrow["layer"]] = (lrow["duration_ms"], lunits)
+        if wall:
+            walls.append(wall)
+        if place == "pre-deploy":
+            c = classes.setdefault(cls, {"since": ts, "last": ts, "runs": set(), "failed": set(),
+                                         "contended": set()})
+            c["since"], c["last"] = min(c["since"], ts), max(c["last"], ts)
+            c["runs"].add(key)
+            if data.get("run_outcome") in ("failed", "contended"):
+                c[data["run_outcome"]].add(key)
+        if not usable:
+            continue
+        records[place] += 1
+        first = ts if first is None or ts < first else first
+        last = ts if last is None or ts > last else last
+        rescued: set = set()
+        metrics = data.get("verify_metrics")
+        retry = metrics.get("flaky_retry") if isinstance(metrics, dict) else None
+        if isinstance(retry, dict):
+            for leg, lrec in ([(None, retry)] if "rows" in retry else list(retry.items())):
+                rrows = lrec.get("rows") if isinstance(lrec, dict) else None
+                for r in rrows if isinstance(rrows, list) else []:
+                    if isinstance(r, dict) and isinstance(r.get("attempts"), list) and r.get("isolated") == "pass" \
+                            and (r.get("leg") if isinstance(r.get("leg"), str) else leg) in (None, "cand"):
+                        ent = _entity(r.get("layer"), r.get("project"), r.get("group"), r.get("unit"))
+                        if ent is not None:
+                            rescued.add(ent)
+        runs.append((ts, place, subject, key, units, rescued, cls))
+
+    # Merge the rows of one pre-deploy run and attempt: a unit two class rows name is one run.
+    merged: dict = {}
+    for ts, place, subject, key, units, rescued, cls in sorted(runs, key=lambda r: (r[0], r[1], repr(r[3]), r[6] or "")):
+        m = merged.setdefault(key, [ts, place, subject, {}, set(), {}])
+        for ent, (failed, dur) in units.items():
+            prev = m[3].get(ent)
+            m[3][ent] = (failed or (prev is not None and prev[0]), dur if prev is None else prev[1])
+            if cls is not None and failed:
+                m[5].setdefault(ent, set()).add(cls)      # the class rows that recorded this failure
+        m[4] |= rescued
+    ordered = sorted(merged.values(), key=lambda m: (m[0], m[1], repr(m[2])))
+    passes: dict = {}                 # (subject kind, subject, entity) -> [(ts, version)] it passed
+    for ts, place, subject, units, _r, _f in ordered:
+        for ent, (failed, _d) in units.items():
+            if not failed and subject[1] is not None:
+                passes.setdefault((subject[0], subject[1], ent), []).append((ts, subject[2]))
+
+    def _judge(subject, ent, ts, rescued) -> str:
+        """flaky / real / unjudged for one failure — see the docstring: the version decides."""
+        if ent in rescued:
+            return "flaky"
+        if subject[1] is None or subject[2] is None:
+            return "unjudged"
+        later = [v for t, v in passes.get((subject[0], subject[1], ent), ()) if t > ts and v is not None]
+        return "flaky" if subject[2] in later else "real" if later else "unjudged"
+    stats: dict = {}
+    caught: dict = {}                 # class -> entity -> REAL failures recorded by that class's rows
+    for ts, place, subject, units, rescued, failed_in in ordered:
+        for ent, (failed, dur) in units.items():
+            s = stats.setdefault(ent, {}).setdefault(place, {"runs": 0, "durs": [], "no_duration": 0,
+                                                             "real": 0, "flaky": 0, "unjudged": 0})
+            s["runs"] += 1
+            if dur is None:
+                s["no_duration"] += 1
+            else:
+                s["durs"].append(dur)
+            if failed:
+                verdict = _judge(subject, ent, ts, rescued)
+                s[verdict] += 1
+                for cname in failed_in.get(ent, ()) if verdict == "real" else ():
+                    caught.setdefault(cname, {})[ent] = caught.get(cname, {}).get(ent, 0) + 1
+
+    def _ident(ent):
+        return {"layer": ent[0], ent[2]: ent[3], **({"project": ent[1]} if ent[1] else {})}
+
+    rows = []
+    for ent in sorted(stats):
+        places = {}
+        for place in places_order:
+            s = stats[ent].get(place)
+            if s is None:
+                places[place] = "not recorded" if place == "pre-deploy" else {"runs": 0}
+                continue
+            places[place] = {"runs": s["runs"],
+                             "median_s": round(_median(s["durs"]) / 1000, 1) if s["durs"] else None,
+                             "total_min": round(sum(s["durs"]) / 60000, 1),
+                             "failures": {"real": s["real"], "flaky": s["flaky"], "unjudged": s["unjudged"]},
+                             **({"no_duration": s["no_duration"]} if s["no_duration"] else {})}
+        durs = [d for p in stats[ent] for d in stats[ent][p]["durs"]]
+        rows.append({**_ident(ent), "runs_in_window": sum(stats[ent][p]["runs"] for p in stats[ent]),
+                     "median_s": round(_median(durs) / 1000, 1) if durs else None,
+                     "total_min": round(sum(durs) / 60000, 1), "places": places})
+
+    # The land-wait model.
+    want: list = []
+    if isinstance(named, str) and named.strip():
+        for tok in (t.strip() for t in named.split(",")):
+            if tok:
+                lay, _, fil = tok.rpartition(":") if ":" in tok else ("", "", tok)
+                want.append((lay, fil, tok))
+        source = "named on the command line"
+    else:
+        want = [(ent[0], ent[3], f"{ent[0]}:{ent[3]}") for ent in sorted(stats) if "pre-deploy" in stats[ent]]
+        source = "the units recorded at place pre-deploy"
+
+    def _named(layer, ent):
+        return [w for w in want if (not w[0] or w[0] == layer) and w[1] == ent[3]]
+
+    matched: set = set()
+    with_s, without_s, gaining, slowest = [], [], 0, {}
+    for wall in walls:
+        top = max(sorted(wall), key=lambda lay: wall[lay][0])
+        slowest[top] = slowest.get(top, 0) + 1
+        cut = {}
+        for lay, (dur, lunits) in wall.items():
+            sub = 0
+            for ent, d in lunits.items():
+                hits = _named(lay, ent)
+                if hits:
+                    matched.update(h[2] for h in hits)
+                    sub += d or 0
+            cut[lay] = max(0, dur - sub)
+        w0, w1 = wall[top][0], max(cut.values())
+        with_s.append(w0 / 1000)
+        without_s.append(w1 / 1000)
+        gaining += 1 if w0 - w1 > 30000 else 0      # the «gains more than 30 s» count
+
+    def _dist(v):
+        return {"median_s": round(_median(v), 1), "mean_s": round(sum(v) / len(v), 1),
+                "p90_s": round(_nearest_rank(v, 90), 1)}
+
+    land_wait: dict = {"records": len(walls)}
+    if walls:
+        land_wait["slowest_layer"] = dict(sorted(slowest.items()))
+        land_wait["wall"] = _dist(with_s)
+        if want:
+            land_wait["without_named_units"] = {
+                "units": sorted({w[2] for w in want}), "source": source, **_dist(without_s),
+                "records_gaining_over_30s": gaining,
+                **({"unmatched": sorted({w[2] for w in want} - matched)} if set(w[2] for w in want) - matched else {})}
+        else:
+            land_wait["without_named_units"] = "no unit named and none recorded at place pre-deploy"
+
+    decl = declared if isinstance(declared, dict) else {"read": False, "reason": "not read", "classes": []}
+    declared_at = {d["class"]: d["declared_at"] for d in decl.get("classes") or []}
+    class_rows = []
+    for cls in sorted(set(classes) | set(declared_at)):
+        c = classes.get(cls)
+        row = {"class": cls,
+               "declared_at": declared_at[cls] if cls in declared_at else (
+                   "not declared in the contract now" if decl.get("read") else
+                   f"contract not read ({decl.get('reason', 'unknown')})")}
+        if c is None:
+            row["runs"] = "no run recorded"
+            class_rows.append(row)
+            continue
+        row.update({"first_run": c["since"], "last_run": c["last"], "runs": len(c["runs"]),
+                    "failed_runs": len(c["failed"]), "contended_runs": len(c["contended"]),
+                    "caught": [{**_ident(ent), "real_failures": n} for ent, n in sorted(caught.get(cls, {}).items())]})
+        class_rows.append(row)
+
+    out = {"lens": "verify-unit-cost (T-14110 / SPEC-1042 rule 7) — per unit of an adapter-backed verify "
+                   "layer: runs, duration and real / flaky failures by place (land, stage6, pre-deploy); the "
+                   "land-wait model; each pre-deploy class's catch record. Derived from the journal at read "
+                   "time; report-only — it names and ranks nothing into action.",
+           "window": {**_window_block(since, until), "first_row": first, "last_row": last},
+           "records": records}
+    if not any(records[p] for p in places_order):
+        out["no_data"] = ("no usable per-unit report (`consumer_verify_layers[].adapter`, usable: true) on a "
+                          "`land_completed` / `tests_passed` / `tests_failed` / pre-deploy `test_class_executed` "
+                          "row in this window — no layer of this project ran through a declared adapter here")
+    out["unit_count"] = len(rows)
+    out["units"] = rows
+    out["land_wait"] = land_wait
+    out["pre_deploy_classes"] = class_rows
+    if not decl.get("read"):
+        out["pre_deploy_contract"] = f"not read — {decl.get('reason', 'unknown')}; declared classes unknown"
+    return out
+
+
+def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -> dict:
+    """The weekly reading over the verify-unit-cost view (T-14111, SPEC-1042 rule 7): it PROPOSES moves
+    both ways and WRITES none — a move into or out of a pre-deploy class is the project's own edit of
+    its `yitc-ops.yaml` (SPEC-0178 «restore, never remove»). Pure over the view's answer (`view`, what
+    `_view_verify_unit_cost` returned), the two THRESHOLD values in force (`thresholds`, per key the
+    `machine_settings.in_force` record: `value`, `source`, `notes`) and the units' CURRENT place
+    (`placement`); it reads nothing else.
+
+    THE CURRENT PLACE is read from CONFIGURATION, never from run history (history counts toward a
+    unit's cost and catches only). `placement` is what the host read: `declared` — the class names the
+    project declares `moment: pre-deploy` (None when its carrier could not be read, `why` then names
+    it); `whole_layers` — layers a declared pre-deploy class names whole; `layers` — per adapter layer
+    its `list` answer's membership, `{"units": {(project, file): classes}, "groups": {(project, group):
+    [classes, ...]}}`, classes a tuple of names or the string `malformed`, or a string naming why the
+    layer's membership is unknown (its `list` did not answer). A unit is at pre-deploy when its layer
+    is named whole, or its classes (every member's, for a group) name a declared class; else on lands.
+    UNKNOWN — the carrier unread, the layer's membership unknown, the unit absent from the answer, a
+    malformed membership or a group whose members disagree — gives that unit NO proposal either way: it
+    is listed under `place_unknown` with its cause, never read as «on lands».
+
+    MOVE-AWAY — a unit the configuration places on lands is proposed for a pre-deploy class only when
+    ALL hold, each failing one said:
+      * the window covers at least `pre_deploy_move_min_window_days` days — from the window's `since`
+        (else the first row read) to its `until` (else the last row read); a window it cannot date
+        covers nothing, and a short window proposes no move-away at all;
+      * zero-catch — no REAL and no UNJUDGED failure at any place in the window (only FLAKY ones; an
+        unjudged failure may have been a catch, so it holds the unit on lands);
+      * costly — its median duration is above the median of the medians of the units on lands in the
+        reading (a reading with one timed unit on lands has no costlier unit, so it proposes none);
+      * it ran at least `pre_deploy_move_min_runs` times at its place (land + Stage-6) in the window;
+        a costly zero-catch unit under it is listed as held, with its run count.
+    MOVE-BACK — a unit the configuration places at pre-deploy with at least one REAL failure recorded
+    at place pre-deploy is proposed back onto lands, on any window and any run count.
+
+    Answers the window, `covered_days`, the thresholds with their source, `move_away` and `move_back`
+    (each `proposals` plus `why_none` when it has none), `place_unknown` when any, and `writes: none`.
+    A view answering `no_data` passes it through and proposes nothing."""
+    from datetime import datetime
+
+    def _dt(v):
+        try:
+            d = datetime.fromisoformat(v.replace("Z", "+00:00")) if isinstance(v, str) and v else None
+        except ValueError:
+            return None
+        return d if d is None or d.tzinfo is not None else None
+
+    win = view.get("window") if isinstance(view.get("window"), dict) else {}
+    start, end = _dt(win.get("since")) or _dt(win.get("first_row")), _dt(win.get("until")) or _dt(win.get("last_row"))
+    span = (end - start).total_seconds() / 86400 if start and end and end >= start else None
+    covered = round(span, 1) if span is not None else None   # printed; the threshold reads `span`
+
+    def _th(key):
+        rec = thresholds.get(key) if isinstance(thresholds, dict) else None
+        return rec if isinstance(rec, dict) and isinstance(rec.get("value"), int) else None
+
+    days_rec, runs_rec = _th("pre_deploy_move_min_window_days"), _th("pre_deploy_move_min_runs")
+    units = [u for u in view.get("units") or [] if isinstance(u, dict)]
+    placement = placement if isinstance(placement, dict) else {}
+    declared = placement.get("declared")
+    declared = set(declared) if isinstance(declared, (list, tuple, set, frozenset)) else None
+    whole = set(placement.get("whole_layers") or ())
+    by_layer = placement.get("layers") if isinstance(placement.get("layers"), dict) else {}
+
+    def _ident(u):
+        return {k: u[k] for k in ("layer", "unit", "group", "project") if k in u}
+
+    def _fails(place):
+        f = place.get("failures") if isinstance(place, dict) else None
+        return f if isinstance(f, dict) else {}
+
+    def _place(u):
+        """('lands' | 'pre-deploy', None), or (None, the cause its place is unknown)."""
+        if declared is None:
+            return None, f"the pre-deploy declaration could not be read ({placement.get('why') or 'not read'})"
+        if u.get("layer") in whole:
+            return "pre-deploy", None
+        mem = by_layer.get(u.get("layer"))
+        if not isinstance(mem, dict):
+            return None, (f"layer {u.get('layer')!r} membership unknown — {mem}" if isinstance(mem, str)
+                          else f"layer {u.get('layer')!r} has no adapter `list` answer")
+        proj = u.get("project") or ""
+        if u.get("unit"):
+            got = [(mem.get("units") or {}).get((proj, u["unit"]))]
+        else:
+            got = list((mem.get("groups") or {}).get((proj, u.get("group")), ()))
+        if not got or got == [None]:
+            return None, "the unit is not in its layer's `list` answer"
+        if any(not isinstance(g, tuple) for g in got):
+            return None, "its `classes:` membership is malformed"
+        hits = {bool(declared & set(g)) for g in got}
+        if len(hits) > 1:
+            return None, "its group's members disagree on a pre-deploy class"
+        return ("pre-deploy" if hits.pop() else "lands"), None
+
+    placed = {id(u): _place(u) for u in units}
+    unknown = [{**_ident(u), "cause": placed[id(u)][1]} for u in units if placed[id(u)][0] is None]
+    on_lands = [u for u in units if placed[id(u)][0] == "lands"]
+    deferred = [u for u in units if placed[id(u)][0] == "pre-deploy"]
+    medians = [u["median_s"] for u in on_lands if isinstance(u.get("median_s"), (int, float))]
+    bar = _median(medians) if len(medians) > 1 else None
+    away, held = [], []
+    if view.get("no_data"):
+        why_away = f"no data — {view['no_data']}"
+    elif days_rec is None or runs_rec is None:
+        why_away = "a threshold value in force could not be read — no move-away is proposed"
+    elif span is None:
+        why_away = "the window could not be dated (no bound and no dated row) — it covers nothing"
+    elif span < days_rec["value"]:
+        why_away = (f"the window covers {covered if covered < days_rec['value'] else round(span, 3)} days, under pre_deploy_move_min_window_days = "
+                    f"{days_rec['value']} ({days_rec['source']}) — a short quiet window is not a "
+                    "zero-catch record; no move-away is proposed on it")
+    else:
+        why_away = None
+        for u in on_lands:
+            places = u.get("places") if isinstance(u.get("places"), dict) else {}
+            if any(_fails(places.get(p)).get("real") or _fails(places.get(p)).get("unjudged") for p in places):
+                continue                                   # caught, or may have caught
+            if bar is None or not isinstance(u.get("median_s"), (int, float)) or u["median_s"] <= bar:
+                continue                                   # not costly against the reading's median unit
+            runs = sum(places[p].get("runs", 0) for p in ("land", "stage6") if isinstance(places.get(p), dict))
+            row = {**_ident(u), "runs_at_place": runs, "median_s": u["median_s"],
+                   "total_min": u.get("total_min")}
+            (away if runs >= runs_rec["value"] else held).append(row)
+        if not away:
+            why_away = (f"no costly zero-catch unit ran pre_deploy_move_min_runs = {runs_rec['value']} "
+                        f"({runs_rec['source']}) times at its place" if held else
+                        "no unit on lands is both costly (median above the median unit's) and zero-catch")
+    back = []
+    for u in deferred:
+        pd = (u.get("places") or {}).get("pre-deploy") if isinstance(u.get("places"), dict) else None
+        if isinstance(pd, dict) and _fails(pd).get("real"):
+            back.append({**_ident(u), "runs_at_place": pd.get("runs"), "real_failures": _fails(pd)["real"],
+                         "median_s": pd.get("median_s")})
+    return {
+        "reading": "verify-cost weekly reading (T-14111 / SPEC-1042 rule 7) over the verify-unit-cost "
+                   "view — it proposes moves both ways and writes none",
+        "window": win, "covered_days": covered,
+        "thresholds": {k: ({"value": r["value"], "source": r["source"]} if r else "not read")
+                       for k, r in (("pre_deploy_move_min_window_days", days_rec),
+                                    ("pre_deploy_move_min_runs", runs_rec))},
+        "costly_above_median_s": bar,
+        "move_away": {"proposals": away, **({"held_thin": held} if held else {}),
+                      **({"why_none": why_away} if why_away else {})},
+        "move_back": {"proposals": back,
+                      **({} if back else {"why_none": "no unit the configuration places at pre-deploy has a "
+                                                      "real failure there"})},
+        **({"place_unknown": unknown} if unknown else {}),
+        "writes": "none — a move is the project's own edit of its yitc-ops.yaml `tests.classes[]`",
     }

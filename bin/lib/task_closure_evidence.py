@@ -1701,18 +1701,21 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
     # T-13139 — a corpus that carries an exact existence index for this question (the debt seam's
     # one-pass `P8ResolutionCorpus`, which does not hold every row) answers it from the index; the
     # answer is the loop's below, by construction of that index. A plain list takes the loop.
+    #
+    # T-14152 — a `TYPE@<ts>` pin is second-granular: several rows of the type may share it. It resolves
+    # only when it names ONE row by the T-13342 rule (`_ts_locator_row`), else it names no single row.
     index = getattr(events, "type_index", None)
     if index is not None:
-        return index.has_ts(etype, ts) if ts else index.has_task(etype, tid)
-    for ev in events:
-        if ev.get("type") != etype:
-            continue
-        if ts:
-            if str(ev.get("ts") or "") == ts:
+        return index.ts_pin_resolves(etype, ts, tid) if ts else index.has_task(etype, tid)
+    if not ts:
+        for ev in events:
+            if ev.get("type") == etype and ev.get("task_id") == tid:
                 return True
-        elif ev.get("task_id") == tid:
-            return True
-    return False
+        return False
+    rows = [ev for ev in events                # an unreadable value is skipped, never a reason to stop:
+            if isinstance(ev, dict) and ev.get("type") == etype  # every row of the second is counted
+            and str(ev.get("ts") or "") == ts]
+    return bool(rows) and (len(rows) == 1 or _ts_locator_row(rows, tid) is not None)
 # ── T-12021 (X-1245) — the CHARTER §P2 commit-locator SHAPE ──────────────────────────────────────
 # Read by the no-ref-resolves diagnostic and by the emit refusal (`p8_commit_locator_only_refs`,
 # T-13923), in both ONLY to NAME what the author wrote. It is
@@ -2362,10 +2365,10 @@ def _live_probe_settled_evidence_unresolved(lp, events, *, tid=None, _journal_lo
       (a) the locator names NO existing journal line — a made-up citation;
       (b) it resolves to a line that is not PROBE EVIDENCE — resolving to an arbitrary event would let
           any waiver settle against any journal line, which is the same defect one layer down.
-      (c) T-13959 (X-2000) — a `ts=` locator matching SEVERAL probe-evidence rows names no single run
-          unless exactly one ties to the closing card `tid`: the `--settle-evidence` tie rule
-          (`_ts_locator_ambiguity`, T-13342), applied over the evidence rows. One evidence row still
-          settles whatever its tie — a settle claims SOME real probe discharged the debt."""
+      (c) T-13959 (X-2000), T-14152 — a `ts=` locator matching SEVERAL rows names no single run unless
+          the `--settle-evidence` tie rule (`_ts_locator_ambiguity`, T-13342) picks one, and (b) is then
+          asked of THAT row, never of a sibling sharing the second. A lone row still settles whatever its
+          tie — a settle claims SOME real probe discharged the debt."""
     loc = _live_probe_settled_locator(lp)
     if loc is None:
         return None  # not a settled waiver (or malformed) — the grammar half owns that refusal
@@ -2374,15 +2377,16 @@ def _live_probe_settled_evidence_unresolved(lp, events, *, tid=None, _journal_lo
     if not matched:
         return (f"`settled_by.evidence` names {kind}={wanted!r}, which resolves to NO event in the journal "
                 f"(worktree+main fold) — a settled waiver must cite a probe run that actually happened")
+    if kind == "ts" and len(matched) > 1:
+        ambiguity = _ts_locator_ambiguity(wanted, matched, tid, flag="settled_by.evidence")
+        if ambiguity:
+            return ambiguity
+        matched = [_ts_locator_row(matched, tid)]   # T-14152 — the type is judged on THE row the pin names
     types = {str(ev.get("type") or "") for ev in matched}
     if not (types & set(_LIVE_PROBE_PROBE_EVIDENCE_TYPES)):
         return (f"`settled_by.evidence` resolves to event type(s) {sorted(t for t in types if t)} — none is "
                 f"PROBE EVIDENCE. Cite one of {list(_LIVE_PROBE_PROBE_EVIDENCE_TYPES)}: a settle must name the "
                 f"probe RUN that discharged the debt, not an unrelated journal line")
-    if kind == "ts":
-        evidence = [ev for ev in matched if str(ev.get("type") or "") in _LIVE_PROBE_PROBE_EVIDENCE_TYPES]
-        if len(evidence) > 1:
-            return _ts_locator_ambiguity(wanted, evidence, tid, flag="settled_by.evidence")
     return None
 # ── T-11674 (X-1130) — THE ATTESTED FORM: the kernel GRADES a proof the PROJECT already runs ──────
 # THE MISMATCH <project> measured (25 overdue rechecks, ONE structural cause). The declaration grammar
@@ -2729,7 +2733,7 @@ def _settle_probe_admission_error(task: dict, ac: str, result: str, *, _SETTLE_T
 
 
 def _settle_evidence_unresolved(locator: str, events, *, cross_events=None,
-                                tid: str = None, flag: str = "--settle-evidence", _cross_settle_evidence_unresolved, _cross_settle_locator, _journal_locator, _journal_locator_matches) -> "str | None":
+                                tid: str = None, flag: str = "--settle-evidence", _cross_settle_evidence_unresolved, _cross_settle_locator, _journal_locator, _journal_locator_matches, row_check=None) -> "str | None":
     """RESOLUTION half (AC3 leg 2) — PURE with INJECTED events, so it stays unit-testable and the
     host binding (the worktree+main journal fold) lives at the one seam that owns paths, exactly like
     the `_live_probe_settled_evidence_unresolved` sibling. Returns a refusal reason, else None.
@@ -2748,7 +2752,11 @@ def _settle_evidence_unresolved(locator: str, events, *, cross_events=None,
     journal fold untouched.
 
     T-13416 — `flag` names the argument the locator arrived through, so the same resolver words its
-    refusal for the verb that ran (`work commit --from`, not `--settle-evidence`)."""
+    refusal for the verb that ran (`work commit --from`, not `--settle-evidence`).
+
+    T-14109 — `row_check`, when given, is asked of the resolved journal rows last: its refusal is
+    returned (a `stand-<class>` probe settles only on a stand row of a landed revision, SPEC-1042
+    rule 6). Every other caller passes none and resolves exactly as before."""
     xid = _cross_settle_locator(locator)
     if xid is not None:
         # T-11297 — the COORDINATION-LOG kind. ONE entry point, dispatching on which STORE the
@@ -2770,13 +2778,27 @@ def _settle_evidence_unresolved(locator: str, events, *, cross_events=None,
         return (f"{flag} names {kind}={wanted!r}, which resolves to NO event in the journal "
                 f"(worktree+main fold) — a citation must name a journal row that actually exists")
     if kind == "ts" and len(matched) > 1:
-        return _ts_locator_ambiguity(wanted, matched, tid, flag=flag)
-    return None
+        ambiguity = _ts_locator_ambiguity(wanted, matched, tid, flag=flag)
+        if ambiguity:
+            return ambiguity
+    return row_check(matched) if row_check is not None else None
 
 
 # T-13416 — rows a ts= citation never means: per-invocation receipts the CLI writes in the same
 # second as the row being cited (an owner_directive and its `cli_invoked` receipts share a second).
 _TS_RECEIPT_TYPES = ("cli_invoked",)
+
+
+def _ts_locator_row(matched, tid) -> "dict | None":
+    """T-14152 — THE row a second-granular `ts` pin names among the rows sharing that second, by the
+    T-13342 rule: the one citable row (receipts excluded), else the one row tied to `tid`; else None.
+    Every ts-pinned evidence reader selects through this, so a type check reads the named row only."""
+    citable = [r for r in matched if r.get("type") not in _TS_RECEIPT_TYPES]
+    if len(citable) == 1:
+        return citable[0]
+    tid = str(tid or "").strip()
+    tied = [r for r in citable if tid and _event_task_id(r) == tid]
+    return tied[0] if len(tied) == 1 else None
 
 
 def _ts_locator_ambiguity(wanted: str, matched, tid, flag: str = "--settle-evidence") -> "str | None":
@@ -2789,13 +2811,11 @@ def _ts_locator_ambiguity(wanted: str, matched, tid, flag: str = "--settle-evide
     T-13416 — receipt rows (`_TS_RECEIPT_TYPES`) are not candidates: when exactly ONE citable row
     shares the second the locator names it (the handbook's `events.jsonl#ts=` owner-row form, cited
     from a filing batch with no closing card). Two citable rows still fall to the tie rule above."""
-    citable = [r for r in matched if r.get("type") not in _TS_RECEIPT_TYPES]
-    if len(citable) == 1:
+    if _ts_locator_row(matched, tid) is not None:
         return None
+    citable = [r for r in matched if r.get("type") not in _TS_RECEIPT_TYPES]
     tid = str(tid or "").strip()
     tied = [r for r in citable if tid and _event_task_id(r) == tid]
-    if len(tied) == 1:
-        return None
     rows = "; ".join(f"{r.get('type')}({_event_task_id(r) or 'no task'})" for r in citable)
     alt = (f"re-emit the evidence as its own row with a unique source_ref (`bin/yitc-v2 event <type> "
            f"--task {tid or 'T-XXXX'} --source-ref <unique-ref>`) and cite "

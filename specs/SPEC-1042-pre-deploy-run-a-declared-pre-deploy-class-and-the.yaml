@@ -1,0 +1,359 @@
+id: SPEC-1042
+title: Pre-deploy run — a declared pre-deploy class, and a deploy to a guarded target
+  that first runs the full verify plus that class on the exact revision it ships
+status: active
+created_at: 2026-10-22 11:51:39+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/views.py#_view_verify_unit_cost
+- bin/lib/views.py#_verify_cost_weekly_reading
+- bin/lib/init.py#pre_deploy_declaration_errors
+- bin/lib/land_verify_legs.py#_pre_deploy_declaration
+- bin/lib/land_verify_legs.py#_pre_deploy_contract_read
+- bin/lib/land_verify_legs.py#_pre_deploy_forced_full
+- bin/lib/land_verify_legs.py#_pre_deploy_exclusion
+- bin/lib/land_verify_legs.py#_pre_deploy_layer_skip_row
+- bin/lib/deploy.py#_pre_deploy_run
+- bin/lib/deploy.py#_pre_deploy_beside
+- bin/lib/deploy.py#_pre_deploy_take_reservation
+- bin/lib/deploy.py#_pre_deploy_recordable
+- bin/lib/deploy.py#_pre_deploy_guarding
+- bin/lib/task.py#_pre_deploy_stand_probes
+body: "## Scenario\nA project has moved costly checks out of its lands: it declares\
+  \ them as a PRE-DEPLOY class and names\nthe deploy targets that class guards. Lands\
+  \ and Stage-6 runs skip those units and say so in their\nrows. A deploy to a guarded\
+  \ target then runs, as its own last step before the deploy command, every\nverify\
+  \ layer whole plus the declared classes, in a fresh checkout of the exact revision\
+  \ it is told to\nship. Green — the deploy goes on: the project's lands wait while\
+  \ its command runs, and the revision\nchecks the deploy already makes ensure the\
+  \ command builds that same revision. Red — one report names every failing unit (after\
+  \ the land's own rescue)\nand the cards landed since the last passed run for that\
+  \ target, and nothing is launched. A project\nthat declares no pre-deploy class\
+  \ sees no change.\n\n## Internal\n\n### 1. Declaration — a pre-deploy class names\
+  \ its units and the targets it guards\n- A pre-deploy class is a `tests.classes[]`\
+  \ entry (shape: SPEC-0160 rule 10) with\n  `moment: pre-deploy`, a non-empty `reason:`\
+  \ and a non-empty `targets:` list. Each `targets:` entry\n  is a `deploy.targets.<name>`\
+  \ key (SPEC-0094 §1) or the reserved name `default`, which stands for\n  the plain\
+  \ `deploy` (no `--target`, the `deploy.command`). A pre-deploy entry without `reason:`\
+  \ or\n  `targets:`, or naming an undeclared target, is refused at declaration.\n\
+  - Fail-closed on the plain deploy: a class naming any target that declares `production:\
+  \ true` also\n  gates `default`, whether or not it names it — a plain `deploy` can\
+  \ never reach production around\n  the gate.\n- Its units are named where the units\
+  \ already are: every unit of the ONE adapter inventory\n  (SPEC-1035 rule 3 `list`)\
+  \ carries its class membership, and a pre-deploy unit is one whose\n  membership\
+  \ names this class. `list` returns every unit on every run; the kernel derives from\
+  \ that\n  one answer what a run executes and what it skips. A layer with no adapter\
+  \ is declared whole: the\n  class entry names it in `layers:`. That inventory is\
+  \ the ONE source of membership: a pre-deploy\n  entry carrying `globs:` is refused\
+  \ at declaration, and a unit names at most one pre-deploy class.\n- A unit that\
+  \ carries no membership belongs to no class: an adapter that answers `list` as today\n\
+  \  stays valid, and a project with no pre-deploy class runs and records exactly\
+  \ as before.\n- Membership is held per indivisible group (SPEC-1035 rule 2): every\
+  \ unit of a declared group names\n  the same pre-deploy class or none. A `list`\
+  \ answer whose group mixes them is read as a `list` that\n  did not answer for the\
+  \ exclusion — the layer runs whole and its row names the mixed group (rule 2).\n\
+  - A target named (or implied, above) by any pre-deploy class is a GATED target (rule\
+  \ 5).\n- SPEC-0156 applies unchanged: a pre-deploy class adds no admission demand\
+  \ of its own, and a check\n  without a recorded demonstration stays UNPROVEN with\
+  \ its report-only debt, at that spec's\n  granularity.\n\n### 2. What a land and\
+  \ a Stage-6 run execute — one order, the pre-deploy exclusion last\nFor each layer\
+  \ the kernel first computes the set a land would run today — SPEC-1035 rule 6 (the\n\
+  selection ladder, the SPEC-0152 rule-16 skip applied whole), SPEC-1030 deciding\
+  \ selection and credit,\nthe layer's `command:` fallback when `list` cannot answer\
+  \ — and only THEN applies the pre-deploy\nexclusion:\n- the exclusion removes the\
+  \ pre-deploy units from that set, and a `layers:`-declared layer is skipped\n  whole;\
+  \ the row names each removed unit (or the skipped layer) with its class, outcome\n\
+  \  `passed-partial` — a skip is never silent;\n- EXCEPT where that set is a forced\
+  \ full run: a change the SPEC-0152 rule-16 skip names (the verify\n  section, the\
+  \ pinned set, the land/verify implementation, `verify.infra_globs`) or the layer's\n\
+  \  adapter `sources:` runs the whole layer, pre-deploy units included;\n- and where\
+  \ the layer's `list` did not answer (the `command:` fallback), the layer runs whole,\n\
+  \  pre-deploy units included, and the row says the exclusion could not apply.\n\
+  The exclusion applies to a land's candidate leg and to a Stage-6 run, and nowhere\
+  \ else: a\n`selection: shadow` layer runs its full side whole, pre-deploy units\
+  \ included, and compares as\nSPEC-1035 says; the pinned last-green leg (SPEC-0077,\
+  \ SPEC-0186) runs as the project's policy says\nand is never excluded.\nNothing\
+  \ else about selection changes; the pre-deploy run (rule 3) covers whatever any\
+  \ land left out.\n\n### 3. A deploy to a gated target runs the pre-deploy run as\
+  \ its last step before the command\n- `bin/yitc-v2 deploy` to a gated target (`--target\
+  \ <name>`, or no `--target` when `default` is\n  gated; a consumer: `-C <path>`)\
+  \ REQUIRES the SPEC-0094 §6 expected revision\n  (`--expect-revision <full commit\
+  \ id>`) and refuses without it before anything runs, naming the\n  option. That\
+  \ revision is the CANDIDATE.\n- The run is the deploy's last gate: after every existing\
+  \ pre-launch gate and the SPEC-0094 §9 load\n  window, before the §6 last-moment\
+  \ revision check. Nothing else starts it, no row of an earlier run\n  stands in\
+  \ for it, and every gated deploy runs its own.\n- Subject: a fresh scratch checkout\
+  \ of the candidate. Content: every verify layer whole PLUS every\n  unit of every\
+  \ pre-deploy class guarding the target, run exactly as a land runs them (adapter\n\
+  \  `list` → `required:` → `run`; a layer's `command:` when it has no adapter), on\
+  \ the land runner\n  (SPEC-0065).\n- Rescue before red: a failed unit is re-run\
+  \ alone up to the land's own rescue count; a rescued unit\n  is named in the rows.\
+  \ The layer's verdict is read as a land reads it, never a raw unit status.\n- Fail-to-end:\
+  \ the run does not stop at the first red layer; its one report names every failing\n\
+  \  unit and the cards landed on main between the candidate of the last passed run\
+  \ for that target\n  (rule 4) and this candidate.\n- Contention: a red is recorded\
+  \ `contended` only when EVERY failure reason is a single unit's own\n  runner timeout\
+  \ (the timeout the runner records on the unit's test case, SPEC-1035 §4 — a failure\n\
+  \  recorded in other words is not one) while a land or Stage-6 run of the project\
+  \ ran beside it, and\n  with no `prep:` failure, no `required:` failure, no layer\
+  \ or outer timeout, no void or unread\n  report, no layer failing whole (SPEC-1035\
+  \ §4-5); it is re-run once inside the same deploy, and a\n  second red is recorded\
+  \ `failed`. Any other reason, or no land or Stage-6 run beside it, reads red at\n\
+  \  once.\n- Beside the run is a land or Stage-6 run of the project — of any checkout\
+  \ of its repository,\n  whatever verify slot it holds — that is SEEN live, as a\
+  \ `land` or `task test --run` process, by one\n  of the samples taken at the run's\
+  \ start, at its end and every second between; or, when no sample\n  saw one, that\
+  \ is PLACED inside the run's wall-clock window by the rows a land and a Stage-6\
+  \ run\n  already write: a land's result row in the main checkout's journal places\
+  \ its verify as the\n  Stage-6 run's own land reading places it (a land it cannot\
+  \ place either side counts, a land that\n  recorded no verify does not), and a Stage-6\
+  \ run's result row — in its task worktree's journal, or\n  in main's once it landed\
+  \ — places the run by its stamp and its recorded wall. Those rows are read\n  only\
+  \ for a timeout-only red no sample saw a neighbour of. A Stage-6 run whose worktree\
+  \ was removed\n  without a land before that read has left no row, and is not beside\
+  \ the run.\n- A red run refuses the deploy: the project command is not launched\
+  \ and no `deploy_completed` is\n  written; the refusal names the failing units and\
+  \ that the next deploy starts a new run.\n- A green run holds the project's lands\
+  \ off for the command. The deploy takes the project's land\n  reservation (SPEC-0132,\
+  \ SPEC-0184 — the one lock a land holds through its verify and its move of\n  `main`),\
+  \ waiting for it as a parked land waits, and only then makes the SPEC-0094 §6 last-moment\n\
+  \  check, which refuses when the checkout moved off the candidate while the run\
+  \ went or while it\n  waited, naming the revision it moved to; the next deploy runs\
+  \ again on its own candidate. A deploy\n  still waiting when the land park limit\
+  \ is spent refuses; nothing is launched. It takes the\n  reservation after the §8\
+  \ deploy lock, which no land takes, so the two cannot deadlock. While it\n  waits,\
+  \ it obeys the reservation's waiting rules as they stand, an addressed handover\
+  \ to another\n  land included; as holder it makes no yield offer. Its holder record\
+  \ names the deploy, its target\n  and the candidate, so a parked land says what\
+  \ it waits for.\n- It holds the reservation through the command and the §6 after-command\
+  \ check and releases it when\n  the verb ends. A land of the project started meanwhile\
+  \ parks on it and moves `main` only after the\n  deploy; one still parked when the\
+  \ land park limit is spent halts as that limit says (`LAND:\n  ABORT`, main untouched,\
+  \ a fresh `land` tries again). The run itself holds nothing: lands go on\n  while\
+  \ it runs.\n- Outside the hold, each still caught by §6 unchanged: a scoped self-commit\
+  \ from the main checkout\n  (the SPEC-0051 list — a MEMORY.md line, a card record,\
+  \ a `thresholds:` value; none of them is what\n  the project command builds) and\
+  \ a move made by hand outside the verbs. Either during the command\n  makes the\
+  \ §6 after-command check fail the deploy (`deploy_failed`, no `deploy_completed`),\
+  \ and the\n  next deploy runs again. So no governed verb changes what the command\
+  \ builds while it runs: the\n  command builds the revision the run checked, or the\
+  \ deploy does not complete.\n- Recordability first: before the run, the deploy checks\
+  \ that this session can record the run's rows\n  and its own deploy rows (the identity\
+  \ and journal checks a row meets) and refuses up front if not.\n  A row write that\
+  \ still fails after the run refuses the deploy before the command — a command is\n\
+  \  never launched beside an unrecorded run.\n\n### 4. What the run records — a record,\
+  \ never deploy evidence\n- One `test_class_executed` row (SPEC-0152 rule 24) PER\
+  \ pre-deploy class run, with `class:` = that\n  declared class, so the declared-class\
+  \ check admits it and the existing debt fold reads it.\n  `outcome` is that class's\
+  \ own units' result (`pass` only when they all passed) and `evidence:`\n  names\
+  \ the run log. Each row also carries `run_ref`, `candidate` (the full sha), `target`,\n\
+  \  `run_outcome` (`passed` | `failed` | `contended`), and the run's failing and\
+  \ rescued units.\n- Per-unit accounting in the land's own carrier: each class row\
+  \ carries `consumer_verify_layers` in\n  the shape a land row carries it (SPEC-1035),\
+  \ restricted to that class's own units with their status\n  and duration, so the\
+  \ view (rule 7) counts a moved unit once, at its new place; ordinary units of\n\
+  \  the run are not recorded per unit. Each attempt — the contended re-run included\
+  \ — writes its own\n  rows, with `attempt:` 1 or 2.\n- A gated deploy's `deploy_completed`\
+  \ or `deploy_failed` row carries `pre_deploy_run_ref`, the\n  `run_ref` of its own\
+  \ run. Two deploys of one project never run at once (the SPEC-0094 §8 deploy\n \
+  \ lock).\n- No gate reads these rows to admit a deploy — each gated deploy runs\
+  \ its own (rule 3). They serve\n  the fail-to-end report, the debt fold and the\
+  \ view.\n\n### 5. The gate — independent of the per-class gate, on every path\n\
+  - The gate is INDEPENDENT of the SPEC-0097 per-class gate: it applies on every path\
+  \ that runs a\n  deploy command for a gated target — a `production: false` target,\
+  \ `--owner-approved`, a waived\n  deploy policy, `--now` (which skips only the §9\
+  \ wait) — and the SPEC-0097 §12 class carve-out does\n  not lift it. `deploy --rollback`\
+  \ is never gated by it and runs no pre-deploy run.\n- A target stays gated while\
+  \ ANY pre-deploy class names (or implies) it; the gate on a target is\n  removed,\
+  \ in the same change, only by removing the last such declaration.\n\n### 6. A new\
+  \ or changed pre-deploy check meets a stand after its card's land\n- A card's diff\
+  \ touches a pre-deploy check when it touches a pre-deploy unit's file, a path in\
+  \ that\n  layer's adapter `sources:` (SPEC-1035 rule 1 — the adapter and the runner\
+  \ configuration), or the\n  class entry. A helper the check calls counts only when\
+  \ the project lists it in `sources:`. A layer\n  declared whole has no inventory\
+  \ to name its checks, so it is read conservatively: a path of its\n  declaration,\
+  \ its `command:` or its `subject_globs` touches it, and its stand run is the whole\n\
+  \  layer (a project that wants a narrower trigger gives the layer an adapter).\n\
+  - A card whose diff touches a pre-deploy check registers a SPEC-0015 deferred probe\
+  \ for one\n  focused stand run of that unit (of the whole layer, for a layer declared\
+  \ whole), settled after the\n  card's land by the ordinary `task close --settle-probe`\
+  \ order. No stand row is asked before\n  audit-post or close.\n- The stand run is\
+  \ that unit's run inside the pre-deploy run of a deploy to the project's stand\n\
+  \  target (a `production: false` target) that COMPLETED on a LANDED revision carrying\
+  \ the card's\n  commit. It shows that the check itself works before a production\
+  \ deploy depends on it: a\n  pre-deploy check runs on a fresh checkout of the candidate,\
+  \ not against the served site. A check\n  of the build the stand serves is one of\
+  \ the project's own post-deploy checks (rule 8, live checks\n  on the served site),\
+  \ which the project declares and configures itself — its deploy-time\n  `tests.classes[]`\
+  \ entries and its deploy script; how a new one meets the stand first:\n  `patterns/project-release-guide.md`\
+  \ B3.\n- A project with no stand target declares that in the class (`stand: none`\
+  \ with a reason); the unit's\n  first real run is then the first gated deploy's\
+  \ pre-deploy run, and that run's rows say so.\n\n### 7. The analysis aid and the\
+  \ weekly reading — report-only, restore-only\n- A read-only view prints, from a\
+  \ project's own journal (the adapter `units` rows of lands, Stage-6\n  runs and\
+  \ pre-deploy runs), the per-unit table (runs, median and total duration, real and\
+  \ flaky\n  failures by place) and the land-wait model (slowest layer; median, mean,\
+  \ p90 with and without\n  named units), and for each declared pre-deploy class its\
+  \ catch record since declared. Every\n  reading prints its window bounds and, per\
+  \ unit, the run count inside the window. A pre-deploy\n  run records per unit only\
+  \ its classes' own units (rule 4), so an ordinary unit's runs inside it\n  are not\
+  \ in the table: its pre-deploy place prints «not recorded», never a zero. It names\
+  \ and\n  ranks nothing into action.\n- The weekly reading over that view PROPOSES\
+  \ moving a costly zero-catch unit into a pre-deploy class\n  ONLY when the reading\
+  \ window covers at least the minimum window and the unit ran at least the\n  minimum\
+  \ run count at its place inside it (## Parameters); a shorter or thinner history\
+  \ yields no\n  such proposal and says why. It PROPOSES moving back a pre-deploy\
+  \ unit that caught at its place, on\n  any window. Automation may only move a unit\
+  \ back toward running on lands; a move into a pre-deploy\n  class is always an explicit\
+  \ project act (SPEC-0178 «restore, never remove»).\n- An inspection theme reads\
+  \ the weekly reading and records it; a theme record with no reading is\n  refused\
+  \ as incomplete.\n\n### 8. Scope\n- Opt-in: a project with no `moment: pre-deploy`\
+  \ class runs, lands and deploys exactly as before.\n- Not here (the project's own):\
+  \ release batching, the stand-then-production order, live checks on\n  the served\
+  \ site, rollback policy.\n- Not here (a later follow-up of the proposing plan):\
+  \ a run of the declared class on main between\n  deploys.\n\n## Parameters\n| key\
+  \ | class (SPEC-1031) | proposed default | read by |\n|---|---|---|---|\n| `pre_deploy_move_min_window_days`\
+  \ | THRESHOLD (project) | 14 | rule 7 move-away proposal |\n| `pre_deploy_move_min_runs`\
+  \ | THRESHOLD (project) | 100 | rule 7 move-away proposal |\nThe run's start wait\
+  \ is the SPEC-0094 §9 load window (its machine keys, unchanged); rescue attempts\n\
+  are the land's own; the contended re-run is once, a fixed rule, not a key. None\
+  \ is `consumed:` while\ndraft.\n\n## Rationale\nPlan `deferred-checks-a-project-moves-costly-checks-out-`\
+  \ (public issues #140, #154, #161) carries\nthe incidents, the three consumers'\
+  \ measurements and the owner decisions; summary only here.\nSPEC-1030 left the full\
+  \ run before a deploy to each project, so the backstop for what deciding lands\n\
+  skip had no kernel home. On the reporting consumer the release-only class caught\
+  \ real product\nregressions that sat on main until the release (twice in 2026-10-14..18,\
+  \ once more 2026-10-21, ~13 h\nunseen), a project-side hold did not keep the engine's\
+  \ lands off (9 of 12 runs had lands beside\nthem), and a row refused after a 12-minute\
+  \ run forced a repeat. Another consumer deployed twice after\na partial land with\
+  \ no full run between.\nThe run is a step of the deploy itself, on the revision\
+  \ the deploy is told to ship, and SPEC-0094\n§6's existing revision checks bind\
+  \ the command to that revision — so there is no separate evidence\nrow to order,\
+  \ match or revive. A first composition kept the run as a separate command whose\
+  \ row a\nlater deploy read; each correction round of the accept-gate check found\
+  \ a new defect in that\nevidence path, and the owner chose the in-deploy run instead\
+  \ (the plan's correction record). §6's\nafter-command check can record that the\
+  \ checkout moved while the command ran, but cannot undo a\nbuild that already serves,\
+  \ so the project's lands are held off for the command itself, on the lock a\nland\
+  \ already takes (the owner's choice on the next round); no new lock is added. The\
+  \ cost is stated:\nwhen main moves during the run, the deploy is refused at the\
+  \ §6 last-moment check and the next deploy\nruns again; a land waits out a gated\
+  \ deploy's command, and one still parked at the land park limit\nhalts and is run\
+  \ again; a scoped self-commit during the command fails that deploy's record; and\
+  \ a\nrelease deploying two gated targets runs the verify once per deploy. The engine-owned\
+  \ hold (plan\n`engine-owned-one-admission-queue-for-stage-6-runs-`) is what would\
+  \ remove the retry, in a later\nslice.\nThe stand run follows its card's land by\
+  \ the plan's choice, matching the field shape (the reporting\nconsumer read a new\
+  \ check right after its card's land); the kernel does not force it — SPEC-0094 §6\n\
+  lets a `production: false` target build a branch. The move-away window bound exists\
+  \ because 44 of 636\nfiles quiet over 4 days caught real defects over two weeks.\
+  \ The rows are per declared class so the\nexisting declared-class check and debt\
+  \ fold read them unchanged, and the per-unit rows keep the\nview's numbers for a\
+  \ unit after it leaves the lands.\n\n## Verification\nNamed tests, each RED on the\
+  \ pre-change code (the plan's probe letters in brackets):\n- V1 [a, m, g, t] a gated\
+  \ deploy's run executes every layer whole plus every pre-deploy unit of the\n  one\
+  \ inventory, in a fresh checkout of the candidate; an ordinary land on the same\
+  \ tree removes the\n  pre-deploy unit after selection and names it; a `verify`-section\
+  \ change, an `infra_globs` change\n  and an adapter `sources:` change each run it;\
+  \ a layer whose `list` failed runs whole and says so; a\n  `deciding`-selected layer\
+  \ still drops the pre-deploy unit from the selected set; a `shadow` layer\n  runs\
+  \ it on its full side, and the pinned last-green leg under a policy that runs it\
+  \ still runs it.\n- V2 [b, j, q, s] a deploy to a gated target without `--expect-revision`\
+  \ is refused before anything\n  runs; with it, the run goes before the command and\
+  \ a red run launches no command — on a\n  production target, a `production: false`\
+  \ target, with `--owner-approved`, under a waived policy and\n  with `--now` alike;\
+  \ a plain `deploy` with no `--target` is gated when a class gates a\n  `production:\
+  \ true` target; `deploy --rollback` runs no run and is not refused.\n- V3 [c, e,\
+  \ r] a project with no pre-deploy class deploys byte-identically to before, and\
+  \ an\n  existing adapter whose units carry no membership lands and records byte-identically;\
+  \ with two\n  classes guarding one target, removing one keeps the gate and removing\
+  \ the last removes it in that\n  change.\n- V4 [d] a run with two failing layers\
+  \ reports every failing unit in one pass after the rescue, and\n  names the cards\
+  \ landed since the last passed run for that target.\n- V5 [f] a pre-deploy class\
+  \ without `reason:` or `targets:`, or naming an undeclared target, is\n  refused\
+  \ at declaration, and so is one carrying `globs:` or a unit naming two pre-deploy\
+  \ classes; a\n  group whose units mix a class and none runs its layer whole and\
+  \ names the group; a\n  correctly declared check with no demonstration stays UNPROVEN\
+  \ with its debt (SPEC-0156 unchanged),\n  not refused.\n- V6 [k, k2, k3] a land\
+  \ landing on main while the run goes makes the deploy refuse at the §6\n  last-moment\
+  \ check, naming the moved-to revision, and the command is not launched; with no\
+  \ land\n  beside it the command runs on the candidate and its `deploy_completed`\
+  \ names the run's `run_ref`; a\n  land started while the command runs parks on the\
+  \ land reservation and moves `main` only after the\n  deploy ended, whose `deploy_completed`\
+  \ names the candidate; a green run while a land holds the\n  reservation waits for\
+  \ it and then refuses at the last-moment check; a deploy waiting beside an\n  addressed\
+  \ handover lets the addressed land take the reservation first; an ungated deploy\
+  \ takes no\n  reservation; a timeout-only red with a land beside it is recorded\
+  \ `contended` and re-run once, and a\n  second such red is recorded `failed`; a\
+  \ unit timeout together with a `required:` failure, a `prep:`\n  failure or an outer\
+  \ timeout, and a timeout-only red with no land or Stage-6 run beside it, read red\n\
+  \  at once; a Stage-6 run counts as a land does whatever slot it holds, a land of\
+  \ another repository\n  does not count, a land that comes up after the run's first\
+  \ sample and is gone before its last is\n  seen, and a land or a Stage-6 run that\
+  \ starts and ends while no sample is taken is placed in the\n  run's window by its\
+  \ result row.\n- V7 [l] a passed row of an earlier run for the same candidate and\
+  \ target admits nothing: the next\n  gated deploy runs its own, and with a class\
+  \ unit that now fails it is refused.\n- V8 [p] a session that cannot record the\
+  \ rows is refused before the run starts; a row write that\n  fails after a green\
+  \ run refuses the deploy before the command.\n- V9 [h] a card whose diff touches\
+  \ a pre-deploy unit's file, or only a path in its layer's adapter\n  `sources:`,\
+  \ carries the deferred stand probe (or the class's `stand: none`), settled after\
+  \ its land\n  on a landed revision; a card touching neither carries none; for a\
+  \ layer declared whole, a card\n  changing only a path in its `subject_globs` carries\
+  \ a stand probe for the whole layer.\n- V10 [i, n, o, v] the view reproduces the\
+  \ plan's <project> table from a fixture of that journal and\n  prints window bounds\
+  \ and run counts; a unit moved into a class and run by two pre-deploy runs of\n\
+  \  5 s and 50 s reads 2 runs at place pre-deploy, median 27.5 s, and with two classes\
+  \ on one layer\n  each unit is counted once; an ordinary unit run only inside pre-deploy\
+  \ runs prints «not\n  recorded» at that place; the weekly reading proposes a\n \
+  \ move-away on a long, dense window and makes NO such proposal on a 4-day quiet\
+  \ window over a unit\n  that caught 10 days earlier; it proposes a move-back on\
+  \ a deferred unit that caught; it never\n  writes a move itself; the inspection\
+  \ theme records the reading, and a theme record with no\n  reading is refused.\n\
+  - V11 [u] a pre-deploy run's `pass` row for class C clears C's SPEC-0152 rule-24\
+  \ debt; a row with no\n  `evidence:` or with `outcome: fail` does not.\nAdoption\
+  \ (CHARTER §P8): the realization-exit block of the proposing plan — gated deploys\
+  \ on\ncryptochart, <project> and <project>, each running its pre-deploy run green\
+  \ on its candidate before\nthe command.\n"
+cites:
+- SPEC-0094
+- SPEC-0097
+- SPEC-0105
+- SPEC-0152
+- SPEC-0156
+- SPEC-0160
+- SPEC-0178
+- SPEC-1035
+- SPEC-1029
+- SPEC-1030
+- SPEC-1031
+- SPEC-0015
+- SPEC-0065
+- SPEC-0132
+- SPEC-0184
+- SPEC-0051
+- CHARTER.md#principle-3
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: deferred-checks-a-project-moves-costly-checks-out-
+binding:
+- before-deploy
+init_concern: null
+implements_signature:
+  bin/lib/deploy.py#_pre_deploy_beside: 60c3d24f5bf601e5ba023f9b3a47c35c88a6fdef108bb25217c63b3c52a64b2c
+  bin/lib/deploy.py#_pre_deploy_guarding: 566f590a79fdf20e463b9b3d10e0f8ab55e4a7b8eb78218894bd22d457858592
+  bin/lib/deploy.py#_pre_deploy_recordable: af4f7fc155939ac94808856721ab9449f8a8b86121370c3d50da37c5310e89b0
+  bin/lib/deploy.py#_pre_deploy_run: 30393c2dbc0e3ba3354732eab9158a528a84003ab8cbaf0a98daa9b7030915b2
+  bin/lib/deploy.py#_pre_deploy_take_reservation: b7d06cae328e036bdff633bbdf02211afe88a02d52cc53bf201b85ff38779213
+  bin/lib/init.py#pre_deploy_declaration_errors: c023b1acdb1d52c0f614ca1ace841dc88ac6664441e82e5ef7b70be85d0eab3a
+  bin/lib/land_verify_legs.py#_pre_deploy_contract_read: 06c8dddf94b9400bc58754bd88202e04090c23e301314452380f6a255c1e4e21
+  bin/lib/land_verify_legs.py#_pre_deploy_declaration: 45db7a176180340a71c62774e98165de88b693cff6f8757cc2bba7f181be7e60
+  bin/lib/land_verify_legs.py#_pre_deploy_exclusion: c922816545f58945a9e207d1c19c1ba157e171de351c1ad0a9759053ca82a594
+  bin/lib/land_verify_legs.py#_pre_deploy_forced_full: 661b38240a44a44319f436e39749c97508e19c91a1f9ad8233c00f6432722dfd
+  bin/lib/land_verify_legs.py#_pre_deploy_layer_skip_row: c700c6bdfd64224c79e4fec097659dff3f72a0f35ed9e0f5360f80344f7ef08f
+  bin/lib/task.py#_pre_deploy_stand_probes: 39ddd73e12b81e43de7ed788b02272f6fe5b1bcab3f9a38b39ba17a82583fc5f
+  bin/lib/views.py#_verify_cost_weekly_reading: 4801f3ffa6906313a27f325b732f187a96f82e4152bb5faaf523891d1a1169e7
+  bin/lib/views.py#_view_verify_unit_cost: 2aa8a9a7eb810bcffad080bc7a220b126c137781c43fa8a4dfb90291d8398a26

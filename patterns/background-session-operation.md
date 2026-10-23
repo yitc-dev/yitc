@@ -283,10 +283,17 @@ judgement — a bound, none a coded constant — is all that stays here:
    — park it, keep other independents moving; this is the IN-worker corollary: don't build the chain that
    parking then can't rescue.)
 
-The platform primitive is a **one-shot background-worker** with **no warm session-continuation channel**
-to the controller — so warm-reuse = front-loading the chain into the spawn prompt, NOT messaging a running
-worker. A dead worker's warm context is unrecoverable (re-bootstrap). A mid-flight ASSIGNMENT change is a
-planned stop → respawn → resume-from-claim-point, never an in-place edit (§Enrichment C5 of the picker plan).
+The platform primitive is a **one-shot background-worker**, so warm-reuse = front-loading the chain into
+the spawn prompt. A dead worker's warm context is unrecoverable (re-bootstrap).
+
+A running worker CAN be messaged by its controller through the harness's cross-session send. What a
+controller may send is a **hint** that stays inside the worker's audited plan and card scope — a fact, a
+pointer, a reminder of a rule. A mid-flight **ASSIGNMENT change** (another task, a changed scope,
+acceptance or plan) is never sent as a message: it stays a planned stop → respawn →
+resume-from-claim-point (§Enrichment C5 of the picker plan). A message is not the owner's word and
+authorizes nothing. Each send leaves one `external_action` row (SPEC-0116 — the capture floor for an
+outbound action no verb covers), tied to the worker's card: `bin/yitc-v2 event external_action --task
+<worker's card> --data '{"channel":"harness-tool:<send tool>","target":"session:<worker ref>","action":"post_message","from":"<basis locator>","kind":"hint"}'`.
 
 **§Effort-tier-at-filing — set the worker's model/effort UP FRONT, not by a post-block bump (DISCIPLINE).**
 The lever that routes a worker's model + reasoning-effort is the card's **`effort_tier`** (SPEC-0072, active) —

@@ -265,7 +265,7 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#_venue_seed_build: bba8332a112a23118695beb7297bd6e84a29586200804691aa6860551893d589
   bin/lib/cli.py#_venue_show_leases: 62fffd70d72f96bdcd42850c75d7857f6ca050fd6cb2831e099180c51a5764b8
-  bin/lib/cli.py#cmd_venue_publish: 89e3ab569f74c622bf9a5b9fdab67895504df7771143a8c6ef7dd3fe8b01c634
+  bin/lib/cli.py#cmd_venue_publish: b338dea07e1a473ef5cf838496e9e0b30e4d9a1b972cdf6ececfd11125bf7d7e
   bin/lib/land_verify_legs.py#_layer_row_listed_none: 4bb4745dd55ba37fa865e11b460bbfdede23bb5c20e88221ba86f9e4fcb8a803
   bin/lib/remote_verify.py#_venue_core_split_apply: b796b150df4ab72beee5f52245c51d3792a6addbd79c97279fbfb9770efd52d1
   bin/lib/remote_verify.py#box_lease_prologue: 5519e46317f9b8cfae6bfc08efcf06a6c9708c3975f1043aea2e68104db6613a

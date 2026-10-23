@@ -8,12 +8,12 @@ applies_to: a session standing at an exhausted audit-loop ceiling, TASK audit-pr
 # Pattern: at the audit-loop ceiling — the <workshop-spec> decision route (worked example)
 
 > **NON-NORMATIVE illustration. The RULE lives in SPEC-1039** (`bin/yitc-v2 graph query SPEC-1039`);
-> the ceiling arithmetic itself stays in <workshop-spec> §Audit-loop ceiling. On ANY conflict, SPEC-1039
+> the ceiling arithmetic itself stays in SPEC-1034 §Audit-loop ceiling. On ANY conflict, SPEC-1039
 > WINS. This file teaches the sequence; it establishes no rule and adds no gate.
 >
 > **Why it lives here:** a worked example inside <workshop-spec> would be paid by everyone who fetches the
 > rule, before anyone needs the walk-through. It is read ON DEMAND, when a ceiling is actually reached
-> (no stage entry renders <workshop-spec> or <workshop-spec> since; SPEC-1040 §Audit-loop ceiling names them).
+> (no stage entry renders <workshop-spec> or SPEC-1034 since; SPEC-1040 §Audit-loop ceiling names them).
 
 ## When to read this
 
@@ -71,7 +71,7 @@ technical-fork pick) is a different thing and is unchanged.
 
 - **SPEC-1039** — the rule home: residuals (rule 1), `ceiling_decision` (rule 2), the one bounded
   pass (rule 3), custody (rule 4), retirements (rule 6).
-- **<workshop-spec>** — the ceiling itself (pass arithmetic, ledger-skips).
+- **SPEC-1034** — the ceiling itself (pass arithmetic, ledger-skips).
 - **SPEC-0103 §3 / §5** — the Worker's halt and the work-carrying pause shape.
 - **LIFECYCLE §Stage 4 / §Stage 7** — the mode-a / mode-b absorption fork. Most ceilings are reached
   by pushing a PASSABLE finding through mode-a; recording it with mode-b (`--absorb`) spends no pass.

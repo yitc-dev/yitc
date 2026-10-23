@@ -117,7 +117,7 @@ P8_EVIDENCE_REF_GRAMMAR = (
     "`<project>` is that project's KEY in the host registry (a `yitc_v2` entry) — never a path — and "
     "the form keeps every condition it has without the prefix, applied to THAT journal's rows. Forms "
     "(1), (7)-(10) and (12) take no prefix, and the read is read-only. "
-    "(12) `land_completed@<iso-ts>#adapter=<layer>` — a verify layer's SPEC-1006 ADAPTER, declared on a "
+    "(12) `land_completed@<iso-ts>#adapter=<layer>` — a verify layer's SPEC-1035 ADAPTER, declared on a "
     "layer that already ran, proven by a land row (any branch, not earlier than the citing task's own "
     "FIRST successful land) whose `<layer>` row PASSED and carries an adapter record with `usable: true`, where some "
     "EARLIER land ran that layer WITHOUT one, e.g. "

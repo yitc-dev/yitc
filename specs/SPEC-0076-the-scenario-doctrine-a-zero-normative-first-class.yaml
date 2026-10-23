@@ -134,108 +134,114 @@ body: "## Scenario\n\nThe owner sees a **scenario** as the primary HUMAN-facing 
   \ outcome) and written ONLY where none does. It sits at the step's OWN observable\n\
   \    boundary (render wiring for a screen, a domain invariant for a figure) and\
   \ is shown to redden on\n    a STEP-SPECIFIC fault input before it counts. Like\
-  \ every anchor it resolves or is refused (6b).\n    The anchor names the function\
-  \ or the label IN FULL, as written in the test file; resolution checks\n    only\
-  \ the FACT that the file carries it (a label is found by its text, so a truncated\
-  \ label may still\n    resolve) — writing it in full is the author's part, not something\
-  \ the graph proves.\n    Binding a test is per-authored-step, never a coverage mandate\
-  \ (the audit-F3 line above holds).\n\n### 6. Enforcement split — BLOCK ON FACT,\
-  \ never on suspicion (3 mechanisms on EXISTING stages)\nA debugged user-path must\
-  \ not be silently broken by later development — but \"block\" is placed only where\n\
-  the check can be RIGHT (so the graph never becomes a v1-style suspicion-gate):\n\
-  \  - **(a) Regression of a debugged path → BLOCK via the TEST** (the one sanctioned\
-  \ V2 gate: tests green =\n    commit). A stabilized path is captured as a test (scenario\
-  \ path + the cited specs' negative checks =\n    oracle); later work that breaks\
-  \ it FAILS the suite. The scenario↔test binding makes a stabilized\n    path un-silently-breakable.\
-  \ (This obligation is unchanged by retirement of the `live`\n    STATUS — the test\
-  \ still gates regressions; it no longer feeds a status.) (Runs inside the existing\
-  \ Tests stage.)\n    **The §5 test anchor IS this obligation's producer :** \"a\
-  \ stabilized path is captured as\n    a test\" is met by naming that test on the\
-  \ step's `covers`, so the step↔proof binding is written\n    down and graph-resolved\
-  \ rather than remembered.\n\n    **A RED bound test NAMES ITS STEP (report-only).**\
-  \ When a test that a STEP names in\n    `covers` fails at the Tests stage (`task\
-  \ test --run`) or at the land verify, the failure report\n    carries one derived\
-  \ line per such test — `FAILS the proof of <scenario>#<step> — <anchor>` —\n   \
-  \ resolved from the scenario files at print time (`bin/lib/scenario.py#scenario_step_proof_lines`).\n\
-  \    Bound = a TEST anchor (`tests/<file>#<fn>` / `<file>.test.jsx#<it label>`,\
-  \ the binding shape of\n    plan scenarios-as-executable-specs-bind-scenario-steps-)\
-  \ that a numbered `**<step>**` line names\n    in backticks; a production anchor\
-  \ or an anchor no step annotates is no proof and prints nothing.\n    Identity is\
-  \ per failure RECORD of the runner output (file + symbol on the same record), never\n\
-  \    correlated across lines. It is a VIEW: no store, no scenario status (rule 3\
-  \ — `live` stays\n    retired), no change to which tests run, no gate change — the\
-  \ test already fails the run; nothing\n    checks a scenario on a schedule (SPEC-0142).\n\
-  \  - **(b) Broken REFERENCE → HARD ERROR, deterministic, SCOPED — FACT-only, not\
-  \ a legality validator\n    (audit F2)** — a scenario whose `covers`/`cites` target\
-  \ does NOT RESOLVE (a dangling anchor: the\n    referenced state/transition symbol\
-  \ or spec does not exist) fails like a broken reference / type\n    error (zero\
-  \ false-positive). The check is the FACT of non-resolution ONLY. It does **NOT**\
-  \ judge\n    transition LEGALITY (\"the FSM forbids this transition\") — that is\
-  \ semantic validation, which\n    contradicts \"graph is not a validation layer\"\
-  \ (GRAPH §What graph is NOT) and would re-open v1-style\n    gate creep; legality\
-  \ is left to TESTS or a read-only view, UNLESS a separate normative spec later\n\
-  \    supplies a machine-checkable legality model. **Scoped to scenarios that declare\
-  \ concrete anchors**\n    (`building`); exploratory/pre-binding `draft` stays OUTSIDE.\
-  \ (At scenario/FSM-spec write-time.)\n  - **(c) Staleness / \"zone touched\" → read-only\
-  \ WARN** — the graph sees only STRUCTURAL overlap (\"you\n    touched a spec scenario\
-  \ X cites\"), not actual breakage, so it points at what to re-verify; the TEST\n\
-  \    (a) decides. TWO DISTINCT LENSES, each keyed on its own question (X-1077 —\
-  \ keying both on\n    the TASK's cites made the staleness label name a defect it\
-  \ did not detect):\n    the IMPACT lens keys on the TASK's `cites` (\"you are about\
-  \ to edit a spec these user-paths pass\n    through — re-verify them\") and is delivered\
-  \ at Analysis; the STALENESS lens keys on the SCENARIO's\n    OWN `cites` — a scenario\
-  \ citing a spec that is no longer `active`, exactly the §7(2) signal — and is\n\
-  \    TASK-INDEPENDENT: a stale file is named whether or not the task in hand cites\
-  \ it, and a re-pointed\n    one stops being named.\n  **The STALENESS lens carries\
-  \ a SECOND key at Audit-post + Closure — the BOUND TEST :** when\n  the task's diff\
-  \ CHANGES a test anchor a scenario step names in `covers` (a test anchor named ADDITIVELY\
-  \ beside the step's production anchor — the §5 binding —\n  `tests/<file>#<fn|label>`\
-  \ — the symbol's own region, or the whole file for a path-only anchor), the\n  lens\
-  \ names `<scenario>#<step>`: the step's PROOF changed, so the step text must be\
-  \ re-read — update\n  the scenario or state why not. Keyed on the TEST anchor ONLY,\
-  \ never the production anchor: the trial\n  (plan scenarios-as-executable-specs-bind-scenario-steps-\
-  \ Run 3) measured a production-anchor key at\n  163/205 = 79.5% of UI tasks — noise\
-  \ that would be ignored within a week. A changed bound test is rare\n  and always\
-  \ meaningful. Derived from the graph + the diff each time; read-only WARN, no gate,\
-  \ no store.\n**Selecting the bound tests for a diff is the TEST-granularity sibling\
-  \ of verify-layer\n`subject_globs` (SPEC-0152 rule 16), not a new mechanism.** `subject_globs`\
-  \ already\nchooses what to run from the diff at LAYER granularity, at `land`; a\
-  \ scenario's `covers` offers the\nsame idea one level finer, during work: intersect\
-  \ the diff with the steps' production anchors, take\nthose steps' test anchors,\
-  \ and those node ids are the check. The selection is derived from the tree\neach\
-  \ time and changes nothing at `land` (layer skipping already does that). Execution\
-  \ is\nCONSUMER-LOCAL — each project invokes its own harness on the selected node\
-  \ ids (a compose stack in\none, a hermetic node-id run in another); the kernel owns\
-  \ only the anchor grammar (§5) and this\nselection rule, executes nothing, persists\
-  \ nothing, and derives no scenario state from the result\n(`live` stays retired,\
-  \ rule 3).\n**A THIRD lens, the CODE→SCENARIO direction — the UNCOVERED USER SURFACE\
-  \ :** the two lenses\nabove run spec→scenario; this one asks the inverse — \"this\
-  \ task touches a user surface NO scenario\ncovers\". When the project DECLARES its\
-  \ user surfaces (`ui.surfaces:` path prefixes, SPEC-0093 rule 29\n— absent = silent,\
-  \ never a guess), a task whose paths touch a non-test file under a prefix that no\n\
-  non-retired scenario's `covers` names gets ONE line per surface: `diff touches <surface>\
-  \ no scenario\ncovers (<files>) → author one (scenario new) or state why not`. Delivered\
-  \ at Analysis (claim + `stage\nAnalysis`) from the SAME touch forecast audit-pre\
-  \ reads (`expected_touch` ∪ the plan's path tokens).\nIt is NOT delivered at Closure:\
-  \ that leg (the same line, off the task's real recorded diff) was\nRETIRED by on\
-  \ a measured reading — AC4 («does the Closure line make people author\nscenarios?»)\
-  \ was settled FALSIFIED on 2026-10-03: the line printed at Closure in at least 33\
-  \ real\nconsumer sessions (2026-09-28..10-03) and none authored a covering scenario\
-  \ or recorded why not\n(owner decision `events.jsonl#ts=`). Do not re-add a Closure\
-  \ print without a new\nreading. Report-only, same rule as (c): no gate at close\n\
-  or land, no store, no validator on the graph. It keys on the CREATE question only\
-  \ — a touched\nCOVERED file is not a key (the \"update\" reading fired on 79.5%\
-  \ of UI tasks). Its precision was\nmeasured before it shipped (strict false-positive\
-  \ rate 0.200 <project> / 0.144 <project>,\n`dev-utilities/uncovered-surface-precision-.md`)\
-  \ and owner-accepted. **Retires (P1 F3):** the\nmanual \"name the scenario you touched/created\"\
-  \ Worker-brief line — the lens now says it at the seam.\nIts standing count is the\
-  \ SPEC-0119 rule-43 debt row; both read one derivation.\n**Placed on EXISTING lifecycle\
-  \ stages, no new FSM state / gate / parallel lifecycle (B-0 bound):**\nAnalysis\
-  \ = impact-WARN, write-time = structural hard-error (b), Tests = regression-block\
-  \ (a),\nclaim + Analysis + Audit-post + Closure = staleness-WARN (c) — delivered\
-  \ EARLY as well as late,\nbecause a stale citation surfaced only after the editing\
-  \ is done is a finding nobody can act on in\nthe pass that raised it. At PLAN altitude\
-  \ the `draft→specs` / `accepted→decomposition`\ncoherence check is transition-VALIDATION\
+  \ every anchor it resolves or is refused (6b).\n    The anchor names the function,\
+  \ the label IN FULL as written in the test file, or the label's NAME —\n    its\
+  \ leading token up to its first colon (`hidesRows` for `test('hidesRows: every row\
+  \ …')`), unique in\n    its file. A NAME resolves only when EXACTLY ONE label in\
+  \ the file starts with `<name>:`; two or more\n    such labels refuse it, and so\
+  \ does none when no other form names it, each refusal naming the file\n    and the\
+  \ count. A symbol carrying a colon is never a NAME. A full label and a function\
+  \ resolve, as\n    before, by the FACT that the file carries them (another word\
+  \ of a label is still found by its text,\n    so writing the label in full or by\
+  \ its name is the author's part, not something the graph proves).\n    Binding a\
+  \ test is per-authored-step, never a coverage mandate (the audit-F3 line above holds).\n\
+  \n### 6. Enforcement split — BLOCK ON FACT, never on suspicion (3 mechanisms on\
+  \ EXISTING stages)\nA debugged user-path must not be silently broken by later development\
+  \ — but \"block\" is placed only where\nthe check can be RIGHT (so the graph never\
+  \ becomes a v1-style suspicion-gate):\n  - **(a) Regression of a debugged path →\
+  \ BLOCK via the TEST** (the one sanctioned V2 gate: tests green =\n    commit).\
+  \ A stabilized path is captured as a test (scenario path + the cited specs' negative\
+  \ checks =\n    oracle); later work that breaks it FAILS the suite. The scenario↔test\
+  \ binding makes a stabilized\n    path un-silently-breakable. (This obligation is\
+  \ unchanged by retirement of the `live`\n    STATUS — the test still gates regressions;\
+  \ it no longer feeds a status.) (Runs inside the existing Tests stage.)\n    **The\
+  \ §5 test anchor IS this obligation's producer :** \"a stabilized path is captured\
+  \ as\n    a test\" is met by naming that test on the step's `covers`, so the step↔proof\
+  \ binding is written\n    down and graph-resolved rather than remembered.\n\n  \
+  \  **A RED bound test NAMES ITS STEP (report-only).** When a test that a STEP names\
+  \ in\n    `covers` fails at the Tests stage (`task test --run`) or at the land verify,\
+  \ the failure report\n    carries one derived line per such test — `FAILS the proof\
+  \ of <scenario>#<step> — <anchor>` —\n    resolved from the scenario files at print\
+  \ time (`bin/lib/scenario.py#scenario_step_proof_lines`).\n    Bound = a TEST anchor\
+  \ (`tests/<file>#<fn>` / `<file>.test.jsx#<it label>`, the binding shape of\n  \
+  \  plan scenarios-as-executable-specs-bind-scenario-steps-) that a numbered `**<step>**`\
+  \ line names\n    in backticks; a production anchor or an anchor no step annotates\
+  \ is no proof and prints nothing.\n    Identity is per failure RECORD of the runner\
+  \ output (file + symbol on the same record), never\n    correlated across lines.\
+  \ It is a VIEW: no store, no scenario status (rule 3 — `live` stays\n    retired),\
+  \ no change to which tests run, no gate change — the test already fails the run;\
+  \ nothing\n    checks a scenario on a schedule (SPEC-0142).\n  - **(b) Broken REFERENCE\
+  \ → HARD ERROR, deterministic, SCOPED — FACT-only, not a legality validator\n  \
+  \  (audit F2)** — a scenario whose `covers`/`cites` target does NOT RESOLVE (a dangling\
+  \ anchor: the\n    referenced state/transition symbol or spec does not exist) fails\
+  \ like a broken reference / type\n    error (zero false-positive). The check is\
+  \ the FACT of non-resolution ONLY. It does **NOT** judge\n    transition LEGALITY\
+  \ (\"the FSM forbids this transition\") — that is semantic validation, which\n \
+  \   contradicts \"graph is not a validation layer\" (GRAPH §What graph is NOT) and\
+  \ would re-open v1-style\n    gate creep; legality is left to TESTS or a read-only\
+  \ view, UNLESS a separate normative spec later\n    supplies a machine-checkable\
+  \ legality model. **Scoped to scenarios that declare concrete anchors**\n    (`building`);\
+  \ exploratory/pre-binding `draft` stays OUTSIDE. (At scenario/FSM-spec write-time.)\n\
+  \  - **(c) Staleness / \"zone touched\" → read-only WARN** — the graph sees only\
+  \ STRUCTURAL overlap (\"you\n    touched a spec scenario X cites\"), not actual\
+  \ breakage, so it points at what to re-verify; the TEST\n    (a) decides. TWO DISTINCT\
+  \ LENSES, each keyed on its own question (X-1077 — keying both on\n    the TASK's\
+  \ cites made the staleness label name a defect it did not detect):\n    the IMPACT\
+  \ lens keys on the TASK's `cites` (\"you are about to edit a spec these user-paths\
+  \ pass\n    through — re-verify them\") and is delivered at Analysis; the STALENESS\
+  \ lens keys on the SCENARIO's\n    OWN `cites` — a scenario citing a spec that is\
+  \ no longer `active`, exactly the §7(2) signal — and is\n    TASK-INDEPENDENT: a\
+  \ stale file is named whether or not the task in hand cites it, and a re-pointed\n\
+  \    one stops being named.\n  **The STALENESS lens carries a SECOND key at Audit-post\
+  \ + Closure — the BOUND TEST :** when\n  the task's diff CHANGES a test anchor a\
+  \ scenario step names in `covers` (a test anchor named ADDITIVELY beside the step's\
+  \ production anchor — the §5 binding —\n  `tests/<file>#<fn|label>` — the symbol's\
+  \ own region, or the whole file for a path-only anchor), the\n  lens names `<scenario>#<step>`:\
+  \ the step's PROOF changed, so the step text must be re-read — update\n  the scenario\
+  \ or state why not. Keyed on the TEST anchor ONLY, never the production anchor:\
+  \ the trial\n  (plan scenarios-as-executable-specs-bind-scenario-steps- Run 3) measured\
+  \ a production-anchor key at\n  163/205 = 79.5% of UI tasks — noise that would be\
+  \ ignored within a week. A changed bound test is rare\n  and always meaningful.\
+  \ Derived from the graph + the diff each time; read-only WARN, no gate, no store.\n\
+  **Selecting the bound tests for a diff is the TEST-granularity sibling of verify-layer\n\
+  `subject_globs` (SPEC-0152 rule 16), not a new mechanism.** `subject_globs` already\n\
+  chooses what to run from the diff at LAYER granularity, at `land`; a scenario's\
+  \ `covers` offers the\nsame idea one level finer, during work: intersect the diff\
+  \ with the steps' production anchors, take\nthose steps' test anchors, and those\
+  \ node ids are the check. The selection is derived from the tree\neach time and\
+  \ changes nothing at `land` (layer skipping already does that). Execution is\nCONSUMER-LOCAL\
+  \ — each project invokes its own harness on the selected node ids (a compose stack\
+  \ in\none, a hermetic node-id run in another); the kernel owns only the anchor grammar\
+  \ (§5) and this\nselection rule, executes nothing, persists nothing, and derives\
+  \ no scenario state from the result\n(`live` stays retired, rule 3).\n**A THIRD\
+  \ lens, the CODE→SCENARIO direction — the UNCOVERED USER SURFACE :** the two lenses\n\
+  above run spec→scenario; this one asks the inverse — \"this task touches a user\
+  \ surface NO scenario\ncovers\". When the project DECLARES its user surfaces (`ui.surfaces:`\
+  \ path prefixes, SPEC-0093 rule 29\n— absent = silent, never a guess), a task whose\
+  \ paths touch a non-test file under a prefix that no\nnon-retired scenario's `covers`\
+  \ names gets ONE line per surface: `diff touches <surface> no scenario\ncovers (<files>)\
+  \ → author one (scenario new) or state why not`. Delivered at Analysis (claim +\
+  \ `stage\nAnalysis`) from the SAME touch forecast audit-pre reads (`expected_touch`\
+  \ ∪ the plan's path tokens).\nIt is NOT delivered at Closure: that leg (the same\
+  \ line, off the task's real recorded diff) was\nRETIRED by on a measured reading\
+  \ — AC4 («does the Closure line make people author\nscenarios?») was settled FALSIFIED\
+  \ on 2026-10-03: the line printed at Closure in at least 33 real\nconsumer sessions\
+  \ (2026-09-28..10-03) and none authored a covering scenario or recorded why not\n\
+  (owner decision `events.jsonl#ts=`). Do not re-add a Closure print without a new\n\
+  reading. Report-only, same rule as (c): no gate at close\nor land, no store, no\
+  \ validator on the graph. It keys on the CREATE question only — a touched\nCOVERED\
+  \ file is not a key (the \"update\" reading fired on 79.5% of UI tasks). Its precision\
+  \ was\nmeasured before it shipped (strict false-positive rate 0.200 <project> /\
+  \ 0.144 <project>,\n`dev-utilities/uncovered-surface-precision-.md`) and owner-accepted.\
+  \ **Retires (P1 F3):** the\nmanual \"name the scenario you touched/created\" Worker-brief\
+  \ line — the lens now says it at the seam.\nIts standing count is the SPEC-0119\
+  \ rule-43 debt row; both read one derivation.\n**Placed on EXISTING lifecycle stages,\
+  \ no new FSM state / gate / parallel lifecycle (B-0 bound):**\nAnalysis = impact-WARN,\
+  \ write-time = structural hard-error (b), Tests = regression-block (a),\nclaim +\
+  \ Analysis + Audit-post + Closure = staleness-WARN (c) — delivered EARLY as well\
+  \ as late,\nbecause a stale citation surfaced only after the editing is done is\
+  \ a finding nobody can act on in\nthe pass that raised it. At PLAN altitude the\
+  \ `draft→specs` / `accepted→decomposition`\ncoherence check is transition-VALIDATION\
   \ folded into the existing `plan stage` transition — NOT a new\nverb/review-loop/approval\
   \ gate.\n\n### 7. Drift-resistance (the design is sound only if all three hold)\n\
   A scenario is drift-RESISTANT iff: (1) zero-normatives (rule 2) — it restates no\

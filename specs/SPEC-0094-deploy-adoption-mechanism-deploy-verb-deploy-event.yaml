@@ -322,64 +322,65 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ and never merged with\nthe probe or waiver sets — the two ask for different remedies,\
   \ an authoring fix versus reading a real\nfinding — and, like every terminal here,\
   \ it NEVER satisfies CHARTER §Principle 8 adoption evidence.\nNOT A THIRD EXIT :\
-  \ an unsettled observation on a `wont-do` card that recorded no `commit`\nis not\
-  \ discharged — nothing, so it was never owed — and the lens reports it on its own\n\
-  counted set (`wont_do_observations`) instead of in `observations`. Rule home: SPEC-0119\
-  \ rule 3.\n\nTHE SETTLED DISCHARGE — `settled_by` (X-0575). A `recheck_by` date\
-  \ says \"still owed\". It has\nno counterpart saying \"PAID\", so a waiver whose\
-  \ debt was genuinely discharged by a REAL non-GET probe\n(docker-exec import, prod\
-  \ SQL invariant, served-bundle marker, live-container differential) could leave\n\
-  the overdue-recheck lens only by being RE-DATED as if still owed, or by the dishonest\
-  \ `user_facing:\nfalse`. Disposing 26 probed items on <project> forced the re-date\
-  \ work-around on every one — the\nhonesty floor turned into a lie generator. So\
-  \ a waiver MAY carry `settled_by: {evidence, probed_at,\nmethod}`; a grammar-VALID\
-  \ one discharges the debt and drops the `recheck_by` requirement, and the\noverdue\
-  \ lens skips it. THE EVIDENCE IS NAMED, NEVER ASSERTED — a free-text \"we checked\"\
-  \ would reproduce\nthe defect in a new spelling: `evidence` MUST be the MATERIALIZED-JOURNAL\
-  \ locator of the probe run\nitself (`events.jsonl#ts=<ISO-instant>` or `events.jsonl#source_ref=<ref>`\
-  \ — the citation form\nalready mandated for a load-bearing rationale, REUSED, not\
-  \ a new address space). A bare `T-NNNN` or a\ncommit sha is REJECTED: it names WORK,\
-  \ never the probe RUN. `probed_at` is an ISO date (WHEN), `method`\nnon-empty text\
-  \ (HOW). TWO-SEAM ENFORCEMENT, because a syntactically valid locator is still an\
-  \ assertion\nuntil it resolves: the GRAMMAR half is pure and runs wherever the declaration\
-  \ is validated (so the\nclose-gate declaration check stays STATIC, carrying no host\
-  \ deps), while RESOLUTION runs AT THE\nCLOSE-GATE, which already reads the journal\
-  \ — it refuses a locator resolving to NO event, and refuses\none resolving to an\
-  \ event that is not PROBE EVIDENCE (`live_probe_passed` /\n`security_live_probe_passed`\
-  \ / `live_trigger_evidence` / `consumer_read_evidence`; resolving to an\nARBITRARY\
-  \ event would let any waiver settle against any journal line). The fold is cross-instance\n\
-  (worktree UNION main, SPEC-0168 rule 7), so an evidence line emitted from the main\
-  \ checkout still\nresolves. `task close` is the ONLY door into the landed corpus\
-  \ the overdue lens reads, so an\nunresolvable settle can never reach main — which\
-  \ is why the lens itself stays read-time and PURE. An\nABSENT `settled_by` leaves\
-  \ the fail-closed `recheck_by` floor above byte-for-byte unchanged; a\nMALFORMED\
-  \ one is a grammar ERROR, never a silent settle.\n\nTHE TWO HONEST TERMINALS — `settled_by:\
-  \ {result, reason}` (X-1163). `settled_by` above is\nDISCHARGE-BY-PROOF, and <project>\
-  \ MEASURED (2026-08-27) that this is not always reachable:\nof twenty overdue waivers\
-  \ drained in one authenticated reading of prod, sixteen settled cleanly and\nFOUR\
-  \ could not, STRUCTURALLY — a differential needing a WRITE against production (an\
-  \ outbound letter\nno URL returns; two concurrent POSTs to a real operator's article;\
-  \ a real invitation minted), or data\nthat does not exist on prod (an article carrying\
-  \ both a nine-digit series and a drawn Y axis). For\nthose, the only remaining exits\
-  \ were the two this section calls dishonest — re-dating forever, or\n`user_facing:\
-  \ false`. So a waiver MAY INSTEAD carry `settled_by: {result, reason}` where `result`\
-  \ is\none of the CLOSED vocabulary **`unreachable`** (a proof that can NEVER arrive)\
-  \ or **`falsified`** (a\nreading that ARRIVED and came back negative), and `reason`\
-  \ is MANDATORY non-empty free text — the\nreason IS the record, and an empty one\
-  \ discharges the debt while saying nothing, so it is refused\nbefore any write.\
-  \ THE SAME SHAPE AND BOUNDS SETTLED for the acceptance-probe carrier, one\nlevel\
-  \ up, and deliberately not a second dialect. THE TWO SHAPES ARE MUTUALLY EXCLUSIVE:\
-  \ a discharge\ncarrying BOTH a terminal and any proof key (`evidence`/`probed_at`/`method`)\
-  \ is a grammar ERROR —\nit cannot at once name the run that proved the debt and\
-  \ record that no such run can exist. A terminal\nnames no locator, so the RESOLUTION\
-  \ seam above does not apply to it (there is no run to resolve).\nWHAT A TERMINAL\
-  \ DOES AND DOES NOT BUY: it leaves the ACTIONABLE overdue-recheck set and lands\
-  \ in its\nOWN counted set on that lens (`unreachable_waivers` / `falsified_waivers`\
-  \ — two sets, never merged,\nnever folded into the actionable count), reported as\
-  \ a PERMANENT FLOOR rather than as a backlog; and\nit NEVER satisfies CHARTER §Principle\
-  \ 8 adoption evidence — least of all `falsified`, which records\nthat the adoption\
-  \ reading came back NEGATIVE and is the OPPOSITE of adoption evidence, not a weaker\n\
-  form of it. That bound holds BY CONSTRUCTION: the P8 readers read journal EVIDENCE\
+  \ an unsettled observation on a `wont-do` card that never shipped is\nnot discharged\
+  \ — nothing, so it was never owed — and the lens reports it on its own\ncounted\
+  \ set (`wont_do_observations`) instead of in `observations`. What counts as, and\
+  \ the\nrule home: SPEC-0119 rule 3.\n\nTHE SETTLED DISCHARGE — `settled_by` (X-0575).\
+  \ A `recheck_by` date says \"still owed\". It has\nno counterpart saying \"PAID\"\
+  , so a waiver whose debt was genuinely discharged by a REAL non-GET probe\n(docker-exec\
+  \ import, prod SQL invariant, served-bundle marker, live-container differential)\
+  \ could leave\nthe overdue-recheck lens only by being RE-DATED as if still owed,\
+  \ or by the dishonest `user_facing:\nfalse`. Disposing 26 probed items on <project>\
+  \ forced the re-date work-around on every one — the\nhonesty floor turned into a\
+  \ lie generator. So a waiver MAY carry `settled_by: {evidence, probed_at,\nmethod}`;\
+  \ a grammar-VALID one discharges the debt and drops the `recheck_by` requirement,\
+  \ and the\noverdue lens skips it. THE EVIDENCE IS NAMED, NEVER ASSERTED — a free-text\
+  \ \"we checked\" would reproduce\nthe defect in a new spelling: `evidence` MUST\
+  \ be the MATERIALIZED-JOURNAL locator of the probe run\nitself (`events.jsonl#ts=<ISO-instant>`\
+  \ or `events.jsonl#source_ref=<ref>` — the citation form\nalready mandated for a\
+  \ load-bearing rationale, REUSED, not a new address space). A bare `T-NNNN` or a\n\
+  commit sha is REJECTED: it names WORK, never the probe RUN. `probed_at` is an ISO\
+  \ date (WHEN), `method`\nnon-empty text (HOW). TWO-SEAM ENFORCEMENT, because a syntactically\
+  \ valid locator is still an assertion\nuntil it resolves: the GRAMMAR half is pure\
+  \ and runs wherever the declaration is validated (so the\nclose-gate declaration\
+  \ check stays STATIC, carrying no host deps), while RESOLUTION runs AT THE\nCLOSE-GATE,\
+  \ which already reads the journal — it refuses a locator resolving to NO event,\
+  \ and refuses\none resolving to an event that is not PROBE EVIDENCE (`live_probe_passed`\
+  \ /\n`security_live_probe_passed` / `live_trigger_evidence` / `consumer_read_evidence`;\
+  \ resolving to an\nARBITRARY event would let any waiver settle against any journal\
+  \ line). The fold is cross-instance\n(worktree UNION main, SPEC-0168 rule 7), so\
+  \ an evidence line emitted from the main checkout still\nresolves. `task close`\
+  \ is the ONLY door into the landed corpus the overdue lens reads, so an\nunresolvable\
+  \ settle can never reach main — which is why the lens itself stays read-time and\
+  \ PURE. An\nABSENT `settled_by` leaves the fail-closed `recheck_by` floor above\
+  \ byte-for-byte unchanged; a\nMALFORMED one is a grammar ERROR, never a silent settle.\n\
+  \nTHE TWO HONEST TERMINALS — `settled_by: {result, reason}` (X-1163). `settled_by`\
+  \ above is\nDISCHARGE-BY-PROOF, and <project> MEASURED (2026-08-27) that this is\
+  \ not always reachable:\nof twenty overdue waivers drained in one authenticated\
+  \ reading of prod, sixteen settled cleanly and\nFOUR could not, STRUCTURALLY — a\
+  \ differential needing a WRITE against production (an outbound letter\nno URL returns;\
+  \ two concurrent POSTs to a real operator's article; a real invitation minted),\
+  \ or data\nthat does not exist on prod (an article carrying both a nine-digit series\
+  \ and a drawn Y axis). For\nthose, the only remaining exits were the two this section\
+  \ calls dishonest — re-dating forever, or\n`user_facing: false`. So a waiver MAY\
+  \ INSTEAD carry `settled_by: {result, reason}` where `result` is\none of the CLOSED\
+  \ vocabulary **`unreachable`** (a proof that can NEVER arrive) or **`falsified`**\
+  \ (a\nreading that ARRIVED and came back negative), and `reason` is MANDATORY non-empty\
+  \ free text — the\nreason IS the record, and an empty one discharges the debt while\
+  \ saying nothing, so it is refused\nbefore any write. THE SAME SHAPE AND BOUNDS\
+  \ SETTLED for the acceptance-probe carrier, one\nlevel up, and deliberately not\
+  \ a second dialect. THE TWO SHAPES ARE MUTUALLY EXCLUSIVE: a discharge\ncarrying\
+  \ BOTH a terminal and any proof key (`evidence`/`probed_at`/`method`) is a grammar\
+  \ ERROR —\nit cannot at once name the run that proved the debt and record that no\
+  \ such run can exist. A terminal\nnames no locator, so the RESOLUTION seam above\
+  \ does not apply to it (there is no run to resolve).\nWHAT A TERMINAL DOES AND DOES\
+  \ NOT BUY: it leaves the ACTIONABLE overdue-recheck set and lands in its\nOWN counted\
+  \ set on that lens (`unreachable_waivers` / `falsified_waivers` — two sets, never\
+  \ merged,\nnever folded into the actionable count), reported as a PERMANENT FLOOR\
+  \ rather than as a backlog; and\nit NEVER satisfies CHARTER §Principle 8 adoption\
+  \ evidence — least of all `falsified`, which records\nthat the adoption reading\
+  \ came back NEGATIVE and is the OPPOSITE of adoption evidence, not a weaker\nform\
+  \ of it. That bound holds BY CONSTRUCTION: the P8 readers read journal EVIDENCE\
   \ EVENTS, and a\nterminal discharge writes none. AUTHORED BY VERB, never by hand-editing\
   \ governed YAML:\n`task update --live-probe-settled-terminal/--live-probe-settled-reason`\
   \ before closure, and\n`task close --settle-live-probe-terminal/--settle-live-probe-reason`\
@@ -1083,12 +1084,12 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 214e64890574e647821ef7914f9508c3e322a810a5c609d9ecb5ca25b444539c
+  bin/lib/audit.py#cmd_audit: f3aef2d80ca649b235c78f1727f1ff89e2749cc741b559fa089c1bb8e2d0abf1
   bin/lib/deploy.py#_DeployRunRecorder: 370e1ba4033f77976123749c917c7fc75e9107b96d85c4d8782b68300460eea5
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
   bin/lib/deploy.py#_resolve_rollback_target: 783479b12cb944fb6d24607a4fe5ebd926ee6e75d00a8732eedeed345a51e22b
-  bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
+  bin/lib/deploy.py#cmd_deploy: 5fce274590e43905fedd9395366baa8a69b00f37cd5b13b082646bf6312cd997
   bin/lib/deploy.py#is_production_live_record: d1d46285eb3e2f980f40a5b941ea0a9448a6408e7f83e19ef2b464c6c6229142
   bin/lib/live_probe.py#cmd_live_probe: e63237018f5d25654b86ff07dc741d8cbae85eb164d30077d30a3c5b932c4ef4
   bin/lib/task.py#_all_touched_non_runtime_surface: dd0302b43fedfff3b4325000a9c7a59b52e41d0c991ffed0e2488f284eedd2f9
@@ -1104,4 +1105,4 @@ implements_signature:
   bin/lib/task_closure_evidence.py#_live_probe_attested_result: d0752d82e0279b41b97d79698b0a141036e26a3d981bd298f0b2c8f1446cb230
   bin/lib/task_closure_evidence.py#_live_probe_declaration_error: 0bbe24cfd0f1c6ffa2064dcf6be52d4956c3153a819e92ca7eac036bba78860e
   bin/lib/views.py#_view_not_adopted: 309f72c535e94584a639d1a99b8be920d295dc856f7873a7f79a8291e3c290e1
-  bin/lib/views.py#_view_overdue_recheck: 4ccd037979d67ecc954da4175ae11a25be4cb8b948402ed673d35484cba97c5b
+  bin/lib/views.py#_view_overdue_recheck: 39aab692b25f44dd3ea0e71810804dd3c88cb52af69800c6b6dbe643f19a02d9

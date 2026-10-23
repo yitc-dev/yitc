@@ -603,7 +603,7 @@ implements_signature:
   bin/lib/worktree.py#_pid_alive: b15b2c77d8df2bd8662d2a19968e91bc9356d09d5ae14dbbbdfbb12c8afdb42d
   bin/lib/worktree.py#_resolve_dispatch_worker_pid: 7990d2a7b6b7404cf41c6a82b56e8da2c1d61994cd58db36dab0bf1318bcf28f
   bin/lib/worktree.py#_resolve_dispatch_worker_row: 2d95f2a3e13271e653fe914f94edfc797109a21de942388a77d100a28f9fc850
-  bin/lib/worktree.py#_resolve_held_turn_claim: b869b1a03c17394be0c1b2d37242f9b40366bff4bf347c8a513c1a95e27a0c56
+  bin/lib/worktree.py#_resolve_held_turn_claim: 2845f79e27192016bf301ba288e4139d222829b32eb1d065155736ee077655a1
   bin/lib/worktree.py#_start_detached_worker_land: 45118db878f31f68137d4650eff65a344f5839bbda8079e4eca299290a2e200a
   bin/lib/worktree.py#_worker_start_detach_decision: ef7ce322f125c363ad2292b34f51ce94ee4ab33690602ae05eed063218e7dc1c
-  bin/lib/worktree.py#cmd_land: 7f758fab8b85715bc9e10e5993bd757b5cabdd44b6f55ea05840759e726d011d
+  bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c

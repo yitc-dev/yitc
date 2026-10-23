@@ -284,6 +284,82 @@ def _proc_ppid(pid) -> "int | None":
     return int(m.group(1)) if m else None
 
 
+# T-14045 — the git subcommands whose detached run outlives the git call that started it
+# (`git gc --auto` daemonizes onto init) and whose children (`git repack`, `git pack-objects`, ...)
+# are found through their ancestry.
+GIT_MAINTENANCE_SUBCOMMANDS = ("gc", "maintenance", "repack")
+# git's global options that take a separate value (`git -C <dir> gc`), skipped to reach the subcommand.
+_GIT_VALUE_OPTIONS = ("-C", "-c", "--git-dir", "--work-tree", "--namespace")
+
+
+def _proc_cmdline(pid) -> "list | None":
+    """`/proc/<pid>/cmdline` as an argv list, or None when unreadable (a raced / foreign entry)."""
+    try:
+        raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+    except OSError:
+        return None
+    return [a.decode("utf-8", errors="replace") for a in raw.split(b"\0")[:-1]] if raw else []
+
+
+def _proc_exe_name(pid) -> "str | None":
+    """Basename of the `/proc/<pid>/exe` link, or None when unreadable."""
+    try:
+        return Path(os.readlink(f"/proc/{pid}/exe")).name
+    except OSError:
+        return None
+
+
+def _is_git_maintenance_argv(argv) -> bool:
+    """Is `argv` a `git` invocation whose subcommand is one of GIT_MAINTENANCE_SUBCOMMANDS?"""
+    if not argv or Path(argv[0]).name != "git":
+        return False
+    i = 1
+    while i < len(argv):
+        a = argv[i]
+        if a in _GIT_VALUE_OPTIONS:
+            i += 2
+            continue
+        if a.startswith("-"):
+            i += 1
+            continue
+        return a in GIT_MAINTENANCE_SUBCOMMANDS
+    return False
+
+
+def _git_maintenance_holders(holders: list, *, _read_cmdline=None, _read_ppid=None,
+                             _read_exe=None) -> "tuple[list, list]":
+    """T-14045 — split cwd holders into `(kept, ignored)`: ignored = git maintenance, not a worker.
+
+    THE INCIDENT (public intake #163): a worker stopped cleanly with `task pause --reason
+    controller-wait`, yet `dispatch --resume` was SKIPPED in-flight because an orphaned `git gc --auto`
+    — daemonized onto init by one of the worker's own git calls — still had the worktree as its cwd.
+
+    A holder is ignored when it, or a process on its PPid chain, is git maintenance: its EXECUTABLE is
+    `git` (the `/proc/<pid>/exe` link) AND its argv names a GIT_MAINTENANCE_SUBCOMMANDS subcommand. Both
+    facts, because argv alone is writable by any process — a worker whose argv merely looks like
+    `git gc` stays a holder. Every unreadable fact (cmdline, exe, a broken or looping PPid chain) keeps
+    the holder: this read only ever REMOVES a holder on positive evidence."""
+    read_cmdline = _read_cmdline or _proc_cmdline
+    read_ppid = _read_ppid or _proc_ppid
+    read_exe = _read_exe or _proc_exe_name
+
+    def _maint(pid) -> bool:
+        return read_exe(pid) == "git" and _is_git_maintenance_argv(read_cmdline(pid))
+
+    kept: list = []
+    ignored: list = []
+    for h in holders:
+        pid, seen, hit = int(h["pid"]), set(), False
+        while pid > 1 and pid not in seen and len(seen) < 64:
+            seen.add(pid)
+            if _maint(pid):
+                hit = True
+                break
+            pid = read_ppid(pid) or 0
+        (ignored if hit else kept).append(h)
+    return kept, ignored
+
+
 def _descends_from(pid: int, ancestor: int, parent: "dict[int, int]") -> bool:
     """True when `ancestor` is `pid` or on its chain in the `parent` SNAPSHOT (T-12830). A gap in the
     snapshot ends the walk as NOT-a-descendant — the fail-closed direction (the holder stays listed)."""
@@ -1669,7 +1745,9 @@ def _assert_no_live_holder(kind: str, wt, stamp, *, _append_event, _die, main_wt
     never happened, and this class was invisible for exactly that reason. Reused type, no new one."""
     stamp_ref = (stamp or {}).get("session_ref")
     live_session = bool(stamp_ref) and bool(_session_proc_alive(stamp_ref))
-    holders = _live_path_holders(wt)
+    # T-14045 — a detached git maintenance process (an orphaned `git gc --auto`) is not the holder: it
+    # neither refuses nor is reaped, so the resumed worker's `worktree adopt --confirm-dead` passes.
+    holders, _ = _git_maintenance_holders(_live_path_holders(wt))
     if not live_session and not holders:
         return
     # T-12375 — RESOLVE the holders before deciding, so both the refusal and the reap speak about the
@@ -2814,7 +2892,7 @@ def _census_uncovered_readers(repo_root, *, _load_census=None):
     return sorted(uncovered)
 
 
-def _land_preflight_census_lines(repo_root, *, _uncovered=None, _home_exists=None):
+def _land_preflight_census_lines(repo_root, *, _uncovered=None, _home_exists=None, _verdict_out=None):
     """The census-coverage phase's output lines — REPORT-ONLY, and that bound is the point.
 
     It NAMES an uncovered reader and refuses nothing: the pinned census gate at `land` is unchanged
@@ -2826,19 +2904,27 @@ def _land_preflight_census_lines(repo_root, *, _uncovered=None, _home_exists=Non
     phase that never ran are otherwise the same observable. The one silence that stays silent is
     NOT-APPLICABLE — a checkout with no census home has no such gate to be blocked on, so a line
     about it would be noise in every consumer.
+
+    T-14064 — `_verdict_out`, when a dict, receives the VERDICT beside the lines: `blocked` (uncovered
+    readers were found) and `measured` (the phase ran). The clean line and the SKIPPED line are each
+    one printed line, so a record built from `bool(lines)` journalled both as a blocker (T-13930).
     """
+    verdict = _verdict_out if isinstance(_verdict_out, dict) else {}
+    verdict.update(blocked=False, measured=True)
     uncovered = (_uncovered or _census_uncovered_readers)(repo_root)
     if uncovered is None:
         exists = ((Path(repo_root) / _CENSUS_HOME_RELPATH).exists() if _home_exists is None
                   else _home_exists(repo_root))
         if not exists:
             return []
+        verdict["measured"] = False
         return ["  census-coverage pre-flight: SKIPPED — not run at all, so this line is NOT a "
                 f"clean verdict: {_CENSUS_HOME_RELPATH} is present but could not be read here. "
                 "Treat this branch's census coverage as UNKNOWN and expect `land` to judge it."]
     if not uncovered:
         return ["  census-coverage pre-flight: RAN and found no journal reader outside the census "
                 "coverage lists — this branch is not currently blocked on the census gate."]
+    verdict["blocked"] = True
     lines = [f"  census-coverage pre-flight: {len(uncovered)} journal reader(s) enumerated by the "
              f"census that NO coverage list covers — the pinned gate ({_CENSUS_HOME_RELPATH}) will "
              f"RED on this at `land`. Cover each below (a driver in the matrix, or a recorded "
@@ -2923,7 +3009,7 @@ def modified_pinned_tests_hint(name_status_text, *, limit=3) -> "str | None":
         "where a branch breaks a pinned test without touching the test at all.")
     return "\n".join(out) + "\n"
 
-def _sync_supersession_ask_lines(W, branch, *, _run_git_cap) -> list:
+def _sync_supersession_ask_lines(W, branch, *, _run_git_cap, policy_root=None) -> list:
     """T-11801 — `worktree sync`'s FOURTH report-only phase: the PRE-FAILURE ASK.
 
     THE GAP IT CLOSES. Batch formation already EXCLUDES a branch that has DECLARED a rebaseline, and
@@ -2970,6 +3056,18 @@ def _sync_supersession_ask_lines(W, branch, *, _run_git_cap) -> list:
         if d.returncode != 0:
             return []
         notice = modified_pinned_tests_hint(d.stdout)
+        # T-14052 (SPEC-0186 rule 8) — under `pinned_last_green: never` there is no pinned leg to
+        # declare a rebaseline against, so there is nothing to ask. `policy_root` is the BASE tree
+        # (rule 4); the ONE carrier reader answers, and anything unresolved reads "all" (ask kept).
+        if notice and policy_root is not None:
+            try:
+                from lib import init as _init, task as _task
+                policy = _task._verify_policy_pinned_last_green(
+                    Path(policy_root), ops_contract=_init.CONSUMER_OPS_CONTRACT)
+            except Exception:  # noqa: BLE001 — unresolved ⇒ the leg runs, so the ask stays
+                policy = "all"
+            if policy == "never":
+                return []
     except Exception:      # noqa: BLE001 — advisory heuristic; never fatal to a sync
         return []
     return notice.rstrip("\n").splitlines() if notice else []
@@ -3056,7 +3154,8 @@ def _preflight_blocker_record(conflict_sink: "dict | None",
                              census_lines: "list[str] | None" = None,
                              supersession_lines: "list[str] | None" = None,
                              dirt_paths: "list[str] | None" = None,
-                             corpus_lines: "list[str] | None" = None) -> dict:
+                             corpus_lines: "list[str] | None" = None,
+                             census_verdict: "dict | None" = None) -> dict:
     """T-11697 — the pre-flight blocker set as DATA, for the `worktree_synced` payload.
 
     WHY IT EXISTS. The T-11313 pre-flight is PRINTS ONLY, so the blocker set the operator was shown
@@ -3107,16 +3206,24 @@ def _preflight_blocker_record(conflict_sink: "dict | None",
     None = not measured (the no-op arm runs no fold), `[]` = measured clean, non-empty = blocker.
     SIX PHASES (T-13322). `corpus_lines` is what `_sync_corpus_integrity_lines` returned — the
     corpus-integrity guards `land` rejects on. Same three states.
+    CENSUS VERDICT (T-14064). The census phase prints ONE line when it ran clean and ONE when it was
+    skipped, so `bool(census_lines)` journalled both as a blocker. A caller that hands the phase's
+    `_verdict_out` dict as `census_verdict` gets its `blocked` / `measured` instead; without it the
+    line-count rule stands, so a pure caller is unchanged.
     """
     measured = isinstance(conflict_sink, dict) and "unresolved" in conflict_sink
+    if isinstance(census_verdict, dict) and "measured" in census_verdict:
+        census_blocked, census_measured = bool(census_verdict.get("blocked")), bool(census_verdict["measured"])
+    else:
+        census_blocked, census_measured = bool(census_lines), census_lines is not None
     return {
         "conflicts": sorted((conflict_sink or {}).get("unresolved") or []),
         "conflicts_auto_resolvable": sorted((conflict_sink or {}).get("resolved") or []),
         "conflicts_measured": measured,
         "re_audit_required": bool(currency_lines),
         "re_audit_measured": currency_lines is not None,
-        "census_blocked": bool(census_lines),
-        "census_measured": census_lines is not None,
+        "census_blocked": census_blocked,
+        "census_measured": census_measured,
         "supersession_ask": bool(supersession_lines),
         "supersession_ask_measured": supersession_lines is not None,
         "dirt_blocked": bool(dirt_paths),
@@ -3414,8 +3521,53 @@ def _put_back_carried(W: Path, carry: dict, *, _run_git_cap) -> bool:
     return False
 
 
+def _resolve_carried_signature_conflicts(W: Path, carry: dict, unmerged, *, _run_git_cap,
+                                         _anchor_signature_of_text) -> "list | None":
+    """T-14065 — settle a carry-back conflict that is confined to spec `implements_signature:` blocks.
+
+    The `stash apply` stages are base = the pre-merge commit, ours = the merged HEAD (main's stamp),
+    theirs = the carried edit, so the keyed resolver of the committed-merge path
+    (`worktree.py#_merge_spec_signature_conflict`, T-10548) reads them exactly as it reads a merge's,
+    and its T-11291 seam re-derives a both-moved anchor against the merged working tree. Returns the
+    re-signed (spec, anchor) pairs once EVERY unmerged path is written back, or None — touching
+    nothing — when any path is not a spec record or the resolver cannot prove its class (fail-closed:
+    the caller's refusal stands). A resolved path keeps HEAD's index entry and its new text in the
+    working tree, i.e. an uncommitted unstaged change.
+
+    Only a carry with NOTHING staged is admitted: a conflicted `stash apply` stages the paths it
+    merged cleanly, and only when the carry held no staged version is "unstage every carried path"
+    the exact pre-sync shape; a carry with a staged version keeps the refusal."""
+    from lib import worktree as _wt   # lazy: the host module imports this one at load
+    if not unmerged or _anchor_signature_of_text is None or \
+            not all(_wt._is_spec_record(p) for p in unmerged):
+        return None
+    if _run_git_cap(["diff", "--quiet", carry["base"], carry["sha"] + "^2"], W).returncode != 0:
+        return None                          # something was staged (or unreadable): refuse
+    signer = _wt._merged_worktree_anchor_signer(
+        W, unmerged, _anchor_signature_of_text=_anchor_signature_of_text)
+    merged, resigned = {}, []
+    for rel in unmerged:
+        asked = []
+
+        def _sign(anchor, _asked=asked):
+            v = signer(anchor)
+            _asked.append(anchor)
+            return v
+        text = _wt._merge_spec_signature_conflict(rel, W, _run_git_cap=_run_git_cap,
+                                                  _merged_anchor_signature=_sign)
+        if text is None:
+            return None
+        merged[rel] = text
+        resigned += [(rel, a) for a in sorted(asked)]
+    for rel, text in merged.items():
+        (Path(W) / rel).write_text(text, encoding="utf-8")
+    if _run_git_cap(["reset", "-q", "--", *carry["paths"]], W).returncode != 0:
+        return None
+    return resigned
+
+
 def _carry_back_local_changes(W: Path, carry: dict, label: str, *, _run_git_cap, _die,
-                              _carried_out: dict) -> None:
+                              _carried_out: dict, _anchor_signature_of_text=None) -> None:
     """T-13642 — re-apply the carried changes on top of the completed merge.
 
     Every apply here and in `_put_back_carried` is `stash apply --index`, so a path whose staged
@@ -3423,7 +3575,8 @@ def _carry_back_local_changes(W: Path, carry: dict, label: str, *, _run_git_cap,
     Clean → the paths go into `_carried_out` and the carry ref is deleted. Conflict with what main
     brought → the merge is undone (`reset --hard` to `carry["base"]`; main is untouched and the
     branch is back where the merge found it), the changes are re-applied there, the carry ref is KEPT as the
-    recovery copy, and the sync refuses with `merge-uncommitted-changes-conflict`."""
+    recovery copy, and the sync refuses with `merge-uncommitted-changes-conflict` — unless the
+    conflict is confined to spec signature blocks (`_resolve_carried_signature_conflicts`, T-14065)."""
     from lib import textutil as _textutil   # lazy, as this module's other textutil use
     ap = _run_git_cap(["stash", "apply", "--index", carry["sha"]], W)
     unmerged = sorted(q for q in (_textutil.git_unquote_path(ln).strip() for ln in
@@ -3432,6 +3585,16 @@ def _carry_back_local_changes(W: Path, carry: dict, label: str, *, _run_git_cap,
     if ap.returncode == 0 and not unmerged:
         _carried_out["paths"] = carry["paths"]
         _run_git_cap(["update-ref", "-d", carry["ref"]], W)
+        return
+    # T-14065 — a conflict confined to spec signature blocks is settled by the keyed resolver.
+    resigned = _resolve_carried_signature_conflicts(
+        W, carry, unmerged, _run_git_cap=_run_git_cap, _anchor_signature_of_text=_anchor_signature_of_text)
+    if resigned is not None:
+        _carried_out["paths"] = carry["paths"]
+        _run_git_cap(["update-ref", "-d", carry["ref"]], W)
+        for spec, anchor in resigned:
+            print(f"yitc-v2: {label}: re-signed {anchor} in {spec} against the merged tree "
+                  f"(your uncommitted re-sign and main's both moved it).")
         return
     rs = _run_git_cap(["reset", "-q", "--hard", carry["base"]], W)
     back = rs.returncode == 0 and _run_git_cap(["stash", "apply", "--index", carry["sha"]],
@@ -3456,7 +3619,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                       _classify_inert_paths=None, EVENTS_PATH=None,
                       _anchor_signature_of_text=None, _fold_trailing_bookkeeping=None, _land_preflight_conflict_lines=None, _land_preflight_currency_lines=None, _update_from_main=None,
                       _main_checkout_state_note=None, _no_main_worktree_detail=None,
-                      _foreign_worktree_refusal=None, _corpus_integrity_verdict=None) -> None:
+                      _foreign_worktree_refusal=None, _corpus_integrity_verdict=None,
+                      _consumer_zero_probe_guard=None) -> None:
     """`worktree sync (--task T-XXXX | --work <slug>)` — bring a writing worktree UP TO DATE with
     `main` IN PLACE, and stop there (T-10821, resolving X-0681).
 
@@ -3563,6 +3727,45 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         j = W / "events.jsonl"
         return j if j.exists() else fallback
 
+    def _currency_phase(W: "Path", main_sha: str):
+        """T-14064 — the audit-currency phase for BOTH arms, so both say which silence they are.
+
+        T-11349 gave the no-op arm a verdict line for the two silences — measured-and-clean, and never
+        ran — while the merging arm printed only the lines the phase returned, so after a real merge a
+        clean phase and a skipped one were the same nothing (T-13926, T-14005). One body, one wording.
+        Returns `cur_lines`: None = SKIPPED or could not answer (journals `re_audit_measured: false`,
+        T-11697), [] = ran and clean, non-empty = blocker. A PRINT only — the gate computes exactly
+        what it computed before, and `land` is untouched.
+        """
+        if _classify_inert_paths is None or EVENTS_PATH is None:
+            print("  audit-currency pre-flight: SKIPPED — not run at all, so this line is NOT a "
+                  "clean verdict: the phase's injected helpers are unavailable in this process. "
+                  "Treat the branch's audit currency as UNKNOWN and expect `land` to judge it.")
+            return None
+        # T-12020 (X-1242) — measure against the main tip this worktree ACTUALLY merged, NOT the
+        # `main_sha` snapshot taken at entry: the merge takes the LIVE `main` ref, so a sibling land
+        # inside the window leaves the snapshot stale and every path the newer main imported reads as
+        # this branch's own unaudited content. On the no-op arm this is provably `main_sha`; it is
+        # derived anyway so ONE rule states the base for both arms. See `_merged_main_tip`.
+        cur_base = _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap)
+        unanswered: dict = {}                  # T-13149 — filled only when a step RAISED
+        cur_lines = _land_preflight_currency_lines(
+            W, branch, cur_base, _run_git_cap=_run_git_cap,
+            EVENTS_PATH=_branch_journal(W, EVENTS_PATH),
+            _classify_inert_paths=_classify_inert_paths,
+            _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+            _anchor_signature_of_text=_anchor_signature_of_text,
+            _unanswered_out=unanswered)
+        for ln in cur_lines:
+            print(ln)
+        if unanswered:
+            return _currency_unanswered(unanswered)
+        if not cur_lines:
+            print("  audit-currency pre-flight: RAN and reported no blocker (SPEC-0077 §3a "
+                  "audited-diff currency, measured against main "
+                  f"{cur_base[:12]}) — this branch is not currently blocked on a re-audit.")
+        return cur_lines
+
     W = _worktree_path_for_branch(branch)
     if W is None:
         _die(f"worktree sync: no linked worktree found on branch {branch!r} — nothing to sync. "
@@ -3610,6 +3813,51 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     if head_branch != branch:
         _die(f"worktree sync: worktree {W} is on {head_branch or 'a detached HEAD'!r}, not {branch!r} — "
              f"refusing to sync a worktree that is not on the branch you named.")
+
+    # ── T-14101 — `--from <branch>`: merge ANOTHER task/work branch instead of main ────────────────
+    # The same steps as the main sync below (fold the dirty journal, union-merge, carry, auto-resolve),
+    # merging a captured sha of the named branch. Validated here, before anything is changed, so every
+    # refusal leaves the worktree exactly as found.
+    from_branch = getattr(args, "from_branch", None)
+    from_sha = None
+    if from_branch is not None:
+        if getattr(args, "resolved", False):
+            _die("worktree sync: --from and --resolved do not combine — `--resolved` finishes the merge "
+                 "already in progress, whichever branch it came from. Run `yitc-v2 worktree sync "
+                 "--resolved` without --from.")
+        if from_branch == "main":
+            _die(f"worktree sync --from main: a plain sync merges main — run `yitc-v2 worktree sync "
+                 f"{('--task ' + task) if task else ('--work ' + str(work))}` (drop --from).")
+        if not re.fullmatch(r"task/T-\d{4,}|work/[A-Za-z0-9][A-Za-z0-9._-]*", from_branch):
+            _die(f"worktree sync --from: {from_branch!r} is not a task/T-NNNN or work/<slug> branch name. "
+                 f"List the local ones with `git branch --list 'task/*' 'work/*'`.")
+        if from_branch == branch:
+            _die(f"worktree sync --from: {from_branch!r} is this worktree's own branch — nothing to merge. "
+                 f"Name the sibling branch, as listed by `git branch --list 'task/*' 'work/*'`.")
+        rv = _run_git_cap(["rev-parse", "--verify", "-q", f"refs/heads/{from_branch}^{{commit}}"], W)
+        from_sha = rv.stdout.strip() if rv.returncode == 0 else ""
+        if not from_sha:
+            _die(f"worktree sync --from: no local branch {from_branch!r} — nothing was changed. List the "
+                 f"local ones with `git branch --list 'task/*' 'work/*'`.")
+
+    def _dedup_journal_commit(what: str) -> int:
+        """T-14101 — after a merge, drop journal rows the union driver kept twice (a row BOTH sides
+        carry, at different places on each) with land's own keep-first dedup, committed alone.
+        Returns the number of rows dropped; 0 = nothing written, no commit."""
+        from lib import events as _events_mod, worktree as _wt   # lazy, as this module's other uses
+        dropped, changed = _events_mod.dedup_segments_in_place(
+            W / "events.jsonl", W, dedup=_dedup_events, write_text_atomic=write_text_atomic)
+        if not dropped:
+            return 0
+        dc = _run_git_cap(["commit", "-q", "-m", f"sync: drop duplicate journal rows after {what}",
+                           *_wt._merge_from_trailer_args(W, _run_git_cap=_run_git_cap),
+                           "--", *changed], W)
+        if dc.returncode != 0:
+            _git_err = (dc.stderr or dc.stdout or "").strip()
+            _die(f"worktree sync: the merge is committed, but the journal dedup commit failed "
+                 f"({', '.join(changed)} left deduped and uncommitted). Commit them with "
+                 f"`yitc-v2 task commit`, or leave them: `yitc-v2 land` dedups again.\n{_git_err}")
+        return dropped
 
     # ── T-12365 — THE HAND-RESOLVED ARM ────────────────────────────────────────────────────────────
     # Placed HERE: after every worktree/branch validation above (all of which apply unchanged — the
@@ -3726,6 +3974,11 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         else:
             print("  no previously-conflicted path could be named (source: "
                   f"{conflicted_source}) — the row records the merge, not a path list.")
+        # T-14101 — a hand-finished merge (from main or a `--from` branch) gets the same journal dedup
+        # the `--from` path runs; after the row, so a failed dedup never costs the resolution record.
+        _dd = _dedup_journal_commit(f"merging {merge_head[:12]}")
+        if _dd:
+            print(f"  journal: {_dd} duplicate row(s) dropped by land's dedup, committed.")
 
         # ── THE RE-PROOF — REPORT-ONLY and THREE-STATE (STEP 3a(d)). It is the SAME conflict proof
         # `land` runs before the queue, called directly — never a second checker — and it GATES
@@ -3762,13 +4015,24 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
 
     main_sha = _run_git_cap(["rev-parse", "main"], W).stdout.strip()
     head_before = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
+    src = from_sha or "main"                   # T-14101 — the ref this sync merges
     # BEHIND-count = commits reachable from main but not from this branch. This is the number the
     # X-0681 report is about (<project>'s was 18).
-    behind_out = _run_git_cap(["rev-list", "--count", "HEAD..main"], W)
+    behind_out = _run_git_cap(["rev-list", "--count", f"HEAD..{src}"], W)
     if behind_out.returncode != 0:
         _die(f"worktree sync: could not compute how far {branch} is behind main: "
              f"{behind_out.stderr or behind_out.stdout}")
     behind = int((behind_out.stdout.strip() or "0"))
+
+    if from_sha and behind == 0:
+        print(f"worktree sync --from {from_branch}: {branch} already contains {from_sha[:12]} — nothing "
+              f"to merge. Worktree intact at {W}.")
+        _append_event("worktree_synced", task,
+                      {"branch": branch, "from_branch": from_branch, "from_sha": from_sha, "noop": True,
+                       "from_behind_before": 0, "head_before": head_before, "head_after": head_before,
+                       "worktree": str(W), "resolved": [], "resolved_kinds": {}, "carried": [],
+                       "deduped_rows": 0, "preflight": None})
+        return None
 
     if behind == 0:
         # The PAIRED probe's no-op half — already current is a clean no-op, never a refusal, so the
@@ -3779,53 +4043,20 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         print(f"worktree sync: {branch} is already current with main (0 commits behind) — nothing to "
               f"sync. Worktree intact at {W}.")
         # T-11349 — SAY WHICH SILENCE THIS IS. `_land_preflight_currency_lines` returns `[]` when
-        # nothing is reportable, and the guard below skips the phase outright when an injection is
-        # absent: both rendered as the ABSENCE of a line, so "measured and clean" and "never ran"
+        # nothing is reportable, and `_currency_phase`'s guard skips the phase outright when an injection
+        # is absent: both rendered as the ABSENCE of a line, so "measured and clean" and "never ran"
         # were the same observable and the docstring's promise that currency reports even here was
         # unfalsifiable from outside. One verdict line per branch, textually distinct. This is a
         # PRINT only — the currency gate computes exactly what it computed before, and `land` is
         # untouched.
-        cur_lines = None                       # T-11697 — bound BEFORE the guard, the same shape the
-                                               # merged path below uses. Both arms below assign it, so
-                                               # this changes no behaviour; it removes the reader's
-                                               # need to prove that from two branches (audit-post
-                                               # finding, absorbed) and it fails SAFE if a future arm
-                                               # is added: None journals re_audit_measured false — the
-                                               # phase did not run — never a clean verdict it did not
-                                               # earn.
-        if _classify_inert_paths is not None and EVENTS_PATH is not None:
-            # T-12020 — the SAME currency base as the merged arm below. Here `behind == 0` means main
-            # is already an ancestor of HEAD, so this is PROVABLY `main_sha`; it is derived anyway so
-            # ONE rule states the base for both arms, and so the line below names the sha actually
-            # measured rather than a separately-read one that could drift from it.
-            cur_base = _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap)
-            unanswered: dict = {}              # T-13149 — filled only when a step RAISED
-            cur_lines = _land_preflight_currency_lines(
-                W, branch, cur_base, _run_git_cap=_run_git_cap,
-                EVENTS_PATH=_branch_journal(W, EVENTS_PATH),
-                _classify_inert_paths=_classify_inert_paths,
-                _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
-                _anchor_signature_of_text=_anchor_signature_of_text,
-                _unanswered_out=unanswered)
-            for ln in cur_lines:
-                print(ln)
-            if unanswered:
-                cur_lines = _currency_unanswered(unanswered)
-            elif not cur_lines:
-                print("  audit-currency pre-flight: RAN and reported no blocker (SPEC-0077 §3a "
-                      "audited-diff currency, measured against main "
-                      f"{cur_base[:12]}) — this branch is not currently blocked on a re-audit.")
-        else:
-            cur_lines = None                   # the phase was SKIPPED — not a clean verdict (T-11697)
-            print("  audit-currency pre-flight: SKIPPED — not run at all, so this line is NOT a "
-                  "clean verdict: the phase's injected helpers are unavailable in this process. "
-                  "Treat the branch's audit currency as UNKNOWN and expect `land` to judge it.")
+        cur_lines = _currency_phase(W, main_sha)   # T-14064 — the one body both arms share
         # T-11870 — BOUND, not printed straight through: the record below carries these verdicts,
         # and binding them here is what keeps the journalled set the PRINTED set by construction.
-        census_lines = _land_preflight_census_lines(REPO_ROOT)
+        census_verdict: dict = {}              # T-14064 — the verdict beside the printed lines
+        census_lines = _land_preflight_census_lines(REPO_ROOT, _verdict_out=census_verdict)
         for ln in census_lines:
             print(ln)
-        sup_lines = _sync_supersession_ask_lines(W, branch, _run_git_cap=_run_git_cap)
+        sup_lines = _sync_supersession_ask_lines(W, branch, _run_git_cap=_run_git_cap, policy_root=main_wt)
         for ln in sup_lines:
             print(ln)                       # T-11801 — the fourth phase; see the helper's docstring
         corpus_lines = _sync_corpus_integrity_lines(   # T-13322 — see the helper's docstring
@@ -3847,7 +4078,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                        "resolved": [], "resolved_kinds": {}, "carried": [],
                        "preflight": _preflight_blocker_record(None, cur_lines,
                                                               census_lines, sup_lines,
-                                                              corpus_lines=corpus_lines)})
+                                                              corpus_lines=corpus_lines,
+                                                              census_verdict=census_verdict)})
         return
 
     dirt_sink: list = []                       # T-13057 — the non-foldable set the fold TOLERATED
@@ -3858,11 +4090,13 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                                _is_yitc_session_state=_is_yitc_session_state,
                                _nonfoldable_out=dirt_sink)
     conflict_sink: dict = {}                   # T-11697 — stays {} when the probe could not answer
-    for ln in _land_preflight_conflict_lines(branch, main_wt, task, _run_git_cap=_run_git_cap,
-                                             _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
-                                             _dedup_events=_dedup_events, EVENTS_PATH=EVENTS_PATH,
-                                             _classify_inert_paths=_classify_inert_paths,
-                                             _blockers_out=conflict_sink):
+    # T-14101 — the pre-flight predicts the merge with MAIN; a --from merge has its own outcome below.
+    for ln in ([] if from_sha else
+               _land_preflight_conflict_lines(branch, main_wt, task, _run_git_cap=_run_git_cap,
+                                              _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+                                              _dedup_events=_dedup_events, EVENTS_PATH=EVENTS_PATH,
+                                              _classify_inert_paths=_classify_inert_paths,
+                                              _blockers_out=conflict_sink)):
         print(ln)
     # T-11907 — the RESOLUTION sink. `_update_from_main` already carries the fail-closed per-path
     # auto-resolve classification (the ONE admission authority), so `worktree sync` already RESOLVES
@@ -3874,13 +4108,14 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     # and re-applied after it; on ANY refusal of the merge they are put back on the unmerged branch
     # before the refusal propagates. `carried_sink` names what rode the merge on the row below.
     carried_sink: dict = {}
-    carry = _carry_out_local_changes(W, _run_git_cap=_run_git_cap)
+    carry = _carry_out_local_changes(W, _run_git_cap=_run_git_cap, source=src)
     try:
         _update_from_main(W, label="worktree sync", _run_git_cap=_run_git_cap, _die=_die,
                           _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
                           _dedup_events=_dedup_events, write_text_atomic=write_text_atomic,
                           _anchor_signature_of_text=_anchor_signature_of_text,
                           _resolved_out=resolved_sink,
+                          source=from_sha,         # T-14101 — None = main, as every other caller
                           # T-13890 — a non-union conflict stays OPEN for `--resolved`. Not when
                           # changes were carried out: putting them back resets the worktree to its
                           # pre-merge commit, which an open merge could not survive.
@@ -3891,14 +4126,40 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
             if getattr(stop, "yitc_abort_class", None) == "merge-non-union-conflict":
                 print(f"yitc-v2: worktree sync: the merge was NOT left open, because your uncommitted "
                       f"changes ({', '.join(carry['paths'])}) had to be set aside for it and are now "
-                      f"back in place. Commit them, run `worktree sync` again, and the conflict will "
+                      f"back in place. Commit them, run `worktree sync"
+                      f"{(' --from ' + from_branch) if from_sha else ''}` again, and the conflict will "
                       f"be left open for `worktree sync --resolved`.", file=sys.stderr)
         raise
     if carry is not None:
         _carry_back_local_changes(W, carry, "worktree sync", _run_git_cap=_run_git_cap,
-                                  _die=_die, _carried_out=carried_sink)
+                                  _die=_die, _carried_out=carried_sink,
+                                  _anchor_signature_of_text=_anchor_signature_of_text)
 
+    # T-14101 — the journal dedup runs AFTER carried changes are back (audit-post r1): a refused dedup
+    # commit must not strand them; the commit is pathspec-limited to the rewritten segments.
+    deduped_rows = _dedup_journal_commit(f"merging {from_branch}") if from_sha else 0
     head_after = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
+    if from_sha:
+        # T-14101 — terminal: the phases below all measure against MAIN, so they do not run here;
+        # the row carries no behind_before/main_sha, so no reader takes it for a main sync.
+        print(f"worktree sync --from {from_branch}: merged {behind} commit(s) ({from_sha[:12]}) into "
+              f"{branch} IN PLACE. Worktree intact at {W}; main was NOT advanced.")
+        for _p in resolved_sink.get("paths", []):
+            print(f"  resolved mechanically: {_p}  [{resolved_sink['kinds'][_p]}]")
+        for _p in carried_sink.get("paths", []):
+            print(f"  carried across the merge (still uncommitted): {_p}")
+        if deduped_rows:
+            print(f"  journal: {deduped_rows} duplicate row(s) dropped by land's dedup, committed.")
+        print("  the main-measured pre-flight phases did not run — `worktree sync` (no --from) or "
+              "`land` runs them.")
+        _append_event("worktree_synced", task,
+                      {"branch": branch, "from_branch": from_branch, "from_sha": from_sha, "noop": False,
+                       "from_behind_before": behind, "head_before": head_before, "head_after": head_after,
+                       "worktree": str(W), "resolved": resolved_sink.get("paths", []),
+                       "resolved_kinds": resolved_sink.get("kinds", {}),
+                       "carried": carried_sink.get("paths", []), "deduped_rows": deduped_rows,
+                       "preflight": None})
+        return None
     behind_after = int((_run_git_cap(["rev-list", "--count", "HEAD..main"], W).stdout.strip() or "0"))
     # T-11697 — the append moved BELOW the currency phase (it used to sit here), because the row now
     # carries a set the phase-2 verdict is half of, and phase 2 is judgeable only AFTER the merge.
@@ -3941,31 +4202,12 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         elif not reproof:
             print("  conflict re-proof: could not answer — treat the branch's merge-cleanliness as "
                   "UNKNOWN and expect `land` to judge it.")
-    cur_lines = None                           # None = the phase was SKIPPED, [] = ran and clean
-    if _classify_inert_paths is not None and EVENTS_PATH is not None:
-        # T-12020 (X-1242) — measure against the main tip `_update_from_main` ACTUALLY merged, NOT
-        # the `main_sha` snapshot taken at entry: that merge takes the LIVE `main` ref, so a sibling
-        # land inside the window leaves the snapshot stale and every path the newer main imported
-        # reads as this branch's own unaudited content. See `_merged_main_tip`. `main_sha` is
-        # UNCHANGED everywhere else it is used (the behind-count, the human line, the journal field)
-        # — it still means "the main tip observed at sync entry".
-        cur_base = _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap)
-        unanswered: dict = {}                  # T-13149 — see the noop arm
-        cur_lines = _land_preflight_currency_lines(
-                W, branch, cur_base, _run_git_cap=_run_git_cap,
-                EVENTS_PATH=_branch_journal(W, EVENTS_PATH),
-                _classify_inert_paths=_classify_inert_paths,
-                _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
-                _anchor_signature_of_text=_anchor_signature_of_text,
-                _unanswered_out=unanswered)
-        for ln in cur_lines:
-            print(ln)
-        if unanswered:
-            cur_lines = _currency_unanswered(unanswered)
-    census_lines = _land_preflight_census_lines(REPO_ROOT)   # T-11870 — bound; see the noop arm
+    cur_lines = _currency_phase(W, main_sha)       # T-14064 — prints RAN-clean / SKIPPED here too
+    census_verdict: dict = {}                  # T-14064 — see the noop arm
+    census_lines = _land_preflight_census_lines(REPO_ROOT, _verdict_out=census_verdict)   # T-11870 — bound
     for ln in census_lines:
         print(ln)
-    sup_lines = _sync_supersession_ask_lines(W, branch, _run_git_cap=_run_git_cap)
+    sup_lines = _sync_supersession_ask_lines(W, branch, _run_git_cap=_run_git_cap, policy_root=main_wt)
     for ln in sup_lines:
         print(ln)                           # T-11801 — the fourth phase; see the helper's docstring
     corpus_lines = _sync_corpus_integrity_lines(       # T-13322 — see the helper's docstring
@@ -3978,8 +4220,20 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     if dirt_sink:                           # T-13057 — the fifth phase; REPORT-ONLY, never a refusal
         print(f"  UNCOMMITTED DIRT — `land` will refuse (uncommitted-dirt) until these are committed "
               f"(`task commit` / `work commit`): {', '.join(dirt_sink)}")
+    # T-14060 (SPEC-0152 rule 16 §post_sync_set) — the post-sync proof, on a clean `--task` merge
+    # only: None (no key, no line) unless the project declares a quick set. See `_post_sync_proof`.
+    proof = None
+    if task:
+        proof, proof_lines = _post_sync_proof(
+            W, main_wt, task, _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap),
+            events_path=EVENTS_PATH, _run_git_cap=_run_git_cap,
+            _classify_inert_paths=_classify_inert_paths,
+            _consumer_zero_probe_guard=_consumer_zero_probe_guard)
+        for ln in proof_lines:
+            print(ln)
+    extra_row = {"post_sync_proof": proof} if proof is not None else {}
     _append_event("worktree_synced", task,
-                  {"branch": branch, "behind_before": behind, "behind_after": behind_after,
+                  {**extra_row, "branch": branch, "behind_before": behind, "behind_after": behind_after,
                    "noop": False, "main_sha": main_sha, "head_before": head_before,
                    "head_after": head_after, "worktree": str(W),
                    # T-11907 (AC3) — the paths this sync RESOLVED, on the existing row rather than a
@@ -3991,8 +4245,204 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                    "carried": carried_sink.get("paths", []),
                    "preflight": _preflight_blocker_record(conflict_sink, cur_lines,
                                                           census_lines, sup_lines, dirt_sink,
-                                                          corpus_lines=corpus_lines)})
+                                                          corpus_lines=corpus_lines,
+                                                          census_verdict=census_verdict)})
 
+
+
+def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, events_path=None,
+                     _run_git_cap, _classify_inert_paths, _consumer_zero_probe_guard
+                     ) -> "tuple[dict | None, list]":
+    """T-14060 (SPEC-0152 rule 16 §post_sync_set) — the POST-SYNC PROOF a clean `worktree sync --task`
+    merge takes after the card's green Stage-6 run. Returns `(record, lines)`; `record` is None, and
+    nothing is printed, when the project declares no `verify.post_sync_set` (the engine declares none,
+    so its sync is unchanged byte for byte).
+
+    The set is read from the MAIN checkout's carrier, so a branch cannot widen its own proof. The proof
+    is admitted only when the merged HEAD is the tree the Stage-6 run tested plus main's own advance
+    and nothing else — R = the run's tree, B = its base, M = the main tip this sync merged, H = HEAD:
+      HISTORY  every own non-merge commit not reachable from M, committed at or after the run's START,
+               leaves each non-inert path it touches at R's blob (a change made and then reverted is
+               refused; the commit of the tested work itself passes);
+      CONTENT  over every non-inert path of diff(R,H) ∪ diff(B,M): where main changed it, R held B's or
+               M's blob and H holds M's; where main did not, H holds R's;
+      READERS  no declared test names an inert path of that union (the land's reader derivation).
+    Then ONLY the declared layers run, through the layer guard with no subject skip. Every unproven
+    part, and every fault, is a refusal naming the full run — never a proof (fail-closed). The record
+    rides the sync's own `worktree_synced` row; the land's Stage-6 credit reads a passed one on a
+    `main-moved` refusal (T-14141, SPEC-0065 §Bound condition (1))."""
+    from lib import debt as _debt
+    from lib import host_apply as _host_apply
+    from lib import journal as journal_mod
+    from lib import state
+    from lib import worktree as _wt   # lazy: the host module imports this one at load
+    from lib import batch_landing
+    W, main_wt = Path(W), Path(main_wt)
+    full_run = f'yitc-v2 task test {task} --run --evidence "<what ran, at which head>"'
+    carrier_path = main_wt / _host_apply.CONSUMER_OPS_CONTRACT
+    if not carrier_path.is_file():
+        return None, []
+    unreadable = False
+    try:
+        carrier = state.load_ops(carrier_path)
+        sec = carrier.get("verify") if isinstance(carrier, dict) else None
+        names = sec.get("post_sync_set") if isinstance(sec, dict) else None
+    except Exception:                                  # noqa: BLE001 — unreadable: no proof, said so
+        names, unreadable = None, True
+    if not unreadable and not names:
+        return None, []
+    rec: dict = {"status": "ineligible", "reason": None, "set": None, "full_run": full_run}
+
+    def _refuse(reason: str) -> "tuple[dict, list]":
+        rec.update({"status": "ineligible", "reason": reason})
+        return rec, [f"  POST-SYNC PROOF: not eligible — {reason}. The proof is refused, so the full "
+                     f"run is owed: `{full_run}` (SPEC-0152 rule 16 §post_sync_set)."]
+
+    if unreadable:
+        return _refuse("unknown:carrier-unreadable")
+    if not (isinstance(names, list) and all(isinstance(n, str) and n.strip() for n in names)):
+        return _refuse("unknown:post_sync_set-malformed")
+    names = sorted({n.strip() for n in names})
+    rec["set"] = names
+    try:
+        rows = journal_mod.tail_scan_events(W / "events.jsonl", task,
+                                            max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES)
+        newest = None
+        for ev in rows:
+            if ev.get("type") in _wt._STAGE6_VERDICT_TYPES and ev.get("task_id") == task:
+                newest = ev                            # journal order: the last one is the newest
+        if newest is None:
+            return _refuse("no-green-run")
+        if newest.get("type") != "tests_passed":
+            return _refuse("newest-run-red")
+        data = newest.get("data") if isinstance(newest.get("data"), dict) else {}
+        run = data.get(_wt.STAGE6_RUN_KEY)
+        R, B = (run.get("tree"), run.get("base")) if isinstance(run, dict) else (None, None)
+        if not all(isinstance(v, str) and _wt._STAGE6_SHA.fullmatch(v) for v in (R, B)):
+            return _refuse("row-not-runner-marked")
+        rec.update({"stage6_ts": newest.get("ts"), "stage6_tree": R, "stage6_base": B,
+                    "base": merged_tip})
+        if B == merged_tip:
+            rec.update({"status": "not-needed", "reason": "run-base-is-merged-main"})
+            return rec, [f"  POST-SYNC PROOF: not needed — the green Stage-6 run already sits on this "
+                         f"main ({B[:12]}); nothing ran."]
+        run_ts = str(newest.get("ts") or "")
+        hand = []
+        for jp in {W / "events.jsonl", Path(events_path) if events_path else W / "events.jsonl"}:
+            for ev in journal_mod.tail_scan_events(jp, "merge_resolved_by_hand",
+                                                   max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES):
+                if (ev.get("type") == "merge_resolved_by_hand" and ev.get("task_id") == task
+                        and str(ev.get("ts") or "") >= run_ts):
+                    hand.append(ev)
+        if hand:
+            return _refuse("hand-resolved-merge")
+
+        def _inert(p: str) -> bool:
+            return _classify_inert_paths([p])[0] == "inert"
+
+        def _git(args) -> str:
+            r = _run_git_cap(args, W)
+            if r.returncode != 0:
+                raise RuntimeError(f"git {args[0]} exit {r.returncode}")
+            return r.stdout or ""
+
+        st = _git(["status", "--porcelain=v1", "-z", "--untracked-files=all"]).split("\0")
+        dirty, i = [], 0
+        while i < len(st):
+            ent = st[i]
+            if len(ent) > 3:
+                dirty.append(ent[3:])
+                if ent[0] in "RC" or ent[1] in "RC":   # the rename/copy SOURCE follows: judged too
+                    i += 1
+                    if i < len(st) and st[i]:
+                        dirty.append(st[i])
+            i += 1
+        own_dirt = [p for p in dirty if not _inert(p)]
+        if own_dirt:
+            return _refuse(f"uncommitted-changes:{own_dirt[0]}")
+        H = _git(["rev-parse", "HEAD^{tree}"]).strip()
+        rec["tree"] = H
+
+        def _blobs(tree: str) -> dict:
+            out = {}
+            for ent in _git(["ls-tree", "-r", "-z", "--full-tree", tree]).split("\0"):
+                if "\t" in ent:
+                    meta, path = ent.split("\t", 1)
+                    mode, _typ, oid = meta.split(" ")
+                    out[path] = (mode, oid)
+            return out
+
+        def _changed(a: str, b: str) -> set:
+            return {p for p in _git(["diff", "--name-only", "--no-renames", "-z", a, b]).split("\0") if p}
+
+        rb, bb, mb, hb = _blobs(R), _blobs(B), _blobs(merged_tip), _blobs(H)
+        start = None
+        try:
+            import calendar
+            t0 = calendar.timegm(time.strptime(run_ts, "%Y-%m-%dT%H:%M:%SZ"))
+            start = t0 - float(data.get("duration_ms") or 0) / 1000.0 - 1.0
+        except (ValueError, TypeError):
+            start = None                               # unknown start: every own commit is checked
+        for line in _git(["log", "--no-merges", "--format=%H %ct", "HEAD", f"^{merged_tip}"]).splitlines():
+            sha, _, ct = line.partition(" ")
+            if start is not None and float(ct or 0) < start:
+                continue
+            raw = _git(["diff-tree", "--no-commit-id", "-r", "--no-renames", "-z", "--root", sha]).split("\0")
+            for k in range(0, len(raw) - 1, 2):
+                meta, path = raw[k], raw[k + 1]
+                if not meta.startswith(":") or _inert(path):
+                    continue
+                parts = meta[1:].split(" ")
+                new = None if set(parts[3]) == {"0"} else (parts[1], parts[3])
+                if new != rb.get(path):
+                    return _refuse(f"own-change-after-run:{sha[:12]}:{path}")
+        main_side = _changed(B, merged_tip)
+        union = main_side | _changed(R, H)
+        inert_union = []
+        for p in sorted(union):
+            if _inert(p):
+                inert_union.append(p)
+                continue
+            if p in main_side:
+                if rb.get(p) not in (bb.get(p), mb.get(p)):
+                    return _refuse(f"merged-both-sides:{p}")
+                if hb.get(p) != mb.get(p):
+                    return _refuse(f"main-change-not-taken:{p}")
+            elif hb.get(p) != rb.get(p):
+                return _refuse(f"own-change-after-run:{p}")
+        artifacts = _wt._reader_trigger_artifacts(inert_union)
+        for test_dir in _wt._declared_test_sweep_paths(W):
+            if Path(test_dir).is_dir():
+                readers = _wt._land_tail_tripwire_readers(test_dir, artifacts)
+                if readers:
+                    return _refuse(f"read-by:{readers[0]}")
+        declared = {str(e.get("layer")).strip() for e in
+                    _debt._declared_verify_layers(W / _host_apply.CONSUMER_OPS_CONTRACT)}
+        missing = [n for n in names if n not in declared]
+        if missing:
+            return _refuse(f"undeclared-layer:{missing[0]}")
+    except Exception as exc:                           # noqa: BLE001 — fail-closed: no proof
+        return _refuse(f"unknown:{type(exc).__name__}")
+    if _consumer_zero_probe_guard is None:
+        return _refuse("unknown:no-layer-runner-wired")
+    try:
+        g = _consumer_zero_probe_guard(W, None, only_layers=set(names))
+    except Exception as exc:                           # noqa: BLE001
+        return _refuse(f"unknown:layer-runner-{type(exc).__name__}")
+    outcomes = {r.get("layer"): r.get("outcome") for r in (g.get("layers") or []) if isinstance(r, dict)}
+    rec["layers"] = [{"layer": n, "outcome": outcomes.get(n)} for n in names]
+    ok = (g.get("mode") == "layers" and not g.get("bad")
+          and all(outcomes.get(n) == "passed" for n in names))
+    if ok:
+        rec.update({"status": "passed", "reason": None})
+        return rec, [f"  POST-SYNC PROOF: passed — the declared quick set ({', '.join(names)}) ran green "
+                     f"on {H[:12]} (main {merged_tip[:12]}) after the green Stage-6 run of "
+                     f"{rec['stage6_ts']}; recorded as `post_sync_proof` on this run's `worktree_synced` "
+                     f"row. `land` may credit it for the run's base when main moves (SPEC-0065 §Bound)."]
+    rec.update({"status": "failed", "reason": "; ".join(str(b) for b in (g.get("bad") or []))[:400]
+                or f"mode:{g.get('mode')}"})
+    return rec, [f"  POST-SYNC PROOF: FAILED — the declared quick set ({', '.join(names)}) is not green "
+                 f"on {H[:12]}: {rec['reason']}. Fix it, or take the full run: `{full_run}`."]
 
 
 def _sandbox_prefix_arg(argv, glob: str = _SANDBOX_PREFIX_GLOB) -> "str | None":
@@ -5460,6 +5910,29 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
         from lib.dispatch import SCRATCH_ROOT_PREFIX   # noqa: PLC0415 — T-13203, the root's one home
         # Injected (cli's signal-0 `_pid_alive`); absent → every pid reads ALIVE, fail-closed toward keeping.
         _alive = _pid_alive or (lambda _pid: True)
+        _ACTIVITY_SCAN_CAP = 20000   # entries read per root before the walk stops and keeps the root
+
+        def _root_activity(root, floor_) -> "str | None":
+            # T-14046 — the root's own last use: the first entry inside it (any depth, symlinks not
+            # followed) whose mtime is at or after `floor_` ends the walk. "fresh" = such an entry;
+            # "unknown" = the walk hit its cap or a read failed first (fail-closed toward keeping);
+            # None = every entry read, all older than the floor.
+            stack, seen = [str(root)], 0
+            while stack:
+                try:
+                    with os.scandir(stack.pop()) as it:
+                        for ent in it:
+                            seen += 1
+                            if seen > _ACTIVITY_SCAN_CAP:
+                                return "unknown"
+                            st = ent.stat(follow_symlinks=False)
+                            if st.st_mtime >= floor_:
+                                return "fresh"
+                            if ent.is_dir(follow_symlinks=False):
+                                stack.append(ent.path)
+                except OSError:
+                    return "unknown"
+            return None
         for path in sorted(_glob.glob(str(Path(_scratch_base) / f"{SCRATCH_ROOT_PREFIX}*"))):
             sp = Path(path)
             if sp.is_symlink() or not sp.is_dir():
@@ -5477,6 +5950,18 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
                 continue
             if _session_proc_alive(ref):
                 skipped.append((path, f"owner session {ref} still alive"))
+                continue
+            # T-14046 — an INTERACTIVE session runs with no `--session-id <ref>` in any argv, so it reads
+            # dead above while it works, and a long-lived root's own mtime is past the floor. Its life
+            # signal is the root's CONTENT: an entry touched at or after the age floor keeps the root.
+            act = _root_activity(path, now - retention_sec)
+            if act == "fresh":
+                skipped.append((path, f"live session root: session {ref} touched its root "
+                                      f"within {max_age_hours}h"))
+                continue
+            if act == "unknown":
+                skipped.append((path, f"live session root unproven dead: session {ref} root walk hit "
+                                      f"its {_ACTIVITY_SCAN_CAP}-entry cap or a read failed — kept"))
                 continue
             try:
                 spr = sp.resolve()

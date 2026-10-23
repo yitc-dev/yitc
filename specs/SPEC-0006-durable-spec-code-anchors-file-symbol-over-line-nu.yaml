@@ -239,7 +239,7 @@ implements_signature:
   bin/lib/cli.py#_anchor_content_signature: 8061ff36ec14bdc8cbbcd03c5c10be585141705125d7a8eed69ced32cd236487
   bin/lib/cli.py#_anchor_drift_warning: d17e129ce47f983aa6075539c78bdc97257afa4b891a0c7db8cff0e025065edd
   bin/lib/cli.py#_declared_symbol_forms: ed6dea0fb4ef2492c4d888479b25e862e18015453b6aa0c549db4c043420bc1b
-  bin/lib/cli.py#_resolve_implements_anchor: a923c3987cbb11883cdd5f10cec01cf13683ee4bddf91304b67c1253a018c47b
+  bin/lib/cli.py#_resolve_implements_anchor: 22723bb813438e5c944bff08b53045cda3ead3ba686b46ae0f002e96fbb51327
   bin/lib/init.py#_hook_anchor_symbol_forms: 893e2bb56d3c101c2a85097e93edf61fc17335f8a44dc575336501e34d615c6d
   bin/lib/spec.py#cmd_spec_reverify: 1b900e039b8828f4f71d269f2b17559488341c4f20d355f6967089cbae8369ef
   bin/lib/textutil.py#anchor_file: 7944426743aaaea6da2365d70fb87ad4773e6a8ea3c7e16063ab030ac9d97f93

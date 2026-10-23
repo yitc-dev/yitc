@@ -241,7 +241,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "whether any check passes"),
     _p("YITC_VENUE_MAX_REQUESTS", "int", 1, "bin/lib/remote_verify.py#venue_max_requests",
        "the MACHINE-WIDE cap on how many verify REQUESTS are admitted to the venue box at once "
-       "(SPEC-0203 rule 4, T-12241). THE UNIT IS THE REQUEST, NEVER THE LEG: one land is cand + "
+       "(SPEC-1029 rule 4, T-12241). THE UNIT IS THE REQUEST, NEVER THE LEG: one land is cand + "
        "pinned = 2 leases, and both legs of one request are admitted TOGETHER and never wait on "
        "each other. It bounds the axis nothing else does — the land reservation and the SPEC-0132 "
        "slot pool are BOTH keyed per repo (`_verify_slot_dir` hashes realpath(main_wt)), so neither "
@@ -278,17 +278,17 @@ INVENTORY: "tuple[Knob, ...]" = (
     _g("YITC_DISPATCH_LAUNCHER", "str", None, "bin/lib/worktree_lifecycle.py#_dispatch_launcher_pid",
        "T-12830 — the dispatch launcher's <pid>:<starttime>; spares it from the live-holder refusal"),
     _g("YITC_VENUE_RECORD", "str", None, "bin/lib/venue.py#resolve_record_path",
-       "WHICH verify-venue record is read/written (SPEC-0203 rule 1) — a placement/identity input of "
+       "WHICH verify-venue record is read/written (SPEC-1029 rule 1) — a placement/identity input of "
        "exactly the same nature as YITC_MACHINE_SETTINGS, whose sibling file it is. GATE because the "
        "record decides WHERE a kernel verify pass executes, and rule 7 forbids a silent local "
        "fallback: pointing it at another file changes which box a verdict came from"),
     _g("YITC_VENUE_CONFIG", "str", None, "bin/lib/venue.py#resolve_config_path",
-       "WHICH verify-venue provider binding is read (SPEC-0203 rule 6, T-13000) — a placement/identity "
+       "WHICH verify-venue provider binding is read (SPEC-1029 rule 6, T-13000) — a placement/identity "
        "input like YITC_VENUE_RECORD. GATE because an absent binding decides that routing ignores any "
        "record and every kernel pass runs locally: pointing it elsewhere changes where a verdict comes from"),
     _p("YITC_VENUE_STAGE6_NICE", "int", 19, "bin/lib/remote_verify.py#venue_stage6_nice",
        "the box-side scheduler nice a LOWER-PRIORITY (Stage-6, `task test --run`) venue pass runs "
-       "its runner at (SPEC-0203 rule 5's lower-priority arm, T-12218). The default 19 is the "
+       "its runner at (SPEC-1029 rule 5's lower-priority arm, T-12218). The default 19 is the "
        "minimum priority: such a pass receives CPU only when the land legs leave it idle, because "
        "`land` is the box's primary client and a background worker's suite can wait. A LAND leg is "
        "NOT tunable and never reaches this read site — its 0 is a literal at the route seam; the "
@@ -304,7 +304,7 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("YITC_VENUE_STAGE6_MAX_CONCURRENT", "int", 4,
        "bin/lib/remote_verify.py#venue_stage6_max_concurrent",
        "how many LOWER-PRIORITY (Stage-6, `task test --run`) venue passes may hold the box at once "
-       "(SPEC-0203 rule 4's by-class admission, T-12259). THE STAGE-6 HALF ONLY: a LAND is admitted "
+       "(SPEC-1029 rule 4's by-class admission, T-12259). THE STAGE-6 HALF ONLY: a LAND is admitted "
        "by YITC_VENUE_MAX_REQUESTS, which stays the sole carrier of the land cap — there is "
        "deliberately no second land cap to keep in step with it. The default 4 is the owner's figure "
        "and the measurement behind it: a Stage-6 pass runs on HALF the derived width (12 of 48 cores "
@@ -319,7 +319,7 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("YITC_VENUE_PRESHIP_MAX_CONCURRENT", "int", 1,
        "bin/lib/remote_verify.py#venue_preship_max_concurrent",
        "how many PARKED lands on this machine may pre-ship their branch to the venue box at once "
-       "(SPEC-0203 rule 3 / SPEC-0184 rule 15, T-13424). A pre-ship runs ONE `git pack-objects` over "
+       "(SPEC-1029 rule 3 / SPEC-0184 rule 15, T-13424). A pre-ship runs ONE `git pack-objects` over "
        "the branch's journal versions, measured at 3.4-4.0 GB peak RSS on a ~190 MB journal, so the "
        "default 1 is the host-memory bound; every admission ALSO sums the reservations of the live "
        "pre-ships against MemAvailable, so a larger value can never admit past free memory. "
@@ -329,7 +329,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        bounds=(1, 4)),
     _p("YITC_VENUE_STAGE6_HEADROOM_LOAD1", "float", 36.0,
        "bin/lib/remote_verify.py#venue_stage6_headroom_load1",
-       "the box load1 a LOWER-PRIORITY (Stage-6) venue pass must be BELOW to be admitted (SPEC-0203 "
+       "the box load1 a LOWER-PRIORITY (Stage-6) venue pass must be BELOW to be admitted (SPEC-1029 "
        "rule 4, T-12259). It is the SECOND half of the Stage-6 question and both halves are needed: "
        "the concurrency count alone would admit four passes onto a box a land is already saturating, "
        "the headroom alone would admit an unbounded number onto an idle one. UNSET, IT IS DERIVED "
@@ -345,7 +345,7 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("YITC_VENUE_STAGE6_WORKERS_FRACTION", "float", 0.5,
        "bin/lib/remote_verify.py#venue_stage6_workers_fraction",
        "the fraction of the DERIVED remote width a LOWER-PRIORITY (Stage-6, `task test --run`) venue "
-       "pass runs at (SPEC-0203 rule 5's lower-priority arm, T-12261). It is the WIDTH half of that "
+       "pass runs at (SPEC-1029 rule 5's lower-priority arm, T-12261). It is the WIDTH half of that "
        "arm; YITC_VENUE_STAGE6_NICE is the PRIORITY half, and until this card only the priority half "
        "was tunable — the width was the literal `// 2` at the route seam. THE DEFAULT 0.5 IS THAT "
        "LITERAL, so an unset machine derives the same width it always did, and the identity is "
@@ -424,7 +424,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "SWITCH FOR THE CONSUMER LAYER RE-RUN (T-13545, SPEC-0152 rule 16): any value >= 1 admits "
        "the isolated re-run of ONE sole failed verify layer (never more than one, whatever the "
        "value), and 0 turns that re-run off as well — one switch, no second knob. AND FOR THE "
-       "PER-UNIT RE-RUN of an adapter-backed layer (T-13607, SPEC-1006 rule 10): any value >= 1 "
+       "PER-UNIT RE-RUN of an adapter-backed layer (T-13607, SPEC-1035 rule 10): any value >= 1 "
        "admits it under that rule's own bounds, and 0 turns it off too, so a failed unit's first "
        "failure blocks",
        bounds=(0, 20)),
@@ -458,7 +458,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "and the default stands. PERFORMANCE: it changes WHERE a file runs, never WHETHER its verdict "
        "counts — no value can admit a failing check or excuse a file from the verdict. EXIT is never "
        "automatic at any value: a line leaves the carrier only by a card. The SAME threshold decides "
-       "the per-unit lane of a consumer's adapter-backed verify layers (T-13609, SPEC-1006 rule 11): "
+       "the per-unit lane of a consumer's adapter-backed verify layers (T-13609, SPEC-1035 rule 11): "
        "that many RESCUED per-unit re-runs inside the window enter a unit into that project's "
        "`yitc-load-sensitive-units.txt`, on the same terms",
        bounds=(1, 100)),
@@ -472,14 +472,14 @@ INVENTORY: "tuple[Knob, ...]" = (
        "most one land, above a year it is no longer a window; anything else is ignored and the "
        "default stands. PERFORMANCE on the same terms as its sibling: it changes WHERE a file runs, "
        "never whether its verdict counts. The SAME window bounds the per-unit entry of a consumer's "
-       "adapter-backed layers (T-13609, SPEC-1006 rule 11)",
+       "adapter-backed layers (T-13609, SPEC-1035 rule 11)",
        bounds=(1, 365)),
     _g("YITC_VERIFY_ADAPTER_MANIFEST", "str", None,
        "bin/lib/land_verify_legs.py#_VERIFY_ADAPTER_MANIFEST_ENV",
        "NOT an input the kernel reads: the path of the manifest file the kernel writes for ONE "
        "adapter invocation of an adapter-backed verify layer, WRITTEN into that `list` / `run` "
        "command's env so the project's adapter knows what to enumerate or run and where to write "
-       "its report (T-13606, SPEC-1006 rules 3-4). GATE by the fail-closed default, on the same "
+       "its report (T-13606, SPEC-1035 rules 3-4). GATE by the fail-closed default, on the same "
        "terms as YITC_VERIFY_LAYER_WORKERS: setting it by hand changes nothing the kernel decides, "
        "and it is never read back"),
     _p("YITC_VERIFY_HEARTBEAT_SECS", "float", 20.0,
@@ -494,7 +494,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "machine input). GATE by the fail-closed default: setting it by hand changes nothing the "
        "kernel decides, and it is never read back"),
     _p("YITC_VERIFY_WORKERS", "int", None, "bin/lib/remote_verify.py#remote_workers_override",
-       "the OVERRIDE CEILING on the DERIVED REMOTE verify width (SPEC-0203 rule 5, T-12195). The "
+       "the OVERRIDE CEILING on the DERIVED REMOTE verify width (SPEC-1029 rule 5, T-12195). The "
        "venue derives W per pass from the duration table and the box's cores; this only ever LOWERS "
        "it. REMOTE-ONLY BY DESIGN: the LOCAL width's ceiling is its own row, "
        "lib.worktree._VERIFY_WORKER_CEILING (T-13806), so this key never reads on the local path. (Until "
@@ -607,7 +607,7 @@ INVENTORY: "tuple[Knob, ...]" = (
     _p("lib.nightly.VENUE_IDLE_BUFFER_MIN", "float", 15.0,
        "bin/lib/nightly.py#venue_idle_report",
        "T-12219 — how long every repo on this machine must have NO in-progress task before the "
-       "compute-controller session unpublishes and deletes the box. SPEC-0203 rule 6 and its "
+       "compute-controller session unpublishes and deletes the box. SPEC-1029 rule 6 and its "
        "§Parameters ALREADY name this a machine-scoped performance tunable under `config`; it had "
        "never been registered, so the spec described a knob that did not exist. It changes when an "
        "IDLE box is torn down — never whether any pass concludes"),
@@ -662,7 +662,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "admission poll (the two cadences are deliberately divergent; T-11275)"),
     _p("lib.worktree._LIVENESS_WATCHDOG_POLL_SECS", "float", 5.0,
        "bin/lib/worktree.py#_land_liveness_watchdog",
-       "T-12219 — how often the SPEC-0180 held-turn liveness watchdog re-tests its subject. Pure "
+       "T-12219 — how often the SPEC-1028 held-turn liveness watchdog re-tests its subject. Pure "
        "latency; the watchdog's VERDICT is `kill -0` on the claimed pid, not the interval it asks "
        "at"),
     _p("lib.worktree._VERIFY_HEARTBEAT_DEFAULT_SECS", "float", 20.0, "bin/lib/worktree.py",
@@ -742,6 +742,18 @@ INVENTORY: "tuple[Knob, ...]" = (
        "`thresholds:` section; the band's lower end keeps one retry. Read through `in_force`, and the "
        "abort it decides names value and source on its row (T-13968)",
        bounds=(2, 20)),
+    _t("pre_deploy_move_min_window_days", "int", 14, "bin/lib/cli.py#_verify_cost_reading",
+       "SPEC-1042 rule 7 (T-14111): the weekly verify-cost reading proposes moving a costly zero-catch "
+       "unit into a pre-deploy class only on a window covering at least this many days — a short quiet "
+       "window is not a zero-catch record (the plan's 4-day reading missed catches a two-week one "
+       "showed). A THRESHOLD: one value per project, set in its yitc-ops.yaml `thresholds:` section. "
+       "Admissible 1..365. REPORT-ONLY: it decides what the reading PROPOSES, never what runs or moves",
+       bounds=(1, 365)),
+    _t("pre_deploy_move_min_runs", "int", 100, "bin/lib/cli.py#_verify_cost_reading",
+       "SPEC-1042 rule 7 (T-14111): the run count at its place (land + Stage-6) a unit needs inside the "
+       "window before the weekly reading proposes moving it into a pre-deploy class. A THRESHOLD on the "
+       "same reading as its sibling above. Admissible 1..100000. REPORT-ONLY on the same terms",
+       bounds=(1, 100000)),
 
     # ---- GATE: everything else. Unclassifiable is GATE by construction, not by omission. ----
     _g("YITC_ACTOR", "str", None, "bin/lib/grants.py",
@@ -847,7 +859,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "a THRESHOLD a report reads"),
     _g("YITC_ISOLATED_VERIFY", "str", None, "bin/lib/cli.py", "selects the verify ISOLATION mode"),
     _g("YITC_LAND_HELD_TURN_PID", "str", None, "bin/lib/dispatch.py",
-       "the SPEC-0180 held-turn CLAIM, verified server-side — a refusal input"),
+       "the SPEC-1028 held-turn CLAIM, verified server-side — a refusal input"),
     _g("YITC_LAND_KEEP_PROCESS_GROUP", "str", None, "bin/lib/worktree.py",
        "process-group teardown behaviour — a safety switch"),
     _g("YITC_LAND_SESSION_ESCAPED", "str", None, "bin/lib/worktree.py#_escape_into_own_session",
@@ -936,7 +948,7 @@ INVENTORY: "tuple[Knob, ...]" = (
        "bin/lib/verify_runner.py#_run_verify_tests",
        "T-12260 — the venue leg's land-overlap SIDECAR: the file the box leg script writes the "
        "intervals a foreign land-class lease was live into, and the per-file land-verify bound "
-       "reads to uncharge itself for that time (SPEC-0071 rule 1 / SPEC-0203 rule 4). It is set "
+       "reads to uncharge itself for that time (SPEC-0071 rule 1 / SPEC-1029 rule 4). It is set "
        "ONLY by the leg script and is unset everywhere else, so an unset value is the ordinary "
        "local land and credits nothing. Classified GATE, fail-closed as the rule requires: it is a "
        "SOURCE the verdict-bearing timeout reads, not a cadence or a worker count — a value "
@@ -1011,6 +1023,9 @@ ENTRYPOINTS = (
     ("api", "lib.machine_settings.set_value(...) — the module API every caller routes through"),
     ("file", "a HAND-EDITED settings file (incl. one selected by $YITC_MACHINE_SETTINGS) — the "
              "READ path drops gate-class keys, so hand-editing one in is not a door either"),
+    ("project", "bin/yitc-v2 config set --project <key> <value> — the PROJECT door (T-14056): "
+                "THRESHOLD keys only, into the project's yitc-ops.yaml `thresholds:` section, through "
+                "`set_project_threshold`, which refuses a GATE key with the same `_refuse_gate`"),
 )
 
 
@@ -1301,6 +1316,165 @@ def project_thresholds(ops) -> "tuple[dict, list[str]]":
                 why = f"{value!r} is outside its band {lo}..{hi}"
         notes.append(f"{THRESHOLDS_SECTION}: {key!r} ignored — {why}")
     return values, notes
+
+
+def set_project_threshold(name, raw, text):
+    """THE PROJECT DOOR (T-14056, SPEC-1031 rule 7): set THRESHOLD key `name` to `raw` in the text of a
+    project's `yitc-ops.yaml`. Pure — it reads and writes no file; the caller owns the write, the
+    journal row and the commit. Returns `(old, new, new_text)`; `new_text` is None when the section
+    already holds that value (a repeat run changes nothing).
+
+    Refuses — raising SettingsRefused, so the caller writes nothing — an unknown key; a GATE key, by
+    the SAME `_refuse_gate` every other door uses (no override here either); a key of a machine class
+    (PERFORMANCE, BINDING, BUDGET), which belongs in the machine file; a threshold declaring no band,
+    which the section reader would ignore (rule 5); a value `coerce` refuses, its band included; and a
+    carrier this edit cannot change safely: unparseable, not a mapping, a `thresholds:` that is not a
+    mapping or is a non-empty flow mapping, or one that repeats the section or the key.
+
+    WHERE IT EDITS COMES FROM THE PARSER, never from a pattern over lines (audit-pre T-14056: a line
+    pattern lost an inline comment, normalized line endings and missed a quoted section key). The
+    composed node of the section — and of the key, when present — gives the exact character span to
+    change: an existing key's VALUE span is replaced and nothing around it; a new key is one line
+    inserted after the section's last entry, in the section's indentation and the file's own line
+    ending; a missing section is appended, keeping a file that ends without a newline that way. Every
+    other byte stays as it was, and the result is then PROVED by parsing both texts: the new carrier
+    must equal the old one with `thresholds.<name>` set and nothing else changed, and hold the section
+    and the key once each, or the edit is refused."""
+    import re
+    import yaml
+    knob = BY_NAME.get(name)
+    if knob is None:
+        raise SettingsRefused(
+            f"unknown key {name!r} — not in the tunable inventory, so it would be a value nobody "
+            f"reads. `bin/yitc-v2 config list` prints every knob and its class.")
+    if knob.cls != THRESHOLD:
+        if not knob.is_settable:
+            _refuse_gate(name)
+        raise SettingsRefused(
+            f"{name} is a {knob.cls.upper()}-class value — it belongs to the MACHINE, not the project: "
+            f"set it with `bin/yitc-v2 config set {name} <value>` (without --project).")
+    if knob.bounds is None:
+        raise SettingsRefused(f"{name} is a threshold that declares no band — the `{THRESHOLDS_SECTION}:` "
+                              f"reader ignores it (SPEC-1031 rule 5), so writing it would change nothing")
+    value = coerce(knob, raw)
+
+    def refuse(why):
+        raise SettingsRefused(f"the project's yitc-ops.yaml {why} — nothing was written")
+
+    def nodes(src):
+        """(root mapping node or None, [(key, value) node pairs of the section], section value node)."""
+        root = yaml.compose(src)
+        if root is None:
+            return None, [], None
+        if not isinstance(root, yaml.MappingNode):
+            refuse("is not a mapping")
+        heads = [(k, v) for k, v in root.value if isinstance(k, yaml.ScalarNode) and k.value == THRESHOLDS_SECTION]
+        if len(heads) > 1:
+            refuse(f"declares `{THRESHOLDS_SECTION}:` {len(heads)} times — fix it first")
+        if not heads:
+            return root, [], None
+        key, sect = heads[0]
+        # The section must be WRITTEN at its own key: an alias (`thresholds: *x`) resolves to a node
+        # written elsewhere, so an edit by its marks would change that other field (audit-post T-14056).
+        if sect.start_mark.index < key.end_mark.index:
+            refuse(f"`{THRESHOLDS_SECTION}:` is an alias of a node written elsewhere — this door edits "
+                   f"only a section written in place; change it by a card")
+        pairs = list(sect.value) if isinstance(sect, yaml.MappingNode) else []
+        if pairs and sect.flow_style:
+            refuse(f"`{THRESHOLDS_SECTION}:` section is written in flow style — this door edits only a "
+                   f"block mapping")
+        if sum(isinstance(k, yaml.ScalarNode) and k.value == name for k, _ in pairs) > 1:
+            refuse(f"declares `{THRESHOLDS_SECTION}.{name}` more than once — fix it first")
+        return root, pairs, sect
+
+    try:
+        ops = yaml.safe_load(text) if text.strip() else {}
+        _root, pairs, sect = nodes(text)
+    except yaml.YAMLError as exc:
+        refuse(f"does not parse ({exc.__class__.__name__}) — fix the carrier first")
+    ops = {} if ops is None else ops
+    if not isinstance(ops, dict):
+        refuse("is not a mapping")
+    section = ops.get(THRESHOLDS_SECTION)
+    if section is not None and not isinstance(section, dict):
+        refuse(f"`{THRESHOLDS_SECTION}:` section is a {type(section).__name__}, not a mapping — fix it first")
+    old = (section or {}).get(name)
+    if name in (section or {}) and old == value and type(old) is type(value):
+        return old, value, None
+
+    eol = "\r\n" if "\r\n" in text else "\n"
+    rendered = repr(value) if isinstance(value, float) else str(value)
+    entry = f"{name}: {rendered}"
+
+    def line_end(src, i):
+        """The index just past the line terminator of the line holding index `i` (or the end)."""
+        j = src.find("\n", i)
+        return len(src) if j < 0 else j + 1
+
+    def insert_line(src, at, line):
+        if at == len(src) and src and not src.endswith("\n"):
+            return src + eol + line                   # a file ending without a newline still does
+        return src[:at] + line + eol + src[at:]
+
+    def span(node):
+        return text[node.start_mark.index:node.end_mark.index]
+
+    def as_written(node):
+        """True when the node's span is ONLY the scalar, on one line: plain and equal to its value, or
+        quoted. A block scalar (its span holds the `|`/`>` header and its comment), a multi-line plain
+        scalar, an anchor or a tag would each change bytes outside the value — refused. An alias
+        (`k: *v`) resolves to the anchored node, whose span carries its `&v`, so it is refused too."""
+        s = span(node)
+        if not isinstance(node, yaml.ScalarNode) or "\n" in s or "\r" in s:
+            return False
+        if node.style is None:
+            return s == node.value
+        return node.style in ("'", '"') and len(s) >= 2 and s[0] == s[-1] == node.style
+
+    hit = next(((k, v) for k, v in pairs if isinstance(k, yaml.ScalarNode) and k.value == name), None)
+    if sect is None:
+        new_text = insert_line(text, len(text), f"{THRESHOLDS_SECTION}:{eol}  {entry}")
+    elif hit is not None:
+        v = hit[1]
+        if not as_written(v):
+            refuse(f"writes `{THRESHOLDS_SECTION}.{name}` as {span(v)!r} — not a one-line plain or quoted "
+                   f"scalar (a block or multi-line scalar, an anchor or a tag), so this door cannot change "
+                   f"its value alone; change it by a card")
+        new_text = text[:v.start_mark.index] + rendered + text[v.end_mark.index:]
+    elif pairs:                                   # a block mapping (`nodes` refused a flow one)
+        last = pairs[-1][1]
+        at = line_end(text, max(last.start_mark.index, last.end_mark.index - 1))
+        new_text = insert_line(text, at, " " * pairs[0][0].start_mark.column + entry)
+    elif not pairs:
+        # an empty section: `thresholds:` (implicit null), `thresholds: ~` / `null`, `thresholds: {}`
+        if not (span(sect).strip() in ("", "~", "null", "Null", "NULL")
+                or re.fullmatch(r"\{\s*\}", span(sect))):
+            refuse(f"writes an empty `{THRESHOLDS_SECTION}:` as {span(sect)!r} (a tag or another form) — "
+                   f"this door edits `{THRESHOLDS_SECTION}:`, `~`, `null` or `{{}}` only; change it by a card")
+        s, e = sect.start_mark.index, sect.end_mark.index
+        stripped = text[:s] + text[e:]
+        new_text = insert_line(stripped, line_end(stripped, s), f"  {entry}")
+    expected = dict(ops)
+    expected[THRESHOLDS_SECTION] = {**(section or {}), name: value}
+
+    def typed(obj):
+        """`obj` with every scalar paired with its type, so `5` and `5.0` (or `1` and `true`) differ."""
+        if isinstance(obj, dict):
+            return ("dict", sorted(((typed(k), typed(v)) for k, v in obj.items()), key=repr))
+        if isinstance(obj, list):
+            return ("list", [typed(v) for v in obj])
+        return (type(obj).__name__, obj)
+
+    try:
+        proved = typed(yaml.safe_load(new_text)) == typed(expected)
+        _r2, pairs2, _s2 = nodes(new_text)
+        proved = proved and sum(isinstance(k, yaml.ScalarNode) and k.value == name for k, _ in pairs2) == 1
+    except (yaml.YAMLError, SettingsRefused):
+        proved = False
+    if not proved:
+        raise SettingsRefused(f"the edit of `{THRESHOLDS_SECTION}.{name}` would change more of "
+                              f"yitc-ops.yaml than that one key — refused; nothing was written")
+    return old, value, new_text
 
 
 _NOTES_SAID: "set[str]" = set()

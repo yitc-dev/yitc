@@ -17,8 +17,11 @@ body: "## Scenario\n\nLand's per-land verification runs the host-leak canary (`_
   \ debris check (a `graph/index.json` rewrite shows as ` M` in `git status`, plus\n\
   `decisions/T-99*` debris + an orphan `graph/.index.json.*.tmp`; the git-status-only\
   \ land\nverdict, so a pure mtime-touch on a byte-clean tree is still not a leak)\
-  \ with NO second suite execution. The re-run\nhad grown to 454 files and, under\
-  \ concurrent-land CPU contention, tipped over the 300s per-file bound\n→ the `land-verify-timeout:test_t0402_host_leak_canary.py`\
+  \ with NO second suite execution. The\nsame snapshot also records the repository's\
+  \ LOCAL `[user]` git identity (`git config --local`, the config\nevery worktree\
+  \ of the repository shares), and the land refuses as a host leak when the verify\
+  \ changed it.\nThe re-run\nhad grown to 454 files and, under concurrent-land CPU\
+  \ contention, tipped over the 300s per-file bound\n→ the `land-verify-timeout:test_t0402_host_leak_canary.py`\
   \ recurrence (3× on 2026-06-28). The\nstandalone canary (`tests/test_t0402_host_leak_canary.py`)\
   \ + the weekly `audit canary-backstop` keep\nthe active-run form for surfaces the\
   \ suite is not otherwise run against. On a land whose final merged tree touches\
@@ -138,6 +141,6 @@ proposed_by: conditional-per-land-host-leak-canary-gated-on-the
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/worktree.py#_host_leak_land_verdict: 0ecda71dbca02afaa32d3a55a4df760f16847496ef928b122e28679640b024f3
-  bin/lib/worktree.py#_host_leak_surface_state: f37ddf02aae793a1cc26b809b874db5b42a6c0569b8c96b6ef69530f699b5487
-  bin/lib/worktree.py#_land_integrate: d2ea218fe7de3d7f71d38834015a62b97536c97f9bc3797d81e1cd6ba64ca9e4
+  bin/lib/worktree.py#_host_leak_land_verdict: 3d2bdd222747b3311df1b93b1669e5c0286cceb1cfc5e63b10f86be74035f7a7
+  bin/lib/worktree.py#_host_leak_surface_state: 6341ce7b950096898020bb90a55f85f6065eb336d298c914903fe711dadcd971
+  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5

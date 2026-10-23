@@ -49,65 +49,64 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ of this forecast is CONTEXT and\n   is never a finding (<workshop-spec> §Universal\
   \ lens) — so an incomplete forecast costs a filer nothing,\n   which is exactly\
   \ why over-forecasting to be safe is the wrong instinct here.\n   **Observation-vs-hypothesis\
-  \ cue (2026-08-12) —** does a scope line\n   state a CAUSE? Separate what you MEASURED\
-  \ from what you SUSPECT. A card may report measured\n   observations and may PROPOSE\
-  \ a suspected cause; but a causal claim made BEFORE this task's own\n   Analysis\
-  \ defaults to HYPOTHESIS, and becomes load-bearing only when the card carries the\
-  \ probe\n   evidence and its `from:` chain (evidence discipline → CHARTER §Principle\
-  \ 2 `from:` + §Principle 3\n   probe evidence; the Analysis re-confirmation is this\
-  \ item's own rule above → SPEC-0032). Labelling\n   a cause does not license it\
-  \ as the card's premise — write it as the hypothesis the work TESTS, so\n   the\
-  \ reader can tell which half is proven. The same separation applies to a MEASURED\
-  \ claim: name the\n   surface and scope you actually measured whenever that scope\
-  \ is narrower than the claim you draw\n   from it. The same holds for the INSTRUMENT\
-  \ and not only the scope (X-1012): when you report a\n   VISUAL or USER-FACING property,\
-  \ do not claim more than you DIRECTLY OBSERVED — either back it\n   with rendered\
-  \ evidence (a screenshot, a rendered read, a gate re-run), OR scope the claim to\
-  \ the\n   PROXY you actually checked. A cheap DOM / selector / console / timing\
-  \ check is never forbidden\n   and stays fully legitimate for steering your own\
-  \ work; the cue binds the REPORT, not the check,\n   so a proxy stays legitimate\
-  \ whenever the report says what it actually observed — what it forbids\n   is UPGRADING\
-  \ a proxy into a claim about what a user saw.\n   An authoring PROMPT only: no card\
-  \ is refused for omitting it.\n   **Premise-verify cue — AT THE FILING SEAM (owner\
-  \ directive 2026-08-16, re-confirmed\n   2026-08-30) —** does this card rest on\
-  \ a PREMISE about the CURRENT code — a quoted line\n   number, a stated absence\
-  \ (\"nothing does X\"), a reported behaviour, a peer's or a report's\n   claim?\
-  \ Then CHECK IT against today's checkout BEFORE you cut the card. This is the cheapest\n\
-  \   check in the lifecycle and the one nobody makes: the premise arrives with the\
-  \ request, so it\n   reads as given rather than as something to verify.\n   **Which\
-  \ seam this is, and why the existing ones do not reach it.** This cue fires BEFORE\
-  \ A\n   CARD EXISTS. The two premise disciplines already in the corpus are both\
-  \ DOWNSTREAM and stay\n   where they are (pointers, not restated here — <workshop-spec>\
-  \ rule 3): SPEC-0133 rule 2f owns the\n   PRE-CLAIM seam, where a dispatched worker\
-  \ that finds a ready card's premise false refuses it\n   via `task refuse` — by\
-  \ then the card was cut, queued and dispatched, and a whole worker\n   bootstrap\
-  \ is spent to discover it; SPEC-0166 owns a narrower earlier pass, but its predicate\n\
-  \   is `imported_from:`, so it reaches imported migration backlog only and says\
-  \ nothing about a\n   card filed from a live request. Verifying at filing is what\
-  \ makes the wasted card never get\n   cut at all.\n   **The shape to watch — the\
-  \ fact holds, the LOCATOR rots.** A quoted LINE NUMBER goes stale the\n   moment\
-  \ anything lands above it: nothing about the observation is wrong, only its address\
-  \ moved,\n   which a reader cannot tell from the card. So cite what does not rot\
-  \ (a symbol or `#anchor`, the\n   form `implements:` uses) or re-read the locator\
-  \ at filing; and treat any \"as of today\" claim the\n   same way (the expiring-premise\
-  \ arm of the evidence-availability cue in item 4 is this same\n   failure one stage\
-  \ later).\n   An authoring PROMPT only: no card is refused for omitting it, and\
-  \ nothing validates it — this\n   item is a checklist by construction (no card-completeness\
-  \ validator — CHARTER non-goals), and\n   a filing suppressed here would cost more\
-  \ than the premise it screened.\n   **The ONE place this item's thinking is MECHANICALLY\
-  \ floored —** `task plan\n   --finalize` REFUSES a plan that never REFERENCES a\
-  \ canonical `ACn` id, naming the uncovered\n   ids. A NECESSARY condition only —\
-  \ the auditor still judges substance — so it floors the\n   scope↔plan relation\
-  \ this item asks you to think through; it does not check it.\n   **The premise-verify\
-  \ cue's own MECHANICAL FLOOR —** `task file` and `task update\n   --old/--new` (on\
-  \ `scope`/`acceptance`) print two report-only lines,\n   `non-active spec cited\
-  \ (advisory — filing not blocked)` and\n   `retired flag named (advisory — filing\
-  \ not blocked)` (registry rows 12 + 13 in `## Implementation notes`), when a\n \
-  \  cited or named spec resolves in the graph index to a non-active status\n   or\
-  \ the card text names a retired `audit` CLI flag (<workshop-spec> rule 6). A `retired`,\
-  \ `withdrawn` or\n   `rejected` target and a retired flag are the premise faults\
-  \ the graph already knew at the\n   filing. A `superseded` target is reported as\
-  \ INFORMATION, not a fault : the line names its\n   superseder and points at the\
+  \ cue —** does a scope line\n   state a CAUSE? Separate what you MEASURED from what\
+  \ you SUSPECT. A card may report measured\n   observations and may PROPOSE a suspected\
+  \ cause; but a causal claim made BEFORE this task's own\n   Analysis defaults to\
+  \ HYPOTHESIS, and becomes load-bearing only when the card carries the probe\n  \
+  \ evidence and its `from:` chain (evidence discipline → CHARTER §Principle 2 `from:`\
+  \ + §Principle 3\n   probe evidence; the Analysis re-confirmation is this item's\
+  \ own rule above → SPEC-0032). Labelling\n   a cause does not license it as the\
+  \ card's premise — write it as the hypothesis the work TESTS, so\n   the reader\
+  \ can tell which half is proven. The same separation applies to a MEASURED claim:\
+  \ name the\n   surface and scope you actually measured whenever that scope is narrower\
+  \ than the claim you draw\n   from it. The same holds for the INSTRUMENT and not\
+  \ only the scope: when you report a\n   VISUAL or USER-FACING property, do not claim\
+  \ more than you DIRECTLY OBSERVED — either back it\n   with rendered evidence (a\
+  \ screenshot, a rendered read, a gate re-run), OR scope the claim to the\n   PROXY\
+  \ you actually checked. A cheap DOM / selector / console / timing check is never\
+  \ forbidden\n   and stays fully legitimate for steering your own work; the cue binds\
+  \ the REPORT, not the check,\n   so a proxy stays legitimate whenever the report\
+  \ says what it actually observed — what it forbids\n   is UPGRADING a proxy into\
+  \ a claim about what a user saw.\n   An authoring PROMPT only: no card is refused\
+  \ for omitting it.\n   **Premise-verify cue — AT THE FILING SEAM —** does this card\
+  \ rest on a PREMISE about the\n   CURRENT code — a quoted line\n   number, a stated\
+  \ absence (\"nothing does X\"), a reported behaviour, a peer's or a report's\n \
+  \  claim? Then CHECK IT against today's checkout BEFORE you cut the card. This is\
+  \ the cheapest\n   check in the lifecycle and the one nobody makes: the premise\
+  \ arrives with the request, so it\n   reads as given rather than as something to\
+  \ verify.\n   **Which seam this is, and why the existing ones do not reach it.**\
+  \ This cue fires BEFORE A\n   CARD EXISTS. The two premise disciplines already in\
+  \ the corpus are both DOWNSTREAM and stay\n   where they are (pointers, not restated\
+  \ here — <workshop-spec> rule 3): SPEC-0133 rule 2f owns the\n   PRE-CLAIM seam,\
+  \ where a dispatched worker that finds a ready card's premise false refuses it\n\
+  \   via `task refuse` — by then the card was cut, queued and dispatched, and a whole\
+  \ worker\n   bootstrap is spent to discover it; SPEC-0166 owns a narrower earlier\
+  \ pass, but its predicate\n   is `imported_from:`, so it reaches imported migration\
+  \ backlog only and says nothing about a\n   card filed from a live request. Verifying\
+  \ at filing is what makes the wasted card never get\n   cut at all.\n   **The shape\
+  \ to watch — the fact holds, the LOCATOR rots.** A quoted LINE NUMBER goes stale\
+  \ the\n   moment anything lands above it: nothing about the observation is wrong,\
+  \ only its address moved,\n   which a reader cannot tell from the card. So cite\
+  \ what does not rot (a symbol or `#anchor`, the\n   form `implements:` uses) or\
+  \ re-read the locator at filing; and treat any \"as of today\" claim the\n   same\
+  \ way (the expiring-premise arm of the evidence-availability cue in item 4 is this\
+  \ same\n   failure one stage later).\n   An authoring PROMPT only: no card is refused\
+  \ for omitting it, and nothing validates it — this\n   item is a checklist by construction\
+  \ (no card-completeness validator — CHARTER non-goals), and\n   a filing suppressed\
+  \ here would cost more than the premise it screened.\n   **The ONE place this item's\
+  \ thinking is MECHANICALLY floored —** `task plan\n   --finalize` REFUSES a plan\
+  \ that never REFERENCES a canonical `ACn` id, naming the uncovered\n   ids. A NECESSARY\
+  \ condition only — the auditor still judges substance — so it floors the\n   scope↔plan\
+  \ relation this item asks you to think through; it does not check it.\n   **The\
+  \ premise-verify cue's own MECHANICAL FLOOR —** `task file` and `task update\n \
+  \  --old/--new` (on `scope`/`acceptance`) print two report-only lines,\n   `non-active\
+  \ spec cited (advisory — filing not blocked)` and\n   `retired flag named (advisory\
+  \ — filing not blocked)` (registry rows 12 + 13 in `## Implementation notes`), when\
+  \ a\n   cited or named spec resolves in the graph index to a non-active status\n\
+  \   or the card text names a retired `audit` CLI flag (<workshop-spec> rule 6).\
+  \ A `retired`, `withdrawn` or\n   `rejected` target and a retired flag are the premise\
+  \ faults the graph already knew at the\n   filing. A `superseded` target is reported\
+  \ as INFORMATION, not a fault: the line names its\n   superseder and points at the\
   \ point-lookup for the active head, and a reference to it may stay —\n   only a\
   \ card whose PREMISE rests on the superseded text re-checks it against the active\
   \ head. A\n   NECESSARY condition only (status and token, never substance); filing\
@@ -382,10 +381,10 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ / verifier-after-settled\n   → SPEC-0046); filing only RECORDS the already-decided\
   \ cut, never re-opens it.\n6. **Cites** — related ids noted as context? (`cites:`\
   \ is informational; a blocking prerequisite is\n   `requires:` → QUEUE §Picker.)\n\
-  \   **Under-citation cue (widened) — two halves, a MISSING cite AND a cite you never\n\
-  \   opened.** (a) MISSING: does the card DECLARE (via `expected_touch`) a concrete\
-  \ surface an ACTIVE\n   spec governs, without citing that spec? Then cite it — the\
-  \ governing rule is the context the\n   picked-up Analysis needs. (b) PRESENT-BUT-UNREAD:\
+  \   **Under-citation cue — two halves, a MISSING cite AND a cite you never\n   opened.**\
+  \ (a) MISSING: does the card DECLARE (via `expected_touch`) a concrete surface an\
+  \ ACTIVE\n   spec governs, without citing that spec? Then cite it — the governing\
+  \ rule is the context the\n   picked-up Analysis needs. (b) PRESENT-BUT-UNREAD:\
   \ where a scope line or a criterion RESTS on a rule\n   you DO cite, did you OPEN\
   \ that rule and quote the clause verbatim — or write from what you remember\n  \
   \ it says? Author from the clause, never from a paraphrase, INCLUDING our own handbook's\
@@ -566,182 +565,13 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   - From «Anti-complexity note»: Admitted because it fills a real CONTENT gap (no\
   \ single\n  task-authoring home existed); the only retirement is the overlapping\
   \ authoring prose folded in\n  from SPEC-0028/0046 on activation (replacement map\
-  \ above).\n\n## Implementation notes\n\nNotes for the maintainer of the code, moved\
-  \ word for word out of the rule text of the section\neach names.\n\n- From «Delivery\
-  \ wiring»: (availability — `bin/yitc-v2#_filing_reference_howto`, printed by\n \
-  \ `cmd_session_start`, generated from the Filing stage bundle)\n- From «Delivery\
-  \ wiring»: (`cmd_task_file` calls `_require_reads(\"stage\", {stage: Filing})`)\n\
-  - From «Registry line 1»: `_declared_surface_preview` PROJECTS that rule at filing\
-  \ time by injecting\n  the not-yet-indexed card's declared surface into an index\
-  \ copy.\n- From «Under-citation preview»: (`_print_undercitation_preview`, one member\
-  \ of the registry above)\n- From «Triage delivery»: The read-gate's credit path\
-  \ `_fetched_spec_ids` keys ONLY on\n  `data.node_id` (verb-agnostic — bin/lib/gates.py),\
-  \ so the receipt credits the gate through the\n  EXISTING path with no reducer change,\
-  \ no new event type, no new gate (CHARTER §P1; the same\n  delivery-credit idiom\
-  \ the journal recovery-rescan already uses).\n\n### Moved from the rule text\n\n\
-  Reference and maintainer passages moved word for word out of the rule text of the\
-  \ section\neach names; no rule an acting reader applies moved with them.\n\nFrom\
-  \ «Replacement map»:\n\n### Replacement map (what this spec owns vs what it must\
-  \ NOT duplicate — D2, P5 one-home)\n- **OWNS:** the authoring DOCTRINE (what a good\
-  \ card front-loads) + the skeleton-prompt intent.\n- **Does NOT own (pointers only):**\
-  \ SPEC-0028 stays the field-catalog/schema; SPEC-0046 stays\n  decomposition/cutting;\
-  \ CHARTER §P3/§P8 stays done=adopted + infra-adoption. Any overlapping\n  AUTHORING\
-  \ prose in those homes is deleted/pointerized into this one on activation.\n\nFrom\
-  \ «Delivery wiring»:\n\nPer SPEC-0059's Filing carve-out: the doctrine is delivered\
-  \ as a session-start REFERENCE pointer, and the `task file` work-verb CHECKS it\
-  \ was read before writing the\ncard. `task file --skeleton`\nemits the fillable\
-  \ skeleton (`_emit_task_skeleton`, reusing `tasks/_template.yaml`). `binding:`\n\
-  (stage-entry:Filing) / `implements:` are finalized above. No new read verb is added\
-  \ (the existing\n`_require_reads` lever, SPEC-0050).\n\nFrom «Delivery wiring —\
-  \ the advisory line registry»:\n\n**The task-file advisory line REGISTRY — what\
-  \ `task file` prints, and who owns each line.**\nA DELIVERY REGISTRY, not a rule\
-  \ family: it records WHICH advisory lines `cmd_task_file` prints and\nWHERE each\
-  \ line's semantics are homed. It deliberately does NOT claim this spec owns all\
-  \ of them —\nthe thirteen lines answer different questions and keep different homes.\
-  \ The blanket reading\n\"filing previews → SPEC-0044\" is contradicted by this split,\
-  \ as is any reading that SPEC-0060 owns\nthe whole family.\n\n| # | enumerated key\
-  \ (line prefix) | anchor (`bin/lib/task.py`) | shipped | semantics homed in |\n\
-  |---|---|---|---|---|\n| 1 | `preview (advisory — claim-moment screen re-checks):\
-  \ <SAFE\\|WAIT\\|CLASH\\|CLAIMED>` | `_declared_surface_preview` | | **SPEC-0044\
-  \ §2.2** (pointer — see below) |\n| 2 | `sibling-task overlap (advisory — filing\
-  \ not blocked)` | `_print_sibling_task_overlap` | | this spec |\n| 3 | `followup\
-  \ overlap (advisory — filing not blocked)` | `_print_followup_overlap` | | this\
-  \ spec |\n| 4 | `deviation overlap (advisory — filing not blocked)` | `_print_capture_overlap`\
-  \ | | this spec |\n| 5 | `cross-item overlap (advisory — filing not blocked)` |\
-  \ `_print_cross_overlap` | | this spec |\n| 6 | `under-citation preview (advisory\
-  \ — filing not blocked)` | `_print_undercitation_preview` | | this spec (detailed\
-  \ below) |\n| 7 | `in-flight intent overlap (advisory — not blocked)` | `_print_inflight_intent_overlap`\
-  \ | | this spec |\n| 8 | `already-linked (advisory — filing not blocked)` | the\
-  \ `_auto_cross_pick_for_file` call-site | | **SPEC-0086** (the intake-hygiene rule\
-  \ — pointer) |\n| 9 | `AC test/waive status (advisory — filing not blocked)` | `_print_ac_test_waive_status`\
-  \ (its `AC waive fields (advisory — filing not blocked)` block) | | this spec (item\
-  \ 4 — each AC names a test or an explicit waive); the waive form is **SPEC-0165\
-  \ item 4** (pointer) |\n| 10 | `stranded-filing (advisory — filing NOT blocked)`\
-  \ | `_print_stranded_filing_advisory` | | **AGENTS-SESSIONS §Writes happen in a\
-  \ worktree** (pointer — the filing-is-not-executing hand-off) |\n| 11 | `AC measured-bound\
-  \ status (advisory — filing not blocked)` | `_print_ac_measured_bound_status` —\
-  \ fired at BOTH authoring seams: `task file` (via `_print_ac_test_waive_status`)\
-  \ and the `task update --old/--new` field-edit that changes `acceptance` | | this\
-  \ spec (item 4 — the Measured-bound cue: a missing-named-reference heuristic serving\
-  \ the qualitative-outcome rule; a named measurement legalizes no bound) |\n| 12\
-  \ | `non-active spec cited (advisory — filing not blocked)` | `_print_premise_advisory`\
-  \ — fired at BOTH authoring seams: `task file` (off the grafted index) and the `task\
-  \ update --old/--new` field-edit that changes `scope` or `acceptance` (off the committed\
-  \ `graph/index.json`) | | this spec (item 3 — the premise-verify cue's mechanical\
-  \ floor: a cited or scope/acceptance-named spec whose index status is `retired\\\
-  |withdrawn\\|rejected` is a premise fault, only `active` governs — <workshop-spec>;\
-  \ a `superseded` one is reported as information naming its superseder and pointing\
-  \ at the point-lookup for the active head, a reference to it may stay) |\n| 13 |\
-  \ `retired flag named (advisory — filing not blocked)` | `_print_premise_advisory`\
-  \ (same printer, same two seams as row 12) | | **SPEC-1039 rule 6** (pointer — the\
-  \ retirement authority); the flag SET is read in place off the ONE carrier `bin/lib/audit.py#RETIRED_AUDIT_FLAGS`\
-  \ that the pre-parse shim and graph conformance's `retired-audit-flags` probe read,\
-  \ matched by that probe's own whole-token matcher — never a second list |\n\nFrom\
-  \ «Registry line 1»:\n\n**Line 1 is a POINTER, never restated here (P5).** Its collision/lineage\
-  \ semantics — the spec-lineage\nand code-surface altitudes, the SAFE/WAIT/CLASH/CLAIMED\
-  \ verdicts, the release predicate — are\n**SPEC-0044 §2.2's** (parallel dispatch\
-  \ selection); This spec\nrecords only that the line is DELIVERED at filing. To change\
-  \ what the verdict MEANS, edit SPEC-0044,\nnot this registry. Lines 2-7 and 9 are\
-  \ this spec's own concern (line 10 is a POINTER, like 1 and 8 — its hand-off rule\
-  \ is the handbook's): they answer \"does this work already\nexist somewhere?\" (2-5,\
-  \ 7), \"does the card cite the rules governing what it declares?\" (6), and \"does\n\
-  each AC name a test or an explicit waive?\" (9) — authoring questions, not dispatch-collision\n\
-  questions. Within the related-input family, 2-5 read only LANDED /\nindex / journal\
-  \ state; **line 7 alone reads OTHER LIVE SESSIONS' un-landed worktree intents**\
-  \ — the\ngap that let two controllers build duplicates of one owner concern in a\
-  \ day.\n\nFrom «Registry line 2 — the shipped group's bounds»:\n\n**The shipped\
-  \ group's two bounds ARE the rule, and they are stated so a reader knows what the\n\
-  silence means.** The done log grows with the work, so an unbounded widening would\
-  \ flood every filing\nand train the reader to skim. The bounds, each sized against\
-  \ the live corpus:\n- **RECENCY** — closed within `SHIPPED_OVERLAP_WINDOW_DAYS`.\n\
-  - **TITLE ONLY** — the PATH signal is deliberately NOT applied to shipped work (nor\
-  \ is the shipped\n  card's `expected_touch` folded into the match text), unlike\
-  \ the live group where it is sound over\n  a small pool. Against the done log the\
-  \ path signal alone matches every card that touches a hot\n  file, in the hundreds.\
-  \ This is the decisive precision lever, and it is why the quorum stays at\n  `FOLLOWUP_OVERLAP_SHARED_MIN`\
-  \ — raising the quorum instead would have silenced BOTH recorded\n  duplicate-filing\
-  \ incidents (2 shared tokens each).\nSo **work shipped longer ago than the window,\
-  \ or overlapping only on a file surface, is OUTSIDE this\nline BY DESIGN** — the\
-  \ emitter prints that bound beneath the group rather than letting silence read\n\
-  as \"nothing like this has ever shipped\". A terminal card carrying no parseable\
-  \ `closed_at` is\nlikewise out of the window (fail-quiet on the noise side, the\
-  \ registry's shared posture).\n\nFrom «Registry line 2»:\n\n**This line detects,\
-  \ it never decides, and it never blocks** — the registry's shared character below\n\
-  applies unchanged. NOT added alongside it: any rule obliging the reader to read\
-  \ these lines.\n\nFrom «Registry — shared character»:\n\n**Shared character of every\
-  \ line in the registry (stated once).** Each is printed AFTER the id is\nallocated\
-  \ and the YAML written, so **none can alter a filing**; each is report-not-block\
-  \ (CHARTER\nnon-goal #2/#7), fail-open inside its own `try` (an index/journal/cross-fold\
-  \ error suppresses the\nadvisory, never breaks a completed filing), emits **no event**,\
-  \ and leaves the exit code unchanged.\nTogether they add **no gate, no card-completeness\
-  \ validator, and no new store**, and they ride the\nONE grafted index the surface\
-  \ preview already builds (no second build). The registry is NOT a\nsecond home for\
-  \ SPEC-0044's selection rule and NOT a filing gate.\n\nFrom «Registry — prose by\
-  \ decision»:\n\n**The registry table is PROSE by decision — do NOT \"fix\" the missing\
-  \ anchors.** The listed\nhelpers above are deliberately absent from every spec's\
-  \ `implements:` (this spec's and SPEC-0044's).\nRead that as INTENDED, not as an\
-  \ oversight to tidy: region-drift on a helper is a poor proxy for what\nthis table\
-  \ records (each line's KEY), so it would fire on every internal refactor while the\
-  \ key is\nuntouched — the E-0019 broad-anchor false-positive class (SPEC-0006).\
-  \ **Re-open only on the named\nreturn trigger:** an OBSERVED divergence between\
-  \ this table and what `cmd_task_file` actually prints — EITHER a row's enumerated\
-  \ key no longer matching the printed\nstring, OR a printed advisory line having\
-  \ NO row here at all. Fix is a key-string assertion in the pinned suite, not eight\
-  \ signature\nbaselines.\n\nFrom «Under-citation preview»:\n\n**Under-citation filing\
-  \ preview — line 6, a report-only DELIVERY surface for item-6's cite\ndiscipline.**\
-  \ `cmd_task_file`, after allocating the id and writing the card, prints a filing-preview\n\
-  advisory: for each CONCRETE\n`expected_touch` anchor (an existing regular repo file,\n\
-  never a broad directory or a generated/derived `graph/`·`release-view/` path — the\
-  \ noise bound), it\nresolves via the graph's `code_to_specs` reverse index to the\
-  \ ACTIVE specs whose own `implements`\nanchor GOVERNS that surface (symbol-aware,\
-  \ so a spec on an unrelated symbol in the same file is not\nnamed) and names any\
-  \ such spec the card does NOT `cite`. It surfaces the unread-governing-rule gap\
-  \ at\nFILING, one dispatch cycle before an Analysis/audit would. HONEST FRAMING:\
-  \ the WARN states it\ndetects UNDER-CITATION, NOT a\ncontradiction, and does NOT\
-  \ prove the card conflicts with the named specs — citing a named spec\nsilences\
-  \ the line, and a deliberate non-cite is acked via `task update --note`. It carries\
-  \ the\nregistry's shared character stated above (report-not-block, fail-open, no\
-  \ event, exit unchanged —\nCHARTER non-goal #2/#7; no gate, no card-completeness\
-  \ validator, no new store; it rides the ONE\ngrafted index the line-1 surface preview\
-  \ already builds, no second build). Additive extension of the\nFiling delivery (<workshop-spec>\
-  \ rule 7); the cite discipline itself stays normative in item 6 above\n(cue+pointer).\n\
-  \nFrom «Triage delivery»:\n\n**Triage/revizia-entry delivery — a SECOND delivery\
-  \ surface for the SAME doctrine.**\nA revizia/triage scan (`bin/lib/triage.py#cmd_triage_run`)\
-  \ is the moment whose expected OUTPUT is\nfiling (the promote-to-fix-task route),\
-  \ but it enters NO task Filing stage — so a `task file`\nmid-batch would surprise-refuse\
-  \ on the `_require_reads(stage=Filing)` gate even after the handbook\nseed was read.\
-  \ So the triage SCAN entry DELIVERS this doctrine, symmetric with the Filing\nstage-entry,\
-  \ by emitting an HONEST node_id-bearing delivery-RECEIPT: a `cli_invoked` event\
-  \ carrying\n`verb: \"triage run\"` (deliberately NOT `\"graph query\"`, so a journal\
-  \ consumer never mistakes it for\na real interactive fetch) + `node_id: SPEC-0060`\
-  \ + an explicit `delivery` marker.\n\nFrom «Anti-complexity note»:\n\n### Anti-complexity\
-  \ note (<workshop-spec> §7 / CHARTER §P1)\nReuses the existing `task file` verb\
-  \ + the `_template.yaml` skeleton + the `_require_reads` lever\n(SPEC-0050) — no\
-  \ new gate, no new store, no card-completeness validator.\n\n## Verification\n\n\
-  Behavioral (primary):\n- `task file` checks the task-authoring doctrine was read\
-  \ (current session) before writing the card,\n  and REFUSES when unread (the SPEC-0059\
-  \ Filing CHECK leg; emits `read_gate_refused`);\n- a card filed via `task file`\
-  \ carries the front-loaded fields (scope + acceptance-with-probe), seeded\n  by\
-  \ the skeleton prompts.\nStructural (secondary): no schema rule or decomposition\
-  \ rule is restated here — each resolves to its\nowner (SPEC-0028 / SPEC-0046) by\
-  \ pointer.\n\n## Drift review\n\nThis body has been AMENDED in place nine times\
-  \ (each an <workshop-spec> rule 7 additive extension, none a\nsupersession): the\
-  \ item-4 audit-post-verifiability sub-clause; the X-0419 cohort-complement and\n\
-  cited-desired-exclusion cues; the evidence-availability cue and its two limbs; the\
-  \ durable-field\ncue; the born-armed-carrier cue; the qualitative-outcome rule with\
-  \ the Measured-bound cue re-scoped\nbeneath it; plus two re-verifications of the\
-  \ `implements:` anchors after unrelated drift. Every\namendment was an AUTHORING\
-  \ PROMPT: none added a gate, an event, a store or a card-completeness\nvalidator,\
-  \ and none changed what an already-compliant criterion had to do. The dated entries,\
-  \ their\nmeasured grounds and the per-amendment CHARTER §P1 weighing are in git\
-  \ history for this file and in\nthe cited proposing plan — not restated here (<workshop-spec>\
-  \ rule 3 / rule 8).\n\nONE amendment ships a test, and it is the only one that could:\
-  \ the limb-(a) example land-tie\nphrasings are literal strings a live matcher must\
-  \ keep accepting, so\n`tests/test_land_emitted_cue_examples_match_the_matcher.py`\
-  \ asserts each of them against\n`bin/lib/audit.py#land_emitted_named_evidence` —\
-  \ RED if an example is edited to a non-matching\nphrasing, RED if the matcher is\
-  \ narrowed away from an example. Every other cue quotes no\nmatcher-bound string,\
-  \ so a test there would assert prose against itself.\n"
+  \ above).\n\n### History moved from the rule body\n\nTags and history clauses moved\
+  \ word for word out of rule sentences, in body order; the rule\ninventory committed\
+  \ with names the sentence each stood in.\n\n · (2026-08-12) · (X-1012) · (owner\
+  \ directive 2026-08-16,\nre-confirmed 2026-08-30) · · · · (widened) ·\n ·\n\n> **This\
+  \ body CONTINUES in `SPEC-0060-task-authoring-doctrine-front-load-checklist-for-a.part2.yaml`**\n\
+  > (SPEC-0120 §3 split) — §Implementation notes … §Drift review. `graph query SPEC-0060`\
+  \ serves both.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3

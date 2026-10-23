@@ -3673,6 +3673,13 @@ def cmd_cross_show(args, *, cross_log_path, die, aliases=None, **_) -> None:
     for entry in chain:
         mark = "" if entry["accepted"] else f"  DROPPED ({entry['why']})"
         print(f"  {entry['ts'] or '(no ts)'}  {entry['type']}  by={entry['by']}{mark}")
+        # T-14070 — a dispute/reject reason under its OWN row, so the disproof the peer must answer
+        # (and every earlier one) is read here, not from the raw store. Other rows print nothing more.
+        reason = (entry["event"].get("data") or {}).get("reason") \
+            if entry["type"] in ("cross_disputed", "cross_rejected") else None
+        if isinstance(reason, str) and reason.strip():
+            for i, line in enumerate(reason.strip().splitlines()):
+                print(f"      {'reason: ' if i == 0 else '        '}{line}")
 
 
 # ---------------------------------------------------------------------------------------------

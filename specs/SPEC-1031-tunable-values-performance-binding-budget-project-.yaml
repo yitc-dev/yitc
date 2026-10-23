@@ -15,10 +15,12 @@ implements:
 - bin/lib/machine_settings.py#in_force
 - bin/lib/machine_settings.py#load
 - bin/lib/machine_settings.py#set_value
+- bin/lib/machine_settings.py#set_project_threshold
 - bin/lib/machine_settings.py#_refuse_gate
 - bin/lib/machine_settings.py#ENTRYPOINTS
 - bin/lib/cli.py#cmd_config_list
 - bin/lib/cli.py#cmd_config_set
+- bin/lib/cli.py#_config_set_project
 - bin/lib/cli.py#_verify_test_timeout_seconds
 - bin/lib/cli.py#_land_threshold_in_force
 - bin/lib/debt.py#_lane_bound
@@ -97,24 +99,38 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ its band is ignored with one report-only line naming it and the built-in default\
   \ stands.\nNothing in the section ever fails a land.\n\nRULE 6 — THE VALUE IN FORCE\
   \ IS RECORDED. `config set` journals `config_changed` (key, old, new,\nclass) as\
-  \ before. The row a run already writes names every opened BUDGET that bounded it,\
-  \ value and\nsource, whether the run passed, failed or was ended by it (for the\
-  \ land-verify per-file bound: the\nland and Stage-6 rows' bound-in-force fields\
-  \ `verify_test_timeout_s` / `verify_test_timeout_source`,\nand a declared layer's\
-  \ `timeout_s` / `timeout_source`). The duty is an opened budget's: the audit\ntimeouts\
-  \ stay BINDING (rule 3(b)). A result or a report-only signal that an opened\nTHRESHOLD\
-  \ decided names that threshold value and its source on its row. No warning or impact\n\
-  estimate is added here (owner directive events.jsonl#ts=; followup\nfu_30c49f88ec30).\n\
-  \nRULE 7 — THE REFUSAL STAYS HARD FOR GATE, ON EVERY DOOR (<workshop-spec> rules\
-  \ 4-5, unchanged for GATE,\nextended to THRESHOLD on the machine). `set_value` refuses\
-  \ a GATE key and a THRESHOLD key (a threshold\nis the project's) and writes nothing;\
-  \ `load`/`get_value` drop either from the machine file; the\n`thresholds:` reader\
-  \ drops a GATE key; an out-of-band BUDGET value is refused at `set_value` and\n\
-  ignored at file read (the next source answers). A governed write also removes the\
-  \ inert keys the\nfile carries that the read path drops, and reports what it removed.\
-  \ `_refuse_gate` takes no override\nparameter; no flag and no environment escape\
-  \ exists. `ENTRYPOINTS` declares every way to reach the\nsetter, and the verifier\
-  \ drives each with a GATE key and a THRESHOLD key.\n\nRULE 8 — ABSENT-FILE FALLBACK\
+  \ before; from the project door (rule 7) the row also carries `scope: project`.\
+  \ The row a run already writes names every opened BUDGET that bounded it, value\
+  \ and\nsource, whether the run passed, failed or was ended by it (for the land-verify\
+  \ per-file bound: the\nland and Stage-6 rows' bound-in-force fields `verify_test_timeout_s`\
+  \ / `verify_test_timeout_source`,\nand a declared layer's `timeout_s` / `timeout_source`).\
+  \ The duty is an opened budget's: the audit\ntimeouts stay BINDING (rule 3(b)).\
+  \ A result or a report-only signal that an opened\nTHRESHOLD decided names that\
+  \ threshold value and its source on its row. No warning or impact\nestimate is added\
+  \ here (owner directive events.jsonl#ts=; followup\nfu_30c49f88ec30).\n\nRULE 7\
+  \ — THE REFUSAL STAYS HARD FOR GATE, ON EVERY DOOR (<workshop-spec> rules 4-5, unchanged\
+  \ for GATE,\nextended to THRESHOLD on the machine). `set_value` refuses a GATE key\
+  \ and a THRESHOLD key (a threshold\nis the project's) and writes nothing; `load`/`get_value`\
+  \ drop either from the machine file; the\n`thresholds:` reader drops a GATE key;\
+  \ an out-of-band BUDGET value is refused at `set_value` and\nignored at file read\
+  \ (the next source answers). A governed write also removes the inert keys the\n\
+  file carries that the read path drops, and reports what it removed. `_refuse_gate`\
+  \ takes no override\nparameter; no flag and no environment escape exists. `ENTRYPOINTS`\
+  \ declares every way to reach the\nsetter, and the verifier drives each machine\
+  \ door with a GATE key and a THRESHOLD key and the\nproject door with a GATE key.\n\
+  THE PROJECT DOOR. `config set --project <key> <value>` (`set_project_threshold`)\
+  \ is the one door that\nwrites a THRESHOLD: that key only, inside its band, into\
+  \ the project's own `yitc-ops.yaml`\n`thresholds:` section, every other byte of\
+  \ the file kept. It refuses a GATE key through the same\n`_refuse_gate`, a key of\
+  \ a machine class, an unknown key, a threshold without a band and an\nout-of-band\
+  \ value, and in the engine's own checkout (rule 4); refused, it writes nothing.\
+  \ It is a\nmember of the scoped self-commit family (AGENTS-SESSIONS §Writes happen\
+  \ in a worktree): from the main\ncheckout it commits `yitc-ops.yaml` and its journal\
+  \ row only, refusing preexisting dirt in that file.\nThat commit is no card, so\
+  \ the fast-path reading of a card's diff (LIFECYCLE §Two flow types,\nSPEC-0178\
+  \ rule 3) does not reach it; inside a writing worktree it rides that card's batch,\
+  \ whose diff\nthen touches the operating contract like any other edit. Every other\
+  \ part of `yitc-ops.yaml` stays\ncard-governed.\n\nRULE 8 — ABSENT-FILE FALLBACK\
   \ (<workshop-spec> rule 6): a missing, unreadable or malformed machine file or\n\
   `thresholds:` section contributes no overrides and nothing errors; neither is ever\
   \ a prerequisite.\n\nRULE 9 — A GOVERNING VALUE IS WRITTEN ONCE. A spec that governs\
@@ -145,32 +161,36 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ config set <a BUDGET key> <out-of-band v> # REFUSES; a hand-written one is ignored\
   \ at read\n  bin/yitc-v2 config set <a THRESHOLD key> <v> # REFUSES: a threshold\
   \ is set in the project's thresholds:\n  bin/yitc-v2 config set <a GATE key> <v>\
-  \ # REFUSES, writes nothing\nTests (named by the cut's cards, each red on the pre-change\
-  \ code):\n  - rules 1-2: every inventory entry has one of the five classes; an unclassified\
-  \ one reads GATE; the\n    session-ref carry is still read as SPEC-0137 defines.\n\
-  \  - rule 3: each opened key has a band; one key per opened value (`config get`\
-  \ equals the applied\n    value when two former names are both set); a key no card\
-  \ opened is still GATE.\n  - rule 4: for the per-file bound with every source present\
-  \ (a fixture: environment 60, layer 600,\n    section 900, machine 120, built-in\
-  \ default 300) the applied bound is 60; without the environment\n    600; without\
-  \ the layer 900; without the section 120. A venue run with the caller's bound 120\
-  \ and\n    the venue's own 300 applies and records 120. Two differing machine files\
-  \ and environments leave one\n    project's THRESHOLD unchanged. Changing only an\
-  \ opened key's inventory default changes the\n    applied value (no stale constant\
-  \ left at the read site).\n  - rule 5: a `thresholds:` that is a list, or holds\
-  \ an unknown, non-THRESHOLD or out-of-band key,\n    is ignored with one report-only\
-  \ line, the default stands and the land does not fail.\n  - rule 6: a land and a\
-  \ Stage-6 run — passing and ended by the per-file budget, local and routed to\n\
-  \    the venue — each name the budget value and source; a land stopped by an opened\
-  \ land threshold and\n    a report-only signal raised by an opened threshold each\
-  \ name the threshold value and source.\n  - rule 7: every declared entrypoint refuses\
-  \ a GATE key and a THRESHOLD key.\n  - rule 9: after the worked example one source\
-  \ holds SPEC-0132's two bounds, no second default\n    remains in `bin/lib/debt.py`,\
-  \ and changing that source changes the shown default and the\n    applied value\
-  \ with no override set.\n  - delivery (rule 9 reaches the next author): `spec new`\
-  \ and `spec edit` deliver this spec among\n    their before-rule-change contracts\
-  \ while it is active, and not while it is proposed —\n    tests/test_t13969_opened_tunable_keys.py\n\
-  \    ::test_ac4_spec_new_and_spec_edit_deliver_spec_1031_once_it_is_active.\n"
+  \ # REFUSES, writes nothing\n  bin/yitc-v2 -C <consumer> config set --project <a\
+  \ THRESHOLD key> <v> # in band: thresholds: written, self-committed\nTests (named\
+  \ by the cut's cards, each red on the pre-change code):\n  - rules 1-2: every inventory\
+  \ entry has one of the five classes; an unclassified one reads GATE; the\n    session-ref\
+  \ carry is still read as SPEC-0137 defines.\n  - rule 3: each opened key has a band;\
+  \ one key per opened value (`config get` equals the applied\n    value when two\
+  \ former names are both set); a key no card opened is still GATE.\n  - rule 4: for\
+  \ the per-file bound with every source present (a fixture: environment 60, layer\
+  \ 600,\n    section 900, machine 120, built-in default 300) the applied bound is\
+  \ 60; without the environment\n    600; without the layer 900; without the section\
+  \ 120. A venue run with the caller's bound 120 and\n    the venue's own 300 applies\
+  \ and records 120. Two differing machine files and environments leave one\n    project's\
+  \ THRESHOLD unchanged. Changing only an opened key's inventory default changes the\n\
+  \    applied value (no stale constant left at the read site).\n  - rule 5: a `thresholds:`\
+  \ that is a list, or holds an unknown, non-THRESHOLD or out-of-band key,\n    is\
+  \ ignored with one report-only line, the default stands and the land does not fail.\n\
+  \  - rule 6: a land and a Stage-6 run — passing and ended by the per-file budget,\
+  \ local and routed to\n    the venue — each name the budget value and source; a\
+  \ land stopped by an opened land threshold and\n    a report-only signal raised\
+  \ by an opened threshold each name the threshold value and source.\n  - rule 7:\
+  \ every declared entrypoint refuses a GATE key, and every machine door a THRESHOLD\
+  \ key;\n    the project door writes an in-band THRESHOLD, commits it alone with\
+  \ its row from main, and\n    refuses a GATE, a BUDGET, an unknown key and an out-of-band\
+  \ value —\n    tests/test_t14056_project_threshold_door.py.\n  - rule 9: after the\
+  \ worked example one source holds SPEC-0132's two bounds, no second default\n  \
+  \  remains in `bin/lib/debt.py`, and changing that source changes the shown default\
+  \ and the\n    applied value with no override set.\n  - delivery (rule 9 reaches\
+  \ the next author): `spec new` and `spec edit` deliver this spec among\n    their\
+  \ before-rule-change contracts while it is active, and not while it is proposed\
+  \ —\n    tests/test_t13969_opened_tunable_keys.py\n    ::test_ac4_spec_new_and_spec_edit_deliver_spec_1031_once_it_is_active.\n"
 cites:
 - SPEC-0202
 - SPEC-0093
@@ -205,13 +225,14 @@ concern:
   waiver_policy: loose
 init_concern: null
 implements_signature:
+  bin/lib/cli.py#_config_set_project: df40206fbf59fa195509ea8c5f788b3693038a892b00a38ef87a3b19371cf482
   bin/lib/cli.py#_land_threshold_in_force: 654f62cf96da42d42d6b4ec96d71a37bf35afe51165a9090c5f97f2288e4f930
   bin/lib/cli.py#_verify_test_timeout_seconds: 0906151c1d859aaf9416c57d7c1fd6643a6948459071854cf2956ddbb5650aeb
   bin/lib/cli.py#cmd_config_list: 47f223be01c0554b5bb35ff7ababd94783f79c70b653f16c04a1a70e17665656
-  bin/lib/cli.py#cmd_config_set: 7ed9dbfb43fd58ad70990a6d68ab67bb6afeb0af44269c9a1e1fc73bdcc1bb48
+  bin/lib/cli.py#cmd_config_set: 892b3ecb784c1965faf00d3c54bc4d9784893b7fb07fe21250a09d330c69be61
   bin/lib/debt.py#_lane_bound: 09607422d04a15cbe2870c596c7d96421c17f394a592a71914e8f2d801bc6b8f
-  bin/lib/machine_settings.py#ENTRYPOINTS: 816f31d1eae99164e9ea2b172bc694a30a5b2b7a8ba21a86e0068af8599b12e1
-  bin/lib/machine_settings.py#INVENTORY: 19fdb0b7ccd1cfd01947455b0e51533ee3b6b879798897730be5c74321926fdf
+  bin/lib/machine_settings.py#ENTRYPOINTS: 7bdf6b9e29cc3e6d932c42a3698852b03a1ff29d273cee9b60c1c3ccff8247d0
+  bin/lib/machine_settings.py#INVENTORY: e1b8aa7685ac4b534efc2451475bc7534277688359af5a467248fbadbbc06f74
   bin/lib/machine_settings.py#_refuse_gate: edd26b3fe88509639dd1d57833b00551e9c6a1330d7f157b795a8d511be4d753
   bin/lib/machine_settings.py#applied: 1bfb3db83111deb3f04ffa49e10fe4c3444a817342312faf345068de9926fb46
   bin/lib/machine_settings.py#in_force: a8813997b0ca6edb622f61e618cabf7679a94391e9a44632af5fda5ac950ab08
@@ -219,4 +240,5 @@ implements_signature:
   bin/lib/machine_settings.py#project_thresholds: c66fb88d3db7390a739cfa38225267ab4ba20b2aa7ad48104bc04fe12063b38d
   bin/lib/machine_settings.py#resolve_settings_path: 5031380a4b5d8cf3f1624798cc7d1b8047ef1371f96169ebd5ea8caf11890307
   bin/lib/machine_settings.py#say_notes: 29f7cd98e2e92d966f0bb000379ebfe8ee248ec033bcc0948c01849948daba5e
+  bin/lib/machine_settings.py#set_project_threshold: 537fe9f67ce7392e401f4c4cdc5045b88b5f1ce9be4c3811e3db715be1c84fa9
   bin/lib/machine_settings.py#set_value: e9927af8f088dfeb745a9ac44bc5c020f7b93cea517f561195e2f825e64c158f

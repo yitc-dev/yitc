@@ -471,6 +471,15 @@ def run_auditor_subprocess(cmd: list, prompt: str, *, run_env=None,
     hb_interval = _audit_heartbeat_interval()
     hb_stop = threading.Event()
     hb_thread = None
+    # T-14066 (SPEC-0137 rule 6/7): the auditor child is a FRESH sub-environment — shed the launcher's
+    # session-ref + provider carriers (the one scrub SoT, `_SUBENV_SCRUB_CARRIERS`) and the frozen
+    # worker ref, so a `bin/yitc-v2` call the auditor makes never writes journal rows under the
+    # launching session. Everything else (CODEX_HOME, PATH, …) rides through. `worker_ctx` above already
+    # read the parent's marker, so the heartbeat is unaffected.
+    from lib import cli as _cli          # local import: `lib.cli` imports this module (precedent task.py)
+    _shed = set(_cli._SUBENV_SCRUB_CARRIERS) | {EXPECTED_SESSION_REF_ENV}
+    child_env = {k: v for k, v in (run_env if run_env is not None else os.environ).items()
+                 if k not in _shed}
     if worker_ctx and hb_interval > 0:
         def _heartbeat():
             start = time.monotonic()
@@ -487,7 +496,7 @@ def run_auditor_subprocess(cmd: list, prompt: str, *, run_env=None,
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-            text=True, env=run_env, start_new_session=True,
+            text=True, env=child_env, start_new_session=True,
             # T-12833 (X-1540): spawn INSIDE the target repo. An existing-but-untrusted caller cwd
             # (a `-C <repo>` gate run from elsewhere) failed the auditor CLI's trusted-directory
             # check and ABORTed the gate; the ENOENT re-root above only covers a REMOVED cwd.
@@ -2538,8 +2547,12 @@ def format_p8_carrier_followup_section(carriers, task_id) -> str:
         awaits = (rec.get("awaits") or "").strip() if isinstance(rec.get("awaits"), str) else ""
         if not trigger or not awaits:
             continue
+        # T-14078 — a carrier folded from the other checkout carries the SPEC-0168 rule-4 mark; the id
+        # stays the first token, so `p8_carrier_ids_in_section` reads the row unchanged.
+        mark = rec.get("cross_instance")
         rows.append(f"{_P8_CARRIER_ROW_PREFIX}{rec.get('id')} "
-                    f"awaits {awaits} — trigger: {trigger}")
+                    f"awaits {awaits} — trigger: {trigger}"
+                    + (f" [cross-instance: {mark}]" if mark else ""))
     if not rows:
         return ""
     return (
@@ -5746,10 +5759,55 @@ def terminal_ceiling_row(target_kind, stage_rows, rows, target_id, target_key):
         (r for r in real
          if str(((r.get("data") if isinstance(r.get("data"), dict) else {}).get("basis")) or "")
          # T-13260 — a RED on the ONE post-GREEN merge-integration pass ends audit-post the same way.
-         in (ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS, audit_ceiling.MERGE_INTEGRATION_BASIS)
+         # T-14090 — and a RED on the ONE test-found-fix pass.
+         in (ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS, audit_ceiling.MERGE_INTEGRATION_BASIS,
+             TEST_FOUND_FIX_BASIS)
          and str(((r.get("data") if isinstance(r.get("data"), dict) else {}).get("verdict")) or "")
          .strip().upper() == "RED"),
         None)
+
+
+#: T-14090 — the test-found-fix names, bound at import like `DECIDE_ROW_TYPES` (re-export aliases; the
+#: bodies live in `bin/lib/audit_ceiling.py`).
+TEST_FOUND_FIX_BASIS = audit_ceiling.TEST_FOUND_FIX_BASIS
+TEST_FOUND_FIX_MARKER = audit_ceiling.TEST_FOUND_FIX_MARKER
+test_found_fix_row = audit_ceiling.test_found_fix_row
+_test_found_fix_window = audit_ceiling.test_found_fix_window
+_test_found_fix_admission = audit_ceiling.test_found_fix_admission
+test_found_fix_context = audit_ceiling.test_found_fix_context
+
+
+#: T-14090 — the card's row types the test-found-fix window reads, in ONE journal-order read: the
+#: completion rows (+ the prompt rows the phantom rule-3 drop needs), the Tests verdict rows and the
+#: `commit_landed` rows that bound which runs count.
+TEST_FOUND_FIX_ROW_TYPES = ("external_audit_completed", "audit_prompt_sent", "tests_passed",
+                            "tests_failed", "commit_landed")
+
+
+def _test_found_fix_inputs(tid, rows):
+    """T-14090 — `(rows, real_post_rows)`: the card's rows as handed in (journal order) and its REAL
+    `(task, post)` completion rows, phantom rule-3 rows dropped (T-12310). Pure f(rows)."""
+    rows = [r for r in rows or () if isinstance(r, dict)]
+    stage_rows = _stage_audit_rows(rows, tid, "post")
+    return rows, [r for r in stage_rows if _on_decisions_row_is_real(r, stage_rows, rows, tid, "post")]
+
+
+def test_found_fix_window_for(tid, rows, *, resolve) -> tuple:
+    """T-14090 — the host binding of `audit_ceiling.test_found_fix_window` (the COMMIT door: `task
+    commit --reship` past the ceiling), over the card's rows of `TEST_FOUND_FIX_ROW_TYPES`."""
+    rows, real = _test_found_fix_inputs(tid, rows)
+    return _test_found_fix_window(
+        tid, rows=rows, stage_rows=real, resolve=resolve, run_verdict=gates.governed_run_verdict,
+        rule3_bases=(ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS), currency_basis=CURRENCY_BASIS)
+
+
+def test_found_fix_admission_for(tid, rows, *, custody_sha, resolve, strict_descendant) -> tuple:
+    """T-14090 — the host binding of `audit_ceiling.test_found_fix_admission` (the AUDIT door)."""
+    rows, real = _test_found_fix_inputs(tid, rows)
+    return _test_found_fix_admission(
+        tid, rows=rows, stage_rows=real, custody_sha=custody_sha, resolve=resolve,
+        strict_descendant=strict_descendant, run_verdict=gates.governed_run_verdict,
+        rule3_bases=(ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS), currency_basis=CURRENCY_BASIS)
 
 
 @functools.wraps(audit_ceiling._on_decisions_row_is_real)
@@ -6819,7 +6877,7 @@ RETIRED_CEILING_POINTER = (
     "<pre|post> --finding <fp1:...> --disposition <fix|accept|defer> --reason \"<why>\" --directive "
     "<events.jsonl#ts=...> [--evidence <revision>]` (rule 2; a `fix` REQUIRES --evidence: the fixing "
     "commit at post, the card's current plan fingerprint at pre); then (2) ONE bounded pass runs on those decisions — `yitc-v2 "
-    "audit pre|post --task <T-XXXX> --on-decisions` (rule 3). A dispatched WORKER never decides: it "
+    "audit pre|post --task <T-XXXX> --on-decisions --sweep '<where you looked for the same defect class and what you found>'` (rule 3). A dispatched WORKER never decides: it "
     "halts with `blocked-on-land` naming its residual fingerprints and the Controller decides.")
 
 #: The retired CLI tokens of the `audit` verb, each mapped to the one line that says what it was and
@@ -7027,7 +7085,7 @@ def _repin_stale_forward_path(tid: str, stage: str, custody_repin_from: str, shi
         f"  1) {consult_cmd}\n"
         f"  2) {retry_cmd}\n"
         f"Escalate to the owner only if the consult does not converge to a single survivor "
-        f"(T-10739 / X-0605, SPEC-0124 §ceiling-convergence triage)."
+        f"(T-10739 / X-0605, SPEC-1034 §ceiling-convergence triage)."
     )
 
 
@@ -8336,7 +8394,7 @@ def _residual_escalation_suffix(residual_findings) -> str:
     if prefers_deferred_adoption_overlay(residual_findings):
         suffix += (f" (deferred-adoption/P8 residual — for a GENUINE deferred-adoption RED prefer the "
                    f"purpose-built overlay flag {', '.join(_DEFERRED_ADOPTION_OVERLAY_FLAGS)} BEFORE "
-                   f"pulling the owner into --owner-reset, SPEC-0124 §Owner-authorized ceiling continuation)")
+                   f"pulling the owner into --owner-reset, SPEC-1034 §Owner-authorized ceiling continuation)")
     return suffix
 
 
@@ -8475,7 +8533,8 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
     data["reason"] = (
         f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land, needs a CONTROLLER "
         f"DECISION per residual: {_fp_clause}. Record one `yitc-v2 audit decide` per fingerprint, then "
-        f"re-dispatch; the worker resumes with `audit {stage} --task {tid} --on-decisions` "
+        f"re-dispatch; the worker resumes with `audit {stage} --task {tid} --on-decisions "
+        f"--sweep '<where you looked for the same defect class and what you found>'` "
         f"(SPEC-0204 rules 2-3, SPEC-0103 §3)"
         # T-13448: a post `fix` evidence must be a STRICT descendant of the audited commit.
         + (". For a residual the worker fixes in scope it commits the fix FIRST (`task commit "
@@ -8537,7 +8596,8 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
 # (`task pause`, the dispatch recovery hint) will later read as terminal;
 # tests/test_ceiling_decisions_on_decisions.py pins the two against each other.
 CEILING_TERMINAL_HALT_BASES = (ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS,
-                               audit_ceiling.MERGE_INTEGRATION_BASIS)
+                               audit_ceiling.MERGE_INTEGRATION_BASIS,
+                               TEST_FOUND_FIX_BASIS)   # T-14090
 
 
 def ceiling_terminal_exits(tid) -> str:
@@ -8589,6 +8649,7 @@ def ceiling_terminal_halt_disposition(tid, stage, passes, worker_ref, emit_fn, *
     exits = ceiling_terminal_exits(tid)
     _basis = str(basis or "")
     label = ("post-GREEN merge-integration pass" if _basis == audit_ceiling.MERGE_INTEGRATION_BASIS
+             else "test-found-fix pass" if _basis == TEST_FOUND_FIX_BASIS   # T-14090
              else "absorption re-audit" if _basis == ON_DECISIONS_ABSORPTION_BASIS
              else "`--on-decisions` pass")
     ref = f" ({ceiling_ref})" if ceiling_ref else ""
@@ -9169,7 +9230,7 @@ def absorb_into_plan_gate_record(slug: str, gate: str, text: str, *, decisions_d
     pattern = (gate_audit_map.get(gate) or (None,))[0]
     if not pattern:
         _die(f"unknown plan gate {gate!r} — the ceiling-bearing gates are: "
-             f"{', '.join(sorted(gate_audit_map))} (SPEC-0124 §Plan-target parity). "
+             f"{', '.join(sorted(gate_audit_map))} (SPEC-1034 §Plan-target parity). "
              f"{PLAN_ACCEPT_GATE_NAMING}")
     path = decisions_dir / pattern.format(slug=slug)
     if not path.exists():
@@ -9184,7 +9245,7 @@ def absorb_into_plan_gate_record(slug: str, gate: str, text: str, *, decisions_d
     verdict = normalized_verdict(rec)
     if verdict != "YELLOW":
         _die(f"{slug} {gate} gate verdict is {verdict or '(none)'} — mode-(b) absorption applies to a "
-             f"YELLOW residual ONLY (SPEC-0124 §Audit-loop ceiling). RED/ABORT = STOP: re-plan or "
+             f"YELLOW residual ONLY (SPEC-1034 §Audit-loop ceiling). RED/ABORT = STOP: re-plan or "
              f"escalate, never absorb; GREEN carries no accepted finding to absorb. This route never "
              f"rewrites a verdict.")
 
@@ -9280,7 +9341,7 @@ def absorb_into_adhoc_record(slug: str, text: str, *, decisions_dir: Path, repo_
     verdict = normalized_verdict(rec)
     if verdict != "YELLOW":
         _die(f"{slug} ad-hoc consult verdict is {verdict or '(none)'} — mode-(b) absorption applies "
-             f"to a YELLOW record ONLY (SPEC-0124 §Audit-loop ceiling). RED/ABORT = STOP: rework and "
+             f"to a YELLOW record ONLY (SPEC-1034 §Audit-loop ceiling). RED/ABORT = STOP: rework and "
              f"consult again, never absorb; GREEN carries no accepted finding to absorb. This route "
              f"never rewrites a verdict and nothing was written. To consult again run `yitc-v2 audit "
              f"adhoc --slug <new-slug> --prompt \"<request>\"`.")
@@ -10774,7 +10835,8 @@ def _adhoc_ceiling_steer_route(slug: str, stage: str, *, _find_task_yaml, _read_
             card = None    # an unreadable card must not abort an advisory note
         done = isinstance(card, dict) and card.get("status") == "done"
     return (f"yitc-v2 audit {stage} --task {slug}"
-            f"{' --reaudit-after-close' if done else ''} --on-decisions")
+            f"{' --reaudit-after-close' if done else ''} --on-decisions "
+            f"--sweep '<where you looked for the same defect class and what you found>'")
 
 
 # T-11248 (X-0973) — the NO-DATA MIS-INVOCATION steer + its durable classifier. THIRD member of the
@@ -12764,7 +12826,7 @@ def empty_audit_subject_refusal(args, tid: str, sha: str, *, _bookkeeping_commit
             f"THE ROUTE, and it is the only one executable from this state — run the verb where the "
             f"commits are (the worktree path is resolved, not a placeholder):\n"
             f"  bin/yitc-v2 -C {worktree_arg} audit post --task {tid}\n"
-            f"  (add `--on-decisions` if you are spending the SPEC-0204 rule-3 pass.)\n"
+            f"  (add `--on-decisions --sweep '<where you looked for the same defect class and what you found>'` if you are spending the SPEC-0204 rule-3 pass.)\n"
             f"NOT `task commit` (this card's work is already committed, at {ship_sha[:12]}), NOT the "
             f"`--repin-ship` custody re-pin (its ancestor-of-`main` precondition would refuse an "
             f"unlanded ship), and NOT any of the diff-free overlay flags (this ship HAS a diff — each "
@@ -13416,6 +13478,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                     # T-12614 redirect so its target is the SETTLED subject.
     merge_integration_reaudit = None   # T-13260 — the admitted post-GREEN merge-integration evidence
     merge_integration_refusal = None   # T-13260 — why it was NOT admitted (appended to the ceiling refusal)
+    test_found_fix_reaudit = None      # T-14090 — the admitted test-found-fix evidence (SPEC-1041 «Rule 4»)
+    test_found_fix_refusal = None      # T-14090 — why it was NOT admitted (appended to the ceiling refusal)
     custody_repin_bound_by = None   # T-12506 — set only when the landed-branch-ancestor leg bound
     # T-11403 (X-1074/X-1075) — HOISTED so the `stage == "post"` custody branch below can carry a
     # `--preshipped-deliverable` leg BESIDE the `--repin-ship` one. Until this hoist the flag was first
@@ -13515,7 +13579,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         if getattr(args, "owner_reset", False):
             _die("--on-decisions and --owner-reset are not combinable: each is a DIFFERENT BASIS for "
                  "the ONE pass past the ceiling — the recorded Controller decisions (SPEC-0204 rule "
-                 "3) versus an owner grant (SPEC-0124) — and a pass admitted by one must not record "
+                 "3) versus an owner grant (SPEC-1034) — and a pass admitted by one must not record "
                  "the other. Pick the route you actually have a basis for.")
         if preview:
             _die("--on-decisions and --preview are not combinable: a preview spends no pass, so "
@@ -13528,7 +13592,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         if decision_id:
             _die("--absorb is not valid with --decision: it records a residual into a TASK's audit-pre "
                  "verdict (LIFECYCLE Stage 4) or into a PLAN GATE's verdict (--plan … --gate …, "
-                 "SPEC-0124 §Audit-loop ceiling).")
+                 "SPEC-1034 §Audit-loop ceiling).")
         # T-11167 (X-0928) — the PLAN-GATE route. SPEC-0124 governs the ceiling-bearing plan gates by
         # the same mode-a/mode-b rule, but T-10770 gave a governed route to the TASK side only, so a
         # gate residual could reach the verdict ONLY by hand-editing a governed YAML (journal-invisible
@@ -13541,7 +13605,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         if plan_slug and not absorb_gate:
             _die(f"--absorb --plan {plan_slug} requires --gate <id>: a plan carries five distinct "
                  f"ceiling-bearing gate verdicts, so which one holds the residual is not inferable "
-                 f"({', '.join(sorted(_PLAN_CONSULT_GATE_AUDIT))}; SPEC-0124 §Plan-target parity). "
+                 f"({', '.join(sorted(_PLAN_CONSULT_GATE_AUDIT))}; SPEC-1034 §Plan-target parity). "
                  f"{PLAN_ACCEPT_GATE_NAMING}")
         # NO auditor-run / verdict-bearing flag may ride along: this route must have no surface that
         # could re-invoke the auditor or rewrite a verdict (the AC's back-door refusal).
@@ -14266,9 +14330,33 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                           f"is followed only by the governed `worktree sync` merge "
                           f"{merge_integration_reaudit['merge_commit'][:12]} (conflict paths: "
                           f"{', '.join(merge_integration_reaudit['conflict_paths'])}); auditing the "
-                          f"WHOLE merged HEAD ONCE past the ceiling (T-13260, SPEC-0124).",
+                          f"WHOLE merged HEAD ONCE past the ceiling (T-13260, SPEC-1034).",
                           file=sys.stderr)
                     _t13256_ship, sha, audited_span = sha, merge_integration_reaudit["merge_commit"], None
+            # T-14090 (SPEC-1041 «Rule 4 — custody») — THE ONE ORDINARY audit-post past the ceiling on an
+            # in-scope fix answering a red governed Tests run recorded after the card's GREEN rule-3 pass
+            # (yitc#168): no residual exists for `audit decide` and the row's bounded pass is spent, so
+            # without this arm the card could only be parked, wont-do'd or re-filed. Same seam, same leg
+            # restrictions as the T-13260 axis above (and not when that axis admitted); decided off ONE
+            # read of the card's rows in journal order — the A6 reader this seam already uses — plus git.
+            # The subject stays the custody commit; the T-11405 guard below still judges its content.
+            if (ordinary_subject and stage == "post" and not on_decisions and not _t12614_ship
+                    and not _t13256_ship and _iter_events is not None
+                    and _count_audit_passes(tid, "post") >= AUDIT_PASS_CEILING):
+                _tff_rows = _task_rows_of(EVENTS_PATH, tid, TEST_FOUND_FIX_ROW_TYPES, _latest_event_for)
+                if _tff_rows is None:
+                    test_found_fix_refusal = ("journal_unreadable: the card's journal rows could not be "
+                                              "read")
+                else:
+                    test_found_fix_reaudit, test_found_fix_refusal = test_found_fix_admission_for(
+                        tid, _tff_rows, custody_sha=sha, resolve=_git_resolve_sha,
+                        strict_descendant=(lambda a, b: _git_strict_descendant(a, b, repo_root=REPO_ROOT)))
+                if test_found_fix_reaudit:
+                    print(f"# {tid} audit-post: TEST-FOUND FIX — the GREEN `--on-decisions` pass at "
+                          f"{test_found_fix_reaudit['prior_commit'][:12]} was followed by a red governed "
+                          f"Tests run ({test_found_fix_reaudit['red_run']}); auditing the fix "
+                          f"{sha[:12]} ONCE past the ceiling (T-14090, SPEC-1041 «Rule 4 — custody»).",
+                          file=sys.stderr)
             if audited_span and len(audited_span) > 1:
                 # T-12612 — the multi-ship span form; T-12714 — reached by the ORDINARY route as well
                 # as `--repin-ship` (both set `audited_span`). `get_audit_post_span_diff` delegates to
@@ -14844,6 +14932,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             _od_term_absorption = _od_term_basis == ON_DECISIONS_ABSORPTION_BASIS
             # T-13260 — the third terminal shape: the ONE post-GREEN merge-integration pass came back RED.
             _od_term_mi = _od_term_basis == audit_ceiling.MERGE_INTEGRATION_BASIS
+            _od_term_tff = _od_term_basis == TEST_FOUND_FIX_BASIS   # T-14090
             try:
                 _append_event("read_gate_refused", tid, {
                     "verb": f"audit {stage}",
@@ -14851,6 +14940,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     "kind": "ceiling-terminal",
                     "stage": stage,
                     "reason": ("merge_integration_pass_returned_red" if _od_term_mi
+                               else "test_found_fix_pass_returned_red" if _od_term_tff
                                else "absorption_reaudit_returned_red" if _od_term_absorption
                                else "on_decisions_pass_returned_red"),
                     "ceiling_ref": (_od_terminal.get("data") or {}).get("ceiling_ref"),
@@ -14859,10 +14949,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             except (Exception, SystemExit):   # noqa: BLE001 — journaling never masks the refusal
                 pass
             _od_term_label = ("post-GREEN MERGE-INTEGRATION pass (T-13260)" if _od_term_mi else
+                              "TEST-FOUND-FIX pass (T-14090)" if _od_term_tff else
                               f"SPEC-0204 rule-3 {'ABSORPTION re-audit' if _od_term_absorption else 'pass'}")
             _die(
                 f"{tid} audit-{stage}: TERMINAL. The {_od_term_label} "
-                f"({(_od_terminal.get('data') or {}).get('ceiling_ref') or 'merge-integration'}, recorded "
+                f"({(_od_terminal.get('data') or {}).get('ceiling_ref') or _od_term_basis}, recorded "
                 f"{_od_terminal.get('ts')}) came back RED, which ENDS this stage for this card: no "
                 f"further `audit {stage}` runs here, with or without `--on-decisions`, and a new "
                 f"commit does not re-admit one (rule 4"
@@ -14909,7 +15000,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # consumes it. One derivation at the wiring site, never a reader per consumer (SPEC-0190
         # rule 10); a second call could disagree with this one. Only an ORDINARY pass can be the
         # absorption re-audit, so the flag short-circuits it.
-        _od_grant = None if on_decisions else on_decisions_absorption_grant(_od_stage_rows)
+        # T-14090 — and none after a recorded test-found-fix pass, which is FINAL for the stage.
+        _od_grant = (None if on_decisions or test_found_fix_row(_od_stage_rows) is not None
+                     else on_decisions_absorption_grant(_od_stage_rows))
         _od_absorption_available = (_od_grant is not None and _od_res is not None
                                     and not _od_res.get("unresolvable"))
         # (b3) RETIRED by T-14037 (SPEC-1039 §3, the successor of SPEC-0204): a terminal-bearing pass is no
@@ -14928,9 +15021,20 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                            f"{tid} audit-{stage}: the post-GREEN merge-integration pass (recorded "
                            f"{_od_mi_row.get('ts')}, {(_od_mi_row.get('data') or {}).get('verdict')}) "
                            f"is FINAL for this stage — no `--on-decisions` pass follows it (T-13260, "
-                           f"SPEC-0124). A YELLOW there proceeds to closure with its findings filed "
+                           f"SPEC-1034). A YELLOW there proceeds to closure with its findings filed "
                            f"as a followup (LIFECYCLE §Stage 7); a RED is terminal.",
                            {"merge_integration_at": _od_mi_row.get("ts")})
+            # T-14090 — the test-found-fix pass is FINAL the same way: its YELLOW takes the ordinary
+            # followup route, its RED is terminal above; no rule-3 pass follows it.
+            _od_tff_row = test_found_fix_row(_od_stage_rows)
+            if _od_tff_row is not None:
+                _od_refuse("ceiling-terminal", "test_found_fix_pass_is_final",
+                           f"{tid} audit-{stage}: the test-found-fix pass (recorded "
+                           f"{_od_tff_row.get('ts')}, {(_od_tff_row.get('data') or {}).get('verdict')}) "
+                           f"is FINAL for this stage — no `--on-decisions` pass follows it (T-14090, "
+                           f"SPEC-1041 «Rule 4 — custody»). A YELLOW there proceeds to closure with its "
+                           f"findings filed as a followup (LIFECYCLE §Stage 7); a RED is terminal.",
+                           {"test_found_fix_at": _od_tff_row.get("ts")})
             if _od_ceiling_row is None:
                 _od_refuse("below-ceiling", "no_completion_row",
                            f"{tid} audit-{stage} has no `external_audit_completed` row in the journal "
@@ -15240,6 +15344,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         and not consult_reopen and not plan_freshness_reaudit and not unchanged_fp_reaudit
         and not concurrent_merge_reaudit and not task_lens_reaudit
         and not merge_integration_reaudit   # T-13260 — that axis, not a trend, admits this pass
+        and not test_found_fix_reaudit      # T-14090 — likewise
         and not plan_gate_on_decisions      # T-13844 — the recorded decisions admit this pass (the
                                             # plan-gate ladder's own `not on_decisions`)
         and is_trend_convergence_grant(_trend_prior)
@@ -15362,7 +15467,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             and not repin_ceiling_exempt
             # T-13260 — the ONE post-GREEN merge-integration pass (derived at the subject seam, fail-
             # closed, one-shot off its own recorded basis). It COUNTS a pass; no ledger skip.
-            and not merge_integration_reaudit):
+            and not merge_integration_reaudit
+            # T-14090 — the ONE test-found-fix pass (derived at the same seam, fail-closed, one-shot off
+            # its own recorded basis). It COUNTS a pass; no ledger skip.
+            and not test_found_fix_reaudit):
         # T-9618 — the SPEC-0103 §3 blocked-on-land escalation: a DISPATCHED worker hitting this ceiling
         # needs an owner-authorized --owner-reset. Emit a CONTRACTED bg_dispatch_halted terminal marker
         # BEFORE the `_die` (worker context only) so dispatch-status reads blocked_on_land(needs-owner),
@@ -15408,7 +15516,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
              + (f"audit-{stage} is GREEN at {ceiling_spent_green['commit'][:12]} (the rule-3 "
                 f"`--on-decisions` pass) and HEAD {ceiling_spent_green['head'][:12]} moved past it: "
                 f"there is no residual for `audit decide`. Exits: return the branch to that GREEN "
-                f"commit, or carry the later change on a NEW card.\n\n"
+                f"commit, or carry the later change on a NEW card — or, when a governed Tests run "
+                f"went RED after that GREEN, commit the in-scope fix with `task commit --reship` and "
+                f"re-run this verb: that ONE test-found-fix pass is admitted (T-14090).\n\n"
                 if ceiling_spent_green else "")
              + RETIRED_CEILING_POINTER
              # T-10143 — the ask NAMES each residual's real severity + class, never softening a high
@@ -15416,7 +15526,10 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
              + _residual_suffix
              # T-13260 — when the post-GREEN merge-integration axis was asked, WHICH guard refused.
              + (f"\n\nPost-GREEN merge integration (T-13260) not admitted — {merge_integration_refusal}."
-                if merge_integration_refusal else ""))
+                if merge_integration_refusal else "")
+             # T-14090 — when the test-found-fix axis was asked, WHICH guard refused.
+             + (f"\n\nTest-found fix (T-14090) not admitted — {test_found_fix_refusal}."
+                if test_found_fix_refusal else ""))
     # T-12309 — an ADMITTED SPEC-0204 rule-3 pass takes PRECEDENCE over the T-0544 unchanged-fingerprint
     # CARRY-FORWARD, exactly as the T-9626 stale-lens re-audit above does. The plan is unchanged but the
     # audit INPUTS are not: the on-decisions PACKET BLOCK carrying the Controller's recorded decisions is
@@ -15688,6 +15801,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     if merge_integration_reaudit:
         # T-13260 — the prior GREEN + the hand resolution, as CONTEXT beside the whole merged subject.
         extra = (extra or "") + "\n\n" + audit_ceiling.merge_integration_context(merge_integration_reaudit)
+    if test_found_fix_reaudit:
+        # T-14090 — the prior GREEN + the red run, as CONTEXT beside the fix subject.
+        extra = (extra or "") + "\n\n" + test_found_fix_context(test_found_fix_reaudit)
     tooling_absence_abort = False
     # T-10741 (SPEC-0168 rule 5) — declared BEFORE the verdict-branch chain so the record write below
     # is safe on EVERY branch: the consult-governs / unchanged-fingerprint carry branches
@@ -15766,12 +15882,12 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             "T-0522 consult-governed continuation: verdict carried VERBATIM from the FULL "
             f"ceiling-convergence consult {_cpath} (verdict={verdict}, recommendation={_crec}); "
             "the auditor was NOT re-invoked — the FULL consult is the governing adjudication "
-            "(SPEC-0124 §Audit-loop ceiling, consult-governs path). Surviving option: " + _ctext
+            "(SPEC-1034 §Audit-loop ceiling, consult-governs path). Surviving option: " + _ctext
         )
         prompt_excerpt = (f"[consult-governed — verdict carried from {_cpath}; no auditor "
-                          f"invocation: SPEC-0124 consult-governs path]")[:200]
+                          f"invocation: SPEC-1034 consult-governs path]")[:200]
         print(f"# consult-governs: carrying verdict {verdict} from {_cpath} (FULL consult) — "
-              f"auditor NOT re-invoked (SPEC-0124 §Audit-loop ceiling)", file=sys.stderr)
+              f"auditor NOT re-invoked (SPEC-1034 §Audit-loop ceiling)", file=sys.stderr)
         # audit_prompt_sent records the consult-governed substitute (no model/provider invocation).
         _audit_path_t0 = time.monotonic()   # T-12007 — re-anchor to this path's own prompt_sent
         _append_event("audit_prompt_sent", tid, {
@@ -15799,13 +15915,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             "T-0544 unchanged-fingerprint re-run: verdict carried VERBATIM from the prior audit-pre "
             f"(verdict={verdict}) — the implementation_plan is UNCHANGED (plan_fingerprint matched), so "
             "the auditor was NOT re-invoked and this re-run does NOT advance the audit-pass ledger "
-            "(SPEC-0124 §Audit-loop ceiling, unchanged-fingerprint axis). Edit the plan to force a real "
+            "(SPEC-1034 §Audit-loop ceiling, unchanged-fingerprint axis). Edit the plan to force a real "
             "re-audit (mode-a)."
         )
         prompt_excerpt = (f"[unchanged-fingerprint re-run — verdict {verdict} carried from the prior "
-                          f"audit-pre; no auditor invocation: SPEC-0124 §Audit-loop ceiling]")[:200]
+                          f"audit-pre; no auditor invocation: SPEC-1034 §Audit-loop ceiling]")[:200]
         print(f"# unchanged-fingerprint re-run: carrying verdict {verdict} from the prior audit-pre — "
-              f"auditor NOT re-invoked, ledger NOT advanced (SPEC-0124 §Audit-loop ceiling, T-0544)",
+              f"auditor NOT re-invoked, ledger NOT advanced (SPEC-1034 §Audit-loop ceiling, T-0544)",
               file=sys.stderr)
         _decl_note = prototype_declaration_carry_note(artifact, unchanged_fp_prior)   # T-13856
         if _decl_note:
@@ -16854,7 +16970,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             + (f"The audit-loop ceiling is now reached — the route is SPEC-1039: the Controller records "
                f"one `yitc-v2 audit decide --task {tid} --stage post --finding <fp> --disposition "
                f"accept|defer|fix ...` per residual, then ONE `yitc-v2 audit post --task {tid} "
-               f"--on-decisions` pass."
+               f"--on-decisions --sweep '<where you looked for the same defect class and what you found>'` pass."
                if _flip_pass >= AUDIT_PASS_CEILING else
                f"Don't re-roll the auditor to fish for a GREEN; each re-roll is charged and at the "
                f"audit-loop ceiling the SPEC-1039 route (`audit decide` per residual) applies.")
@@ -17243,6 +17359,14 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         _mi_marker = {k: v for k, v in merge_integration_reaudit.items() if k != "resolution_diff"}
         on_decisions_row_fields = {"basis": audit_ceiling.MERGE_INTEGRATION_BASIS,
                                    audit_ceiling.MERGE_INTEGRATION_MARKER: _mi_marker}
+        on_decisions_yaml_fields = dict(on_decisions_row_fields)
+    elif (test_found_fix_reaudit
+          and str(verdict or "").strip().upper() in ("GREEN", "YELLOW", "RED")):
+        # T-14090 — the test-found-fix pass records its OWN basis + the marker naming its evidence, on the
+        # row AND the saved record. Only a REAL verdict carries it: that spends the one-shot (a no-verdict
+        # ABORT leaves a retry admitted) and is what the rule-4 terminal reading matches on a RED.
+        on_decisions_row_fields = {"basis": TEST_FOUND_FIX_BASIS,
+                                   TEST_FOUND_FIX_MARKER: dict(test_found_fix_reaudit)}
         on_decisions_yaml_fields = dict(on_decisions_row_fields)
 
     # ── SPEC-0204 rule 3 SUSPECTED-ECHO REPORT (T-12899, X-1549) — report-only, AFTER every verdict
@@ -18466,7 +18590,7 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
               f"Controller records one decision per residual (`yitc-v2 audit decide --help`), then "
               f"ONE bounded pass runs on them:\n"
               f"#     {_adhoc_ceiling_steer_route(slug, _steer)}\n"
-              f"#   SPEC-0124 §Audit-loop ceiling.", file=sys.stderr)
+              f"#   SPEC-1034 §Audit-loop ceiling.", file=sys.stderr)
 
     full = not args.routine
     read_corpus = bool(getattr(args, "read_corpus", False))   # T-0713 — opt-in corpus-read mode

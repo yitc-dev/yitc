@@ -380,7 +380,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/cli.py#SESSION_IDENTITY_REGISTRY: 6871954af3879a6536873edd89c735ba1db6d150511a5e2ec16ef7e4d89b90a0
-  bin/lib/cli.py#_append_event: dfd4fbf92cd58d252d526be9023ae5b16c606d6ad0ddeefcde792ef019c87d5a
+  bin/lib/cli.py#_append_event: 04b0b182c4a7d9aeef3b4416a2837746f4d7f63457f339c27e238d9520ba9148
   bin/lib/cli.py#_resolve_session_ref: a032911b57a0d5c3e2d542ac99bfb288fa04374b2df0a6005e38a8294e911c55
   bin/lib/cli.py#_resolve_session_ref_for_envelope: 66160831484eeec9813b8ee54881d9dd7c150f300bf78e4730d5744ab2f1577b
   bin/lib/cli.py#_resolve_session_ref_with_source: 5199e4cf40f4304c77772d2514aab04c7a11f776ca733cdb75696caa9b4aefdb

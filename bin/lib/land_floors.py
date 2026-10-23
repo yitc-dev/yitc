@@ -221,7 +221,7 @@ def _floor_tracked_inventory(worktree: Path, _run_git_cap) -> tuple:
     if r.returncode != 0:
         return None, [f"`git ls-files` failed (exit {r.returncode}) — the tracked tree could not be "
                       f"enumerated"]
-    return [rel for rel in (p.strip() for p in r.stdout.split("\0")) if rel], []
+    return [rel for rel in r.stdout.split("\0") if rel], []   # verbatim: a trimmed name is another file (T-14047)
 
 
 def _floor_changed_paths(worktree: Path, base_ref, _run_git_cap, *, working_tree: bool = False) -> "list | None":
@@ -263,7 +263,7 @@ def _floor_changed_paths(worktree: Path, base_ref, _run_git_cap, *, working_tree
         r = _run_git_cap(args + [base_ref], worktree)
         if r.returncode != 0:
             return None
-    return [rel for rel in (p.strip() for p in r.stdout.split("\0")) if rel]
+    return [rel for rel in r.stdout.split("\0") if rel]       # verbatim, as the working-tree arm (T-14047)
 
 
 def _floor_added_line_numbers(worktree: Path, base_ref, _run_git_cap, *, working_tree: bool = False, _FLOOR_HUNK_HEADER=_FLOOR_HUNK_HEADER) -> "dict | None":
@@ -318,7 +318,10 @@ def _floor_added_line_numbers(worktree: Path, base_ref, _run_git_cap, *, working
     rel = None
     for line in out.splitlines():
         if line.startswith("+++ "):
-            path = line[4:].strip()
+            # Only the TAB git appends after a name holding a blank is dropped — a trimmed name is
+            # another file, absent from this map, and would be read WHOLE (T-14047).
+            path = line[4:]
+            path = path[:-1] if path.endswith("\t") else path
             # `+++ /dev/null` is a deletion (filtered out above, but never assume); a quoted path is
             # one this parser declines to unquote — leaving `rel` None omits it, which widens.
             rel = path[2:] if path.startswith("b/") and not path.startswith('b/"') else None
@@ -1944,7 +1947,7 @@ def _floor_repair_kind(worktree: Path, atom: str, base_cmd: str, base_argv: list
 def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_seconds,
                             base_ref=None, _run_git_cap=None, candidate_floor=None, repairs_out=None,
                             passed_out=None, *, _FLOOR_ATOMS=_FLOOR_ATOMS, _floor_command_env, _floor_trusted_executable,
-                            _floor_repair_kind) -> list:
+                            _floor_repair_kind, _run_layer_command, _layer_kill, _append_event=None) -> list:
     """Every declared `verify.floor.<atom>.command` — run BESIDE its kernel check, on every branch
     and under every profile. ADDITIVE BY CONSTRUCTION: a command exiting 0 rescues nothing (the
     kernel atoms above have already spoken), and a non-zero exit is its own refusal.
@@ -1993,13 +1996,38 @@ def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_se
 
     `passed_out` (T-13168) — every declared command that RAN and exited 0 is appended as
     `{atom, command, exit: 0}`, so the land row can prove (CHARTER §P8) that a declared floor ran.
-    A failing, refused or repair-skipped atom is never appended."""
+    A failing, refused or repair-skipped atom is never appended.
+
+    ONE RE-RUN OF A TIMED-OUT ATOM (T-14086, public issue #166 point 2). An atom whose command hits
+    the bound is run ONCE more from the same trusted-base argv (T-14085 has already reaped the first
+    attempt's whole process group), because a floor atom that calls a network service turns an
+    upstream blip into a refused land for every session. The second attempt is judged exactly as a
+    first run is; a second timeout refuses fail-closed and the line says it timed out twice. A
+    non-zero exit or an execution error is never re-run. Every re-run is journaled as one
+    `floor_atom_rerun` row (catalogued in SPEC-0161) through the injected `_append_event` — None
+    writes no row; a row that cannot be written changes no verdict."""
     import shlex
     import shutil
     import subprocess
     import tempfile
+    import time
     env = _floor_command_env()
     out = []
+
+    def _floor_rerun_row(atom, cmd, attempts_ms, outcome, exit_code):
+        """T-14086 — the one journal row of a timed-out atom's re-run. Evidence, never the verdict:
+        a row that cannot be written prints one line and the floor judges on unchanged."""
+        if _append_event is None:
+            return
+        data = {"atom": atom, "command": cmd, "first_ms": attempts_ms[0],
+                "second_ms": attempts_ms[1], "outcome": outcome}
+        if exit_code is not None:
+            data["exit"] = exit_code
+        try:
+            _append_event("floor_atom_rerun", None, data)
+        except Exception as exc:                       # noqa: BLE001 — the row never decides the land
+            print(f"land(floor): the `floor_atom_rerun` row for `verify.floor.{atom}.command` could "
+                  f"NOT be written ({exc!r}); the floor verdict is unchanged.")
 
     def _floor_shell_operators(cmd: str) -> list:
         """T-13164 — the shell operators a declared floor command carries as SYNTAX (`&&`, `||`, `|`,
@@ -2090,6 +2118,7 @@ def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_se
         # THE PROGRAM'S BYTES COME FROM THE TRUSTED BASE TOO (r4 consult finding 2): an in-repo
         # program is materialized from `base_ref`, so a candidate-rewritten script body is never
         # what runs. Host tooling on PATH passes through unchanged.
+        attempts_ms = []                               # T-14086: wall time of each attempt
         tmpdir = tempfile.mkdtemp(prefix="yitc-floor-prog-")
         materialized = None                            # the temp path the base program ran from
         base_bytes = None                              # its trusted-base bytes, for the repair test
@@ -2100,14 +2129,34 @@ def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_se
                 out.append(refusal)
                 continue
             materialized = next((a for a in argv if isinstance(a, str) and a.startswith(tmpdir)), None)
-            r = subprocess.run(argv, cwd=str(worktree), capture_output=True, text=True, env=env,
-                               timeout=_verify_test_timeout_seconds(None))
+            # T-14085 (public issue #166): the verify layers' group-reaping launch — the atom leads
+            # its own session, and at the bound its WHOLE process group is reaped, so a grandchild
+            # (`npm audit` under a node script) neither outlives the land nor holds the pipes open.
+            while True:
+                began = time.monotonic()
+                r, _, _ = _run_layer_command(argv, worktree, _verify_test_timeout_seconds(None), env,
+                                             shell=False)
+                attempts_ms.append(int((time.monotonic() - began) * 1000))
+                if r is not None or len(attempts_ms) == 2:
+                    break
+                print(f"land(floor): `verify.floor.{atom}.command` TIMED OUT after "
+                      f"{attempts_ms[0] / 1000:.1f}s: {cmd!r} — re-running it ONCE before the land "
+                      f"is refused (T-14086).")
+            if len(attempts_ms) == 2:
+                rerun_outcome = ("timed-out" if r is None else
+                                 "passed" if r.returncode == 0 else "failed")
+                _floor_rerun_row(atom, cmd, attempts_ms, rerun_outcome,
+                                 None if r is None else r.returncode)
+            if r is None:
+                raise subprocess.TimeoutExpired(argv, _verify_test_timeout_seconds(None))
             if materialized and r.returncode != 0:
                 try:
                     base_bytes = Path(materialized).read_bytes()
                 except OSError:
                     base_bytes = None
         except FileNotFoundError:
+            if len(attempts_ms) == 1:                  # T-14086: the RE-RUN could not start
+                _floor_rerun_row(atom, cmd, attempts_ms + [None], "error", None)
             if _admit_repair(127)[0]:
                 continue
             out.append(f"land(floor): `verify.floor.{atom}.command` names a program that does not "
@@ -2118,13 +2167,20 @@ def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_se
                        f"the trusted base, never from the candidate branch (SPEC-0163 §4b).")
             continue
         except OSError as e:
+            if len(attempts_ms) == 1:                  # T-14086: the RE-RUN could not start
+                _floor_rerun_row(atom, cmd, attempts_ms + [None], "error", None)
             out.append(f"land(floor): `verify.floor.{atom}.command` could not be executed ({e}): "
                        f"{cmd!r} — the floor atom cannot be judged, so the land is refused "
                        f"(fail-closed).")
             continue
         except subprocess.TimeoutExpired:
-            out.append(f"land(floor): `verify.floor.{atom}.command` TIMED OUT: {cmd!r} — the floor "
-                       f"atom cannot be judged, so the land is refused (fail-closed).")
+            reaped = getattr(_layer_kill, "reaped", None)
+            reap = (f" — process group {reaped[0]} reaped: {reaped[1]} processes"
+                    if reaped else "")
+            twice = (f" twice (attempt 1 after {attempts_ms[0] / 1000:.1f}s, attempt 2 after "
+                     f"{attempts_ms[1] / 1000:.1f}s)" if len(attempts_ms) == 2 else "")
+            out.append(f"land(floor): `verify.floor.{atom}.command` TIMED OUT{twice}: {cmd!r}{reap} — "
+                       f"the floor atom cannot be judged, so the land is refused (fail-closed).")
             continue
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

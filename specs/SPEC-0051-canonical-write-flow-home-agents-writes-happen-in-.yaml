@@ -6,6 +6,11 @@ consumed: false
 implements:
 - bin/lib/worktree_lifecycle.py#cmd_worktree_sweep
 - bin/lib/worktree_lifecycle.py#_live_held_paths
+- bin/lib/cli.py#_selfcommit_window_open
+- bin/lib/cli.py#_selfcommit_window_close
+- bin/lib/cli.py#_with_repo_lock_named
+- bin/lib/worktree.py#_selfcommit_held_paths
+- bin/lib/worktree.py#_main_dirt_verdict
 binding:
 - seed
 seed_cue: Before ANY source or artifact write, open a worktree with `worktree new
@@ -39,39 +44,57 @@ body: "## Scenario\n\nAt session start the AI sees a small generated \"stage-agn
   \ — uncommitted authored content, incl. an uncommitted pause record; reported `kept-dirty`,\n\
   \  and an UNREADABLE `git status` is fail-closed (kept);\n- (c) OCCUPIED — a live\
   \ process's cwd or open-fd target is at or inside the path (ancestry match). An\n\
-  \  argv or environment MENTION of the path is NOT occupancy.\nThis is the one standing\
-  \ rule this spec carries; the write-flow SEQUENCE stays single-homed in AGENTS.\n\
-  \n## Rationale\n\nHistory of this spec's rules is recorded in this section (placement\
-  \ rule: <workshop-spec> rule 3).\n\n### History moved from the rule body\n\nEach\
-  \ entry is a passage moved word for word out of the rule text of the section it\
-  \ names;\nthe rule it explains stays there.\n\n- From «Post-/compact compaction-survival»:\
-  \ is the named downstream consumer of\n  §5b generalization (the coherence invariant\
-  \ extended to ALL startup-delivered content).\n- From «Automated worktree terminators\
-  \ »: (: a dispatch brief naming a path spared\n  it for its whole lifetime)\n\n\
-  ## Implementation notes\n\n### Moved from the rule text\n\nReference and maintainer\
-  \ passages moved word for word out of the rule text of the section\neach names;\
-  \ no rule an acting reader applies moved with them.\n\n### Post-/compact compaction-survival\
-  \ (SPEC-0007 §5b, option (b))\nSPEC-0007 §5b [MUST] requires that any change to\
-  \ what `session start` delivers either (a) wire the new\ncontent into the post-`/compact`\
-  \ re-read path, OR (b) explicitly justify why it survives compaction.\nThis seed\
-  \ line takes **option (b)**: the seed line is emitted ONLY by `session start` (not\
-  \ re-run\nafter a `/compact`), BUT its CONTENT is a pointer to AGENTS §\"Writes\
-  \ happen in a worktree\", which IS\nre-read in full as part of the post-`/compact`\
-  \ mandatory-handbook re-read (AGENTS.md is in the seed).\nSo the write-flow survives\
-  \ compaction via its handbook home — STRONGER than a seed that held the\nsequence\
-  \ itself (a sequence-bearing seed would vanish post-/compact; a pointer to a re-read\
-  \ file does\nnot).\n\n## Verification\n\n- **VP1 (seed populated):** after activation,\
-  \ `bin/yitc-v2 session start` stdout shows the generated\n  seed line carrying SPEC-0051\
-  \ + its title (the write-flow pointer), NOT \"(none bound yet)\".\n- **VP2 (single-SoT,\
-  \ pointer-only):** the write-flow verb SEQUENCE appears in exactly ONE home\n  (AGENTS\
-  \ §Writes-happen-in-a-worktree); this spec body, the seed line, and the AGENTS\n\
-  \  §At-session-start reference restate NO sequence (grep — <workshop-spec> rule\
-  \ 8).\n- **VP3 (generated from the carrier):** `_seed_howto` derives the line SOLELY\
-  \ from binding:[seed]\n  (no hand list, P5); regenerating reproduces it (test_t0289\
-  \ AC3).\n- **VP4 (compaction-survival, §5b option b):** the pointer targets AGENTS\
-  \ §Writes-happen-in-a-worktree\n  which is in the post-`/compact` mandatory re-read\
-  \ — so no separate post-/compact wiring is needed.\n  - **VP5 (automated terminators):**\
-  \ differential tripwires —\n    `tests/test_worktree_sweep_unlanded_work_batch.py::test_t12845_a_dirty_work_batch_not_ahead_survives_named_kept_dirty`\n\
+  \  argv or environment MENTION of the path is NOT occupancy.\nThis and §A scoped\
+  \ self-commit's window below are the standing rules this spec carries; the\nwrite-flow\
+  \ SEQUENCE stays single-homed in AGENTS.\n\n### A scoped self-commit's window\n\
+  A member of the scoped self-commit family (AGENTS §Writes happen in a worktree)\
+  \ leaves its artifact\nuncommitted on the main checkout between its write and its\
+  \ commit. That span is its WINDOW: from\nthe guards before the write until the commit\
+  \ or its rollback, it holds the repository's `repo.lock`\n— the lock a land takes\
+  \ to fast-forward `main` — and names the paths it writes, a glob for an id\nallocated\
+  \ during the write, in its own entry of the main checkout's off-tree verify sidecar.\n\
+  - A land's foreign-dirt check reads a dirty path that a LIVE window names as that\
+  \ window's own\n  write, never as foreign work: the land goes on, never folds or\
+  \ commits that path, and its\n  fast-forward waits for the window to close. A dirty\
+  \ path no live window names refuses the land\n  exactly as before.\n- The check\
+  \ reads the windows AFTER reading the tree and re-reads the tree before it refuses,\
+  \ so a\n  window that closed between the two reads is never refused on the stale\
+  \ first answer.\n- A window closes on its commit or its rollback, and also when\
+  \ its process exits: an entry whose\n  process is gone names nothing. `repo.lock`\
+  \ is re-entrant within one thread, so a family member\n  run while that thread already\
+  \ holds it does not block on itself.\n- A window that has to wait for a land's fast-forward\
+  \ says so on stderr before it waits.\n\n## Rationale\n\nHistory of this spec's rules\
+  \ is recorded in this section (placement rule: <workshop-spec> rule 3).\n\n### History\
+  \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
+  - From «Post-/compact compaction-survival»: is the named downstream consumer of\n\
+  \  §5b generalization (the coherence invariant extended to ALL startup-delivered\
+  \ content).\n- From «Automated worktree terminators »: (: a dispatch brief naming\
+  \ a path spared\n  it for its whole lifetime)\n\n## Implementation notes\n\n###\
+  \ Moved from the rule text\n\nReference and maintainer passages moved word for word\
+  \ out of the rule text of the section\neach names; no rule an acting reader applies\
+  \ moved with them.\n\n### Post-/compact compaction-survival (SPEC-0007 §5b, option\
+  \ (b))\nSPEC-0007 §5b [MUST] requires that any change to what `session start` delivers\
+  \ either (a) wire the new\ncontent into the post-`/compact` re-read path, OR (b)\
+  \ explicitly justify why it survives compaction.\nThis seed line takes **option\
+  \ (b)**: the seed line is emitted ONLY by `session start` (not re-run\nafter a `/compact`),\
+  \ BUT its CONTENT is a pointer to AGENTS §\"Writes happen in a worktree\", which\
+  \ IS\nre-read in full as part of the post-`/compact` mandatory-handbook re-read\
+  \ (AGENTS.md is in the seed).\nSo the write-flow survives compaction via its handbook\
+  \ home — STRONGER than a seed that held the\nsequence itself (a sequence-bearing\
+  \ seed would vanish post-/compact; a pointer to a re-read file does\nnot).\n\n##\
+  \ Verification\n\n- **VP1 (seed populated):** after activation, `bin/yitc-v2 session\
+  \ start` stdout shows the generated\n  seed line carrying SPEC-0051 + its title\
+  \ (the write-flow pointer), NOT \"(none bound yet)\".\n- **VP2 (single-SoT, pointer-only):**\
+  \ the write-flow verb SEQUENCE appears in exactly ONE home\n  (AGENTS §Writes-happen-in-a-worktree);\
+  \ this spec body, the seed line, and the AGENTS\n  §At-session-start reference restate\
+  \ NO sequence (grep — <workshop-spec> rule 8).\n- **VP3 (generated from the carrier):**\
+  \ `_seed_howto` derives the line SOLELY from binding:[seed]\n  (no hand list, P5);\
+  \ regenerating reproduces it (test_t0289 AC3).\n- **VP4 (compaction-survival, §5b\
+  \ option b):** the pointer targets AGENTS §Writes-happen-in-a-worktree\n  which\
+  \ is in the post-`/compact` mandatory re-read — so no separate post-/compact wiring\
+  \ is needed.\n  - **VP5 (automated terminators):** differential tripwires —\n  \
+  \  `tests/test_worktree_sweep_unlanded_work_batch.py::test_t12845_a_dirty_work_batch_not_ahead_survives_named_kept_dirty`\n\
   \    (dirty → kept-dirty; pause arms; unreadable → kept; neutered fence destroys)\
   \ and\n    `tests/test_t9532_worktree_sweep_2.py::test_t12845_occupancy_not_mention`\
   \ (argv-only / env-only\n    mention → swept; cwd / fd inside → kept; pre-change\
@@ -82,5 +105,10 @@ cites:
 requires: []
 supersedes: null
 implements_signature:
+  bin/lib/cli.py#_selfcommit_window_close: 2c1ff903e911c775ff6d0be616f0749358087802573d000e9e84dc3ce4fbbadb
+  bin/lib/cli.py#_selfcommit_window_open: e9223905e3018e86699d49a7eefaf2b1a406bd9916e1f0792924fb1649f0a3bb
+  bin/lib/cli.py#_with_repo_lock_named: 1224e2a9df18cdc7e00d87355032f2119b8fa6782c54cc672d62f7428b23d53e
+  bin/lib/worktree.py#_main_dirt_verdict: 051463fe76ee7e4881adaace5872309b9fd48b22859b7ad8d22e4ebe11db5215
+  bin/lib/worktree.py#_selfcommit_held_paths: 0ce5cd8d51743eec72711d39b2e453ee9c6f099044fdce2fd8a233156e50caf1
   bin/lib/worktree_lifecycle.py#_live_held_paths: af5173bf434c35676d96d3ba4b11f2639ca6dc2734e306b09e11c229c8535de4
-  bin/lib/worktree_lifecycle.py#cmd_worktree_sweep: e186bd01c6d5db590c7fc37ad91c9568f8ab413672efa6abc6c4261f4d8730b0
+  bin/lib/worktree_lifecycle.py#cmd_worktree_sweep: c9b140ccb3d09b7a9f6313ad8ee10b61607556e10acdb00cbb0bf8753bcd69b3

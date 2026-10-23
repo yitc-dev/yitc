@@ -56,7 +56,7 @@ why: >-
 
   HONEST BOUND ON THE DENOMINATOR, stated here because a reader deserves it before drawing a
   conclusion. Rule 9 defines the denominator as the existing audit rows whose `passes` reached the
-  SPEC-0124 ceiling — but no live `external_audit_completed` row carries a `passes` key at all
+  SPEC-1034 ceiling — but no live `external_audit_completed` row carries a `passes` key at all
   (measured on this repo 2026-09-06; `passes` lives on the saved YAML record). Over a journal whose
   emit carries the field the denominator is exact; over today's the ceilinged leg contributes nothing,
   and the view SAYS SO in `denominator.bound` rather than reporting an empty result as health

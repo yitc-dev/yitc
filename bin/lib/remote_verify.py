@@ -3213,12 +3213,12 @@ def stage6_indeterminate_text(result: dict) -> str:
         return ("task test --run: the published venue was BUSY (class: venue-busy) — a leg was still "
                 "queued in the box admission when the admission-wait bound ran out. The venue did not "
                 f"fail; the pass is incomplete, so no verdict is reported ({detail}). No local "
-                "fallback is taken while a venue is published (SPEC-0203 rule 7). Re-run when the "
+                "fallback is taken while a venue is published (SPEC-1029 rule 7). Re-run when the "
                 "venue is less loaded.")
     return ("task test --run: the published venue returned an INDETERMINATE outcome "
             f"(class: {cls}). This is a VENUE fault, "
             "not a test result: no verdict was produced, so none is reported, and no "
-            "local fallback is taken while a venue is published (SPEC-0203 rule 7). "
+            "local fallback is taken while a venue is published (SPEC-1029 rule 7). "
             "Resolve the box.")
 
 
@@ -5437,7 +5437,7 @@ def venue_indeterminate_abort_text(metrics: "dict | None" = None) -> str:
         text += f"\nwhat failed: {detail}\n"
     return text + (
         " NO local fallback is taken while a venue is published "
-        "(SPEC-0203 rule 7) — resolve the box, or `yitc-v2 venue unpublish` "
+        "(SPEC-1029 rule 7) — resolve the box, or `yitc-v2 venue unpublish` "
         "to return kernel verify passes to the local path, then re-run land.")
 
 

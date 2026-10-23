@@ -32,6 +32,7 @@ floor, update + override ledger, policy emission — EXTEND it and must not rede
 from __future__ import annotations
 
 import ast
+import codecs
 import fnmatch
 import functools
 import hashlib
@@ -727,6 +728,76 @@ def account_name_re(names) -> "re.Pattern | None":
     if not names:
         return None
     return re.compile(r"\b(" + "|".join(re.escape(n) for n in sorted(names)) + r")\b")
+
+
+_HUNK_NEW_START_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
+
+
+def _diff_header_path(field: str) -> "str | None":
+    """The `b/<rel>` path of a `+++` header field, or None for any other side (a deletion). Git
+    C-quotes a path holding a non-ASCII byte, a quote, a backslash or a control character
+    (`"b/bin/lib/\\303\\251.py"` under the default `core.quotePath`), so a quoted field is unescaped
+    to its bytes and decoded as UTF-8 before the prefix is read."""
+    if field.startswith('"') and field.endswith('"') and len(field) >= 2:
+        try:
+            field = codecs.escape_decode(field[1:-1].encode("ascii"))[0].decode("utf-8")
+        except (UnicodeError, ValueError):
+            return None
+    return field[2:] if field.startswith("b/") else None
+
+
+def owner_word_added_hits(diff_text: str, names, is_published) -> list:
+    """`[(rel, lineno)]` — each ADDED line of a `git diff --unified=0` text that carries a whole-word
+    occurrence of one of `names` in a path `is_published(rel)` admits (T-14049).
+
+    The checkout-owning account is EXCLUDED from the publish refusal and judged instead by a measured
+    ceiling (SPEC-0195 rule 1a), which only the full suite reads. That ceiling moves only when a change
+    ADDS such an occurrence in a published path, so the commit's own diff is enough to tell the author.
+
+    A small state machine, so content is never read as a header: a `diff --git` line opens a FILE
+    HEADER, and only inside it does `+++ b/<rel>` name the path (any other `+++` there is a deletion);
+    an `@@` line closes the header and sets the new-side line number. Inside a hunk EVERY `+` line is
+    content — an added line whose own text starts `++` shows as `+++ …` and is still scanned. Removed
+    lines are never scanned, so a removal-only diff yields []."""
+    rx = account_name_re(names)
+    if rx is None:
+        return []
+    hits, rel, lineno, in_header = [], None, 0, False
+    for line in diff_text.splitlines():
+        if line.startswith("diff --git "):
+            in_header, rel = True, None
+            continue
+        if in_header:
+            if not line.startswith("@@"):
+                if line.startswith("+++ "):
+                    rel = _diff_header_path(line[4:])
+                continue
+            in_header = False
+        if line.startswith("@@"):
+            m = _HUNK_NEW_START_RE.match(line)
+            lineno = int(m.group(1)) if m else 0
+            continue
+        if line.startswith("+"):
+            if rel is not None and rx.search(line[1:]) and is_published(rel):
+                hits.append((rel, lineno))
+            lineno += 1
+    return hits
+
+
+def owner_word_commit_notice(sha: str, hits) -> "str | None":
+    """The report-only commit-time notice for `owner_word_added_hits` (T-14049), or None when empty.
+    It names file:line only — never the account name, which this published module must not carry."""
+    if not hits:
+        return None
+    lines = [f"NOTICE: commit {sha[:7] if sha else '?'} adds {len(hits)} whole-word occurrence(s) of the "
+             "checkout-owner account name in published path(s) (T-14049):\n"]
+    lines += [f"  {rel}:{n}\n" for rel, n in hits]
+    lines.append(
+        "  That name is excluded from the publish refusal and held to a measured ceiling instead "
+        "(SPEC-0195 rule 1a), which only tests/test_publish_surface_boundary.py reads, at the full "
+        "Stage-6 run. Reword each line now: an intake repo slug copied from a card scope is written "
+        "«public issue #N». Report-only — nothing was refused.\n")
+    return "".join(lines)
 
 
 def published_account_names(tree: dict, names) -> list:

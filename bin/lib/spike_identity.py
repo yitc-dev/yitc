@@ -212,14 +212,17 @@ def hunk_set(repo, base, tip, main, exempt_acc=None, by_path=None) -> Counter:
     """H(X) as a multiset of canonical hunk keys; binary files and MAIN-exempt paths skipped. `by_path`
     (T-13856), when given, receives — for each file this call counted whose patch header names a path
     — the keys it counted for that file, and nothing for a file it skipped: what a caller takes back
-    out for a file is then something this call put in for it."""
+    out for a file is then something this call put in for it. The exemption reads each file by its
+    one-path header name, unquoted, passed NUL-framed (T-14079): a name git quotes is exempt like any
+    other; a file with no such header (a deletion) keeps the `diff --git` name."""
     files = _diff_files(repo, base, tip)
-    ex = exempt_paths(repo, main, [f["path"] for f in files])
+    names = [f.get("new_path") or f["path"] for f in files]
+    ex = exempt_paths(repo, main, names, nul=True)
     if exempt_acc is not None:
-        exempt_acc.update(ex & {f["path"] for f in files})
+        exempt_acc.update(ex & set(names))
     keys = Counter()
-    for f in files:
-        if f["binary"] or f["path"] in ex:
+    for f, name in zip(files, names):
+        if f["binary"] or name in ex:
             continue
         for removed, added in f["hunks"]:
             key = hunk_key(removed, added)

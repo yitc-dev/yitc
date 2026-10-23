@@ -205,6 +205,22 @@ def _nonempty(value) -> bool:
     return True
 
 
+_LOCKFILE_CHECK_ID = "SEC-DEP-LOCK"
+
+
+def _declares_no_lockfile(data: dict) -> bool:
+    """True when the report's own lockfile-inventory check records that NO lockfile is in scope
+    (`SEC-DEP-LOCK` with result exactly `lockfiles=0`, bin/security-audit CHECK 3). That record is what
+    makes an empty `dependency_lockfile_hashes: {}` the complete no-lockfile representation (SPEC-0145
+    §5) rather than a thinned field. Any other shape — no such check, a malformed `checks`, a non-zero
+    count — is False (fail-closed)."""
+    checks = data.get("checks")
+    if not isinstance(checks, list):
+        return False
+    return any(isinstance(c, dict) and c.get("id") == _LOCKFILE_CHECK_ID
+               and c.get("result") == "lockfiles=0" for c in checks)
+
+
 def _parse_required_scope(raw: str) -> list[str]:
     return [p.strip() for p in re.split(r"[:,]", raw) if p.strip()]
 
@@ -365,7 +381,11 @@ def evaluate_report(
 
     # COMPLETE — every required evidence field present AND non-empty (§5)
     for field in REQUIRED_FIELDS:
-        if not _nonempty(data.get(field)):
+        value = data.get(field)
+        if (field == "dependency_lockfile_hashes" and isinstance(value, dict) and not value
+                and _declares_no_lockfile(data)):
+            continue  # the no-lockfile representation: an empty inventory the producer declared (§5)
+        if not _nonempty(value):
             return _reject("incomplete", f"required field '{field}' missing or empty")
     checks = data.get("checks")
     if not isinstance(checks, list):

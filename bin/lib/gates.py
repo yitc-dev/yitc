@@ -52,6 +52,29 @@ _READ_GATE_RETRY_BACKOFF = 0.05     # seconds between attempts (lets a concurren
 HELP_INVENTORY_NODE_ID = "cli:help"
 SEED_READ_NODE_ID = "cli:seed"   # T-10081 — the audience-seed read receipt sentinel (SPEC-0042/0050 seed floor); emitted by `session start` after it delivers the audience seed.
 
+# T-14153 — the verbs whose output is a contract DELIVERY: each writes a read receipt (a `cli_invoked`
+# row carrying `node_id`, the row `_fetched_spec_ids` credits) or prints a contract body. One row per
+# verb: (the verb as a reader types it, the function that produces the delivery). The dispatched-worker
+# preamble's whole-read rule (dispatch.py point 9) renders its verb list from this tuple, so a new
+# delivering verb is added HERE and reaches the preamble with no preamble edit;
+# tests/test_t14153_delivery_verbs_derived.py fails while a receipt writer has no row.
+CONTRACT_DELIVERY_VERBS = (
+    ("stage <NAME>", "cmd_stage"),
+    ("session start --type build", "_deliver_current_stage_bundle_at_session_start"),
+    ("graph query SPEC-XXXX", "cmd_graph_query"),
+    ("session start --print-only", "_restoration_brief"),
+    ("worktree new --task", "_analysis_procedure_reminder"),
+    ("spec new", "_deliver_before_rule_change"),
+    ("spec edit", "_deliver_before_rule_change"),
+    ("task file", "_deliver_filing_contracts"),
+    ("plan stage", "_print_plan_stage_delivery"),
+    ("plan file", "_print_plan_stage_delivery"),
+    ("triage run", "cmd_triage_run"),
+    ("--help", "_HelpInventoryAction"),
+)
+# The rows dispatch.py point 9 names in its own head sentence; every other row is rendered after it.
+POINT9_HEAD_VERBS = ("stage <NAME>", "session start --type build", "graph query SPEC-XXXX")
+
 
 # T-11551 — the STAGE POINTER model (the pointer axis of SPEC-1038 §Stage FSM per class).
 #
@@ -72,6 +95,8 @@ SEED_READ_NODE_ID = "cli:seed"   # T-10081 — the audience-seed read receipt se
 #   return   — Tests -> Commit, the newest governed run is red and
 #              recorded after the last `commit_landed` (T-14037)   -> record the move, then proceed
 #   exempt   — Commit -> Tests on a declared SPEC-0178 case (T-14037) -> record the move, then proceed
+#   any move INTO Tests needs a recorded `commit_landed` and, unless the card is SPEC-0178-exempt or
+#   hygiene, a GREEN or YELLOW audit-post on its last substantive commit (T-14083)
 #   (none)   — anything else                                        -> the EXISTING refusal, verbatim
 # The refusal is reached by the SAME `_require_stage_correspondence` call as before, so an OUT-OF-ORDER
 # sequence (a forward SKIP, a backward move from a non-audit stage, or an absent / numeric-legacy /
@@ -124,15 +149,20 @@ def governed_run_verdict(ev) -> "str | None":
     return None
 
 
-def red_run_after_last_commit(rows) -> bool:
+def red_run_after_last_commit(rows, bookkeeping_kinds=()) -> bool:
     """The `return` move's fact: the card's NEWEST governed verdict row is red and is recorded after
-    its last `commit_landed`. False with no commit, no governed run, or a green newest run."""
+    its last `commit_landed`. False with no commit, no governed run, or a green newest run.
+    T-14118: a `commit_landed` whose `data.kind` is in `bookkeeping_kinds` (the caller passes
+    `cli._BOOKKEEPING_COMMIT_KINDS` — a pause / park / wont-do self-commit) is not a commit here, so a
+    `task pause` after a red run does not hide it; a row with no dict `data` counts as a commit."""
     last_commit = newest = None
     for i, ev in enumerate(rows or ()):
         if not isinstance(ev, dict):
             continue
         if ev.get("type") == "commit_landed":
-            last_commit = i
+            data = ev.get("data")
+            if not (isinstance(data, dict) and data.get("kind") in bookkeeping_kinds):
+                last_commit = i
         v = governed_run_verdict(ev)
         if v:
             newest = (v, i)
@@ -147,29 +177,94 @@ def run_since_newest_audit_post(rows) -> bool:
     return last is not None and any(governed_run_verdict(ev) for ev in rows[last + 1:])
 
 
-def closure_coverage_gap(rows, is_substantive) -> "str | None":
+def _commit_sha(ev) -> str:
+    return str((ev.get("data") or {}).get("commit") or "") if isinstance(ev.get("data"), dict) else ""
+
+
+def _last_substantive_commit(rows, is_substantive) -> "tuple | None":
+    """(index, sha) of the card's newest `commit_landed` whose commit is substantive (an unrecorded
+    sha counts substantive), or None. `rows` are dicts in journal order."""
+    for i in range(len(rows) - 1, -1, -1):
+        ev = rows[i]
+        if ev.get("type") == "commit_landed":
+            sha = _commit_sha(ev)
+            if not sha or is_substantive(sha):
+                return (i, sha)
+    return None
+
+
+#: T-14097 — the `outcome` a runner-recorded all-skipped-disjoint NONE carries (task.STAGE6_NONE_DISJOINT).
+NONE_DISJOINT_OUTCOME = "none-disjoint"
+
+
+def closure_coverage_gap(rows, is_substantive, tree_is_head=None) -> "str | None":
     """The Closure-time coverage fact (SPEC-1038 §Tests): is the newest governed run recorded after
     the card's LAST SUBSTANTIVE COMMIT green? `rows` are the card's `commit_landed` and Tests verdict
     rows in journal order; `is_substantive(sha)` says whether that commit changes a path outside the
     inert bookkeeping paths (the caller's git read, failing toward True). None = covered, or no
-    substantive commit (nothing owed); else the reason, naming the commit."""
+    substantive commit (nothing owed); else the reason, naming the commit.
+
+    T-14097 — when that newest run is a `none-disjoint` row (every layer skipped as disjoint subject,
+    nothing ran), it covers only while `tree_is_head(<its stage6_run tree>)` says the tree it judged
+    is the card head apart from inert paths; an unwired predicate cannot show that, so it refuses."""
     rows = [ev for ev in (rows or ()) if isinstance(ev, dict)]
-    last = None
-    for i in range(len(rows) - 1, -1, -1):
-        ev = rows[i]
-        if ev.get("type") == "commit_landed":
-            sha = str((ev.get("data") or {}).get("commit") or "") if isinstance(ev.get("data"), dict) else ""
-            if not sha or is_substantive(sha):
-                last = (i, sha)
-                break
+    last = _last_substantive_commit(rows, is_substantive)
     if last is None:
         return None
-    runs = [v for v in (governed_run_verdict(ev) for ev in rows[last[0] + 1:]) if v]
+    runs = [(v, ev) for v, ev in ((governed_run_verdict(ev), ev) for ev in rows[last[0] + 1:]) if v]
     commit = (last[1] or "<unrecorded sha>")[:10]
     if not runs:
         return f"no runner-marked governed run is recorded after the last substantive commit {commit}"
-    if runs[-1] != "green":
+    if runs[-1][0] != "green":
         return f"the newest governed run recorded after the last substantive commit {commit} is RED"
+    d = runs[-1][1].get("data") if isinstance(runs[-1][1].get("data"), dict) else {}
+    if d.get("outcome") == NONE_DISJOINT_OUTCOME:
+        run = d.get("stage6_run") if isinstance(d.get("stage6_run"), dict) else {}
+        tree = str(run.get("tree") or "")
+        ok = False
+        if tree and tree_is_head is not None:
+            try:
+                ok = bool(tree_is_head(tree))
+            except Exception:                  # noqa: BLE001 — a fault cannot show the head
+                ok = False
+        if not ok:
+            return (f"the newest governed run recorded after the last substantive commit {commit} is a "
+                    f"{NONE_DISJOINT_OUTCOME} run (every layer skipped, nothing ran) whose tested tree "
+                    f"{tree[:12] or '<none>'} is not shown to be the card head")
+    return None
+
+
+# T-14083 (SPEC-1038 §Tests «Position») — the route a refused move into Tests names.
+TESTS_ENTRY_ROUTE = "run `yitc-v2 audit post --task {tid}` first; Tests follows the audit-post (SPEC-1038)"
+
+
+def tests_entry_audit_gap(rows, is_substantive) -> "str | None":
+    """T-14083 — the audit-post-before-Tests fact (SPEC-1038 §Tests «Position»): has the card's LAST
+    SUBSTANTIVE COMMIT (the same reading Closure uses, `_last_substantive_commit`) a GREEN or YELLOW
+    audit-post? The commits it covers are that commit and every `commit_landed` after it (later ones
+    are bookkeeping-only by construction); the NEWEST `audit_post_completed` whose `commit` names one
+    of them decides. None = covered, or no substantive commit; else the reason, naming the commit.
+    The caller decides who is asked: an exempt or hygiene card never is."""
+    rows = [ev for ev in (rows or ()) if isinstance(ev, dict)]
+    last = _last_substantive_commit(rows, is_substantive)
+    if last is None:
+        return None
+    covered = [_commit_sha(ev) for ev in rows[last[0]:] if ev.get("type") == "commit_landed"]
+    covered = [c for c in covered if c]
+
+    def _names_covered(c: str) -> bool:
+        return bool(c) and any(x.startswith(c) or c.startswith(x) for x in covered)
+    verdict = None
+    for ev in rows:
+        if ev.get("type") == "audit_post_completed":
+            d = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+            if _names_covered(str(d.get("commit") or "")):
+                verdict = str(d.get("verdict") or "").upper() or "UNKNOWN"
+    commit = (last[1] or "<unrecorded sha>")[:10]
+    if verdict is None:
+        return f"no audit-post is recorded for the last substantive commit {commit}"
+    if verdict not in ("GREEN", "YELLOW"):
+        return f"the newest audit-post on the last substantive commit {commit} is {verdict}"
     return None
 
 
@@ -268,7 +363,11 @@ def advance_stage_pointer(task: dict, expected_stage: str, *, task_path, yaml_mo
     `_facts` (T-14037) is the caller's zero-argument reader of the card's journal facts
     (`has_commit`, `red_after_commit`, `exempt`), called only for a move that needs one: the `return`
     / `exempt` moves, and any pointer move INTO Tests, which requires a recorded `commit_landed`
-    (SPEC-1038 §Tests). With no `_facts`, or a reader that raises, neither move is admitted and no
+    (SPEC-1038 §Tests) and — T-14083 — no `audit_post_gap`: a card that takes audit-post enters Tests
+    only after a GREEN or YELLOW audit-post on its last substantive commit. NOT gated: a card matching
+    a declared SPEC-0178 exemption case (from Commit or Audit-post), a hygiene fast-path card, the
+    `return` move, and the run itself (`task test` records at Audit-post when the pointer stays).
+    With no `_facts`, or a reader that raises, neither move is admitted and no
     move into Tests is made — the caller's refusal stands (fail-closed)."""
     current = (task or {}).get("current_stage")
     move = stage_pointer_move(task, expected_stage)
@@ -283,6 +382,8 @@ def advance_stage_pointer(task: dict, expected_stage: str, *, task_path, yaml_mo
             move = stage_pointer_move(task, expected_stage, facts)
         if move is not None and expected_stage == "Tests" and not facts.get("has_commit"):
             return None            # a pointer move into Tests requires a recorded `commit_landed`
+        if move is not None and expected_stage == "Tests" and facts.get("audit_post_gap"):
+            return None            # T-14083: and, for a card that takes audit-post, a GREEN/YELLOW one
     if move is None or move == "explicit":
         return None if move is None else move
     if _readiness is not None:
@@ -1608,7 +1709,10 @@ def _require_audit_pre_matches_plan(yaml, tid: str, plan_text: str, *, _audit_ya
     if verdict not in AUDIT_VERDICT_CANONICAL:
         _die(f"audit-pre verdict {verdict!r} not canonical (expected one of {list(AUDIT_VERDICT_CANONICAL)})")
     if verdict not in AUDIT_VERDICT_CLOSURE_OK:
-        _die(f"audit-pre verdict {verdict!r} blocks execute — re-plan per LIFECYCLE Stage 4 (need GREEN/YELLOW).")
+        _die(f"audit-pre verdict {verdict!r} blocks Execution — re-plan per LIFECYCLE Stage 4 and re-run "
+             f"`yitc-v2 audit pre --task {tid}` (need GREEN/YELLOW); at the audit-loop ceiling, "
+             f"`yitc-v2 audit decide` per residual, then `yitc-v2 audit pre --task {tid} --on-decisions "
+             f"--sweep '<where you looked for the same defect class and what you found>'` (SPEC-1039).")
     fp = ap.get("plan_fingerprint")
     if not fp:
         _die(f"audit-pre {audit_pre.name} has no plan_fingerprint (predates D-0082 step 4) — re-run "

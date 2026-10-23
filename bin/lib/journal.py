@@ -3177,6 +3177,35 @@ def rows_memo_holds(path) -> bool:
     return memo is not None and memo.holds(path)
 
 
+def memo_suffix_rows(path, settled):
+    """T-14131 (SPEC-0190 rule 10) — the newest SEGMENT SUFFIX of `path` an installed memo holds, grown
+    one segment at a time from the live one back, stopping as soon as `settled(rows)` holds. Returns
+    `(rows, bounded)` — `bounded` True only when the suffix stopped short of the oldest segment — or
+    None when no memo holds every segment (the caller then reads as before).
+
+    WHAT IT REPLACES, MEASURED 2026-10-22: inside session start's memo the gate tail reader gave up its
+    window and parsed the WHOLE history to credit a receipt the live segment holds — 1,375,993 rows
+    parsed over a 42,983-row fold (32x), from `_stage_bundle_held_shas` → `gates._gate_snapshot` →
+    `cli._iter_events_tail` → `_iter_events`. A suffix is what the tail reader's own soundness proof
+    needs (a credit on a suffix is a full credit); each segment is served from the SAME memo's rows
+    lane, so nothing is read twice and nothing outlives the scope — not a cache."""
+    memo = _rows_memo_current()
+    # A keep_all scan scope serves `segment_rows` for this journal (index-backed, no fold): the
+    # caller's full read already goes there, and walking the memo instead would fold the archive.
+    if memo is None or _keep_all_scope_for(path) is not None:
+        return None
+    segs = list(events.segment_paths(path))
+    if not segs or not all(memo.holds(s) for s in segs):
+        return None
+    parts: list = []
+    for i in range(len(segs) - 1, -1, -1):
+        parts.append([e for e in memo.rows(segs[i]) if isinstance(e, dict)])
+        rows = [e for part in reversed(parts) for e in part]
+        if i > 0 and settled(rows):
+            return rows, True
+    return rows, False
+
+
 def fold_lines(path) -> list:
     """The stripped non-empty lines of `path` — memo-served inside a declaring scope, a plain read
     outside one. Pass-through by default, so no caller's behaviour moves."""
@@ -8732,7 +8761,8 @@ def _dispatch_recovery_hint(cls, task_id=None, detail=None, events=None):
             from lib import audit_ceiling   # noqa: PLC0415 — lazy, like the audit import above
             return (f"paused at the audit-loop ceiling — record one `bin/yitc-v2 audit decide` per residual "
                     f"fingerprint (SPEC-1039), then `bin/yitc-v2 dispatch --task {t} --brief ...` (a paused "
-                    f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions`); "
+                    f"card launches in resume mode: `task resume` + `audit pre|post --on-decisions "
+                    f"--sweep '<where you looked for the same defect class and what you found>'`); "
                     f"at audit-pre: {audit_ceiling.ceiling_pre_decide_order(t)}")
         if detail == "artifact-wait":
             # T-13575 — no decision is pending here: `task pause --reason artifact-wait` REQUIRES the
@@ -11500,7 +11530,7 @@ def _work_land_proc_alive(slug: "str | None") -> bool:
     return False
 
 
-def _worker_child_proc_kind(task_id: "str | None") -> "str | None":
+def _worker_child_proc_kind(task_id: "str | None", roots=None, *, _proc=None) -> "str | None":
     """SPEC-0133 (rule 2 evidence) — the slow-≠-hung discriminator: is a REAL OS child proc of THIS
     task's worker running RIGHT NOW, and of what kind? Returns one of {'auditor','test','land'} on a
     positive match, else None. READ-ONLY, NO emit, NEVER kills — a single TARGETED /proc existence
@@ -11511,24 +11541,76 @@ def _worker_child_proc_kind(task_id: "str | None") -> "str | None":
     so the verdict reads `alive` even while its own journal is momentarily quiet mid-audit.
 
     Kind by argv signature, priority land > auditor > test (the later a phase, the more decisive):
-      - land    — a standalone `land` element + the task-id path segment (the `_land_proc_alive` shape).
+      - land    — the engine LAND INVOCATION: the executed entry `yitc-v2` / `*/yitc-v2` (argv[0], or
+                  argv[1] right after a python interpreter), optional
+                  `-C <repo>` pairs, then the verb `land`. Its repo is the `-C` value, else the entry's
+                  own checkout; a relative path resolves against that pid's cwd. It counts when the repo
+                  names the task id at a path boundary, or a `--task <tid>` / `--branch task/<tid>` pair
+                  follows (T-14061: a bare `land` element anywhere in argv read a Stage-6 sandbox land,
+                  `<wt>/<tid>/bin/yitc-v2 -C <sandbox> land`, as this task's land — T-13851).
       - auditor — a `codex` executable element (the governed auditor / codex-worker, spawned
                   `codex exec -C <worktree>` — the worktree dir carries the task id) + the path segment.
       - test    — a `pytest` element (the verify suite when run standalone) + the task-id path segment.
-    Matches the task id ONLY at a PATH BOUNDARY (== tid, a trailing `/<tid>`, or a middle `/<tid>/`
-    segment) — never mid-token, so a longer id / an unrelated `.../T-XXXX-slug/...` never false-hits.
+    Matches the task id ONLY at a PATH BOUNDARY (a trailing `/<tid>` or a middle `/<tid>/` segment) —
+    never mid-token, so a longer id / an unrelated `.../T-XXXX-slug/...` never false-hits.
+    `roots` (T-14061) scopes every path to THIS checkout: a path counts only when it is one of the
+    roots or lies under one, so a consumer or sandbox reusing the id (T-0001) is not this task's
+    process (T-13887). The host passes its checkout and worktree dir; None keeps the unscoped match.
     EXCLUDES our own pid; per-pid read races are skipped; returns None after a completed no-match scan
-    OR on a GLOBAL scan failure — fail-closed toward 'no live child' (never fabricates a busy child)."""
+    OR on a GLOBAL scan failure — fail-closed toward 'no live child' (never fabricates a busy child).
+    `_proc` is the /proc root, injectable for a fixture."""
     if not task_id:
         return None
     try:
         self_pid = os.getpid()
-        proc = Path("/proc")
+        proc = Path(_proc) if _proc is not None else Path("/proc")
         if not proc.is_dir():
             return None
         tid = task_id.encode("utf-8", "surrogateescape")
         tail = b"/" + tid          # trailing  .../T-XXXX
         mid = b"/" + tid + b"/"    # middle     .../T-XXXX/...
+        scope = None if roots is None else tuple(os.fsencode(str(r)).rstrip(b"/") or b"/" for r in roots)
+
+        def in_scope(a):
+            return scope is None or any(a == r or a.startswith(r.rstrip(b"/") + b"/") for r in scope)
+
+        def names_tid(a):
+            return a.endswith(tail) or mid in a
+
+        def is_land(entry_dir, argv):
+            """The engine land invocation of THIS task, or False (see the docstring's land kind)."""
+            # The entry is the program the pid EXECUTES, in a fixed position: argv[0], or argv[1] right
+            # after a python interpreter (the shebang launch, `python3 <entry> ...` — every engine launch
+            # measured on the host). A `yitc-v2` path anywhere else is an ARGUMENT, never an invocation,
+            # and interpreter options are not parsed at all (T-14061 audit-post: two rounds of option
+            # parsing each left a form open, e.g. `python3 -cCODE <entry> land`).
+            i = 1 if argv and os.path.basename(argv[0]).startswith(b"python") else 0
+            if i >= len(argv) or not (argv[i] == b"yitc-v2" or argv[i].endswith(b"/yitc-v2")):
+                return False
+            entry, rest, target = argv[i], argv[i + 1:], None
+            while len(rest) > 1 and rest[0] == b"-C":
+                target, rest = rest[1], rest[2:]
+            if not rest or rest[0] != b"land":
+                return False
+            if target is None:
+                if b"/" not in entry:
+                    return False          # a PATH-resolved entry names no checkout
+                target = os.path.dirname(os.path.dirname(entry)) or b"."
+            if not target.startswith(b"/"):
+                try:
+                    cwd = os.fsencode(os.readlink(entry_dir / "cwd"))
+                except OSError:
+                    return False          # no cwd to resolve a relative path against
+                target = os.path.join(cwd, target)
+            repo = os.path.normpath(target)
+            if not in_scope(repo):
+                return False
+            if names_tid(repo):
+                return True
+            opts = rest[1:]
+            return any(k in (b"--task", b"--branch") and v in (tid, b"task/" + tid)
+                       for k, v in zip(opts, opts[1:]))
+
         found = set()
         for entry in proc.iterdir():
             if not entry.name.isdigit() or int(entry.name) == self_pid:
@@ -11538,13 +11620,14 @@ def _worker_child_proc_kind(task_id: "str | None") -> "str | None":
             except OSError:
                 continue   # per-pid race: process vanished / unreadable — skip
             argv = [a for a in raw.split(b"\x00") if a]
-            if not any(a == tid or a.endswith(tail) or mid in a for a in argv):
-                continue   # not THIS task's process tree — the path-boundary scope
             # ACCUMULATE across ALL matching procs, then rank by priority below — returning the FIRST
             # match would let a concurrent test/auditor proc mask a live `land` (audit-post finding).
-            if b"land" in argv:
+            if is_land(entry, argv):
                 found.add("land")
-            elif any(a == b"codex" or a.endswith(b"/codex") for a in argv):
+                continue
+            if not any(names_tid(a) and in_scope(a) for a in argv):
+                continue   # not THIS task's process tree in THIS checkout — the path-boundary scope
+            if any(a == b"codex" or a.endswith(b"/codex") for a in argv):
                 found.add("auditor")
             elif any(a == b"pytest" or a.endswith(b"/pytest") for a in argv):
                 found.add("test")
@@ -11554,6 +11637,7 @@ def _worker_child_proc_kind(task_id: "str | None") -> "str | None":
     except Exception:
         return None   # fail-closed: a GLOBAL scan error never asserts a live child
     return None
+
 
 def cmd_journal_fleet_verdict(args: argparse.Namespace, *, DISPATCH_BOUNDARY_TYPES, DISPATCH_STALE_NORMAL_SEC, DISPATCH_WAVE_WINDOW_SEC, _classify_dispatch, _consumer_journals, _dispatch_dead_but_unlanded, _dispatch_identity, _dispatch_status_events, _dispatch_task_of, _last_land_ok, _live_claimed_task_ids, _main_task_strand_state, _parse_iso_ts, _session_proc_alive, _worker_child_proc_kind, _proc_scan_takeable=None) -> None:
     """`journal query --fleet-verdict` — the §6-SAFE controller-observability verb (SPEC-0133), PURE

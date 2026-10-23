@@ -224,24 +224,55 @@ def routing_record(env=None) -> tuple:
     return read_record(env)
 
 
+#: T-14072 — the transition lock file (group-shareable, created through `lockfile.open_flock_target`)
+#: and the pre-T-14072 name it replaced, which old-engine publishers still take.
+TRANSITION_LOCK_NAME = ".verify-venue-transition.lock"
+LEGACY_TRANSITION_LOCK_NAME = ".verify-venue.lock"
+
+
 def record_transition_lock(env=None):
     """T-13976 (SPEC-1032 rule 6) — the ONE machine-wide lock over a publish's transition: held from
     its authoritative read of the record through its write. Two publishers of DIFFERENT repositories
     each hold only their own repository's land reservation, so without this both could pass the
     check and the later write silently replace the earlier record. An exclusive flock on a file
-    beside the record (the record's own directory), released when the context exits."""
+    beside the record (the record's own directory), released when the context exits.
+
+    T-14072: the lock is opened through `lockfile.open_flock_target` at 0664, so a second OS user of
+    the shared home can take it (the X-2033 shape). The legacy `.verify-venue.lock` an old engine
+    created 0600 is never skipped: it is taken too, after the new one (no lock-order cycle — old code
+    takes the legacy file only), so old and new publishers stay mutually exclusive. An own legacy file
+    is healed to 0664; one this identity cannot open refuses the publish, naming the owner's chmod
+    (chmod keeps the inode an old publisher may be holding — removing the file would not)."""
     import contextlib
     import fcntl
+    import stat
+
+    from lib import lockfile
 
     @contextlib.contextmanager
     def _held():
         path = resolve_record_path(env)
         path.parent.mkdir(parents=True, exist_ok=True)
-        fd = os.open(str(path.parent / ".verify-venue.lock"), os.O_CREAT | os.O_RDWR, 0o600)
+        fd = lockfile.open_flock_target(path.parent / TRANSITION_LOCK_NAME, 0o664)
+        legacy_fd = None
         try:
             fcntl.flock(fd, fcntl.LOCK_EX)
+            legacy = path.parent / LEGACY_TRANSITION_LOCK_NAME
+            try:
+                legacy_fd = lockfile.open_flock_target(legacy, 0o664)
+            except PermissionError:
+                raise SystemExit(
+                    f"venue publish: REFUSED — the legacy transition lock {legacy} cannot be opened "
+                    f"by this identity, so this publish could race an older engine's. Its owner runs "
+                    f"`chmod 0664 {legacy}`; then re-run. NOTHING was written.") from None
+            st = os.fstat(legacy_fd)
+            if st.st_uid == os.geteuid() and stat.S_IMODE(st.st_mode) != 0o664:
+                os.fchmod(legacy_fd, 0o664)
+            fcntl.flock(legacy_fd, fcntl.LOCK_EX)
             yield
         finally:
+            if legacy_fd is not None:
+                os.close(legacy_fd)
             os.close(fd)
     return _held()
 

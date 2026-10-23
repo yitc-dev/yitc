@@ -424,7 +424,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
     if is_plan:
         if gate not in tuple(PLAN_CONSULT_GATES or ()):
             _die(f"audit decide: --gate is REQUIRED with --plan and must be one of "
-                 f"{list(PLAN_CONSULT_GATES or ())} (the SPEC-0124 ceiling-bearing plan gates, INV-1); "
+                 f"{list(PLAN_CONSULT_GATES or ())} (the SPEC-1034 ceiling-bearing plan gates, INV-1); "
                  f"got {gate!r}")
         if stage:
             _die("audit decide: --stage is the TASK axis (pre|post) — a plan gate is named by --gate.")
@@ -592,7 +592,9 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
             gaps.append(f"a covering `owner_directive` row — none in the journal names {tid} "
                         f"(record one; the route is below)")
         if not evidence:
-            gaps.append("`--evidence <the current plan fingerprint>` — absent")
+            gaps.append("`--evidence <the current plan fingerprint>` — absent (the record-time "
+                        "fingerprint; the --on-decisions pass binds the one current when it runs, "
+                        "T-14058)")
         elif current_fp and evidence != current_fp:
             gaps.append(f"`--evidence {evidence}` — not the card's current plan fingerprint")
         lines = "".join(f"\n  - {g}" for g in gaps)
@@ -784,14 +786,17 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
             _term_data = _terminal.get("data") if isinstance(_terminal.get("data"), dict) else {}
             _term_absorption = str(_term_data.get("basis") or "") == ON_DECISIONS_ABSORPTION_BASIS
             _term_mi = str(_term_data.get("basis") or "") == MERGE_INTEGRATION_BASIS   # T-13260
+            _term_tff = str(_term_data.get("basis") or "") == TEST_FOUND_FIX_BASIS     # T-14090
             _term_label = ("post-GREEN MERGE-INTEGRATION pass (T-13260)" if _term_mi else
+                           "TEST-FOUND-FIX pass (T-14090)" if _term_tff else
                            f"SPEC-0204 rule-3 {'ABSORPTION re-audit' if _term_absorption else 'pass'}")
             _refuse("ceiling-terminal",
                     ("merge_integration_pass_returned_red" if _term_mi
+                     else "test_found_fix_pass_returned_red" if _term_tff
                      else "absorption_reaudit_returned_red" if _term_absorption
                      else "on_decisions_pass_returned_red"),
                     f"{target_id} audit-{target_key}: TERMINAL. The {_term_label} "
-                    f"({_term_data.get('ceiling_ref') or 'merge-integration'}, recorded {_terminal.get('ts')}) came back "
+                    f"({_term_data.get('ceiling_ref') or _term_data.get('basis')}, recorded {_terminal.get('ts')}) came back "
                     f"RED, which ENDED this stage for this card (rule 4): no further `audit "
                     f"{target_key}` runs here, so a decision bound to {ceiling_ref} could never be "
                     f"consumed — it is refused rather than recorded as a route nobody can take. The "
@@ -811,8 +816,18 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     f"{target_id} audit-{target_key}: the post-GREEN merge-integration pass (recorded "
                     f"{_mi_row.get('ts')}, {(_mi_row.get('data') or {}).get('verdict')}) is FINAL for "
                     f"this stage — no `--on-decisions` pass follows it, so a decision bound to "
-                    f"{ceiling_ref} could never be consumed (T-13260, SPEC-0124).",
+                    f"{ceiling_ref} could never be consumed (T-13260, SPEC-1034).",
                     {"ceiling_ref": ceiling_ref, "merge_integration_at": _mi_row.get("ts")})
+        # (ii-d) T-14090 — the test-found-fix pass is FINAL the same way (writer/reader parity with
+        # `cmd_audit`'s `test_found_fix_pass_is_final`). A plan target never carries that basis.
+        _tff_row = None if is_plan else test_found_fix_row(stage_rows)
+        if _tff_row is not None:
+            _refuse("ceiling-terminal", "test_found_fix_pass_is_final",
+                    f"{target_id} audit-{target_key}: the test-found-fix pass (recorded "
+                    f"{_tff_row.get('ts')}, {(_tff_row.get('data') or {}).get('verdict')}) is FINAL for "
+                    f"this stage — no `--on-decisions` pass follows it, so a decision bound to "
+                    f"{ceiling_ref} could never be consumed (T-14090, SPEC-1041 «Rule 4 — custody»).",
+                    {"ceiling_ref": ceiling_ref, "test_found_fix_at": _tff_row.get("ts")})
 
         # (iii) THE DIRECTIVE, RESOLVED. Rule 2: REQUIRED and resolved AT WRITE.
         # `.strip()` HERE and NOWHERE ELSE: this axis answers «was an argument supplied at all?», for
@@ -1576,6 +1591,8 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     THE SIX GUARDS, all must hold:
       G2 one-shot — no merge-integration row with a real verdict exists (checked first: once spent,
          nothing else is worth asking).
+         T-14090: nor a test-found-fix row — that pass is FINAL for the stage (SPEC-1041 «A test-found
+         fix after a spent GREEN»), so it refuses `test_found_fix_pass_is_final` right after G2.
       G1 the LATEST real post verdict in the journal is GREEN and pins the custody commit A; the saved
          record, when it carries a real verdict, agrees. Latest by journal ORDER, not by `passes`: a
          GREEN row with no findings carries no `passes` key, so ranking by it would pick an older RED.
@@ -1617,6 +1634,12 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     if spent is not None:
         return None, (f"merge_integration_allowance_spent: the post-GREEN merge-integration pass already "
                       f"ran for {tid} ({spent.get('ts')}, {_d(spent).get('verdict')}) — it is admitted once")
+    # T-14090 — a recorded test-found-fix pass is FINAL for the stage: no merge-integration pass follows
+    # it either (the window refuses the converse, `merge_integration_pass_is_final`).
+    tff = test_found_fix_row(stage_rows)
+    if tff is not None:
+        return None, (f"test_found_fix_pass_is_final: the test-found-fix pass ran for {tid} "
+                      f"({tff.get('ts')}, {_d(tff).get('verdict')}) and no further audit-post pass follows it")
     # G1 — the latest real verdict is GREEN at A.
     a_sha = _r(custody_sha)
     if not a_sha:
@@ -1730,7 +1753,7 @@ def merge_integration_context(evidence) -> str:
     was merged, which paths were hand-resolved, and the resolution itself. Pure; never raises."""
     ev = evidence if isinstance(evidence, dict) else {}
     return (
-        "## Post-GREEN merge integration (T-13260, SPEC-0124 §Ledger-skip axes)\n\n"
+        "## Post-GREEN merge integration (T-13260, SPEC-1034 §Ledger-skip axes)\n\n"
         f"This card's audit-post was GREEN at {ev.get('prior_commit')}. Since then its branch took ONE "
         f"merge with main ({ev.get('main_sha')}) via the governed `worktree sync --resolved`, recorded "
         f"at {ev.get('sync_evidence')}. The subject is the WHOLE merged HEAD {ev.get('merge_commit')}. "
@@ -1741,6 +1764,155 @@ def merge_integration_context(evidence) -> str:
         + "".join(f"- {p}\n" for p in (ev.get("conflict_paths") or []))
         + "\nResolution diff (mechanical merge -> merged HEAD, conflict paths only):\n```diff\n"
         + str(ev.get("resolution_diff") or "(empty)") + "\n```\n")
+
+
+#: T-14090 (SPEC-1041 «Rule 4 — custody», «A test-found fix after a spent GREEN») — the `basis` the ONE
+#: test-found-fix audit-post records, and the marker key naming its evidence. A distinct basis, like the
+#: T-13260 merge-integration pass it sits beside: the one-shot bound is DERIVED from its presence (no
+#: counter), the rule-4 terminal reading admits it (a RED here ENDS audit-post), and it is FINAL for every
+#: later pass and decision at the stage.
+TEST_FOUND_FIX_BASIS = "test-found-fix"
+TEST_FOUND_FIX_MARKER = "test_found_fix"
+
+
+def test_found_fix_row(stage_rows) -> "dict | None":
+    """T-14090 — the LATEST `(task, post)` completion row recorded by the test-found-fix pass with a REAL
+    verdict (GREEN / YELLOW / RED), or None. A no-verdict ABORT spent no pass and does not count, so a
+    retry stays admitted. Pure f(rows); never raises."""
+    found = None
+    for r in stage_rows or ():
+        d = r.get("data") if isinstance(r, dict) and isinstance(r.get("data"), dict) else {}
+        if (str(d.get("basis") or "") == TEST_FOUND_FIX_BASIS
+                and str(d.get("verdict") or "").strip().upper() in _MI_REAL_VERDICTS):
+            found = r
+    return found
+
+
+def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_bases,
+                          currency_basis, until=None) -> tuple:
+    """T-14090 (SPEC-1041 «Rule 4 — custody») — is this card inside the ONE test-found-fix window?
+
+    The window is the state yitc#168 measured: the card's audit-post converged on a GREEN rule-3 pass
+    (`--on-decisions`, or its one absorption re-audit) past the ceiling, and the NEXT governed Tests run
+    went red. No residual exists for `audit decide`, the row's one bounded pass is spent, and before this
+    the only exits were park / wont-do / re-file.
+
+    `rows` are the card's rows in JOURNAL ORDER (SPEC-1038 «Order of journal rows» — positions in this
+    list, never `ts`), holding at least its `external_audit_completed`, Tests verdict and `commit_landed`
+    rows; `stage_rows` are the REAL `(task, post)` completion rows (phantom rule-3 rows already dropped by
+    the caller), each the SAME object that sits in `rows`. `until` (an index into `rows`, or None for
+    «the end») bounds which governed runs count: the audit door passes the index of the subject's own
+    `commit_landed`, so a run recorded on the not-yet-audited fix neither opens nor closes the window.
+    `resolve(ref) -> full sha | None` and `run_verdict(row) -> 'green' | 'red' | None` (the runner-mark
+    reader, `gates.governed_run_verdict`) are injected; `rule3_bases` / `currency_basis` are the host's
+    basis constants. Pure f(args); fail-closed on every unreadable input.
+
+    Returns `({"prior_commit", "red_run"}, None)` inside the window, else `(None, reason)`, the reason
+    NAMED. Checked in this order: spent (a test-found row exists) · merge-integration final · no prior
+    verdict · the latest real verdict is not a GREEN rule-3 pass · its commit unresolvable · its row not
+    in `rows` · no governed run after it · the newest such run is green."""
+    def _d(row):
+        return row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
+
+    try:
+        spent = test_found_fix_row(stage_rows)
+        if spent is not None:
+            return None, (f"test_found_fix_allowance_spent: the test-found-fix pass already ran for {tid} "
+                          f"({spent.get('ts')}, {_d(spent).get('verdict')}) — it is admitted once; a later "
+                          f"red Tests run ends at the existing terminals")
+        mi = merge_integration_row(stage_rows)
+        if mi is not None:
+            return None, (f"merge_integration_pass_is_final: the post-GREEN merge-integration pass ran for "
+                          f"{tid} ({mi.get('ts')}) and no further audit-post pass follows it")
+        real = [r for r in (stage_rows or ())
+                if str(_d(r).get("basis") or "") != currency_basis
+                and str(_d(r).get("verdict") or "").strip().upper() in _MI_REAL_VERDICTS]
+        if not real:
+            return None, "no_prior_verdict: no recorded audit-post verdict for this card"
+        latest = real[-1]
+        ld = _d(latest)
+        if (str(ld.get("verdict") or "").strip().upper() != "GREEN"
+                or str(ld.get("basis") or "") not in tuple(rule3_bases or ())):
+            return None, (f"prior_not_spent_green: the latest audit-post verdict is "
+                          f"{str(ld.get('verdict') or '').upper() or '(none)'} with basis "
+                          f"{ld.get('basis') or 'ordinary'}, not a GREEN `--on-decisions` pass (a GREEN "
+                          f"ordinary ceiling row takes the empty-set on-decisions route, SPEC-1041 «Rule 3»)")
+        prior = resolve(str(ld.get("commit") or "").strip()) if ld.get("commit") else None
+        if not prior:
+            return None, (f"prior_commit_unresolved: the GREEN pass's commit {ld.get('commit')!r} does "
+                          f"not resolve")
+        rows = list(rows or ())
+        at = next((i for i, r in enumerate(rows) if r is latest), None)
+        if at is None:
+            return None, "prior_row_not_in_rows: the GREEN pass's row is not in the card's journal rows"
+        stop = len(rows) if until is None else int(until)
+        runs = [(i, run_verdict(r)) for i, r in enumerate(rows) if at < i < stop]
+        runs = [(i, v) for i, v in runs if v]
+        if not runs:
+            return None, (f"no_governed_run_after_green: no runner-marked governed Tests run is recorded "
+                          f"after the GREEN pass at {prior[:12]}"
+                          + ("" if until is None else " and before the subject's commit"))
+        i, v = runs[-1]
+        if v != "red":
+            return None, (f"newest_governed_run_green: the newest governed Tests run after the GREEN pass "
+                          f"at {prior[:12]} is green — a green run admits nothing")
+        return {"prior_commit": prior,
+                "red_run": f"events.jsonl#ts={rows[i].get('ts')}"}, None
+    except Exception as exc:      # noqa: BLE001 — an unreadable input is «not admitted», never a crash
+        return None, f"window_unreadable: {type(exc).__name__}"
+
+
+def test_found_fix_admission(tid, *, rows, stage_rows, custody_sha, resolve, strict_descendant,
+                             run_verdict, rule3_bases, currency_basis) -> tuple:
+    """T-14090 (SPEC-1041 «Rule 4 — custody») — may ONE ordinary audit-post run past the ceiling on a fix
+    that answers a red governed Tests run recorded after the card's GREEN rule-3 pass?
+
+    Returns `(evidence, None)` when admitted, else `(None, reason)`. The window (`test_found_fix_window`)
+    must hold with only the runs recorded BEFORE the subject's own `commit_landed` counted (the newest
+    `commit_landed` resolving to `custody_sha`; none → refused), and the subject must STRICTLY descend from
+    the GREEN pass's commit — the audited commit re-offered, a sibling branch, or an ancestry git cannot
+    answer all refuse. That the subject carries AUTHORED content is the T-11405 guard's, which judges this
+    pass's subject downstream exactly as it judges every audit-post. Pure f(args); never raises."""
+    try:
+        sub = resolve(str(custody_sha or "").strip()) if custody_sha else None
+        if not sub:
+            return None, "custody_unresolved: the recorded commit does not resolve"
+        rows = list(rows or ())
+        until = None
+        for i, r in enumerate(rows):
+            if (isinstance(r, dict) and r.get("type") == "commit_landed"
+                    and isinstance(r.get("data"), dict)
+                    and str(r["data"].get("commit") or "").strip()
+                    and resolve(str(r["data"].get("commit")).strip()) == sub):
+                until = i
+        if until is None:
+            return None, (f"subject_commit_unrecorded: no `commit_landed` row of {tid} names the "
+                          f"subject {sub[:12]}")
+        facts, why = test_found_fix_window(tid, rows=rows, stage_rows=stage_rows, resolve=resolve,
+                                           run_verdict=run_verdict, rule3_bases=rule3_bases,
+                                           currency_basis=currency_basis, until=until)
+        if why:
+            return None, why
+        if strict_descendant(facts["prior_commit"], sub) is not True:
+            return None, (f"subject_not_descendant_of_green: the subject {sub[:12]} does not strictly "
+                          f"descend from the GREEN pass's commit {facts['prior_commit'][:12]}")
+        return {"prior_commit": facts["prior_commit"], "fix_commit": sub,
+                "red_run": facts["red_run"]}, None
+    except Exception as exc:      # noqa: BLE001 — an unanswered question is a refusal
+        return None, f"admission_unreadable: {type(exc).__name__}"
+
+
+def test_found_fix_context(evidence) -> str:
+    """T-14090 — the packet CONTEXT block for an admitted test-found-fix pass. Pure; never raises."""
+    ev = evidence if isinstance(evidence, dict) else {}
+    return (
+        "## Test-found fix after a spent GREEN (T-14090, SPEC-1041 «Rule 4 — custody»)\n\n"
+        f"This card's audit-post was GREEN at {ev.get('prior_commit')} on its ONE bounded `--on-decisions` "
+        f"pass past the ceiling. The governed Tests run after it went RED ({ev.get('red_run')}), and the "
+        f"subject {ev.get('fix_commit')} is the in-scope fix, a strict descendant of that GREEN commit. "
+        "Judge whether the subject still meets the card's acceptance, with particular attention to what "
+        "changed since the GREEN commit. This pass is admitted ONCE; a RED here ENDS audit-post for this "
+        "card, and a further red Tests run after it ends at the existing terminals.\n")
 
 
 def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
@@ -1767,7 +1939,7 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
             names — arm 1 then asks the subject to contain E, arm 2 asks EVERY named revision to
             strictly descend from the ceiling row's subject. Divergent, unresolvable, non-commit or
             unanswerable revisions leave no E and still refuse here. At audit-PRE the revisions are
-            plan fingerprints with no ancestry, so any two distinct ones still refuse.
+            record-time plan fingerprints the pass does not bind to (T-14058), so they never split.
       (iii) `decisions-not-for-this-revision` — TWO INDEPENDENT ARMS, each EVALUATED ON ITS OWN and
             each SUFFICIENT ON ITS OWN (audit-pre pass-2 finding fp1:002dfa006e2d181e).
 
@@ -1775,10 +1947,13 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
     as «refuse only when BOTH hold» and so let a non-descendant evidence revision through whenever it
     happened to equal the current subject; the intent was, and is, DISJUNCTIVE.
 
-      ARM 1 — SUBJECT CONTAINMENT (post) / EQUALITY (pre). Refuses when `current_subject` neither IS
-        nor CONTAINS the ONE revision the decisions name. At audit-PRE that revision is a PLAN
-        FINGERPRINT — a hash with no ancestry — so the current plan fingerprint must EQUAL it
-        (T-12422: «the descendant clause is post-only», rule 3). At audit-POST it is a COMMIT, and a
+      ARM 1 — SUBJECT CONTAINMENT (post) / A CHANGED PLAN (pre). Refuses when `current_subject`
+        neither IS nor CONTAINS the ONE revision the decisions name. At audit-PRE a `fix` names no
+        revision the pass is held to (T-14058): its recorded plan fingerprint is the record-time
+        value, and the pass binds the plan fingerprint CURRENT when it runs, admitted only when it
+        DIFFERS from the ceiling row's audited one (and the split above does not fire at pre). An
+        all-`accept`/`defer` set and the empty set keep their own pre clauses (T-12504 / T-13400).
+        At audit-POST it is a COMMIT, and a
         STRICT DESCENDANT of it is admitted too: the descendant CONTAINS the evidence the decisions
         name, and anything authored on top is put before the auditor as this pass's own diff and
         counts NEW at its own severity. That is what lets a card survive the commits the LIFECYCLE
@@ -1900,7 +2075,10 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
     maximal = revisions[0] if len(revisions) == 1 else None
     if len(revisions) > 1 and stage == "post":
         maximal = maximal_evidence_revision(revisions, strict_descendant)
-    if len(revisions) > 1 and maximal is None:
+    # T-14058 — AT TASK AUDIT-PRE A `fix`'s STORED FINGERPRINT RECORDS INTENT, NOT THE SUBJECT: the pass
+    # binds the plan fingerprint current when it runs (the pre-`fix` arm below), so fingerprints
+    # recorded at different moments never split. Post keeps the split verbatim.
+    if len(revisions) > 1 and maximal is None and stage != "pre":
         return None, {
             "kind": "evidence-revision-split",
             "why": "fix_decisions_name_multiple_revisions",
@@ -1969,7 +2147,8 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
         return current_subject, None
 
     # (iii) the two INDEPENDENT arms. Each is computed on its own; the refusal fires on EITHER.
-    # ARM 1 — ANCESTRY AT POST, EQUALITY AT PRE (T-12422). At audit-POST a subject that CONTAINS the
+    # ARM 1 — ANCESTRY AT POST, EQUALITY AT PRE (T-12422; a pre set carrying a `fix` already returned
+    # above, T-14058, so pre equality now governs only what no pre clause admits). At audit-POST a subject that CONTAINS the
     # named revision is admitted: the descendant carries the very evidence the decisions name, and
     # whatever was authored on top is put in front of the auditor as THIS pass's diff and counts NEW
     # at its own severity — so auditing a descendant is never less safe than auditing the named
@@ -2049,6 +2228,34 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
                 "named_revision": named_revision,
                 "current_subject": current_subject,
             }
+    # T-14058 (public issue yitc#155, cryptochart T-0575; owner option (a), events.jsonl#ts=
+    # 2026-10-22T07:05:09Z) — AT TASK AUDIT-PRE A `fix` IS BOUND AT THE PASS, NOT AT `audit decide`. A
+    # pre `fix` is an `implementation_plan` edit, and the Controller records it at one moment while the
+    # worker applies it at another: binding the pass to the fingerprint typed at decide time wedged the
+    # card whenever the plan moved again before the pass (arm 1 refused, rule 4 forbids re-recording).
+    # So when ANY bound decision is a `fix` the pass is admitted at the CURRENT plan fingerprint when it
+    # DIFFERS from the ceiling row's audited one (the fix was applied), and that is the subject it
+    # names; an UNCHANGED plan — or an unknown fingerprint on either side — is refused, the T-13400
+    # cause: nothing was applied for the pass to judge. The auditor still verifies every `fix` residual
+    # on the pass (an echoed-open `fix` is RED). SCOPED: `stage == "pre"` only (plan gates pass their
+    # gate id, post keeps ancestry); placed after the `--reaudit-after-close` return.
+    if stage == "pre" and any(str(d.get("disposition") or "").strip().lower() == "fix"
+                              for d in bound.values()):
+        if current_subject and ceiling_subject_revision and current_subject != ceiling_subject_revision:
+            return current_subject, None
+        return None, {
+            "kind": "decisions-not-for-this-revision",
+            "why": "plan_unchanged_since_ceiling",
+            "message": (f"{tid} audit-{stage}: the `fix` decision(s) on {ceiling_ref} are applied by "
+                        f"editing `implementation_plan`, but the current plan fingerprint "
+                        f"({current_subject or 'unresolvable'}) is not a changed one — the ceiling "
+                        f"row audited {ceiling_subject_revision or 'an unresolvable fingerprint'}. A pre "
+                        f"`fix` binds the plan fingerprint current when this pass runs (SPEC-1039 "
+                        f"rule 3, T-14058); edit `implementation_plan` to apply the fix, then re-run. "
+                        f"No auditor was invoked and no pass was spent."),
+            "named_revision": ceiling_subject_revision,
+            "current_subject": current_subject,
+        }
     arm2_ancestry = False
     arm2_revision = evidence_revision
     if stage == "post" and revisions:

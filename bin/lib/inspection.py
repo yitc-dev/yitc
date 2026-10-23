@@ -1381,6 +1381,34 @@ def lens_readings_note(data: dict) -> str:
             + (" · ".join(project) if project else "none declared — the kernel row alone"))
 
 
+def verify_cost_reading_lines(reading, indent="  ") -> list:
+    """The printed face of the weekly verify-cost reading a Lens C record carries (T-14111): the window,
+    each move proposed both ways with its numbers, and why a side proposes none. [] for no reading."""
+    if not isinstance(reading, dict):
+        return []
+    def _name(r):
+        return f"{r.get('layer')}:{r.get('unit') or r.get('group')}" + (f" ({r['project']})" if r.get("project") else "")
+    win = reading.get("window") or {}
+    th = reading.get("thresholds") or {}
+    lines = [f"{indent}verify-cost reading (Reading 5 — MOVES, SPEC-1042 rule 7): window "
+             f"{win.get('since') or win.get('first_row')} .. {win.get('until') or win.get('last_row')}, "
+             f"covers {reading.get('covered_days')} days; thresholds "
+             + ", ".join(f"{k} = {v['value']} ({v['source']})" if isinstance(v, dict) else f"{k} {v}"
+                         for k, v in th.items())]
+    for side, verb in (("move_away", "move into a pre-deploy class"), ("move_back", "move back onto lands")):
+        block = reading.get(side) or {}
+        for r in block.get("proposals") or []:
+            nums = ", ".join(f"{k} {r[k]}" for k in ("runs_at_place", "real_failures", "median_s", "total_min") if k in r)
+            lines.append(f"{indent}  PROPOSE {verb}: {_name(r)} — {nums}")
+        if block.get("held_thin"):
+            lines.append(f"{indent}  held (costly, zero-catch, too few runs at its place): "
+                         + ", ".join(f"{_name(r)} {r.get('runs_at_place')}" for r in block["held_thin"]))
+        if block.get("why_none"):
+            lines.append(f"{indent}  no {side.replace('_', '-')} proposal: {block['why_none']}")
+    lines.append(f"{indent}  writes: {reading.get('writes')}")
+    return lines
+
+
 # ── Weekly operational-hygiene tier subject (T-10134, owner design 2026-07-05) ────────────────
 # The review-due semaphore needs a journal ANCHOR for the WEEKLY operational-hygiene sweep, the same
 # way each T1-T10 theme run has one. So `inspect record` gains a TIER-level subject (--tier weekly):
@@ -1644,7 +1672,7 @@ def sweep_payload_advisory(sp: dict) -> str:
 def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _append_event, _die,
                        REPO_ROOT=None, ENGINE_ROOT=None, _read_yaml=None, CANONICAL_DOCS=None,
                        _case_review=None, INSPECTED_CONSUMER=None, KERNEL_THEME_OWNER=None,
-                       _review_due=None, _delivered_weight=None) -> None:
+                       _review_due=None, _delivered_weight=None, _verify_cost_reading=None) -> None:
     """Emit exactly ONE `inspection_completed` event for a theme run (SPEC-0057 §6 proof-of-performance,
     even on zero findings) with a REAL checklist-hash `criteria_ref`. Owner-invoked, manual-first — no
     cron. The emit is an append-only journal write (the D-0049 no-worktree exception), so this verb runs
@@ -1670,6 +1698,12 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
     simply skips the block. Report-only exactly like `durable_docs` / `sweep_payload`: additive event
     field + printed advisory, never a gate (SPEC-0057 §2 — an inspection SCANS, it does not block, and
     rule 9 sets no ceiling, no threshold, and refuses nothing).
+
+    A **`test-suite-shape`** (Lens C) run ALSO carries the weekly verify-cost reading (T-14111,
+    SPEC-1042 rule 7 — its Reading 5, MOVES) from the injected zero-arg `_verify_cost_reading` fold:
+    the moves it proposes both ways, never a move written. Unlike the report-only blocks above, the
+    reading is what that record is FOR: a Lens C record without one — the fold not wired, raising, or
+    answering no reading — is REFUSED as incomplete, and nothing is emitted.
 
     For a **`--tier weekly`** run it ALSO prints the triage review-due line when triage is due
     (T-13104): the weekly run is the moment an operator is already doing hygiene, so a lapsed triage
@@ -1772,6 +1806,23 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
         data["project_readings"] = declared_readings(declared_entry)
         if declared_entry is not None:
             data["project_criteria_ref"] = declared_theme_criteria_ref(declared_entry, theme, OPS_YAML_REL)
+    # T-14111 (SPEC-1042 rule 7) — Lens C records the weekly verify-cost reading; a record without one
+    # is incomplete and is refused before anything is emitted, the dry-run preview included.
+    verify_cost = None
+    if theme == "test-suite-shape":
+        try:
+            verify_cost = _verify_cost_reading() if _verify_cost_reading is not None else None
+            cause = "the reading fold is not wired here" if _verify_cost_reading is None else "it answered no reading"
+        except Exception as exc:                  # noqa: BLE001 — a fold fault is a missing reading
+            cause = f"the reading fold failed ({type(exc).__name__}: {exc})"
+        if not (isinstance(verify_cost, dict) and isinstance(verify_cost.get("move_away"), dict)
+                and isinstance(verify_cost.get("move_back"), dict)):
+            _die(f"inspect record: a test-suite-shape record carries the weekly verify-cost reading "
+                 f"(Reading 5 — MOVES, SPEC-1042 rule 7) and this one has none — {cause}; refused as "
+                 f"incomplete, nothing emitted. Read the view the reading folds with "
+                 f"`bin/yitc-v2 graph query verify-unit-cost`, fix the cause, then re-run "
+                 f"`bin/yitc-v2 inspect record --theme test-suite-shape`")
+        data["verify_cost_reading"] = verify_cost
     # T-12595 — the run's findings TEXT (selected units, measured seconds, routed ids). Additive and
     # only when given: before this the governed verb had no field for it, so rows that carried notes
     # were hand-emitted through the generic `event` verb.
@@ -1866,6 +1917,8 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
         print("  " + track_coverage_note(tracks_covered(data)))
         if lens:
             print("  " + lens_readings_note(data))
+        for _line in verify_cost_reading_lines(verify_cost):
+            print(_line)
         if uncounted_cause is not None:
             # The preview shows semaphore standing for the same reason it shows no_data: a wiring
             # proof that hid the one thing this run would NOT do would prove the wrong thing.
@@ -1896,6 +1949,8 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
     print("  " + track_coverage_note(tracks_covered(data)))
     if lens:
         print("  " + lens_readings_note(data))
+    for _line in verify_cost_reading_lines(verify_cost):
+        print(_line)
     if zero_sweep:
         # Rendered from the ONE semaphore face — this surface never spells its own sentence. Printed
         # for the zero-sweep cause only: the no_verdict cause already says the same thing in its own

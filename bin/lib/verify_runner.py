@@ -3796,6 +3796,9 @@ def _selection_leaf_test_freed(path: str, test_file_names, *, _LEAF_TEST_DIR=Non
 # M1 alone). This is the ONE carrier: the tripwire consumes it, and the T-12497 replay test asserts
 # the map keeps these same pairs out. PAIR-level, never path-level — `bin/lib/audit.py` is a MENTION
 # for one test and a READ for four others. A pair not listed here stays a legitimate capture.
+# T-14051 — one name for the path three keep-out pairs share: every whole-word occurrence of the
+# directory's first word counts against the published account-name ceiling (SPEC-0195 rule 1a).
+_RELEASE_CHECKS_EMIT = "dev-utilities/release-checks/emit.py"
 _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     ("bin/lib/audit.py", "test_t11128_root_cwd_closure.py"),
     ("bin/lib/debt.py", "test_t11442_census_regeneration.py"),
@@ -3835,6 +3838,14 @@ _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     ("specs/SPEC-0175-spike-sandbox-data-floor-a-restored-production-cop.yaml",
      "test_t11964_followup_awaits_resolvable_shape.py"),
     ("specs/yitc-v2-rule-test-ledger.md", "test_cross_mechanism.py"),
+    # T-14051 — the same rule applied to the pairs that recurred after T-13837 landed. Verdict and
+    # evidence per pair: tests/test_t12497_selection_read_vs_mention_pairs.py.
+    (_RELEASE_CHECKS_EMIT, "test_t10543_spec_activated_emit.py"),
+    (_RELEASE_CHECKS_EMIT, "test_t11574_test_class_fold_reads_segments.py"),
+    (_RELEASE_CHECKS_EMIT, "test_t13377_work_commit_horizon.py"),
+    ("patterns/inspection-criteria-roster.md", "test_t13944_inspection_probe_one_kind.py"),
+    ("specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
+     "test_t11368_aborted_land_cost_view.py"),
 })
 
 def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=None, *,
@@ -5275,8 +5286,8 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
         d.mkdir(parents=True, exist_ok=True)
     # Isolated git config carrying a USABLE identity, so commit-bearing tests still commit while the
     # host's ~/.gitconfig (aliases / hooks / real name+email) is never read. GIT_CONFIG_GLOBAL is the
-    # explicit redirect (independent of git's HOME interpretation); GIT_CONFIG_SYSTEM=/dev/null drops
-    # /etc/gitconfig. Sandbox repos are same-owner, so no safe.directory concern.
+    # explicit redirect (independent of git's HOME interpretation); GIT_CONFIG_SYSTEM set to the null device
+    # drops /etc/gitconfig. Sandbox repos are same-owner, so no safe.directory concern.
     gitconfig = box / "gitconfig"
     # `core.fsync = none` (T-12184) — a DECLARED PIN, NOT a speedup. Say that plainly, because the
     # obvious reading of this line is the false one.

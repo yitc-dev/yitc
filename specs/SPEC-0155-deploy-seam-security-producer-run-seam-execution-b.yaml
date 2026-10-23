@@ -66,22 +66,24 @@ body: "## Scenario\n\nA consumer runs a governed `deploy`. BEFORE the pre-deploy
   \ rule is homed in SPEC-0155\". THIS\n   spec homes only the SEAM-JUDGEMENT rule:\
   \ at the deploy-seam judgement the gate PROVES the\n   report covers the deploy\
   \ candidate — a report whose commit/lockfile identity does not match\n   the candidate\
-  \ is REFUSED. ADDITIVE by construction: identity fields are producer-additive and\n\
-  \   the identity-match is enforced ONLY at the deploy-seam judgement (where the\
-  \ binding exists) —\n   an existing cadence report without them stays acceptable\
-  \ for cadence purposes (no\n   fail-closing of live consumers). One field-home (SPEC-0145\
-  \ §5), one seam-rule-home (here),\n   explicitly cross-delegated — never two authorities\
-  \ for either.\n\n5. **Cadence unchanged (SPEC-0142 / SPEC-0145).** Scheduled runs\
-  \ remain the \"is the audit alive\"\n   liveness answer on their provider-independent\
-  \ system trigger. This contract adds DEPLOY-TIME\n   freshness guaranteed by machinery;\
-  \ it changes no cadence value and no freshness-SLA home, and\n   touches the SPEC-0145\
-  \ §5 schema ONLY via the rule-4 additive identity-field amendment +\n   delegation\
-  \ line (SPEC-0145 remains the one schema authority).\n\n6. **Retirement (P1 F3).**\
-  \ The manual \"run the producer by hand to unblock a stale-report\n   deploy\" operator\
-  \ step CEASES to be the unblock path (the workaround class); vintage-\n   judged\
-  \ gate acceptance is REPLACED by code-identity-proven acceptance where the binding\n\
-  \   exists.\n\n7. **The owner-invoked, journaled OUTAGE-RECOVERY OVERRIDE of a rejecting\
-  \ gate (X-0362/X-0363).** A fail-closed gate with NO exception path pushes the operator\
+  \ is REFUSED. With no lockfile in scope (the SPEC-0145 §5 empty mapping beside `lockfiles=0`)\
+  \ the identity is proven by `commit_identity` alone. ADDITIVE by construction: identity\
+  \ fields are producer-additive and\n   the identity-match is enforced ONLY at the\
+  \ deploy-seam judgement (where the binding exists) —\n   an existing cadence report\
+  \ without them stays acceptable for cadence purposes (no\n   fail-closing of live\
+  \ consumers). One field-home (SPEC-0145 §5), one seam-rule-home (here),\n   explicitly\
+  \ cross-delegated — never two authorities for either.\n\n5. **Cadence unchanged\
+  \ (SPEC-0142 / SPEC-0145).** Scheduled runs remain the \"is the audit alive\"\n\
+  \   liveness answer on their provider-independent system trigger. This contract\
+  \ adds DEPLOY-TIME\n   freshness guaranteed by machinery; it changes no cadence\
+  \ value and no freshness-SLA home, and\n   touches the SPEC-0145 §5 schema ONLY\
+  \ via the rule-4 additive identity-field amendment +\n   delegation line (SPEC-0145\
+  \ remains the one schema authority).\n\n6. **Retirement (P1 F3).** The manual \"\
+  run the producer by hand to unblock a stale-report\n   deploy\" operator step CEASES\
+  \ to be the unblock path (the workaround class); vintage-\n   judged gate acceptance\
+  \ is REPLACED by code-identity-proven acceptance where the binding\n   exists.\n\
+  \n7. **The owner-invoked, journaled OUTAGE-RECOVERY OVERRIDE of a rejecting gate\
+  \ (X-0362/X-0363).** A fail-closed gate with NO exception path pushes the operator\
   \ OUT of\n   governance exactly when governance matters most: during a LIVE prod\
   \ auth outage, a consumer's\n   governed deploy was blocked by a BUILD-TIME dep\
   \ advisory not reachable from prod (a vite\n   dev-server GHSA; fix = a 3-major\
@@ -196,7 +198,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/deploy.py#_apply_security_gate_override: 2c69de2dfcaeea6090c6f0ab17ca6de02280ed4608e94752aa3b9f7867630f46
-  bin/lib/deploy.py#cmd_deploy: 328a631294f46547e3324d9d6a4eb0fc160a67f8f83ef8d9273250f6bd459758
-  bin/security-audit: 56d4a827beb18fbc3d062fdd2872ad74e9e94e8d656445d0f0fb62387bb7be76
+  bin/lib/deploy.py#cmd_deploy: 5fce274590e43905fedd9395366baa8a69b00f37cd5b13b082646bf6312cd997
+  bin/security-audit: ced9ce8efe91f45e035ca9cf7b593e2230590e237af3b5a1fcfccaf1e06589a4
   bin/v2-security-gate#_publish_verdict: a2cb16b9a68474c8ad6e9e916343d7b025fcf56187fda41d2fdda3ea9adaaa3f
-  bin/v2-security-gate#evaluate_report: efe141304b7e61c814e5109bcab8bb3ab8e0c8f00adfcd4600ad99a07c2c03a0
+  bin/v2-security-gate#evaluate_report: f64c2e897d4d83dc2c28d78ab17d1e6c49c0ff01e4ea39e235c3fd39b016645d

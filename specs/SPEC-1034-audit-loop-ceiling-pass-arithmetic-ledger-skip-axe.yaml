@@ -453,6 +453,6 @@ activation_owner_task: null
 proposed_by: null
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 214e64890574e647821ef7914f9508c3e322a810a5c609d9ecb5ca25b444539c
+  bin/lib/audit.py#cmd_audit: f3aef2d80ca649b235c78f1727f1ff89e2749cc741b559fa089c1bb8e2d0abf1
   bin/lib/audit.py#is_trend_convergence_grant: b49015c43bf99062f0bec7752fa349d1ef1cb6505d2f4cba8bbc0a524fd757d0
   bin/lib/audit.py#trend_grant_subject_changed: c6c5d13d826fb0bf818c557b7d20803cc950ae9e28195dd43caeefc61fac965f

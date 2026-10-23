@@ -79,66 +79,68 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ errors from files the layers run as scripts\n  or only against a live stack).\
   \ A `list` that exits nonzero or reports a collection error leaves the adapter\n\
   \  path unusable for that run: the layer's full `command:` decides (the safe fallback\
-  \ below).\n- `related` — ENUMERATION-ONLY: the kernel passes its comparison base\
-  \ and its changed paths; the adapter may let\n  the runner diff the candidate tree\
-  \ against that base itself, and returns the units reached. A runner gives no\n \
-  \ `unknown` of its own — it answers an empty set for a path it does not model —\
-  \ so `unknown` is DERIVED, never\n  trusted from the runner: the kernel's own path\
-  \ list stays authoritative for rungs (a)-(e), and `unknown` is\n  every changed\
-  \ path the layer's eligibility admits (its `subject_globs`, rule 6 — a path outside\
-  \ them is not\n  this layer's input) that is (i) DELETED or RENAMED (a runner answers\
-  \ nothing for a deleted module its tests\n  still import), or (ii) outside the adapter's\
-  \ declared `modelled:` domain — the input kinds the runner's\n  dependency graph\
-  \ resolves, by default source modules only (`.ts.tsx.js.jsx.mjs.cjs`) — unless an\n\
-  \  `adapter.triggers` entry names it (rule 7). A runner answers the same empty set\
-  \ for an input nothing reaches\n  and for an input its tests read without importing\
-  \ it (a fixture read from disk), so only a declared domain\n  lets an empty answer\
-  \ mean \"nothing reached\". (iii) Also `unknown`: every eligible changed path the\
-  \ runner's\n  OWN diff does not contain — a runner that diffs by itself answers\
-  \ for the paths IT sees, which need not be the\n  kernel's: Vitest diffs `<ref>...HEAD`\
-  \ (from the merge base) plus staged, unstaged and untracked files, so\n  against\
-  \ a ref that is not an ancestor of HEAD it misses a file the candidate restored\
-  \ to HEAD; Playwright diffs\n  the working tree against `<ref>` plus untracked files\
-  \ (trial run 12). The report profile names the runner's\n  diff form; the kernel\
-  \ derives that set with git and never trusts an answer for a path outside it. An\
-  \ empty\n  answer is \"nothing reached\" ONLY when no path is `unknown`; it never\
-  \ executes a test.\n- `run` — executes exactly the requested units in ONE native\
-  \ runner invocation where the runner batches files\n  (never a process per case),\
-  \ writing its report to the kernel-chosen path named in the kernel's manifest. A\n\
-  \  SCRIPT-STYLE suite — each file its own runner, its verdict the file's exit code\
-  \ (the engine suite's own shape,\n  and <project>'s `python3 tests/<file>` layers)\
-  \ — runs one process per FILE; its report is the per-file exit\n  code, so rule\
-  \ 4 applies to it at the file level and it carries no case rows.\n  `run` runs with\
-  \ the runner's OWN retries DISABLED — every retry on the adapter path is the kernel's\
-  \ (rule 10),\n  so a first failure is never lost inside one invocation (a Playwright\
-  \ config with `retries: 2` reports a case\n  that failed and then passed as passed\
-  \ — and so does Vitest's under `--retry`; neither JUnit report shows the\n  retry,\
-  \ trial run 19). The report profile names the flag the adapter passes (Playwright\
-  \ `--retries=0`, Vitest\n  `--retry=0`, no rerun plugin under pytest) and the report\
-  \ that would show a native retry — a SECOND report\n  written beside the JUnit one\
-  \ where JUnit cannot: Playwright's JSON report (a test with more than one result,\n\
-  \  or a nonzero `flaky` count), Vitest's JSON report (a passed case that carries\
-  \ failure messages); pytest's own\n  JUnit report shows a rerun plugin's retry as\
-  \ the SAME case recorded twice. A report showing a native retry is\n  VOID (rule\
-  \ 4).\nThe three commands run inside the layer's prepared environment (SPEC-0152\
-  \ rule 16 prep), not each in a fresh\none: under <project>'s per-command container\
-  \ shape (`npm ci` on every invocation) enumeration alone took 8.5 s\nagainst a 20\
-  \ s full layer (trial run 7).\nSAFE FALLBACK — two cases, kept apart: (1) a runner\
-  \ with no enumeration-only `related`: the adapter declares it\nabsent; the layer\
-  \ runs in full for selection (rung (d)) and every fix attempt re-runs it in full\
-  \ (rule 14 (iv));\n`list` and `run` still give a checked per-unit report, per-unit\
-  \ re-run and rescue. (2) a runner with no\nenumeration-only `list`, or a `list`\
-  \ that failed for this run: there is no complete inventory to judge a report\nagainst\
-  \ (rule 4), so the adapter path is REPORT-ONLY — the layer's full `command:` runs\
-  \ and its exit code\ndecides; the per-unit rows are diagnostics; no selection, no\
-  \ per-unit re-run, no rescue and no credit rests on\nthem. THE LAYER'S `rescue:`\
-  \ SETTING HOLDS ON EVERY WHOLE-LAYER PATH: the layer-level re-run of SPEC-0152 rule\
-  \ 16\nruns there as on any layer — only where that rule admits it (rule 4) — and\
-  \ under `rescue: off` its pass is\ndiagnostic — the first failure still blocks.\n\
-  Selection never rests on an absent or executing command.\nTHE PROTOCOL HOME. What\
-  \ the kernel hands each of the three commands and what each answers back is stated\
-  \ in\n`patterns/verify-layer-adapter-protocol.md`, beside one sample adapter per\
-  \ report profile. That pattern is the\nhome of the protocol; this contract does\
+  \ below). A listed unit\n  MAY carry `classes:`, the names of the declared test\
+  \ classes it belongs to; a unit with none belongs to no\n  class. The kernel reads\
+  \ it for the pre-deploy exclusion only (SPEC-1042 rules 1-2).\n- `related` — ENUMERATION-ONLY:\
+  \ the kernel passes its comparison base and its changed paths; the adapter may let\n\
+  \  the runner diff the candidate tree against that base itself, and returns the\
+  \ units reached. A runner gives no\n  `unknown` of its own — it answers an empty\
+  \ set for a path it does not model — so `unknown` is DERIVED, never\n  trusted from\
+  \ the runner: the kernel's own path list stays authoritative for rungs (a)-(e),\
+  \ and `unknown` is\n  every changed path the layer's eligibility admits (its `subject_globs`,\
+  \ rule 6 — a path outside them is not\n  this layer's input) that is (i) DELETED\
+  \ or RENAMED (a runner answers nothing for a deleted module its tests\n  still import),\
+  \ or (ii) outside the adapter's declared `modelled:` domain — the input kinds the\
+  \ runner's\n  dependency graph resolves, by default source modules only (`.ts.tsx.js.jsx.mjs.cjs`)\
+  \ — unless an\n  `adapter.triggers` entry names it (rule 7). A runner answers the\
+  \ same empty set for an input nothing reaches\n  and for an input its tests read\
+  \ without importing it (a fixture read from disk), so only a declared domain\n \
+  \ lets an empty answer mean \"nothing reached\". (iii) Also `unknown`: every eligible\
+  \ changed path the runner's\n  OWN diff does not contain — a runner that diffs by\
+  \ itself answers for the paths IT sees, which need not be the\n  kernel's: Vitest\
+  \ diffs `<ref>...HEAD` (from the merge base) plus staged, unstaged and untracked\
+  \ files, so\n  against a ref that is not an ancestor of HEAD it misses a file the\
+  \ candidate restored to HEAD; Playwright diffs\n  the working tree against `<ref>`\
+  \ plus untracked files (trial run 12). The report profile names the runner's\n \
+  \ diff form; the kernel derives that set with git and never trusts an answer for\
+  \ a path outside it. An empty\n  answer is \"nothing reached\" ONLY when no path\
+  \ is `unknown`; it never executes a test.\n- `run` — executes exactly the requested\
+  \ units in ONE native runner invocation where the runner batches files\n  (never\
+  \ a process per case), writing its report to the kernel-chosen path named in the\
+  \ kernel's manifest. A\n  SCRIPT-STYLE suite — each file its own runner, its verdict\
+  \ the file's exit code (the engine suite's own shape,\n  and <project>'s `python3\
+  \ tests/<file>` layers) — runs one process per FILE; its report is the per-file\
+  \ exit\n  code, so rule 4 applies to it at the file level and it carries no case\
+  \ rows.\n  `run` runs with the runner's OWN retries DISABLED — every retry on the\
+  \ adapter path is the kernel's (rule 10),\n  so a first failure is never lost inside\
+  \ one invocation (a Playwright config with `retries: 2` reports a case\n  that failed\
+  \ and then passed as passed — and so does Vitest's under `--retry`; neither JUnit\
+  \ report shows the\n  retry, trial run 19). The report profile names the flag the\
+  \ adapter passes (Playwright `--retries=0`, Vitest\n  `--retry=0`, no rerun plugin\
+  \ under pytest) and the report that would show a native retry — a SECOND report\n\
+  \  written beside the JUnit one where JUnit cannot: Playwright's JSON report (a\
+  \ test with more than one result,\n  or a nonzero `flaky` count), Vitest's JSON\
+  \ report (a passed case that carries failure messages); pytest's own\n  JUnit report\
+  \ shows a rerun plugin's retry as the SAME case recorded twice. A report showing\
+  \ a native retry is\n  VOID (rule 4).\nThe three commands run inside the layer's\
+  \ prepared environment (SPEC-0152 rule 16 prep), not each in a fresh\none: under\
+  \ <project>'s per-command container shape (`npm ci` on every invocation) enumeration\
+  \ alone took 8.5 s\nagainst a 20 s full layer (trial run 7).\nSAFE FALLBACK — two\
+  \ cases, kept apart: (1) a runner with no enumeration-only `related`: the adapter\
+  \ declares it\nabsent; the layer runs in full for selection (rung (d)) and every\
+  \ fix attempt re-runs it in full (rule 14 (iv));\n`list` and `run` still give a\
+  \ checked per-unit report, per-unit re-run and rescue. (2) a runner with no\nenumeration-only\
+  \ `list`, or a `list` that failed for this run: there is no complete inventory to\
+  \ judge a report\nagainst (rule 4), so the adapter path is REPORT-ONLY — the layer's\
+  \ full `command:` runs and its exit code\ndecides; the per-unit rows are diagnostics;\
+  \ no selection, no per-unit re-run, no rescue and no credit rests on\nthem. THE\
+  \ LAYER'S `rescue:` SETTING HOLDS ON EVERY WHOLE-LAYER PATH: the layer-level re-run\
+  \ of SPEC-0152 rule 16\nruns there as on any layer — only where that rule admits\
+  \ it (rule 4) — and under `rescue: off` its pass is\ndiagnostic — the first failure\
+  \ still blocks.\nSelection never rests on an absent or executing command.\nTHE PROTOCOL\
+  \ HOME. What the kernel hands each of the three commands and what each answers back\
+  \ is stated in\n`patterns/verify-layer-adapter-protocol.md`, beside one sample adapter\
+  \ per report profile. That pattern is the\nhome of the protocol; this contract does\
   \ not restate it.\n\n### 4. Report profile — consistency, not authenticity\nOUTER\
   \ FAILURES DECIDE FIRST. Before any report is read, the SPEC-0152 rule-16 classes\
   \ decide exactly as they do\non a layer without an adapter: a layer whose `run`\
@@ -255,20 +257,22 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ whole-layer skip authority, a guard a project keeps over their\ncompleteness (a\
   \ tripwire test) keeps its job on an adapter-backed layer; nothing in this contract\
   \ replaces it. Freeing a path from one rung earns nothing while another rung still\
-  \ answers RUN.\n\n### 7. Additive triggers — they only widen\n`adapter.triggers`\
-  \ maps globs the import graph cannot see (data and fixture files a test reads, configs,\n\
-  generated inputs) to units or to the full layer. A trigger can only ADD units or\
-  \ force the full layer; it\nnever removes a `related` unit. A path a trigger names\
-  \ is thereby MODELLED (rule 3): its named units replace\nthe full-layer answer `unknown`\
-  \ would give — the project's declared knowledge, compared by the rule-9 shadow\n\
-  comparison like any other recorded selection.\n\n### 8. Shadow only — this contract\
-  \ records, it never decides\n`selection: shadow` runs the FULL layer and RECORDS\
-  \ the EFFECTIVE decision this contract describes — after\neligibility (rule 6),\
-  \ the fail-closed rungs, the fallbacks (rule 3) and credit (rule 14): the would-run,\
-  \ the\nwould-omit and the would-credit units and the rung that decided. It saves\
-  \ no time by design. `credit: shadow`\nrecords, on each fix attempt, the would-be\
-  \ credit of rule 14 beside that attempt's full run. Every adapter-path\nrow also\
-  \ records the layer's IDENTITY — a hash over the inputs that shape this evidence:\
+  \ answers RUN.\nThe pre-deploy exclusion comes after this ladder, the SPEC-1030\
+  \ deciding modes and the `command:` fallback, and\nnever applies to a run rung (a)\
+  \ answers in full: SPEC-1042 rule 2.\n\n### 7. Additive triggers — they only widen\n\
+  `adapter.triggers` maps globs the import graph cannot see (data and fixture files\
+  \ a test reads, configs,\ngenerated inputs) to units or to the full layer. A trigger\
+  \ can only ADD units or force the full layer; it\nnever removes a `related` unit.\
+  \ A path a trigger names is thereby MODELLED (rule 3): its named units replace\n\
+  the full-layer answer `unknown` would give — the project's declared knowledge, compared\
+  \ by the rule-9 shadow\ncomparison like any other recorded selection.\n\n### 8.\
+  \ Shadow only — this contract records, it never decides\n`selection: shadow` runs\
+  \ the FULL layer and RECORDS the EFFECTIVE decision this contract describes — after\n\
+  eligibility (rule 6), the fail-closed rungs, the fallbacks (rule 3) and credit (rule\
+  \ 14): the would-run, the\nwould-omit and the would-credit units and the rung that\
+  \ decided. It saves no time by design. `credit: shadow`\nrecords, on each fix attempt,\
+  \ the would-be credit of rule 14 beside that attempt's full run. Every adapter-path\n\
+  row also records the layer's IDENTITY — a hash over the inputs that shape this evidence:\
   \ the layer's `command:`,\n`subject_globs` and `covers_classes`, the adapter's three\
   \ commands, report profile, `modelled:` and triggers, the\nCONTENT of every path\
   \ its `sources:` list, and the resolved versions of the runner and of any dependency\
@@ -494,12 +498,12 @@ implements_signature:
   bin/lib/land_verify_legs.py#_adapter_shadow_decision: 7a7edda8ad38db8b2f587ca8c161ae9b133f8e16e40b9ae8035d11c9519208a8
   bin/lib/land_verify_legs.py#_adapter_stamp_identity: f0f585104835bdc62a850a85d4205a22fcbdacd5f57b2f850a0acc2d6d965aa9
   bin/lib/land_verify_legs.py#_classify_adapter_report: c0bffdfe5e18845e1db20b613dffaeda5ce8532458d125847b9e734266b8a833
-  bin/lib/land_verify_legs.py#_declared_layer_adapters: f23a16f9afb057d9f857fe8181bce56eec8255001b27c1f7683239d4b92cc5b3
+  bin/lib/land_verify_legs.py#_declared_layer_adapters: 2a39b7ac020431b16e1e97fef6e77ddc76a1b7cd971a0e2d10b85dc195891c7e
   bin/lib/land_verify_legs.py#_edge_own_test_paths: 14a48592aded032ae51476352f91add38f31c26f1adf62408dc68ac5521032c9
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: d385fd3b5708dc14efb63793728c6d808498a6ce0e92067936c2a659a0ca1653
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 4baf2c10fcce6c901d7531a2be8f510af140a00763dce8188024bc96c042383b
   bin/lib/land_verify_legs.py#_layer_unit_reruns: 392195f4c277e1bc1296a4528985710b3d1564b010f42a165e60d00e15226313
-  bin/lib/land_verify_legs.py#_per_case_rescued_failures: 7461f694edca5d2152190a764ef486a64c87ebf51d629c8edb07ae5c3cb7399f
-  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 708bb7b88916a92ec5f3748a19919ab4b9e76b4c6c496534fc64084bc0530911
+  bin/lib/land_verify_legs.py#_per_case_rescued_failures: 755af95c558362383831eb6dc412cfccd1b7b78bdb51e3999a574dded8c4482d
+  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 3d29311179a51d49011d79871b44b0154250788785629aee17ae63f59abcc378
   bin/lib/land_verify_legs.py#_unit_rescue_passes: 481f0dd3194aa1dddf6e05c3207a326d280261af6bcbf0947e13019084559ef8
   bin/lib/views.py#_view_test_layout_hotspots: b5257fb40327e4498a3d2088769ee509c647de92e6bc843174ad272eb5a3b2af
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37

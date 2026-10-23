@@ -711,6 +711,26 @@ def _spec_edit_target(base_path, base_rec, old, *, _read_yaml, _die):
     return hits[0] if hits else (base_path, base_rec)
 
 
+def _edit_already_applied(hay: str, old: str, new: str) -> bool:
+    """T-14055: True when `new` contains `old` and EVERY occurrence of `old` in `hay` lies inside an
+    occurrence of `new` there — the text a re-run of an applied edit would find. Such a re-run counts
+    the `old` inside the first run's `new` and applies the edit a second time. False when `old` is
+    empty, is not part of `new`, or does not occur in `hay`. Both scans step one character, so an
+    overlapping occurrence is not skipped."""
+    if not old or old not in new or old not in hay:
+        return False
+
+    def _starts(s):
+        out, i = [], hay.find(s)
+        while i != -1:
+            out.append(i)
+            i = hay.find(s, i + 1)
+        return out
+
+    spans = [(j, j + len(new)) for j in _starts(new)]
+    return all(any(a <= i and i + len(old) <= b for a, b in spans) for i in _starts(old))
+
+
 def _spec_chain_with_main_parts(base_path, *, _run_git_cap, REPO_ROOT) -> list:
     """T-12925: the files a `--bless` must compare against `main` — the on-disk part chain PLUS any part
     that exists on `main` but not on disk (a DELETED part moves the spec's body too). Discovered off
@@ -725,6 +745,98 @@ def _spec_chain_with_main_parts(base_path, *, _run_git_cap, REPO_ROOT) -> list:
             if m and m.group(1) == base_path.stem and state.is_spec_part(p) and p not in chain:
                 chain.append(p)
     return chain
+
+
+def _render_spec_part(sid: str, n: int, body: str) -> str:
+    """T-14075: the text of continuation part `n` of `sid` — the shape every hand-written part carries
+    (a header comment, then `body:` alone, SPEC-0120 §3)."""
+    lines = body.rstrip("\n").split("\n")
+    block = "".join((f"  {ln}" if ln.strip() else "") + "\n" for ln in lines)
+    return (f"# {sid} — continuation part {n} (SPEC-0120 §3 split). NOT a spec of its own: no id, no\n"
+            f"# binding. `graph query {sid}` serves the base file then each part, in order, as ONE body.\n"
+            f"\nbody: |\n{block}")
+
+
+def _create_spec_part(args, base_path, sid, status, *, _die, _governing_contract_for, _append_event,
+                      REPO_ROOT, _deliver_before_rule_change=None) -> None:
+    """T-14075: `spec edit SPEC-NNNN --new-part N --from-file <body>` — create continuation part N of an
+    existing spec, beside its base, with the body read from the file. N must be the next number after
+    the chain's last part (2 for an un-split spec). Every refusal comes before the write, so a refused
+    run leaves no file. Emits the spec_edited row (path = the part, part_of = the base) the T-9730 land
+    guard clears a part file on, so the new part does not read as a hand-added one."""
+    import os
+    from pathlib import Path as _Path
+    n = args.new_part
+    clashing = [flag for flag, on in (("--old", args.old is not None), ("--new", args.new is not None),
+                                      ("--from-stdin", getattr(args, "from_stdin", False)),
+                                      ("--bless", getattr(args, "bless", False)),
+                                      ("--replace-all", getattr(args, "replace_all", False))) if on]
+    if clashing:
+        _die(f"--new-part creates a new part from --from-file alone — do not also pass {', '.join(clashing)}. "
+             f"Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    if not getattr(args, "from_file", None):
+        _die(f"--new-part needs --from-file <file holding the part's body text>. Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    chain = state.spec_part_paths(base_path)
+    last = 1
+    for p in chain[1:]:
+        last = int(state._SPEC_PART_RE.match(p.name).group(2))
+    target = base_path.parent / f"{base_path.stem}.part{n}.yaml"
+    if n < 2:
+        _die(f"--new-part {n}: continuation parts start at 2 (the base file is part 1). Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    if n <= last or target.exists():
+        _die(f"--new-part {n}: {target.name} already exists — {sid}'s chain ends at part {last}; "
+             f"the next part is {last + 1}: `bin/yitc-v2 spec edit {sid} --new-part {last + 1} --from-file <body file>`; "
+             f"edit an existing part with `bin/yitc-v2 spec edit {sid} --old <text> --new <text>`.")
+    if n > last + 1:
+        _die(f"--new-part {n} would leave a gap — {sid}'s chain ends at part {last}; the next part is "
+             f"{last + 1}: `bin/yitc-v2 spec edit {sid} --new-part {last + 1} --from-file <body file>`.")
+    if not state.is_spec_part(target):
+        _die(f"--new-part: {target.name} is not a continuation-part name (SPEC-NNNN-<slug>.part<N>.yaml). Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    try:
+        body = _Path(args.from_file).read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as e:
+        _die(f"--from-file {args.from_file!r} unreadable: {e}. Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    if not body.strip():
+        _die(f"--from-file {args.from_file!r} is empty — a part needs body text. Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    text = _render_spec_part(sid, n, body)
+    try:
+        parsed = state.load_str(text)
+    except Exception as e:  # noqa: BLE001 — any parse failure refuses before the write
+        parsed = None
+        why = str(e)[:160]
+    else:
+        why = "the parsed part does not read back as the given body"
+    if not (isinstance(parsed, dict) and list(parsed) == ["body"]
+            and parsed["body"] == body.rstrip("\n") + "\n"):
+        _die(f"--new-part: the body does not round-trip as a YAML literal block ({why}) — a first line "
+             f"that starts with a space is the usual cause. No file was written. Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    try:
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+    except FileExistsError:
+        _die(f"--new-part {n}: {target.name} appeared while this run checked — not overwritten; re-read "
+             f"the chain and pick the next part. Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(text)
+    except OSError as e:
+        try:
+            target.unlink()
+        except OSError:
+            pass
+        _die(f"--new-part: writing {target.name} failed ({e}); no part was left behind. Route: `bin/yitc-v2 spec edit {sid} --new-part <N> --from-file <body file>`.")
+    contract = _governing_contract_for("spec-edit")
+    contract_specs = contract.get("specs") or []
+    rel = str(target.relative_to(REPO_ROOT))
+    _append_event("spec_edited", sid, {
+        "path": rel, "part_of": str(base_path.relative_to(REPO_ROOT)), "status": status,
+        "replacements": 0, "new_part": n, "trigger": "before-rule-change",
+        "governing_contract": contract,
+        "binding_source": "specs/*.yaml#binding (inverted via _build_binding_views)"})
+    print(f"spec part created: {rel} (part {n} of {sid}) — spec_edited emitted; before-rule-change "
+          f"governing contract: {', '.join(contract_specs) or '(none active-bound yet — run graph build)'}")
+    print("next: `yitc-v2 graph build`; edit the part's text later with `spec edit` --old/--new.")
+    if contract_specs and _deliver_before_rule_change is not None:
+        _deliver_before_rule_change("spec-edit", contract_specs)
 
 
 def governed_content_digest(rec: dict) -> str:
@@ -804,6 +916,11 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
         _die(f"`spec edit` is for active/proposed/draft specs (and the deliberate terminals "
              f"withdrawn/rejected, T-0627) only — {sid} is status={status!r}. "
              f"superseded/retired are frozen history (a post-active record is immutable).")
+    if getattr(args, "new_part", None) is not None:
+        _create_spec_part(args, path, sid, status, _die=_die, _governing_contract_for=_governing_contract_for,
+                          _append_event=_append_event, REPO_ROOT=REPO_ROOT,
+                          _deliver_before_rule_change=_deliver_before_rule_change)
+        return
     if getattr(args, "bless", False):
         # T-10135: BLESS an ALREADY-MADE in-place edit of an ACTIVE spec. Derive its diff vs `main`
         # (the base the T-9730 land guard fingerprints against — worktree.py cmd_land passes
@@ -1129,6 +1246,21 @@ def cmd_spec_edit(args: argparse.Namespace, *, _require_writing_worktree, _die, 
                      f"nor a quoted flow scalar. Match against the raw file text instead.")
         _die(f"`old` not found in {path.name} (exact match required — like the Edit primitive). "
              f"{cause}")
+    # T-14055 — a re-run of an applied edit whose `new` contains `old` finds that `old` inside the
+    # first run's `new` and would apply the edit again. Judged on the raw text with the pair the
+    # fallbacks above settled, and on the parsed body with the author's pair — the second covers
+    # the writes whose stored `new` is not verbatim (the T-10920 re-indent, the T-13581 literal
+    # block), and only when the body holds every occurrence the edit would act on.
+    body = rec.get("body")
+    acted_on = n if wrapped_fix is None else wrapped_fix[2]
+    if (wrapped_fix is None and _edit_already_applied(text, old, new)) or (
+            isinstance(body, str) and body.count(orig_old) == acted_on
+            and _edit_already_applied(body, orig_old, orig_new)):
+        _die(f"already applied — every occurrence of `old` in {path.name} lies inside a copy of "
+             f"`new`, so a re-run would apply the edit again (T-14055). Inspect the text with "
+             f"`bin/yitc-v2 graph query {sid}`; for a deliberate second change, widen `old` to take "
+             f"in the text it should replace (for example the whole present copy of `new`). The "
+             f"file is untouched.")
     if n > 1 and not replace_all:
         _die(f"`old` matches {n} times in {path.name} — make it unique or pass --replace-all")
     count = n if replace_all else 1

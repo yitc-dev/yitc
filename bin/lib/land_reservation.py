@@ -1107,7 +1107,7 @@ def _worker_liveness_lost(worker_pid: int, task_id: "str | None", liveness: str,
     data = {"worker_pid": worker_pid, "liveness": liveness,
             "reason": f"the dispatched worker (pid {worker_pid}) holding this land's turn is no longer "
                       f"alive (liveness={liveness}) — terminating the land BEFORE any integration so "
-                      f"`main` is untouched (T-11102 / SPEC-0180 rule 3); {recovery}"}
+                      f"`main` is untouched (T-11102 / SPEC-1028 rule 3); {recovery}"}
     recorded = False
     try:
         _append_event(_LIVENESS_LOST_EVENT, task_id, data)
@@ -1115,7 +1115,7 @@ def _worker_liveness_lost(worker_pid: int, task_id: "str | None", liveness: str,
     except Exception as exc:                      # ANY writer failure — the kill must NOT depend on it
         print(f"yitc-v2: land: WORKER-LIVENESS KILL — worker pid {worker_pid} is {liveness}; the "
               f"`{_LIVENESS_LOST_EVENT}` record could NOT be written ({exc!r}). Killing this land "
-              f"anyway — an UNRECORDED kill is a silent death (SPEC-0180 rule 3), so it is announced "
+              f"anyway — an UNRECORDED kill is a silent death (SPEC-1028 rule 3), so it is announced "
               f"here instead. `main` is untouched; {recovery}.", file=out, flush=True)
     if recorded:
         print(f"yitc-v2: land: WORKER-LIVENESS KILL — worker pid {worker_pid} is {liveness}; recorded "

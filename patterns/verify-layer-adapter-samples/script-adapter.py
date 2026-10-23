@@ -16,7 +16,8 @@ environment variable YITC_VERIFY_ADAPTER_MANIFEST; the manifest's `action` says 
   list — the files matching TEST_GLOBS: a listing of names, nothing is run
   run — each requested file as one process, one after another, and a JUnit report with one
       suite for each file written where the manifest says: a file that exits nonzero is a
-      failed unit and the end of what it printed is its failure text
+      failed unit and the end of what it printed is its failure text. A file is one case: a unit
+      that carries `cases` runs whole, as the protocol allows.
 
 A script-style suite has nothing that names the files a change reaches, so this sample answers
 no `related`: leave that key out of the `adapter:` block. The layer then keeps its per-file

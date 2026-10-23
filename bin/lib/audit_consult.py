@@ -857,7 +857,7 @@ def _consult_basis(tid: str, stage: str, current_fp: str | None,
             + (f", `terminal_reason: {_treason}`" if _treason else "")
             + (f", open ids at the terminal: {', '.join(str(i) for i in d['open_ids'])}"
                if isinstance(d.get("open_ids"), list) and d.get("open_ids") else "")
-            + f"). A verdict recorded on a terminal round is NOT a convergence: SPEC-0124 §Basis "
+            + f"). A verdict recorded on a terminal round is NOT a convergence: SPEC-1034 §Basis "
               f"resolution admits exactly two shapes — a fresh single-survivor TECHNICAL-PROCEED "
               f"(`outcome: {CONSULT_OUTCOME_PROCEED}`, row 18) and a converged HOLD-FOR-OWNER "
               f"(`outcome: {CONSULT_OUTCOME_OWNER_HELD}`, row 16) — and this record is neither, so "
@@ -957,7 +957,7 @@ def _consult_basis(tid: str, stage: str, current_fp: str | None,
         return "owner-held", rel, (
             f"fresh CONVERGED consult {rel} whose SOLE survivor is the fixed HOLD-FOR-OWNER option "
             f"(verdict={verdict}, recommendation={recommendation}) — a valid owner-reset basis: the "
-            f"consult asked for the owner, and the flag IS the owner acting (T-10899, SPEC-0124 "
+            f"consult asked for the owner, and the flag IS the owner acting (T-10899, SPEC-1034 "
             f"§Basis resolution). NOT consult-governed — a fresh auditor runs on the granted pass.")
     return "consult", rel, f"fresh single-survivor consult {rel} (recommendation={recommendation})"
 
@@ -2730,6 +2730,69 @@ def consult_terminal_owner_route(record, *, is_plan, target_id, consult_key, con
         f"task FSM carries all three (QUEUE §State transitions).")
 
 
+# ── T-14059 — one on-demand consult record PER CALL (SPEC-1018 §On-demand technical-fork consult) ──
+# A card may run several technical forks; a fixed `<tid>-audit-consult-on-demand.yaml` let the second
+# consult replace the first, so a plan citing the first record by path read the second verdict
+# (T-13860, T-13996). The first call keeps that legacy name (ordinal 1); later calls take
+# `<tid>-audit-consult-on-demand-<N>.yaml`. Episode semantics are untouched: the engine still reads the
+# NEWEST completed record as its prior, it only stops writing over it.
+_ON_DEMAND_ORDINAL_RE = re.compile(r"-audit-consult-on-demand(?:-(\d+))?\.yaml$")
+
+
+def _on_demand_records(decisions: Path, tid: str) -> "list[tuple[int, Path]]":
+    """(ordinal, path) of every on-demand record of `tid`, ascending. Digits-only suffixes; any other
+    name (`-held-…`, a stray suffix) is not a record of this family."""
+    out = []
+    prefix = f"{tid}-audit-consult-on-demand"
+    for p in (decisions.glob(f"{prefix}*.yaml") if decisions.is_dir() else ()):
+        m = _ON_DEMAND_ORDINAL_RE.search(p.name)
+        if m and p.name.startswith(prefix) and p.is_file():
+            out.append((int(m.group(1)) if m.group(1) else 1, p))
+    return sorted(out)
+
+
+def on_demand_record_latest(decisions: Path, tid: str) -> Path:
+    """The newest on-demand record of `tid` (the engine's PRIOR), else the legacy ordinal-1 path."""
+    recs = _on_demand_records(decisions, tid)
+    return recs[-1][1] if recs else decisions / f"{tid}-audit-consult-on-demand.yaml"
+
+
+def _on_demand_record_path(decisions: Path, tid: str, n: int) -> Path:
+    return decisions / (f"{tid}-audit-consult-on-demand.yaml" if n == 1
+                        else f"{tid}-audit-consult-on-demand-{n}.yaml")
+
+
+def on_demand_record_publish(decisions: Path, tid: str, content: str) -> Path:
+    """Write `content` as a NEW on-demand record and return its path; never replaces a record.
+
+    The complete bytes go to a temp file first, then `os.link` publishes them under the next free
+    ordinal — an atomic create that fails when the name exists, so a concurrent call that took the
+    same ordinal moves this one to N+1. No empty placeholder is ever visible: a reader sees either no
+    new record or a complete one. The temp file is always removed."""
+    import os
+    import tempfile
+    recs = _on_demand_records(decisions, tid)
+    n = (recs[-1][0] + 1) if recs else 1
+    fd, tmp = tempfile.mkstemp(dir=str(decisions), prefix=f".{tid}-on-demand-", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+            fh.flush()
+            os.fsync(fh.fileno())
+        while True:
+            target = _on_demand_record_path(decisions, tid, n)
+            try:
+                os.link(tmp, target)
+                return target
+            except FileExistsError:
+                n += 1
+    finally:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+
+
 def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt_excerpt,
                         prior_passes, basis_fp, provider, model, effort, *,
                         _invoke_auditor, _parse_consult_result, _strip_degenerate_tail,
@@ -2739,7 +2802,7 @@ def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt
                         _file_followup=None, _parse_audit_verdict=None, lens=None,
                         scope_cuts=None, owner_rulings=None, owner_reopen: str | None = None,
                         _capacity_retry_hint=None, _resolve_audit_reserve=None,   # T-12606
-                        _rebuild_prompt_with_delta=None, AUDIT_INSPECTION_CONSULT_CLASS, CONSULT_ADJUDICATION_RECORD_FIELDS, CONSULT_NO_ANSWER_ROUTE_UNAVAILABLE, CONSULT_OUTCOME_NO_ANSWER, CONSULT_OUTCOME_PROCEED, CONSULT_ROUND_KIND_BASELINE, CONSULT_TERMINAL_OUTCOMES, _audit_duration_ms, _capacity_hint_via, auditor_failure_cause, consult_adjudicate_round, consult_allocate_episode, consult_emit_escape_deviations, consult_episode_busy_refusal, consult_episode_ended_refusal, consult_episode_row_fields, consult_file_successors, consult_hand_framed_refusal, consult_journal_state, consult_offered_pair, consult_opens_next_episode, consult_packet_assemble, consult_packet_max_bytes, consult_prompt_overlay, consult_round_kind, consult_round_withdrawn, consult_terminal_owner_route, findings_complete_declared, inspection, invoke_auditor_tiered, is_no_data_verdict, observe, stamp_auditor_verdict, state):
+                        _rebuild_prompt_with_delta=None, keep_each_record: bool = False, AUDIT_INSPECTION_CONSULT_CLASS, CONSULT_ADJUDICATION_RECORD_FIELDS, CONSULT_NO_ANSWER_ROUTE_UNAVAILABLE, CONSULT_OUTCOME_NO_ANSWER, CONSULT_OUTCOME_PROCEED, CONSULT_ROUND_KIND_BASELINE, CONSULT_TERMINAL_OUTCOMES, _audit_duration_ms, _capacity_hint_via, auditor_failure_cause, consult_adjudicate_round, consult_allocate_episode, consult_emit_escape_deviations, consult_episode_busy_refusal, consult_episode_ended_refusal, consult_episode_row_fields, consult_file_successors, consult_hand_framed_refusal, consult_journal_state, consult_offered_pair, consult_opens_next_episode, consult_packet_assemble, consult_packet_max_bytes, consult_prompt_overlay, consult_round_kind, consult_round_withdrawn, consult_terminal_owner_route, findings_complete_declared, inspection, invoke_auditor_tiered, is_no_data_verdict, observe, stamp_auditor_verdict, state):
     """Shared consult-adjudication CORE (extracted T-9683), and — since T-12182 (SPEC-0200 card C3) —
     the LIVE post-ceiling contract engine. Given a fully PREPARED consult prompt + metadata: allocate
     or join the ceiling EPISODE, apply the ROUND-AWARE prompt overlay, invoke the auditor, adjudicate
@@ -2796,6 +2859,8 @@ def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt
     switched contract, or a refusal."""
     import yaml
     audit_path = REPO_ROOT / "decisions" / f"{target_id}-audit-consult-{consult_key}.yaml"
+    if keep_each_record:   # T-14059 — the prior is the NEWEST on-demand record; the write adds a new one
+        audit_path = on_demand_record_latest(REPO_ROOT / "decisions", target_id)
 
     # ── SPEC-0200 (T-12182) — the LIVE contract, PRE-AUDITOR half ────────────────────────────────
     # Everything in this block runs BEFORE `_invoke_auditor`, and every refusal in it costs NOTHING:
@@ -3207,7 +3272,10 @@ def _consult_adjudicate(target_id, consult_key, is_plan, options, prompt, prompt
     except yaml.YAMLError as e:
         _die(f"SPEC-0001 self-test failed: {e}")
 
-    write_text_atomic(audit_path, content)
+    if keep_each_record:   # T-14059 — publish under the next free ordinal, never over a prior record
+        audit_path = on_demand_record_publish(REPO_ROOT / "decisions", target_id, content)
+    else:
+        write_text_atomic(audit_path, content)
 
     # ONE audit-family event surface (audit-pre p3-F1 absorption — no second parallel event):
     # external_audit_completed with the distinguishing consult fields, and — since T-12182 — the
@@ -3261,7 +3329,7 @@ def build_plan_consult_prompt(slug, gate, options, plan_fm, plan_body, *,
     return (
         f"{_PLAN_AUDIT_LENS}\n## Authoritative plan FSM\n{_plan_fsm_line()}\n"
         f"\n## Ceiling-convergence consult — plan {slug}, gate {gate} "
-        f"(SPEC-0124 §Plan-target parity)\n\nThe {gate} gate reached its audit-loop ceiling. "
+        f"(SPEC-1034 §Plan-target parity)\n\nThe {gate} gate reached its audit-loop ceiling. "
         f"Name which of the candidate resolution OPTIONS below SURVIVE (a subset, fail-closed) and a "
         f"single recommendation (exactly one survivor). Output `verdict:` (GREEN/YELLOW/RED/ABORT) + "
         f"`survivors:` (a YAML list of option numbers) + `recommendation:` (one number) + `notes:`.\n"
@@ -3296,8 +3364,9 @@ def consult_status_refusal(tid: str, status, on_demand: bool = False) -> str:
             f"re-audit its current tree with `yitc-v2 audit post --task {tid} "
             f"--reaudit-after-close`. Past the audit-loop ceiling the Controller records one "
             f"decision per residual (`yitc-v2 audit decide --help`), then ONE pass runs on them: "
-            f"`yitc-v2 audit post --task {tid} --reaudit-after-close --on-decisions` (SPEC-0204 "
-            f"rules 2-4 / SPEC-0124 §Post-close reaudit exit). Do NOT park+redo the build — that "
+            f"`yitc-v2 audit post --task {tid} --reaudit-after-close --on-decisions "
+            f"--sweep '<where you looked for the same defect class and what you found>'` (SPEC-0204 "
+            f"rules 2-4 / SPEC-1034 §Post-close reaudit exit). Do NOT park+redo the build — that "
             f"is not the canonical exit. If {tid}'s `done` already LANDED there is no reopen at "
             f"all: file a NEW task (QUEUE §Prematurely-closed / LIFECYCLE §Stage 9).")
 
@@ -3421,8 +3490,8 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
             # --reaudit-after-close consult instead of a dead end (the T-10481 circle).
             _die(consult_status_refusal(tid, artifact.get("status"), on_demand=True))
         target_id = tid
-        consult_key = "on-demand"   # DISTINCT key -> decisions/<tid>-audit-consult-on-demand.yaml; the
-        prior_passes = 0            # owner-reset basis reader (<tid>-audit-consult-{pre,post}) never sees it.
+        consult_key = "on-demand"   # DISTINCT key -> decisions/<tid>-audit-consult-on-demand[-<N>].yaml (one
+        prior_passes = 0            # per call, T-14059); the owner-reset basis reader ({pre,post}) never sees it.
     elif is_plan:
         if (getattr(args, "task", None) or "").strip() or (getattr(args, "stage", None) or "").strip():
             _die("audit consult: pass EITHER --task (with --stage) OR --plan (with --gate), not both.")
@@ -3431,7 +3500,7 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
         gate = (getattr(args, "gate", None) or "").strip()
         if gate not in PLAN_CONSULT_GATES:
             _die(f"--gate is REQUIRED with --plan and must be one of {list(PLAN_CONSULT_GATES)} "
-                 f"(the SPEC-0124 ceiling-bearing plan gates, INV-1); got {gate!r}")
+                 f"(the SPEC-1034 ceiling-bearing plan gates, INV-1); got {gate!r}")
         _pp, plan_fm, plan_body = _load_draft(slug, dirs=(PLANS_DIR,))
         if not isinstance(plan_fm, dict):
             plan_fm = {}
@@ -3478,7 +3547,7 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
         _die(f"audit consult refused: {target_id} {consult_key} has {prior_passes} audit pass(es) on "
              f"record (< the {AUDIT_PASS_CEILING}-pass ceiling). A consult is the ceiling-convergence "
              f"triage (pass-{AUDIT_PASS_CEILING + 1}) step, NOT an anytime escape hatch — run the normal "
-             f"absorption passes first (SPEC-0124 §Audit-loop ceiling). For a below-ceiling TECHNICAL "
+             f"absorption passes first (SPEC-1034 §Audit-loop ceiling). For a below-ceiling TECHNICAL "
              f"design fork use `audit consult --on-demand --task {target_id}`.")
 
     # SPEC-0204 rule 6 (T-12290) — the T-12234 `--reopen` OWNER GATE is REMOVED with the flag it
@@ -3643,6 +3712,7 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
         _die=_die, REPO_ROOT=REPO_ROOT, reaudit_after_close=reaudit_after_close,
         _capacity_retry_hint=_capacity_retry_hint,   # T-12603
         _resolve_audit_reserve=_resolve_audit_reserve,   # T-12606 — the FULL tier's reserve pair
+        keep_each_record=on_demand,   # T-14059 — each on-demand call keeps its own record
         # SPEC-0200 (T-12182) — the contract injections. `on_demand` is NOT a ceiling episode, so it
         # passes no lens and the engine's `_baseline_bearing` test leaves its option semantics alone.
         # T-12233 — the delta re-assembly the SOFT packet bound may choose at a RETEST. It is an
@@ -3706,13 +3776,13 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
                 "saved_to": str(audit_path.relative_to(REPO_ROOT)),
             })
             print(f"# converged: a single surviving variant (variant {survivors[0]}). The auditor RATIFIED "
-                  f"its technical merit;\n# the OWNER keeps a lightweight ratify/veto (SPEC-0124 §On-demand "
+                  f"its technical merit;\n# the OWNER keeps a lightweight ratify/veto (SPEC-1034 §On-demand "
                   f"technical-fork consult).\n# Recorded audit_on_demand_consult. This is NOT an "
                   f"--owner-reset basis.", file=sys.stderr)
         else:
             print(f"# NOT converged ({len(survivors)} survivor(s) / verdict {verdict}) — FAIL-CLOSED: no "
                   f"auto-pick.\n# A value/draft-authority fork (ABORT), a disagreement, a multi-survivor, "
-                  f"or any not-GREEN/YELLOW\n# verdict escalates to the OWNER (SPEC-0124 §On-demand "
+                  f"or any not-GREEN/YELLOW\n# verdict escalates to the OWNER (SPEC-1034 §On-demand "
                   f"technical-fork consult).", file=sys.stderr)
         sys.exit(_verdict_exit_code(verdict))
 
@@ -3724,9 +3794,9 @@ def cmd_audit_consult(args: argparse.Namespace, *, _capacity_retry_hint=None, AU
           + f") → {audit_path.relative_to(REPO_ROOT)}")
     if converged:
         print(f"# converged: a single surviving option — `{_reset_verb}` "
-              f"will verify this consult as the standing basis (SPEC-0124).", file=sys.stderr)
+              f"will verify this consult as the standing basis (SPEC-1034).", file=sys.stderr)
     else:
         print(f"# NOT converged ({len(survivors)} survivors / verdict {verdict}) — escalate to the "
-              f"owner per SPEC-0124 (the consult basis is NOT a usable --owner-reset basis).",
+              f"owner per SPEC-1034 (the consult basis is NOT a usable --owner-reset basis).",
               file=sys.stderr)
     sys.exit(_verdict_exit_code(verdict))

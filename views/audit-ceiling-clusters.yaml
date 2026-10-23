@@ -13,7 +13,7 @@ lens:
                                  # are reported as `untagged_passes`, never silently dropped.
                                  # Recomputed fresh, writes nothing. No new store, no new event.
 why: >-
-  The audit-loop ceiling (SPEC-0124) exists to bound a loop nobody could characterise, and until now the
+  The audit-loop ceiling (SPEC-1034) exists to bound a loop nobody could characterise, and until now the
   only lever anyone had was the COUNT: the pass record kept `passes` and a verdict and said NOTHING about
   WHY each pass failed, because superseded verdicts are deliberately not retained. So the T5 inspection
   matrix mandated a root-cause clustering of ceiling cases that the corpus could not produce — one consumer
@@ -44,4 +44,4 @@ why: >-
   convergence-consult path reads this lens. `graph query audit-ceiling-clusters` emits a cli_invoked
   observability event (T-0113) — a reviewer RUNNING the lens IS the durable P8 consumer-read adoption
   evidence. The view MECHANISM (lens dispatch / views/*.yaml format) is owned by SPEC-0031 + D-0053 and is
-  reused unchanged; the ceiling itself stays homed in SPEC-0124.
+  reused unchanged; the ceiling itself stays homed in SPEC-1034.

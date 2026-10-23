@@ -579,7 +579,7 @@ rule rather than a note: **eight captures over four days, 2026-08-30..09-02.** T
   BEFORE launching the child and prints its poll **already anchored** —
   `tail -c +N <log> | grep -qE "^LAND: (OK|ABORT)"` (`_land_log_new_attempt_offset` /
   `_start_detach_notice`, `bin/lib/worktree.py`) — so use the form it prints. For a log YOU spell, `>`
-  rather than `>>` buys the same property by construction. **This does not relax <workshop-spec> rule 2c**:
+  rather than `>>` buys the same property by construction. **This does not relax SPEC-1028 rule 2c**:
   terminality is still token-or-exit and capture stays wide — what is scoped is only WHICH BYTES the
   token may be read from.
 - **A liveness poll uses the child PID, never `pgrep -f` carrying text from its own argv.**
@@ -593,7 +593,7 @@ rule rather than a note: **eight captures over four days, 2026-08-30..09-02.** T
   off the journal — never off a pattern that can match the process doing the asking.
 
 **CAPTURE and TERMINALITY are two DIFFERENT obligations — admit the diagnostic channel, gate on
-token-or-exit (RULE, <workshop-spec> rule 2c).** Both sentences, and they must never be collapsed into one
+token-or-exit (RULE, SPEC-1028 rule 2c).** Both sentences, and they must never be collapsed into one
 filter:
 - **CAPTURE — redirect `2>&1` and admit `^yitc-v2:`.** A pre-verify REFUSAL (a missing `-C` target, a
   fail-closed session identity, any guard upstream of the terminal-signal seam) never reaches the

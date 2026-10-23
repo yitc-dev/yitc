@@ -16,7 +16,8 @@ environment variable YITC_VERIFY_ADAPTER_MANIFEST; the manifest's `action` says 
       written where the manifest says. On a re-run the manifest carries `isolated`, and the
       files then run one at a time: pytest does that by itself unless the pytest-xdist plugin is
       loaded and the project's own options start workers, so in that case the run ends with
-      `-n 0`, which overrides those options.
+      `-n 0`, which overrides those options. A re-run unit that carries `cases` runs as those
+      cases' node ids, `<file>::<case>`, so only the named tests of that file run.
 
 pytest has no command that names the tests a change reaches without running them, so this
 sample answers no `related`: leave that key out of the `adapter:` block. The layer then keeps
@@ -89,6 +90,21 @@ def listed(paths):
     return [unit_for(name) for name in sorted(names)], []
 
 
+def node_ids(unit):
+    """A unit -> what pytest is handed for it: the file, or one node id per named case. A case is
+    named as the report named it, `<name>` or `<Class>::<name>`, a nested class with dots
+    (`Outer.Inner::<name>`); in a node id every class is its own `::` step."""
+    name = os.path.relpath(os.path.join(ROOT, unit["file"]), HOME).replace(os.sep, "/")
+    if not unit.get("cases"):
+        return [name]
+    ids = []
+    for case in unit["cases"]:
+        head, bracket, params = case.partition("[")          # a parameter may hold `::` or dots
+        classes, sep, test = head.rpartition("::")
+        ids.append(name + "::" + (classes.replace(".", "::") + "::" if sep else "") + test + bracket + params)
+    return ids
+
+
 def runner_version(command):
     """The version word of `pytest --version`, which prints `pytest 9.0.2`."""
     proc = subprocess.run([*command, "--version"], cwd=HOME, capture_output=True, text=True)
@@ -117,8 +133,7 @@ def main(argv):
         return 1 if errors else 0
     if action == "run":
         units = manifest.get("units")
-        files = TEST_PATHS if units is None else [
-            os.path.relpath(os.path.join(ROOT, u["file"]), HOME).replace(os.sep, "/") for u in units]
+        files = TEST_PATHS if units is None else [node for u in units for node in node_ids(u)]
         cmd = [*PYTEST, *BASE, "-o", "junit_family=xunit2", "--junitxml=" + manifest["report"]]
         if manifest.get("isolated") and knows("--numprocesses"):
             # a re-run with pytest-xdist loaded: no workers, the files one at a time

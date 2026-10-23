@@ -3072,7 +3072,7 @@ def _render_live_dependents(tid: str, target: str, dependents: list) -> str:
             f"{rows}"
             f"  → report-only; the transition PROCEEDS and this is NOT a gate. {exits}.\n"
             f"     (the standing sweep for cards ALREADY stranded is the debt view "
-            f"`unpickable-ready-cards`, SPEC-0119 rule 36 — this is the same reading, delivered at "
+            f"`ready-cards-requiring-wont-do`, SPEC-0119 rule 36 — this is the same reading, delivered at "
             f"the seam that creates the debt, T-12644/X-1462)\n")
 
 
@@ -3206,8 +3206,8 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     if _qj_mode and _selfcommit_posture is not None:
         try:
             _qj_posture = _selfcommit_posture()
-        except Exception:                       # noqa: BLE001 — undeterminable posture → fail closed
-            _qj_posture = None
+        except OSError:                         # undeterminable posture → fail closed; a refusal the
+            _qj_posture = None                  # posture raises (T-14040) is not caught here
     _qj_wired = None not in (_selfcommit_posture, _scoped_selfcommit_preflight, _scoped_selfcommit)
     _qj_on_main = bool(_qj_mode and _qj_posture == "main" and _qj_wired)
     if _qj_mode and not _qj_on_main and _qj_posture != "worktree":
@@ -3246,8 +3246,8 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
     if not _qj_mode and _qj_wired and _note_stands_alone(args):
         try:
             _tn_main = _selfcommit_posture() == "main"
-        except Exception:                       # noqa: BLE001 — undeterminable posture → the guard runs
-            _tn_main = False
+        except OSError:                         # undeterminable posture → the guard runs; a refusal the
+            _tn_main = False                    # posture raises (T-14040) is not caught here
     if not _qj_on_main and not _tn_main:
         _require_writing_worktree()
     # T-11165 (E-0054): the `--from-stdin` INGEST, hoisted to the top of the verb. It reads the WHOLE
@@ -4484,10 +4484,17 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                          f"host_config: true\\nhost_config_kind: cron'` (--new repeats --old and adds the "
                          f"lines; anchor --old on a line the card really has; validated like `task file "
                          f"--host-config`).")
+            # T-14149: so does the cut-membership marker (T-11091, SPEC-0070 §5) — name its route too.
+            _df_route = ("" if _set_key != "decomposed_from" else
+                         f" The cut-membership marker has its own governed route — the FIELD-EDIT "
+                         f"superset (SPEC-0070 §5): `bin/yitc-v2 task update {tid} --old 'cites: []' "
+                         f"--new $'decomposed_from: <plan-slug>\\ncites: []'` (--new repeats --old and "
+                         f"adds the line; anchor --old on a line the card really has; the plan must "
+                         f"exist under plans/).")
             _die(f"task update: --set-field {_set_key!r} is refused — only "
                  f"{', '.join(STRUCTURED_EDIT_FIELDS)} are settable here. Verb-owned fields keep "
                  f"their own routes (status: `task update --status` / `worktree new --task` / "
-                 f"`task close`; class: `--class`; effort_tier: `--effort-tier`).{_hc_route} Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+                 f"`task close`; class: `--class`; effort_tier: `--effort-tier`).{_hc_route}{_df_route} Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
         cur = task.get("status")
         # T-13221: `answers` is release LINK-BACK metadata, not the card's shipped claim — a fix card
         # is normally done before the release that ships it is cut — so --set-field answers (ONLY)
@@ -5626,7 +5633,7 @@ def cmd_task_pause(args: argparse.Namespace, *, REPO_ROOT, _append_event, _commi
         else:
             next_action = ("Controller: " + _audit.ceiling_decide_route(tid, _st, REPO_ROOT)
                            + f" (per fingerprint); then worker: task resume + audit {_st} --task {tid} "
-                           f"--on-decisions")
+                           f"--on-decisions --sweep '<where you looked for the same defect class and what you found>'")
     task["paused_at"] = _utc_now_iso()
     task["paused_reason"] = reason
     if awaits:
@@ -8885,6 +8892,232 @@ def _settle_probe_admission_error(*args, **kw):
     return closure_evidence._settle_probe_admission_error(*args, **kw)
 
 
+# ── T-14109 (SPEC-1042 rule 6) — THE STAND PROBE of a card that touches a pre-deploy check ─────────
+# A pre-deploy check never runs on a land, so a card that adds or changes one meets it first on a
+# stand, after its land: the card carries a SPEC-0015 deferred probe `stand-<class>`, registered by
+# `task close` and settled by `task close --settle-probe` on a stand row of a landed revision. No
+# contract reaches this before the turn-on card T-14114: the contract reader refuses `moment:
+# pre-deploy` (init.py `_hook_tests`), and only a host handing the PARSED declaration
+# (`cmd_task_close(_pre_deploy_stand=)`) registers a probe.
+STAND_PROBE_PREFIX = "stand-"
+#: the moment a stand probe waits for — the stand run's class row, after the card's land
+STAND_PROBE_MOMENT = "events.jsonl#type=test_class_executed@after=land"
+
+
+def _stand_waiver(entry) -> "str | None":
+    """SPEC-1042 rule 6 — the reason of a class's `stand: {none: <reason>}`, else None. A bare
+    `none` or an empty reason is no waiver: the probe stays owed. PURE."""
+    stand = entry.get("stand") if isinstance(entry, dict) else None
+    if isinstance(stand, dict) and set(stand) == {"none"}:
+        reason = stand.get("none")
+        if isinstance(reason, str) and reason.strip():
+            return reason.strip()
+    return None
+
+
+def _pre_deploy_stand_probes(pre_deploy, paths) -> list:
+    """SPEC-1042 rule 6 — the stand probes a diff owes: one row per pre-deploy class whose check the
+    changed `paths` touch, `{key, class, units, layers, stand, waived}` in declaration order.
+
+    `pre_deploy` is the PARSED seam `{classes, classes_before, layers: {name: {declaration,
+    declaration_before, units, units_before}}}` — `units` the ONE adapter `list` answer (SPEC-1035
+    rule 3) on the card's revision, `units_before` the same answer on its base, either None when
+    that `list` did not answer. A check is touched by: the class entry itself (changed, or absent
+    before) — every unit and layer of the class; on an adapter layer, a path that IS a member unit's
+    file (`file` or `project/file`) on either side, so a deleted or renamed check counts — that unit
+    — or a path under the adapter `sources:` of either side — every member unit of the layer; on a
+    layer the class names whole (`layers:`), its declaration changing (its `command:` included) or a
+    path the layer is eligible for as the land reads it (the host's `layer_eligible(paths, globs)`,
+    the land's per-layer judge: a layer with no `subject_globs` counts every path; no judge handed in
+    counts every path) — the whole layer. Where EITHER side's `list` did not answer,
+    the membership there is unknown (a check the card adds or deletes may be on that side), so an
+    adapter layer touched by the entry, an eligible or a `sources:` path owes every pre-deploy class
+    a whole-layer probe (fail-closed: a land's full run does not replace the stand
+    run). PURE."""
+    if not isinstance(pre_deploy, dict):
+        return []
+    from lib import land_verify_legs as _lvl          # lazy: the circular-import idiom of this module
+    # The host answers eligibility as the land reads it (its per-layer judge); this module never
+    # calls that judge itself (tests/test_subject_scoping_would_skip.py S4). No judge = every path
+    # counts (fail-closed: the probe is owed).
+    judge = pre_deploy.get("layer_eligible")
+    if not callable(judge):
+        judge = lambda _paths, _globs: True              # noqa: E731
+    paths = [str(p)[2:] if str(p).startswith("./") else str(p) for p in (paths or ()) if str(p).strip()]
+    before = {str(c.get("class") or "").strip(): c for c in (pre_deploy.get("classes_before") or ())
+              if isinstance(c, dict)}
+    layers = pre_deploy.get("layers") if isinstance(pre_deploy.get("layers"), dict) else {}
+
+    def _members(inventory, name):
+        out = []
+        for u in inventory if isinstance(inventory, list) else ():
+            got = _lvl._pre_deploy_membership(u.get("classes")) if isinstance(u, dict) else ()
+            if isinstance(u, dict) and u.get("file") and got is not _lvl._PRE_DEPLOY_MALFORMED and name in got:
+                out.append(u)       # a malformed membership is the land's to refuse
+        return out
+
+    def _sources(decl):
+        adapter = decl.get("adapter") if isinstance(decl, dict) and isinstance(decl.get("adapter"), dict) else {}
+        return [s.rstrip("/") for s in (adapter.get("sources") or ()) if isinstance(s, str) and s.strip()]
+
+    rows = []
+    for c in pre_deploy.get("classes") or ():
+        if not (isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"):
+            continue
+        name = str(c.get("class") or "").strip()
+        if not name:
+            continue
+        entry_changed = before.get(name) != c
+        whole = {ly.strip() for ly in (c.get("layers") if isinstance(c.get("layers"), list) else ())
+                 if isinstance(ly, str) and ly.strip()}
+        units, hit_layers = [], []
+        for lname, ly in layers.items():
+            ly = ly if isinstance(ly, dict) else {}
+            decl = ly.get("declaration") if isinstance(ly.get("declaration"), dict) else {}
+            try:
+                eligible = any(judge([p], decl.get("subject_globs")) for p in paths)
+            except Exception:                           # noqa: BLE001 — an unanswered judge = eligible
+                eligible = bool(paths)
+            if lname in whole:
+                if entry_changed or decl != ly.get("declaration_before") or eligible:
+                    hit_layers.append(lname)
+                continue
+            sources = _sources(decl) + _sources(ly.get("declaration_before"))
+            if not sources and not isinstance(decl.get("adapter"), dict):
+                continue                                # no adapter: no unit can carry membership
+            sources_hit = any(p == s or p.startswith(s + "/") for p in paths for s in sources)
+            now, then = ly.get("units"), ly.get("units_before")
+            if not isinstance(now, list) or not isinstance(then, list):
+                if entry_changed or sources_hit or eligible:
+                    hit_layers.append(lname)            # membership unknown on a side: fail closed
+                continue
+            for u in _members(now, name) + _members(then, name):
+                own = {str(u["file"]), f"{u['project']}/{u['file']}" if u.get("project") else str(u["file"])}
+                if (entry_changed or sources_hit or own & set(paths)) and str(u["file"]) not in units:
+                    units.append(str(u["file"]))
+        if units or hit_layers:
+            stand = c.get("stand")
+            rows.append({"key": f"{STAND_PROBE_PREFIX}{name}", "class": name, "units": units,
+                         "layers": hit_layers,
+                         "stand": stand.strip() if isinstance(stand, str) and stand.strip() != "none" else None,
+                         "waived": _stand_waiver(c)})
+    return rows
+
+
+def _stand_row_check(task: dict, cls: str, REPO_ROOT, _run_git_cap):
+    """SPEC-1042 rule 6 — the `row_check` a `stand-<cls>` settlement hands the evidence resolver:
+    `_stand_row_error` bound to git ancestry (`merge-base --is-ancestor` in `REPO_ROOT`; no git or a
+    failure reads False) and the contract's `deploy.targets` (`REPO_ROOT/yitc-ops.yaml`). The host
+    calls it with the cited rows and the `deploy_completed` rows of its own journal read (`deploys=`,
+    T-14151); a host that hands none gets every row refused."""
+    def _is_ancestor(a, b):
+        if _run_git_cap is None:
+            return False
+        try:
+            return _run_git_cap(["merge-base", "--is-ancestor", a, b], Path(REPO_ROOT)).returncode == 0
+        except Exception:                               # noqa: BLE001 — unreadable = not landed
+            return False
+
+    def _target_production(name):
+        try:
+            doc = state.load_path(Path(REPO_ROOT) / "yitc-ops.yaml")
+            entry = ((doc.get("deploy") or {}).get("targets") or {}).get(name)
+        except Exception:                               # noqa: BLE001 — unreadable = undeclared
+            return None
+        return entry.get("production") if isinstance(entry, dict) else None
+
+    return lambda rows, deploys=None: _stand_row_error(rows, cls, task.get("commit"), is_ancestor=_is_ancestor,
+                                                       target_production=_target_production, deploys=deploys)
+
+
+def _register_stand_probes(rows, probes: dict, deferred: list, probe_moments: dict) -> tuple:
+    """SPEC-1042 rule 6 — record each owed stand probe in a closing card's probe set: `probes[key] =
+    deferred`, the key in `deferred`, its moment `STAND_PROBE_MOMENT`. A waived class records nothing
+    and is named. Returns `(refusal, lines)`: a refusal when the close gives a stand key a value other
+    than `deferred` — the stand row exists only after the card's land and settles only through
+    `--settle-probe` — else None and the lines to print. Mutates the three carriers only on success."""
+    lines, owed = [], []
+    for r in rows or ():
+        what = ", ".join(r["units"] + [f"layer {ly} (whole)" for ly in r["layers"]])
+        if r.get("waived"):
+            lines.append(f"stand probe {r['key']} not owed — class {r['class']} declares `stand: none`: "
+                         f"{r['waived']} (its first real run is the first gated deploy's pre-deploy run, "
+                         f"SPEC-1042 rule 6)")
+            continue
+        got = probes.get(r["key"])
+        if got not in (None, "deferred"):
+            return (f"probe {r['key']!r} is given {got!r} at close — this card touches the pre-deploy "
+                    f"check(s) {what} of class {r['class']}, whose stand run happens only after the card's "
+                    f"land: close with it deferred (it is registered for you) and settle it later on a stand "
+                    f"row (SPEC-1042 rule 6)."), []
+        owed.append(r)
+        lines.append(f"stand probe {r['key']} registered deferred — touched: {what}; settle after the land "
+                     f"on a stand row of a landed revision (SPEC-1042 rule 6)")
+    for r in owed:
+        probes[r["key"]] = "deferred"
+        if r["key"] not in deferred:
+            deferred.append(r["key"])
+        probe_moments.setdefault(r["key"], _probe_moment_declaration(STAND_PROBE_MOMENT))
+    return None, lines
+
+
+def _deploy_target_name(row: dict):
+    """T-14151 — the target NAME a `deploy_completed` row records (`target: {name, ...}`), else None."""
+    data = row.get("data") if isinstance(row.get("data"), dict) else {}
+    target = data.get("target")
+    return target.get("name") if isinstance(target, dict) else None
+
+
+def _stand_row_error(rows, cls: str, card_commit, *, is_ancestor, target_production,
+                     deploys=None) -> "str | None":
+    """SPEC-1042 rule 6 — why the journal rows a `stand-<cls>` settlement cites are no stand row of a
+    landed revision, else None. One row must be a `test_class_executed` of class `cls` with `outcome:
+    pass`, a full 40-hex `candidate` that is on `main` and contains the card's recorded commit
+    (`is_ancestor(a, b)`; a git failure reads False), and a `target` whose `deploy.targets` entry is
+    `production: false` (`target_production(name)` → the declared value, None when undeclared).
+    T-14151 — and its run must be the gate of a stand deploy that COMPLETED: one of `deploys` (the
+    journal's `deploy_completed` rows) names the row's `run_ref` as its `pre_deploy_run_ref` and the
+    row's target as its `target.name`. A pre-deploy run writes its class rows before the deploy's
+    last-moment check, so a run whose deploy was refused leaves a passing row for a revision the stand
+    never served. PURE but for the two injected reads."""
+    if not str(card_commit or "").strip():
+        return "the card records no commit, so no revision can be shown to carry its change"
+    seen = []
+    for row in rows or ():
+        d = row.get("data") if isinstance(row.get("data"), dict) else {}
+        if row.get("type") != "test_class_executed" or d.get("class") != cls:
+            seen.append(f"{row.get('type')} is not a test_class_executed row of class {cls!r}")
+            continue
+        if d.get("outcome") != "pass":
+            seen.append(f"its outcome is {d.get('outcome')!r}, not 'pass'")
+            continue
+        cand = str(d.get("candidate") or "")
+        if not re.fullmatch(r"[0-9a-f]{40}", cand):
+            seen.append(f"its candidate {cand!r} is not a full commit id")
+            continue
+        if target_production(d.get("target")) is not False:
+            seen.append(f"its target {d.get('target')!r} is not a declared `production: false` deploy target")
+            continue
+        if not is_ancestor(cand, "main"):
+            seen.append(f"its candidate {cand[:12]} is not on main (not a landed revision)")
+            continue
+        if not is_ancestor(str(card_commit).strip(), cand):
+            seen.append(f"its candidate {cand[:12]} does not contain the card's commit {card_commit}")
+            continue
+        run_ref = str(d.get("run_ref") or "")
+        if not run_ref or not any(
+                (dep.get("data") if isinstance(dep.get("data"), dict) else {}).get("pre_deploy_run_ref") == run_ref
+                and _deploy_target_name(dep) == d.get("target")
+                for dep in deploys or () if isinstance(dep, dict) and dep.get("type") == "deploy_completed"):
+            seen.append(f"no completed stand deploy to {d.get('target')!r} ran it — no `deploy_completed` "
+                        f"names its run {run_ref or '(none recorded)'!r} as `pre_deploy_run_ref`, so "
+                        f"candidate {cand[:12]} was never served on the stand")
+            continue
+        return None
+    return ("the cited evidence is no stand row of a landed revision (SPEC-1042 rule 6): "
+            + ("; ".join(seen) or "no row"))
+
+
 # T-11292 (SPEC-0165 item 1) — the probe KEY membership guard for `task close`.
 #
 # The silent breakage: a closure record could name probe keys the card does not have and
@@ -9615,7 +9848,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                    _case_gate_spec_dirs=None, _main_worktree=None, _run_git_cap=None,
                    _BOOKKEEPING_ALLOWLIST=None, _worktree_dirty_paths=None,
                    _is_consumer_build=None, _main_events_path=None,
-                   _registry_peers=None) -> None:
+                   _registry_peers=None, _pre_deploy_stand=None) -> None:
     """Atomic Stage 9 closure. Per LIFECYCLE.md §Stage 9 + D-0015 + D-0019 + D-0082.
 
     `_governance_surface_globs_arg` (T-11156, SPEC-0178 rule 3) is OPTIONAL on the same precedent: the
@@ -10022,6 +10255,13 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                 _adm = _settle_probe_admission_error(task, _ac, _result)
                 if _adm:
                     _die(f"{tid}: {_adm}")
+                if _ac.startswith(STAND_PROBE_PREFIX) and _loc is None:
+                    # T-14109 (SPEC-1042 rule 6) — a stand probe has no T-11657 terminal: it settles
+                    # only on a stand row of a landed revision (the class's `stand: none` is the waiver).
+                    _die(f"{tid} probe {_ac!r}: a stand probe settles only on a stand row of a landed "
+                         f"revision, never as {_result!r} without one (SPEC-1042 rule 6). Route: "
+                         f"`yitc-v2 task close {tid} --settle-probe {_ac}:pass --settle-evidence "
+                         f"events.jsonl#ts=<the stand run's test_class_executed row>`.")
             # RESOLUTION half — fail-closed on an un-wired resolver (the `_live_probe_settled_unresolved`
             # posture): an unverifiable citation is exactly the false-green this path exists to prevent.
             # T-11657 — a TERMINAL pair carries NO locator (`_l is None`), so it needs no resolver
@@ -10049,7 +10289,18 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             for _ac, _result, _loc, _reason in settle_pairs:
                 if _loc is None:
                     continue          # T-11657 terminal — no citation to resolve, by construction
-                if _cross_settle_locator(_loc) is not None:
+                if _ac.startswith(STAND_PROBE_PREFIX):
+                    # T-14109 (SPEC-1042 rule 6) — a stand probe settles only on a stand row of a
+                    # landed revision: a journal locator whose rows are checked, not only resolved.
+                    if _cross_settle_locator(_loc) is not None or _journal_locator(_loc) is None:
+                        _unres = (f"a stand probe settles only on a journal row — cite the stand run's "
+                                  f"`test_class_executed` row as `events.jsonl#ts=<ISO>` or "
+                                  f"`#source_ref=<ref>` (SPEC-1042 rule 6); {_loc!r} names none")
+                    else:
+                        _unres = _settle_evidence_unresolved_host(
+                            _loc, tid=tid, row_check=_stand_row_check(
+                                task, _ac[len(STAND_PROBE_PREFIX):], REPO_ROOT, _run_git_cap))
+                elif _cross_settle_locator(_loc) is not None:
                     _unres = _settle_evidence_unresolved(_loc, (), cross_events=_cross_rows, tid=tid)
                 else:
                     _unres = _settle_evidence_unresolved_host(_loc, tid=tid)
@@ -11317,6 +11568,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     _gov_globs = _governance_surface_globs_arg or ()
     _pending_writes = _pending_governance_writes(tid, repo_root=REPO_ROOT) if _gov_globs else []
     _guard_paths = sorted(set(touched) | set(_pending_writes)) if _gov_globs else []
+    # The card's OWN lifecycle records — read by `_case_match` (rule 1) and rule 6 alike (T-14039).
+    _own_lifecycle_record = _case_own_lifecycle_record(tid, lifecycle_record_path=_lifecycle_record_path)
 
     # T-13921 — the HYGIENE FAST-PATH REFUSAL. LIFECYCLE §Two-flow-types makes a change touching a
     # governance surface fast-path INELIGIBLE, mechanically and fail-closed; this is where that is kept.
@@ -11400,7 +11653,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                                                    # conjunction above — ONE spelling, hoisted so the
                                                    # attribution fold and this gate cannot disagree.
         for _case in _cases:
-            if not _case_match(_case, task_class=task.get("class"), ship_paths=touched):
+            if not _case_match(_case, task_class=task.get("class"), ship_paths=touched,
+                               is_lifecycle_record=_own_lifecycle_record):
                 continue
             if _case_declaration_refusal(_case, governance_globs=_gov_globs):
                 continue                       # rule 3 belt — an illegally-declared case exempts nothing
@@ -11626,6 +11880,25 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     if _momentless:
         _die(f"{tid}: {_probe_moment_refusal('deferred probe(s) naming no firing moment: ' + ', '.join(repr(k) for k in _momentless))}")
 
+    # T-14109 (SPEC-1042 rule 6) — a card whose diff touches a pre-deploy check carries a deferred
+    # stand probe, registered here. Only a host handing the parsed declaration reaches it — none does
+    # before the turn-on card T-14114 — so every close today skips this block.
+    if _pre_deploy_stand is not None:
+        _pd = _pre_deploy_stand(task)
+        if _pd:
+            _rec = _recorded_commit_sha(tid)
+            _stand_rows = _pre_deploy_stand_probes(_pd, _task_diff_files(_rec) if _rec else [])
+            _stand_refusal, _stand_lines = _register_stand_probes(_stand_rows, probes, deferred,
+                                                                  probe_moments)
+            if _stand_refusal:
+                _key = next((r["key"] for r in _stand_rows
+                             if probes.get(r["key"]) not in (None, "deferred")), "<key>")
+                _die(f"{tid}: {_stand_refusal} Route: re-run `yitc-v2 task close {tid}` without that "
+                     f"value, then after the land `yitc-v2 task close {tid} --settle-probe {_key}:pass "
+                     f"--settle-evidence <stand row>`.")
+            for _line in _stand_lines:
+                print(f"{tid}: {_line}")
+
     # Compute probe_passed: all non-deferred must be 'pass'
     non_deferred = {k: v for k, v in probes.items() if k not in deferred}
     probe_passed = all(v == "pass" for v in non_deferred.values()) if non_deferred else False
@@ -11844,10 +12117,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     #
     # The card's OWN lifecycle records leave the OUTSIDE set (T-13956): this tid's card, the journal and
     # its archive segments, its own `decisions/<tid>-*` records and the derived build artifacts —
-    # `_lifecycle_record_path` (T-12713) plus the journal's own segment definer, never a third list.
-    def _own_lifecycle_record(p, _tid=tid):
-        return bool((_lifecycle_record_path is not None and _lifecycle_record_path(p, _tid))
-                    or events.is_archive_segment(Path(p), Path("events.jsonl")))
+    # `_case_own_lifecycle_record`, bound above and read by rule 1's `_case_match` too (T-14039).
     case_out_of_path: list[dict] = []
     for _case in _cases:
         _row = _case_out_of_path_observation(_case, touched, is_lifecycle_record=_own_lifecycle_record)
@@ -11855,11 +12125,12 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             case_out_of_path.append(_row)
     for _row in case_out_of_path:
         sys.stderr.write(
-            f"WARN: {tid} closed under the `paths:`-declared audit_scrutiny case "
-            f"'{_row['case']}' (declared: {', '.join(_row['declared_paths'])}), but its SHIP diff "
-            f"went OUTSIDE those paths: {', '.join(_row['out_of_path'])}. Report-only "
-            "(SPEC-0178 rule 6) — closure PROCEEDS, the case still applies, nothing is refused; "
-            "this is the evidence a reviewer needs to propose NARROWING the declaration.\n")
+            f"WARN: {tid}'s SHIP diff reaches the `paths:`-declared audit_scrutiny case "
+            f"'{_row['case']}' (declared: {', '.join(_row['declared_paths'])}) but also went OUTSIDE "
+            f"those paths: {', '.join(_row['out_of_path'])}, so the case does NOT cover it and it "
+            "takes audit-post (rule 1 containment — T-14039). Report-only (SPEC-0178 rule 6) — "
+            "nothing is refused; this is the evidence a reviewer reads to propose re-scoping the "
+            "declaration.\n")
 
     # SPEC-0178 rule 3 (T-11156) — the GOVERNANCE-SURFACE GUARD: a card whose diff touches a governance
     # surface takes audit-post whatever any case says, and a case whose own `paths:` name one is refused
@@ -11911,7 +12182,12 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                 # T-13599 — mark the row when the re-sign is the WHOLE reason, for rule 9's count.
                 # The guard's own answer above is not touched; the mark is absent unless proven.
                 _resign_only = _takeback_resign_only(
-                    _row, matched=_case_match(_case, task_class=task.get("class"), ship_paths=touched),
+                    # Containment (T-14039) is judged with this row's own governance paths set
+                    # aside: rule 9 asks whether the case would have covered the card BUT FOR them.
+                    _row, matched=_case_match(
+                        _case, task_class=task.get("class"), ship_paths=touched,
+                        is_lifecycle_record=lambda p, _g=frozenset(_row["governance_paths"]):
+                            _own_lifecycle_record(p) or p in _g),
                     pending_writes=_pending_writes, revisions=_spec_revisions)
                 if _resign_only:
                     _row["resign_only"] = True
@@ -12890,6 +13166,25 @@ def _stage6_layer_retry_lines(tid, metrics) -> list:
     return out
 
 
+#: T-14097 — the `outcome` of the one Stage-6 NONE that records a `tests_passed` row (SPEC-1038
+#: §Closure-time coverage; `gates.closure_coverage_gap` reads the same value).
+STAGE6_NONE_DISJOINT = "none-disjoint"
+
+
+def _stage6_all_skipped_disjoint(cguard, *, delegated, have_tests) -> bool:
+    """T-14097 — did this Stage-6 run execute nothing ONLY because every declared layer was skipped as
+    DISJOINT SUBJECT? True only when the kernel's own tests/ sweep did not run, the guard ran in
+    `layers` mode, it returned at least one layer row, and EVERY row is `skipped-disjoint-subject`. A
+    waived row, no layer rows, the section-level waiver or any other mode is False. PURE."""
+    if have_tests and not delegated:
+        return False
+    if (cguard or {}).get("mode") != "layers":
+        return False
+    rows = (cguard or {}).get("layers") or []
+    return bool(rows) and all(isinstance(r, dict) and r.get("outcome") == _STAGE6_SKIPPED_OUTCOME
+                              for r in rows)
+
+
 def _stage6_ran_nothing(cguard, *, delegated, have_tests):
     """T-13170 — WHY this Stage-6 run executed nothing, or None when something ran. The two shapes
     `_stage6_leg_summary` names «ran nothing»: every declared layer skipped/waived, or the
@@ -13151,7 +13446,7 @@ def _stage6_selection_note(summary) -> str:
     if known and ran == disc:
         line += " — every discovered test ran"
     if s.get("venue"):
-        line += " [routed to the published venue — box leg + the SPEC-0203 rule-8 local probe leg]"
+        line += " [routed to the published venue — box leg + the SPEC-1029 rule-8 local probe leg]"
     # T-12372 — a declaration that granted NOTHING is named here, not only in the metrics payload: a
     # marker that silently selects no test is the authoring defect this leg exists to make loud
     # (SPEC-0165). Printed on every selection mode, since a bad declaration is a defect whether or not
@@ -14168,6 +14463,16 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     Stage 8). No probe auto-execution (deferred per D-0033)."""
     yaml, path, task = _load_task_for_transition(args.task)
     tid = task.get("id")
+    # T-14098 — `--whole`, the MEASURING form: every declared layer and the test sweep run whole on
+    # this tree. It measures a run, so it takes `--run`; it implies `--full` (the sweep's selection),
+    # and below it takes the guard's base-less, not-one-card arm (no subject skip, no deciding
+    # selection, no unit credit — SPEC-1030 rule 4) and marks the row `whole: true`.
+    _whole = bool(getattr(args, "whole", False))
+    if _whole:
+        if not getattr(args, "run", False):
+            _die(f"{tid} task test --whole measures a run — pass it with --run "
+                 f"(`yitc-v2 task test {tid} --run --whole --evidence ...`)")
+        args.full = True
     # T-10975 (X-0820, fp done-unlanded-rework-no-clean-path) — the POST-CLOSE REWORK admission. A card
     # closed `done` whose closure is still branch-local may take a new fix (via the T-0367 `work commit`
     # route) and must be able to RE-PROVE it: this verb is the SOLE session-facing route to the suite
@@ -14204,12 +14509,31 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # Commit->Tests of a SPEC-0178 card — T-14037). A move INTO Tests needs a recorded
         # `commit_landed` (SPEC-1038 §Tests), read through `_stage_pointer_facts`. Not on the
         # post-close-rework branch above: a done card has no live stage to move.
+        _facts_memo: list = []
+
+        def _facts():
+            if not _facts_memo:
+                _facts_memo.append(_stage_pointer_facts(task))
+            return _facts_memo[0]
         if _write_task_transition is not None:
             gates.advance_stage_pointer(
                 task, "Tests", task_path=path, yaml_mod=yaml, verb="task test",
                 _write_task_transition=_write_task_transition, _append_event=_append_event,
-                _facts=(lambda: _stage_pointer_facts(task)) if _stage_pointer_facts is not None else None)
-        _require_stage_correspondence(task, tid, "Tests", verb="task test")   # T-0288: strict — requires current_stage==Tests
+                _facts=_facts if _stage_pointer_facts is not None else None)
+        # T-14083 (SPEC-1038 §Tests «Position») — the run itself is never gated: when the pointer stays
+        # at Audit-post because no GREEN/YELLOW audit-post covers the last substantive commit, the run
+        # still runs and records here; only the pointer move waits for the audit-post.
+        _gap = None
+        if task.get("current_stage") == "Audit-post" and _stage_pointer_facts is not None:
+            try:
+                _gap = _facts().get("audit_post_gap")
+            except Exception:      # noqa: BLE001 — unreadable facts fall to the strict check below
+                _gap = None
+        if _gap:
+            print(f"stage pointer stays at Audit-post: {_gap}; this run records here; "
+                  f"{gates.TESTS_ENTRY_ROUTE.format(tid=tid)}")
+        else:
+            _require_stage_correspondence(task, tid, "Tests", verb="task test")   # T-0288: strict — requires current_stage==Tests
     # T-0598 — verification-artifact-exists readiness (SPEC-0059 §contract leg 2b): the Tests stage PROVES
     # the task against its `acceptance`, so the criteria must EXIST first. `task file` mandates ≥1
     # acceptance item (a normally-filed task always passes); this is the proving-stage backstop that
@@ -14390,8 +14714,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         if _is_consumer_build is not None and _is_consumer_build():
             def _s6_take_plan():
                 _gp: dict = {}
-                _pb, _ = _stage6_subject_base(root, _run_git_cap=_run_git_cap,
-                                              _is_consumer_build=_is_consumer_build)
+                # T-14098: a whole run's plan is taken base-less and not as the one-card candidate
+                _pb, _ = ((None, None) if _whole else
+                          _stage6_subject_base(root, _run_git_cap=_run_git_cap,
+                                               _is_consumer_build=_is_consumer_build))
                 if _pb:
                     _consumer_zero_probe_guard(root, _pb, working_tree=True, one_card_candidate=True,
                                                plan_out=_gp)
@@ -14694,7 +15020,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 _s6_routing = _s6_routing or _stage6_routing_record(_vdec, declared=False)
                 if _vdec["remote"]:
                     print(f"task test --run: routed to the published venue {_vrec.get('box')} "
-                          f"(candidate leg, lower priority) — SPEC-0203")
+                          f"(candidate leg, lower priority) — SPEC-1029")
                     _venue_result = remote_verify.route(
                         root, kind=remote_verify.STAGE6_KIND, decision=_vdec, local=_local_verify,
                         test_dir=root / "tests", selection=_stage6_route_selection,
@@ -14752,8 +15078,17 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # commit. The decision itself is not made here: it is the guard's, by the ONE function the
         # land calls. FAIL-CLOSED: an unresolvable base passes NO base — every layer runs — and says
         # so; a harness that wires no git runner keeps the base-less call shapes below untouched.
-        _s6_base, _s6_why = _stage6_subject_base(root, _run_git_cap=_run_git_cap,
-                                                 _is_consumer_build=_is_consumer_build)
+        if _whole:
+            # T-14098 — the measuring form takes NO base: the guard's base-less arm below runs every
+            # declared layer whole (no subject skip) and, not being the candidate run of one card,
+            # no deciding selection and no unit credit (SPEC-1030 rule 4).
+            _s6_base, _s6_why = None, None
+            print(f"{tid} task test --run --whole: every declared verify layer runs whole — no "
+                  f"subject_globs skip, no deciding selection, no unit credit (SPEC-1030 rule 4: not "
+                  f"the candidate run of one card); the row is marked `whole: true`")
+        else:
+            _s6_base, _s6_why = _stage6_subject_base(root, _run_git_cap=_run_git_cap,
+                                                     _is_consumer_build=_is_consumer_build)
         if _s6_why:
             print(f"{tid} task test --run: subject_globs skip NOT applied — {_s6_why}; every declared "
                   f"verify layer runs (fail-closed, SPEC-0152 rule 16)")
@@ -14775,6 +15110,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             except Exception:                  # an unresolvable main checkout: keep it beside the run
                 _s6_log_root = root
             _guard_kw["layer_log_ctx"] = {"root": _s6_log_root, "branch": f"task/{tid}", "attempt": "stage6"}
+        # T-14114 (SPEC-1042 rule 2): the Stage-6 run leaves out the units of a pre-deploy class this
+        # tree's contract declares, as the land's candidate leg does — nothing when it declares none.
+        if root is not None:
+            from lib import land_verify_legs as _lvl
+            _guard_kw.update(_lvl._pre_deploy_contract_kw(root))
         # T-13971 (SPEC-0132 §1c): a CONSUMER's local layers are sized by the width budget too; the
         # engine's own guard runs no layer, so it keeps the plain governor call.
         _s6_layer_budget = bool(_s6_glimits) or bool(_is_consumer_build and _is_consumer_build()
@@ -15037,6 +15377,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     "duration_ms": _fail_ms,
                     "counts_source": "harness_measured",
                     "leg": "candidate",
+                    **({"whole": True} if _whole else {}),   # T-14098: the measuring form
                     # T-13545: + the layer re-run record, so a run that failed BOTH attempts says so.
                     **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics,
                                            **_stage6_priority, **_s6_routing}}
@@ -15075,11 +15416,47 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # kernel never prints an unqualified PASS over a surface it did not run.
         # T-13170 — zero executed layers is NOT a pass: no PASS line, a `TEST: NONE` token, and no
         # `tests_passed` row (it would attest a pass nothing produced). Exit stays 0 (T-12797).
+        # One exception: the all-skipped-disjoint NONE below records its own row (T-14097).
         _nothing = _stage6_ran_nothing(cguard, delegated=delegated, have_tests=_have_tests)
         if _nothing:
+            # T-14097 (SPEC-1038 §Closure-time coverage) — the ONE NONE that still records: every
+            # declared layer skipped as DISJOINT SUBJECT, nothing else ran, `--run --evidence`, and the
+            # runner can name the tree it judged. Its `tests_passed` row carries `outcome:
+            # none-disjoint` + the runner-only `stage6_run` mark, so a docs-only card has a governed
+            # route to Closure; Closure takes it only while its tree is the card head (gates.py).
+            _none_row = None
+            if getattr(args, "evidence", None) and _stage6_all_skipped_disjoint(
+                    cguard, delegated=delegated, have_tests=_have_tests):
+                _none_rec, _none_why = None, "no git runner is wired"
+                if _run_git_cap is not None and _s6_root is not None:
+                    try:
+                        from lib import worktree as _wt_s6
+                        _none_rec, _none_why = _wt_s6._stage6_run_record(
+                            _s6_root, _s6_tree_before, routed=_s6_routed, venue_tree=_s6_venue_tree,
+                            _run_git_cap=_run_git_cap)
+                        _none_key = _wt_s6.STAGE6_RUN_KEY
+                    except Exception as _e:    # noqa: BLE001 — absent, never a guess
+                        _none_rec, _none_why = None, f"the record could not be taken ({type(_e).__name__})"
+                if _none_rec:
+                    _none_row = {"current_stage": "Tests", "evidence": args.evidence,
+                                 "acceptance": list(acceptance), "outcome": STAGE6_NONE_DISJOINT,
+                                 _none_key: _none_rec, "consumer_verify": cguard.get("mode"),
+                                 "consumer_verify_layers": list(cguard.get("layers") or [])}
+                    if _whole:
+                        _none_row["whole"] = True        # T-14098: the measuring form
+                    if _measured_run_ms is not None:
+                        _none_row["duration_ms"] = _measured_run_ms
+                else:
+                    print(f"{tid} none-disjoint row NOT recorded — {_none_why}; Closure-time coverage "
+                          f"stays unmet (SPEC-1038).")
             print(f"{tid} task test --run: NOTHING RAN — {_nothing}; no test verdict. "
-                  f"No tests_passed row is recorded; if land's layers are the proof, record your own "
-                  f"evidence with `yitc-v2 task test {tid} --evidence ...` (no --run).")
+                  + (f"ONE tests_passed row with outcome {STAGE6_NONE_DISJOINT} is recorded (tree "
+                     f"{_none_row['stage6_run']['tree'][:12]}): Closure-time coverage takes it while that "
+                     f"tree is the card head (SPEC-1038)." if _none_row else
+                     f"No tests_passed row is recorded; if land's layers are the proof, record your own "
+                     f"evidence with `yitc-v2 task test {tid} --evidence ...` (no --run)."))
+            if _none_row:
+                _append_event("tests_passed", tid, _none_row)   # row first, then token (T-12431)
             print(_test_run_token(False, f"{tid} nothing ran — {_nothing}", word="NONE"))
             return
         # T-13533 — which declared layers ran and which were skipped, on BOTH PASS shapes below.
@@ -15265,6 +15642,8 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             else:
                 _s6_note = (f"{tid} stage6_run NOT recorded — {_s6_why}; the land runs its candidate "
                             f"verify as usual (SPEC-0065 §Bound).")
+        if _whole and getattr(args, "run", False):
+            data["whole"] = True                         # T-14098: the measuring form
         _append_event("tests_passed", tid, data)
         print(f"{tid} tests_passed recorded ({len(evidence)} chars) — the Closure-time coverage check "
               f"(SPEC-1038 §Tests) reads it")
@@ -16158,7 +16537,7 @@ def _claim_landed_dirt(rel_task: str, *, REPO_ROOT, _run_git_cap) -> "tuple[list
 def cmd_task_claim_landed(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _append_event, _die,
                           _load_task_for_transition, _run_git_cap, _selfcommit_posture,
                           _write_task_transition, _scoped_selfcommit_rollback,
-                          _commit_from_scoped_index) -> None:
+                          _commit_from_scoped_index, _selfcommit_window_open=None, _selfcommit_window_close=None) -> None:
     """`task claim-landed T-XXXX` (T-11305, X-1002) — write `ready -> in-progress` + its `task_picked`
     for a card whose deliverable is DEMONSTRABLY ALREADY ON `main`, WITHOUT creating a worktree.
 
@@ -16282,51 +16661,58 @@ def cmd_task_claim_landed(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _
              f"was committed, nothing is staged and the card is untouched; the receipt this attempt "
              f"appended stays journaled. Land the pending journal appends (any `yitc-v2 land` folds "
              f"them), then re-run `yitc-v2 task claim-landed {tid}`.")
-    # (iv) the card, and its blob.
-    task["status"] = "in-progress"
-    _write_task_transition(yaml, path, task, task.get("current_stage") or "Analysis")
-    print(f"{tid} ready -> in-progress (no worktree) | {rel_task}")
-    print(f"  admitted by DERIVED signal: {signal}")
-    msg = (
-        f"chore({tid}): claim a card whose deliverable is already on main (no worktree)\n\n"
-        f"Admitted by the DERIVED signal {signal} — `main`'s own record that this card's\n"
-        f"deliverable landed, while `main` still advertised the card as `ready` (T-11305 / X-1002).\n"
-        f"The admission is never asserted by the caller and refuses fail-closed when it cannot be\n"
-        f"determined, so the T-0124 in-worktree claim stays the sole route for ordinary work.\n\n"
-        f"Sanctioned direct-to-main self-commit, staging the task YAML + its journal receipt ONLY\n"
-        f"(precedents: memory consume T-10307 / error file T-10452 / task pause T-9320 /\n"
-        f"wont-do T-0614 / park T-9622).\n\n"
-        f"from: SPEC-0051 + AGENTS §Writes-happen-in-a-worktree EXCEPTION."
-    )
-    modes = {}
-    for rec in (_run_git_cap(["ls-files", "-s", "-z", "--", rel_task, jrel], REPO_ROOT).stdout
-                or "").split("\0"):
-        meta, tab, tracked = rec.partition("\t")
-        if tab:
-            modes[tracked] = meta.split(" ", 1)[0]
-    card_blob = _run_git_cap(["hash-object", "-w", "--", rel_task], REPO_ROOT)
-    cb = card_blob.stdout.strip() if card_blob.returncode == 0 else ""
-    entries = [(modes.get(rel_task, "100644"), cb, rel_task), (modes.get(jrel, "100644"), jb, jrel)]
-    staged: "list[str]" = []
-    failed = ""
-    if not cb:
-        failed = f"hashing the card failed: {(card_blob.stderr or card_blob.stdout).strip()}"
-    else:
-        # (v) both blobs into the shared index, so the index equals the commit once it lands; then
-        # (vi) the commit itself, built from the seed + these two blobs and bound to the seed.
-        staged = [rel_task, jrel]
-        cacheinfo = [a for mode, sha, rel in entries for a in ("--cacheinfo", f"{mode},{sha},{rel}")]
-        st = _run_git_cap(["update-index", *cacheinfo], REPO_ROOT)
-        if st.returncode != 0:
-            failed = f"staging (`git update-index`) failed: {(st.stderr or st.stdout).strip()}"
+    # (iv) the card, and its blob. T-14150: the write and its commit run inside the self-commit
+    # window (the repo lock + the held-path marker), so a concurrent land reads the card as held.
+    if _selfcommit_window_open is not None:
+        _selfcommit_window_open([rel_task])
+    try:                                                 # the window closes on EVERY exit
+        task["status"] = "in-progress"
+        _write_task_transition(yaml, path, task, task.get("current_stage") or "Analysis")
+        print(f"{tid} ready -> in-progress (no worktree) | {rel_task}")
+        print(f"  admitted by DERIVED signal: {signal}")
+        msg = (
+            f"chore({tid}): claim a card whose deliverable is already on main (no worktree)\n\n"
+            f"Admitted by the DERIVED signal {signal} — `main`'s own record that this card's\n"
+            f"deliverable landed, while `main` still advertised the card as `ready` (T-11305 / X-1002).\n"
+            f"The admission is never asserted by the caller and refuses fail-closed when it cannot be\n"
+            f"determined, so the T-0124 in-worktree claim stays the sole route for ordinary work.\n\n"
+            f"Sanctioned direct-to-main self-commit, staging the task YAML + its journal receipt ONLY\n"
+            f"(precedents: memory consume T-10307 / error file T-10452 / task pause T-9320 /\n"
+            f"wont-do T-0614 / park T-9622).\n\n"
+            f"from: SPEC-0051 + AGENTS §Writes-happen-in-a-worktree EXCEPTION."
+        )
+        modes = {}
+        for rec in (_run_git_cap(["ls-files", "-s", "-z", "--", rel_task, jrel], REPO_ROOT).stdout
+                    or "").split("\0"):
+            meta, tab, tracked = rec.partition("\t")
+            if tab:
+                modes[tracked] = meta.split(" ", 1)[0]
+        card_blob = _run_git_cap(["hash-object", "-w", "--", rel_task], REPO_ROOT)
+        cb = card_blob.stdout.strip() if card_blob.returncode == 0 else ""
+        entries = [(modes.get(rel_task, "100644"), cb, rel_task), (modes.get(jrel, "100644"), jb, jrel)]
+        staged: "list[str]" = []
+        failed = ""
+        if not cb:
+            failed = f"hashing the card failed: {(card_blob.stderr or card_blob.stdout).strip()}"
         else:
-            committed, why = _commit_from_scoped_index(REPO_ROOT, [rel_task, jrel], [], msg,
-                                                       _run_git_cap, seed=head0, entries=entries)
-            if not committed:
-                failed = f"the commit failed: {why or 'the tree it built equals the seed commit'}"
-    if failed:
-        _scoped_selfcommit_rollback(f"task claim-landed {tid}", [rel_task], [], staged, head0, jrel,
-                                    failed)
+            # (v) both blobs into the shared index, so the index equals the commit once it lands; then
+            # (vi) the commit itself, built from the seed + these two blobs and bound to the seed.
+            staged = [rel_task, jrel]
+            cacheinfo = [a for mode, sha, rel in entries for a in ("--cacheinfo", f"{mode},{sha},{rel}")]
+            st = _run_git_cap(["update-index", *cacheinfo], REPO_ROOT)
+            if st.returncode != 0:
+                failed = f"staging (`git update-index`) failed: {(st.stderr or st.stdout).strip()}"
+            else:
+                committed, why = _commit_from_scoped_index(REPO_ROOT, [rel_task, jrel], [], msg,
+                                                           _run_git_cap, seed=head0, entries=entries)
+                if not committed:
+                    failed = f"the commit failed: {why or 'the tree it built equals the seed commit'}"
+        if failed:
+            _scoped_selfcommit_rollback(f"task claim-landed {tid}", [rel_task], [], staged, head0,
+                                        jrel, failed)
+    finally:
+        if _selfcommit_window_close is not None:
+            _selfcommit_window_close()
     sha = _run_git_cap(["rev-parse", "--short", "HEAD"], REPO_ROOT).stdout.strip()
     print(f"  self-committed to main ({sha}): scoped to {rel_task} + its journal receipt — no "
           f"worktree created, no land needed.")
@@ -16762,6 +17148,19 @@ def refresh_expected_touch(declared, diff_files, is_bookkeeping=None) -> tuple:
     return (kept + added, added)
 
 
+def non_card_debt_line(tid: str, non_card: int) -> str:
+    """T-14067 — the one line both Commit-seam stale-anchor reports print after their renderer
+    (`commit_entry_spec_drift_warn` / `commit_stage_spec_drift_warn`, left unchanged) for the hits
+    `_anchor_drift_origin` PROVED non-card (cli.py `_commit_seam_drift`): their count, as main's
+    standing debt, with no re-sign asked. 0 renders "", so a seam that dropped nothing prints exactly
+    what it printed before. Pure — no I/O, no state, no event."""
+    if not non_card:
+        return ""
+    return (f"note: {non_card} more stale anchor(s) on the touched files are main's standing debt, not "
+            f"{tid}'s — untouched by this card and already stale on main (T-13229 attribution); no "
+            f"re-sign is asked here (`graph build` reports them as possibly-stale).\n")
+
+
 def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
     """Render the Stage-7 self-caused spec-drift WARN for `tid` from `drift_hits` (T-10921, fixes
     X-0742). The SINGLE home of this text — `cmd_task_commit` writes it after committing, and the
@@ -16820,7 +17219,8 @@ def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
 
 
 def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_paths, _test_basename_re,
-                  _run_git_cap, _verify_test_timeout_seconds, _consumer_tests_delegation=None) -> list:
+                  _run_git_cap, _verify_test_timeout_seconds, _consumer_tests_delegation=None,
+                  notes_out=None, _selection_always_set=None) -> list:
     """T-14034 (SPEC-1038 §Execution, the own-tests check) — run ONLY the changed test files, each
     through the project's OWN test declarations by the machinery the governed run uses, and return
     one entry per changed test file: `{file, runner, result: passed|failed|not-determined}` (+
@@ -16846,16 +17246,42 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
           (`declared_test_globs`, SPEC-0185 §1(c)), else the kernel basename shape — is
           `not-determined`, never an empty green.
     A changed file that is no test (by (1)-(3)) is not listed. Never raises on a project fault: an
-    unreadable declaration maps nothing and its files fall to (3)."""
+    unreadable declaration maps nothing and its files fall to (3).
+
+    T-14084 — WHY a file is not-determined is named, never left to the generic reason. A layer whose
+    `list` fails claims the (3) files its `subject_globs` match (a layer declaring none claims them
+    all): reason «layer <name> could not list its tests: <head>», <head> the first line its `list`
+    printed on stderr (else stdout). A file the report leaves undecided in a layer whose `run` exited
+    126/127 (the shell's not-executable / not-found) reads as a start failure; a report row still
+    decides first, so a real failure is never hidden behind that exit. `notes_out`, when given, gets
+    one line per such layer and at most one install hint: a layer whose `prep:` declares `npm-ci`
+    (SPEC-0152 rule 16, the same workdir/lockfile defaults as `_run_layer_prep`) with the lockfile on
+    disk and no `node_modules` beside it — this check runs no prep.
+
+    T-14082 — the (1) sweep also runs the directory's DECLARED always-run set, the SPEC-0181 R5
+    consistency tripwires (`_selection_always_set`, the one reader of the `# yitc: selection: always`
+    marker): a corpus-wide registry or ratchet test names none of the changed symbols, so a diff that
+    trips one changes no test file and the check would otherwise run nothing. A member the diff does
+    not change is listed with `always: true`; a changed member is an ordinary entry, never listed
+    twice. A set that cannot be read gives that directory one not-determined `always` entry naming why,
+    never an empty green."""
     from lib import land_verify_legs as _lv, worktree as _wt
     root = Path(root)
     left = sorted(set(changed))
     out: list = []
     delegated = _consumer_tests_delegation(root) if _consumer_tests_delegation is not None else None
+    if _selection_always_set is None:
+        from lib import verify_runner as _vr
+        _selection_always_set = _vr._selection_always_set
     for d in ([] if delegated else [Path(p) for p in _declared_test_sweep_paths(root)]):
         if not d.is_dir():
             continue
-        mine = {}
+        mine, always = {}, set()
+        try:
+            members = set(_selection_always_set(d)[0])
+            set_error = None
+        except Exception as exc:                           # noqa: BLE001 — an unread set is never an empty green
+            members, set_error = set(), f"the declared always-run set could not be read: {exc}"
         for f in test_discovery.test_files(d):
             try:
                 rel = f.resolve().relative_to(root.resolve()).as_posix()
@@ -16863,6 +17289,16 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                 continue
             if rel in left:
                 mine[f.name] = rel
+            elif f.name in members:
+                mine[f.name] = rel
+                always.add(f.name)
+        if set_error is not None:
+            try:
+                drel = d.resolve().relative_to(root.resolve()).as_posix()
+            except ValueError:
+                drel = str(d)
+            out.append({"file": drel, "runner": "script", "always": True, "result": "not-determined",
+                        "reason": set_error})
         if not mine:
             continue
         durations: list = []
@@ -16889,8 +17325,11 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                 res = {"result": "not-determined",
                        "reason": "a failure the runner reported names no file" if unattributed
                        else "the runner reported no verdict for this file"}
-            out.append({"file": rel, "runner": "script", **res})
-            left.remove(rel)
+            if name in always:
+                out.append({"file": rel, "runner": "script", "always": True, **res})
+            else:
+                out.append({"file": rel, "runner": "script", **res})
+                left.remove(rel)
     seen: list = []
     engaged = _wt._land_batch_engagement(root, ops_out=seen) if left else (True, "")
     ops = seen[0] if seen else {}
@@ -16908,15 +17347,31 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
         except ValueError as exc:
             why = f"the declared verify layers could not be read: {exc}"
 
+    listed: dict = {}
+
     def _list_only(cmd, worktree, timeout, env, **kw):
-        """Start `list`; every other invocation is not started and answers as one that hit its bound."""
+        """Start `list`; every other invocation is not started and answers as one that hit its bound.
+        T-14084: the `list` result is kept in `listed` so a failing one can be named by what it printed."""
         try:
             action = json.loads(Path(env[_lv._VERIFY_ADAPTER_MANIFEST_ENV]).read_text(encoding="utf-8")).get("action")
         except Exception:                                  # noqa: BLE001 — no readable manifest: not started
             action = None
         if action != "list":
             return None, 0, ""
-        return _lv._run_layer_command(cmd, worktree, timeout, env, **kw)
+        got = _lv._run_layer_command(cmd, worktree, timeout, env, **kw)
+        listed["res"] = got[0]
+        return got
+
+    def _head(*texts) -> str:
+        """The first non-blank line of the first text that has one, at most 200 characters."""
+        for text in texts:
+            for line in str(text or "").splitlines():
+                if line.strip():
+                    return line.strip()[:200]
+        return ""
+
+    unlisted: list = []                                    # T-14084: (name, subject_globs, reason)
+    consulted = bool(left) and bool(layers)                # T-14084: the layers were read for a changed file
 
     for idx, decl in sorted(adapters.items()):
         if not left or not decl.get("list"):
@@ -16930,19 +17385,37 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
             why = why or f"layer {name!r}: its declared timeout could not be read: {exc}"
             continue
         sink: dict = {}
+        listed.clear()
         with contextlib.redirect_stdout(io.StringIO()):
             rec = _lv._layer_adapter_report_pass(root, name, decl, timeout=timeout, sink=sink,
                                                  _run_layer_command=_list_only)
         inventory = sink.get("inventory")
         if rec.get("list") != "ok" or not isinstance(inventory, list):
+            res = listed.get("res")
+            head = _head(getattr(res, "stderr", ""), getattr(res, "stdout", "")) if res is not None else ""
+            reason = f"layer {name} could not list its tests: {rec.get('list_reason') or rec.get('list')}" \
+                + (f": {head}" if head else "")
+            sg = layers[idx].get("subject_globs")
+            unlisted.append((name, [g for g in sg if isinstance(g, str) and g.strip()]
+                             if isinstance(sg, list) else [], reason))
+            if notes_out is not None:
+                notes_out.append(f"own-tests: {reason}")
             continue
         units = [u for u in inventory if isinstance(u, dict) and u.get("file") in left]
         if not units:
             continue
+        run_sink: dict = {}
         with contextlib.redirect_stdout(io.StringIO()):
             rec = _lv._layer_adapter_report_pass(root, name, decl, timeout=timeout, rerun=units,
-                                                 _run_layer_command=_lv._run_layer_command)
+                                                 sink=run_sink, _run_layer_command=_lv._run_layer_command)
         usable = bool(rec.get("usable")) and not rec.get("error") and not rec.get("outer")
+        start = None
+        if rec.get("exit") in (126, 127):                  # T-14084: the shell could not start the runner
+            printed = "\n".join(str(i.get("output") or "") for i in run_sink.get("invocations") or ()
+                                 if isinstance(i, dict))
+            head = _head(printed)
+            start = (f"layer {name} runner could not start (exit {rec['exit']}" + (f": {head}" if head else "")
+                     + ") — a start failure, not an assertion")
         statuses: dict = {}
         for row in rec.get("units") or ():
             if isinstance(row, dict) and isinstance(row.get("file"), str):
@@ -16955,8 +17428,8 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                 res = {"result": "passed"}
             else:
                 res = {"result": "not-determined",
-                       "reason": "the layer's run report is not usable" if not usable
-                       else "the layer's report holds no passed/failed row for this file"}
+                       "reason": start or ("the layer's run report is not usable" if not usable
+                                           else "the layer's report holds no passed/failed row for this file")}
             out.append({"file": f, "runner": f"layer:{name}", **res})
             left.remove(f)
     globs = [g for g in declared_test_globs(root, ops) if isinstance(g, str) and g.strip()]
@@ -16964,9 +17437,48 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
         shaped = (any(fnmatch.fnmatchcase(f, g) for g in globs) if globs
                   else bool(_test_basename_re.match(f.rsplit("/", 1)[-1])))
         if shaped:
+            claim = next((r for _n, sg, r in unlisted if not sg or any(fnmatch.fnmatch(f, g) for g in sg)), None)
             out.append({"file": f, "runner": None, "result": "not-determined",
-                        "reason": why or "no declared test runner maps this file"})
+                        "reason": why or claim or "no declared test runner maps this file"})
+    if notes_out is not None and consulted:
+        hint = _own_tests_install_hint(root, layers)
+        if hint:
+            notes_out.append(hint)
     return sorted(out, key=lambda e: e["file"])
+
+
+def _own_tests_install_hint(root, layers) -> str:
+    """T-14084 — one hint line when a declared `npm-ci` prep (SPEC-0152 rule 16) has its lockfile in
+    the worktree but no installed `node_modules` in its workdir, else "". Read from the layer's own
+    `prep:` with `_run_layer_prep`'s defaults (workdir = the root, lockfile = <workdir>/package-lock.json);
+    a pin that is absolute or leaves the worktree is passed over. Report-only: the own-tests check runs
+    no prep, so this only names why a runner may not have started."""
+    root = Path(root).resolve()
+
+    def _inside(rel):
+        rel = str(rel or "").strip()
+        if not rel:
+            return None
+        if os.path.isabs(rel):
+            return False
+        p = (root / rel).resolve()
+        return p if p.is_relative_to(root) else False
+
+    for ly in layers:
+        prep = ly.get("prep") if isinstance(ly, dict) else None
+        if not isinstance(prep, dict) or str(prep.get("mode") or "").strip() != "npm-ci":
+            continue
+        wd, lf = _inside(prep.get("workdir")), _inside(prep.get("lockfile"))
+        if wd is False or lf is False:
+            continue
+        workdir = wd or root
+        lockfile = lf or (workdir / "package-lock.json")
+        if lockfile.is_file() and not (workdir / "node_modules").is_dir():
+            rel_wd = workdir.relative_to(root).as_posix() if workdir != root else "."
+            return (f"own-tests: hint — layer {str(ly.get('layer') or '').strip() or '?'} declares an `npm-ci` "
+                    f"prep and {lockfile.relative_to(root).as_posix()} is present, but {rel_wd}/node_modules "
+                    f"is absent; the own-tests check runs no prep — install first (`npm ci` in {rel_wd})")
+    return ""
 
 
 def _git_blob_id(path) -> "str | None":
@@ -16995,11 +17507,13 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
 
     Admitted at every stage of the card's row before Closure (both stage orders: Execution, Commit,
     Audit-post and Tests included); refused on Closure, on a stage the row does not hold, on a card
-    that is not in-progress, and beside any Stage-6 flag. A diff with no test file records an empty
-    `files` list. Exit 1 when a file failed, after the row is written."""
+    that is not in-progress, and beside any Stage-6 flag. A diff with no test file, in a tree that
+    declares no always-run test (T-14082), records an empty `files` list. Exit 1 when a file failed,
+    after the row is written."""
     yaml, path, task = _load_task_for_transition(args.task)
     tid = task.get("id")
     stray = [flag for flag, on in (("--run", getattr(args, "run", False)), ("--full", getattr(args, "full", False)),
+                                   ("--whole", getattr(args, "whole", False)),
                                    ("--evidence", getattr(args, "evidence", None) is not None),
                                    ("--duration-ms", getattr(args, "duration_ms", None) is not None),
                                    ("--passed", getattr(args, "passed", None) is not None),
@@ -17024,12 +17538,13 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
              f"`git merge-base HEAD main` here, then re-run `bin/yitc-v2 task test {tid} --own`.")
     present = [p for p in changed if (root / p).is_file()]
     before = {p: _git_blob_id(root / p) for p in present}   # T-14035: hashed BEFORE the run ...
+    notes: list = []                                        # T-14084: one line per unlisted layer + the install hint
     files = own_tests_run(root, present,
                           _run_verify_tests=_run_verify_tests,
                           _declared_test_sweep_paths=_declared_test_sweep_paths,
                           _test_basename_re=_test_basename_re, _run_git_cap=_run_git_cap,
                           _consumer_tests_delegation=_consumer_tests_delegation,
-                          _verify_test_timeout_seconds=_verify_test_timeout_seconds)
+                          _verify_test_timeout_seconds=_verify_test_timeout_seconds, notes_out=notes)
     results = {e["result"] for e in files}
     outcome = ("empty" if not files else "red" if "failed" in results
                else "not-determined" if "not-determined" in results else "green")
@@ -17040,10 +17555,14 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
              if (b := before.get(e["file"])) and _git_blob_id(root / e["file"]) == b}
     _append_event("own_tests_ran", tid, {"current_stage": stage, "files": files, "outcome": outcome,
                                          "partial": True, "blobs": blobs})
+    for note in notes:
+        print(note)
     for e in files:
         print(f"own-tests: {e['file']} [{e['runner'] or 'no runner'}] -> {e['result']}"
               + (f" ({e['reason']})" if e.get("reason") else ""))
-    print(f"{tid}: own-tests {outcome.upper()} over {len(files)} changed test file(s) at {stage} — "
+    n_always = sum(1 for e in files if e.get("always"))
+    print(f"{tid}: own-tests {outcome.upper()} over {len(files) - n_always} changed test file(s)"
+          + (f" + {n_always} declared always-run" if n_always else "") + f" at {stage} — "
           + ("the diff adds or changes no test file" if not files else
              "partial evidence, NOT the Stage-6 run (`task test --run --evidence` at Tests)"))
     if outcome == "red":
@@ -17176,6 +17695,7 @@ def commit_entry_spec_drift_warn(tid: str, drift_hits: list) -> str:
 def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, _append_event, _audit_commit_shift_hazard, _bookkeeping_only_custody_shift, _changed_anchor_spec_drift, _commit_worktree, _count_audit_passes, _die, _governing_contract_for, _load_task_for_transition, _require_reads, _require_stage_correspondence, _task_diff_files, _task_diff_range, _write_task_transition=None,
                     _dump_state_yaml=None, write_text_atomic=None, _worktree_dirty_paths=None,
                     _stage_pointer_facts=None,
+                    _task_events_for=None, _git_resolve_sha=None,
                     _red_fix_authored_paths=None,
                     _card_repair_staged_card=None,
                     _folded_audit_post_hazard=None,
@@ -17188,7 +17708,8 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                     _reverify_spec_signature=None,           # T-13056 — the shared signer (--reverify)
                     _run_git_cap=None,                       # T-13056 — merge-base + Stage-6 touched set
                     _anchor_moved_since=None,       # T-13056 — per-anchor "moved by this diff"
-                    _set_read_horizon=None) -> None:  # T-13295 — the host scope's task horizon, from the ONE card load
+                    _set_read_horizon=None,  # T-13295 — the host scope's task horizon, from the ONE card load
+                    _drop_non_card_drift=None) -> None:  # T-14067 — drops proven non-card hits (None = unfiltered)
     """Stage 7 git-wrapper. Delegates staging+commit to the shared `_commit_worktree()` core
     (D-0051) and adds the task-mode extras: the strict Commit stage-correspondence precondition
     (T-0288 — no stage bump; the `stage` verb is the sole current_stage writer) + the `commit_landed`
@@ -17697,7 +18218,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"{prior_fix_red + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
                   f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
                   f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
-                  f"{tid} --on-decisions` runs it (SPEC-0204 rules 2-3). Without that, closure "
+                  f"{tid} --on-decisions --sweep '<where you looked for the same defect class and what you found>'` runs it (SPEC-0204 rules 2-3). Without that, closure "
                   f"deadlocks (E-0008).", file=sys.stderr)
         if not card_repair:
             # the card-repair arm printed its OWN complete banner above; one leg, one banner.
@@ -17826,13 +18347,42 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # A new leg does not get to be born carrying a retired escape. Past the ceiling the route is
         # the SPEC-0204 one — `audit decide` per residual, then the ONE bounded `--on-decisions` pass.
         prior_reship = _count_audit_passes(tid, "post")
+        # T-14090 (SPEC-1041 «Rule 4 — custody») — ONE exception past ceiling+1, the TEST-FOUND FIX:
+        # the GREEN being superseded is the card's GREEN rule-3 pass and the newest governed Tests run
+        # after it is red (yitc#168). The SAME window predicate the audit door reads (no second
+        # notion), plus the superseded record's pin resolving to that GREEN commit; the follow-up
+        # `audit post --commit <new>` is the ONE test-found-fix pass, admitted once. Rows come from the
+        # injected single fold (`_task_events_for`); with it or the resolver unwired, nothing opens.
+        _tff_why = None
         if prior_reship >= AUDIT_PASS_CEILING + 1:
+            try:
+                _tff_rows = (_task_events_for(tid, audit.TEST_FOUND_FIX_ROW_TYPES)
+                             if _task_events_for is not None and _git_resolve_sha is not None else None)
+            except Exception:      # noqa: BLE001 — an unreadable journal opens nothing (fail-closed)
+                _tff_rows = None
+            if _tff_rows is None:
+                _tff_why = "journal_unreadable: the card's journal rows could not be read"
+            else:
+                _tff_facts, _tff_why = audit.test_found_fix_window_for(tid, _tff_rows,
+                                                                       resolve=_git_resolve_sha)
+                if _tff_facts and _git_resolve_sha(str(hazard[1] or "")) != _tff_facts["prior_commit"]:
+                    _tff_why = (f"record_not_at_green: the superseded audit-post record pins "
+                                f"{str(hazard[1] or '')[:12]}, not the GREEN pass's commit "
+                                f"{_tff_facts['prior_commit'][:12]}")
+        if prior_reship >= AUDIT_PASS_CEILING + 1 and _tff_why:
             _die(audit.RETIRED_AUDIT_SURFACES["spent-budget-bypass"] + "\n\n"
                  + f"`--reship` refused: {prior_reship} audit-post passes are recorded for {tid}, "
                    f"which is past the {AUDIT_PASS_CEILING}-pass ceiling, and this leg has no "
                    f"one-pass-wide arm — the reset such an arm would depend on is retired.\n\n"
-                 + audit.RETIRED_CEILING_POINTER)
-        if prior_reship >= AUDIT_PASS_CEILING:
+                 + audit.RETIRED_CEILING_POINTER
+                 + f"\n\nTest-found fix (T-14090) not admitted — {_tff_why}.")
+        if prior_reship >= AUDIT_PASS_CEILING + 1:
+            print(f"# --reship past the ceiling: TEST-FOUND FIX (T-14090) — a governed Tests run went "
+                  f"red after {tid}'s GREEN `--on-decisions` pass; REQUIRED next: `yitc-v2 audit post "
+                  f"--task {tid} --commit <new>`, the ONE test-found-fix pass (SPEC-1041 «Rule 4 — "
+                  f"custody»). A RED there, or a further red Tests run after it, ends audit-post.",
+                  file=sys.stderr)
+        if AUDIT_PASS_CEILING <= prior_reship < AUDIT_PASS_CEILING + 1:   # T-14090: past it, the banner above
             # The WARN's job is to say plainly that the REQUIRED re-audit is past the ceiling and
             # closure deadlocks without one, and to name the route that now admits it. Naming a
             # retired flag here would send the reader to a refusal (SPEC-0204 rule 6).
@@ -17840,7 +18390,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"{prior_reship + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
                   f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
                   f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
-                  f"{tid} --on-decisions` runs it (SPEC-0204 rules 2-3). Without that, closure "
+                  f"{tid} --on-decisions --sweep '<where you looked for the same defect class and what you found>'` runs it (SPEC-0204 rules 2-3). Without that, closure "
                   f"deadlocks (E-0008).", file=sys.stderr)
         print(f"# --reship: committing a FURTHER in-scope ship for {tid} over its GREEN audit-post "
               f"({len(authored)} authored path(s): {', '.join(authored[:5])}"
@@ -17926,7 +18476,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                  f"(T-0370) is the INLINE-absorption cycle for an accepted YELLOW finding — fix → "
                  f"second ship commit → re-audit — and it is the YELLOW branch ONLY. {_why} "
                  f"(This mirrors the pre-side `audit pre --absorb`, which has always refused a "
-                 f"non-YELLOW record; SPEC-0124 states the same requirement for mode-b.)")
+                 f"non-YELLOW record; SPEC-1034 states the same requirement for mode-b.)")
         prior = _count_audit_passes(tid, "post")
         # T-12376 (SPEC-0204 rule 3, amended) — a YELLOW-ABSORBABLE rule-3 verdict (every NEW finding
         # medium|low, no `fix` residual open; `basis: on-decisions` + `absorbable: true` on the record
@@ -18373,8 +18923,12 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
     # T-10921 (X-0742): the WARN text lives in the single-SoT `commit_stage_spec_drift_warn` above, so
     # the non-mutating `stage Commit` re-prints THIS string rather than an operator having to re-run
     # this COMMITTING verb with a throwaway message to re-read it. Condition + channel unchanged.
-    if drift_hits:
-        sys.stderr.write(commit_stage_spec_drift_warn(tid, drift_hits))
+    # T-14067: a hit proven non-card is main's standing debt — counted in the WARN, never offered to re-sign.
+    drift_debt = 0
+    if drift_hits and _drop_non_card_drift is not None:
+        drift_hits, drift_debt = _drop_non_card_drift(drift_hits)
+    if drift_hits or drift_debt:
+        sys.stderr.write(commit_stage_spec_drift_warn(tid, drift_hits) + non_card_debt_line(tid, drift_debt))
 
     # T-12232 (SPEC-0161) — TELL THE INTRODUCING BRANCH, AT STAGE 7, FOR FREE.
     # A governing journal payload key that SPEC-0161's record does not name reds the land-verify
@@ -19065,7 +19619,19 @@ def _case_exempt_refusal(case) -> "str | None":
             "the worktree-before-write rule, or the Closure probe requirement. The case does NOT apply.")
 
 
-def _case_match(case, *, task_class, ship_paths) -> bool:
+def _case_own_lifecycle_record(tid, *, lifecycle_record_path):
+    """SPEC-0178 rules 1+6 (T-14039) — the per-path predicate «is this one of card `tid`'s OWN lifecycle
+    records?», bound once and read by `_case_match` at all three seams and by rule 6 at close. Composed
+    from `lifecycle_record_path` (the host's `_lifecycle_record_path`, T-12713) and the journal's own
+    segment definer — never a third list (T-13956). An unwired `lifecycle_record_path` (None) leaves only
+    the journal segments recognised, which keeps MORE paths judged: the fail-closed direction."""
+    def _pred(p, _tid=tid):
+        return bool((lifecycle_record_path is not None and lifecycle_record_path(p, _tid))
+                    or events.is_archive_segment(Path(p), Path("events.jsonl")))
+    return _pred
+
+
+def _case_match(case, *, task_class, ship_paths, is_lifecycle_record=None) -> bool:
     """SPEC-0178 rule 1 (T-11157) — does this case MATCH this card? The spec's second ownership anchor
     (`reader=bin/lib/task.py#_case_match`). PURE, total, never raises, no I/O.
 
@@ -19095,21 +19661,21 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
         to the default". Same discipline, same direction: a declaration nobody can read exempts
         nothing. PRESENCE is therefore tracked separately from USABILITY below.
 
-    THE `paths:` LEG IS INTERSECTION, NOT CONTAINMENT — resolved from the spec, recorded because the
-    alternative reading is plausible. Rule 6 surfaces "a card closed UNDER it whose diff went OUTSIDE
-    those paths": under CONTAINMENT that sentence has no referent, because such a card could never have
-    matched, and rule 6 would be dead text. `_case_out_of_path_observation` (T-11155) already encodes
-    the same reading in code — its case (d) returns None when "the ship diff does not intersect the
-    declared paths at all — the card is not read under that case". So a card is read under a `paths:`
-    case when its ship diff TOUCHES the declared paths, and rule 6 is what reports the overshoot to the
-    reviewer. AC4's two path fixtures (wholly inside / wholly outside) read identically under either
-    reading, so the choice is documented HERE rather than left implicit in a probe that cannot see it.
+    THE `paths:` LEG IS CONTAINMENT (T-14039, yitc#150/#160): the leg holds only when EVERY judged
+    shipped path matches a declared glob, and at least one does. Until T-14039 the default was the
+    INTERSECTION (any one path inside sufficed) with containment an opt-in `paths_mode: all`
+    (T-13735); measured on cryptochart, cards shipping `ops/**` code beside one in-case path were
+    told at the Audit-post cue and the spend seam that the case matched, skipped audit-post, and only
+    `task close`'s rule-6 WARN said the ship went outside. ONE reading now, for every seam that calls
+    this: `paths_mode` absent or `all` is containment; any other value — `any` included — makes the
+    case NOT match (the permissive reading is retired, never silently kept).
 
-    `paths_mode: all` (T-13735, X-1873) IS CONTAINMENT, BY OPT-IN: the leg holds only when EVERY
-    non-empty shipped path matches a glob, so a docs-only case is not ridden by a docs+code card. An
-    empty ship never matches under it (vacuous containment exempts nothing). `any`, the default when
-    the key is absent, is the intersection above — kept as the default so rule 6 keeps its referent
-    for every case that does not opt in; under `all` rule 6 has nothing to report for a matched card.
+    `is_lifecycle_record` (a per-path predicate bound to the card's tid — `_case_own_lifecycle_record`)
+    leaves the card's OWN lifecycle records out of the judgement: its card, the journal, its own
+    `decisions/<tid>-*` records and the derived build artifacts ride every ship commit and are no
+    write the author chose (the T-13956 reading rule 6 already applies). A record a glob covers still
+    counts as inside. A ship that is ONLY such records matches nothing (vacuous containment exempts
+    nothing). None = no filter.
 
     `ship_paths` is the card's SHIP diff — rule 6's boundary, NOT rule 3's wider ship-∪-pending-writes
     set. Matching describes the scope the AUTHOR chose, exactly as rule 6 does; rule 3's guard reads the
@@ -19138,10 +19704,9 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
     if has_class and not classes:
         return False                           # declared but unreadable ⇒ the case does not apply
 
-    # T-13735 — `paths_mode` (`any` default = the intersection below; `all` = containment). Present but
-    # not exactly one of the two, or present over no `paths:` leg ⇒ the case does not apply.
-    paths_mode = match.get("paths_mode", "any")
-    if paths_mode not in ("any", "all") or ("paths_mode" in match and not has_paths):
+    # T-14039 — containment is the only reading; `paths_mode` survives as `all` (the same reading,
+    # T-13735's spelling). Any other value, or a mode over no `paths:` leg ⇒ the case does not apply.
+    if "paths_mode" in match and (match.get("paths_mode") != "all" or not has_paths):
         return False
 
     globs = match.get("paths")
@@ -19155,7 +19720,7 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
     if classes and str(task_class or "").strip() not in classes:
         return False                           # the class leg (a LIST is a plain OR)
     if globs:
-        touched, outside = False, False
+        touched = False
         for raw in (ship_paths or []):
             p = str(raw).strip()
             if not p:
@@ -19164,19 +19729,16 @@ def _case_match(case, *, task_class, ship_paths) -> bool:
                 p = p[2:]
             if any(fnmatch.fnmatch(p, g) for g in globs):
                 touched = True
-                if paths_mode == "any":
-                    break
-            else:
-                outside = True
-                if paths_mode == "all":
-                    break
-        if not touched or (paths_mode == "all" and outside):
-            return False                       # the paths leg — read under this case at all?
+            elif is_lifecycle_record is None or not is_lifecycle_record(p):
+                return False                   # a judged path outside the case — containment fails
+        if not touched:
+            return False                       # nothing inside the case — vacuous containment
     return True                                # both declared legs held (a CONJUNCTION when both)
 
 
 def audit_scrutiny_stage_entry_note(*, task_class, ship_paths, guard_paths, cases,
-                                    governance_globs, spec_active) -> "str | None":
+                                    governance_globs, spec_active,
+                                    is_lifecycle_record=None) -> "str | None":
     """SPEC-0178 rules 1-3 delivered at the AUDIT-POST STAGE ENTRY (T-11300, X-1006). Returns the
     advisory note naming the matching case, or None. PURE, total, never raises, no I/O.
 
@@ -19237,7 +19799,8 @@ def audit_scrutiny_stage_entry_note(*, task_class, ship_paths, guard_paths, case
     the other."""
     outcome = _audit_scrutiny_case_outcome(
         task_class=task_class, ship_paths=ship_paths, guard_paths=guard_paths, cases=cases,
-        governance_globs=governance_globs, spec_active=spec_active, attributions=None)
+        governance_globs=governance_globs, spec_active=spec_active, attributions=None,
+        is_lifecycle_record=is_lifecycle_record)
     if outcome is None:
         return None
     if outcome["kind"] == "exempt":
@@ -19259,7 +19822,7 @@ def audit_scrutiny_stage_entry_note(*, task_class, ship_paths, guard_paths, case
 
 
 def _audit_scrutiny_case_outcome(*, task_class, ship_paths, guard_paths, cases, governance_globs,
-                                 spec_active, attributions) -> "dict | None":
+                                 spec_active, attributions, is_lifecycle_record=None) -> "dict | None":
     """SPEC-0178 rules 1-5 as ONE decision, rendered by two seams (T-11581). PURE, total, never
     raises, no I/O. Returns None (say nothing / pay audit-post) or
     `{"kind": "exempt"|"taken_back", "case", "reason", "governance_paths"}`.
@@ -19299,7 +19862,8 @@ def _audit_scrutiny_case_outcome(*, task_class, ship_paths, guard_paths, cases, 
         return None                            # rule 4 — an infra card is never exemptible
     taken_back = None                          # rule 3 seam — the FIRST take-back, spoken if nothing exempts
     for case in cases:
-        if not _case_match(case, task_class=task_class, ship_paths=ship_paths):
+        if not _case_match(case, task_class=task_class, ship_paths=ship_paths,
+                           is_lifecycle_record=is_lifecycle_record):
             continue
         if _case_declaration_refusal(case, governance_globs=governance_globs):
             continue                           # rule 3 belt — an illegally-declared case surfaces nothing
@@ -19330,7 +19894,8 @@ def _audit_scrutiny_case_outcome(*, task_class, ship_paths, guard_paths, cases, 
 
 
 def audit_scrutiny_spend_seam_note(*, task_class, ship_paths, guard_paths, cases, governance_globs,
-                                   spec_active, attributions, subject_label) -> "str | None":
+                                   spec_active, attributions, subject_label,
+                                   is_lifecycle_record=None) -> "str | None":
     """SPEC-0178 rules 1-5 delivered AT THE MOMENT THE AUDITOR WOULD BE SPENT (T-11581, X-1110).
     Returns the DETERMINATE statement, or None. PURE, total, never raises, no I/O.
 
@@ -19370,7 +19935,8 @@ def audit_scrutiny_spend_seam_note(*, task_class, ship_paths, guard_paths, cases
     card" in the abstract."""
     outcome = _audit_scrutiny_case_outcome(
         task_class=task_class, ship_paths=ship_paths, guard_paths=guard_paths, cases=cases,
-        governance_globs=governance_globs, spec_active=spec_active, attributions=attributions)
+        governance_globs=governance_globs, spec_active=spec_active, attributions=attributions,
+        is_lifecycle_record=is_lifecycle_record)
     if outcome is None:
         return None
     label = str(subject_label or "").strip() or "the recorded ship commit"

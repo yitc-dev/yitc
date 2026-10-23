@@ -128,12 +128,17 @@ body: "## Scenario\n\nA v2 consumer must prove — CONTINUOUSLY, not only at dep
   \ + `severity` + `status` + `fingerprint` + `what`); and `report_hash` as the FINAL\n\
   \  line. EACH is gate-completeness-REQUIRED present-AND-non-empty (§4) — INCLUDING\
   \ `required_scope`: a\n  report dropping it is INCOMPLETE even when the env scope\
-  \ is set (else a thinned report slips the scope\n  check). The retired divergent\
-  \ spellings `run_id`, a `scanned_paths_count`-scalar-only scope, and\n  `dependency_lockfiles`-as-a-list\
-  \ MUST NOT be the canonical carriers. A report MAY ALSO carry\n  SUPPLEMENTAL evidence\
-  \ fields BEYOND this required set — e.g. `hash_input` (the declared\n  hash-contract\
-  \ string), `agent_identity`, `scan_source`, `scanned_paths_count`, `head`, and `commit_identity`\
-  \ (the full commit hash of the scanned checkout — the code-identity partner of `dependency_lockfile_hashes`,\
+  \ is set (else a thinned report slips the scope\n  check). **No lockfile in scope:**\
+  \ a project with no tracked lockfile records\n  `dependency_lockfile_hashes: {}`\
+  \ with its `SEC-DEP-LOCK` check reporting `lockfiles=0`; the gate\n  accepts that\
+  \ empty mapping as complete, and only beside that check record — a report that drops\n\
+  \  the field, sets it null, or leaves it empty without `lockfiles=0` stays INCOMPLETE.\
+  \ The retired\n  divergent spellings `run_id`, a `scanned_paths_count`-scalar-only\
+  \ scope, and\n  `dependency_lockfiles`-as-a-list MUST NOT be the canonical carriers.\
+  \ A report MAY ALSO carry\n  SUPPLEMENTAL evidence fields BEYOND this required set\
+  \ — e.g. `hash_input` (the declared\n  hash-contract string), `agent_identity`,\
+  \ `scan_source`, `scanned_paths_count`, `head`, and `commit_identity` (the full\
+  \ commit hash of the scanned checkout — the code-identity partner of `dependency_lockfile_hashes`,\
   \ joined into the report by the producer, consumed ONLY at the deploy-seam identity-match\
   \ judgement) — which the\n  gate IGNORES (present-but-NOT-completeness-required);\
   \ ONLY the fields listed above are the canonical\n  set both sides read AND the\
@@ -486,6 +491,6 @@ init_concern:
   tier: universal
 implements_signature:
   bin/lib/init.py#_deliver_cadence_scaffold: 11a6228093dab9ee4bc50a4109cb0c04e4f9fac931cc88d4e1aa54211d585491
-  bin/security-audit: 56d4a827beb18fbc3d062fdd2872ad74e9e94e8d656445d0f0fb62387bb7be76
+  bin/security-audit: ced9ce8efe91f45e035ca9cf7b593e2230590e237af3b5a1fcfccaf1e06589a4
   bin/v2-security-gate#_carrier_freshness_days: 89d51c6ce3b816f8d0f2f6a880abb8bde620cadff9d564831004cd8fd7d7bb1d
-  bin/v2-security-gate#evaluate_report: efe141304b7e61c814e5109bcab8bb3ab8e0c8f00adfcd4600ad99a07c2c03a0
+  bin/v2-security-gate#evaluate_report: f64c2e897d4d83dc2c28d78ab17d1e6c49c0ff01e4ea39e235c3fd39b016645d

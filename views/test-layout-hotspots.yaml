@@ -8,7 +8,7 @@ lens:
                                # (layer, adapter.identity). A unit is listed when
                                # selected * 100 >= 80 * unit_decisions. Windowed by --since/--until.
 why: >-
-  SPEC-1006 rule 13: the layout hotspot report is a derived view over the rows a shadow land already
+  SPEC-1035 rule 13: the layout hotspot report is a derived view over the rows a shadow land already
   writes; there is no second register of results. Selection by a runner's dependency graph is only as
   fine as the test files and what they import, so a file that almost every change reaches gains
   nothing from selection until it is split. This lens names those files from recorded lands, so a
