@@ -1395,10 +1395,14 @@ def verify_cost_reading_lines(reading, indent="  ") -> list:
              f"covers {reading.get('covered_days')} days; thresholds "
              + ", ".join(f"{k} = {v['value']} ({v['source']})" if isinstance(v, dict) else f"{k} {v}"
                          for k, v in th.items())]
-    for side, verb in (("move_away", "move into a pre-deploy class"), ("move_back", "move back onto lands")):
+    for side, verb in (("move_away", "move into a pre-deploy class"), ("move_back", "move back onto lands"),
+                       ("move_back_red_runs", "move back onto lands (red in pre-deploy runs)")):
         block = reading.get(side) or {}
         for r in block.get("proposals") or []:
-            nums = ", ".join(f"{k} {r[k]}" for k in ("runs_at_place", "real_failures", "median_s", "total_min") if k in r)
+            nums = ", ".join(f"{k} {r[k]}" for k in ("runs_at_place", "real_failures", "red_run_count", "median_s",
+                                                       "total_min") if k in r)
+            if r.get("red_runs"):
+                nums += " — runs " + ", ".join(str(x) for x in r["red_runs"])
             lines.append(f"{indent}  PROPOSE {verb}: {_name(r)} — {nums}")
         if block.get("held_thin"):
             lines.append(f"{indent}  held (costly, zero-catch, too few runs at its place): "

@@ -312,70 +312,81 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ each one\n  against the built change, by hand or with a targeted test, BEFORE\
   \ the commit (the own-tests check). An\n  edge found broken after it costs a second\
   \ run. This is the Plan pre-flight item 4 edge case,\n  checked against the change\
-  \ as built rather than as planned.\n\n### Resume contract\n**Scope clarification\
-  \ (per F3 absorption):** the Resume contract addresses **logical continuity** of\
-  \ a\ntask's progression across pause points — NOT process continuity of multiple\
-  \ pipeline stages or role\nhandoffs. CHARTER §Principle 6 (Build + Review only —\
-  \ no pipeline, no role-split) remains intact.\n\nResume metadata restores a **previously-authorized\
-  \ Build context** within the same AI session or a\nresumed Build session by the\
-  \ same AI agent. It does not create a new pipeline stage. It does not\nauthorize\
-  \ a role handoff. It restores prior state-of-work for continuing already-decomposed\
-  \ task\nlifecycle execution.\n\n**Allowed pause/resume boundaries:**\n- Same Build\
-  \ session pause (compact or break) → resume in same session.\n- Cross-session resume\
-  \ (owner returns next day) → new Build session reads task YAML state, re-runs\n\
-  \  Stage 1 verification, continues.\n- Owner-wait blocking → task stays in-progress\
-  \ or moves to paused; resume after owner-input.\n\n**NOT allowed:**\n- Resume by\
-  \ a different AI agent or different owner persona — task ownership stays singular.\n\
-  - Cross-project task transfer — a V2 task belongs to V2; a production-project task\
-  \ belongs to that\n  project.\n- Stage-skip via resume — resume continues from the\
-  \ paused stage, not jumps to a later stage.\n\nA task may interrupt mid-stage (owner-wait\
-  \ blocking, auditor abort, session boundary). When the AI\nexits an incomplete task,\
-  \ the **task YAML records:** `current_stage: <stage name>` (the semantic name of\
-  \ the active\nlifecycle stage — §Stage FSM per class below, which refuses a numeric\
-  \ value); `resume_from: <step within stage or «start»>`; `last_verified: <ISO ts>`;\
-  \ `next_action:\n<one-line concrete next step>`; `paused_at: <ISO ts>` + `paused_reason:\
-  \ <one-line>`.\n\n**Resume protocol:**\n1. AI reads task YAML — finds `paused_at`\
-  \ + state fields.\n2. Re-runs Stage 1 (Analysis) — verifies prior context still\
-  \ valid.\n3. Re-verifies the `last_verified` artifact (file or event still exists?).\n\
-  4. Emits a `task_resumed` event with reference to the prior `task_paused` event.\n\
-  5. Continues from the `resume_from` step.\n\n**Auto-pause triggers:** session boundary\
-  \ (Build session ends), owner unavailable for a blocking\nquestion >24h, external\
-  \ API timeout, audit verdict ABORT.\n\n**Dissonance protocol (Stage 1, per CHARTER\
-  \ §Principle 7):** if the AI detects inconsistency between\nartifacts during Analysis,\
-  \ halt → file or escalate → resume after resolution. Do not silently choose\nan\
-  \ interpretation.\n\n### Hygiene Fast-Path\n**Eligible categories** (skip stages\
-  \ 2-3-4-7 — Filing, Plan, Audit-pre, Audit-post):\n\n| Category | Example |\n|---|---|\n\
-  | typo | spelling fix in comment / string |\n| formatting | whitespace / indent\
-  \ / quote-style normalization |\n| comment_update | comment text edit, no code change\
-  \ |\n| dep_bump | single-line dependency version update (no API change) |\n| config_bump_1line\
-  \ | single-value config tweak |\n| test_fixture_update | test fixture data refresh\
-  \ |\n| regen_generated_code | re-run codegen, commit output |\n| docs_typo | typo\
-  \ in markdown documentation |\n\n**Excluded** (use full lifecycle):\n- Multi-file\
-  \ mechanical refactor (> 5 files) → full lifecycle, audit-pre catches scope creep.\n\
-  - New file creation → full lifecycle, filing required.\n- A change whose diff touches\
-  \ a spec file or an always-loaded seed file → full lifecycle, a\n  formatting-only\
-  \ or typo-only edit included: LIFECYCLE.md §Two flow types classifies those surfaces\n\
-  \  as fast-path INELIGIBLE at any diff size and is the home of that classification\
-  \ (read its full\n  surface list there; it is not restated here).\n- A change whose\
-  \ diff touches the pinned-test surface — test logic, fixtures and generated data\n\
-  \  alike, there is no fixture carve-out — or the project's operating contract →\
-  \ full lifecycle\n  (same home, LIFECYCLE.md §Two flow types). `test_fixture_update`\
-  \ / `regen_generated_code` stay\n  eligible only for data outside those surfaces.\n\
-  - `task close --hygiene-fast-path` REFUSES a diff that touches any of these surfaces,\
-  \ naming the\n  paths; the refused set is the governance set SPEC-0178 rule 3 composes,\
-  \ read whole. Route: the\n  full lifecycle (`task update --class` to a non-hygiene\
-  \ class).\n\n**Fast-path flow:** Analysis → Execution → Commit → Tests → Closure.\
-  \ Five stages, not nine. A red\nTests run returns the card to Commit; no audit is\
-  \ involved.\n\n### Stage FSM per class — current_stage semantic names\n`current_stage:`\
-  \ (QUEUE schema) holds a **semantic stage NAME**, not a number — self-documenting,\n\
-  stable across stage-set changes (CHARTER §Principle 5). `class:` implies which stage-FSM\
-  \ applies:\n\n| class | stage-FSM (ordered) |\n|---|---|\n| `feature` / `fix` /\
-  \ `refactor` / `docs` / `infra` (standard) | Analysis → Filing → Plan → Audit-pre\
-  \ → Execution → Commit → Audit-post → Tests → Closure |\n| `hygiene` (fast-path)\
-  \ | Analysis → Execution → Commit → Tests → Closure |\n\nThe EXECUTABLE pointer\
-  \ row of a claimed card omits Filing (the card is already filed): standard =\nAnalysis,\
-  \ Plan, Audit-pre, Execution, Commit, Audit-post, Tests, Closure; hygiene = Analysis,\n\
-  Execution, Commit, Tests, Closure. The Analysis → Plan move of a filed card is unchanged.\n\
+  \ as built rather than as planned.\n- **A stopped run.** A SIGTERM or SIGINT to\
+  \ `task test --run` while its run is in progress stops\n  the run, not the verb\
+  \ at once: each verify layer the run started is ended by its own runner on\n  the\
+  \ terms of the layer's bound (SIGTERM, the grace, SIGKILL), no further layer starts,\
+  \ and once\n  every runner has returned the verb writes ONE `tests_cancelled` row\
+  \ — the signal, the layers it\n  ended, the run's duration — and then exits by that\
+  \ signal. A stopped run writes no\n  `tests_passed` / `tests_failed` row, and no\
+  \ reader of those rows (Closure coverage, the land's\n  Stage-6 credit) reads `tests_cancelled`:\
+  \ a verdict needs a new `task test --run`. A second signal\n  during the stop is\
+  \ ignored; a signal the verb was started with ignored stays ignored; a signal\n\
+  \  after the run is over (its verdict being recorded) ends the verb as before.\n\
+  \n### Resume contract\n**Scope clarification (per F3 absorption):** the Resume contract\
+  \ addresses **logical continuity** of a\ntask's progression across pause points\
+  \ — NOT process continuity of multiple pipeline stages or role\nhandoffs. CHARTER\
+  \ §Principle 6 (Build + Review only — no pipeline, no role-split) remains intact.\n\
+  \nResume metadata restores a **previously-authorized Build context** within the\
+  \ same AI session or a\nresumed Build session by the same AI agent. It does not\
+  \ create a new pipeline stage. It does not\nauthorize a role handoff. It restores\
+  \ prior state-of-work for continuing already-decomposed task\nlifecycle execution.\n\
+  \n**Allowed pause/resume boundaries:**\n- Same Build session pause (compact or break)\
+  \ → resume in same session.\n- Cross-session resume (owner returns next day) → new\
+  \ Build session reads task YAML state, re-runs\n  Stage 1 verification, continues.\n\
+  - Owner-wait blocking → task stays in-progress or moves to paused; resume after\
+  \ owner-input.\n\n**NOT allowed:**\n- Resume by a different AI agent or different\
+  \ owner persona — task ownership stays singular.\n- Cross-project task transfer\
+  \ — a V2 task belongs to V2; a production-project task belongs to that\n  project.\n\
+  - Stage-skip via resume — resume continues from the paused stage, not jumps to a\
+  \ later stage.\n\nA task may interrupt mid-stage (owner-wait blocking, auditor abort,\
+  \ session boundary). When the AI\nexits an incomplete task, the **task YAML records:**\
+  \ `current_stage: <stage name>` (the semantic name of the active\nlifecycle stage\
+  \ — §Stage FSM per class below, which refuses a numeric value); `resume_from: <step\
+  \ within stage or «start»>`; `last_verified: <ISO ts>`; `next_action:\n<one-line\
+  \ concrete next step>`; `paused_at: <ISO ts>` + `paused_reason: <one-line>`.\n\n\
+  **Resume protocol:**\n1. AI reads task YAML — finds `paused_at` + state fields.\n\
+  2. Re-runs Stage 1 (Analysis) — verifies prior context still valid.\n3. Re-verifies\
+  \ the `last_verified` artifact (file or event still exists?).\n4. Emits a `task_resumed`\
+  \ event with reference to the prior `task_paused` event.\n5. Continues from the\
+  \ `resume_from` step.\n\n**Auto-pause triggers:** session boundary (Build session\
+  \ ends), owner unavailable for a blocking\nquestion >24h, external API timeout,\
+  \ audit verdict ABORT.\n\n**Dissonance protocol (Stage 1, per CHARTER §Principle\
+  \ 7):** if the AI detects inconsistency between\nartifacts during Analysis, halt\
+  \ → file or escalate → resume after resolution. Do not silently choose\nan interpretation.\n\
+  \n### Hygiene Fast-Path\n**Eligible categories** (skip stages 2-3-4-7 — Filing,\
+  \ Plan, Audit-pre, Audit-post):\n\n| Category | Example |\n|---|---|\n| typo | spelling\
+  \ fix in comment / string |\n| formatting | whitespace / indent / quote-style normalization\
+  \ |\n| comment_update | comment text edit, no code change |\n| dep_bump | single-line\
+  \ dependency version update (no API change) |\n| config_bump_1line | single-value\
+  \ config tweak |\n| test_fixture_update | test fixture data refresh |\n| regen_generated_code\
+  \ | re-run codegen, commit output |\n| docs_typo | typo in markdown documentation\
+  \ |\n\n**Excluded** (use full lifecycle):\n- Multi-file mechanical refactor (> 5\
+  \ files) → full lifecycle, audit-pre catches scope creep.\n- New file creation →\
+  \ full lifecycle, filing required.\n- A change whose diff touches a spec file or\
+  \ an always-loaded seed file → full lifecycle, a\n  formatting-only or typo-only\
+  \ edit included: LIFECYCLE.md §Two flow types classifies those surfaces\n  as fast-path\
+  \ INELIGIBLE at any diff size and is the home of that classification (read its full\n\
+  \  surface list there; it is not restated here).\n- A change whose diff touches\
+  \ the pinned-test surface — test logic, fixtures and generated data\n  alike, there\
+  \ is no fixture carve-out — or the project's operating contract → full lifecycle\n\
+  \  (same home, LIFECYCLE.md §Two flow types). `test_fixture_update` / `regen_generated_code`\
+  \ stay\n  eligible only for data outside those surfaces.\n- `task close --hygiene-fast-path`\
+  \ REFUSES a diff that touches any of these surfaces, naming the\n  paths; the refused\
+  \ set is the governance set SPEC-0178 rule 3 composes, read whole. Route: the\n\
+  \  full lifecycle (`task update --class` to a non-hygiene class).\n\n**Fast-path\
+  \ flow:** Analysis → Execution → Commit → Tests → Closure. Five stages, not nine.\
+  \ A red\nTests run returns the card to Commit; no audit is involved.\n\n### Stage\
+  \ FSM per class — current_stage semantic names\n`current_stage:` (QUEUE schema)\
+  \ holds a **semantic stage NAME**, not a number — self-documenting,\nstable across\
+  \ stage-set changes (CHARTER §Principle 5). `class:` implies which stage-FSM applies:\n\
+  \n| class | stage-FSM (ordered) |\n|---|---|\n| `feature` / `fix` / `refactor` /\
+  \ `docs` / `infra` (standard) | Analysis → Filing → Plan → Audit-pre → Execution\
+  \ → Commit → Audit-post → Tests → Closure |\n| `hygiene` (fast-path) | Analysis\
+  \ → Execution → Commit → Tests → Closure |\n\nThe EXECUTABLE pointer row of a claimed\
+  \ card omits Filing (the card is already filed): standard =\nAnalysis, Plan, Audit-pre,\
+  \ Execution, Commit, Audit-post, Tests, Closure; hygiene = Analysis,\nExecution,\
+  \ Commit, Tests, Closure. The Analysis → Plan move of a filed card is unchanged.\n\
   \nA future class defines its own FSM row here. `status:` (QUEUE coarse lifecycle:\
   \ ready/in-progress/…)\nand `current_stage:` (within-Build FSM position) are **two\
   \ distinct fields** — the 3 lifecycle\nvocabularies stay 3 (CHARTER §Decision lifecycle),\
@@ -526,6 +537,12 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ fast-path, unaudited, over its `yitc-ops.yaml`, which that WARN never\nnamed.\
   \ A fixture refresh cannot be told from a test-logic change by its paths, so the\
   \ Controller\nretired the carve-out toward the declared home (events.jsonl#ts=).\n\
+  \n### A stopped run\n\nEach verify layer runs in a session of its own, so a signal\
+  \ to `task test --run` left the running\nlayer behind (public issue #45; cryptochart,\
+  \ 2026-10-05). The first attempt, ended\nat a terminal audit-pre RED: a completion\
+  \ handed between the signal handler, the runners and a\ndeadline ran while a sibling\
+  \ layer's group lived, and the layer's bound stopped applying once its\ncommand\
+  \ had exited. The rule above keeps one writer that runs after every runner has returned.\n\
   \n## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
   \ word out of the rule text of the section\neach names.\n\n- From «Stage FSM per\
   \ class»: Code: `bin/lib/gates.py#stage_pointer_move` +\n  `#advance_stage_pointer`;\
@@ -642,4 +659,4 @@ implements_signature:
   bin/lib/task.py#cmd_task_commit: 1317d70eeb13675f0401985cfef4fbc267f22ca146ae6974d6871a32dde6f3ae
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 6830566d5e705de4766bf1e011f3e4022340681d48abe2de024ae13b442bea51
+  bin/lib/task.py#cmd_task_test: 17540c29c92ee42dd687bbf7232f71621338b4b4a163ea5889ccea44bd9cd5ed

@@ -146,6 +146,10 @@ implements:
 - bin/lib/debt.py#load_sensitive_carded
 - bin/lib/debt.py#load_sensitive_uncarded
 - bin/lib/cli.py#_load_sensitive_uncarded_view
+- bin/lib/debt.py#load_sensitive_waiting
+- bin/lib/debt.py#load_sensitive_file_seconds
+- bin/lib/debt.py#autofiled_ready_cards
+- bin/lib/debt.py#autofiled_ready_hours
 - bin/lib/worktree.py#_load_sensitive_file_card
 - bin/lib/task_closure_evidence.py#_live_dependents
 - bin/lib/task.py#_render_live_dependents
@@ -4059,44 +4063,61 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ exit the\n    `next:` text ADVERTISES is one the reader IMPLEMENTS — each exercised\
   \ on a declared file, with\n    the near-miss and fabricated-id rows still reporting,\
   \ and the repo's own carrier read through\n    the runner's parser so the existing\
-  \ ratified backlog is covered rather than only new lines.\n\n42. **THE LIVE DEPENDENTS\
-  \ OF A CARD GOING `wont-do` OR `parked` — reported AT THE TRANSITION,\n    not only\
-  \ at the next debt seam (X-1462).** Rule 36 folds the SAME relation — a\n    card\
-  \ whose `requires:` names a target the picker's blocking edge can never satisfy\
-  \ — at the\n    debt seams, and it stays the standing sweep for cards ALREADY stranded.\
-  \ What it cannot do is\n    speak at the MOMENT the strand is created. This rule\
-  \ adds that second delivery.\n    **THE OCCASION IS MEASURED, not anticipated.**\
-  \ <project> closed `wont-do` after a\n    <workshop-spec> rule-3 terminal RED (2026-09-16).\
-  \ Two READY cards carried `requires: `, so\n    BOTH became permanently unclaimable\
-  \ at the moment of closure, and the closure output — which\n    warned about `post_verification`\
-  \ and about scoped-staging dirt — named neither. The block is\n    invisible from\
-  \ the closed card too, so the reporter found it by scanning every `tasks/*.yaml`\n\
-  \    for the id by hand. Succession IS the documented outcome of a terminal RED,\
-  \ so every such\n    closure carries the hazard by construction; the same day the\
-  \ kernel's own Controller retired\n     for the same reason and checked for dependents\
-  \ by hand afterwards — a near miss that\n    held only because a human remembered.\n\
-  \    **THE VIEW:** at a `task update --status wont-do` and at a `--status parked`,\
-  \ every card\n    whose `requires:` names the transitioning id and whose OWN status\
-  \ is NOT terminal, named BY\n    ID with its status and title. Derived at read time\
-  \ from `tasks/` alone; zero stored state;\n    no new event, no new store, no new\
-  \ verb.\n    **LIVE, NOT `ready` — the ONE place this rule's scope differs from\
-  \ rule 36's, deliberately.**\n    Rule 36 asks which cards are waiting to be PICKED\
-  \ right now, so `ready` is its subject. This\n    rule asks whom THIS transition\
-  \ strands, and an `in-progress` or `parked` dependent is equally\n    blocked when\
-  \ it comes to be re-picked — naming it while the operator still holds the context\n\
-  \    is the whole point. A `done` or `wont-do` dependent is strandable by nothing\
-  \ and never fires\n    a row. A card naming ITSELF is never reported against itself.\n\
-  \    **PARKED IS IN SCOPE, AND ITS WORDING DIFFERS.** A parked target is not terminal,\
-  \ but it\n    does not satisfy `requires:` either, so its dependents are blocked\
-  \ for as long as the park\n    lasts. The two targets are not flattened into one\
-  \ sentence, because the honest exits differ:\n    a park may simply end, so the\
-  \ parked line names the `--return-trigger` instead of succession.\n    **BEFORE\
-  \ THE FREEZE.** The report is emitted BEFORE the card is written to disk — the\n\
-  \    ordering its sibling `post_verification` WARN on this same verb already keeps.\
-  \ A report that\n    arrives after the door closes is not weaker advice, it COSTS:\
-  \ it spends the operator's\n    attention at the only moment the context that makes\
-  \ re-pointing a DECISION rather than\n    archaeology is already gone.\n    **SUPPRESSED-WHEN-CLEAN\
-  \ IS THE CONTRACT, not an optimisation.** A line that printed on every\n    closure\
+  \ ratified backlog is covered rather than only new lines.\n    **THE HOLDER'S STATE\
+  \ IS READ TOO, ON A LINE OF ITS OWN.** The suppression above is\n    right for its\
+  \ claim («no card is holding this»), and it was wrong as the ONLY reading: the\n\
+  \    land tail files a `ready` card the moment a file enters the set, so the file\
+  \ left the echo at\n    once while it still ran serialized on every verify, and\
+  \ a card nobody took into work stayed\n    invisible (ten auto-filed cards sat `ready`\
+  \ on 2026-10-22 while the serialized tail cost +390 s\n    per full run, until the\
+  \ owner asked). So a second line, from the SAME single read of `tasks/`\n    and\
+  \ of the carrier the uncarded line uses, names every listed file whose holder has\
+  \ not\n    LANDED: a `ready` holder as «held by T-NNNN, ready N d, not started»,\
+  \ an\n    `in-progress` holder as «in work», each with the seconds the file adds\
+  \ to a verify run from\n    the fixed duration table («cost unrecorded» when the\
+  \ table does not list it), every file\n    named. A `parked` holder and a ratified\
+  \ line stay silent here as above; a `done` / `wont-do`\n    card holds nothing,\
+  \ so its file leaves this line. The uncarded line is byte-identical and its\n  \
+  \  suppression unchanged — this adds a reading for a case the rule did not address.\
+  \ Report-only;\n    it starts nothing. Unit test `tests/test_load_sensitive_autofile.py::test_waiting_line_three_states`.\n\
+  \n42. **THE LIVE DEPENDENTS OF A CARD GOING `wont-do` OR `parked` — reported AT\
+  \ THE TRANSITION,\n    not only at the next debt seam (X-1462).** Rule 36 folds\
+  \ the SAME relation — a\n    card whose `requires:` names a target the picker's\
+  \ blocking edge can never satisfy — at the\n    debt seams, and it stays the standing\
+  \ sweep for cards ALREADY stranded. What it cannot do is\n    speak at the MOMENT\
+  \ the strand is created. This rule adds that second delivery.\n    **THE OCCASION\
+  \ IS MEASURED, not anticipated.** <project> closed `wont-do` after a\n    <workshop-spec>\
+  \ rule-3 terminal RED (2026-09-16). Two READY cards carried `requires: `, so\n \
+  \   BOTH became permanently unclaimable at the moment of closure, and the closure\
+  \ output — which\n    warned about `post_verification` and about scoped-staging\
+  \ dirt — named neither. The block is\n    invisible from the closed card too, so\
+  \ the reporter found it by scanning every `tasks/*.yaml`\n    for the id by hand.\
+  \ Succession IS the documented outcome of a terminal RED, so every such\n    closure\
+  \ carries the hazard by construction; the same day the kernel's own Controller retired\n\
+  \     for the same reason and checked for dependents by hand afterwards — a near\
+  \ miss that\n    held only because a human remembered.\n    **THE VIEW:** at a `task\
+  \ update --status wont-do` and at a `--status parked`, every card\n    whose `requires:`\
+  \ names the transitioning id and whose OWN status is NOT terminal, named BY\n  \
+  \  ID with its status and title. Derived at read time from `tasks/` alone; zero\
+  \ stored state;\n    no new event, no new store, no new verb.\n    **LIVE, NOT `ready`\
+  \ — the ONE place this rule's scope differs from rule 36's, deliberately.**\n  \
+  \  Rule 36 asks which cards are waiting to be PICKED right now, so `ready` is its\
+  \ subject. This\n    rule asks whom THIS transition strands, and an `in-progress`\
+  \ or `parked` dependent is equally\n    blocked when it comes to be re-picked —\
+  \ naming it while the operator still holds the context\n    is the whole point.\
+  \ A `done` or `wont-do` dependent is strandable by nothing and never fires\n   \
+  \ a row. A card naming ITSELF is never reported against itself.\n    **PARKED IS\
+  \ IN SCOPE, AND ITS WORDING DIFFERS.** A parked target is not terminal, but it\n\
+  \    does not satisfy `requires:` either, so its dependents are blocked for as long\
+  \ as the park\n    lasts. The two targets are not flattened into one sentence, because\
+  \ the honest exits differ:\n    a park may simply end, so the parked line names\
+  \ the `--return-trigger` instead of succession.\n    **BEFORE THE FREEZE.** The\
+  \ report is emitted BEFORE the card is written to disk — the\n    ordering its sibling\
+  \ `post_verification` WARN on this same verb already keeps. A report that\n    arrives\
+  \ after the door closes is not weaker advice, it COSTS: it spends the operator's\n\
+  \    attention at the only moment the context that makes re-pointing a DECISION\
+  \ rather than\n    archaeology is already gone.\n    **SUPPRESSED-WHEN-CLEAN IS\
+  \ THE CONTRACT, not an optimisation.** A line that printed on every\n    closure\
   \ would be read past, and then it would mean nothing on the closure where it matters.\n\
   \    **REPORT-ONLY, like every sibling — and this one is load-bearing.** The closure\
   \ is\n    LEGITIMATE; the silence is the defect. So it never blocks, never moves\
@@ -4165,7 +4186,22 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ a decision recorded on main is not yet in that journal, so the\n    on-demand\
   \ re-fold there may still name that worktree's own decided finding — erring toward\n\
   \    visible, with `task close` the authority. The gate itself is unchanged by this\
-  \ rule. Tests:\n    `tests/test_t13470_debt_lines_state_backed.py`.\n"
+  \ rule. Tests:\n    `tests/test_t13470_debt_lines_state_backed.py`.\n\n46. **ENGINE-AUTO-FILED\
+  \ CARDS STILL `ready` PAST A PROJECT THRESHOLD.** The engine files\n    cards on\
+  \ its own (rule 41's land-tail filer, `created_by: engine-auto-file`) and, by CHARTER\
+  \ §6,\n    never takes them into work — so a card it filed waits for a person who\
+  \ is never told. Session\n    start runs no queue scan, and this rule keeps that:\
+  \ its subject is the DEBT-BORN cards\n    only, never the ready queue, and a hand-filed\
+  \ card is never named whatever its age. One line,\n    MARKED ACTIONABLE so session\
+  \ start names it to the person (rule 40): each such card still\n    `ready` at least\
+  \ `YITC_DEBT_AUTOFILED_READY_HOURS` hours after its `created_at` (a SPEC-1031\n\
+  \    THRESHOLD in the project's `yitc-ops.yaml` `thresholds:`, default 24, band\
+  \ 1..8760), with its\n    age, the threshold's value and source (SPEC-1031 rule\
+  \ 6), and `bin/yitc-v2 dispatch --task\n    <id>`. A card whose `created_at` does\
+  \ not parse is skipped — a report-only nag fails toward\n    silence, never toward\
+  \ a guessed age. Derived at read time from `tasks/` alone; no journal read,\n  \
+  \  no stored state. Report-only: it picks and dispatches nothing.\n    Unit test\
+  \ `tests/test_load_sensitive_autofile.py::test_autofiled_ready_line`.\n"
 cites:
 - SPEC-0165
 - SPEC-0152
@@ -4211,7 +4247,7 @@ implements_signature:
   bin/lib/cli.py#_debt_measurement_margin: 88064faa1a2b793d637926e4c9982f9c1b905448bdb4ae8c77dfb4e23ce9f933
   bin/lib/cli.py#_debt_security_finding_floor_days: dc9be77f81f97946cdfef76a6ece306ef35540790ce404da50d9f893629e4f59
   bin/lib/cli.py#_debt_uncarried_p8_window_hours: 8464861dcc3f473df9e470995765899787100808dd4308b78a8598093b184c3a
-  bin/lib/cli.py#_load_sensitive_uncarded_view: d014fa6a173165e5808fe79bd460f154139f749f3216105dcf42e6d9cc3765a6
+  bin/lib/cli.py#_load_sensitive_uncarded_view: dd6eb3fd0a4b77d8736b0337d6e24c7dbd1b1e5046b5ffcd7f1afdab2d789537
   bin/lib/cli.py#_main_task_strand_state: a018407823a7b435662ae2ad2aecdfd8322c241784e76058212fc33d33f1e38a
   bin/lib/cli.py#_profile_gap_autofile: fd936f0f571b2560996e84ecc016fcf8ecb93db02ba0c2821be00eaa49ecba91
   bin/lib/cli.py#_recorded_measurement_view: 09d9bf1fc1422b04721b166e4aa078297fb9162492b9a667f2d895428ea5ac20
@@ -4232,7 +4268,7 @@ implements_signature:
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
   bin/lib/debt.py#_debt_echo_compact: e941b54796a1c92b203449ea1e153015f223f0c9f572028e8609f1021d6a11fa
-  bin/lib/debt.py#_debt_echo_lines: c223b0eaa2b72e980dbc96bf1b3d6589609bab2bdb872cdeb9f9b82e5d9d5fb0
+  bin/lib/debt.py#_debt_echo_lines: 451fc86c94cce82fd0cae7624b1d06f4288c139a31e0d2bb8c216979ae7783ef
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
@@ -4246,6 +4282,8 @@ implements_signature:
   bin/lib/debt.py#_run_invariant_probe: c51614534aab95d52bed0bcc9bcfafeb528177914dfe5b71363ad682f2fb0898
   bin/lib/debt.py#_unpickable_ready_result: 39da94eacbdda84919ec33de70ce97dcfc369c20efa0b2ddc2f841dfb7183b1b
   bin/lib/debt.py#_younger_than: 0a9c5459e7b95505db55ad2c54b9d3a387968d5e47b17ba6a74923a19ba18718
+  bin/lib/debt.py#autofiled_ready_cards: c5a0d43ec14e28e1b9a9911d7e5f1c94095b168e8affcc9cd634c351f5ff0606
+  bin/lib/debt.py#autofiled_ready_hours: 019abb1d66c336a9b47f5d67b2df6ef6cece100245b98809f1b018f13e685fb8
   bin/lib/debt.py#broken_outcome_invariants: e0120f1edfbeadc2f42fe3d09f767e2476b70f9a2781c5e9e39fd409ee4162f4
   bin/lib/debt.py#debt_echo_table: 879260852cff41dbc635b0151f68dffbeb116981fda7977a552fb8f635f52bec
   bin/lib/debt.py#debt_explain: 462704be0d329f8f33c6c175c70c588c3193cffca792a9e4760f9a1983d758c6
@@ -4254,10 +4292,12 @@ implements_signature:
   bin/lib/debt.py#debt_row_verb: ca9f0835c8b2c4f611ec33e8002a7a8b3a8f39bb7dd94eba2598e79c24f6ee6c
   bin/lib/debt.py#declared_outcome_invariants: 9594d38181a31a793ef59d36967ff941af57c3abb0eab84872041c7738188de6
   bin/lib/debt.py#late_findings_per_pass: 5e45863430cb1c0bd3d50731a2f4d9d926e75586aa9955fe302573823bb1f0d1
-  bin/lib/debt.py#load_sensitive_carded: 7a1d5555ed45ecd299ca1d9f97d361c38f7012cce622983ba54f99900209f19f
+  bin/lib/debt.py#load_sensitive_carded: 137a30f7f45d0c8ce00de25fc2811ce18fa88a98eabd8de275add90174b1f85d
+  bin/lib/debt.py#load_sensitive_file_seconds: 03f3355ab1b1214016eca1d06744b8ac3bbf43b386c006483b2fafbc96210e2e
   bin/lib/debt.py#load_sensitive_fingerprint: 136fee48b1b0dab262584ed8976538bb0ad08525529b4a29fc4e89ca1f37667a
   bin/lib/debt.py#load_sensitive_ratification: b23f594e4b0fb5ac7fdf9e030e3bcb18067d4798af1cf647eeb8ef5282dff365
   bin/lib/debt.py#load_sensitive_uncarded: 554997a6b5a9e9534052076c41d0cdec027e571d73ececa9db194b2f930302cc
+  bin/lib/debt.py#load_sensitive_waiting: a7d206556af63456264328409220f2a9b9582416660589e0a44054634210c2a6
   bin/lib/debt.py#nightly_verdict_changes: 3abef6813f2bdad9ce9bd6fe2afa5c814553dea15563f303225ddec7b08247f9
   bin/lib/debt.py#nonterminal_plan_census: 90a7ab1c1ec320c616ecc84f0a8ecaeef2c758d51d3a95599d0ffa4fc439d704
   bin/lib/debt.py#prequeue_known_broken_refusals: 650d18dd78a57e07aede37209820c72e1e3e4da30857eb99c266a2fa2ce8144d
@@ -4346,7 +4386,7 @@ implements_signature:
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: d2733346b02b4e55413a5b18fe187d03730a434b979013847ef7790570751e78
+  bin/lib/views.py#_render_debt_echo: 7181be1c148bb9877d6f1a4ed11029b46294bf14083d72b93709ace304a4d973
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

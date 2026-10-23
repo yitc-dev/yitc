@@ -84,6 +84,14 @@ did it, and the trap they measured.
   stand; never trust a stand whose served build you did not just put there.
 - **Trap — a stand target deployed without the check.** cryptochart deployed its acceptance target 6
   times without a full run. Name every target a check guards, not only production.
+- **Option — one run for both targets of one candidate.** By default the stand deploy and the
+  production deploy of one candidate each run the whole pre-deploy run (about 31 min each on the
+  reporting project). Declaring `reuse_run: {reason: <why>}` on every pre-deploy class guarding
+  production lets its deploy stand on the stand deploy's passed, completed run of the same candidate
+  under the same declaration, within your `pre_deploy_reuse_max_age_minutes` threshold — the bounds
+  are SPEC-1042 rule 3. Its cost: production ships on a run up to that age old, so a failure only a
+  second run would show (a flaky or host-dependent check) goes unseen; record in the reason why your
+  project accepts that.
 
 ### B3. Live checks on the served site
 

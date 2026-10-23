@@ -297,7 +297,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (5fce27459) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (6781d6553) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/live_probe.py#cmd_live_probe",
@@ -357,7 +357,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0097",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (5fce27459) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (6781d6553) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#graph_build_index",
@@ -427,7 +427,7 @@
   {
    "anchor": "bin/lib/debt.py#_debt_echo_lines",
    "spec": "SPEC-0119",
-   "warn": "bin/lib/debt.py#_debt_echo_lines: content changed since last verified-accurate signature (c223b0eaa) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/debt.py#_debt_echo_lines: content changed since last verified-accurate signature (451fc86c9) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt.py#recorded_measurement_drift",
@@ -532,7 +532,7 @@
   {
    "anchor": "bin/lib/views.py#_render_debt_echo",
    "spec": "SPEC-0119",
-   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (d2733346b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (7181be1c1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/views.py#abort_cause_breadth_land_head_lines",
@@ -547,7 +547,7 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-0123",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (25127a18d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (340344a59) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
@@ -637,7 +637,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0149",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (5fce27459) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (6781d6553) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#cmd_event",
@@ -647,7 +647,7 @@
   {
    "anchor": "bin/lib/views.py#_render_debt_echo",
    "spec": "SPEC-0149",
-   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (d2733346b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (7181be1c1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt.py#undeclared_class_remedy",
@@ -667,7 +667,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-0152",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (6830566d5) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (17540c29c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/verify_runner.py#_consumer_tests_delegation",
@@ -677,7 +677,7 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-0152",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (25127a18d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (340344a59) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_uncommitted_layer_surface",
@@ -692,7 +692,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0155",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (5fce27459) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (6781d6553) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/security-audit",
@@ -702,7 +702,7 @@
   {
    "anchor": "bin/lib/debt.py#_debt_echo_lines",
    "spec": "SPEC-0156",
-   "warn": "bin/lib/debt.py#_debt_echo_lines: content changed since last verified-accurate signature (c223b0eaa) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/debt.py#_debt_echo_lines: content changed since last verified-accurate signature (451fc86c9) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt.py#_definition_identity",
@@ -712,7 +712,7 @@
   {
    "anchor": "bin/lib/views.py#_render_debt_echo",
    "spec": "SPEC-0156",
-   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (d2733346b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (7181be1c1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/journal.py#cmd_journal_redact",
@@ -822,7 +822,7 @@
   {
    "anchor": "bin/lib/views.py#_render_debt_echo",
    "spec": "SPEC-0198",
-   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (d2733346b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/views.py#_render_debt_echo: content changed since last verified-accurate signature (7181be1c1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
@@ -837,7 +837,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0205",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (5fce27459) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (6781d6553) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_land",
@@ -912,7 +912,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-1029",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (6830566d5) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (17540c29c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
@@ -957,7 +957,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (6830566d5) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (17540c29c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
@@ -15637,31 +15637,31 @@
   },
   {
    "content": "debt seams, and it stays the standing sweep for cards ALREADY stranded. What it cannot do is",
-   "id": "rule:spec-0119:verification:3448:must",
+   "id": "rule:spec-0119:verification:3462:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3448,
+   "source_line": 3462,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "a park may simply end, so the parked line names the `--return-trigger` instead of succession.",
-   "id": "rule:spec-0119:verification:3472:may",
+   "id": "rule:spec-0119:verification:3486:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3472,
+   "source_line": 3486,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "on-demand re-fold there may still name that worktree's own decided finding — erring toward",
-   "id": "rule:spec-0119:verification:3539:may",
+   "id": "rule:spec-0119:verification:3553:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
    "source_domain": "spec",
-   "source_line": 3539,
+   "source_line": 3553,
    "source_section": "verification",
    "status": "active"
   },
@@ -17172,46 +17172,6 @@
    "source_doc": "specs/SPEC-0137-provider-agnostic-v2-owned-session-identity-redisc.yaml",
    "source_domain": "spec",
    "source_line": 16,
-   "source_section": "scenario",
-   "status": "active"
-  },
-  {
-   "content": "(b) a **coordinated multi-task cut** whose slicing must be fidelity-audited (SPEC-0070 /",
-   "id": "rule:spec-0140:internal:38:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0140-self-applied-carrier-decision-procedure-mechanical.yaml",
-   "source_domain": "spec",
-   "source_line": 38,
-   "source_section": "internal",
-   "status": "active"
-  },
-  {
-   "content": "SPEC-0034 / SPEC-0046) — several interdependent tasks that must land as one shaped set;",
-   "id": "rule:spec-0140:internal:39:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0140-self-applied-carrier-decision-procedure-mechanical.yaml",
-   "source_domain": "spec",
-   "source_line": 39,
-   "source_section": "internal",
-   "status": "active"
-  },
-  {
-   "content": "(c) **design-convergence on real data** — the answer is not yet known and must be found by",
-   "id": "rule:spec-0140:internal:40:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0140-self-applied-carrier-decision-procedure-mechanical.yaml",
-   "source_domain": "spec",
-   "source_line": 40,
-   "source_section": "internal",
-   "status": "active"
-  },
-  {
-   "content": "work the AI must pick its CARRIER — plan, one-or-a-few tasks, a staged followup, or a plain",
-   "id": "rule:spec-0140:scenario:4:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0140-self-applied-carrier-decision-procedure-mechanical.yaml",
-   "source_domain": "spec",
-   "source_line": 4,
    "source_section": "scenario",
    "status": "active"
   },
@@ -30947,31 +30907,31 @@
   },
   {
    "content": "named. A fixture refresh cannot be told from a test-logic change by its paths, so the Controller",
-   "id": "rule:spec-1038:fast-path-refusal:509:must",
+   "id": "rule:spec-1038:fast-path-refusal:518:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 509,
+   "source_line": 518,
    "source_section": "fast-path-refusal",
    "status": "active"
   },
   {
    "content": "- New file creation → full lifecycle, filing required.",
-   "id": "rule:spec-1038:hygiene-fast-path:338:must",
+   "id": "rule:spec-1038:hygiene-fast-path:347:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 338,
+   "source_line": 347,
    "source_section": "hygiene-fast-path",
    "status": "active"
   },
   {
    "content": "A task may interrupt mid-stage (owner-wait blocking, auditor abort, session boundary). When the AI",
-   "id": "rule:spec-1038:resume-contract:303:may",
+   "id": "rule:spec-1038:resume-contract:312:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 303,
+   "source_line": 312,
    "source_section": "resume-contract",
    "status": "active"
   },
@@ -31027,11 +30987,11 @@
   },
   {
    "content": "entry cannot carry an unaudited or untested commit to Closure. One artifact gate does apply to the",
-   "id": "rule:spec-1038:stage-fsm-per-class-current-stage-semant:401:must",
+   "id": "rule:spec-1038:stage-fsm-per-class-current-stage-semant:410:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 401,
+   "source_line": 410,
    "source_section": "stage-fsm-per-class-current-stage-semant",
    "status": "active"
   },
@@ -31566,93 +31526,243 @@
    "status": "active"
   },
   {
+   "content": "- A pre-deploy entry MAY carry `reuse_run: {reason: <why>}` — exactly that mapping, with a non-empty",
+   "id": "rule:spec-1042:1-declaration-a-pre-deploy-class-names-i:35:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 35,
+   "source_section": "1-declaration-a-pre-deploy-class-names-i",
+   "status": "active"
+  },
+  {
    "content": "the layer's `command:` fallback when `list` cannot answer — and only THEN applies the pre-deploy",
-   "id": "rule:spec-1042:2-what-a-land-and-a-stage-6-run-execute-:41:must",
+   "id": "rule:spec-1042:2-what-a-land-and-a-stage-6-run-execute-:44:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 41,
+   "source_line": 44,
    "source_section": "2-what-a-land-and-a-stage-6-run-execute-",
    "status": "active"
   },
   {
-   "content": "`list` → `required:` → `run`; a layer's `command:` when it has no adapter), on the land runner",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:67:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 67,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "with no `prep:` failure, no `required:` failure, no layer or outer timeout, no void or unread",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:77:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 77,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
    "content": "Stage-6 run's own land reading places it (a land it cannot place either side counts, a land that",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:86:must",
+   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:112:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 86,
+   "source_line": 112,
    "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
    "status": "active"
   },
   {
    "content": "reservation after the §8 deploy lock, which no land takes, so the two cannot deadlock. While it",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:99:must",
+   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:125:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 99,
+   "source_line": 125,
    "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
    "status": "active"
   },
   {
-   "content": "any window. Automation may only move a unit back toward running on lands; a move into a pre-deploy",
-   "id": "rule:spec-1042:7-the-analysis-aid-and-the-weekly-readin:179:may",
+   "content": "or when the journal cannot be read, the deploy says which bound failed and runs its own. A reusing",
+   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:80:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 80,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "`list` → `required:` → `run`; a layer's `command:` when it has no adapter), on the land runner",
+   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:85:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 85,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "adapter's `required:`, `run` or report read, ran past the layer's timeout). With it there is no",
+   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:96:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 96,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "`prep:` failure, no `required:` failure, no void or unread report, no layer failing whole for",
+   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:97:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 97,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "reuse; a start row that cannot be written refuses the deploy before anything runs; and the run's",
+   "id": "rule:spec-1042:4-what-the-run-records-a-record-never-de:169:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 169,
+   "source_section": "4-what-the-run-records-a-record-never-de",
+   "status": "active"
+  },
+  {
+   "content": "runs (## Parameters), on any window. Automation may only move a unit back toward running on",
+   "id": "rule:spec-1042:7-the-analysis-aid-and-the-weekly-readin:223:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 179,
+   "source_line": 223,
    "source_section": "7-the-analysis-aid-and-the-weekly-readin",
    "status": "active"
   },
   {
    "content": "after-command check can record that the checkout moved while the command ran, but cannot undo a",
-   "id": "rule:spec-1042:rationale:214:must",
+   "id": "rule:spec-1042:rationale:261:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 214,
+   "source_line": 261,
    "source_section": "rationale",
    "status": "active"
   },
   {
-   "content": "second such red is recorded `failed`; a unit timeout together with a `required:` failure, a `prep:`",
-   "id": "rule:spec-1042:verification:262:must",
+   "content": "timeouts answered an accept-gate finding about a timeout MIXED with a `prep:` / `required:` / report",
+   "id": "rule:spec-1042:rationale:278:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 262,
+   "source_line": 278,
+   "source_section": "rationale",
+   "status": "active"
+  },
+  {
+   "content": "— and a project may decide otherwise for itself; the reporting consumer pays two full runs (~31 min",
+   "id": "rule:spec-1042:rationale:288:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 288,
+   "source_section": "rationale",
+   "status": "active"
+  },
+  {
+   "content": "that declares no pre-deploy class sees no change. A project may opt in to letting one passed run of",
+   "id": "rule:spec-1042:scenario:9:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 9,
+   "source_section": "scenario",
+   "status": "active"
+  },
+  {
+   "content": "second such red is recorded `failed`; a unit timeout together with a `required:` failure or a",
+   "id": "rule:spec-1042:verification:336:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 336,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "`required:` or a `prep:` failure beside a land reads red at once; a lone layer timeout with nobody",
+   "id": "rule:spec-1042:verification:340:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 340,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "- V8 [p] a session that cannot record the rows is refused before the run starts; a row write that",
-   "id": "rule:spec-1042:verification:270:must",
+   "id": "rule:spec-1042:verification:350:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
    "source_domain": "spec",
-   "source_line": 270,
+   "source_line": 350,
    "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "that cannot be written runs nothing — tests/test_t14160_pre_deploy_run_reuse.py.",
+   "id": "rule:spec-1042:verification:383:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
+   "source_domain": "spec",
+   "source_line": 383,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "(a) **design-convergence on real data** — the answer is not yet known and must be found by",
+   "id": "rule:spec-1043:internal:35:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
+   "source_domain": "spec",
+   "source_line": 35,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "changed standing rules define a shared contract and must agree before implementation;",
+   "id": "rule:spec-1043:internal:38:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
+   "source_domain": "spec",
+   "source_line": 38,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "(c) a **coordinated multi-task cut whose slicing must be fidelity-audited** (SPEC-0070 /",
+   "id": "rule:spec-1043:internal:40:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
+   "source_domain": "spec",
+   "source_line": 40,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "SPEC-0034 / SPEC-0046) — the allocation of scope and cross-card obligations must be",
+   "id": "rule:spec-1043:internal:41:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
+   "source_domain": "spec",
+   "source_line": 41,
+   "source_section": "internal",
+   "status": "active"
+  },
+  {
+   "content": "work the AI must pick its CARRIER — plan, one-or-a-few tasks, a staged followup, or a plain",
+   "id": "rule:spec-1043:scenario:4:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
+   "source_domain": "spec",
+   "source_line": 4,
+   "source_section": "scenario",
+   "status": "active"
+  },
+  {
+   "content": "override all three. Read literally, every card edits its own spec and any two cards may be",
+   "id": "rule:spec-1043:successor-of-workshop-spec:91:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
+   "source_domain": "spec",
+   "source_line": 91,
+   "source_section": "successor-of-workshop-spec",
    "status": "active"
   }
  ],
@@ -32237,7 +32347,6 @@
     "SPEC-0070",
     "SPEC-0083",
     "SPEC-0126",
-    "SPEC-0140",
     "add-a-controlled-real-data-trial-stage-between-pla",
     "plan-lifecycle-delivery-parity-redesign-lifecycle-",
     "plan-lifecycle-documentation-audit-delivery-parity"
@@ -34434,6 +34543,8 @@
     "bin/lib/debt.py#_run_invariant_probe",
     "bin/lib/debt.py#_unpickable_ready_result",
     "bin/lib/debt.py#_younger_than",
+    "bin/lib/debt.py#autofiled_ready_cards",
+    "bin/lib/debt.py#autofiled_ready_hours",
     "bin/lib/debt.py#broken_outcome_invariants",
     "bin/lib/debt.py#debt_echo_table",
     "bin/lib/debt.py#debt_explain",
@@ -34443,9 +34554,11 @@
     "bin/lib/debt.py#declared_outcome_invariants",
     "bin/lib/debt.py#late_findings_per_pass",
     "bin/lib/debt.py#load_sensitive_carded",
+    "bin/lib/debt.py#load_sensitive_file_seconds",
     "bin/lib/debt.py#load_sensitive_fingerprint",
     "bin/lib/debt.py#load_sensitive_ratification",
     "bin/lib/debt.py#load_sensitive_uncarded",
+    "bin/lib/debt.py#load_sensitive_waiting",
     "bin/lib/debt.py#nightly_verdict_changes",
     "bin/lib/debt.py#nonterminal_plan_census",
     "bin/lib/debt.py#prequeue_known_broken_refusals",
@@ -34921,33 +35034,6 @@
    "supersedes": null,
    "title": "Provider-agnostic v2-owned session identity — rediscovered record, fail-closed resolution, hermetic verify"
   },
-  "SPEC-0140": {
-   "activation_owner_task": null,
-   "binding": [
-    "query-only"
-   ],
-   "cites": [
-    "CHARTER.md#principle-1",
-    "CHARTER.md#principle-7",
-    "LIFECYCLE.md#routing-which-carrier",
-    "SPEC-0034",
-    "SPEC-0035",
-    "SPEC-0046",
-    "SPEC-0070",
-    "SPEC-0072",
-    "SPEC-0095",
-    "X-0213"
-   ],
-   "cites_unresolved": [],
-   "concern": null,
-   "implements": [],
-   "init_concern": null,
-   "proposed_by": null,
-   "requires": [],
-   "status": "active",
-   "supersedes": null,
-   "title": "Self-applied carrier decision procedure — mechanically route a change to plan|task|followup|record from its own properties, no human adjudication"
-  },
   "SPEC-0141": {
    "activation_owner_task": null,
    "binding": [
@@ -35407,8 +35493,7 @@
     "SPEC-0090",
     "SPEC-0093",
     "SPEC-0095",
-    "SPEC-0101",
-    "SPEC-0140"
+    "SPEC-0101"
    ],
    "cites_unresolved": [],
    "concern": null,
@@ -37741,6 +37826,7 @@
     "bin/lib/deploy.py#_pre_deploy_beside",
     "bin/lib/deploy.py#_pre_deploy_guarding",
     "bin/lib/deploy.py#_pre_deploy_recordable",
+    "bin/lib/deploy.py#_pre_deploy_reuse",
     "bin/lib/deploy.py#_pre_deploy_run",
     "bin/lib/deploy.py#_pre_deploy_take_reservation",
     "bin/lib/init.py#pre_deploy_declaration_errors",
@@ -37759,6 +37845,35 @@
    "status": "active",
    "supersedes": null,
    "title": "Pre-deploy run — a declared pre-deploy class, and a deploy to a guarded target that first runs the full verify plus that class on the exact revision it ships"
+  },
+  "SPEC-1043": {
+   "activation_owner_task": null,
+   "binding": [
+    "query-only"
+   ],
+   "cites": [
+    "CHARTER.md#principle-1",
+    "CHARTER.md#principle-7",
+    "LIFECYCLE.md#routing-which-carrier",
+    "SPEC-0034",
+    "SPEC-0035",
+    "SPEC-0046",
+    "SPEC-0070",
+    "SPEC-0072",
+    "SPEC-0095",
+    "SPEC-1037",
+    "X-0213",
+    "spec0140-s1-rewording-177-audit-adhoc"
+   ],
+   "cites_unresolved": [],
+   "concern": null,
+   "implements": [],
+   "init_concern": null,
+   "proposed_by": null,
+   "requires": [],
+   "status": "active",
+   "supersedes": null,
+   "title": "Self-applied carrier decision procedure — route a change to plan|task|followup|record from its own properties; a card's own spec or a requires edge alone does not warrant a plan"
   }
  },
  "tasks_citing": {},

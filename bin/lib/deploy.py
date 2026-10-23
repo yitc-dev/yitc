@@ -3055,9 +3055,185 @@ class _PreDeployTee:
             stream.flush()
 
 
+# ── T-14160 — ONE PASSED RUN MAY STAND FOR A SECOND GATED TARGET, WHERE THE PROJECT OPTS IN (SPEC-1042 rule 3)
+# Every gated deploy runs its own pre-deploy run, unless EVERY class guarding its target declares
+# `reuse_run: {reason}`: then a deploy of candidate X stands on the newest pre-deploy run of X when that
+# run passed whole, ran the same classes under the same declaration, was for another target, its own
+# deploy completed, and it is younger than the project's `pre_deploy_reuse_max_age_minutes`. The deploy
+# still takes the land reservation and makes the SPEC-0094 §6 checks against X.
+
+#: SPEC-1042 rule 3 (T-14160) — the THRESHOLD key bounding the age of a reused run, in minutes
+PRE_DEPLOY_REUSE_MAX_AGE_KEY = "pre_deploy_reuse_max_age_minutes"
+#: SPEC-1042 rules 3-4 (T-14160) — the row an opted-in run writes before it runs, so a newer run that
+#: recorded no result (it did not finish, or its rows could not be written) still ends a reuse
+PRE_DEPLOY_RUN_STARTED = "pre_deploy_run_started"
+
+
+def _pre_deploy_reuse_declared(classes, guarding) -> bool:
+    """T-14160 (SPEC-1042 rule 3) — True when every class in `guarding` (a non-empty list of class
+    names) carries the admitted `reuse_run: {reason}` in the PARSED `classes`. PURE."""
+    from lib import init as _init                        # lazy, as land_verify_legs reaches it
+    by_name = {str(c.get("class") or "").strip(): c for c in classes if isinstance(c, dict)} \
+        if isinstance(classes, list) else {}
+    return bool(guarding) and all(
+        isinstance(by_name.get(g), dict) and _init._pre_deploy_reuse_run_ok(by_name[g].get("reuse_run"))
+        for g in guarding)
+
+
+def _pre_deploy_fingerprint(ops, classes) -> str:
+    """T-14160 (SPEC-1042 rule 3) — the declaration a reused run must have run under: sha256 of the
+    canonical JSON of the contract's `verify:` section and every `moment: pre-deploy` entry of the
+    PARSED `classes`, in declaration order. PURE."""
+    import hashlib
+    verify = ops.get("verify") if isinstance(ops, dict) else None
+    entries = [c for c in (classes if isinstance(classes, list) else ())
+               if isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"]
+    blob = json.dumps({"verify": verify, "classes": entries}, sort_keys=True, separators=(",", ":"),
+                      default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
+
+
+def _pre_deploy_reuse(*, candidate, target, guarding, fingerprint, max_age_s, now, _iter_events) -> dict:
+    """T-14160 (SPEC-1042 rule 3) — the run a gated deploy of `candidate` to `target` may stand on:
+    `{"run_ref": <ref>, "run_target", "age_s"}` when every bound holds, else `{"run_ref": None,
+    "why": <the first bound that failed>}`. ONE read of the `test_class_executed`,
+    `pre_deploy_run_started` and `deploy_completed` rows. The bounds, in order:
+      1. R is the NEWEST pre-deploy run of `candidate`, for any target, by its rows' stamps (its start
+         row included) — a run of the candidate with an unreadable stamp, or two runs at the same newest
+         stamp, leaves no newest, and so does a newest run by stamp that is not the last read; a
+         newest run that recorded its start but no result ends the reuse;
+      2. R was for another target;
+      3. every row of R reads `run_outcome: passed` (a contended or red attempt excludes it);
+      4. R ran exactly the classes in `guarding`;
+      5. every row of R carries `declaration_fingerprint` == `fingerprint`;
+      6. a `deploy_completed` names R as its `pre_deploy_run_ref`, for revision `candidate`, and is not
+         itself a reused one — R's own deploy completed;
+      7. 0 <= now - R's newest stamp <= `max_age_s` (a stamp in the future ends the reuse).
+    PURE but for the read."""
+    def _stamp(ev):
+        ts = ev.get("ts") if isinstance(ev.get("ts"), str) else ""
+        try:
+            d = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+        except ValueError:
+            return None
+        return d.timestamp() if d.tzinfo is not None else None
+
+    runs, started, completed, unstamped, last_seen = {}, {}, set(), False, {}
+    for i, ev in enumerate(_iter_events(types=("test_class_executed", PRE_DEPLOY_RUN_STARTED, "deploy_completed"))):
+        data = ev.get("data") if isinstance(ev, dict) else None
+        if not isinstance(data, dict):
+            continue
+        if ev.get("type") == "deploy_completed":
+            ref = data.get("pre_deploy_run_ref")
+            if isinstance(ref, str) and data.get("revision") == candidate and not data.get("pre_deploy_run_reused"):
+                completed.add(ref)
+            continue
+        if data.get("candidate") != candidate or not isinstance(data.get("run_ref"), str):
+            continue
+        at = _stamp(ev)
+        if at is None:
+            unstamped = True
+            continue
+        last_seen[data["run_ref"]] = i
+        if ev.get("type") == PRE_DEPLOY_RUN_STARTED:
+            started[data["run_ref"]] = max(at, started.get(data["run_ref"], at))
+            continue
+        runs.setdefault(data["run_ref"], []).append((at, data))
+    if unstamped:
+        return {"run_ref": None, "why": f"a pre-deploy run of {candidate[:12]} carries no readable stamp, "
+                                        "so which run is the newest cannot be told"}
+    if not runs and not started:
+        return {"run_ref": None, "why": f"no pre-deploy run of {candidate[:12]} is recorded"}
+    newest = {ref: max([at for at, _ in runs.get(ref, ())] + ([started[ref]] if ref in started else []))
+              for ref in set(runs) | set(started)}
+    top = max(newest.values())
+    tops = [ref for ref, at in newest.items() if at == top]
+    if len(tops) != 1:
+        return {"run_ref": None, "why": f"two pre-deploy runs of {candidate[:12]} share the newest stamp, "
+                                        "so which run is the newest cannot be told"}
+    ref = tops[0]
+    if max(last_seen, key=last_seen.get) != ref:
+        return {"run_ref": None, "why": f"the journal's order and the stamps disagree on which run of "
+                                        f"{candidate[:12]} is the newest (a clock set back?)"}
+    if ref not in runs:
+        return {"run_ref": None, "why": f"the newest run {ref} of {candidate[:12]} recorded its start but no "
+                                        "result (it did not finish, or its rows could not be written)"}
+    rows = [d for _, d in runs[ref]]
+    targets = {d.get("target") for d in rows}
+    if target in targets:
+        return {"run_ref": None, "why": f"the newest run {ref} of {candidate[:12]} was for this target "
+                                        f"`{target}` itself"}
+    if any(d.get("run_outcome") != "passed" for d in rows):
+        return {"run_ref": None, "why": f"the newest run {ref} of {candidate[:12]} did not pass whole "
+                                        f"(run_outcome {sorted({str(d.get('run_outcome')) for d in rows})})"}
+    if {d.get("class") for d in rows} != set(guarding):
+        return {"run_ref": None, "why": f"the newest run {ref} ran the class(es) "
+                                        f"{sorted(str(d.get('class')) for d in rows)}, not the ones guarding "
+                                        f"`{target}` ({sorted(guarding)})"}
+    if any(d.get("declaration_fingerprint") != fingerprint for d in rows):
+        return {"run_ref": None, "why": f"the newest run {ref} ran under another verify section or "
+                                        "pre-deploy declaration (or before `reuse_run:` was declared)"}
+    if ref not in completed:
+        return {"run_ref": None, "why": f"no completed deploy of {candidate[:12]} names the newest run "
+                                        f"{ref} as its own (its deploy did not complete)"}
+    age = now - top
+    if age < 0:
+        return {"run_ref": None, "why": f"the newest run {ref} carries a stamp in the future, so its age "
+                                        "cannot be told"}
+    if age > max_age_s:
+        return {"run_ref": None, "why": f"the newest run {ref} is {int(age // 60)} min old, past the "
+                                        f"{int(max_age_s // 60)} min bound"}
+    return {"run_ref": ref, "run_target": sorted(str(t) for t in targets)[0], "age_s": age}
+
+
+def _pre_deploy_reuse_decision(*, ops, classes, candidate, target, guarding, _iter_events, now=None) -> dict:
+    """T-14160 (SPEC-1042 rule 3) — whether this gated deploy stands on an earlier run:
+    `{"run": <a run result the caller reads as a green run> | None, "fingerprint": <str> | None,
+    "bound": {key, value, source} | None}`. Where NO pre-deploy class of the contract declares
+    `reuse_run:` it reads nothing, prints nothing and returns all three None: the deploy runs its own
+    exactly as before. Where one does, `fingerprint` and `bound` are returned for EVERY gated deploy,
+    so its run writes its start row and its marks whatever target it is for — a run of a target that
+    is not opted in, left without a result, must still end another target's reuse. Only where every
+    class guarding THIS target declares it does it read the project's
+    `pre_deploy_reuse_max_age_minutes` and `_pre_deploy_reuse`, and print the run it stands on, or why
+    it declines and runs its own (a read that raises declines). `bound` is what the rows the
+    threshold decided name (SPEC-1031 rule 6)."""
+    from lib import init as _init
+    if not any(isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"
+               and _init._pre_deploy_reuse_run_ok(c.get("reuse_run"))
+               for c in (classes if isinstance(classes, list) else ())):
+        return {"run": None, "fingerprint": None, "bound": None}
+    from lib import machine_settings
+    fp = _pre_deploy_fingerprint(ops, classes)
+    bound = machine_settings.in_force(PRE_DEPLOY_REUSE_MAX_AGE_KEY, ops=ops)
+    named = {"key": bound["key"], "value": bound["value"], "source": bound["source"]}
+    if not _pre_deploy_reuse_declared(classes, guarding):
+        return {"run": None, "fingerprint": fp, "bound": named}
+    for note in bound.get("notes") or ():
+        print(f"deploy: {note}")
+    try:
+        got = _pre_deploy_reuse(candidate=candidate, target=target, guarding=guarding, fingerprint=fp,
+                                max_age_s=int(bound["value"]) * 60,
+                                now=time.time() if now is None else now, _iter_events=_iter_events)
+    except Exception as exc:  # noqa: BLE001 — a read that cannot answer reuses nothing
+        got = {"run_ref": None, "why": f"the journal could not be read ({exc!r})"}
+    if got.get("run_ref") is None:
+        print(f"deploy: pre-deploy run reuse declined — {got['why']} (SPEC-1042 rule 3); this deploy "
+              f"runs its own pre-deploy run.")
+        return {"run": None, "fingerprint": fp, "bound": named}
+    print(f"deploy: PRE-DEPLOY RUN: REUSED {got['run_ref']} of {candidate} — the run of target "
+          f"`{got['run_target']}`, {int(got['age_s'] // 60)} min old (bound {bound['value']} min, "
+          f"{bound['source']}); every class guarding `{target}` declares `reuse_run:` (SPEC-1042 "
+          f"rule 3), so no run is started. The land reservation and the SPEC-0094 §6 checks follow "
+          f"as on every gated deploy.")
+    return {"run": {"run_ref": got["run_ref"], "passed": True, "contended": False}, "fingerprint": fp,
+            "bound": named}
+
+
 def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROOT, _run_git_cap,
                     _append_event, _iter_events, _consumer_zero_probe_guard, attempt=1, run_ref=None,
-                    history=None, _pre_deploy_beside=None, _pre_deploy_journal=None) -> dict:
+                    history=None, _pre_deploy_beside=None, _pre_deploy_journal=None,
+                    fingerprint=None, reuse_bound=None) -> dict:
     """SPEC-1042 rules 3-4 — RUN one attempt of the pre-deploy run of one gated deploy and RECORD it;
     returns `{run_ref, passed, contended, history, log, unrecorded?}`. Nothing here refuses: the caller
     refuses on `passed: False` and on `unrecorded` (a class row that could not be written, T-14107 —
@@ -3085,7 +3261,20 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
     known; otherwise it says why the red is read at once. The journal is read only then: a green
     run, any other red, or a neighbour seen reads none. The caller then runs attempt 2 with the same
     `run_ref` and attempt 1's `history` (one run, one `seq`), logged to `<run_ref>.attempt-2.log`;
-    attempt 2 reads no contention and records `passed` or `failed`."""
+    attempt 2 reads no contention and records `passed` or `failed`.
+
+    T-14158 — a timeout is a unit's own runner timeout OR a layer's own bound
+    (`_pre_deploy_timeout_only`), and A LONE LAYER TIMEOUT IS RE-RUN ONCE, ALONE: on attempt 1, a red
+    not read contended whose every failure is a layer's own bound (`_pre_deploy_timed_out_layers`)
+    re-runs each such layer once by itself on the same checkout (the runner's `only_layers`), and
+    `_pre_deploy_layer_rescue_merge` folds the re-run in — a pass rescues the layer and names it in
+    the rows' `rescued`; any other end keeps the run red. The contended re-run never re-runs a layer.
+
+    T-14160 — `fingerprint` (`_pre_deploy_fingerprint`) and `reuse_bound` (the age threshold in force),
+    given wherever any pre-deploy class of the contract declares `reuse_run:`, are written on each class row as
+    `declaration_fingerprint` and `pre_deploy_reuse_bound`, and the attempt first writes one
+    `pre_deploy_run_started` row (a start that cannot be written runs nothing and returns
+    `unrecorded`); without them the rows are as before."""
     import contextlib
     import shutil
     from lib import land_verify_legs
@@ -3100,6 +3289,15 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
             history, last_fault = {"last_passed": None, "next_seq": None, "unordered": False}, repr(exc)
     last = history["last_passed"]
     log_rel = f".yitc/pre-deploy-runs/{run_ref}{'' if attempt == 1 else f'.attempt-{attempt}'}.log"
+    if fingerprint:                      # T-14160: an opted-in run records its start before it runs
+        try:
+            _append_event(PRE_DEPLOY_RUN_STARTED, None, {"run_ref": run_ref, "candidate": candidate,
+                                                         "target": target, "attempt": attempt})
+        except (Exception, SystemExit) as exc:  # noqa: BLE001 — refused before anything runs
+            return {"run_ref": run_ref, "passed": False, "contended": False, "history": (history, last_fault),
+                    "log": log_rel, "not_started": True,
+                    "unrecorded": f"its `{PRE_DEPLOY_RUN_STARTED}` row could not be written ({exc!r}), so "
+                                  f"no run was started"}
     watch = _PreDeployBesideWatch(_pre_deploy_beside) \
         if attempt == 1 and _pre_deploy_beside is not None else None
     reads = attempt == 1 and (watch is not None or _pre_deploy_journal is not None)
@@ -3118,6 +3316,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
               f"class(es) {', '.join(guarding)} guarding target `{target}`, on a fresh checkout of "
               f"{candidate} (SPEC-1042 rule 3); log {log_rel}", file=out)
         added = _run_git_cap(["worktree", "add", "--detach", str(scratch), candidate], REPO_ROOT)
+        lone = None                      # T-14158: the layers re-run alone, once each
         try:
             if added.returncode != 0:
                 result = {"mode": "checkout-failed", "layers": [], "bad": [
@@ -3135,45 +3334,78 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                 except Exception as exc:  # noqa: BLE001 — a runner fault is a red run, recorded
                     result = {"mode": "runner-raised", "layers": [],
                               "bad": [f"the land runner raised {exc!r}"]}
+            reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
+            passed = reading["run_outcome"] == "passed"
+            contended, why, beside = False, "", []
+            if reads and not passed:          # T-14106 — every reason of the red, and who ran beside it
+                timeout_only, why = _pre_deploy_timeout_only(result, reading)
+                if timeout_only:
+                    beside = [{**h, "source": "seen"} for h in (watch.seen.values() if watch is not None else ())]
+                    if not beside and _pre_deploy_journal is not None and None not in window:
+                        try:                  # read only now: nobody was seen, and it can change the answer
+                            beside = [{**h, "source": "journal"} for h in _pre_deploy_journal(window[0], window[1]) or ()
+                                      if isinstance(h, dict)]
+                        except Exception:  # noqa: BLE001 — a journal that cannot be read places nobody
+                            beside = []
+                    contended = bool(beside)
+                    if not contended:
+                        why = ("no land or Stage-6 run of this repository was seen beside it, and the "
+                               "journal places none in its window")
+            # T-14158 — A LONE LAYER TIMEOUT IS RE-RUN ONCE, ALONE (SPEC-1042 rule 3): attempt 1, a red
+            # not read contended whose every failure is a layer's own bound — each such layer runs once
+            # more by itself on the same checkout, before it is removed; never on the contended re-run.
+            lone = _pre_deploy_timed_out_layers(result, reading) \
+                if attempt == 1 and not passed and not contended and added.returncode == 0 else None
+            for layer in lone or ():
+                print(f"deploy: PRE-DEPLOY RUN {run_ref} — layer {layer!r} ran out of its own bound and no "
+                      f"other failure stands: re-running that layer ONCE, alone, on the same checkout "
+                      f"(SPEC-1042 rule 3). The runner's lines below are that re-run's — its `only_layers` "
+                      f"path, whose wording names a merge-base attribution re-run; this is not one.", file=out)
+                try:
+                    with contextlib.redirect_stdout(out):
+                        again = _consumer_zero_probe_guard(scratch, only_layers={layer}, pre_deploy={
+                            "classes": decl["classes"], "layers": decl["layers"], "run": True})
+                except Exception as exc:  # noqa: BLE001 — a re-run fault leaves the layer red
+                    again = {"mode": "runner-raised", "layers": [], "bad": [f"the land runner raised {exc!r}"]}
+                result = _pre_deploy_layer_rescue_merge(result, layer, again)
+            if lone:
+                reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
+                passed = reading["run_outcome"] == "passed"
         finally:
             if added.returncode == 0:
                 _run_git_cap(["worktree", "remove", "--force", str(scratch)], REPO_ROOT)
             shutil.rmtree(scratch, ignore_errors=True)
             _run_git_cap(["worktree", "prune"], REPO_ROOT)
-        reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
-        passed = reading["run_outcome"] == "passed"
-        contended, why, beside = False, "", []
-        if reads and not passed:          # T-14106 — every reason of the red, and who ran beside it
-            timeout_only, why = _pre_deploy_timeout_only(result, reading)
-            if timeout_only:
-                beside = [{**h, "source": "seen"} for h in (watch.seen.values() if watch is not None else ())]
-                if not beside and _pre_deploy_journal is not None and None not in window:
-                    try:                  # read only now: nobody was seen, and it can change the answer
-                        beside = [{**h, "source": "journal"} for h in _pre_deploy_journal(window[0], window[1]) or ()
-                                  if isinstance(h, dict)]
-                    except Exception:  # noqa: BLE001 — a journal that cannot be read places nobody
-                        beside = []
-                contended = bool(beside)
-                if not contended:
-                    why = ("no land or Stage-6 run of this repository was seen beside it, and the "
-                           "journal places none in its window")
         run_outcome = "contended" if contended else reading["run_outcome"]
         cards = _pre_deploy_cards_since(last, candidate, REPO_ROOT=REPO_ROOT,
                                         _run_git_cap=_run_git_cap) if last else None
         lines = [f"PRE-DEPLOY RUN: {'PASS' if passed else 'CONTENDED' if contended else 'FAIL'} {candidate} "
                  f"target={target} run_ref={run_ref} attempt={attempt}"]
         if contended:
-            lines.append(f"  CONTENDED — every failure is a unit's own runner timeout and a land or Stage-6 run "
+            lines.append(f"  CONTENDED — every failure is a timeout (a unit's own runner timeout or a layer's own "
+                         f"bound) and a land or Stage-6 run "
                          f"of this repository ran beside the run ({_pre_deploy_beside_said(beside)}): it is "
                          f"re-run once, as attempt 2 (SPEC-1042 rule 3)")
+        elif not passed and lone:        # T-14158: the lone-layer re-run ran and did not rescue the run
+            lines.append("  red — nobody ran beside the run, so it is not re-run; its lone-layer re-run did "
+                         "not rescue it (SPEC-1042 rule 3)")
         elif reads and not passed:
             lines.append(f"  red at once, no re-run — {why} (SPEC-1042 rule 3)")
         elif attempt > 1 and not passed:
             lines.append("  the contended re-run is red too — recorded `failed`, no further run (SPEC-1042 rule 3)")
+        for r in ((result.get("flaky_retry") or {}).get("rows") or ()) if isinstance(result, dict) \
+                and isinstance(result.get("flaky_retry"), dict) else ():
+            if isinstance(r, dict) and r.get("pre_deploy_layer_rescue"):     # T-14158
+                lines.append(f"  layer {r.get('layer')!r} ran out of its own bound with nobody beside the run; "
+                             + ("re-run once alone, it PASSED — rescued (SPEC-1042 rule 3)"
+                                if r.get("isolated") == "pass" else
+                                f"re-run once alone, it ended `{r.get('retry_outcome')}` again — the run is red "
+                                f"(SPEC-1042 rule 3)"))
         lines += [f"  {b}" for b in reading["bad"]]
         lines += [f"  FAILING  {f['layer']}" + (f" :: {f['file']}" if f.get("file") else " (the layer)")
                   + (f" [{f['project']}]" if f.get("project") else "") for f in reading["failing"]]
-        lines += [f"  rescued  {r['layer']} :: {r.get('unit') or r.get('group')}" for r in reading["rescued"]]
+        lines += [f"  rescued  {r['layer']} :: " + (r.get('unit') or r.get('group') or "(the layer, re-run alone)")
+                  for r in reading["rescued"]]
         for c, got in reading["classes"].items():
             lines.append(f"  class {c}: {got['outcome']} ({got['count']} unit(s) of its own"
                          + (f"; membership unreadable on layer(s) {', '.join(got['unattributed'])}"
@@ -3196,15 +3428,19 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                          + (", ".join(cards) if cards else "none"))
         print("\n".join(lines), file=out)
     unrecorded = None
+    costs = _pre_deploy_layer_costs(result)  # T-14161: once per attempt, on its first class row
     try:                                 # T-14107: a row that cannot be written refuses the deploy
-        for c, got in reading["classes"].items():
+        for i, (c, got) in enumerate(reading["classes"].items()):
             _append_event("test_class_executed", None, {
                 "class": c, "outcome": got["outcome"], "evidence": log_rel, "run_ref": run_ref,
                 "candidate": candidate, "target": target, "run_outcome": run_outcome,
                 "failing": reading["failing"], "rescued": reading["rescued"], "attempt": attempt,
                 **({"seq": history["next_seq"]} if history["next_seq"] else {}),
                 "consumer_verify_layers": got["consumer_verify_layers"],
-                **({"unattributed": got["unattributed"]} if got.get("unattributed") else {})})
+                **({"unattributed": got["unattributed"]} if got.get("unattributed") else {}),
+                **({"declaration_fingerprint": fingerprint} if fingerprint else {}),
+                **({"pre_deploy_reuse_bound": reuse_bound} if reuse_bound else {}),
+                **({"layer_costs": costs} if i == 0 else {})})
     except (Exception, SystemExit) as exc:  # noqa: BLE001 — the caller refuses; nothing is launched
         unrecorded = f"the `test_class_executed` row of class `{c}` could not be written ({exc!r})"
     return {"run_ref": run_ref, "passed": passed, "contended": contended, "history": (history, last_fault),
@@ -3245,17 +3481,119 @@ def _pre_deploy_failure_texts(rec) -> "list | None":
     return texts if all(isinstance(t, str) and t.strip() for t in texts) else None
 
 
+def _pre_deploy_bad_prefix(layer) -> str:
+    """The head the land runner gives every `bad` line it writes for one verify layer (T-14158)."""
+    return f"land(consumer): verify layer {layer!r}"
+
+
+def _pre_deploy_layer_timeouts(result) -> list:
+    """PURE — the layers of the land runner's `result` that ran out of their OWN bound (T-14158,
+    SPEC-1042 rule 3): a row ending `timed-out` (the layer's `command:` killed at its bound, or its
+    adapter's `required:` / `run` / report read hitting it), or a `failed` row whose adapter first
+    attempt says `timed-out`. A `prep-failed` or `malformed` row is not one, and neither is a layer
+    whose adapter record also shows another failure: a `list` answer refused as malformed (its
+    `pre_deploy` record says `refused`), a failed `required:` check, a fault of the pass, a void
+    report, or a recorded unit that did not pass otherwise than on its runner's own timeout (an
+    earlier batch's assertion, an `error`, a unit whose failures are not all recorded). Names in row
+    order."""
+    from lib import land_verify_legs
+    res = result if isinstance(result, dict) else {}
+    rows = [r for r in res.get("layers") or () if isinstance(r, dict)] \
+        if isinstance(res.get("layers"), list) else []
+
+    def _other_failure(rec) -> bool:
+        if isinstance(rec.get("pre_deploy"), dict) and rec["pre_deploy"].get("refused"):
+            return True
+        if (isinstance(rec.get("required"), dict) and "failed" in rec["required"]) or rec.get("error") \
+                or rec.get("void"):
+            return True
+        units = rec.get("units")
+        for u in units if isinstance(units, list) else ():
+            if not isinstance(u, dict):
+                return True
+            if u.get("status") in ("passed", "skipped"):
+                continue
+            texts = _pre_deploy_failure_texts(u) if u.get("status") == "failed" else None
+            if texts is None or not all(_PRE_DEPLOY_UNIT_TIMEOUT_RE.search(t) for t in texts):
+                return True
+        return False
+
+    out = []
+    for r in rows:
+        rec = r.get("adapter") if isinstance(r.get("adapter"), dict) else None
+        if rec is not None and _other_failure(rec):
+            continue
+        if r.get("outcome") == "timed-out" or (
+                r.get("outcome") == "failed" and rec is not None
+                and land_verify_legs._adapter_first_attempt(rec) == "timed-out"):
+            out.append(r.get("layer"))
+    return out
+
+
+def _pre_deploy_timed_out_layers(result, reading) -> "list | None":
+    """PURE — T-14158 (SPEC-1042 rule 3): the layers a red pre-deploy run re-runs alone, once each,
+    when nobody ran beside it — every failure of the run is a layer's own bound
+    (`_pre_deploy_layer_timeouts`): `_pre_deploy_timeout_only` holds and no failing entry names a layer
+    that did not time out (a unit timeout elsewhere is red at once with nobody beside it; re-running a
+    layer could not make the run green). None otherwise."""
+    ok, _why = _pre_deploy_timeout_only(result, reading)
+    if not ok:
+        return None
+    timed_out = _pre_deploy_layer_timeouts(result)
+    failing = (reading or {}).get("failing") if isinstance(reading, dict) else None
+    if not timed_out or any(not isinstance(f, dict) or f.get("layer") not in timed_out for f in failing or ()):
+        return None
+    return timed_out
+
+
+def _pre_deploy_layer_rescue_merge(result, layer, again) -> dict:
+    """PURE — T-14158 (SPEC-1042 rule 3): the land runner's `result` after `layer`'s lone re-run
+    `again` (that runner restricted to the one layer). The re-run RESCUES the layer only when it ran
+    the declared layers, wrote no `bad` line and its row for `layer` ended `passed` / `passed-partial`:
+    then that row (marked `retried`, with the first row's `pre_deploy` membership record when the
+    re-run's has none — the same tree's `list`) replaces the first one and the first run's `bad` lines
+    of that layer are dropped. Either way one layer-only `flaky_retry` row is appended —
+    `{layer, isolated: pass|fail, pre_deploy_layer_rescue: true, retry_outcome}` — the shape the
+    reading already names as a layer rescued whole (`_pre_deploy_run_reading`). A failed re-run
+    leaves the first row and its `bad` lines as they were."""
+    res = dict(result) if isinstance(result, dict) else {}
+    rows = [r for r in res.get("layers") or ()] if isinstance(res.get("layers"), list) else []
+    a = again if isinstance(again, dict) else {}
+    arow = next((r for r in a.get("layers") or () if isinstance(r, dict) and r.get("layer") == layer), None) \
+        if isinstance(a.get("layers"), list) else None
+    first = next((r for r in rows if isinstance(r, dict) and r.get("layer") == layer), None)
+    ok = (a.get("mode") == "layers" and not a.get("bad") and first is not None and arow is not None
+          and arow.get("outcome") in ("passed", "passed-partial"))
+    if ok:
+        new = {**arow, "retried": True}
+        frec, nrec = first.get("adapter"), new.get("adapter")
+        if isinstance(frec, dict) and isinstance(frec.get("pre_deploy"), dict) and isinstance(nrec, dict) \
+                and not isinstance(nrec.get("pre_deploy"), dict):
+            new["adapter"] = {**nrec, "pre_deploy": frec["pre_deploy"]}
+        res["layers"] = [new if r is first else r for r in rows]
+        res["bad"] = [b for b in res.get("bad") or () if not str(b).startswith(_pre_deploy_bad_prefix(layer))]
+    retry = dict(res["flaky_retry"]) if isinstance(res.get("flaky_retry"), dict) else {}
+    retry["rows"] = [*(retry.get("rows") if isinstance(retry.get("rows"), list) else ()),
+                     {"layer": layer, "isolated": "pass" if ok else "fail", "pre_deploy_layer_rescue": True,
+                      "retry_outcome": (arow or {}).get("outcome") or a.get("mode")}]
+    res["flaky_retry"] = retry
+    return res
+
+
 def _pre_deploy_timeout_only(result, reading) -> "tuple[bool, str]":
-    """PURE — is EVERY failure reason of a red pre-deploy run a single unit's own runner timeout
-    (SPEC-1042 rule 3, SPEC-1035 §4-5)? `(True, "")`, or `(False, why)` naming the first reason that
-    is not. Read over the land runner's result (`result`) and its reading (`_pre_deploy_run_reading`).
+    """PURE — is EVERY failure reason of a red pre-deploy run a timeout — a single unit's own runner
+    timeout, or (T-14158) a layer's own bound (`_pre_deploy_layer_timeouts`) — (SPEC-1042 rule 3,
+    SPEC-1035 §4-5)? `(True, "")`, or `(False, why)` naming the first reason that is not. Read over
+    the land runner's result (`result`) and its reading (`_pre_deploy_run_reading`). A layer that ran
+    out of its own bound covers every failing entry naming it.
 
     NOT a timeout-only red: a run whose runner did not run the declared layers; a failed layer row
-    whose outcome is not `failed` (an outer timeout `timed-out`, a `prep-failed`, a `malformed`
+    whose outcome is neither `failed` nor its own timeout (a `prep-failed`, a `malformed`
     declaration); a failed layer with no adapter record, or whose first-attempt record
-    (`land_verify_legs._adapter_first_attempt`) is not `units-failed` — a `required:` check, an outer
-    timeout inside the adapter pass, a void or unread report, a fault of the pass; a failing entry that
-    names a layer and no unit; a failing unit whose row is not a `failed` test failure, or one of whose
+    (`land_verify_legs._adapter_first_attempt`) is not `units-failed` — a `required:` check, a void or
+    unread report, a fault of the pass; a `bad` line of the runner that names no failed layer (a
+    malformed `list` membership on a layer that passed included); a failing entry of another layer
+    that names a layer and no unit; a failing unit whose row is not a `failed` test failure, or one of whose
     recorded failures does not carry its runner's timeout message (`_PRE_DEPLOY_UNIT_TIMEOUT_RE`), or
     whose failures are not all recorded; and a re-run attempt of such a unit (`flaky_retry`) that
     ended otherwise than `passed` or in such a timeout."""
@@ -3273,21 +3611,28 @@ def _pre_deploy_timeout_only(result, reading) -> "tuple[bool, str]":
         if isinstance(res.get("layers"), list) else []
     passing = ("passed", "passed-partial", "waived", "skipped-disjoint-subject", "credited-stage6-run")
     failed: dict = {}
+    timed_out = set(_pre_deploy_layer_timeouts(result))   # T-14158: a layer's own bound is a timeout reason
     for row in rows:
         layer, outcome = row.get("layer"), row.get("outcome")
-        if outcome in passing:
+        if outcome in passing or layer in timed_out:
             continue
         if outcome != "failed":
-            return False, f"layer {layer!r} ended `{outcome}`, not on its units"
+            return False, f"layer {layer!r} ended `{outcome}`, not on its units or its own bound"
         rec = row.get("adapter")
         how = land_verify_legs._adapter_first_attempt(rec) if isinstance(rec, dict) else "no adapter record"
         if how != "units-failed":
             return False, f"layer {layer!r} failed as `{how}`, not on its units"
         failed[layer] = rec
+    down = {r.get("layer") for r in rows if r.get("outcome") not in passing}
+    for b in res.get("bad") or ():
+        if not any(str(b).startswith(_pre_deploy_bad_prefix(layer)) for layer in down):
+            return False, f"a failure line names no failed layer of the run: {str(b).splitlines()[0][:200]!r}"
     retry = res.get("flaky_retry") if isinstance(res.get("flaky_retry"), dict) else {}
     reruns = [r for r in retry.get("rows") or () if isinstance(r, dict)] \
         if isinstance(retry.get("rows"), list) else []
     for f in failing:
+        if isinstance(f, dict) and f.get("layer") in timed_out:
+            continue                     # T-14158: covered by its layer's own timeout
         if not (isinstance(f, dict) and isinstance(f.get("file"), str) and f["file"]):
             return False, f"layer {(f or {}).get('layer') if isinstance(f, dict) else f!r} failed with no unit named"
         layer, proj = f.get("layer"), f.get("project") or ""
@@ -3699,6 +4044,24 @@ def _pre_deploy_release(hold) -> None:
             pass
     if hold:
         hold.clear()
+
+
+def _pre_deploy_layer_costs(result) -> list:
+    """PURE — T-14161 (SPEC-1042 rule 4): each layer's wall and summed process CPU in one pre-deploy run
+    attempt, taken off the land runner's OWN layer rows (`result["layers"]`): `duration_ms` (the layer's
+    wall, `_layer_duration_ms`) and `process_cpu_ms` (the summed CPU of the layer's own invocations,
+    `_LayerCpuSampler.finish`) — no reading of its own. One `{layer, duration_ms, process_cpu_ms}` per
+    named layer row, `retried: True` on a row a lone-layer re-run replaced (T-14158); a value that is not
+    a number >= 0 is None; a row that is not a mapping or names no layer is skipped; no rows -> []."""
+    res = result if isinstance(result, dict) else {}
+    rows = res.get("layers") if isinstance(res.get("layers"), list) else []
+
+    def _ms(v):
+        return int(round(v)) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 else None
+
+    return [{"layer": r["layer"], "duration_ms": _ms(r.get("duration_ms")),
+             "process_cpu_ms": _ms(r.get("process_cpu_ms")), **({"retried": True} if r.get("retried") else {})}
+            for r in rows if isinstance(r, dict) and isinstance(r.get("layer"), str) and r["layer"]]
 
 
 class _DeployRunRecorder:
@@ -4853,7 +5216,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # §9 window, before the moment-(b) check below, which so also covers the time the run took. A red
     # run refuses here, above the launch, so it writes no row of the deploy (its class rows are
     # written); nothing else starts a run and no earlier run's row stands in for this one.
-    pre_deploy_run_ref = None
+    pre_deploy_run_ref, pre_deploy_reused = None, False
     if pre_deploy_guarding:
         _main_wt = Path(_main_worktree(REPO_ROOT) or REPO_ROOT)
         _common = _pre_deploy_git_common_dir(_main_wt)
@@ -4869,13 +5232,21 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                         _rows=journal_mod.segment_rows_since))
                         if None not in (_stage6_land_verifies_beside, _pre_deploy_main_journal,
                                         _live_task_worktrees) else None))
-        _run = _pre_deploy_run(**_pdr)
+        # T-14160: where every guarding class declares `reuse_run:`, an earlier run may stand for this one
+        _reuse = _pre_deploy_reuse_decision(ops=ops, classes=pre_deploy_classes, candidate=expected_revision,
+                                            target=pre_deploy_target, guarding=pre_deploy_guarding,
+                                            _iter_events=_iter_events)
+        pre_deploy_reused = _reuse["run"] is not None
+        _opted = {"fingerprint": _reuse["fingerprint"], "reuse_bound": _reuse["bound"]} \
+            if _reuse["fingerprint"] else {}
+        _run = _reuse["run"] if pre_deploy_reused else _pre_deploy_run(**_pdr, **_opted)
         # T-14106: a timeout-only red with a verify beside it runs once more — never an unrecorded one
         if _run["contended"] and not _run.get("unrecorded"):
-            _run = _pre_deploy_run(**_pdr, attempt=2, run_ref=_run["run_ref"], history=_run["history"])
+            _run = _pre_deploy_run(**_pdr, attempt=2, run_ref=_run["run_ref"], history=_run["history"], **_opted)
         if _run.get("unrecorded"):
             print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} "
-                  f"({'green' if _run['passed'] else 'RED'}) could not be recorded: {_run['unrecorded']} "
+                  f"({'not started' if _run.get('not_started') else 'green' if _run['passed'] else 'RED'}) "
+                  f"could not be recorded: {_run['unrecorded']} "
                   f"(SPEC-1042 rule 3 — a command is never launched beside an unrecorded run). Its log "
                   f"is kept at {_run['log']}. The project `deploy:` command was NOT launched, so nothing "
                   f"was deployed; no deploy_completed emitted.", file=sys.stderr)
@@ -4939,6 +5310,9 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         failure_base["target"] = dtarget.name
     if pre_deploy_run_ref is not None:          # T-14105 / SPEC-1042 rule 4: the run this deploy ran
         failure_base["pre_deploy_run_ref"] = pre_deploy_run_ref
+        if pre_deploy_reused:                   # T-14160: it stood on an earlier run, and says so
+            failure_base["pre_deploy_run_reused"] = True
+            failure_base["pre_deploy_reuse_bound"] = _reuse["bound"]
     recorder = _DeployRunRecorder(failure_base, _append_event=_append_event)
     # INHERIT stdout/stderr: the project command runs its own smoke/health check inline and its output
     # is the gate's verdict — the owner/AI must see it live (never captured/swallowed). shell=True so a
@@ -5136,6 +5510,9 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # T-14105 / SPEC-1042 rule 4 — the pre-deploy run this gated deploy ran (absent on every other).
     if pre_deploy_run_ref is not None:
         payload["pre_deploy_run_ref"] = pre_deploy_run_ref
+        if pre_deploy_reused:                   # T-14160 / SPEC-1042 rule 4: the run was an earlier one
+            payload["pre_deploy_run_reused"] = True
+            payload["pre_deploy_reuse_bound"] = _reuse["bound"]   # SPEC-1031 rule 6: the bound that admitted it
 
     # SPEC-0097 §11 — carry the PROOF, not just the claim: which services were verified, what each
     # reported, and which were declared out of scope. A payload FIELD on the existing event, never a

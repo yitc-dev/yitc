@@ -1,0 +1,138 @@
+id: SPEC-1043
+title: Self-applied carrier decision procedure — route a change to plan|task|followup|record
+  from its own properties; a card's own spec or a requires edge alone does not warrant
+  a plan
+status: active
+created_at: 2026-10-23 10:32:52+00:00
+travels: null
+consumed: false
+extension: null
+implements: []
+body: "## Scenario\n\nA change arises (from an owner cue, a cross-log intake, a mid-work\
+  \ realization). Before ANY\nwork the AI must pick its CARRIER — plan, one-or-a-few\
+  \ tasks, a staged followup, or a plain\nrecord. LIFECYCLE §Routing describes the\
+  \ fork narratively, but the AI reads it as a JUDGEMENT\nto adjudicate rather than\
+  \ a procedure to RUN — so it pauses and poses the fork to the owner\n(\"plan or\
+  \ task?\"). That is a false ask: the answer is fully determined by the change's\
+  \ OWN\nproperties, which the AI can already. This spec makes the fork a MECHANICAL\
+  \ self-applied\nsieve: the AI runs it and proceeds; it escalates to the owner only\
+  \ a genuine decision (an\nambiguous SCOPE, a real trade-off), NEVER the carrier\
+  \ choice itself.\n\n## Internal\n\nTHE CARRIER SIEVE — ordered, first-match-wins,\
+  \ LIGHTEST-first. Each branch's condition is\nanswerable from the change's own properties\
+  \ (no human input). Run top to bottom; take the\nfirst branch whose condition holds.\n\
+  \n- **S0 — Record-only?** Does the change only RECORD an already-true fact — a probe\
+  \ that already\n  passed, a journal state that already holds — authoring NOTHING\
+  \ new? → the carrier is a\n  **no-worktree capture** (`event` / `followup` / by-record\
+  \ evidence), **NOT a task at all**\n  (nothing authored ⇒ no audit applies).\n*Worked\
+  \ example — the due-reading settle.* The late-linkage SETTLE of a deferred acceptance\n\
+  probe or of a post-ship observation is an S0 carrier, and TAKING the due reading\
+  \ is part of\nthat record, so it gets **no task card**.\nA card is warranted\nonly\
+  \ when the reading needs a NEW instrument or a code change. Settle semantics are\
+  \ owned by\nSPEC-0015 (pointer only, not restated here).\n\n- **Open-spike change?**\
+  \ Is this an AUTHORED change to what an open spike is exploring? → it goes\nINTO\
+  \ the spike (no carrier), unless a SPEC-0205 rule 10 exception applies (the exceptions\
+  \ live\nthere, not here). A record-only change still takes S0 first.\n\n- **S1 —\
+  \ Plan-warranted?** Does the change need AT LEAST ONE of the following, identifiable\
+  \ from\n  the change's own scope and acceptance conditions?\n    (a) **design-convergence\
+  \ on real data** — the answer is not yet known and must be found by\n        trialling\
+  \ against live data (the `trial` stage, SPEC-0035);\n    (b) a **new or changed\
+  \ coherent standing-rule SPEC corpus** (SPEC-1037) — several new or\n        changed\
+  \ standing rules define a shared contract and must agree before implementation;\n\
+  \        authoring, restating or editing a card's own SPEC is not sufficient by\
+  \ itself;\n    (c) a **coordinated multi-task cut whose slicing must be fidelity-audited**\
+  \ (SPEC-0070 /\n        SPEC-0034 / SPEC-0046) — the allocation of scope and cross-card\
+  \ obligations must be\n        checked together to establish the original acceptance\
+  \ conditions. A `requires` edge\n        alone is not sufficient. Separate shipment\
+  \ or rollback does not remove the need for\n        this check.\n  If YES → **PLAN**\
+  \ (gate-specs, draft `plan check`, decomposition-fidelity audit, and\n  aggregate\
+  \ `audit post --plan`). Otherwise continue to **S2**.\n  External or irreversible\
+  \ effects warrant PLAN when their design or safeguards require\n  (a), (b), or (c);\
+  \ their presence alone is not a separate carrier criterion.\n  A one-claim or presentational\
+  \ change that meets none of these conditions does not warrant PLAN.\n\n- **S2 —\
+  \ Default → one, or a few, bare TASKS.** Everything else. A bare task carries 0\
+  \ external\n  audits (hygiene fast-path) or 2 (substantive: audit-pre + audit-post).\
+  \ A few related changes →\n  a few tasks ordered by `requires:` (SPEC-0046). A mid-work\
+  \ dodelka not yet worth the full\n  lifecycle → `followup add` (SPEC-0095) as the\
+  \ **staging buffer**, drained later into a task —\n  a followup is a FORM of the\
+  \ task branch (a deferred task), NOT a fourth carrier.\n\n- **Authored reference\
+  \ note realized mid-work (a `lesson` SPEC-0090, a `patterns/` note) —\n  capture\
+  \ cheap, author BATCHED.** An authored reference artifact is neither S0 record-only\
+  \ (it\n  authors new content) nor an S2 dodelka/task, so it has no lightweight sieve\
+  \ branch of its own —\n  and paying a full worktree->land cycle PER note at the\
+  \ moment of realization costs a ceremony\n  per note. Instead: capture the insight\
+  \ IMMEDIATELY with `followup add`\n  (SPEC-0095 — no worktree, nothing lost), then\
+  \ DRAIN accumulated notes by authoring the files\n  together in ONE `work/<slug>`\
+  \ worktree and landing once (many notes, one land). ** is\n  UNCHANGED** — the authored\
+  \ FILE still rides a worktree (isolation protects a graph-indexed\n  durable artifact);\
+  \ only the AT-REALIZATION capture is worktree-free, exactly as a followup is.\n\
+  \  This removes the ceremony-per-note cost WITHOUT a new no-worktree authoring verb\
+  \ or a\n  carve-out (the lightweight path is the composition of two existing rails,\
+  \ not a fourth carrier).\n\n**Self-applied discipline (the point of this spec).**\
+  \ Running the sieve REPLACES the reflex\n\"when unsure, ask the owner plan-or-task\"\
+  . Uncertainty about the CARRIER is resolved by the\nsieve, not by an ask. What IS\
+  \ escalated (P7 dissonance / AGENTS §when-to-ask) is a genuine owner\ndecision —\
+  \ an ambiguous or contested SCOPE, a real product trade-off — never which carrier\
+  \ a\nwell-specified change takes. When two branches seem to both fit, the ORDER\
+  \ decides: lightest\nwins (S0 before S1 before S2), because a heavier carrier is\
+  \ not \"safer\", it only pays audits the\nchange does not need.\n\n## Rationale\n\
+  \nReal incident (the self-case): **X-0213** — the plan-vs-task carrier choice kept\
+  \ being posed to\nthe owner instead of self-resolved. Live incident **2026-07-07**:\
+  \ during a cross-log intake the\nController hesitated on plan-vs-task for **X-0216\
+  \ / X-0217 / X-0218** and asked the owner rather\nthan running the fork — the owner\
+  \ identified this as X-0213's OWN motivating case. Prior-art: the\nfork already\
+  \ lived as narrative in LIFECYCLE §Routing (SPEC-0046 decomposition, SPEC-0034 plan\n\
+  lifecycle, SPEC-0072 effort-tier on a different axis) but was not framed as a mechanical\n\
+  self-answerable procedure, so it read as an adjudication. This spec is the ONE home\
+  \ of the\nprocedure body; LIFECYCLE §Routing keeps only a cue+pointer (SPEC-1037\
+  \ rule 8).\n\n### Successor of <workshop-spec>\n<workshop-spec> stated S1 as (a)\
+  \ a new or changed standing-rule spec corpus, (b) a coordinated\nmulti-task cut,\
+  \ (c) a real-data trial, and let a change proving ONE claim with no new spec corpus\n\
+  override all three. Read literally, every card edits its own spec and any two cards\
+  \ may be\n`requires`-ordered, so (a) and (b) sent almost every change to a plan.\
+  \ A consumer project measured it\n(issue 177 on the kernel's public tracker; 17\
+  \ plans between 2026-10-02 and 2026-10-13): 172 paid\nplan-gate rounds plus 81 ad-hoc\
+  \ reviews, 5 plans cancelled, 3 of them shipped as plain card chains,\nand no plan\
+  \ ever entered trial. The external consult on the proposed rewording\n(`decisions/spec0140-s1-rewording-177-audit-adhoc.yaml`,\
+  \ YELLOW, 2026-10-23) kept a changed rule\ncorpus and a fidelity-audited cut as\
+  \ plan grounds, named a card's own spec and a bare `requires`\nedge as insufficient,\
+  \ dropped a stand-alone cost threshold for external or irreversible effects,\nand\
+  \ replaced the one-claim override; S1 above is its wording. Because the new S1 routes\
+  \ some\nalready-covered cases differently (an own-spec-only card: plan to task;\
+  \ a one-claim trial: task to\nplan), it is a successor rather than an edit in place\
+  \ (SPEC-1037 rule 7).\nLetters before this successor: (a) = rule corpus, (b) = multi-task\
+  \ cut, (c) = real-data trial; a\ndated plan or card citing «S1(a)» or «S1(b)» used\
+  \ that order.\n\n### History moved from the rule text\n- From «S0»: the mis-routing\
+  \ — a \"record the cron graded X\" task paid 2 audits + 9 stages for\n  a pure record.\n\
+  - From «S0 worked example»: counter-examples (a whole task for one post-ship reading)\
+  \ and the\n  2026-09-26 drain routed through six cards.\n- From «S1»: never route\
+  \ a tiny or presentational change through a plan — the X-0074 ~8-10-audit\n  cascade.\n\
+  - From «Authored reference note»: the per-note ceremony is the X-0148 ceremony-per-lesson\
+  \ pain.\n\n## Verification\n\n- State-probe: `bin/yitc-v2 graph query SPEC-1043`\
+  \ resolves this spec + body (query-only tier),\n  and S1 carries the three branches\
+  \ (a) real-data trial, (b) coherent rule corpus with a card's own\n  spec not sufficient,\
+  \ (c) fidelity-audited cut with a `requires` edge alone not sufficient, plus\n \
+  \ the external-or-irreversible sentence.\n- State-probe: LIFECYCLE §Routing, the\
+  \ SPEC-0034 plan-TYPES row and the capture-routing view\n  (SPEC-0157) point at\
+  \ SPEC-1043 (reachable at the routing moment) — grep `SPEC-1043`.\n- Adoption (live-trigger):\
+  \ the next carrier choice after activation cites this S1 and proceeds\n  without\
+  \ posing the fork to the owner.\n"
+cites:
+- SPEC-1037
+- spec0140-s1-rewording-177-audit-adhoc
+- CHARTER.md#principle-1
+- CHARTER.md#principle-7
+- LIFECYCLE.md#routing-which-carrier
+- SPEC-0046
+- SPEC-0034
+- SPEC-0072
+- SPEC-0035
+- SPEC-0070
+- SPEC-0095
+- X-0213
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null

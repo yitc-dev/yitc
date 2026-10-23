@@ -15822,6 +15822,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         r = None
         _term_grace = ("", {})
         land_verify_legs._layer_kill.ending = None   # T-13993: no earlier layer's ending is read as this one's
+        land_verify_legs._layer_name.name = name     # T-14157: the name a stopped run records this layer under
         try:
             if _adapter_first:
                 _pre.append(_adapter_pass(timeout=effective_timeout, env=_layer_env,

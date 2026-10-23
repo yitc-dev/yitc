@@ -20,8 +20,10 @@ The algorithm is ported from the trial prototype `dev-utilities/trial-spike-cont
 """
 from __future__ import annotations
 
+import concurrent.futures
 import hashlib
 import json
+import os
 import re
 import subprocess
 import time
@@ -208,14 +210,29 @@ def _diff_files(repo, base, tip) -> list:
     return parse_hunks(_git(repo, "diff", "-M", "-U0", "--no-color", "--no-ext-diff", f"{base}..{tip}", raw=True))
 
 
-def hunk_set(repo, base, tip, main, exempt_acc=None, by_path=None) -> Counter:
+def _diff_files_many(repo, ranges) -> dict:
+    """T-14147 — `_diff_files` for every DISTINCT `(base, tip)` in `ranges`, the independent read-only
+    diffs run concurrently: {(base, tip): parsed files}. Same diffs, same parse, so the verdict is the
+    sequential one; only the wall time inside the land reservation drops (ten sequential diffs measured
+    6.85 s, 1.33 s concurrent). A failing diff re-raises from `.result()`, as the sequential call did."""
+    ranges = list(dict.fromkeys(ranges))
+    if len(ranges) < 2:
+        return {r: _diff_files(repo, *r) for r in ranges}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(ranges), os.cpu_count() or 4)) as pool:
+        futures = {r: pool.submit(_diff_files, repo, *r) for r in ranges}
+        return {r: f.result() for r, f in futures.items()}
+
+
+def hunk_set(repo, base, tip, main, exempt_acc=None, by_path=None, files=None) -> Counter:
     """H(X) as a multiset of canonical hunk keys; binary files and MAIN-exempt paths skipped. `by_path`
     (T-13856), when given, receives — for each file this call counted whose patch header names a path
     — the keys it counted for that file, and nothing for a file it skipped: what a caller takes back
     out for a file is then something this call put in for it. The exemption reads each file by its
     one-path header name, unquoted, passed NUL-framed (T-14079): a name git quotes is exempt like any
-    other; a file with no such header (a deletion) keeps the `diff --git` name."""
-    files = _diff_files(repo, base, tip)
+    other; a file with no such header (a deletion) keeps the `diff --git` name. `files` (T-14147) is
+    this range's `_diff_files` result when the caller already fetched it."""
+    if files is None:
+        files = _diff_files(repo, base, tip)
     names = [f.get("new_path") or f["path"] for f in files]
     ex = exempt_paths(repo, main, names, nul=True)
     if exempt_acc is not None:
@@ -347,6 +364,15 @@ def consumed_prototype_ships(tasks_dir, spike_refs) -> list:
     from lib import state as _state   # noqa: PLC0415 — the governed card reader (memoized)
     ships = []
     for f in sorted(Path(tasks_dir).glob("T-*.yaml")):
+        # T-14147 — skip the YAML parse (~5.4k cards, ~2.6 s) of a card that cannot carry the key: one
+        # whose bytes neither write it literally nor hold a backslash, the only way a YAML double-quoted
+        # scalar spells a character it does not write (`"prototype\u005fref"`). Unreadable -> parsed.
+        try:
+            raw = f.read_bytes()
+            if b"prototype_ref" not in raw and b"\\" not in raw:
+                continue
+        except OSError:
+            pass
         card = _state.load_path(f)
         if not isinstance(card, dict) or str(card.get("prototype_ref") or "") not in wanted:
             continue
@@ -544,19 +570,23 @@ def content_verdict(repo, landing, spikes, main="main", consumed_refs=(), declar
     `declared_identical`; against every other spike the landing is judged whole, as before."""
     exempt = set()
     mb_l = _git(repo, "merge-base", main, landing).strip()
+    mb_s = {s: _git(repo, "merge-base", main, s).strip() for s in spikes}
+    # T-14147 — every diff below is fetched up front, concurrently; each hunk_set reads its own range.
+    diffs = _diff_files_many(repo, [(mb_l, landing), (mb_l, main), *((f"{ship}^", ship) for ship in consumed_refs),
+                                    *((mb_s[s], s) for s in spikes)])
     counted = {}     # T-13856 — per landing path, the hunk keys H_L holds for it
-    H_L = hunk_set(repo, mb_l, landing, main, exempt, by_path=counted)
+    H_L = hunk_set(repo, mb_l, landing, main, exempt, by_path=counted, files=diffs[(mb_l, landing)])
     blobs_L = {b: p for b, p in changed_blobs(repo, mb_l, landing).items()}
     ex_L = exempt_paths(repo, main, blobs_L.values())
     exempt |= ex_L
     main_tree = tree_blobs(repo, main)
-    H_main = hunk_set(repo, mb_l, main, main)
+    H_main = hunk_set(repo, mb_l, main, main, files=diffs[(mb_l, main)])
     for ship in consumed_refs:
-        H_main = H_main | hunk_set(repo, f"{ship}^", ship, main)
+        H_main = H_main | hunk_set(repo, f"{ship}^", ship, main, files=diffs[(f"{ship}^", ship)])
     folds = {}
     for s in spikes:
-        mb_s = _git(repo, "merge-base", main, s).strip()
-        folds[s] = {"H": hunk_set(repo, mb_s, s, main), "blobs": changed_blobs(repo, mb_s, s)}
+        folds[s] = {"H": hunk_set(repo, mb_s[s], s, main, files=diffs[(mb_s[s], s)]),
+                    "blobs": changed_blobs(repo, mb_s[s], s)}
     nHL = sum(H_L.values())
     res = {"verdict": "none", "t1_hits": [], "t1_spikes": [], "spikes_matched": [], "t3_verdict": "none",
            "share": None, "best_spike": None, "ambiguous": False, "ambiguous_spikes": [],

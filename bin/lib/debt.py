@@ -6330,7 +6330,7 @@ def load_sensitive_ratification(line) -> "str | None":
     return m.group(1) if m else None
 
 
-def load_sensitive_carded(tasks_dir, ids_out=None) -> dict:
+def load_sensitive_carded(tasks_dir, ids_out=None, holders_out=None) -> dict:
     """Fold `tasks/*.yaml` → `{fingerprint: task_id}` for every NON-TERMINAL card that declares it
     holds a declared load-sensitive file (SPEC-0119 rule 41, T-12359).
 
@@ -6346,6 +6346,11 @@ def load_sensitive_carded(tasks_dir, ids_out=None) -> dict:
         an accident: EXISTENCE is permanent where the non-terminal fold below is not, which is what
         lets a ratification naming a long-closed card stay discharged (SPEC-0119 rule 41). Callers
         that pass nothing are byte-identically unaffected.
+      holders_out: OPTIONAL out-channel (T-14155) — a dict the SAME walk fills with
+        `{fingerprint: {"task", "status", "created_at"}}` for every non-terminal holder, so the
+        waiting reading (`load_sensitive_waiting`) can tell a card nobody has started from one in
+        work without a second scan. The return value is unchanged: the land-tail filer's
+        idempotency still treats every non-terminal card as holding the file.
 
     NON-TERMINAL means status is neither `done` nor `wont-do`. Both terminal statuses are terminal in
     the direction that holds nothing: a `done` card that removed the line leaves no listed file to
@@ -6386,7 +6391,103 @@ def load_sensitive_carded(tasks_dir, ids_out=None) -> dict:
         for raw in (cites if isinstance(cites, list) else []):
             if isinstance(raw, str) and raw.strip().startswith(LOAD_SENSITIVE_FP_PREFIX):
                 out[raw.strip()] = tid.strip()
+                if holders_out is not None:
+                    holders_out[raw.strip()] = {"task": tid.strip(), "status": doc.get("status"),
+                                                "created_at": doc.get("created_at")}
     return out
+
+
+def load_sensitive_waiting(listed, holders, *, seconds=None, card_ids=None, today=None) -> dict:
+    """SPEC-0119 rule 41 (T-14155): the declared load-sensitive files a card HOLDS but has not yet
+    removed — the reading the `carded` suppression used to hide.
+
+    A card citing the fingerprint silences the uncarded line, and that is right for its claim ("no
+    card"). It was wrong as the ONLY reading: the land tail files a `ready` card the moment a file
+    enters the set, so the file left the echo at once while it still ran serialized on every verify,
+    and a card nobody dispatched stayed invisible (ten such cards sat ready on 2026-10-22). This fold
+    keeps those files in view until the card LANDS.
+
+    Args:
+      listed: `{<test basename>: <carrier line>}` from the runner's own parser (as the uncarded fold).
+      holders: the `holders_out` channel of `load_sensitive_carded` — `{fp: {task, status,
+        created_at}}` for every non-terminal holder.
+      seconds: `{<basename>: seconds}` from the duration table (`load_sensitive_file_seconds`);
+        a file it does not list reads as unrecorded (None), never as zero.
+      card_ids: every card id in the corpus — a line RATIFIED by an existing card is a recorded
+        decision and is not listed here, as in the uncarded fold.
+      today: the date ages are counted to (UTC today when None).
+
+    A `ready` holder → `not started` with the days since the card was filed (None when its
+    `created_at` does not parse); an `in-progress` holder → `in work`; any other non-terminal status
+    (`parked`, a legacy `blocked`) → no row: a parked card is a recorded decision with a return
+    trigger. A terminal card is never a holder, so its file returns to the uncarded line or, once
+    its line is gone, to nothing. PURE: no I/O, no clock beyond the `today` default."""
+    _today = today or datetime.now(timezone.utc).date()
+    rows = []
+    for name in sorted(listed or {}):
+        holder = (holders or {}).get(load_sensitive_fingerprint(name))
+        if not isinstance(holder, dict):
+            continue
+        _rat = load_sensitive_ratification((listed or {}).get(name) or "")
+        if _rat and _rat in (card_ids or ()):
+            continue
+        status = holder.get("status")
+        if status == "ready":
+            state_word = "not started"
+        elif status == "in-progress":
+            state_word = "in work"
+        else:
+            continue
+        days = None
+        try:
+            filed = datetime.fromisoformat(str(holder.get("created_at") or "").replace("Z", "+00:00"))
+            days = max(0, (_today - filed.date()).days)
+        except (ValueError, TypeError):
+            days = None
+        secs = (seconds or {}).get(name)
+        rows.append({"file": name, "task": holder.get("task"), "state": state_word,
+                     "ready_days": days if state_word == "not started" else None,
+                     "seconds": float(secs) if isinstance(secs, (int, float)) else None})
+    return {"count": len(rows), "files": rows}
+
+
+def autofiled_ready_cards(tasks_dir, *, hours, hours_source="built-in", now=None) -> dict:
+    """SPEC-0119 rule 46 (T-14155): the cards the ENGINE filed (`created_by: engine-auto-file`) that
+    are still `ready` past `hours` — debt the engine created and nobody has taken into work.
+
+    Session start runs no queue scan (T-0510), and this keeps it that way: the subject is the
+    debt-born cards only, never the ready queue. A hand-filed card is never named, whatever its age.
+    A card whose `created_at` does not parse is skipped — its age cannot be shown past the
+    threshold, and a report-only nag fails toward silence rather than toward a guessed age.
+
+    Returns `{"count", "hours", "hours_source", "cards": [{"task", "age_h"}]}`, oldest first —
+    `hours_source` is where the threshold came from, carried so the line names it (SPEC-1031 rule 6). Reads through the
+    memoised `state.card_status` / `state.load_path` pair, status first. Never raises."""
+    _now = now or datetime.now(timezone.utc)
+    cards = []
+    try:
+        paths = list(state.scan_tasks(Path(tasks_dir)))
+    except (OSError, TypeError):
+        paths = []
+    for path in paths:
+        try:
+            if state.card_status(path) != "ready":
+                continue
+            doc = state.load_path(path)
+        except Exception:                          # noqa: BLE001 — a debt row never breaks a seam
+            continue
+        if not isinstance(doc, dict) or doc.get("created_by") != "engine-auto-file":
+            continue
+        tid = doc.get("id")
+        try:
+            filed = datetime.fromisoformat(str(doc.get("created_at") or "").replace("Z", "+00:00"))
+            age_h = (_now - filed).total_seconds() / 3600.0
+        except (ValueError, TypeError):
+            continue
+        if isinstance(tid, str) and tid.strip() and age_h >= hours:
+            cards.append({"task": tid.strip(), "age_h": int(age_h)})
+    cards.sort(key=lambda c: -c["age_h"])
+    return {"count": len(cards), "hours": hours, "hours_source": hours_source, "cards": cards}
 
 
 def load_sensitive_uncarded(listed, carded, card_ids=None) -> dict:
@@ -9620,6 +9721,51 @@ def _lane_carrier_files(path) -> list:
     return list(_lane_carrier_entries(path))
 
 
+def _lane_table(table_path) -> "tuple[float, dict]":
+    """`(unit_ms, {basename: units})` from the FIXED duration table; raises on an unusable one (the
+    caller decides what a fault means). Split out by T-14155 so the per-file reading below and the
+    lane fold read the table one way."""
+    payload = json.loads(Path(table_path).read_text(encoding="utf-8"))
+    unit_ms = float(payload.get("unit_ms") or 0) or 0.0
+    files = payload.get("files") or {}
+    if not isinstance(files, dict) or unit_ms <= 0:
+        raise ValueError("unusable duration table")
+    return unit_ms, files
+
+
+def load_sensitive_file_seconds(root=None, *, table=None) -> dict:
+    """`{basename: recorded seconds}` from the duration table (T-14155) — the cost one serialized
+    file adds to each verify run, as the lane line sums it. Empty on any read fault: the waiting line
+    then says the cost is unrecorded rather than printing a number nobody measured."""
+    base = Path(root) if root else Path(__file__).resolve().parents[2]
+    try:
+        unit_ms, files = _lane_table(Path(table) if table else base / "tests" / LOAD_SENSITIVE_TABLE)
+    except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError):
+        return {}
+    out = {}
+    for name, units in files.items():
+        try:
+            out[name] = round((float(units) * unit_ms) / 1000.0, 1)
+        except (TypeError, ValueError):
+            continue
+    return out
+
+
+_AUTOFILED_READY_KEY = "YITC_DEBT_AUTOFILED_READY_HOURS"
+
+
+def autofiled_ready_hours(*, root=None, env: "dict | None" = None) -> dict:
+    """SPEC-0119 rule 46 (T-14155): how long an engine-auto-filed card may sit `ready` before the
+    session-start line names it — a THRESHOLD the project at `root` may set in its yitc-ops.yaml
+    `thresholds:` (default 24), read through the same resolver as the lane bounds. Returns
+    `{"value", "source"}` so the line names both (SPEC-1031 rule 6); an ignored section entry is
+    named once on stderr (rule 5)."""
+    from lib import machine_settings              # deferred: the hot import graph is unchanged
+    row = _lane_bound(_AUTOFILED_READY_KEY, env=env, ops=_lane_ops(root))
+    machine_settings.say_notes(row["notes"])
+    return {"value": row["value"], "source": row["source"]}
+
+
 def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None, today=None) -> dict:
     """T-12360 — the SEQUENTIAL-TAIL reading of the declared load-sensitive lane, folded from the two
     artifacts that already exist: the carrier `tests/load-sensitive.txt` (T-12358) and the FIXED
@@ -9659,11 +9805,7 @@ def load_sensitive_lane(root=None, *, carrier=None, table=None, env=None, today=
     if not listed:
         return out
     try:
-        payload = json.loads(Path(table_path).read_text(encoding="utf-8"))
-        unit_ms = float(payload.get("unit_ms") or 0) or 0.0
-        files = payload.get("files") or {}
-        if not isinstance(files, dict) or unit_ms <= 0:
-            raise ValueError("unusable duration table")
+        unit_ms, files = _lane_table(table_path)
     except (OSError, UnicodeDecodeError, ValueError, TypeError, AttributeError):
         # FAIL-SILENT, the whole way (audit-post pass-1 finding 1). An earlier draft returned the
         # carrier COUNT here and could mark a files-crossing off it — which is exactly the shape the
@@ -10533,6 +10675,12 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # re-fold — with no new store, no new event and no new verb. A repo whose carrier is
                 # absent or fully carded folds to 0 → suppressed.
                 _load_sensitive_uncarded=_load_sensitive_uncarded_view,
+                # T-14155 (SPEC-0119 rule 46): the engine-auto-filed cards still `ready` past the
+                # project threshold. A `tasks/` fold over THIS repo, bound from the REPO_ROOT already
+                # injected here, so it reaches every seam this residue feeds with no new collaborator.
+                _autofiled_ready=lambda: (lambda _h: debt_mod.autofiled_ready_cards(
+                    Path(REPO_ROOT) / "tasks", hours=_h["value"], hours_source=_h["source"]))(
+                    debt_mod.autofiled_ready_hours(root=REPO_ROOT)),
                 _unpickable_ready=_unpickable_ready_view,
                 # T-11211 (SPEC-0119 rule 22): the own-evidence uncited-pattern fold. Wired at this SAME one
                 # shared residue as every sibling, so ONE site buys all three debt seams (`-C` session-start /

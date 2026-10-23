@@ -14453,7 +14453,133 @@ def refuse_kernel_local_placement(args, *, kernel: bool, _die) -> None:
              f"without it (`--placement auto` is the default).")
 
 
+#: T-14157 — the Stage-6 run a SIGTERM / SIGINT stops: written by `_arm_stage6_stop` when the run
+#: starts, read by the one writer `_record_stage6_stop` once the run has unwound.
+_S6_STOP: dict = {}
+
+
+def _arm_stage6_stop(tid, t0, *, _signal_mod=None) -> None:
+    """T-14157 — from the start of a `task test --run` run to `_stage6_stop_point`, a SIGTERM or SIGINT
+    stops the run instead of ending the verb at once. The handler only RECORDS the stop
+    (`land_verify_legs.request_layer_stop`), which raises it on the main thread as an interrupt does;
+    every verify layer then ends its own process group and the run unwinds to `_stage6_stop_recorder`.
+    Only the run's first signal acts; a later one is a no-op until the record is written. The prior
+    disposition is recorded BEFORE the handler is installed. Armed on the main thread only, and never
+    over a signal the verb was started with ignored."""
+    import signal as _sig
+    import threading as _thr
+    from lib import land_verify_legs as _lvl
+    mod = _signal_mod if _signal_mod is not None else _sig
+    _stage6_stop_disarm()
+    _lvl.reset_layer_stop()
+    _S6_STOP.update(tid=tid, t0=t0, mod=mod, previous={})
+    if _signal_mod is None and _thr.current_thread() is not _thr.main_thread():
+        return
+    previous = _S6_STOP["previous"]
+
+    def _handler(signo, _frame):
+        _lvl.request_layer_stop(signo)
+
+    for name in ("SIGTERM", "SIGINT"):
+        signo = getattr(mod, name, None)
+        if signo is None:
+            continue
+        try:
+            prior = mod.getsignal(signo)
+            if prior == mod.SIG_IGN:
+                continue
+            previous[signo] = prior
+            mod.signal(signo, _handler)
+        except (OSError, ValueError, RuntimeError):
+            if mod.getsignal(signo) is not _handler:
+                previous.pop(signo, None)
+
+
+def _stage6_stop_disarm() -> None:
+    """T-14157 — give back the dispositions `_arm_stage6_stop` replaced. The record of them is dropped
+    only after every one is restored, so a disarm cut short is completed by the next. Idempotent;
+    never raises."""
+    previous = _S6_STOP.get("previous") or {}
+    mod = _S6_STOP.get("mod")
+    for signo, prior in list(previous.items()):
+        try:
+            mod.signal(signo, prior if prior is not None else mod.SIG_DFL)
+        except Exception:   # noqa: BLE001
+            pass
+    _S6_STOP.pop("previous", None)
+
+
+def _stage6_stop_point(*, _kill=None) -> None:
+    """T-14157 — the run's wall closes. It takes the run's one stop slot FIRST
+    (`land_verify_legs.close_layer_stop`): when a signal took it before — a stop recorded but never
+    raised, a catch-all on the way swallowed it — that stop is raised now, so a stopped run never
+    reaches its verdict rows; otherwise the prior dispositions are given back (a signal after that
+    ends the verb as before), and a signal that reached the handler between the slot and the last
+    restore is re-delivered under them — so no signal after the run is lost."""
+    from lib import land_verify_legs as _lvl
+    signo = _lvl.close_layer_stop()
+    if signo is not None:
+        raise _lvl.LayerRunStopped(signo)
+    _stage6_stop_disarm()
+    late = _lvl.late_layer_signal()
+    if late is not None:
+        (_kill if _kill is not None else os.kill)(os.getpid(), late)
+
+
+def _record_stage6_stop(signo, _append_event, *, _kill=None, _out=None) -> None:
+    """T-14157 — THE ONE WRITER of a stopped run's record, on the main thread after the run unwound.
+    It waits until every layer runner has returned (each ended its own group), writes ONE
+    `tests_cancelled` row naming the signal and the layers it stopped, says so on stdout, and only then
+    gives back the verb's prior dispositions and re-delivers the signal, so the verb exits by it. The
+    row is neither a pass nor a failure: no reader of Stage-6 verdict rows reads it."""
+    import signal as _sig
+    from lib import land_verify_legs as _lvl
+    _lvl.wait_layer_runs()
+    tid, t0 = _S6_STOP.get("tid"), _S6_STOP.get("t0")
+    layers = _lvl.stopped_layer_labels()
+    try:
+        name = _sig.Signals(signo).name
+    except ValueError:
+        name = str(signo)
+    row = {"signal": name, "layers": layers}
+    if t0 is not None:
+        row["duration_ms"] = max(0, int((time.monotonic() - t0) * 1000))
+    try:
+        _append_event("tests_cancelled", tid, row)
+        recorded = "tests_cancelled recorded"
+    except Exception as exc:   # noqa: BLE001 — the verb still exits by the signal
+        recorded = f"the tests_cancelled row could NOT be written ({exc!r})"
+    try:
+        print(f"{tid} task test --run: CANCELLED by {name} — stopped {len(layers)} running verify "
+              f"layer(s){': ' + ', '.join(layers) if layers else ''}; {recorded}",
+              file=_out if _out is not None else sys.stdout, flush=True)
+    except Exception:   # noqa: BLE001
+        pass
+    _stage6_stop_disarm()
+    (_kill if _kill is not None else os.kill)(os.getpid(), signo)
+
+
+def _stage6_stop_recorder(fn):
+    """T-14157 — around `task test --run`: a run stopped by a signal (`LayerRunStopped`) is recorded by
+    `_record_stage6_stop` once it has unwound; the handlers are given back on every exit."""
+    @functools.wraps(fn)
+    def wrapper(args, *a, **kw):
+        if not getattr(args, "run", False):
+            return fn(args, *a, **kw)
+        from lib import land_verify_legs as _lvl
+        try:
+            return fn(args, *a, **kw)
+        except _lvl.LayerRunStopped as stop:
+            _record_stage6_stop(stop.signo, kw.get("_append_event"))
+            raise SystemExit(128 + int(stop.signo))   # the re-delivered signal did not end the verb
+        finally:
+            _stage6_stop_disarm()
+            _lvl.reset_layer_stop()
+    return wrapper
+
+
 @_pinned_suite_edit_preaudit_marker
+@_stage6_stop_recorder
 def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None, _stage_pointer_facts=None) -> None:
     """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
     writes current_stage). Without --evidence: ENTER Tests (emit tests_entered, print
@@ -14678,6 +14804,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # whichever leg this invocation actually ran (and the consumer zero-probe guard below it).
         _run_t0 = time.monotonic()
         _s6_started_at = time.time()   # T-13905: the run's wall-clock start, to set land rows beside it
+        _arm_stage6_stop(tid, _run_t0)   # T-14157: a SIGTERM / SIGINT from here stops the run and is recorded
         # T-12324 (X-1352..X-1357) — INITIALISED ABOVE THE FORK, because the fork has a THIRD arm.
         # T-12221 introduced these two beside each other with exactly the right intent — "not inside
         # the routed branch ... an unrouted run must never raise a NameError on the way to its own
@@ -15185,6 +15312,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             _stage6_priority = {}
         # T-12007 — the run is over; close the wall BEFORE the pass/fail fork so both rows are
         # written from the SAME measurement (a red run's minutes cost exactly what a green one's do).
+        _stage6_stop_point()   # T-14157: the run is over — a stop now is the verb's, not the run's
         _s6_ended_at = time.time()   # T-13905: the run's wall-clock end, read BEFORE the timer closes and before anything else follows
         _measured_run_ms = max(0, int((time.monotonic() - _run_t0) * 1000))
         # T-13905 — HOW MANY LAND VERIFIES OF THIS REPOSITORY RAN BESIDE THIS RUN: one line here, on

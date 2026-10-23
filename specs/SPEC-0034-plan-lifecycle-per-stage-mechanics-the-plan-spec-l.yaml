@@ -65,11 +65,11 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ non-destructive — SPEC-0035 rule 9 / SPEC-0126 §5); non-eligible SKIPS trial (the\
   \ two-branch `specs → accepted` path). Skip is the DEFAULT — no owner decision (SPEC-0035\
   \ rule 10). | SPEC-0035 rules 2 / 9 / 10 |\n| **plan vs bare-cards (S1 / S2)** |\
-  \ needs a standing-rule SPEC corpus / a fidelity-audited multi-task cut / a real-data\
-  \ trial (S1) · vs · one-or-a-few bare tasks (S2) | whether the change earns the\
-  \ WHOLE plan FSM at all, or drops to bare `task file` cards. This is the CARRIER\
+  \ meets one of the three S1 plan branches — a card's own spec or a `requires` edge\
+  \ alone does not (S1) · vs · one-or-a-few bare tasks (S2) | whether the change earns\
+  \ the WHOLE plan FSM at all, or drops to bare `task file` cards. This is the CARRIER\
   \ sieve, self-applied BEFORE the FSM — a heavier carrier is not \"safer\", it just\
-  \ pays audits the change does not need. | SPEC-0140 (carrier sieve) · LIFECYCLE\
+  \ pays audits the change does not need. | SPEC-1043 (carrier sieve) · LIFECYCLE\
   \ §Routing |\n| **big vs small** | foundational / ≥3 canonical files / quantitative\
   \ claims / a new principle-or-mechanism / ≥3 commits (LARGE) · vs · not (SMALL)\
   \ | the WEIGHT of the `accepted → decomposition` gate: a LARGE plan needs a filled\
@@ -622,7 +622,6 @@ cites:
 - SPEC-0035
 - SPEC-0083
 - SPEC-0126
-- SPEC-0140
 - GRAPH.md#spec-lifecycle
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3

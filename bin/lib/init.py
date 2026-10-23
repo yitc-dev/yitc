@@ -946,7 +946,18 @@ def _pre_deploy_entry_errors(label: str, i: int, c: dict, ops: dict) -> list:
                   and declared[stand.strip()].get("production") is False):
             errs.append(f"{at}.stand: {stand.strip()!r} is not a declared `production: false` target "
                         "(SPEC-1042 rule 6).")
+    if "reuse_run" in c and not _pre_deploy_reuse_run_ok(c.get("reuse_run")):
+        errs.append(f"{at}.reuse_run: must be exactly `{{reason: <why>}}` with a non-empty reason — the "
+                    "project's record of why one passed run may stand for a second gated target "
+                    "(SPEC-1042 rule 3).")
     return errs
+
+
+def _pre_deploy_reuse_run_ok(value) -> bool:
+    """T-14160 (SPEC-1042 rule 3) — whether a class entry's `reuse_run:` is the one admitted shape:
+    exactly `{reason: <non-empty string>}`. PURE."""
+    return (isinstance(value, dict) and set(value) == {"reason"} and isinstance(value.get("reason"), str)
+            and bool(value["reason"].strip()))
 
 
 def pre_deploy_declaration_errors(ops, label: str = "tests") -> list:

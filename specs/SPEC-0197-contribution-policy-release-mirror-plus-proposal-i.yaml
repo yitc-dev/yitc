@@ -41,10 +41,10 @@ body: "## Scenario\n\nSomeone outside the workshop — an independent adopter, o
   \ fingerprint so the link-back can retire the local workaround lesson.\n\n### 3.\
   \ Re-authored through the workshop, never merged as-is\nEvery accepted proposal\
   \ is RE-AUTHORED in the workshop through the EXISTING governed filing routes\n—\
-  \ the carrier sieve (LIFECYCLE §Routing / SPEC-0140): a task, one-or-a-few tasks,\
-  \ or a plan, each\nthrough its own stages and audits — and ships in a later signed\
-  \ release. A proposal is an INTAKE,\nnot an incident: a `deviation_captured` is\
-  \ emitted only when the proposal EXPOSES something in the\nworkshop that is not\
+  \ the carrier sieve (LIFECYCLE §Routing / <workshop-spec>): a task, one-or-a-few\
+  \ tasks, or a plan, each\nthrough its own stages and audits — and ships in a later\
+  \ signed release. A proposal is an INTAKE,\nnot an incident: a `deviation_captured`\
+  \ is emitted only when the proposal EXPOSES something in the\nworkshop that is not\
   \ as it should be (the ordinary reflex), never as the intake path itself. Submitted\n\
   content is never executed and is treated as DATA under the instruction-injection\
   \ protocol\n(SPEC-0026), never as instructions. The proposer is not granted write\

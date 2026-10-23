@@ -382,11 +382,11 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ link. A cross whose resolution instead rode a\n**spec-activation** or a **plan-realize**\
   \ carries NO such structured link — the item is prose-cited (in the\nactive spec's\
   \ / realized plan's body), scattered and non-authoritative (citer ≠ resolver: X-0218\
-  \ is\nprose-cited by its resolver SPEC-0142 AND by SPEC-0140/SPEC-0145 which merely\
-  \ conform-to / relate). So the\nclose-side auto-emit never reaches it and it dangles\
-  \ at `picked` (real cases: X-0217 plan-realize, X-0218\nspec-activate — both sat\
-  \ `picked` until a manual `cross done`). We do NOT auto-close these axes: prose\
-  \ is\noverloaded, and auto-mutating the shared coordination log off an ambiguous\
+  \ is\nprose-cited by its resolver SPEC-0142 AND by <workshop-spec>/SPEC-0145 which\
+  \ merely conform-to / relate). So the\nclose-side auto-emit never reaches it and\
+  \ it dangles at `picked` (real cases: X-0217 plan-realize, X-0218\nspec-activate\
+  \ — both sat `picked` until a manual `cross done`). We do NOT auto-close these axes:\
+  \ prose is\noverloaded, and auto-mutating the shared coordination log off an ambiguous\
   \ prose match would violate the\nCHARTER §6 surface-don't-auto-mutate fence. Instead\
   \ `graph conformance` carries a **REPORT-ONLY advisory**\n(`_cross_dangling_resolved`,\
   \ the host sibling of the SPEC-0070 §5 `_unmarked_cut_card_flags` advisory):\nfor\

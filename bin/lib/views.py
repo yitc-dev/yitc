@@ -2545,7 +2545,7 @@ _CAPTURE_ROUTING_ROWS = [
      "SPEC-0056", "§4a (T-10537); NO new doc class / node type — reference-first, cite the arc."),
     ("a mid-work adjacent to-do (drained later)",
      "`followup add` — a staged followup, or a bare `tasks/<id>.yaml`",
-     "SPEC-0095", "the carrier sieve (plan vs task vs followup) is SPEC-0140."),
+     "SPEC-0095", "the carrier sieve (plan vs task vs followup) is SPEC-1043."),
     ("a standing RULE / invariant / contract / governing param",
      "a `proposed` spec (`spec new`), activated at its owner task's close",
      "SPEC-1037", "the before-rule-change floor delivers SPEC-1037/0073/0128."),
@@ -2583,7 +2583,7 @@ _CAPTURE_ROUTING_ROWS = [
      "SPEC-0157", "R3: over the EXISTING `decisions/` store — no new store/node."),
     ("a design DELIBERATION / rejected alternatives / trial-on-real-data",
      "a `plans/<slug>.md` (the plan carrier)",
-     "SPEC-0140", "the carrier sieve routes plan vs one-or-a-few tasks vs followup."),
+     "SPEC-1043", "the carrier sieve routes plan vs one-or-a-few tasks vs followup."),
     ("a near-term, consume-once cross-session note",
      "the `MEMORY.md` buffer (non-authoritative; deleted after use)",
      "SPEC-0039", "NEVER a durable rule home — route by purpose (SPEC-0091)."),
@@ -2647,7 +2647,7 @@ def _view_capture_routing(index: dict, *, engine_index: "dict | None" = None) ->
         },
         "next": ("read the row for your situation, then route to its HOME; the OWNING SPEC holds the "
                  f"actual rule (`graph query {'--kernel ' if kernel else ''}<SPEC>`). "
-                 "Unsure plan vs task vs followup? -> SPEC-0140."),
+                 "Unsure plan vs task vs followup? -> SPEC-1043."),
     }
 
 def _window_predicate(since, until, *, _ev_dt=None):
@@ -5830,7 +5830,8 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                       _restoration_proposals=None,
                       _profile_line=None,
                       _gap_register=None,
-                      _load_sensitive_uncarded=None) -> list:
+                      _load_sensitive_uncarded=None,
+                      _autofiled_ready=None) -> list:
     """proactive-debt echo (SPEC-0119 / T-9754): the SHARED render helper. Computes the 3 DERIVED debt
     counts from the EXISTING views — not-adopted (SPEC-0094 §2, `_view_not_adopted`) / open-followups
     (SPEC-0095, the journal fold) / overdue-rechecks (SPEC-0094 §3, `_view_overdue_recheck`) — and
@@ -8236,6 +8237,50 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"line to silence this "
                 f"row — that returns the file to the pool with nothing re-justified. Report-only "
                 f"(SPEC-0119 rule 41). See `bin/yitc-v2 debt`.")
+        # T-14155 — the files a card HOLDS but has not landed yet (SPEC-0119 rule 41). The line
+        # above stays silent for them (its claim is "no card"), and that silence used to be the
+        # whole reading: a `ready` card the land tail filed hid its file at once while the file still
+        # ran serialized on every verify. Every file is named, uncapped, for the same reason as above.
+        _lw = _ls.get("waiting") if isinstance(_ls, dict) else None
+        lwc = _n(_lw.get("count")) if isinstance(_lw, dict) else None
+        if lwc and lwc > 0:
+            _lwf = [f for f in (_lw.get("files") or []) if isinstance(f, dict)]
+
+            def _one_waiting(f):
+                secs = f.get("seconds")
+                cost = f"+{secs} s per run" if secs is not None else "cost unrecorded"
+                if f.get("state") == "not started":
+                    days = f.get("ready_days")
+                    age = f"ready {days} d" if days is not None else "ready ? d"
+                    return f"{f.get('file')} (held by {f.get('task')}, {age}, not started, {cost})"
+                return f"{f.get('file')} (held by {f.get('task')}, in work, {cost})"
+            _not_started = [f.get("task") for f in _lwf if f.get("state") == "not started"]
+            _go = (f"take a not-started card into work (`bin/yitc-v2 dispatch --task "
+                   f"{_not_started[0]}`) or close it `wont-do` with a reason" if _not_started else
+                   "the cards are in work; nothing to start")
+            lines.append(
+                f"debt: {lwc} declared load-sensitive file(s) whose card has not landed yet — "
+                f"{', '.join(_one_waiting(f) for f in _lwf)}. Each still runs SERIALIZED after the "
+                f"concurrent pool on both verify legs until its card lands: {_go}. Report-only "
+                f"(SPEC-0119 rule 41).")
+    # AUTO-FILED-READY view (SPEC-0119 rule 46, T-14155): the cards the ENGINE filed that are still
+    # `ready` past the project threshold. Session start runs no queue scan (T-0510) and this is not
+    # one: debt-born cards only, never the ready queue. ACTIONABLE, so session start names it to the
+    # person — nothing else takes these cards into work. Report-only: it picks and dispatches nothing.
+    if _autofiled_ready is not None:
+        _af = _autofiled_ready() or {}
+        afc = _n(_af.get("count")) if isinstance(_af, dict) else None
+        if afc and afc > 0:
+            _afc = [c for c in (_af.get("cards") or []) if isinstance(c, dict)]
+            _ids_af = [str(c.get("task")) for c in _afc]
+            _named_af = ", ".join(f"{c.get('task')} (ready {c.get('age_h')} h)" for c in _afc)
+            lines.append(_actionable(
+                f"debt: {afc} engine-auto-filed card(s) still ready past {_af.get('hours')} h "
+                f"(threshold from {_af.get('hours_source') or 'built-in'}) — "
+                f"{_named_af}. Filed by the engine, taken into work by nobody: dispatch each "
+                f"(`bin/yitc-v2 dispatch --task {_ids_af[0]}`) or close it `wont-do` with a reason. "
+                f"Report-only — it picks and dispatches nothing (SPEC-0119 rule 46).",
+                "auto-filed cards waiting to start: " + ", ".join(_ids_af)))
     # DEAD-LANDS view (SPEC-0119 rule 23, T-11254 / <project> X-0976): the OPTIONAL injected fold over
     # the branch frontier + the journal — branches whose `land` STARTED (its step-1 bookkeeping commit
     # is the tip) and never emitted a terminal row in EITHER direction. This is the one failure mode
@@ -10205,7 +10250,10 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     its `task_id` (the same card as that branch) and `stage6_run.tree`; a pre-deploy run — its
     `target` and `candidate`. A proxy, not a verdict. A pre-deploy run records per unit only its
     classes' own units, so a unit with no pre-deploy unit row prints `not recorded` at that place —
-    never a zero.
+    never a zero. A recorded pre-deploy place also lists `red_runs` (T-14159): each pre-deploy run —
+    `run_ref`, an attempt 2 named — in which the unit read red and was not rescued, neither by the
+    row's own `rescued` list (a unit or group it names, or its whole layer) nor by a `flaky_retry`
+    rescue, in a run none of whose rows reads `run_outcome: contended`.
 
     THE LAND-WAIT MODEL, over the land and Stage-6 records with at least one layer carrying an integer
     `duration_ms`: layers run side by side, so a record's wall is its slowest layer. Printed: the
@@ -10223,6 +10271,13 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     the catch of the class rows that recorded it, never of every class naming the unit). A declared class with no run reads
     `no run recorded`; a row class the contract does not declare says so; an unread contract says so.
 
+    THE PRE-DEPLOY LAYER COSTS (T-14161) — every layer runs whole in a pre-deploy run, so its row records
+    each layer's wall and summed process CPU once per attempt (`layer_costs`, SPEC-1042 rule 4). Per
+    layer over the run attempts `(run_ref, attempt)` read: runs, median and total wall, median and
+    total process CPU (integer values only; `no_wall` / `no_cpu` count the entries without one,
+    `re_run_alone` the layer rows a lone-layer re-run replaced), with the window and the first and last
+    run read. No row carrying it reads `not recorded`, never a zero.
+
     WINDOW: `[since, until)` over `ts`, the shared predicate; the reading prints the window and the
     first and last row it read. An exact duplicate line is read once; a malformed row or field skips
     itself. No usable record answers `no_data` naming what was absent. Every list is ordered by the
@@ -10238,6 +10293,9 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     runs: list = []                 # (ts, place, subject, run key, {entity: (status, duration)}, rescued set)
     walls: list = []                # [{layer: (duration_ms, {entity: duration_ms})}] per land / Stage-6 record
     classes: dict = {}
+    pd_red: dict = {}               # pre-deploy run key -> {entity: ts} red, not rescued by its row (T-14159)
+    pd_contended: set = set()       # pre-deploy run keys a row records `run_outcome: contended`
+    pd_costs: dict = {}             # pre-deploy run key -> (ts, json, its `layer_costs` list) (T-14161)
     first = last = None
 
     def _entity(layer, project, group, name):
@@ -10285,6 +10343,12 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
         cls = data.get("class") if place == "pre-deploy" else None
         if place == "pre-deploy" and not (isinstance(cls, str) and cls):
             continue                                 # a pre-deploy row names its class (SPEC-1042 rule 4)
+        if place == "pre-deploy" and isinstance(data.get("layer_costs"), list):
+            # T-14161: once per run attempt; of two rows of one attempt carrying it, the least
+            # (ts, list) wins, so the answer never depends on the order the rows are read in.
+            got = (ts, json.dumps(data["layer_costs"], sort_keys=True, default=str), data["layer_costs"])
+            if key not in pd_costs or got[:2] < pd_costs[key][:2]:
+                pd_costs[key] = got
         units: dict = {}
         wall: dict = {}
         usable = False
@@ -10341,6 +10405,25 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
                         ent = _entity(r.get("layer"), r.get("project"), r.get("group"), r.get("unit"))
                         if ent is not None:
                             rescued.add(ent)
+        if place == "pre-deploy":
+            # T-14159 — the count-based move-back trigger reads the pre-deploy row's own record: its
+            # `rescued` list (SPEC-1042 rule 3; the row keeps a rescued unit's raw status) and whether
+            # its run was contended. A red here is one this row did not rescue.
+            row_saved, row_layers = set(), set()
+            for r in data.get("rescued") if isinstance(data.get("rescued"), list) else ():
+                if not isinstance(r, dict):
+                    continue
+                if r.get("unit") or r.get("group"):
+                    ent = _entity(r.get("layer"), r.get("project"), r.get("group"), r.get("unit"))
+                    if ent is not None:
+                        row_saved.add(ent)
+                elif isinstance(r.get("layer"), str) and r["layer"]:
+                    row_layers.add(r["layer"])
+            if data.get("run_outcome") == "contended":
+                pd_contended.add(key)
+            for ent, (failed, _d) in units.items():
+                if failed and ent not in rescued and ent not in row_saved and ent[0] not in row_layers:
+                    pd_red.setdefault(key, {}).setdefault(ent, ts)
         runs.append((ts, place, subject, key, units, rescued, cls))
 
     # Merge the rows of one pre-deploy run and attempt: a unit two class rows name is one run.
@@ -10388,6 +10471,14 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     def _ident(ent):
         return {"layer": ent[0], ent[2]: ent[3], **({"project": ent[1]} if ent[1] else {})}
 
+    red_runs: dict = {}               # entity -> [(ts, run label)] of its counted pre-deploy reds
+    for key, ents in pd_red.items():
+        if key in pd_contended:
+            continue                  # a contended run's red is not counted, whatever its attempt
+        label = key[1] if key[2] == 1 else f"{key[1]} (attempt {key[2]})"
+        for ent, ts in ents.items():
+            red_runs.setdefault(ent, []).append((ts, label, key[1]))
+
     rows = []
     for ent in sorted(stats):
         places = {}
@@ -10400,7 +10491,10 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
                              "median_s": round(_median(s["durs"]) / 1000, 1) if s["durs"] else None,
                              "total_min": round(sum(s["durs"]) / 60000, 1),
                              "failures": {"real": s["real"], "flaky": s["flaky"], "unjudged": s["unjudged"]},
-                             **({"no_duration": s["no_duration"]} if s["no_duration"] else {})}
+                             **({"no_duration": s["no_duration"]} if s["no_duration"] else {}),
+                             **({"red_runs": [{"run": lab, "run_ref": ref, "ts": t}
+                                              for t, lab, ref in sorted(red_runs.get(ent, ()))]}
+                                if place == "pre-deploy" else {})}
         durs = [d for p in stats[ent] for d in stats[ent][p]["durs"]]
         rows.append({**_ident(ent), "runs_in_window": sum(stats[ent][p]["runs"] for p in stats[ent]),
                      "median_s": round(_median(durs) / 1000, 1) if durs else None,
@@ -10456,6 +10550,37 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
         else:
             land_wait["without_named_units"] = "no unit named and none recorded at place pre-deploy"
 
+    # T-14161 — per layer, the wall and process CPU of the pre-deploy runs (every layer runs whole there).
+    per_layer: dict = {}
+    for _ts, _j, lcs in pd_costs.values():
+        for lc in lcs:
+            if not (isinstance(lc, dict) and isinstance(lc.get("layer"), str) and lc["layer"]):
+                continue
+            p = per_layer.setdefault(lc["layer"], {"runs": 0, "wall": [], "cpu": [], "re_run_alone": 0})
+            p["runs"] += 1
+            for k, v in (("wall", lc.get("duration_ms")), ("cpu", lc.get("process_cpu_ms"))):
+                if _ms(v) is not None:
+                    p[k].append(v)
+            p["re_run_alone"] += 1 if lc.get("retried") is True else 0
+    if pd_costs:
+        layer_costs = {"window": _window_block(since, until), "runs": len(pd_costs),
+                       "first_run": min(c[0] for c in pd_costs.values()),
+                       "last_run": max(c[0] for c in pd_costs.values()), "layers": []}
+        for lay in sorted(per_layer):
+            p = per_layer[lay]
+            layer_costs["layers"].append({
+                "layer": lay, "runs": p["runs"],
+                "median_wall_s": round(_median(p["wall"]) / 1000, 1) if p["wall"] else None,
+                "total_wall_min": round(sum(p["wall"]) / 60000, 1),
+                "median_cpu_s": round(_median(p["cpu"]) / 1000, 1) if p["cpu"] else None,
+                "total_cpu_min": round(sum(p["cpu"]) / 60000, 1),
+                **({"no_wall": p["runs"] - len(p["wall"])} if len(p["wall"]) < p["runs"] else {}),
+                **({"no_cpu": p["runs"] - len(p["cpu"])} if len(p["cpu"]) < p["runs"] else {}),
+                **({"re_run_alone": p["re_run_alone"]} if p["re_run_alone"] else {})})
+    else:
+        layer_costs = ("not recorded — no pre-deploy run row in this window carries `layer_costs` "
+                       "(SPEC-1042 rule 4)")
+
     decl = declared if isinstance(declared, dict) else {"read": False, "reason": "not read", "classes": []}
     declared_at = {d["class"]: d["declared_at"] for d in decl.get("classes") or []}
     class_rows = []
@@ -10476,7 +10601,8 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
 
     out = {"lens": "verify-unit-cost (T-14110 / SPEC-1042 rule 7) — per unit of an adapter-backed verify "
                    "layer: runs, duration and real / flaky failures by place (land, stage6, pre-deploy); the "
-                   "land-wait model; each pre-deploy class's catch record. Derived from the journal at read "
+                   "land-wait model; each pre-deploy class's catch record; per layer, the wall and process CPU of "
+                   "the pre-deploy runs. Derived from the journal at read "
                    "time; report-only — it names and ranks nothing into action.",
            "window": {**_window_block(since, until), "first_row": first, "last_row": last},
            "records": records}
@@ -10488,6 +10614,7 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     out["units"] = rows
     out["land_wait"] = land_wait
     out["pre_deploy_classes"] = class_rows
+    out["pre_deploy_layer_costs"] = layer_costs
     if not decl.get("read"):
         out["pre_deploy_contract"] = f"not read — {decl.get('reason', 'unknown')}; declared classes unknown"
     return out
@@ -10526,9 +10653,14 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
         a costly zero-catch unit under it is listed as held, with its run count.
     MOVE-BACK — a unit the configuration places at pre-deploy with at least one REAL failure recorded
     at place pre-deploy is proposed back onto lands, on any window and any run count.
+    MOVE-BACK BY RED RUNS (T-14159) — a unit the configuration places at pre-deploy whose `red_runs`
+    (the view: red, not rescued, not in a contended run) name at least
+    `pre_deploy_move_back_min_red_runs` distinct runs is proposed back onto lands with those runs
+    named, on any window; an unread threshold proposes none and says so.
 
-    Answers the window, `covered_days`, the thresholds with their source, `move_away` and `move_back`
-    (each `proposals` plus `why_none` when it has none), `place_unknown` when any, and `writes: none`.
+    Answers the window, `covered_days`, the thresholds with their source, `move_away`, `move_back` and
+    `move_back_red_runs` (each `proposals` plus `why_none` when it has none), `place_unknown` when any,
+    and `writes: none`.
     A view answering `no_data` passes it through and proposes nothing."""
     from datetime import datetime
 
@@ -10549,6 +10681,7 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
         return rec if isinstance(rec, dict) and isinstance(rec.get("value"), int) else None
 
     days_rec, runs_rec = _th("pre_deploy_move_min_window_days"), _th("pre_deploy_move_min_runs")
+    red_rec = _th("pre_deploy_move_back_min_red_runs")
     units = [u for u in view.get("units") or [] if isinstance(u, dict)]
     placement = placement if isinstance(placement, dict) else {}
     declared = placement.get("declared")
@@ -10626,19 +10759,40 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
         if isinstance(pd, dict) and _fails(pd).get("real"):
             back.append({**_ident(u), "runs_at_place": pd.get("runs"), "real_failures": _fails(pd)["real"],
                          "median_s": pd.get("median_s")})
+    by_red, red_held = [], []
+    for u in deferred:
+        pd = (u.get("places") or {}).get("pre-deploy") if isinstance(u.get("places"), dict) else None
+        reds = [r for r in (pd.get("red_runs") if isinstance(pd, dict) and isinstance(pd.get("red_runs"), list)
+                            else ()) if isinstance(r, dict) and isinstance(r.get("run_ref"), str)]
+        refs = sorted({r["run_ref"] for r in reds})
+        if not refs:
+            continue
+        row = {**_ident(u), "red_run_count": len(refs), "red_runs": [r.get("run") for r in reds]}
+        (by_red if red_rec is not None and len(refs) >= red_rec["value"] else red_held).append(row)
+    if red_rec is None:
+        why_red = "the threshold pre_deploy_move_back_min_red_runs in force could not be read — none is proposed"
+    elif not by_red:
+        why_red = (f"no unit the configuration places at pre-deploy read red (not rescued, not contended) "
+                   f"in pre_deploy_move_back_min_red_runs = {red_rec['value']} ({red_rec['source']}) "
+                   "pre-deploy runs")
+    else:
+        why_red = None
     return {
         "reading": "verify-cost weekly reading (T-14111 / SPEC-1042 rule 7) over the verify-unit-cost "
                    "view — it proposes moves both ways and writes none",
         "window": win, "covered_days": covered,
         "thresholds": {k: ({"value": r["value"], "source": r["source"]} if r else "not read")
                        for k, r in (("pre_deploy_move_min_window_days", days_rec),
-                                    ("pre_deploy_move_min_runs", runs_rec))},
+                                    ("pre_deploy_move_min_runs", runs_rec),
+                                    ("pre_deploy_move_back_min_red_runs", red_rec))},
         "costly_above_median_s": bar,
         "move_away": {"proposals": away, **({"held_thin": held} if held else {}),
                       **({"why_none": why_away} if why_away else {})},
         "move_back": {"proposals": back,
                       **({} if back else {"why_none": "no unit the configuration places at pre-deploy has a "
                                                       "real failure there"})},
+        "move_back_red_runs": {"proposals": by_red, **({"below_threshold": red_held} if red_held else {}),
+                               **({"why_none": why_red} if why_red else {})},
         **({"place_unknown": unknown} if unknown else {}),
         "writes": "none — a move is the project's own edit of its yitc-ops.yaml `tests.classes[]`",
     }

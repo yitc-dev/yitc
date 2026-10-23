@@ -356,12 +356,12 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ with no card. There are exactly three exceptions: (1) the owner explicitly orders\
   \ a\ncard («задачей») — the card is filed and run OUTSIDE the spike, on the ordinary\
   \ task worktree to\nland path; (2) the change is not about what the spike explores\
-  \ (for example an urgent production\nfix) — it takes its ordinary carrier (SPEC-0140);\
+  \ (for example an urgent production\nfix) — it takes its ordinary carrier (<workshop-spec>);\
   \ (3) in doubt — ONE question to the owner, with the\nrecommendation «in the spike».\
   \ No card is filed or run inside a spike loop, whatever was said: an\nordered card\
   \ lives outside it, and the spike's result reaches `main` only through rule 5's\n\
   `prototype_ref` card. This rule names a routing default for the person and the AI;\
-  \ it adds no\nrefusal and no check. Check layer: discipline (routed by SPEC-0140).\n\
+  \ it adds no\nrefusal and no check. Check layer: discipline (routed by <workshop-spec>).\n\
   \n### 11. Partial hand-off — part X goes to a card, the rest continues in a new\
   \ spike\nA spike often holds several improvements (X, Y, Z) of which only one is\
   \ ready to hand off. The\nhand-off follows these rules; the runbook is `patterns/spike-mode.md`\
@@ -568,9 +568,9 @@ implements_signature:
   bin/lib/audit_packet.py#build_audit_prompt: aefa42ca885409c74caffcc8c75f1498b6570431e1d9e8eef527b69413bd86c4
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
-  bin/lib/deploy.py#cmd_deploy: 5fce274590e43905fedd9395366baa8a69b00f37cd5b13b082646bf6312cd997
+  bin/lib/deploy.py#cmd_deploy: 6781d655329121aca45e144ad1f0178ef9cdfb9659bc123043fceece0a7c15cc
   bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
-  bin/lib/spike_identity.py#content_verdict: 74ee1480574d0386dc9aa7ab0094be38b71bf68dbf7ee47f03d62b13ef480ab8
+  bin/lib/spike_identity.py#content_verdict: e9f58b40cce4e4975587853da212a180a5b4ee3af05616ee64465af96188e439
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
   bin/lib/spike_identity.py#landing_declaration: b87f70efe93da70c2600c1142da5d1f28979906e06b461b73d70074ea75d2826
   bin/lib/spike_identity.py#refusal_message: 1cc76242268d27b3004503ca514f0a10069e84635e506ebeab5bf151e24660c6

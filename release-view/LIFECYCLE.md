@@ -49,11 +49,11 @@ a heavier one is not "safer", it just pays audits the change does not need (the 
 
 **Run the sieve, don't ask.** The carrier is a SELF-APPLIED decision — a mechanical sieve
 answered from the change's OWN properties, NOT a fork to pose to the owner (X-0213): S0
-record-only fact → no-worktree capture (`event`/`followup`) · S1 needs a standing-rule SPEC
-corpus / fidelity-audited multi-task cut / trial-on-real-data → PLAN · S2 else → one-or-a-few
+record-only fact → no-worktree capture (`event`/`followup`) · S1 one of its three plan branches
+(a card's own spec or a `requires` edge alone is not one) → PLAN · S2 else → one-or-a-few
 bare TASKS (a mid-work dodelka staged via `followup add`, drained later). Full procedure —
 lightest-first order, per-branch conditions, escalate-a-genuine-decision-not-the-carrier rule:
-**`bin/yitc-v2 graph query SPEC-0140`**. Batch-drain working-order: `patterns/owner-list-intake-working-order.md`.
+**`bin/yitc-v2 graph query SPEC-1043`**. Batch-drain working-order: `patterns/owner-list-intake-working-order.md`.
 
 ## The 9 stages
 <!--AUDIENCE:core-->

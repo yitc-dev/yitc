@@ -26,12 +26,12 @@ body: "## Scenario\n\nAt the MOMENT of a capture — a deviation, a fact learned
   \ The view is a DERIVED discovery surface, not a new store (no-new-entity)\n`capture-routing`\
   \ is a saved query-lens. It renders the situation→home table\nROWS, each ANCHORED\
   \ to the OWNING SPEC that homes the rule (SPEC-0056 §4/§4a, SPEC-0055, SPEC-0095,\n\
-  SPEC-0090, <workshop-spec>, SPEC-0076, SPEC-0084/85/86, SPEC-0140, SPEC-0039, SPEC-0093)\
-  \ — so the rule text\nis NEVER duplicated (<workshop-spec> rule 8, one home); the\
-  \ view ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER §P1\
-  \ F2), adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2. The\
-  \ E-case incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the multi-error\
-  \ incident-narrative row: a multi-error ARC → the promoted\n`errors/E-XXXX.yaml`\
+  SPEC-0090, <workshop-spec>, SPEC-0076, SPEC-0084/85/86, <workshop-spec>, SPEC-0039,\
+  \ SPEC-0093) — so the rule text\nis NEVER duplicated (<workshop-spec> rule 8, one\
+  \ home); the view ROUTES, the specs GOVERN. It is a VIEW\nover existing homes (CHARTER\
+  \ §P1 F2), adds NO store / node-type / edge, recomputed fresh on read.\n\n### 2.\
+  \ The E-case incident-narrative row (from / SPEC-0056 §4a)\nThe table INCLUDES the\
+  \ multi-error incident-narrative row: a multi-error ARC → the promoted\n`errors/E-XXXX.yaml`\
   \ BODY (one arc = one E-case, cites-linked), homed at SPEC-0056 §4a.\n\n### 3. Worker\
   \ escalation-doc convention (R3) — the de-facto home, NOW named\nA dispatched worker\
   \ that halts on a blocked land/audit (SPEC-0103 `blocked-on-land`) records its\n\
@@ -106,7 +106,6 @@ cites:
 - SPEC-0084
 - SPEC-0085
 - SPEC-0086
-- SPEC-0140
 - SPEC-0039
 - SPEC-0093
 - SPEC-0007
@@ -117,4 +116,4 @@ requires: []
 supersedes: null
 implements_signature:
   bin/lib/cli.py#_run_view: f3a41ae29bc7cc951331c14b3c8afb0fbd24dc67910d8fd2da3b70b8853930cf
-  bin/lib/views.py#_view_capture_routing: 1819c3eb999fc8845ff07322a2671f931d8da47ac4561c6c96b56621ee3ac35b
+  bin/lib/views.py#_view_capture_routing: f4f498fa49dc782641030f5b89143c829c1395ac15466104f973b82b1a03fa93

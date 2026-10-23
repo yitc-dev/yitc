@@ -2110,11 +2110,12 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
 
 def _verify_cost_reading() -> dict:
     """T-14111 (SPEC-1042 rule 7) — the weekly verify-cost reading of the project this call runs in:
-    the verify-unit-cost view over its whole recorded history, read with the two THRESHOLD values in
+    the verify-unit-cost view over its whole recorded history, read with the three THRESHOLD values in
     force from its own `thresholds:` section (built-in default when unset). Report-only; writes nothing."""
     ops = _project_ops_carrier()
     thresholds = {k: machine_settings.in_force(k, ops=ops)
-                  for k in ("pre_deploy_move_min_window_days", "pre_deploy_move_min_runs")}
+                  for k in ("pre_deploy_move_min_window_days", "pre_deploy_move_min_runs",
+                            "pre_deploy_move_back_min_red_runs")}
     out = views._verify_cost_weekly_reading(_view_verify_unit_cost(EVENTS_PATH), thresholds,
                                             _verify_cost_placement(ops))
     notes = sorted({n for r in thresholds.values() for n in r["notes"]})
@@ -7403,9 +7404,15 @@ def _load_sensitive_uncarded_view() -> dict:
     already walked past, which is what the ratification exit's existence check needs — so this seam
     opens the corpus once and derives both answers from that single walk."""
     _ids: set = set()
-    _carded = debt_mod.load_sensitive_carded(TASKS_DIR, ids_out=_ids)
-    return debt_mod.load_sensitive_uncarded(
-        worktree_mod.verify_runner._load_sensitive_set(REPO_ROOT / "tests"), _carded, _ids)
+    _holders: dict = {}
+    _carded = debt_mod.load_sensitive_carded(TASKS_DIR, ids_out=_ids, holders_out=_holders)
+    _listed = worktree_mod.verify_runner._load_sensitive_set(REPO_ROOT / "tests")
+    out = debt_mod.load_sensitive_uncarded(_listed, _carded, _ids)
+    # T-14155: the files a card holds but has not landed yet, from the SAME walk and the SAME carrier
+    # read — a `ready` card no longer hides its file until it starts (SPEC-0119 rule 41).
+    out["waiting"] = debt_mod.load_sensitive_waiting(
+        _listed, _holders, seconds=debt_mod.load_sensitive_file_seconds(REPO_ROOT), card_ids=_ids)
+    return out
 
 
 def _unpickable_ready_view() -> dict:

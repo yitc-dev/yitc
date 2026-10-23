@@ -101,7 +101,7 @@ body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES
   \ Controller recommends\ndispatch vs self-execute to the owner, it states the cost\
   \ in context: the current `session context`\nreading (SPEC-0115) against the per-task\
   \ protocol weight the self-executed work would add. A mode\nrecommendation that\
-  \ omits that cost is incomplete.\nPointer (SPEC-0140 S0): an S0 record (`event`\
+  \ omits that cost is incomplete.\nPointer (<workshop-spec> S0): an S0 record (`event`\
   \ / `followup` / a probe or observation settle) run by\nthe Controller is NOT self-execution\
   \ of a task and needs no self-execute say-so; this grants\nnothing beyond S0 records.\n\
   \n### 3b. Stop-and-name-the-ground reflex\nThe FELT PULL to just-do-it-myself IS\

@@ -87,18 +87,18 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ names the carrier the followup BECAME (file/author it first, then promote --into\
   \ it, or `drop`).\n**THREE CARRIERS, resolved by the target's own SHAPE.** `T-NNNN`\
   \ is the TASK leg,\nunchanged. A repo-relative `lessons/<name>.md` or `patterns/<name>.md`\
-  \ is the **AUTHORED REFERENCE\nNOTE** leg — the carrier SPEC-0140 names as the LIGHTEST\
-  \ for a captured followup, drained\nin ONE batched `work/<slug>` land rather than\
-  \ a worktree cycle per note (the X-0148\nceremony-per-lesson cost). That carrier\
-  \ is a FILE, and before this the vocabulary could not name a\nfile, so the sanctioned\
-  \ lightest path terminated in `drop`: on 2026-08-26 four DELIVERED notes were\n\
-  recorded `dropped`, the carrier surviving only as prose. The 2-state fold is what\
-  \ later readers\ncount and `dropped` means DECIDED-NOT-TO, so a delivered note recorded\
-  \ there is indistinguishable\nfrom an abandoned one, and the recommended carrier\
-  \ was the only one whose outcome could not be\nrecorded truthfully. The note leg\
-  \ is FAIL-CLOSED on the SAME terms as the plan leg: the file must\nEXIST or the\
-  \ promote is REFUSED naming the path, before any append. Its shape is BOUNDED to\
-  \ the two\nsanctioned directories, one slash, a `.md` leaf — a carrier that could\
+  \ is the **AUTHORED REFERENCE\nNOTE** leg — the carrier <workshop-spec> names as\
+  \ the LIGHTEST for a captured followup, drained\nin ONE batched `work/<slug>` land\
+  \ rather than a worktree cycle per note (the X-0148\nceremony-per-lesson cost).\
+  \ That carrier is a FILE, and before this the vocabulary could not name a\nfile,\
+  \ so the sanctioned lightest path terminated in `drop`: on 2026-08-26 four DELIVERED\
+  \ notes were\nrecorded `dropped`, the carrier surviving only as prose. The 2-state\
+  \ fold is what later readers\ncount and `dropped` means DECIDED-NOT-TO, so a delivered\
+  \ note recorded there is indistinguishable\nfrom an abandoned one, and the recommended\
+  \ carrier was the only one whose outcome could not be\nrecorded truthfully. The\
+  \ note leg is FAIL-CLOSED on the SAME terms as the plan leg: the file must\nEXIST\
+  \ or the promote is REFUSED naming the path, before any append. Its shape is BOUNDED\
+  \ to the two\nsanctioned directories, one slash, a `.md` leaf — a carrier that could\
   \ name any file would record\nnothing — and is disjoint from the other two legs\
   \ by construction. `drop` is UNCHANGED and stays\nthe honest terminal for a note\
   \ genuinely abandoned; nothing already recorded is rewritten (the\njournal is append-only,\

@@ -728,6 +728,14 @@ INVENTORY: "tuple[Knob, ...]" = (
        "sibling above. Admissible 1..100 — 0 would report every non-empty lane as over bound and past "
        "100 no lane could be. REPORT-ONLY on the same terms",
        bounds=(1, 100)),
+    _t("YITC_DEBT_AUTOFILED_READY_HOURS", "int", 24, "bin/lib/debt.py#autofiled_ready_hours",
+       "SPEC-0119 rule 46 (T-14155): how many hours a card the ENGINE filed (`created_by: "
+       "engine-auto-file`) may sit `ready` before the session-start debt line names it with its "
+       "dispatch command. 24 is the card's stated default — a day is long enough that an owner who "
+       "starts work daily has had one chance to take it. A THRESHOLD: one value per project, set in "
+       "its yitc-ops.yaml `thresholds:` section. Admissible 1..8760 (an hour to a year). REPORT-ONLY: "
+       "it decides when a line prints, never what is picked or dispatched",
+       bounds=(1, 8760)),
     _t("lib.cli.LAND_REPEATED_ABORT_THRESHOLD", "int", 2, "bin/lib/cli.py#cmd_land",
        "the T-0655 repeated-abort backstop: a land is refused once this many consecutive same-cause "
        "aborts are on record, so it decides whether a land runs. A THRESHOLD (T-13969): one value "
@@ -754,6 +762,20 @@ INVENTORY: "tuple[Knob, ...]" = (
        "window before the weekly reading proposes moving it into a pre-deploy class. A THRESHOLD on the "
        "same reading as its sibling above. Admissible 1..100000. REPORT-ONLY on the same terms",
        bounds=(1, 100000)),
+    _t("pre_deploy_move_back_min_red_runs", "int", 2, "bin/lib/cli.py#_verify_cost_reading",
+       "SPEC-1042 rule 7 (T-14159): the number of pre-deploy runs in which a unit a pre-deploy class "
+       "holds read red — not rescued, not in a contended run — before the weekly reading proposes "
+       "moving it back onto lands, the runs named. A THRESHOLD on the same reading as its siblings "
+       "above. Admissible 1..1000. REPORT-ONLY: it decides what the reading PROPOSES, never what runs "
+       "or moves",
+       bounds=(1, 1000)),
+    _t("pre_deploy_reuse_max_age_minutes", "int", 120, "bin/lib/deploy.py#cmd_deploy",
+       "SPEC-1042 rule 3 (T-14160): how old, in minutes, a passed pre-deploy run may be when a gated "
+       "deploy of the same candidate to another target stands on it instead of running its own — "
+       "only where every class guarding that target declares `reuse_run:`. A THRESHOLD: one value per "
+       "project, set in its yitc-ops.yaml `thresholds:` section. Admissible 1..1440; an older run is "
+       "not reused and the deploy runs its own",
+       bounds=(1, 1440)),
 
     # ---- GATE: everything else. Unclassifiable is GATE by construction, not by omission. ----
     _g("YITC_ACTOR", "str", None, "bin/lib/grants.py",

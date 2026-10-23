@@ -46,6 +46,7 @@ from __future__ import annotations
 import ast
 import datetime
 import fnmatch
+import itertools
 import json
 import math
 import os
@@ -2515,6 +2516,84 @@ _layer_tree = threading.local()   # T-13931: `.reading` = the open `_LayerProces
 _LAYER_TERM_GRACE_S = 5.0
 _layer_kill = threading.local()   # T-13993: `.ending` = how the last bound-killed command of this THREAD
                                   # ended: None (no grace given), "exited-in-grace" or "killed-hard"
+_layer_name = threading.local()   # T-14157: `.name` = the declared layer this THREAD runs (set by the
+                                  # guard before each layer), the label a stopped run is recorded under
+
+# T-14157 — a STOP of the verb running the verify layers (SIGTERM / SIGINT to `task test --run`). Each
+# layer runs in a session of its own, so the signal that stops the verb never reaches it. The verb's
+# run has ONE stop slot (`seq`), taken in one indivisible step either by the first signal — the handler
+# (`request_layer_stop`) then RECORDS it here and, unless the main thread is inside a runner, raises
+# `LayerRunStopped` on the main thread, as CPython raises KeyboardInterrupt — or by the run's own wall
+# close (`close_layer_stop`), after which no signal stops the run; every later taker only notes its
+# signal (`late`) — the wall close re-delivers one noted after it once the dispositions are back. A runner
+# ends the group it started on every exit except the layer's own completion (its command exited and its
+# output drained), and a stop met before completion ends it (`_end_layer_group`) before the runner gives
+# up its token. No runner, handler or deadline ever ends the verb or writes its record.
+# `_layer_runs` holds one token per runner that may own a live group: a runner reads the recorded
+# signal and registers in ONE step under `_layer_runs_lock`, so the verb's single writer, waiting in
+# `wait_layer_runs` after the unwind, sees either the token or a runner that started nothing.
+_layer_stop = {"signo": None, "main_in_runner": False, "stopped": [], "late": [], "seq": itertools.count()}
+_layer_runs: set = set()
+_layer_runs_lock = threading.Lock()
+
+
+class LayerRunStopped(BaseException):
+    """T-14157 — the verify run was stopped by signal `signo` to the verb. A BaseException, like
+    KeyboardInterrupt, so no `except Exception` between a runner and the verb can swallow it."""
+
+    def __init__(self, signo):
+        super().__init__(signo)
+        self.signo = signo
+
+
+def reset_layer_stop() -> None:
+    """T-14157 — forget a recorded stop (a new run starts, or the last one is over)."""
+    _layer_stop.update(signo=None, stopped=[], late=[], seq=itertools.count())
+
+
+def request_layer_stop(signo) -> None:
+    """T-14157 — called by the verb's signal handler. The FIRST call of a run records the stop, then
+    raises it on the main thread unless that thread is inside a runner — there an exception could land
+    between a fork and the assignment of its pid, so the runner raises it itself at its next tick. Every
+    later call — a second signal, one nested in this handler, one during the record — only notes its
+    signal and returns (`next()` on the counter is one indivisible step); the note is read only when
+    the wall close took the slot (`late_layer_signal`). Takes no lock."""
+    if next(_layer_stop["seq"]):
+        _layer_stop["late"].append(signo)
+        return
+    _layer_stop["signo"] = signo
+    if not _layer_stop["main_in_runner"] and threading.current_thread() is threading.main_thread():
+        raise LayerRunStopped(signo)
+
+
+def close_layer_stop():
+    """T-14157 — the run is over: take its one stop slot. Returns the recorded signal when a signal took
+    the slot first (the run was stopped), else None — and every later signal is then a no-op."""
+    if next(_layer_stop["seq"]):
+        return _layer_stop["signo"]
+    return None
+
+
+def late_layer_signal():
+    """T-14157 — the first signal that met an already-taken stop slot, or None. Read after the wall
+    close gave the dispositions back: such a signal came after the run was over, so it is the verb's."""
+    late = _layer_stop["late"]
+    return late[0] if late else None
+
+
+def stopped_layer_labels() -> list:
+    """T-14157 — the layers a recorded stop ended, in the order their groups were gone."""
+    return list(_layer_stop["stopped"])
+
+
+def wait_layer_runs() -> None:
+    """T-14157 — return once no runner may own a live group, i.e. every runner has returned, each after
+    its group had no live member left (`_end_layer_group`). No deadline."""
+    while True:
+        with _layer_runs_lock:
+            if not _layer_runs:
+                return
+        time.sleep(0.02)
 
 
 def _group_size(pgid) -> int:
@@ -2534,6 +2613,40 @@ def _group_size(pgid) -> int:
         if len(fields) > 2 and fields[0] != b"Z" and fields[2] == str(pgid).encode():
             n += 1
     return n
+
+
+def _wait_layer_group_gone(pgid) -> None:
+    """T-14157 — return once process group `pgid` has no live member (`_group_size`; zombies excluded).
+    Called only after the group was sent SIGKILL, so nothing in it can run again; a member in
+    uninterruptible sleep is waited for. No deadline."""
+    while _group_size(pgid):
+        time.sleep(0.05)
+
+
+def _end_layer_group(pgid) -> bool:
+    """T-14157 — end process group `pgid` on the terms of a layer's bound — SIGTERM, up to
+    `_LAYER_TERM_GRACE_S` for it to exit, then SIGKILL — and return only once no live member is left
+    (`_group_size`; zombies excluded). No deadline: after the SIGKILL nothing in the group can run again,
+    and a member in uninterruptible sleep is waited for. The group is signalled only while it has a live
+    member, and a group with a live member keeps its id, so the signal never reaches another group.
+    True when the group had a live member."""
+    import signal
+    if not _group_size(pgid):
+        return False
+    for sig, grace in ((signal.SIGTERM, _LAYER_TERM_GRACE_S), (signal.SIGKILL, None)):
+        try:
+            os.killpg(pgid, sig)
+        except (ProcessLookupError, PermissionError):
+            pass
+        if grace is None:
+            _wait_layer_group_gone(pgid)
+            break
+        until = time.monotonic() + grace
+        while _group_size(pgid) and time.monotonic() < until:
+            time.sleep(0.05)
+        if not _group_size(pgid):
+            break
+    return True
 
 
 def _layer_term_grace():
@@ -2770,119 +2883,187 @@ def _run_layer_command(cmd, worktree, timeout, env, nice: int = 0, starved=None,
     T-14085 (public issue #166) — `shell=False` runs an argv list with no shell (the floor-atom
     caller, `land_floors._floor_project_commands`), on the same group-reaping launch. A bound kill
     leaves `_layer_kill.reaped` = `(pgid, N)`: the processes of the group alive just before the
-    SIGTERM; it is None when the bound did not kill the command."""
+    SIGTERM; it is None when the bound did not kill the command.
+
+    T-14157 — the run ends normally only once the command has ended AND its output readers are done:
+    until then the bound and a recorded stop apply on every tick, whatever the command's own state, so
+    a descendant still holding the pipes after the command exited is ended by the bound like a hang.
+    The command's end is observed without reaping it (`waitid` WNOWAIT), so its group id stays this
+    layer's while the runner may still signal it. A stop recorded by the verb (`request_layer_stop`)
+    is checked FIRST at every tick, before completion: the runner ends its group (`_end_layer_group`),
+    reaps, and raises `LayerRunStopped`; it starts no restart. A layer that completed on its own is left
+    as it is; on every other way out the runner ends its group before giving up its token. A run that
+    would begin after the stop starts nothing (`_layer_runs` below)."""
     import signal
     import subprocess
     import threading
-    deadline = None if timeout is None else time.monotonic() + timeout
-    proc_ms, streams = 0, []
-    _layer_kill.ending = None       # T-13993: set below only when the bound kills this command
-    _layer_kill.reaped = None       # T-14085: `(pgid, N)` set below only when the bound kills it
-    tree = getattr(_layer_tree, "reading", None)    # T-13931: the layer's process-tree reading, if one is open
-    while True:     # at most twice: the attempt, and (T-13811) its ONE restart at normal priority
-        _nice_kw = {"preexec_fn": (lambda: os.nice(max(0, nice - os.nice(0))))} if nice else {}
-        p = subprocess.Popen(cmd, shell=shell, cwd=str(worktree), stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE, text=True, env=env, start_new_session=True, **_nice_kw)
-        box = {}
-        readers = [threading.Thread(target=lambda k=k, s=s, b=box: b.__setitem__(k, s.read()), daemon=True)
-                   for k, s in (("out", p.stdout), ("err", p.stderr))]
-        for t in readers:
-            t.start()
-        began = time.monotonic()
-        # T-13811: the next priority probe of a lowered attempt (None: not lowered, no decision
-        # handed in, or no bound — the wait below is then the one it always was).
-        probe_at = (began + timeout / 5) if (nice and starved is not None and timeout) else None
-        timed_out = restart = False
-        # T-13931: under a tree reading that can read this command, the command is read one last
-        # time when it has ended and is NOT YET REAPED (`waitid` with WNOWAIT sees the end and leaves
-        # the command in place), and only then reaped. Without one, the wait is the one it always was.
-        read = tree if (tree is not None and tree.start(p.pid)) else None
+    # T-14157: the runner's part in a stop — refuse to start once one is recorded, hold a token while
+    # this run may own a live group, and mark the main thread as inside a runner (where the handler
+    # does not raise); a stop recorded while the main thread was inside is raised on the way out.
+    on_main = threading.current_thread() is threading.main_thread()
+    token, group = object(), None
+    if on_main:
+        _layer_stop["main_in_runner"] = True
+    try:
+        with _layer_runs_lock:
+            if _layer_stop["signo"] is not None:
+                raise LayerRunStopped(_layer_stop["signo"])
+            _layer_runs.add(token)
+        deadline = None if timeout is None else time.monotonic() + timeout
+        proc_ms, streams = 0, []
+        _layer_kill.ending = None       # T-13993: set below only when the bound kills this command
+        _layer_kill.reaped = None       # T-14085: `(pgid, N)` set below only when the bound kills it
+        tree = getattr(_layer_tree, "reading", None)    # T-13931: the layer's process-tree reading, if one is open
+        label = getattr(_layer_name, "name", None) or str(cmd)   # T-14157: the name a stop is recorded under
+        while True:     # at most twice: the attempt, and (T-13811) its ONE restart at normal priority
+            if streams and _layer_stop["signo"] is not None:
+                # T-14157: a stop never starts the restart — read right before its launch (the first
+                # launch's read is the entry check above); the first group was ended before this point
+                _layer_stop["stopped"].append(label)
+                raise LayerRunStopped(_layer_stop["signo"])
+            _nice_kw = {"preexec_fn": (lambda: os.nice(max(0, nice - os.nice(0))))} if nice else {}
+            p = subprocess.Popen(cmd, shell=shell, cwd=str(worktree), stdout=subprocess.PIPE,
+                                 stderr=subprocess.PIPE, text=True, env=env, start_new_session=True, **_nice_kw)
+            group = p.pid       # T-14157: the group this runner started (its own session)
+            box = {}
+            readers = [threading.Thread(target=lambda k=k, s=s, b=box: b.__setitem__(k, s.read()), daemon=True)
+                       for k, s in (("out", p.stdout), ("err", p.stderr))]
+            for t in readers:
+                t.start()
+            began = time.monotonic()
+            # T-13811: the next priority probe of a lowered attempt (None: not lowered, no decision
+            # handed in, or no bound — the wait below is then the one it always was).
+            probe_at = (began + timeout / 5) if (nice and starved is not None and timeout) else None
+            timed_out = restart = False
+            # T-13931: under a tree reading that can read this command, the command is read one last
+            # time when it has ended and is NOT YET REAPED (`waitid` with WNOWAIT sees the end and leaves
+            # the command in place), and only then reaped. Without one, the wait is the one it always was.
+            read = tree if (tree is not None and tree.start(p.pid)) else None
 
-        def reap(block: bool):
-            if read is None:
-                return os.wait4(p.pid, 0 if block else os.WNOHANG)
-            if os.waitid(os.P_PID, p.pid, os.WEXITED | os.WNOWAIT | (0 if block else os.WNOHANG)) is None:
-                return 0, 0, None
-            read.ended(p.pid)
-            return os.wait4(p.pid, 0)
+            def reap(block: bool):
+                if read is None:
+                    return os.wait4(p.pid, 0 if block else os.WNOHANG)
+                if os.waitid(os.P_PID, p.pid, os.WEXITED | os.WNOWAIT | (0 if block else os.WNOHANG)) is None:
+                    return 0, 0, None
+                read.ended(p.pid)
+                return os.wait4(p.pid, 0)
 
-        while True:
-            pid, status, ru = reap(False)
-            if pid:
-                break
-            now = time.monotonic()
-            if probe_at is not None and now >= probe_at and now < deadline:
-                probe_at += timeout / 5
-                try:
-                    restart, probe_cpu = starved(p.pid, now - began)
-                except Exception:
-                    restart = False     # a probe that cannot answer restarts nothing
-            if restart or (deadline is not None and now >= deadline):
-                # T-12849: signal the layer's whole process GROUP (its own session, above) — `sh` forks a
-                # simple command, so killing the shell alone leaves the grandchild holding the reader pipes
-                # open and the wall runs past the layer's own timeout.
-                reaped = None
-                if not restart:
-                    # T-13993: the BOUND — SIGTERM the group and give it `_LAYER_TERM_GRACE_S` to exit
-                    # (the T-12645 reap shape). It has exited when the shell is reaped AND no member
-                    # of the group is left. A starvation restart (T-13811) stays an immediate kill.
-                    _layer_kill.reaped = (p.pid, _group_size(p.pid))
+            stopping = False
+            while True:
+                if _layer_stop["signo"] is not None:    # T-14157: the verb was stopped — end the group below
+                    stopping = True
+                    break
+                # T-14157: leave only once the command has ended (observed, not reaped) AND its readers
+                # are done — a descendant holding the pipes keeps the bound and the stop check in force.
+                exited = os.waitid(os.P_PID, p.pid, os.WEXITED | os.WNOHANG | os.WNOWAIT) is not None
+                if exited and not any(t.is_alive() for t in readers):
+                    if _layer_stop["signo"] is not None:
+                        # T-14157: read again once completion is observed, before acting on it — a stop
+                        # recorded before the layer was seen complete ends it like any running layer
+                        stopping = True
+                        break
+                    pid, status, ru = reap(True)
+                    group = None        # T-14157: the layer completed on its own — left as it is
+                    break
+                now = time.monotonic()
+                if (not exited and probe_at is not None and now >= probe_at
+                        and now < deadline):
+                    probe_at += timeout / 5
                     try:
-                        os.killpg(p.pid, signal.SIGTERM)
-                    except ProcessLookupError:
-                        pass
-                    term_end = time.monotonic() + _LAYER_TERM_GRACE_S
-                    _layer_kill.ending = "killed-hard"
-                    while True:
-                        if reaped is None:
-                            got = reap(False)
-                            reaped = got if got[0] else None
-                        if reaped is not None:
-                            try:
-                                os.killpg(p.pid, 0)
-                            except ProcessLookupError:
-                                _layer_kill.ending = "exited-in-grace"
+                        restart, probe_cpu = starved(p.pid, now - began)
+                    except Exception:
+                        restart = False     # a probe that cannot answer restarts nothing
+                if restart or (deadline is not None and now >= deadline):
+                    # T-12849: signal the layer's whole process GROUP (its own session, above) — `sh` forks a
+                    # simple command, so killing the shell alone leaves the grandchild holding the reader pipes
+                    # open and the wall runs past the layer's own timeout.
+                    reaped = None
+                    if not restart:
+                        # T-13993: the BOUND — SIGTERM the group and give it `_LAYER_TERM_GRACE_S` to exit
+                        # (the T-12645 reap shape). It has exited when the shell is reaped AND no member
+                        # of the group is left. A starvation restart (T-13811) stays an immediate kill.
+                        _layer_kill.reaped = (p.pid, _group_size(p.pid))
+                        try:
+                            os.killpg(p.pid, signal.SIGTERM)
+                        except ProcessLookupError:
+                            pass
+                        term_end = time.monotonic() + _LAYER_TERM_GRACE_S
+                        _layer_kill.ending = "killed-hard"
+                        while True:
+                            if reaped is None:
+                                got = reap(False)
+                                reaped = got if got[0] else None
+                            if reaped is not None:
+                                try:
+                                    os.killpg(p.pid, 0)
+                                except ProcessLookupError:
+                                    _layer_kill.ending = "exited-in-grace"
+                                    break
+                            if time.monotonic() >= term_end:
                                 break
-                        if time.monotonic() >= term_end:
-                            break
-                        time.sleep(0.02)
-                if _layer_kill.ending != "exited-in-grace":
-                    try:
-                        os.killpg(p.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        if reaped is None:
-                            p.kill()
-                _, status, ru = reaped if reaped is not None else reap(True)
-                timed_out = not restart
+                            time.sleep(0.02)
+                    if _layer_kill.ending != "exited-in-grace":
+                        try:
+                            os.killpg(p.pid, signal.SIGKILL)
+                        except ProcessLookupError:
+                            if reaped is None:
+                                p.kill()
+                    _, status, ru = reaped if reaped is not None else reap(True)
+                    # T-14157: the group is this runner's until no member of it is alive — a member that
+                    # outlives the SIGKILL (uninterruptible sleep) holds the runner, so a stopped run's
+                    # record, until it is gone (the restart's first group included)
+                    _wait_layer_group_gone(p.pid)
+                    timed_out = not restart
+                    if timed_out:
+                        group = None    # T-14157: the bound has ended the group (T-12849 / T-13993)
+                    break
+                if read is not None:
+                    read.sample()
+                time.sleep(0.02)
+            if stopping:
+                # T-14157: this runner ends the group it started; the command is reaped only after it.
+                _end_layer_group(group)
+                group = None
+                _, status, ru = reap(True)
+            p.returncode = os.waitstatus_to_exitcode(status)
+            for t in readers:
+                t.join(timeout=5 if (timed_out or restart or stopping) else None)   # a surviving grandchild may hold a pipe open
+            proc_ms += int(round((ru.ru_utime + ru.ru_stime) * 1000))
+            streams.append((box.get("out", "") or "") + (box.get("err", "") or ""))
+            if stopping:
+                _layer_stop["stopped"].append(label)
+                raise LayerRunStopped(_layer_stop["signo"])
+            if not restart:
                 break
-            if read is not None:
-                read.sample()
-            time.sleep(0.02)
-        p.returncode = os.waitstatus_to_exitcode(status)
-        for t in readers:
-            t.join(timeout=5 if (timed_out or restart) else None)   # a surviving grandchild may hold a pipe open
-        proc_ms += int(round((ru.ru_utime + ru.ru_stime) * 1000))
-        streams.append((box.get("out", "") or "") + (box.get("err", "") or ""))
-        if not restart:
-            break
-        if time.monotonic() >= deadline:
-            # The first attempt's clean-up (a descendant outside the killed group can hold a reader
-            # for seconds) used up the time left: the bound has passed, so nothing more is started
-            # and the invocation is the timeout it would have been.
-            timed_out = True
-            break
-        note = (f"yitc-v2: verify: layer command {str(cmd)[:120]!r} is starved at nice {nice} "
-                f"(wall={now - began:.1f}s cpu={probe_cpu or 0.0:.1f}s) — restarting it ONCE at normal "
-                f"priority within the same {timeout:g}s budget (T-13811).")
-        print(note, file=sys.stderr, flush=True)
-        streams.append(note)
-        nice = 0            # the restarted run is at normal priority, and so is never probed
-    # T-12758 (X-1478 item 8): the WHOLE captured stream, returned as a THIRD element on BOTH arms.
-    # The timeout arm used to discard it entirely — `r is None` was the only thing the caller got, so a
-    # layer KILLED BY ITS BOUND left no record of what it had printed before the kill. The caller
-    # persists this as a land-log artifact on a failing outcome; the `r is None` timeout sentinel and
-    # the exit-code gate are untouched.
-    captured = "\n".join(streams)
+            if time.monotonic() >= deadline:
+                # The first attempt's clean-up (a descendant outside the killed group can hold a reader
+                # for seconds) used up the time left: the bound has passed, so nothing more is started
+                # and the invocation is the timeout it would have been.
+                timed_out = True
+                break
+            note = (f"yitc-v2: verify: layer command {str(cmd)[:120]!r} is starved at nice {nice} "
+                    f"(wall={now - began:.1f}s cpu={probe_cpu or 0.0:.1f}s) — restarting it ONCE at normal "
+                    f"priority within the same {timeout:g}s budget (T-13811).")
+            print(note, file=sys.stderr, flush=True)
+            streams.append(note)
+            nice = 0            # the restarted run is at normal priority, and so is never probed
+        # T-12758 (X-1478 item 8): the WHOLE captured stream, returned as a THIRD element on BOTH arms.
+        # The timeout arm used to discard it entirely — `r is None` was the only thing the caller got, so a
+        # layer KILLED BY ITS BOUND left no record of what it had printed before the kill. The caller
+        # persists this as a land-log artifact on a failing outcome; the `r is None` timeout sentinel and
+        # the exit-code gate are untouched.
+        captured = "\n".join(streams)
+    finally:
+        # T-14157: `group` is cleared only where the layer completed or its group was ended; every
+        # other way out (an error, a stop met before a restart) ends it here — no stop check, no window.
+        if group is not None:
+            _end_layer_group(group)
+        with _layer_runs_lock:
+            _layer_runs.discard(token)
+        if on_main:
+            _layer_stop["main_in_runner"] = False
+    if on_main and _layer_stop["signo"] is not None:
+        raise LayerRunStopped(_layer_stop["signo"])
     if timed_out:
         return None, proc_ms, captured
     return (subprocess.CompletedProcess(cmd, p.returncode, box.get("out", ""), box.get("err", "")),

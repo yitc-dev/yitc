@@ -287,9 +287,9 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ a TASK naming the id in its `resolves_cross:`, or a NON-TERMINAL PLAN naming it\n\
   in its frontmatter `resolves_cross:`.** Both cuts read the ONE host-scanned declared\
   \ set\n(`bin/lib/cross.py#_cross_linked_ids`); the fold predicates are carrier-agnostic.\
-  \ The plan carrier\nexists because the SPEC-0140 sieve routes an ask needing a spec\
-  \ corpus or a coordinated cut to a\nPLAN — so without it, routing an item to its\
-  \ CORRECT carrier made it read as tracked by NOTHING\nforever (measured 2026-08-26:\
+  \ The plan carrier\nexists because the <workshop-spec> sieve routes an ask needing\
+  \ a spec corpus or a coordinated cut to a\nPLAN — so without it, routing an item\
+  \ to its CORRECT carrier made it read as tracked by NOTHING\nforever (measured 2026-08-26:\
   \ X-0560 and X-1113 both named while each had a live plan carrying it).\nTwo bounds\
   \ hold the widening honest. **(a) The key is `resolves_cross`, never `cites:`**\
   \ — a\nsubtraction that drops \"already handled\" must key on a marker whose PRESENCE\
