@@ -326,54 +326,57 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ its ARCHIVE name. A proposal slug\n                               # carrying no\
   \ `#` is not an issue number and stays admitted. Read by\n                     \
   \          # `release.collect_answered_proposals` at the release commit into the\n\
-  \                               # published notes. Written by `task file --from-stdin`\
-  \ or `task update\n                               # --set-field answers --from-file`;\
-  \ those two writers AND the publish\n                               # read refuse\
-  \ an id failing `release.ANSWER_ID_RE`, carrying a host path\n                 \
-  \              # or naming no tracker (`release.unqualified_answer_id`), the publish\n\
-  \                               # naming the card; the writers also refuse an explicit\
-  \ null. Notes\n                               # signed before keep their bare ids\
-  \ — a published release is\n                               # immutable — and are\
-  \ still read as written.\n                               # The ONE terminal-card\
-  \ carve-out of --set-field: answers is release\n                               #\
-  \ metadata, not the card's shipped claim, and a fix card is normally done\n    \
-  \                           # before the release that ships it is cut — so answers\
-  \ (and no other\n                               # field) is settable on a done/wont-do\
-  \ card; its task_amended row carries\n                               # `post_close:\
-  \ true`.\n\nresolution_excludes: # OPTIONAL closure-honesty declaration (X-1179)\
-  \ — what this\n                               # task's fix STRUCTURALLY CANNOT REACH,\
-  \ in the resolver's own words.\n                               # Read by exactly\
-  \ ONE consumer: the derived cross closure note\n                               #\
-  \ (`bin/lib/cross.py#resolution_note_for_close`), which appends it to the\n    \
-  \                           # `auto_note` the receiver's auto-`cross_done` carries\
-  \ — so a coordination\n                               # item closed by a fix that\
-  \ excludes the REPORTED INSTANCE says so on the\n                              \
-  \ # surface the requester reads. Form — a plain string:\n                      \
-  \         # resolution_excludes: ', the reported card: the axis is fail-closed on\
-  \ the prior record'\n                               # WHY (measured, X-1179): X-1124's\
-  \ auto-closure read `resolved by :\n                               #...` and nothing\
-  \ else, although the fix reached only cards audited after\n                    \
-  \           # it landed. The requester acted on that plain resolution — unparked\
-  \ the\n                               # reported card, re-claimed it and spent an\
-  \ external auditor invocation\n                               # before the guard\
-  \ correctly refused — then had to write the divergence\n                       \
-  \        # themselves, on their own close, after paying for it.\n              \
-  \                 # DECLARED, NEVER INFERRED (the SPEC-0095 discipline): no code\
-  \ judges\n                               # reach; the resolver states it or the\
-  \ note is unchanged.\n                               # WRITTEN like `analysis:`\
-  \ — authored on the card by the resolving\n                               # session\
-  \ (no verb owns it), and admitted by `task file --from-stdin`\n                \
-  \               # (`task.py#_STDIN_EXTRA_SCHEMA_KEYS`) for a filer who already knows.\n\
-  \                               # ABSENT = the ordinary case, and deliberately so\
-  \ — a closure whose fix DOES\n                               # reach the reported\
-  \ instance emits the identical note it always did, with no\n                   \
-  \            # added ceremony. Taxing every closure to describe the rare one is\
-  \ exactly\n                               # what this field exists to avoid. Additive\
-  \ + optional (no drift #10).\n\nsubstituted_instrument: # OPTIONAL declaration (X-1166)\
-  \ — an acceptance differential\n                               # that was MEASURED\
-  \ ANOTHER WAY because the instrument the card planned\n                        \
-  \       # could not run before the ship landed. Rendered to the auditor by the\n\
-  \                               # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
+  \                               # published notes. Written by `task file --answers\
+  \ <id>` (repeatable)\n                               # or its `--from-stdin` key,\
+  \ or `task update --set-field answers\n                               # --from-file`;\
+  \ `task file` and `task close` WARN, never refuse, when\n                      \
+  \         # the card text names an `owner/repo#N` this field lacks.\n          \
+  \                     # Those writers AND the publish\n                        \
+  \       # read refuse an id failing `release.ANSWER_ID_RE`, carrying a host path\n\
+  \                               # or naming no tracker (`release.unqualified_answer_id`),\
+  \ the publish\n                               # naming the card; the writers also\
+  \ refuse an explicit null. Notes\n                               # signed before\
+  \ keep their bare ids — a published release is\n                               #\
+  \ immutable — and are still read as written.\n                               # The\
+  \ ONE terminal-card carve-out of --set-field: answers is release\n             \
+  \                  # metadata, not the card's shipped claim, and a fix card is normally\
+  \ done\n                               # before the release that ships it is cut\
+  \ — so answers (and no other\n                               # field) is settable\
+  \ on a done/wont-do card; its task_amended row carries\n                       \
+  \        # `post_close: true`.\n\nresolution_excludes: # OPTIONAL closure-honesty\
+  \ declaration (X-1179) — what this\n                               # task's fix\
+  \ STRUCTURALLY CANNOT REACH, in the resolver's own words.\n                    \
+  \           # Read by exactly ONE consumer: the derived cross closure note\n   \
+  \                            # (`bin/lib/cross.py#resolution_note_for_close`), which\
+  \ appends it to the\n                               # `auto_note` the receiver's\
+  \ auto-`cross_done` carries — so a coordination\n                              \
+  \ # item closed by a fix that excludes the REPORTED INSTANCE says so on the\n  \
+  \                             # surface the requester reads. Form — a plain string:\n\
+  \                               # resolution_excludes: ', the reported card: the\
+  \ axis is fail-closed on the prior record'\n                               # WHY\
+  \ (measured, X-1179): X-1124's auto-closure read `resolved by :\n              \
+  \                 #...` and nothing else, although the fix reached only cards audited\
+  \ after\n                               # it landed. The requester acted on that\
+  \ plain resolution — unparked the\n                               # reported card,\
+  \ re-claimed it and spent an external auditor invocation\n                     \
+  \          # before the guard correctly refused — then had to write the divergence\n\
+  \                               # themselves, on their own close, after paying for\
+  \ it.\n                               # DECLARED, NEVER INFERRED (the SPEC-0095\
+  \ discipline): no code judges\n                               # reach; the resolver\
+  \ states it or the note is unchanged.\n                               # WRITTEN\
+  \ like `analysis:` — authored on the card by the resolving\n                   \
+  \            # session (no verb owns it), and admitted by `task file --from-stdin`\n\
+  \                               # (`task.py#_STDIN_EXTRA_SCHEMA_KEYS`) for a filer\
+  \ who already knows.\n                               # ABSENT = the ordinary case,\
+  \ and deliberately so — a closure whose fix DOES\n                             \
+  \  # reach the reported instance emits the identical note it always did, with no\n\
+  \                               # added ceremony. Taxing every closure to describe\
+  \ the rare one is exactly\n                               # what this field exists\
+  \ to avoid. Additive + optional (no drift #10).\n\nsubstituted_instrument: # OPTIONAL\
+  \ declaration (X-1166) — an acceptance differential\n                          \
+  \     # that was MEASURED ANOTHER WAY because the instrument the card planned\n\
+  \                               # could not run before the ship landed. Rendered\
+  \ to the auditor by the\n                               # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
   \ so evidence\n                               # taken by the substitute is not read\
   \ as evidence MISSING. ONE form, both\n                               # keys REQUIRED:\n\
   \                               # substituted_instrument: {instrument: <what was\

@@ -10976,6 +10976,9 @@ def _home_picker_file_body(row: dict, engine_root) -> str:
     return body
 
 
+_HOME_PICKER_TEMP_ROOTS = ("/tmp", "/var/tmp")   # T-14168: temporary folders besides the temp dir
+
+
 def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
     """T-13182 / T-13385 — write the home-folder picker command for every tool in the AI tool list that
     is present on the machine (none detected: the `default` row). The file is created exclusively; an
@@ -10986,7 +10989,9 @@ def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
     test harness never writes into a HOME outside the temp dir. T-13488: an engine running from a linked
     git worktree installs and refreshes nothing and says so in one line — the command body names the
     engine's absolute path, and `land` removes a worktree. A write fault is reported, never fails
-    init — the command is a convenience. Returns `(label, invocation)` for each tool that has the
+    init — the command is a convenience. T-14168: an engine under a temporary folder (the temp dir,
+    /tmp, /var/tmp — a session scratch copy) installs and refreshes nothing in a HOME outside them and
+    says so in one line, for the same reason. Returns `(label, invocation)` for each tool that has the
     command afterwards (written now or already there), for the printed next step."""
     import os
     import platform
@@ -10996,6 +11001,14 @@ def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
     tmp = Path(tempfile.gettempdir()).resolve()
     home = Path(home).resolve()
     home_sandboxed = tmp in home.parents
+    temp_roots = {tmp} | {Path(r).resolve() for r in _HOME_PICKER_TEMP_ROOTS}
+    eng = Path(engine_root).resolve()
+    if (any(r == eng or r in eng.parents for r in temp_roots)
+            and not any(r in home.parents for r in temp_roots)):
+        print(f"  = start command /{_HOME_PICKER_NAME} not installed — this engine runs from a temporary "
+              f"folder ({eng}), which is removed; run init or release install with an engine in a "
+              f"lasting folder to install it")
+        return []
     if not home_sandboxed and (tmp in Path(REPO_ROOT).resolve().parents
                                or os.environ.get("YITC_TEST_JOURNAL_GUARD")):
         return []

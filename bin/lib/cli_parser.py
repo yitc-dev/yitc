@@ -845,6 +845,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="OPTIONAL dispatch-selection forecast: a coarse touch unit "
                          "(file path | doc#section | test-target bucket | hand-named function "
                          "e.g. bin/yitc-v2#_run_view) (repeatable; absent = no forecast)")
+    tf.add_argument("--answers", dest="answers", action="append", metavar="owner/repo#N",
+                    help="OPTIONAL release link-back (SPEC-0197 rule 4 / SPEC-0028 `answers`, T-14166): an "
+                         "outside proposal this card answers (repeatable). An issue reference names its "
+                         "tracker; a bare `#N` is refused, as by the --from-stdin key and by the `task "
+                         "update` answers writer.")
     tf.add_argument("--resolves-cross", dest="resolves_cross", action="append", metavar="X-NNNN",
                     help="OPTIONAL structured task→cross link (T-9362): the coordination item(s) this "
                          "task resolves (repeatable; X-NNNN). The receiver auto-emits cross_done for "
@@ -2222,7 +2227,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                             help="RECORD A FILED FOLLOW-UP (LIFECYCLE Stage 8): add the id of the "
                                  "follow-up filed for a residual YELLOW finding — a task id (T-NNNN) "
                                  "or a followup id (fu_ + 12 hex) — to the EXISTING saved audit-post "
-                                 "record's followups: — a field-edit, not an audit. --task only. Runs "
+                                 "record's followups: — a field-edit, not an audit. --task T-XXXX, or "
+                                 "--plan <slug> for a YELLOW plan-aggregate verdict "
+                                 "(decisions/<slug>-audit-post.yaml, T-14164); not --decision. Runs "
                                  "NO auditor, leaves verdict:/passes:/commit: untouched "
                                  "(ceiling-neutral) and emits audit_finding_absorbed (mode: followup) "
                                  "so the record is journal-visible cross-session. Refused when there "
@@ -3789,7 +3796,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "this same command to resolve it). An ADMITTED land is never "
                            "interrupted.")
     # T-14008 — a READ-ONLY report MODE; composes with a target like --withdraw (so outside land_tgt).
-    land_mode.add_argument("--report", choices=("layers", "merge"),
+    land_mode.add_argument("--report", choices=("layers", "merge", "credit"),
                       help="REPORT instead of landing (read-only: no lock, no write, no `LAND:` token): "
                            "print ONE JSON object and exit 0. `layers` = the verify layers this land "
                            "would run and skip, with each reason (the land's own subject_globs skip "
@@ -3798,7 +3805,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "own merge probe), plus `tree` — the merged tree id exactly as the land builds "
                            "it — and per-branch `members` rows. Merge is the seam for a project-side "
                            "merged-tree check: run your whole-repository check on `tree` (read it with "
-                           "--objects-dir). Target: --task / --branch, else this checkout's branch.")
+                           "--objects-dir). `credit` = whether this land would take the Stage-6 credit "
+                           "NOW (SPEC-0065 §Bound) and, if not, the reason — the land's own credit "
+                           "predicate over main's tip now, asked only on a first attempt that runs the "
+                           "candidate verify; needs the branch's worktree (T-14165). Target: --task / "
+                           "--branch, else this checkout's branch.")
     land_mode.add_argument("--batch-eligibility", dest="report", action="store_const",
                            const="batch-eligibility",
                            help="ANSWER whether this branch must land alone (read-only, as --report: no "

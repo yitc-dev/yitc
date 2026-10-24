@@ -63,8 +63,6 @@ a `requires:` edge to every other card that implements the successor.
 - Basis: the SPEC-0070 §3 clause itself; <workshop-spec> rule 5 (one activation owner, the other
   implementing cards `cite` the spec); the SPEC-0083 P5 template («`requires:` ordering encoded, not
   prose»).
-- Name the other implementing cards on the owner card directly instead of chaining them one behind
-  another: SPEC-0046 §A keeps the transitive depth of a `requires:` chain at 3 or less.
 
 ### 2. Earlier cards add only what the active predecessor admits — ADOPTED
 

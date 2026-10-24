@@ -8894,8 +8894,14 @@ def followup_ids(raw, *, _die) -> "list[str] | None":
 
 def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, repo_root: Path,
                                        find_task_yaml, events_paths, _die, _append_event,
-                                       write_text_atomic, _governing_contract_for=None) -> None:
+                                       write_text_atomic, _governing_contract_for=None,
+                                       target_kind: str = "task") -> None:
     """T-13542 — record FILED follow-up ids into the saved YELLOW audit-post verdict's `followups:`.
+
+    T-14164 — `tid` is a task id, or a plan slug when `target_kind == "plan"`: a plan's aggregate
+    verdict is saved at the same `decisions/<slug>-audit-post.yaml` shape and carries the same
+    `followups:` field. Only the routes the refusals name and the journal row's shape differ — a plan
+    row goes by slug-in-data with no task_id, as `absorb_into_plan_gate_record` journals one.
 
     LIFECYCLE Stage 8 closes a YELLOW audit-post as «file follow-up task for findings, proceed», and
     the saved-verdict schema (SPEC-0036 §Saved audit result) carries `followups:` for those ids — but
@@ -8921,21 +8927,28 @@ def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, re
     An id the record ALREADY carries is reported and skipped — a re-run writes nothing and emits
     nothing. One `audit_finding_absorbed` row (`mode: followup`) per id newly recorded: the existing
     record of how a YELLOW finding was disposed of, extended by a mode as T-12726 extended it."""
+    target = f"--plan {tid}" if target_kind == "plan" else f"--task {tid}"
     path = audit_yaml_path(tid, "post", decisions_dir=decisions_dir)
     if path is None:
         _die(f"no saved audit-post record for {tid} — --followup records a filed follow-up INTO an "
-             f"existing verdict (decisions/{tid}-audit-post.yaml). Run `yitc-v2 audit post --task "
-             f"{tid}` first.")
+             f"existing verdict (decisions/{tid}-audit-post.yaml). Run `yitc-v2 audit post {target}` "
+             f"first.")
     try:
         rec = state.load_str(path.read_text(encoding="utf-8"))
     except Exception as e:  # noqa: BLE001 — unparseable governed record: refuse, never overwrite
         _die(f"cannot parse {path}: {e} — nothing was recorded. Restore the record "
              f"(`git checkout -- {path.name}` when it is committed) or re-run "
-             f"`yitc-v2 audit post --task {tid}`, then retry")
+             f"`yitc-v2 audit post {target}`, then retry")
     if not isinstance(rec, dict):
         _die(f"{path} is not a mapping — refusing to field-edit a malformed audit record. Re-run "
-             f"`yitc-v2 audit post --task {tid}` to write a well-formed one, then retry")
+             f"`yitc-v2 audit post {target}` to write a well-formed one, then retry")
     verdict = normalized_verdict(rec)
+    if verdict != "YELLOW" and target_kind == "plan":
+        _die(f"plan {tid} audit-post verdict is {verdict or '(none)'} — --followup records the "
+             f"follow-up filed for a YELLOW residual ONLY (LIFECYCLE Stage 7). GREEN carries no "
+             f"residual to follow up; RED/ABORT = STOP: fix the plan's cause and re-run "
+             f"`yitc-v2 audit post --plan {tid}` — a filed follow-up never discharges one. This route "
+             f"never rewrites a verdict.")
     if verdict != "YELLOW":
         _die(f"{tid} audit-post verdict is {verdict or '(none)'} — --followup records the follow-up "
              f"filed for a YELLOW residual ONLY (LIFECYCLE Stage 8). GREEN carries no residual to "
@@ -8950,9 +8963,11 @@ def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, re
                  f"print its id); nothing was recorded")
         if _FOLLOWUP_TASK_ID_RE.match(fid):
             if find_task_yaml(fid) is None:
+                _sync = ("`yitc-v2 worktree sync` on this worktree" if target_kind == "plan"
+                         else f"`yitc-v2 worktree sync --task {tid}`")
                 _die(f"--followup {fid}: no such task card in this checkout — file it first "
                      f"(`yitc-v2 task file`), or, when it was filed on main after this worktree "
-                     f"branched, run `yitc-v2 worktree sync --task {tid}`; nothing was recorded")
+                     f"branched, run {_sync}; nothing was recorded")
             continue
         if fu_items is None:                      # ONE fold, and only when a `fu_` id is named
             from lib import followup as _followup   # noqa: PLC0415 — leaf, imports no host module
@@ -8985,7 +9000,7 @@ def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, re
             or roundtrip.get("passes") != rec.get("passes") or roundtrip.get("followups") != followups):
         _die(f"SPEC-0001 self-test failed: audit YAML with the recorded follow-up did not round-trip "
              f"— nothing was written. Capture it (`yitc-v2 event deviation_captured`) and retry "
-             f"`yitc-v2 audit post --task {tid} --followup <id>`")
+             f"`yitc-v2 audit post {target} --followup <id>`")
     write_text_atomic(path, content)
 
     for fid, count in zip(added, counts):
@@ -8999,7 +9014,10 @@ def record_followups_into_audit_record(tid: str, ids, *, decisions_dir: Path, re
         }
         if _governing_contract_for is not None:
             data["governing_contract"] = _governing_contract_for("audit-post")
-        _append_event("audit_finding_absorbed", tid, data)
+        if target_kind == "plan":
+            data["target_kind"] = "plan"
+            data["slug"] = tid
+        _append_event("audit_finding_absorbed", None if target_kind == "plan" else tid, data)
     print(f"{tid} audit-post: recorded follow-up {', '.join(added)} → {record} "
           f"(verdict {verdict} unchanged, passes {rec.get('passes')} unchanged — no ceiling pass)")
 
@@ -13672,10 +13690,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                  "records the follow-up filed for a YELLOW audit-POST residual (LIFECYCLE Stage 8). "
                  "An audit-pre residual is recorded with `yitc-v2 audit pre --task T-XXXX --absorb "
                  "\"<text>\"` (LIFECYCLE Stage 4).")
-        if plan_slug or decision_id:
-            _die("--followup is --task-only: it records a filed follow-up into a TASK's saved "
-                 "audit-post verdict (decisions/<T-XXXX>-audit-post.yaml), not a plan or decision "
-                 "one — `yitc-v2 audit post --task T-XXXX --followup <id>`.")
+        # T-14164 — a PLAN aggregate verdict (decisions/<slug>-audit-post.yaml) carries `followups:`
+        # and passes the plan close gate as YELLOW, so its residual's follow-up is recorded on the
+        # same terms; a DECISION verdict is a frozen class and stays out.
+        if decision_id:
+            _die("--followup records a filed follow-up into a TASK's or a PLAN's saved audit-post "
+                 "verdict, not a decision one — `yitc-v2 audit post --task T-XXXX --followup <id>` or "
+                 "`yitc-v2 audit post --plan <slug> --followup <id>`.")
         # NO audit-run surface may ride along: this route must have nothing that could re-invoke the
         # auditor, re-point the audited commit or select an overlay — it edits ONE field of a record
         # an earlier run wrote.
@@ -13698,10 +13719,19 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                      f"it invokes no auditor and re-pins nothing, so {_flag} is meaningless with it. "
                      f"Drop {_flag} (`yitc-v2 audit post --task T-XXXX --followup <id>`), or run a "
                      f"real `yitc-v2 audit post --task T-XXXX` without --followup.")
-        _fu_tid = (getattr(args, "task", None) or "").strip()
-        if not _FOLLOWUP_TASK_ID_RE.match(_fu_tid):
-            _die("--followup requires --task T-XXXX — the task whose saved audit-post verdict "
-                 "records the follow-up: `yitc-v2 audit post --task T-XXXX --followup <id>`")
+        if plan_slug:
+            # The two checks the plan audit branch below runs: an id-shaped slug collides with the
+            # task/decision audit namespace, and `_load_draft` refuses a non-kebab slug (so no path
+            # can be named through it) or one with no plan behind it.
+            _reject_id_shaped_plan_slug(plan_slug)
+            _load_draft(plan_slug, dirs=(PLANS_DIR,))
+            _fu_tid, _fu_kind = plan_slug, "plan"
+        else:
+            _fu_tid, _fu_kind = (getattr(args, "task", None) or "").strip(), "task"
+            if not _FOLLOWUP_TASK_ID_RE.match(_fu_tid):
+                _die("--followup requires --task T-XXXX or --plan <slug> — the target whose saved "
+                     "audit-post verdict records the follow-up: `yitc-v2 audit post --task T-XXXX "
+                     "--followup <id>`")
         # SPEC-0050 §6 read-gate parity with the `--absorb` branch: the route WRITES the governed
         # audit record, so it is held to the Audit-post stage-bundle read-check. Stage-CORRESPONDENCE
         # is deliberately not required — a follow-up is typically filed after Stage 8 has been left.
@@ -13716,11 +13746,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             find_task_yaml=_find_task_yaml,
             events_paths=[p for p in (EVENTS_PATH, _fu_main) if p],
             _die=_die, _append_event=_append_event,
-            write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for)
+            write_text_atomic=write_text_atomic, _governing_contract_for=_governing_contract_for,
+            target_kind=_fu_kind)
         # T-13864 — also when every id was already on the record (nothing written): the record holds
         # what the call named, and the reader's next step is the same — proceed, do not repeat.
         return FieldEditRecorded(
-            f"follow-up {', '.join(followup_ids_list)} in the audit-post record of {_fu_tid} — the "
+            f"follow-up {', '.join(followup_ids_list)} in the audit-post record of "
+            f"{'plan ' if _fu_kind == 'plan' else ''}{_fu_tid} — the "
             f"call succeeded; no auditor ran, no verdict this call")
 
     if plan_slug:

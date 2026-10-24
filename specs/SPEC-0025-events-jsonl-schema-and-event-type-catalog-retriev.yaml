@@ -1751,7 +1751,7 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ before the check `failed` names had\ncompleted, which fails the layer; `ran` then\
   \ counts the checks that had run and passed.\nWriters: `bin/lib/land_verify_legs.py#_adapter_deciding_record`,\n\
   `#_adapter_run_plan`, `#_adapter_partial_record`, `#_adapter_passed_outcome` and\n\
-  `#_adapter_full_command_ran`.\n\n`pre_deploy` on that `adapter` record (dict — SPEC-1042\
+  `#_adapter_full_command_ran`.\n\n`pre_deploy` on that `adapter` record (dict — SPEC-1044\
   \ rule 2) = THE PRE-DEPLOY EXCLUSION\nof a land's candidate leg or a Stage-6 run\
   \ handed a parsed pre-deploy declaration; absent where\nnone is handed, or where\
   \ no listed unit is a pre-deploy unit. `applied: true` with `removed` — the\nunits\
@@ -1761,11 +1761,12 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ or `unit-names-two-pre-deploy-classes` (with\n`units`; both also `refused: true`\
   \ — a malformed declaration the verify fails on, its `bad`\nline naming each such\
   \ unit, `#_pre_deploy_refusal_line`), `mixed-group` (with `groups`, `group` / `project`),\
-  \ `shadow-full-side`,\n`command-decided`, `full-command-ran`, `change-unknown`,\
-  \ `adapter-sources` or the SPEC-0152\nrule-16 edge reason (each with `units`, the\
-  \ pre-deploy units that ran). In a deploy's pre-deploy\nrun ( — SPEC-1042 rule 3)\
-  \ it is `pre-deploy-run`: nothing removed, `units` naming every\npre-deploy unit\
-  \ with its `class` (`groups` beside them for a mixed group). A layer a pre-deploy\
+  \ `shadow-full-side`,\n`command-decided` or `full-command-ran` (each with `units`,\
+  \ the pre-deploy units that ran); a forced\nfull run is an `applied: true` row like\
+  \ any other ( — rows written before it may carry\n`change-unknown`, `adapter-sources`\
+  \ or the SPEC-0152 rule-16 edge reason). In a deploy's pre-deploy\nrun ( — <workshop-spec>\
+  \ rule 3) it is `pre-deploy-run`: nothing removed, `units` naming every\npre-deploy\
+  \ unit with its `class` (`groups` beside them for a mixed group). A layer a pre-deploy\
   \ class\nnames whole has the row `{layer, outcome: passed-partial, pre_deploy: {applied:\
   \ true, layer:\n{class}}}` and no `adapter` record. Writers: `bin/lib/land_verify_legs.py#_pre_deploy_exclusion`,\n\
   `#_pre_deploy_layer_skip_row` and `#_adapter_full_command_ran`.\n\n`credit` on that\

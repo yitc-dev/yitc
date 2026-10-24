@@ -1706,7 +1706,20 @@ def _pre_deploy_stand_seam(task: dict) -> "dict | None":
 def cmd_task_close(args: argparse.Namespace) -> None:
     with task_close_read_scope() as _set_read_horizon:
         _cmd_task_close_body(args, _set_read_horizon)
+    _warn_unanswered_issue_refs_after_close(args.task)   # T-14166 advisory, after a completed close
     _print_context_seam_tail()   # SPEC-0115 §7 seam tail (T-9707)
+
+
+def _warn_unanswered_issue_refs_after_close(tid) -> None:
+    """T-14166: the `task close` face of the unanswered-issue WARN. Here, after the body returned,
+    because a refused close exits before it; fail-open, since the close already happened."""
+    try:
+        path = _find_task_yaml(tid)
+        task = yaml.safe_load(path.read_text(encoding="utf-8")) if path else None
+        if isinstance(task, dict) and task.get("status") == "done":
+            task_mod._warn_unanswered_issue_refs(tid, task, "task close")
+    except Exception:  # noqa: BLE001 — advisory; never fatal to a completed close
+        pass
 
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
@@ -14923,7 +14936,34 @@ def stage_output_tool_voice(out: str) -> str:
     return out[:b] + (out[e + len(STAGE_BUNDLE_DELIVERY_END):] if e != -1 else "")
 
 
-def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> dict:
+# T-14172 — the resolution sources whose ref is the session's OWN (the launcher contract, a backed
+# carry): only these may hold a contract as already delivered. Spelled from SELF_REF_ENV (one home).
+_HELD_RECEIPT_REF_SOURCES = frozenset({"expected_contract", f"env:{SELF_REF_ENV}"})
+
+
+def _held_receipt_index(ref, epoch, rows, held: dict, doc_realms=None) -> dict:
+    """T-14172 — `{(spec id, content_sha): (ts, session_ref)}` of the NEWEST receipt behind each held
+    fingerprint, over the rows `_stage_bundle_held_shas` already folded (no new read). The same row
+    conditions `gates._fetched_spec_ids` credits, narrowed to the held shas, the epoch and (under `-C`)
+    the realm the doc requires — so the receipt named is one that vouches for the hold."""
+    out: dict = {}
+    lb = _session_started_lower_bound(ref, events=rows) or ""
+    for e in rows:
+        if e.get("type") != "cli_invoked" or e.get("session_ref") != ref or (e.get("ts") or "") < lb:
+            continue
+        data = e.get("data") or {}
+        sid, sha = data.get("node_id"), data.get("content_sha")
+        if (sha not in held.get(sid, ()) or data.get("stdout_delivered") is False or data.get("as_of")
+                or gates._receipt_stamp(data) != epoch
+                or (doc_realms or {}).get(sid) not in (None, data.get("node_realm") or None)):
+            continue
+        ts = e.get("ts") or ""
+        if ts >= out.get((sid, sha), ("", ""))[0]:
+            out[(sid, sha)] = (ts, ref)
+    return out
+
+
+def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict, receipts_out=None) -> dict:
     """T-13510 — `{spec id: {content_sha, ...}}` for the bundle ids THIS session already holds in the
     CURRENT context epoch: the crediting `graph query` receipts of `ref`, inside the read-gate's own
     window, stamped with the mark `epoch` (T-13789, by identity) and not superseded by a later seed
@@ -14936,7 +14976,10 @@ def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> di
     `_session_started_lower_bound` and `_fetched_spec_ids`. A
     tail snapshot is a SUFFIX of the journal, so its anchor is >= the true one and its receipts a
     subset of the credited ones: it can MISS a prior delivery (the body is then rendered again), never
-    invent one. The walk stops as soon as every bundle id is accounted for. No cache, no store."""
+    invent one. The walk stops as soon as every bundle id is accounted for. No cache, no store.
+
+    `receipts_out` (T-14172, additive): a dict filled by `_held_receipt_index` — the receipt each held
+    fingerprint rests on, so the pointer line can name it. Default None = unchanged."""
     if not ref or epoch is None or not delivered:
         return {}
 
@@ -14969,7 +15012,13 @@ def _stage_bundle_held_shas(ref, epoch, delivered: list, doc_realms: dict) -> di
         held = _fold(rows)
         # T-13789: a delivery written before a seed receipt of ANOTHER mark is superseded
         # (`_drop_superseded`) — a mark that went A and back must not vouch for a lost body again.
-        return _fold(_drop_superseded(ref, epoch, rows, EVENTS_PATH)) if held else held
+        if not held:
+            return held
+        kept = _drop_superseded(ref, epoch, rows, EVENTS_PATH)
+        held = _fold(kept)
+        if receipts_out is not None and held:
+            receipts_out.update(_held_receipt_index(ref, epoch, kept, held, doc_realms))
+        return held
     except Exception:   # noqa: BLE001 — a delivery helper never breaks its verb; full render instead
         return {}
 
@@ -15387,7 +15436,8 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
           re-delivers every body;
       (b) this session holds a crediting receipt for the id, in the gate's own window, stamped with
           the SAME mark (T-13789, by identity) AND carrying a `content_sha` (and, under `-C`, the
-          required realm);
+          required realm) — "this session" being a ref from its OWN carry, `_HELD_RECEIPT_REF_SOURCES`
+          (T-14172); the pointer names that receipt's ts and session ref;
       (c) the contract rendered NOW hashes to that SAME `content_sha` — so a spec edited in the
           worktree between two deliveries is delivered again, whatever its length.
     A pointer writes NO new receipt: the earlier one is what credits, and the gate is untouched —
@@ -15423,7 +15473,11 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
     # stamp the receipt under the ref the FAIL-CLOSED keyer resolves — the T-10246 rule that keeps the
     # anchor and the receipt on ONE id — without leaking a diagnostic when no ref is resolvable.
     epoch = _session_epoch_known()   # None = cannot tell → every contract is rendered in full
-    held = _stage_bundle_held_shas(ref, epoch, delivered, doc_realms)
+    held_receipts: dict = {}
+    # T-14172: only a ref from the session's OWN carry vouches for a delivery — a rediscovered ref
+    # (the worktree stamp, a sole runtime record) can name another session that worked here.
+    held = (_stage_bundle_held_shas(ref, epoch, delivered, doc_realms, receipts_out=held_receipts)
+            if ref_source in _HELD_RECEIPT_REF_SOURCES else {})
     parser = None
     for sid in delivered:
         argv = ["graph", "query"] + (["--kernel"] if doc_realms.get(sid) == "kernel" else []) + [sid]
@@ -15458,9 +15512,11 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
         if ok:
             try:
                 if held.get(sid) and tee.hexdigest() in held[sid]:
+                    r_ts, r_ref = held_receipts.get((sid, tee.hexdigest())) or ("", "")
+                    receipt = f"; receipt {r_ts} by session {r_ref}" if r_ts else ""
                     print(_consumer_render(
                         f"{sid} — {_rendered_spec_title(view)} — already delivered in this "
-                        f"context epoch (unchanged); re-read: `yitc-v2 {' '.join(argv)}`",
+                        f"context epoch (unchanged{receipt}); re-read: `yitc-v2 {' '.join(argv)}`",
                         qualify_specs=False))
                     done.append(sid)
                     continue           # no new receipt: the earlier delivery is what credits

@@ -591,5 +591,5 @@ binding:
 - stage-entry:Filing
 implements_signature:
   bin/lib/session.py#cmd_session_start: 3e3f9d346b226777570b5a88d0a8e83bdd944beaadba93bbdf83a45777ee6482
-  bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
+  bin/lib/task.py#cmd_task_file: 0a23cc073450036fffe93a5e9f92b5ffaee01272ce02ab0145e6d76ecfc79534
   bin/lib/triage.py#cmd_triage_run: f57196a9735297320ef155672de165b4f6a2e50a2c879a8f25a46ba3337ae139

@@ -349,7 +349,7 @@ implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: cec7de584e38045317a1dc6695ac6145c608804d4661f5820b5f9ccdbfc1a48c
   bin/lib/audit.py#blocked_on_land_ceiling_disposition: 9ed4a77ebf7a54150682fdc5724a5b82c4c5304c8398be34084586418161d911
-  bin/lib/audit.py#cmd_audit: f3aef2d80ca649b235c78f1727f1ff89e2749cc741b559fa089c1bb8e2d0abf1
+  bin/lib/audit.py#cmd_audit: e1becfa2a76821c020257fcd9a1f0b34e75bb38dea9c253985496c28be6b7b49
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -375,7 +375,7 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: f7776a3f50843ad0514b16fc69fbe55b42ef14e7af84528368d403ee1849d193
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: 54170dd9840675ff229664b804e7a2c5b9403b4deb34745b44823fdbefc6bb42
+  bin/lib/cli_parser.py#build_parser: 4b67b5e8cbb37223233f2d066525fb545297db6bbb24662636a88e48f89c7670
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
   bin/lib/plan.py#_run_plan_gate_audit: 102ba93b8e347fa24eacae2aaf39ec032c90775b66351e66ec020e43ec756f71

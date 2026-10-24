@@ -760,4 +760,4 @@ implements_signature:
   bin/lib/followup.py#split_due_awaits: 91a9baf836def19f23a4aa62f674979d2679ed774ab3b4787f650a4ca4a3b7ef
   bin/lib/followup.py#split_event_awaits: a4941eda4fcf12b7aa53f9ce49de38163c99767d7aac16b848591d2565ceb8ff
   bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
-  bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
+  bin/lib/task.py#cmd_task_file: 0a23cc073450036fffe93a5e9f92b5ffaee01272ce02ab0145e6d76ecfc79534

@@ -231,81 +231,86 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ for that contract, inside §2's own window, stamped with\n    the SAME epoch reading\
   \ (by identity), written after the session's last seed receipt of\n    another reading\
   \ (SPEC-1023 rule 6), and carrying the FINGERPRINT of what was rendered (and,\n\
-  \    under `-C`, the realm the contract requires);\n(c) the contract rendered NOW\
-  \ has that same fingerprint — a spec edited between two deliveries is\n    delivered\
-  \ again, whatever its length.\nA pointer writes NO receipt: the earlier delivery\
-  \ is what credits. To make (b) decidable, a\npoint-lookup receipt carries the epoch\
-  \ stamp the seed receipt already has (an absent stamp reads as\nNONE), and a stage-delivered\
-  \ one also carries the fingerprint; a hand `graph query` receipt has\nnone and therefore\
-  \ never suppresses a body. NOTHING ABOVE CHANGES: §2's credit stays SESSION-scoped\n\
-  and reads neither field — the epoch decides RE-RENDERING, never credit — and every\
-  \ doubt (no anchor,\nan unreadable journal, a comparison that fails) falls toward\
-  \ delivering the body. A `/compact`\nadvances the epoch, so the SPEC-0007 §5a re-run\
-  \ of `stage <current_stage>` delivers in full again.\nThe pointer is an EMISSION\
-  \ optimization that ASSUMES the earlier delivery was consumed complete:\ncondition\
-  \ (b) reads an emission receipt, and a filtered run writes the same receipt (HONEST\
-  \ BOUND\nabove). So after a stage bundle piped through `| tail`, a re-entry in the\
-  \ same epoch prints the\npointer for a body the reader never received. That is a\
-  \ named residual of this rule, not a promise\nit makes; the recovery is the re-read\
-  \ command the pointer names.\n\n**THE BEFORE-RULE-CHANGE CONTRACTS RIDE THE SAME\
-  \ DELIVERER.** Two more callers hand a\ncontract set to that helper: `spec edit`\
-  \ and `spec new`, each with the before-rule-change set\nbound to its own surface,\
-  \ after the verb's own result lines. Everything this section says of the\nstage\
-  \ deliverer applies to these two calls as it stands, the contract view included:\
-  \ the first\nsuch call in a context epoch prints each contract and writes its receipt,\
-  \ a later call in the\nsame epoch prints the pointer line and writes none, and the\
-  \ next call after a\n`/compact` or after a change to a contract's text prints that\
-  \ body again — which is also how this\ndelivery returns after a `/compact`, with\
-  \ no step of its own in the post-compact re-read. The\nreceipt is the ordinary point-lookup\
-  \ receipt of §2, the one the `spec edit --bless` read check\nreads, so a delivering\
-  \ `spec edit` satisfies that check and output sent to the null device does\nnot.\
-  \ Neither verb gains a read check: the plain `spec edit` and the non-draft `spec\
-  \ new` still\nproceed with no receipt, and a delivery that fails leaves the verb's\
-  \ result as it was.\n\n**THE PLAN-STAGE BUNDLE RIDES THE SAME DELIVERER.** Two further\
-  \ callers hand a contract\nset to that helper: `plan file` and `plan stage <NAME>`,\
-  \ each with the set bound to the plan stage\nit enters, after the line that reports\
-  \ the entry. Everything this section says of the stage\ndeliverer applies to these\
-  \ two calls as it stands, the contract view included: a contract this\ncontext epoch\
-  \ does not yet hold is printed and its receipt written, one it already holds\nunchanged\
-  \ is printed as the pointer line with no receipt, and after a `/compact` or a change\
-  \ to\na contract's text that body is printed again. The receipt is the ordinary\
-  \ point-lookup receipt of\n§2, the one the plan-axis read check of §1 reads, so\
-  \ a delivering `plan file` satisfies the check\nthat `plan draft --finalize` and\
-  \ `plan stage specs` make, and output sent to the null device does\nnot. No read\
-  \ check is added or changed. An empty set keeps its own line naming where the\n\
-  plan-stage doctrine lives, and a delivery that fails leaves the entry recorded and\
-  \ each contract\none `graph query` away. A plan stage is entered once, so the verb\
-  \ is not what returns its\ncontracts after a `/compact`: there they are re-read\
-  \ by `graph query`, as the pointer line names.\n\n**THE FILING CONTRACTS RIDE IT\
-  \ AT `task file`.** `task file` hands its Filing\nstage-entry set — the doc-set\
-  \ of its own read check — to the same deliverer, around that check\nand without\
-  \ changing it: when the check refuses, the set is delivered and the refusal stands,\
-  \ so a\nsession's first filing still stops before any write and its re-run is admitted\
-  \ by the delivery's\nreceipt with no hand fetch; when the check admits, the set\
-  \ is delivered too, as the pointer line\ninside the epoch that already holds it\
-  \ and as the body after a `/compact` or a changed contract.\n`task file --skeleton`\
-  \ runs no check and delivers nothing.\n\n**A STAGE ENTRY DELIVERS THE CONTRACT VIEW.**\
-  \ The same deliverer hands the reader each\ncontract's body and routing fields —\
-  \ what an agent acting in the stage reads — and leaves out what\ntools and explicit\
-  \ lookups read: the derived index header the point-lookup opens with, the code\n\
-  anchors and their signatures, the born concern, and the provenance and activation\
-  \ bookkeeping. The\nexact set is the deliverer's own field list (`_stage_contract_view`);\
-  \ a field it does not name is\ndelivered. An explicit `graph query <SPEC>` stays\
-  \ the full render, so every omitted field is one\ncommand away. The fingerprint\
-  \ in (b) and (c) is taken over the bytes DELIVERED, and a hand lookup's\nreceipt\
-  \ carries none, so a full lookup neither suppresses nor forces a delivered body.\
-  \ Credit (§2)\nis unchanged.\nThe view also leaves out the body sections a spec's\
-  \ maintainer reads rather than an agent\nacting in the stage — its rationale, its\
-  \ verification contract, its implementation\nnotes, and its drift review, the record\
-  \ of past amendments and re-verifications — and\nsays so inside\nthe body, once\
-  \ per contract, where the first of them stood: one line naming each section left\
-  \ out\nand the command that prints the full text. A rule an agent applies at a stage\
-  \ belongs in the\nspec's rule text; one found only in such a section is re-homed\
-  \ there, never left behind the\nomission. How a section is recognised is the deliverer's\
-  \ own reading\n(`_stage_view_without_maintainer_sections`); a body holding a line\
-  \ that reading does not decide\nis delivered whole, those sections included. What\
-  \ the external auditor is handed is not built\nfrom this view and keeps the whole\
-  \ spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
+  \    under `-C`, the realm the contract requires) — where \"this session\" is the\
+  \ ref named by the\n    session's OWN carry (the launcher contract or a backed session-ref\
+  \ carry): a ref rediscovered\n    from a worktree stamp or a sole runtime record\
+  \ can name another session that worked in the\n    same checkout, so under it nothing\
+  \ is held and every body is rendered;\n(c) the contract rendered NOW has that same\
+  \ fingerprint — a spec edited between two deliveries is\n    delivered again, whatever\
+  \ its length.\nA pointer writes NO receipt: the earlier delivery is what credits,\
+  \ and the pointer names that\nreceipt — its ts and session ref — so a reader can\
+  \ check whose delivery it rests on. To make (b) decidable, a\npoint-lookup receipt\
+  \ carries the epoch stamp the seed receipt already has (an absent stamp reads as\n\
+  NONE), and a stage-delivered one also carries the fingerprint; a hand `graph query`\
+  \ receipt has\nnone and therefore never suppresses a body. NOTHING ABOVE CHANGES:\
+  \ §2's credit stays SESSION-scoped\nand reads neither field — the epoch decides\
+  \ RE-RENDERING, never credit — and every doubt (no anchor,\nan unreadable journal,\
+  \ a comparison that fails) falls toward delivering the body. A `/compact`\nadvances\
+  \ the epoch, so the SPEC-0007 §5a re-run of `stage <current_stage>` delivers in\
+  \ full again.\nThe pointer is an EMISSION optimization that ASSUMES the earlier\
+  \ delivery was consumed complete:\ncondition (b) reads an emission receipt, and\
+  \ a filtered run writes the same receipt (HONEST BOUND\nabove). So after a stage\
+  \ bundle piped through `| tail`, a re-entry in the same epoch prints the\npointer\
+  \ for a body the reader never received. That is a named residual of this rule, not\
+  \ a promise\nit makes; the recovery is the re-read command the pointer names.\n\n\
+  **THE BEFORE-RULE-CHANGE CONTRACTS RIDE THE SAME DELIVERER.** Two more callers hand\
+  \ a\ncontract set to that helper: `spec edit` and `spec new`, each with the before-rule-change\
+  \ set\nbound to its own surface, after the verb's own result lines. Everything this\
+  \ section says of the\nstage deliverer applies to these two calls as it stands,\
+  \ the contract view included: the first\nsuch call in a context epoch prints each\
+  \ contract and writes its receipt, a later call in the\nsame epoch prints the pointer\
+  \ line and writes none, and the next call after a\n`/compact` or after a change\
+  \ to a contract's text prints that body again — which is also how this\ndelivery\
+  \ returns after a `/compact`, with no step of its own in the post-compact re-read.\
+  \ The\nreceipt is the ordinary point-lookup receipt of §2, the one the `spec edit\
+  \ --bless` read check\nreads, so a delivering `spec edit` satisfies that check and\
+  \ output sent to the null device does\nnot. Neither verb gains a read check: the\
+  \ plain `spec edit` and the non-draft `spec new` still\nproceed with no receipt,\
+  \ and a delivery that fails leaves the verb's result as it was.\n\n**THE PLAN-STAGE\
+  \ BUNDLE RIDES THE SAME DELIVERER.** Two further callers hand a contract\nset to\
+  \ that helper: `plan file` and `plan stage <NAME>`, each with the set bound to the\
+  \ plan stage\nit enters, after the line that reports the entry. Everything this\
+  \ section says of the stage\ndeliverer applies to these two calls as it stands,\
+  \ the contract view included: a contract this\ncontext epoch does not yet hold is\
+  \ printed and its receipt written, one it already holds\nunchanged is printed as\
+  \ the pointer line with no receipt, and after a `/compact` or a change to\na contract's\
+  \ text that body is printed again. The receipt is the ordinary point-lookup receipt\
+  \ of\n§2, the one the plan-axis read check of §1 reads, so a delivering `plan file`\
+  \ satisfies the check\nthat `plan draft --finalize` and `plan stage specs` make,\
+  \ and output sent to the null device does\nnot. No read check is added or changed.\
+  \ An empty set keeps its own line naming where the\nplan-stage doctrine lives, and\
+  \ a delivery that fails leaves the entry recorded and each contract\none `graph\
+  \ query` away. A plan stage is entered once, so the verb is not what returns its\n\
+  contracts after a `/compact`: there they are re-read by `graph query`, as the pointer\
+  \ line names.\n\n**THE FILING CONTRACTS RIDE IT AT `task file`.** `task file` hands\
+  \ its Filing\nstage-entry set — the doc-set of its own read check — to the same\
+  \ deliverer, around that check\nand without changing it: when the check refuses,\
+  \ the set is delivered and the refusal stands, so a\nsession's first filing still\
+  \ stops before any write and its re-run is admitted by the delivery's\nreceipt with\
+  \ no hand fetch; when the check admits, the set is delivered too, as the pointer\
+  \ line\ninside the epoch that already holds it and as the body after a `/compact`\
+  \ or a changed contract.\n`task file --skeleton` runs no check and delivers nothing.\n\
+  \n**A STAGE ENTRY DELIVERS THE CONTRACT VIEW.** The same deliverer hands the reader\
+  \ each\ncontract's body and routing fields — what an agent acting in the stage reads\
+  \ — and leaves out what\ntools and explicit lookups read: the derived index header\
+  \ the point-lookup opens with, the code\nanchors and their signatures, the born\
+  \ concern, and the provenance and activation bookkeeping. The\nexact set is the\
+  \ deliverer's own field list (`_stage_contract_view`); a field it does not name\
+  \ is\ndelivered. An explicit `graph query <SPEC>` stays the full render, so every\
+  \ omitted field is one\ncommand away. The fingerprint in (b) and (c) is taken over\
+  \ the bytes DELIVERED, and a hand lookup's\nreceipt carries none, so a full lookup\
+  \ neither suppresses nor forces a delivered body. Credit (§2)\nis unchanged.\nThe\
+  \ view also leaves out the body sections a spec's maintainer reads rather than an\
+  \ agent\nacting in the stage — its rationale, its verification contract, its implementation\n\
+  notes, and its drift review, the record of past amendments and re-verifications\
+  \ — and\nsays so inside\nthe body, once per contract, where the first of them stood:\
+  \ one line naming each section left out\nand the command that prints the full text.\
+  \ A rule an agent applies at a stage belongs in the\nspec's rule text; one found\
+  \ only in such a section is re-homed there, never left behind the\nomission. How\
+  \ a section is recognised is the deliverer's own reading\n(`_stage_view_without_maintainer_sections`);\
+  \ a body holding a line that reading does not decide\nis delivered whole, those\
+  \ sections included. What the external auditor is handed is not built\nfrom this\
+  \ view and keeps the whole spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
   \ analog — `patterns/emergency-mode.md`\nentry). No dedicated `--force` flag.\n\n\
   ### 6. Pilot scope — NORMATIVE = kind=stage only; seed/action RESERVED\nNORMATIVE:\
   \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
@@ -613,7 +618,11 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ Removing it is net-removal\n(fewer lines, no new mechanism — P1 F3) AND a correctness\
   \ fix. Existing analog (P1 F1): the\n audit-pre freshness gate in `task execute`\
   \ (same verb-precondition class). The\nsession_ref-only model is the proven, previously-shipped\
-  \ <workshop-spec> design.\n\n## Verification\n\n(1) UNIT — `_fetched_spec_ids(session_ref,\
+  \ <workshop-spec> design.\n\n§4 condition (b)'s own-carry clause and the receipt\
+  \ named on the pointer line come from\n(public issue #186): a fresh session with\
+  \ no carry, working in a worktree another session had\nopened, resolved that session's\
+  \ ref from the worktree stamp, and `spec edit` printed SPEC-1031 /\nSPEC-1037 as\
+  \ pointers to bodies it had never received.\n\n## Verification\n\n(1) UNIT — `_fetched_spec_ids(session_ref,\
   \ lower_bound)` is 2-arg; a `cli_invoked{node_id}` of\nTHIS session_ref with `ts\
   \ >= lower_bound` credits regardless of any prior task context (no\nworktree discriminator)\
   \ → `_require_reads(\"stage\", Closure)` does NOT raise (cross-task\nsame-session\
@@ -668,6 +677,11 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ refused in a session that was not delivered the set, in\none whose `plan file`\
   \ output went to the null device, and when nothing was rendered; the\nempty-set\
   \ line is byte-unchanged. Covered by `tests/test_t13708_plan_stage_bundle_delivery.py`.\n\
+  (10) OWN-CARRY hold (§4 (b)) — a DIFFERENTIAL over two sessions in one checkout:\
+  \ after a\nsession with its own carry is delivered the `spec edit` set, a session\
+  \ with no carry whose ref\nresolves from the worktree stamp to that first session\
+  \ receives every body again, while the first\nsession's own re-run still gets pointers,\
+  \ each naming the receipt's ts and session ref. Covered by\n`tests/test_t14172_held_receipt_own_session.py`.\n\
   \n## Drift review\n\n (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`.\
   \ edited only\nthe spec-drift-attribution block of `cmd_task_close` (added `_task_diff_range`\
   \ scoping for the\nWARN) — it does NOT touch the `_require_reads` precondition /\
@@ -695,9 +709,9 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: f3aef2d80ca649b235c78f1727f1ff89e2749cc741b559fa089c1bb8e2d0abf1
+  bin/lib/audit.py#cmd_audit: e1becfa2a76821c020257fcd9a1f0b34e75bb38dea9c253985496c28be6b7b49
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
-  bin/lib/cli.py#_deliver_stage_bundle_contracts: 43dc04a2189c3a257017ea907c982671b71cfb8044f0b9e8cbf545105c189d8d
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: 6356353534842c736adbd8515eebcdd8ad5ad25be6ebbd8af67b14c14458fc76
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
   bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4

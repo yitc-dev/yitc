@@ -171,7 +171,7 @@ body: "## Scenario\n\nA project whose full verify is too slow to pay on every ca
   \ no full verify after it: the failure is\nseen when a later land runs that layer\
   \ wider or in full, or by a full run the project itself makes before\nit deploys.\
   \ This contract names no miss and gates no deploy; the full run before a gated deploy\
-  \ is\nSPEC-1042's, a reading naming a miss a later contract's.\n\n## Parameters\n\
+  \ is\n<workshop-spec>'s, a reading naming a miss a later contract's.\n\n## Parameters\n\
   \nNone.\n\n## Rationale\n\nPublic proposal 89 on the kernel's public tracker (consumer\
   \ cryptochart): one full verify of its 12 layers took about ten\nminutes and kept\
   \ about 17 of 32 cores busy, so the host admitted one worker full run at a time;\
@@ -272,7 +272,7 @@ implements_signature:
   bin/lib/land_verify_legs.py#_scaling_series_projection: c5a99044cc0d263d0104be763d0f99438d5e577bee55104e6860df99a470cf5e
   bin/lib/worktree.py#_adapter_credit_bases: 99d9c1d71062c8333064e0f834575745da2ded0f41234f199ed9669e1d4823f4
   bin/lib/worktree.py#_stage6_deciding_layers: 0c39e8816b786a36744b6ec22b9b440b4aa6cc175184dfbdd744bec97df5912b
-  bin/lib/worktree.py#_stage6_partial_needs: 134e69422d03092f7fe91b6c37a6ea66a956faf47306b1424a2377f13f87cd29
+  bin/lib/worktree.py#_stage6_partial_needs: 6640709685953965c988cd5c382a9c4cf61474aae8589eeac39934c9c8070e20
   bin/lib/worktree.py#_stage6_partial_run_covers: 69ad9f22c7f7d470954b184e811e799ce1be8922aaac3e2c22a69b174637e17f
   bin/lib/worktree.py#_stage6_partial_units: eaf70953620a1973473fc09ecf9654823aa2b276b7b25186423ef2407c3d262c
   bin/lib/worktree.py#_stage6_row_covers_land: f1e7ac2c3f97bb7c38ad304da44765b033edd659451e92fd323336c5d2ece0b8

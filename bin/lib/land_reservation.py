@@ -1006,6 +1006,7 @@ def _arm_external_termination_record(task_id: "str | None", *, _append_event, _s
     both halves exist. Never raises: an unarmable handler leaves the pre-change behaviour standing
     (silence), it does not fail the land."""
     import signal as _sig
+    from lib import events as _events   # bound here, in the normal flow — never imported from a handler
     mod = _signal_mod if _signal_mod is not None else _sig
     out = _stderr if _stderr is not None else sys.stderr
     armed = []
@@ -1015,6 +1016,12 @@ def _arm_external_termination_record(task_id: "str | None", *, _append_event, _s
             continue
 
         def _handler(_signo, _frame, _name=name, _signo_v=signo):
+            # T-14170: the signal may land inside an append or a land fold holding the journal lock;
+            # the row and the re-kill then run right after that section ends, never in its middle.
+            _events.run_after_journal_lock(
+                lambda: _record_and_die(_name, _signo_v))
+
+        def _record_and_die(_name, _signo_v):
             try:
                 _append_event(_TERMINATED_EXTERNALLY_EVENT, task_id,
                               {"signal": _name, "pid": os.getpid(),

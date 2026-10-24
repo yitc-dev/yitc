@@ -217,9 +217,8 @@ def _fold_main_journal_into_branch(main_wt, *, _die, _run_git_cap, EVENTS_PATH, 
         # (Independently: a `task/`/`work/` branch journal lives in ONE land's private worktree, so two
         # lands do not even contend for the same branch sidecar; the ordering argument is the belt.)
         # DEGENERATE CASE — branch_wt == main_wt (resolved): then `bp` IS the journal the CALLER
-        # already flocked. `flock` is per-fd, so re-acquiring LOCK_EX on a second fd from this same
-        # process would block on ourselves — a self-deadlock. Skip the acquire there; the caller's lock
-        # already covers the file, so coverage is unchanged.
+        # already flocked; the take below is a nested one, which `journal_lock` admits (re-entrant
+        # per thread since T-14170 — the hand-coded skip that used to dodge the self-deadlock is gone).
         # HOLD DURATION — deliberately the SHORTEST window that is still a lock: ONE journal's RMW
         # cycle, re-entered per journal, and NOT the whole fold (main's read above stays outside, under
         # the caller's main lock) and NOT verify. Shorter is not a lock at all — the cycle IS the race
@@ -227,8 +226,7 @@ def _fold_main_journal_into_branch(main_wt, *, _die, _run_git_cap, EVENTS_PATH, 
         # journal behind a land. Same discipline the main-side sites already state: "held only for this
         # short fold — NOT across verify — so appenders are not starved".
         with contextlib.ExitStack() as _branch_journal_lock:
-            if branch_wt.resolve() != main_wt.resolve():
-                _branch_journal_lock.enter_context(events.journal_lock(bp))
+            _branch_journal_lock.enter_context(events.journal_lock(bp))
             # T-13138 (X-1687) — THE STREAMED UNION FIRST. Reading both journals whole and deduping their
             # concatenation held ~2x the live segment as lines plus keys (measured ~500 MB of the land's
             # peak on the kernel checkout whenever main's journal was dirty). `_stream_journal_union`

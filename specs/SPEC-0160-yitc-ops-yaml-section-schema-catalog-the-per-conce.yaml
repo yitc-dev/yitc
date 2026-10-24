@@ -147,7 +147,7 @@ body: "## Scenario\n\nThe per-concern SECTION-SHAPE catalog of a project's `yitc
   `moment: verify` once the carrier `verify:` section lands (rule 16 owns the executable\
   \ land command,\nP5); it is a taxonomy pointer for the OTHER moments, not the land-gate\
   \ SoT (rules 5/16).\n\n**`moment: pre-deploy`** — `reason:`, `targets:` (incl. `default`),\
-  \ `layers:`, `stand:`; the shape and its refusals: SPEC-1042 rule 1.\n\n**OPTIONAL\
+  \ `layers:`, `stand:`; the shape and its refusals: <workshop-spec> rule 1.\n\n**OPTIONAL\
   \ per-class `globs:` — WHERE that class's test FILES live (added by X-1235; the\
   \ rule this\nserves is SPEC-0185 half (c)).** An entry MAY carry a `globs:` key:\
   \ a NON-EMPTY list of NON-EMPTY,\nREPO-RELATIVE glob strings naming the files that\

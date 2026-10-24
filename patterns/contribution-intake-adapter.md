@@ -81,6 +81,37 @@ publish step does this automatically from the card), and the issue is closed wit
 the release version that carries it — or, if declined, with the reasons. Never close one silently:
 that is rule 4, and it is the only step here a tool does not enforce for you.
 
+**Triage record — labels.** So that a triage does not re-read every open proposal, each triaged
+issue (or PR) carries the label `triaged` plus exactly one state label, set in the same act as the
+triage reply and swapped, never stacked, when the state changes:
+
+| State label | Set when | Sort outcome (SPEC-1010 §3) |
+|---|---|---|
+| `has-card` | the reply names the card(s); their `answers:` field carries the link-back above | (a) or (b) |
+| `held` | an owner decision holds it; the reply or the journal names that row | none yet: waits on the owner |
+| `waiting-reporter` | the reply asks the reporter a question | (d) |
+| `declined` | it is closed, or about to be, as not planned, with the reasons | (c) |
+
+How a proposal is sorted lives in SPEC-1010 §3; the column only says which label each outcome
+takes. The labels are an index, not the record: the reasons stay in the reply and the journal.
+
+**A card filed from a proposal carries `answers:`.** Name the issue there, not only in the prose:
+`task file --answers owner/repo#N` (repeatable) or, on an existing card, `task update <T-XXXX>
+--set-field answers`. The link-back reads only that field, so a card that names the issue in its text
+alone ships without a reply; `task file` and `task close` WARN on such a card.
+
+The next triage reads one complete listing, never every body: every open issue and pull request
+with its labels and last-update time, fetched page by page to the end —
+`gh api --paginate "repos/<owner>/<repo>/issues?state=open&per_page=100"` returns both kinds (a
+`gh issue list` stops silently at its `--limit`, so it is not used here). From that listing it
+re-reads (1) the untriaged ones, those without the `triaged` label; and (2) the triaged ones with
+any activity since the previous triage (a reporter answer, a later comment, a reopen) or whose
+labels are not `triaged` plus exactly one state label. "Since the previous triage" means since the
+moment that triage took its listing, not since it finished, so activity during a triage is read by
+the next one; each triage records that moment in its journal row. A re-read ends with the labels
+set again with the reply. A repository without the labels gets them on its first triage
+(`gh label create`).
+
 ### Triage default — one home
 
 Whatever surface the proposal arrives on, the receiver's FIRST step at triage — BEFORE any
@@ -99,7 +130,9 @@ these live is what stops the adapter from quietly becoming the rule.
 ### Moving to another host
 
 1. Rewrite this document for the new service: how the five fields are collected, what shape the
-   proposal id takes, and how a merge attempt against the mirror is refused.
+   proposal id takes, how a merge attempt against the mirror is refused, and how the triage
+   record is kept: the labels `triaged`, `has-card`, `held`, `waiting-reporter`, `declined` (or
+   whatever the new service tags with) and the complete open-proposal listing triage reads.
 2. Check the new id shape against `ANSWER_ID_RE`; if it genuinely cannot fit, that is a proposal
    against the grammar, not a reason to loosen it locally.
 3. Change nothing else. If you find yourself editing SPEC-0197 or the published policy text to

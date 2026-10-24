@@ -4,7 +4,8 @@ class: reference
 sourced_from: plan deferred-checks-a-project-moves-costly-checks-out- (§Analysis aid item 3, owner request to give projects a reference of what they can do and must set up themselves; public issues #140 and #161). Every worked example and number below is quoted from that plan's read-only readings of cryptochart, <project> and <project> (2026-10-10..22).
 applies_to: a project that deploys from its land queue and wants to know which part of its release the kernel runs and which part it must build — release batching, the stand-then-production order, live checks on the served site, rollback, re-running one step after a flake.
 cites:
-  - SPEC-1042
+  - SPEC-1044
+  - <workshop-spec>
   - SPEC-0094
   - SPEC-0097
   - SPEC-0015
@@ -31,24 +32,24 @@ one step flaked.
 
 ## Part A — what the kernel provides
 
-Four parts, each specified in **SPEC-1042**. The rules are there and only there; this list says what
+Four parts, each specified in **SPEC-1044**. The rules are there and only there; this list says what
 each part is for.
 
 - **The pre-deploy run inside the deploy** — a full check of the exact revision a gated deploy ships,
-  before its command (SPEC-1042 rules 3-4).
+  before its command (SPEC-1044 rules 3-4).
 - **The per-target gate** — the project names which deploy targets, stands included, need that run
-  (SPEC-1042 rules 1 and 5).
+  (SPEC-1044 rules 1 and 5).
 - **The stand run of a new or changed check** — such a check meets the project's stand once after its
   card lands, before a production deploy depends on it: its run inside the pre-deploy run of a stand
-  deploy that completed on the landed revision (SPEC-1042 rule 6). It shows the check itself works. It
+  deploy that completed on the landed revision (SPEC-1044 rule 6). It shows the check itself works. It
   is not a check of the build the stand serves — a pre-deploy check runs on a fresh checkout of the
   candidate; checking the served build is your project's post-deploy checks (B3).
 - **The analysis view** — reads the project's own journal to show which checks could leave the lands
-  and what that changes (SPEC-1042 rule 7; how to read it: `patterns/verify-cost-playbook.md`).
+  and what that changes (SPEC-1044 rule 7; how to read it: `patterns/verify-cost-playbook.md`).
 
 ## Part B — what your project sets up itself
 
-SPEC-1042 §8 names these five as the project's own. For each: what to decide, how the three projects
+SPEC-1044 §8 names these five as the project's own. For each: what to decide, how the three projects
 did it, and the trap they measured.
 
 ### B1. Release batching — how many landed cards go out in one deploy
@@ -89,7 +90,7 @@ did it, and the trap they measured.
   reporting project). Declaring `reuse_run: {reason: <why>}` on every pre-deploy class guarding
   production lets its deploy stand on the stand deploy's passed, completed run of the same candidate
   under the same declaration, within your `pre_deploy_reuse_max_age_minutes` threshold — the bounds
-  are SPEC-1042 rule 3. Its cost: production ships on a run up to that age old, so a failure only a
+  are SPEC-1044 rule 3. Its cost: production ships on a run up to that age old, so a failure only a
   second run would show (a flaky or host-dependent check) goes unseen; record in the reason why your
   project accepts that.
 
@@ -146,11 +147,11 @@ did it, and the trap they measured.
 ## What stays out of both lists
 
 A run of the declared pre-deploy checks on main between releases (so a release-only regression waits
-at most a day, B1) is not in SPEC-1042: it is a follow-up of the proposing plan.
+at most a day, B1) is not in SPEC-1044: it is a follow-up of the proposing plan.
 
 ## See also
 
-- SPEC-1042 — the kernel rules behind Part A.
+- SPEC-1044 — the kernel rules behind Part A.
 - SPEC-0094 — the `deploy` verb, its targets, `--expect-revision` and the load window.
 - `patterns/verify-cost-playbook.md` — how to find which checks to move out of lands.
 - `patterns/deploy-smoke-test.md` — a post-deploy page check (B3).

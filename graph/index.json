@@ -72,12 +72,12 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0046",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (70e9f8794) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (0a23cc073) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (f3aef2d80) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e1becfa2a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
@@ -137,7 +137,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0060",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (70e9f8794) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (0a23cc073) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/triage.py#cmd_triage_run",
@@ -177,7 +177,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0072",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (70e9f8794) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (0a23cc073) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_update",
@@ -257,7 +257,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0086",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (70e9f8794) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (0a23cc073) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#_file_has_symbol_space",
@@ -287,12 +287,12 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (f3aef2d80) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e1becfa2a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#_DeployRunRecorder",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/deploy.py#_DeployRunRecorder: content changed since last verified-accurate signature (370e1ba40) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#_DeployRunRecorder: content changed since last verified-accurate signature (d60a058fb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
@@ -327,7 +327,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0095",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (70e9f8794) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (0a23cc073) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "graph/activation-checklist.md#Activation",
@@ -762,7 +762,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0176",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (f3aef2d80) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e1becfa2a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
@@ -847,7 +847,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-0209",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (54170dd98) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (4b67b5e8c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/textutil.py#ARGV_PROSE_SEAMS",
@@ -927,12 +927,12 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1034",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (f3aef2d80) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e1becfa2a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (f3aef2d80) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e1becfa2a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#advance_stage_pointer",
@@ -967,7 +967,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (f3aef2d80) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e1becfa2a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#contentless_findings",
@@ -1017,7 +1017,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (54170dd98) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (4b67b5e8c) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#retired_plan_gate_terminal_violations",
@@ -1327,7 +1327,7 @@
    "SPEC-0149",
    "SPEC-0155",
    "SPEC-0205",
-   "SPEC-1042"
+   "SPEC-1044"
   ],
   "bin/lib/dispatch.py": [
    "SPEC-0050",
@@ -1421,7 +1421,7 @@
    "SPEC-0195",
    "SPEC-0196",
    "SPEC-0199",
-   "SPEC-1042"
+   "SPEC-1044"
   ],
   "bin/lib/inspection.py": [
    "SPEC-0057",
@@ -1457,7 +1457,7 @@
    "SPEC-1030",
    "SPEC-1032",
    "SPEC-1035",
-   "SPEC-1042"
+   "SPEC-1044"
   ],
   "bin/lib/live_probe.py": [
    "SPEC-0094"
@@ -1561,7 +1561,7 @@
    "SPEC-1032",
    "SPEC-1038",
    "SPEC-1039",
-   "SPEC-1042"
+   "SPEC-1044"
   ],
   "bin/lib/task_card_io.py": [
    "SPEC-0094"
@@ -1621,7 +1621,7 @@
    "SPEC-0197",
    "SPEC-0198",
    "SPEC-1035",
-   "SPEC-1042"
+   "SPEC-1044"
   ],
   "bin/lib/vocab.py": [
    "SPEC-0028",
@@ -1723,7 +1723,7 @@
   "before-deploy": {
    "before-deploy": [
     "SPEC-0097",
-    "SPEC-1042"
+    "SPEC-1044"
    ]
   },
   "before-external-mutation": {
@@ -3507,16 +3507,6 @@
   },
   {
    "content": "**SPEC-0161** under the SPEC-0120 §3 must-split ceiling (SPLIT-never-delete). This parent keeps",
-   "id": "rule:spec-0025:event-type-catalog-extension-spec-0161:2371:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
-   "source_domain": "spec",
-   "source_line": 2371,
-   "source_section": "event-type-catalog-extension-spec-0161",
-   "status": "active"
-  },
-  {
-   "content": "the universal schema, the required event types, and the §Normalized provider×model×effort vocabulary.",
    "id": "rule:spec-0025:event-type-catalog-extension-spec-0161:2372:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
@@ -3526,132 +3516,142 @@
    "status": "active"
   },
   {
-   "content": "- From «Required event types (LIFECYCLE references)», the `external_audit_completed` episode fields:",
-   "id": "rule:spec-0025:history-moved-from-the-rule-body:2392:must",
+   "content": "the universal schema, the required event types, and the §Normalized provider×model×effort vocabulary.",
+   "id": "rule:spec-0025:event-type-catalog-extension-spec-0161:2373:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2392,
+   "source_line": 2373,
+   "source_section": "event-type-catalog-extension-spec-0161",
+   "status": "active"
+  },
+  {
+   "content": "- From «Required event types (LIFECYCLE references)», the `external_audit_completed` episode fields:",
+   "id": "rule:spec-0025:history-moved-from-the-rule-body:2393:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
+   "source_domain": "spec",
+   "source_line": 2393,
    "source_section": "history-moved-from-the-rule-body",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `audit_pre_completed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2401:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2402:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2401,
+   "source_line": 2402,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `external_audit_completed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2410:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2411:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2410,
+   "source_line": 2411,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `task_closed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2419:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2420:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2419,
+   "source_line": 2420,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `deploy_completed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2427:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2428:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2427,
+   "source_line": 2428,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `release_tagged` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2435:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2436:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2435,
+   "source_line": 2436,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `release_published` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2443:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2444:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2443,
+   "source_line": 2444,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `release_updated` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2453:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2454:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2453,
+   "source_line": 2454,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `live_probe_passed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2470:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2471:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2470,
+   "source_line": 2471,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `live_probe_failed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2479:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2480:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2479,
+   "source_line": 2480,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `adapter_restamped` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2489:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2490:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2489,
+   "source_line": 2490,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `security_live_probe_passed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2497:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2498:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2497,
+   "source_line": 2498,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "From «Required event types (LIFECYCLE references)», the `host_health_sweep_passed` entry:",
-   "id": "rule:spec-0025:moved-from-the-rule-text:2505:must",
+   "id": "rule:spec-0025:moved-from-the-rule-text:2506:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2505,
+   "source_line": 2506,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
@@ -3916,37 +3916,37 @@
    "status": "active"
   },
   {
+   "content": "full run is an `applied: true` row like any other ( — rows written before it may carry",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1682:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
+   "source_domain": "spec",
+   "source_line": 1682,
+   "source_section": "normalized-provider-model-effort-vocabul",
+   "status": "active"
+  },
+  {
    "content": "selection is `shadow`), `outer-failure`, `required-failed`, `pass-error`, `selection-error`",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1739:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1740:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1739,
+   "source_line": 1740,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "cache SKIPPED: it costs ~0ms and NEVER STARTED a process, so it is the one outcome that must not be",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1778:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1779:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1778,
+   "source_line": 1779,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "enumeration is accounted for) and must be EXCLUDED from any duration ranking, exactly as the",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1780:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
-   "source_domain": "spec",
-   "source_line": 1780,
-   "source_section": "normalized-provider-model-effort-vocabul",
-   "status": "active"
-  },
-  {
-   "content": "early-exit outcomes must be excluded in the opposite direction. `file` is the BASENAME (`tf.name`), matching the identifier every other",
    "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1781:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
@@ -3956,37 +3956,37 @@
    "status": "active"
   },
   {
+   "content": "early-exit outcomes must be excluded in the opposite direction. `file` is the BASENAME (`tf.name`), matching the identifier every other",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1782:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
+   "source_domain": "spec",
+   "source_line": 1782,
+   "source_section": "normalized-provider-model-effort-vocabul",
+   "status": "active"
+  },
+  {
    "content": "`inlock_folds` (int) is the OTHER thing a part may say, and it describes an attempt that did",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1807:may",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1808:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1807,
+   "source_line": 1808,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "invariant is what makes the breakdown trustworthy: a breakdown silently missing an attempt cannot",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1842:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1843:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1842,
+   "source_line": 1843,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "a tolerance is deliberate: a tolerance is squeezed from both sides — below it must exceed this",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1852:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
-   "source_domain": "spec",
-   "source_line": 1852,
-   "source_section": "normalized-provider-model-effort-vocabul",
-   "status": "active"
-  },
-  {
-   "content": "span or the pinned assertion flakes (it did, on two branches), above it must stay under the",
    "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1853:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
@@ -3996,79 +3996,79 @@
    "status": "active"
   },
   {
-   "content": "keeps \"a breakdown missing an attempt cannot satisfy the identity\" true at any load.",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1855:must",
+   "content": "span or the pinned assertion flakes (it did, on two branches), above it must stay under the",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1854:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1855,
+   "source_line": 1854,
+   "source_section": "normalized-provider-model-effort-vocabul",
+   "status": "active"
+  },
+  {
+   "content": "keeps \"a breakdown missing an attempt cannot satisfy the identity\" true at any load.",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1856:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
+   "source_domain": "spec",
+   "source_line": 1856,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "NONE of this key set — so absence still means \"never entered the loop\" and must not be read as a",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1868:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1869:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1868,
+   "source_line": 1869,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "the loop\", and must not be read as one attempt.",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1914:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1915:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1914,
+   "source_line": 1915,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "Unlike the SPEC-0169 gate it borrows its derivation from, this NEVER refuses: a land must not fail",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1939:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1940:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1939,
+   "source_line": 1940,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "the authorizer at grant (`--rebaseline-kind`, REQUIRED with `--rebaseline`, never inferred or",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1959:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1960:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1959,
+   "source_line": 1960,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "REAL here from one of a check that is HEALTHY but cannot RUN here at all (X-0739); before it the two",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1961:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1962:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1961,
+   "source_line": 1962,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "NOTHING WAS DECLARED and MUST NOT be read as either value or as a default; nothing backfills or",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1964:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1965:must",
    "severity": "must",
-   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
-   "source_domain": "spec",
-   "source_line": 1964,
-   "source_section": "normalized-provider-model-effort-vocabul",
-   "status": "active"
-  },
-  {
-   "content": "re-keys an existing row. The kind is a LABEL read by no gate: it never widens who may waive or what a",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1965:may",
-   "severity": "may",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
    "source_line": 1965,
@@ -4076,27 +4076,27 @@
    "status": "active"
   },
   {
+   "content": "re-keys an existing row. The kind is a LABEL read by no gate: it never widens who may waive or what a",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1966:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
+   "source_domain": "spec",
+   "source_line": 1966,
+   "source_section": "normalized-provider-model-effort-vocabul",
+   "status": "active"
+  },
+  {
    "content": "`--merge-invalid-acceptance` and NAMED by the REQUIRED `--merge-invalid-assertion` (a bare",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1968:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1969:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1968,
+   "source_line": 1969,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "additive / P5-safe). It is NOT a rebaseline key and must never be read as one — this ground",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1974:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
-   "source_domain": "spec",
-   "source_line": 1974,
-   "source_section": "normalized-provider-model-effort-vocabul",
-   "status": "active"
-  },
-  {
-   "content": "supersedes no pinned assertion, waives nothing, and cannot substitute for `--rebaseline`.",
    "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1975:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
@@ -4106,182 +4106,192 @@
    "status": "active"
   },
   {
-   "content": "cannot reach it — the `cmd_land` P0 entry-authorization arm, which refuses above `_land_integrate`",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1999:must",
+   "content": "supersedes no pinned assertion, waives nothing, and cannot substitute for `--rebaseline`.",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:1976:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 1999,
+   "source_line": 1976,
+   "source_section": "normalized-provider-model-effort-vocabul",
+   "status": "active"
+  },
+  {
+   "content": "cannot reach it — the `cmd_land` P0 entry-authorization arm, which refuses above `_land_integrate`",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2000:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
+   "source_domain": "spec",
+   "source_line": 2000,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "should therefore treat a small value as \"did not queue\" and never as a threshold: nothing gates",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2015:should",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2016:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2015,
+   "source_line": 2016,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "cannot disagree.",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2042:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2043:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2042,
+   "source_line": 2043,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "did NOT reproduce, whose layer the land's candidate diff provably cannot reach — the WHOLE diff is",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2081:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2082:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2081,
+   "source_line": 2082,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "One passing base run is not evidence against a diff that cannot touch the layer (GitHub #29: a flaky",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2084:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2085:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2084,
+   "source_line": 2085,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "`land_completed` MAY additionally carry a host-load raw summary the observation loop uses to size",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2161:may",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2162:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2161,
+   "source_line": 2162,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "may safely IGNORE, and this is the opposite — a reader that cannot interpret the verdict computes",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2176:may",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2177:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2176,
+   "source_line": 2177,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "nothing can produce is a promise the mechanism cannot keep.",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2179:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2180:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2179,
+   "source_line": 2180,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "its ABSENCE must never be read as a missing verdict.",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2186:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2187:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2186,
+   "source_line": 2187,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "DIFFERENTIAL A READER MUST HOLD: a carrier line WITHOUT a matching row was hand-added, and a row",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2205:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2206:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2205,
+   "source_line": 2206,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "the serialized lane cannot prove pool-robustness; the line leaves only in a card's ship diff.",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2207:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2208:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2207,
+   "source_line": 2208,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "green path may not ride past the gate beside an unproven sibling), and the row says per path what",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2236:may",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2237:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2236,
+   "source_line": 2237,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "refusal lands even though the write did not. THE DIFFERENTIAL A READER MUST HOLD: this row is NOT",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2249:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2250:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2249,
+   "source_line": 2250,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "are SEPARATE keys and MUST NOT be collapsed into one number: a batch of 4 carrying 1 paying member",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2264:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2265:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2264,
+   "source_line": 2265,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "exists. `paying_members` UNDER-counts by design (a member whose changed-path set cannot be read is",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2267:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2268:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2267,
+   "source_line": 2268,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "a rebaseline or supersession, an incompatibility, and whatever a later filter adds). A reader must",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2279:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2280:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2279,
+   "source_line": 2280,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "unclassifiable for exactly that reason). A reader counting real FORMATIONS must therefore filter",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2292:must",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2293:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2292,
+   "source_line": 2293,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
   {
    "content": "As the BLOCK-side wait carrier it MAY additionally carry the OPTIONAL normalized `wait_reason` (per",
-   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2327:may",
+   "id": "rule:spec-0025:normalized-provider-model-effort-vocabul:2328:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2327,
+   "source_line": 2328,
    "source_section": "normalized-provider-model-effort-vocabul",
    "status": "active"
   },
@@ -4747,11 +4757,11 @@
   },
   {
    "content": "fields were SPLIT VERBATIM into **SPEC-0153** under the SPEC-0120 §3 must-split ceiling",
-   "id": "rule:spec-0025:terminal-marker-contract-per-dispatch-co:2362:must",
+   "id": "rule:spec-0025:terminal-marker-contract-per-dispatch-co:2363:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0025-events-jsonl-schema-and-event-type-catalog-retriev.yaml",
    "source_domain": "spec",
-   "source_line": 2362,
+   "source_line": 2363,
    "source_section": "terminal-marker-contract-per-dispatch-co",
    "status": "active"
   },
@@ -4857,11 +4867,11 @@
   },
   {
    "content": "# next_action prose. REQUIRED with paused_reason: artifact-wait,",
-   "id": "rule:spec-0028:ended-pause-not-the-card-s-state-so-a-re:562:must",
+   "id": "rule:spec-0028:ended-pause-not-the-card-s-state-so-a-re:565:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 562,
+   "source_line": 565,
    "source_section": "ended-pause-not-the-card-s-state-so-a-re",
    "status": "active"
   },
@@ -4967,56 +4977,46 @@
   },
   {
    "content": "# task's fix STRUCTURALLY CANNOT REACH, in the resolver's own words.",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:287:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:290:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 287,
+   "source_line": 290,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# keys REQUIRED:",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:315:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:318:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 315,
+   "source_line": 318,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# this must never license. Neither is admitted — a malformed declaration",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:323:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:326:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 323,
+   "source_line": 326,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# audit-post it skipped. ONE form, both keys REQUIRED:",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:341:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:344:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 341,
+   "source_line": 344,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# a card that has NOT declared one cannot audit an arbitrary commit (the",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:347:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
-   "source_domain": "spec",
-   "source_line": 347,
-   "source_section": "optional-fields-fill-if-applicable",
-   "status": "active"
-  },
-  {
-   "content": "# `main` (already-landed), and `--commit` if given must name it; the saved",
    "id": "rule:spec-0028:optional-fields-fill-if-applicable:350:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
@@ -5026,72 +5026,82 @@
    "status": "active"
   },
   {
-   "content": "# forecast). ONE form, both keys REQUIRED:",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:371:must",
+   "content": "# `main` (already-landed), and `--commit` if given must name it; the saved",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:353:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 371,
+   "source_line": 353,
+   "source_section": "optional-fields-fill-if-applicable",
+   "status": "active"
+  },
+  {
+   "content": "# forecast). ONE form, both keys REQUIRED:",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:374:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
+   "source_domain": "spec",
+   "source_line": 374,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# OBJECTIVE STRUCTURAL eligibility predicate (the card must really own",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:379:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:382:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 379,
+   "source_line": 382,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# declaration: <why this card must edit the pinned suite>",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:402:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:405:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 402,
+   "source_line": 405,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# counts — it judges a plan, before any code exists, so it cannot",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:419:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:422:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 419,
+   "source_line": 422,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# axis, so it CANNOT become a blanket waiver: a declaration admits ONE",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:424:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:427:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 424,
+   "source_line": 427,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "# evidence required by its `host_config_kind` has been recorded (the per-KIND",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:466:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:469:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 466,
+   "source_line": 469,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
   {
    "content": "queue_jump: # OPTIONAL emergency place in the LAND-ADMISSION ORDER (reason: <the blockage> # SPEC-0184 rule 9). Mapping with ONE required key, `reason` — the",
-   "id": "rule:spec-0028:optional-fields-fill-if-applicable:480:must",
+   "id": "rule:spec-0028:optional-fields-fill-if-applicable:483:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0028-task-yaml-schema-reference-the-tasks-id-yaml-field.yaml",
    "source_domain": "spec",
-   "source_line": 480,
+   "source_line": 483,
    "source_section": "optional-fields-fill-if-applicable",
    "status": "active"
   },
@@ -6317,41 +6327,41 @@
   },
   {
    "content": "`expected_touch` on a decomposed card MAY surface a report-only cut-time reminder (a PROMPT), but the",
-   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:105:may",
+   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:101:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 105,
+   "source_line": 101,
    "source_section": "a-decomposition-discipline-one-provable-",
    "status": "active"
   },
   {
    "content": "owns it. A \"births a new shared primitive\" claim MUST enumerate ALL the",
-   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:126:must",
+   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:122:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 126,
+   "source_line": 122,
    "source_section": "a-decomposition-discipline-one-provable-",
    "status": "active"
   },
   {
    "content": "**Territory-aware decomposition — a card must be cut in the TERRITORY that can LAND it.**",
-   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:139:must",
+   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:135:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 139,
+   "source_line": 135,
    "source_section": "a-decomposition-discipline-one-provable-",
    "status": "active"
   },
   {
    "content": "§Scope-boundary) CANNOT be a kernel card: a Worker dispatched on it hits the pre-mutate path",
-   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:144:must",
+   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:140:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 144,
+   "source_line": 140,
    "source_section": "a-decomposition-discipline-one-provable-",
    "status": "active"
   },
@@ -6417,36 +6427,46 @@
   },
   {
    "content": "of references that must change ATOMICALLY — NOT by the conceptual simplicity of the change. SIZE the",
-   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:83:must",
+   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:79:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 83,
+   "source_line": 79,
    "source_section": "a-decomposition-discipline-one-provable-",
    "status": "active"
   },
   {
    "content": "cannot be split from the ref-sweep without going red between landings). This is the §A \"decompose",
-   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:90:must",
+   "id": "rule:spec-0046:a-decomposition-discipline-one-provable-:86:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 90,
+   "source_line": 86,
    "source_section": "a-decomposition-discipline-one-provable-",
    "status": "active"
   },
   {
    "content": "(the consumer cannot even be designed-converged until the producer's data exists).",
-   "id": "rule:spec-0046:a2-plan-level-split-one-convergence-regi:168:must",
+   "id": "rule:spec-0046:a2-plan-level-split-one-convergence-regi:164:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 168,
+   "source_line": 164,
    "source_section": "a2-plan-level-split-one-convergence-regi",
    "status": "active"
   },
   {
    "content": "- **`requires:` MUST name every writer of its subject — machine-readable, never prose / operator",
+   "id": "rule:spec-0046:a3-the-verifier-after-settled-requires-r:187:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
+   "source_domain": "spec",
+   "source_line": 187,
+   "source_section": "a3-the-verifier-after-settled-requires-r",
+   "status": "active"
+  },
+  {
+   "content": "parallel / background dispatch — the picker cannot see prose. Naming the writers in `requires:` is",
    "id": "rule:spec-0046:a3-the-verifier-after-settled-requires-r:191:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
@@ -6456,17 +6476,17 @@
    "status": "active"
   },
   {
-   "content": "parallel / background dispatch — the picker cannot see prose. Naming the writers in `requires:` is",
-   "id": "rule:spec-0046:a3-the-verifier-after-settled-requires-r:195:must",
+   "content": "Every named deliverable of a plan MUST map to a tracked artifact, and **any deferral MUST be a",
+   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:196:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 195,
-   "source_section": "a3-the-verifier-after-settled-requires-r",
+   "source_line": 196,
+   "source_section": "b-the-deferral-must-be-tracked-rule-e-00",
    "status": "active"
   },
   {
-   "content": "Every named deliverable of a plan MUST map to a tracked artifact, and **any deferral MUST be a",
+   "content": "tooling exists\" line — inside a plan part OR a spec body — MUST be carried by a tracked task",
    "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:200:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
@@ -6476,7 +6496,17 @@
    "status": "active"
   },
   {
-   "content": "tooling exists\" line — inside a plan part OR a spec body — MUST be carried by a tracked task",
+   "content": "prose-only deferral silently drops the deferred half. (This is E-0005 — absorb-by-narrowing must",
+   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:202:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
+   "source_domain": "spec",
+   "source_line": 202,
+   "source_section": "b-the-deferral-must-be-tracked-rule-e-00",
+   "status": "active"
+  },
+  {
+   "content": "2. **Every named deliverable maps to a tracked artifact** (task / spec / parked-task — the id must",
    "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:204:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
@@ -6486,62 +6516,42 @@
    "status": "active"
   },
   {
-   "content": "prose-only deferral silently drops the deferred half. (This is E-0005 — absorb-by-narrowing must",
-   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:206:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
-   "source_domain": "spec",
-   "source_line": 206,
-   "source_section": "b-the-deferral-must-be-tracked-rule-e-00",
-   "status": "active"
-  },
-  {
-   "content": "2. **Every named deliverable maps to a tracked artifact** (task / spec / parked-task — the id must",
-   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:208:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
-   "source_domain": "spec",
-   "source_line": 208,
-   "source_section": "b-the-deferral-must-be-tracked-rule-e-00",
-   "status": "active"
-  },
-  {
    "content": "placeholder MUST transfer its tracking (the real artifact takes over) and RETIRE, and any stale",
-   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:214:must",
+   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:210:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 214,
+   "source_line": 210,
    "source_section": "b-the-deferral-must-be-tracked-rule-e-00",
    "status": "active"
   },
   {
    "content": "plan-`cites:` pointing at it MUST be dropped — otherwise aggregate finalization",
-   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:215:must",
+   "id": "rule:spec-0046:b-the-deferral-must-be-tracked-rule-e-00:211:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 215,
+   "source_line": 211,
    "source_section": "b-the-deferral-must-be-tracked-rule-e-00",
    "status": "active"
   },
   {
    "content": "deferral-must-be-tracked rule (formerly `patterns/big-plan-checklist.md` Probe 7, the",
-   "id": "rule:spec-0046:history-moved-from-the-rule-body:244:must",
+   "id": "rule:spec-0046:history-moved-from-the-rule-body:240:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 244,
+   "source_line": 240,
    "source_section": "history-moved-from-the-rule-body",
    "status": "active"
   },
   {
    "content": "free prose. Extends Stage-1 \"cite the proof\" to the F/3 lesson the id-resolve cannot catch",
-   "id": "rule:spec-0046:new-machinery-scope-anti-complexity-filt:229:must",
+   "id": "rule:spec-0046:new-machinery-scope-anti-complexity-filt:225:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 229,
+   "source_line": 225,
    "source_section": "new-machinery-scope-anti-complexity-filt",
    "status": "active"
   },
@@ -6587,31 +6597,31 @@
   },
   {
    "content": "VERIFIER (checks a settled subject) runs only AFTER its subject LANDED, AND its `requires:` MUST",
-   "id": "rule:spec-0046:verification:370:must",
+   "id": "rule:spec-0046:verification:366:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 370,
+   "source_line": 366,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "**Territory-aware decomposition** rule (an item whose realm is EXTERNAL territory must NOT be cut as",
-   "id": "rule:spec-0046:verification:382:must",
+   "id": "rule:spec-0046:verification:378:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 382,
+   "source_line": 378,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "task-grouping preference** clause with its elements: a project MAY declare the preference",
-   "id": "rule:spec-0046:verification:386:may",
+   "id": "rule:spec-0046:verification:382:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0046-task-plan-decomposition-discipline-plan-check-stru.yaml",
    "source_domain": "spec",
-   "source_line": 386,
+   "source_line": 382,
    "source_section": "verification",
    "status": "active"
   },
@@ -6717,121 +6727,121 @@
   },
   {
    "content": "governs ONLY the must-read entry-gate PROLOGUE of that verb (the `_require_reads(\"stage\", …)`",
-   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:293:must",
+   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:297:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 293,
+   "source_line": 297,
    "source_section": "6-pilot-scope-normative-kind-stage-only-",
    "status": "active"
   },
   {
    "content": "governs ONLY its must-read entry-gate PROLOGUE (the `_require_reads(\"stage\", …)` call + its refusal),",
-   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:318:must",
+   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:322:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 318,
+   "source_line": 322,
    "source_section": "6-pilot-scope-normative-kind-stage-only-",
    "status": "active"
   },
   {
    "content": "present but pre-compact — §epoch below), or `context_epoch_unknown` (the context epoch cannot be read",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:418:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:422:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 418,
+   "source_line": 422,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "`seed_read_unfetched`), and on CANNOT TELL under a provider whose detection is observed refuses",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:454:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:458:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 454,
+   "source_line": 458,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "FETCHES must be made in THAT checkout, but a session already anchored on MAIN need NOT re-anchor it:",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:472:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:476:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 472,
+   "source_line": 476,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "and is still required where the session has no anchor on main. ** note:** the broadened",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:475:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:479:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 475,
+   "source_line": 479,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "required session-less consumer seam») and decided under the owner's standing authorization. Every",
-   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:511:must",
+   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:515:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 511,
+   "source_line": 515,
    "source_section": "8a-the-bounded-read-tolerance-exception-",
    "status": "active"
   },
   {
    "content": "controller MUST NOT base an out-of-band decision on it before hitting a strict verb.",
-   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:533:must",
+   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:537:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 533,
+   "source_line": 537,
    "source_section": "8a-the-bounded-read-tolerance-exception-",
    "status": "active"
   },
   {
    "content": "necessarily changes that anchor's content signature and trips spec-freshness; the bound cannot drift",
-   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:546:must",
+   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:550:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 546,
+   "source_line": 550,
    "source_section": "8a-the-bounded-read-tolerance-exception-",
    "status": "active"
   },
   {
    "content": "redirect) records delivered, IS credited, and the gate PASSES. Both directions are required — a",
-   "id": "rule:spec-0050:verification:589:must",
+   "id": "rule:spec-0050:verification:598:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 589,
+   "source_line": 598,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "required: after one delivery, a second delivery call in the SAME established epoch prints a pointer",
-   "id": "rule:spec-0050:verification:596:must",
+   "id": "rule:spec-0050:verification:605:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 596,
+   "source_line": 605,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "Plus the three fail-toward-delivering bounds, each with its own failing input: an epoch that cannot",
-   "id": "rule:spec-0050:verification:599:must",
+   "id": "rule:spec-0050:verification:608:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 599,
+   "source_line": 608,
    "source_section": "verification",
    "status": "active"
   },
@@ -30407,26 +30417,16 @@
   },
   {
    "content": "land recorded it, must contain the newest commit of the main line that changed the unit's file;",
-   "id": "rule:spec-1035:11-the-per-test-load-sensitive-lane:264:must",
+   "id": "rule:spec-1035:11-the-per-test-load-sensitive-lane:267:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 264,
+   "source_line": 267,
    "source_section": "11-the-per-test-load-sensitive-lane",
    "status": "active"
   },
   {
    "content": "on a commit whose ancestry the repository cannot answer, or whose leg recorded no commit at all (a row written",
-   "id": "rule:spec-1035:11-the-per-test-load-sensitive-lane:266:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
-   "source_domain": "spec",
-   "source_line": 266,
-   "source_section": "11-the-per-test-load-sensitive-lane",
-   "status": "active"
-  },
-  {
-   "content": "prevent. When the repository cannot name that newest change, the unit is not entered. A declared group is",
    "id": "rule:spec-1035:11-the-per-test-load-sensitive-lane:269:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
@@ -30436,12 +30436,22 @@
    "status": "active"
   },
   {
-   "content": "fix. Each case is recorded with its reason. `required:` checks (rule 5) run on every attempt; a unit that fails",
-   "id": "rule:spec-1035:14-re-verify-after-a-fix-the-would-be-cr:305:must",
+   "content": "prevent. When the repository cannot name that newest change, the unit is not entered. A declared group is",
+   "id": "rule:spec-1035:11-the-per-test-load-sensitive-lane:272:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 305,
+   "source_line": 272,
+   "source_section": "11-the-per-test-load-sensitive-lane",
+   "status": "active"
+  },
+  {
+   "content": "fix. Each case is recorded with its reason. `required:` checks (rule 5) run on every attempt; a unit that fails",
+   "id": "rule:spec-1035:14-re-verify-after-a-fix-the-would-be-cr:308:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
+   "source_domain": "spec",
+   "source_line": 308,
    "source_section": "14-re-verify-after-a-fix-the-would-be-cr",
    "status": "active"
   },
@@ -30557,21 +30567,21 @@
   },
   {
    "content": "over titles that carry its metacharacters: the kernel therefore hands identities, and an adapter that cannot",
-   "id": "rule:spec-1035:rationale:338:must",
+   "id": "rule:spec-1035:rationale:341:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 338,
+   "source_line": 341,
    "source_section": "rationale",
    "status": "active"
   },
   {
    "content": "- A failing `required:` check fails the layer and is never re-run.",
-   "id": "rule:spec-1035:verification:354:must",
+   "id": "rule:spec-1035:verification:357:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1035-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 354,
+   "source_line": 357,
    "source_section": "verification",
    "status": "active"
   },
@@ -31526,186 +31536,6 @@
    "status": "active"
   },
   {
-   "content": "- A pre-deploy entry MAY carry `reuse_run: {reason: <why>}` — exactly that mapping, with a non-empty",
-   "id": "rule:spec-1042:1-declaration-a-pre-deploy-class-names-i:35:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 35,
-   "source_section": "1-declaration-a-pre-deploy-class-names-i",
-   "status": "active"
-  },
-  {
-   "content": "the layer's `command:` fallback when `list` cannot answer — and only THEN applies the pre-deploy",
-   "id": "rule:spec-1042:2-what-a-land-and-a-stage-6-run-execute-:44:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 44,
-   "source_section": "2-what-a-land-and-a-stage-6-run-execute-",
-   "status": "active"
-  },
-  {
-   "content": "Stage-6 run's own land reading places it (a land it cannot place either side counts, a land that",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:112:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 112,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "reservation after the §8 deploy lock, which no land takes, so the two cannot deadlock. While it",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:125:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 125,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "or when the journal cannot be read, the deploy says which bound failed and runs its own. A reusing",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:80:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 80,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "`list` → `required:` → `run`; a layer's `command:` when it has no adapter), on the land runner",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:85:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 85,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "adapter's `required:`, `run` or report read, ran past the layer's timeout). With it there is no",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:96:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 96,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "`prep:` failure, no `required:` failure, no void or unread report, no layer failing whole for",
-   "id": "rule:spec-1042:3-a-deploy-to-a-gated-target-runs-the-pr:97:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 97,
-   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
-   "status": "active"
-  },
-  {
-   "content": "reuse; a start row that cannot be written refuses the deploy before anything runs; and the run's",
-   "id": "rule:spec-1042:4-what-the-run-records-a-record-never-de:169:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 169,
-   "source_section": "4-what-the-run-records-a-record-never-de",
-   "status": "active"
-  },
-  {
-   "content": "runs (## Parameters), on any window. Automation may only move a unit back toward running on",
-   "id": "rule:spec-1042:7-the-analysis-aid-and-the-weekly-readin:223:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 223,
-   "source_section": "7-the-analysis-aid-and-the-weekly-readin",
-   "status": "active"
-  },
-  {
-   "content": "after-command check can record that the checkout moved while the command ran, but cannot undo a",
-   "id": "rule:spec-1042:rationale:261:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 261,
-   "source_section": "rationale",
-   "status": "active"
-  },
-  {
-   "content": "timeouts answered an accept-gate finding about a timeout MIXED with a `prep:` / `required:` / report",
-   "id": "rule:spec-1042:rationale:278:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 278,
-   "source_section": "rationale",
-   "status": "active"
-  },
-  {
-   "content": "— and a project may decide otherwise for itself; the reporting consumer pays two full runs (~31 min",
-   "id": "rule:spec-1042:rationale:288:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 288,
-   "source_section": "rationale",
-   "status": "active"
-  },
-  {
-   "content": "that declares no pre-deploy class sees no change. A project may opt in to letting one passed run of",
-   "id": "rule:spec-1042:scenario:9:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 9,
-   "source_section": "scenario",
-   "status": "active"
-  },
-  {
-   "content": "second such red is recorded `failed`; a unit timeout together with a `required:` failure or a",
-   "id": "rule:spec-1042:verification:336:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 336,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "`required:` or a `prep:` failure beside a land reads red at once; a lone layer timeout with nobody",
-   "id": "rule:spec-1042:verification:340:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 340,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "- V8 [p] a session that cannot record the rows is refused before the run starts; a row write that",
-   "id": "rule:spec-1042:verification:350:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 350,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "that cannot be written runs nothing — tests/test_t14160_pre_deploy_run_reuse.py.",
-   "id": "rule:spec-1042:verification:383:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1042-pre-deploy-run-a-declared-pre-deploy-class-and-the.yaml",
-   "source_domain": "spec",
-   "source_line": 383,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
    "content": "(a) **design-convergence on real data** — the answer is not yet known and must be found by",
    "id": "rule:spec-1043:internal:35:must",
    "severity": "must",
@@ -31763,6 +31593,196 @@
    "source_domain": "spec",
    "source_line": 91,
    "source_section": "successor-of-workshop-spec",
+   "status": "active"
+  },
+  {
+   "content": "- A pre-deploy entry MAY carry `reuse_run: {reason: <why>}` — exactly that mapping, with a non-empty",
+   "id": "rule:spec-1044:1-declaration-a-pre-deploy-class-names-i:35:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 35,
+   "source_section": "1-declaration-a-pre-deploy-class-names-i",
+   "status": "active"
+  },
+  {
+   "content": "the layer's `command:` fallback when `list` cannot answer — and only THEN applies the pre-deploy",
+   "id": "rule:spec-1044:2-what-a-land-and-a-stage-6-run-execute-:44:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 44,
+   "source_section": "2-what-a-land-and-a-stage-6-run-execute-",
+   "status": "active"
+  },
+  {
+   "content": "Stage-6 run's own land reading places it (a land it cannot place either side counts, a land that",
+   "id": "rule:spec-1044:3-a-deploy-to-a-gated-target-runs-the-pr:114:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 114,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "reservation after the §8 deploy lock, which no land takes, so the two cannot deadlock. While it",
+   "id": "rule:spec-1044:3-a-deploy-to-a-gated-target-runs-the-pr:127:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 127,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "or when the journal cannot be read, the deploy says which bound failed and runs its own. A reusing",
+   "id": "rule:spec-1044:3-a-deploy-to-a-gated-target-runs-the-pr:82:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 82,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "`list` → `required:` → `run`; a layer's `command:` when it has no adapter), on the land runner",
+   "id": "rule:spec-1044:3-a-deploy-to-a-gated-target-runs-the-pr:87:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 87,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "adapter's `required:`, `run` or report read, ran past the layer's timeout). With it there is no",
+   "id": "rule:spec-1044:3-a-deploy-to-a-gated-target-runs-the-pr:98:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 98,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "`prep:` failure, no `required:` failure, no void or unread report, no layer failing whole for",
+   "id": "rule:spec-1044:3-a-deploy-to-a-gated-target-runs-the-pr:99:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 99,
+   "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
+   "status": "active"
+  },
+  {
+   "content": "reuse; a start row that cannot be written refuses the deploy before anything runs; and the run's",
+   "id": "rule:spec-1044:4-what-the-run-records-a-record-never-de:171:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 171,
+   "source_section": "4-what-the-run-records-a-record-never-de",
+   "status": "active"
+  },
+  {
+   "content": "runs (## Parameters), on any window. Automation may only move a unit back toward running on",
+   "id": "rule:spec-1044:7-the-analysis-aid-and-the-weekly-readin:225:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 225,
+   "source_section": "7-the-analysis-aid-and-the-weekly-readin",
+   "status": "active"
+  },
+  {
+   "content": "pre-deploy run on the shipped revision already runs those units. Rows written before this spec may",
+   "id": "rule:spec-1044:rationale:258:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 258,
+   "source_section": "rationale",
+   "status": "active"
+  },
+  {
+   "content": "after-command check can record that the checkout moved while the command ran, but cannot undo a",
+   "id": "rule:spec-1044:rationale:273:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 273,
+   "source_section": "rationale",
+   "status": "active"
+  },
+  {
+   "content": "timeouts answered an accept-gate finding about a timeout MIXED with a `prep:` / `required:` / report",
+   "id": "rule:spec-1044:rationale:290:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 290,
+   "source_section": "rationale",
+   "status": "active"
+  },
+  {
+   "content": "— and a project may decide otherwise for itself; the reporting consumer pays two full runs (~31 min",
+   "id": "rule:spec-1044:rationale:300:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 300,
+   "source_section": "rationale",
+   "status": "active"
+  },
+  {
+   "content": "that declares no pre-deploy class sees no change. A project may opt in to letting one passed run of",
+   "id": "rule:spec-1044:scenario:9:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 9,
+   "source_section": "scenario",
+   "status": "active"
+  },
+  {
+   "content": "second such red is recorded `failed`; a unit timeout together with a `required:` failure or a",
+   "id": "rule:spec-1044:verification:349:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 349,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "`required:` or a `prep:` failure beside a land reads red at once; a lone layer timeout with nobody",
+   "id": "rule:spec-1044:verification:353:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 353,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "- V8 [p] a session that cannot record the rows is refused before the run starts; a row write that",
+   "id": "rule:spec-1044:verification:363:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 363,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "that cannot be written runs nothing — tests/test_t14160_pre_deploy_run_reuse.py.",
+   "id": "rule:spec-1044:verification:396:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1044-pre-deploy-run-a-declared-pre-deploy-class-left-ou.yaml",
+   "source_domain": "spec",
+   "source_line": 396,
+   "source_section": "verification",
    "status": "active"
   }
  ],
@@ -37796,7 +37816,36 @@
    "supersedes": null,
    "title": "Ceiling decisions — edge cases of the at-ceiling route (reference); a re-ship after a governed Tests run stays on the same ceiling row"
   },
-  "SPEC-1042": {
+  "SPEC-1043": {
+   "activation_owner_task": null,
+   "binding": [
+    "query-only"
+   ],
+   "cites": [
+    "CHARTER.md#principle-1",
+    "CHARTER.md#principle-7",
+    "LIFECYCLE.md#routing-which-carrier",
+    "SPEC-0034",
+    "SPEC-0035",
+    "SPEC-0046",
+    "SPEC-0070",
+    "SPEC-0072",
+    "SPEC-0095",
+    "SPEC-1037",
+    "X-0213",
+    "spec0140-s1-rewording-177-audit-adhoc"
+   ],
+   "cites_unresolved": [],
+   "concern": null,
+   "implements": [],
+   "init_concern": null,
+   "proposed_by": null,
+   "requires": [],
+   "status": "active",
+   "supersedes": null,
+   "title": "Self-applied carrier decision procedure — route a change to plan|task|followup|record from its own properties; a card's own spec or a requires edge alone does not warrant a plan"
+  },
+  "SPEC-1044": {
    "activation_owner_task": null,
    "binding": [
     "before-deploy"
@@ -37833,47 +37882,17 @@
     "bin/lib/land_verify_legs.py#_pre_deploy_contract_read",
     "bin/lib/land_verify_legs.py#_pre_deploy_declaration",
     "bin/lib/land_verify_legs.py#_pre_deploy_exclusion",
-    "bin/lib/land_verify_legs.py#_pre_deploy_forced_full",
     "bin/lib/land_verify_legs.py#_pre_deploy_layer_skip_row",
     "bin/lib/task.py#_pre_deploy_stand_probes",
     "bin/lib/views.py#_verify_cost_weekly_reading",
     "bin/lib/views.py#_view_verify_unit_cost"
    ],
    "init_concern": null,
-   "proposed_by": "deferred-checks-a-project-moves-costly-checks-out-",
-   "requires": [],
-   "status": "active",
-   "supersedes": null,
-   "title": "Pre-deploy run — a declared pre-deploy class, and a deploy to a guarded target that first runs the full verify plus that class on the exact revision it ships"
-  },
-  "SPEC-1043": {
-   "activation_owner_task": null,
-   "binding": [
-    "query-only"
-   ],
-   "cites": [
-    "CHARTER.md#principle-1",
-    "CHARTER.md#principle-7",
-    "LIFECYCLE.md#routing-which-carrier",
-    "SPEC-0034",
-    "SPEC-0035",
-    "SPEC-0046",
-    "SPEC-0070",
-    "SPEC-0072",
-    "SPEC-0095",
-    "SPEC-1037",
-    "X-0213",
-    "spec0140-s1-rewording-177-audit-adhoc"
-   ],
-   "cites_unresolved": [],
-   "concern": null,
-   "implements": [],
-   "init_concern": null,
    "proposed_by": null,
    "requires": [],
    "status": "active",
    "supersedes": null,
-   "title": "Self-applied carrier decision procedure — route a change to plan|task|followup|record from its own properties; a card's own spec or a requires edge alone does not warrant a plan"
+   "title": "Pre-deploy run — a declared pre-deploy class, left out of land and Stage-6 runs even when they run forced full, and a deploy to a guarded target that first runs the full verify plus that class on the exact revision it ships"
   }
  },
  "tasks_citing": {},
@@ -37895,7 +37914,7 @@
   ],
   "before-deploy": [
    "SPEC-0097",
-   "SPEC-1042"
+   "SPEC-1044"
   ],
   "before-external-mutation": [
    "SPEC-0116"

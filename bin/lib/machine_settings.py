@@ -709,6 +709,14 @@ INVENTORY: "tuple[Knob, ...]" = (
        "every other source, a project's declared layer / section bound comes next, and the machine "
        "file takes the place just above this default (SPEC-1031 rule 4)",
        bounds=(60.0, 3600.0), escape=True),
+    _u("YITC_JOURNAL_LOCK_WAIT_S", "int", 300, "bin/lib/events.py#journal_lock",
+       "how long, in seconds, a journal writer waits for the journal lock another process holds "
+       "before it refuses with the lock path and the holder (T-14170): before it the wait had no "
+       "bound and one stuck holder stalled every writer of the repository until kill -KILL "
+       "(public issue #187). A BUDGET: expiry ends that write as stuck and writes nothing. "
+       "Admissible 10..3600 — a land's fold holds the lock for seconds, and past an hour a stuck "
+       "holder is no longer distinguishable from no bound",
+       bounds=(10, 3600)),
     _t("YITC_LOAD_SENSITIVE_MAX_FILES", "int", 25, "bin/lib/debt.py#load_sensitive_max_files",
        "the FILE-COUNT half of the SPEC-0132 §3 serial-lane watch-point as EXTENDED to the declared "
        "load-sensitive lane (T-12360): past this many files in `tests/load-sensitive.txt` the weekly "

@@ -449,7 +449,7 @@ over the lens window (the last week), never restate or rebuild them here.
   slot or a lock) against the wall spent running, and the worker slots the runs used against the
   host's cores (`nproc`). A repo with no recorded verify run records `no runs`.
 - **Reading 5 — MOVES.** The weekly verify-cost reading over the `graph query verify-unit-cost` view, over
-  the repo's whole recorded history (SPEC-1042 rule 7 is its home): it PROPOSES moving a costly
+  the repo's whole recorded history (<workshop-spec> rule 7 is its home): it PROPOSES moving a costly
   (median above the median unit's) zero-catch (no real or unjudged failure) unit into a pre-deploy class
   only when the window covers `pre_deploy_move_min_window_days` and the unit ran
   `pre_deploy_move_min_runs` times on lands and Stage-6 runs (THRESHOLD keys, `config list`), saying why

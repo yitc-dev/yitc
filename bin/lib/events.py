@@ -25,6 +25,8 @@ import os
 import re
 import sys
 import tempfile
+import threading
+import time
 from pathlib import Path
 
 from lib import vocab  # T-12930: the prescribed temp-file recipe (help-text vocabulary)
@@ -1125,12 +1127,156 @@ def journal_lock(journal_path):
     resolved = logical_journal(journal_path).resolve()
     key = journal_lock_key(resolved)
     lock_path = _journal_lock_path(resolved, key)
-    fd = lockfile.open_flock_target(lock_path)
+    # T-14170 — RE-ENTRANT PER THREAD. `flock` conflicts between two open file descriptions of ONE
+    # process, so a nested take used to block forever on this process's own lock: measured on a land
+    # whose SIGTERM handler journaled `land_terminated_externally` while an append held the lock
+    # (public issue #187 — every writer of the repository then waited until kill -KILL). A nested take
+    # by the SAME thread now bumps a depth count and only the outermost release closes the fd. A
+    # second THREAD still opens its own fd and serializes as before: a heartbeat thread must never
+    # enter a land fold's read-modify-write. The state is thread-local and stamped with the pid, so no
+    # thread reads another's and a forked child starts with none.
+    # ONE INVARIANT closes every signal window: the slot is registered BEFORE the first flock try and
+    # removed only AFTER the fd is closed, inside one try/finally. A handler that runs on this thread
+    # anywhere in between reads the lock as held, so a signal path that writes a row defers it
+    # (`run_after_journal_lock`) and never takes the lock from inside the section or its wait.
+    held, deferred = _thread_journal_locks()
+    slot = str(lock_path)
+    entry = held.get(slot)
+    if entry is not None:
+        if not entry[1]:
+            raise RuntimeError(
+                f"yitc-v2: journal lock {lock_path} taken again by this thread while its own take is "
+                f"still waiting — a signal path must write through `events.run_after_journal_lock`")
+        entry[0] += 1
+        try:
+            yield
+        finally:
+            entry[0] -= 1
+        return
+    fd = None
     try:
-        fcntl.flock(fd, fcntl.LOCK_EX)
+        fd = lockfile.open_flock_target(lock_path)
+        held[slot] = entry = [1, False]      # [depth, acquired] — registered inside the one try/finally
+        # THE BOUNDED WAIT. The bound — the SPEC-1031 BUDGET key `JOURNAL_LOCK_WAIT_KEY` — is resolved
+        # only after the first try fails, so an uncontended take reads no settings file; the deadline
+        # is checked before every retry, and expiry raises `JournalLockTimeout` naming the lock path,
+        # the bound and its source, and the holder (`/proc/locks`) when it is readable.
+        deadline = bound = None
+        delay = 0.005
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                pass
+            if deadline is None:
+                from lib import machine_settings
+                bound = machine_settings.in_force(JOURNAL_LOCK_WAIT_KEY)
+                deadline = time.monotonic() + float(bound["value"])
+            time.sleep(min(delay, max(deadline - time.monotonic(), 0.0)))
+            delay = min(delay * 2, 0.1)
+            if time.monotonic() >= deadline:
+                raise JournalLockTimeout(_journal_lock_timeout_message(fd, lock_path, bound))
+        entry[1] = True
         yield
     finally:
-        os.close(fd)   # releases the advisory flock
+        if fd is not None:
+            os.close(fd)   # releases the advisory flock
+        held.pop(slot, None)
+        if not held:
+            _run_deferred_after_journal_lock(deferred)
+
+
+# T-14170 — the thread-local journal-lock state: (pid, {lock path: [depth, acquired]}, [the rows a
+# signal path asked to write while this thread held a lock — `run_after_journal_lock`]).
+_JOURNAL_LOCK_TLS = threading.local()
+JOURNAL_LOCK_WAIT_KEY = "YITC_JOURNAL_LOCK_WAIT_S"   # SPEC-1031 BUDGET; default + band in INVENTORY
+
+
+def _thread_journal_locks():
+    state = getattr(_JOURNAL_LOCK_TLS, "state", None)
+    if state is None or state[0] != os.getpid():
+        state = _JOURNAL_LOCK_TLS.state = (os.getpid(), {}, [])
+    return state[1], state[2]
+
+
+class JournalLockTimeout(RuntimeError):
+    """T-14170 — a journal writer could not take the journal lock within its bound."""
+
+
+def _journal_lock_holder(fd) -> "tuple | None":
+    """`(pid, cmdline)` of the process `/proc/locks` names as the FLOCK WRITE holder of the inode `fd`
+    is open on, or None when it is not readable (no /proc, no matching row)."""
+    try:
+        st = os.fstat(fd)
+        dev_ino = f"{os.major(st.st_dev):02x}:{os.minor(st.st_dev):02x}:{st.st_ino}"
+        rows = Path("/proc/locks").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for row in rows:
+        cols = row.split()
+        if len(cols) < 6 or "->" in cols[:2] or cols[1] != "FLOCK" or cols[3] != "WRITE":
+            continue
+        if cols[5] != dev_ino:
+            continue
+        pid = cols[4]
+        try:
+            raw = Path(f"/proc/{pid}/cmdline").read_bytes()
+            cmd = raw.replace(b"\0", b" ").decode("utf-8", "replace").strip()[:200]
+        except OSError:
+            cmd = ""
+        return pid, cmd
+    return None
+
+
+def _journal_lock_timeout_message(fd, lock_path, bound) -> str:
+    holder = _journal_lock_holder(fd)
+    if holder is None:
+        who = "an unknown holder (no readable /proc/locks row for it)"
+        act = "find the holder with `fuser` or `lsof` on that path"
+    else:
+        pid, cmd = holder
+        who = f"pid {pid}" + (f" ({cmd})" if cmd else "")
+        act = f"if pid {pid} is stuck, end it (kill {pid})"
+    return (f"yitc-v2: journal lock NOT acquired within {bound['value']}s "
+            f"({JOURNAL_LOCK_WAIT_KEY}, source {bound['source']}): {lock_path} is held by {who}. "
+            f"Nothing was written to the journal. {act.capitalize()}, then re-run; the bound is a "
+            f"SPEC-1031 BUDGET (`bin/yitc-v2 config set {JOURNAL_LOCK_WAIT_KEY} <seconds>`).")
+
+
+def journal_lock_held() -> bool:
+    """True while THIS thread holds (or is waiting to take) any journal lock."""
+    return bool(_thread_journal_locks()[0])
+
+
+def run_after_journal_lock(fn) -> bool:
+    """T-14170 — run `fn` now when this thread holds no journal lock, else queue it to run right after
+    the thread's last outermost release. Returns True when `fn` ran now.
+
+    The seam a SIGNAL PATH that writes a journal row goes through: a handler may run inside an append,
+    a land fold's read-modify-write or the wait for the lock, and its row (and the re-kill after it)
+    then waits for that section to end instead of taking the lock from inside it. Outside every
+    section it is an ordinary writer, bounded like any other."""
+    held, deferred = _thread_journal_locks()
+    if not held:
+        fn()
+        return True
+    deferred.append(fn)
+    return False
+
+
+def _run_deferred_after_journal_lock(deferred) -> None:
+    pending = list(deferred)
+    del deferred[:]
+    first = None
+    for fn in pending:
+        try:
+            fn()
+        except BaseException as exc:   # noqa: BLE001 — every queued row still gets its turn
+            first = first or exc
+    if first is not None:
+        raise first
+
 
 @contextlib.contextmanager
 def trail_lock(journal_path):
@@ -1147,10 +1293,11 @@ def trail_lock(journal_path):
     per-project deploy lock provably cannot cover that without breaking per-project concurrency, so
     the fix belongs here, at the trail's own seam.
 
-    WHY A SEPARATE INODE AND NOT `journal_lock`. `journal_lock` is NOT re-entrant within a process
-    (`evidence_custody.py` states this and hand-codes a skip to avoid the self-deadlock) and
-    `append_event` takes it INTERNALLY — and `append_trail_record` calls `append_event` inside the
-    critical section this must cover. Sharing one inode would therefore deadlock every trail append.
+    WHY A SEPARATE INODE AND NOT `journal_lock`. `journal_lock` was NOT re-entrant within a process
+    when this was written (T-14170 made it re-entrant per thread) and `append_event` takes it
+    INTERNALLY — and `append_trail_record` calls `append_event` inside the critical section this must
+    cover. The separate inode stays: on `journal_lock` this read-modify-write would stall every other
+    appender of the journal for its whole length.
     The `-trail` discriminator reuses `logical_journal` + `journal_lock_key` + `_journal_lock_path`
     placement UNCHANGED (SPEC-0190 rule 1: lock on the LOGICAL journal, never a physical segment), so
     there is no second placement policy to drift.
@@ -1190,10 +1337,10 @@ def redact_lock(journal_path):
     window creates. (F4) REAL INCIDENT / PRIOR-ART — X-1437 is the measured sibling incident that
     produced `trail_lock`; this card's audit-pre r1 finding 3 names the identical shape here.
 
-    WHY A SEPARATE INODE AND NOT `journal_lock`: identical to `trail_lock`'s reason — `journal_lock`
-    is NOT re-entrant within a process and `append_event` takes it INTERNALLY, while the critical
-    section here must span an `append_event` AND two `journal_lock`-held segment reads. Sharing one
-    inode would deadlock every redaction.
+    WHY A SEPARATE INODE AND NOT `journal_lock`: identical to `trail_lock`'s reason — the critical
+    section here spans an `append_event` AND two `journal_lock`-held segment reads, and on
+    `journal_lock` (re-entrant per thread since T-14170) it would stall every other appender for the
+    whole operation.
 
     LOCK ORDERING IS FIXED AND ACYCLIC: `redact_lock` is always taken FIRST and `journal_lock` only
     INSIDE it; nothing else ever takes `redact_lock`, so no cycle exists. The window held is the

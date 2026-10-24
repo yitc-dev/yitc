@@ -652,7 +652,7 @@ supersedes: null
 activation_owner_task: null
 proposed_by: run-the-full-governed-test-stage-after-audit-post-
 implements_signature:
-  bin/lib/audit.py#cmd_audit: f3aef2d80ca649b235c78f1727f1ff89e2749cc741b559fa089c1bb8e2d0abf1
+  bin/lib/audit.py#cmd_audit: e1becfa2a76821c020257fcd9a1f0b34e75bb38dea9c253985496c28be6b7b49
   bin/lib/gates.py#advance_stage_pointer: f2c4432ca2437c59d0d708dc73e7fb9f64d57d610427925044db52f8a0c05089
   bin/lib/gates.py#stage_pointer_move: a4d7b90fa1c95f4ce44d604dcaa78fd898bbcb079543dcf990c91e7efc7e76a3
   bin/lib/task.py#cmd_task_close: 595eea6e8159447332a90490bb62879bc1077ce0fd6b0368e4af6ca2c0c270ce

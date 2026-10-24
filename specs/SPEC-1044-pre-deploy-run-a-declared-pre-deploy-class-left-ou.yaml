@@ -1,8 +1,9 @@
-id: SPEC-1042
-title: Pre-deploy run — a declared pre-deploy class, and a deploy to a guarded target
-  that first runs the full verify plus that class on the exact revision it ships
+id: SPEC-1044
+title: Pre-deploy run — a declared pre-deploy class, left out of land and Stage-6
+  runs even when they run forced full, and a deploy to a guarded target that first
+  runs the full verify plus that class on the exact revision it ships
 status: active
-created_at: 2026-10-22 11:51:39+00:00
+created_at: 2026-10-24 09:01:00+00:00
 travels: null
 consumed: false
 extension: null
@@ -12,7 +13,6 @@ implements:
 - bin/lib/init.py#pre_deploy_declaration_errors
 - bin/lib/land_verify_legs.py#_pre_deploy_declaration
 - bin/lib/land_verify_legs.py#_pre_deploy_contract_read
-- bin/lib/land_verify_legs.py#_pre_deploy_forced_full
 - bin/lib/land_verify_legs.py#_pre_deploy_exclusion
 - bin/lib/land_verify_legs.py#_pre_deploy_layer_skip_row
 - bin/lib/deploy.py#_pre_deploy_run
@@ -70,24 +70,26 @@ body: "## Scenario\nA project has moved costly checks out of its lands: it decla
   \ `command:` fallback when `list` cannot answer — and only THEN applies the pre-deploy\n\
   exclusion:\n- the exclusion removes the pre-deploy units from that set, and a `layers:`-declared\
   \ layer is skipped\n  whole; the row names each removed unit (or the skipped layer)\
-  \ with its class, outcome\n  `passed-partial` — a skip is never silent;\n- EXCEPT\
-  \ where that set is a forced full run: a change the SPEC-0152 rule-16 skip names\
-  \ (the verify\n  section, the pinned set, the land/verify implementation, `verify.infra_globs`)\
-  \ or the layer's\n  adapter `sources:` runs the whole layer, pre-deploy units included;\n\
-  - and where the layer's `list` did not answer (the `command:` fallback), the layer\
-  \ runs whole,\n  pre-deploy units included, and the row says the exclusion could\
-  \ not apply.\nThe exclusion applies to a land's candidate leg and to a Stage-6 run,\
-  \ and nowhere else: a\n`selection: shadow` layer runs its full side whole, pre-deploy\
-  \ units included, and compares as\nSPEC-1035 says; the pinned last-green leg (SPEC-0077,\
-  \ SPEC-0186) runs as the project's policy says\nand is never excluded.\nNothing\
-  \ else about selection changes; the pre-deploy run (rule 3) covers whatever any\
-  \ land left out.\n\n### 3. A deploy to a gated target runs the pre-deploy run as\
-  \ its last step before the command\n- `bin/yitc-v2 deploy` to a gated target (`--target\
-  \ <name>`, or no `--target` when `default` is\n  gated; a consumer: `-C <path>`)\
-  \ REQUIRES the SPEC-0094 §6 expected revision\n  (`--expect-revision <full commit\
-  \ id>`) and refuses without it before anything runs, naming the\n  option. That\
-  \ revision is the CANDIDATE.\n- The run is the deploy's last gate: after every existing\
-  \ pre-launch gate and the SPEC-0094 §9 load\n  window, before the §6 last-moment\
+  \ with its class, outcome\n  `passed-partial` — a skip is never silent;\n- the exclusion\
+  \ applies on a forced full run too: a change the SPEC-0152 rule-16 skip names (the\n\
+  \  verify section, the pinned set, the land/verify implementation, `verify.infra_globs`)\
+  \ or the\n  layer's adapter `sources:` runs every unit outside a pre-deploy class,\
+  \ and the pre-deploy units\n  stay removed and named as above (a `layers:`-declared\
+  \ layer stays skipped) — the pre-deploy run\n  (rule 3) on the shipped revision\
+  \ runs them;\n- and where the layer's `list` did not answer (the `command:` fallback),\
+  \ the layer runs whole,\n  pre-deploy units included, and the row says the exclusion\
+  \ could not apply.\nThe exclusion applies to a land's candidate leg and to a Stage-6\
+  \ run, and nowhere else: a\n`selection: shadow` layer runs its full side whole,\
+  \ pre-deploy units included, and compares as\nSPEC-1035 says; the pinned last-green\
+  \ leg (SPEC-0077, SPEC-0186) runs as the project's policy says\nand is never excluded.\n\
+  Nothing else about selection changes; the pre-deploy run (rule 3) covers whatever\
+  \ any land left out.\n\n### 3. A deploy to a gated target runs the pre-deploy run\
+  \ as its last step before the command\n- `bin/yitc-v2 deploy` to a gated target\
+  \ (`--target <name>`, or no `--target` when `default` is\n  gated; a consumer: `-C\
+  \ <path>`) REQUIRES the SPEC-0094 §6 expected revision\n  (`--expect-revision <full\
+  \ commit id>`) and refuses without it before anything runs, naming the\n  option.\
+  \ That revision is the CANDIDATE.\n- The run is the deploy's last gate: after every\
+  \ existing pre-launch gate and the SPEC-0094 §9 load\n  window, before the §6 last-moment\
   \ revision check. Nothing else starts it, and every gated deploy\n  runs its own:\
   \ no row of an earlier run stands in for it, save the opt-in reuse below.\n- Reuse\
   \ — opt-in, per class. Where EVERY class guarding the target declares `reuse_run:`\
@@ -276,80 +278,93 @@ body: "## Scenario\nA project has moved costly checks out of its lands: it decla
   \ | THRESHOLD (project) | 120 | rule 3 opt-in reuse: the oldest run a deploy stands\
   \ on |\nThe run's start wait is the SPEC-0094 §9 load window (its machine keys,\
   \ unchanged); rescue attempts\nare the land's own; the contended re-run is once,\
-  \ a fixed rule, not a key. None is `consumed:` while\ndraft.\n\n## Rationale\nPlan\
-  \ `deferred-checks-a-project-moves-costly-checks-out-` (public issues #140, #154,\
-  \ #161) carries\nthe incidents, the three consumers' measurements and the owner\
-  \ decisions; summary only here.\nSPEC-1030 left the full run before a deploy to\
-  \ each project, so the backstop for what deciding lands\nskip had no kernel home.\
-  \ On the reporting consumer the release-only class caught real product\nregressions\
-  \ that sat on main until the release (twice in 2026-10-14..18, once more 2026-10-21,\
-  \ ~13 h\nunseen), a project-side hold did not keep the engine's lands off (9 of\
-  \ 12 runs had lands beside\nthem), and a row refused after a 12-minute run forced\
-  \ a repeat. Another consumer deployed twice after\na partial land with no full run\
-  \ between.\nThe run is a step of the deploy itself, on the revision the deploy is\
-  \ told to ship, and SPEC-0094\n§6's existing revision checks bind the command to\
-  \ that revision — so there is no separate evidence\nrow to order, match or revive.\
-  \ A first composition kept the run as a separate command whose row a\nlater deploy\
-  \ read; each correction round of the accept-gate check found a new defect in that\n\
-  evidence path, and the owner chose the in-deploy run instead (the plan's correction\
-  \ record). §6's\nafter-command check can record that the checkout moved while the\
-  \ command ran, but cannot undo a\nbuild that already serves, so the project's lands\
-  \ are held off for the command itself, on the lock a\nland already takes (the owner's\
-  \ choice on the next round); no new lock is added. The cost is stated:\nwhen main\
-  \ moves during the run, the deploy is refused at the §6 last-moment check and the\
-  \ next deploy\nruns again; a land waits out a gated deploy's command, and one still\
-  \ parked at the land park limit\nhalts and is run again; a scoped self-commit during\
-  \ the command fails that deploy's record; and a\nrelease deploying two gated targets\
-  \ runs the verify once per deploy. The engine-owned hold (plan\n`engine-owned-one-admission-queue-for-stage-6-runs-`)\
-  \ is what would remove the retry, in a later\nslice.\nThe stand run follows its\
-  \ card's land by the plan's choice, matching the field shape (the reporting\nconsumer\
-  \ read a new check right after its card's land); the kernel does not force it —\
-  \ SPEC-0094 §6\nlets a `production: false` target build a branch. The move-away\
-  \ window bound exists because 44 of 636\nfiles quiet over 4 days caught real defects\
-  \ over two weeks. The rows are per declared class so the\nexisting declared-class\
-  \ check and debt fold read them unchanged, and the per-unit rows keep the\nview's\
-  \ numbers for a unit after it leaves the lands.\nA layer's own timeout counts as\
-  \ a timeout since (owner decision\nevents.jsonl#ts=, public issue #179 items 1-2):\
-  \ the earlier narrowing to unit\ntimeouts answered an accept-gate finding about\
-  \ a timeout MIXED with a `prep:` / `required:` / report\nfailure, not layer timeouts\
-  \ as such, and the reporting consumer saw releases with layer timeouts in\nthree\
-  \ layers with lands beside them, and layer timeouts that passed when the layer re-ran\
-  \ alone. The\nlone-layer re-run is the layer analog of the unit rescue the land\
-  \ already does; the land's own\nwhole-layer re-run declines a timed-out layer, so\
-  \ the run does it itself.\nThe per-layer cost record (owner decision events.jsonl#ts=,\
-  \ public\nissue #180 item 7): the reporting consumer retired its own layer-work\
-  \ report, its only measured\ninput for per-layer worker shares of a whole-layer\
-  \ run; the runner already measured both values.\nThe opt-in reuse (owner decision\
-  \ events.jsonl#ts=, public issue #179\nitem 3): the default stays — every gated\
-  \ deploy runs its own (owner, events.jsonl#ts=)\n— and a project may decide otherwise\
-  \ for itself; the reporting consumer pays two full runs (~31 min\neach, as reported)\
-  \ when one release deploys acceptance then production on one candidate. It re-opens\n\
-  narrowly the evidence path the 2026-10-22 accept-gate rounds found defects in, each\
-  \ closed by a bound:\na late or older green revived as the latest row (pass 1 finding\
-  \ 5) — no row is imported from outside\nthe deploy and only the newest run of the\
-  \ candidate, whose own deploy completed, is read; a newer run\nwhose rows were refused\
-  \ (pass 2 finding 2) — once any class declares the reuse, every gated run writes\
-  \ its start row before it runs,\nso a newer run of the candidate, red, contended\
-  \ or with no result at all, ends the reuse; and since\nthe declaration lives in\
-  \ the committed contract and §6 refuses a dirty checkout, every run of one\ncandidate\
-  \ runs under the same declaration and writes that row; the build source\nand «never\
-  \ a wrong ship» (pass 2 finding 1, pass 3 finding 1) — the reservation and the §6\
-  \ checks run\nunchanged; rows not linked to the deploy (pass 3 finding 5) — the\
-  \ bound reads that very link. The\ncost a declaring project accepts: the second\
-  \ target is deployed on a run up to the age bound old, so\na failure only its own\
-  \ run would have shown (a flaky or host-dependent check) is not seen; and a reuse\
-  \ adds no\nrun to the second target's own history, so its next run reports the cards\
-  \ since its own last passed\nrun. The stand run of rule 6 is unaffected: a stand\
-  \ row is the stand deploy's own run.\n\n## Verification\nNamed tests, each RED on\
-  \ the pre-change code (the plan's probe letters in brackets):\n- V1 [a, m, g, t]\
-  \ a gated deploy's run executes every layer whole plus every pre-deploy unit of\
-  \ the\n  one inventory, in a fresh checkout of the candidate; an ordinary land on\
-  \ the same tree removes the\n  pre-deploy unit after selection and names it; a `verify`-section\
-  \ change, an `infra_globs` change\n  and an adapter `sources:` change each run it;\
-  \ a layer whose `list` failed runs whole and says so; a\n  `deciding`-selected layer\
-  \ still drops the pre-deploy unit from the selected set; a `shadow` layer\n  runs\
-  \ it on its full side, and the pinned last-green leg under a policy that runs it\
-  \ still runs it.\n- V2 [b, j, q, s] a deploy to a gated target without `--expect-revision`\
+  \ a fixed rule, not a key. None is `consumed:` while\ndraft.\n\n## Rationale\nSuccessor\
+  \ of <workshop-spec> (owner go events.jsonl#ts=, route decision\nevents.jsonl#ts=,\
+  \ public issue #188). ONE normative change: rule 2 no longer\nruns the pre-deploy\
+  \ units on a forced full run. It is a supersede, not an in-place edit, because it\n\
+  removes an exemption and so changes what an already-covered case runs (SPEC-1037\
+  \ rule 7). Every\nother rule is carried word for word from <workshop-spec>, as are\
+  \ its `implements:` anchors, less the one\nhelper the change deleted. On the reporting\
+  \ consumer every card editing its operating contract or\nan adapter source ran the\
+  \ release-only units in its Stage-6 run (as reported, one layer 112 units /\n816\
+  \ s instead of 69 / ~585 s) and two deploy-path cards timed out at their layer caps,\
+  \ while the\npre-deploy run on the shipped revision already runs those units. Rows\
+  \ written before this spec may\ncarry the exclusion reasons `change-unknown`, `adapter-sources`\
+  \ or a rule-16 edge.\nPlan `deferred-checks-a-project-moves-costly-checks-out-`\
+  \ (public issues #140, #154, #161) carries\nthe incidents, the three consumers'\
+  \ measurements and the owner decisions; summary only here.\nSPEC-1030 left the full\
+  \ run before a deploy to each project, so the backstop for what deciding lands\n\
+  skip had no kernel home. On the reporting consumer the release-only class caught\
+  \ real product\nregressions that sat on main until the release (twice in 2026-10-14..18,\
+  \ once more 2026-10-21, ~13 h\nunseen), a project-side hold did not keep the engine's\
+  \ lands off (9 of 12 runs had lands beside\nthem), and a row refused after a 12-minute\
+  \ run forced a repeat. Another consumer deployed twice after\na partial land with\
+  \ no full run between.\nThe run is a step of the deploy itself, on the revision\
+  \ the deploy is told to ship, and SPEC-0094\n§6's existing revision checks bind\
+  \ the command to that revision — so there is no separate evidence\nrow to order,\
+  \ match or revive. A first composition kept the run as a separate command whose\
+  \ row a\nlater deploy read; each correction round of the accept-gate check found\
+  \ a new defect in that\nevidence path, and the owner chose the in-deploy run instead\
+  \ (the plan's correction record). §6's\nafter-command check can record that the\
+  \ checkout moved while the command ran, but cannot undo a\nbuild that already serves,\
+  \ so the project's lands are held off for the command itself, on the lock a\nland\
+  \ already takes (the owner's choice on the next round); no new lock is added. The\
+  \ cost is stated:\nwhen main moves during the run, the deploy is refused at the\
+  \ §6 last-moment check and the next deploy\nruns again; a land waits out a gated\
+  \ deploy's command, and one still parked at the land park limit\nhalts and is run\
+  \ again; a scoped self-commit during the command fails that deploy's record; and\
+  \ a\nrelease deploying two gated targets runs the verify once per deploy. The engine-owned\
+  \ hold (plan\n`engine-owned-one-admission-queue-for-stage-6-runs-`) is what would\
+  \ remove the retry, in a later\nslice.\nThe stand run follows its card's land by\
+  \ the plan's choice, matching the field shape (the reporting\nconsumer read a new\
+  \ check right after its card's land); the kernel does not force it — SPEC-0094 §6\n\
+  lets a `production: false` target build a branch. The move-away window bound exists\
+  \ because 44 of 636\nfiles quiet over 4 days caught real defects over two weeks.\
+  \ The rows are per declared class so the\nexisting declared-class check and debt\
+  \ fold read them unchanged, and the per-unit rows keep the\nview's numbers for a\
+  \ unit after it leaves the lands.\nA layer's own timeout counts as a timeout since\
+  \ (owner decision\nevents.jsonl#ts=, public issue #179 items 1-2): the earlier narrowing\
+  \ to unit\ntimeouts answered an accept-gate finding about a timeout MIXED with a\
+  \ `prep:` / `required:` / report\nfailure, not layer timeouts as such, and the reporting\
+  \ consumer saw releases with layer timeouts in\nthree layers with lands beside them,\
+  \ and layer timeouts that passed when the layer re-ran alone. The\nlone-layer re-run\
+  \ is the layer analog of the unit rescue the land already does; the land's own\n\
+  whole-layer re-run declines a timed-out layer, so the run does it itself.\nThe per-layer\
+  \ cost record (owner decision events.jsonl#ts=, public\nissue #180 item 7): the\
+  \ reporting consumer retired its own layer-work report, its only measured\ninput\
+  \ for per-layer worker shares of a whole-layer run; the runner already measured\
+  \ both values.\nThe opt-in reuse (owner decision events.jsonl#ts=, public issue\
+  \ #179\nitem 3): the default stays — every gated deploy runs its own (owner, events.jsonl#ts=)\n\
+  — and a project may decide otherwise for itself; the reporting consumer pays two\
+  \ full runs (~31 min\neach, as reported) when one release deploys acceptance then\
+  \ production on one candidate. It re-opens\nnarrowly the evidence path the 2026-10-22\
+  \ accept-gate rounds found defects in, each closed by a bound:\na late or older\
+  \ green revived as the latest row (pass 1 finding 5) — no row is imported from outside\n\
+  the deploy and only the newest run of the candidate, whose own deploy completed,\
+  \ is read; a newer run\nwhose rows were refused (pass 2 finding 2) — once any class\
+  \ declares the reuse, every gated run writes its start row before it runs,\nso a\
+  \ newer run of the candidate, red, contended or with no result at all, ends the\
+  \ reuse; and since\nthe declaration lives in the committed contract and §6 refuses\
+  \ a dirty checkout, every run of one\ncandidate runs under the same declaration\
+  \ and writes that row; the build source\nand «never a wrong ship» (pass 2 finding\
+  \ 1, pass 3 finding 1) — the reservation and the §6 checks run\nunchanged; rows\
+  \ not linked to the deploy (pass 3 finding 5) — the bound reads that very link.\
+  \ The\ncost a declaring project accepts: the second target is deployed on a run\
+  \ up to the age bound old, so\na failure only its own run would have shown (a flaky\
+  \ or host-dependent check) is not seen; and a reuse adds no\nrun to the second target's\
+  \ own history, so its next run reports the cards since its own last passed\nrun.\
+  \ The stand run of rule 6 is unaffected: a stand row is the stand deploy's own run.\n\
+  \n## Verification\nNamed tests, each RED on the pre-change code (the plan's probe\
+  \ letters in brackets):\n- V1 [a, m, g, t] a gated deploy's run executes every layer\
+  \ whole plus every pre-deploy unit of the\n  one inventory, in a fresh checkout\
+  \ of the candidate; an ordinary land on the same tree removes the\n  pre-deploy\
+  \ unit after selection and names it; a `verify`-section change, an `infra_globs`\
+  \ change\n  and an adapter `sources:` change each run every other unit and still\
+  \ remove and name it, a\n  `layers:`-declared layer staying skipped; a layer whose\
+  \ `list` failed runs whole and says so; a\n  `deciding`-selected layer still drops\
+  \ the pre-deploy unit from the selected set; a `shadow` layer\n  runs it on its\
+  \ full side, and the pinned last-green leg under a policy that runs it still runs\
+  \ it.\n- V2 [b, j, q, s] a deploy to a gated target without `--expect-revision`\
   \ is refused before anything\n  runs; with it, the run goes before the command and\
   \ a red run launches no command — on a\n  production target, a `production: false`\
   \ target, with `--owner-approved`, under a waived policy and\n  with `--now` alike;\
@@ -453,7 +468,7 @@ cites:
 requires: []
 supersedes: null
 activation_owner_task: null
-proposed_by: deferred-checks-a-project-moves-costly-checks-out-
+proposed_by: null
 binding:
 - before-deploy
 init_concern: null
@@ -467,9 +482,8 @@ implements_signature:
   bin/lib/init.py#pre_deploy_declaration_errors: c023b1acdb1d52c0f614ca1ace841dc88ac6664441e82e5ef7b70be85d0eab3a
   bin/lib/land_verify_legs.py#_pre_deploy_contract_read: 06c8dddf94b9400bc58754bd88202e04090c23e301314452380f6a255c1e4e21
   bin/lib/land_verify_legs.py#_pre_deploy_declaration: 45db7a176180340a71c62774e98165de88b693cff6f8757cc2bba7f181be7e60
-  bin/lib/land_verify_legs.py#_pre_deploy_exclusion: c922816545f58945a9e207d1c19c1ba157e171de351c1ad0a9759053ca82a594
-  bin/lib/land_verify_legs.py#_pre_deploy_forced_full: 661b38240a44a44319f436e39749c97508e19c91a1f9ad8233c00f6432722dfd
-  bin/lib/land_verify_legs.py#_pre_deploy_layer_skip_row: c700c6bdfd64224c79e4fec097659dff3f72a0f35ed9e0f5360f80344f7ef08f
+  bin/lib/land_verify_legs.py#_pre_deploy_exclusion: 1a5b5065fc76d33e04bf32f02f32d6005e4a38bba60a86c34e9202a7d81af316
+  bin/lib/land_verify_legs.py#_pre_deploy_layer_skip_row: 1ed004218703c2049ba49fa1313763f0d344cfee7761dc2ea5d00642ee9b4197
   bin/lib/task.py#_pre_deploy_stand_probes: 39ddd73e12b81e43de7ed788b02272f6fe5b1bcab3f9a38b39ba17a82583fc5f
   bin/lib/views.py#_verify_cost_weekly_reading: 262677443f19673435066e070044bbb0a50380c1d7efb567ca3effe132a7d2e1
   bin/lib/views.py#_view_verify_unit_cost: 6e0f068d65eccdab408e79488f6e160d1f8e92595388b1a31bcf6982a07189b6

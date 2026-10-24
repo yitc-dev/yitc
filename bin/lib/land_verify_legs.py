@@ -3480,9 +3480,11 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str, *,
     return out
 
 
-def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None" = None) -> dict:
+def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None" = None,
+                        stage6_commits: "dict | None" = None) -> dict:
     """T-13609 (SPEC-1006 rule 11) — `{(<layer>, <kind>, <project>, <name>): [<locator>, ...]}` of
-    every RESCUED per-unit `flaky_retry` row on a `land_completed` row of `rows` whose `ts` lies in
+    every RESCUED per-unit `flaky_retry` row on a `land_completed` row (and, T-14169, on a governed
+    Stage-6 row) of `rows` whose `ts` lies in
     `[since, until]` — the fold the per-unit lane entry is decided on. `kind` is `unit` (name = the
     repo-relative test file) or `group` (name = the declared group's label, rescued and counted
     whole); `project` is "" where the runner has none. One record per unit per rescue, so a
@@ -3506,21 +3508,39 @@ def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None
     rescue whose leg recorded the commit its units ran on (`flaky_retry.run_heads[<leg>]`, or the
     `run_head` of a record that was never folded per leg); a rescue whose leg recorded none is absent
     from it. Keyed by the unit as well as the locator, because two rows with one `ts` and leg can carry
-    different units on different commits. The answer itself is unchanged."""
+    different units on different commits. The answer itself is unchanged.
+
+    T-14169 — AND on a GOVERNED Stage-6 run's `tests_passed` / `tests_failed` row (one carrying the
+    runner's `stage6_run` mark; a hand-recorded row has none and counts nothing): since a land may take
+    a card's Stage-6 run as its candidate leg (SPEC-0065 §Bound) and then runs no verify of its own,
+    rescues recorded only there never reached this count. Such a row is read on `venue_flaky_retry` and
+    `flaky_retry` (a routed run keeps its record under the venue key — the engine fold's pair, T-14053),
+    under the same row predicate and dedup. Its commit is NOT a leg's `run_heads` (a Stage-6 record keeps
+    none) but `stage6_commits[<ts>]` — the caller's `worktree._rescue_run_commits` answer, the run's
+    merge-base with main (T-14130). A `land_completed` row carrying `stage6_credit` gives no `cand`-leg
+    rescue: that leg's verdict is the credited run's, counted once on the run's own row; its other legs
+    are its own runs."""
     out: dict = {}
     seen: set = set()
     for e in rows or []:
-        if not isinstance(e, dict) or e.get("type") != "land_completed":
+        etype = e.get("type") if isinstance(e, dict) else None
+        if etype not in _FLAKY_ENTRY_ROW_TYPES:
             continue
         ts = str(e.get("ts") or "")
         if not ts or ts < since or ts > until:
             continue
         data = e.get("data")
         metrics = data.get("verify_metrics") if isinstance(data, dict) else None
-        rec = metrics.get("flaky_retry") if isinstance(metrics, dict) else None
-        if not isinstance(rec, dict):
+        if not isinstance(metrics, dict):
             continue
-        legs = [(None, rec)] if "rows" in rec else [(k, v) for k, v in rec.items()]
+        stage6 = etype != "land_completed"
+        if stage6 and not isinstance(data.get("stage6_run"), dict):
+            continue                         # not the runner's governed row: no run to count
+        credited = not stage6 and isinstance(data.get("stage6_credit"), dict)
+        legs = []
+        for rec in (metrics.get(k) for k in (("venue_flaky_retry", "flaky_retry") if stage6 else ("flaky_retry",))):
+            if isinstance(rec, dict):
+                legs += [(None, rec)] if "rows" in rec else [(k, v) for k, v in rec.items()]
         for leg, lrec in legs:
             if not isinstance(lrec, dict):
                 continue
@@ -3529,6 +3549,8 @@ def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None
             for row in (lrec.get("rows") or []) if isinstance(lrec.get("rows"), list) else []:
                 if not isinstance(row, dict) or row.get("rescued") is not True or row.get("lane"):
                     continue
+                if credited and (row.get("leg") if isinstance(row.get("leg"), str) else leg) == "cand":
+                    continue                 # the credited run's verdict, counted on its own row
                 kind = "group" if "group" in row else "unit"
                 layer, name, proj = row.get("layer"), row.get(kind), row.get("project", "")
                 if not all(isinstance(v, str) for v in (layer, name, proj)) or not layer or not name:
@@ -3540,8 +3562,11 @@ def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None
                 seen.add((ts, stamped, key))
                 loc = f"events.jsonl#ts={ts}" + (f":{stamped}" if stamped else "")
                 out.setdefault(key, []).append(loc)
-                head = heads.get(stamped) if isinstance(stamped, str) else None
-                head = head if isinstance(head, str) and head else own_head
+                if stage6:
+                    head = (stage6_commits or {}).get(ts)
+                else:
+                    head = heads.get(stamped) if isinstance(stamped, str) else None
+                    head = head if isinstance(head, str) and head else own_head
                 if heads_out is not None and head:
                     heads_out[(key, loc)] = head
     return out
@@ -7252,14 +7277,14 @@ def _adapter_passed_outcome(rec) -> str:
     return "passed-partial" if isinstance(rec, dict) and isinstance(rec.get("partial"), dict) else "passed"
 
 
-# ───────── T-14104 — the PRE-DEPLOY exclusion, applied LAST (SPEC-1042 rules 1-2, `proposed`) ─────────
+# ───────── T-14104 — the PRE-DEPLOY exclusion, applied LAST (SPEC-1042 rule 1, SPEC-1044 rule 2) ─────────
 #
 # A pre-deploy class names its units in the ONE adapter inventory (each `list` unit's optional
 # `classes:`, SPEC-1035 rule 3) or whole layers (`layers:`). On a land's candidate leg and a Stage-6
 # run the units of such a class leave the set the layer would run today — after the selection
 # ladder, the SPEC-1030 deciding selection and credit and the `command:` fallback — and the row
-# names each with its class. Never on a forced full run, a `shadow` layer's full side, a re-run or
-# the pinned last-green leg. No contract reaches this before the turn-on card: the contract reader
+# names each with its class — on a forced full run too (T-14174). Never on a `shadow` layer's full
+# side, a re-run or the pinned last-green leg. No contract reaches this before the turn-on card: the contract reader
 # refuses `moment: pre-deploy` (init.py `_hook_tests`), and only a caller handed the PARSED
 # declaration (`pre_deploy=`) applies it.
 def _pre_deploy_declaration(classes) -> "dict | None":
@@ -7316,33 +7341,13 @@ def _pre_deploy_contract_read(tree) -> dict:
 
 
 def _pre_deploy_contract_kw(tree) -> dict:
-    """T-14114 (SPEC-1042 rule 2) — the keyword a land's candidate leg and a Stage-6 run hand the layer
+    """T-14114 (SPEC-1044 rule 2) — the keyword a land's candidate leg and a Stage-6 run hand the layer
     runner: `{"pre_deploy": <the declaration>}` when `tree`'s contract declares an admitted pre-deploy
     class (`_pre_deploy_contract_read`), else `{}` — so a project declaring none, or one whose
     declaration the contract read refuses, calls the runner exactly as before: every unit runs."""
     v = _pre_deploy_contract_read(tree)
     decl = None if v["refused"] else _pre_deploy_declaration(v["classes"])
     return {"pre_deploy": decl} if decl is not None else {}
-
-
-def _pre_deploy_forced_full(decl, change) -> "str | None":
-    """SPEC-1042 rule 2 — why this run of a layer is a FORCED FULL run, on which no pre-deploy unit is
-    removed; None when it is not. `change` is `{paths, edge}`: the changed paths and the reason the
-    SPEC-0152 rule-16 skip decision ran every layer (the verify section, the pinned set, the
-    land/verify implementation, `verify.infra_globs` — whatever edge it names). The answer: that
-    edge; `adapter-sources` for a changed path under the layer adapter's `sources:`; `change-unknown`
-    where the run has no change facts or no path list (it cannot show it is not forced). PURE."""
-    if not isinstance(change, dict):
-        return "change-unknown"
-    if change.get("edge"):
-        return str(change["edge"])
-    paths = change.get("paths")
-    if not paths:
-        return "change-unknown"
-    sources = (decl or {}).get("sources") or ()
-    if any(str(p) == s or str(p).startswith(s + "/") for p in paths for s in sources):
-        return "adapter-sources"
-    return None
 
 
 #: a unit whose `classes:` is not a list of non-empty strings
@@ -7379,7 +7384,7 @@ def _pre_deploy_membership(raw):
 
 def _pre_deploy_exclusion(inventory, to_run, memberships, declared, *, decl, change,
                           first_attempt=True, run=False) -> tuple:
-    """SPEC-1042 rule 2 — the pre-deploy exclusion of ONE run of an adapter-backed layer, applied
+    """SPEC-1044 rule 2 — the pre-deploy exclusion of ONE run of an adapter-backed layer, applied
     LAST: `to_run` is the set the run would execute today (`_adapter_run_plan`'s units, None = the
     whole `inventory`), `memberships` `{(project, file): _pre_deploy_membership(...)}` from the
     `list` answer, `declared` the declared pre-deploy class names. Returns `(units, record)`:
@@ -7393,9 +7398,10 @@ def _pre_deploy_exclusion(inventory, to_run, memberships, declared, *, decl, cha
     `list-unanswered` (no inventory — the `command:` fallback), `membership-malformed` /
     `unit-names-two-pre-deploy-classes` (`units` names them; both carry `refused: true` — a malformed
     declaration the verify then fails on, `_pre_deploy_refusal_line`), `mixed-group` (`groups` names each
-    declared group mixing a class and none), `shadow-full-side`, `command-decided` (not the
-    layer's first attempt) or the forced-full reason of `_pre_deploy_forced_full` — `units` then
-    names the pre-deploy units that ran.
+    declared group mixing a class and none), `shadow-full-side` or `command-decided` (not the
+    layer's first attempt) — `units` then names the pre-deploy units that ran. A FORCED full run (a
+    change the SPEC-0152 rule-16 skip names, or the adapter's `sources:`) is excluded like any other
+    first attempt (T-14174): `change` is no longer read here, and the pre-deploy run covers the units.
 
     `run` (T-14105 — SPEC-1042 rule 3) marks the deploy's PRE-DEPLOY RUN: nothing is removed, and
     the record reads `pre-deploy-run` with `units` naming every pre-deploy unit of the inventory with
@@ -7449,9 +7455,6 @@ def _pre_deploy_exclusion(inventory, to_run, memberships, declared, *, decl, cha
         return to_run, {"applied": False, "reason": "shadow-full-side", "units": named}
     if not first_attempt:
         return to_run, {"applied": False, "reason": "command-decided", "units": named}
-    forced = _pre_deploy_forced_full(decl, change)
-    if forced:
-        return to_run, {"applied": False, "reason": forced, "units": named}
     keep, removed = [], []
     for u in base:
         c = cls.get((u.get("project") or "", u["file"]))
@@ -7477,12 +7480,13 @@ def _pre_deploy_refusal_line(layer, record) -> str:
 
 
 def _pre_deploy_layer_skip_row(name: str, cls: str, change, decl=None) -> "dict | None":
-    """SPEC-1042 rule 2 — the row of a layer a pre-deploy class names WHOLE (`layers:`) on a run the
+    """SPEC-1044 rule 2 — the row of a layer a pre-deploy class names WHOLE (`layers:`) on a run the
     exclusion applies to: `{layer, outcome: passed-partial, pre_deploy: {applied: true, layer: {class}}}`
     — the layer is skipped and the skip is never silent. `decl` is the layer's parsed adapter
     declaration, None for a layer with no adapter. None — the layer runs whole as today — on a
-    forced full run (its adapter `sources:` included) and on a `selection: shadow` layer. PURE."""
-    if (decl or {}).get("selection") == "shadow" or _pre_deploy_forced_full(decl or {}, change):
+    `selection: shadow` layer only: a forced full run skips it too (T-14174), so `change` is no
+    longer read. PURE."""
+    if (decl or {}).get("selection") == "shadow":
         return None
     return {"layer": name, "outcome": "passed-partial",
             "pre_deploy": {"applied": True, "layer": {"class": str(cls)}}}

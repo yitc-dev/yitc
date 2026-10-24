@@ -4166,6 +4166,9 @@ class _DeployRunRecorder:
         if self._writing:
             self._deferred = signo       # acted on once the terminal write in progress is done
             return
+        if events_mod.journal_lock_held():   # T-14170: inside a journal-lock section — row + death after it
+            events_mod.run_after_journal_lock(lambda: self._on_signal(signo, _frame))
+            return
         if self.state == "started" and not self.terminal:
             name = self._signal_name(signo)
             try:

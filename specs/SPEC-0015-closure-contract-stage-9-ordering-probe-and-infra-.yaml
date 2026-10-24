@@ -165,48 +165,49 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ heading «The settle procedure». The evidence-locator address space below stays\
   \ here: it is\nshared by all three locator consumers. A card whose diff touches\
   \ a pre-deploy check gets its\n`stand-<class>` deferred probe at close and settles\
-  \ it only on a stand row of a landed revision:\nSPEC-1042 rule 6.\n\n#### THE EVIDENCE-LOCATOR\
-  \ ADDRESS SPACE — all three kinds, at one rule home\n\n**THE THREE KINDS.** A settlement\
-  \ evidence locator is EXACTLY one of:\n- `events.jsonl#ts=<ISO-instant>` — a journal\
-  \ row addressed by its instant;\n- `events.jsonl#source_ref=<ref>` — a journal row\
-  \ addressed by its `source_ref` (top-level or\n  under `data`); both of these are\
-  \ the materialized-journal citation form;\n- `coordination.jsonl#cross=X-NNNN` —\
-  \ a row in the out-of-repo shared coordination store, for a\n  criterion whose evidence\
-  \ is a report-back that lives outside every repo by design (SPEC-0084\n  rule 5).\
-  \ Added; the id is a coordination item id, never a task id.\n\n**NOT ALL THREE CONSUMERS\
-  \ TAKE ALL THREE KINDS** — this asymmetry is deliberate and is the most\ndrift-prone\
-  \ fact in the space, which is why it is stated rather than left to be inferred:\n\
-  - `task close --settle-evidence` (the settlement parser) accepts ALL THREE;\n- `live_probe.settled_by.evidence`\
-  \ and `post_ship_observation.outcome.evidence` accept only the\n  TWO JOURNAL kinds.\
-  \ The coordination kind is admitted at the SETTLEMENT grammar ALONE, so those\n\
-  \  two fields still REFUSE it.\n\n**WHAT IS NOT A LOCATOR**, restated because each\
-  \ of these is the plausible wrong answer: a bare\n`T-NNNN` and a commit sha name\
-  \ WORK, not the evidence ROW; a file path names a place with no row\nin it; and\
-  \ free-text prose («we checked the store») is precisely the claim under question.\
-  \ A\nlocator that is grammar-valid but RESOLVES to no row is refused separately,\
-  \ as a made-up citation —\ngrammar and resolution are two gates, not one.\n\n**THE\
-  \ EXTENSION RULE.** A FOURTH kind is added HERE and at the parser IN THE SAME CHANGE.\n\
-  \n### Deploy-conditional live_probe declaration precondition (rule home SPEC-0094\
-  \ §3)\nA REFINEMENT of this closure contract for DEPLOY-closure, scoped to a project\
-  \ that DECLARES a\n`deploy:` command in its yitc-ops.yaml carrier (SPEC-0093). For\
-  \ such a DEPLOYING project, `task\nclose` REFUSES unless the task DECLARES a `live_probe`\
-  \ — either a probe assertion OR an explicit\nreasoned `none` waiver (the SPEC-0028\
-  \ field). It is a DECLARATION presence-gate (fail-closed,\nSTATIC) of the SAME false-positive-free\
-  \ shape as the empty-probe rejection above — it does NOT call\nproduction at close\
-  \ (the executable GET runs at the DEPLOY seam, SPEC-0094 §4). Scope = EVERY task\n\
-  in a deploying project (a non-user-facing change still declares, via a one-line\
-  \ `none` waiver;\n`user_facing` lives inside the waiver and only governs whether\
-  \ `recheck_by` is required). A project\nwith NO `deploy:` command (a missing carrier,\
-  \ a carrier that holds no `deploy:` section — the\nkernel's own file is one — or\
-  \ a waived deploy) is UNCHANGED: this precondition is purely\nADDITIVE-conditional\
-  \ and alters no other closure rule.\n**This HONORS CHARTER §Principle 3 — the P3\
-  \ text is UNCHANGED.** For deploy work the EXECUTABLE\nadoption proof lives at the\
-  \ DEPLOY seam, and any non-adoption is DECLARED + VISIBLE + DATED (the\n`none +\
-  \ reason + recheck_by` debt). Full rule + grammar + amend map: SPEC-0094 §3/§Amends\
-  \ (one home).\n\n### Post-verification authoring at close (pointer — rule home SPEC-0038)\n\
-  Closure is the authoring moment for the task's `post_verification`: fill it, or\
-  \ waive explicitly\n(`post_verification: {none: <reason>}`). A non-hygiene `task\
-  \ close` with NEITHER is REFUSED; supply `--pv-criterion` +\n`--pv-signal` or `--pv-waive\
+  \ it only on a stand row of a landed revision:\n<workshop-spec> rule 6.\n\n####\
+  \ THE EVIDENCE-LOCATOR ADDRESS SPACE — all three kinds, at one rule home\n\n**THE\
+  \ THREE KINDS.** A settlement evidence locator is EXACTLY one of:\n- `events.jsonl#ts=<ISO-instant>`\
+  \ — a journal row addressed by its instant;\n- `events.jsonl#source_ref=<ref>` —\
+  \ a journal row addressed by its `source_ref` (top-level or\n  under `data`); both\
+  \ of these are the materialized-journal citation form;\n- `coordination.jsonl#cross=X-NNNN`\
+  \ — a row in the out-of-repo shared coordination store, for a\n  criterion whose\
+  \ evidence is a report-back that lives outside every repo by design (SPEC-0084\n\
+  \  rule 5). Added; the id is a coordination item id, never a task id.\n\n**NOT ALL\
+  \ THREE CONSUMERS TAKE ALL THREE KINDS** — this asymmetry is deliberate and is the\
+  \ most\ndrift-prone fact in the space, which is why it is stated rather than left\
+  \ to be inferred:\n- `task close --settle-evidence` (the settlement parser) accepts\
+  \ ALL THREE;\n- `live_probe.settled_by.evidence` and `post_ship_observation.outcome.evidence`\
+  \ accept only the\n  TWO JOURNAL kinds. The coordination kind is admitted at the\
+  \ SETTLEMENT grammar ALONE, so those\n  two fields still REFUSE it.\n\n**WHAT IS\
+  \ NOT A LOCATOR**, restated because each of these is the plausible wrong answer:\
+  \ a bare\n`T-NNNN` and a commit sha name WORK, not the evidence ROW; a file path\
+  \ names a place with no row\nin it; and free-text prose («we checked the store»)\
+  \ is precisely the claim under question. A\nlocator that is grammar-valid but RESOLVES\
+  \ to no row is refused separately, as a made-up citation —\ngrammar and resolution\
+  \ are two gates, not one.\n\n**THE EXTENSION RULE.** A FOURTH kind is added HERE\
+  \ and at the parser IN THE SAME CHANGE.\n\n### Deploy-conditional live_probe declaration\
+  \ precondition (rule home SPEC-0094 §3)\nA REFINEMENT of this closure contract for\
+  \ DEPLOY-closure, scoped to a project that DECLARES a\n`deploy:` command in its\
+  \ yitc-ops.yaml carrier (SPEC-0093). For such a DEPLOYING project, `task\nclose`\
+  \ REFUSES unless the task DECLARES a `live_probe` — either a probe assertion OR\
+  \ an explicit\nreasoned `none` waiver (the SPEC-0028 field). It is a DECLARATION\
+  \ presence-gate (fail-closed,\nSTATIC) of the SAME false-positive-free shape as\
+  \ the empty-probe rejection above — it does NOT call\nproduction at close (the executable\
+  \ GET runs at the DEPLOY seam, SPEC-0094 §4). Scope = EVERY task\nin a deploying\
+  \ project (a non-user-facing change still declares, via a one-line `none` waiver;\n\
+  `user_facing` lives inside the waiver and only governs whether `recheck_by` is required).\
+  \ A project\nwith NO `deploy:` command (a missing carrier, a carrier that holds\
+  \ no `deploy:` section — the\nkernel's own file is one — or a waived deploy) is\
+  \ UNCHANGED: this precondition is purely\nADDITIVE-conditional and alters no other\
+  \ closure rule.\n**This HONORS CHARTER §Principle 3 — the P3 text is UNCHANGED.**\
+  \ For deploy work the EXECUTABLE\nadoption proof lives at the DEPLOY seam, and any\
+  \ non-adoption is DECLARED + VISIBLE + DATED (the\n`none + reason + recheck_by`\
+  \ debt). Full rule + grammar + amend map: SPEC-0094 §3/§Amends (one home).\n\n###\
+  \ Post-verification authoring at close (pointer — rule home SPEC-0038)\nClosure\
+  \ is the authoring moment for the task's `post_verification`: fill it, or waive\
+  \ explicitly\n(`post_verification: {none: <reason>}`). A non-hygiene `task close`\
+  \ with NEITHER is REFUSED; supply `--pv-criterion` +\n`--pv-signal` or `--pv-waive\
   \ <reason>` on the close invocation. `class: hygiene` auto-waives. The\n`task update\
   \ --status wont-do` path keeps the non-blocking WARN + the `post_verification_gap`\n\
   marker. Field grammar, class selector, the carve-outs, and the reading lens live\

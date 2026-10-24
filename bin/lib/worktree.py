@@ -11338,6 +11338,7 @@ LAND_REPORT_KEYS = {
     "layers": ("base", "branch", "changed_paths", "diff", "edge", "layers", "report", "schema"),
     "merge": ("alternates", "branch", "clean", "conflicted_paths", "main", "members", "objects_dir", "outcome",
               "report", "resolved_paths", "schema", "tree"),
+    "credit": ("branch", "credit", "main", "reason", "ref", "report", "schema"),   # T-14165
 }
 LAND_REPORT_LAYER_KEYS = ("layer", "reason", "run")
 LAND_REPORT_MEMBER_KEYS = ("branch", "outcome", "tree")   # T-14062 — one `members` row of the merge report
@@ -11380,6 +11381,12 @@ def _land_report_cli(args, target_task, target_branch, *, REPO_ROOT, _run_git_ca
         branch = (cur.stdout or "").strip() if cur.returncode == 0 else None
         wt = Path(REPO_ROOT)
     from lib.cli import _anchor_signature_of_text as _sig, _dedup_events as _dd   # what land injects
+    _credit_kw = {}
+    if args.report == "credit":   # T-14165 — the SAME objects `cli.cmd_land` / `_land_integrate` hand
+        from lib import cli as _cli   # `_land_stage6_credit` at step 4d, read at call time (-C rebinds kept)
+        _credit_kw = {"_classify_inert_paths": _cli._classify_inert_paths,
+                      "_is_consumer_build": _cli._is_consumer_build,
+                      "_consumer_tests_delegation": _cli._consumer_tests_delegation}
     try:
         if args.report == "batch-eligibility":   # T-14029 — a text answer, through the SAME two exits
             out = _land_batch_eligibility_text(branch, wt, _main_worktree(REPO_ROOT) or Path(REPO_ROOT),
@@ -11392,7 +11399,8 @@ def _land_report_cli(args, target_task, target_branch, *, REPO_ROOT, _run_git_ca
                                   _main_worktree(REPO_ROOT) or Path(REPO_ROOT), _run_git_cap=_run_git_cap,
                                   working_tree=bool(getattr(args, "working_tree", False)),
                                   _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS, _dedup_events=_dd,
-                                  _anchor_signature_of_text=_sig, then=then, objects_dir=objects_dir)
+                                  _anchor_signature_of_text=_sig, then=then, objects_dir=objects_dir,
+                                  **_credit_kw)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(1)
@@ -11422,8 +11430,10 @@ def _land_batch_eligibility_text(branch, wt, main: Path, *, _run_git_cap, _DERIV
 
 def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", main_wt: Path, *,
                     _run_git_cap, working_tree: bool = False, _DERIVED_MERGE_ARTIFACTS=None,
-                    _dedup_events=None, _anchor_signature_of_text=None, then=None, objects_dir=None) -> dict:
-    """T-14008 — `land --report layers|merge`: what `land` WOULD decide, without landing.
+                    _dedup_events=None, _anchor_signature_of_text=None, then=None, objects_dir=None,
+                    _classify_inert_paths=None, _is_consumer_build=None,
+                    _consumer_tests_delegation=None) -> dict:
+    """T-14008 — `land --report layers|merge|credit`: what `land` WOULD decide, without landing.
 
     READ-ONLY by construction: it asks the SAME two functions `land` asks — never a copy — and takes
     no lock and writes no ref, index, working-tree file, object, journal row or sidecar of the
@@ -11453,7 +11463,15 @@ def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", ma
     `objects_dir` — a caller-owned directory OUTSIDE the repository that receives the objects instead
     of the throwaway one, so the caller can read `tree` after exit with GIT_OBJECT_DIRECTORY=<it> and
     GIT_ALTERNATE_OBJECT_DIRECTORIES=<`alternates`>; refused (ValueError) when it is not a directory or
-    lies inside the main checkout or the git common dir."""
+    lies inside the main checkout or the git common dir.
+
+    T-14165 (public issue #182) — `credit`: would this land take the Stage-6 credit NOW (SPEC-0065
+    §Bound)? It asks `_land_stage6_credit` — the land's step-4d call, never a second reading of its
+    conditions — with the branch's checkout (its journal holds the Stage-6 row), main's tip now as the
+    merged base, and the collaborators the land injects. `credit` / `reason` / `ref` are that call's
+    answer verbatim (`ref` names the credited row, or the refusal's detail). The land asks the same
+    question only on a first attempt that runs its candidate verify, and over the tip it merges then:
+    `main` names the tip this report judged. Needs a checkout of the branch (ValueError without one)."""
     import tempfile
     if (then or objects_dir is not None) and kind != "merge":
         raise ValueError("land --report: --then / --objects-dir apply to `--report merge` only")
@@ -11549,6 +11567,21 @@ def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", ma
                 "alternates": alternates or None,
                 "conflicted_paths": None if detail is None else sorted(detail.get("unresolved") or []),
                 "resolved_paths": None if detail is None else sorted(detail.get("resolved") or [])}
+    if kind == "credit":
+        if worktree is None:
+            raise ValueError(f"land --report credit: no worktree is checked out on {branch!r}, so there is "
+                             "no journal holding its Stage-6 run to judge")
+        if _classify_inert_paths is None:
+            raise ValueError("land --report credit: the inert-path authority was not supplied")
+        main_rev = _git_rev("main", main_wt, _run_git_cap=_run_git_cap)
+        if not main_rev:
+            raise ValueError("land --report credit: `main` does not resolve")
+        ok, why, ref = _land_stage6_credit(
+            Path(worktree), main_wt, main_rev, branch, _classify_inert_paths=_classify_inert_paths,
+            _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
+            _consumer_tests_delegation=_consumer_tests_delegation)
+        return {"report": "credit", "schema": 1, "branch": branch, "main": main_rev,
+                "credit": bool(ok), "reason": why, "ref": ref}
     raise ValueError(f"land --report: unknown report {kind!r}")
 
 
@@ -21912,7 +21945,8 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
     member: the parsed declaration (through this module's `_declared_layer_adapters` name), the
     rule-16 skip decision over `merged_base..HEAD` with its path list and its edge
     (`_subject_scoping_skip_layers`), the adapter-sources exception to that skip, the runner's own
-    diff (`_adapter_change_facts`) and the layer's bound. The decision is taken by the adapter pass
+    diff (`_adapter_change_facts`), the pre-deploy declaration of the tree's contract (T-14175 — its
+    exclusion applied to the needed set as the leg's first attempt applies it) and the layer's bound. The decision is taken by the adapter pass
     itself (`_layer_adapter_report_pass`, `one_card_candidate=True`: the rule-6 ladder and
     `_adapter_run_plan`, asked there once), driven through a launcher that starts `list` and
     `related` and declines every other invocation — so the pass ends where its `run` would begin,
@@ -21954,6 +21988,9 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
             return None, 0, ""
         return _run_layer_command(cmd, worktree, timeout, env, **kw)
 
+    # T-14175 (SPEC-1042 rule 2): the pre-deploy declaration the candidate leg is handed, read through
+    # the SAME contract reader (`_pre_deploy_contract_kw`); None when the contract declares none.
+    pre_deploy = land_verify_legs._pre_deploy_contract_kw(W).get("pre_deploy")
     out: dict = {}
     for name in names:
         at, decl = deciding["decls"][name]
@@ -21970,7 +22007,7 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
                 except Exception:                          # noqa: BLE001 — unreadable = every eligible path is unknown
                     pass
         own = _declared_verify_timeout(layers[at], "timeout")
-        sink: dict = {}
+        sink: dict = {"memberships": {}} if pre_deploy is not None else {}
         with contextlib.redirect_stdout(io.StringIO()):
             rec = _layer_adapter_report_pass(
                 Path(W), name, decl, timeout=_verify_test_timeout_seconds(section_timeout if own is None else own),
@@ -21982,6 +22019,17 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
         part = rec.get("partial")
         asked = ([u for key in ("ran", "not_reached", "credited") for u in part.get(key) or ()]
                  if isinstance(part, dict) else inventory)
+        if pre_deploy is not None:
+            # T-14175: the exclusion the candidate leg's FIRST attempt applies last, over what it needs —
+            # the shared helper with the leg's change facts, its whole-layer reasons undoing a narrowing.
+            # This pass is not a first attempt (it launches no `required:` check), so the helper is asked here.
+            kept, pd = land_verify_legs._pre_deploy_exclusion(
+                inventory, None if asked is inventory else asked, sink.get("memberships"),
+                pre_deploy.get("classes"), decl=decl,
+                change={"paths": scope.get("paths"), "edge": scope.get("edge")}, first_attempt=True)
+            if pd is not None and pd.get("reason") in land_verify_legs._PRE_DEPLOY_WHOLE_REASONS:
+                kept = None
+            asked = inventory if kept is None else kept
         sel = rec.get("selection") if isinstance(rec.get("selection"), dict) else {}
         out[name] = {"units": {(u.get("project") or "", u["file"]) for u in asked},
                      "rung": sel.get("rung"), "reason": sel.get("reason")}
@@ -23575,7 +23623,8 @@ def _unit_lane_entry_at_land_tail(main_wt, *, now: "str | None" = None, enter: "
     `stale_tree_filtered` (with the change and the reason: `lacks-change` / `head-unresolvable` /
     `head-unrecorded`) and on the entrant's `load_sensitive_entered` payload as `filtered`; when git
     cannot name the newest change the unit is not entered (`tree_unknown`). A declared group is
-    counted as before.
+    counted as before. T-14169: a governed Stage-6 run's rescues count too, on the run's merge-base with
+    main as their commit (`_rescue_run_commits`); a land that took that run as its credit adds none of it.
 
     APPEND-ONLY, BY CONSTRUCTION: this is the carrier's ONE writer and the only thing it does to
     `yitc-load-sensitive-units.txt` is add lines for entries not already listed. No engine path
@@ -23637,7 +23686,8 @@ def _unit_lane_entry_at_land_tail(main_wt, *, now: "str | None" = None, enter: "
         _flaky_retry_isolated_passes(main_wt / "events.jsonl", since, until,
                                      rows_out=_rows, rows_out_types=_LOAD_SENSITIVE_ROW_TYPES)
     heads: dict = {}
-    passes = land_verify_legs._unit_rescue_passes(_rows, since, until, heads_out=heads)
+    passes = land_verify_legs._unit_rescue_passes(_rows, since, until, heads_out=heads,
+                                                  stage6_commits=_rescue_run_commits(_rows))
     listed = land_verify_legs._unit_lane_set(main_wt)
     day = now[:10]
 

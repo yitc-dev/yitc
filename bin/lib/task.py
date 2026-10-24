@@ -337,6 +337,7 @@ STDIN_CONFLICTING_ARGV_FLAGS = (
     ("status",           "--status",           "status",           None),
     ("parked_reason",    "--parked-reason",    "parked_reason",    None),
     ("return_trigger",   "--return-trigger",   "return_trigger",   None),
+    ("answers",          "--answers",          "answers",          None),   # T-14166 link-back ids
 )
 
 # --- T-10720 (E-0054): the same shape, two verbs over ---------------------------------------------
@@ -533,6 +534,50 @@ def _answers_error(value):
                     "tracker under its archive name). A re-created intake repo restarts its "
                     "numbering, so a bare number ends up pointing at a different issue")
     return None
+
+
+# T-14166: an outside issue reference in card prose — the unanchored form of
+# release.QUALIFIED_ISSUE_REF_RE. The guards keep a path segment (`a/b/c#1`), a journal locator
+# (`events.jsonl#ts=…`) and a line anchor (`x.py#L3`) out: no word, dot, dash or slash may touch
+# either side.
+_ISSUE_REF_IN_TEXT_RE = re.compile(r"(?<![\w./-])([A-Za-z0-9._-]+/[A-Za-z0-9._-]+#[0-9]+)(?![\w/#])")
+
+
+def _unanswered_issue_refs(task) -> list:
+    """T-14166: outside issue refs (`owner/repo#N`) the card's title/scope/acceptance name that its
+    `answers:` does not carry, first-seen order. Pure. A non-list `answers` counts as empty."""
+    if not isinstance(task, dict):
+        return []
+    texts = [task.get("title")]
+    for key in ("scope", "acceptance"):
+        val = task.get(key)
+        texts.extend(val if isinstance(val, list) else [val])
+    answers = task.get("answers")
+    have = {str(a).strip() for a in answers} if isinstance(answers, list) else set()
+    out = []
+    for text in texts:
+        if not isinstance(text, str):
+            continue
+        for ref in _ISSUE_REF_IN_TEXT_RE.findall(text):
+            if ref not in have and ref not in out:
+                out.append(ref)
+    return out
+
+
+def _warn_unanswered_issue_refs(tid, task, verb) -> list:
+    """T-14166: ONE advisory stderr WARN at `task file` / `task close` when the card names an outside
+    issue its `answers:` lacks — the release link-back (release.collect_answered_proposals) reads only
+    that field, so such an issue gets no release reply. Never a refusal: a card may cite an issue as
+    context only. Returns the refs it named."""
+    refs = _unanswered_issue_refs(task)
+    if refs:
+        sys.stderr.write(
+            f"WARN: {verb} {tid}: the card names outside issue(s) {', '.join(refs)} that its `answers:` "
+            f"does not carry, so the release link-back will not reply to them (SPEC-0197 rule 4). If "
+            f"the card answers them, set the field: `bin/yitc-v2 task update {tid} --set-field answers "
+            f"--from-file <path>` (a YAML list, e.g. ['{refs[0]}']). A card citing an issue only as "
+            f"context needs nothing.\n")
+    return refs
 UPDATE_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("reason",         "--reason",         "reason",         None),
     ("note",           "--note",           "note",           None),
@@ -1911,6 +1956,15 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
     else:
         # T-10738: the argv path names every field it writes, so there is nothing to classify.
         _passthrough = {}
+        # T-14166: --answers (repeatable) rides the SAME passthrough + validator as the stdin key.
+        _argv_answers = list(getattr(args, "answers", None) or [])
+        if _argv_answers:
+            _aerr = _answers_error(_argv_answers)
+            if _aerr:
+                _die(f"task file: --answers {_aerr}. Nothing was written (T-13221, T-14166). Fix the id "
+                     f"and re-run `bin/yitc-v2 task file`, or set it later with `bin/yitc-v2 task "
+                     f"update <T-XXXX> --set-field answers --from-file <path>`.")
+            _passthrough["answers"] = _argv_answers
         title = args.title
         cls = args.cls
         priority = args.priority or "medium"
@@ -2694,6 +2748,13 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
                 _sref = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT)
                 _branch = (_sref.stdout or "").strip() if _sref.returncode == 0 else ""
                 _print_stranded_filing_advisory(_branch, tid)
+        except Exception:  # noqa: BLE001 — advisory; never fatal to a completed filing
+            pass
+
+        # T-14166: a card that names an outside issue but does not declare it in `answers:` is skipped
+        # by the release link-back. Advisory, fail-open — the card is already on disk.
+        try:
+            _warn_unanswered_issue_refs(tid, task, "task file")
         except Exception:  # noqa: BLE001 — advisory; never fatal to a completed filing
             pass
 

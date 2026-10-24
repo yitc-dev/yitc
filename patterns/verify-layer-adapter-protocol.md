@@ -154,7 +154,7 @@ whose report does not name the project.
 A unit MAY also carry `classes`: the names of the declared test classes it belongs to
 (`tests.classes[].class`); leave it out for a unit of no class. The kernel reads it only for a
 pre-deploy class: every unit of one `group` names the same pre-deploy class or none, and a land
-or a Stage-6 run leaves a pre-deploy unit out after every other choice (SPEC-1042 rules 1-2).
+or a Stage-6 run leaves a pre-deploy unit out after every other choice (<workshop-spec> rules 1-2).
 
 ## What `related` answers
 

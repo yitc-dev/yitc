@@ -181,7 +181,7 @@ an Analysis decision; filing is capture, not a delivery moment ( completes). Rea
 - **Manual fallback (emergency only)**: as Stage 4 (emergency-mode `patterns/emergency-mode.md`; the verb is the obligatory path per AGENTS §Verb-execution discipline), plus diff context in the hand-authored prompt.
 - Verdict: GREEN / YELLOW / RED / ABORT
 - **GREEN** = proceed to Stage 8 (Tests)
-- **YELLOW** = file follow-up task for findings, proceed (its id goes onto the verdict's `followups:` via `bin/yitc-v2 audit post --task T-XXXX --followup <T-NNNN|fu_…>` — a field edit: no auditor, no ceiling pass, never a hand-edit) — OR absorb INLINE (mode-a): fix +
+- **YELLOW** = file follow-up task for findings, proceed (its id goes onto the verdict's `followups:` via `bin/yitc-v2 audit post --task T-XXXX --followup <T-NNNN|fu_…>`, or `--plan <slug>` for a YELLOW plan-aggregate verdict — a field edit: no auditor, no ceiling pass, never a hand-edit) — OR absorb INLINE (mode-a): fix +
   `task commit --absorb` + re-audit of the new commit (counts a pass against the §audit-loop ceiling)
 - **RED** = STOP. Never silent-pass. Fix the named cause IN SCOPE and re-audit the new commit
   (`task commit --fix-red` —, admitted only on a commit carrying authored content; when the RED's ONLY fix is the card's own record, its `--card-repair` arm —, admitted instead on proof the audited ship it rides on exists), else revert or escalate (`blocked-on-land`, SPEC-0103) when the cause is out-of-scope or environmental. AT the audit-loop ceiling the route is **SPEC-1039**, not a consult or a reset (§Stage 4 ceiling).

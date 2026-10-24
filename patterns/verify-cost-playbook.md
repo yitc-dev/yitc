@@ -13,7 +13,7 @@ cites:
   - <workshop-spec>
   - <workshop-spec>
   - SPEC-1030
-  - SPEC-1042
+  - <workshop-spec>
   -
 ---
 
@@ -359,10 +359,10 @@ in flight averaging 0.6–1.3 for 19 of 24 hours.
 ## What to move before a deploy, and how to check it
 
 The rule for a declared pre-deploy class — what a land skips, what the deploy runs on the candidate,
-which targets it gates — is SPEC-1042; this section is how a project reads its own numbers before it
+which targets it gates — is <workshop-spec>; this section is how a project reads its own numbers before it
 moves anything. The numbers come from one saved view over the project's own journal:
 `bin/yitc-v2 graph query verify-unit-cost [<layer:file...>] [--since <date>] [--until <date>]`
-(SPEC-1042 rule 7). It prints, per unit and place, runs, median and total time, real and flaky
+(<workshop-spec> rule 7). It prints, per unit and place, runs, median and total time, real and flaky
 failures, the land-wait model and each pre-deploy class's catch record; it decides nothing. Every
 reading below quotes the plan `plans/deferred-checks-a-project-moves-costly-checks-out-.md` (plan), by
 its section.

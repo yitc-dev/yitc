@@ -76,7 +76,6 @@ When the Controller, on an owner cue, assembles the ready queue and selects «wh
 - **Eligible:** `status: ready` and no incomplete `requires:` target. Only a task `requires:` target blocks, and only until it is `done` — a terminal `wont-do` target is not waited on: a decision id there is NON-BLOCKING, a spec id is NOT allowed there, and `cites:` is informational — field rules: `bin/yitc-v2 graph query SPEC-0028`. `bin/yitc-v2 task pick T-XXXX` reports one card's claimability; it is a read-only inspector.
 - **Order:** priority high → medium → low, pick first (`bin/yitc-v2 task list --status ready` prints the ready cards in that order).
 - **Claim it by creating its worktree: `bin/yitc-v2 worktree new --task T-XXXX`.** The claim — `status: ready → in-progress` (`current_stage: Analysis`) + the `task_picked` event — is written **inside the new worktree**, so it reaches `main` only via `land` (mechanics: AGENTS-SESSIONS §Writes happen in a worktree).
-- How deep a `requires:` chain may run is set where the chain is cut — a decomposition authoring rule, not a picker check: `bin/yitc-v2 graph query SPEC-0046`.
 
 **Order:** picker reads ready ∩ requires-unblocked tasks first by `priority:` field (`high | medium | low`). No multi-axis priority taxonomy.
 

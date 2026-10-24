@@ -1,6 +1,6 @@
-# Release v2.21.0
+# Release v2.22.0
 
-Source commit: `fbfc4941d46a40784b6aea84edca62f9ee7b00f4`
+Source commit: `3fa49b8cecfce681fa95a7f6220fc3a32bff0963`
 
 ## Proposals this release answers
 
@@ -61,6 +61,14 @@ answers:
   - 'yitc-dev/yitc#179'
   - 'yitc-dev/yitc#18'
   - 'yitc-dev/yitc#180'
+  - 'yitc-dev/yitc#181'
+  - 'yitc-dev/yitc#182'
+  - 'yitc-dev/yitc#183'
+  - 'yitc-dev/yitc#184'
+  - 'yitc-dev/yitc#186'
+  - 'yitc-dev/yitc#187'
+  - 'yitc-dev/yitc#188'
+  - 'yitc-dev/yitc#189'
   - 'yitc-dev/yitc#19'
   - 'yitc-dev/yitc#2'
   - 'yitc-dev/yitc#20'
@@ -199,22 +207,25 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
 
-- SPEC-1043 — Self-applied carrier decision procedure — route a change to plan|task|followup|record from its own properties; a card's own spec or a requires edge alone does not warrant a plan
+- SPEC-1044 — Pre-deploy run — a declared pre-deploy class, left out of land and Stage-6 runs even when they run forced full, and a deploy to a guarded target that first runs the full verify plus that class on the exact revision it ships
   turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1043`
+  read: `yitc-v2 graph query --kernel SPEC-1044`
 
 ## What changed
 
-8 task(s) closed since the previous release tag, in close order:
+11 task(s) closed since the previous release tag, in close order:
 
-- T-14154 — Narrow SPEC-0140 S1 so a card's own spec or a requires edge does not send a change to a plan (docs) — events.jsonl#ts=2026-10-23T13:35:51Z
-- T-14155 — Keep a debt visible until the card that covers it starts, and surface auto-filed cards waiting to start (fix) — events.jsonl#ts=2026-10-23T14:13:00Z
-- T-14147 — Narrow the fixed cost of a land that takes the Stage-6 credit (fix) — events.jsonl#ts=2026-10-23T14:50:45Z
-- T-14157 — Stop a stopped task test --run's verify layers with one simpler invariant (successor of) (fix) — events.jsonl#ts=2026-10-23T16:40:39Z
-- T-14159 — Propose moving a pre-deploy unit back onto lands after it reads red in N pre-deploy runs (feature) — events.jsonl#ts=2026-10-23T18:49:30Z
-- T-14158 — Read a layer timeout under load as contended, and re-run a lone layer timeout once alone (feature) — events.jsonl#ts=2026-10-23T19:13:05Z
-- T-14161 — Record per-layer CPU and wall time in the pre-deploy run rows and read them in the verify-cost view (feature) — events.jsonl#ts=2026-10-23T21:03:28Z
-- T-14160 — Let a project opt in to one passed pre-deploy run standing for a second gated target of the same release (feature) — events.jsonl#ts=2026-10-23T21:22:41Z
+- T-14163 — Record the intake triage state as labels on the hosting service, so triage reads only untriaged proposals (docs) — events.jsonl#ts=2026-10-23T21:40:11Z
+- T-14164 — Admit --followup on audit post --plan to record a YELLOW plan-aggregate finding's followup (fix) — events.jsonl#ts=2026-10-24T04:57:43Z
+- T-14165 — Add a read-only land --report credit that says whether a land would take the Stage-6 credit now (feature) — events.jsonl#ts=2026-10-24T05:29:22Z
+- T-14167 — Drop the chain-depth authoring bound from SPEC-0046 (docs) — events.jsonl#ts=2026-10-24T06:10:23Z
+- T-14166 — Give task file an --answers flag and warn when a card names an outside issue but carries no answers field (fix) — events.jsonl#ts=2026-10-24T07:09:32Z
+- T-14168 — Never write the home start command from a temporary engine copy, and heal the one that was (fix) — events.jsonl#ts=2026-10-24T07:15:15Z
+- T-14169 — Count governed Stage-6 rescues in the automatic per-unit lane entry (fix) — events.jsonl#ts=2026-10-24T07:46:49Z
+- T-14172 — Count a stage-entry contract as already delivered only on this session's own receipt, and show the receipt (fix) — events.jsonl#ts=2026-10-24T09:17:51Z
+- T-14175 — Hand the Stage-6 credit needs pass the same pre-deploy declaration the land's candidate leg gets (fix) — events.jsonl#ts=2026-10-24T10:03:14Z
+- T-14170 — Make the journal lock re-entrant within a process, never take it from a signal path, and bound its wait (fix) — events.jsonl#ts=2026-10-24T10:21:18Z
+- T-14174 — Keep pre-deploy-class units out of a forced full run too, leaving them to the pre-deploy run (fix) — events.jsonl#ts=2026-10-24T11:52:35Z
 
 ## Trust surfaces
 

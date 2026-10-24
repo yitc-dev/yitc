@@ -93,64 +93,61 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ the order as a\nblocking `requires:` dep between the two tasks. A single unit\
   \ must NEVER both add-the-replacement and\nremove-the-original it depends on for\
   \ its own stages (red-flag (d)). This is claim-based, not\nsize-based — the split\
-  \ is forced by the ordering dependency, not by length.\n\n**Chain-depth authoring\
-  \ bound.** When a cut encodes order through `requires:`, keep the\ntransitive depth\
-  \ of a `requires:` chain ≤ 3. This is an authoring rule for the cutter, judged by\
-  \ the\ndecomposition reviewer: no verb checks it — the `requires:` check reads a\
-  \ card's DIRECT targets only.\n\n**Sizing rule — enumerate the full ref-set before\
-  \ sizing a relocation / rename / migration.** A unit\nthat RELOCATES, RENAMES, or\
-  \ MIGRATES an identifier / path / constant / format (a `git mv`, a\nsymbol/const\
-  \ rename, a dir move, a format switch) is dominated by its BLAST-RADIUS — the cardinality\n\
-  of references that must change ATOMICALLY — NOT by the conceptual simplicity of\
-  \ the change. SIZE the\nunit by `rg`-ENUMERATING the full ref-set BEFORE committing\
-  \ to it: every reference to the renamed\nsymbol / const / path, ACROSS ALL files\
-  \ INCLUDING THE TEST SUITE (a const rename AttributeErrors\nevery test that reads\
-  \ it). A framed estimate (\"~38 code + ~29 doc refs\") is NOT a sizing — run the\n\
-  search and size against the count it returns, never against the change's \"cosmetic\"\
-  \ / \"trivial\"\nframing. Under-counting the blast-radius produces either a unit\
-  \ REJECTED at pre-flight once the true\ncost surfaces, or an UN-SPLITTABLE atomic\
-  \ bomb (a dangling reference reds the suite, so the dir-move\ncannot be split from\
-  \ the ref-sweep without going red between landings). This is the §A \"decompose\n\
-  against shipped reality\" discipline applied to the SCOPE-CARDINALITY axis — cut\
-  \ / keep the unit\nagainst the ENUMERATED ref-set, peer to red-flag (c)'s calibrate-mechanism-to-observed-behaviour.\n\
-  \n**Persist the enumerated blast-radius at the cut — do NOT reason-then-discard\
-  \ it.** The\nref-set the Sizing rule (and the cutter more broadly) ALREADY enumerates\
-  \ to size a cut is the SAME\nforecast the dispatch-selection surface wants (SPEC-0028\
-  \ `expected_touch`). When cutting a plan into\ncards, PERSIST that enumerated blast-radius\
-  \ INTO each cut card's `expected_touch` at the cut —\n`task file --decomposed-from\
-  \ <plan> --expected-touch <path> …` (the `--expected-touch` flag already\nexists;\
-  \ this is pure RE-USE, no new field/verb/gate). Reasoning out the blast-radius to\
-  \ decide\nsplit-vs-keep and then THROWING IT AWAY forces the same set to be re-derived\
-  \ (or silently omitted)\nwhen the cards are filed — the discard the persist rule\
-  \ closes. **Scope: plan-cut cards ONLY** (a\ncard carrying `decomposed_from`, whose\
-  \ touch the cutter already knows). A **standalone ad-hoc task**\nstays OPTIONAL\
-  \ here — its true touch is unknown pre-Analysis, so `expected_touch` is a best-effort\n\
-  forecast, not a cut obligation. **Advisory, never a gate (CHARTER non-goal #2):**\
-  \ an empty\n`expected_touch` on a decomposed card MAY surface a report-only cut-time\
-  \ reminder (a PROMPT), but the\nfiling ALWAYS proceeds — this rule adds NO blocking\
-  \ check.\n\n**Bidirectional cut — split-vs-merge is chosen by the FAILURE-MODE the\
-  \ bundling creates, never by\nsize.** The SAME criterion (\"one provable claim per\
-  \ accept-unit\")\nlegitimately forces OPPOSITE moves: SPLIT when bundling creates\
-  \ red-flag (d) (a self-referential\nbootstrap gap); KEEP ATOMIC when splitting would\
-  \ create a CONTRADICTORY INTERIM state (red-flag (b)\nbetween the halves — e.g.\
-  \ a handbook+spec migration whose halves disagree while apart, or a verb\nshipped\
-  \ without the FSM values it writes). **Coherence-atomicity is a first-class reason\
-  \ to keep a\nunit whole, peer to the claim-count reason to split.**\n\n**A plan\
-  \ STAGE is INPUT — the task graph is RE-DERIVED at decompose.** A plan's\nstage/part\
-  \ list is a starting proposal, never the final task graph: the decomposer re-applies\
-  \ this\nspec PER STAGE (one stage → two tasks; a stage absorbed elsewhere; an order\
-  \ re-derived from the\ngate, e.g. verb-first when the spec's activation probe needs\
-  \ the live verb). Do not treat the\nplan's own sketch (its §Next / stage boundaries)\
-  \ as a cutting commitment.\n\n**A cross-cutting obligation has no owner across a\
-  \ producer/consumer split — assign it to the\nPRODUCER.** When task A BIRTHS a shared\
-  \ primitive (a token / format / axis /\nschema field) and task B is its first real\
-  \ consumer, any cross-cutting half (the validator, the\nconformance check, the test\
-  \ for the primitive itself) silently falls in the SEAM — neither A nor B\nowns it.\
-  \ A \"births a new shared primitive\" claim MUST enumerate ALL the\ndoors the primitive\
-  \ touches (deliver + validate + test) and keep them in A; never let the validator\n\
-  half ride to B. (Distinct from red-flag (a): not two claims — ONE claim whose surface\
-  \ the naive\ntask boundary omits.)\n\n**Execution-readiness rule (the auditor blind-spot\
-  \ fix).** \"One claim\" alone is not sufficient — a\nclaim-shaped unit is execution-ready\
+  \ is forced by the ordering dependency, not by length.\n\n**Sizing rule — enumerate\
+  \ the full ref-set before sizing a relocation / rename / migration.** A unit\nthat\
+  \ RELOCATES, RENAMES, or MIGRATES an identifier / path / constant / format (a `git\
+  \ mv`, a\nsymbol/const rename, a dir move, a format switch) is dominated by its\
+  \ BLAST-RADIUS — the cardinality\nof references that must change ATOMICALLY — NOT\
+  \ by the conceptual simplicity of the change. SIZE the\nunit by `rg`-ENUMERATING\
+  \ the full ref-set BEFORE committing to it: every reference to the renamed\nsymbol\
+  \ / const / path, ACROSS ALL files INCLUDING THE TEST SUITE (a const rename AttributeErrors\n\
+  every test that reads it). A framed estimate (\"~38 code + ~29 doc refs\") is NOT\
+  \ a sizing — run the\nsearch and size against the count it returns, never against\
+  \ the change's \"cosmetic\" / \"trivial\"\nframing. Under-counting the blast-radius\
+  \ produces either a unit REJECTED at pre-flight once the true\ncost surfaces, or\
+  \ an UN-SPLITTABLE atomic bomb (a dangling reference reds the suite, so the dir-move\n\
+  cannot be split from the ref-sweep without going red between landings). This is\
+  \ the §A \"decompose\nagainst shipped reality\" discipline applied to the SCOPE-CARDINALITY\
+  \ axis — cut / keep the unit\nagainst the ENUMERATED ref-set, peer to red-flag (c)'s\
+  \ calibrate-mechanism-to-observed-behaviour.\n\n**Persist the enumerated blast-radius\
+  \ at the cut — do NOT reason-then-discard it.** The\nref-set the Sizing rule (and\
+  \ the cutter more broadly) ALREADY enumerates to size a cut is the SAME\nforecast\
+  \ the dispatch-selection surface wants (SPEC-0028 `expected_touch`). When cutting\
+  \ a plan into\ncards, PERSIST that enumerated blast-radius INTO each cut card's\
+  \ `expected_touch` at the cut —\n`task file --decomposed-from <plan> --expected-touch\
+  \ <path> …` (the `--expected-touch` flag already\nexists; this is pure RE-USE, no\
+  \ new field/verb/gate). Reasoning out the blast-radius to decide\nsplit-vs-keep\
+  \ and then THROWING IT AWAY forces the same set to be re-derived (or silently omitted)\n\
+  when the cards are filed — the discard the persist rule closes. **Scope: plan-cut\
+  \ cards ONLY** (a\ncard carrying `decomposed_from`, whose touch the cutter already\
+  \ knows). A **standalone ad-hoc task**\nstays OPTIONAL here — its true touch is\
+  \ unknown pre-Analysis, so `expected_touch` is a best-effort\nforecast, not a cut\
+  \ obligation. **Advisory, never a gate (CHARTER non-goal #2):** an empty\n`expected_touch`\
+  \ on a decomposed card MAY surface a report-only cut-time reminder (a PROMPT), but\
+  \ the\nfiling ALWAYS proceeds — this rule adds NO blocking check.\n\n**Bidirectional\
+  \ cut — split-vs-merge is chosen by the FAILURE-MODE the bundling creates, never\
+  \ by\nsize.** The SAME criterion (\"one provable claim per accept-unit\")\nlegitimately\
+  \ forces OPPOSITE moves: SPLIT when bundling creates red-flag (d) (a self-referential\n\
+  bootstrap gap); KEEP ATOMIC when splitting would create a CONTRADICTORY INTERIM\
+  \ state (red-flag (b)\nbetween the halves — e.g. a handbook+spec migration whose\
+  \ halves disagree while apart, or a verb\nshipped without the FSM values it writes).\
+  \ **Coherence-atomicity is a first-class reason to keep a\nunit whole, peer to the\
+  \ claim-count reason to split.**\n\n**A plan STAGE is INPUT — the task graph is\
+  \ RE-DERIVED at decompose.** A plan's\nstage/part list is a starting proposal, never\
+  \ the final task graph: the decomposer re-applies this\nspec PER STAGE (one stage\
+  \ → two tasks; a stage absorbed elsewhere; an order re-derived from the\ngate, e.g.\
+  \ verb-first when the spec's activation probe needs the live verb). Do not treat\
+  \ the\nplan's own sketch (its §Next / stage boundaries) as a cutting commitment.\n\
+  \n**A cross-cutting obligation has no owner across a producer/consumer split — assign\
+  \ it to the\nPRODUCER.** When task A BIRTHS a shared primitive (a token / format\
+  \ / axis /\nschema field) and task B is its first real consumer, any cross-cutting\
+  \ half (the validator, the\nconformance check, the test for the primitive itself)\
+  \ silently falls in the SEAM — neither A nor B\nowns it. A \"births a new shared\
+  \ primitive\" claim MUST enumerate ALL the\ndoors the primitive touches (deliver\
+  \ + validate + test) and keep them in A; never let the validator\nhalf ride to B.\
+  \ (Distinct from red-flag (a): not two claims — ONE claim whose surface the naive\n\
+  task boundary omits.)\n\n**Execution-readiness rule (the auditor blind-spot fix).**\
+  \ \"One claim\" alone is not sufficient — a\nclaim-shaped unit is execution-ready\
   \ ONLY when it ALSO (1) names the accepted artifact it aligns\nwith (the decision\
   \ / active spec / handbook section), AND (2) names the concrete proof / acceptance\n\
   path — the probe (event emit / state check / measurable effect, CHARTER §Principle\
@@ -399,4 +396,4 @@ proposed_by: null
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
-  bin/lib/task.py#cmd_task_file: 70e9f87946ce9fad14159e1a54a5aede2d484b64eb98711dc2836e71080956f6
+  bin/lib/task.py#cmd_task_file: 0a23cc073450036fffe93a5e9f92b5ffaee01272ce02ab0145e6d76ecfc79534
