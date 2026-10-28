@@ -434,9 +434,24 @@ over the lens window (the last week), never restate or rebuild them here.
   against SPEC-0165 item 12 (b), plus LAYER EVENNESS — each layer's wall share against its share of
   the tests it runs, naming the most uneven layer. In the kernel: the full-suite share and its
   reasons, and the share a selected change runs (C10 sections 1–2). Once the per-test hotspot report and per-unit rows
-  exist on a repo's lands, the reading also names its hotspot files.
-- **Reading 2 — SLOW TAIL.** The files the SPEC-0119 rule-19 delta row of `bin/yitc-v2 [-C <repo>] debt`
-  names as grown in the window, and the top files by recorded seconds (C10 section 3).
+  exist on a repo's lands, the reading also names its hotspot files. **A credited land is its Stage-6
+  run:** a land that took its verdict, whole or per layer, from a Stage-6 run (`stage6_credit` /
+  `stage6_layer_credit`, outcome `credited-stage6-run` — SPEC-0065 §Bound) ran nothing itself, so both
+  folds follow the pointer to that `tests_passed` row and count the run there, once — its full-suite
+  share and its layer ran/passed — never as «no selection record» or a layer that ran and did not pass
+.
+- **Reading 2 — SLOW TAIL.** The files ranked by the time they spend in the runs a card pays before it
+  lands — its Stage-6 run (`task test --run`) and its land, whichever actually ran the file: a land that
+  credits a Stage-6 run runs no test itself, so that run's time counts once. Read it from the
+  `graph query verify-unit-cost` view's `land` and `stage6` places; a file the pre-deploy list in force
+  names is left out, since both runs skip it. The reading's TOP is the files that together make 30 % of
+  that time, each named with its share. A top file that is new to the top, or changed since its last wall
+  attribution, gets the wall-attribution instrument (`patterns/test-file-wall-attribution.md`) run on it;
+  only those are attributed, never the whole top every week. The reviewer then picks per file: remove
+  repeated work (a playbook technique) or split it (Reading 5's held block). The record carries the top
+  with its share of that time and the files attributed that week. It still names the files the SPEC-0119
+  rule-19 delta row of `bin/yitc-v2 [-C <repo>] debt` reports as grown in the window, and how many of the
+  window's lands were credited a Stage-6 run (the counts that row prints; SPEC-0119 rule 19).
 - **Reading 3 — LANE.** Every line of the repo's `tests/load-sensitive.txt` with its holder — a live
   card (SPEC-0119 rule 41), or a ratification (`ratified by card T-NNNN`) with its age. The line's LAST
   CHECK is the later of: the close of the card its `ratified by card` names (a re-check that keeps the
@@ -445,16 +460,29 @@ over the lens window (the last week), never restate or rebuild them here.
   A ratified line whose file changed after its last check, or whose last check is older than
   a month, is named for a re-check; the ratifying card's own replay is the re-check method, and a re-check
   is recorded in the run that made it, which resets the clock. A repo without the file records `no lane`.
-- **Reading 4 — WAITING AND SLOTS.** Over the window's verify runs: the wall spent waiting (for a verify
-  slot or a lock) against the wall spent running, and the worker slots the runs used against the
-  host's cores (`nproc`). A repo with no recorded verify run records `no runs`.
+- **Reading 4 — WAITING AND SLOTS.** Over the window's verify runs: the RUNNING wall per Stage-6 run and
+  per land, what repeats inside them, and which files cost most — never the wall spent waiting weighed
+  against the wall spent running, since queue wait follows from run and land walls (SPEC-1045). A wait is
+  named only as a malfunction: the queue still while nothing runs, or a process in it dead or killed. A
+  candidate that would run more runs at the same time is filed only with a measurement that the cards
+  reach main sooner than with serial runs and land credit. Also the worker slots the runs used against
+  the host's cores (`nproc`). A repo with no recorded verify run records `no runs`. Its rows: the
+  `land_completed` rows' `verify_metrics.verify_wall_ms` and `verify_metrics.worker_budget`; the Stage-6
+  `tests_passed` / `tests_failed` rows' `duration_ms` and `verify_metrics.worker_budget`; and, to find a
+  malfunction, the waits they record (`admission_wait_ms`, `reservation_wait_ms`,
+  `verify_metrics.queue_wait_ms`, `verify_metrics.venue_requests_waited_s`, the `admission_wait` /
+  `admission_pass` rows). A credited land's own `verify_duration_ms` is its prep, never a run — its run
+  is the Stage-6 row it names, counted once.
 - **Reading 5 — MOVES.** The weekly verify-cost reading over the `graph query verify-unit-cost` view, over
-  the repo's whole recorded history (<workshop-spec> rule 7 is its home): it PROPOSES moving a costly
-  (median above the median unit's) zero-catch (no real or unjudged failure) unit into a pre-deploy class
-  only when the window covers `pre_deploy_move_min_window_days` and the unit ran
-  `pre_deploy_move_min_runs` times on lands and Stage-6 runs (THRESHOLD keys, `config list`), saying why
-  when it does not; it PROPOSES moving back a pre-deploy unit that caught there, on any window. It writes
-  no move. The record computes and carries it; a record without it is refused as incomplete.
+  the repo's whole recorded history : it PROPOSES moving a costly zero-catch unit into a
+  pre-deploy class only when the window covers `pre_deploy_move_min_window_days`, and moving back a
+  pre-deploy unit that caught there. It writes no move. The record computes and carries it; a record
+  without it is refused as incomplete. Where a pre-deploy class declares `units:`, the review then runs
+  `bin/yitc-v2 pre-deploy list` (shows the recomputed list) and `pre-deploy list --write` (writes it, one
+  commit naming every unit added and removed) — the criteria and the refusals are SPEC-1051 rule 7's.
+  The reviewer reads the show output's held block — the files a failure or a recent edit keeps in the
+  lands: a file there holding a large share is a candidate to split into files that each go silent on
+  their own, and an accepted split becomes a card (the output rule below).
 
 **Against:** `patterns/verify-cost-playbook.md` — the catalog of verify-cost techniques with their measured
 cases; a reading names the technique it points to, and a candidate it files cites the entry.

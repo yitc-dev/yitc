@@ -273,23 +273,19 @@ supersedes: null
 concern:
   section: inspection
   born_order: 100
-  born: "inspection:\n  # SPEC-0093 rule 12. DECLARE this project's LOCAL inspection\
-    \ (\"revizia\") themes on top of the kernel's\n  # T1–T10 (patterns/inspection-criteria-roster.md):\
-    \ a `themes:` list, each { theme, probe, cadence:\n  # weekly|monthly|quarterly\
-    \ }. `probe:` is EXACTLY ONE KIND — `view:` (a graph-query lens) XOR\n  # `sweep:`\
-    \ { surfaces, checks[, against] }. The run stays MANUAL (patterns/inspection-triage-launch-runbook.md).\n\
-    \  # Waiver LOOSE; `themes:` + `waiver:` is a contradiction EXCEPT beside the\
-    \ kernel-owned entry, which\n  # the waiver does not\n  # cover: a project `waiver:`\
-    \ is the project's stance on its OWN themes (SPEC-0093 rule 12).\n  # see SPEC-0057\
-    \ §9; SPEC-0160 §12\n  themes:\n  # THE KERNEL-OWNED BASELINE ENTRY — seeded by\
-    \ `init` in every consumer, NOT the project's to remove\n  # (absent / `owner:\
-    \ kernel` stripped is an init-sweep ERROR). You MAY narrow `surfaces:`.\n  - theme:\
-    \ repeated-work\n    owner: kernel\n    probe:\n      sweep:\n        surfaces:\
-    \ \"backend/**/* app/**/* frontend/src/**/* scripts/**/* workers/**/*\"\n    \
-    \    checks:\n          - \"n-plus-one-queries-in-loops\"\n          - \"file-config-row-re-read-per-request-or-iteration\"\
-    \n          - \"remote-resource-re-fetched-or-pagination-restarted\"\n       \
-    \   - \"unbounded-loops-retries-polls\"\n          - \"repeated-whole-table-or-dir-scans-per-lookup\"\
-    \n          - \"frontend-effect-fetch-re-trigger-loops\"\n          - \"worker-cron-reprocessing-without-watermark\"\
+  born: "inspection:\n  # SPEC-0093 rule 12. DECLARE local inspection `themes:` ({\
+    \ theme, probe, cadence }); `probe:` is\n  # `view:` XOR `sweep:`. A `waiver:`\
+    \ beside the kernel-owned entry does not\n  # cover: a project `waiver:` is the\
+    \ project's stance on its OWN themes (SPEC-0093 rule 12).\n  # see SPEC-0057 §9;\
+    \ SPEC-0160 §12\n  themes:\n  # The KERNEL-OWNED baseline entry — keep it and\
+    \ `owner: kernel`; you MAY narrow `surfaces:`.\n  # Rule text: `__YITC_CLI__ graph\
+    \ query SPEC-0057 --kernel`\n  - theme: repeated-work\n    owner: kernel\n   \
+    \ probe:\n      sweep:\n        surfaces: \"backend/**/* app/**/* frontend/src/**/*\
+    \ scripts/**/* workers/**/*\"\n        checks:\n          - \"n-plus-one-queries-in-loops\"\
+    \n          - \"file-config-row-re-read-per-request-or-iteration\"\n         \
+    \ - \"remote-resource-re-fetched-or-pagination-restarted\"\n          - \"unbounded-loops-retries-polls\"\
+    \n          - \"repeated-whole-table-or-dir-scans-per-lookup\"\n          - \"\
+    frontend-effect-fetch-re-trigger-loops\"\n          - \"worker-cron-reprocessing-without-watermark\"\
     \n        against: \"patterns/repeated-work-lens.md\"\n    cadence: monthly\n\
     \  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no project-local\
     \ inspection themes declared yet; for its own project revizii it MAY use the kernel\
@@ -309,4 +305,4 @@ proposed_by: finalize-decisions-to-specs-migration-inventory-cl
 binding:
 - query-only
 implements_signature:
-  bin/lib/inspection.py#cmd_inspect_record: b2f29d71790db26a64a533af60b5cebcea899fc63e3543d7ea159d1e4100e474
+  bin/lib/inspection.py#cmd_inspect_record: 212e2a52ed244145dc627a8a9c08f0d58e7ce948e8a327c0937a071aec568a3d

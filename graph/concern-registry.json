@@ -1,6 +1,17 @@
 {
  "concerns": [
   {
+   "carrier_path": "admission",
+   "declare_key": "admission",
+   "declare_type": "mapping",
+   "presence_policy": "opt-in",
+   "section": "admission",
+   "spec": "SPEC-1045",
+   "update_policy": "init re-seed",
+   "version": "fc1bd84d97b6",
+   "waiver_policy": "loose"
+  },
+  {
    "carrier_path": "alert_routing",
    "declare_key": "sink",
    "declare_type": "string",
@@ -387,9 +398,9 @@
    "presence_policy": "mandatory",
    "section": "spike_data_safety",
    "shape_hook": "spike_data_safety_shape",
-   "spec": "SPEC-0175",
+   "spec": "SPEC-1054",
    "update_policy": "init re-seed",
-   "version": "5774c1189349",
+   "version": "1ceafaac5d49",
    "waiver_policy": "loose"
   },
   {

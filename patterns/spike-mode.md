@@ -1,7 +1,7 @@
 ---
 name: spike-mode
 class: discipline
-sourced_from: SPEC-0172 (spike-sandbox wiring contract) + SPEC-0205 (prototype contract — the declared spike, the `spike/<slug>` prototype ref, `prototype_ref`, content identity at land, cage atom 4e and the two sandbox modes) + SPEC-0175 (spike-sandbox data floor — the live-system axis, the actor split and the three strands §The safety floor teaches; incidents X-0798/X-0799) + its three-cycle trial at the pilot consumer (plan `rework-kit-in-the-kernel-spike-mode-as-a-methodolo`, cycle-3 clean 2026-08-09, claim NARROWED by owner ruling the same day) + the pilot's two cage CORRECTIONS (prose cage that had to be fixed twice) + incident X-0628 (sandbox entrance died on a stale router address, 2026-08-08) + two adopted shapes carried over from a consumer's own runs (live-code spike layer, on-screen environment marker — originating cards //, wanted independently by a second project at X-1004; shape only, no runtime code and no project named — SPEC-0073/SPEC-0090)
+sourced_from: SPEC-0172 (spike-sandbox wiring contract) + SPEC-0205 (prototype contract — the declared spike, the `spike/<slug>` prototype ref, `prototype_ref`, content identity at land, cage atom 4e and the two sandbox modes) + <workshop-spec> (spike-sandbox data floor — the live-system axis, the actor split and the three strands §The safety floor teaches; incidents X-0798/X-0799) and its mechanism-only successor SPEC-1054 (X-2084) + its three-cycle trial at the pilot consumer (plan `rework-kit-in-the-kernel-spike-mode-as-a-methodolo`, cycle-3 clean 2026-08-09, claim NARROWED by owner ruling the same day) + the pilot's two cage CORRECTIONS (prose cage that had to be fixed twice) + incident X-0628 (sandbox entrance died on a stale router address, 2026-08-08) + two adopted shapes carried over from a consumer's own runs (live-code spike layer, on-screen environment marker — originating cards //, wanted independently by a second project at X-1004; shape only, no runtime code and no project named — SPEC-0073/SPEC-0090)
 applies_to: you are about to open a THROWAWAY debugging exploration against a sandbox stack — reproducing a bug, measuring a behaviour, trying an approach — and you want the run to be caged and its exit to be knowledge. Read this INSTEAD of re-deriving the rules; you should not need to open SPEC-0172 to make a run. NOT for delivering a change (that is the ordinary Build lifecycle) and NOT for an emergency by-hand fallback (`patterns/emergency-mode.md`).
 ---
 
@@ -9,7 +9,7 @@ applies_to: you are about to open a THROWAWAY debugging exploration against a sa
 
 > **Discipline pattern.** A spike is a **disposable exploration whose exit is knowledge, never
 > landed code**. This doc is the RUNBOOK: read it and run one. The normative rule text lives in
-> **SPEC-0172** (the STACK's wiring) and **SPEC-0175** (the DATA the copy carries); you should not
+> **SPEC-0172** (the STACK's wiring) and **SPEC-1054** (the DATA the copy carries); you should not
 > have to open either to make a run, and if you did, that is a defect in this doc — say so
 > (`bin/yitc-v2 event deviation_captured …`). Both are cited, never restated: where a wording here
 > and a spec disagree, the spec wins.
@@ -44,36 +44,43 @@ dies while every container reports healthy (§4).
 
 **The axis is the LIVE SYSTEM — not "production data".** A static copy DERIVED from production is
 the **sanctioned** data source of a spike sandbox; holding real data is the reason a spike sandbox is
-worth having at all. What is forbidden is the spike RUNTIME touching the live production system, and
-what is unsafe is working in a copy that still carries live values. The rules are **SPEC-0175** —
-`bin/yitc-v2 graph query SPEC-0175`. This section is their RUNBOOK, not a second copy of their
-authority; on any conflict the spec wins, and if you had to open it to make a run, that is a defect
-here — capture it.
+worth having at all. What the recommended default forbids is the spike RUNTIME touching the live
+production system, and what is unsafe is working in a copy that still carries live values. The rules
+are **SPEC-1054** — `bin/yitc-v2 graph query SPEC-1054`. This section is their RUNBOOK, not a second
+copy of their authority; on any conflict the spec wins, and if you had to open it to make a run, that
+is a defect here — capture it.
 
-**Two obligations SPEC-0175 rule 2 puts on you — the ACTOR SPLIT. Both must be held, and neither half
-follows from the other, so neither may be left to inference (the rule says so; this is where you read
-it, not where it lives):**
+**What is yours to decide (SPEC-1054 §0).** The kernel ships the mechanism; WHAT you protect is
+your project's decision. Every default below binds until your decision file records an override —
+anywhere else, an override does not count.
+
+**The ACTOR SPLIT — SPEC-1054 rule 2's recommended default. Both halves bind until your decision
+file records an override, and neither half follows from the other, so neither may be left to
+inference (the rule says so; this is where you read it, not where it lives):**
 
 - **The named refresh/export STEP MAY read live production, READ-ONLY**, for the sole purpose of
   producing a static copy. It writes nothing there and changes nothing there, and it is the ONLY
   actor holding this permission. So: **making the copy is permitted** — you are not smuggling
   anything, and you do not need to invent a way around the restore.
 - **The spike RUNTIME NEVER connects to the live production system.** No process inside the spike
-  stack is pointed at it, tunnelled to it, reading from it, or writing to it. This is the half with
-  no exception and no per-run argument.
+  stack is pointed at it, tunnelled to it, reading from it, or writing to it. Relaxing it is a
+  recorded override, never an argument made per run.
 
 **A restored copy is not made safe by living in a sandbox.** It arrives carrying webhook URLs that
 still route, tokens that still authenticate, people's addresses that are harmful the moment they are
 read, and outbox rows that will send the moment a worker starts. So it is TREATED before the stack is
-usable — on **three strands, each with its OWN verbs** (SPEC-0175 rule 3), and a strand answered with
+usable — on **three strands, each with its OWN verbs** (SPEC-1054 rule 3), and a strand answered with
 another strand's verb is **not answered**:
 
 - **REACHABILITY** — values that can route, authenticate, identify, schedule or trigger (incl.
-  external resource IDs and object keys). Verb: **NEUTRALIZE**.
+  external resource IDs and object keys). Verb: **NEUTRALIZE** — the recommended default — or
+  explicitly **ACCEPT** under a recorded acceptance.
 - **DISCLOSURE** — content harmful merely by being READ: personal, financial, regulated. Verbs:
   **MASK / MINIMIZE / EXCLUDE**, or explicitly **ACCEPT** under a recorded acceptance.
 - **OPERATIONAL STATE** — state that DOES WORK when anything consumes it: outbox rows, queued jobs,
-  scheduler entries, and executable schema (triggers, procedures, subscriptions). Verb: **DEFUSE**.
+  scheduler entries, and executable schema (triggers, procedures, subscriptions). Verb: **DEFUSE**,
+  or explicitly **ACCEPT** under a recorded acceptance (class, purpose, readers, scope, destruction —
+  it answers only the strands it names).
 
 Two things this list is routinely misread on. **"Neutralize" is the REACHABILITY verb, not the
 universal word for "handled"** — neutralizing a webhook URL does nothing about a person's address, and
@@ -81,12 +88,12 @@ no length of neutralize-list ever will. And **classification is MANY-TO-MANY**: 
 sits in two strands or all three (a customer email address is DISCLOSURE *and* REACHABILITY), and
 every applicable strand must be treated and proven for it.
 
-The obligation starts at the **first exported byte**, not at the restore: the dump, its temp files,
-staging and backup copies, the step outputs, and the restored database are all untreated
+By default the obligation starts at the **first exported byte**, not at the restore: the dump, its
+temp files, staging and backup copies, the step outputs, and the restored database are all untreated
 production-derived artifacts, and the chain outside the sandbox is DESTROYED rather than left lying.
 Which of YOUR surfaces carry which class is your project's own declaration — `spike_data_safety:` in
 your `yitc-ops.yaml`, the sibling of §0's `spike_sandbox:` — and the treatment is proven by QUERYING
-the copy, with a control per detector. Read SPEC-0175 rules 4-6 before you build a probe; do not
+the copy, with a control per detector. Read SPEC-1054 rules 4-6 before you build a probe; do not
 re-derive them from this paragraph.
 
 Stated with the two-word vocabulary this doc uses everywhere, so you know exactly how much of the
@@ -99,13 +106,13 @@ floor stands on a machine and how much stands on you:
   predicate over a stack's declared IDENTITY. It says nothing about what a process INSIDE that stack
   dials: point a config, a connection string or a tunnel at live production and nothing in §2 refuses
   you. Nothing refuses an untreated copy either — the data floor names the layer that owes each check
-  and is honest where that layer does not carry it yet (SPEC-0175 rule 8). **You are the check** on
+  and is honest where that layer does not carry it yet (SPEC-1054 rule 8). **You are the check** on
   both, and this is the half the floor above is asking you to hold.
 
 Do not read the CHECKED half as covering the DISCIPLINE half. They are different claims, and the gap
 between them is exactly where a careful reader talks themselves into "well, it is only a read". The
-floor is: **the runtime never contacts the live system, and the copy is treated on all three strands
-before the stack is usable.** Where a step below says a spike is "mutating", it means **it writes the
+default floor is: **the runtime never contacts the live system, and the copy is treated on all three
+strands before the stack is usable.** Where a step below says a spike is "mutating", it means **it writes the
 SANDBOX copy's data** — that word is never a licence to write the live system's.
 
 ### The steps
@@ -131,7 +138,7 @@ people.** Those sources are production-DERIVED artifacts, and reading one is not
 — the forbidden thing is your spike dialling the LIVE system for it (§The safety floor). Two
 consequences worth holding: a "read-only" spike that reaches into live production to fetch its trace
 is not a no-stack read, it is the runtime prohibition being broken without a stack; and a raw,
-untreated production-derived artifact (a dump, an unredacted log) is governed by SPEC-0175 rule 4
+untreated production-derived artifact (a dump, an unredacted log) is governed by SPEC-1054 rule 4
 whether or not you raised a stack to open it — same treatment, same emission limits, same destruction
 obligation.
 
@@ -335,6 +342,66 @@ Concretely, before step 2: write `mutating: yes|no` and the sandbox you intend t
 answer is `yes`, that same line is what commits you to your OWN sandbox — decide it here, where it
 is cheap, rather than at the moment you are about to write.
 
+#### Several stacks — declare each stack's identity from day one
+
+A project often ends up with more than one sandbox stack: one per person, so two people stop
+treading on each other's data. A second stack looks cheap because the stack NAME is usually
+already a knob. It is not cheap if the stack's other identity values are written once for the
+first stack: a second stack with the first stack's published ports collides with it, and one with
+the first stack's entry origin mints links that land in the other person's sandbox. Atom 4a
+(isolated identity, §2) fences a stack off PRODUCTION; it says nothing about one spike stack
+against another.
+
+So declare the identity PER STACK, in one place, before the second stack exists:
+
+- one declaration per stack name, carrying the stack's **database port**, its **app port**, its
+  **entry origin** (the base URL the app mints links with), and its **composed env file**;
+- every instrument that brings a stack up, composes its env or runs the cage check READS that one
+  declaration — none keeps its own copy of the first stack's values;
+- **a stack name that is not declared is refused**, never defaulted to the first stack's values: a
+  default is how the second stack silently becomes a second copy of the first.
+
+Worked example — a consumer that added the owner's own sandbox beside a collaborator's live one:
+its scripts already keyed the compose project, the lock and the state directory off the stack
+name, yet the published ports, the public base URL and the composed env file were each written
+once, so the new stack collided at the collision check and would have minted the first stack's
+links. Its fix was the one per-stack declaration above, the first stack keeping exactly its old
+values and an undeclared name refused (`cross:X-2066` — `bin/yitc-v2 cross show X-2066` names the
+project and its card). This is that project's practice, carried here as a shape; the cage rules
+it serves stay in SPEC-0172 and SPEC-0205.
+
+#### First bring-up of a brand-new stack
+
+A new stack's database is EMPTY, and that breaks an order that works on every stack which already
+holds a treated copy. The admin seed refuses, because the operator account exists only in a
+treated production copy; the refresh restores and treats the copy correctly, but its closing cage
+check breaches, because the app container does not exist yet — and a failed refresh PURGES the
+copy (SPEC-1054 rule 4). Each step needs the other's output first. A stack that predates the seed
+refusal never meets this, so the first person to add a stack is the one who finds it.
+
+The order a consumer proved live, in four steps:
+
+1. **infra + migrate** on the empty database — the schema exists, no data, no app;
+2. **restore + three-strand treatment + admin seed + data proof** — the production copy comes in
+   inert, is treated on all three strands (§The safety floor), the operator account now exists to
+   seed, and the copy is proven by querying it (SPEC-1054 rule 6);
+3. **the app through the governed sandbox deploy** — never a hand-started container, so a
+   deploy fact names the revision the stack serves (cage atom 4e, SPEC-0205 rule 3);
+4. **only then the closing cage check, over the RUNNING app.**
+
+**No cage check is skipped, and none is moved earlier than the thing it checks:** the cage check
+stays the LAST step, after the app deploy, because a cage check over an absent app reads a breach
+on every pin. **A failure anywhere in steps 2-4 still purges the copy** (SPEC-1054 rule 4) — the
+order changes when the cage check runs, never whether a breach destroys the untreated artifact.
+And no step invents an operator row to get past the seed: the account comes from the treated copy
+or not at all.
+
+Proof, read in that consumer's journal on 2026-10-24 (`cross:X-2069` names the project and its
+card): `events.jsonl#ts=` — `deploy_completed`, target `sandbox`,
+`production: false` — and `events.jsonl#ts=` — `spike_served_source_checked`,
+verdict `admitted`, for the new stack's app container; the collaborator's live stack kept the same
+app container throughout.
+
 ### 4. When the entrance dies but everything reads healthy
 
 **The property, stated plainly: RECREATING THE BACKEND INVALIDATES THE ROUTER'S CACHED ADDRESS.**
@@ -350,7 +417,7 @@ blessed exit. It is NOT the destructive full refresh, which also re-restores the
 and throws away the state you were mid-spike on. **And note what a re-restore costs beyond that
 state: it brings in a fresh untreated production-derived copy, so the whole data floor re-arises —
 treat all three strands and re-run the proof before the stack is usable again** (§The safety floor;
-SPEC-0175). A refresh taken as a reflex for a dead router is how an untreated copy gets in through a
+SPEC-1054). A refresh taken as a reflex for a dead router is how an untreated copy gets in through a
 door nobody was watching.
 
 **Read this honestly, because two things are true at once.** The narrow repair is the RIGHT move;
@@ -533,7 +600,7 @@ Nothing requires it and nothing refuses without it: an absent or malformed role 
 | **What it serves** | the open spike (SPIKE mode above) | landed `main` (ACCEPTANCE mode above) |
 | **When it runs** | while the spike is open | raised on demand to show landed work, then down; the no-container preview below is a valid one |
 | **Protection** | one protection setup (cage + data handling) serves both stands | the same setup |
-| **Data** | its own data store | its own data store — a restored production copy there is treated as SPEC-0175 treats a spike copy |
+| **Data** | its own data store | its own data store — a restored production copy there is treated as SPEC-1054 treats a spike copy |
 | **Mutating spike** | its own stack (SPEC-0172 rule 6), never the acceptance stand | — |
 
 Recommended order, never checked: card → land → ACCEPTANCE stand → production. `deploy` may print
@@ -666,7 +733,7 @@ posture. It is named here so a project can ADOPT it by name instead of re-arguin
 1. **ONE non-production environment with its own data store.** The load-bearing half is *its own*:
    no shared database, volume or queue with production, so nothing done there can write back.
 2. **A SMALL ANONYMIZED data slice, never a restored copy.** The load-bearing half is that no
-   production-derived row ever arrives — so there is no copy for SPEC-0175 to classify, neutralize or
+   production-derived row ever arrives — so there is no copy for SPEC-1054 to classify, neutralize or
    defuse. A slice you anonymized by hand from a copy is still a copy; see the clause below.
 3. **An IN-APP outbound allow-list boundary that fails CLOSED.** In the non-production environment an
    outbound message may reach only a recipient on an explicit allow-list, refused at one boundary
@@ -689,7 +756,7 @@ anonymized slice, the fail-closed outbound boundary) and state the data class th
 **The re-assessment clause — MANDATORY, and the reason this posture is safe to name at all.** A
 project on the lightweight posture holds it only while both of its premises hold: a project that
 ever restores a production copy, or whose data class changes (personal, financial, regulated, or data
-about minors), MUST re-answer SPEC-0175 in full — a complete data-safety inventory, never a re-waive by
+about minors), MUST re-answer SPEC-1054 in full — a complete data-safety inventory, never a re-waive by
 default. The posture is never a blanket waiver and never a production-safety claim: it says what the
 non-production environment does NOT carry, and nothing about how production is protected. A waiver
 naming this posture over sensitive data should say so in its own reason, so the next reader sees why
@@ -742,7 +809,7 @@ channel** (§2 atom 4d — the pinned library enforces that order; a failed reco
   this doc was audited against. No CAGE row's kernel leg is DISCIPLINE today (§2's five atoms and §3 are
   CHECKED at the layer the table names; §2's PROJECT running-stack leg is DISCIPLINE until your
   instrument calls the check), so the other live DISCIPLINE items here are the safety floor's two halves: what the spike
-  RUNTIME reaches, and what the restored COPY carries (§The safety floor, SPEC-0175). The warning is
+  RUNTIME reaches, and what the restored COPY carries (§The safety floor, SPEC-1054). The warning is
   not retired with atom 4d — it is a standing rule about the status word, and it binds whichever row
   is DISCIPLINE next.
 - **The mirror of it: understating a check that EXISTS.** Leaving a row written as DISCIPLINE after
@@ -779,11 +846,13 @@ channel** (§2 atom 4d — the pinned library enforces that order; a failed reco
   floor). Both of those halves are yours to hold.
 - **Reading "it is only a copy, and it lives in the sandbox" as safe.** A restored copy is the
   sanctioned source AND untreated until it is treated on all three strands and the treatment is
-  proven (SPEC-0175). Living in a sandbox changes nothing about a token that still authenticates.
+  proven (SPEC-1054). Living in a sandbox changes nothing about a token that still authenticates.
 - **Answering one strand and calling the copy treated** — most often by NEUTRALIZING what could
   route and saying nothing about what a reader would, or about the outbox that sends the moment
-  a worker starts. Neutralize is the reachability verb only; disclosure is masked/minimized/excluded
-  or explicitly accepted under a record, and operational state is defused.
+  a worker starts. Each strand takes its own verb or a recorded ACCEPT; NEUTRALIZE is reachability's
+  default, never a stand-in for the others.
+- **Relaxing a default without recording it.** An override agreed in a chat, a card or a commit
+  message does not exist; only your decision file overrides a default (SPEC-1054 §0).
 - **Refusing the restore because it "touches production".** The named refresh/export step reading
   live production READ-ONLY is permitted and is the sanctioned way to fill a sandbox; it is the spike
   RUNTIME that never connects. Collapsing those two actors into one is a defect, not caution.
@@ -808,10 +877,10 @@ channel** (§2 atom 4d — the pinned library enforces that order; a failed reco
   sources of served code (rule 3), the `spike/<slug>` tag (rule 4), `prototype_ref` and the audit
   overlay (rules 5/6), §Two modes with acceptance as a form of postcheck (rule 7), and legacy adoption
   (rule 8). On any conflict the spec wins.
-- **SPEC-0175** — the spike-sandbox DATA floor, and the normative home of everything §The safety
-  floor teaches: the live-system axis, the actor split, the three strands and their verbs, the
-  untreated-artifact window and its emission limits, the `spike_data_safety:` declaration and the
-  prove-by-querying obligation. SPEC-0172's atoms are predicates over the STACK; these are predicates
+- **SPEC-1054** — the spike-sandbox DATA floor (successor of <workshop-spec>), and the normative home of
+  everything §The safety floor teaches: the live-system axis, the mechanism-vs-policy split, the
+  actor split, the three strands and their verbs, the untreated-artifact window and its emission
+  limits, the `spike_data_safety:` declaration and the prove-by-querying obligation. SPEC-0172's atoms are predicates over the STACK; these are predicates
   over what the COPY carries. This doc cites it and does not restate it — on any conflict, or any
   wording here that has fallen behind it, the spec wins.
 - **SPEC-0090** — the patterns(travel) / lessons(local) boundary: why this doc names no project's

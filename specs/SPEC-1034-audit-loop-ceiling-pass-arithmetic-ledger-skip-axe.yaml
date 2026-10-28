@@ -259,61 +259,63 @@ body: "## Scenario\n\nWhen an audit RED/YELLOWs, the AI absorbs findings and re-
   \ bound | `basis: merge-integration` + `merge_integration_reaudit: {merge_commit,\
   \ prior_commit, main_sha, conflict_paths, sync_evidence}` on the row and the saved\
   \ record, beside `sync_merge_ship: A` (closure custody moves onto M) — route provenance,\
-  \ NOT a ledger-skip marker | TASK `audit post` ordinary leg only |\n\n**FAIL-CLOSED\
-  \ clauses (per axis — these bound every row above; when none matches, NORMAL pass\n\
-  counting + the ceiling apply):**\n- **Concurrent-merge-churn:** the skip is UNCONDITIONAL\
-  \ on the verdict — a surfaced\n  YELLOW/RED/finding does NOT advance `passes`, because\
-  \ the CAUSE of the re-audit was main\n  moving, not the author moving, and the ceiling\
-  \ counts the CARD'S OWN absorption passes. The\n  RED still STOPS the land and still\
-  \ blocks closure (`task close` refuses a RED audit-post and admits\n  GREEN or YELLOW)\
-  \ — this axis\n  removes the CHARGE, never the refusal. TWO BOUNDS make this ONE-SHOT\
-  \ rather than an open loop, and both\n  are properties of the trigger predicate,\
-  \ not added machinery: (i) the predicate requires the\n  PRIOR record's verdict\
-  \ to be GREEN/YELLOW, so an exempted RED becomes the next run's prior and\n  CLOSES\
-  \ its own exemption; (ii) it requires the prior audited commit to DIFFER from the\
-  \ current\n  one, so a re-audit at an UNMOVED HEAD is charged normally. An uncharged\
-  \ pass therefore costs\n  main genuinely advancing again — real external progress,\
-  \ never a self-spun loop — and\n  `_INLAND_REAUDIT_MAX_PER_LAND` bounds the in-land\
-  \ caller a second time per land. What is\n  UNCHANGED: a worker's OWN post-audit\
-  \ SOURCE edit leaves an observable\n  differing path -> NOT exempt -> a real counted\
-  \ re-audit, so the genuine-recovery case is\n  PRESERVED. A merge-tree CONFLICT\
-  \ is likewise NOT exempt -> EXCEPT when EVERY conflicting path is\n  INERT : a sync\
-  \ merge that regenerated a DERIVED artifact both sides rebuilt conflicts on a path\
-  \ whose content the audit never judged\n  and `land` rebuilds anyway. The conflict\
-  \ paths are classified through the SAME\n  `_classify_inert_paths` authority the\
-  \ differing-path check uses (SPEC-0064 §4 — no second inert\n  encoding, no new\
-  \ flag): ALL-INERT falls through to that differing-path check, which still decides\n\
-  \  (the conflicted blobs carry markers, so those paths reappear in the diff); ANY\
-  \ OBSERVABLE\n  conflict path -> NOT exempt, exactly as before. A NARROWING inside\
-  \ this axis's invariant «only\n  pure concurrent-merge churn is exempt», never a\
-  \ conflict waiver — additionally fail-closed on a\n  non-conflict rc, on rc==1 with\
-  \ no readable CONFLICT line, and on any conflict KIND other than\n  `CONFLICT (content)`.\n\
-  - **TASK lens-version:** its ONE-SHOT clause is in SPEC-1040 §Audit-loop ceiling.\n\
-  - **Passable-absorption:** a prior RED/ABORT (a GENUINE blocker that forced this\
-  \ re-plan — mode-a\n  rework), ANY high-severity finding (genuinely changes the\
-  \ plan/diff), OR a CHANGED / missing\n  audited commit (a genuine re-committed rework)\
-  \ falls through to NORMAL pass counting; a first\n  audit-post (prior_passes==0)\
-  \ always counts. At the cap, mode-b is to RECORD the passable finding on\n  the\
-  \ already-recorded YELLOW verdict: file its follow-up (`followup add` or `task file`),\
-  \ then\n  `audit post --task T-XXXX --followup <id>` (audit-post has no `--absorb`,\
-  \ so no verb writes its\n  `notes:`), and PROCEED to `task close` (the existing\
-  \ Stage-8\n  YELLOW close route), NOT to re-run `audit post`; a genuine re-audit\
-  \ past the ceiling takes the SPEC-1039\n  decision route. Because a passable absorption\
-  \ never advances `passes`, a sequence\n  of passable absorptions can NEVER push\
-  \ sound work to the ceiling — the E-0008 sub-cause-1 deadlock\n  is prevented at\
-  \ its source, not patched at the wall.\n\n- **Consult-governed carry:** UNREACHABLE\
-  \ for a new pass — the `--owner-reset` grant and the consult\n  basis that admitted\
-  \ it are retired (<workshop-spec> rule 6). The row stays so a record\n  already\
-  \ carrying `consult_governed: true` reads correctly; its clause is cut.\n\nEvery\
-  \ axis extends the ONE ledger-skip mechanism in-place (`cmd_audit` `ledger_skip`)\
-  \ — no parallel\ncounter, no new gate.\n\n**Ceiling-convergence triage — RETIRED\
-  \ (<workshop-spec> rule 6).** Its convergence rules and the\nwithdrawn full-verdict\
-  \ HOLD rule are cut from this spec; the route past the ceiling is SPEC-1039 rules\
-  \ 1-3.\n\n**On-demand technical-fork consult (lever #6) — a BELOW-ceiling consult\
-  \ ENTRY for a design\nfork.** This is a separate, NARROW consult ENTRY for a session\
-  \ standing at a\nTECHNICAL DESIGN FORK (a plan's specs, the decomposition cut, or\
-  \ a task's Analysis) BEFORE any audit\nceiling: `audit consult --on-demand --task\
-  \ T-XXXX --option … --option …` runs the SAME consult engine\n(`_consult_adjudicate`)\
+  \ NOT a ledger-skip marker | TASK `audit post` ordinary leg only |\n\nThe post-GREEN\
+  \ merge-integration row is one exit from a spent GREEN; every exit, with its guard,\
+  \ is\none row of the table «Exits from a spent GREEN» in the rare-case reference\
+  \ the index paragraph\nabove names.\n\n**FAIL-CLOSED clauses (per axis — these bound\
+  \ every row above; when none matches, NORMAL pass\ncounting + the ceiling apply):**\n\
+  - **Concurrent-merge-churn:** the skip is UNCONDITIONAL on the verdict — a surfaced\n\
+  \  YELLOW/RED/finding does NOT advance `passes`, because the CAUSE of the re-audit\
+  \ was main\n  moving, not the author moving, and the ceiling counts the CARD'S OWN\
+  \ absorption passes. The\n  RED still STOPS the land and still blocks closure (`task\
+  \ close` refuses a RED audit-post and admits\n  GREEN or YELLOW) — this axis\n \
+  \ removes the CHARGE, never the refusal. TWO BOUNDS make this ONE-SHOT rather than\
+  \ an open loop, and both\n  are properties of the trigger predicate, not added machinery:\
+  \ (i) the predicate requires the\n  PRIOR record's verdict to be GREEN/YELLOW, so\
+  \ an exempted RED becomes the next run's prior and\n  CLOSES its own exemption;\
+  \ (ii) it requires the prior audited commit to DIFFER from the current\n  one, so\
+  \ a re-audit at an UNMOVED HEAD is charged normally. An uncharged pass therefore\
+  \ costs\n  main genuinely advancing again — real external progress, never a self-spun\
+  \ loop — and\n  `_INLAND_REAUDIT_MAX_PER_LAND` bounds the in-land caller a second\
+  \ time per land. What is\n  UNCHANGED: a worker's OWN post-audit SOURCE edit leaves\
+  \ an observable\n  differing path -> NOT exempt -> a real counted re-audit, so the\
+  \ genuine-recovery case is\n  PRESERVED. A merge-tree CONFLICT is likewise NOT exempt\
+  \ -> EXCEPT when EVERY conflicting path is\n  INERT : a sync merge that regenerated\
+  \ a DERIVED artifact both sides rebuilt conflicts on a path whose content the audit\
+  \ never judged\n  and `land` rebuilds anyway. The conflict paths are classified\
+  \ through the SAME\n  `_classify_inert_paths` authority the differing-path check\
+  \ uses (SPEC-0064 §4 — no second inert\n  encoding, no new flag): ALL-INERT falls\
+  \ through to that differing-path check, which still decides\n  (the conflicted blobs\
+  \ carry markers, so those paths reappear in the diff); ANY OBSERVABLE\n  conflict\
+  \ path -> NOT exempt, exactly as before. A NARROWING inside this axis's invariant\
+  \ «only\n  pure concurrent-merge churn is exempt», never a conflict waiver — additionally\
+  \ fail-closed on a\n  non-conflict rc, on rc==1 with no readable CONFLICT line,\
+  \ and on any conflict KIND other than\n  `CONFLICT (content)`.\n- **TASK lens-version:**\
+  \ its ONE-SHOT clause is in SPEC-1040 §Audit-loop ceiling.\n- **Passable-absorption:**\
+  \ a prior RED/ABORT (a GENUINE blocker that forced this re-plan — mode-a\n  rework),\
+  \ ANY high-severity finding (genuinely changes the plan/diff), OR a CHANGED / missing\n\
+  \  audited commit (a genuine re-committed rework) falls through to NORMAL pass counting;\
+  \ a first\n  audit-post (prior_passes==0) always counts. At the cap, mode-b is to\
+  \ RECORD the passable finding on\n  the already-recorded YELLOW verdict: file its\
+  \ follow-up (`followup add` or `task file`), then\n  `audit post --task T-XXXX --followup\
+  \ <id>` (audit-post has no `--absorb`, so no verb writes its\n  `notes:`), and PROCEED\
+  \ to `task close` (the existing Stage-8\n  YELLOW close route), NOT to re-run `audit\
+  \ post`; a genuine re-audit past the ceiling takes the SPEC-1039\n  decision route.\
+  \ Because a passable absorption never advances `passes`, a sequence\n  of passable\
+  \ absorptions can NEVER push sound work to the ceiling — the E-0008 sub-cause-1\
+  \ deadlock\n  is prevented at its source, not patched at the wall.\n\n- **Consult-governed\
+  \ carry:** UNREACHABLE for a new pass — the `--owner-reset` grant and the consult\n\
+  \  basis that admitted it are retired (<workshop-spec> rule 6). The row stays so\
+  \ a record\n  already carrying `consult_governed: true` reads correctly; its clause\
+  \ is cut.\n\nEvery axis extends the ONE ledger-skip mechanism in-place (`cmd_audit`\
+  \ `ledger_skip`) — no parallel\ncounter, no new gate.\n\n**Ceiling-convergence triage\
+  \ — RETIRED (<workshop-spec> rule 6).** Its convergence rules and the\nwithdrawn\
+  \ full-verdict HOLD rule are cut from this spec; the route past the ceiling is SPEC-1039\
+  \ rules 1-3.\n\n**On-demand technical-fork consult (lever #6) — a BELOW-ceiling\
+  \ consult ENTRY for a design\nfork.** This is a separate, NARROW consult ENTRY for\
+  \ a session standing at a\nTECHNICAL DESIGN FORK (a plan's specs, the decomposition\
+  \ cut, or a task's Analysis) BEFORE any audit\nceiling: `audit consult --on-demand\
+  \ --task T-XXXX --option … --option …` runs the SAME consult engine\n(`_consult_adjudicate`)\
   \ with the SAME strict survivors schema, but BYPASSES the ceiling-exhaust\nprecondition.\
   \ It is a 1:1 copy of how the owner manually consults the external on a fork — the\
   \ auditor\nRATIFIES technical merit, the owner keeps a lightweight ratify/veto;\
@@ -453,6 +455,6 @@ activation_owner_task: null
 proposed_by: null
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e1becfa2a76821c020257fcd9a1f0b34e75bb38dea9c253985496c28be6b7b49
+  bin/lib/audit.py#cmd_audit: e8d9c31ad96b9cc54344353a72d2f85e04034df0a9524985844ceae4a666b5a8
   bin/lib/audit.py#is_trend_convergence_grant: b49015c43bf99062f0bec7752fa349d1ef1cb6505d2f4cba8bbc0a524fd757d0
   bin/lib/audit.py#trend_grant_subject_changed: c6c5d13d826fb0bf818c557b7d20803cc950ae9e28195dd43caeefc61fac965f

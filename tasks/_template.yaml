@@ -126,9 +126,10 @@ effort_tier: normal            # OPTIONAL filing-time STAKES tier (T-0733; SPEC-
                                # (provider-neutral). Stored only when != normal (absent reads as normal).
 
 # queue_jump:... # OPTIONAL emergency place in the LAND-ADMISSION order (SPEC-0184 rule 9;
-                               # schema home SPEC-0028). Set it AT FILING — and only — when THIS card's
-                               # own PURPOSE is to REMOVE a land-queue blockage, naming the blockage:
-                               # bin/yitc-v2 task update --queue-jump '<the blockage this card clears>'
+                               # schema home SPEC-0028). Set it on `main` right after the filing batch
+                               # lands — and only — when THIS card's own PURPOSE is to REMOVE a land-queue
+                               # blockage, naming the blockage (a set in a worktree is refused):
+                               # bin/yitc-v2 task update <id> --queue-jump '<the blockage this card clears>'
                                # THE TRIGGER IS PURPOSE, NEVER URGENCY. Ordinary work that merely happens
                                # to be stuck behind the queue is NOT this — that is the common case, and
                                # taking an EMERGENCY lane for convenience is how an emergency lane stops

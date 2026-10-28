@@ -11,6 +11,8 @@ implements:
 - bin/lib/session.py#visible_start_line
 - bin/lib/cli.py#cmd_session_start
 - bin/lib/init.py#home_reference_drift
+- bin/lib/cli.py#_context_home_growth
+- bin/lib/inspection.py#context_home_growth_lines
 body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER, the\
   \ owner/AI keeps the project's own\noperating-context (product profile, integration\
   \ constraints, safety bans, PII policy — Rule 1a)\nin a **provider-neutral home**\
@@ -44,23 +46,28 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ grouping\npreference for cutting work into cards (SPEC-0046). It never holds:\n\
   - state of the moment — worktrees, branches, queue order, who works on what: the\
   \ journal, the\n  session hand-offs and `MEMORY.md` carry it;\n- rules for the project's\
-  \ workers — those go into a project-own spec;\n- history — the journal carries it;\n\
-  - facts the repository already holds — the home names the command that shows them\
-  \ instead. The\n  module map is one: the `module-map` view (`graph query module-map`,\
-  \ run with the engine `-C`\n  form) derives it from the specs, so the home does\
-  \ not keep a hand-made list.\n**Reference forms.** The home refers to the repository\
-  \ in three forms, each resolved one way:\n1. a repository path, or a path with an\
-  \ `#anchor`, read relative to the repository root;\n2. a bare SPEC id, resolved\
-  \ own-first — the project's own spec at that id, else the kernel's;\n3. a `graph\
-  \ query --kernel SPEC-XXXX` form, resolved against the kernel.\nThese are the forms\
-  \ a drift check of the home reads: a named path that does not exist, or a named\n\
-  spec that is not active, is drift.\nA span that is the project's own content, not\
-  \ a repository path — a host name, a product term —\nis declared once in the project's\
-  \ `yitc-ops.yaml` under `context_home.own_content`: a list whose\nentries are each\
-  \ an exact span or a glob. The drift check does not read a span that equals or\n\
-  matches an entry as a path. An entry never silences a SPEC id or a `graph query\
-  \ --kernel` form.\nWith no list, every span is read.\n\n### Rule 2 — The vendor\
-  \ adapter file carries ONLY the thin adapter\nA consumer vendor adapter file (`<vendor-adapter>.md`)\
+  \ workers — those go into a project-own spec;\n- a project rule or practice to remember\
+  \ — it goes first to an evidence-citing lesson, the\n  `graph query capture-routing`\
+  \ row for it (SPEC-0157); a lesson becomes a stage-bound spec only\n  by its own\
+  \ card. A diff that grows the declared home prints a report-only `context-home-growth`\n\
+  \  line in `graph conformance` (diff-aware against the merge-base with `main`; no\
+  \ exit code moves);\n- history — the journal carries it;\n- facts the repository\
+  \ already holds — the home names the command that shows them instead. The\n  module\
+  \ map is one: the `module-map` view (`graph query module-map`, run with the engine\
+  \ `-C`\n  form) derives it from the specs, so the home does not keep a hand-made\
+  \ list.\n**Reference forms.** The home refers to the repository in three forms,\
+  \ each resolved one way:\n1. a repository path, or a path with an `#anchor`, read\
+  \ relative to the repository root;\n2. a bare SPEC id, resolved own-first — the\
+  \ project's own spec at that id, else the kernel's;\n3. a `graph query --kernel\
+  \ SPEC-XXXX` form, resolved against the kernel.\nThese are the forms a drift check\
+  \ of the home reads: a named path that does not exist, or a named\nspec that is\
+  \ not active, is drift.\nA span that is the project's own content, not a repository\
+  \ path — a host name, a product term —\nis declared once in the project's `yitc-ops.yaml`\
+  \ under `context_home.own_content`: a list whose\nentries are each an exact span\
+  \ or a glob. The drift check does not read a span that equals or\nmatches an entry\
+  \ as a path. An entry never silences a SPEC id or a `graph query --kernel` form.\n\
+  With no list, every span is read.\n\n### Rule 2 — The vendor adapter file carries\
+  \ ONLY the thin adapter\nA consumer vendor adapter file (`<vendor-adapter>.md`)\
   \ carries ONLY: (a) the engine location + the\n`-C` verb-invocation form `<engine>/bin/yitc-v2\
   \ -C <this-repo-abs-path> <verb>` (a consumer has no\nlocal `bin/yitc-v2` — the\
   \ X-0144 class), (b) the session-start pointer, and (c) a pointer to the\nneutral\
@@ -136,19 +143,23 @@ body: "## Scenario\n\nWhen a project runs the yitc-v2 methodology as a CONSUMER,
   \ (<workshop-spec> rule 3 content-boundary).\n\n### History moved from the rule\
   \ body\n\nEach entry is a passage moved word for word out of the rule text of the\
   \ section it names;\nthe rule it explains stays there.\n\n- From «Rule 2»: (origin\
-  \ incident: the <project> `## Deploy` over-scope, reverted)\n\n## Verification\n\
-  \n- VP1 (Rule 2 — thin adapter): a consumer `<vendor-adapter>.md` contains ONLY\
-  \ adapter content (engine path +\n  `-C` verb form + neutral-home pointer) — grep\
-  \ shows NO product-rule / methodology / deploy section.\n- VP2 (Rule 1 — neutral\
-  \ home): the consumer's substantive operating-context is present in the ONE\n  declared\
-  \ neutral home (product `CHARTER.md`, else project `AGENTS.md`; `README.md` is NOT\
-  \ a home).\n- VP3 (Rule 3 — born thin): a temp `-C init` into a throwaway dir produces\
-  \ a thin vendor `<vendor-adapter>.md`\n  (this plan's probe) — adapter-only, no\
-  \ product/methodology/deploy sections (grep-checked).\n- VP4 (runbook lockstep):\
-  \ `patterns/onboarding-onto-yitc-runbook.md` no longer prescribes a\n  `## Product\
-  \ rules (KEEP inside <vendor-adapter>.md)` section — grep is clean.\n- VP5 (activation):\
-  \ this spec resolves to exactly one `activation_owner_task`; closing it flips\n\
-  \  draft/proposed → active.\n"
+  \ incident: the <project> `## Deploy` over-scope, reverted)\n\nRule 1a's quick-rule\
+  \ line and the `context-home-growth` signal were added by (owner\ndirectives 2026-10-27):\
+  \ a consumer's home had grown to 537 lines in 25 days, 328 of them queue and\ncard-cut\
+  \ rules no stage hands to a worker, although Rule 1a already said the home holds\
+  \ no worker\nrules — a prose rule with no signal did not hold, as with the provider\
+  \ memory.\n\n## Verification\n\n- VP1 (Rule 2 — thin adapter): a consumer `<vendor-adapter>.md`\
+  \ contains ONLY adapter content (engine path +\n  `-C` verb form + neutral-home\
+  \ pointer) — grep shows NO product-rule / methodology / deploy section.\n- VP2 (Rule\
+  \ 1 — neutral home): the consumer's substantive operating-context is present in\
+  \ the ONE\n  declared neutral home (product `CHARTER.md`, else project `AGENTS.md`;\
+  \ `README.md` is NOT a home).\n- VP3 (Rule 3 — born thin): a temp `-C init` into\
+  \ a throwaway dir produces a thin vendor `<vendor-adapter>.md`\n  (this plan's probe)\
+  \ — adapter-only, no product/methodology/deploy sections (grep-checked).\n- VP4\
+  \ (runbook lockstep): `patterns/onboarding-onto-yitc-runbook.md` no longer prescribes\
+  \ a\n  `## Product rules (KEEP inside <vendor-adapter>.md)` section — grep is clean.\n\
+  - VP5 (activation): this spec resolves to exactly one `activation_owner_task`; closing\
+  \ it flips\n  draft/proposed → active.\n"
 cites:
 - X-0163
 - SPEC-0073
@@ -188,7 +199,9 @@ init_concern:
     (or your product `CHARTER.md`) — the filled text, or a named waiver line there.
   tier: universal
 implements_signature:
-  bin/lib/cli.py#cmd_session_start: a7b3c24f640c3495769d976e03db29692c869bebf2931a9ea30eccdfe57e10bb
-  bin/lib/init.py#_ensure_consumer_vendor_adapter: 6a5949d7c49e54d50bfca80079c137594a92131e89eeaffb39f2ed6d210ffbaa
+  bin/lib/cli.py#_context_home_growth: 9b4cc9f3f5765e347af17e80b1ce73f25c0f95a1a6bf746d18f3f9d185047867
+  bin/lib/cli.py#cmd_session_start: 129c0b76e8d06456de4840d9e6ea0a00aa6e73421cb1ba36008a49bedacc41d7
+  bin/lib/init.py#_ensure_consumer_vendor_adapter: 5f2f6fecb5523c5ca88ccc69bf72e6bd8c8838c84e4533737adb304990793f8f
   bin/lib/init.py#home_reference_drift: deefa92df72a8994bb5d8b69ac8831856f86db48549b0cbaa2c061d4eb52cf44
+  bin/lib/inspection.py#context_home_growth_lines: 07ad328ce82c74d41b240962c0d5bac83e7d0d0e8350545aced9c0c3792b32b4
   bin/lib/session.py#visible_start_line: 5cee49e215d4a6c942927b0d54d58719f725d90c59cb56a3f2fc12e4b0111d10

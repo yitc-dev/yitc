@@ -44,56 +44,37 @@ concern:
   born_stance: permissive
   detector: audit-scrutiny-exempted-rework
   born: "audit_scrutiny:\n  # SPEC-0178. OPT-IN. Absent ⇒ every substantive task takes\
-    \ audit-post — the fail-closed\n  # default, and the state every project starts\
-    \ in. A declared case closes matching cards WITHOUT\n  # audit-post, recorded\
-    \ with its reason. Every key is kernel-executed (SPEC-0150 ownership chains).\n\
+    \ audit-post. A declared case closes\n  # matching cards WITHOUT audit-post, recorded\
+    \ with its reason.\n  # Rule text: `__YITC_CLI__ graph query SPEC-0178 --kernel`\n\
     \  # see SPEC-0178 §Rule 1, §Rule 5\n  # cases: # ownership: kernel-executed reader=bin/lib/task.py#_audit_scrutiny_cases\
     \ effect=bin/lib/task.py#cmd_task_close:emit:task_closed\n  # - case: docs # ownership:\
     \ kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:emit:task_closed\n\
     \  # match: { paths: [docs/**] } # ownership: kernel-executed reader=bin/lib/task.py#_case_match\
-    \ effect=bin/lib/task.py#cmd_task_close:emit:task_closed\n  # # PREFER paths;\
-    \ OR { class: docs } / { class: [docs, refactor] };\n  # # class + paths together\
-    \ = a NARROWER conjunction\n  # exempt: audit-post # ownership: kernel-executed\
-    \ reader=bin/lib/task.py#_case_exempt_refusal effect=bin/lib/task.py#cmd_task_close:refuse\n\
-    \  # # the ONLY exemptible gate; any other value refuses\n  # reason: \"<why this\
-    \ project accepts shipping these without a semantic diff review>\" # ownership:\
-    \ kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:refuse\n\
+    \ effect=bin/lib/task.py#cmd_task_close:emit:task_closed\n  # exempt: audit-post\
+    \ # ownership: kernel-executed reader=bin/lib/task.py#_case_exempt_refusal effect=bin/lib/task.py#cmd_task_close:refuse\n\
+    \  # reason: \"<why this project accepts shipping these without a semantic diff\
+    \ review>\" # ownership: kernel-executed reader=bin/lib/task.py#_case_valid effect=bin/lib/task.py#cmd_task_close:refuse\n\
     \  # declared_at: 2026-08-13 # ownership: kernel-executed reader=bin/lib/task.py#_case_restoration_state\
-    \ effect=bin/lib/task.py#cmd_task_close:refuse\n  # # the restoration window's\
-    \ ORIGIN; unreadable ⇒ no case\n  # # restore_after: 3 # ownership: kernel-executed\
-    \ reader=bin/lib/task.py#_case_positive_int_override effect=bin/lib/task.py#cmd_task_close:refuse\n\
+    \ effect=bin/lib/task.py#cmd_task_close:refuse\n  # # restore_after: 3 # ownership:\
+    \ kernel-executed reader=bin/lib/task.py#_case_positive_int_override effect=bin/lib/task.py#cmd_task_close:refuse\n\
     \  # # window_days: 90 # ownership: kernel-executed reader=bin/lib/task.py#_case_positive_int_override\
-    \ effect=bin/lib/task.py#cmd_task_close:refuse\n  # # optional overrides of K\
-    \ / W (kernel defaults 3 / 90)\n  #\n  # A case exempts audit-post and NOTHING\
-    \ else (never audit-pre, tests, land-verify, the worktree\n  # rule or closure\
-    \ probes), and a card whose DIFF touches a governance surface takes audit-post\n\
-    \  # whatever your case says. A spec RE-SIGN counts as a touch: a diff that only\
-    \ re-stamps a spec's\n  # `implements_signature` takes the exemption back, so\
-    \ a case reaches only cards whose diff\n  # re-signs no anchored spec. The guard\
-    \ takes back GOVERNANCE\n  # surfaces: specs, an always-loaded seed, this file,\
-    \ AND the SPEC-0077 pinned-test surface —\n  # `tests/**` and what `verify:` here\
-    \ names (a layer's `command:` paths, an adapter's\n  # `sources:` under root `bin/`,\
-    \ every `verify.infra_globs` entry; a refused value or entry\n  # there guards\
-    \ all of root `bin/`). A root `bin/` file your verifier runs that this file does\
-    \ not\n  # name is NOT guarded — list it under `verify.infra_globs`. Outside those\
-    \ surfaces the rest\n  # of root `bin/`, app/, backend/, frontend/, scripts/ are\
-    \ NOT guarded, so\n  # PREFER `paths:` over a class-only case.\n  # see SPEC-0178\
-    \ §Rule 2, §Rule 3, §Rule 6\n  #\n  # BORN-PERMISSIVE DECLARATION (SPEC-0189):\
-    \ the fragment below is LIVE. It is written only into a\n  # birth carrying an\
-    \ explicit per-section confirmation, which records its ratification:\n  # `init\
-    \ --confirm-born-permissive audit_scrutiny:<owner>`\n  # an unconfirmed or noninteractive\
-    \ birth has the section WITHHELD (absence reads fail-closed).\n  # ACCEPTED RISK\
-    \ — docs-only cards ship without a semantic diff review. Restoration is this project's\n\
-    \  # own explicit act — delete or narrow the case here (SPEC-0189 rule 4).\n \
-    \ # see SPEC-0189 §Rule 8\n  # yitc:born-permissive-declaration\n  cases:\n  \
-    \  - case: docs\n      match: { paths: [docs/**] }\n      exempt: audit-post\n\
-    \      reason: \"born permissive per the owner directive of 2026-08-21 — a new\
-    \ project does not\n        pay a semantic diff review for a docs-only card from\
-    \ day one. Bounded to docs/**, and\n        rule 3's governance guard takes back\
-    \ every governance surface regardless. The periodic\n        review watches for\
-    \ the absence starting to cost something and PROPOSES restoring the\n        gate\
-    \ (SPEC-0189); restoration is this project's own explicit act — delete or narrow\
-    \ this\n        case.\"\n      declared_at: 2026-08-21\n  # yitc:end-born-permissive-declaration\n"
+    \ effect=bin/lib/task.py#cmd_task_close:refuse\n  # A case exempts audit-post\
+    \ ONLY (never audit-pre, tests, land-verify or closure); a spec RE-SIGN\n  # (a\
+    \ re-stamped `implements_signature`) takes the exemption back too. The guard takes\
+    \ back GOVERNANCE\n  # surfaces: specs, an always-loaded seed, this file, AND\
+    \ the SPEC-0077 pinned-test surface —\n  # `tests/**` and what `verify:` names\
+    \ — so prefer `paths:` over a class-only case.\n  # see SPEC-0178 §Rule 2, §Rule\
+    \ 3, §Rule 6\n  # BORN-PERMISSIVE DECLARATION (SPEC-0189): written only by\n \
+    \ # `init --confirm-born-permissive audit_scrutiny:<owner>`; restoring is this\
+    \ project's own act\n  # (SPEC-0189 rule 4).\n  # see SPEC-0189 §Rule 8\n  # yitc:born-permissive-declaration\n\
+    \  cases:\n    - case: docs\n      match: { paths: [docs/**] }\n      exempt:\
+    \ audit-post\n      reason: \"born permissive per the owner directive of 2026-08-21\
+    \ — a new project does not\n        pay a semantic diff review for a docs-only\
+    \ card from day one. Bounded to docs/**, and\n        rule 3's governance guard\
+    \ takes back every governance surface regardless. The periodic\n        review\
+    \ watches for the absence starting to cost something and PROPOSES restoring the\n\
+    \        gate (SPEC-0189); restoration is this project's own explicit act — delete\
+    \ or narrow this\n        case.\"\n      declared_at: 2026-08-21\n  # yitc:end-born-permissive-declaration\n"
 body: "## Scenario\n\nA project decides that for some kind of its own work — a class\
   \ of cards, or changes confined to\nsome paths — it will ship without the external\
   \ semantic review of the shipped diff, and it says so\nout loud, with a reason,\
@@ -533,13 +514,13 @@ body: "## Scenario\n\nA project decides that for some kind of its own work — a
   \ files a project's verifier runs that its contract does not\nname, until the project\
   \ lists them under `verify.infra_globs`.\n"
 implements_signature:
-  bin/lib/inspection.py#cmd_inspect_record: b2f29d71790db26a64a533af60b5cebcea899fc63e3543d7ea159d1e4100e474
+  bin/lib/inspection.py#cmd_inspect_record: 212e2a52ed244145dc627a8a9c08f0d58e7ce948e8a327c0937a071aec568a3d
   bin/lib/task.py#_audit_scrutiny_cases: 0018ff3946d76e03188f6fc1f12c21bd495c5f5f6c2f3bb4ecc12df10b33e60d
   bin/lib/task.py#_case_exempt_refusal: 85308d8da223a74ec9362761325864f8ca71dcb5d89750b9cbdb31d616fa277c
   bin/lib/task.py#_case_match: f98fa0d67e22e523776c2afee00ddb22d9fae69dda0293f5f53d79abe5a75197
   bin/lib/task.py#_case_restoration_state: aca70034ef982543c503b74592ea9eab2a9ac013011d44eea5ff3688a8f5238a
   bin/lib/task.py#_case_valid: 216a2627b0bfe0b1a931807e37fb3a009e6a3a6d5964ce0b603ac1a6b451fa9f
-  bin/lib/task.py#cmd_task_close: 595eea6e8159447332a90490bb62879bc1077ce0fd6b0368e4af6ca2c0c270ce
+  bin/lib/task.py#cmd_task_close: 82d6fa48886117506a2185ef696441562db851d77d6fcf7d7fcb532310c192ab
   bin/lib/task_closure_evidence.py#_case_attribution: 74e396a06f72d71e785e5deb5dee09608487ae183ac40ee8b87c1af539d0e309
   bin/lib/task_closure_evidence.py#_case_closure_index: a68a8461d86f6fa975f4c5d523e5c081c7e724a2fa7015bc781e15ead3561103
   bin/lib/task_closure_evidence.py#_case_covered_share: bf05701807cfd853476788117b2cbaa470923898841f3a423ae5ce59b273ba8d

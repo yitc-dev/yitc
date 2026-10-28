@@ -89,20 +89,20 @@ concern:
   waiver_policy: loose
   born_order: 150
   born: "product_cron:\n  # SPEC-0109. DECLARE this project's OWN scheduled work so\
-    \ v2 GOVERNS it (it never runs it; the\n  # project's deploy does). Replace this\
-    \ waiver with:\n  # scheduler: celery-beat # the declaration key that ANSWERS\
-    \ this section\n  # source: backend/app/tasks/celery_app.py # the beat_schedule\
-    \ literal — the SOLE source of truth\n  # inventory: [...] # a DERIVED view of\
-    \ the job set\n  # The scheduler definition stays the SOLE source of truth — any\
-    \ inventory here is DERIVED from it,\n  # never hand-entered. Declared != governed:\
-    \ governed needs a visible inventory AND an observed\n  # fired run. A host-only\
-    \ crontab job is declared HERE too. Waiver LOOSE but FORWARD-AWARE.\n  # see SPEC-0109\
-    \ §1, §2, §3, §4\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
-    \ — no product scheduler declared yet. This project runs no scheduled work of\
-    \ its own; if it gains one (a celery-beat schedule, a host cron), replace this\
-    \ waiver with `scheduler:` + `source:` (the definition that stays the sole source\
-    \ of truth) + a DERIVED `inventory:` (rendered from that source, never hand-entered\
-    \ — SPEC-0109 rule 2).\"\n"
+    \ v2 governs it (never runs it); example below.\n  # Rule text: `__YITC_CLI__\
+    \ graph query SPEC-0109 --kernel`\n  # see SPEC-0109 §1, §2, §3, §4\n  waiver:\n\
+    \    reason: \"Initialized via `bin/yitc-v2 init` — no product scheduler declared\
+    \ yet. This project runs no scheduled work of its own; if it gains one (a celery-beat\
+    \ schedule, a host cron), replace this waiver with `scheduler:` + `source:` (the\
+    \ definition that stays the sole source of truth) + a DERIVED `inventory:` (rendered\
+    \ from that source, never hand-entered — SPEC-0109 rule 2).\"\n  # SCHEDULED PRE-DEPLOY\
+    \ RUN (SPEC-1047) — switch on after your first declared deploy: commit the\n \
+    \ # line as ops/crontab, install it, and put the block below in place of the waiver:\n\
+    \  # 17 4 * * * cd <project> && <engine>/bin/yitc-v2 -C <project> session start\
+    \ >> <log> 2>&1 && YITC_SESSION_REF=cron-<name> <engine>/bin/yitc-v2 -C <project>\
+    \ deploy --scheduled-run >> <log> 2>&1\n  # scheduler: crontab\n  # source: ops/crontab\n\
+    \  # inventory:\n  # - job: scheduled-pre-deploy-run\n  # schedule: \"17 4 * *\
+    \ *\"\n  # command: deploy --scheduled-run\n"
 activation_owner_task: null
 proposed_by: v2-automation-grow-l2-product-cron-governance-l3-l
 binding:

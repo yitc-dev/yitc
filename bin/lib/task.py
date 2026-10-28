@@ -2830,6 +2830,74 @@ def _splice(text: str, spans: list, repl: str) -> str:
     return "".join(out)
 
 
+def block_scalar_escape(text: str, updated: str, old: str, *, replace_all: bool):
+    """T-14177 (public issue #191) — the refusal text for a RAW `--old/--new` splice whose `--old`
+    site lies inside a block scalar (`|` / `>`) and whose result changes the card OUTSIDE the field
+    owning that block: a top-level key added, dropped or repeated, or another field's source text
+    changed. A `--new` line at a lower indent than the block ends the block and parses as a new
+    top-level key — the card still loads, so no parse check catches it. None = no such escape. An
+    `--old` site at top level is not judged here: adding a key beside it stays the supported route
+    (T-10546). Both sides are compared as COMPOSED nodes (key node + value source span), never as
+    constructed values, so an alias cycle and a quoted key are read like any other node."""
+    import yaml
+    try:
+        root = yaml.compose(text, Loader=state.yaml_loader())
+        new_root = yaml.compose(updated, Loader=state.yaml_loader())
+    except yaml.YAMLError:
+        return None
+    if not isinstance(root, yaml.MappingNode) or not isinstance(new_root, yaml.MappingNode):
+        return None
+    starts, at = [], text.find(old)
+    while at >= 0:
+        starts.append(at)
+        if not replace_all:
+            break
+        at = text.find(old, at + max(len(old), 1))
+    hits, seen = [], set()   # hits: (owning top-level key, block start line)
+
+    def _walk(node, key):
+        if id(node) in seen:   # an alias re-visits its anchor's node (a cycle included)
+            return
+        seen.add(id(node))
+        if isinstance(node, yaml.ScalarNode):
+            if node.style in ("|", ">") and any(node.start_mark.index <= s < node.end_mark.index for s in starts):
+                hits.append((key, node.start_mark.line))
+        elif isinstance(node, yaml.SequenceNode):
+            for n in node.value:
+                _walk(n, key)
+        elif isinstance(node, yaml.MappingNode):
+            for _k, v in node.value:
+                _walk(v, key)
+    for k, v in root.value:
+        _walk(v, getattr(k, "value", None))
+    if not hits:
+        return None
+    owners = {k for k, _ in hits}
+
+    def _shape(node, src):
+        return [(getattr(k, "value", None),
+                 None if getattr(k, "value", None) in owners else src[v.start_mark.index:v.end_mark.index])
+                for k, v in node.value]
+    before, after = _shape(root, text), _shape(new_root, updated)
+    if before == after:
+        return None
+    i = next((n for n, (b, a) in enumerate(zip(before, after)) if b != a), min(len(before), len(after)))
+    changed = sorted({str(k) for k, _ in set(before) ^ set(after)})
+    owner, line0 = hits[0]
+    indent = next((len(ln) - len(ln.lstrip(" ")) for ln in text.splitlines()[line0 + 1:] if ln.strip()), 0)
+    if i < len(after):
+        key_node = new_root.value[i][0]
+        esc_line = updated.splitlines()[key_node.start_mark.line]
+        where = (f"line {key_node.start_mark.line + 1} `{esc_line.strip()[:80]}` "
+                 f"(column {key_node.start_mark.column})")
+    else:
+        where = "the end of the card (a top-level key is gone)"
+    return (f"refusing to write — --old lies inside the block scalar of `{owner}` (block indent "
+            f"{indent}), and --new leaves that block at {where}: the card would change outside "
+            f"`{owner}` — key(s) {changed}. Indent every --new continuation line to the block's "
+            f"{indent} spaces so it stays inside the block (the file is untouched; T-14177).")
+
+
 def wrapped_field_edit(text: str, parsed, old: str, new: str, *, replace_all: bool) -> tuple:
     """The stored-form fallback for a field-edit whose `--old` MISSED the raw text.
 
@@ -4812,6 +4880,7 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         if n > 1 and not replace_all:
             _die(f"--old matches {n} times in {path.name} — make it unique or pass --replace-all")
         count = n if replace_all else 1
+        raw_splice = updated is None   # T-14177: only the verbatim splice can carry --new out of a block
         if updated is None:
             updated = text.replace(old, new) if replace_all else text.replace(old, new, 1)
             try:
@@ -4895,6 +4964,12 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # field of frozen history. Compare the same-loader parse of the original vs the replaced text
         # (apples-to-apples, not the transition-loader `task`).
         orig_parsed = state.load_str(text)
+        # BLOCK-SCALAR ESCAPE guard (T-14177): a verbatim --new under a block scalar's indent is
+        # refused when it changes the card outside the block's own field (block_scalar_escape).
+        if raw_splice:
+            _esc = block_scalar_escape(text, updated, old, replace_all=replace_all)
+            if _esc:
+                _die(f"{_esc} Re-run `bin/yitc-v2 task update {tid} --old <span> --new <indented text>`.")
         # DECLARED-IDENTICAL guard (T-13856, SPEC-0205 rule 5): the per-path declaration has ONE
         # writer, the --set-field route that validates it against the card's own prototype. A text
         # edit that changes it, or that leaves it on a card which no longer names a prototype, is
@@ -8275,15 +8350,16 @@ def _auto_cross_pick_for_file(task: dict, tid: str, *, CROSS_LOG_PATH, _cross_em
 # A DEPLOYING project's `task close` REFUSES unless the task DECLARES a `live_probe` (assertion OR a
 # reasoned `none` waiver). STATIC + fail-closed: a DECLARATION presence+grammar check; it does NOT call
 # production at close (the executable GET runs at the DEPLOY seam, SPEC-0094 §4). A non-deploying project
-# (no carrier / a waived deploy — e.g. the kernel itself) is UNCHANGED. The two helpers are PURE
+# (no carrier / a waived deploy) and the engine's own checkout are UNCHANGED. The two helpers are PURE
 # module-level fns (no host deps) called directly inside cmd_task_close — so the injected-deps contract
 # stays unchanged (mirrors the T-9389 no-injected-deps philosophy).
 def _project_is_deploying(repo_root) -> bool:
     """True iff this project DECLARES a deploy command in its yitc-ops.yaml carrier (SPEC-0093/0094 §1).
     "Deploying" = the `deploy:` section carries a non-empty `command:` — NOT merely that the carrier file
     or a born-WAIVED deploy section exists (a waived deploy = "no deploy command yet", explicitly not
-    deploying). A repo that declares none (a missing carrier; the kernel's own file) is never deploying,
-    so its closes are UNCHANGED (SPEC-0094 §Amends). Fail-closed-NARROW: a malformed/unreadable carrier reads as
+    deploying). A repo that declares none (a missing carrier) is never deploying, so its closes are
+    UNCHANGED (SPEC-0094 §Amends); the engine's own checkout, which declares one, is kept out by its
+    caller (T-14214). Fail-closed-NARROW: a malformed/unreadable carrier reads as
     not-deploying (the SPEC-0093 init/sweep is the fail-closed guard for carrier malformedness, not the
     close-gate). Self-contained read — no host deps."""
     try:
@@ -9366,6 +9442,65 @@ def _unknown_probe_key_error(probe_keys, acceptance) -> "str | None":
 # the parsers stay faithful, `cmd_task_close` — which knows what a probe key is for — owns the
 # judgement, and it runs BEFORE any status / probe_passed write, so a refusal leaves the card
 # exactly as it was and emits no `task_closed`.
+def _close_refusals_before_run(task: dict, *, _closure_unread=None) -> "list[str]":
+    """T-14274 — the `task close` refusals this card would meet that need NO test run, read off the
+    card alone, so `task test --run` can say them BEFORE the full run instead of after the green one
+    (measured: T-14264's third close refused at the post-verification gate 77.9 s in, after its run
+    had set the repo's green hold). REPORT ONLY: the caller prints, nothing refuses, no row. Each line
+    restates an existing close refusal and reuses its predicate — the predicates stay the authority."""
+    tid = task.get("id") or "<task>"
+    out = []
+    if closure_evidence._post_verification_gap(task):
+        out.append(f"no post_verification and no explicit waive — `task close` refuses (SPEC-0038 §3); "
+                   f"pass `--pv-criterion '…' --pv-signal '…'` or `--pv-waive '…'` on {tid}'s first close")
+    if task.get("class") == "infra":
+        out.append("class=infra — `task close` refuses without a forward-propagation disposition "
+                   "(SPEC-0053): pass one of --prop-follow-up / --prop-deferred-idea / --prop-nowhere")
+    acceptance = task.get("acceptance") or []
+    legal_ids, _ = _criterion_key_namespace(acceptance)
+    if legal_ids:
+        unnamed = [i for i, c in enumerate(acceptance, 1) if _leading_criterion_id(c) is None]
+        if unnamed:
+            out.append(f"acceptance item(s) {unnamed} carry no leading criterion id while others do — "
+                       "no `--probe <key>` can name them at close")
+        ids = [_leading_criterion_id(c) for c in acceptance]
+        dup = sorted({f"{p}{n}" for p, n in (i for i in ids if i) if ids.count((p, n)) > 1})
+        if dup:
+            out.append(f"criterion id(s) {', '.join(dup)} label more than one acceptance item — a "
+                       "`--probe` key cannot tell them apart; amend `acceptance:` (`task update`)")
+    # The Closure read gate (`_require_reads`, SPEC-0042): the contracts THIS session has not fetched
+    # yet. Report-only and fail-soft — a reader error prints nothing rather than stopping the run.
+    try:
+        unread = _closure_unread() if _closure_unread is not None else _closure_contracts_unread()
+    except Exception:   # noqa: BLE001 — a report must never stop the run it precedes
+        unread = []
+    if unread:
+        out.append(f"Closure contract(s) not fetched this session: {', '.join(unread)} — `task close` "
+                   f"refuses `contracts_unfetched`; run `bin/yitc-v2 stage Closure --task {tid}` "
+                   "(or `graph query <id>`) with its output reaching you before the close")
+    return out
+
+
+def _closure_contracts_unread(_cli=None) -> "list[str]":
+    """T-14274 — the Closure stage-entry contracts the `task close` read gate would find unfetched for
+    THIS session, by the gate's own readers (doc-set, session anchor, receipts); never a second rule.
+    It reads the journal TAIL only (`_iter_events_tail`, the gates' T-10396 fast path): measured 49 s
+    for the full fold against well under that for the tail, and a report may over-name — a receipt
+    older than the window reads unfetched here while the gate itself, deciding on the full read,
+    credits it. It can never under-name: a tail credit is a full credit (the T-10396 soundness).
+    `_cli` is the CLI module to read through (a test hands in the one it loaded); default `lib.cli`."""
+    if _cli is None:
+        from lib import cli as _cli      # local import: `lib.cli` imports this module
+    docs = _cli._stage_bundle_specs("Closure", include_kernel=_cli._is_consumer_build())
+    if not docs:
+        return []
+    sref = _cli._resolve_session_ref()
+    events, _bounded = _cli._iter_events_tail(session_ref=sref)
+    lb = _cli._session_started_lower_bound(sref, events=events)
+    fetched = _cli._fetched_spec_ids(sref, lb, events=events) if lb is not None else set()
+    return [d for d in docs if d not in fetched]
+
+
 def _colon_bearing_probe_key_error(probe_keys) -> "str | None":
     """FAIL-CLOSED admission for probe key SHAPE. Returns the refusal reason, else None.
 
@@ -9897,6 +10032,16 @@ def sync_merge_closure_custody(record, sha, *, _git_resolve_sha, repo_root) -> "
     except Exception:      # noqa: BLE001 — an unanswerable question never moves custody
         return None
     return None
+
+
+def _close_rebuilds_graph(in_writing_worktree: bool, *written) -> bool:
+    """T-14305 — does this `task close` rebuild the graph itself? `written` are the graph inputs the
+    close wrote: activated / superseded / reverified spec ids and the fingerprints folded into the
+    card's `cites` (the one card field the index reads — graph.py `tasks_citing`). In a writing
+    worktree that wrote none, the index is the one the tree already yields and `land` rebuilds after
+    the merge (its step 3), so the close's own build is skipped (measured 14-17 s, always a cache
+    miss). Off a writing worktree there is no later land rebuild: the close builds, as before. PURE."""
+    return not in_writing_worktree or any(written)
 
 
 def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _unflippable_supersedes_targets=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
@@ -11275,6 +11420,61 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # contracts (SPEC-0015 ordering/probe/infra + SPEC-0038 post-verification). Placed AFTER the
     # post-done recovery early-return (recovery is idempotent tail completion, not re-gated) + the
     # stage-correspondence check, BEFORE any closure work. The doc-set is derived, not hard-typed.
+    # SPEC-0038 §3 (post-verification observation instrument) — fill-or-explicit-waive, FAIL-CLOSED
+    # (T-10721, amending the T-0354 non-blocking WARN). Closure is the authoring moment (SPEC-0038
+    # §2): fill `post_verification` (criterion + signal) or waive explicitly (`post_verification:
+    # {none: <reason>}` — nested, ONE top-level field). Silent absence is indistinguishable from
+    # "forgot" (F-#2) — exactly the blindness this instrument closes, and the WARN could not make
+    # §3's own "the waive MUST be explicit" true: measured 763/1439 = 53.0% of non-hygiene closures
+    # skipped it over [2026-06-05T16:54:56Z .. 2026-08-06T10:50:55Z], 66.9% over the trailing 30d and
+    # RISING — after the T-0409 --pv flags had already shipped as the delivery remedy. So the same
+    # `_post_verification_gap` predicate (P5 — ONE predicate, unchanged) now REFUSES instead of
+    # warning. Placed BEFORE the status:done write below, so a refused close writes nothing.
+    #
+    # SCOPE — exactly this forward path. The two sibling paths keep the non-blocking WARN + the
+    # `post_verification_gap` marker, deliberately (SPEC-0038 §3 "Amendment scope"):
+    #   * cmd_task_update `--status wont-do` — exposes no pv setter flag, so gating it would refuse
+    #     with no escape (the recorded 2026-06-23 / 2026-07-10 catch-22 captures);
+    #   * _recover_close_tail — completes an ALREADY-`done` task's tail; contractually no re-gate.
+    # class:hygiene still auto-waives inside the predicate. The honest-only marker therefore stays a
+    # live signal on those paths and across the historical corpus.
+    # T-14274 — MOVED here, ahead of `_require_reads` and every later journal fold, the commit chain and
+    # the closure build: its inputs are the card and the --pv flags (stdin already folded onto args at the
+    # verb's top), so a run-free refusal no longer waits behind ~40 s of folds (measured: a refused close
+    # spent 77.9 s before this row). The structural refusals above (closeable status, stage
+    # correspondence, verification artifact) keep coming first. The flags are applied to a COPY — the
+    # card on disk and in memory is authored only at the ordinary seam below.
+    _pv_probe = dict(task)
+    _author_post_verification(_pv_probe, args)
+    post_verification_gap = _post_verification_gap(_pv_probe)
+    if post_verification_gap:
+        # OBSERVABILITY — the refusal is JOURNAL-VISIBLE, never a silent `_die` (the rule
+        # `_require_stage_correspondence` already states for its own leg). This is load-bearing, not
+        # decoration: the pre-T-10721 WARN made every skip COUNTABLE via `post_verification_gap` in
+        # task_closed — which is the signal this very task measured (763/1439). A bare refusal would
+        # ship a rule whose own effectiveness became unmeasurable, so the countability MOVES from the
+        # gap marker to this refusal row: gaps → refusals, same question, still answerable from the
+        # journal. Reuses `read_gate_refused`, the documented "ONE umbrella event for ALL refusal
+        # kinds — NO second event name"; `post-verification-fill` is a 4th value in its EXISTING
+        # `kind` discriminator (the enum SPEC-0059 enumerates, extended once before for
+        # `verification-exists` when that blocking leg shipped). Best-effort by construction — the
+        # helper swallows journal errors so a write failure can never mask the refusal below.
+        _emit_read_gate_refused(
+            "task close", {"action": "closure", "stage": "Closure"},
+            kind="post-verification-fill", reason="post_verification_absent_and_unwaived",
+            task_id=tid)
+        _die(f"{tid}: closure REFUSED — no post_verification and no explicit waive (SPEC-0038 §3, "
+             "fail-closed). Author the criterion NOW, at the moment of best understanding, by "
+             "re-running this close with EITHER:\n"
+             f"  fill:  yitc-v2 task close {tid} --pv-criterion '<what \"it worked\" looks like in "
+             "real operation — positive + observable>' --pv-signal '<the event/state/measurable that "
+             "proves it>'\n"
+             f"  waive: yitc-v2 task close {tid} --pv-waive '<why this task has no observable "
+             "post-verification signal>'\n"
+             "(both flags of the fill go together; `class: hygiene` auto-waives and never reaches "
+             "here. The reason text is never machine-judged — what is required is that the choice "
+             "be MADE and recorded, not that it be graded.)")
+
     _require_reads("stage", {"stage": "Closure", "verb": "task close", "action": "closure"})
 
     # T-11174 — UNSEEN-AMENDMENT readiness: the card this session is about to declare done must still
@@ -11323,9 +11523,11 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # DEPLOY seam, §4). Scope is EVERY task in a deploying project (SPEC-0094 §3 "REFUSES unless the task
     # DECLARES a live_probe" — unconditional; a non-user-facing task closes via a one-line `none` waiver,
     # `user_facing` lives INSIDE the waiver and only governs recheck_by). A NON-deploying project (no
-    # carrier / a waived deploy — e.g. the kernel itself) is UNCHANGED (SPEC-0094 §Amends; AC2). Placed
+    # carrier / a waived deploy — and the engine, below) is UNCHANGED (SPEC-0094 §Amends; AC2). Placed
     # with the other structural presence-gates, after the require-reads gate (read-then-enforce).
-    if _project_is_deploying(REPO_ROOT):
+    # T-14214: the engine's own checkout declares `deploy:` too (SPEC-0186 rule 6), but that command is only
+    # a release publication with no live serving surface, so the engine stays not deploying for this gate.
+    if _project_is_deploying(REPO_ROOT) and (_is_consumer_build is None or _is_consumer_build()):
         lp = task.get("live_probe")
         if lp is None:
             # T-9527 (SPEC-0094 §3) — live_probe DEFAULT: derive from TOUCHED RUNTIME SURFACES. A task
@@ -12080,52 +12282,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                     f"event and `yitc-v2 followup drop "
                     f"{_p8_fid or '<id>'} --reason ...`, or promote it into a task.\n")
 
-    # SPEC-0038 §3 (post-verification observation instrument) — fill-or-explicit-waive, FAIL-CLOSED
-    # (T-10721, amending the T-0354 non-blocking WARN). Closure is the authoring moment (SPEC-0038
-    # §2): fill `post_verification` (criterion + signal) or waive explicitly (`post_verification:
-    # {none: <reason>}` — nested, ONE top-level field). Silent absence is indistinguishable from
-    # "forgot" (F-#2) — exactly the blindness this instrument closes, and the WARN could not make
-    # §3's own "the waive MUST be explicit" true: measured 763/1439 = 53.0% of non-hygiene closures
-    # skipped it over [2026-06-05T16:54:56Z .. 2026-08-06T10:50:55Z], 66.9% over the trailing 30d and
-    # RISING — after the T-0409 --pv flags had already shipped as the delivery remedy. So the same
-    # `_post_verification_gap` predicate (P5 — ONE predicate, unchanged) now REFUSES instead of
-    # warning. Placed BEFORE the status:done write below, so a refused close writes nothing.
-    #
-    # SCOPE — exactly this forward path. The two sibling paths keep the non-blocking WARN + the
-    # `post_verification_gap` marker, deliberately (SPEC-0038 §3 "Amendment scope"):
-    #   * cmd_task_update `--status wont-do` — exposes no pv setter flag, so gating it would refuse
-    #     with no escape (the recorded 2026-06-23 / 2026-07-10 catch-22 captures);
-    #   * _recover_close_tail — completes an ALREADY-`done` task's tail; contractually no re-gate.
-    # class:hygiene still auto-waives inside the predicate. The honest-only marker therefore stays a
-    # live signal on those paths and across the historical corpus.
-    post_verification_gap = _post_verification_gap(task)
-    if post_verification_gap:
-        # OBSERVABILITY — the refusal is JOURNAL-VISIBLE, never a silent `_die` (the rule
-        # `_require_stage_correspondence` already states for its own leg). This is load-bearing, not
-        # decoration: the pre-T-10721 WARN made every skip COUNTABLE via `post_verification_gap` in
-        # task_closed — which is the signal this very task measured (763/1439). A bare refusal would
-        # ship a rule whose own effectiveness became unmeasurable, so the countability MOVES from the
-        # gap marker to this refusal row: gaps → refusals, same question, still answerable from the
-        # journal. Reuses `read_gate_refused`, the documented "ONE umbrella event for ALL refusal
-        # kinds — NO second event name"; `post-verification-fill` is a 4th value in its EXISTING
-        # `kind` discriminator (the enum SPEC-0059 enumerates, extended once before for
-        # `verification-exists` when that blocking leg shipped). Best-effort by construction — the
-        # helper swallows journal errors so a write failure can never mask the refusal below.
-        _emit_read_gate_refused(
-            "task close", {"action": "closure", "stage": "Closure"},
-            kind="post-verification-fill", reason="post_verification_absent_and_unwaived",
-            task_id=tid)
-        _die(f"{tid}: closure REFUSED — no post_verification and no explicit waive (SPEC-0038 §3, "
-             "fail-closed). Author the criterion NOW, at the moment of best understanding, by "
-             "re-running this close with EITHER:\n"
-             f"  fill:  yitc-v2 task close {tid} --pv-criterion '<what \"it worked\" looks like in "
-             "real operation — positive + observable>' --pv-signal '<the event/state/measurable that "
-             "proves it>'\n"
-             f"  waive: yitc-v2 task close {tid} --pv-waive '<why this task has no observable "
-             "post-verification signal>'\n"
-             "(both flags of the fill go together; `class: hygiene` auto-waives and never reaches "
-             "here. The reason text is never machine-judged — what is required is that the choice "
-             "be MADE and recorded, not that it be graded.)")
+    # SPEC-0038 §3 — the post-verification fill-or-waive refusal ran ABOVE, before the fold-bearing
+    # read gates (T-14274); `task` here already carries the authored field.
 
     # T-0227 — plan-finalization-not-forgotten trigger (PUSH layer, mirrors the E-0005 WARN above):
     # if this close empties the OTHER-open-citing-task set of an accepted plan this task cites, surface
@@ -12539,7 +12697,10 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
 
     # Auto-rebuild graph index per T-0026 (CLI-workflow integration, not hook chain).
     # MUST follow task_closed event so the rebuild captures the new status.
-    _auto_rebuild_graph("task_close")
+    # T-14305: skipped in a writing worktree when this close wrote no graph input (see the predicate).
+    if _close_rebuilds_graph(_in_writing_worktree(), activated_specs, superseded_specs,
+                             reverified_specs, closes_fp_added):
+        _auto_rebuild_graph("task_close")
 
     # T-9362 — receiver-side auto cross-done: if this task links coordination item(s) via
     # `resolves_cross`, auto-emit cross_done for each it is the receiver of + that is `picked`, so a
@@ -12927,6 +13088,9 @@ def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs
     rule said `not-in-diff`, a path token of that text EXACTLY equal to a changed path makes the entry
     `in-diff` — same exactness bound as above, no suffix and no basename. Each decided entry records
     which step decided it in `rule` (`file` | `named-path`); an `undetermined` entry carries none.
+
+    T-14229 — with `messages` given, a test FILE's entry (a name resolved against `name_dirs`) also
+    carries `failed_tests` + `named`: the test functions its own text named, or `[]` / `false`.
     """
     out = []
     msgs = {str(k).strip().lstrip("./"): v for k, v in (messages or {}).items()}
@@ -12966,6 +13130,13 @@ def _verify_failure_attribution(failing_names: list, changed_paths, *, name_dirs
             entry["rule"] = "file"
             if attribution == "not-in-diff" and (_message_named_paths(msgs.get(name)) & paths):
                 entry.update(attribution="in-diff", rule="named-path")
+        if messages is not None and dirs and name not in tails and "/" not in name:
+            # T-14229: a test FILE's entry names the tests its own failure text named — the ONE
+            # parser the land's abort row uses (`worktree._failed_test_names`), over the same text.
+            from lib import worktree as _wt
+            for rec in _wt._failed_test_names([f"test failed: {name}\n{msgs.get(name) or ''}"],
+                                              test_dir=dirs[0]):
+                entry.update(failed_tests=rec["failed_tests"], named=rec["named"])
         out.append(entry)
     return out
 
@@ -13551,7 +13722,14 @@ def _stage6_local_admission(root, limits: dict, *, _main_worktree=None, label: s
     (`_stage6_load_settings`), the run that holds the next place in order starts only on a CPU busy
     share under the bound, read over a window that began at or after the newest start, and once the
     spacing since that start has passed (`_Stage6LoadHold`). Unset, nothing here reads the host.
-    `_load_hold` is the test seam: a settings dict, or a factory taking the slot directory."""
+    `_load_hold` is the test seam: a settings dict, or a factory taking the slot directory.
+
+    T-14197 (SPEC-1029 rule 5, SPEC-1045 rule 2) — a run the repo's admission queue ADMITTED (the
+    queue is switched on and this process passed it) is not ordered again here: the order above and
+    its load hold are not consulted, a null context."""
+    from lib import admission as _admission
+    if _admission.admitted() is not None:
+        return contextlib.nullcontext()
     n = limits.get("max_concurrent")
     if not n:
         return contextlib.nullcontext()
@@ -14747,7 +14925,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     _stage6_step_lines: list = []   # T-13645: the layer STEP lines this run printed (SPEC-0132 Rule 7)
     _stage6_retry_metrics: dict = {}   # T-13545: the guard's layer re-run record, as a verify_metrics fragment
     _stage6_priority: dict = {}        # T-13904: what THIS invocation's run ran at, as a verify_metrics fragment
+    _stage6_walls: dict = {}           # T-14241: the run's per-file walls, as a verify_metrics fragment
     _s6_routing: dict = {}             # T-13976: the SPEC-1032 routing reason, as a verify_metrics fragment
+    _s6_pd_skip = None                 # T-14211: the skip set the run applied — only a run this verb ran sets it
+    _s6_selected = None                # T-14228: the names a NARROWED run selected — only a run this verb ran sets it
     _s6_budget: dict = {}              # T-13971: the width budget the local run was sized by (SPEC-0132 §1c)
     _stage6_lands: dict = {}           # T-13905: the land verifies beside THIS invocation's run, as a row fragment
     # T-13532 (SPEC-0065 §Bound) — what the `--run` branch learns about the tree it tested, read by the
@@ -14799,6 +14980,11 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             _die("task test --run: verify runner unavailable (internal wiring error)")
         from pathlib import Path
         root = Path(REPO_ROOT)
+        # T-14274 — say the run-free close refusals NOW, before the suite, so the close after a green run
+        # (which holds the repo's queue until the land) succeeds first try. Report only.
+        # No stderr stream (None) prints nothing: `print(file=None)` would put the report on stdout.
+        for _line in (_close_refusals_before_run(task) if sys.stderr is not None else []):
+            print(f"close-preflight: {_line}", file=sys.stderr)
         # T-10379 (fu_ce912f45f9bb) — MIRROR land's step-3 PRE-VERIFY graph rebuild so `task test --run`
         # reaches the SAME Stage-6 verdict `land` does. `_land_integrate` runs `_auto_rebuild_graph("land")`
         # BEFORE `_run_verify_tests`; `--run` used to run neither rebuild, so a task that edited a spec /
@@ -14883,6 +15069,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # (a test failure must never become a traceback) — it is now reachable only by a genuinely
         # foreign exception.
         _venue_result = None
+        _s6_venue_pd_skip = None       # T-14288: the skip record a routed kernel pass shipped to the box
         _venue_metrics: dict = {}
         # T-13904 (SPEC-0184 rule 9, the mark's second effect) — the card's LIVE queue-jump mark, read
         # ONCE for this run from the MAIN checkout's card. Live: the run's children start at normal
@@ -15209,9 +15396,19 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 if _vdec["remote"]:
                     print(f"task test --run: routed to the published venue {_vrec.get('box')} "
                           f"(candidate leg, lower priority) — SPEC-1029")
+                    # T-14288 (SPEC-1051 rule 2) — the run's skip set, read ONCE here over this tree and
+                    # shipped: the box applies it to its candidate leg (it has no main checkout to read),
+                    # and the row below records this same record (no second read).
+                    try:
+                        from lib import land_verify_legs as _lvl   # lazy: the circular-import idiom of this module
+                        _s6_venue_pd_skip = _lvl._pre_deploy_run_skip(
+                            root, changed=_stage6_changed_paths(root, _run_git_cap=_run_git_cap))
+                    except Exception:          # noqa: BLE001 — no record: the box skips nothing
+                        _s6_venue_pd_skip = None
                     _venue_result = remote_verify.route(
                         root, kind=remote_verify.STAGE6_KIND, decision=_vdec, local=_local_verify,
                         test_dir=root / "tests", selection=_stage6_route_selection,
+                        pre_deploy_skip=_s6_venue_pd_skip,
                         priority="low", legs=("cand",),
                         **({"queue_jump": _s6_mark} if _s6_mark else {}),
                         on_wait=_stage6_venue_wait_relay(_append_event, tid, _vrec.get("box")))
@@ -15252,6 +15449,18 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 partition=(_venue_result or {}).get("partition"),
                 full_reason=_stage6_full_reason)
             print(_stage6_selection_note(selection_summary))
+            # T-14228 (SPEC-0065 §Bound condition 4) — the WHOLE set a narrowed pass selected (box and
+            # local probe together; the always-run files included), for the land to compare with its
+            # own: the routed names, else the resolved pre-selection, else the runner's own list. Kept
+            # only when its size is the pass's `ran` count — any doubt records nothing (no credit).
+            if selection_summary.get("selection") == "affected":
+                _presel_files = (_stage6_presel.get("test_files")
+                                 if isinstance(_stage6_presel, dict) else None)
+                _names = (_stage6_route_selection if _stage6_route_selection is not None
+                          else sorted(f.name for f in _presel_files) if isinstance(_presel_files, list)
+                          else _sel_metrics.get("selection_ran_tests"))
+                if isinstance(_names, list) and len(_names) == selection_summary.get("ran"):
+                    _s6_selected = list(_names)
         # T-12589 (SPEC-0132 Rule 2): Stage-6 publishes the governor's W (0 included) to consumer
         # layers on the same terms land does; an unwired harness keeps the one-arg call.
         #
@@ -15371,6 +15580,43 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                 print(_s6_line)
         except Exception:                      # noqa: BLE001 — see the comment above
             _stage6_priority = {}
+        # T-14241 (SPEC-0132 rule 6) — the run's PER-FILE WALLS, on the two keys a land row carries
+        # (`per_file_durations` with its `duration_series`, and the `per_file_outcomes` sidecar
+        # locator), so a land that credits this run (SPEC-0065 §Bound) leaves the duration table and
+        # the slow-tail reading something to read. A local pass: the runner's own record, copied. A
+        # routed pass: the land's own fold over the box rows, of which only these two keys are kept.
+        # Absent where nothing was measured here; never allowed to fail the run it only describes.
+        try:
+            if _venue_result is not None:
+                _s6_src = remote_verify.fold_venue_base_metrics(
+                    {}, _venue_result, remote_verify.envelope_leg_durations(_venue_result.get("result")),
+                    repo_root=root)
+            else:
+                _s6_src = _sel_metrics if (_have_tests and not delegated) else {}
+            _stage6_walls = {k: _s6_src[k] for k in ("per_file_durations", "per_file_outcomes")
+                             if _s6_src.get(k)}
+        except Exception:                      # noqa: BLE001 — a report never masks the run
+            _stage6_walls = {}
+        # T-14211 (SPEC-1051 rule 2) — the skip set this run left out, for the row both writers below
+        # emit under `verify_metrics` (the land's Stage-6 credit compares it): the kernel suite's own
+        # record, else the layers'. None where the tree lists no pre-deploy unit — the row is as before.
+        try:
+            _s6_pd_skip = (_sel_metrics.get("pre_deploy_skip") if (_have_tests and not delegated) else None) \
+                or (cguard.get("pre_deploy_skip") if isinstance(cguard, dict) else None)
+            # T-14248: a KERNEL pass routed to the venue made no skip read here (the local leg runs a
+            # named subset, the box leg too) — make the run's own read over this tree, the one the
+            # local runner makes (`_pre_deploy_run_skip`), so the land's equal set compares equal.
+            # T-14288: the read made before routing (and shipped to the box) IS that read — reused.
+            if _s6_pd_skip is None and _venue_result is not None \
+                    and _is_consumer_build is not None and not _is_consumer_build():
+                if _s6_venue_pd_skip is not None:
+                    _s6_pd_skip = _s6_venue_pd_skip
+                else:
+                    from lib import land_verify_legs as _lvl   # lazy: the circular-import idiom of this module
+                    _s6_pd_skip = _lvl._pre_deploy_run_skip(
+                        root, changed=_stage6_changed_paths(root, _run_git_cap=_run_git_cap))
+        except Exception:                      # noqa: BLE001 — no record: the land then runs its own leg
+            _s6_pd_skip = None
         # T-12007 — the run is over; close the wall BEFORE the pass/fail fork so both rows are
         # written from the SAME measurement (a red run's minutes cost exactly what a green one's do).
         _stage6_stop_point()   # T-14157: the run is over — a stop now is the verb's, not the run's
@@ -15569,9 +15815,9 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     **({"whole": True} if _whole else {}),   # T-14098: the measuring form
                     # T-13545: + the layer re-run record, so a run that failed BOTH attempts says so.
                     **({"verify_metrics": {**_venue_metrics, **_stage6_retry_metrics,
-                                           **_stage6_priority, **_s6_routing}}
+                                           **_stage6_priority, **_s6_routing, **_stage6_walls}}
                        if (_venue_metrics or _stage6_retry_metrics or _stage6_priority
-                           or _s6_routing) else {}),
+                           or _s6_routing or _stage6_walls) else {}),
                     **_stage6_lands,   # T-13905: the land verifies beside this run
                     **_s6_red,         # T-13940: the tested tree, when the runner could establish it
                     # T-13606 (SPEC-1006 rule 13): + the per-layer rows of a run on which a layer
@@ -15744,6 +15990,10 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # T-13976 — and the SPEC-1032 routing reason of a pass it decided (`_stage6_routing_record`).
         if _s6_routing:
             data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_s6_routing}
+        if _s6_pd_skip is not None:            # T-14211: the run's skip set (SPEC-1051 rule 2)
+            data["verify_metrics"] = {**(data.get("verify_metrics") or {}), "pre_deploy_skip": _s6_pd_skip}
+        if _stage6_walls:                      # T-14241: the run's per-file walls (SPEC-0132 rule 6)
+            data["verify_metrics"] = {**(data.get("verify_metrics") or {}), **_stage6_walls}
         # T-13905 — and the land verifies that ran beside it. Present only when THIS invocation ran
         # the suite; a hand-authored `--evidence` measured nothing.
         data.update(_stage6_lands)
@@ -15778,6 +16028,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
             data["selection"] = selection_summary["selection"]
             data["selection_ran"] = selection_summary["ran"]
             data["selection_discovered"] = selection_summary["discovered"]
+            if _s6_selected is not None:       # T-14228: the selected set, keyed as the land keys its own
+                from lib import land_verify_legs as _lvl_sel, worktree as _wt_sel
+                _sel_key = _lvl_sel._selection_set_key(
+                    _s6_selected, rule_version=_wt_sel._SELECTION_RULE_VERSION, skip=_s6_pd_skip)
+                if _sel_key is not None:       # beside the T-14211 skip set (SPEC-0065 §Bound condition 4)
+                    data["verify_metrics"] = {**(data.get("verify_metrics") or {}), "selection_set": _sel_key}
             if selection_summary.get("reason"):
                 data["selection_reason"] = selection_summary["reason"]
             if selection_summary.get("tripwire_recovered"):
@@ -18075,11 +18331,17 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # T-13147 — a DIRTY record here is the re-pinned arm, admitted for `--fix-red` ONLY: the
         # `--absorb` door keeps its pre-T-13147 answer on that shape. T-13348 — so does a FOLDED
         # record that declares the re-pin (`custody_repin: true`).
-        if hazard and not fix_red and (_worktree_dirty_paths is None
-                                       or hazard[0] in (_worktree_dirty_paths(pathspecs=[hazard[0]]) or [])
+        # T-14321 (<project> T-1154, X-2102) — `--reship` also takes the T-14025 DIRTY CUSTODY arm:
+        # ship -> `task pause` -> an audit-post GREEN pinned to the ship leaves a fresh DIRTY record
+        # while the recorded commit is the pause, and a red Tests run's fix had no door. A record that
+        # DECLARES the re-pin stays `--fix-red`'s alone; `--absorb` is unchanged.
+        hazard_is_dirty = bool(hazard) and (
+            _worktree_dirty_paths is None
+            or hazard[0] in (_worktree_dirty_paths(pathspecs=[hazard[0]]) or []))
+        if hazard and not fix_red and ((hazard_is_dirty and not (reship and _worktree_dirty_paths))
                                        or _record_declares_repin(REPO_ROOT / hazard[0])):
             hazard = None
-        hazard_is_folded = hazard is not None
+        hazard_is_folded = hazard is not None and not hazard_is_dirty
     if hazard and fix_red and hazard[0].endswith("-audit-post.yaml"):
         # T-11600 — the Stage-8 RED IN-SCOPE-FIX leg: the missing commit route the T-11573
         # `--absorb`-on-RED refusal ALREADY PRESCRIBES ("fix the RED cause in scope and re-audit the

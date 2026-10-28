@@ -22,7 +22,7 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   > named concerns that together answer a project's sandbox questions: `sandbox_entry`\
   \ (SPEC-0169 — WHERE\n> a collaborator enters, OPT-IN), `spike_sandbox` (this spec\
   \ — WHETHER a caged bridge exists and its\n> pinned release) and `spike_data_safety`\
-  \ (SPEC-0175 — WHAT the restored copy carries). They stay\n> DISTINCT; a reader\
+  \ (<workshop-spec> — WHAT the restored copy carries). They stay\n> DISTINCT; a reader\
   \ who knows only one of the names sees all three via\n> `bin/yitc-v2 graph query\
   \ sandbox-family`. Grounds: on 2026-08-13 a reader grepped THIS key name,\n> found\
   \ none in a project that declares its sandbox under `sandbox_entry`, and concluded\
@@ -64,7 +64,7 @@ body: "## Scenario\n\nA project that wants a throwaway debugging sandbox declare
   \ later — it is the silence the declare-or-waive policy\nexists to remove, arriving\
   \ with a signature on it. A report-only line would leave the strongest\nanswer this\
   \ contract has (rule 4) switched off by the very answer that claims it is not needed.\n\
-  The mirror direction is already refused for the sibling concern under SPEC-0175\
+  The mirror direction is already refused for the sibling concern under <workshop-spec>\
   \ rule 5; the two are\nthe same shape, and an asymmetric disposition here would\
   \ say the contradiction matters in one\nreading and not in its reverse. (Pointer,\
   \ not a restatement — that rule's own signals stay its.)\n\n**The two honest exits,\
@@ -594,22 +594,18 @@ concern:
   declare_type: mapping
   waiver_policy: loose
   shape_hook: spike_sandbox_shape
-  born: "spike_sandbox:\n  # SPEC-0172 — the throwaway debugging SANDBOX wiring. DECLARE-OR-WAIVE:\
-    \ answering neither is DEBT.\n  #\n  # To DECLARE, replace the waiver below with\
-    \ one mapping carrying all three:\n  # bridge:\n  # pin: <exact release ref of\
-    \ the shared bridge library this project runs — rule 3>\n  # enabled: true # is\
-    \ the bridge actually in use here\n  # cage_checks: <where the machine-checked\
-    \ cage rules live — rule 4>\n  #\n  # The pin is a release ref, NEVER a local\
-    \ copy (fixes go upstream, then re-pin). `cage_checks:`\n  # points at checks\
-    \ that RUN, not prose. `enabled:` is a switch, not a permission — an outbound\n\
-    \  # channel still needs its own per-case owner grant. The waiver below is a real\
-    \ key.\n  # see SPEC-0172 §2, §3, §4\n  # Turning the full cage on later assumes\
-    \ docker compose with ports bound to <ip>.\n  # An acceptance preview needs no\
-    \ containers — patterns/spike-mode.md §Two modes.\n  waiver:\n    reason: >-\n\
-    \      no spike sandbox yet — this project runs no pinned bridge and keeps no\
-    \ caged spike stack.\n      Replace this waiver with `bridge: {pin, enabled, cage_checks}`\
-    \ when it does (SPEC-0172\n      rules 2-4); a spike is a throwaway exploration\
-    \ whose exit is knowledge, never landed code.\n"
+  born: "spike_sandbox:\n  # SPEC-0172 — the throwaway debugging SANDBOX wiring. DECLARE-OR-WAIVE;\
+    \ to declare, replace the\n  # waiver with:\n  # Rule text: `__YITC_CLI__ graph\
+    \ query SPEC-0172 --kernel`\n  # bridge:\n  # pin: <exact release ref of the shared\
+    \ bridge library this project runs — rule 3>\n  # enabled: true # is the bridge\
+    \ actually in use here\n  # cage_checks: <where the machine-checked cage rules\
+    \ live — rule 4>\n  # The pin is a release ref, never a local copy; `enabled:`\
+    \ is a switch, not a permission.\n  # see SPEC-0172 §2, §3, §4\n  # Turning the\
+    \ full cage on later assumes docker compose with ports bound to <ip>.\n  waiver:\n\
+    \    reason: >-\n      no spike sandbox yet — this project runs no pinned bridge\
+    \ and keeps no caged spike stack.\n      Replace this waiver with `bridge: {pin,\
+    \ enabled, cage_checks}` when it does (SPEC-0172\n      rules 2-4); a spike is\
+    \ a throwaway exploration whose exit is knowledge, never landed code.\n"
 init_concern: null
 implements_signature:
   bin/lib/cage.py#_host_identity_collisions: 0f697875bda732806fc56e3c513098ba25c9329bd76df0b720dc960789ab5fea

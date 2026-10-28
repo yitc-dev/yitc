@@ -704,43 +704,37 @@ concern:
 - section: deploy.policy
   shape_hook: deploy_policy_shape
   born_order: 20
-  born: "  policy:\n    # Deploy-AUTONOMY stance (SPEC-0097). Born WAIVED → owner-gated\
-    \ every deploy, never auto-granted.\n    # The `recommended:` template below is\
-    \ INERT (the gate reads only `policy.classes`): tune its\n    # per-class VALUES,\
-    \ then rename `recommended:` → `classes:` and remove this `waiver:`.\n    # see\
-    \ SPEC-0097 §2, §9\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2\
-    \ init` — no deploy-autonomy policy yet; stays owner-gated every deploy (the pre-policy\
-    \ default, never auto-granted). A recommended A/S/C1/C2 template is seeded below\
-    \ under `recommended:` — tune its per-class values, then promote it to `classes:`\
-    \ (removing this waiver) to opt into autonomous deploys (SPEC-0097).\"\n    recommended:\n\
-    \      # RECOMMENDED A/S/C1/C2 starting template — NOT an active\n      # declaration:\
-    \ it is a sibling of `waiver:` and is IGNORED by the deploy gate until promoted\
-    \ to\n      # `classes:`.\n      A: # code-only / trivially reversible: an inline\
-    \ post-deploy health gate + the per-change live-probe.\n        evidence: \"<deploy\
-    \ command's inline post-deploy gate (health 200 + containers up + smoke, auto-rollback\
-    \ on failure) + the per-change live_probe at the deploy seam (SPEC-0094 §4)>\"\
-    \n      S: # security-affecting: a read-only security probe asserts auth is STILL\
-    \ enforced.\n        # BOTH keys are REQUIRED to deploy S (the verb runs the probe;\
-    \ no budget ⇒ refused). If the\n        # property is not assertable read-only,\
-    \ declare `unprobeable: <reason>` INSTEAD (escalates).\n        security_probe:\
+  born: "  policy:\n    # Deploy-AUTONOMY stance. Born WAIVED → owner-gated every\
+    \ deploy, never auto-granted.\n    # `recommended:` below is INERT: tune it, rename\
+    \ it to `classes:` and remove this `waiver:`.\n    # Rule text: `__YITC_CLI__\
+    \ graph query SPEC-0097 --kernel`\n    # see SPEC-0097 §2, §9\n    waiver:\n \
+    \     reason: \"Initialized via `bin/yitc-v2 init` — no deploy-autonomy policy\
+    \ yet; stays owner-gated every deploy (the pre-policy default, never auto-granted).\
+    \ A recommended A/S/C1/C2 template is seeded below under `recommended:` — tune\
+    \ its per-class values, then promote it to `classes:` (removing this waiver) to\
+    \ opt into autonomous deploys (SPEC-0097).\"\n    recommended:\n      # RECOMMENDED\
+    \ A/S/C1/C2 starting template — NOT an active\n      # declaration: it is a sibling\
+    \ of `waiver:` and is IGNORED by the deploy gate until promoted to\n      # `classes:`.\n\
+    \      A: # code-only / trivially reversible: an inline post-deploy health gate\
+    \ + the per-change live-probe.\n        evidence: \"<deploy command's inline post-deploy\
+    \ gate (health 200 + containers up + smoke, auto-rollback on failure) + the per-change\
+    \ live_probe at the deploy seam (SPEC-0094 §4)>\"\n      S: # security-affecting:\
+    \ a read-only security probe asserts auth is STILL enforced.\n        # BOTH keys\
+    \ are required to deploy S; a property not assertable read-only declares\n   \
+    \     # `unprobeable: <reason>` instead (escalates).\n        security_probe:\
     \ \"<a read-only command asserting the security property still holds — exit 0\
     \ = holds; e.g. curl -fsS -o /dev/null -w '%{http_code}' <url> | grep -qx 401>\"\
     \ # ownership: kernel-executed reader=bin/lib/deploy.py#_security_probe_precondition\
     \ effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_security_probe_passed\n    \
     \    security_probe_budget_seconds: 60 # <positive int — the probe must answer\
     \ read-only within it> # ownership: kernel-executed reader=bin/lib/deploy.py#_security_probe_precondition\
-    \ effect=bin/lib/deploy.py#cmd_deploy:refuse\n        # OPTIONAL — uncomment to\
-    \ name which declared `security.probes[]` properties this probe PROVES (each declared\n\
-    \        # exactly once there); a pass then keeps the land floor's probe verdict\
-    \ fresh for exactly those (SPEC-0093 rule 27).\n        # security_probe_properties:\
-    \ [\"<property>\"]\n        # OPTIONAL DOWN-surface carve-out, both keys or neither:\
-    \ a probe proving the surface is\n        # POSITIVELY DOWN lets the Class-S deploy\
-    \ that would END an outage proceed (backstopped by a\n        # post-deploy security\
-    \ probe + auto-rollback). Closed vocabulary: exit 0 = serving, exit 1 =\n    \
-    \    # down (the ONLY exit that opens it), any other exit or a timeout = refuse\
-    \ — NOT «any non-zero\n        # ⇒ down», since 126/127/128+N are the runner's\
-    \ own errors.\n        # see SPEC-0097 §2a\n        # WORKED EXAMPLE — map curl's\
-    \ connection refused (7) / timeout (28) EXPLICITLY onto 1:\n        # liveness_probe:\
+    \ effect=bin/lib/deploy.py#cmd_deploy:refuse\n        # OPTIONAL — the declared\
+    \ `security.probes[]` properties this probe proves (SPEC-0093 rule 27).\n    \
+    \    # security_probe_properties: [\"<property>\"]\n        # OPTIONAL DOWN-surface\
+    \ carve-out, both keys or neither: exit 0 = serving, exit 1 = down\n        #\
+    \ (the only exit that opens it), any other exit or a timeout = refuse — never\
+    \ «any non-zero ⇒ down».\n        # see SPEC-0097 §2a\n        # Worked example\
+    \ — map curl's connection refused (7) / timeout (28) onto 1:\n        # liveness_probe:\
     \ \"curl -fsS -o /dev/null --max-time 5 https://<host>/healthz; c=$?; \\\n   \
     \     # [ $c -eq 0 ] && exit 0; { [ $c -eq 7 ] || [ $c -eq 28 ]; } && exit 1;\
     \ exit 2\"\n        # liveness_probe_budget_seconds: 10\n        # REPLACE <host>\
@@ -754,33 +748,27 @@ concern:
     \ section below) asserting auth is still enforced after deploy; read-only so autonomous;\
     \ if a property is not read-only probeable → escalate (SPEC-0097 §2)>\"\n    \
     \  C1: # DB/state-changing but recoverable within RTO/RPO: pg_dump + restore-drill\
-    \ + a delayed re-check.\n        # A command + its budget are BOTH required (refused\
-    \ at deploy and at init, SPEC-0097 §4).\n        # Accepted flat alias: `pg_dump:\
-    \ \"<cmd>\"` + `pg_dump_budget_seconds: 120`.\n        pg_dump: # ownership: kernel-executed\
-    \ reader=bin/lib/deploy.py#_normalize_pg_dump effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_backup_taken\n\
-    \          command: \"<pre-deploy pg_dump of the live DB — e.g. docker exec <db>\
-    \ pg_dump -U <user> -d <db> -Fc>\"\n          dump_budget_s: 120 # <positive int\
-    \ — §4 duration budget; exceeding it ⇒ Class C2 (escalate)>\n        # expected_database:\
-    \ <the database this project's C1 deploy dumps, e.g. myapp_prod>\n        # OPTIONAL\
-    \ (SPEC-0148 §3): declared ⇒ the archive header must name this database or the\n\
-    \        # deploy REFUSES; absent ⇒ recorded, never enforced. Uncomment with a\
-    \ REAL name only.\n        # restore_drill is OPERATOR-OWNED (SPEC-0150): a real\
-    \ project command (e.g. <project>\n        # `scripts/restore-drill.sh`) whose\
-    \ PASS is journal-recorded; no kernel reader executes it.\n        restore_drill:\
-    \ \"<the restore-drill command proving the dump restores — e.g. bash bin/restore-drill.sh>\"\
-    \ # ownership: operator-owned\n        evidence: \"<the pg_dump (within budget)\
-    \ + the restore-drill record + the delayed re-check past the observation window\
-    \ — the class-proof is COMPLETE only after that later re-check (SPEC-0097 §5),\
-    \ never at deploy_completed alone>\"\n      C2: # NOT acceptably reversible within\
-    \ RTO/RPO: owner escalation, NO autonomous deploy.\n        # Once the owner approves\
-    \ (`deploy --class C2 --owner-approved`) the verb FIRST runs the dump\n      \
-    \  # declared under `C1:` above — there is NO C2 dump key. A failed / empty /\
-    \ wrong-database dump\n        # REFUSES the deploy; its budget is only REPORTED\
-    \ on this path (a kernel hang-cap bounds it).\n        # With NO dump declared\
-    \ under `C1:` the deploy proceeds and prints that no backup is taken.\n      \
-    \  # see SPEC-0097 §5\n        escalate: \"owner decision REQUIRED with the concrete\
-    \ RTO/RPO risk; `deploy --class C2` escalates (no autonomous deploy_completed\
-    \ — SPEC-0097 §5)\" # ownership: operator-owned\n"
+    \ + a delayed re-check.\n        # A command + its budget are both required; accepted\
+    \ flat alias: `pg_dump: \"<cmd>\"` +\n        # `pg_dump_budget_seconds: 120`.\n\
+    \        pg_dump: # ownership: kernel-executed reader=bin/lib/deploy.py#_normalize_pg_dump\
+    \ effect=bin/lib/deploy.py#cmd_deploy:emit:deploy_backup_taken\n          command:\
+    \ \"<pre-deploy pg_dump of the live DB — e.g. docker exec <db> pg_dump -U <user>\
+    \ -d <db> -Fc>\"\n          dump_budget_s: 120 # <positive int — §4 duration budget;\
+    \ exceeding it ⇒ Class C2 (escalate)>\n        # expected_database: <the database\
+    \ this project's C1 deploy dumps, e.g. myapp_prod>\n        # OPTIONAL — declared\
+    \ ⇒ the dump must name this database or the deploy refuses.\n        # restore_drill\
+    \ is OPERATOR-OWNED (SPEC-0150): its PASS is journal-recorded, no kernel reader\
+    \ runs it.\n        restore_drill: \"<the restore-drill command proving the dump\
+    \ restores — e.g. bash bin/restore-drill.sh>\" # ownership: operator-owned\n \
+    \       evidence: \"<the pg_dump (within budget) + the restore-drill record +\
+    \ the delayed re-check past the observation window — the class-proof is COMPLETE\
+    \ only after that later re-check (SPEC-0097 §5), never at deploy_completed alone>\"\
+    \n      C2: # NOT acceptably reversible within RTO/RPO: owner escalation, NO autonomous\
+    \ deploy.\n        # After owner approval the verb first runs the `C1:` dump (there\
+    \ is no C2 dump key);\n        # a failed, empty or wrong-database dump refuses\
+    \ the deploy.\n        # see SPEC-0097 §5\n        escalate: \"owner decision\
+    \ REQUIRED with the concrete RTO/RPO risk; `deploy --class C2` escalates (no autonomous\
+    \ deploy_completed — SPEC-0097 §5)\" # ownership: operator-owned\n"
   carrier_path: deploy.policy
   presence_policy: checked-if-present
   update_policy: init re-seed
@@ -795,33 +783,27 @@ concern:
   waiver_policy: loose
   update_policy: init re-seed
   born_order: 21
-  born: "  convergence:\n    # Post-deploy CONVERGENCE check (SPEC-0097 §11). Born\
-    \ WAIVED → this project's deploy is NOT\n    # convergence-verified: the kernel\
-    \ emits deploy_completed on the deploy command's exit-0 alone,\n    # which is\
-    \ exactly how a deploy can report OK while one service still runs the OLD code\
-    \ (X-0374:\n    # a celery worker kept leaking the credential the deploy claimed\
-    \ to have redacted, for hours).\n    # To opt in: list EVERY in-scope running\
-    \ service and a command that PRINTS the revision that\n    # service is ACTUALLY\
-    \ running, then remove this `waiver:`. Any service that reports a different\n\
-    \    # revision (or cannot be asked) FAILS the deploy — no deploy_completed, exit\
-    \ 5.\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2 init` — no convergence\
-    \ check declared yet; deploy_completed is emitted on the deploy command's exit-0\
-    \ alone, so a service left on old code would NOT be caught (X-0374). Declare `services:`\
-    \ (each with a command printing the revision it runs) to opt in (SPEC-0097 §11).\"\
-    \n    recommended:\n      # RECOMMENDED shape — INERT until promoted: rename `recommended:`\
-    \ → `services:` (and delete the\n      # `waiver:` above) once each command below\
-    \ is real for this project.\n      # <service>: <command printing the revision\
-    \ that service RUNS — exit non-zero / silence = NOT converged>\n      web: \"\
-    <e.g. docker compose exec -T web cat /app/REVISION>\"\n      # OPTIONAL per-service\
-    \ health leg — use the mapping form {command, health} for a service, where\n \
-    \     # `health` is a command that exits 0 and prints an answer when the service\
-    \ is healthy.\n      worker: \"<e.g. docker compose exec -T worker cat /app/REVISION\
-    \ — the worker is the one that gets skipped (X-0374)>\"\n    # budget_seconds:\
-    \ 120 # OPTIONAL positive int — per-service ask timeout; absent ⇒ kernel default.\n\
-    \    # out_of_scope: # DECLARE-OR-WAIVE: a service deliberately NOT verified names\
-    \ itself + WHY.\n    # nginx: \"reverse proxy — carries no app revision\" # never\
-    \ probed, but journalled: an exemption\n    # # is declared, never silent (a blank\
-    \ reason refuses).\n"
+  born: "  convergence:\n    # Post-deploy CONVERGENCE check. Born WAIVED → this project's\
+    \ deploy is NOT\n    # convergence-verified: the kernel emits deploy_completed\
+    \ on the deploy command's exit-0 alone,\n    # so a service left on old code is\
+    \ not caught. Opt in: every in-scope service + a command\n    # printing the revision\
+    \ it RUNS; a mismatch fails the deploy.\n    # Rule text: `__YITC_CLI__ graph\
+    \ query SPEC-0097 --kernel`\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no convergence check declared yet; deploy_completed is emitted on the\
+    \ deploy command's exit-0 alone, so a service left on old code would NOT be caught\
+    \ (X-0374). Declare `services:` (each with a command printing the revision it\
+    \ runs) to opt in (SPEC-0097 §11).\"\n    recommended:\n      # INERT until promoted:\
+    \ rename `recommended:` → `services:` and delete the `waiver:` above.\n      #\
+    \ <service>: <command printing the revision that service RUNS — exit non-zero\
+    \ / silence = NOT converged>\n      web: \"<e.g. docker compose exec -T web cat\
+    \ /app/REVISION>\"\n      # OPTIONAL per service: the mapping form {command, health}.\n\
+    \      worker: \"<e.g. docker compose exec -T worker cat /app/REVISION — the worker\
+    \ is the one that gets skipped (X-0374)>\"\n    # budget_seconds: 120 # OPTIONAL\
+    \ positive int — per-service ask timeout; absent ⇒ kernel default.\n    # out_of_scope:\
+    \ # DECLARE-OR-WAIVE: a service deliberately NOT verified names itself + WHY.\n\
+    \    # nginx: \"reverse proxy — carries no app revision\" # never probed, but\
+    \ journalled: an exemption\n    # # is declared, never silent (a blank reason\
+    \ refuses).\n"
 activation_owner_task: null
 proposed_by: deploy-autonomy-policy-kernel-seed-reversibility-r
 binding:
@@ -871,5 +853,5 @@ implements_signature:
   bin/lib/deploy.py#_security_probe_precondition: eefa57dbc4bd4e4f3aff2ded61d768e293ddce4400ec5bbafab9d92f9542e645
   bin/lib/deploy.py#_service_sources_unchanged: 47adfc5cbc3579e717e737c32abee8ca60c37268891aaf627133cbdd9538ad2c
   bin/lib/deploy.py#_verify_convergence: 1f5d3c2f268f3bcf83d79ecdc4f125f279427b6ee6989c03ed253824e8185a09
-  bin/lib/deploy.py#cmd_deploy: 6781d655329121aca45e144ad1f0178ef9cdfb9659bc123043fceece0a7c15cc
+  bin/lib/deploy.py#cmd_deploy: 7a8f9339ecc78d23083217f197f26a521083f33117066f8d844536afdc1cdd6e
   bin/lib/init.py#_hook_deploy_policy: c57bb5dc865aaa77bbfe57fe5fccd1f963bd5dbb02895ef430137891263e2c1b

@@ -1253,7 +1253,10 @@ GATED_OPERATIONS = {"deploy": "deploy-code"}
 # exactly as it did before the policy switched on — this narrows only what counts as an EXERCISE.
 # `--help`/`-h` and every other argparse early exit are NOT listed here: they never reach this gate,
 # because `cli.main` trial-parses a gated verb's raw argv BEFORE the deploy lock and this gate (T-13177).
-NON_PERFORMING_FLAGS = {"deploy": ("--print-guard",)}
+# `deploy --scheduled-run` (T-14203, SPEC-1047 rule 2) is the second: `cmd_deploy` hands it to the
+# scheduled run and RETURNS before any deploy machinery, so it builds and replaces nothing — it runs the
+# pre-deploy run on main's head and launches no deploy command (the same coupling, asserted by the same test).
+NON_PERFORMING_FLAGS = {"deploy": ("--print-guard", "--scheduled-run")}
 
 
 def performs_nothing(argv, verb: str) -> bool:

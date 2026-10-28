@@ -745,4 +745,4 @@ implements_signature:
   bin/lib/vocab.py#TASK_CLASSES: ee6f546d6976f100eb7a7210649b881cf0272a047ab1866ab54c4f3dd228c6dd
   bin/lib/vocab.py#TASK_FILING_STATUSES: a3f438ac70ae0ffb2c30813c12532aafe7e07a0af1396706e2a37bfcfb1ae44e
   bin/lib/vocab.py#TASK_PRIORITIES: c9e55aa7764415938acd55d1c1310d05aa36e285be560fde67a0dc1007093a7f
-  tasks/_template.yaml: ffeef8ff9dad39419ddb1a94bd7671944c818309b0d7a07c7b988fcf3491ebdd
+  tasks/_template.yaml: e0581df32a513ee7d63a42cc789597adc4b7395ed4a2f54db8ada1a39d80380c

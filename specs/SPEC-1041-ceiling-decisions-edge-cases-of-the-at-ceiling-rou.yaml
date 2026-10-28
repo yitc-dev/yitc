@@ -511,13 +511,15 @@ body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-af
   \ ordinary ceiling row (which takes\nthe empty-set `--on-decisions` route, «Rule\
   \ 3» above), a non-descendant subject or an unreadable\njournal admits nothing.\
   \ Nothing in SPEC-1039 rule 6 moves: no owner reset, no consult, no decision is\n\
-  written for it.\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nA minority\
-  \ of cards reach the audit-loop ceiling, and each case above arises for a minority\
-  \ of those.\nRendered inside <workshop-spec> this detail reached every session entering\
-  \ Audit-pre or Audit-post; as a\nreference behind one index line and the head of\
-  \ the deciding verb's help it is met by the session\nthat is at a ceiling (<workshop-spec>\
-  \ §6, the rare-case option).\n\n«A test-found fix after a spent GREEN» is ADDITIVE\
-  \ (public intake #168 — cryptochart card\n on engine v2.19.0): after its GREEN `--on-decisions`\
+  written for it.\nEvery exit from a spent GREEN, this pass among them, is one row\
+  \ of the table in SPEC-1018 «Exits\nfrom a spent GREEN» (`graph query SPEC-1018`).\n\
+  \n## Parameters\n\nNone consumed.\n\n## Rationale\n\nA minority of cards reach the\
+  \ audit-loop ceiling, and each case above arises for a minority of those.\nRendered\
+  \ inside <workshop-spec> this detail reached every session entering Audit-pre or\
+  \ Audit-post; as a\nreference behind one index line and the head of the deciding\
+  \ verb's help it is met by the session\nthat is at a ceiling (<workshop-spec> §6,\
+  \ the rare-case option).\n\n«A test-found fix after a spent GREEN» is ADDITIVE (public\
+  \ intake #168 — cryptochart card\n on engine v2.19.0): after its GREEN `--on-decisions`\
   \ pass a governed Tests run went red, and\nno commit or audit route admitted the\
   \ in-scope fix. It sits in its own section because\n§At-ceiling edge cases holds\
   \ the blocks moved there whole (VP1).\n\n## Verification\n\n- VP1 (one home): every\

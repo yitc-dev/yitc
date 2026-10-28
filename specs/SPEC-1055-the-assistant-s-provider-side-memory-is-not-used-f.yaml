@@ -1,0 +1,74 @@
+id: SPEC-1055
+title: The assistant's provider-side memory is not used, for any provider
+status: active
+created_at: 2026-10-27 15:47:03+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/init.py#_provider_memory_off_delivery
+body: "## Scenario\nThe primary AI runs in a tool that may keep a memory of its own\
+  \ outside the repository, written and\nread by that tool alone. The system works\
+  \ with more than one provider, so nothing the project needs\nis kept there: another\
+  \ provider's assistant, a dispatched worker and a review never see it. Every\nproject\
+  \ — the kernel and each project it births — switches that memory off in its committed\
+  \ provider\nconfig, and everything a session wants to keep goes to the project's\
+  \ corpus.\n\n## Internal\n### 1. Not used, for any provider\nThe assistant's own\
+  \ provider-side memory is not used — not read for project knowledge and not\nwritten.\
+  \ Nothing is saved there, whatever the provider.\n\n### 2. Switched off in the committed\
+  \ provider config\nEach project switches that memory off in its own committed provider\
+  \ config, so every session started\nin the repository and its worktrees, a dispatched\
+  \ worker included, runs with it off. `init` births the\nswitch in a new project;\
+  \ for an already-born project whose provider config lacks it, `init` reports it\n\
+  pending and `init --refresh-scaffolds` adds it, every other setting in that file\
+  \ kept.\n\n### 3. Where each kind of note goes instead\n- (a) something with no\
+  \ home in the corpus → its governed home, or a new one; a craft note takes the\n\
+  \  lesson route (SPEC-0090);\n- (b) a pointer to a tool that is awaited (a workaround\
+  \ kept until an engine fix ships) → an armed\n  followup;\n- (c) the person's preferences\
+  \ about how the assistant works with them → the project's\n  provider-neutral context\
+  \ home (SPEC-0125: `CHARTER.md`, else `AGENTS.md`); a rule for how the\n  project's\
+  \ work is done is a rule, not such a preference;\n- everything else → its governed\
+  \ home, as before: a rule or a practice → a spec, a pattern or a\n  lesson (SPEC-1037,\
+  \ SPEC-0090); plan or card state, and what was done or decided → the plan, the card\
+  \ and the journal\n  (SPEC-0091 Rule 2); continuity across a session refresh → the\
+  \ hand-off store (SPEC-1004); a gap in\n  the engine → a deviation capture (SPEC-0056).\n\
+  At the moment of saving, the capture-routing view (SPEC-0157) carries the row for\
+  \ this case.\n\n### 4. Recall comes from the corpus\nWhat such a memory recalled\
+  \ is found in the corpus instead: the Stage-1 prior-art sweep searches\n`lessons/`\
+  \ by the card's surface (SPEC-0032 step 1).\n\n## Parameters\nNone consumed.\n\n\
+  ## Rationale\nSplit out of SPEC-0039 §6, which let that memory hold three classes\
+  \ and said it reaches no\ndispatched worker; in this repository workers read and\
+  \ wrote it — 398 notes, 224 written after that\nrule (deviation provider-memory-holds-worker-craft-against-spec-0039-s6),\
+  \ and a worker note was\nwritten again after the sweep (events.jsonl#ts=). A prose\
+  \ rule did not\nhold, so the switch is set in config. Owner directive 2026-10-26\
+  \ : the system is\nmulti-provider, so a provider's personal memory holds nothing.\
+  \ Precedent: the owner-applied suppression\nof the global layer for this directory\
+  \ (lessons/global-memory-v2-migration-sweep.md). The\nprovider binding of the switch\
+  \ lives in implementation config, never in this text (CHARTER §P4b).\n\n## Implementation\
+  \ notes\n- Kernel switch: `<provider-config>/settings.json` key `autoMemoryEnabled:\
+  \ false` (the provider's documented\n  project setting). Born switch: `bin/lib/init.py#_provider_memory_off_delivery`,\
+  \ called from\n  `_ensure_consumer_vendor_adapter`; pending causes `auto-memory-off`\
+  \ / `auto-memory-off-unparseable`.\n\n## Verification\n- VP1 (born): a fixture `init`\
+  \ births `<provider-config>/settings.json` with the switch, committed and tracked;\n\
+  \  with the delivery stubbed out the test fails — tests/test_t14235_born_auto_memory_off.py.\n\
+  - VP2 (kernel, real launch): a worker launched by `bin/yitc-v2 dispatch` from a\
+  \ checkout carrying the\n  switch leaves the provider memory directory unchanged\
+  \ (names + mtimes) and its transcript carries\n  no injected memory index.\n- VP3\
+  \ (rule): `graph query` of this spec shows rules 1-4; tests/test_t10539_capture_routing_seed.py\n\
+  \  reads the rule from this body.\n"
+cites:
+- CHARTER.md#principle-4
+- SPEC-0039
+- SPEC-0157
+- SPEC-0090
+- SPEC-0125
+- SPEC-0032
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: null
+binding:
+- query-only
+init_concern: null
+implements_signature:
+  bin/lib/init.py#_provider_memory_off_delivery: 90fa7b86c935a2feb54a06a44730ebd4556727ce749f4c3b90d8732058c19b96

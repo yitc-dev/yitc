@@ -258,47 +258,47 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ MAP (the TEXT boundary, which sits\n    BEFORE the cut; SPEC-0070 §7), so it belongs\
   \ at the entry to the cut (see the dedicated subsection below).\n  - Work = the\
   \ CUT (relocated from `executing`): cut the plan into tasks (SPEC-0046 decomposition\n\
-  \    discipline — ONE provable claim per accept-unit; order via `requires:`; the\
-  \ verifier-after-settled\n    rule); each task then runs its OWN 9-stage lifecycle.\
-  \ The cut is a Build act via EXISTING verbs\n    (`task file` + `worktree new --task`)\
-  \ — no orchestrator/dispatcher (CHARTER non-goals #1/#7); that\n    \"no orchestrator/dispatcher\"\
-  \ disclaimer is about the CUT itself not being a stateful orchestrator,\n    it\
-  \ does NOT bear on HOW the cut cards are then BUILT (which is dispatch-default —\
-  \ see §executing Work). It SETS\n    `activation_owner_task` on each `proposed`\
-  \ spec (one activating task per spec — the HARD invariant;\n    the others `cite`\
-  \ it). Full procedure: the linkage chain below + the §\"Planning-artifact handling\"\
-  \ subsection.\n  - Exit gate (`decomposition → executing`) = the cut is verified\
-  \ — `_require_plan_decomposition_fidelity`:\n    a FRESH GREEN/YELLOW external decomposition-fidelity\
-  \ verdict over the task SET (the <workshop-spec>\n    `gate-executing` mandatory-blocking\
-  \ template — RED/ABORT HOLDS the transition; the 2-pass audit-loop\n    ceiling\
-  \ applies) whose canonical CARD-SET FINGERPRINT matches (REFUSE → re-audit on mismatch).\
-  \ WHAT it\n    audits (set-level coverage / cross-task `requires:` ordering / a\
-  \ singular `activation_owner_task` /\n    probe quality / no reopened-settled card\
-  \ — the blind-spot a per-task audit-pre cannot reach), the\n    fingerprint inputs,\
-  \ the claim-block (a card of a pre-`executing` plan is unclaimable), and the uniform\n\
-  \    applicability (every plan transits — no skip path) are HOMED in SPEC-0070 §3-§6\
-  \ — POINT here, not\n    restated (P5 / <workshop-spec> rule 8).\n\n- **executing**\
-  \ *(plan-stage-entry:executing — task analog: Execution + Tests)*\n  - Entry gate\
-  \ (`decomposition → executing`): the decomposition-fidelity verdict is fresh +\n\
-  \    fingerprint-matched (`_require_plan_decomposition_fidelity`, the §decomposition\
-  \ Exit gate above) **+**\n    the `plan-stage-entry:decomposition` cut bundle was\
-  \ FETCHED this session (the read-gate on the\n    executing leg, SPEC-0070 §8).\
-  \ The old readiness body (`plan check` / `implementation_plan` / specs\n    `proposed`)\
-  \ + the MANDATORY big-plan check RELOCATED one stage earlier to the `accepted →\n\
-  \    decomposition` gate (above) — MOVED, not deleted; this gate is now the fidelity\
-  \ verdict, its detail\n    homed in SPEC-0070 §3-§5.\n  - Work = PURE BUILD: the\
-  \ cut already happened in `decomposition`; here each filed task runs its OWN\n \
-  \   9-stage lifecycle. No \"incidental\" cutting at this stage. The delivered bundle\
-  \ narrows to \"how to\n    build\" (SPEC-1038 / SPEC-0041 / the per-task stage bundles).\
-  \ **Who builds the cards (POINTER, not\n    restated here — <workshop-spec> rule\
-  \ 8): by DEFAULT the interactive Controller DISPATCHES the independent\n    ready\
-  \ cut cards to background Workers and coordinates their order; self-execution (the\
-  \ Controller\n    running a card's 9 stages itself) is the owner-say-so FALLBACK.**\
-  \ The dispatch-default posture is\n    single-homed in CHARTER §Principle 6 / AGENTS\
-  \ §Orchestrate posture — read it there; this line only\n    re-surfaces it at the\
-  \ build-the-cards moment.\n\n- **postcheck** *(plan-stage-entry:postcheck — task\
-  \ analog: Audit-post + adoption soak)*\n  - Entry gate: ALL linked tasks `done`\
-  \ EXCEPT retire-on-proof tasks **+** a fresh aggregate\n    `audit post --plan`\
+  \    discipline — one coherent change-set per card, split only on its grounds; order\
+  \ via `requires:`; the verifier-after-settled\n    rule); each task then runs its\
+  \ OWN 9-stage lifecycle. The cut is a Build act via EXISTING verbs\n    (`task file`\
+  \ + `worktree new --task`) — no orchestrator/dispatcher (CHARTER non-goals #1/#7);\
+  \ that\n    \"no orchestrator/dispatcher\" disclaimer is about the CUT itself not\
+  \ being a stateful orchestrator,\n    it does NOT bear on HOW the cut cards are\
+  \ then BUILT (which is dispatch-default — see §executing Work). It SETS\n    `activation_owner_task`\
+  \ on each `proposed` spec (one activating task per spec — the HARD invariant;\n\
+  \    the others `cite` it). Full procedure: the linkage chain below + the §\"Planning-artifact\
+  \ handling\" subsection.\n  - Exit gate (`decomposition → executing`) = the cut\
+  \ is verified — `_require_plan_decomposition_fidelity`:\n    a FRESH GREEN/YELLOW\
+  \ external decomposition-fidelity verdict over the task SET (the <workshop-spec>\n\
+  \    `gate-executing` mandatory-blocking template — RED/ABORT HOLDS the transition;\
+  \ the 2-pass audit-loop\n    ceiling applies) whose canonical CARD-SET FINGERPRINT\
+  \ matches (REFUSE → re-audit on mismatch). WHAT it\n    audits (set-level coverage\
+  \ / cross-task `requires:` ordering / a singular `activation_owner_task` /\n   \
+  \ probe quality / no reopened-settled card — the blind-spot a per-task audit-pre\
+  \ cannot reach), the\n    fingerprint inputs, the claim-block (a card of a pre-`executing`\
+  \ plan is unclaimable), and the uniform\n    applicability (every plan transits\
+  \ — no skip path) are HOMED in SPEC-0070 §3-§6 — POINT here, not\n    restated (P5\
+  \ / <workshop-spec> rule 8).\n\n- **executing** *(plan-stage-entry:executing — task\
+  \ analog: Execution + Tests)*\n  - Entry gate (`decomposition → executing`): the\
+  \ decomposition-fidelity verdict is fresh +\n    fingerprint-matched (`_require_plan_decomposition_fidelity`,\
+  \ the §decomposition Exit gate above) **+**\n    the `plan-stage-entry:decomposition`\
+  \ cut bundle was FETCHED this session (the read-gate on the\n    executing leg,\
+  \ SPEC-0070 §8). The old readiness body (`plan check` / `implementation_plan` /\
+  \ specs\n    `proposed`) + the MANDATORY big-plan check RELOCATED one stage earlier\
+  \ to the `accepted →\n    decomposition` gate (above) — MOVED, not deleted; this\
+  \ gate is now the fidelity verdict, its detail\n    homed in SPEC-0070 §3-§5.\n\
+  \  - Work = PURE BUILD: the cut already happened in `decomposition`; here each filed\
+  \ task runs its OWN\n    9-stage lifecycle. No \"incidental\" cutting at this stage.\
+  \ The delivered bundle narrows to \"how to\n    build\" (SPEC-1038 / SPEC-0041 /\
+  \ the per-task stage bundles). **Who builds the cards (POINTER, not\n    restated\
+  \ here — <workshop-spec> rule 8): by DEFAULT the interactive Controller DISPATCHES\
+  \ the independent\n    ready cut cards to background Workers and coordinates their\
+  \ order; self-execution (the Controller\n    running a card's 9 stages itself) is\
+  \ the owner-say-so FALLBACK.** The dispatch-default posture is\n    single-homed\
+  \ in CHARTER §Principle 6 / AGENTS §Orchestrate posture — read it there; this line\
+  \ only\n    re-surfaces it at the build-the-cards moment.\n\n- **postcheck** *(plan-stage-entry:postcheck\
+  \ — task analog: Audit-post + adoption soak)*\n  - Entry gate: ALL linked tasks\
+  \ `done` EXCEPT retire-on-proof tasks **+** a fresh aggregate\n    `audit post --plan`\
   \ GREEN over the plan + its realized-spec corpus (`_require_plan_postcheck_ready`).\n\
   \    This is the diff/paper-level \"shipped work matches the plan\" proof, the task-audit-post\
   \ analog at\n    corpus altitude. A RETIRE-ON-PROOF task is a task LINKED to the\
@@ -554,7 +554,25 @@ body: "## Scenario\n\nThe owner/AI sees the PLAN lifecycle at the SAME altitude 
   \ this gate is the ordinary `plan check`.\n(This makes explicit and stage-binds\
   \ what `patterns/big-plan-checklist.md` left as optional reference —\nthe owner-directed\
   \ empirical pull, 2026-06-04. It reuses the EXISTING checklist + the EXISTING `plan\n\
-  check` large-detection; it adds no new gate engine — CHARTER §P1.)\n\n### Planning-artifact\
+  check` large-detection; it adds no new gate engine — CHARTER §P1.)\n\n### Where\
+  \ pre-execution plan work lives, and when it lands\nPlan work before execution —\
+  \ `draft`, `specs`, `trial`, `accepted`, every `plan check` round and the\n`decomposition`\
+  \ cut — stays in ONE `work/<slug>` worktree and takes NO land between gates or rounds:\n\
+  every plan verb needs only a writing worktree, and each land of a batch carrying\
+  \ draft-spec edits\npays a full verify. A plan batch lands only where `main` needs\
+  \ it:\n- **once after `plan stage executing`** (the cut's fidelity verdict passed)\
+  \ and before its cards are\n  dispatched — `worktree new --task` claims a card off\
+  \ `main`'s committed state and the claim-block\n  (SPEC-0070 §5) reads the plan's\
+  \ status there, so an unlanded cut cannot be claimed;\n- **once at the end** — a\
+  \ terminal (`realized`, `partial`, `rejected`, `cancelled`) or the owner\n  stopping\
+  \ the plan; the `postcheck` work and the terminal move ride that last batch.\nEach\
+  \ executing card still lands on its own. What keeps the long-lived plan worktree\
+  \ harmless: run\n`worktree sync --work <slug>` before each gate, so the plan reads\
+  \ current `main` without a verify; a\nhand-off names the open plan worktree, and\
+  \ the next session takes it with\n`worktree adopt --work <slug> --confirm-dead`\
+  \ once its holder is dead. Unlanded plan text is\ninvisible to other sessions —\
+  \ accepted, because only the plan author edits it. The rule is the same\nin the\
+  \ kernel and in a consumer under `-C` (same verbs, same guards).\n\n### Planning-artifact\
   \ handling — idea sibling, file shape, anti-patterns\nThe plan-lifecycle home ALSO\
   \ governs the sibling `idea` class, the on-disk file shape, and the\nplanning-hygiene\
   \ anti-patterns. The plan FSM, the verbs, the accept-gate, the audit-post\nfinalization,\
@@ -637,4 +655,4 @@ proposed_by: null
 implements_signature:
   bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
   bin/lib/plan.py#cmd_plan_file: 1edaaf81e9141657f44179262be47aa3eebd07c73db0b4082cecbbef8321ed86
-  bin/lib/plan.py#cmd_plan_stage: 439f9b5b8514b402975cd5006f8d0af4e3794060fd8ef004d8410a154a335331
+  bin/lib/plan.py#cmd_plan_stage: 60f37718bb790aeb0ad7469298f0c2057c635c5999b0d805cd6bdc67bb6877cc

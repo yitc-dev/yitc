@@ -198,9 +198,10 @@ body: "## Scenario\n\nClosing a task is IRREVERSIBLE in spirit — \"done\" must
   \ project (a non-user-facing change still declares, via a one-line `none` waiver;\n\
   `user_facing` lives inside the waiver and only governs whether `recheck_by` is required).\
   \ A project\nwith NO `deploy:` command (a missing carrier, a carrier that holds\
-  \ no `deploy:` section — the\nkernel's own file is one — or a waived deploy) is\
-  \ UNCHANGED: this precondition is purely\nADDITIVE-conditional and alters no other\
-  \ closure rule.\n**This HONORS CHARTER §Principle 3 — the P3 text is UNCHANGED.**\
+  \ no `deploy:` section, or a\nwaived deploy) is UNCHANGED, and so is the engine's\
+  \ own checkout, whose `deploy:` is only a\nrelease publication with no live surface\
+  \ (SPEC-0094 §3): this precondition is purely\nADDITIVE-conditional and alters no\
+  \ other closure rule.\n**This HONORS CHARTER §Principle 3 — the P3 text is UNCHANGED.**\
   \ For deploy work the EXECUTABLE\nadoption proof lives at the DEPLOY seam, and any\
   \ non-adoption is DECLARED + VISIBLE + DATED (the\n`none + reason + recheck_by`\
   \ debt). Full rule + grammar + amend map: SPEC-0094 §3/§Amends (one home).\n\n###\

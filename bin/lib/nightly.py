@@ -611,6 +611,19 @@ def _check_backup(backup_verify_sh: Path, *, dry_run: bool, _run) -> dict:
     return {"verdict": "ok" if r.returncode == 0 else "fail", "exit_code": r.returncode}
 
 
+_RELEASE_INSTALL_SKIP_REASON = ("release install — the engine's own tests/ is not published "
+                                "(bin/lib/release.py), so the engine-scoped check has nothing to run")
+"""T-14296 (public issue #206): the named skip reason of the engine-scoped checks on a release install."""
+
+
+def _engine_tests_absent(engine_root: Path) -> bool:
+    """T-14296 — True when the engine root carries no `tests/` directory: a release install, which
+    excludes `tests/` by construction. The kernel quiet-lane registry and the conformance surfaces need
+    the engine's own tests, so on such a root they record `skip` with `_RELEASE_INSTALL_SKIP_REASON`
+    (the `_check_repo_storage` named-skip shape) instead of a failure every night."""
+    return not (Path(engine_root) / "tests").is_dir()
+
+
 def _check_conformance_surfaces(engine_root: Path, *, dry_run: bool, _run) -> dict:
     """T-11015 (SPEC-0177 rule 3): EXERCISE the engine's read-only conformance surfaces once per run.
 
@@ -643,6 +656,8 @@ def _check_conformance_surfaces(engine_root: Path, *, dry_run: bool, _run) -> di
     cli = engine_root / "bin" / "yitc-v2"
     if not cli.exists():
         return {"verdict": "skip", "surfaces": [], "reason": f"engine CLI absent ({cli})"}
+    if _engine_tests_absent(engine_root):
+        return {"verdict": "skip", "surfaces": [], "reason": _RELEASE_INSTALL_SKIP_REASON}
     from lib import task as _task   # lazy — the single surface-set SoT (the `init`/`cross` precedent)
     surfaces: list = []
     for label, entry in sorted(_task._READ_ONLY_CONFORMANCE_SURFACES.items()):
@@ -653,8 +668,14 @@ def _check_conformance_surfaces(engine_root: Path, *, dry_run: bool, _run) -> di
             surfaces.append({"surface": label, "verdict": "error",
                              "reason": f"{type(exc).__name__}: {exc}"})
             continue
-        surfaces.append({"surface": label, "exit_code": r.returncode,
-                         "verdict": "ok" if r.returncode == 0 else "fail"})
+        entry = {"surface": label, "exit_code": r.returncode,
+                 "verdict": "ok" if r.returncode == 0 else "fail"}
+        if r.returncode != 0:
+            # T-14296: record WHY it failed. Each stream is stripped BEFORE choosing, so a
+            # whitespace-only stderr falls back to stdout; bounded like a failing health layer.
+            tail = (r.stderr or "").strip() or (r.stdout or "").strip()
+            entry["stderr_tail"] = tail[-_HEALTH_STDERR_TAIL:]
+        surfaces.append(entry)
     if any(s["verdict"] == "error" for s in surfaces):
         verdict = "error"
     elif any(s["verdict"] == "fail" for s in surfaces):
@@ -3576,6 +3597,11 @@ def _run_quiet_lane(engine_root: Path, *, dry_run: bool, _run, _append_event, ev
     if not registry:
         return {"verdict": "skip", "readings": [], "held_slots": 0,
                 "reason": "no timing instruments registered"}
+    if instruments is None and _engine_tests_absent(engine_root):
+        # T-14296: the KERNEL registry names files under the engine's own tests/, which a release
+        # install does not carry — skip with the named reason, take no slot, emit no reading.
+        return {"verdict": "skip", "readings": [], "held_slots": 0,
+                "reason": _RELEASE_INSTALL_SKIP_REASON}
 
     pool = _quiet_lane_pool_dir(Path(engine_root))
     held, waited_s = _acquire_pool_within_window(

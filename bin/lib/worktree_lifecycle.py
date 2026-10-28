@@ -3620,7 +3620,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                       _anchor_signature_of_text=None, _fold_trailing_bookkeeping=None, _land_preflight_conflict_lines=None, _land_preflight_currency_lines=None, _update_from_main=None,
                       _main_checkout_state_note=None, _no_main_worktree_detail=None,
                       _foreign_worktree_refusal=None, _corpus_integrity_verdict=None,
-                      _consumer_zero_probe_guard=None) -> None:
+                      _consumer_zero_probe_guard=None, _run_set_files=None) -> None:
     """`worktree sync (--task T-XXXX | --work <slug>)` — bring a writing worktree UP TO DATE with
     `main` IN PLACE, and stop there (T-10821, resolving X-0681).
 
@@ -4005,6 +4005,10 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         print("  CUSTODY UNCHANGED: a hand resolution is AUTHORED CONTENT, so SPEC-0077 §3a still "
               "requires the re-audit it required before this verb existed. The row makes the shift "
               "ATTRIBUTABLE — it does not excuse it.")
+        if task:   # a `work/<slug>` batch has no task audit to re-point
+            print(f"  re-audit BEFORE `task close`: `task test --run` then `audit post --task {task}` — when the "
+                  "latest audit-post is GREEN on the commit before this merge, it audits the merge itself "
+                  "(T-14181; the conditions: SPEC-1018 «Exits from a spent GREEN»).")
         # `return None`, not a bare `return`: this arm is TERMINAL and sits ABOVE the ordinary path,
         # so a bare one would read as the already-current NO-OP path's return to anything scanning
         # this function top-down for it (tests/test_t11711_census_preflight.py splits the source on
@@ -4228,7 +4232,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
             W, main_wt, task, _merged_main_tip(W, main_sha, _run_git_cap=_run_git_cap),
             events_path=EVENTS_PATH, _run_git_cap=_run_git_cap,
             _classify_inert_paths=_classify_inert_paths,
-            _consumer_zero_probe_guard=_consumer_zero_probe_guard)
+            _consumer_zero_probe_guard=_consumer_zero_probe_guard, _run_set_files=_run_set_files)
         for ln in proof_lines:
             print(ln)
     extra_row = {"post_sync_proof": proof} if proof is not None else {}
@@ -4251,7 +4255,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
 
 
 def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, events_path=None,
-                     _run_git_cap, _classify_inert_paths, _consumer_zero_probe_guard
+                     _run_git_cap, _classify_inert_paths, _consumer_zero_probe_guard, _run_set_files=None
                      ) -> "tuple[dict | None, list]":
     """T-14060 (SPEC-0152 rule 16 §post_sync_set) — the POST-SYNC PROOF a clean `worktree sync --task`
     merge takes after the card's green Stage-6 run. Returns `(record, lines)`; `record` is None, and
@@ -4270,26 +4274,18 @@ def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, 
     Then ONLY the declared layers run, through the layer guard with no subject skip. Every unproven
     part, and every fault, is a refusal naming the full run — never a proof (fail-closed). The record
     rides the sync's own `worktree_synced` row; the land's Stage-6 credit reads a passed one on a
-    `main-moved` refusal (T-14141, SPEC-0065 §Bound condition (1))."""
-    from lib import debt as _debt
-    from lib import host_apply as _host_apply
-    from lib import journal as journal_mod
-    from lib import state
+    `main-moved` refusal (T-14141, SPEC-0065 §Bound condition (1)).
+
+    T-14197 (SPEC-0152 rule 16 §post_sync_set, SPEC-1045 rule 2 (b)/(d)) — the carrier and newest-run
+    checks are `_post_sync_premise`, the ONE predicate a light run's prediction also asks; a project
+    declaring no `verify.layers` names test FILES the engine's runner runs (`_post_sync_set_form`,
+    `_run_set_files`); and while the admission queue is on, the set runs holding BUSY shared
+    (`admission.hand_set_busy`) — a sync started by an admitted run holds it already."""
     from lib import worktree as _wt   # lazy: the host module imports this one at load
-    from lib import batch_landing
     W, main_wt = Path(W), Path(main_wt)
     full_run = f'yitc-v2 task test {task} --run --evidence "<what ran, at which head>"'
-    carrier_path = main_wt / _host_apply.CONSUMER_OPS_CONTRACT
-    if not carrier_path.is_file():
-        return None, []
-    unreadable = False
-    try:
-        carrier = state.load_ops(carrier_path)
-        sec = carrier.get("verify") if isinstance(carrier, dict) else None
-        names = sec.get("post_sync_set") if isinstance(sec, dict) else None
-    except Exception:                                  # noqa: BLE001 — unreadable: no proof, said so
-        names, unreadable = None, True
-    if not unreadable and not names:
+    names, prem = _post_sync_premise(W, main_wt, task)
+    if names is None and prem is None:
         return None, []
     rec: dict = {"status": "ineligible", "reason": None, "set": None, "full_run": full_run}
 
@@ -4298,28 +4294,12 @@ def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, 
         return rec, [f"  POST-SYNC PROOF: not eligible — {reason}. The proof is refused, so the full "
                      f"run is owed: `{full_run}` (SPEC-0152 rule 16 §post_sync_set)."]
 
-    if unreadable:
-        return _refuse("unknown:carrier-unreadable")
-    if not (isinstance(names, list) and all(isinstance(n, str) and n.strip() for n in names)):
-        return _refuse("unknown:post_sync_set-malformed")
-    names = sorted({n.strip() for n in names})
-    rec["set"] = names
+    if names is not None:
+        rec["set"] = names
+    if isinstance(prem, str):
+        return _refuse(prem)
+    newest, data, R, B = prem["newest"], prem["data"], prem["tree"], prem["base"]
     try:
-        rows = journal_mod.tail_scan_events(W / "events.jsonl", task,
-                                            max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES)
-        newest = None
-        for ev in rows:
-            if ev.get("type") in _wt._STAGE6_VERDICT_TYPES and ev.get("task_id") == task:
-                newest = ev                            # journal order: the last one is the newest
-        if newest is None:
-            return _refuse("no-green-run")
-        if newest.get("type") != "tests_passed":
-            return _refuse("newest-run-red")
-        data = newest.get("data") if isinstance(newest.get("data"), dict) else {}
-        run = data.get(_wt.STAGE6_RUN_KEY)
-        R, B = (run.get("tree"), run.get("base")) if isinstance(run, dict) else (None, None)
-        if not all(isinstance(v, str) and _wt._STAGE6_SHA.fullmatch(v) for v in (R, B)):
-            return _refuse("row-not-runner-marked")
         rec.update({"stage6_ts": newest.get("ts"), "stage6_tree": R, "stage6_base": B,
                     "base": merged_tip})
         if B == merged_tip:
@@ -4327,14 +4307,7 @@ def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, 
             return rec, [f"  POST-SYNC PROOF: not needed — the green Stage-6 run already sits on this "
                          f"main ({B[:12]}); nothing ran."]
         run_ts = str(newest.get("ts") or "")
-        hand = []
-        for jp in {W / "events.jsonl", Path(events_path) if events_path else W / "events.jsonl"}:
-            for ev in journal_mod.tail_scan_events(jp, "merge_resolved_by_hand",
-                                                   max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES):
-                if (ev.get("type") == "merge_resolved_by_hand" and ev.get("task_id") == task
-                        and str(ev.get("ts") or "") >= run_ts):
-                    hand.append(ev)
-        if hand:
+        if _post_sync_hand_merged(W, task, run_ts, events_path=events_path):
             return _refuse("hand-resolved-merge")
 
         def _inert(p: str) -> bool:
@@ -4416,23 +4389,38 @@ def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, 
                 readers = _wt._land_tail_tripwire_readers(test_dir, artifacts)
                 if readers:
                     return _refuse(f"read-by:{readers[0]}")
-        declared = {str(e.get("layer")).strip() for e in
-                    _debt._declared_verify_layers(W / _host_apply.CONSUMER_OPS_CONTRACT)}
-        missing = [n for n in names if n not in declared]
-        if missing:
-            return _refuse(f"undeclared-layer:{missing[0]}")
+        form, why = _post_sync_set_form(W, names)
+        if why:
+            return _refuse(why)
     except Exception as exc:                           # noqa: BLE001 — fail-closed: no proof
         return _refuse(f"unknown:{type(exc).__name__}")
-    if _consumer_zero_probe_guard is None:
+    if form == "files" and _run_set_files is None:
+        return _refuse("unknown:no-file-runner-wired")
+    if form == "layers" and _consumer_zero_probe_guard is None:
         return _refuse("unknown:no-layer-runner-wired")
-    try:
-        g = _consumer_zero_probe_guard(W, None, only_layers=set(names))
-    except Exception as exc:                           # noqa: BLE001
-        return _refuse(f"unknown:layer-runner-{type(exc).__name__}")
-    outcomes = {r.get("layer"): r.get("outcome") for r in (g.get("layers") or []) if isinstance(r, dict)}
-    rec["layers"] = [{"layer": n, "outcome": outcomes.get(n)} for n in names]
-    ok = (g.get("mode") == "layers" and not g.get("bad")
-          and all(outcomes.get(n) == "passed" for n in names))
+    from lib import admission as _admission
+    with _admission.hand_set_busy(main_wt) as _busy:
+        if _busy is None:
+            return _refuse("unknown:busy-held-exclusive")
+        if _busy == "unreadable":
+            return _refuse("unknown:queue-state-unreadable")
+        if form == "files":
+            try:
+                bad = list(_run_set_files(W, names) or [])
+            except Exception as exc:                   # noqa: BLE001
+                return _refuse(f"unknown:file-runner-{type(exc).__name__}")
+            rec["files"] = names
+            g = {"mode": "files", "bad": bad, "layers": []}
+            ok = not bad
+        else:
+            try:
+                g = _consumer_zero_probe_guard(W, None, only_layers=set(names))
+            except Exception as exc:                   # noqa: BLE001
+                return _refuse(f"unknown:layer-runner-{type(exc).__name__}")
+            outcomes = {r.get("layer"): r.get("outcome") for r in (g.get("layers") or []) if isinstance(r, dict)}
+            rec["layers"] = [{"layer": n, "outcome": outcomes.get(n)} for n in names]
+            ok = (g.get("mode") == "layers" and not g.get("bad")
+                  and all(outcomes.get(n) == "passed" for n in names))
     if ok:
         rec.update({"status": "passed", "reason": None})
         return rec, [f"  POST-SYNC PROOF: passed — the declared quick set ({', '.join(names)}) ran green "
@@ -4443,6 +4431,101 @@ def _post_sync_proof(W: "Path", main_wt: "Path", task: str, merged_tip: str, *, 
                 or f"mode:{g.get('mode')}"})
     return rec, [f"  POST-SYNC PROOF: FAILED — the declared quick set ({', '.join(names)}) is not green "
                  f"on {H[:12]}: {rec['reason']}. Fix it, or take the full run: `{full_run}`."]
+
+
+def _post_sync_premise(W: "Path", main_wt: "Path", task: str) -> tuple:
+    """T-14197 — the part of the post-sync proof's eligibility (SPEC-0152 rule 16 §post_sync_set) that
+    holds before any merge: the quick set the MAIN checkout's carrier declares, and the card's newest
+    Stage-6 verdict row in the worktree's journal being a green, runner-marked run. ONE predicate:
+    `_post_sync_proof` asks it first, and a light run's prediction (SPEC-1045 rule 2 (b)) asks it with
+    `_post_sync_hand_merged`. Returns (None, None) when no set is declared; (names, reason) refused —
+    `names` None when the carrier itself cannot be read or is malformed; else (names, {newest, data,
+    tree, base})."""
+    from lib import host_apply as _host_apply
+    from lib import journal as journal_mod
+    from lib import state
+    from lib import worktree as _wt   # lazy: the host module imports this one at load
+    from lib import batch_landing
+    carrier_path = Path(main_wt) / _host_apply.CONSUMER_OPS_CONTRACT
+    if not carrier_path.is_file():
+        return None, None
+    try:
+        carrier = state.load_ops(carrier_path)
+        sec = carrier.get("verify") if isinstance(carrier, dict) else None
+        names = sec.get("post_sync_set") if isinstance(sec, dict) else None
+    except Exception:                                  # noqa: BLE001 — unreadable: no proof, said so
+        return None, "unknown:carrier-unreadable"
+    if not names:
+        return None, None
+    if not (isinstance(names, list) and all(isinstance(n, str) and n.strip() for n in names)):
+        return None, "unknown:post_sync_set-malformed"
+    names = sorted({n.strip() for n in names})
+    try:
+        rows = journal_mod.tail_scan_events(Path(W) / "events.jsonl", task,
+                                            max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES)
+        newest = None
+        for ev in rows:
+            if ev.get("type") in _wt._STAGE6_VERDICT_TYPES and ev.get("task_id") == task:
+                newest = ev                            # journal order: the last one is the newest
+        if newest is None:
+            return names, "no-green-run"
+        if newest.get("type") != "tests_passed":
+            return names, "newest-run-red"
+        data = newest.get("data") if isinstance(newest.get("data"), dict) else {}
+        run = data.get(_wt.STAGE6_RUN_KEY)
+        R, B = (run.get("tree"), run.get("base")) if isinstance(run, dict) else (None, None)
+        if not all(isinstance(v, str) and _wt._STAGE6_SHA.fullmatch(v) for v in (R, B)):
+            return names, "row-not-runner-marked"
+    except Exception as exc:                           # noqa: BLE001 — fail-closed: no proof
+        return names, f"unknown:{type(exc).__name__}"
+    return names, {"newest": newest, "data": data, "tree": R, "base": B}
+
+
+def _post_sync_hand_merged(W: "Path", task: str, run_ts: str, *, events_path=None) -> bool:
+    """T-14197 — whether a hand-resolved merge of `task` is recorded at or after `run_ts` in the
+    worktree's journal or `events_path` (the proof's `hand-resolved-merge` check, unchanged)."""
+    from lib import journal as journal_mod
+    from lib import batch_landing
+    W = Path(W)
+    for jp in {W / "events.jsonl", Path(events_path) if events_path else W / "events.jsonl"}:
+        for ev in journal_mod.tail_scan_events(jp, "merge_resolved_by_hand",
+                                               max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES):
+            if (ev.get("type") == "merge_resolved_by_hand" and ev.get("task_id") == task
+                    and str(ev.get("ts") or "") >= run_ts):
+                return True
+    return False
+
+
+def _post_sync_set_form(W: "Path", names) -> "tuple[str, str | None]":
+    """T-14197 (SPEC-0152 rule 16 §post_sync_set) — which form the quick set `names` takes in the
+    worktree `W`: (`layers`, None) when its carrier declares verify layers and each name is one (else
+    the refusal `undeclared-layer:<n>`); (`files`, None) when it declares none and each name is a
+    repo-relative `test_*.py` file present in `W` inside a declared test-sweep directory — the files
+    the engine's own runner discovers and runs (else `unknown-test-file:<n>`).
+
+    T-14198 — in the ENGINE's own repository the set always takes the files form: SPEC-0186 rule 6
+    admits one engine layer, the whole suite, and `post_sync_set` only as tests/*.py files, so the
+    layer form is never the engine's (SPEC-0152 rule 16 names SPEC-0186 rule 6 as the engine's form).
+    The identity is init's (`_targets_engine_repository`: same path or same git common-dir), asked only
+    when layers are declared."""
+    from lib import debt as _debt
+    from lib import host_apply as _host_apply
+    from lib import init as _init
+    from lib import worktree as _wt
+    W = Path(W)
+    declared = {str(e.get("layer")).strip() for e in
+                _debt._declared_verify_layers(W / _host_apply.CONSUMER_OPS_CONTRACT)}
+    if declared and not _init._targets_engine_repository(W, Path(__file__).resolve().parents[2]):
+        missing = [n for n in names if n not in declared]
+        return "layers", (f"undeclared-layer:{missing[0]}" if missing else None)
+    sweep = {Path(d).resolve() for d in _wt._declared_test_sweep_paths(W)}
+    for n in names:
+        rel = Path(n)
+        f = (W / rel)
+        if (rel.is_absolute() or ".." in rel.parts or not f.is_file() or not rel.name.startswith("test_")
+                or rel.suffix != ".py" or f.resolve().parent not in sweep):
+            return "files", f"unknown-test-file:{n}"
+    return "files", None
 
 
 def _sandbox_prefix_arg(argv, glob: str = _SANDBOX_PREFIX_GLOB) -> "str | None":

@@ -12,6 +12,7 @@ implements:
 - bin/lib/init.py#_hook_tests
 - bin/lib/init.py#_ops_born_nested_fragment
 - bin/lib/init.py#_inject_nested_subfield
+- bin/lib/init.py#_integrity_graph_for_commit
 body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OPS\
   \ config in ONE file at its repo root —\n`yitc-ops.yaml` — with one SECTION per\
   \ concern. At `init` the kernel seeds the file and, for each\nconcern it knows,\
@@ -157,7 +158,7 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ sections are BACKFILLED by a dedicated delivery-only mode, never by an ordinary\
   \ `init`\n  ( — additive; the bullet above is UNCHANGED).** The bullet above assumed\
   \ a mandatory section\n  is present from BIRTH. That held only while the mandatory\
-  \ SET never grew — SPEC-0172 / SPEC-0175 grew\n  it, so nine existing consumers\
+  \ SET never grew — SPEC-0172 / <workshop-spec> grew\n  it, so nine existing consumers\
   \ carried a mandatory section re-running `init` could never hand them.\n  The delivery\
   \ is therefore an OPT-IN mode of the same verb, `init --backfill-mandatory`, bounded\
   \ as:\n  - **A SEPARATE SEAM, and why it must be.** The mode delivers and EXITS\
@@ -1000,22 +1001,15 @@ supersedes: null
 concern:
 - section: ui
   born_order: 70
-  born: "ui:\n  # SPEC-0093 rule 9 (X-0050). DECLARE this project's UI baseline once\
-    \ it has a UI surface: replace this\n  # waiver with `baseline: <named design-system>`\
-    \ (optional styleguide/tokens/lint/archetype). The ui:\n  # waiver is LOOSE (rule\
-    \ 6): a bare `reason:` — a CLI-only/library/headless project legitimately has\
-    \ no UI.\n  #\n  # PRIMARY-DESIGN intake (X-0054) — onboarding asks \"primary\
-    \ design?\" alongside \"first scenarios?\". This\n  # section IS that intake (declare-or-waive,\
-    \ no separate interactive walk). Two inbound modes:\n  # * GREENFIELD (rules->code):\
-    \ no UI code yet — DECLARE the chosen `baseline:` + `archetype:` (the\n  # inception-fixed\
-    \ UI archetype / design-template + responsive posture) up front.\n  # * BROWNFIELD\
-    \ / design-from-outside (code->rules INVERSION): UI code ALREADY exists — DERIVE\
-    \ the\n  # baseline/archetype FROM the existing surfaces (read the code, name\
-    \ the de-facto design) and record\n  # it here, rather than imposing a fresh one.\n\
-    \  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no UI baseline\
-    \ yet; declare a `baseline: <named design-system>` (`archetype:`) once this project\
-    \ has a UI surface — greenfield: declare up front; brownfield: derive it from\
-    \ existing UI code (the design-from-outside inversion, X-0054).\"\n"
+  born: "ui:\n  # SPEC-0093 rule 9. DECLARE `baseline: <named design-system>` (optional\
+    \ styleguide/tokens/lint/\n  # archetype) once there is a UI. This is the primary\
+    \ design intake (X-0054) — GREENFIELD: choose it;\n  # BROWNFIELD — derive it\
+    \ from the existing UI code.\n  # Waiver LOOSE.\n  # Rule text: `__YITC_CLI__\
+    \ graph query SPEC-0093 --kernel`\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no UI baseline yet; declare a `baseline: <named design-system>` (`archetype:`)\
+    \ once this project has a UI surface — greenfield: declare up front; brownfield:\
+    \ derive it from existing UI code (the design-from-outside inversion, X-0054).\"\
+    \n"
   carrier_path: ui
   presence_policy: checked-if-present
   update_policy: init re-seed
@@ -1029,16 +1023,13 @@ concern:
     - SPEC-0100
 - section: tests
   born_order: 80
-  born: "tests:\n  # SPEC-0093 rule 10. DECLARE this project's test class×moment TAXONOMY\
-    \ once it has tests: replace\n  # this waiver with a `classes:` list, each { class,\
-    \ moment } (optional command). It is the\n  # INVENTORY, not the land-verify gate\
-    \ (that is `verify.layers`); the waiver is LOOSE (bare `reason:`).\n  # TIMING-SENSITIVE\
-    \ tests (SPEC-0160 rule 10): a class MAY carry `timing_lane:` globs; those files\
-    \ are\n  # refused a pin in the last-green leg. Pin one anyway via a sibling\n\
-    \  # `timing_lane_waiver: { globs: [...], reason: \"<who accepted the flake risk,\
-    \ and why>\" }`.\n  # TEST-CLASS intake — \"what are your test classes, and what\
-    \ does each one DEPEND ON?\" — in THREE passes:\n  # PASS 1 — NAME THE CLASSES\
-    \ here. PASS 2 — name what each DEPENDS ON (a container, a database, a\n  # browser,\
+  born: "tests:\n  # SPEC-0093 rule 10. DECLARE a `classes:` list ({ class, moment\
+    \ }, optional command) — the test\n  # INVENTORY, not the land gate (`verify.layers`).\
+    \ Timing-sensitive globs: SPEC-0160 rule 10.\n  # Intake below — answer it in\
+    \ the `classes:` you declare.\n  # Rule text: `__YITC_CLI__ graph query SPEC-0093\
+    \ --kernel`\n  # TEST-CLASS intake — \"what are your test classes, and what does\
+    \ each one DEPEND ON?\" — in THREE passes:\n  # PASS 1 — NAME THE CLASSES here.\
+    \ PASS 2 — name what each DEPENDS ON (a container, a database, a\n  # browser,\
     \ a bundle, an install — or nothing). That is the FIRST `verify.layers` cut rule:\n\
     \  # CLASSES THAT SHARE AN ENVIRONMENT STAY IN ONE LAYER (a split pays that SETUP\
     \ COST a second\n  # time); a class with its OWN dependency earns its own layer\
@@ -1055,7 +1046,11 @@ concern:
     \ §10; SPEC-0093 §26\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
     \ — no test taxonomy declared yet; declare a `classes:` list (each {class, moment})\
     \ once this project runs tests. The executable land-verify gate lives in the carrier\
-    \ `verify.layers` (SPEC-0152 rule 16).\"\n"
+    \ `verify.layers` (SPEC-0152 rule 16).\"\n  # PRE-DEPLOY CLASS (SPEC-1051) — switch\
+    \ on after your first declared deploy, in place of the\n  # waiver; `__YITC_CLI__\
+    \ pre-deploy list --write` then writes `units:`.\n  # classes:\n  # - class: pre-deploy\n\
+    \  # moment: pre-deploy\n  # reason: \"<why these checks leave the lands>\"\n\
+    \  # targets: [default]\n  # units: []\n"
   carrier_path: tests
   presence_policy: checked-if-present
   update_policy: init re-seed
@@ -1067,31 +1062,25 @@ concern:
   detector: declared-test-regime-false-skip
 - section: verify
   born_order: 90
-  born: "verify:\n  # SPEC-0152 rule 16. The per-layer LAND-VERIFY carrier — `verify.layers`\
-    \ is the AUTHORITATIVE\n  # land-layer universe. DECLARE a `layers:` list (each\
-    \ { layer: <id>, command: <hermetic land cmd> }\n  # OR { layer: <id>, waiver:\
-    \ {reason} }; optional `covers:` globs) OR WAIVE the whole concern (a\n  # LOOSE\
-    \ bare `reason:`). A legacy yitc-verify.yaml is folded into this section at init.\n\
-    \  # HERMETIC — `land` runs each `command:` on the LIVE host — isolated project,\
-    \ ephemeral ports, never\n  # mutating prod/host state (no shared DB, no fixed\
-    \ host ports, no `down -v` on a live stack); a\n  # non-hermetic command makes\
-    \ `land` destructive.\n  # Optional `subject_globs:` lets a land whose diff is\
-    \ DISJOINT from them skip the layer (absent ⇒\n  # always runs). Author them from\
-    \ a DEPENDENCY AUDIT of the layer's command (its real reads, mounts,\n  # sub-scripts)\
-    \ — NOT by copying `covers:`; declare a SUPERSET of it.\n  # Container shape —\
-    \ choose it KNOWINGLY and write the reason in the layer comment:\n  # - THROWAWAY:\
-    \ each probe brings up and tears down its own container (`compose run --rm`).\n\
-    \  # - EXEC: the layer brings a stack up ONCE and each probe runs inside it (`compose\
-    \ exec`).\n  # see SPEC-0152 §16; SPEC-0093 §3\n  # TIMEOUT (X-0204). Per layer\
-    \ `timeout: <seconds>` and/or section `timeout_seconds:`;\n  # in precedence order:\
-    \ the env escape hatch (YITC_VERIFY_TEST_TIMEOUT) · layer · section · machine\n\
-    \  # setting · default;\n  # a malformed value fails the land CLOSED.\n  # HOW\
-    \ TO CHOOSE THE NUMBER: SPEC-0208 (`bin/yitc-v2 graph query SPEC-0208`) — measure\
-    \ p95 by nearest\n  # rank (n >= 20) under the tuple you land under, declare inside\
-    \ [2 x p95, 4 x p95], record it here.\n  waiver:\n    reason: \"Initialized via\
-    \ `bin/yitc-v2 init` — no land-verify layer declared yet; declare a `layers:`\
-    \ list (each {layer, command} or per-layer {layer, waiver:{reason}}) as this project's\
-    \ land-verify layers settle (SPEC-0152 rule 16).\"\n"
+  born: "verify:\n  # SPEC-0152 rule 16. `verify.layers` is the land-layer universe:\
+    \ a `layers:` list ({ layer, command }\n  # or { layer, waiver }) or a whole-concern\
+    \ waiver. `land` runs each command on the LIVE host — keep\n  # it HERMETIC (ephemeral\
+    \ ports, never mutating prod/host state): a non-hermetic command makes\n  # `land`\
+    \ destructive. Author `subject_globs:` from a DEPENDENCY AUDIT, NOT by copying\
+    \ `covers:`.\n  # Rule text: `__YITC_CLI__ graph query SPEC-0093 --kernel`\n \
+    \ # Container shape — choose it KNOWINGLY and write the reason in the layer comment:\n\
+    \  # - THROWAWAY: each probe brings up and tears down its own container (`compose\
+    \ run --rm`).\n  # - EXEC: the layer brings a stack up ONCE and each probe runs\
+    \ inside it (`compose exec`).\n  # see SPEC-0152 §16; SPEC-0093 §3\n  # TIMEOUT\
+    \ — per-layer `timeout:` / section `timeout_seconds:`, read env · layer · section\
+    \ ·\n  # machine setting · default; a malformed value fails the land CLOSED. HOW\
+    \ TO CHOOSE THE NUMBER: SPEC-0208.\n  # BORN LAYER `integrity` — the engine's\
+    \ corpus check over THIS checkout: spec binding\n  # tokens + the derived graph\
+    \ files (`graph build` refreshes them). Hermetic and read-only, needs\n  # no\
+    \ test files. Add your own layers beside it; it is also the quick set `post_sync_set`\
+    \ names.\n  # `--strict` also fails a dead implements anchor, a stale anchor signature,\
+    \ a stale index.\n  layers:\n    - layer: integrity\n      command: __YITC_CLI__\
+    \ -C \"$PWD\" graph conformance --strict\n  post_sync_set: [integrity]\n"
   carrier_path: verify
   presence_policy: checked-if-present
   update_policy: init re-seed
@@ -1148,22 +1137,16 @@ concern:
   declare_type: list
   waiver_policy: loose
   born_order: 120
-  born: "coverage:\n  # SPEC-0152 rule 15 (X-0129) — the B5 COVERAGE-ADMISSION carrier:\
-    \ WHICH load-bearing code\n  # surfaces are REASONED spec-less (a deliberate exclusion)\
-    \ vs a genuine NEW orphan. OPT-IN (the\n  # extensions rule-13 model): an ABSENT\
-    \ section, OR an empty `load_bearing:`, means NO coverage-\n  # admission tracking\
-    \ — a clean default, never fail-closed. `graph build` diffs this project's live\n\
-    \  # load-bearing surfaces (the `load_bearing:` globs) against spec coverage (the\
-    \ `implements` edge) +\n  # the `admitted:` list, and report-only WARNs any load-bearing\
-    \ surface that is NEITHER spec-covered\n  # NOR admitted (a candidate new orphan).\
-    \ To opt in, DECLARE:\n  # load_bearing: # globs naming the load-bearing surface\
-    \ universe (repo-relative)\n  # - \"bin/lib/*.py\"\n  # admitted: # reasoned spec-less\
-    \ surfaces NOT flagged — each needs surface + reason\n  # - surface: \"bin/lib/legacy.py\"\
-    \n  # reason: \"<why this is a deliberate spec-less exclusion, not an orphan>\"\
-    \n  # An admission entry missing a non-empty `surface` OR `reason` does NOT suppress\
-    \ (fail-OPEN: an\n  # evidence-less admission can never silently hide a new orphan).\
-    \ OR waive the whole concern:\n  # waiver: { reason: \"<why this project tracks\
-    \ no coverage admission>\" }\n  load_bearing: []\n  admitted: []\n"
+  born: "coverage:\n  # SPEC-0152 rule 15 — coverage admission. OPT-IN: absent or\
+    \ an empty `load_bearing:` tracks nothing;\n  # a load-bearing surface neither\
+    \ spec-covered nor `admitted:` WARNs at `graph build`. To opt in:\n  # Rule text:\
+    \ `__YITC_CLI__ graph query SPEC-0093 --kernel`\n  # load_bearing: # globs naming\
+    \ the load-bearing surface universe (repo-relative)\n  # - \"bin/lib/*.py\"\n\
+    \  # admitted: # reasoned spec-less surfaces NOT flagged — each needs surface\
+    \ + reason\n  # - surface: \"bin/lib/legacy.py\"\n  # reason: \"<why this is a\
+    \ deliberate spec-less exclusion, not an orphan>\"\n  # Or waive the whole concern:\n\
+    \  # waiver: { reason: \"<why this project tracks no coverage admission>\" }\n\
+    \  load_bearing: []\n  admitted: []\n"
 - section: startup_checks
   carrier_path: startup_checks
   presence_policy: opt-in
@@ -1174,20 +1157,12 @@ concern:
   born_order: 130
   born: '# startup_checks:
 
-    # # SPEC-0152 rule 17 (X-0191) — OPTIONAL, report-only project startup checks.
-    Uncomment + declare
+    # # SPEC-0152 rule 17 — OPTIONAL report-only startup checks, each { label, command,
+    detail };
 
-    # # your own; each { label, command, detail }. `command` runs cheaply at each
-    session-start / land;
+    # # a non-zero exit flags. Absent or commented declares none.
 
-    # # a NON-ZERO exit means the check FLAGS. The flagged checks are aggregated into
-    ONE report-only
-
-    # # `startup-check: …` line (count + `label (detail)`), suppressed when all pass.
-    OPT-IN — leaving
-
-    # # this section absent/commented declares no checks (never fail-closed, never
-    swept).
+    # # Rule text: `__YITC_CLI__ graph query SPEC-0093 --kernel`
 
     # - label: pending-proposals
 
@@ -1204,24 +1179,12 @@ concern:
   declare_type: list
   waiver_policy: loose
   born_order: 135
-  born: "product_source:\n  # SPEC-0152 rule 27. DECLARE which code surfaces this\
-    \ repo actually SHIPS — the\n  # AUTHORITATIVE answer to «what is this project's\
-    \ product source?». The work-batch carrier gate\n  # (an uncarried `work/<slug>`\
-    \ batch, no card and no emergency marker) reads `product_source.globs`\n  # and\
-    \ NOTHING ELSE. In particular it no longer reads `verify.layers[].covers`: that\
-    \ field SCOPES\n  # which verify layers run for a diff, where NARROW is good —\
-    \ and the same narrowing, read as a\n  # product-source declaration, is bad. One\
-    \ field, two purposes, opposite incentives; two fields\n  # with one purpose each\
-    \ is the fix.\n  # TWO ANSWERS, and only these two silence the report-only migration\
-    \ note:\n  # globs: [ \"app/**\", \"frontend/src/**\" ] # the trees this repo\
-    \ actually ships\n  #...or, for a repo that genuinely ships none of its own:\n\
-    \  # waiver: { reason: \"<why this repo ships no product source of its own>\"\
-    \ }\n  # OPT-IN and effect-free while unanswered: an empty `globs:` reads exactly\
-    \ as an ABSENT section —\n  # recognition falls to the kernel floor alone, and\
-    \ a `bin/**` touch is refused with or without a\n  # declaration either way. So\
-    \ leaving this empty is a legitimate answer, as long as it is a KNOWING\n  # one.\
-    \ `globs:` and `waiver:` together is a contradiction; a glob is repo-relative\
-    \ (no leading `/`,\n  # no `../`).\n  globs: []\n"
+  born: "product_source:\n  # SPEC-0152 rule 27. DECLARE the trees this repo SHIPS\
+    \ — the work-batch carrier gate reads only\n  # these — or waive. Empty reads\
+    \ as absent; `globs:` and `waiver:` together is a contradiction.\n  # Rule text:\
+    \ `__YITC_CLI__ graph query SPEC-0093 --kernel`\n  # globs: [ \"app/**\", \"frontend/src/**\"\
+    \ ] # the trees this repo actually ships\n  # waiver: { reason: \"<why this repo\
+    \ ships no product source of its own>\" }\n  globs: []\n"
 - section: live_revision
   carrier_path: deploy.live_revision
   presence_policy: opt-in
@@ -1237,26 +1200,19 @@ concern:
   declare_type: string
   waiver_policy: loose
   born_order: 140
-  born: "migrations:\n  # SPEC-0093 rule 21. DECLARE how this project evolves its\
-    \ persistent SCHEMA: replace this\n  # waiver with a non-empty `command:` — the\
-    \ upgrade command that brings a database to the current\n  # schema (e.g. `alembic\
-    \ upgrade head`). OPTIONAL companions (informational, not a shape gate):\n  #\
-    \ tool: alembic # the named migration tool\n  # versions: backend/alembic/versions\
-    \ # where the revision history lives\n  # applied_at: deploy # WHERE the upgrade\
-    \ actually fires — `deploy` when the deploy\n  # # script runs it (a deploy-coupled\
-    \ schema change: say so out\n  # # loud rather than bury it in a shell script),\
-    \ or `manual`.\n  # The kernel checks the STANCE + shape, NEVER the values — it\
-    \ never runs a migration (rule 3).\n  # The migrations: waiver is LOOSE (rule\
-    \ 6): a bare `reason:`. That is the clean unconditional-waive case\n  # — a project\
-    \ with NO migration tool: lifespan-DDL (schema created at app startup), an ORM\
-    \ create_all, a\n  # schema-less store, or no persistent schema at all. A project\
-    \ with no schema history has no hole to\n  # compensate for, so no compensating\
-    \ control / expiry is demanded.\n  # EITHER declared OR waived, never both (fail-closed\
-    \ exclusivity).\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` —\
-    \ no schema-migration stance declared yet; declare a `command:` (e.g. `alembic\
-    \ upgrade head`, + optional tool/versions/applied_at) once this project migrates\
-    \ a persistent schema, or keep this waiver if it legitimately has none (lifespan-DDL\
-    \ / ORM create_all / schema-less).\"\n"
+  born: "migrations:\n  # SPEC-0093 rule 21. DECLARE a non-empty `command:` that brings\
+    \ a database to the current schema\n  # (optional companions below), or keep this\
+    \ LOOSE waiver when there is no schema history.\n  # Rule text: `__YITC_CLI__\
+    \ graph query SPEC-0093 --kernel`\n  # tool: alembic # the named migration tool\n\
+    \  # versions: backend/alembic/versions # where the revision history lives\n \
+    \ # applied_at: deploy # WHERE the upgrade actually fires — `deploy` when the\
+    \ deploy\n  # # script runs it (a deploy-coupled schema change: say so out\n \
+    \ # # loud rather than bury it in a shell script), or `manual`.\n  # EITHER declared\
+    \ OR waived, never both.\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no schema-migration stance declared yet; declare a `command:` (e.g.\
+    \ `alembic upgrade head`, + optional tool/versions/applied_at) once this project\
+    \ migrates a persistent schema, or keep this waiver if it legitimately has none\
+    \ (lifespan-DDL / ORM create_all / schema-less).\"\n"
 - section: outcome_invariants
   carrier_path: outcome_invariants
   presence_policy: checked-if-present
@@ -1265,28 +1221,25 @@ concern:
   declare_type: list
   waiver_policy: loose
   born_order: 150
-  born: "outcome_invariants:\n  # SPEC-0093 rule 24. DECLARE the standing PRODUCT-OUTCOME\
-    \ invariants of long-lived subsystems no\n  # single card owns (adoption evidence\
-    \ is framed on the DIFF, so such a subsystem has no outcome probe).\n  # X-0419:\
-    \ five remediation cards closed GREEN over three days while the product stayed\
-    \ broken —\n  # and the owner was the only monitor.\n  # Replace this waiver with\
-    \ an `invariants:` list; each entry needs FOUR keys:\n  # invariants:\n  # - id:\
-    \ stats-nonzero # the project-local invariant name (English slug)\n  # subsystem:\
-    \ stats\n  # invariant: \"the stats page reports a non-zero row count for the\
-    \ last 24h\" # prose for a human\n  # probe: # READ-ONLY — stdout {\"ok\": true|false,\
-    \ \"detail\": \"<why>\"}\n  # kind: command\n  # command: [\"python3\", \"scripts/probe_stats_nonzero.py\"\
-    ]\n  # Surfaced report-only at the debt seams (SPEC-0119 rule 17): BROKEN · DEGRADED\
-    \ · UNPROVEN (no\n  # recorded RED `check_admission_demonstrated` for the probe's\
-    \ current definition). Waiver LOOSE;\n  # one entry may carry its own `waiver:\
-    \ {reason}`. EITHER declared OR waived, never both.\n  # see SPEC-0160 §24; SPEC-0093\
-    \ §3\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no standing\
-    \ outcome-invariant declared yet; declare an `invariants:` list (each {id, subsystem,\
-    \ invariant, probe}) for any long-lived subsystem no single card owns, or keep\
-    \ this waiver if this project legitimately has none (a library / CLI / no product\
-    \ surface). Adoption evidence is framed on the DIFF, so an unowned subsystem has\
-    \ NO outcome probe and cannot be observed broken (X-0419: five cards closed green\
-    \ over three days while the product stayed broken; the owner was the only monitor).\"\
-    \n"
+  born: "outcome_invariants:\n  # SPEC-0093 rule 24. DECLARE `invariants:` for long-lived\
+    \ subsystems no single card owns —\n  # X-0419: five remediation cards closed\
+    \ GREEN over three days while the product stayed broken —\n  # and the owner was\
+    \ the only monitor.\n  # Replace this waiver with an `invariants:` list; each\
+    \ entry needs FOUR keys:\n  # invariants:\n  # - id: stats-nonzero # the project-local\
+    \ invariant name (English slug)\n  # subsystem: stats\n  # invariant: \"the stats\
+    \ page reports a non-zero row count for the last 24h\" # prose for a human\n \
+    \ # probe: # READ-ONLY — stdout {\"ok\": true|false, \"detail\": \"<why>\"}\n\
+    \  # kind: command\n  # command: [\"python3\", \"scripts/probe_stats_nonzero.py\"\
+    ]\n  # Surfaced report-only (SPEC-0119 rule 17). Waiver LOOSE; never both.\n \
+    \ # Rule text: `__YITC_CLI__ graph query SPEC-0093 --kernel`\n  # see SPEC-0160\
+    \ §24; SPEC-0093 §3\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init`\
+    \ — no standing outcome-invariant declared yet; declare an `invariants:` list\
+    \ (each {id, subsystem, invariant, probe}) for any long-lived subsystem no single\
+    \ card owns, or keep this waiver if this project legitimately has none (a library\
+    \ / CLI / no product surface). Adoption evidence is framed on the DIFF, so an\
+    \ unowned subsystem has NO outcome probe and cannot be observed broken (X-0419:\
+    \ five cards closed green over three days while the product stayed broken; the\
+    \ owner was the only monitor).\"\n"
 - section: runtime_delivery
   carrier_path: deploy.runtime_delivery
   presence_policy: checked-if-present
@@ -1296,23 +1249,21 @@ concern:
   waiver_policy: loose
   shape_hook: runtime_delivery_shape
   born_order: 35
-  born: "  runtime_delivery:\n    # SPEC-0093 rule 22. DECLARE how code reaches this\
-    \ project's RUNTIME — replace this waiver with ONE\n    # `model:` from the CLOSED\
-    \ enum (an unknown model FAILS CLOSED; optional `note:`):\n    # model: image-baked\
-    \ # a built artifact runs — the deploy verb IS the only path to prod\n    # model:\
-    \ source-mounted # bind-mounted source — a recreate ships main WITHOUT the verb\
-    \ (BYPASSABLE)\n    # model: hot-reload # re-reads source on change — BYPASSABLE\n\
-    \    # model: hybrid # some baked, some mounted — BYPASSABLE; the halves can ship\
-    \ separately\n    # A bypassable model gates nothing; commits past the last deploy_completed\
-    \ then read as ALREADY\n    # LIVE, not \"shipped-but-not-live\" (SPEC-0119 rule\
-    \ 16). Waiver LOOSE — the born placeholder is not\n    # an answer.\n    # see\
-    \ SPEC-0093 §22\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2 init`\
-    \ — no runtime-delivery model declared yet; declare a `model:` (image-baked |\
-    \ source-mounted | hot-reload | hybrid) once this project has a runtime, or keep\
-    \ this waiver if it legitimately has none (a library / CLI / no prod surface).\
-    \ A BIND-MOUNTED runtime makes the deploy verb BYPASSABLE — a container recreate\
-    \ ships main with no gate and no deploy_completed (X-0370: half a paired change,\
-    \ 8h outage).\"\n"
+  born: "  runtime_delivery:\n    # SPEC-0093 rule 22. DECLARE how code reaches the\
+    \ runtime: replace this waiver with ONE `model:`\n    # (an unknown model fails\
+    \ closed):\n    # Rule text: `__YITC_CLI__ graph query SPEC-0093 --kernel`\n \
+    \   # model: image-baked # a built artifact runs — the deploy verb IS the only\
+    \ path to prod\n    # model: source-mounted # bind-mounted source — a recreate\
+    \ ships main WITHOUT the verb (BYPASSABLE)\n    # model: hot-reload # re-reads\
+    \ source on change — BYPASSABLE\n    # model: hybrid # some baked, some mounted\
+    \ — BYPASSABLE; the halves can ship separately\n    # A bypassable model gates\
+    \ nothing (SPEC-0119 rule 16). Waiver LOOSE.\n    # see SPEC-0093 §22\n    waiver:\n\
+    \      reason: \"Initialized via `bin/yitc-v2 init` — no runtime-delivery model\
+    \ declared yet; declare a `model:` (image-baked | source-mounted | hot-reload\
+    \ | hybrid) once this project has a runtime, or keep this waiver if it legitimately\
+    \ has none (a library / CLI / no prod surface). A BIND-MOUNTED runtime makes the\
+    \ deploy verb BYPASSABLE — a container recreate ships main with no gate and no\
+    \ deploy_completed (X-0370: half a paired change, 8h outage).\"\n"
 activation_owner_task: null
 proposed_by: seed-and-grow-kernel-capability-and-yitc-ops-carri
 binding:
@@ -1322,6 +1273,7 @@ implements_signature:
   bin/lib/init.py#_hook_runtime_delivery: e0c6fa9fca99bceea855db55be7086b3a5e6a0cdfb31ef16b3382a427e5566a3
   bin/lib/init.py#_hook_tests: 4a2cf77add16ea3c6192e7242fa70e130c3fe93335799968ad529ad80b4753af
   bin/lib/init.py#_inject_nested_subfield: 105851197d6f39cf750d5575a3d752f05406947e932653f130297c1ac40b8a42
+  bin/lib/init.py#_integrity_graph_for_commit: 10ed757dd5ca1c461a0922f799e12994807de506e6a23b764b3f1b750d449b63
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
-  bin/lib/init.py#cmd_init: 0d133fa805b26a739aad09ddb92f67bd9d2345f8242986e6c49177f9ef5e0834
+  bin/lib/init.py#cmd_init: cea00177794045410e75b5d1bac4c07494445b204d4bfc13e04a29b4067cce0a
   bin/lib/worktree.py#_any_author_land_floor: 0ccef3b9d02eddb4af0e242d5431675ad828d44714e51d35bb94dc16249e7592

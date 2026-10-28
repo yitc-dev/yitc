@@ -723,16 +723,20 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ audit-INVOCATION extension (<workshop-spec>) + read-gate carve-out\n  (SPEC-0050)\
   \ — the §3a honoring logic here is UNCHANGED. A non-empty delta with NO fresh re-audit\
   \ still\n  stays REFUSED (the real audit requirement is NOT loosened — the re-audit\
-  \ is the way to satisfy it,\n  never to bypass it).\n- **Why it is NOT a self-approval\
-  \ hole.** The candidate verify STILL runs green (the new checks gate),\n  and an\
-  \ INDEPENDENT external audit reviewed the change — so a verifier-WEAKENING (candidate\
-  \ green only\n  because the check was removed from code + new tests) is caught by\
-  \ the auditor, not waved through. The\n  baseline RESETS by construction: the next\
-  \ land's pinned source is THIS now-green `main` HEAD (§2) — no\n  new store/tag/FSM\
-  \ (CHARTER §P1 F3).\n- **The waive is PER-ASSERTION, scoped to what the DECLARATION\
-  \ names ( — in-place, the code\n  catching up to this §'s own \"waives ONLY the\
-  \ superseded old-behaviour check\").** The eligibility\n  gate above (ack + `>=30-char`\
-  \ reason + `_change_is_audited`) gates the PATH; it does NOT decide\n  WHICH assertions\
+  \ is the way to satisfy it,\n  never to bypass it). Before `task close`, a hand\
+  \ resolution committed by `worktree sync --resolved`\n  is re-audited by the plain\
+  \ `audit post --task T-XXXX` after `task test --run`: when the latest\n  audit-post\
+  \ is GREEN on the commit before the merge, that pass audits the merge (the conditions:\n\
+  \  SPEC-1018 «Exits from a spent GREEN»).\n- **Why it is NOT a self-approval hole.**\
+  \ The candidate verify STILL runs green (the new checks gate),\n  and an INDEPENDENT\
+  \ external audit reviewed the change — so a verifier-WEAKENING (candidate green\
+  \ only\n  because the check was removed from code + new tests) is caught by the\
+  \ auditor, not waved through. The\n  baseline RESETS by construction: the next land's\
+  \ pinned source is THIS now-green `main` HEAD (§2) — no\n  new store/tag/FSM (CHARTER\
+  \ §P1 F3).\n- **The waive is PER-ASSERTION, scoped to what the DECLARATION names\
+  \ ( — in-place, the code\n  catching up to this §'s own \"waives ONLY the superseded\
+  \ old-behaviour check\").** The eligibility\n  gate above (ack + `>=30-char` reason\
+  \ + `_change_is_audited`) gates the PATH; it does NOT decide\n  WHICH assertions\
   \ the waive covers. Until the grant was ALL-OR-NOTHING — the whole failing\n  pinned\
   \ set was recorded as superseded, whatever was in it — so any unrelated flake or\
   \ regression\n  failing in the same run rode in on an authorization given for a\
@@ -1448,5 +1452,5 @@ implements_signature:
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_assertions: e285282f55cfe142d1c927721d9fbf9052815cc94de7dd850394ce05abc29598
   bin/lib/rebaseline_currency.py#_recorded_pinned_failure_row: d8834898170438d70c4f77711a2e66b1e15350a70068edca203c05dd8cc22cb5
   bin/lib/verify_runner.py#_verify_failure_excerpt: 63bcb17f33bf87e3e053a4001fc27722638af4ffbf87b78bbe3d930213f26031
-  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5
+  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
   bin/lib/worktree.py#_run_pinned_verify: 181c3193b7ea1d623bef9cd420829435a04ba0b43971ea5ea11db6c844d1a152

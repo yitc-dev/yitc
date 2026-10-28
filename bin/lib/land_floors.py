@@ -65,6 +65,9 @@ _FLOOR_SECRET_PATTERNS = (
     ("OpenAI/Anthropic API key", re.compile(r"\b(?:sk-ant-|sk-proj-)[A-Za-z0-9_-]{20,}\b")),
     ("PostgreSQL URL with password",
      re.compile(r"\bpostgres(?:ql)?://[^\s:/@]+:(?P<secret>[^\s:/@]{6,})@")),
+    # T-14199: digit/char lookarounds, not `\b` — `\b` misses the `api.telegram.org/bot<id>:<secret>`
+    # form (`t1` is no word boundary) and a secret that ends in `-`.
+    ("Telegram bot token", re.compile(r"(?<![0-9])[0-9]{8,10}:[A-Za-z0-9_-]{35}(?![A-Za-z0-9_-])")),
 )
 
 #: The five INTERPOLATION shapes a configuration TEMPLATE writes where a credential would go. A

@@ -677,14 +677,14 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ the kernel emits none of them; a consumer's sandbox instruments append them through\
   \ `bin/yitc-v2 event`, `task_id`-tied like every task-subject evidence row. `spike_stack_up`\
   \ = a caged stack came up; `spike_cage_checked` = the declared cage was verified\
-  \ against RUNNING containers (SPEC-0172); `spike_data_proved` = the SPEC-0175 three-strand\
-  \ data proof ran. Each REQUIRES four payload keys, none omitted: `ok` (a real boolean\
-  \ — the instrument's own verdict) · `producer` (the instrument path, e.g. `bin/spike-cage-check.sh`)\
-  \ · `compose_project` (the sandbox compose project — the same name `spike_channel_grant`\
-  \ carries) · `evidence_ref` (a locator that RESOLVES in the emitting repo: a repo-relative\
-  \ file path that exists inside it, `journal#ts=<ISO>` naming a row of its journal,\
-  \ or `cross:X-NNNN`). **The `evidence_ref` is the load-bearing key, not the name**\
-  \ — the promotion consult (decisions/sandbox-practice-kernel-promotion-audit-adhoc.yaml,\
+  \ against RUNNING containers (SPEC-0172); `spike_data_proved` = the <workshop-spec>\
+  \ three-strand data proof ran. Each REQUIRES four payload keys, none omitted: `ok`\
+  \ (a real boolean — the instrument's own verdict) · `producer` (the instrument path,\
+  \ e.g. `bin/spike-cage-check.sh`) · `compose_project` (the sandbox compose project\
+  \ — the same name `spike_channel_grant` carries) · `evidence_ref` (a locator that\
+  \ RESOLVES in the emitting repo: a repo-relative file path that exists inside it,\
+  \ `journal#ts=<ISO>` naming a row of its journal, or `cross:X-NNNN`). **The `evidence_ref`\
+  \ is the load-bearing key, not the name** — the promotion consult (decisions/sandbox-practice-kernel-promotion-audit-adhoc.yaml,\
   \ finding 2) is explicit that names without evidence linkage only rename the stdout-only\
   \ gap. So the audit-packet fold `_ac_probe_evidence_events_for` admits such a row\
   \ as adoption evidence ONLY when its payload validates, `ok` is `true` AND `evidence_ref`\

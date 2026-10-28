@@ -117,18 +117,19 @@ projects, plus the live worktree list, because a claim lives only inside its wor
 — **for the idle buffer** (a machine-scoped `config` tunable, default 15 minutes).
 
 ```
-bin/yitc-v2 venue unpublish # remove the record FIRST — journaled WHOLE, server_id included
-dev-utilities/venue-seed-recipe.sh refresh --server-id <server-id> # the teardown REFRESH leg (rule 6):
-                                                                   # (1) drain on LEASES, never on run dirs
-                                                                   # (2) prepare the WORKED clone — quarantines + finished run dirs
-                                                                   # removed, refs/venue/<req>-<att>/* + objects/info/commit-graph
-                                                                   # cleared, repack
-                                                                   # (3) verify the clone + sync
-                                                                   # (4) fstrim -av — REQUIRED before the snapshot is taken
-                                                                   # (5) poweroff, wait status=off
-                                                                   # (6) create_image, wait available → NEW snapshot id,
-                                                                   # recorded as the seed CANDIDATE (`venue seed --candidate`)
-bin/yitc-v2 venue delete --server-id <server-id> # (7) destroy the box + its key
+bin/yitc-v2 venue delete --server-id <server-id> # the WHOLE teardown (rule 6), in this order:
+# 1. venue unpublish — remove the record FIRST, journaled WHOLE, server_id included
+# 2. the REFRESH LEG, by default (rule 6; kernel code, bin/lib/venue.py):
+# (1) drain on LEASES, never on run dirs; ensure the declared package set
+# (2) prepare the WORKED clone — quarantines + finished run dirs removed,
+# refs/venue/<req>-<att>/* + objects/info/commit-graph cleared, repack
+# (3) verify the clone + sync
+# (4) fstrim -av — REQUIRED before the snapshot is taken
+# (5) poweroff, wait status=off
+# (6) create_image, wait available → NEW snapshot id, recorded as the seed CANDIDATE
+# 3. DELETE the server (7)
+# a refresh that fails deletes NOTHING and prints the command that finishes the job; the only skip
+# is `--skip-refresh "<why>"` (a broken box, a box already gone), journaled with its reason
 # the next bare `venue raise` verifies the candidate and PROMOTES it on a GREEN probe —
 # no manual `venue seed`; keep the PRIOR snapshot until then, and delete it by hand afterwards
 ```
@@ -183,9 +184,9 @@ A real window, end to end:
    is reachable but its clone is behind. The session fixes the box and files the card for why the
    push was skipped.
 4. The last worker lands. Fifteen minutes later the task cards and the worktree list agree that
-   nothing is in progress on this machine. → `venue unpublish` → `venue-seed-recipe.sh refresh`
-   (the seed snapshot refreshed from the caught-up box, ~7 min, recorded as the seed candidate) →
-   `venue delete`. The next kernel
+   nothing is in progress on this machine. → `venue delete`, which runs `venue unpublish` → the
+   refresh leg (the seed snapshot refreshed from the caught-up box, ~7 min, recorded as the seed
+   candidate) → the server delete. The next kernel
    pass runs locally, byte-identically to before.
 
 ## §Anti-pattern

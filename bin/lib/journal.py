@@ -3937,7 +3937,13 @@ class _FoldLineSource:
 
     def _serve(self, idx):
         sv = self.served[idx]
+        # T-14286 — a segment BORROWED from another checkout's walk is the same bytes the file holds, so
+        # it feeds `on_line` exactly as a streamed one would; a summary-served one does not (its
+        # reducers were restored from the summary).
+        feed = self.on_line if getattr(sv, "feeds_line", False) else None
         for k, line in sv.lines():
+            if feed is not None:
+                feed(idx, line)
             if self.needles and any(n in line for n in self.needles):
                 self.needle_lines.setdefault(idx, []).append((k, line))
             self.cur_k = k
@@ -5268,6 +5274,28 @@ class _ServedSegment:
             yield int(k), line
 
 
+class _BorrowedSegment:
+    """T-14286 — one archive segment served from ANOTHER checkout's walk of its verified-identical copy:
+    that walk's stored lines in order, at positions 0..n-1. Its header (line count, lossy) is known once
+    the lines are consumed, which is when `_FoldLineSource._serve` reads it."""
+
+    feeds_line = True
+
+    def __init__(self, peer, seg, blocks):
+        self._peer, self._seg, self._blocks = peer, seg, list(blocks)
+        self.header = {"line_count": 0, "lossy": any(seg in src.lossy for src in peer._sources)}
+        self.reducers = ()
+
+    def lines(self):
+        seg, k = self._seg, 0
+        for _seqs, segs, blob in self._blocks:
+            for g, line in zip(segs, zlib.decompress(blob).decode("utf-8").split("\n")):
+                if g == seg:
+                    yield k, line
+                    k += 1
+        self.header["line_count"] = k
+
+
 class _SegmentRecord:
     """What the walk records while it FOLDS one archived segment, to publish as that segment's summary."""
 
@@ -5524,6 +5552,10 @@ class JournalScan:
         self._recs = None            # archived seg index -> _SegmentRecord while it is folded
         self._per_seg: dict = {}     # summarizable reducer name -> {archived seg index: its instance}
         self._force_rows = bool(force_rows)   # T-13352 — False: `_FoldLineSource`'s share-only memo read
+        self._peer = None            # T-14286 — another checkout's scope whose archive copies this one borrows
+        self._shared_fn = None       # T-14286 — () -> the archive segments verified identical to the peer's
+        self._shared = None          # T-14286 — that set's basenames, computed once at first use
+        self.borrowed: list = []     # T-14286 — basenames of the segments served from the peer's walk
 
     def holds(self, path) -> bool:
         """True iff `path` is this scope's logical journal or one of its segments (`JournalRowsMemo.holds`,
@@ -5643,6 +5675,7 @@ class JournalScan:
         if self._keep_all:
             self._store = _LineStore()
             self._stores.append(self._store)
+        served = self._borrowed_served(indices, served)
         self._src = _FoldLineSource([self._segs[i] for i in indices], indices=indices,
                                     needles=self._needles,
                                     on_line=(self._on_line if (self._line_reducers or self._task
@@ -5661,6 +5694,74 @@ class JournalScan:
         if self._keep_all:
             self._store._flush()
         self.folds = sum(sum(src.streamed.values()) for src in self._sources)
+
+    # ── T-14286 — ONE read of an archive segment across two checkouts ─────────────────────────────
+    # A linked worktree's archive segments are git-verified copies of main's (T-12494). `task close`
+    # holds a keep_all scope on each journal (T-13330), so each walked such a copy for itself: every
+    # dated segment of the horizon twice, and on the read gate's refusal path the whole history twice
+    # (measured: 282 folds, 28 s of a 33.6 s close). MAIN's scope now takes such a segment from the
+    # worktree scope's walked lines — the same bytes, so every main-scope reader reads what it read
+    # before — and opens the file only when the peer has not walked it. No store, no cache: the lines
+    # are the peer's own, held for this request only.
+    def borrow_from(self, peer, shared) -> None:
+        """Serve this scope's archive segments verified identical to `peer`'s (`shared()` -> those
+        segments, the T-12494 primitive) from `peer`'s walk. Both scopes must be keep_all."""
+        if peer is not self and self._keep_all and getattr(peer, "_keep_all", False):
+            self._peer, self._shared_fn = peer, shared
+
+    def shared_names(self) -> frozenset:
+        """Basenames of this journal's archive segments verified identical to the peer's — empty with
+        no peer, and on any failure of the identity check (fail-open: those segments are read)."""
+        if self._shared is None:
+            names: frozenset = frozenset()
+            if self._shared_fn is not None:
+                try:
+                    names = frozenset(Path(str(seg)).name for seg in self._shared_fn())
+                except Exception:   # noqa: BLE001 — the identity check is an optimisation, never a fault
+                    names = frozenset()
+            self._shared = names
+        return self._shared
+
+    def _borrowed_served(self, indices, served):
+        """`served` plus a `_BorrowedSegment` for each of `indices` the peer can answer: an archive
+        segment (never the live one) whose name is verified shared and which the peer's walk already
+        read. The peer is never walked from here (no second journal lock is taken under this one)."""
+        peer = self._peer
+        if peer is None or not indices or not peer._ran or peer._stale:
+            return served
+        shared = self.shared_names()
+        if not shared:
+            return served
+        live = len(self._segs) - 1
+        peer_idx = {Path(str(s)).name: j for j, s in enumerate(peer._segs) if j < len(peer._segs) - 1}
+        out = dict(served or {})
+        blocks = None
+        for i in indices:
+            if i >= live or i in out:
+                continue
+            name = Path(str(self._segs[i])).name
+            j = peer_idx.get(name)
+            if name not in shared or j is None or j not in peer._walked:
+                continue
+            if blocks is None:
+                blocks = peer._segment_blocks()
+            out[i] = _BorrowedSegment(peer, j, blocks.get(j, ()))
+            self.borrowed.append(name)
+        return out
+
+    def _segment_blocks(self) -> dict:
+        """seg index -> the packed blocks (in walk order) holding its lines, read off each block's own
+        segment array — no block is decompressed to build it. Every walk flushes its store, so a walked
+        segment's lines are all in packed blocks."""
+        out: dict = {}
+        for store in self._stores:
+            for block in store._blocks:
+                segs = block[1]
+                if not len(segs):
+                    continue
+                for j in (sorted(set(segs)) if segs[0] != segs[-1] else (segs[0],)):
+                    out.setdefault(j, []).append(block)
+        return out
 
     def add(self, seq, row, line):
         seg = self._src.seg_idx
@@ -6007,6 +6108,23 @@ class JournalScan:
         stores = list(self._stores)
         merged = stores[0] if len(stores) == 1 else heapq.merge(*stores, key=lambda e: (e[1], e[0]))
         return (e for e in merged if allowed is None or e[1] in allowed)
+
+    def _unshared_entries(self, reason):
+        """T-14286 — `(seq, seg, line)` of every segment NOT in `shared_names()`, walking the ones not yet
+        walked (recorded; the horizon itself is unchanged, so this is not a whole-history extension)."""
+        self._ensure()
+        shared = self.shared_names()
+        keep = {i for i, s in enumerate(self._segs) if Path(str(s)).name not in shared}
+        if keep - self._walked:
+            with (events.journal_lock(self._path) if self._lock else contextlib.nullcontext()):
+                new = keep - self._walked
+                if new:
+                    self.extensions.append((reason, self._since, self._since))
+                    _READ_COUNTERS["segments_skipped"] -= len(new)
+                    self._walk(new)
+        stores = list(self._stores)
+        merged = stores[0] if len(stores) == 1 else heapq.merge(*stores, key=lambda e: (e[1], e[0]))
+        return (e for e in merged if e[1] in keep)
 
     def _keep_all_rows(self, types, since=None, until=None, only_seg=None, reason="typed", must=None):
         """The parsed rows of `types` (None = every type) — scan_journal's admission, streamed.
@@ -6648,19 +6766,25 @@ class JournalScan:
                     out.append(row)
         return out
 
-    def needle_rows(self, needle, whole=False):
+    def needle_rows(self, needle, whole=False, unshared=False):
         """The parsed rows whose raw line CONTAINS `needle`, in walk order — a superset of the rows any
         field equal to `needle` can select, for a caller that filters them itself — or None when the
         seam did not declare `needle` (recorded: the caller then reads the journal as before).
 
         T-13330 — a keep_all scope answers ANY needle from its walked lines (no declaration needed):
-        the walked horizon by default, the WHOLE history (one recorded extension) with `whole=True`."""
+        the walked horizon by default, the WHOLE history (one recorded extension) with `whole=True`.
+
+        T-14286 — `unshared=True` (with `whole=True`) answers over the whole history MINUS the archive
+        segments verified identical to the peer's (`shared_names`): a caller whose question the peer's
+        rows of those segments already answer — the read gate's main anchor leg — walks none of them."""
         if not self._usable("needle", needle):
             return None
         if self._keep_all:
             self.served += 1
             out = []
-            for _s, _g, line in self._keep_all_entries(None if whole else self._since, reason="needle"):
+            entries = (self._unshared_entries("needle-unshared") if whole and unshared
+                       else self._keep_all_entries(None if whole else self._since, reason="needle"))
+            for _s, _g, line in entries:
                 if needle not in line:
                     continue
                 try:
@@ -6857,19 +6981,21 @@ def scope_of(path):
     return _scope_for(path)
 
 
-def scope_session_rows(path, sref, whole=False):
+def scope_session_rows(path, sref, whole=False, unshared=False):
     """T-13293 — the read-gate's horizon-first evidence: the installed scope's rows naming session ref
     `sref` (the needle is declared here, before the lazy walk), or None — no scope holds `path`, a ref
     whose JSON spelling is not itself, or a walk that already ran without it.
 
     T-13330 — `whole=True` asks a keep_all scope for the rows over the WHOLE history (one recorded
-    extension of the same walk); every other scope answers None to it, so the caller reads as before."""
+    extension of the same walk); every other scope answers None to it, so the caller reads as before.
+    T-14286 — `unshared=True` leaves out the archive segments verified identical to the peer scope's
+    (`JournalScan.needle_rows`); only a keep_all scope reads it, every other branch is unchanged."""
     if not path or not sref or json.dumps(sref)[1:-1] != sref or not scan_scope_holds(path):
         return None
     if whole:
         scope = _keep_all_scope_for(path)
         if scope is not None:
-            return scope.needle_rows(sref, whole=True)
+            return scope.needle_rows(sref, whole=True, unshared=unshared)   # T-14286
         # T-13379 — an UNFLOORED scope that declared the ref walks the whole history: its needle rows
         # ARE the whole-history answer (a horizon-bounded one still answers None here).
         scope = _scope_for(path)
@@ -10984,7 +11110,7 @@ def _journal_sync(session_ref: str | None = None, *, SYNC_STATE_DIR, _all_source
             else:
                 # T-13181 (SPEC-0163 §4e): redact BEFORE the cap — a cap-then-redact could keep a
                 # split, no-longer-matching partial token inside the stored head or tail.
-                data = _cap_text(redact_secrets(raw))
+                data = _cap_text(redact_owner_text(raw) if etype == "owner_directive" else redact_secrets(raw))
             if etype == "owner_directive":      # D-0048: best-effort label on the owner channel
                 data["classification"] = _infer_directive_classification(data.get("text", ""))
                 # T-12649 (X-1465): MARK A MID-TURN ARRIVAL. A mid-turn owner answer is already
@@ -12419,7 +12545,7 @@ def _admission_holder(path, *, slot, _flock_holder, _locks_readable, _proc_cwd, 
 
 def _admission_report(*, main_wt, events_path, stage6_limits, _stage6_waiters, _land_queue, _queue_jump,
                       _flock_holder, _slot_dir, _reservation_path, _proc_cwd, _locks_readable,
-                      now=None) -> dict:
+                      now=None, _queue_report=None) -> dict:
     """T-14007 — the two admission pools as they stand NOW: per pool the holder(s) and the waiters in
     the order the engine admits them. PURE READ: it takes no lock (`_flock_holder` reads `/proc/locks`),
     creates no file or directory (`_slot_dir` is asked not to create) and writes no journal row.
@@ -12434,7 +12560,12 @@ def _admission_report(*, main_wt, events_path, stage6_limits, _stage6_waiters, _
 
     Both readers answer an unreadable journal with an empty queue, so the view checks the journal
     itself: a journal that is not a readable file sets `waiters_readable: false` on both pools and the
-    text says the waiters are unknown — never "no waiters" (audit-pre finding 2)."""
+    text says the waiters are unknown — never "no waiters" (audit-pre finding 2).
+
+    queue — T-14195 (SPEC-1045 rule 2 (e)): while the repo's admission queue is switched on,
+    `_queue_report()` (the queue module's own read-only reader) adds a third pool: the tickets in their
+    order, the work it let pass, the green hold. Switched off it answers None and the report is as
+    before; a reader that fails is reported unreadable, never as an empty queue."""
     now = time.time() if now is None else now
     p_ev = Path(events_path)
     readable = p_ev.is_file() and os.access(p_ev, os.R_OK)
@@ -12476,12 +12607,21 @@ def _admission_report(*, main_wt, events_path, stage6_limits, _stage6_waiters, _
             "since": (None if ws is None else _dt.datetime.fromtimestamp(ws, _dt.timezone.utc)
                       .isoformat(timespec="seconds").replace("+00:00", "Z")),
             "queue_jump": marked[br]})
-    return {"pools": [
+    pools = [
         {"pool": "stage6", "configured": bool(n), "slots": int(n) if n else None,
          "holders": s6_holders, "waiters": s6_waiters if readable else [], "waiters_readable": readable},
         {"pool": "land_reservation", "configured": True, "slots": 1,
          "holders": [land_holder] if land_holder else [], "waiters": land_waiters if readable else [],
-         "waiters_readable": readable}]}
+         "waiters_readable": readable}]
+    if _queue_report is not None:
+        try:
+            queue_pool = _queue_report()
+        except Exception as e:                 # noqa: BLE001 — a failed read is reported, not hidden
+            queue_pool = {"pool": "queue", "configured": True, "readable": False, "waiters": [], "holders": [],
+                          "hold": None, "error": f"{type(e).__name__}: {e}"}
+        if queue_pool is not None:
+            pools.append(queue_pool)
+    return {"pools": pools}
 
 
 def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
@@ -12492,6 +12632,9 @@ def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
         return
     print("admission (read-only — no lock taken, nothing written):")
     for p in report["pools"]:
+        if p["pool"] == "queue":                    # T-14195 — the SPEC-1045 queue, while switched on
+            _print_admission_queue(p)
+            continue
         if not p["configured"]:
             print(f"  {p['pool']}: no admission (YITC_VENUE_STAGE6_MAX_CONCURRENT unset)")
         else:
@@ -12512,6 +12655,70 @@ def cmd_journal_admission(args: argparse.Namespace, **collaborators) -> None:
             print("    no waiters")
     print("  land order: queue-jump first, then the oldest wait; the grant also weighs the cost class "
           "(SPEC-0184 rule 9)")
+
+
+def _print_admission_queue(p: dict) -> None:
+    """T-14195 — the text form of the SPEC-1045 queue pool of `journal query --admission`."""
+    print(f"  queue (SPEC-1045, {p.get('switch') or 'switched on'}):")
+    if not p.get("readable", True):
+        print(f"    state unknown (could not be read: {p.get('error') or '?'}) — never read as an empty queue")
+        return
+    for h in p.get("holders") or []:
+        print(f"    passed {h.get('kind') or '?'} task={h.get('task') or '?'} pid={h.get('pid')} "
+              f"since={h.get('since') or '?'}")
+    for w in p.get("waiters") or []:
+        print(f"    waiter {w['position']}. {w.get('task') or '?'} class={w.get('class')} pid={w.get('pid')} "
+              f"since={w.get('since') or '?'}")
+    if not (p.get("waiters") or []):
+        print("    no waiters")
+    hold = p.get("hold")
+    if hold:
+        print(f"    green hold of {hold.get('card') or 'no card (unreadable)'} since {hold.get('set_ts') or '?'}")
+    _print_admission_soak(p.get("soak"))
+
+
+def _print_admission_soak(sk) -> None:
+    """T-14198 — the comparison protocol's reading (`admission.soak`, the plan's soak window), one line
+    for the window and one for the baseline; an unreadable journal says so."""
+    if not isinstance(sk, dict):
+        return
+    if sk.get("error"):
+        print(f"    soak: unknown (the journal could not be read: {sk['error']})")
+        return
+
+    def _pct(v):
+        return "-" if v is None else f"{100 * v:.0f}%"
+
+    def _num(v):
+        return "-" if v is None else f"{v:.2f}"
+    w = sk.get("window")
+    if w is None:
+        print("    soak: no window yet (no queue pass row after the last restart)")
+    else:
+        state = ("fit" if sk.get("fit") else "unfit: UNKNOWN outcomes") if sk.get("complete") else \
+            f"filling, {w.get('ok_task_lands')} of {sk.get('size')} ok task lands"
+        print(f"    soak window {w.get('from')}..{w.get('to')} ({state}): credit share {_pct(w.get('credit_share'))}, "
+              f"cards/h {_num(w.get('cards_per_hour'))}, abort rate {_pct(w.get('abort_rate'))}, "
+              f"signals {w.get('signals')}, unknown {len(w.get('unknown') or [])}, "
+              f"restarts {len(sk.get('restarts') or [])}")
+        _print_soak_unknown(w)
+    b = sk.get("baseline")
+    if b:
+        print(f"    soak baseline {b.get('from')}..{b.get('to')}: credit share {_pct(b.get('credit_share'))}, "
+              f"cards/h {_num(b.get('cards_per_hour'))}, abort rate {_pct(b.get('abort_rate'))}")
+        _print_soak_unknown(b)
+
+
+def _print_soak_unknown(m: dict) -> None:
+    """T-14294 (SPEC-1045 rule 2 (e)) — name each UNKNOWN of a soak measure: a result row naming a pass
+    that has no row, or a land pass no land_completed names."""
+    for u in m.get("unknown") or []:
+        if u.get("why") == "admitting-pass-row-missing":
+            print(f"      unknown: {u.get('row')} of {u.get('task') or '?'} at {u.get('ts')} names the pass "
+                  f"{u.get('pass_ts')}, which has no admission_pass row")
+        else:
+            print(f"      unknown: land pass of {u.get('task') or '?'} at {u.get('ts')} (pid {u.get('pid')}) — "
+                  "no land_completed names it")
 
 
 # ── dispatch-plan advisor (T-10178, SPEC-0136) — read-only Axis-B batch proposal + Handback ──────────
@@ -13954,6 +14161,27 @@ def redact_secrets(text):
     return out
 
 
+#: T-14199 (SPEC-0163 §4e) — a Google app password: four groups of four lowercase letters, spaced or run
+#: together. LOW-ENTROPY and prose-shaped, so it is never a floor shape (`_FLOOR_SECRET_PATTERNS` refuses
+#: lands): it is removed only from OWNER text, and only beside a credential word (`redact_owner_text`).
+_OWNER_APP_PASSWORD = re.compile(r"(?<![A-Za-z])(?:[a-z]{4}(?: [a-z]{4}){3}|[a-z]{16})(?![A-Za-z])")
+_OWNER_CREDENTIAL_WORD = re.compile(r"(?i)\b(?:password|token)\b|пароль|токен")
+
+
+def redact_owner_text(text):
+    """T-14199 (SPEC-0163 §4e) — `redact_secrets(text)`, then, ONLY when a credential word (password /
+    token / пароль / токен and their inflections) sits in the same text, every app-password-shaped run
+    replaced by `<redacted:secrets:unhashed>` (a low-entropy value gets no digest — the rule-4c oracle).
+    Applied by the two writers of an owner's words (the transcript adapter's owner_directive `text`, the
+    mid-turn `owner_text`). Returns the SAME object when nothing matched or `text` is not a string."""
+    out = redact_secrets(text)
+    if not isinstance(out, str) or not _OWNER_CREDENTIAL_WORD.search(out):
+        return out
+    marker = JOURNAL_REDACT_PLACEHOLDER.format(atom="secrets", rid=JOURNAL_WRITE_REDACT_UNHASHED)
+    red = _OWNER_APP_PASSWORD.sub(marker, out)
+    return out if red == out else red
+
+
 def redact_payload(data):
     """`redact_secrets` over EVERYTHING a journal payload serializes as text — string values AND string
     keys — recursing into dicts, lists and tuples (a tuple serializes as a JSON array, so skipping it
@@ -14186,7 +14414,7 @@ def cmd_journal_redact(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _FLO
     completes it on the next ordinary invocation. Only the second is fail-closed.
 
     SCOPE BOUND, fail-closed, every check BEFORE one byte is written: it refuses outside a writing
-    worktree, refuses an atom that names no token shape, refuses a NON-journal path, refuses a row
+    worktree or the main checkout (on `main` it admits only a row NOT in HEAD — T-14200), refuses an atom that names no token shape, refuses a NON-journal path, refuses a row
     already on `main` (so `main` is NEVER rewritten), refuses a row the named atom does not match,
     and refuses an ambiguous `--ts`. It touches ONLY journal paths — never a source file — and a
     redacted row still parses as a valid event line.
@@ -14203,7 +14431,15 @@ def cmd_journal_redact(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _FLO
     imprecise receipt, never an un-redacted secret and never a rewritten non-secret. Every mismatch
     OUTSIDE the span (path-class, line, label, prefix, suffix, digest) still refuses."""
     # R4 FIRST, and deliberately BEFORE the lock: a refused caller takes no lock at all.
-    _require_writing_worktree()
+    # T-14200 — THE MAIN-CHECKOUT ARM. A journal append from the main checkout is sanctioned (D-0049)
+    # and sits UNCOMMITTED until the next land folds it, so that is where a leaked owner text waits
+    # before it reaches git history. On `main` the writing-worktree guard would refuse it; instead the
+    # locked body admits only a row that is in the working-tree journal and NOT in HEAD, and a row
+    # already committed stays refused (history is never rewritten). Any other branch keeps the guard.
+    sref = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], Path(REPO_ROOT))
+    on_main = getattr(sref, "returncode", 1) == 0 and (sref.stdout or "").strip() == "main"
+    if not on_main:
+        _require_writing_worktree()
 
     ts = (getattr(args, "ts", None) or "").strip()
     atom = (getattr(args, "atom", None) or "").strip()
@@ -14261,7 +14497,7 @@ def cmd_journal_redact(args: argparse.Namespace, *, EVENTS_PATH, REPO_ROOT, _FLO
             _floor_is_interpolation=_floor_is_interpolation,
             _floor_journal_row_redactable=_floor_journal_row_redactable,
             _floor_secret_span=_floor_secret_span, _run_git_cap=_run_git_cap,
-            write_text_atomic=write_text_atomic, progress=progress)
+            write_text_atomic=write_text_atomic, progress=progress, on_main=on_main)
     except JournalSegmentUnreadable as e:
         # FAIL-CLOSED either way — the difference is only WHAT IS TRUE OF THIS RUN, and the refusal
         # says it rather than asserting the comfortable version of it.
@@ -14293,7 +14529,7 @@ def _journal_redact_locked(args, *, ts, atom, want_path, want_line, root, floor_
                            receipt_floor_day, EVENTS_PATH, _FLOOR_SECRET_PATTERNS, _actor,
                            _append_event, _die, _floor_added_line_numbers, _floor_is_interpolation,
                            _floor_journal_row_redactable, _floor_secret_span, _run_git_cap,
-                           write_text_atomic, progress=None) -> None:
+                           write_text_atomic, progress=None, on_main=False) -> None:
     """The serialized body of `cmd_journal_redact` — everything from the lock to the rewrite.
 
     It is a separate function ONLY so its caller can wrap the whole critical section in one
@@ -14307,14 +14543,44 @@ def _journal_redact_locked(args, *, ts, atom, want_path, want_line, root, floor_
     if progress is None:
         progress = {}
     with events.redact_lock(EVENTS_PATH):
-        mb = _run_git_cap(["merge-base", "HEAD", "main"], root)
-        base_ref = mb.stdout.strip() if getattr(mb, "returncode", 1) == 0 else None
-        added = _floor_added_line_numbers(root, base_ref, _run_git_cap) if base_ref else None
+        if on_main:
+            # T-14200: the base is HEAD and the added lines are HEAD vs the file ON DISK (the T-13896
+            # working-tree form) — exactly the uncommitted rows. The shared predicate's on-main leg
+            # then reads «committed», and its unanswerable answer still reads as committed.
+            mb = _run_git_cap(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], root)
+            base_ref = mb.stdout.strip() if getattr(mb, "returncode", 1) == 0 else None
+            added = (_floor_added_line_numbers(root, base_ref, _run_git_cap, working_tree=True)
+                     if base_ref else None)
+        else:
+            mb = _run_git_cap(["merge-base", "HEAD", "main"], root)
+            base_ref = mb.stdout.strip() if getattr(mb, "returncode", 1) == 0 else None
+            added = _floor_added_line_numbers(root, base_ref, _run_git_cap) if base_ref else None
         memo: dict = {}
 
         def _redactable(rel, lineno, content) -> bool:
             return _floor_journal_row_redactable(rel, lineno, content, ts, added, root, base_ref,
                                                  _run_git_cap, memo)
+
+        committed_msg = (
+            "already COMMITTED on `main` (in HEAD), or their uncommitted status could not be "
+            "proven — this verb redacts only a row the main checkout has not committed yet, and "
+            "`main`'s history is never rewritten (SPEC-0163 rule 4c). ROTATE the credential: revoke "
+            "it where it was issued and issue a new one — the value stays in git history. Once "
+            "rotated, rule 4d's `journal_allowlist` entry clears the floor for that row.")
+
+        def _still_uncommitted(rel, lineno, content) -> bool:
+            """T-14200 — the main-checkout admission RE-ASKED, called only while `journal_lock` is
+            held. A land folds main's uncommitted rows and fast-forwards `main` inside that same lock
+            (`_land_integrate`'s pre-ff re-fold), so an answer taken under it cannot be overtaken by
+            a land committing the row before the write that depends on it. HEAD is re-resolved:
+            an ff since the admission read moved it. Every uncertainty answers False (committed)."""
+            hd = _run_git_cap(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], root)
+            head = hd.stdout.strip() if getattr(hd, "returncode", 1) == 0 else None
+            if not head:
+                return False
+            now = _floor_added_line_numbers(root, head, _run_git_cap, working_tree=True)
+            return _floor_journal_row_redactable(rel, lineno, content, ts, now, root, head,
+                                                 _run_git_cap, {})
 
         # THE ORPHAN QUESTION IS ASKED OF THE WHOLE `ts` POPULATION, NOT THE PINNED ONE (audit-post
         # r1 finding 3). A receipt is keyed `(ts, atom)`, so judging it against a `--path`/`--line`
@@ -14401,7 +14667,9 @@ def _journal_redact_locked(args, *, ts, atom, want_path, want_line, root, floor_
                         f"at a new address), or its added-line provenance is unresolvable. This verb "
                         f"never rewrites `main`")
             _journal_redact_write(seg, n, content, redacted, EVENTS_PATH, write_text_atomic,
-                                  _die=_die, rid=rid)
+                                  _die=_die, rid=rid,
+                                  recheck=(lambda: _still_uncommitted(rel, n, content)) if on_main else None,
+                                  recheck_msg=committed_msg)
             print(f"journal redact: COMPLETED an interrupted redaction under the EXISTING receipt "
                   f"(redaction_id={rid}) — {rel}:{n} now carries the placeholder; no second receipt "
                   f"was appended (SPEC-0163 rule 4c orphan-receipt reader).")
@@ -14414,6 +14682,9 @@ def _journal_redact_locked(args, *, ts, atom, want_path, want_line, root, floor_
                  + (f" under --path {want_path!r}" if want_path else "")
                  + (f" at --line {want_line}" if want_line is not None else "") + ".")
         live = [(rel, seg, n, content) for rel, seg, n, content in cands if _redactable(rel, n, content)]
+        if not live and on_main:
+            _die(f"journal redact: the row(s) matching ts={ts!r} are {committed_msg} With that "
+                 f"entry in `verify.floor.secrets.journal_allowlist`, `bin/yitc-v2 land` admits it.")
         if not live:
             _die(f"journal redact: the row(s) matching ts={ts!r} are NOT provably written by this "
                  f"branch — already on `main` at the merge-base, or their added-line provenance is "
@@ -14441,6 +14712,11 @@ def _journal_redact_locked(args, *, ts, atom, want_path, want_line, root, floor_
             if n > len(fresh) or _redact_line_content(fresh[n - 1]) != content:
                 _die(f"journal redact: {rel}:{n} moved between the admission read and the write "
                      f"window — nothing was appended and nothing was rewritten. Re-run the verb.")
+            if on_main and not _still_uncommitted(rel, n, content):
+                _die(f"journal redact: {rel}:{n} was committed between the admission read and the "
+                     f"write window — nothing was appended and nothing was rewritten. The row is "
+                     f"{committed_msg} With that entry in `verify.floor.secrets.journal_allowlist`, "
+                     f"`bin/yitc-v2 land` admits it.")
             redacted, labels = _journal_redact_apply(
                 content, atom, rid, _FLOOR_SECRET_PATTERNS=_FLOOR_SECRET_PATTERNS,
                 _floor_is_interpolation=_floor_is_interpolation, _floor_secret_span=_floor_secret_span)
@@ -14465,14 +14741,23 @@ def _journal_redact_locked(args, *, ts, atom, want_path, want_line, root, floor_
 
         # ---------- STEP 4c — re-take the lock, re-validate, write ----------
         _journal_redact_write(seg, n, content, redacted, EVENTS_PATH, write_text_atomic,
-                              _die=_die, rid=rid)
+                              _die=_die, rid=rid,
+                              recheck=(lambda: _still_uncommitted(rel, n, content)) if on_main else None,
+                              recheck_msg=committed_msg)
         print(f"journal redact: {rel}:{n} — redacted {', '.join(labels)} as "
               f"{JOURNAL_REDACT_PLACEHOLDER.format(atom=atom, rid=rid)}; one "
               f"`{JOURNAL_REDACT_EVENT}` receipt appended (redaction_id={rid}).")
+        if on_main:
+            # A land that folded this row into its branch BEFORE the rewrite still carries the value
+            # there; that land's secrets floor refuses the added row (rule 4a), so it never reaches
+            # `main` — but the value was exposed, and redaction is never rotation.
+            print("journal redact: the value was exposed in the journal — ROTATE the credential "
+                  "anyway (redaction removes the bytes, not the exposure).")
 
 
 def _journal_redact_write(seg, lineno: int, content: str, redacted: str, events_path,
-                          write_text_atomic, *, _die, rid: str) -> None:
+                          write_text_atomic, *, _die, rid: str, recheck=None,
+                          recheck_msg: str = "") -> None:
     """STEP 4c — re-take `journal_lock`, re-read, re-validate, write back ONE line.
 
     THE RE-READ IS THE POINT, not a formality: because the bytes written are the bytes just read
@@ -14490,6 +14775,16 @@ def _journal_redact_write(seg, lineno: int, content: str, redacted: str, events_
                  f"`{JOURNAL_REDACT_EVENT}` receipt (redaction_id={rid}) is now an ORPHAN; re-run "
                  f"`journal redact` and it will be completed under that same receipt (SPEC-0163 rule "
                  f"4c orphan-receipt reader).")
+        # T-14200: on the main checkout, the uncommitted-row admission is asked AGAIN here, inside
+        # the lock a land's fold + fast-forward of `main` also holds — so no land commits the row
+        # between this answer and the write below. Refusing here leaves the receipt an ORPHAN that
+        # no later run can complete (the row is `main`'s now): the fail-closed state, said so.
+        if recheck is not None and not recheck():
+            _die(f"journal redact: {Path(seg).name}:{lineno} was committed after the "
+                 f"`{JOURNAL_REDACT_EVENT}` receipt (redaction_id={rid}) was appended — REFUSING with "
+                 f"the segment bytes untouched; that receipt records a redaction that did not happen. "
+                 f"The row is {recheck_msg} With that entry in "
+                 f"`verify.floor.secrets.journal_allowlist`, `bin/yitc-v2 land` admits it.")
         raw = lines[lineno - 1]
         terminator = raw[len(_redact_line_content(raw)):]
         lines[lineno - 1] = redacted + terminator

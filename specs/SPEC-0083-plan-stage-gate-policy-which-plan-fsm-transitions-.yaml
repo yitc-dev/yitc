@@ -214,12 +214,16 @@ body: "## Scenario\n\nAs a plan moves through its FSM (draft → specs → trial
   \ AND its goals — the SET-level properties no single-card audit-pre can reach\n\
   (the cut, not one card):\n- Coverage 1:1 — is every plan part / accept-unit mapped\
   \ to exactly ONE card, with no plan part\n  unmapped and no card outside the plan's\
-  \ scope?\n- One provable claim per card (SPEC-0046) — does any card BUNDLE two concerns,\
-  \ or carry an\n  acceptance OVERLAPPING a sibling card's claim, instead of one provable\
-  \ accept-unit? A finding\n  that a card bundles more than one claim and should be\
-  \ SPLIT is a RECOMMENDATION — ADVISORY, never\n  blocking : report it with the split\
-  \ it proposes; split recommendations, however many,\n  never make the verdict RED;\
-  \ whether to follow one is the project's call under its own declared\n  grouping\
+  \ scope?\n- One coherent change-set per card (SPEC-0046 §A) — the default grain:\
+  \ related claims on the same\n  files or surface, proven by one verify pass, belong\
+  \ in one card. Does any card BUNDLE parts a split\n  ground separates — the parts\
+  \ are independent and each pays for its own fixed cost, a reviewer must\n  judge\
+  \ them separately, or one part must land first — or carry an acceptance OVERLAPPING\
+  \ a sibling\n  card's claim? Is one coherent change-set FRAGMENTED across cards\
+  \ no split ground separates? A finding\n  that a card should be SPLIT (or cards\
+  \ MERGED) is a RECOMMENDATION — ADVISORY, never blocking\n  : report it with the\
+  \ split it proposes; split recommendations, however many,\n  never make the verdict\
+  \ RED; whether to follow one is the project's call under its own declared\n  grouping\
   \ rules (SPEC-0046 §A). An acceptance overlapping a sibling card's claim is not\
   \ a split\n  recommendation and is reported at its own severity.\n- Declared grouping\
   \ preference (SPEC-0046 §A) — where the cut material (the plan body or\n  a card)\
@@ -367,4 +371,4 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/plan.py#_plan_gate_template_text: 94cd0921e45f4b9463b4f507f51bb8a46ca5684e0bab517df40c9e66296eea46
-  bin/lib/plan.py#cmd_plan_stage: 439f9b5b8514b402975cd5006f8d0af4e3794060fd8ef004d8410a154a335331
+  bin/lib/plan.py#cmd_plan_stage: 60f37718bb790aeb0ad7469298f0c2057c635c5999b0d805cd6bdc67bb6877cc

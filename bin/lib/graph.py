@@ -995,6 +995,13 @@ def _json_default(o):
     raise TypeError(f"graph index: unserializable value of type {type(o).__name__}")
 
 
+def graph_index_text(index: dict) -> str:
+    """T-14223 — the ONE serialization of the derived graph index: the bytes `_write_graph_index` writes
+    to graph/index.json, and the bytes `graph conformance --strict` compares that file against. One
+    function, so the writer and the freshness check can never disagree on the format (CHARTER §P5)."""
+    return json.dumps(index, sort_keys=True, ensure_ascii=False, indent=1, default=_json_default) + "\n"
+
+
 def _write_graph_index(index: dict, *, GRAPH_PATH, write_text_atomic,
                        _render_floor_trigger_map, _is_consumer_build,
                        _render_activation_checklist, _render_concern_registry) -> None:
@@ -1010,9 +1017,7 @@ def _write_graph_index(index: dict, *, GRAPH_PATH, write_text_atomic,
 
     T-0251: floor-map path derived from GRAPH_PATH (sibling) so test isolation of GRAPH_PATH
     isolates the floor map too."""
-    content = json.dumps(index, sort_keys=True, ensure_ascii=False, indent=1,
-                         default=_json_default) + "\n"
-    write_text_atomic(GRAPH_PATH, content)
+    write_text_atomic(GRAPH_PATH, graph_index_text(index))
     write_text_atomic(GRAPH_PATH.parent / "floor-trigger-map.md", _render_floor_trigger_map(
         index.get("floor_trigger_map") or {}, index.get("specs") or {},
         kernel_provided=_is_consumer_build()))   # T-0849: consumer build → kernel-provided header note
@@ -1379,12 +1384,19 @@ def _build_release_view(*, ENGINE_ROOT, _die, _release_view_docs) -> list:
             _die(f"release-view: expected handbook source {doc!r} missing under {ENGINE_ROOT} — the "
                  f"completeness invariant requires all {len(_release_view_docs())} sources present "
                  "(SPEC-0074).")
-        content = RELEASE_VIEW_BANNER + _release_view_strip(src.read_text(encoding="utf-8"))
-        if doc == f"{GRAPH_DIR}/floor-trigger-map.md":
-            content = _release_view_floor_kernel_explicit(content)   # T-10766 — kernel-explicit rows
-        content = _release_view_part_names(content)                  # T-13492 — the published part names
+        content = _release_view_doc_content(doc, src.read_text(encoding="utf-8"))
         out.append((f"{RELEASE_VIEW_DIR}/{release_view_name(doc)}", content))
     return out
+
+
+def _release_view_doc_content(doc: str, text: str) -> str:
+    """The release-view bytes of ONE source doc `doc` whose text is `text` — the transform's one home,
+    used by `_build_release_view` and (T-14255) by the land's audit-currency check, which proves a
+    branch's `release-view/graph/floor-trigger-map.md` is this regeneration of its graph floor map."""
+    content = RELEASE_VIEW_BANNER + _release_view_strip(text)
+    if doc == f"{GRAPH_DIR}/floor-trigger-map.md":
+        content = _release_view_floor_kernel_explicit(content)   # T-10766 — kernel-explicit rows
+    return _release_view_part_names(content)                     # T-13492 — the published part names
 
 
 # ── T-0883 (SPEC-0073 §8 active-only export guard): the EXPLICIT release/export spec slice ───────────
@@ -1554,6 +1566,13 @@ INDEX_CACHE_NON_INPUTS = ("events.jsonl", ".yitc/events.jsonl")
 # logs, findings and sync cursors that no build pass reads. In a repo where it is not ignored its
 # churn would move the key for nothing. (The cache itself no longer lives there — see above.)
 INDEX_CACHE_NON_INPUT_DIRS = (".yitc/",)
+# T-14274 — how many OLDER trees the one document keeps beside its newest entry. Measured: a Stage-6
+# run flips the card's proposed spec active for its judgement and restores it after, at admission and
+# again for the full run, so its builds alternate between two trees (A', A, A', A) — and with one
+# entry per checkout every one of them missed (T-14216: 7 graph_built rows on its span, all `miss`,
+# 10-14 s each). Each older entry is a {key, index} pair, so the T-11471 property holds per entry: an
+# index is only ever served beside the key it was built from.
+INDEX_CACHE_RECENT = 3
 
 # "hit" | "miss" | "skip" | "off" | None — the state of the LAST build in this process. It is NOT a
 # key on the index dict on purpose: `_write_graph_index` dumps the index verbatim, so a hit/miss key
@@ -1792,14 +1811,29 @@ def index_cache_lookup(repo_root, *, run_git, extra_terms=()) -> tuple:
             h.update(b"\0" + str(t).encode())
         key = h.hexdigest()
     key_ms = int((time.monotonic() - t0) * 1000)
-    if doc is None or doc.get("key") != key:
+    if doc is None:
         return None, key, True, key_ms
-    # The index comes from the SAME document the key was just matched in, so it is BY CONSTRUCTION the
-    # one that key describes — the property the two-file layout could not hold under concurrency.
-    index = doc.get("index")
-    if not isinstance(index, dict) or not index:
-        return None, key, True, key_ms
-    return index, key, True, key_ms
+    # The index comes from the SAME document the key was just matched in, beside that key, so it is BY
+    # CONSTRUCTION the one that key describes — the property the two-file layout could not hold under
+    # concurrency. The newest entry first, then the older trees (T-14274).
+    for entry in [doc, *_index_cache_recent(doc)]:
+        if entry.get("key") == key:
+            index = entry.get("index")
+            if not isinstance(index, dict) or not index:
+                return None, key, True, key_ms
+            return index, key, True, key_ms
+    return None, key, True, key_ms
+
+
+def _index_cache_recent(doc) -> list:
+    """The older {key, index} entries of a cache document, newest first (T-14274). Anything of an
+    unexpected shape is dropped, so a document written before this list existed, or a damaged one,
+    reads as no older entries — an ordinary miss, never an error."""
+    recent = doc.get("recent")
+    if not isinstance(recent, list):
+        return []
+    return [e for e in recent
+            if isinstance(e, dict) and isinstance(e.get("key"), str) and isinstance(e.get("index"), dict)]
 
 
 def index_cache_store(repo_root, index, *, key, key_ms, build_ms, run_git) -> None:
@@ -1820,7 +1854,18 @@ def index_cache_store(repo_root, index, *, key, key_ms, build_ms, run_git) -> No
         doc = _index_cache_read_doc(path) or {}
         if key is not None:
             # The key and the index it describes are set TOGETHER and published in ONE atomic replace
-            # below — never as two writes another process can observe half of (T-11471).
+            # below — never as two writes another process can observe half of (T-11471). The entry it
+            # replaces moves to the older trees, capped at INDEX_CACHE_RECENT and never twice (T-14274).
+            older = [{"key": doc["key"], "index": doc["index"]}] if (
+                isinstance(doc.get("key"), str) and isinstance(doc.get("index"), dict)) else []
+            older += _index_cache_recent(doc)
+            seen = {key}
+            recent = []
+            for e in older:
+                if e["key"] not in seen:
+                    seen.add(e["key"])
+                    recent.append(e)
+            doc["recent"] = recent[:INDEX_CACHE_RECENT]
             doc["key"], doc["index"] = key, index
             # Keep the LOWEST key cost ever measured, not the latest sample. A key measurement is
             # never faster than the key's true cost — machine load can only inflate it — so a single
@@ -4105,50 +4150,12 @@ def _concern_registry_drift(specs: dict, *, GRAPH_PATH, _render_concern_registry
 _BORN_OPS_TERMINATOR = "# ── END born-ops template (generated completeness sentinel) ──\n"
 
 _BORN_OPS_HEADER = """\
-# yitc-ops.yaml — this project's cross-cutting OPS contract carrier (SPEC-0093).
-# ONE file, one top-level SECTION per concern. Each section is DECLARE-OR-WAIVE, fail-closed:
-# either its section-appropriate declaration OR `waiver: { reason: <text> }`. A seeded section left
-# UNANSWERED (neither) is an init/sweep ERROR — never a silent skip. The kernel owns each section's
-# SHAPE; this project owns the VALUES. The carrier stores DECLARED config only, never a computed status.
-#
-# Slice-1 LIVE sections (read by the `deploy` verb, SPEC-0094):
-#   deploy:     command: <cmd to deploy this project>     | waiver: {reason: <why>}
-#     ↳ if `command:` is a hand-runnable deploy.sh, EMBED the governed-deploy guard at its TOP so a raw
-#       hand-run is REFUSED (it would skip the class-gate, the Class-C1 pg_dump + deploy_completed — SPEC-0094 §1).
-#       Get the exact snippet: `__YITC_CLI__ deploy --print-guard`.
-#   rollback:   command: <cmd to roll back a deploy>       | waiver: {reason: <why>}
-#   live_probe: live_base_url: <url> + dialect             | waiver: {reason: <why>}
-# (The per-CHANGE probe assertion lives on the task YAML, not here.)
-#
-# deploy.policy SUBFIELD (SPEC-0097) — the deploy-AUTONOMY stance (the WHEN of the deploy concern, so a
-# SUBFIELD of deploy:, NOT a new top-level section — SPEC-0093 rule 1 honored). Declare-or-waive, fail-
-# closed BOTH ways: declare `classes:` (the per-class commands/thresholds that opt INTO autonomous
-# deploys; the kernel owns the A/S/C1/C2 vocabulary, this project owns the VALUES) OR `waiver: {reason}`
-# (owner-gated every deploy, the pre-policy default — NO autonomous path). Born WAIVED. The deploy-verb
-# gate that READS this stance is wired separately (SPEC-0097 §5, its own task) — the carrier only seeds
-# + sweeps the stance, fail-closed.
-#
-# security: SECTION (SPEC-0093 rule 8, pairs with the contract SPEC-0098) — the project's security
-# live-probes (named read-only property assertions a Class-S deploy binds). DECLARE a `probes:` list
-# (each entry: property + assertion + url) OR WAIVE. The security waiver is STRICT (rule 6 instance, NOT
-# a bare reason): it REQUIRES reason + compensating_control + a real-ISO-date expiry — fail-closed. Born
-# WAIVED with the kernel's always-on security baseline as the compensating control + a placeholder review
-# date the owner replaces. `probes:`+`waiver:` together is a contradiction (ERROR). The live-probe
-# SEMANTICS + events are owned by SPEC-0098 — this carrier owns only the section SHAPE.
-#
-# ui: SECTION (SPEC-0093 rule 9, X-0050) — the project's UI baseline: DECLARE `baseline: <design-system>`
-# (+ optional styleguide/tokens/lint/archetype) OR WAIVE (a LOOSE bare reason — a no-UI project). Pure
-# declared config (rule 7), no paired contract spec.
-# tests: SECTION (SPEC-0093 rule 10, X-0053) — the project's test class×moment TAXONOMY: DECLARE a
-# `classes:` list (each {class, moment}, optional command) OR WAIVE (a LOOSE bare reason). It is the
-# taxonomy INVENTORY, NOT the land-verify gate — verify is single-home in the carrier `verify.layers`
-# (rule 5/16). `baseline:`/`classes:` + `waiver:` together is a contradiction (ERROR).
-# startup_checks: SECTION (SPEC-0152 rule 17, X-0191) — OPTIONAL, report-only project startup checks.
-# DECLARE a `startup_checks:` list, each entry { label, command, detail }: `command` runs cheaply at
-# each session-start / land seam and a NON-ZERO exit means the check FLAGS (something to look at); the
-# declared checks are AGGREGATED into ONE report-only line (count + `label (detail)`), appended to the
-# SPEC-0119 debt echo — SUPPRESSED-WHEN-CLEAN, never a gate. OPT-IN like the `extensions`/`coverage`
-# sections: ABSENT = no checks (NOT swept, never fail-closed). See the commented example at file end.
+# yitc-ops.yaml — this project's OPS contract carrier: one top-level SECTION per concern. Each
+# section is DECLARE-OR-WAIVE, fail-closed: its declaration OR `waiver: { reason: <text> }`; a section
+# left unanswered is an init/sweep ERROR. The kernel owns each section's SHAPE, this project the VALUES.
+# Each section carries a short cue and the command that prints its full rule — read it before answering.
+# Carrier rule text: `__YITC_CLI__ graph query SPEC-0093 --kernel`
+# A hand-runnable deploy script EMBEDS the governed-deploy guard at its top: `__YITC_CLI__ deploy --print-guard`
 
 """
 
@@ -6362,6 +6369,79 @@ def _partition_implements_warnings(warns: list) -> tuple[list, list]:
     frozen = [w for w in warns if (w.get("spec_status") or "") not in ("", "active")]
     live = [w for w in warns if (w.get("spec_status") or "") in ("", "active")]
     return live, frozen
+
+
+# T-14223 — the two report rows `graph conformance --strict` must NOT read as findings, named by the
+# wording their single producers in bin/lib/cli.py write (both phrases are exercised through the real
+# producers by tests/test_t14221_born_integrity_layer.py, so a rewording reds that suite):
+# `_resolve_implements_anchor` reports a legacy `<file>:<range>` anchor that RESOLVES as a drift-prone
+# advisory, and `_anchor_drift_warning` marks only its stored-signature verdict with this phrase (its
+# other rows are the git last-touch heuristic for an anchor that carries no signature). Each producer
+# writes `<anchor>: <message>`; the phrase is matched at the START of the message after the row's own
+# anchor prefix, never anywhere in the line, so a path that happens to contain it cannot classify a row.
+STRICT_RESOLVED_LINE_RANGE_PHRASE = "legacy line-range anchor"
+STRICT_SIGNATURE_DRIFT_PHRASE = "content changed since last verified-accurate signature"
+
+
+def _strict_row_message_starts(w: dict, phrase: str) -> bool:
+    """T-14223 — True iff report row `w`'s message (the text after its own `<anchor>: ` prefix) starts
+    with `phrase`. A row whose warn does not carry that prefix matches nothing (fail toward a finding
+    for a dead anchor, toward no signature verdict for a drift row)."""
+    warn, anchor = str(w.get("warn") or ""), str(w.get("anchor") or "")
+    prefix = f"{anchor}: "
+    return bool(anchor) and warn.startswith(prefix) and warn[len(prefix):].startswith(phrase)
+
+
+def strict_integrity_violations(index: dict, disk_text: "str | None") -> list:
+    """T-14223 — the `graph conformance --strict` RED set, PURE over a FRESH index and the committed
+    graph/index.json text (None = the file is absent or unreadable). Three arms, each the judgement a
+    narrower check already makes, read here corpus-wide:
+
+    - `broken-anchor` — a LIVE dead `implements` anchor (an ACTIVE spec's anchor that does not resolve):
+      the build's own `_implements_warnings`, partitioned by `_partition_implements_warnings` (a dead
+      anchor on a non-active spec is frozen history and stays out, as at `graph build`), minus the
+      resolved legacy line-range advisory (the anchor resolves; the row only asks for a re-author).
+    - `stale-anchor-signature` — the build's `_freshness_warnings` rows that carry a stored-signature
+      verdict: `_anchor_drift_warning`, the SAME detector the per-card commit/close check reuses, where
+      the anchor's current content differs from its recorded `implements_signature`. An anchor with no
+      signature has nothing to be stale against, so its last-touch heuristic row is not a finding.
+    - `index-missing` / `index-stale` — the committed index is absent, or differs byte-for-byte from
+      `graph_index_text(index)` (what a fresh `graph build` would write); the detail names the spec ids
+      whose node differs, is missing or is extra, when the committed file parses.
+
+    Returns [{kind, detail}] — empty when the corpus is intact. No I/O, so it is directly probeable."""
+    out: list = []
+    live, _frozen = _partition_implements_warnings(index.get("_implements_warnings") or [])
+    for w in live:
+        if _strict_row_message_starts(w, STRICT_RESOLVED_LINE_RANGE_PHRASE):
+            continue
+        out.append({"kind": "broken-anchor", "detail": f"{w.get('spec')}: {w.get('warn')}"})
+    for w in index.get("_freshness_warnings") or []:
+        if not _strict_row_message_starts(w, STRICT_SIGNATURE_DRIFT_PHRASE):
+            continue
+        out.append({"kind": "stale-anchor-signature", "detail": f"{w.get('spec')}: {w.get('warn')}"})
+    fresh = graph_index_text(index)
+    if disk_text is None:
+        out.append({"kind": "index-missing",
+                    "detail": "graph/index.json is absent or unreadable — run `graph build` and commit it"})
+    elif disk_text != fresh:
+        try:
+            disk_specs = (json.loads(disk_text) or {}).get("specs") or {}
+            fresh_specs = json.loads(fresh).get("specs") or {}
+            ids = sorted(set(disk_specs) | set(fresh_specs))
+            changed = [i for i in ids if i in disk_specs and i in fresh_specs and disk_specs[i] != fresh_specs[i]]
+            missing = [i for i in ids if i not in disk_specs]
+            extra = [i for i in ids if i not in fresh_specs]
+            parts = [f"{label}: {', '.join(v[:10])}{' …' if len(v) > 10 else ''}"
+                     for label, v in (("changed", changed), ("missing from the index", missing),
+                                      ("in the index but not the corpus", extra)) if v]
+            where = "; ".join(parts) or "outside the spec nodes"
+        except (ValueError, AttributeError, TypeError):
+            where = "the committed file does not parse as a graph index"
+        out.append({"kind": "index-stale",
+                    "detail": f"graph/index.json differs from a fresh `graph build` ({where}) — "
+                              "run `graph build` and commit the result"})
+    return out
 
 
 def cmd_graph_build(args: argparse.Namespace, *, CANONICAL_DOCS, ENGINE_ROOT, REPO_ROOT, _append_event, _build_graph_built_payload, _is_consumer_build, _manifest_path, _print_binding_report, _regen_file_placement_manifest, _regen_handbook_read_order, _regen_placement_manifest, _regen_spec_code_map_manifest, _regen_manifest_managed_regions, _release_view_docs, _render_audience_views, _write_graph_index, _write_release_view, graph_build_index, write_text_atomic, _concern_surface_warnings=None) -> None:

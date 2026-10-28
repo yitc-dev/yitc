@@ -50,11 +50,11 @@ the actual rule-text (this is a sequence, not a restatement).
    a `scenario` step + task · chore → a hygiene task · kernel / another project → the cross-log ·
    genuinely-later → `ideas/`. For a scenario item, sweep the FULL surface (every scenario + narration
    coherence), not one line.
-3. **Decompose + batch + order.** ONE provable claim per task (SPEC-0046 — the cut authority); batch by
+3. **Decompose + batch + order.** One coherent change-set per card (SPEC-0046 §A — the cut authority); batch by
    shared specs/files; order by `requires:`; mark independent vs chained. **Claim-shape decides the
-   drain UNIT (the primary economy lever):** same-claim / homogeneous to-dos → ONE task (one
-   lifecycle, one audit); different-claim to-dos → separate tasks (a hygiene text-trim and an audited
-   feature CANNOT be one task — different claims AND classes).
+   drain UNIT (the primary economy lever):** related to-dos on the same files or surface → ONE task (one
+   lifecycle, one audit); to-dos a SPEC-0046 §A split ground separates → separate tasks (a hygiene
+   text-trim and an audited feature CANNOT be one task — different classes, judged separately).
 4. **ONE owner checkpoint.** Present the classified + batched list, the real forks, and what is
    deferred — **recommendation-first, no menu** (AGENTS §Recommendation Default). Owner: go / redirect.
 5. **Execute via `bin/yitc-v2 dispatch`** — background Build workers, **NEVER an in-process subagent**

@@ -661,6 +661,26 @@ def own_tests_criterion_states(acceptance, rows, diff_blobs, names_test, *, _ac_
     return out
 
 
+def own_tests_failed_files(rows, diff, names_test) -> list:
+    """T-14184 (SPEC-1040 A2 audit-post clause) — the test files of the audited `diff` whose NEWEST
+    own-tests row since the claim that ran them ON THE BLOB THAT DIFF CARRIES recorded them failed,
+    sorted. A newer row on other blobs does not hide that red. Per file, rows are asked newest first
+    through `own_tests_criterion_states` (one row at a time, the path as its own criterion), so the
+    blob match is the packet's own; the first row it does not read as stale decides. Pure."""
+    blobs = diff_new_blobs(diff)
+    own = [ev for ev in _rows_since_claim(rows) if ev.get("type") == "own_tests_ran"]
+    out = []
+    for p in sorted(p for p in blobs if names_test(p)):
+        for ev in reversed(own):
+            state = own_tests_criterion_states([p], [ev], blobs, names_test,
+                                               _ac_canonical_id=lambda text, _i: text).get(p)
+            if state != "not run or stale":
+                if state == "FAILED":
+                    out.append(p)
+                break
+    return out
+
+
 def _governed_run(ev) -> bool:
     """A runner-marked governed Tests verdict row — `gates.governed_run_verdict`, the ONE predicate the
     Closure-time coverage fact, the `return` move and the A6 fact read (T-14037)."""
@@ -1820,13 +1840,14 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
             "      RED the plan for an 'undefined state' or 'incomplete state machine' on the strength of a\n"
             "      transition/edge label; the plan FSM's states are fixed by the methodology, and a rework\n"
             "      edge back to an earlier state (e.g. on-review -> proposed) is a SANCTIONED transition.\n"
-            "  (b) SPEC-0046 'one claim per accept-unit' (a.k.a. one-claim / single-claim) language is\n"
-            "      standard decomposition GUIDANCE the card SATISFIES when it cites it — a plan stating it\n"
-            "      cuts one provable claim per accept-unit is COMPLIANT, not deficient. It is NOT a required\n"
+            "  (b) SPEC-0046 decomposition-grain language — 'one coherent change-set per card' (the\n"
+            "      default) or the older 'one claim per accept-unit' (a.k.a. one-claim / single-claim) — is\n"
+            "      standard decomposition GUIDANCE the card SATISFIES when it cites it — a plan stating\n"
+            "      either grain is COMPLIANT, not deficient. It is NOT a required\n"
             "      governance ARTIFACT the plan is 'missing': do NOT RED the plan for a 'missing one-claim\n"
             "      artifact / undefined one-claim unit / unsatisfied governance requirement' when the card\n"
             "      is expressing or following that very guidance. Judge whether the cut is actually sound\n"
-            "      (one provable claim, named proof) — NOT whether a notation token names an artifact.\n\n"
+            "      (one coherent change-set, named proof) — NOT whether a notation token names an artifact.\n\n"
             "SPEC-CONTENT-BOUNDARY IS METHODOLOGY LAW — DO NOT DEMAND IMPL DETAIL IN A SPEC (T-9687,\n"
             "X-0134 RC1b, SPEC-0005 §3 content boundary): when the audited change AUTHORS or EDITS a\n"
             "spec (a `specs/SPEC-*.yaml` body), that spec carries ONLY (a) the standing RULE-TEXT and\n"

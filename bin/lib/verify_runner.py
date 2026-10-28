@@ -132,6 +132,15 @@ _VERIFY_OUTCOMES_KEEP = 50                 # newest N exports kept per directory
 _VERIFY_OUTCOMES_SCHEMA = 1
 
 
+# ── T-14276 (SPEC-0152 rule 16) — the isolated re-run of a failed layer takes only its failing FILES ──
+# A layer whose first run gave a COMPLETE per-file result (the engine's suite layer, suite.py) is
+# re-run over just the files it named failing: the guard publishes them to the command under this
+# name, newline-separated, and the layer hands them to this runner as `only`. Empty / absent = the
+# whole layer, as before. The reading of a complete per-file result is the guard's
+# (`worktree._layer_failing_files`).
+VERIFY_RERUN_FILES_ENV = "YITC_VERIFY_RERUN_FILES"
+
+
 # ── T-11537 (SPEC-0152 rule 16) — a routed tests/** layer must be able to COVER the routed surface ──
 #
 # THE HOLE, measured and not suspected. The delegation predicate below hands the whole root `tests/`
@@ -1612,6 +1621,30 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         #
         # `only is None` (every existing caller) leaves `test_files` untouched — byte-identical.
         test_files = [tf for tf in test_files if tf.name in only]
+    # ── T-14211 (SPEC-1051 rule 2) — THE LISTED ORDER'S SKIP SET LEAVES BEFORE SELECTION ──────────
+    # Only on the runs `select` marks — a land's candidate sweep and a Stage-6 run — and never on a
+    # named subset (`only`): the pinned leg and the isolation oracles keep every file. A tree whose
+    # contract lists no unit gets None and the run is byte-identical. What is left is the enumeration
+    # the SPEC-0181 ladder, its counts, rollback and tripwire read below.
+    if select and only is None:
+        from lib import land_verify_legs as _lvl     # lazy: land_verify_legs is loaded by every land
+        _pd_skip = _lvl._pre_deploy_run_skip(
+            cwd, changed=(list(selection_diff_paths) if selection_diff_paths is not None
+                          and selection_diff_error is None else None))
+        if _pd_skip is not None:
+            _gone = {u.get("file") for u in _pd_skip.get("units") or ()}
+            if _gone:
+                _root = Path(cwd).resolve()
+
+                def _rel(tf):
+                    try:
+                        return Path(tf).resolve().relative_to(_root).as_posix()
+                    except ValueError:
+                        return None
+                test_files = [tf for tf in test_files if _rel(tf) not in _gone]
+            print(_lvl._pre_deploy_skip_line("verify", _pd_skip))
+            if metrics_out is not None:
+                metrics_out["pre_deploy_skip"] = _pd_skip
     # ── T-11462 (SPEC-0181) — SELECTION GOVERNS WHAT RUNS ────────────────────────────────────────
     # THE DECISION IS COMPUTED ONCE, HERE, ON THE FULL DISCOVERED ENUMERATION, and threaded forward
     # to the record below. Recomputing it after the narrowing would judge the selector against its
@@ -5220,7 +5253,10 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
     nothing HOME-rooted; they are how the child reaches `git`, `python` and the interpreter it runs
     under. Scrubbing them would not isolate a test, it would stop it running at all, so the sandbox
     would fail closed on its own subject. Hermeticity here is a claim about STATE the child could
-    read or corrupt, never about severing it from the toolchain.
+    read or corrupt, never about severing it from the toolchain. The launcher's Python user site is
+    toolchain of the same kind, so an unset `PYTHONUSERBASE` is pinned to the launcher's own user
+    base before HOME is replaced (T-14271), and that user base's scripts dir is appended to a `PATH`
+    that lacks it (T-14314).
 
     FALSIFIERS — what would change each answer, so this is a reason and not a preference:
       * A var joins the scrub the moment it is found to redirect a HOST TOOL's per-user state
@@ -5247,6 +5283,15 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
                  "YITC_EVENTS_SINK",
                  "YITC_EVENTS_PATH_DEFAULT", "YITC_EVENTS_GUARD_ROOT",
                  "YITC_SYNCHRONOUS_LAND", _HELD_TURN_CLAIM_ENV,
+                 # T-14320 — what the land runner publishes to the verify LAYER it launches. A test
+                 # child must not inherit it from its launcher: its answer would depend on the launcher
+                 # being a verify layer (measured: the pre-deploy run's YITC_VERIFY_LAYER_WORKERS=8
+                 # reddened test_t_issue204_selected_layers.py, and the inherited outcomes dir let
+                 # nested runners write exports beside the run's own). A test that needs one sets it
+                 # on its own child, as an overlay.
+                 "YITC_VERIFY_LAYER_WORKERS", "YITC_VERIFY_SELECTED_LAYERS",
+                 "YITC_VERIFY_WORKER_SHARES_KEY", "YITC_VERIFY_RERUN_FILES",
+                 "YITC_VERIFY_OUTCOMES_DIR",
                  # T-11432 — the AMBIENT shared-store carrier, and ONLY the ambient one. It is the
                  # exact sibling of the three journal-store carriers above (SPEC-0084 rule 5: the
                  # coordination store is the same journal MECHANISM), and it meets this function's
@@ -5323,6 +5368,28 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
         "[init]\n\tdefaultBranch = main\n[commit]\n\tgpgsign = false\n"
         "[core]\n\tfsync = none\n",
         encoding="utf-8")
+    # T-14271 — THE LAUNCHER'S PYTHON USER SITE IS TOOLCHAIN, NOT STATE. With PYTHONUSERBASE unset,
+    # `site` derives the user base from HOME (`~/.local` on posix), so the box HOME below would hide
+    # every user-site package — pytest among them. Interactive sessions export PYTHONUSERBASE and
+    # cron does not, so the same child passed under one launcher and failed `No module named pytest`
+    # under the other (26 files in a cron-fired kernel run, T-14268's reproduction) — the T-11472
+    # launcher-dependence class. Pin it to the launcher's own user base, computed from the source
+    # env's HOME before it is replaced; a non-empty PYTHONUSERBASE is inherited unchanged (`site`
+    # reads an empty one as unset, and so does this).
+    if not env.get("PYTHONUSERBASE"):
+        env["PYTHONUSERBASE"] = os.path.join(base.get("HOME") or os.path.expanduser("~"), ".local")
+    # T-14314 — THE SAME USER SITE'S SCRIPTS DIR IS TOOLCHAIN TOO. `codex` and `pip-audit` are
+    # installed into `<user base>/bin`; an interactive PATH carries it and cron's short
+    # `/usr/bin:/bin` does not, so four kernel files passed under one launcher and failed
+    # `no codex on PATH` / `pip-audit=exit:127` under the other. APPENDED (a system tool keeps
+    # precedence) and only when the dir exists and is not already an entry, so a launcher whose
+    # PATH has it gets its PATH unchanged. An absent or empty PATH is left alone: a PATH of this one
+    # dir would replace the exec default search path instead of extending it.
+    _user_bin = os.path.join(env["PYTHONUSERBASE"], "bin")
+    _path = env.get("PATH")
+    if _path and os.path.isdir(_user_bin) and os.path.normpath(_user_bin) not in {
+            os.path.normpath(p) for p in _path.split(os.pathsep) if p}:
+        env["PATH"] = _path + os.pathsep + _user_bin
     env["HOME"] = str(home)
     env["TMPDIR"] = str(tmp)
     # T-12185: the lever is scoped to the run that SET it and must not reach a child. Left inherited,
@@ -5369,6 +5436,16 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
     # in-process or as an overlay applied after this builder returns (the same precedence
     # `YITC_EVENTS_PATH_DEFAULT` keeps below), so the venue tests are untouched.
     env[_VENUE_RECORD_ENV] = str(box / "venue-record-absent.json")
+    # T-14222 — THE HOST CPU WINDOW IS AN AMBIENT ROUTE SURFACE TOO: the admission queue's machine
+    # VETO (`machine_settings.ADMISSION_VETO`) is set OFF for every child, allowlisted or not, and
+    # AFTER the base scrub, so neither an ambient `auto` nor an ambient `off` from the launcher decides
+    # it. A fixture consumer born `admission.mode: engine` (SPEC-1045 rule 3) otherwise sends its real
+    # `land` / `task test --run` through the queue, which waits for a quiet window on the REAL host.
+    # MEASURED (2026-10-26, T-14198 land abort): under the land verify's own load that wait outlasted
+    # the 300 s per-file bound (tests/test_spike_mode_hint.py, cpu/wall 0.048); with the veto off the
+    # same file passed in 71 s. A test's outcome must not depend on host load. A test that exercises
+    # the queue itself switches it back on in the environment it builds for its own subprocesses.
+    env["YITC_ADMISSION_ENGINE"] = "off"
     if tf_name not in _REAL_STORE_ALLOWLIST:
         # Rule 1 real-store isolation via the LOW-PRECEDENCE, SCOPE-GUARDED default override (see the
         # YITC_EVENTS_PATH_DEFAULT block in bin/yitc-v2), NOT the top-precedence YITC_EVENTS_SINK: the

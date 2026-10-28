@@ -1359,53 +1359,61 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ MOVED in the recorded\n    slow tail between the latest land and the median of\
   \ the previous window: a file that newly\n    ENTERED the recorded slowest set,\
   \ or a member that GREW materially. Its head names the\n    largest growth in seconds\
-  \ (file, both walls) for the rule-40 row.\n    **THE DELTA, NEVER THE LEVEL — this\
-  \ is the whole rule, not an implementation detail.** A slowest\n    set EXISTS BY\
-  \ DEFINITION, so a view that printed the set itself would print on EVERY land, and\
-  \ a\n    surface that always prints trains its reader to skip it — the same silent\
-  \ failure, reached by\n    another route, as having no surface at all. Reporting\
-  \ only the change is what makes\n    SUPPRESSED-WHEN-CLEAN a real property here\
-  \ rather than a decoration: clean means no new entrant\n    and no material growth,\
-  \ and clean prints NOTHING. The current tail stays available ON DEMAND from\n  \
-  \  the latest land's own record, exactly as the debt views themselves are available\
-  \ on demand.\n    **NO ABSOLUTE BAR, and the rejected one is named.** The original\
-  \ design anchored to the per-file\n    verify bound (SPEC-0071). That is an ABORT\
-  \ bound, not a health target: it makes a file\n    interesting only once it is near\
-  \ failing a land (a 135.7 s file read as comfortably inside it\n    while being\
-  \ a bad cost for one test), and it goes silent entirely once everything sits under\
-  \ it —\n    precisely when durations creep back up unwatched. A relative reading\
-  \ decrees nothing and\n    self-calibrates. The per-file bound stays what it already\
-  \ is: the hard abort.\n    **ENTRANT IS DEFINED BY MEMBERSHIP, never by \"unseen\
-  \ anywhere before\".** A file counts as an\n    entrant when it is absent from the\
-  \ BASELINE SLOWEST-SET MEMBERSHIP — the union of the prior\n    window's recorded\
-  \ names. An EXISTING, long-known test file CLIMBING INTO the slow tail is the\n\
-  \    primary way a creep first shows itself; an \"absent from all duration data\"\
-  \ reading would miss\n    exactly that case, and it is the reading the audit-pre\
-  \ of the authoring task rejected.\n    **THE BASELINE IS A MEDIAN OF A WINDOW, not\
-  \ the previous land.** Comparing against a single prior\n    run fires on ordinary\
-  \ run-to-run jitter, and a view that fires on noise is skipped within a week —\n\
-  \    taking its next real signal with it. The median over the window is the noise-robust\
-  \ reading and,\n    on a genuinely unchanged series, is exactly the unchanged value,\
-  \ so the clean case stays silent.\n    GROWTH must clear TWO bars together: a RELATIVE\
-  \ one (scale-free, so a slow file and a fast one are\n    judged alike) and an ABSOLUTE\
-  \ ms one (so a small file's wobble stays mute).\n    **ONLY `passed` OBSERVATIONS\
-  \ COMPARE.** A file that failed, timed out, was killed by fail-fast or\n    never\
-  \ launched exits early or is capped, so its wall is not comparable across lands;\
-  \ scoring it\n    would manufacture growth and shrinkage out of test OUTCOMES. Such\
-  \ an entry scores on neither side.\n    This hides nothing — record still carries\
-  \ every outcome; this view's subject is duration\n    comparability, not test health.\n\
-  \    **THE EVIDENCE FLOOR (rule 3 applied).** Below a minimum number of prior records\
-  \ the view says\n    NOTHING: with one or two lands there is no previous state to\
-  \ have changed from, and every file\n    would read as an entrant. A freshly-started\
-  \ series therefore stays silent BY DESIGN — the state\n    of the real journal immediately\
-  \ after.\n    **THE FAIL DIRECTION IS TOWARD SILENCE — and it INVERTS rule 18's,\
-  \ deliberately.** Rule 18 fails\n    toward VISIBLE because a lost halt loses a\
-  \ decision someone is owed. Here the subject is an\n    advisory trend, and a FABRICATED\
-  \ change is worse than a missed one: a creep watch that cries wolf\n    is unread\
-  \ within a week. So every uncertainty — too little history, an unparseable record,\
-  \ a\n    non-comparable outcome — resolves to saying nothing.\n    **NOT A CADENCE\
-  \ (SPEC-0142 §4).** This stands up no recurring obligation and owns no trigger of\n\
-  \    its own: it is computed inline at seams a controller already passes, and computes\
+  \ (file, both walls) for the rule-40 row.\n    A runner-marked Stage-6 `tests_passed`\
+  \ row carrying the same record is an observation exactly\n    as a land's is once\
+  \ an ok land credited that run (SPEC-0065 §Bound): the run stands for that\n   \
+  \ land, at that land's place in the series, and the land carries none and adds nothing.\
+  \ A run no land credited was measured again by its\n    own land and is not read,\
+  \ so with no credit the line reads exactly as before.\n    When the window holds\
+  \ a Stage-6 run or a credited land, the line names how many lands in it\n    were\
+  \ credited and how many runs its walls come from, Stage-6 runs among them; otherwise\
+  \ it\n    reads as before.\n    **THE DELTA, NEVER THE LEVEL — this is the whole\
+  \ rule, not an implementation detail.** A slowest\n    set EXISTS BY DEFINITION,\
+  \ so a view that printed the set itself would print on EVERY land, and a\n    surface\
+  \ that always prints trains its reader to skip it — the same silent failure, reached\
+  \ by\n    another route, as having no surface at all. Reporting only the change\
+  \ is what makes\n    SUPPRESSED-WHEN-CLEAN a real property here rather than a decoration:\
+  \ clean means no new entrant\n    and no material growth, and clean prints NOTHING.\
+  \ The current tail stays available ON DEMAND from\n    the latest land's own record,\
+  \ exactly as the debt views themselves are available on demand.\n    **NO ABSOLUTE\
+  \ BAR, and the rejected one is named.** The original design anchored to the per-file\n\
+  \    verify bound (SPEC-0071). That is an ABORT bound, not a health target: it makes\
+  \ a file\n    interesting only once it is near failing a land (a 135.7 s file read\
+  \ as comfortably inside it\n    while being a bad cost for one test), and it goes\
+  \ silent entirely once everything sits under it —\n    precisely when durations\
+  \ creep back up unwatched. A relative reading decrees nothing and\n    self-calibrates.\
+  \ The per-file bound stays what it already is: the hard abort.\n    **ENTRANT IS\
+  \ DEFINED BY MEMBERSHIP, never by \"unseen anywhere before\".** A file counts as\
+  \ an\n    entrant when it is absent from the BASELINE SLOWEST-SET MEMBERSHIP — the\
+  \ union of the prior\n    window's recorded names. An EXISTING, long-known test\
+  \ file CLIMBING INTO the slow tail is the\n    primary way a creep first shows itself;\
+  \ an \"absent from all duration data\" reading would miss\n    exactly that case,\
+  \ and it is the reading the audit-pre of the authoring task rejected.\n    **THE\
+  \ BASELINE IS A MEDIAN OF A WINDOW, not the previous land.** Comparing against a\
+  \ single prior\n    run fires on ordinary run-to-run jitter, and a view that fires\
+  \ on noise is skipped within a week —\n    taking its next real signal with it.\
+  \ The median over the window is the noise-robust reading and,\n    on a genuinely\
+  \ unchanged series, is exactly the unchanged value, so the clean case stays silent.\n\
+  \    GROWTH must clear TWO bars together: a RELATIVE one (scale-free, so a slow\
+  \ file and a fast one are\n    judged alike) and an ABSOLUTE ms one (so a small\
+  \ file's wobble stays mute).\n    **ONLY `passed` OBSERVATIONS COMPARE.** A file\
+  \ that failed, timed out, was killed by fail-fast or\n    never launched exits early\
+  \ or is capped, so its wall is not comparable across lands; scoring it\n    would\
+  \ manufacture growth and shrinkage out of test OUTCOMES. Such an entry scores on\
+  \ neither side.\n    This hides nothing — record still carries every outcome; this\
+  \ view's subject is duration\n    comparability, not test health.\n    **THE EVIDENCE\
+  \ FLOOR (rule 3 applied).** Below a minimum number of prior records the view says\n\
+  \    NOTHING: with one or two lands there is no previous state to have changed from,\
+  \ and every file\n    would read as an entrant. A freshly-started series therefore\
+  \ stays silent BY DESIGN — the state\n    of the real journal immediately after.\n\
+  \    **THE FAIL DIRECTION IS TOWARD SILENCE — and it INVERTS rule 18's, deliberately.**\
+  \ Rule 18 fails\n    toward VISIBLE because a lost halt loses a decision someone\
+  \ is owed. Here the subject is an\n    advisory trend, and a FABRICATED change is\
+  \ worse than a missed one: a creep watch that cries wolf\n    is unread within a\
+  \ week. So every uncertainty — too little history, an unparseable record, a\n  \
+  \  non-comparable outcome — resolves to saying nothing.\n    **NOT A CADENCE (SPEC-0142\
+  \ §4).** This stands up no recurring obligation and owns no trigger of\n    its\
+  \ own: it is computed inline at seams a controller already passes, and computes\
   \ nothing when\n    nobody passes one. NO fourth cadence layer, no cadence store,\
   \ no registry. The rejected\n    alternative was a nightly check, and the reason\
   \ is the rule's own subject: a nightly report is\n    read only if someone opens\
@@ -2445,45 +2453,48 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ because the card\ncorpus does not record whether a `wont-do` card's commits reached\
   \ main: the card's `commit`\nfield is written only when a card closes as done, and\
   \ on 2026-10-13 none of this repository's\n576 `wont-do` cards carried it while\
-  \ 13 of them had commits on main.\n\n## Implementation notes\n\nNotes for the maintainer\
-  \ of the code.\n\n- Rule 25, the reader at session start: `session start` resolves\
-  \ or mints its identity before\n  the debt fold is evaluated and notes it; inside\
-  \ a start the host view keys own-versus-foreign\n  on that noted ref, and outside\
-  \ a start on the read-tolerant keyer. A receipt-only start folds\n  no debt echo\
-  \ and resolves its identity where it did before.\n- Rule 34, a landing: the row\
-  \ classifier asks rule 26's resolution predicate first and holds no\n  landing test\
-  \ of its own; the host residue of the classifier injects that predicate.\n- Rule\
-  \ 34, a land run: the span of a run is read off its abort row — the row's stamp\
-  \ is the end\n  of the run, and the run length the row records, counted in whole\
-  \ seconds rounded up, gives its\n  start. Stamps carry whole seconds, so the rounding\
-  \ keeps a row written in the run's first\n  second inside the span; the start of\
-  \ the span is compared in whole seconds and its end as\n  stamped, so a requeue\
-  \ row stamped after the abort row is not that run's row. A requeue row of\n  the\
-  \ same branch whose stamp lies inside the span, both ends included, is that run's\
-  \ row. An abort row whose recorded length is absent, not a\n  number, not finite\
-  \ or not above zero spans its own stamp alone. A counted run takes its class\n \
-  \ label, its identity-absent mark and its stamp from its abort row.\n- Rule 34,\
-  \ the read: the fold reads through the windowed segment reader of rule 26's fold,\n\
-  \  with the floor the same host helper computes from the window; the host residue\
-  \ of the fold\n  injects the helper. The floor selects segment files only; the fold's\
-  \ window test decides\n  every row. The helper writes the floor's year with four\
-  \ digits, because segment names are\n  compared with it as text. A row the reader\
-  \ returns more than once is counted once (an\n  interrupted rotation leaves a row\
-  \ in two segments until the next land); rows that differ in\n  any field are separate\
-  \ rows. An integer window too large for a float is read as a window with\n  no far\
-  \ edge. Branches are listed by attempt count, then last stamp, then name.\n- Rule\
-  \ 3, a waiver on a `wont-do` card: the overdue-recheck view tests the card's status\
-  \ at the\n  one place a past-due waiver row is added, after the settled branch,\
-  \ so a discharge recorded on\n  such a card is read as before. The moved rows keep\
-  \ the shape of the overdue rows, under the\n  key `wont_do_waivers` with its count\
-  \ and its note.\n\n## Verification\n\n- **Deterministic:** with synthetic non-zero\
-  \ debt (a repo with not_adopted>0 / an open followup / an\n  overdue recheck) session-start\
-  \ and the on-demand `debt` each print its line; with a clean repo\n  NEITHER prints\
-  \ (suppressed-when-clean). A land prints NO debt line at all (rule 2(b) retired\
-  \ — tripwire tests/test_t13142_land_tail_debt_retired.py, RED if a debt fold is\
-  \ wired back\n  into the land tail or if either surviving seam loses the echo).\
-  \ Unit tests per call site + one render-helper test (the SPEC-0086 echo tests\n\
-  \  are the template).\n- **A waiver on a `wont-do` card (rule 3):** DIFFERENTIAL\
+  \ 13 of them had commits on main.\n\nRule 19's Stage-6 observations and its credited-land\
+  \ counts were added by : a land that\ncredits its Stage-6 run carries no per-file\
+  \ record, so once credit became frequent the slow-tail\nreading would have gone\
+  \ quiet for lack of data rather than for lack of change.\n\n## Implementation notes\n\
+  \nNotes for the maintainer of the code.\n\n- Rule 25, the reader at session start:\
+  \ `session start` resolves or mints its identity before\n  the debt fold is evaluated\
+  \ and notes it; inside a start the host view keys own-versus-foreign\n  on that\
+  \ noted ref, and outside a start on the read-tolerant keyer. A receipt-only start\
+  \ folds\n  no debt echo and resolves its identity where it did before.\n- Rule 34,\
+  \ a landing: the row classifier asks rule 26's resolution predicate first and holds\
+  \ no\n  landing test of its own; the host residue of the classifier injects that\
+  \ predicate.\n- Rule 34, a land run: the span of a run is read off its abort row\
+  \ — the row's stamp is the end\n  of the run, and the run length the row records,\
+  \ counted in whole seconds rounded up, gives its\n  start. Stamps carry whole seconds,\
+  \ so the rounding keeps a row written in the run's first\n  second inside the span;\
+  \ the start of the span is compared in whole seconds and its end as\n  stamped,\
+  \ so a requeue row stamped after the abort row is not that run's row. A requeue\
+  \ row of\n  the same branch whose stamp lies inside the span, both ends included,\
+  \ is that run's row. An abort row whose recorded length is absent, not a\n  number,\
+  \ not finite or not above zero spans its own stamp alone. A counted run takes its\
+  \ class\n  label, its identity-absent mark and its stamp from its abort row.\n-\
+  \ Rule 34, the read: the fold reads through the windowed segment reader of rule\
+  \ 26's fold,\n  with the floor the same host helper computes from the window; the\
+  \ host residue of the fold\n  injects the helper. The floor selects segment files\
+  \ only; the fold's window test decides\n  every row. The helper writes the floor's\
+  \ year with four digits, because segment names are\n  compared with it as text.\
+  \ A row the reader returns more than once is counted once (an\n  interrupted rotation\
+  \ leaves a row in two segments until the next land); rows that differ in\n  any\
+  \ field are separate rows. An integer window too large for a float is read as a\
+  \ window with\n  no far edge. Branches are listed by attempt count, then last stamp,\
+  \ then name.\n- Rule 3, a waiver on a `wont-do` card: the overdue-recheck view tests\
+  \ the card's status at the\n  one place a past-due waiver row is added, after the\
+  \ settled branch, so a discharge recorded on\n  such a card is read as before. The\
+  \ moved rows keep the shape of the overdue rows, under the\n  key `wont_do_waivers`\
+  \ with its count and its note.\n\n## Verification\n\n- **Deterministic:** with synthetic\
+  \ non-zero debt (a repo with not_adopted>0 / an open followup / an\n  overdue recheck)\
+  \ session-start and the on-demand `debt` each print its line; with a clean repo\n\
+  \  NEITHER prints (suppressed-when-clean). A land prints NO debt line at all (rule\
+  \ 2(b) retired — tripwire tests/test_t13142_land_tail_debt_retired.py, RED if a\
+  \ debt fold is wired back\n  into the land tail or if either surviving seam loses\
+  \ the echo). Unit tests per call site + one render-helper test (the SPEC-0086 echo\
+  \ tests\n  are the template).\n- **A waiver on a `wont-do` card (rule 3):** DIFFERENTIAL\
   \ over fixture cards — a `done` card and\n  a `wont-do` card carry the same past-due\
   \ user-facing waiver: the overdue-recheck count is 1,\n  the `wont-do` row is on\
   \ its own set of the view and in no echo line; the same fixture read by\n  the view\
@@ -4268,7 +4279,7 @@ implements_signature:
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
   bin/lib/debt.py#_debt_echo_compact: e941b54796a1c92b203449ea1e153015f223f0c9f572028e8609f1021d6a11fa
-  bin/lib/debt.py#_debt_echo_lines: 451fc86c94cce82fd0cae7624b1d06f4288c139a31e0d2bb8c216979ae7783ef
+  bin/lib/debt.py#_debt_echo_lines: f8ce9e7a7bfd445c947390c7582359f7368e84e2c3b441e95cd794a48966b481
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
@@ -4348,7 +4359,7 @@ implements_signature:
   bin/lib/debt_landing.py#_is_corpus_guard_assertion: 88aabf7068bcb5175629bdd4234c610023e27af032ec0e769f6f4de7114b6c26
   bin/lib/debt_landing.py#_is_layer_timeout_assertion: f95d6a601e386023ed5a607a004a2f56cb586fe3fef6289116729ebbcc4f82df
   bin/lib/debt_landing.py#_row_has_timed_out_layer: 14ff928a5583f7086b1e0610846c3c0909768a9faaf5c4412b342b39963cbe7f
-  bin/lib/debt_landing.py#_slowest_records: e4394d5cddf13c85b4ac2b1f6564fe12423c573babcccf0cf179961c28dbf094
+  bin/lib/debt_landing.py#_slowest_records: 53825b986774448d61df1ad9a32716ce4817ba3f6d01f44068935f3ab464b025
   bin/lib/debt_landing.py#abort_arm_is_caught_defect: dd87a29f0e39679d99183b4d79a801507db49e6e1ad15949964d8d2f49620e5f
   bin/lib/debt_landing.py#abort_class_is_park_limit_eviction: 3a59788ddad30fb353de7f904e63288dd00cb363c77046be893508aed0d96e80
   bin/lib/debt_landing.py#aborted_land_cost: f1134d0e377dc03b35a3ad2d5344b1864b562691a3515639d434febbabfef6a8
@@ -4359,7 +4370,7 @@ implements_signature:
   bin/lib/debt_landing.py#holder_liveness: da5915e8f4908e6d781b874a737c028c8af184f82fca1b1b8fa0db7fc119b4e8
   bin/lib/debt_landing.py#land_abort_cause_breadth: a98dc06aa0d5e133f2f034dd0f93280a2b4500d8f276c86784c1cc362f90223a
   bin/lib/debt_landing.py#remote_lag: 9598c29685d65d9f341d5c2aa4b9b3a7a821abaf967b2bcfbe48053dcfe5af11
-  bin/lib/debt_landing.py#slowest_decile_changes: 96df46981ba22005df72ac808aa219a8a27782d0d4bcc46a09a83912a1306491
+  bin/lib/debt_landing.py#slowest_decile_changes: 8e9dcf6ba3d22d8d2f316de04a86c4ed525340a566947b1deaef9767f179758e
   bin/lib/debt_spec0161.py#spec0161_declared_types: ddc8eb623d7a6747516f3ec2834a01a2f686b0188b6b0b21f9fe7bbbc136bfa7
   bin/lib/debt_spec0161.py#spec0161_payload_key_coverage: e3f6cdb3eeafaea3728b84e9f5824f6989a9124949e50ff1675b450f6c141159
   bin/lib/init.py#_born_comment_anchors: 3f4eae930fd26f47af10d39bfe858ff638673a0fe27e80a6c3b59b28e47d7e5e
@@ -4371,7 +4382,7 @@ implements_signature:
   bin/lib/init.py#concern_conformance: 819343d1d921cd17db13205ed90cef5c62afa36c18ca231c1d19f63a032ffc78
   bin/lib/init.py#unratified_adoptions: dcef8224b31e53d31e2c711c95b98fbb14acdf5bf307866d6fe663a605e4e17b
   bin/lib/journal.py#HALT_RESOLUTION_INPUT_TYPES: 7795f42ff4364f6f09cbff43004383437a46172d7aecfe9d75d6c3167ec58854
-  bin/lib/land_abort.py#_emit_land_abort: d1947380ca1cd9edef0b0c234ff241afc5d924451335071e553458ee5f8965da
+  bin/lib/land_abort.py#_emit_land_abort: 50bbb059fc9a65f4337d88c75c8ab7c0a1006443025a7d5430351de2c01c2329
   bin/lib/land_verify_legs.py#_registry_names_file: 85426b25d567d463c9debede36c118666df3b881341b97f249dca6a6eb0e9884
   bin/lib/nightly.py#_check_concern_conformance: 6c0bbe2b0976df16f31c764b48edf6c95af046b3cd094d33456080c86d05a6e1
   bin/lib/nightly.py#_check_unratified_adoptions: 2da20549af6874ea9b0cfbc9b53a191e5159c78027986bfeeb826f8bc16908be
@@ -4381,12 +4392,12 @@ implements_signature:
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
   bin/lib/session.py#cmd_session_start: 3e3f9d346b226777570b5a88d0a8e83bdd944beaadba93bbdf83a45777ee6482
   bin/lib/task.py#_render_live_dependents: 02e538bf32a90192c8b9f576da4fbde037c70ebd8d3eab47cb21286e5fc53aa7
-  bin/lib/task.py#cmd_task_update: f2098bcb6c65c71c94b8478a3f3d80b763ae2beeaff1e80524b5b00b7a1d37ff
+  bin/lib/task.py#cmd_task_update: c43a2b042dde6187a1c00cbd9290899e8129a03262bdf042cef5dde72e9c3b56
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 7181be1c148bb9877d6f1a4ed11029b46294bf14083d72b93709ace304a4d973
+  bin/lib/views.py#_render_debt_echo: 01274cd83b030fd548e96aca916048f2ef1dba4901683314f92db8e85d7605d8
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

@@ -94,36 +94,41 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \ + owner-judged, no coded gate) is homed in SPEC-0034 §accepted/§postcheck — this\
   \ is a\n   pointer to fill them, not a second home (P5 / rule-3 content-boundary).\
   \ (Distinct from item 3's\n   verification-plan SKETCH: item 3 sketches probe targets;\
-  \ this names the concrete EXIT criteria.)\n\n### Resume path for an existing `status:\
-  \ draft` plan (no new read verb)\nSessions never scan `plans/` (the picker reads\
-  \ `tasks/` only), and `plan stage draft` is unreachable\n(draft is the INITIAL status\
-  \ — the bundle is delivered by `plan file`, not by a stage verb). So a\nsession\
-  \ reopening a draft rediscovers this doctrine via the ALWAYS-LOADED LIFECYCLE §Plan-lifecycle\n\
-  draft-row pointer → `graph query SPEC-0043`. That pointer IS the sole rediscovery\
-  \ route by design;\nno read verb is added for resumed draft authoring.\n\n### Delivery\
-  \ wiring (how this doctrine reaches the author)\nIdeas (`plan file --idea`) are\
-  \ flat holding pens —\nthey get NEITHER the draft-stage delivery NOR the heavy skeleton\
-  \ (unchanged).\n( last-touch refresh: `cmd_plan_file`'s trailing next-hint also\
-  \ carries the post-specs FORK\npointer — trial-eligible → `plan stage trial`, else\
-  \ → `plan stage accepted` — but that pointer is\ngoverned by SPEC-0034/SPEC-0035,\
-  \ NOT this front-load doctrine; this spec's delivery rule + skeleton\nsections are\
-  \ unchanged.)\n\n### Anti-complexity note (<workshop-spec> §7 / CHARTER §P1 F3 —\
-  \ what is retired)\nNOTHING is retired by this spec. It is admitted because it fills\
-  \ a real WIRING + CONTENT gap (the\ndraft bundle was never delivered, and no doctrine\
-  \ said what a draft should front-load), NOT because\nit accretes a parallel mechanism:\
-  \ it REUSES the existing plan-stage-entry axis, the existing\n`_emit_plan_stage_entered`\
-  \ delivery helper, and the existing `cmd_plan_file` verb — no new gate, no\nnew\
-  \ verb, no new store, no draft-completeness validator.\n\n## Parameters\n\nNone\
-  \ consumed. Every governing constant referenced (the big-plan apply-when criteria;\
-  \ the audit\ntemplates; the trial-eligibility rule; the decomposition discipline)\
-  \ lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec> / big-plan-checklist)\
-  \ — pointed at, NEVER duplicated or\n`consumed:` here (<workshop-spec> rule 3 /\
-  \ P5).\n\n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1 Analysis\
-  \ is a delivered, ordered procedure); the\nPLAN draft stage had the delivery AXIS\
-  \ (SPEC-0034 binds `plan-stage-entry:draft`) but the bundle was\nnever delivered\
-  \ — `draft` is the initial status, so `plan stage draft` is never called. A session\n\
-  filing a plan therefore got no front-load guidance, and a draft could stay a bare\
-  \ title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
+  \ this names the concrete EXIT criteria.)\n9. **Current design only — no history\
+  \ in the body.** A plan body states the design as it stands\n   now: superseded\
+  \ designs, earlier rule variants and their numbers, and the deliberation\n   chronology\
+  \ are removed, not kept beside it — git history, the journal and the audit records\n\
+  \   keep them. Each correction is named by its one line in the External checks /\
+  \ audits section\n   (SPEC-0083 §The record — a pointer, not restated here).\n\n\
+  ### Resume path for an existing `status: draft` plan (no new read verb)\nSessions\
+  \ never scan `plans/` (the picker reads `tasks/` only), and `plan stage draft` is\
+  \ unreachable\n(draft is the INITIAL status — the bundle is delivered by `plan file`,\
+  \ not by a stage verb). So a\nsession reopening a draft rediscovers this doctrine\
+  \ via the ALWAYS-LOADED LIFECYCLE §Plan-lifecycle\ndraft-row pointer → `graph query\
+  \ SPEC-0043`. That pointer IS the sole rediscovery route by design;\nno read verb\
+  \ is added for resumed draft authoring.\n\n### Delivery wiring (how this doctrine\
+  \ reaches the author)\nIdeas (`plan file --idea`) are flat holding pens —\nthey\
+  \ get NEITHER the draft-stage delivery NOR the heavy skeleton (unchanged).\n( last-touch\
+  \ refresh: `cmd_plan_file`'s trailing next-hint also carries the post-specs FORK\n\
+  pointer — trial-eligible → `plan stage trial`, else → `plan stage accepted` — but\
+  \ that pointer is\ngoverned by SPEC-0034/SPEC-0035, NOT this front-load doctrine;\
+  \ this spec's delivery rule + skeleton\nsections are unchanged.)\n\n### Anti-complexity\
+  \ note (<workshop-spec> §7 / CHARTER §P1 F3 — what is retired)\nNOTHING is retired\
+  \ by this spec. It is admitted because it fills a real WIRING + CONTENT gap (the\n\
+  draft bundle was never delivered, and no doctrine said what a draft should front-load),\
+  \ NOT because\nit accretes a parallel mechanism: it REUSES the existing plan-stage-entry\
+  \ axis, the existing\n`_emit_plan_stage_entered` delivery helper, and the existing\
+  \ `cmd_plan_file` verb — no new gate, no\nnew verb, no new store, no draft-completeness\
+  \ validator.\n\n## Parameters\n\nNone consumed. Every governing constant referenced\
+  \ (the big-plan apply-when criteria; the audit\ntemplates; the trial-eligibility\
+  \ rule; the decomposition discipline) lives in its OWN spec/pattern\n(SPEC-0034\
+  \ / SPEC-0035 / <workshop-spec> / big-plan-checklist) — pointed at, NEVER duplicated\
+  \ or\n`consumed:` here (<workshop-spec> rule 3 / P5).\n\n## Rationale\n\nThe TASK\
+  \ lifecycle front-loads thinking (Stage-1 Analysis is a delivered, ordered procedure);\
+  \ the\nPLAN draft stage had the delivery AXIS (SPEC-0034 binds `plan-stage-entry:draft`)\
+  \ but the bundle was\nnever delivered — `draft` is the initial status, so `plan\
+  \ stage draft` is never called. A session\nfiling a plan therefore got no front-load\
+  \ guidance, and a draft could stay a bare title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
   \ YELLOW) confirmed\nOption A — keep doctrine in ONE normative home, reuse the existing\
   \ stage-entry axis, add no new\ngate/verb/store — and surfaced three refinements\
   \ absorbed here: F1 (state the resume path\nexplicitly), F2 (require a planned-artifacts/corpus-impact\

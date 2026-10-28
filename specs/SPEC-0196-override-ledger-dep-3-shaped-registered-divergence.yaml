@@ -104,24 +104,15 @@ concern:
   update_policy: init re-seed
   waiver_policy: loose
   shape_hook: override_ledger_shape
-  born: "overrides:\n  # SPEC-0196 — THE OVERRIDE LEDGER: the ONLY sanctioned form\
-    \ of local divergence from an\n  # upstream-owned file of the pinned release (the\
-    \ release contract's ownership classes). Born EMPTY, which is the\n  # honest\
-    \ default: a fresh project diverges from nothing. Add an entry ONLY when this\
-    \ project\n  # must run a local edit of an upstream-owned file before upstream\
-    \ carries it.\n  #\n  # Each entry carries EXACTLY these four fields (rule 1)\
-    \ — no others, no free-form policy text:\n  # path: the upstream-owned file diverged\
-    \ from\n  # rationale: one plain sentence — why this project needs the divergence\
-    \ now\n  # upstream_intent: temporary-patch | forwarded | accepted-exception |\
-    \ not-forwarded\n  # (a CLOSED vocabulary; `not-forwarded` is a recorded decision,\
-    \ never a default)\n  # review_trigger: an ISO date (YYYY-MM-DD) OR a named artifact\
-    \ whose close re-opens the entry\n  #\n  # DELETE-ON-MERGE (rule 4): the moment\
-    \ the pinned release carries the divergence, delete the\n  # entry AND drop the\
-    \ local edit — the drift check reports the entry REDUNDANT until you do.\n  #\
-    \ The check is REPORT-ONLY and adds no land gate; it rides `update`'s divergence\
-    \ report and the\n  # nightly sweep. An UNREGISTERED edit of an upstream-owned\
-    \ file is a CONFLICT on update and is\n  # never resolved silently in either direction\
-    \ (rule 3).\n  entries: []\n"
+  born: "overrides:\n  # SPEC-0196 — the OVERRIDE LEDGER, the only sanctioned local\
+    \ divergence from an upstream-owned\n  # file. Born EMPTY. Each entry carries\
+    \ exactly these four fields:\n  # Rule text: `__YITC_CLI__ graph query SPEC-0196\
+    \ --kernel`\n  # path: the upstream-owned file diverged from\n  # rationale: one\
+    \ plain sentence — why this project needs the divergence now\n  # upstream_intent:\
+    \ temporary-patch | forwarded | accepted-exception | not-forwarded\n  # review_trigger:\
+    \ an ISO date (YYYY-MM-DD) OR a named artifact whose close re-opens the entry\n\
+    \  # Delete the entry and the local edit once the pinned release carries it (report-only\
+    \ check).\n  entries: []\n"
 binding:
 - code-enforced
 init_concern: null

@@ -1,0 +1,190 @@
+id: SPEC-1047
+title: Scheduled pre-deploy run - a project's own cron runs its pre-deploy run on
+  main's head in the project's run-and-land queue, recorded apart from every deploy,
+  a red last run named at session start
+status: active
+created_at: 2026-10-25 09:49:07+00:00
+travels: kernel
+consumed: false
+extension: null
+implements:
+- bin/lib/debt.py#red_scheduled_run
+- bin/lib/deploy.py#_scheduled_run
+- bin/lib/deploy.py#_pre_deploy_scheduled_history
+- bin/lib/deploy.py#_pre_deploy_deploy_rows
+body: "## Scenario\nA project that declares pre-deploy classes (SPEC-1051) adds one\
+  \ line to its own OS cron, declared in\nits product-cron section. Once a day that\
+  \ line takes main's head, waits its turn in the project's\ncommon queue of runs\
+  \ and lands, and runs on that revision exactly the pre-deploy run a gated deploy\n\
+  would run — but deploys nothing. Green: the class staleness debt clears. Red: the\
+  \ project's next\nsession start shows one debt line saying the last scheduled run\
+  \ was red, with its log; the agent that\ntriages it reads the log and files what\
+  \ it finds. A scheduled run never stands for a deploy: every\ngated deploy still\
+  \ runs its own.\n\n## Internal\n\n### 1. Opt-in\n- Installing the cron line of rule\
+  \ 2 is the opt-in; there is no declaration key. The run covers every\n  pre-deploy\
+  \ class the contract declares, whatever targets they guard. A project with no pre-deploy\n\
+  \  class has nothing to run (rule 2).\n\n### 2. The starter\n- `<engine>/bin/yitc-v2\
+  \ -C <project> deploy --scheduled-run` runs the scheduled run of the project. It\n\
+  \  launches no deploy command, takes no `--target` and no `--expect-revision`, and\
+  \ writes no `deploy_*`\n  row. SPEC-1051 rule 3's run inside a gated deploy is the\
+  \ other starter of the same runner.\n- It fires from the project's own OS cron under\
+  \ the SPEC-0142 §6 invocation contract: the\n  `session start` prefix and `YITC_SESSION_REF=cron-<name>`\
+  \ on the same line. Without the contract it\n  refuses before anything runs and\
+  \ writes no class row. The exact line lives in\n  `patterns/project-release-guide.md`.\
+  \ The project declares that cron in its product-cron section\n  (SPEC-0109 rule\
+  \ 1), its scheduler definition holding the line as the single source; the scheduled\n\
+  \  rows of rule 5 are the observed runs SPEC-0109 rule 3 asks for. The engine, whose\
+  \ declaration admits\n  no product-cron section (SPEC-0186 rule 6), keeps the line\
+  \ in the host crontab of the account owning\n  its main checkout, beside its other\
+  \ kernel jobs. An AI session never triggers it on a\n  schedule (SPEC-0142 rule\
+  \ 1); a person may run the same command by hand, and its rows are the same.\n- It\
+  \ runs from the project's main checkout and refuses from any other checkout. The\
+  \ candidate is\n  main's head when the command starts, resolved to the full commit\
+  \ id. Everything the run reads about\n  what to run — the pre-deploy classes, the\
+  \ verify section, the adapter inventory — is read from the\n  candidate's own checkout,\
+  \ never from the working tree it was started in, so uncommitted or later\n  changes\
+  \ to `yitc-ops.yaml` neither widen nor narrow it, and a `main` that moves while\
+  \ the run waits\n  leaves its candidate unchanged.\n- A contract with no pre-deploy\
+  \ class makes the command exit at once with one line saying so; it\n  writes nothing.\
+  \ A second start while one waits or runs is simply another run in the queue (rule\
+  \ 3),\n  with its own `run_ref`.\n\n### 3. The queue — the run takes its place in\
+  \ the project's common queue of runs and lands\n- The run needs the project's admission\
+  \ queue switched on (SPEC-1045 rule 3). Where it is off, the\n  command refuses\
+  \ before anything runs, names the switch (`admission.mode: engine`, and the machine\n\
+  \  veto `YITC_ADMISSION_ENGINE` when that is what holds it off), and writes no class\
+  \ row.\n- Switched on, the run files its ticket at its own start and is admitted\
+  \ as a run, in the order the\n  project declares, as SPEC-1045 rule 2 (p) states:\
+  \ tied to no card, it takes none of the card steps\n  (no sync at admission, no\
+  \ quick step, no land preview, no green hold, no run-plus-land unit, no\n  credit\
+  \ answer), runs what rule 4 names, holds BUSY shared while it runs and ends its\
+  \ ticket in one\n  terminal row. It never takes the land reservation and never moves\
+  \ `main`.\n\n### 4. What the run executes — the deploy's pre-deploy run, unchanged\n\
+  - Subject and content are SPEC-1051 rule 3's, applied to every pre-deploy class\
+  \ of the contract: a\n  fresh scratch checkout of the candidate; every verify layer\
+  \ whole plus every unit of every pre-deploy\n  class, run exactly as a land runs\
+  \ them (adapter `list` → `required:` → `run`; a layer's `command:`\n  when it has\
+  \ no adapter); the worker allotment and shares; the rescue before red; the lone-layer\n\
+  \  re-run; fail-to-end; the contended re-run once. Where a layer's `list` does not\
+  \ answer, the layer runs\n  whole, as SPEC-1051 rule 2 states. Nothing of that rule\
+  \ is changed for a scheduled run.\n\n### 5. What the run records — a record, never\
+  \ deploy evidence\n- One `test_class_executed` row per pre-deploy class, shaped\
+  \ exactly as a SPEC-1051 rule-4 row (its\n  `evidence:` naming the run log, its\
+  \ `run_outcome` the whole run's result, every layer included), plus\n  `run_kind:\
+  \ scheduled`, with no `target`, and with the admission fields SPEC-1045 rule 2 (e)\
+  \ puts on\n  every Stage-6 result row. A row's `outcome` is that class's own result;\
+  \ `run_outcome` is the whole\n  run's. A deploy's pre-deploy rows stay as SPEC-1051\
+  \ rule 4 states, with no `run_kind`.\n- Where the runner writes a `pre_deploy_run_started`\
+  \ row (SPEC-1051 rule 4, a contract with\n  `reuse_run:`), a scheduled run's start\
+  \ row carries `run_kind: scheduled` too.\n- A row of either type carrying `run_kind:\
+  \ scheduled` is NEVER read as a deploy's run, and the deploy\n  readers drop such\
+  \ rows before they choose a newest run: not by the SPEC-1051 rule-3\n  reuse, not\
+  \ as «the last passed run for that target», not by a deploy's fail-to-end report,\
+  \ and it\n  never settles a SPEC-1051 rule-6 stand probe. It never moves a deploy\
+  \ target's history.\n- Its readers: the SPEC-0119 class-staleness fold (a complete\
+  \ `pass` row clears staleness as any\n  `test_class_executed` row does), the debt\
+  \ line of rule 6, the runner's own «cards since the last\n  passed scheduled run»\
+  \ (rule 6), and the SPEC-1051 rule-7 view and weekly reading, which count it as\
+  \ a\n  pre-deploy run (it is the same run).\n\n### 6. A red last run is named at\
+  \ session start\n- The run's own report is SPEC-1051 rule 3's fail-to-end report\
+  \ — every failing unit and layer it\n  records, rescued ones named — kept in the\
+  \ run log its rows name as `evidence:`; its «cards since the\n  last passed run»\
+  \ counts from the newest passed SCHEDULED run, never a deploy's.\n- The `bin/yitc-v2\
+  \ debt` echo (SPEC-0119, report-only, suppressed when clean) prints ONE line when\
+  \ the\n  project's CURRENT scheduled run is red: the run's `run_outcome` is not\
+  \ `passed`. The line names the\n  run's date, its candidate, its `run_ref` and its\
+  \ run log, and nothing about the cause: the agent that\n  triages the debt reads\
+  \ that log and files what it finds as ordinary work.\n- The CURRENT scheduled run\
+  \ is the one with the LATEST candidate among the scheduled rows inside the\n  SPEC-0190\
+  \ rule-4 summary window (`READ_SUMMARY_WINDOW_DAYS`, its one home), read within\
+  \ the debt\n  echo's one request-scoped read: `main` only moves forward, so of two\
+  \ candidates one is an ancestor of\n  the other, and the later is the descendant;\
+  \ where git cannot say which, neither is dropped. A run is\n  the class rows of\
+  \ one `run_ref` and `attempt`, red when any of them reads a `run_outcome` other\
+  \ than\n  `passed`; runs of one candidate order by stamp, the last attempt last.\
+  \ A run that finishes later on\n  an older candidate never replaces a newer one's\
+  \ result; where two runs tie for last, the line shows\n  if either is red; the physical\
+  \ order of journal rows is never read.\n- Only `test_class_executed` rows are results:\
+  \ a `pre_deploy_run_started` row with no class rows after\n  it is never a run,\
+  \ and a deploy's rows (no `run_kind`) neither show nor clear the line.\n- The line\
+  \ shows at a session start in the project's MAIN checkout and on an explicit\n \
+  \ `bin/yitc-v2 debt`; a session start in a worktree skips the debt echo, as it does\
+  \ for every line.\n- The line clears when the current scheduled run reads `passed`.\
+  \ Nothing refuses on it. A window with\n  no scheduled row gives no line.\n\n###\
+  \ 7. Scope\n- Opt-in: a project without the cron line runs, lands and deploys exactly\
+  \ as before.\n- Unchanged: every gated deploy runs its own pre-deploy run (or the\
+  \ SPEC-1051 opt-in reuse of a\n  deploy's run); the deploy-time run's own admission\
+  \ stays as SPEC-1051 rule 3 states.\n- Not here: a monitor that notices the cron\
+  \ stopped or never fired — the weekly inspection roster\n  checks that every day\
+  \ had a scheduled row matched to the scheduler's own log\n  (`patterns/inspection-criteria-roster.md`),\
+  \ and the SPEC-0119 class-staleness fold names a pre-deploy\n  class no run executed\
+  \ within its floor; the cron entry itself (the project's own file); a release\n\
+  \  lock; land batching.\n\n## Parameters\nNone. The read horizon is SPEC-0190's\
+  \ summary window; no key is opened.\n\n## Rationale\nPlan `scheduled-run-of-a-project-s-pre-deploy-class-on-m`.\
+  \ At cryptochart (public issue #201, v2.22.0,\n2026-10-24/25) three of five release\
+  \ attempts stopped on pre-deploy units broken by already-landed\ncards that never\
+  \ touched the unit, so the <workshop-spec> rule-6 stand probe could not see them;\
+  \ a daily\nrun on main would have shown each at the next completed daily run, its\
+  \ queue wait and duration included. The run lands in the CONSUMER journal because\
+  \ its\nrows are that project's class evidence. The common queue of rule 3 is the\
+  \ owner's direction of\nevents.jsonl#ts=. Rules 1, 4 and 7 take the owner's choice\
+  \ of\nevents.jsonl#ts= after three accept checks: reuse the deploy's run unchanged,\n\
+  opt in by the cron line. Rule 6 is the owner's of events.jsonl#ts=: the run records\n\
+  its result, the debt echo says only that the last run was red, and the agent triaging\
+  \ it reads the log.\nRule 7's check that the cron fired is the weekly inspection\
+  \ roster item of the owner's\nevents.jsonl#ts= (the plan's correction F2), in place\
+  \ of a followup; the cron line\nand the adoption steps are in `patterns/project-release-guide.md`\
+  \ Part D.\n\n## Verification\n- VP1 (starter, no deploy): on a fixture consumer\
+  \ with the queue on and two pre-deploy classes,\n  `deploy --scheduled-run` writes\
+  \ one `test_class_executed` row per class with `run_kind: scheduled`\n  and no `target`,\
+  \ launches no command and writes no `deploy_*` row; differential: on main before\
+  \ this\n  spec no verb writes such a row.\n- VP2 (same run as a deploy's): with\
+  \ a contract whose every pre-deploy class guards one target, the\n  scheduled run\
+  \ and that target's gated pre-deploy run of the same candidate execute the same\
+  \ set of\n  layers and units under the same execution rules (rescue, lone-layer\
+  \ re-run, contended re-run, a layer\n  whose `list` does not answer run whole),\
+  \ compared with run ids, evidence paths and measured values left\n  out; with classes\
+  \ guarding different targets, the scheduled run executes every class.\n- VP3 (never\
+  \ deploy evidence): with a passed scheduled row newer than a deploy's passed run\
+  \ of the same\n  candidate, the SPEC-1051 reuse, the last-passed-run lookup and\
+  \ the fail-to-end report read the\n  deploy's run exactly as without it; a gated\
+  \ deploy of that candidate still runs its own; with\n  `reuse_run:` declared, a\
+  \ scheduled run stopped after its start row and before its class rows leaves a\n\
+  \  deploy's reuse exactly as without it.\n- VP4 (queue): queue off — the command\
+  \ refuses before running, names the switch and writes no class\n  row; queue on\
+  \ — with a land queued ahead the run waits for that land's pass, writes its pass\
+  \ row with\n  no card step even with `verify.sync_at_stage6_admission` and `verify.post_sync_set_first`\
+  \ on, holds\n  BUSY shared while running, and a land filed after it waits for it.\n\
+  - VP5 (candidate and declaration): started from a task worktree it refuses; with\
+  \ an uncommitted\n  `yitc-ops.yaml` edit on main's working tree adding a class,\
+  \ the run runs the committed classes; a\n  land that moves `main` while the run\
+  \ waits leaves its candidate unchanged.\n- VP6 (red line): the newest scheduled\
+  \ run red because an ordinary layer failed while every class\n  passed — the line\
+  \ shows, naming the run and its log; it clears after the next passed run; X and\
+  \ its\n  descendant Y, Y red at 11:00 and X green at 12:00 — the line stays; two\
+  \ runs of Y with the same stamp,\n  one red, in either row order — the line shows;\
+  \ no scheduled row in the window — no line.\n- VP7 (invocation contract): the command\
+  \ without the `session start` prefix and the session ref\n  refuses before running\
+  \ and writes no class row; with them it runs.\n"
+cites:
+- SPEC-1051
+- SPEC-1045
+- SPEC-0142
+- SPEC-0190
+- SPEC-0119
+- SPEC-0132
+- SPEC-0109
+- SPEC-0094
+requires:
+- SPEC-1045
+supersedes: null
+activation_owner_task: null
+proposed_by: scheduled-run-of-a-project-s-pre-deploy-class-on-m
+binding:
+- before-scheduling-a-cadence
+- code-enforced
+init_concern: null
+implements_signature:
+  bin/lib/debt.py#red_scheduled_run: 177b987b26a9ce1ae1d8de54d678b8162abc8195ef6afae319632feff68d3aa3
+  bin/lib/deploy.py#_pre_deploy_deploy_rows: 918c2d381221fe8ba8dca699f067a8c23f03623a76556df6748e294760580d3e
+  bin/lib/deploy.py#_pre_deploy_scheduled_history: 3cf19bd3228b69c71a054b4faa151a89c8e8a54bb54b9cdc7b3a84d4857992d9
+  bin/lib/deploy.py#_scheduled_run: 95431f7b2bc65fa34ca761c33195607eae28881712e5d5932ad7be120d331d08

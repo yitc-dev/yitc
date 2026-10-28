@@ -89,21 +89,27 @@ body: "## Scenario\n\nSeveral changes are ready to land at the same moment. Toda
   \ behaviour — same events, same commits, same tokens. This is what makes the\nmechanism\
   \ self-disabling where it is not needed, with no flag and no per-repo branch (CHARTER\
   \ §P1 —\nno second code path to choose between). A repo is never named in this logic;\
-  \ only its queue depth is.\n\n**QUEUE ORDER IS ACCUMULATED AGE, OLDEST FIRST — and\
-  \ it is a RULE, not an accident of the read**\n(measured 2026-08-26). \"Queue order\"\
-  \ was previously left implicit here and the reader\nsupplied FIRST-SEEN-IN-TAIL\
-  \ order, whose docstring claimed it meant \"whoever has been waiting\nlongest is\
-  \ ahead\". It did not: every live waiter re-beats every ~20s, so within the freshness\n\
-  window first-seen order is heartbeat-emit PHASE and is uncorrelated with age. That\
-  \ silently\ncontradicted the §Cap clause below, which has always required WAITING\
-  \ TIME to decide who is first.\nReplayed on this repo's own journal at 11:18:20Z,\
-  \ first-seen order ranked the YOUNGEST of five\nqueued branches (307s) SECOND, ahead\
-  \ of three aged 1161s, 478s and 413s; task/ waited from\n10:44:08Z while TWELVE\
-  \ branches landed.\n\nThe age a branch is ranked by is the wait it has ACCUMULATED,\
-  \ not the wait since its current park.\nA land's per-park counter (`waited_s`) restarts\
-  \ on every re-park — a dissolution, or simply losing\nthe flock again — so the branch\
-  \ that has paid the most re-entered as a newcomer; measured on\ntask/ as four restarts\
-  \ under ONE pid and ONE attempt. The wait rows therefore carry an\nADDITIVE `queued_since_s`:\
+  \ only its queue depth is.\n\n**IN A REPO SWITCHED ON BY SPEC-1045, A LAND ASKS\
+  \ FOR THE RESERVATION ONLY AFTER THE ADMISSION QUEUE\nADMITS IT.** There `land`\
+  \ enters the repo's admission queue first (`bin/yitc-v2 graph query\nSPEC-1045`),\
+  \ and only a land the queue has let pass reaches the land reservation; the reservation,\n\
+  batch formation, the member checks, the rule-9 yield and the folds are unchanged,\
+  \ and a repo the\nqueue is off for lands exactly as this rule states.\n\n**QUEUE\
+  \ ORDER IS ACCUMULATED AGE, OLDEST FIRST — and it is a RULE, not an accident of\
+  \ the read**\n(measured 2026-08-26). \"Queue order\" was previously left implicit\
+  \ here and the reader\nsupplied FIRST-SEEN-IN-TAIL order, whose docstring claimed\
+  \ it meant \"whoever has been waiting\nlongest is ahead\". It did not: every live\
+  \ waiter re-beats every ~20s, so within the freshness\nwindow first-seen order is\
+  \ heartbeat-emit PHASE and is uncorrelated with age. That silently\ncontradicted\
+  \ the §Cap clause below, which has always required WAITING TIME to decide who is\
+  \ first.\nReplayed on this repo's own journal at 11:18:20Z, first-seen order ranked\
+  \ the YOUNGEST of five\nqueued branches (307s) SECOND, ahead of three aged 1161s,\
+  \ 478s and 413s; task/ waited from\n10:44:08Z while TWELVE branches landed.\n\n\
+  The age a branch is ranked by is the wait it has ACCUMULATED, not the wait since\
+  \ its current park.\nA land's per-park counter (`waited_s`) restarts on every re-park\
+  \ — a dissolution, or simply losing\nthe flock again — so the branch that has paid\
+  \ the most re-entered as a newcomer; measured on\ntask/ as four restarts under ONE\
+  \ pid and ONE attempt. The wait rows therefore carry an\nADDITIVE `queued_since_s`:\
   \ seconds since the land PROCESS first parked at either queue seam\n(SPEC-0132's\
   \ admission slot or the reservation). A row without it falls back to\n`waited_s`,\
   \ so every row already written stays readable.\n\nTWO BOUNDS, both load-bearing.\
@@ -2426,7 +2432,7 @@ implements_signature:
   bin/lib/batch_landing.py#_land_merge_probe: 050cff17161b7d4296dc419972d52d25a62e8b17ba99e518414ce17e223c448a
   bin/lib/batch_landing.py#_land_named_culprit_advisory: 82066974d541e12f7774f88517add4414f43a8357cad56721ed6f7856f1fb8da
   bin/lib/batch_landing.py#_land_pinned_supersession_branches: 491757e0571b036e0a3b4dc106177e997937e3b00803b5a9106cc0795af0d781
-  bin/lib/batch_landing.py#_land_prequeue_currency_refusal: 20c591dcc4eab1d9be9336b6dd057015e415499f8a867b1a897efc57774f9c3b
+  bin/lib/batch_landing.py#_land_prequeue_currency_refusal: e0f344dfddfc73a03a69257c3224147737d6e6feae2e90e00064d253342e6e3c
   bin/lib/batch_landing.py#_land_prequeue_merge_refusal: 503596a59bb68b2172dba4538b60de6333284890a70ae17fa1ae98ac7612f007
   bin/lib/batch_landing.py#_land_queue_at_slot_free: 3f6957716acf80756e2e301dd93d446f841c7667afdcde09cc54aa36d1104343
   bin/lib/batch_landing.py#_land_read_yield_offer: 6b25de4e113ab4214b11efb8196eca490101c0d2911d8d6bb3519c3c9e19261c
@@ -2447,5 +2453,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5
+  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
   bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c

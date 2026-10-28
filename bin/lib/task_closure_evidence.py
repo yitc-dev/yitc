@@ -161,7 +161,8 @@ def _closure_record_pathspecs(task_rel: str, audit_records: "list[str]", spec_id
       - `spec_ids`         — the spec YAMLs THIS closure writes: `--reverify` re-stamps (T-1177) and
                              `_activate_task_proposed_specs` activations/supersessions (T-0199);
       - `bookkeeping_allowlist` — `events.jsonl` plus the `graph/` derived views close's own
-                             `_auto_rebuild_graph("task_close")` regenerates (the host's
+                             `_auto_rebuild_graph("task_close")` regenerates when it runs (T-14305:
+                             skipped in a writing worktree that wrote no graph input) (the host's
                              `_BOOKKEEPING_ALLOWLIST`, reused rather than re-listed — P5).
     Staging an UNMODIFIED path is a git no-op, so naming a path that this particular close did not
     touch cannot widen the commit. A path ABSENT from disk is dropped, because `git add -- <pathspec>`

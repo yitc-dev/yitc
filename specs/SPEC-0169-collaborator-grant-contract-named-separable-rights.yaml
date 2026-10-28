@@ -21,21 +21,21 @@ body: "## Scenario\n\nThe owner names WHO may do WHAT on WHICH project — for e
   \ is ONE of three separately\n> named concerns that together answer a project's\
   \ sandbox questions: `sandbox_entry` (this spec — WHERE\n> a collaborator enters,\
   \ OPT-IN), `spike_sandbox` (SPEC-0172 — WHETHER a caged bridge exists and its\n\
-  > pinned release) and `spike_data_safety` (SPEC-0175 — WHAT the restored copy carries).\
-  \ They stay\n> DISTINCT; a reader who knows only one of the names sees all three\
-  \ via\n> `bin/yitc-v2 graph query sandbox-family`. Grounds: on 2026-08-13 a reader\
-  \ grepped `spike_sandbox`,\n> found none in a project that declares its sandbox\
-  \ under THIS key, and concluded it had none (X-0852).\n> A navigational pointer\
-  \ (<workshop-spec> rule 8) — it changes nothing here, and this concern stays OPT-IN.\n\
-  \n### 1. A grant is (person, project, rights) — never a role, never a convention\n\
-  A GRANT is an explicit triple: a named PERSON, a named PROJECT, and one or more\
-  \ RIGHTS from the\nclosed set in rule 2. \"The owner only\" is NOT expressible as\
-  \ a rule and MUST NOT be assumed as a\ndefault: the requirement this contract serves\
-  \ is that SEVERAL named people ship. A grant carrier\nthat can express only a single\
-  \ privileged identity does not satisfy this spec.\n\n#### 1a. The PROJECT leg may\
-  \ be a NAMED project or the ALL-REGISTRY-PROJECTS SCOPE CLASS\nA grant's PROJECT\
-  \ may be written either as one named project or as the single reserved scope\nclass\
-  \ **all projects present in the registry at authorization read time**. The scope\
+  > pinned release) and `spike_data_safety` (<workshop-spec> — WHAT the restored copy\
+  \ carries). They stay\n> DISTINCT; a reader who knows only one of the names sees\
+  \ all three via\n> `bin/yitc-v2 graph query sandbox-family`. Grounds: on 2026-08-13\
+  \ a reader grepped `spike_sandbox`,\n> found none in a project that declares its\
+  \ sandbox under THIS key, and concluded it had none (X-0852).\n> A navigational\
+  \ pointer (<workshop-spec> rule 8) — it changes nothing here, and this concern stays\
+  \ OPT-IN.\n\n### 1. A grant is (person, project, rights) — never a role, never a\
+  \ convention\nA GRANT is an explicit triple: a named PERSON, a named PROJECT, and\
+  \ one or more RIGHTS from the\nclosed set in rule 2. \"The owner only\" is NOT expressible\
+  \ as a rule and MUST NOT be assumed as a\ndefault: the requirement this contract\
+  \ serves is that SEVERAL named people ship. A grant carrier\nthat can express only\
+  \ a single privileged identity does not satisfy this spec.\n\n#### 1a. The PROJECT\
+  \ leg may be a NAMED project or the ALL-REGISTRY-PROJECTS SCOPE CLASS\nA grant's\
+  \ PROJECT may be written either as one named project or as the single reserved scope\n\
+  class **all projects present in the registry at authorization read time**. The scope\
   \ class is a\nDECLARATION, and its MEMBERSHIP is RESOLVED against the registry on\
   \ EVERY authorization read. It\nis NOT sugar that expands into a project list when\
   \ the grant is written.\n\nOWNER-AUTHORIZED MEANING (recorded 2026-08-08, and the\
@@ -353,17 +353,15 @@ concern:
   declare_type: string
   waiver_policy: loose
   shape_hook: sandbox_entry_shape
-  born: "sandbox_entry:\n  # SPEC-0169 — the collaborator sandbox ENTRY POINT. OPT-IN:\
-    \ declare it only when a person other\n  # than the owner is meant to enter a\
-    \ non-production stack of this project:\n  # entry: <the address or handle a collaborator\
-    \ enters through>\n  # A LOCATION, never a credential. Being IN a sandbox still\
-    \ needs a grant (SPEC-0169 rule 1), so an\n  # undeclared sandbox is not unguarded.\
-    \ The waiver below is a real key: a comment-only block would\n  # declare nothing\
-    \ and fail the present-block check.\n  # see SPEC-0169 §1, §1a\n  waiver:\n  \
-    \  reason: >-\n      no collaborator sandbox yet — this project keeps no non-production\
-    \ stack, so it has no\n      entry point to declare. Replace this waiver with\
-    \ `entry: <address>` when one exists\n      (SPEC-0169 rule 1a; the grant contract,\
-    \ not this section, is what admits a person to a\n      project at all).\n"
+  born: "sandbox_entry:\n  # SPEC-0169 — the collaborator sandbox ENTRY POINT, a location,\
+    \ never a credential. OPT-IN:\n  # Rule text: `__YITC_CLI__ graph query SPEC-0169\
+    \ --kernel`\n  # entry: <the address or handle a collaborator enters through>\n\
+    \  # Entering still needs a grant (SPEC-0169 rule 1).\n  # see SPEC-0169 §1, §1a\n\
+    \  waiver:\n    reason: >-\n      no collaborator sandbox yet — this project keeps\
+    \ no non-production stack, so it has no\n      entry point to declare. Replace\
+    \ this waiver with `entry: <address>` when one exists\n      (SPEC-0169 rule 1a;\
+    \ the grant contract, not this section, is what admits a person to a\n      project\
+    \ at all).\n"
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#_run_git_cap: 80cebd1508bded6f8edc3e1d5a10837443244e583f4bd928e62c55353def10dc
+  bin/lib/cli.py#_run_git_cap: d4453a08a00303c28d055f3aa48e9534bdcb4b2b346c5e5e1341975fb2a87f96

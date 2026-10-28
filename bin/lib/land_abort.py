@@ -363,6 +363,9 @@ def _emit_land_abort(branch: "str | None", reason: str, t0: float,
             # different causes. Additive key, same shape as failing_tests (SPEC-0025-safe).
             if abort_detail.get("failing_assertions"):
                 data["failing_assertions"] = abort_detail["failing_assertions"]
+            # T-14229: per failed test file, the test functions its own output named (SPEC-0025).
+            if abort_detail.get("failed_test_names"):
+                data["failed_test_names"] = abort_detail["failed_test_names"]
             if abort_detail.get("verify_mode"):
                 data["verify_mode"] = abort_detail["verify_mode"]
             # T-11118: the verify-metrics of the attempt that FAILED — same key, same shape, and the

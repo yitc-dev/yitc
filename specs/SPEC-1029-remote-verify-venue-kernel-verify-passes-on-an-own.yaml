@@ -23,6 +23,7 @@ implements:
 - bin/lib/venue.py#probe_readiness
 - bin/lib/venue.py#create_server
 - bin/lib/venue.py#delete_server
+- bin/lib/venue.py#teardown_refresh
 - bin/lib/remote_verify.py#route
 - bin/lib/remote_verify.py#venue_decision
 - bin/lib/remote_verify.py#derive_remote_w
@@ -692,38 +693,42 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   Stage-6 slot, so it applies only while `YITC_VENUE_STAGE6_MAX_CONCURRENT` is set;\
   \ with the bound\nunset nothing reads the host's CPU and the rows are as before.\
   \ The keys' defaults and bands are\ntheir `machine_settings.INVENTORY` entries.\n\
-  \n### 6. Box lifecycle — raised on one owner cue, published after a readiness probe,\
-  \ deleted on the idle condition\n**The venue is OPTIONAL, and its hosting provider\
-  \ is a CONFIG BINDING, never rule text (CHARTER §P4b).** These rules speak of a\
-  \ remote verify box; WHICH provider rents it — the API\nendpoint, the token secret\
-  \ name, the box class, the location and the ssh key — is declared in the\nmachine's\
-  \ venue binding (`bin/venue-config.yaml`, read at call time by `bin/lib/venue.py`),\
-  \ which\nstays with the workshop that wrote it and does not travel. A machine with\
-  \ NO complete binding has\nnot adopted the venue: `venue show` says so plainly and\
-  \ exits 0, every provider call refuses by\nname, and the routing seams IGNORE any\
-  \ record present, so every verify pass runs locally (rule 2's\nunpublished branch).\
-  \ When the venue pays and how to switch it on:\n`patterns/verify-venue-when-it-pays.md`.\n\
-  The box is owned by the **compute-controller session** — an ordinary interactive\
-  \ Controller the\nowner starts, whose owner-authorized standing batch is the land\
-  \ seam (`patterns/compute-controller-\nsession.md`). Its verbs: **`venue raise`**\
-  \ (create from the snapshot, wait for ssh, run the\nreadiness probe — fingerprint\
-  \ + `nofile` + the engine's test deps — and emit an `external_action`\n`from:` the\
-  \ session's card, SPEC-0116), **`venue publish`** (mirror the host's main onto the\
-  \ box\nclone, THEN write rule 1's record; refused when the probe or the mirror failed),\
-  \ **`venue unpublish`** (remove the record — the explicit break-glass and the\n\
-  first step of every delete), **`venue delete`** (destroy the box + its key; `external_action`).\n\
-  **`publish` ESTABLISHES the clone's main mirror before it publishes.** A clone main\n\
-  behind the host's is not an unready box, but rule 3's per-request mirror heals it\
-  \ on the box's\nfirst request **ONLY while that delta push fits the 900 s transport\
-  \ ceiling** the push runs under\n — past it every request times out instead. So\
-  \ the heal is no longer left to the first\nland: `publish` runs rule 3's OWN mirror\
-  \ state machine (`remote_verify.mirror_main_to_box`,\nextracted from `ship_trees`,\
-  \ never a raw forced push) at the unpublished→published transition, and\nthe record\
-  \ exists only once the invariant holds. Rule 3's per-request mirror is UNCHANGED\
-  \ — host\nmain keeps advancing after publication.\n**THE STALENESS BOUNDS — two\
-  \ quantities on one axis (delta-push seconds), each with its\nderivation.** (i)\
-  \ **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose delta\
-  \ push takes longer is STALE and is refreshed at the next teardown (the refresh\
+  **In a repository with the SPEC-1045 admission queue switched on,** a Stage-6 run\
+  \ is admitted by\nthat queue at the start of `task test`, before the routing decision;\
+  \ for a run the queue admitted,\nthe order of waiting passes above and its CPU wait\
+  \ are not consulted.\n\n### 6. Box lifecycle — raised on one owner cue, published\
+  \ after a readiness probe, deleted on the idle condition\n**The venue is OPTIONAL,\
+  \ and its hosting provider is a CONFIG BINDING, never rule text (CHARTER §P4b).**\
+  \ These rules speak of a remote verify box; WHICH provider rents it — the API\n\
+  endpoint, the token secret name, the box class, the location and the ssh key — is\
+  \ declared in the\nmachine's venue binding (`bin/venue-config.yaml`, read at call\
+  \ time by `bin/lib/venue.py`), which\nstays with the workshop that wrote it and\
+  \ does not travel. A machine with NO complete binding has\nnot adopted the venue:\
+  \ `venue show` says so plainly and exits 0, every provider call refuses by\nname,\
+  \ and the routing seams IGNORE any record present, so every verify pass runs locally\
+  \ (rule 2's\nunpublished branch). When the venue pays and how to switch it on:\n\
+  `patterns/verify-venue-when-it-pays.md`.\nThe box is owned by the **compute-controller\
+  \ session** — an ordinary interactive Controller the\nowner starts, whose owner-authorized\
+  \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
+  \ Its verbs: **`venue raise`** (create from the snapshot, wait for ssh, run the\n\
+  readiness probe — fingerprint + `nofile` + the engine's test deps — and emit an\
+  \ `external_action`\n`from:` the session's card, SPEC-0116), **`venue publish`**\
+  \ (mirror the host's main onto the box\nclone, THEN write rule 1's record; refused\
+  \ when the probe or the mirror failed), **`venue unpublish`** (remove the record\
+  \ — the explicit break-glass and the\nfirst step of every delete), **`venue delete`**\
+  \ (the whole teardown: unpublish, the refresh leg below by default, then destroy\
+  \ the box + its key; `external_action`).\n**`publish` ESTABLISHES the clone's main\
+  \ mirror before it publishes.** A clone main\nbehind the host's is not an unready\
+  \ box, but rule 3's per-request mirror heals it on the box's\nfirst request **ONLY\
+  \ while that delta push fits the 900 s transport ceiling** the push runs under\n\
+  \ — past it every request times out instead. So the heal is no longer left to the\
+  \ first\nland: `publish` runs rule 3's OWN mirror state machine (`remote_verify.mirror_main_to_box`,\n\
+  extracted from `ship_trees`, never a raw forced push) at the unpublished→published\
+  \ transition, and\nthe record exists only once the invariant holds. Rule 3's per-request\
+  \ mirror is UNCHANGED — host\nmain keeps advancing after publication.\n**THE STALENESS\
+  \ BOUNDS — two quantities on one axis (delta-push seconds), each with its\nderivation.**\
+  \ (i) **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose\
+  \ delta push takes longer is STALE and is refreshed at the next teardown (the refresh\
   \ leg\nbelow). It is a refresh TRIGGER, derived as ~2.5× the measured fresh-snapshot\
   \ band of 42–48 s\n(the AC2 ceiling), deliberately far below the point of failure\
   \ — 7.5× under the\ntransport ceiling. It is declared ONCE where it is measured\
@@ -832,64 +837,70 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ box that has served a compute window carries a clone\nalready caught up to `main`,\
   \ so the teardown is where the seed snapshot is refreshed — about\n**7 minutes**,\
   \ against the **45-60 minute** from-scratch re-seed — and the next `raise` starts\n\
-  near zero lag. The leg is `dev-utilities/venue-seed-recipe.sh refresh --server-id\
-  \ <id>`, run\nbetween `unpublish` and `delete`, and its steps are ORDERED: (1) **drain\
-  \ on LEASES, never on run\ndirs** — a lease (`~/venue/leases/`) whose recorded client\
-  \ pid is alive is the in-flight signal, a\nparked pre-ship's or land exit tail's\
-  \ DOTFILE lease included (rule 3);\nrun dirs persist after completion, so a drain\
-  \ keyed on them never fires; (2) **prepare the WORKED\nclone** — remove the abandoned\
-  \ `objects/tmp_objdir-incoming-*` push quarantines and finished run\ndirs, clear\
-  \ the finished per-request transport refs `refs/venue/<req>-<att>/{cand,main}` AND\
-  \ the\nstale `objects/info/commit-graph`, then repack — a worked box has no `refs/venue/cand`\
-  \ (that ref\nships only in a fresh-from-seed image), and a repack that keeps the\
-  \ stale commit-graph makes\n`fsck` report a phantom missing object; (3) verify the\
-  \ clone (`refs/heads/main` resolves,\n`for-each-ref` silent, `fsck --connectivity-only`\
-  \ clean) and `sync`; (4) **`fstrim -av` —\nREQUIRED, not advice**: a snapshot images\
-  \ the BLOCK DEVICE, so blocks freed by step 2 still count\nuntil they are discarded\
-  \ — measured 2026-09-16 on identical content, the pre-fstrim snapshot was\n**27.0\
-  \ GB in 106 s**, the post-fstrim one **4.52 GB in 30 s** (the 27 GB intermediate,\n\
-  `image(432722729)`, was deleted); (5) power the box off and wait for `status=off`\
-  \ (a running box\nsnapshots crash-consistent and boots with every ref broken); (6)\
-  \ `create_image`, wait\n`available`, and record the new snapshot id as the seed\
-  \ CANDIDATE (`venue seed --candidate`, rule 1);\n(7) `venue delete`. The next bare\
-  \ `raise` verifies the candidate and promotes it automatically on a\nGREEN readiness\
-  \ probe (rule 1) — no remembered `venue seed` between windows. The PRIOR snapshot\
-  \ is\nKEPT until that promotion; deleting it afterwards stays an explicit act (an\
-  \ irreversible external\ndelete). The recipe never\ndeletes the box: the box lifecycle\
-  \ stays owned by the venue verbs above. Measured run:\n`events.jsonl#ts=` (the `external_action`\
-  \ recording snapshot image 432722742).\n\n### 7. One executor at a time — no silent\
-  \ local fallback while a venue is published\nWhile a venue is published, local execution\
-  \ is **NOT** an automatic fallback for a kernel pass.\nAn unreachable or faulting\
-  \ venue is an INDETERMINATE abort (rule 4) that the compute-controller\nsession\
-  \ resolves — by fixing the box, or by `venue unpublish` (the explicit break-glass,\
-  \ journaled),\nafter which the pass runs locally. So there is ONE normal executor\
-  \ at any moment and never two\nverdict authorities for the same pass. Verdict AUTHORITY\
-  \ is unchanged: `land` decides from the\nenvelope with the same rules it applies\
-  \ to a local result; the box only runs. RETIRED by this rule\n(CHARTER §P1 F3):\
-  \ the dead `YITC_VERIFY_WORKERS` declaration as an unread local knob (rule 5); and\n\
-  the \"a verify result is wherever it ran\" reading — no durable remote result store,\
-  \ no remote queue,\nno second journal exist or may be added under this spec.\n\n\
-  **THE ONE CARVE-OUT: a SANDBOX repository verifies LOCALLY, and says so.** A pass\
-  \ whose\nREPOSITORY is one the host registry names NO project at is a nested land\
-  \ inside a TEST — a\nsynthetic fixture repo a test built under a tmpdir — and it\
-  \ takes the local path regardless of a\npublished venue. It is a carve-out from\
-  \ the routing rule, NOT from rule 7's promise: the exemption\nis **NAMED**, in the\
-  \ decision (`reason: skipped-sandbox-repo`) and on the land row\n(`land_completed.data.verify_metrics.venue_routing`,\
-  \ cataloged in SPEC-0161), so an exempt pass is\nnever mistakable for a routed one.\
-  \ What rule 7 forbids is a SILENT local fallback; a named one\nthat a reader can\
-  \ find in the journal is not that.\n\n**DERIVED FROM THE REGISTRY, NEVER FROM A\
-  \ PATH PATTERN,** and BOTH sides are compared as\nrepository IDENTITIES (`git rev-parse\
-  \ --git-common-dir`), so a linked worktree — on either side —\nresolves to its main\
-  \ checkout and an engine worktree is never mistaken for a sandbox. A `/tmp`\nprefix\
-  \ rule would encode where fixtures happen to live today; the registry is the host's\
-  \ own\nstatement of which repositories carry real work, and it is the same source\
-  \ the methodology-nightly\nenumerates.\n\n**POSITIVE EVIDENCE ONLY — the direction\
-  \ is what makes this safe.** An unresolvable repository\nidentity, an unreadable\
-  \ or empty registry, or any fault in the predicate claims NOTHING and the\npass\
-  \ routes exactly as it would without this carve-out. So the exemption can only ever\
-  \ be ADDED on\nevidence; no environment, and no broken artifact, can make it silently\
-  \ disable a published venue.\nA production kernel land is byte-identical: its repository\
-  \ IS registered.\n\n**WHY THE RULE NEEDED IT (the incident, 2026-09-08).** ~30 land/pinned-verify\
+  near zero lag. **`venue delete` runs the leg BY DEFAULT, between its unpublish and\
+  \ its server\nDELETE**, so the teardown is ONE command; `bin/lib/venue.py#teardown_refresh`\
+  \ carries the steps\n(kernel code — a missing recipe script never skips them). The\
+  \ leg's steps are ORDERED: (1) **drain on LEASES, never on run\ndirs** — a lease\
+  \ (`~/venue/leases/`) whose recorded client pid is alive is the in-flight signal,\
+  \ a\nparked pre-ship's or land exit tail's DOTFILE lease included (rule 3);\nrun\
+  \ dirs persist after completion, so a drain keyed on them never fires; (2) **prepare\
+  \ the WORKED\nclone** — remove the abandoned `objects/tmp_objdir-incoming-*` push\
+  \ quarantines and finished run\ndirs, clear the finished per-request transport refs\
+  \ `refs/venue/<req>-<att>/{cand,main}` AND the\nstale `objects/info/commit-graph`,\
+  \ then repack — a worked box has no `refs/venue/cand` (that ref\nships only in a\
+  \ fresh-from-seed image), and a repack that keeps the stale commit-graph makes\n\
+  `fsck` report a phantom missing object; (3) verify the clone (`refs/heads/main`\
+  \ resolves,\n`for-each-ref` silent, `fsck --connectivity-only` clean) and `sync`;\
+  \ (4) **`fstrim -av` —\nREQUIRED, not advice**: a snapshot images the BLOCK DEVICE,\
+  \ so blocks freed by step 2 still count\nuntil they are discarded — measured 2026-09-16\
+  \ on identical content, the pre-fstrim snapshot was\n**27.0 GB in 106 s**, the post-fstrim\
+  \ one **4.52 GB in 30 s** (the 27 GB intermediate,\n`image(432722729)`, was deleted);\
+  \ (5) power the box off and wait for `status=off` (a running box\nsnapshots crash-consistent\
+  \ and boots with every ref broken); (6) `create_image`, wait\n`available`, and record\
+  \ the new snapshot id as the seed CANDIDATE (`venue seed --candidate`, rule 1);\n\
+  (7) DELETE the server. The next bare `raise` verifies the candidate and promotes\
+  \ it automatically on a\nGREEN readiness probe (rule 1) — no remembered `venue seed`\
+  \ between windows. The PRIOR snapshot is\nKEPT until that promotion; deleting it\
+  \ afterwards stays an explicit act (an irreversible external\ndelete). A leg that\
+  \ refuses at any step deletes NOTHING: `venue delete` exits nonzero naming the\n\
+  box as still live and billed and the command that finishes the job. The leg is skipped\
+  \ only by\n`venue delete --skip-refresh \"<why>\"` — a blank reason is refused,\
+  \ and the reason rides the\ndelete's `external_action` row — or for a consumer venue\
+  \ (`serves`), whose image is `venue seed\n--build`'s, stated on the same row. Measured\
+  \ run:\n`events.jsonl#ts=` (the `external_action` recording snapshot image 432722742).\n\
+  \n### 7. One executor at a time — no silent local fallback while a venue is published\n\
+  While a venue is published, local execution is **NOT** an automatic fallback for\
+  \ a kernel pass.\nAn unreachable or faulting venue is an INDETERMINATE abort (rule\
+  \ 4) that the compute-controller\nsession resolves — by fixing the box, or by `venue\
+  \ unpublish` (the explicit break-glass, journaled),\nafter which the pass runs locally.\
+  \ So there is ONE normal executor at any moment and never two\nverdict authorities\
+  \ for the same pass. Verdict AUTHORITY is unchanged: `land` decides from the\nenvelope\
+  \ with the same rules it applies to a local result; the box only runs. RETIRED by\
+  \ this rule\n(CHARTER §P1 F3): the dead `YITC_VERIFY_WORKERS` declaration as an\
+  \ unread local knob (rule 5); and\nthe \"a verify result is wherever it ran\" reading\
+  \ — no durable remote result store, no remote queue,\nno second journal exist or\
+  \ may be added under this spec.\n\n**THE ONE CARVE-OUT: a SANDBOX repository verifies\
+  \ LOCALLY, and says so.** A pass whose\nREPOSITORY is one the host registry names\
+  \ NO project at is a nested land inside a TEST — a\nsynthetic fixture repo a test\
+  \ built under a tmpdir — and it takes the local path regardless of a\npublished\
+  \ venue. It is a carve-out from the routing rule, NOT from rule 7's promise: the\
+  \ exemption\nis **NAMED**, in the decision (`reason: skipped-sandbox-repo`) and\
+  \ on the land row\n(`land_completed.data.verify_metrics.venue_routing`, cataloged\
+  \ in SPEC-0161), so an exempt pass is\nnever mistakable for a routed one. What rule\
+  \ 7 forbids is a SILENT local fallback; a named one\nthat a reader can find in the\
+  \ journal is not that.\n\n**DERIVED FROM THE REGISTRY, NEVER FROM A PATH PATTERN,**\
+  \ and BOTH sides are compared as\nrepository IDENTITIES (`git rev-parse --git-common-dir`),\
+  \ so a linked worktree — on either side —\nresolves to its main checkout and an\
+  \ engine worktree is never mistaken for a sandbox. A `/tmp`\nprefix rule would encode\
+  \ where fixtures happen to live today; the registry is the host's own\nstatement\
+  \ of which repositories carry real work, and it is the same source the methodology-nightly\n\
+  enumerates.\n\n**POSITIVE EVIDENCE ONLY — the direction is what makes this safe.**\
+  \ An unresolvable repository\nidentity, an unreadable or empty registry, or any\
+  \ fault in the predicate claims NOTHING and the\npass routes exactly as it would\
+  \ without this carve-out. So the exemption can only ever be ADDED on\nevidence;\
+  \ no environment, and no broken artifact, can make it silently disable a published\
+  \ venue.\nA production kernel land is byte-identical: its repository IS registered.\n\
+  \n**WHY THE RULE NEEDED IT (the incident, 2026-09-08).** ~30 land/pinned-verify\
   \ tests build a\nsynthetic repo and call `land` inside it, and the routing predicate\
   \ read those fixtures as KERNEL\n(the engine-clone sandbox is deliberately not a\
   \ consumer). Each nested land therefore shipped a\nfixture to the box and aborted\
@@ -1041,7 +1052,7 @@ implements_signature:
   bin/lib/remote_verify.py#mirror_main_to_box: 1fcceadda609d63361391c2a2c2a3f834d3a258b3b9f4bf4de4e0bd4d2d3bf2e
   bin/lib/remote_verify.py#partition_suite: 0157fe314af49fc3c6543be06928ee894f6f7098cc18fc055f3472bd4e5fe3bd
   bin/lib/remote_verify.py#preship_admit: 5fa44842a23c92be738f37da9edaf4ce9c5335d3d19a859e8e577988002fbf57
-  bin/lib/remote_verify.py#route: 1869a564f62fd13091f18948e40f0756f59c0e08a9c574a39b2922218692bb34
+  bin/lib/remote_verify.py#route: 53c1bb6e53a1dad368b8ec2bb98fdbf89200c440518dd07ad222086b53caf486
   bin/lib/remote_verify.py#ship_trees: 459a2c93cc9099edc3f64877224cd07eb0d3e557780f00059a4a95f0407482b0
   bin/lib/remote_verify.py#validate_envelope: a8e909c647215b15cd9c084d2b4f194c72a87ef7c85d18736d5688071dae6374
   bin/lib/remote_verify.py#venue_decision: eb7bf56758396fd2a9293264928121e5f209153bd23dd7588ce86a389bb20590
@@ -1055,7 +1066,7 @@ implements_signature:
   bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
   bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
-  bin/lib/task.py#cmd_task_test: 17540c29c92ee42dd687bbf7232f71621338b4b4a163ea5889ccea44bd9cd5ed
+  bin/lib/task.py#cmd_task_test: 9902f9c250792a2f35dd856ca4d019793ca592cf4ade97d4d55c8e3be4b856d0
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd
@@ -1064,9 +1075,10 @@ implements_signature:
   bin/lib/venue.py#probe_readiness: b649b0bbbe6742851d0b92f30971f5d368ad8a3213194f77ff725f1ec0594cb1
   bin/lib/venue.py#read_record: f1629b1c5e2e8add73bf1e067b15eef287a1c96a45b0c7322e85800b3e49e01f
   bin/lib/venue.py#resolve_record_path: 231f50071cfee672ad49319cf14cc522e92e7513c49953e5b588350662a0b64b
+  bin/lib/venue.py#teardown_refresh: 3ef38e26cfece1075edaa9a19bccdbfc0176b990b6b15e1d79183968cb627d84
   bin/lib/venue.py#write_record: 4081dc2ee4b5a9e14c85d760564e3013d083bd364ac1a429951cc5ebadfcadc2
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
-  bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
+  bin/lib/verify_runner.py#_run_verify_tests: b308ed4920b9ac7c61b8ae6bd80f1e08c1228e6b79518fe8ef6c4a4c6ab88d24
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5
+  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84

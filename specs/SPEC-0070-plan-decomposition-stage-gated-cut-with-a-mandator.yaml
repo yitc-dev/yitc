@@ -35,36 +35,37 @@ body: "## Scenario\n\nWhen a plan is taken into work the CUT (slicing the plan i
   \ `implementation_plan` decomposition MAP, which is the TEXT boundary that\n  sits\
   \ BEFORE the cut (the cards do not exist yet), so it belongs at the entry to the\
   \ cut, not at the\n  entry to build.\n- **Work** = the CUT, relocated from `executing`:\
-  \ slice the plan into task cards per SPEC-0046 (ONE\n  provable claim per accept-unit;\
-  \ order via `requires:`; the verifier-after-settled rule), file them\n  via `task\
-  \ file`, and SET the single `activation_owner_task` on each `proposed` spec (the\
-  \ HARD\n  invariant — one activating task per spec; the others `cite` it). The plan↔spec\
-  \ linkage-chain\n  born→activate slice (SPEC-0034) is exercised HERE — the cut SETS\
-  \ these, so it is cut-bundle content.\n- **Exit gate `decomposition → executing`**\
-  \ = the cut is verified (§3).\n- **`executing`** narrows to PURE BUILD: the cards\
-  \ run their own 9 stages; no \"incidental\" cutting.\n  Its delivered bundle narrows\
-  \ to \"how to build\" (SPEC-1038 / SPEC-0041 / the per-task stage bundles).\n\n\
-  ### 3. The decomposition-fidelity gate (`decomposition → executing`) — MANDATORY-BLOCKING\n\
-  Entry to `executing` REQUIRES a FRESH GREEN/YELLOW external **decomposition-fidelity**\
-  \ verdict over\nthe task SET. The verdict is produced by the\nEXISTING `_run_plan_gate_audit`\
-  \ plan-gate machinery (<workshop-spec>) under a NEW template\n`gate-executing` /\
-  \ `gate_policy: mandatory-blocking` — the same family as `gate-specs` (P2) /\n`gate-trial`\
-  \ (P3) / `gate-accepted` (P4); it is NOT `audit adhoc` and NOT an `audit post --plan`\n\
-  overlay. FULL auditor (PLAN-level audit posture,\nSPEC-0034). RED/ABORT HOLDS the\
-  \ transition; the 2-pass audit-loop ceiling applies (CHARTER\n§audit-loop ceiling).\
-  \ The verdict saves to the canonical plan-gate YAML with\n`stage_template: gate-executing`\
-  \ (<workshop-spec> §Verdict recording).\n- **What it audits = the SET, not one card**\
-  \ (the blind-spot per-task audit-pre cannot reach):\n  coverage (every plan part\
-  \ mapped 1:1), cross-task `requires:` ordering, verifier-after-settled\n  edges,\
-  \ a singular `activation_owner_task` across siblings, probe quality (no future-bound\
-  \ /\n  luck-only probes), and no card reopening a settled choice.\n- **A split recommendation\
-  \ is advisory.** A finding that a card bundles more than one\n  claim and should\
-  \ be split never holds the transition: the project's declared grouping rules\n \
-  \ decide (SPEC-0046 §A); the question and its bound are asked in the SPEC-0083 P5\
-  \ template. Every\n  other finding of this gate holds the transition as before.\n\
-  - **Anchor wiring carried by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task`\
-  \ card either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card\
-  \ that does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
+  \ slice the plan into task cards per SPEC-0046 (one\n  coherent change-set per card,\
+  \ split only on its grounds; order via `requires:`; the verifier-after-settled rule),\
+  \ file them\n  via `task file`, and SET the single `activation_owner_task` on each\
+  \ `proposed` spec (the HARD\n  invariant — one activating task per spec; the others\
+  \ `cite` it). The plan↔spec linkage-chain\n  born→activate slice (SPEC-0034) is\
+  \ exercised HERE — the cut SETS these, so it is cut-bundle content.\n- **Exit gate\
+  \ `decomposition → executing`** = the cut is verified (§3).\n- **`executing`** narrows\
+  \ to PURE BUILD: the cards run their own 9 stages; no \"incidental\" cutting.\n\
+  \  Its delivered bundle narrows to \"how to build\" (SPEC-1038 / SPEC-0041 / the\
+  \ per-task stage bundles).\n\n### 3. The decomposition-fidelity gate (`decomposition\
+  \ → executing`) — MANDATORY-BLOCKING\nEntry to `executing` REQUIRES a FRESH GREEN/YELLOW\
+  \ external **decomposition-fidelity** verdict over\nthe task SET. The verdict is\
+  \ produced by the\nEXISTING `_run_plan_gate_audit` plan-gate machinery (<workshop-spec>)\
+  \ under a NEW template\n`gate-executing` / `gate_policy: mandatory-blocking` — the\
+  \ same family as `gate-specs` (P2) /\n`gate-trial` (P3) / `gate-accepted` (P4);\
+  \ it is NOT `audit adhoc` and NOT an `audit post --plan`\noverlay. FULL auditor\
+  \ (PLAN-level audit posture,\nSPEC-0034). RED/ABORT HOLDS the transition; the 2-pass\
+  \ audit-loop ceiling applies (CHARTER\n§audit-loop ceiling). The verdict saves to\
+  \ the canonical plan-gate YAML with\n`stage_template: gate-executing` (<workshop-spec>\
+  \ §Verdict recording).\n- **What it audits = the SET, not one card** (the blind-spot\
+  \ per-task audit-pre cannot reach):\n  coverage (every plan part mapped 1:1), cross-task\
+  \ `requires:` ordering, verifier-after-settled\n  edges, a singular `activation_owner_task`\
+  \ across siblings, probe quality (no future-bound /\n  luck-only probes), and no\
+  \ card reopening a settled choice.\n- **A split recommendation is advisory.** A\
+  \ finding that a card bundles more than one\n  claim and should be split never holds\
+  \ the transition: the project's declared grouping rules\n  decide (SPEC-0046 §A);\
+  \ the question and its bound are asked in the SPEC-0083 P5 template. Every\n  other\
+  \ finding of this gate holds the transition as before.\n- **Anchor wiring carried\
+  \ by the cut.** For each `proposed` plan spec, its\n  `activation_owner_task` card\
+  \ either CARRIES the code-anchor wiring work itself OR `requires:` the\n  card that\
+  \ does (a predecessor may wire it), OR the spec declares a SPEC-0151 `execution:`\n\
   \  disposition; and the owner card is `requires:`-ordered after every implementing\
   \ card. The question is asked in the SPEC-0083 P5 template; no new gate, no validator.\
   \ How a cut meets this clause when a plan spec restates an ACTIVE spec and several\

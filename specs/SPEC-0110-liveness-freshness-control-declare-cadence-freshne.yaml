@@ -205,17 +205,11 @@ concern:
   waiver_policy: loose
   shape_hook: freshness_shape
   born_order: 160
-  born: "freshness:\n  # SPEC-0110. DECLARE this project's freshness contract if it\
-    \ PRODUCES data on a cadence (a sync /\n  # discovery / tracking pipeline that\
-    \ must keep producing fresh output). Replace this waiver with:\n  # adapter: bin/freshness-adapter.py\
+  born: "freshness:\n  # SPEC-0110. DECLARE a freshness contract if this project produces\
+    \ data on a cadence — a LIVE\n  # read-only adapter the kernel runs at grade time:\n\
+    \  # Rule text: `__YITC_CLI__ graph query SPEC-0110 --kernel`\n  # adapter: bin/freshness-adapter.py\
     \ # the declaration key that ANSWERS this section\n  # kind: command # the kernel\
     \ runs it LIVE and parses its stdout JSON\n  # command: [python3, bin/freshness-adapter.py]\n\
-    \  # The source is a LIVE READ-ONLY ADAPTER the kernel invokes at grade-time,\
-    \ never a static file; it\n  # prints {\"pipelines\": [{name, state: fresh|stale|miss,\
-    \ age_hours, detail}], \"error\": null} (or\n  # {\"pipelines\": [], \"error\"\
-    : \"<detail>\"} on a source failure). Thresholds live IN the adapter, and\n  #\
-    \ the probe must be INDEPENDENT of the loop it grades. Waiver LOOSE but FORWARD-AWARE:\
-    \ say why\n  # nothing needs grading yet and how you would flip to declare.\n\
     \  # see SPEC-0110 §1, §2, §3\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
     \ init` — no freshness contract declared yet. This project produces no data on\
     \ a cadence that must be graded for staleness; if it gains one (a sync / discovery\

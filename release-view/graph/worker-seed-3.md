@@ -62,7 +62,10 @@ cwd-independent verbs), not by removing isolation. So:
   scaffolds without a worktree AND commits them + the journal directly to `main` (ensuring `main` is the
   checked-out branch first), so the bootstrap reaches main via a GOVERNED commit, not a loose dirty working
   tree. It stages ONLY the init-managed scaffolds (never `git add -A`)
-  and is idempotent. Retiring a stale non-main default branch (e.g. `master`) is a separate normalization
+  and is idempotent. NARROWED : once the yitc-ops.yaml committed at HEAD declares `verify:` the
+  consumer can land, so init never writes the main checkout — it opens a `work/init-<release>` worktree,
+  writes and commits what it adds there, and prints the `land --branch work/init-<release>` step (nothing
+  to add opens none). Retiring a stale non-main default branch (e.g. `master`) is a separate normalization
   concern, handled by its own follow-up task. Every OTHER source/artifact write — including in a consumer
   once bootstrapped — rides the worktree→land path below. (Same capture-not-isolation rationale as the journal-append exception.)
 - **EXCEPTION (cont.) — the SCOPED SELF-COMMIT family: each of these verbs commits its OWN narrow
@@ -73,8 +76,9 @@ cwd-independent verbs), not by removing isolation. So:
   deliverable is derivably already on `main` — every ordinary card still claims via
   `worktree new --task`), `task refuse` (the SPEC-0133 pre-claim refusal), `task update --queue-jump`
   (the SPEC-0184 rule-9 land-admission mark), `task update --note` on a terminal card, the
-  `task close` settle arms `--settle-probe` (SPEC-1011) / `--settle-observation`, and
-  `config set --project` (one THRESHOLD value in the project's `thresholds:` — SPEC-1031 rule 7). From
+  `task close` settle arms `--settle-probe` (SPEC-1011) / `--settle-observation`,
+  `config set --project` (one THRESHOLD value in the project's `thresholds:` — SPEC-1031 rule 7) and
+  `pre-deploy list --write` (the one pre-deploy class's `units:` list; its `--help` names its rule). From
   the **main checkout** each stages its one artifact (MEMORY.md, the card, or yitc-ops.yaml) + the
   journal receipt ONLY (never `git add -A`), refuses on preexisting dirt in that artifact, and is
   idempotent on re-run (a terminal-card note appends one entry per run). Inside a `task/` or `work/` **writing worktree**

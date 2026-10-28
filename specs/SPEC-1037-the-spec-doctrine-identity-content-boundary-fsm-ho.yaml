@@ -71,68 +71,71 @@ body: "## Scenario\n\nThe owner/AI sees ONE durable design corpus. Whenever a ST
   \ spec:**\n  - **History goes to the spec's `## Rationale` section:** incident narratives,\
   \ measured figures,\n    amendment and change-origin tags (which card, decision\
   \ or incident produced or changed a\n    rule, e.g. \"Amends identity\"), and lists\
-  \ of cards or fingerprints.\n  - **Code detail has two homes:** a code anchor (the\
-  \ file or function that carries the rule)\n    goes to the `implements:` field;\
-  \ a note the maintainer of that code needs goes to a\n    `## Implementation notes`\
-  \ section.\n  - A stage entry delivers neither of the two sections nor the `implements:`\
-  \ field; the full\n    lookup of the spec prints all three (delivery rule: SPEC-0050\
-  \ §4).\n**Stays in the rule text — a rule, never history or code detail:** a cue\
-  \ the acting reader must\nact on that names a retired route or a cutoff the code\
-  \ checks; a command or function that reader\nmust call; a refusal text that reader\
-  \ will meet.\n**What a delivered body carries — one class per line.** The delivered\
-  \ body is every body section\nthe stage contract view keeps (SPEC-0050 §4). Give\
-  \ each of its lines one class:\n  - ACT — a rule an acting agent applies: a condition,\
-  \ or a command, flag, field, status token,\n    refusal kind or number it uses or\
-  \ meets;\n  - MECH — how the code computes, stores or checks something the agent\
-  \ never applies;\n  - REF — a field catalog, schema block or template the agent\
-  \ looks up rather than applies;\n  - PTR — a pointer to another home with no rule\
-  \ content of its own;\n  - RETIRED — more than one line about a route that is retired;\n\
-  \  - HIST — history, as the history clause above defines it.\nA line mixing ACT\
-  \ with any other class is ACT.\n**Where each class goes.** The rule text keeps ACT\
-  \ lines only, and states each acting rule ONCE,\nwith its exact tokens. MECH and\
-  \ REF lines go to the `## Implementation notes` section; HIST lines\ngo to `## Rationale`.\
-  \ A PTR line stays only where the reader must go to that other home at that\nmoment\
-  \ to act; otherwise it is deleted. A retired route keeps ONE line, «never X; it\
-  \ refuses»,\nnaming the refusal the reader meets, and nothing more. Sentence style\
-  \ is free: do not reword an\nacting rule only to shorten it.\n**Rule-preservation\
-  \ check — REQUIRED for any change that removes or moves text out of a delivered\n\
-  body.** Before the first edit, record a RULE INVENTORY of that body as it stands\
-  \ on main at the\nclaim: one line per ACT rule — condition -> required or forbidden\
-  \ action, with every verb, flag,\nfield, status token, refusal kind and number verbatim.\
-  \ When a sync or another merge from main\nchanges that body before the ship, add\
-  \ every ACT rule the merge brought in to the inventory. After\nthe edit, check the\
-  \ shipped body against it rule by rule and mark each line PRESENT (same condition,\n\
-  same action, every token verbatim), MOVED (give the file and heading of its new\
-  \ home) or REMOVED\n(give the reason: history, code detail, reference material,\
-  \ a duplicate of a named kept rule, or a\nretired route reduced to its one line).\
-  \ Commit the inventory and the result beside the card as\n`tasks/<card-id>-rule-inventory.md`,\
-  \ or quote them in the commit body. The check FAILS if an\ninventory line is missing\
-  \ from the result, a REMOVED line is an ACT rule with no duplicate and no\nnew home,\
-  \ a PRESENT line lost a condition or changed a token, or a MOVED line names a home\
-  \ that does\nnot contain the rule in the shipped tree.\n**Light form — for a change\
-  \ that removes or moves at most 10 lines of a delivered body.** Instead\nof the\
-  \ inventory, the commit body lists every sentence removed from the body with its\
-  \ disposition:\nmoved (to which home), duplicate (of which kept sentence), history,\
-  \ code detail, reference\nmaterial, or retired route reduced to one line. It FAILS\
-  \ if a removed sentence that states a\ncondition and an action an acting agent applies\
-  \ is listed as history, code detail, reference\nmaterial or none of these; if a\
-  \ sentence listed as moved is not in the named home in the shipped\ntree; or if\
-  \ the kept sentence a duplicate names is not in the shipped body. **Grandfathering:**\
-  \ text placed in a rule body\nbefore this split stays valid where it is; it is moved\
-  \ when a card next reshapes that passage, or\nby a migration card. Editing a spec\
-  \ does not require backfilling its older text first.\n**Delivery-timing review —\
-  \ an authoring recommendation for a change that adds, moves or re-binds a\nrule\
-  \ of a delivered body, and for a review of one.** This is a recommendation, as rule\
-  \ 6's\nrare-case option is: it adds no recording duty and no pass condition, and\
-  \ an edit that met this\nrule before still meets it; the mandatory check is the\
-  \ T7 review lens\n(`patterns/inspection-criteria-roster.md`). For each rule, or\
-  \ each group of rules with one audience,\none condition and one first action, it\
-  \ helps to know: its home; its audience (the Controller, a\nWorker, any session);\
-  \ its condition; the FIRST governed action it applies to, counting the\npreparation\
-  \ of evidence for that action (an acceptance probe designed, a proof carrier composed);\n\
-  and the delivery that reaches that audience BEFORE that action. A delivery counts\
-  \ only if the agent\nmeets it first: an always-loaded seed line, the stage bundle\
-  \ of that stage or of an earlier one, a\nfloor trigger, a verb's help head or print\
+  \ of cards or fingerprints. A successor's\n    `## Rationale` carries its own change\
+  \ only: the predecessor's stays readable after supersede\n    (`graph query <old\
+  \ id>`), so the successor points at it in one line and never copies it.\n  - **Code\
+  \ detail has two homes:** a code anchor (the file or function that carries the rule)\n\
+  \    goes to the `implements:` field; a note the maintainer of that code needs goes\
+  \ to a\n    `## Implementation notes` section.\n  - A stage entry delivers neither\
+  \ of the two sections nor the `implements:` field; the full\n    lookup of the spec\
+  \ prints all three (delivery rule: SPEC-0050 §4).\n**Stays in the rule text — a\
+  \ rule, never history or code detail:** a cue the acting reader must\nact on that\
+  \ names a retired route or a cutoff the code checks; a command or function that\
+  \ reader\nmust call; a refusal text that reader will meet.\n**What a delivered body\
+  \ carries — one class per line.** The delivered body is every body section\nthe\
+  \ stage contract view keeps (SPEC-0050 §4). Give each of its lines one class:\n\
+  \  - ACT — a rule an acting agent applies: a condition, or a command, flag, field,\
+  \ status token,\n    refusal kind or number it uses or meets;\n  - MECH — how the\
+  \ code computes, stores or checks something the agent never applies;\n  - REF —\
+  \ a field catalog, schema block or template the agent looks up rather than applies;\n\
+  \  - PTR — a pointer to another home with no rule content of its own;\n  - RETIRED\
+  \ — more than one line about a route that is retired;\n  - HIST — history, as the\
+  \ history clause above defines it.\nA line mixing ACT with any other class is ACT.\n\
+  **Where each class goes.** The rule text keeps ACT lines only, and states each acting\
+  \ rule ONCE,\nwith its exact tokens. MECH and REF lines go to the `## Implementation\
+  \ notes` section; HIST lines\ngo to `## Rationale`. A PTR line stays only where\
+  \ the reader must go to that other home at that\nmoment to act; otherwise it is\
+  \ deleted. A retired route keeps ONE line, «never X; it refuses»,\nnaming the refusal\
+  \ the reader meets, and nothing more. Sentence style is free: do not reword an\n\
+  acting rule only to shorten it.\n**Rule-preservation check — REQUIRED for any change\
+  \ that removes or moves text out of a delivered\nbody.** Before the first edit,\
+  \ record a RULE INVENTORY of that body as it stands on main at the\nclaim: one line\
+  \ per ACT rule — condition -> required or forbidden action, with every verb, flag,\n\
+  field, status token, refusal kind and number verbatim. When a sync or another merge\
+  \ from main\nchanges that body before the ship, add every ACT rule the merge brought\
+  \ in to the inventory. After\nthe edit, check the shipped body against it rule by\
+  \ rule and mark each line PRESENT (same condition,\nsame action, every token verbatim),\
+  \ MOVED (give the file and heading of its new home) or REMOVED\n(give the reason:\
+  \ history, code detail, reference material, a duplicate of a named kept rule, or\
+  \ a\nretired route reduced to its one line). Commit the inventory and the result\
+  \ beside the card as\n`tasks/<card-id>-rule-inventory.md`, or quote them in the\
+  \ commit body. The check FAILS if an\ninventory line is missing from the result,\
+  \ a REMOVED line is an ACT rule with no duplicate and no\nnew home, a PRESENT line\
+  \ lost a condition or changed a token, or a MOVED line names a home that does\n\
+  not contain the rule in the shipped tree.\n**Light form — for a change that removes\
+  \ or moves at most 10 lines of a delivered body.** Instead\nof the inventory, the\
+  \ commit body lists every sentence removed from the body with its disposition:\n\
+  moved (to which home), duplicate (of which kept sentence), history, code detail,\
+  \ reference\nmaterial, or retired route reduced to one line. It FAILS if a removed\
+  \ sentence that states a\ncondition and an action an acting agent applies is listed\
+  \ as history, code detail, reference\nmaterial or none of these; if a sentence listed\
+  \ as moved is not in the named home in the shipped\ntree; or if the kept sentence\
+  \ a duplicate names is not in the shipped body. **Grandfathering:** text placed\
+  \ in a rule body\nbefore this split stays valid where it is; it is moved when a\
+  \ card next reshapes that passage, or\nby a migration card. Editing a spec does\
+  \ not require backfilling its older text first.\n**Delivery-timing review — an authoring\
+  \ recommendation for a change that adds, moves or re-binds a\nrule of a delivered\
+  \ body, and for a review of one.** This is a recommendation, as rule 6's\nrare-case\
+  \ option is: it adds no recording duty and no pass condition, and an edit that met\
+  \ this\nrule before still meets it; the mandatory check is the T7 review lens\n\
+  (`patterns/inspection-criteria-roster.md`). For each rule, or each group of rules\
+  \ with one audience,\none condition and one first action, it helps to know: its\
+  \ home; its audience (the Controller, a\nWorker, any session); its condition; the\
+  \ FIRST governed action it applies to, counting the\npreparation of evidence for\
+  \ that action (an acceptance probe designed, a proof carrier composed);\nand the\
+  \ delivery that reaches that audience BEFORE that action. A delivery counts only\
+  \ if the agent\nmeets it first: an always-loaded seed line, the stage bundle of\
+  \ that stage or of an earlier one, a\nfloor trigger, a verb's help head or print\
   \ met before the act, or a refusal that blocks that very\naction. A refusal or a\
   \ warning met after the action, or one that blocks a different action, is not\n\
   such a delivery. Keep an agent duty apart from mechanics the engine applies itself:\

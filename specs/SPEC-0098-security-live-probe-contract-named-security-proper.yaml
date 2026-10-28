@@ -131,16 +131,15 @@ supersedes: null
 concern:
   section: security
   born_order: 60
-  born: "security:\n  # SPEC-0093 rule 8 / SPEC-0098. DECLARE security live-probes\
-    \ instead of waiving once this project has a\n  # security/auth surface: replace\
-    \ this waiver with a `probes:` list, each entry { property, assertion, url }.\n\
-    \  # The waiver is STRICT (rule 6): reason + compensating_control + a real-ISO-date\
-    \ expiry are ALL required.\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2\
-    \ init` — no project-specific security live-probe yet; declare a `probes:` list\
-    \ once this project has a security/auth surface.\"\n    compensating_control:\
-    \ \"Kernel always-on security baseline: prompt-injection protection, the `security-review`\
-    \ skill, secrets-out-of-git, the host-leak canary.\"\n    expiry: \"2026-12-31\"\
-    \ # review-by date — REPLACE with your real security-review date.\n"
+  born: "security:\n  # SPEC-0093 rule 8. DECLARE a `probes:` list ({ property, assertion,\
+    \ url }) or keep this STRICT\n  # waiver (SPEC-0093 rule 6): reason + compensating_control\
+    \ + a real-ISO-date expiry.\n  # Rule text: `__YITC_CLI__ graph query SPEC-0098\
+    \ --kernel`\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no\
+    \ project-specific security live-probe yet; declare a `probes:` list once this\
+    \ project has a security/auth surface.\"\n    compensating_control: \"Kernel always-on\
+    \ security baseline: prompt-injection protection, the `security-review` skill,\
+    \ secrets-out-of-git, the host-leak canary.\"\n    expiry: \"2026-12-31\" # review-by\
+    \ date — REPLACE with your real security-review date.\n"
   carrier_path: security
   presence_policy: checked-if-present
   update_policy: init re-seed

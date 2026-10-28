@@ -34,59 +34,61 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ the second group the items\n  continue <workshop-spec>'s paragraph «On-demand\
   \ technical-fork consult», and «above» reads against that\n  spec. The third group\
   \ is one paragraph that stood after <workshop-spec>'s ceiling sections and reads\
-  \ on\n  its own.\n- A new rare case of one of these branches is authored here, in\
-  \ the group it belongs to\n  (<workshop-spec> §6).\n\n### Rare ceiling cases\n\n\
-  #### Ledger-skip axes — the FAIL-CLOSED clauses of the rare axes\n\n- **Plan-freshness:**\
-  \ a prior-GREEN re-run with an UNCHANGED signature is NOT a freshness re-audit\n\
-  \  (normal pass counting + ceiling — no blanket prior-GREEN exemption); a missing/blank\
-  \ signature on\n  either side falls through to normal counting; and a freshness\
-  \ re-audit that surfaces\n  YELLOW/RED/findings IS a real outcome — it advances\
-  \ `passes` +1 and the normal RED/YELLOW handling\n  + ceiling apply.\n- **Plan lens-version:**\
-  \ a missing prior `lens_version` (pre- record) also counts as changed\n  (it predates\
-  \ the versioned lens); an EQUAL version is NOT exempt. It NEVER lowers `passes`\
-  \ or\n  forces a verdict — a lens re-audit can still RED on a genuine finding (then\
-  \ it counts a normal pass).\n- **Unchanged-fingerprint:** the carry is UNCONDITIONAL\
-  \ on the carried verdict — GREEN / YELLOW / RED\n  alike — because the plan never\
-  \ changed, so the prior verdict for THIS exact fingerprint is\n  authoritative:\
-  \ a same-plan re-run can neither manufacture a fresh (spurious) RED nor flip a real\n\
-  \  one. A carried RED still BLOCKS progression, but WITHOUT re-burning a pass or\
-  \ re-scoring — it is\n  NOT a bypass (the plan still does not pass). This is the\
-  \ INVERSE freshness predicate of the plan\n  axis (the plan axis exempts a CHANGED\
-  \ `corpus_signature`; this exempts an UNCHANGED\n  `plan_fingerprint`). A genuine\
-  \ plan-EDIT re-audit (mode-a) changes `plan_fingerprint` -> NOT exempt\n  -> a real\
-  \ counted pass; a missing/blank prior `plan_fingerprint` (pre-) or a non-canonical\n\
-  \  prior verdict never matches -> normal counting + a real audit.\n- **Plan task-carrier:**\
-  \ ONE-SHOT — the saved verdict re-pins the CURRENT carrier, so a follow-up\n  re-run\
-  \ with no further task change matches → the ceiling re-applies (no unlimited bypass).\
-  \ A missing\n  prior `tasks:` (pre- record) reads as [] → a non-empty current set\
-  \ differs → also a change. A\n  surfaced YELLOW/RED/finding is a real outcome that\
-  \ advances `passes` normally + the ceiling applies.\n- **Ship-custody re-pin:**\
-  \ ONE-SHOT by construction — the exemption holds only while the saved\n  audit-post\
-  \ record does not ALREADY pin the ship, and the repin pass records it, so an immediate\n\
-  \  re-run's predicate is False and the ceiling re-applies. There is no sequence\
-  \ of repins that walks\n  past the cap. Everything unprovable REFUSES rather than\
-  \ grants: an unresolvable `--commit`, an\n  unreadable prior record, or an unresolvable\
-  \ prior pin leaves the exemption OFF. This axis grants\n  NOTHING that `_require_ship_custody_repin`\
-  \ has not already proven — it only stops the ceiling\n  pre-block from refusing\
-  \ a pass that gate admitted; a displacement caused by an AUTHORED commit is\n  still\
-  \ refused THERE, not here (that card's route is the empty-set admission, <workshop-spec>\n\
-  \  «Rule 3 — admission of the one bounded pass, and what the pass reports»).\n \
-  \ And it takes NO ledger skip: the pass advances `passes` like any other, which\
-  \ is what bounds it a\n  second time.\n- **Post-GREEN merge integration:** ONE-SHOT,\
-  \ DERIVED — once a merge-integration row carries a real\n  verdict (GREEN/YELLOW/RED)\
-  \ the axis never admits again; a no-verdict ABORT spends nothing and a retry\n \
-  \ is admitted. Every guard is fail-closed and NAMES itself on the ceiling refusal:\
-  \ a missing or\n  inexact sync record, the GREEN commit as the SECOND parent, a\
-  \ commit between A and M or after M, a\n  wrong main parent, a hand edit of ANY\
-  \ non-conflict path (no inert exemption — `merge-tree` already\n  applies the journal's\
-  \ `merge=union` driver), a recorded conflict set wider than git's, a non-GREEN\n\
-  \  or superseded prior verdict, and no Stage-6 proof after the merge all leave the\
-  \ ceiling standing. The\n  auditor judges the WHOLE merged HEAD, with the prior\
-  \ GREEN and the resolution diff as context. The\n  pass is FINAL: a RED is TERMINAL\
-  \ for audit-post by the <workshop-spec> rule-4 reading\n  (`terminal_ceiling_row`,\
-  \ reason `merge_integration_pass_returned_red`); after ANY verdict no\n  `--on-decisions`\
-  \ pass and no `audit decide` follow it (`merge_integration_pass_is_final`), so a\n\
-  \  YELLOW takes only the ordinary Stage-8 followup route. Bound, stated honestly:\
+  \ on\n  its own. The section «Exits from a spent GREEN», after these groups, was\
+  \ authored here (it moved\n  no <workshop-spec> text): each row of its table points\
+  \ at the home of its exit's rule.\n- A new rare case of one of these branches is\
+  \ authored here, in the group it belongs to\n  (<workshop-spec> §6).\n\n### Rare\
+  \ ceiling cases\n\n#### Ledger-skip axes — the FAIL-CLOSED clauses of the rare axes\n\
+  \n- **Plan-freshness:** a prior-GREEN re-run with an UNCHANGED signature is NOT\
+  \ a freshness re-audit\n  (normal pass counting + ceiling — no blanket prior-GREEN\
+  \ exemption); a missing/blank signature on\n  either side falls through to normal\
+  \ counting; and a freshness re-audit that surfaces\n  YELLOW/RED/findings IS a real\
+  \ outcome — it advances `passes` +1 and the normal RED/YELLOW handling\n  + ceiling\
+  \ apply.\n- **Plan lens-version:** a missing prior `lens_version` (pre- record)\
+  \ also counts as changed\n  (it predates the versioned lens); an EQUAL version is\
+  \ NOT exempt. It NEVER lowers `passes` or\n  forces a verdict — a lens re-audit\
+  \ can still RED on a genuine finding (then it counts a normal pass).\n- **Unchanged-fingerprint:**\
+  \ the carry is UNCONDITIONAL on the carried verdict — GREEN / YELLOW / RED\n  alike\
+  \ — because the plan never changed, so the prior verdict for THIS exact fingerprint\
+  \ is\n  authoritative: a same-plan re-run can neither manufacture a fresh (spurious)\
+  \ RED nor flip a real\n  one. A carried RED still BLOCKS progression, but WITHOUT\
+  \ re-burning a pass or re-scoring — it is\n  NOT a bypass (the plan still does not\
+  \ pass). This is the INVERSE freshness predicate of the plan\n  axis (the plan axis\
+  \ exempts a CHANGED `corpus_signature`; this exempts an UNCHANGED\n  `plan_fingerprint`).\
+  \ A genuine plan-EDIT re-audit (mode-a) changes `plan_fingerprint` -> NOT exempt\n\
+  \  -> a real counted pass; a missing/blank prior `plan_fingerprint` (pre-) or a\
+  \ non-canonical\n  prior verdict never matches -> normal counting + a real audit.\n\
+  - **Plan task-carrier:** ONE-SHOT — the saved verdict re-pins the CURRENT carrier,\
+  \ so a follow-up\n  re-run with no further task change matches → the ceiling re-applies\
+  \ (no unlimited bypass). A missing\n  prior `tasks:` (pre- record) reads as [] →\
+  \ a non-empty current set differs → also a change. A\n  surfaced YELLOW/RED/finding\
+  \ is a real outcome that advances `passes` normally + the ceiling applies.\n- **Ship-custody\
+  \ re-pin:** ONE-SHOT by construction — the exemption holds only while the saved\n\
+  \  audit-post record does not ALREADY pin the ship, and the repin pass records it,\
+  \ so an immediate\n  re-run's predicate is False and the ceiling re-applies. There\
+  \ is no sequence of repins that walks\n  past the cap. Everything unprovable REFUSES\
+  \ rather than grants: an unresolvable `--commit`, an\n  unreadable prior record,\
+  \ or an unresolvable prior pin leaves the exemption OFF. This axis grants\n  NOTHING\
+  \ that `_require_ship_custody_repin` has not already proven — it only stops the\
+  \ ceiling\n  pre-block from refusing a pass that gate admitted; a displacement caused\
+  \ by an AUTHORED commit is\n  still refused THERE, not here (that card's route is\
+  \ the empty-set admission, <workshop-spec>\n  «Rule 3 — admission of the one bounded\
+  \ pass, and what the pass reports»).\n  And it takes NO ledger skip: the pass advances\
+  \ `passes` like any other, which is what bounds it a\n  second time.\n- **Post-GREEN\
+  \ merge integration:** ONE-SHOT, DERIVED — once a merge-integration row carries\
+  \ a real\n  verdict (GREEN/YELLOW/RED) the axis never admits again; a no-verdict\
+  \ ABORT spends nothing and a retry\n  is admitted. Every guard is fail-closed and\
+  \ NAMES itself on the ceiling refusal: a missing or\n  inexact sync record, the\
+  \ GREEN commit as the SECOND parent, a commit between A and M or after M, a\n  wrong\
+  \ main parent, a hand edit of ANY non-conflict path (no inert exemption — `merge-tree`\
+  \ already\n  applies the journal's `merge=union` driver), a recorded conflict set\
+  \ wider than git's, a non-GREEN\n  or superseded prior verdict, and no Stage-6 proof\
+  \ after the merge all leave the ceiling standing. The\n  auditor judges the WHOLE\
+  \ merged HEAD, with the prior GREEN and the resolution diff as context. The\n  pass\
+  \ is FINAL: a RED is TERMINAL for audit-post by the <workshop-spec> rule-4 reading\n\
+  \  (`terminal_ceiling_row`, reason `merge_integration_pass_returned_red`); after\
+  \ ANY verdict no\n  `--on-decisions` pass and no `audit decide` follow it (`merge_integration_pass_is_final`),\
+  \ so a\n  YELLOW takes only the ordinary Stage-8 followup route. Bound, stated honestly:\
   \ `worktree sync` folds\n  trailing bookkeeping into a commit BEFORE merging, so\
   \ a merge taken over a journal-dirty worktree has\n  that commit as its first parent\
   \ and is NOT admitted by this axis as written.\n\n#### On-demand technical-fork\
@@ -147,7 +149,50 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ the pass). This door creates\nno pass of its own: where <workshop-spec> admits\
   \ none, the commit stays un-re-pinned and closure stays\nblocked. The COMMIT-side\
   \ refusal + its escape are co-homed in SPEC-0015 §\"Audit-stage YAMLs\ncommitted\
-  \ BY task close \" (the guard's home) — kept in sync, not duplicated (P7).\n\n##\
+  \ BY task close \" (the guard's home) — kept in sync, not duplicated (P7).\n\n###\
+  \ Exits from a spent GREEN\n\nThe audit-post stage is GREEN at a commit and the\
+  \ subject has moved past it, so `audit decide`\nhas no residual to bind. Each way\
+  \ out is one row: when it is admitted, the verbs, what it spends,\nand the function\
+  \ that admits or refuses it. The row points at the rule's home and restates none\
+  \ of\nit; a new exit is authored as a new row here. The re-sign row narrows two\
+  \ clauses of the\nmerge-integration block under «Rare ceiling cases» — «a commit\
+  \ after M» and «a hand edit of ANY\nnon-conflict path» — for that verified re-sign\
+  \ alone; every other shape they refuse stays refused.\n\n| Exit | Admitted when\
+  \ | Verbs | What it spends | Guard |\n|---|---|---|---|---|\n| **Post-GREEN merge\
+  \ integration** | the only delta since the GREEN is one governed sync merge whose\
+  \ hand-resolved paths are the recorded conflicts, with a governed Tests pass after\
+  \ it — the clauses are SPEC-1034's axes row and its block under «Rare ceiling cases»\
+  \ | `worktree sync --resolved` → `task test --run` → `audit post --task <T>`, before\
+  \ `task close` | below the ceiling: one ordinary counted pass at the merge; at or\
+  \ past it: one counted pass, ONE-SHOT and final | `audit_ceiling.merge_integration_admission`\
+  \ |\n| **Verified re-sign at the merge** | the post-GREEN merge integration above,\
+  \ where the merge brought main's change to code a spec anchors and the re-sign rides\
+  \ INSIDE the merge or as ONE commit directly on it carrying only `specs/SPEC-*.yaml`\
+  \ `implements_signature` values, each EQUAL to the engine's own signature at the\
+  \ subject for an anchor whose code differs between the GREEN commit and the merge\
+  \ | `worktree sync --resolved` → `spec reverify --anchor` + `task commit` (or the\
+  \ re-sign in the merge) → `task test --run` → `audit post --task <T>`, before `task\
+  \ close` | as the merge-integration row; the subject is the re-sign commit when\
+  \ there is one | `audit_ceiling.merge_integration_admission` |\n| **Test-found fix**\
+  \ | the latest audit-post is a GREEN SPEC-1039 rule-3 pass and the newest governed\
+  \ Tests run after it is RED — SPEC-1041 «A test-found fix after a spent GREEN» |\
+  \ `task test --run` → `task commit` (`--reship` while the recorded commit is still\
+  \ the GREEN one) → `audit post --task <T> --commit <fix>` | one counted pass, final\
+  \ for the stage | `audit_ceiling.test_found_fix_window` (commit door), `audit_ceiling.test_found_fix_admission`\
+  \ (audit door) |\n| **Empty-set `--on-decisions`** | the ceiling row is an ORDINARY\
+  \ GREEN pass (no rule-3 pass yet) and the subject strictly descends from its commit\
+  \ — SPEC-1041 «Rule 3» | `audit post --task <T> --on-decisions --sweep '<…>'`, no\
+  \ `audit decide`; at the ceiling `audit post` names this pass and emits no halt\
+  \ row, so the worker runs it itself, no pause and no Controller cue | the ONE bounded\
+  \ rule-3 pass; after it this row is closed | `audit_ceiling.on_decisions_admission`\
+  \ |\n| **Return to the GREEN commit** | always: the GREEN covers its own commit\
+  \ | drop the commits after the GREEN in the task worktree → `task test --run` →\
+  \ `task close` → `land` | no pass; the later change leaves this card | `gates._require_audit_post_for_commit`\
+  \ (closure needs an audit-post of the recorded commit) |\n| **Re-cut on a new card**\
+  \ | always: the later change is carried by a new card with its own audits | file\
+  \ the new card; this card returns to its GREEN and closes, or ends `task update\
+  \ --status wont-do` | no pass on this card | `rebaseline_currency._wont_do_unaudited_ship_refusal`\
+  \ (`land` refuses a wont-do branch carrying unaudited authored content) |\n\n##\
   \ Parameters\n\nNone consumed.\n\n## Rationale\n\nEach case above arises on a small\
   \ minority of audit passes. Rendered inside <workshop-spec> this detail\nreached\
   \ every session entering Audit-pre or Audit-post; as a reference behind one index\

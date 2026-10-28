@@ -92,17 +92,30 @@ body: "## Scenario\n\nThe owner sees TWO clean homes for durable craft knowledge
   \ copy (the consumer never edits/authors it → no\n  shadow/own-wins problem). A\
   \ consumer authors ONLY its own `lessons/`. (Transport/refresh REUSES the\n  in-flight\
   \ distribution substrate — NOT a parallel distributor; bound by the plan's distribution\
-  \ unit.)\n\n### 3a. Distribution / refresh carrier — the ONE governed path (bound\
-  \ by the plan's distribution unit)\n- **THE ONE carrier — the `-C` engine-content\
-  \ RESOLUTION seam.** A consumer's read-only `patterns/` is\n  not COPIED into the\
-  \ consumer — it is RESOLVED from the engine install path on every `-C` operation,\
-  \ via\n  the already-shipped ENGINE_ROOT-fallback resolution (provenance: /; code\
-  \ anchors\n  `_kernel_content_file` + the patterns-granular `_resolve_pattern` +\
-  \ the directory-level\n  `_kernel_overlay_files` in `bin/yitc-v2` — consumer-own\
-  \ WINS, a missing kernel pattern resolves from\n  `ENGINE_ROOT/patterns/`). So a\
-  \ kernel-side pattern change is reflected on the consumer's NEXT `-C` op\n  with\
-  \ NO copy, NO push, NO separate refresh step — **resolution IS the refresh**. This\
-  \ is the export-slice\n  contract's «CORE travels as a PIN, not a copy» (element\
+  \ unit.)\n- **When and where a lesson is written:** a worker writes a craft lesson\
+  \ in its OWN task worktree and\n  commits it there BEFORE that card's Stage-6 test\
+  \ run, so the lesson is in the tree the run tested and\n  lands inside the card's\
+  \ own run-plus-land unit. `lessons/` is not an inert path, so a lesson committed\n\
+  \  after the run makes the land's tree differ from the tested one and costs the\
+  \ card its Stage-6 credit\n  (SPEC-0065 §Bound). A lesson learned after the run\
+  \ is recorded with `followup add` (SPEC-0095) for the\n  next card. A session with\
+  \ no task worktree (the Controller) writes lessons through a `work/<slug>`\n  batch.\
+  \ A craft lesson is never written to a provider's private memory (SPEC-0039).\n\
+  - **A project rule or practice to remember** comes here first, as a lesson whose\
+  \ every claim cites\n  its evidence (a code path, a journal row, a test) and whose\
+  \ uncited claim is marked hypothesis —\n  the `graph query capture-routing` row\
+  \ for it (SPEC-0157); never the project's context home\n  (SPEC-0125 Rule 1a). A\
+  \ lesson becomes a stage-bound spec only by its own card.\n\n### 3a. Distribution\
+  \ / refresh carrier — the ONE governed path (bound by the plan's distribution unit)\n\
+  - **THE ONE carrier — the `-C` engine-content RESOLUTION seam.** A consumer's read-only\
+  \ `patterns/` is\n  not COPIED into the consumer — it is RESOLVED from the engine\
+  \ install path on every `-C` operation, via\n  the already-shipped ENGINE_ROOT-fallback\
+  \ resolution (provenance: /; code anchors\n  `_kernel_content_file` + the patterns-granular\
+  \ `_resolve_pattern` + the directory-level\n  `_kernel_overlay_files` in `bin/yitc-v2`\
+  \ — consumer-own WINS, a missing kernel pattern resolves from\n  `ENGINE_ROOT/patterns/`).\
+  \ So a kernel-side pattern change is reflected on the consumer's NEXT `-C` op\n\
+  \  with NO copy, NO push, NO separate refresh step — **resolution IS the refresh**.\
+  \ This is the export-slice\n  contract's «CORE travels as a PIN, not a copy» (element\
   \ 1) + «exactly ONE writable source, never two»\n  (element 2): `[[export-slice-contract-and-core-authoring-model]]`\
   \ (the governing design-input) +\n  `[[kernel-extraction-evidence-driven-engine-consumabi]]`\
   \ (the `-C` resolution seam home).\n- **WHAT travels = the POST-split GENERAL `patterns/`\
@@ -176,10 +189,18 @@ body: "## Scenario\n\nThe owner sees TWO clean homes for durable craft knowledge
   \ §Node type\n(existing analog = the `pattern`/`scenario`/`error` doc-that-`cites`\
   \ node, shape REUSED; prior-art = v1\nSCN-style first-class nodes + the SPEC-0076\
   \ scenario precedent + the cross-project retrofit cost,\nCHARTER §P1 scale-aware).\
-  \ The `ideas/`-catch-all drift (deviation 2026-06-19) is the real incident.\n\n\
-  ### History moved from the rule body\n\nEach entry is a passage moved word for word\
-  \ out of the rule text of the section it names;\nthe rule it explains stays there.\n\
-  \n- From «3. Storage + the two-realm placement split (SPEC-0073)»: (plan-check 2026-06-19\
+  \ The `ideas/`-catch-all drift (deviation 2026-06-19) is the real incident.\nThe\
+  \ when-and-where bullet of §3 was added by (owner decision 2026-10-26, option A):\
+  \ workers had\nwritten about 224 craft notes in two weeks to provider-side memory\
+  \ because no lesson route fit mid-task;\na no-worktree self-commit verb was dropped\
+  \ because a lesson committed to main inside another card's\nrun-plus-land unit costs\
+  \ that card its Stage-6 credit.\nThe project-rule bullet of §3 was added by (owner\
+  \ directives 2026-10-27): a stage-bound spec\nis heavy on purpose, so a project's\
+  \ quick rules piled into its always-loaded context home instead;\nthe lesson is\
+  \ the fast home, and promotion to a spec stays a deliberate card.\n\n### History\
+  \ moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names;\nthe rule it explains stays there.\n\n\
+  - From «3. Storage + the two-realm placement split (SPEC-0073)»: (plan-check 2026-06-19\
   \ F2.)\n- From «3a. Distribution / refresh carrier»: §3's parenthetical deferred\
   \ the transport/refresh\n  path to «the plan's distribution unit» — this section\
   \ FILLS that binding (plan card C3).\n\n### History moved from the rule body\n\n\
@@ -217,9 +238,13 @@ body: "## Scenario\n\nThe owner sees TWO clean homes for durable craft knowledge
   \ ONE carrier (the `-C` engine-content resolution seam) + its failure mode (a vendored\
   \ copy / parallel\n  distributor → stale + shadow authorship) — grep-checkable;\
   \ the post-split travel-set excludes\n  project-specific entries by construction.\
-  \ The LIVE consumer-refresh proof is C4 /, NOT this spec.\n- **Format gate:** a\
-  \ `lessons/` file with malformed frontmatter fails `graph build` (exit 2); a\n \
-  \ well-formed one indexes without any content/legality judgement.\n"
+  \ The LIVE consumer-refresh proof is C4 /, NOT this spec.\n- **Lesson before the\
+  \ run (§3):** a lesson committed in a task worktree before the Stage-6 run lands\n\
+  \  with the card's Stage-6 credit, the same lesson committed after the run refuses\
+  \ it `tree-differs`\n  (tests/test_t14234_lesson_before_stage6_run.py); `graph query\
+  \ capture-routing` names the route on its\n  craft-note row.\n- **Format gate:**\
+  \ a `lessons/` file with malformed frontmatter fails `graph build` (exit 2); a\n\
+  \  well-formed one indexes without any content/legality judgement.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5

@@ -54,17 +54,36 @@ body: "## Scenario\n\nBefore the AI commits a change, it must shape the commit s
   \ fallback the commit verb adds when\nthe message carries none. The card-bookkeeping\
   \ commit `worktree sync` makes carries the\nCo-Authored-By trailer of the branch's\
   \ newest commit that has one other than the placeholder,\nand the same fallback\
-  \ otherwise.\n\n## Rationale\n\nThe commit rules live in the `retrieved` tier (reached\
-  \ through `binding:`, SPEC-0013) rather than in\nalways-loaded prose, so the seed\
-  \ budget shrinks without losing obligation-driven delivery.\n\n### History moved\
-  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
-  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «Staging\
-  \ is owned by `task commit` »: (the git-pathspec-exclude gotcha: v1\n  B-722)\n\n\
-  ## Verification\n\n- Bound: `bin/yitc-v2 graph build` maps `Commit → SPEC-0014`\
-  \ in `binding_report.stage_to_specs`\n  (the stage-entry delivery axis) once this\
-  \ spec is `active`; `stage Commit` delivers it.\n- Pointer: `bin/yitc-v2 task test\
-  \ T-XXXX` prints the commit-rules forward-pointer (element #2).\n- Non-dangling:\
-  \ empty `implements:` + non-empty `binding:` ⇒ excluded from `dangling_specs`.\n"
+  \ otherwise.\n\n### Author and committer\nThe author and committer of every commit\
+  \ the engine makes are the responsible human: the derived\nactor, read from the\
+  \ host registry entry of the OS user the session runs as (`git_email:`, the name\n\
+  from `git_name:` or the first `git_authors:` entry). That identity outranks a repository-local\n\
+  `[user]`. The AI is named only by the Co-Authored-By trailer above, never as author.\
+  \ On an OS\naccount several people or sessions share, the author follows that OS\
+  \ account; no per-session\nidentity is invented. When the OS user declares no `git_email:`,\
+  \ git's own identity resolution is\nkept; where that resolution is a repository-local\
+  \ `[user]` in a project the registry declares\nmore than one person on, the commit\
+  \ verb says so once on stderr. `session start` warns, report-only, on a\nrepository-local\
+  \ `[user]` in a project the registry declares more than one person on, and on an\
+  \ OS\nuser with no git identity at all.\n\n## Rationale\n\nThe commit rules live\
+  \ in the `retrieved` tier (reached through `binding:`, SPEC-0013) rather than in\n\
+  always-loaded prose, so the seed budget shrinks without losing obligation-driven\
+  \ delivery.\n\n### History moved from the rule body\n\nEach entry is a passage moved\
+  \ word for word out of the rule text of the section it names;\nthe rule it explains\
+  \ stays there.\n\n- From «Staging is owned by `task commit` »: (the git-pathspec-exclude\
+  \ gotcha: v1\n  B-722)\n\n## Verification\n\n- Bound: `bin/yitc-v2 graph build`\
+  \ maps `Commit → SPEC-0014` in `binding_report.stage_to_specs`\n  (the stage-entry\
+  \ delivery axis) once this spec is `active`; `stage Commit` delivers it.\n- Pointer:\
+  \ `bin/yitc-v2 task test T-XXXX` prints the commit-rules forward-pointer (element\
+  \ #2).\n- Non-dangling: empty `implements:` + non-empty `binding:` ⇒ excluded from\
+  \ `dangling_specs`.\n- Author and committer: tests/test_t_commit_author_derived_actor.py\
+  \ — a repository pinned to one\n  person, the derived actor another with a declared\
+  \ `git_email:`: the land bookkeeping commit, the\n  `task commit` / `work commit`\
+  \ core and a land merge are authored and committed as the derived\n  actor; without\
+  \ a declared email git's resolution is kept, and the verb says so where that is\
+  \ a\n  repository pin in a multi-person project (silent with one person); `session\
+  \ start`\n  warns on the pin in a multi-person project and on a missing identity,\
+  \ and is silent otherwise.\n"
 cites:
 - part-i-a-retrieval-delivery-mechanism
 - SPEC-0013

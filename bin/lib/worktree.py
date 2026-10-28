@@ -53,6 +53,7 @@ from lib import host_apply as _host_apply  # T-11280: the ONE home of CONSUMER_O
 from lib import state
 from lib import vocab             # T-12679: PAUSE_REASONS, the closed pause-reason vocabulary
 from lib import textutil          # T-10720 (E-0054): the shared --from-stdin ingest + eaten-span leaf
+from lib import task_closure_evidence as closure_evidence  # T-14275: the re-sign judge (T-13599)
 from lib import task as task_mod  # SPEC-0166: the pure `_premise_dispatch_block` predicate (single
                                   # home in task.py) the claim gates below derive their refusal from
                                   # (acyclic — task_mod imports no worktree)
@@ -2852,6 +2853,24 @@ def _sync_mention_review_lines(*a, **kw):
 def _post_sync_proof(*a, **kw):
     """T-14060 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_post_sync_proof`."""
     return worktree_lifecycle._post_sync_proof(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._post_sync_premise)
+def _post_sync_premise(*a, **kw):
+    """T-14197 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_post_sync_premise`."""
+    return worktree_lifecycle._post_sync_premise(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._post_sync_hand_merged)
+def _post_sync_hand_merged(*a, **kw):
+    """T-14197 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_post_sync_hand_merged`."""
+    return worktree_lifecycle._post_sync_hand_merged(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._post_sync_set_form)
+def _post_sync_set_form(*a, **kw):
+    """T-14197 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_post_sync_set_form`."""
+    return worktree_lifecycle._post_sync_set_form(*a, **kw)
 
 
 @functools.wraps(worktree_lifecycle._preflight_blocker_record)
@@ -8035,6 +8054,17 @@ def _surface_failing_assertions(bad: list, *, _extract_failing_assertion) -> "li
     return out
 
 
+def _failed_test_names(bad: list, *, timeout_marker: "str | None" = None,
+                       test_dir: str = "tests") -> "list[dict]":
+    """T-14229 host residue (T-14298) — the body now lives in
+    `bin/lib/land_verify_legs.py#_failed_test_names`, where the adapter report reader also calls it;
+    this wrapper keeps the kernel's default: with no marker given, the verify-timeout marker."""
+    if timeout_marker is None:
+        from lib import cli as _cli          # local import: `lib.cli` imports this module
+        timeout_marker = _cli._VERIFY_TIMEOUT_MARKER
+    return land_verify_legs._failed_test_names(bad, timeout_marker=timeout_marker, test_dir=test_dir)
+
+
 def _main_dirt_verdict(main_wt, branch_wt, *, _run_git_cap, _BOOKKEEPING_ALLOWLIST,
                        _DERIVED_MERGE_ARTIFACTS, _capture_reopen_errors_dirt,
                        _is_yitc_session_state) -> dict:
@@ -8524,6 +8554,7 @@ def _governed_closure_side_effects(*a, **kw):
                        ("_CLOSURE_SPEC_STATUS_RE", _CLOSURE_SPEC_STATUS_RE),               # T-13954
                        ("_CLOSURE_SPEC_SUPERSEDES_RE", _CLOSURE_SPEC_SUPERSEDES_RE),       # T-13954
                        ("_closure_spec_binding_block", _closure_spec_binding_block),       # T-13954
+                       ("_release_view_doc_content", graph_mod._release_view_doc_content),  # T-14255
     ):
         kw.setdefault(_k, _v)
     return rebaseline_currency._governed_closure_side_effects(*a, **kw)
@@ -10026,7 +10057,7 @@ def _land_abort_key(*a, **kw):
     return land_abort._land_abort_key(*a, **kw)
 
 
-def _classify_inert_paths(changed_paths, *, _inert_path_class) -> "tuple[str, str | None]":
+def _classify_inert_paths(changed_paths, *, _inert_path_class, resign_delta=None, _run_git_cap=None) -> "tuple[str, str | None]":
     """THE inert-path classification authority (SPEC-0064 §1,§2,§4). Given a set of changed paths,
     return `(verdict, reason)`:
       - `("inert", None)`        — EVERY path is in the proven-inert allowlist (an empty set is
@@ -10035,12 +10066,90 @@ def _classify_inert_paths(changed_paths, *, _inert_path_class) -> "tuple[str, st
                                    path-class (`bin`/`tests`/`specs`/`patterns`/`root-md`/`unknown`)
                                    of the FIRST offending path in `changed_paths` order.
     Fail-closed: ANY path outside the allowlist makes the whole set OBSERVABLE. Every caller consumes
-    THIS function's verdict — no caller re-derives "inert" (the drift the one-authority rule forbids)."""
+    THIS function's verdict — no caller re-derives "inert" (the drift the one-authority rule forbids).
+
+    T-14275 (SPEC-0064 §2a) — the ONE content-level rule. Given `resign_delta=(W, rev_a, rev_b)`, the
+    delta the paths were read from, a `specs` path PROVEN a verified re-sign by
+    `_resign_only_spec_paths` is inert. It stays in every caller's reader check: the inertness proof
+    covers the engine's own tests/, never a consumer's. Without `resign_delta` (or without a git
+    runner) the answer is byte-for-byte the path-only one."""
+    resigned = frozenset()
+    if resign_delta is not None and _run_git_cap is not None:
+        specs = [p for p in changed_paths if _inert_path_class(p) == "specs"]
+        if specs:
+            W, rev_a, rev_b = resign_delta
+            resigned = _resign_only_spec_paths(W, rev_a, rev_b, specs, _run_git_cap=_run_git_cap)
     for p in changed_paths:
+        if p in resigned:
+            continue
         cls = _inert_path_class(p)
         if cls != "inert":
             return ("observable", cls)
     return ("inert", None)
+
+
+_RESIGN_SPEC_PATH = re.compile(r"specs/SPEC-[^/]+\.yaml")
+_RESIGN_SIGNATURE = re.compile(r"[0-9a-f]{64}")
+
+
+def _resign_only_spec_paths(W, rev_a, rev_b, paths, *, _run_git_cap,
+                            _anchor_signature_of_text=None) -> "frozenset[str]":
+    """T-14275 (SPEC-0064 §2a) — the subset of `paths` whose change from `rev_a` to `rev_b` (commits or
+    trees) is a VERIFIED RE-SIGN, i.e. exactly what `spec reverify` writes over the code at `rev_b`.
+    A FACT, never a verdict: only `_classify_inert_paths` turns it into "inert". Every condition holds:
+      - the path is a top-level `specs/SPEC-*.yaml`, a regular-file blob at BOTH revisions (an add, a
+        delete, a mode or type change is not a re-sign);
+      - the two texts differ, and differ in NOTHING but the top-level `implements_signature:` mapping
+        (`_same_outside_signature_map`, the T-13599 judge — the signer's own surgery, proven exact);
+      - both mappings carry the SAME anchor keys (an added or dropped signature is not a re-sign);
+      - every changed value is a sha256 hex digest EQUAL to the engine signature of its anchor over
+        the anchor's file at `rev_b` (`_anchor_signature_of_text`, T-11291 — the T-14180 shape), so the
+        stored value is the live one for the code being landed.
+    Any fault — git, parse, an absent anchor file, an unsignable region — leaves the path out
+    (fail-closed: it stays OBSERVABLE). Never raises."""
+    if _anchor_signature_of_text is None:
+        from lib.cli import _anchor_signature_of_text   # what land injects (the worktree.py:11454 idiom)
+    out = set()
+
+    def _blob(rev, path):
+        lt = _run_git_cap(["--literal-pathspecs", "ls-tree", "-z", rev, "--", path], W)
+        if lt.returncode != 0 or not (lt.stdout or "").startswith("100644 blob "):
+            return None
+        sh = _run_git_cap(["show", f"{rev}:{path}"], W)
+        return sh.stdout if sh.returncode == 0 and isinstance(sh.stdout, str) else None
+
+    for p in paths:
+        try:
+            if not _RESIGN_SPEC_PATH.fullmatch(str(p)):
+                continue
+            before, after = _blob(rev_a, p), _blob(rev_b, p)
+            if before is None or after is None or before == after:
+                continue
+            if not closure_evidence._same_outside_signature_map(before, after):
+                continue
+            old, new = state.load_str(before), state.load_str(after)
+            osig, nsig = old.get("implements_signature"), new.get("implements_signature")
+            if not isinstance(osig, dict) or not isinstance(nsig, dict) or set(osig) != set(nsig):
+                continue
+            moved = [k for k in nsig if nsig[k] != osig[k]]
+            if not moved:
+                continue
+            ok = True
+            for anchor in moved:
+                val = nsig[anchor]
+                if not (isinstance(val, str) and _RESIGN_SIGNATURE.fullmatch(val)):
+                    ok = False
+                    break
+                sh = _run_git_cap(["show", f"{rev_b}:{textutil.anchor_file(anchor)}"], W)
+                live = _anchor_signature_of_text(str(anchor), sh.stdout) if sh.returncode == 0 else None
+                if live != val:
+                    ok = False
+                    break
+            if ok:
+                out.add(p)
+        except Exception:                                  # noqa: BLE001 — fail-closed: not proven
+            continue
+    return frozenset(out)
 
 
 # T-10795: the abort classes that fire on a branch which, BY CONTRACT, never lands — so the
@@ -11338,7 +11447,7 @@ LAND_REPORT_KEYS = {
     "layers": ("base", "branch", "changed_paths", "diff", "edge", "layers", "report", "schema"),
     "merge": ("alternates", "branch", "clean", "conflicted_paths", "main", "members", "objects_dir", "outcome",
               "report", "resolved_paths", "schema", "tree"),
-    "credit": ("branch", "credit", "main", "reason", "ref", "report", "schema"),   # T-14165
+    "credit": ("branch", "credit", "main", "reason", "ref", "report", "request", "schema"),   # T-14165; T-14272 schema 2
 }
 LAND_REPORT_LAYER_KEYS = ("layer", "reason", "run")
 LAND_REPORT_MEMBER_KEYS = ("branch", "outcome", "tree")   # T-14062 — one `members` row of the merge report
@@ -11432,7 +11541,7 @@ def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", ma
                     _run_git_cap, working_tree: bool = False, _DERIVED_MERGE_ARTIFACTS=None,
                     _dedup_events=None, _anchor_signature_of_text=None, then=None, objects_dir=None,
                     _classify_inert_paths=None, _is_consumer_build=None,
-                    _consumer_tests_delegation=None) -> dict:
+                    _consumer_tests_delegation=None, candidate: "str | None" = None) -> dict:
     """T-14008 — `land --report layers|merge|credit`: what `land` WOULD decide, without landing.
 
     READ-ONLY by construction: it asks the SAME two functions `land` asks — never a copy — and takes
@@ -11471,7 +11580,14 @@ def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", ma
     merged base, and the collaborators the land injects. `credit` / `reason` / `ref` are that call's
     answer verbatim (`ref` names the credited row, or the refusal's detail). The land asks the same
     question only on a first attempt that runs its candidate verify, and over the tip it merges then:
-    `main` names the tip this report judged. Needs a checkout of the branch (ValueError without one)."""
+    `main` names the tip this report judged. Needs a checkout of the branch (ValueError without one).
+    `candidate` (T-14255) — the tree the credit compares the run's tree with, None = HEAD (the CLI
+    report); the admission preview passes the tree the card's close will land.
+    T-14272 (schema 2) — the arm asks the land's ONE verify-skip judge (`_land_verify_skip_judge`) over a
+    request prepared as a first-attempt singleton land: `credit` is true when ANY route the land would
+    take skips its candidate verify, `reason` names that route (else the Stage-6 credit's refusal), and
+    `request` records the inputs judged (main, candidate tree, `now`, the pre-deploy skip state + key,
+    the `route` lever) — a FORECAST for this moment; the land re-judges on its own snapshot."""
     import tempfile
     if (then or objects_dir is not None) and kind != "merge":
         raise ValueError("land --report: --then / --objects-dir apply to `--report merge` only")
@@ -11576,13 +11692,91 @@ def land_report_arm(kind: str, worktree: "Path | None", branch: "str | None", ma
         main_rev = _git_rev("main", main_wt, _run_git_cap=_run_git_cap)
         if not main_rev:
             raise ValueError("land --report credit: `main` does not resolve")
-        ok, why, ref = _land_stage6_credit(
-            Path(worktree), main_wt, main_rev, branch, _classify_inert_paths=_classify_inert_paths,
-            _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
-            _consumer_tests_delegation=_consumer_tests_delegation)
-        return {"report": "credit", "schema": 1, "branch": branch, "main": main_rev,
-                "credit": bool(ok), "reason": why, "ref": ref}
+        # T-14270: with a candidate (the admission preview) the predicate is asked over the commit the
+        # land will judge — that tree merged with main's tip — so its every HEAD read is the land's.
+        with (_land_candidate_head_view(Path(worktree), main_wt, main_rev, candidate,
+                                        _run_git_cap=_run_git_cap,
+                                        _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+                                        _dedup_events=_dedup_events,
+                                        _anchor_signature_of_text=_anchor_signature_of_text)
+              if candidate else contextlib.nullcontext(None)) as view:
+            # T-14272: the land's OWN judge over a request prepared as the land prepares it — a
+            # first-attempt singleton land (the retry / superseded inputs exist only inside a land).
+            git = view or _run_git_cap
+            req = _land_verify_request(Path(worktree), main_wt, main_rev, branch)
+            if not view and candidate:                      # T-14255: no view, the tree alone
+                req["stage6_candidate"] = candidate
+            judged = _land_verify_skip_judge(
+                req, _merged_tree_delta_paths=lambda w, b: _merged_tree_delta_paths(w, b, _run_git_cap=git),
+                _classify_inert_paths=_classify_inert_paths, _run_git_cap=git,
+                _is_consumer_build=_is_consumer_build, _consumer_tests_delegation=_consumer_tests_delegation)
+            s6 = judged.get("stage6")
+            why = judged["route"] or (s6[1] if s6 else (judged.get("first") or (None, "unanswered"))[1])
+            ref = s6[2] if s6 else None
+            try:
+                request = _land_verify_request_record(req, _run_git_cap=git)
+            except Exception as exc:                        # noqa: BLE001 — the answer stands, said
+                request = {"error": f"{type(exc).__name__}: {exc}"[:200]}
+            request["route"] = judged.get("lever")
+        return {"report": "credit", "schema": 2, "branch": branch, "main": main_rev,
+                "credit": judged["route"] is not None, "reason": why, "ref": ref, "request": request}
     raise ValueError(f"land --report: unknown report {kind!r}")
+
+
+@contextlib.contextmanager
+def _land_candidate_head_view(W, main_wt, main_rev, candidate, *, _run_git_cap, _DERIVED_MERGE_ARTIFACTS=None,
+                              _dedup_events=None, _anchor_signature_of_text=None):
+    """T-14270 (SPEC-0065 §Bound, SPEC-1045 rule 2) — the admission preview's view of the commit its land
+    will judge: `candidate` (the post-close tree) committed on HEAD, merged with `main_rev` by the land's
+    own merge oracle (`_land_merge_probe`, `_land_probe_advance`) unless main's tip is already in HEAD.
+    Yields a `_run_git_cap` under which git in `W` reads THAT commit as HEAD: a private GIT_DIR holding
+    only HEAD and a copy of W's index, its `commondir` the repository's, so refs, the reflog and objects
+    are the real ones. Nothing is checked out and no ref moves; the commits are unreferenced objects, as
+    the merge report's. Yields None on any failure or a merge the oracle cannot build — the caller then
+    asks over W as it is (the answer before this card)."""
+    import shutil
+    import tempfile
+    W = Path(W)
+    tmp = None
+    try:
+        def _out(args):
+            r = _run_git_cap(args, W)
+            return (r.stdout or "").strip() if r.returncode == 0 else ""
+        head, common, gitdir = (_out(["rev-parse", "HEAD"]),
+                                _out(["rev-parse", "--path-format=absolute", "--git-common-dir"]),
+                                _out(["rev-parse", "--path-format=absolute", "--git-dir"]))
+        tip = _out(["commit-tree", str(candidate), "-p", head, "-m", "admission preview candidate (unreferenced)"]) \
+            if head else ""
+        if not (tip and common and gitdir):
+            raise RuntimeError("the candidate commit cannot be built")
+        if _run_git_cap(["merge-base", "--is-ancestor", main_rev, tip], W).returncode != 0:
+            outcome, tree, _detail = _land_merge_probe(
+                main_rev, tip, main_wt, _run_git_cap=_run_git_cap, _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
+                _dedup_events=_dedup_events, _anchor_signature_of_text=_anchor_signature_of_text)
+            tip = (_land_probe_advance(main_rev, tree, tip, main_wt, _run_git_cap=_run_git_cap)
+                   if outcome in ("clean", "land-resolvable") and tree else None)
+            if not tip:
+                raise RuntimeError(f"main does not merge into the candidate ({outcome})")
+        tmp = tempfile.mkdtemp(prefix="yitc-preview-head-")
+        Path(tmp, "commondir").write_text(common + "\n", encoding="utf-8")
+        Path(tmp, "HEAD").write_text(tip + "\n", encoding="utf-8")
+        if Path(gitdir, "index").is_file():
+            shutil.copyfile(Path(gitdir, "index"), Path(tmp, "index"))
+        here = W.resolve()
+
+        def run(args, cwd, env=None, input=None, **kw):
+            if Path(cwd).resolve() == here:
+                env = {**(os.environ if env is None else env), "GIT_DIR": tmp, "GIT_WORK_TREE": str(W)}
+            if input is not None:
+                kw["input"] = input
+            return _run_git_cap(args, cwd, env=env, **kw) if env is not None else _run_git_cap(args, cwd, **kw)
+    except Exception:                                      # noqa: BLE001 — no view: the answer over W
+        run = None
+    try:
+        yield run
+    finally:
+        if tmp is not None:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 @functools.wraps(batch_landing._land_prequeue_uncatalogued_type_refusal)
@@ -13630,6 +13824,8 @@ _LAYER_CPU_SAMPLE_SECS = 2.0
 _COMPOSE_WORKDIR_LABEL = "com.docker.compose.project.working_dir"
 _COMPOSE_PROJECT_LABEL = "com.docker.compose.project"   # T-12657: the per-LAYER attribution key
 _COMPOSE_PROJECT_NAME_ENV = "COMPOSE_PROJECT_NAME"      # the seam compose reads that label from
+_VERIFY_WORKER_SHARES_KEY_ENV = "YITC_VERIFY_WORKER_SHARES_KEY"   # T-14190: the share table a pre-deploy run
+                                 # applies, named to each layer command so the project's reader selects it
 
 
 class DockerContainerCpuReader:
@@ -13924,6 +14120,48 @@ class _LayerCpuSampler:
         fields["container_cpu_ms"] = container
         fields["cpu_ms"] = (proc or 0) + container
         return fields
+
+
+# T-14276 (SPEC-0152 rule 16) — the per-file verdict lines and the closing count of the suite layer.
+_LAYER_FILE_VERDICT_RE = re.compile(r"^FAILED tests/(test_[^\s/:]+\.py)$")
+_LAYER_FILE_COUNT_RE = re.compile(r"^suite: (\d+) failing file\(s\) — ")
+
+
+def _layer_failing_files(stdout, exit_code) -> list:
+    """PURE — the test files a failed layer run named failing, ONLY when that run's per-file result is
+    COMPLETE; else [] (the caller then re-runs the whole layer). Complete means: exit 1 (suite.py's
+    «one or more files failed»), one bare `FAILED tests/<file>` line per failing file (T-14264 — a
+    pytest node id `path::node - msg` never matches), and the suite's closing count line naming
+    EXACTLY that many. A crash, a teardown fault, any other exit code, a missing count line or a count
+    that differs from the named files (a failure that is not a file's) → [] — a subset re-run could
+    otherwise pass while the layer's real fault was never re-run (audit-pre fp1:a0f8d274e82fca9b)."""
+    if exit_code != 1 or not isinstance(stdout, str):
+        return []
+    names, counts = [], []
+    for ln in stdout.splitlines():
+        m = _LAYER_FILE_VERDICT_RE.match(ln.rstrip())
+        if m and m.group(1) not in names:
+            names.append(m.group(1))
+        c = _LAYER_FILE_COUNT_RE.match(ln)
+        if c:
+            counts.append(int(c.group(1)))
+    return names if names and counts == [len(names)] else []
+
+
+_LAYER_SUBSET_ACK_RE = re.compile(r"^suite: re-running only the (\d+) named file\(s\): (.*)$")
+
+
+def _layer_ran_subset(stdout, files) -> bool:
+    """PURE — T-14276: did a re-run handed `files` CONFIRM, on its own output, that it ran exactly those
+    files (suite.py's acknowledgement line, count and names both)? A layer that ignored the selection
+    prints no such line and ran whole, so its re-run is recorded as whole (audit-post
+    fp1:a2d16a8d86ffceb0: the record attests what ran, never what was asked)."""
+    want = sorted(set(files or ()))
+    for ln in (stdout or "").splitlines() if want and isinstance(stdout, str) else ():
+        m = _LAYER_SUBSET_ACK_RE.match(ln.rstrip())
+        if m and int(m.group(1)) == len(want) and sorted(n.strip() for n in m.group(2).split(",")) == want:
+            return True
+    return False
 
 
 @functools.wraps(land_verify_legs._run_layer_command)
@@ -14832,6 +15070,10 @@ _LAYER_RETRY_DECLINE_WHY = {
     # plan admitted the layer, and its first attempt failed on a `required:` non-test check.
     "required-check": "the layer failed a `required:` non-test check of its adapter — no re-run "
                       "ever rescues one",
+    # T-14201 (SPEC-1046 rule 4) — the plan admitted the layer, and its report is void only because
+    # `run` exited nonzero while every requested unit read passed.
+    "nonzero-exit-all-passed": "the layer's adapter `run` exited nonzero while every requested unit "
+                               "read passed — the runner contradicts itself, and a re-run would hide it",
 }
 # T-13607 (SPEC-1006 rule 10) — why a layer's failed units were NOT re-run, printed beside the reason.
 _UNIT_RETRY_DECLINE_WHY = {
@@ -15008,7 +15250,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     and a `tests/` touch does too UNLESS the path is proven a DECLARED test file that some scoped
     layers claim and others do not (T-13531), in which case it forces exactly the layers claiming it.
     Empty `[]` for the non-layers modes. INERT for the
-    engine's OWN build — returns `{'mode': '', 'bad': [], 'layers': []}` immediately.
+    engine's OWN build — returns `{'mode': '', 'bad': [], 'layers': []}` immediately — save the
+    deploy's own pre-deploy run (`pre_deploy` with `run`, T-14214), which runs its declared layer.
 
     THE STAGE-6 SEAM (T-13533). `working_tree=True` — passed by a consumer's `task test --run`
     together with `base_ref` = its merge-base with `main` — makes that SAME skip decision over the
@@ -15130,9 +15373,11 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     `prep:`. A PASS there rescues the layer (owner decision 2026-10-04): its `bad` entries
     are dropped and its row reads `passed` + `retried: true`. A second failure changes NOTHING about
     `bad` or the row. Either way the result carries `flaky_retry: {rows: [{layer, isolated, load1?,
-    first_exit, first_duration_ms?, first_failure_excerpt, first_output_log?, retry_outcome,
-    retry_exit?, retry_duration_ms?, retry_failure_excerpt?, retry_output_log?}]}` — the first
-    failure's excerpt is KEPT on a rescue, so a real race that passed alone stays visible. Declined
+    first_exit, first_duration_ms?, first_failure_excerpt, first_output_log?, retry_files?,
+    retry_outcome, retry_exit?, retry_duration_ms?, retry_failure_excerpt?, retry_output_log?}]}` — the
+    first failure's excerpt is KEPT on a rescue, so a real race that passed alone stays visible.
+    T-14276: a first run whose per-file result is complete re-runs ONLY its failing files
+    (`retry_files`, `_layer_failing_files`). Declined
     shapes (`_layer_flaky_retry_plan`: a timeout, a prep failure, more than one non-passing layer, or
     the bound `YITC_VERIFY_RETRY_MAX_FILES` at 0) record `flaky_retry: {layers_skipped: [{reason,
     layers, bound?}]}` and run nothing. The key is ABSENT when no layer's run failed. The `only_layers`
@@ -15186,10 +15431,21 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     plan admits a layer, what is re-run depends on how its first attempt failed: failed units on a
     usable report never take the layer re-run (they took the per-unit one); a failed `required:`
     check is declined (`layers_skipped` reason `required-check`); every other failure — a void
-    report with a nonzero exit, a `command:` that decided — re-runs the full `command:` once, as
-    above. THE LAYER'S `rescue:` SETTING HOLDS THERE TOO: under `rescue: off` a pass on that re-run
+    report with a nonzero exit (but see the `nonzero-exit-all-passed` decline below), a `command:`
+    that decided — re-runs the full `command:` once, as above. THE LAYER'S `rescue:` SETTING
+    HOLDS THERE TOO: under `rescue: off` a pass on that re-run
     is recorded (`rescue: off`) and the first failure still blocks. A void first attempt's reasons
     ride the re-run's row as `first_void`.
+
+    A VOID-FAILED LAYER'S OWN WHOLE RE-RUN (T-14201 — SPEC-1046 rule 4). A layer whose report is
+    void and whose `run` exited nonzero, which the plan above did NOT take (another layer did not
+    pass, one timed out, a `prep:` failed), is re-run once whole after it, alone, exactly as the
+    plan's re-run runs and records a layer (same invocation, same row with `first_void`, same
+    `rescue:` setting); a pass rescues it, a second failure leaves it failed. Not with the retry
+    bound at 0, or on the attribution re-run; the plan's decline stays recorded beside the row. A
+    layer whose ONLY void reason is `nonzero-exit-all-passed` (the runner contradicts itself) takes
+    NO re-run on either path: where the plan admits it, it is declined (`layers_skipped` reason
+    `nonzero-exit-all-passed`), as a failed `required:` check is.
 
     THE SHADOW SELECTION OF AN ADAPTER-BACKED LAYER (T-13610 — SPEC-1006 rules 3, 6-9). Two things,
     and only the first changes what runs — toward MORE:
@@ -15263,7 +15519,9 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     attempt, handed the change the skip decision read and the one-card word. What it then
     credits is the pass's (`_layer_adapter_report_pass`); a layer that passed on a run that
     credited reads `passed-partial`, and its line counts the credited units as NOT run."""
-    if not _is_consumer_build():
+    # T-14214 (SPEC-1051 rule 1): the engine's own build stays inert, save the deploy's own pre-deploy
+    # run (`pre_deploy` carrying `run`), which runs the engine's ONE declared layer like a project's.
+    if not _is_consumer_build() and not (isinstance(pre_deploy, dict) and pre_deploy.get("run")):
         return {"mode": "", "bad": [], "layers": []}
     # SPEC-0123 (T-9783): a consumer BEHIND on kernel migrations must see the WHOLE ordered pending-
     # migration plan at the FIRST blocked land — not discover blockers one re-land at a time. Enumerate
@@ -15370,6 +15628,22 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             f"Declare a mapping of declared `verify.layers[].layer` name to that layer's FRACTION of "
             f"the land's worker allotment — a number in (0, 1], never a core count — or omit the key "
             f"to leave every layer reading the whole allotment (SPEC-0152 rule 16)."], "layers": []}
+    # T-14190 (SPEC-0152 rule 16 §pre_deploy_layer_worker_shares): the PRE-DEPLOY RUN (and its lone-layer
+    # re-run) — the only callers handing `pre_deploy` with `run: True` — applies the project's own pre-deploy
+    # table in place of the ordinary one when it declares it; a land, a Stage-6 run and every other caller
+    # never read the key. Same reader, same accepted set; malformed fails this run CLOSED, before any layer.
+    share_key = None
+    if isinstance(pre_deploy, dict) and pre_deploy.get("run") \
+            and land_verify_legs.PRE_DEPLOY_WORKER_SHARES_KEY in (ver if isinstance(ver, dict) else {}):
+        share_key = land_verify_legs.PRE_DEPLOY_WORKER_SHARES_KEY
+        try:
+            worker_shares = _declared_layer_worker_shares(ver, layers, key=share_key)
+        except ValueError as e:
+            return {"mode": "malformed", "bad": [
+                f"land(consumer): {CONSUMER_OPS_CONTRACT} `verify.{share_key}:` is malformed — {e}. "
+                f"Declare a mapping of declared `verify.layers[].layer` name to that layer's FRACTION of "
+                f"the allotment in a pre-deploy run — a number in (0, 1], never a core count — or omit "
+                f"the key to apply `layer_worker_shares` there too (SPEC-0152 rule 16)."], "layers": []}
     # T-13606 (SPEC-1006 rule 1) — the OPTIONAL per-layer `adapter:` declarations, read ONCE here with
     # their section siblings so a malformed one — a deciding mode with no reason, a command naming a repository
     # file its `sources:` do not list — fails CLOSED before any layer runs. The repository's file set
@@ -15470,6 +15744,22 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         print(f"land(consumer): verify layer {_lname!r} RUNS though its subject_globs are disjoint "
               f"from the candidate diff — this land takes other layers' verdicts from this task's "
               f"Stage-6 run, and this layer did not pass there (SPEC-0065 §Bound, T-13675).")
+    # T-14211 (SPEC-1051 rule 2) — the LISTED order's skip set, ONCE per run, before any layer runs: over
+    # the changes the skip decision above read (none known without a base, or on a box following the
+    # host's plan — then it skips nothing and says so). Handed to each adapter pass, which takes it out
+    # of its `list` inventory before selection, and returned for the row (`pre_deploy_skip`).
+    _pd_skip = None
+    if isinstance(pre_deploy, dict) and pre_deploy.get("listed_classes") and not pre_deploy.get("run"):
+        try:
+            _pd_skip = land_verify_legs._pre_deploy_skip_read(
+                worktree, pre_deploy,
+                changed=(list(_scope["paths"]) if base_ref and shipped_plan is None
+                         and isinstance((_scope or {}).get("paths"), list) else None))
+        except Exception as e:                             # noqa: BLE001 — a fault skips nothing, said on the row
+            _pd_skip = {"order": "listed", "state": "not-applied", "reason": f"error: {type(e).__name__}",
+                        "units": [], "kept": []}
+        pre_deploy = {**pre_deploy, "skip": _pd_skip}
+        print(land_verify_legs._pre_deploy_skip_line("land(consumer)", _pd_skip))
     # T-13610 (SPEC-1006 rule 6, eligibility) — the adapter-backed layer's OWN fail-closed exception:
     # a changed path under its `adapter.sources` runs it, whatever its globs say. Applied to the skip
     # set the ONE decision above returned, so it can only take a layer OUT of that set.
@@ -15535,6 +15825,10 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         elif _credit_wanted:
             _credit_run, _credit_bases = _adapter_credit_bases(worktree, base_ref, _credit_wanted,
                                                                _run_git_cap=_run_git_cap)
+    # T-14206 (SPEC-1046) — each unit's median duration and run count for the `run` manifests, read
+    # from this tree's journal ONCE per verify run, only when an adapter layer will run — never per layer.
+    _unit_medians = (land_verify_legs._adapter_unit_medians(worktree)
+                     if adapters and plan_out is None else None)
     if plan_out is not None:
         # T-13973 (SPEC-1032 rule 4) — THE HOST TAKES THE PLAN, and runs nothing: what this run would
         # skip, what it is, and — per deciding layer that would run — the decision its adapter pass
@@ -15581,6 +15875,57 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                     **({"one_card_candidate": True} if one_card_candidate and only_layers is None else {}))
             plan_out["layers"][_pname] = land_verify_legs._adapter_shipped_decision(_prec, _psink)
         return {"mode": "plan", "bad": [], "layers": [], "prep": []}
+    # T-14205 (SPEC-0152 rule 16 §layer_worker_shares, public issue #204) — THE LAYERS THIS RUN EXECUTES,
+    # named to every layer command beside the allotment so the project's reader can rescale its share
+    # over the layers actually running. Decided HERE, before any layer runs, over the same skips the
+    # loop below applies; the kernel still divides nothing.
+    def _timeout_ok(ly):
+        try:
+            _declared_verify_timeout(ly, "timeout")
+            return True
+        except ValueError:
+            return False
+
+    _not_run = set(skip_layers) | set(stage6_credit_layers or ())
+    for _ly in (layers if pre_deploy is not None and only_layers is None and not pre_deploy.get("run") else ()):
+        _lname = str(_ly.get("layer") or "").strip() if isinstance(_ly, dict) else ""
+        if _lname in (pre_deploy.get("layers") or {}) and land_verify_legs._pre_deploy_layer_skip_row(
+                _lname, pre_deploy["layers"][_lname], None, adapters.get(id(_ly))) is not None:
+            _not_run.add(_lname)     # the pre-deploy exclusion below, as the loop decides it
+    # T-14211 (SPEC-1051 rules 2-3) — EVERY adapter layer this run executes is LISTED once, before any
+    # layer runs, where a decision needs all of them: a land or Stage-6 run whose skip set takes units
+    # out closes it over every inventory (a file kept anywhere is kept everywhere) and records the set
+    # it applies; the deploy's pre-deploy run allocates the union (each unit once, groups whole).
+    _pd_union = isinstance(pre_deploy, dict) and pre_deploy.get("run") and isinstance(pre_deploy.get("union"), dict)
+    if only_layers is None and (_pd_union or (isinstance(_pd_skip, dict) and _pd_skip.get("state") == "skipping"
+                                              and _pd_skip.get("units"))):
+        _pd_items = []
+        for _ly in layers:
+            _d = adapters.get(id(_ly)) if isinstance(_ly, dict) else None
+            _n = str(_ly.get("layer") or "").strip() if isinstance(_ly, dict) else ""
+            if _d is None or "list" not in _d or not _n or _n in _not_run or _ly.get("waiver") is not None:
+                continue
+            try:
+                _own = _declared_verify_timeout(_ly, "timeout")
+            except ValueError:
+                continue                                   # the layer reports itself malformed below
+            _pd_items.append((_n, _d, _verify_test_timeout_seconds(section_timeout if _own is None else _own)))
+        _pd_invs = land_verify_legs._pre_deploy_inventories(
+            worktree, _pd_items, _run_layer_command=_nice_kw.get("_run_layer_command") or _run_layer_command)
+        _pd_units = land_verify_legs._pre_deploy_inventory_units(_pd_invs)
+        # each layer then executes the answer its decision was taken on (`inventories`), never a second one
+        pre_deploy = {**pre_deploy, "inventories": {k: v for k, v in _pd_invs.items() if v is not None}}
+        if _pd_union:
+            pre_deploy = {**pre_deploy, "union": land_verify_legs._pre_deploy_allocate(_pd_units)}
+        else:
+            _pd_skip = land_verify_legs._pre_deploy_close_skip(_pd_skip, _pd_units)
+            pre_deploy = {**pre_deploy, "skip": _pd_skip}
+            if _pd_skip.get("held"):
+                print(f"land(consumer): pre-deploy skip set: {len(_pd_skip['held'])} listed unit(s) kept "
+                      f"in every layer (" + ", ".join(f"{h['file']} [{h['why']}]" for h in _pd_skip["held"][:5])
+                      + ") — a group or an unanswered inventory holds them (SPEC-1051 rule 2)")
+    # `layers` is already narrowed to `only_layers` above, so a re-run of named layers names those only.
+    _selected = json.dumps(land_verify_legs._verify_selected_layers(layers, _not_run, timeout_ok=_timeout_ok))
     # What the skip line below says the layer's subject is disjoint FROM — the diff actually judged.
     _judged_diff = ("this working tree's changes against the merge-base with main (committed, "
                     "uncommitted and untracked)" if working_tree else "the candidate diff")
@@ -15652,7 +15997,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         return _watched
 
     @_with_layer_progress
-    def _execute(i, ly, name, cmd, layer_timeout, own_timeout=False, project=None, peers=(), retry=False) -> dict:
+    def _execute(i, ly, name, cmd, layer_timeout, own_timeout=False, project=None, peers=(), retry=False,
+                 rerun_files=None) -> dict:
         """The EXECUTE phase of one runnable layer — from `_layer_t0` through its outcome row: prep →
         provenance → the bounded command → timed-out / failed / passed. Same code, clock and messages
         as the pre-T-12585 inline body; returns `{bad, row, prep}` and touches nothing shared, so it
@@ -15717,7 +16063,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _rec = _layer_adapter_report_pass(
                 worktree, name, _adapter, outer=outer, _load_avg=_load_avg,
                 change=_shadow_change if _adapter["selection"] == "shadow" or _deciding else None,
-                credit=_credit_bases.get(id(ly)),
+                credit=_credit_bases.get(id(ly)), unit_medians=_unit_medians,
                 lane=_lanes.get(name), **_nice_kw, **kw,
                 **({"shipped": (shipped_plan.get("layers") or {}).get(name, {})}    # T-13973
                    if shipped_plan is not None and _deciding else {}),
@@ -15822,7 +16168,9 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         # command: `YITC_VERIFY_LAYER_WORKERS` below still carries the WHOLE allotment, to this layer as
         # to every other. Recorded only for a layer whose command RUNS and only when the project
         # declared a share for it — never a fabricated default, the `definition_changed` stance.
-        _share = ({"declared_worker_share": worker_shares[name]} if name in worker_shares else {})
+        _share = ({"declared_worker_share": worker_shares[name],
+                   **({"worker_share_key": share_key} if share_key else {})}     # T-14190
+                  if name in worker_shares else {})
         # Run the layer's hermetic command (F-025 contract — exit 0 = pass). SAME subprocess shape as the
         # legacy single-command path (shell, cwd=<worktree>, bounded by `effective_timeout` above).
         # T-12589 (SPEC-0132 Rule 2): the layer COMMAND sees the governor's admitted per-verify worker
@@ -15839,7 +16187,24 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _pub[_VERIFY_LAYER_WORKERS_ENV] = str(workers)
         if project:
             _pub[_COMPOSE_PROJECT_NAME_ENV] = project
-        _layer_env = {**os.environ, **_pub} if _pub else None
+        if share_key:                    # T-14190: which table the project's reader applies — never a number
+            _pub[_VERIFY_WORKER_SHARES_KEY_ENV] = share_key
+        if isinstance(workers, int):     # T-14205: beside the allotment, the layers this run executes
+            _pub[land_verify_legs.VERIFY_SELECTED_LAYERS_ENV] = _selected
+        # T-14276 (SPEC-0152 rule 16): the isolated re-run of a layer whose first run named its failing
+        # files hands it exactly those files; every other call strips an inherited selection, so an
+        # outer run's re-run never narrows a layer this run starts.
+        if rerun_files:
+            _pub[verify_runner.VERIFY_RERUN_FILES_ENV] = "\n".join(rerun_files)
+        _layer_env = ({**os.environ, **_pub} if _pub or _VERIFY_WORKER_SHARES_KEY_ENV in os.environ
+                      or land_verify_legs.VERIFY_SELECTED_LAYERS_ENV in os.environ
+                      or verify_runner.VERIFY_RERUN_FILES_ENV in os.environ else None)
+        if _layer_env is not None and not rerun_files:
+            _layer_env.pop(verify_runner.VERIFY_RERUN_FILES_ENV, None)
+        if _layer_env is not None and not share_key:   # T-14190: an inherited selector never reaches a layer
+            _layer_env.pop(_VERIFY_WORKER_SHARES_KEY_ENV, None)   # this run did not name the pre-deploy table to
+        if _layer_env is not None and not isinstance(workers, int):   # T-14205: nor an inherited layer list
+            _layer_env.pop(land_verify_legs.VERIFY_SELECTED_LAYERS_ENV, None)
         _cpu = _LayerCpuSampler(worktree, _container_cpu_reader, project=project, peers=peers)
         _proc_ms = None
         _captured = None        # T-12758: bound before the call, so an exceptional path is unchanged
@@ -15900,6 +16265,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                              f"previous attempt and NOT run" if _rec['partial'].get('credited') else "")
                           + (f", {len(_rec['pre_deploy']['removed'])} of a pre-deploy class NOT run"
                              if (_rec.get('pre_deploy') or {}).get('applied') else "")
+                          + (f", {len(_rec['pre_deploy_skip']['removed'])} in the pre-deploy skip set NOT run"
+                             if (_rec.get('pre_deploy_skip') or {}).get('removed') else "")
                           + "; the layer is "
                           f"NOT verified in full (outcome: passed-partial): {_adapter['run']!r}")
                 return {"bad": e_bad, "row": {"layer": name, "outcome": _outcome, **_prov, **_share,
@@ -15938,6 +16305,15 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 tail = _layer_failure_excerpt(_printed)
                 _why = (f"the adapter's `run`; its report is void ({', '.join(_rec.get('void') or [])}), "
                         f"so the layer fails by this exit code")
+                # T-14201 (SPEC-1046 rule 4): a void whose ONLY reason is `run` exiting nonzero while
+                # every requested unit reads passed is the runner contradicting itself — a re-run would
+                # only hide it, so no re-run takes it (rule 16 declines it as it declines a failed
+                # `required:` check). Every other void-failed layer is SLOT-INTERNALLY marked for its
+                # own whole re-run after the loop, where rule 16 does not take it.
+                if set(_rec.get("void") or []) - {"nonzero-exit-all-passed"}:
+                    _extra["void_rerun"] = True
+                else:
+                    _extra["no_rerun"] = "nonzero-exit-all-passed"
             else:   # required-failed
                 _exit = _rec["required"]["exit"]
                 tail = _layer_failure_excerpt(_printed)
@@ -15980,11 +16356,16 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _log = _write_layer_output_log(_log_ctx, name, r.stdout + r.stderr)
             e_bad.append(f"land(consumer): verify layer {name!r} FAILED (exit {r.returncode}): {cmd!r}\n{tail}"
                          + (f"\nWHOLE captured output: {_log}" if _log else ""))
+            # T-14276: SLOT-INTERNAL, read only by the rule-16 re-run — the files this run named failing,
+            # present only when its per-file result is complete (`_layer_failing_files`).
+            _ff = None if rerun_files else _layer_failing_files(r.stdout, r.returncode)
             return {"bad": e_bad, "row": {"layer": name, "outcome": "failed", **_prov, **_share, **_bound,
                                           **({"output_log": _log} if _log else {}),
                                           **_layer_duration_ms(_layer_t0), **_cpu_fields,
                                           **_adapter_fields(effective_timeout, _layer_env)},
-                    "prep": prep_record, "exit": r.returncode, "excerpt": tail}
+                    "prep": prep_record, "exit": r.returncode, "excerpt": tail,
+                    **({"failing_files": _ff} if _ff else {}),
+                    **({"ran_subset": True} if rerun_files and _layer_ran_subset(r.stdout, rerun_files) else {})}
         if retry:
             print(f"land(consumer): verify layer {name!r} PASSED on its isolated re-run: {cmd!r}")
         elif only_layers is None:
@@ -15997,7 +16378,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         return {"bad": e_bad, "row": {"layer": name, "outcome": "passed", **_prov, **_share, **_bound,
                                       **_layer_duration_ms(_layer_t0), **_cpu_fields,
                                       **_adapter_fields(effective_timeout, _layer_env)},
-                "prep": prep_record, "exit": 0}
+                "prep": prep_record, "exit": 0,
+                **({"ran_subset": True} if rerun_files and _layer_ran_subset(r.stdout, rerun_files) else {})}
 
     # T-12585: the pending group of runnable layers NAMED in `independent` (declaration order), run
     # OVERLAPPED at the next barrier / loop end. One member → inline (no thread); N>1 → one thread per
@@ -16109,7 +16491,9 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             continue
         # T-14104 (SPEC-1042 rule 2) — a layer a pre-deploy class names WHOLE (`layers:`): skipped
         # here, LAST, and named on its row — never on a forced full run, nor on the attribution re-run.
-        if pre_deploy is not None and only_layers is None and name in (pre_deploy.get("layers") or {}):
+        # T-14211: never in the deploy's own pre-deploy run (`run`), which runs every layer whole.
+        if pre_deploy is not None and only_layers is None and not pre_deploy.get("run") \
+                and name in (pre_deploy.get("layers") or {}):
             _pdrow = land_verify_legs._pre_deploy_layer_skip_row(
                 name, pre_deploy["layers"][name], {"paths": (_scope or {}).get("paths"),
                                                    "edge": (_scope or {}).get("edge")},
@@ -16181,7 +16565,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         with _layer_progress(_uname):   # T-13653: the unit re-runs are a stretch of layer commands too
             _rows = _layer_unit_reruns(worktree, _uname, _todo["decl"], _entities, **_nice_kw, timeout=_todo["timeout"],
                                        env=_todo["env"], _load_avg=_load_avg, attempts=_UNIT_RERUN_ATTEMPTS,
-                                       outputs=_printed)
+                                       outputs=_printed, unit_medians=_unit_medians)
         # What the re-run attempts printed is kept whenever one of them did not pass — under its own
         # log name, so the first attempt's artifact is never overwritten (the layer re-run's rule).
         # Named on every row that had such an attempt. No log context (every caller but the land)
@@ -16216,32 +16600,12 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _retry_record["rows"] = _unit_rows
         if _units_skipped:
             _retry_record["units_skipped"] = _units_skipped
-    _ri = _plan.get("retry") if _plan is not None else None
-    _no_rerun = results[_ri].get("no_rerun") if _ri is not None else None
-    if _plan is not None and "retry" not in _plan:
-        _retry_record = {**(_retry_record or {}),
-                         "layers_skipped": [{"reason": _plan["skipped"], "layers": list(_plan["layers"]),
-                                             **({"bound": _plan["bound"]} if "bound" in _plan else {})}]}
-        # A layer counts here by its FIRST attempt (SPEC-1006 rule 4), so the names may include one
-        # whose failed units took the per-unit re-run above — said, so the line is not read as
-        # «these layers ended failed».
-        _per_unit = [runnable[_i][2] for _i in sorted(_unit_rerun_layers)]
-        print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
-              f"{', '.join(repr(n) for n in _plan['layers'])} — {_plan['skipped']} "
-              f"({_LAYER_RETRY_DECLINE_WHY.get(_plan['skipped'], 'declined')}; SPEC-0152 rule 16)."
-              + (f" Layers are counted by their FIRST attempt: {', '.join(repr(n) for n in _per_unit)} "
-                 f"failed units on a usable report, which the per-unit re-run answers "
-                 f"(SPEC-1035 rules 4, 10)." if _per_unit else ""))
-    elif _ri is not None and _ri in _unit_rerun_layers:
-        pass    # T-13607: failed units on a usable report took the per-unit path, never this one
-    elif _no_rerun:
-        # T-13607 (SPEC-1006 rule 5): the plan admits the layer, the failure is a `required:` check.
-        _retry_record = {**(_retry_record or {}),
-                         "layers_skipped": [{"reason": _no_rerun, "layers": [runnable[_ri][2]]}]}
-        print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
-              f"{runnable[_ri][2]!r} — {_no_rerun} "
-              f"({_LAYER_RETRY_DECLINE_WHY.get(_no_rerun, 'declined')}; SPEC-1035 rule 5).")
-    elif _plan is not None:
+
+    def _rerun_layer_whole(_ri, _why="", _rule="SPEC-0152 rule 16"):
+        """ONE whole re-run of the failed layer in slot `_ri`, alone, after every layer of this verify
+        has finished — the SPEC-0152 rule-16 isolated re-run, and (T-14201, SPEC-1046 rule 4) the
+        own re-run of a void-failed layer that rule declined. Same invocation, same row, same rescue."""
+        nonlocal _retry_record
         _first = results[_ri]
         _rname = runnable[_ri][2]
         # T-13607 (SPEC-1006 rules 3, 4): the layer's `rescue:` setting holds on this whole-layer
@@ -16256,13 +16620,17 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         except Exception:                                  # unmeasurable — recorded ABSENT, never a 0.0
             _l1 = None
         _l1_txt = f"host load1 {_l1}" if _l1 is not None else "host load not measurable"
+        # T-14276: a first run that named its failing files (a complete per-file result) re-runs ONLY those.
+        _files = list(_first.get("failing_files") or [])
+        _what = (f"re-running ONLY its {len(_files)} failing file(s) ({', '.join(_files)}) ONCE"
+                 if _files else "re-running it ONCE")
         print(f"land(consumer): verify layer {_rname!r} FAILED on its first run (exit {_first.get('exit')}) "
-              f"— re-running it ONCE, alone in this verify (no other layer of this verify runs beside "
-              f"it; other sessions on this host are NOT excluded — {_l1_txt}) — SPEC-0152 rule 16.")
+              f"{_why}— {_what}, alone in this verify (no other layer of this verify runs "
+              f"beside it; other sessions on this host are NOT excluded — {_l1_txt}) — {_rule}.")
         # The re-run is the SAME invocation as the first attempt: for a layer that ran overlapped with
         # its independent peers that includes its run-issued compose project (and the peer set its
         # CPU sampler attributes against); a serially-run layer had neither and gets neither.
-        _again = _execute(*runnable[_ri], **run_ctx.get(_ri, {}), retry=True)
+        _again = _execute(*runnable[_ri], **run_ctx.get(_ri, {}), retry=True, rerun_files=_files or None)
         # T-13907 (SPEC-1030 rule 4): where the re-run LAUNCHED the layer's full `command:` — its
         # row is one only a launched command writes — a first attempt that requested a part of
         # the layer is no longer the record of a partial run. A re-run that ended before its
@@ -16279,6 +16647,11 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         _rrow["first_failure_excerpt"] = _first.get("excerpt") or ""
         if _first["row"].get("output_log"):
             _rrow["first_output_log"] = _first["row"]["output_log"]
+        if _files and _again.get("ran_subset"):
+            _rrow["retry_files"] = [f"tests/{f}" for f in _files]
+        elif _files:
+            print(f"land(consumer): verify layer {_rname!r} did not confirm it ran only the named files — "
+                  f"its re-run is recorded as a whole re-run.")
         _rrow["retry_outcome"] = _again["row"].get("outcome")
         if "exit" in _again:
             _rrow["retry_exit"] = _again["exit"]
@@ -16315,6 +16688,51 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                     else f"FAILED (exit {_again.get('exit')})")
             print(f"land(consumer): verify layer {_rname!r} {_how} AGAIN on its isolated re-run "
                   f"(attempt 2 of 2) — the failure stands and this verify fails on that layer.")
+    _ri = _plan.get("retry") if _plan is not None else None
+    _no_rerun = results[_ri].get("no_rerun") if _ri is not None else None
+    if _plan is not None and "retry" not in _plan:
+        _retry_record = {**(_retry_record or {}),
+                         "layers_skipped": [{"reason": _plan["skipped"], "layers": list(_plan["layers"]),
+                                             **({"bound": _plan["bound"]} if "bound" in _plan else {})}]}
+        # A layer counts here by its FIRST attempt (SPEC-1006 rule 4), so the names may include one
+        # whose failed units took the per-unit re-run above — said, so the line is not read as
+        # «these layers ended failed».
+        _per_unit = [runnable[_i][2] for _i in sorted(_unit_rerun_layers)]
+        # T-14201: a void-failed layer this decline names still takes its own whole re-run below.
+        _void_own = [runnable[_i][2] for _i, _r in enumerate(results)
+                     if isinstance(_r, dict) and _r.get("void_rerun")] if _retry_bound > 0 else []
+        print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
+              f"{', '.join(repr(n) for n in _plan['layers'])} — {_plan['skipped']} "
+              f"({_LAYER_RETRY_DECLINE_WHY.get(_plan['skipped'], 'declined')}; SPEC-0152 rule 16)."
+              + (f" Layers are counted by their FIRST attempt: {', '.join(repr(n) for n in _per_unit)} "
+                 f"failed units on a usable report, which the per-unit re-run answers "
+                 f"(SPEC-1035 rules 4, 10)." if _per_unit else "")
+              + (f" {', '.join(repr(n) for n in _void_own)} failed on a void report and take their own "
+                 f"whole re-run below (SPEC-1046 rule 4)." if _void_own else ""))
+    elif _ri is not None and _ri in _unit_rerun_layers:
+        pass    # T-13607: failed units on a usable report took the per-unit path, never this one
+    elif _no_rerun:
+        # T-13607 (SPEC-1006 rule 5): the plan admits the layer, the failure is a `required:` check
+        # — or (T-14201, SPEC-1046 rule 4) a void report whose only reason is a self-contradicting run.
+        _retry_record = {**(_retry_record or {}),
+                         "layers_skipped": [{"reason": _no_rerun, "layers": [runnable[_ri][2]]}]}
+        print(f"land(consumer): isolated re-run NOT attempted for failed verify layer(s) "
+              f"{runnable[_ri][2]!r} — {_no_rerun} "
+              f"({_LAYER_RETRY_DECLINE_WHY.get(_no_rerun, 'declined')}; "
+              f"{'SPEC-1035 rule 5' if _no_rerun == 'required-check' else 'SPEC-1046 rule 4'}).")
+    elif _plan is not None:
+        _rerun_layer_whole(_ri)
+    # ── T-14201 — THE OWN WHOLE RE-RUN OF A VOID-FAILED LAYER (SPEC-1046 rule 4) ──────────────────
+    # A layer whose report is void and whose `run` exited nonzero (`void_rerun`, set by `_execute`
+    # unless the only void reason is `nonzero-exit-all-passed`) is re-run once whole where rule 16
+    # did not take it — beside another non-passing layer, a timed-out layer or a failed `prep:`. The
+    # one switch is shared (the retry bound at 0 re-runs nothing), and the merge-base attribution
+    # re-run re-runs nothing. Each such layer runs alone, in declaration order, after rule 16's.
+    if only_layers is None and _retry_bound > 0:
+        for _vi, _vres in enumerate(results):
+            if isinstance(_vres, dict) and _vres.get("void_rerun") \
+                    and not (_ri == _vi and _plan is not None and "retry" in _plan):
+                _rerun_layer_whole(_vi, _why="on a void report ", _rule="SPEC-1046 rule 4")
     if _credit_run is not None:
         # T-13612 (SPEC-1006 rule 13): the run every `credit: shadow` record belongs to, named
         # once every layer has finished — the tree is recorded only when the run left it as it was.
@@ -16329,12 +16747,22 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         _pd = ((res.get("row") or {}).get("adapter") or {}).get("pre_deploy") if isinstance(res, dict) else None
         if isinstance(_pd, dict) and _pd.get("refused"):
             res["bad"] = list(res["bad"]) + [land_verify_legs._pre_deploy_refusal_line(res["row"].get("layer"), _pd)]
+    # T-14211 (SPEC-1051 rule 3): in the deploy's union run a layer that ran with no inventory — no
+    # adapter, or a `list` that did not answer — cannot drop what another layer ran; its row says so.
+    if isinstance(pre_deploy, dict) and pre_deploy.get("run") and isinstance(pre_deploy.get("union"), dict):
+        for res in results:
+            _row = res.get("row") if isinstance(res, dict) else None
+            if isinstance(_row, dict) and not isinstance(_row.get("adapter"), dict) \
+                    and _row.get("outcome") not in ("waived", "skipped-disjoint-subject"):
+                _row["pre_deploy_union"] = {"no_inventory": True}
     for res in results:
         bad.extend(res["bad"])
         outcomes.append(res["row"])
         if res["prep"]:
             preps.append(res["prep"])
     _res = {"mode": "layers", "bad": bad, "layers": outcomes, "prep": preps}
+    if _pd_skip is not None:
+        _res["pre_deploy_skip"] = _pd_skip      # T-14211: the run's skip set, for its row (SPEC-1051 rule 2)
     if isinstance(workers, int):
         _res["layer_worker_budget"] = workers   # T-12589: the value every layer command was given
     if not _layer_land:
@@ -21261,7 +21689,7 @@ def _verify_duration_samples_from_journal(*a, **kw):
 
 def _refresh_verify_duration_table(main_wt: Path, current: "list", workers: int, *,
                                    _run_git_cap, write_text_atomic,
-                                   _consumer_tests_delegation=None) -> dict:
+                                   _consumer_tests_delegation=None, credited=None) -> dict:
     """T-11440 — THE SEAM. Called by `_land_integrate` post-ff, in-lock, from the land's own
     measurement. Returns a small report dict recorded as `land_completed.verify_table_refresh`; it
     NEVER raises and never gates anything (its caller wraps it, and the work is already on main —
@@ -21280,10 +21708,17 @@ def _refresh_verify_duration_table(main_wt: Path, current: "list", workers: int,
     exactly these projects. An automatic refresh that skipped this check would write two-orders-of-
     magnitude-wrong numbers into every delegating consumer's table on every land, invisibly — a wrong
     table still schedules something. That is why the refusal is a NAMED, RECORDED reason rather than
-    silence: `delegated` on the row, not an absent key."""
+    silence: `delegated` on the row, not an absent key.
+
+    A CREDITED LAND (T-14241) measured nothing of its own: `credited` is its `stage6_credit` ref
+    `{task, ts, ...}`, and its window is the journal history alone — which now holds that Stage-6 run
+    as a sample (`_verify_duration_samples_from_journal`) — so the credited run counts ONCE and the
+    land adds nothing. `credited_run` on the report says which run and whether it was sampled; every
+    uncredited land's report is unchanged."""
     report: dict = {"written": False}
     test_dir = Path(main_wt) / "tests"
-    if not current:
+    _credit = credited if (not current and isinstance(credited, dict)) else None
+    if not current and _credit is None:
         report["reason"] = "no-measurement"
         return report
     if _consumer_tests_delegation is not None:
@@ -21302,11 +21737,22 @@ def _refresh_verify_duration_table(main_wt: Path, current: "list", workers: int,
     if not discovered:
         report["reason"] = "no-test-files"
         return report
-    this_land: dict = {}
-    for name, wall_ms, _outcome in current:
-        this_land[str(name)] = max(this_land.get(str(name), 0), int(wall_ms))
-    samples = [this_land] + _verify_duration_samples_from_journal(
-        main_wt, _VERIFY_TABLE_REFRESH_LANDS_N - 1, _run_git_cap=_run_git_cap)
+    if _credit is not None:
+        _sampled: list = []
+        samples = _verify_duration_samples_from_journal(
+            main_wt, _VERIFY_TABLE_REFRESH_LANDS_N, _run_git_cap=_run_git_cap, sampled=_sampled,
+            credited=_credit)
+        report["credited_run"] = {"task": _credit.get("task"), "ts": _credit.get("ts"),
+                                  "sampled": (_credit.get("task"), _credit.get("ts")) in _sampled}
+        if not report["credited_run"]["sampled"]:
+            report["reason"] = "no-measurement"
+            return report
+    else:
+        this_land: dict = {}
+        for name, wall_ms, _outcome in current:
+            this_land[str(name)] = max(this_land.get(str(name), 0), int(wall_ms))
+        samples = [this_land] + _verify_duration_samples_from_journal(
+            main_wt, _VERIFY_TABLE_REFRESH_LANDS_N - 1, _run_git_cap=_run_git_cap)
     derived = _verify_median_durations(samples)
     existing = _load_verify_duration_table(test_dir)
     write, reason, stats = _verify_table_refresh_decision(existing, derived, discovered,
@@ -21606,7 +22052,15 @@ def _land_tail_tripwire_readers(test_dir, artifacts) -> list:
     (`tests/test_t12378_t11906_lane_line_removed.py`) DID NOT EXIST when the writer that broke it
     shipped, so any hand-maintained writer->test map would have been complete and still wrong. A
     derived set cannot go stale, and over-inclusion is harmless (an extra green file costs its own
-    wall, bounded by the budget) while under-inclusion is the defect."""
+    wall, bounded by the budget) while under-inclusion is the defect.
+
+    T-14287 — A FIXTURE-ONLY OPT-OUT, READ FROM THE TEST ITSELF. A mention is not an open: two files
+    that only named the duration table — one in a `.gitattributes` string check, one writing its own
+    temp copy — set the tail's 52-110 s wall while every live reader ran under 4 s. A file whose own
+    text carries a line-start `# tail-tripwire: fixture-only <path>` comment is not a reader of the
+    artifact with that basename; any OTHER artifact it mentions still selects it. The opt-out is
+    VERIFIED, not trusted: `tests/test_t14287_tail_reader_live_only.py` runs every marked file over a
+    broken, never-read copy of the artifact and fails when the run is red or the copy was read."""
     names = {Path(a).name for a in artifacts if a}
     out = []
     if not names:
@@ -21619,9 +22073,13 @@ def _land_tail_tripwire_readers(test_dir, artifacts) -> list:
             # and withholds rather than silently shrinking the evidence set.
             out.append(path.name)
             continue
-        if any(n in text for n in names):
+        fixture_only = {Path(m).name for m in _TAIL_FIXTURE_ONLY_RE.findall(text)}
+        if any(n in text for n in names - fixture_only):
             out.append(path.name)
     return out
+
+
+_TAIL_FIXTURE_ONLY_RE = re.compile(r"^[ \t]*#[ \t]*tail-tripwire:[ \t]*fixture-only[ \t]+(\S+)", re.M)
 
 
 def _reader_trigger_artifacts(paths) -> list:
@@ -21668,6 +22126,39 @@ def _worktree_disk_tree(W, _run_git_cap) -> "str | None":
         return None
 
 
+def _overlay_tree(W, base_rev, over_tree, paths, _run_git_cap) -> "str | None":
+    """T-14255 — the tree of `base_rev` with EXACTLY `paths` taken from `over_tree` (a path absent there
+    is removed), built in a THROWAWAY index as `_worktree_disk_tree` builds its tree; None on any
+    failure. The admission preview's post-close candidate: HEAD plus the close-time activation's own
+    writes, and nothing else on disk."""
+    import tempfile
+    try:
+        paths = sorted(set(paths))
+        with tempfile.TemporaryDirectory(prefix="yitc-overlay-tree-") as td:
+            env = {**os.environ, "GIT_INDEX_FILE": os.path.join(td, "index")}
+            if _run_git_cap(["read-tree", base_rev], W, env=env).returncode != 0:
+                return None
+            if paths:
+                ls = _run_git_cap(["--literal-pathspecs", "ls-tree", "-r", "-z", over_tree, "--", *paths], W)
+                if ls.returncode != 0:
+                    return None
+                present = {}
+                for ent in (ls.stdout or "").split("\0"):
+                    if "\t" in ent:
+                        meta, path = ent.split("\t", 1)
+                        mode, _typ, oid = meta.split(" ")
+                        present[path] = (mode, oid)
+                info = "".join(f"{present[p][0]} {present[p][1]}\t{p}\0" if p in present
+                               else f"0 {'0' * 40}\t{p}\0" for p in paths)
+                if _run_git_cap(["update-index", "-z", "--index-info"], W, env=env, input=info).returncode != 0:
+                    return None
+            out = _run_git_cap(["write-tree"], W, env=env)
+        tree = (out.stdout or "").strip()
+        return tree if out.returncode == 0 and re.fullmatch(r"[0-9a-f]{40}", tree) else None
+    except Exception:                                      # noqa: BLE001 — absent, never a guess
+        return None
+
+
 def _worktree_clean_tree(W, _run_git_cap) -> "str | None":
     """T-13519 — `HEAD^{tree}` when the files on disk in `W` are exactly that tree, else None."""
     try:
@@ -21678,6 +22169,174 @@ def _worktree_clean_tree(W, _run_git_cap) -> "str | None":
         return head if _worktree_disk_tree(W, _run_git_cap) == head else None
     except Exception:                                      # noqa: BLE001
         return None
+
+
+def _land_verify_request(W, main_wt, merged_base, branch, *, run_tests: bool = True, attempt: int = 1,
+                         own_verified: bool = False, superseded_ahead=None, declares_rebaseline: bool = False,
+                         now: "float | None" = None) -> dict:
+    """T-14272 (SPEC-0065 §Bound, SPEC-1045 rule 2 (m)) — ONE prepared verify request: what a land attempt
+    asks `_land_verify_skip_judge`. The land builds it at its decision point from its own runtime state;
+    the admission preview builds it the same way as a first-attempt singleton land (attempt 1, nothing
+    verified, no superseded fence, no rebaseline — inputs only the land itself can have). `now` is the
+    moment the request judges time-dependent inputs at (the pre-deploy coverage bound); the pre-deploy
+    read itself is prepared once, on first need (`_land_verify_request_pre_deploy`)."""
+    return {"W": Path(W), "main_wt": Path(main_wt), "merged_base": merged_base, "branch": branch,
+            "run_tests": bool(run_tests), "attempt": int(attempt), "own_verified": bool(own_verified),
+            "superseded_ahead": superseded_ahead, "declares_rebaseline": bool(declares_rebaseline),
+            "now": time.time() if now is None else float(now)}
+
+
+def _land_verify_request_pre_deploy(req, *, _run_git_cap) -> dict:
+    """T-14272 — the request's pre-deploy skip read, prepared ONCE: `{record}` where `record` is
+    `land_verify_legs._pre_deploy_skip_read` over the request's tree at its `now` (None where the
+    contract lists no class), the read the Stage-6 credit's coverage condition made in place."""
+    if "pre_deploy_skip" not in req:
+        W = req["W"]
+        _pdk = land_verify_legs._pre_deploy_contract_kw(W).get("pre_deploy")
+        record = None
+        if (_pdk or {}).get("listed_classes"):
+            try:
+                changed = list(_merged_tree_delta_paths(W, req["merged_base"], _run_git_cap=_run_git_cap))
+            except Exception:                              # noqa: BLE001 — unknown: the land skips nothing
+                changed = None
+            record = land_verify_legs._pre_deploy_skip_read(W, _pdk, changed=changed, now=req["now"])
+        req["pre_deploy_skip"] = {"record": record}
+    return req["pre_deploy_skip"]
+
+
+def _land_verify_request_record(req, *, _run_git_cap) -> dict:
+    """T-14272 — the request's judged inputs as a journal-safe dict (the admission preview records it
+    beside its FORECAST, so a later land that answers differently can be told apart by input)."""
+    pd = _land_verify_request_pre_deploy(req, _run_git_cap=_run_git_cap).get("record")
+    try:
+        head = (_run_git_cap(["rev-parse", "HEAD^{tree}"], req["W"]).stdout or "").strip() or None
+    except Exception:                                      # noqa: BLE001
+        head = None
+    key = land_verify_legs._pre_deploy_skip_key(pd)
+    return {"main": req["merged_base"], "candidate_tree": head, "run_tests": req["run_tests"],
+            "attempt": req["attempt"], "own_verified": req["own_verified"],
+            "superseded_ahead": req["superseded_ahead"], "declares_rebaseline": req["declares_rebaseline"],
+            "now": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(req["now"])),
+            "pre_deploy_skip": None if pd is None else {
+                "state": pd.get("state"), "key": json.loads(json.dumps(key, default=list))}}
+
+
+#: T-14272 — the request fields a preview's FORECAST and its land's own request are compared on (every
+#: judged input but `now`, which always differs): a field listed in `changed` is an input that moved
+#: between the two judgements — the land-runtime ones (attempt, own_verified, superseded_ahead,
+#: declares_rebaseline) included, which the preview assumes as a first-attempt singleton land.
+_VERIFY_REQUEST_COMPARED = ("main", "candidate_tree", "pre_deploy_skip", "run_tests", "attempt", "own_verified",
+                            "superseded_ahead", "declares_rebaseline")
+
+
+def _land_verify_forecast_check(req, judged, main_wt, *, _run_git_cap, _classify_inert_paths) -> "dict | None":
+    """T-14272 (SPEC-1045 rule 2 (m)) — the land's own request set beside the newest admission preview
+    FORECAST of this card (the `land-preview` `credit-answer` step row in main's bounded journal tail,
+    the read the first-attempt anchor makes): {preview_ts, preview_route, preview_credit, land_route,
+    changed, request}. `changed` names each compared input that differs (`superseded_ahead` by «== 0», the
+    judge's only reading of it; the candidate tree unless the ONE inert authority calls the delta inert
+    and no declared test names a changed path — the land's HEAD carries its own journal fold); a preview
+    and a land that
+    answer differently with `changed` empty is the case AC5 counts. None when the branch is not a task
+    branch or no preview row carries a request (a queue-off land: nothing to compare, nothing written)."""
+    m = re.fullmatch(r"task/(T-\d+)", str((req or {}).get("branch") or ""))
+    if not m or judged is None:
+        return None
+    rows = journal_mod.tail_scan_events(Path(main_wt) / "events.jsonl", "admission_step",
+                                        max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES)
+    pre = None
+    for ev in reversed(rows):
+        d = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+        if (ev.get("type") == "admission_step" and ev.get("task_id") == m.group(1)
+                and d.get("kind") == "land-preview" and d.get("outcome") == "credit-answer"):
+            ans = (d.get("detail") or [None])[0] if isinstance(d.get("detail"), list) else None
+            if isinstance(ans, dict) and isinstance(ans.get("request"), dict):
+                pre = (ev.get("ts"), ans)
+            break
+    if pre is None:
+        return None
+    mine = _land_verify_request_record(req, _run_git_cap=_run_git_cap)
+    theirs = pre[1]["request"]
+
+    def differs(k):
+        a, b = theirs.get(k), mine.get(k)
+        if k == "superseded_ahead":                        # the judge reads only «== 0» of it
+            return (a == 0) != (b == 0)
+        if k == "candidate_tree" and a != b:
+            # the land's HEAD also carries its own journal fold: a tree delta the ONE inert authority
+            # calls inert AND no declared test names (the first-attempt proof's reader check, (d)) is
+            # not a changed input; any read failure names it (unknown, never inert)
+            try:
+                paths = _diff_name_paths(req["W"], a, b, _run_git_cap=_run_git_cap)
+                if _classify_inert_paths(paths)[0] != "inert":
+                    return True
+                artifacts = _reader_trigger_artifacts(paths)
+                return any(_land_tail_tripwire_readers(d, artifacts)
+                           for d in _declared_test_sweep_paths(Path(req["W"])) if Path(d).is_dir())
+            except Exception:                              # noqa: BLE001
+                return True
+        return a != b
+    return {"preview_ts": pre[0], "preview_route": theirs.get("route"),
+            "preview_credit": pre[1].get("says") == "admits", "land_route": judged.get("lever"),
+            "changed": [k for k in _VERIFY_REQUEST_COMPARED if differs(k)], "request": mine}
+
+
+def _land_verify_skip_judge(req, *, _merged_tree_delta_paths, _classify_inert_paths, _run_git_cap,
+                            _is_consumer_build=None, _consumer_tests_delegation=None) -> dict:
+    """T-14272 (SPEC-0065 §Bound) — the ONE verify-skip judge: does the evidence on hand satisfy the
+    request `req` (`_land_verify_request`), and by which route? The land asks it at its decision point,
+    the admission preview asks it over the land's candidate — so the two cannot answer different
+    questions. The routes, in the land's order, each the existing function (no condition restated):
+      `retry`      — attempt > 1 after an attempt that verified: an inert `merged_base..HEAD`
+                     (`inert-retry-delta`, lever B);
+      `superseded` — `_land_superseded_reverify_decision` on the superseded fence (lever C);
+      `first`      — nothing verified, no rebaseline: `_land_first_attempt_inert_skip` (4c);
+      `stage6`     — under the same opening: `_land_stage6_credit` (4d), handed the request's prepared
+                     pre-deploy read.
+    Returns {route, lever, first_open, inert_verdict, superseded, first, stage6}: `route` the skip reason
+    (None = verify),
+    `lever` which route gave it, and each asked route's own answer for the caller's records. The land's
+    other checks (the any-author floor, host-leak, the pinned leg, audit currency) are not the judge's."""
+    W, base = req["W"], req["merged_base"]
+    out = {"route": None, "lever": None, "first_open": False, "inert_verdict": None, "superseded": None,
+           "first": None, "stage6": None}
+    if not req["run_tests"]:
+        return out
+    if req["attempt"] > 1 and req["own_verified"]:
+        try:   # T-14275: a verified re-sign is inert here (SPEC-0064 §2a)
+            verdict, _cls = _classify_inert_paths(_merged_tree_delta_paths(W, base),
+                                                  resign_delta=(W, base, "HEAD"))
+        except Exception:                                  # noqa: BLE001 — fail-closed: verify
+            verdict = "observable"
+        if verdict == "inert":
+            out.update(route="inert-retry-delta", lever="retry")
+            return out
+    try:
+        sv, scls = _classify_inert_paths(_merged_tree_delta_paths(W, base))
+    except Exception:                                      # noqa: BLE001
+        sv, scls = ("observable", "classifier-unavailable")
+    out["inert_verdict"] = sv                              # the branch delta's verdict (rung-0 reads it)
+    out["superseded"] = _land_superseded_reverify_decision(req["superseded_ahead"], sv, scls)
+    if out["superseded"][0] == "skip":
+        out.update(route=out["superseded"][1], lever="superseded")
+        return out
+    if req["own_verified"] or req["declares_rebaseline"]:
+        return out
+    out["first_open"] = True
+    out["first"] = _land_first_attempt_inert_skip(
+        W, req["main_wt"], base, _merged_tree_delta_paths=_merged_tree_delta_paths,
+        _classify_inert_paths=_classify_inert_paths, _run_git_cap=_run_git_cap)
+    if out["first"][0]:
+        out.update(route=out["first"][1], lever="first")
+        return out
+    out["stage6"] = _land_stage6_credit(
+        W, req["main_wt"], base, req["branch"], _classify_inert_paths=_classify_inert_paths,
+        _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
+        _consumer_tests_delegation=_consumer_tests_delegation, candidate=req.get("stage6_candidate", "HEAD"),
+        pre_deploy_skip=_land_verify_request_pre_deploy(req, _run_git_cap=_run_git_cap))
+    if out["stage6"][0]:
+        out.update(route=out["stage6"][1], lever="stage6")
+    return out
 
 
 def _land_first_attempt_inert_skip(W, main_wt, merged_base, *, _merged_tree_delta_paths,
@@ -21694,7 +22353,12 @@ def _land_first_attempt_inert_skip(W, main_wt, merged_base, *, _merged_tree_delt
           `--no-tests`) `land_completed` row in the bounded journal tail: `venue_cand_tree` when
           `venue_outcome` is GREEN, else `cand_tree` (T-13519 — a green LOCAL candidate verify of a
           worktree whose files equalled HEAD before and after the run); V must be a real tree
-          object. A row carrying neither does not anchor.
+          object. A row carrying neither does not anchor. T-14269 — an ok Stage-6-CREDITED row
+          (`reverify_skip_reason: stage6-credit`) that records `stage6_credit.tree` anchors too: V is
+          the tree the credited runner-marked Stage-6 run tested GREEN. A credited row without that
+          tree is passed over, as before. (While main is known broken no verifying land can pass, so
+          without this the anchor only ages behind credited code lands and the SPEC-0181 rule-8
+          filing branch can never skip — 2026-10-27.)
       (c) NET DELTA INERT — `V..HEAD` tree to tree through `_diff_name_paths` (renames off, exact
           paths), so code from ANY commit after V (raw, `--no-tests`, a merge's second parent, a rename
           into an inert dir) is in it — and so is a `tests/verify-durations.json` rewrite: nothing
@@ -21705,29 +22369,37 @@ def _land_first_attempt_inert_skip(W, main_wt, merged_base, *, _merged_tree_delt
     Soundness rests on CONTENT equality to V, never on which row or commit is attributed. Every failure
     answers False (fail-closed) and the caller runs the full verify."""
     try:
-        verdict, cls = _classify_inert_paths(_merged_tree_delta_paths(W, merged_base))
+        verdict, cls = _classify_inert_paths(_merged_tree_delta_paths(W, merged_base),
+                                             resign_delta=(W, merged_base, "HEAD"))   # T-14275
         if verdict != "inert":
             return False, f"observable:{cls}"
         rows = journal_mod.tail_scan_events(Path(main_wt) / "events.jsonl", "land_completed",
                                             max_bytes=batch_landing._LAND_VERIFY_WALL_TAIL_BYTES)
-        row = None
+        row = tree = None
         for ev in reversed(rows):
             d = ev.get("data") if isinstance(ev.get("data"), dict) else {}
-            if (ev.get("type") == "land_completed" and d.get("status") == "ok"
-                    and d.get("reverify_skipped") is False and not d.get("no_tests")):
+            if ev.get("type") != "land_completed" or d.get("status") != "ok" or d.get("no_tests"):
+                continue
+            if d.get("reverify_skipped") is False:
                 row = d
+                vm = row.get("verify_metrics") if isinstance(row.get("verify_metrics"), dict) else {}
+                tree = vm.get("venue_cand_tree") if vm.get("venue_outcome") == "GREEN" else vm.get("cand_tree")
+                break
+            s6 = d.get("stage6_credit") if isinstance(d.get("stage6_credit"), dict) else {}
+            if (d.get("reverify_skipped") is True and d.get("reverify_skip_reason") == STAGE6_CREDIT_REASON
+                    and isinstance(s6.get("tree"), str) and re.fullmatch(r"[0-9a-f]{40}", s6["tree"])):
+                row, tree = d, s6["tree"]
                 break
         if row is None:
             return False, "no-verified-anchor"
-        vm = row.get("verify_metrics") if isinstance(row.get("verify_metrics"), dict) else {}
-        tree = vm.get("venue_cand_tree") if vm.get("venue_outcome") == "GREEN" else vm.get("cand_tree")
         if not isinstance(tree, str) or not re.fullmatch(r"[0-9a-f]{40}", tree):
             return False, "anchor-tree-unrecorded"
         t = _run_git_cap(["cat-file", "-t", tree], W)
         if t.returncode != 0 or (t.stdout or "").strip() != "tree":
             return False, "anchor-tree-unresolvable"
         net = _diff_name_paths(W, tree, "HEAD", _run_git_cap=_run_git_cap)
-        verdict, cls = _classify_inert_paths(net)
+        # T-14275: a verified re-sign is inert here; it stays in the reader check (d) below
+        verdict, cls = _classify_inert_paths(net, resign_delta=(W, tree, "HEAD"))
         if verdict != "inert":
             return False, f"observable-since-anchor:{cls}"
         artifacts = _reader_trigger_artifacts(net)
@@ -21805,16 +22477,59 @@ def _stage6_run_record(W, tree_before, *, routed: bool, venue_tree, _run_git_cap
         return None, f"the tested tree could not be established ({type(exc).__name__})"
 
 
+def _stage6_land_sweep_selection(W, main_wt, merged_base, *, consumer: bool, skip=None, _run_git_cap,
+                                 _classify_inert_paths=None) -> list:
+    """T-14228 (SPEC-0065 §Bound condition 4) — the test file NAMES this land's candidate sweep would
+    run over its merged tree: the SPEC-0181 selection the sweep takes (the selected files and the
+    always-run ones together), or every discovered file where the selection would not govern. The
+    inputs are the sweep's own (`_land_integrate`'s `_selection_inputs`): the merged-tree delta over
+    `merged_base`, the reachability + periphery freed set, the tripwire's inert paths, the
+    verify-infrastructure globs of this repository kind, the governor reading MAIN's journal — and the
+    pre-deploy skip set `skip` leaves before selection, as in the runner. READS ONLY: the journal is
+    handed to the governor alone, so a tripwire firing journals nothing here (the sweep that runs will).
+    RAISES on any fault — the caller is fail-closed."""
+    from lib import verify_wiring as _vw                   # lazy, breaks the import cycle
+    W = Path(W)
+    diff = _merged_tree_delta_paths(W, merged_base, _run_git_cap=_run_git_cap)
+    freed = _selection_reachability_freed(W, merged_base, diff, _run_git_cap=_run_git_cap) | \
+        _selection_periphery_freed(diff)
+    inert = None
+    if _classify_inert_paths is not None:
+        try:
+            inert = [p for p in diff if _classify_inert_paths([p])[0] == "inert"]
+        except Exception:                                  # noqa: BLE001 — exclude nothing, as the sweep does
+            inert = None
+    dirs = [Path(d) for d in _declared_test_sweep_paths(W) if Path(d).is_dir()]
+    files = [f for d in dirs for f in test_discovery.test_files(d)]
+    gone = {str(u.get("file")) for u in ((skip or {}).get("units") or ()) if isinstance(u, dict)} \
+        if isinstance(skip, dict) else set()
+    if gone:
+        files = [f for f in files if Path(f).resolve().relative_to(W.resolve()).as_posix() not in gone]
+    journal = Path(main_wt) / "events.jsonl"
+    gsel = governed_selection(
+        files, select=True, journal_path=None, test_dir=dirs[0] if len(dirs) == 1 else None,
+        selection_diff_paths=diff, selection_reachability_freed=freed,
+        selection_tripwire_inert_paths=inert,
+        _VERIFY_IMPLEMENTATION_GLOBS=_vw._verify_infrastructure_globs(kernel_repo=not consumer),
+        _selection_governs=lambda _jp: _selection_governs(journal))
+    return sorted(Path(f).name for f in gsel["test_files"])
+
+
 def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_consumer_build=None,
                             _consumer_tests_delegation=None, main_moved: bool = False,
-                            partial_out: "dict | None" = None) -> "str | None":
+                            partial_out: "dict | None" = None, main_wt=None,
+                            _classify_inert_paths=None, pre_deploy_skip=None) -> "str | None":
     """T-13532 (SPEC-0065 §Bound, condition 4) — does the Stage-6 row's run COVER what this land's
     candidate leg would run? None when it does, else the one reason it does not.
 
     Read off what the row RECORDS, against what the land derives for itself from the candidate tree:
       • SWEEP — where the land would sweep a declared test dir (no delegating layer, test files
-        present), the row must say `selection: full` with ran == discovered. A narrowed row carries
-        counts, not names, so its coverage of the land's own selection cannot be proven from it.
+        present), the row must say `selection: full` with ran == discovered, or (T-14228) be a
+        narrowed run whose recorded `verify_metrics.selection_set` equals the key of the land's OWN
+        selection (`_stage6_land_sweep_selection`, keyed by `land_verify_legs._selection_set_key`
+        after the skip-set check below, `main_wt` the main checkout whose journal the governor reads):
+        `run-narrowed` for a row recording counts only, `run-narrowed-set-unknown` where the land's
+        own selection cannot be computed, `run-narrowed-set-differs` where the two keys differ.
       • LAYERS (consumer builds) — every declared, non-waived layer must be `passed` on the row, or
         `skipped-disjoint-subject` there AND in the land's own skip set (`_subject_scoping_skip_layers`
         over `merged_base..HEAD` — the function the land's guard calls). A layer any of whose rows
@@ -21829,7 +22544,9 @@ def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_con
         caller records) are handed on to it. With no `passed-partial` row, or under a declaration
         that reads no deciding mode, no layer takes
         that branch and the walk is, statement for statement, the one it was.
-    An uninjected or raising consumer predicate reads as consumer (the direction that asks for more)."""
+    An uninjected or raising consumer predicate reads as consumer (the direction that asks for more).
+    `pre_deploy_skip` (T-14272) — the verify request's prepared pre-deploy read `{record}`
+    (`_land_verify_request_pre_deploy`); None reads it here, as before."""
     try:
         consumer = _is_consumer_build is None or bool(_is_consumer_build())
     except Exception:                                      # noqa: BLE001 — fail-closed: ask for layers
@@ -21837,11 +22554,50 @@ def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_con
     deleg = _consumer_tests_delegation(Path(W)) if _consumer_tests_delegation is not None else None
     sweeps = (not deleg) and any(
         Path(d).is_dir() and test_discovery.test_files(Path(d)) for d in _declared_test_sweep_paths(Path(W)))
+    _vm = data.get("verify_metrics") if isinstance(data.get("verify_metrics"), dict) else {}
+    ran_set = _vm.get("selection_set")                     # T-14228: the set a narrowed run selected
+    narrowed = False
     if sweeps:
         ran, found = data.get("selection_ran"), data.get("selection_discovered")
         counted = all(isinstance(v, int) and not isinstance(v, bool) for v in (ran, found))
         if data.get("selection") != "full" or not counted or ran != found or ran <= 0:
-            return "run-narrowed"
+            if not isinstance(ran_set, dict):
+                return "run-narrowed"
+            narrowed = True                                # T-14228: compared after the skip set
+    # T-14211 (SPEC-0065 §Bound, SPEC-1051 rule 2): with a listed pre-deploy class the land credits the
+    # run only when the skip set it computes NOW — the same tree, main's journal as it stands — equals the
+    # one the run recorded, so a final failure or a lapsed coverage recorded between them is not bypassed.
+    ran_skip = _vm.get("pre_deploy_skip")
+    _pdk = land_verify_legs._pre_deploy_contract_kw(W).get("pre_deploy")
+    land_skip = None
+    if ran_skip is not None or (_pdk or {}).get("listed_classes"):
+        try:
+            _changed = list(_merged_tree_delta_paths(Path(W), merged_base, _run_git_cap=_run_git_cap))
+        except Exception:                                  # noqa: BLE001 — unknown: the land skips nothing
+            _changed = None
+        if pre_deploy_skip is not None:                    # T-14272: the request's prepared record
+            land_skip = pre_deploy_skip.get("record")
+        else:
+            land_skip = land_verify_legs._pre_deploy_skip_read(W, _pdk, changed=_changed) if _pdk else None
+        if land_verify_legs._pre_deploy_skip_key(land_skip) != land_verify_legs._pre_deploy_skip_key(ran_skip):
+            return "pre-deploy-skip-set-differs"
+    if narrowed:
+        # T-14228 (SPEC-0065 §Bound condition 4): a narrowed run covers the land when the set it
+        # selected IS the set this land's own sweep would select — the two keyed alike, the skip set
+        # (equal by the check above) taken out of both.
+        try:
+            own = (_stage6_land_sweep_selection(W, main_wt, merged_base, consumer=consumer, skip=land_skip,
+                                                _run_git_cap=_run_git_cap,
+                                                _classify_inert_paths=_classify_inert_paths)
+                   if main_wt is not None else None)
+            own_key = land_verify_legs._selection_set_key(own, rule_version=_SELECTION_RULE_VERSION,
+                                                          skip=land_skip)
+        except Exception:                                  # noqa: BLE001 — fail-closed: no set, no credit
+            own_key = None
+        if own_key is None:
+            return "run-narrowed-set-unknown"
+        if own_key != ran_set:
+            return "run-narrowed-set-differs"
     if not consumer:
         return None
     from lib import debt as _debt                          # lazy, as bin/lib/task.py reads it
@@ -21861,11 +22617,39 @@ def _stage6_row_covers_land(W, merged_base, data: dict, *, _run_git_cap, _is_con
     listed_none = {str(r.get("layer")) for r in (data.get("consumer_verify_layers") or [])
                    if land_verify_legs._layer_row_listed_none(r)}
     deciding = _stage6_deciding_layers(W, _run_git_cap=_run_git_cap) if partial_rows else None
+    # T-14263 (SPEC-1044 rule 2, SPEC-0065 §Bound condition 4): a layer whose rows are all the whole-layer
+    # pre-deploy skip row is covered when the land leaves it out whole NOW — the row the land's own rule
+    # (`_pre_deploy_layer_skip_row`) computes for it on this tree equals the recorded one.
+    pd_rows: dict = {}
+    for r in (data.get("consumer_verify_layers") or []):
+        if isinstance(r, dict):
+            pd_rows.setdefault(str(r.get("layer")), []).append(r)
+    pd_whole: set = set()
+    _pd_layers = (_pdk or {}).get("layers") or {}
+    if any("pre_deploy" in r for rs in pd_rows.values() for r in rs) and _pd_layers:
+        try:
+            pd_adapters = {}
+            if any(isinstance(ly, dict) and "adapter" in ly for ly in declared):
+                ls = _run_git_cap(["ls-files", "-z", "--cached", "--others", "--exclude-standard"], W)
+                if ls is None or ls.returncode != 0:
+                    raise RuntimeError("ls-files")
+                pd_adapters = _declared_layer_adapters(
+                    declared, repo_files={p for p in (ls.stdout or "").split("\0") if p})
+            names = [str(ly.get("layer") or "").strip() for ly in declared]
+            for i, n in enumerate(names):
+                if n in _pd_layers and names.count(n) == 1 and pd_rows.get(n):
+                    want = land_verify_legs._pre_deploy_layer_skip_row(n, _pd_layers[n], None, pd_adapters.get(i))
+                    if want is not None and all(r == want for r in pd_rows[n]):
+                        pd_whole.add(n)
+        except Exception:                                  # noqa: BLE001 — fail-closed: no layer is covered this way
+            pd_whole = set()
     partial: list = []
     for ly in declared:
         name = str(ly.get("layer") or "").strip()
         if name in listed_none:
             return f"layer-not-covered:{name or '?'}"
+        if name in pd_whole:
+            continue
         if deciding is not None and name in partial_rows and name in deciding["decls"]:
             if name not in partial:
                 partial.append(name)
@@ -21932,7 +22716,7 @@ def _stage6_partial_units(rec) -> "set | None":
 
 
 def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
-                          _verify_test_timeout_seconds=None) -> dict:
+                          _verify_test_timeout_seconds=None, pd_skip=None) -> dict:
     """T-13910 (SPEC-1030 rule 6, first clause) — the units THIS LAND'S OWN decision on its
     candidate needs of each layer in `names` (each a key of `deciding["decls"]`,
     `_stage6_deciding_layers`'s answer): `{name: {"units": {(project, file), ...}, "rung",
@@ -21991,6 +22775,9 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
     # T-14175 (SPEC-1042 rule 2): the pre-deploy declaration the candidate leg is handed, read through
     # the SAME contract reader (`_pre_deploy_contract_kw`); None when the contract declares none.
     pre_deploy = land_verify_legs._pre_deploy_contract_kw(W).get("pre_deploy")
+    # T-14211 (SPEC-1051 rule 2): `pd_skip` — the listed order's skip set the Stage-6 run APPLIED (its
+    # row's record, closed over that run's inventories), which the land credits only when its own
+    # computation gives the same key (`_stage6_row_covers_land`); None where the row carries none.
     out: dict = {}
     for name in names:
         at, decl = deciding["decls"][name]
@@ -22011,7 +22798,9 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
         with contextlib.redirect_stdout(io.StringIO()):
             rec = _layer_adapter_report_pass(
                 Path(W), name, decl, timeout=_verify_test_timeout_seconds(section_timeout if own is None else own),
-                sink=sink, change=change, one_card_candidate=True, _run_layer_command=_list_and_related_only)
+                sink=sink, change=change, one_card_candidate=True, _run_layer_command=_list_and_related_only,
+                # T-14211: the skip set leaves before the ladder decides, as on the candidate leg
+                **({"pre_deploy": {"classes": [], "layers": {}, "skip": pd_skip}} if pd_skip is not None else {}))
         inventory = sink.get("inventory")
         if rec.get("error") or rec.get("list") != "ok" or not isinstance(inventory, list):
             out[name] = {"why": "needs-unknown", "list": str(rec.get("list_reason") or rec.get("list") or "")}
@@ -22019,13 +22808,19 @@ def _stage6_partial_needs(W, merged_base, names, deciding, *, _run_git_cap,
         part = rec.get("partial")
         asked = ([u for key in ("ran", "not_reached", "credited") for u in part.get(key) or ()]
                  if isinstance(part, dict) else inventory)
+        if pd_skip is not None:
+            # T-14211: the skip set left before selection — the units the candidate leg never asks for.
+            gone = {(u.get("project") or "", u["file"])
+                    for u in land_verify_legs._pre_deploy_skip_units(inventory, pd_skip)[1]}
+            asked = [u for u in asked if (u.get("project") or "", u["file"]) not in gone]
         if pre_deploy is not None:
             # T-14175: the exclusion the candidate leg's FIRST attempt applies last, over what it needs —
             # the shared helper with the leg's change facts, its whole-layer reasons undoing a narrowing.
             # This pass is not a first attempt (it launches no `required:` check), so the helper is asked here.
             kept, pd = land_verify_legs._pre_deploy_exclusion(
                 inventory, None if asked is inventory else asked, sink.get("memberships"),
-                pre_deploy.get("classes"), decl=decl,
+                [c for c in pre_deploy.get("classes") or () if c not in (pre_deploy.get("listed_classes") or ())],
+                decl=decl,
                 change={"paths": scope.get("paths"), "edge": scope.get("edge")}, first_attempt=True)
             if pd is not None and pd.get("reason") in land_verify_legs._PRE_DEPLOY_WHOLE_REASONS:
                 kept = None
@@ -22078,7 +22873,9 @@ def _stage6_partial_run_covers(W, merged_base, data: dict, names, deciding, *, m
         told[name] = {f"run_{k}": (sel.get(k) if isinstance(sel, dict) and isinstance(sel.get(k), str) else None)
                       for k in ("rung", "reason")}
     try:
-        needs = _stage6_partial_needs(W, merged_base, names, deciding, _run_git_cap=_run_git_cap)
+        needs = _stage6_partial_needs(W, merged_base, names, deciding, _run_git_cap=_run_git_cap,
+                                      pd_skip=(data.get("verify_metrics") or {}).get("pre_deploy_skip")
+                                      if isinstance(data.get("verify_metrics"), dict) else None)
     except Exception as exc:                               # noqa: BLE001 — fail-closed: no needed set, no credit
         if out is not None:
             out["layers"] = [{"layer": names[0], "unknown": f"error:{type(exc).__name__}"}]
@@ -22130,6 +22927,96 @@ _STAGE6_LAYER_RERUN_REASONS = (
 )
 
 
+#: T-14186 — the calls that load a module by name or by path at run time rather than by an `import`
+#: statement, matched on the called name.
+_STAGE6_DYNAMIC_LOADERS = frozenset({"spec_from_file_location", "SourceFileLoader", "import_module",
+                                     "__import__", "load_source", "load_module", "run_path", "run_module",
+                                     "exec", "execfile"})
+#: T-14186 — the modules that provide such loaders; importing one (under any alias) counts as a loader.
+_STAGE6_LOADER_MODULES = frozenset({"importlib", "runpy", "imp", "pkgutil", "zipimport"})
+
+
+def _tests_importing_stem(path: str, text: str, stem: str) -> bool:
+    """T-14186 — True when the `.py` file at `path` (text `text`) may import the module `stem`. Judged on
+    the syntax tree, so a statement or call split over lines reads as one. Only a file that NAMES `stem`
+    as a word is asked at all; such a file imports it when it holds:
+      • an `import` / `from … import` statement whose dotted names hold `stem` as a component; or
+      • ANY module loader, whatever its arguments: a reference to a loader name
+        (`_STAGE6_DYNAMIC_LOADERS` — called, aliased or passed on) or an import of a loader module
+        (`_STAGE6_LOADER_MODULES`, under any alias — audit-post fp1:adec485c9dc8b538): a file that names
+        the test and loads modules is read as loading it, since which path a call receives (a literal,
+        a variable, a join) is not decidable from the text.
+    A `.py` file that does not parse is True — a doubt keeps the path shared. A file that is not Python
+    imports nothing here. A file that names the test and loads nothing (a roster, a census, a fixture
+    string) does not import it. A load whose path NAMES no test file (a glob over the directory) is
+    not read: a test file loaded that way is a shared one by the project's own declaration
+    (`verify.infra_globs`, which `_owned_test_freed_paths` (c) honours); undeclared, it is freed
+    exactly where the land's own subject skip frees it (T-13531)."""
+    if not path.endswith(".py"):
+        return False
+    if re.search(r"(?<![A-Za-z0-9_])" + re.escape(stem) + r"(?![A-Za-z0-9_])", text) is None:
+        return False
+    try:
+        tree = ast.parse(text)
+    except (SyntaxError, ValueError):
+        return True
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            names = [a.name for a in node.names] + ([node.module or ""] if isinstance(node, ast.ImportFrom) else [])
+            if any(stem in n.split(".") for n in names):
+                return True
+            if any(n.split(".")[0] in _STAGE6_LOADER_MODULES or n in _STAGE6_DYNAMIC_LOADERS for n in names):
+                return True                                # a loader imported, under any alias
+        elif isinstance(node, (ast.Name, ast.Attribute)):
+            if (node.attr if isinstance(node, ast.Attribute) else node.id) in _STAGE6_DYNAMIC_LOADERS:
+                return True                                # a loader named — called, aliased or passed on
+    return False
+
+
+def _stage6_leaf_tests_freed(W, merged_base, net, *, _run_git_cap) -> "frozenset | None":
+    """T-14186 (SPEC-0065 §Bound (A)(iii)) — the changed test paths of `net` the per-layer Stage-6 credit
+    charges to the layers that own them instead of to every layer, or None. Every doubt is None — the
+    whole-`net` edge then fires as before this card.
+
+    A path is freed ONLY when BOTH hold:
+      • the land's own subject skip frees it — `_owned_test_verify_freed` (T-13531), the one reader of
+        «a declared test file some scoped layers claim and others do not», over `merged_base` against the
+        candidate carrier;
+      • it is a LEAF test file (the T-11461 notion, read on the layer side): a file directly in `tests/`
+        (a fixture or helper directory below it never is), not `conftest.py` / `__init__.py`, present in
+        HEAD's tree (a delete, or a rename's old path, never is), and no OTHER file under `tests/`
+        imports it — an `import` statement, or a module loader in a file that names it
+        (`_tests_importing_stem`) — so a helper another test imports or loads stays shared. A file
+        that only NAMES it and loads nothing (a roster, a census, a fixture string) does not.
+    A freed path is then judged by each layer's own `subject_globs`: the layers claiming it run, the
+    others may take the run's verdict. The carrier narrowing of the subject skip (T-13528) is not taken."""
+    try:
+        owned = _owned_test_verify_freed(Path(W), merged_base, net, _run_git_cap=_run_git_cap)
+        if not owned:
+            return None
+        ls = _run_git_cap(["ls-files", "-z", "--cached", "--", "tests"], W)
+        if ls is None or ls.returncode != 0:
+            return None
+        files = sorted({p for p in (ls.stdout or "").split("\0") if p.startswith("tests/")})
+        texts = {}
+        for f in files:
+            fp = Path(W) / f
+            if fp.is_symlink() or not fp.is_file():
+                return None                                # a tracked path that is not a regular file: doubt
+            texts[f] = fp.read_text(encoding="utf-8", errors="replace")
+        freed = set()
+        for p in owned:
+            rel = p[len("tests/"):] if p.startswith("tests/") else ""
+            if not rel or "/" in rel or rel in ("conftest.py", "__init__.py") or p not in texts:
+                continue
+            stem = rel.rsplit(".", 1)[0] if "." in rel else rel
+            if stem and not any(_tests_importing_stem(f, t, stem) for f, t in texts.items() if f != p):
+                freed.add(p)
+        return frozenset(freed) or None
+    except Exception:                                      # noqa: BLE001 — any doubt frees nothing
+        return None
+
+
 def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consumer_build=None,
                          _consumer_tests_delegation=None, verdicts_out: "dict | None" = None) -> "dict | None":
     """T-13675 (SPEC-0065 §Bound, the per-layer case) — MAY a land that refused the Stage-6 credit for
@@ -22151,7 +23038,8 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
       • no row of it carries the consumer venue's `listed_none` mark (`_layer_row_listed_none`,
         T-13994 — SPEC-1032 rule 5): such a layer is in `rerun`, reason `listed-none-on-venue`;
       • `net` meets no shared fail-closed edge of the subject skip (`_verify_skip_fail_closed_edge`
-        over `_project_verify_infra_globs()`, with NO freed path: a `tests/` or ops-carrier
+        over `_project_verify_infra_globs()`, freeing only the leaf test files a layer owns —
+        `_stage6_leaf_tests_freed`, T-14186: any other `tests/` path or an ops-carrier
         path in `net` → None) and no declared check surface (`_declared_check_surface_touch` — which
         is where a root `bin/` file the project's own contract names is caught, T-13915).
         The carrier is therefore the same at the tested tree and at HEAD, so the declaration read
@@ -22194,7 +23082,11 @@ def _stage6_layer_credit(W, merged_base, net, data, *, _run_git_cap, _is_consume
             return None
         names = [ly.get("layer").strip() if isinstance(ly.get("layer"), str) else "" for ly in declared]
         every = [n for i, n in enumerate(names) if n and n not in names[:i]]
-        edge = _verify_skip_fail_closed_edge(net, _project_verify_infra_globs())
+        # T-14186: a leaf test file a layer owns is charged to that layer (its globs meet it below),
+        # not to every layer; any other test path still fires the edge.
+        edge = _verify_skip_fail_closed_edge(
+            net, _project_verify_infra_globs(),
+            reachability_freed=_stage6_leaf_tests_freed(W, merged_base, net, _run_git_cap=_run_git_cap))
         if not edge and _declared_check_surface_touch(net, Path(W), merged_base, _run_git_cap=_run_git_cap):
             edge = "check-surface"
         if edge:
@@ -22463,8 +23355,8 @@ def _land_post_sync_proof_credit(W, main_wt, merged_base, branch, tid, stage6_ro
 
 
 def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_paths, _run_git_cap,
-                        _is_consumer_build=None, _consumer_tests_delegation=None
-                        ) -> "tuple[bool, str, dict | None]":
+                        _is_consumer_build=None, _consumer_tests_delegation=None, candidate: str = "HEAD",
+                        pre_deploy_skip=None) -> "tuple[bool, str, dict | None]":
     """T-13532 (SPEC-0065 §Bound) — MAY this land take its CANDIDATE-leg verdict from the task's own
     Stage-6 run instead of re-running it? `(True, "stage6-credit", ref)` on proof, else
     `(False, why, None)` — one reason per refusal, and the caller runs the candidate verify. The ONE
@@ -22501,7 +23393,12 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
           A red newest row, a hand `--evidence` row (no mark) or a row outside the bound refuses.
       (4) COVERAGE — `_stage6_row_covers_land`.
     The fifth condition — the floor, the host-leak check and the pinned leg still run — is the
-    caller's (`_land_integrate` step 4d): this helper only decides the candidate leg."""
+    caller's (`_land_integrate` step 4d): this helper only decides the candidate leg.
+
+    `candidate` (T-14255) — the tree-ish condition (2) compares the run's tree with: HEAD for the land.
+    The admission preview, asked before `task close`, names the tree that close will land instead
+    (`cli._admission_after_run`: HEAD plus the close-time activation's own writes).
+    `pre_deploy_skip` (T-14272) — the verify request's prepared pre-deploy read, handed to condition (4)."""
     try:
         if not task_mod._verify_policy_stage6_credit(Path(main_wt),
                                                      ops_contract=_host_apply.CONSUMER_OPS_CONTRACT):
@@ -22542,7 +23439,9 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
             partial: dict = {}
             uncovered = _stage6_row_covers_land(
                 W, merged_base, data, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
-                _consumer_tests_delegation=_consumer_tests_delegation, main_moved=True, partial_out=partial)
+                _consumer_tests_delegation=_consumer_tests_delegation, main_moved=True, partial_out=partial,
+                main_wt=main_wt, _classify_inert_paths=_classify_inert_paths,
+                pre_deploy_skip=pre_deploy_skip)
             if uncovered:
                 return False, uncovered, ({"task": tid, "ts": newest.get("ts"), "layers": partial["layers"]}
                                           if partial.get("layers") else None)
@@ -22576,7 +23475,7 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
                     t = _run_git_cap(["cat-file", "-t", tree], W)
                     if t.returncode != 0 or (t.stdout or "").strip() != "tree":
                         return _main_moved(delta)
-                    net = _diff_name_paths(W, tree, "HEAD", _run_git_cap=_run_git_cap)
+                    net = _diff_name_paths(W, tree, candidate, _run_git_cap=_run_git_cap)
                 except Exception:                          # noqa: BLE001 — no split, the refusal as before
                     return _main_moved(delta)
                 # T-13963: per declared layer, `credited` or the first condition that kept it from
@@ -22603,8 +23502,9 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
         t = _run_git_cap(["cat-file", "-t", tree], W)
         if t.returncode != 0 or (t.stdout or "").strip() != "tree":
             return False, "row-tree-unresolvable", None
-        net = _diff_name_paths(W, tree, "HEAD", _run_git_cap=_run_git_cap)
-        verdict, cls = _classify_inert_paths(net)
+        net = _diff_name_paths(W, tree, candidate, _run_git_cap=_run_git_cap)
+        # T-14275 (SPEC-0064 §2a): a verified re-sign since the run is inert; it stays in the reader check
+        verdict, cls = _classify_inert_paths(net, resign_delta=(W, tree, candidate))
         if verdict != "inert":
             # T-13675: conditions (1) and (3) hold here, (2) does not — the per-layer case, when at
             # least one layer may take the run's verdict (passed there, subject disjoint from `net`).
@@ -22630,7 +23530,8 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
         uncovered = _stage6_row_covers_land(
             W, merged_base, data, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
             _consumer_tests_delegation=_consumer_tests_delegation,
-            main_moved=main_delta is not None, partial_out=partial)
+            main_moved=main_delta is not None, partial_out=partial,
+            main_wt=main_wt, _classify_inert_paths=_classify_inert_paths, pre_deploy_skip=pre_deploy_skip)
         if uncovered:
             if partial.get("layers"):
                 differed = {"task": tid, "ts": newest.get("ts"), "layers": partial["layers"]}
@@ -23043,12 +23944,18 @@ def _load_sensitive_exited_at(main_wt, name: str) -> "str | None":
     """The commit date (ISO, UTC `Z`) of the most recent commit on `main_wt`'s HEAD line that REMOVED
     `name` from `tests/load-sensitive.txt` — a card's exit (T-12358: exit is a card's decision) — or
     None when no such removal exists or git cannot answer. Walks the `-S<name>` history of the carrier
-    newest-first and returns the first commit whose carrier LACKS the name. NEVER RAISES."""
+    newest-first and returns the first commit whose carrier LACKS the name. NEVER RAISES.
+
+    T-14310: the walk is `--full-history -m`. Default history simplification follows one TREESAME parent
+    per merge, so a removal on a landed task branch was pruned (t14287 re-entered, 2026-10-27), and a
+    merge is never searched without `-m`, so a removal made by a merge resolution was invisible. A merge
+    found this way dates the exit at the merge — never earlier than the removal itself."""
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     carrier_rel = "tests/" + verify_runner._LOAD_SENSITIVE_FILE
     try:
         import subprocess as _sp
-        log = _sp.run(["git", "log", "-8", "--format=%H %cI", f"-S{name}", "--", carrier_rel],
+        log = _sp.run(["git", "log", "-n", "64", "--full-history", "-m", "--format=%H %cI",
+                       f"-S{name}", "--", carrier_rel],
                       cwd=str(main_wt), capture_output=True, text=True, timeout=20,
                       env=_git_env._git_child_env())
         if log.returncode != 0:
@@ -26324,6 +27231,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
     # step 2c and reset at each attempt's top, so a row reports the attempt that closed the land.
     _aproof = {"ctx": None}
     own_verified = False   # T-13344: has ANY attempt of this land run the test verify? Lever B leans on it.
+    _req = _judged = None  # T-14272: the attempt's verify request + the judge's answer (set at step 4a)
     _stage6_refused = None  # T-13576: why step 4d refused a runner-marked green Stage-6 row — the LAND's,
                             # kept across attempts (a retry of a refused land is not asked again)
     _stage6_main_delta = None  # T-13588: on a `main-moved` refusal, main's advance since the run, classified
@@ -27754,15 +28662,20 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                                 # land never assigns it, so it must be reset before the batch branch
                                 # that fills it (declared once above the `_die` wrapper, T-11282)
         do_test_verify = run_tests
-        if run_tests and attempt > 1 and own_verified:   # T-13344: the backstop must have RUN
-            try:
-                _verdict, _offending = _classify_inert_paths(_merged_tree_delta_paths(W, merged_base))
-            except Exception:
-                _verdict, _offending = ("observable", "classifier-unavailable")
-            if _verdict == "inert":
-                do_test_verify = False
-                reverify_skipped = True
-                reverify_skip_reason = "inert-retry-delta"
+        # T-14272: steps 4a-4d ask ONE judge over ONE prepared request — the admission preview asks the
+        # same judge (`land_report_arm("credit")`); each step below only applies its answer.
+        _req = _land_verify_request(W, main_wt, merged_base, branch, run_tests=run_tests, attempt=attempt,
+                                    own_verified=own_verified, superseded_ahead=superseded_ahead,
+                                    declares_rebaseline=declares_rebaseline)
+        _judged = _land_verify_skip_judge(
+            _req,
+            _merged_tree_delta_paths=_merged_tree_delta_paths, _classify_inert_paths=_classify_inert_paths,
+            _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
+            _consumer_tests_delegation=_consumer_tests_delegation)
+        if _judged["lever"] == "retry":   # T-13344: the backstop must have RUN (the judge's condition)
+            do_test_verify = False
+            reverify_skipped = True
+            reverify_skip_reason = _judged["route"]
 
         # 4b. LEVER C (SPEC-0184 rule 8, T-11274) — the SUPERSEDED-MEMBER re-verify skip. A batch head
         #     lands its members' content early via its fast-forward, but nothing told the member: all 16
@@ -27783,17 +28696,12 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         #     ff, the bookkeeping, the worktree teardown and the `LAND: OK` token all still happen —
         #     re-implementing those behind an early return would be a second integration path (P5), and
         #     would strand the worktree this land is responsible for removing.
+        _sup_verdict = _judged["inert_verdict"]   # step 4b's verdict on the delta (rung 0 reads it below)
         if run_tests and do_test_verify:
-            try:
-                _sup_verdict, _sup_cls = _classify_inert_paths(_merged_tree_delta_paths(W, merged_base))
-            except Exception:
-                _sup_verdict, _sup_cls = ("observable", "classifier-unavailable")
-            _sup_decision, _sup_reason = _land_superseded_reverify_decision(
-                superseded_ahead, _sup_verdict, _sup_cls)
-            if _sup_decision == "skip":
+            if _judged["lever"] == "superseded":
                 do_test_verify = False
                 reverify_skipped = True
-                reverify_skip_reason = _sup_reason
+                reverify_skip_reason = _judged["route"]
                 superseded_extinguished = True
             elif superseded_park_exit:
                 # THE SECOND HALF OF THE SAME FENCE (audit-post consult, 2026-08-18). The park path
@@ -27822,15 +28730,13 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                                        # any-author floor runs below in place of its verify-path call
         _first_proof_open = False      # T-13532: per-ATTEMPT — this attempt was OPEN to a first-attempt
                                        # proof (the condition just below); step 4d asks under the same one
-        if run_tests and do_test_verify and not own_verified and not declares_rebaseline:
+        if run_tests and do_test_verify and _judged["first_open"]:
             _first_proof_open = True
-            _fa_ok, _fa_why = _land_first_attempt_inert_skip(
-                W, main_wt, merged_base, _merged_tree_delta_paths=_merged_tree_delta_paths,
-                _classify_inert_paths=_classify_inert_paths, _run_git_cap=_run_git_cap)
-            if _fa_ok:
+            _fa_ok, _fa_why = _judged["first"] if _judged["first"] else (False, "error:unanswered")
+            if _judged["lever"] == "first":
                 do_test_verify = False
                 reverify_skipped = True
-                reverify_skip_reason = _fa_why
+                reverify_skip_reason = _judged["route"]
                 _first_attempt_skip = True
                 print("land: inert delta on a GREEN tested tree, read by no test — test verify "
                       "skipped (SPEC-0065 §Bound, T-13344).", file=sys.stderr)
@@ -28043,11 +28949,9 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
         #     admits both first-attempt proofs, so the rebaseline union is consulted once, there.
         _stage6_credit = None          # per-ATTEMPT: the credited Stage-6 row's reference, or None
         _s6_layer_credit = None        # T-13675: per-ATTEMPT too — a retry re-proves from scratch
-        if _first_proof_open and do_test_verify:
-            _s6_ok, _s6_why, _s6_ref = _land_stage6_credit(
-                W, main_wt, merged_base, branch, _classify_inert_paths=_classify_inert_paths,
-                _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
-                _consumer_tests_delegation=_consumer_tests_delegation)
+        if _first_proof_open and do_test_verify and _judged["stage6"] is not None:
+            _s6_ok, _s6_why, _s6_ref = _judged["stage6"]
+            _s6_ok = _judged["lever"] == "stage6"
             if not _s6_ok and _s6_why not in _STAGE6_CREDIT_NOT_POSSIBLE and not _s6_why.startswith("error:"):
                 _stage6_refused = _s6_why
                 _stage6_main_delta = ({k: v for k, v in _s6_ref.items() if k != "layer_credit"}
@@ -28068,7 +28972,7 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
             if _s6_ok:
                 _stage6_credit = _s6_ref
                 reverify_skipped = True
-                reverify_skip_reason = _s6_why
+                reverify_skip_reason = _judged["route"]
                 _s6_pinned_due = bool(_verify_path_touch and not _pinned_policy_off)
                 if not _s6_pinned_due:
                     do_test_verify = False
@@ -28595,7 +29499,11 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                  + "\n".join(_land_audited_footprint_lines(_afp_split))
                  + _afp_inherited_note
                  + "\nRECOVERY: re-audit the CURRENT tree, then re-land — "
-                   f"`audit post --task {_afp_split['task']}` (or, if the task is already status:done, "
+                   f"`audit post --task {_afp_split['task']}` (before `task close`, after a "
+                   "`worktree sync --resolved` merge and `task test --run`, it audits that merge when the "
+                   "latest audit-post is GREEN on the commit before it — T-14181, SPEC-1018 «Exits from a "
+                   "spent GREEN»; "
+                   "or, if the task is already status:done, "
                    f"`audit post --reaudit-after-close --task {_afp_split['task']}` — X-0040/T-9412), "
                    "then re-run this land.\nIf the auditor cannot RUN at all, do NOT force this land: "
                    f"escalate with `blocked-on-land {_afp_split['task']} <reason>` (worktree intact) — "
@@ -29046,6 +29954,10 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                                                                   "attempt": attempt}, **_s6_kw,   # T-12589: publish W
                                                    **land_verify_legs._one_card_candidate_kw(batch_members),
                                                    **land_verify_legs._pre_deploy_contract_kw(W))
+                # T-14211 (SPEC-1051 rule 2): the listed order's skip set the layers left out, on the row
+                # (the sweep's own, when a test sweep ran, is the same record).
+                if isinstance(_cres, dict) and _cres.get("pre_deploy_skip") is not None:
+                    verify_metrics.setdefault("pre_deploy_skip", _cres["pre_deploy_skip"])
                 # T-12087 — the ANY-AUTHOR LAND FLOOR (SPEC-0163 §4a policy · SPEC-0093 rule 27
                 # shape). Folded in HERE, at the LAND seam, and deliberately NOT inside the guard:
                 # the floor is a LAND-time gate ("`land` runs it for EVERY branch regardless of
@@ -29727,6 +30639,10 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                         local=((lambda only=None: []) if _stage6_credit else _venue_local_probe),
                         test_dir=W / "tests", selection=_venue_selection,
                         pinned_skip=(_routed_skip_names or None),
+                        # T-14288 (SPEC-1051 rule 2): the request's one skip read, applied by the box
+                        # to the candidate leg — none when that leg is credited and not shipped.
+                        pre_deploy_skip=(None if _stage6_credit else _land_verify_request_pre_deploy(
+                            _req, _run_git_cap=_run_git_cap).get("record")),
                         priority="full", legs=_venue_legs,
                         on_wait=_venue_admission_heartbeat)
                     # T-13228 (SPEC-0132 rule 6) — the box CANDIDATE leg's named per-file
@@ -30381,6 +31297,10 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 _abort_detail["failing_tests"] = _failing
             if _assertions:
                 _abort_detail["failing_assertions"] = _assertions
+            # T-14229: which test inside each failed file failed, read from that file's own text.
+            _named = _failed_test_names(bad, timeout_marker=_VERIFY_TIMEOUT_MARKER)
+            if _named:
+                _abort_detail["failed_test_names"] = _named
             if _pinned_first_refused:
                 # Additive, present ONLY on this path — so a reader can tell a land whose candidate
                 # leg ran and passed from one where it never ran (SPEC-0186 rule 7's distinction,
@@ -31266,7 +32186,9 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                     ((verify_metrics or {}).get("worker_count")
                      or (verify_metrics or {}).get("venue_workers") or 1),
                     _run_git_cap=_run_git_cap, write_text_atomic=write_text_atomic,
-                    _consumer_tests_delegation=_consumer_tests_delegation)
+                    _consumer_tests_delegation=_consumer_tests_delegation,
+                    # T-14241: a credited land's window is its credited Stage-6 run's walls
+                    credited=_stage6_credit)
             except Exception as _vte:
                 _vtr = {"written": False, "reason": f"error:{type(_vte).__name__}"}
             # T-12420 (SPEC-0188 rule 7) — ADMIT THE WRITE ONLY ON PROOF. The table is read by 13
@@ -31380,6 +32302,15 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                 payload["verify_table_refresh"] = _vtr
             if reverify_skipped:
                 payload["reverify_skip_reason"] = reverify_skip_reason
+            try:
+                # T-14272: this land's own request beside its admission preview's FORECAST — the inputs
+                # that moved between them. ABSENT where no preview row exists (a queue-off land).
+                _forecast = _land_verify_forecast_check(_req, _judged, main_wt, _run_git_cap=_run_git_cap,
+                                                        _classify_inert_paths=_classify_inert_paths)
+            except Exception as _fc_exc:                   # noqa: BLE001 — a record, never a gate
+                _forecast = {"error": f"{type(_fc_exc).__name__}: {_fc_exc}"[:200]}
+            if _forecast:
+                payload["verify_forecast"] = _forecast
             if _rung0_paid is not None:
                 # T-13567 (SPEC-0184 rule 9): RANKED RUNG 0 AND PAID — set once a candidate verify of
                 # this land has run, in this attempt or an earlier one; the value is why it paid.

@@ -215,17 +215,13 @@ supersedes: null
 concern:
   section: host_config
   born_order: 30
-  born: "  host_config:\n    # HOST-level config surface (SPEC-0093 rule 14, pairs\
-    \ with SPEC-0111 apply / SPEC-0097 host class).\n    # Born WAIVED → this project\
-    \ owns no host nginx/vhost surface. To declare a host-config surface,\n    # REPLACE\
-    \ this waiver with THREE keys: `vhost_files:` (a non-empty list of the host vhost\
-    \ file path(s)\n    # THIS project EXCLUSIVELY owns), `live_base_url:` (the host\
-    \ live base URL the server-wide health sweep\n    # + reconciliation probe targets),\
-    \ and `apply:` (the human-gated apply recipe). The host-config waiver\n    # is\
-    \ LOOSE (rule 6): a bare `reason:` — a docker-only app legitimately owns no host\
-    \ vhost.\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2 init` — no\
-    \ host-level (nginx/vhost) config surface yet; declare `vhost_files:` + `live_base_url:`\
-    \ + `apply:` once this project owns host config (SPEC-0093 rule 14).\"\n"
+  born: "  host_config:\n    # HOST-level config surface (SPEC-0093 rule 14). Born\
+    \ WAIVED → no host nginx/vhost surface.\n    # To declare: `vhost_files:` + `live_base_url:`\
+    \ + `apply:`. Waiver LOOSE (bare `reason:`).\n    # Rule text: `__YITC_CLI__ graph\
+    \ query SPEC-0111 --kernel`\n    waiver:\n      reason: \"Initialized via `bin/yitc-v2\
+    \ init` — no host-level (nginx/vhost) config surface yet; declare `vhost_files:`\
+    \ + `live_base_url:` + `apply:` once this project owns host config (SPEC-0093\
+    \ rule 14).\"\n"
   carrier_path: deploy.host_config
   presence_policy: checked-if-present
   update_policy: init re-seed

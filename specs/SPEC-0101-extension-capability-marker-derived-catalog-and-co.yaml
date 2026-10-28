@@ -113,20 +113,11 @@ supersedes: null
 concern:
   section: extensions
   born_order: 110
-  born: "extensions:\n  # SPEC-0093 rule 13 (realizes SPEC-0101 §4) + SPEC-0112 (catalog-set\
-    \ completeness). The SHARED extensions\n  # (the project's declared extensions)\
-    \ this project ADOPTS — reusable capabilities (e.g. the deploy capability, SPEC-0094)\n\
-    \  # installed by CITING, never copy/fork. NON-catalog opt-in is unchanged (absence\
-    \ = adopts nothing, rule-13).\n  # BUT for the ACTIVE+ADOPTABLE catalog set (SPEC-0101\
-    \ rule-2 view), every member is now DECLARE-OR-WAIVE,\n  # fail-closed (SPEC-0112\
-    \ rule-1): silence on a catalog member is an ERROR at init / consumer-read. To\n\
-    \  # DECLARE, use the GOVERNED path `__YITC_CLI__ init --adopt-extension SPEC-XXXX`\
-    \ (it refuses a\n  # missing / non-`adoptable` spec and appends `- spec: SPEC-XXXX`\
-    \ under `adopts:`). To WAIVE, carry a\n  # forward-aware `waives:` entry {spec,\
-    \ reason} whose reason names the waive->declare re-entry path\n  # (SPEC-0112\
-    \ rule-2). init SEEDS this section born-COMPLETE (a forward-aware waive per catalog\
-    \ member);\n  # discover the catalog via `__YITC_CLI__ graph query extensions-catalog`.\n\
-    \  adopts: []\n"
+  born: "extensions:\n  # SPEC-0093 rule 13. The shared extensions this project ADOPTS\
+    \ by citing. Each active adoptable\n  # catalog member is declare-or-waive: `__YITC_CLI__\
+    \ init --adopt-extension SPEC-XXXX`, or a\n  # `waives:` entry {spec, reason}.\
+    \ Catalog: `__YITC_CLI__ graph query extensions-catalog`.\n  # Rule text: `__YITC_CLI__\
+    \ graph query SPEC-0101 --kernel`\n  adopts: []\n"
   carrier_path: extensions
   presence_policy: opt-in
   update_policy: init re-seed

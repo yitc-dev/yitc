@@ -80,34 +80,41 @@ body: "## Scenario\n\nWhen the owner/AI adds or evolves a seed-and-grow concern 
   \ `deploy:` nesting); init READS that generated\nfile (the concern-registry.json\
   \ precedent). EVERY born SECTION is thereby a registered concern (coverage\n+ startup_checks\
   \ migrated in); a concern with no `born` renders no section (surfaced by the\nconcern-surface\
-  \ check). **Retired\nhand-maintained lists (CHARTER §P1 F3 — the removal this rule\
-  \ buys):** `_OPS_CARRIER_SECTIONS`, the\n`_BORN_OPS_YAML` per-section literals (retired\
-  \ — the file-level PREAMBLE stays a render-time\ntemplate constant, NOT a per-SECTION\
-  \ literal), and — the precise scope — the **GENERIC per-section STANCE/XOR\nbranch\
-  \ ladder** in `_sweep_ops_carrier` (`bin/lib/init.py`): the repeated hand-written\n\
-  declared-or-waived / declaration-XOR-waiver dispatch that the registry's `declare_key`\
-  \ + `waiver_policy`\nnow generate. **NOT retired — EXPLICITLY PERMITTED (constraint\
-  \ 2 / audit finding 2): small kernel-owned\ndeep-shape VALIDATORS (\"shape hooks\"\
-  ).** A concern whose residual shape is richer than the generic\nstance check (e.g.\
-  \ the STRICT security waiver's reason+compensating_control+expiry, or the per-layer\n\
-  `verify.layers` command-XOR-waiver shape) NAMES a kernel-owned validator via its\
-  \ `concern.shape_hook`;\nthe GENERATED sweep dispatches to that validator AFTER\
-  \ the generic stance/XOR check. The hook is the\nnarrow escape hatch for concern-specific\
-  \ deep shape — it does NOT become a second registry: the\n`concern:` block is the\
-  \ SOLE owner of concern↔hook membership, each hook is referenced from **EXACTLY\n\
-  ONE** concern block, and `graph build` WARNs (report-only) on a **missing** (a `shape_hook`\
-  \ named with\nno implemented validator), an **orphan** (an implemented validator\
-  \ no concern references), or a\n**duplicate** hook (constraint 3). **The ORPHAN\
-  \ row is addressed to the repo that can ACT on it\n(answering X-1184).** The validators\
-  \ are kernel-owned code and the concern blocks that name\nthem live in the KERNEL's\
-  \ corpus, so in a CONSUMER build every implemented hook is unreferenced BY\nCONSTRUCTION\
-  \ — a permanent row per hook that nobody there can act on, degrading a surface a\
-  \ scheduled inspection reads as an INPUT. So a\nkernel-owned hook's orphan row is\
-  \ NOT reported in a consumer build; the kernel's own build is\nunchanged, and so\
-  \ is every other WARN family. The exemption is keyed on the HOOK's ownership, never\
-  \ on\nthe build being a consumer: a consumer concern block that DOES name a kernel\
-  \ hook references it (so it\nwas never an orphan) and still earns its missing /\
-  \ duplicate verdict — a genuine consumer-owned orphan\nis still reported. A concern\
+  \ check). **Born block shape — a cue and a pointer.** A `born` block keeps its\n\
+  section's declaration lines, its commented example keys, ownership chains and rule\
+  \ citations. Its\nprose is a short cue of one to three comment lines at the head\
+  \ of the section plus one line naming\nthe command that prints its own governing\
+  \ spec, and beside a key only what a person filling that key\nin needs at the file\
+  \ — a safety cue, an intake question, a worked example. The rule text stays in\n\
+  that spec, the cue-and-pointer shape SPEC-0127 gives the seed docs, so the template\
+  \ stays inside the\none-read ceiling (SPEC-0120). **Retired\nhand-maintained lists\
+  \ (CHARTER §P1 F3 — the removal this rule buys):** `_OPS_CARRIER_SECTIONS`, the\n\
+  `_BORN_OPS_YAML` per-section literals (retired — the file-level PREAMBLE stays a\
+  \ render-time\ntemplate constant, NOT a per-SECTION literal), and — the precise\
+  \ scope — the **GENERIC per-section STANCE/XOR\nbranch ladder** in `_sweep_ops_carrier`\
+  \ (`bin/lib/init.py`): the repeated hand-written\ndeclared-or-waived / declaration-XOR-waiver\
+  \ dispatch that the registry's `declare_key` + `waiver_policy`\nnow generate. **NOT\
+  \ retired — EXPLICITLY PERMITTED (constraint 2 / audit finding 2): small kernel-owned\n\
+  deep-shape VALIDATORS (\"shape hooks\").** A concern whose residual shape is richer\
+  \ than the generic\nstance check (e.g. the STRICT security waiver's reason+compensating_control+expiry,\
+  \ or the per-layer\n`verify.layers` command-XOR-waiver shape) NAMES a kernel-owned\
+  \ validator via its `concern.shape_hook`;\nthe GENERATED sweep dispatches to that\
+  \ validator AFTER the generic stance/XOR check. The hook is the\nnarrow escape hatch\
+  \ for concern-specific deep shape — it does NOT become a second registry: the\n\
+  `concern:` block is the SOLE owner of concern↔hook membership, each hook is referenced\
+  \ from **EXACTLY\nONE** concern block, and `graph build` WARNs (report-only) on\
+  \ a **missing** (a `shape_hook` named with\nno implemented validator), an **orphan**\
+  \ (an implemented validator no concern references), or a\n**duplicate** hook (constraint\
+  \ 3). **The ORPHAN row is addressed to the repo that can ACT on it\n(answering X-1184).**\
+  \ The validators are kernel-owned code and the concern blocks that name\nthem live\
+  \ in the KERNEL's corpus, so in a CONSUMER build every implemented hook is unreferenced\
+  \ BY\nCONSTRUCTION — a permanent row per hook that nobody there can act on, degrading\
+  \ a surface a scheduled inspection reads as an INPUT. So a\nkernel-owned hook's\
+  \ orphan row is NOT reported in a consumer build; the kernel's own build is\nunchanged,\
+  \ and so is every other WARN family. The exemption is keyed on the HOOK's ownership,\
+  \ never on\nthe build being a consumer: a consumer concern block that DOES name\
+  \ a kernel hook references it (so it\nwas never an orphan) and still earns its missing\
+  \ / duplicate verdict — a genuine consumer-owned orphan\nis still reported. A concern\
   \ present in the registry but absent from a generated\nsurface — or the reverse\
   \ — is likewise a build-time inconsistency (report-only WARN), not an invisible\n\
   drift.\n**Per-concern `version` (the SPEC-0143 propagation extension):** each derived\

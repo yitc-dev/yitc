@@ -264,7 +264,7 @@ BORN_OPS_TERMINATOR = "# ── END born-ops template (generated completeness se
 # below (the concern-registry.json precedent — _load_concern_registry). The 3 slice-1 sections are still
 # born DECLARE-OR-WAIVE (a fresh consumer has no deploy yet — rule 3/6, fail-closed); the `verify:` section
 # (rule 16, X-0140) is still the per-layer LAND-VERIFY carrier + legacy-yitc-verify migration (T-9719). The
-# BORN_WAIVER_MARKER / _BORN_VERIFY_SECTION_NO_LAYERS_REASON / _BORN_DEPLOY_WAIVER_NO_COMMAND_REASON anchors
+# BORN_WAIVER_MARKER / _BORN_VERIFY_INTEGRITY_LAYER / _BORN_DEPLOY_WAIVER_NO_COMMAND_REASON anchors
 # below are pinned (a coherence test) to still appear in the GENERATED template.
 # ── Derived-artifact read resilience (T-10569) ─────────────────────────────────────────────────────
 # The GENERATED graph/ artifacts this module reads (concern-registry.json, born-ops.yaml) are COMMITTED
@@ -356,6 +356,235 @@ def _read_derived_artifact(path, *, is_complete):
 # the project (the refused-init-writes-nothing contract). Filled only by the preflight, cleared by the host
 # when the verb returns; empty = every read/check below runs as before.
 _PREFLIGHTED: dict = {}
+
+# T-14192 — the WORK BATCH of an init on a consumer that can already land. Filled by the host
+# (`run_in_work_batch`) for the one inner run it makes inside the batch worktree, cleared when it
+# returns: `root` the worktree, `main` the main checkout the project IS, `branch` the batch branch;
+# `preview` marks the route's own `--dry-run` pass. Empty = no batch; non-empty = the route is off.
+_BATCH: dict = {}
+# T-14192 — what the last `--dry-run` found, keyed by the checkout it ran in: `commit` (a real run
+# would commit: `on_main and material_delivery`) and `diverged` (a real run would refuse a deleting
+# refresh and exit 1). Read by `run_in_work_batch` after its preview.
+_DRY_VERDICT: dict = {}
+#: T-14192 — the slug head of the work batch init writes its additions in.
+INIT_BATCH_SLUG_HEAD = "init-"
+
+
+def _commit_branch(repo_root) -> str:
+    """T-14192 — the branch init's commit seam may commit on in `repo_root`: the batch branch inside
+    the batch worktree, `main` everywhere else."""
+    return _BATCH["branch"] if _BATCH.get("root") == str(repo_root) else "main"
+
+
+def _project_root(repo_root):
+    """T-14192 — the project's own checkout for `repo_root`: the main checkout when `repo_root` is the
+    batch worktree, else `repo_root` itself. Every path init BAKES or matches in a scaffold (`-C
+    <project>`), names the project by, or reads machine-local, never-committed state (`.yitc/`) from
+    is this one; files are read and written in `repo_root`."""
+    from pathlib import Path
+    return Path(_BATCH["main"]) if _BATCH.get("root") == str(repo_root) else repo_root
+
+
+def head_declares_verify(repo_root, _run_git_cap) -> bool:
+    """T-14192: True iff the yitc-ops.yaml COMMITTED at HEAD declares a non-empty `verify:` section —
+    the consumer can land, so init writes what it adds in a work batch, never on `main`. Read off
+    HEAD, never the working tree. An absent or unparseable carrier reads False (the bootstrap path)."""
+    res = _run_git_cap(["cat-file", "-p", f"HEAD:{CONSUMER_OPS_CONTRACT}"], repo_root)
+    if res.returncode != 0:
+        return False
+    from lib import state  # CHARTER §P5 one parser library (T-9740)
+    try:
+        ops = state.load_str(res.stdout or "")
+    except Exception:  # noqa: BLE001 — unparseable: not a declaration
+        return False
+    return isinstance(ops, dict) and isinstance(ops.get("verify"), dict) and bool(ops["verify"])
+
+
+def init_batch_slug(engine_root, _run_git_cap) -> str:
+    """T-14192 — the batch slug: `init-` + the engine release label, kebab-cased. One per release, so
+    a re-run before the batch lands finds the same batch instead of opening a second one."""
+    import re
+    label = re.sub(r"[^a-z0-9]+", "-", _init_release_label(engine_root, _run_git_cap).lower()).strip("-")
+    return INIT_BATCH_SLUG_HEAD + (label or "unknown")
+
+
+#: T-14192 — the bare-init flags whose modes return before the commit seam (their own scoped commit).
+_PURE_MODE_FLAGS = ("rehome_contract_comments", "adopt_concern", "declare_theme", "backfill_mandatory",
+                    "adopt_extension")
+
+
+def work_batch_route(args, REPO_ROOT, ENGINE_ROOT, _run_git_cap) -> bool:
+    """T-14192 — does this init write what it adds in a work batch? Yes for a bare init (or its
+    `--dry-run` preview) on the MAIN checkout of a consumer, checked out on `main`, whose committed
+    yitc-ops.yaml declares verify:. A fresh consumer (no such carrier at HEAD) keeps the one-time
+    bootstrap commit."""
+    if any(getattr(args, f, None) for f in _PURE_MODE_FLAGS):
+        return False
+    return not _BATCH and routes_to_batch(REPO_ROOT, ENGINE_ROOT, _run_git_cap)
+
+
+def routes_to_batch(REPO_ROOT, ENGINE_ROOT, _run_git_cap) -> bool:
+    """T-14192 — the checkout half of `work_batch_route`, also read by the `--dry-run` preview: the
+    MAIN checkout of a consumer, on `main`, whose committed yitc-ops.yaml declares verify:."""
+    if str(REPO_ROOT) == str(ENGINE_ROOT) or _is_linked_worktree(REPO_ROOT):
+        return False
+    cur = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT)
+    if cur.returncode != 0 or cur.stdout.strip() != "main":
+        return False
+    return head_declares_verify(REPO_ROOT, _run_git_cap)
+
+
+def _batch_lock(lock_path):
+    """T-14192 — take the batch's init lock without waiting: the open file holding it, or None when
+    another process holds it or it cannot be taken. Released when the file is closed."""
+    import fcntl
+    if lock_path is None:
+        return None
+    try:
+        fh = open(lock_path, "a")
+    except OSError:
+        return None
+    try:
+        fcntl.flock(fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        return None
+    return fh
+
+
+def _no_write_tail(main_root, args, *, diverged, engine_cli, _append_event) -> None:
+    """T-14192 — the end of an init that found nothing to add on a consumer that can land: what a
+    writing run does OUTSIDE the repository after its commit seam, with the same outcome — the host
+    registry registration (SPEC-0086 rule 6e), the load settings the person said yes to (T-13831),
+    and the terminal verdict (T-10886: exit 1 for a refused deleting refresh or a failed write).
+    Nothing in the repository is written; the journal row a setting write appends is D-0049's."""
+    import sys
+    registry_failed = False if diverged else _register_in_host_registry(main_root)
+    _ls_failure = None
+    if getattr(args, "apply_load_settings", False) and not (diverged or registry_failed):
+        _ls_rec, _ls_already = _load_recommendation()
+        if _ls_rec is not None and not _ls_already:
+            _ls_applied, _ls_failure = _apply_load_recommendation(_ls_rec, _append_event)
+            block = _render_load_recommendation(_ls_rec, _ls_already, engine_cli, asked=True,
+                                                applied=_ls_applied, failure=_ls_failure)
+            if block:
+                print(block)
+    if diverged or registry_failed or _ls_failure:
+        sys.exit(1)
+
+
+def run_in_work_batch(args, *, REPO_ROOT, ENGINE_ROOT, run_here, rebind, open_worktree,
+                      worktree_path_for_branch, _run_git_cap, cli_form, engine_cli,
+                      _append_event) -> None:
+    """T-14192 — init on a consumer that can land: write what it adds INSIDE a `work/<slug>` worktree,
+    commit it there, name the land step; the main checkout is never written by init.
+
+    1. This release's batch already open → init continues there (an interrupted run's writes are
+       healed where they were made). Otherwise a `--dry-run` of the same run on the main checkout
+       (writes nothing) says whether there is anything to add. Nothing → that preview is the report
+       and nothing else runs: no writing pass on main, no worktree.
+    2. Otherwise open the batch worktree through the worktree verb's own body (`open_worktree`);
+       under the batch's init lock, rebind to it and run init's real body there: its commit seam
+       commits on the batch branch (`_commit_branch`), its journal rows go to the batch's journal,
+       and every string it bakes names the project's main checkout (`_project_root`).
+    3. Nothing committed → the batch is named and left as it is; init never removes anything."""
+    import argparse
+    import contextlib
+    import io
+    import sys
+    from pathlib import Path
+    main_root = Path(REPO_ROOT)
+    slug = init_batch_slug(ENGINE_ROOT, _run_git_cap)
+    branch = f"work/{slug}"
+    path = worktree_path_for_branch(branch)        # this release's batch, when it is already open
+    opened = path is None
+    if getattr(args, "dry_run", False):
+        # the preview of what the real run does: inside the open batch when there is one, else on
+        # main, where the plan names the batch it would open (`would_batch`). Writes nothing either way.
+        if opened:
+            _BATCH.update({"preview": str(main_root)})     # the route is off for the inner run
+            try:
+                return run_here(args)
+            finally:
+                _BATCH.clear()
+        rebind(Path(path))
+        _BATCH.update({"root": str(path), "main": str(main_root), "branch": branch})
+        try:
+            return run_here(args)
+        finally:
+            _BATCH.clear()
+            rebind(main_root)
+    if opened:
+        preview = argparse.Namespace(**{**vars(args), "dry_run": True})
+        _DRY_VERDICT.clear()
+        _BATCH.update({"preview": str(main_root)})         # the route is off for the inner run
+        _out, _err = io.StringIO(), io.StringIO()
+        try:
+            with contextlib.redirect_stdout(_out), contextlib.redirect_stderr(_err):
+                run_here(preview)
+        except BaseException:
+            # a preview that refuses is the real run's refusal too: show it, never swallow it
+            sys.stdout.write(_out.getvalue())
+            sys.stderr.write(_err.getvalue())
+            raise
+        finally:
+            _BATCH.clear()
+        _verdict = _DRY_VERDICT.get(str(main_root)) or {}
+        if not _verdict.get("commit"):
+            # Nothing to add: no writing run follows — the preview, which computed exactly what one
+            # would do, is the report. The main checkout is not written and no worktree is opened;
+            # what a writing run does outside the repository still happens (`_no_write_tail`).
+            sys.stdout.write(_out.getvalue())
+            sys.stderr.write(_err.getvalue())
+            print(f"consumer init ({main_root.name}): already initialized — no-op (nothing to add, so no "
+                  f"work batch was opened and nothing was written; T-14192)")
+            _no_write_tail(main_root, args, diverged=_verdict.get("diverged"), engine_cli=engine_cli,
+                           _append_event=_append_event)
+            return None
+        open_worktree(argparse.Namespace(work=slug, task=None, spike=False))
+        path = worktree_path_for_branch(branch)
+        if path is None:
+            print(f"consumer init ({main_root.name}): the work batch {branch} could not be opened — "
+                  f"nothing was written; re-run init once `worktree new --work {slug}` succeeds",
+                  file=sys.stderr)
+            sys.exit(1)
+    path = Path(path)
+    # One init at a time in a batch: a second one (it may reach a live batch without the worktree
+    # verb's lock) refuses before it writes anything. The lock lives in the batch's own git dir.
+    _lock_dir = _run_git_cap(["rev-parse", "--absolute-git-dir"], path).stdout.strip()
+    _lock = _batch_lock(Path(_lock_dir) / "yitc-init.lock" if _lock_dir else None)
+    if _lock is None:
+        print(f"consumer init ({main_root.name}): another init is running in the work batch {branch} "
+              f"(or its lock could not be taken) — nothing was written; re-run when it is done",
+              file=sys.stderr)
+        sys.exit(1)
+    rebind(path)
+    _BATCH.update({"root": str(path), "main": str(main_root), "branch": branch})
+    try:
+        out = run_here(args)
+    finally:
+        _BATCH.clear()
+        rebind(main_root)
+        _lock.close()
+    ahead = _run_git_cap(["rev-list", "--count", f"main..{branch}"], main_root)
+    if ahead.returncode == 0 and ahead.stdout.strip() == "0":
+        # Nothing committed (the main checkout changed under the preview, or the run stopped short).
+        # The batch is left as it is — never removed here — and named.
+        print(f"consumer init ({main_root.name}): nothing committed in the work batch {branch} at {path}; "
+              f"it stays open — re-run init to continue there, or remove it with `{cli_form} worktree "
+              f"park --work {slug}` when it holds nothing of yours")
+        return out
+    _bin = sorted(x for x in _run_git_cap(["diff", "--name-only", f"main...{branch}"], main_root)
+                  .stdout.split() if x.startswith("bin/"))
+    print(f"consumer init ({main_root.name}): wrote what it adds in the work batch {branch} at {path} "
+          f"and committed it there — NOT on `main` (this consumer's yitc-ops.yaml declares verify:, so it "
+          f"reaches main through land's verify, T-14192). Land it: `{cli_form} land --branch {branch}`")
+    if _bin:
+        # land's work-batch gate reads bin/** as product source and admits it only with a card or an
+        # emergency marker (T-11227) — said here, not discovered at the land.
+        print(f"  the batch carries {', '.join(_bin)} under bin/, which `land` admits in a work batch "
+              f"only with a card or an emergency marker (T-11227)", file=sys.stderr)
+    return out
 
 
 def _born_ops_template() -> str:
@@ -612,7 +841,7 @@ def refuse_engine_self_target(REPO_ROOT, ENGINE_ROOT) -> None:
     """T-13650 — init REFUSES the engine's own checkout, by identity, before its first write.
 
     `init` births or updates a CONSUMER's scaffolds and ops contract. The engine's root
-    `yitc-ops.yaml` is its own verify-policy declaration and nothing else (SPEC-0186 rule 6); the
+    `yitc-ops.yaml` is its own declaration, whose sections SPEC-0186 rule 6 names; the
     update path would pull the born consumer sections into it. Every init mode writes consumer
     content, so this stands above all of them — the dry run included, which reports what a real run
     would do."""
@@ -622,8 +851,8 @@ def refuse_engine_self_target(REPO_ROOT, ENGINE_ROOT) -> None:
             f"init: REFUSED — the target {REPO_ROOT} is the engine's own checkout (the same "
             f"repository as the running engine at {ENGINE_ROOT}); nothing was written.\n"
             "  init delivers a CONSUMER project's scaffolds and ops contract. The engine is not a "
-            "consumer of its own ops contract: its root yitc-ops.yaml is the engine's verify-policy "
-            "declaration and nothing else (SPEC-0186 rule 6), so init neither creates nor extends it.\n"
+            "consumer of its own ops contract: its root yitc-ops.yaml is the engine's own declaration "
+            "(SPEC-0186 rule 6 names its sections), so init neither creates nor extends it.\n"
             "  To initialise a project, name it as the target: `bin/yitc-v2 -C <project-path> init` "
             f"(this engine's CLI is {Path(ENGINE_ROOT) / 'bin' / 'yitc-v2'}).")
 
@@ -887,7 +1116,8 @@ def _pre_deploy_entry_errors(label: str, i: int, c: dict, ops: dict) -> list:
     `deploy`, so only where `deploy.command` is declared) — a class gating no deploy would let lands
     skip units no deploy ever runs; no `globs:` (the units are named by the ONE adapter inventory,
     SPEC-1035 rule 3); an OPTIONAL `layers:` naming declared verify layers; an OPTIONAL `stand:` — a
-    declared `production: false` target, or `{none: <reason>}` (rule 6). PURE."""
+    declared `production: false` target, or `{none: <reason>}` (rule 6). T-14211 (SPEC-1051 rule 1): an
+    OPTIONAL `units:` (`_pre_deploy_units_errors`) and an OPTIONAL `never_move:` glob list. PURE."""
     at = f"{label}.classes[{i}]"
     errs: list = []
     if "globs" in c:
@@ -950,6 +1180,40 @@ def _pre_deploy_entry_errors(label: str, i: int, c: dict, ops: dict) -> list:
         errs.append(f"{at}.reuse_run: must be exactly `{{reason: <why>}}` with a non-empty reason — the "
                     "project's record of why one passed run may stand for a second gated target "
                     "(SPEC-1042 rule 3).")
+    if "units" in c:
+        errs.extend(_pre_deploy_units_errors(c.get("units"), f"{at}.units"))
+    if "never_move" in c:
+        errs.extend(_glob_list_errors(c.get("never_move"), f"{at}.never_move",
+                                      "the test files the list verb never lists (SPEC-1051 rule 1)",
+                                      rule="SPEC-1051 rule 1"))
+    return errs
+
+
+def _pre_deploy_units_errors(units, where: str) -> list:
+    """T-14211 (SPEC-1051 rule 1) — the shape of a class entry's `units:`: a list (an empty one is the
+    one-time opt-in into the listed order) of distinct repo-relative test FILE paths in canonical form
+    (as git names them: no surrounding space, no `./`, `//` or trailing `/`, no backslash) — not
+    absolute, no `..`, no glob character (a unit is a file, never a pattern). Canonical form is what
+    makes «listed twice» and «in two classes» decidable by string. PURE."""
+    import posixpath
+    if not isinstance(units, list):
+        return [f"{where}: not a list — the class's listed units are a list of test file paths, `[]` "
+                "before the list verb writes any (SPEC-1051 rule 1)."]
+    errs, seen = [], set()
+    for j, u in enumerate(units):
+        f = u.strip() if isinstance(u, str) else ""
+        if not f:
+            errs.append(f"{where}[{j}]: not a non-empty string (SPEC-1051 rule 1)")
+        elif f.startswith("/") or f == ".." or f.startswith("../") or "/../" in f or f.endswith("/.."):
+            errs.append(f"{where}[{j}]: {f!r} is not a repo-relative path (SPEC-1051 rule 1)")
+        elif u != f or posixpath.normpath(f) != f or "\\" in f:
+            errs.append(f"{where}[{j}]: {u!r} is not written in canonical form — write "
+                        f"{posixpath.normpath(f)!r}, as git names the file (SPEC-1051 rule 1)")
+        elif any(ch in f for ch in "*?["):
+            errs.append(f"{where}[{j}]: {f!r} is a pattern — a unit is one test file (SPEC-1051 rule 1)")
+        elif f in seen:
+            errs.append(f"{where}[{j}]: {f!r} is listed twice (SPEC-1051 rule 1)")
+        seen.add(f)
     return errs
 
 
@@ -962,8 +1226,8 @@ def _pre_deploy_reuse_run_ok(value) -> bool:
 
 def pre_deploy_declaration_errors(ops, label: str = "tests") -> list:
     """T-14114 (SPEC-1042 rule 1) — every contract-read error of the `moment: pre-deploy` entries of
-    the carrier `ops`: each entry's own checks, and a layer named whole by two such classes (a unit
-    names at most one pre-deploy class). [] when there is none or all are well-formed — the land,
+    the carrier `ops`: each entry's own checks, and a layer named whole by two such classes or a file
+    listed in the `units:` of two (T-14211 — a unit names at most one pre-deploy class). [] when there is none or all are well-formed — the land,
     Stage-6, deploy and close seams apply a declaration only then. `_hook_tests` reports the same
     list. PURE."""
     ops = ops if isinstance(ops, dict) else {}
@@ -971,6 +1235,7 @@ def pre_deploy_declaration_errors(ops, label: str = "tests") -> list:
     classes = sec.get("classes")
     errs: list = []
     owner: dict = {}
+    listed: dict = {}
     for i, c in enumerate(classes if isinstance(classes, list) else ()):
         if not (isinstance(c, dict) and str(c.get("moment") or "").strip() == _PRE_DEPLOY_MOMENT):
             continue
@@ -982,7 +1247,70 @@ def pre_deploy_declaration_errors(ops, label: str = "tests") -> list:
                                 f"{label}.classes[{owner[ly.strip()]}] — a layer's units name at most one "
                                 "pre-deploy class (SPEC-1042 rule 1).")
                 owner.setdefault(ly.strip(), i)
+        for u in c.get("units") if isinstance(c.get("units"), list) else ():
+            if isinstance(u, str) and u.strip():
+                if u.strip() in listed and listed[u.strip()] != i:
+                    errs.append(f"{label}.classes[{i}].units: {u.strip()!r} is already listed by "
+                                f"{label}.classes[{listed[u.strip()]}] — a unit names at most one "
+                                "pre-deploy class (SPEC-1051 rule 1).")
+                listed.setdefault(u.strip(), i)
     return errs
+
+
+def engine_declaration_errors(ops) -> list:
+    """T-14210 (SPEC-0186 rule 6, SPEC-1031 rule 4) — THE ENGINE-DECLARATION ADMISSION: every way the
+    engine's own `yitc-ops.yaml` (parsed to `ops`) carries something rule 6 does not admit. [] when
+    admitted. The engine may carry `verify_policy`, `admission:`, `deploy:` (final publication only),
+    `thresholds:` and a `verify:` holding the admission queue's three keys plus ONE layer (its whole
+    suite), and `tests.classes` holding its pre-deploy class — judged by `pre_deploy_declaration_errors`,
+    the one class validator. The VALUES are their own readers' (verify_policy's hook, rule 5's
+    `thresholds:` reader); this judges which keys the engine's file may hold. Every message starts with
+    the section it is about. PURE."""
+    if not isinstance(ops, dict):
+        return []
+    errs = [f"{k}: not a section the engine's file may carry — it carries "
+            f"{', '.join(ENGINE_DECLARATION_SECTIONS)} only (SPEC-0186 rule 6)"
+            for k in sorted(str(k) for k in ops if k not in ENGINE_DECLARATION_SECTIONS)]
+    for sec in ("admission", "deploy", "thresholds", "tests", "verify"):
+        if sec in ops and not isinstance(ops[sec], dict):
+            errs.append(f"{sec}: {ops[sec]!r} is not a mapping (SPEC-0186 rule 6)")
+    dep = ops.get("deploy")
+    if isinstance(dep, dict) and not (isinstance(dep.get("command"), str) and dep["command"].strip()):
+        errs.append("deploy: the engine's deploy declares a non-empty `command:` — its final "
+                    "publication (SPEC-0186 rule 6)")
+    ver = ops.get("verify") if isinstance(ops.get("verify"), dict) else {}
+    errs += [f"verify: `verify.{k}` — the engine's verify section carries {', '.join(ENGINE_VERIFY_KEYS)} "
+             "only (SPEC-0186 rule 6)" for k in sorted(str(k) for k in ver if k not in ENGINE_VERIFY_KEYS)]
+    pss = ver.get("post_sync_set")
+    if "post_sync_set" in ver and not (isinstance(pss, list) and pss and all(
+            isinstance(f, str) and f.startswith("tests/") and f.endswith(".py") for f in pss)):
+        errs.append(f"verify: `verify.post_sync_set` is {pss!r} — the engine's form is a non-empty list "
+                    "of tests/*.py files (SPEC-1045)")
+    for k in ("sync_at_stage6_admission", "post_sync_set_first"):
+        if k in ver and not isinstance(ver[k], bool):
+            errs.append(f"verify: `verify.{k}` is {ver[k]!r}, not true or false (SPEC-1045)")
+    if "layers" in ver:
+        lys = ver["layers"]
+        if not (isinstance(lys, list) and len(lys) == 1 and isinstance(lys[0], dict)
+                and all(isinstance(lys[0].get(k), str) and lys[0][k].strip() for k in ("layer", "command"))):
+            errs.append("verify: `verify.layers` — the engine declares exactly ONE layer, its whole suite, "
+                        "with a non-empty `layer:` and `command:` (SPEC-0186 rule 6)")
+    tests = ops.get("tests") if isinstance(ops.get("tests"), dict) else {}
+    errs += [f"tests: `tests.{k}` — the engine's tests section carries `classes` only (SPEC-0186 rule 6)"
+             for k in sorted(str(k) for k in tests if k != "classes")]
+    classes = tests.get("classes")
+    if "classes" in tests and not (isinstance(classes, list) and len(classes) == 1 and isinstance(classes[0], dict)
+                                   and str(classes[0].get("moment") or "").strip() == _PRE_DEPLOY_MOMENT):
+        errs.append(f"tests: `tests.classes` — the engine declares exactly ONE class, `moment: "
+                    f"{_PRE_DEPLOY_MOMENT}` (SPEC-0186 rule 6)")
+    errs += [f"tests: {e}" for e in pre_deploy_declaration_errors(ops)]
+    return errs
+
+
+#: SPEC-0186 rule 6 — the top-level sections the ENGINE's own `yitc-ops.yaml` may carry.
+ENGINE_DECLARATION_SECTIONS = ("verify_policy", "admission", "verify", "deploy", "tests", "thresholds")
+#: SPEC-0186 rule 6 — the engine's `verify:` keys: the admission queue's three, and `layers` (ONE layer).
+ENGINE_VERIFY_KEYS = ("post_sync_set", "sync_at_stage6_admission", "post_sync_set_first", "layers")
 
 
 def _hook_tests(label: str, sec: dict, ops: dict) -> list:
@@ -1234,7 +1562,33 @@ def _independent_layers_shape_errors(label: str, raw, layers, key: str = "indepe
     return errs
 
 
-def _layer_worker_shares_shape_errors(label: str, raw, layers) -> list:
+def _post_sync_files_shape_errors(label: str, raw) -> list:
+    """T-14197 (SPEC-0152 rule 16 §post_sync_set) — the shape of `verify.post_sync_set:` in a project
+    that declares no `verify.layers`: a list of distinct repo-relative `test_*.py` paths, the files the
+    engine's own runner runs. Shape only; whether each file exists is the proof's own refusal."""
+    from pathlib import PurePosixPath as Path
+    key = "post_sync_set"
+    if not isinstance(raw, list):
+        return [f"{label}.{key}: present but not a list of test file paths (rule 16 — shape, not value)"]
+    errs: list = []
+    seen: set = set()
+    for j, name in enumerate(raw):
+        if not (isinstance(name, str) and name.strip()):
+            errs.append(f"{label}.{key}[{j}]: not a non-empty test file path string (rule 16 — shape, not value)")
+            continue
+        rel = Path(name.strip())
+        if rel.is_absolute() or ".." in rel.parts or not rel.name.startswith("test_") or rel.suffix != ".py":
+            errs.append(f"{label}.{key}[{j}]: {name!r} is not a repo-relative `test_*.py` path — with no "
+                        "`layers` declared the set names test files the engine's runner runs (rule 16)")
+            continue
+        if str(rel) in seen:
+            errs.append(f"{label}.{key}[{j}]: duplicate test file {name!r} (rule 16)")
+            continue
+        seen.add(str(rel))
+    return errs
+
+
+def _layer_worker_shares_shape_errors(label: str, raw, layers, key: str = "layer_worker_shares") -> list:
     """T-12585 (SPEC-0152 rule 16 §layer_worker_shares): the shape of a PRESENT
     `verify.layer_worker_shares:` — a MAPPING from a declared `layers[].layer` name to that layer's
     FRACTION of the land's worker allotment. Returns the violations (`[]` = well-formed).
@@ -1257,24 +1611,27 @@ def _layer_worker_shares_shape_errors(label: str, raw, layers) -> list:
     The accepted set is EXACTLY the land-time reader's (`_declared_layer_worker_shares`,
     bin/lib/worktree.py) — the land reader must never be LOOSER than this declare-time check, or a
     carrier `init` rejects would still run at land. A key matching no declared layer is a BROKEN
-    declaration (the `independent_layers` / `health.layers` stance), never a silent no-op."""
+    declaration (the `independent_layers` / `health.layers` stance), never a silent no-op.
+
+    `key` names the table checked (T-14190): `pre_deploy_layer_worker_shares` — the table a pre-deploy
+    run applies in place of this one — takes exactly this check, so the two never diverge."""
     if not isinstance(raw, dict):
-        return [f"{label}.layer_worker_shares: present but not a mapping of layer name -> fraction "
+        return [f"{label}.{key}: present but not a mapping of layer name -> fraction "
                 "(rule 16 — shape, not value)"]
     errs: list = []
     declared = {str(ly.get("layer")).strip() for ly in (layers if isinstance(layers, list) else [])
                 if isinstance(ly, dict) and isinstance(ly.get("layer"), str) and ly.get("layer").strip()}
     for name, share in raw.items():
         if not (isinstance(name, str) and name.strip()):
-            errs.append(f"{label}.layer_worker_shares: key {name!r} is not a non-empty layer name string "
+            errs.append(f"{label}.{key}: key {name!r} is not a non-empty layer name string "
                         "(rule 16 — shape, not value)")
             continue
-        key = name.strip()
-        if key not in declared:
-            errs.append(f"{label}.layer_worker_shares[{key!r}]: matches no declared `layers[].layer` — it "
+        lname = name.strip()
+        if lname not in declared:
+            errs.append(f"{label}.{key}[{lname!r}]: matches no declared `layers[].layer` — it "
                         "SPLITS the declared layer universe, never names a layer of its own (rule 16)")
         if not _is_worker_share(share):
-            errs.append(f"{label}.layer_worker_shares[{key!r}]: {share!r} is not a FRACTION of the land's "
+            errs.append(f"{label}.{key}[{lname!r}]: {share!r} is not a FRACTION of the land's "
                         "worker allotment — declare a number in (0, 1], never a core count (rule 16 — "
                         "shape, not value)")
     return errs
@@ -1298,9 +1655,15 @@ def _hook_verify(label: str, sec: dict, ops: dict) -> list:
         errs.extend(_independent_layers_shape_errors(label, sec.get("independent_layers"), layers))
     if "layer_worker_shares" in sec:
         errs.extend(_layer_worker_shares_shape_errors(label, sec.get("layer_worker_shares"), layers))
+    if "pre_deploy_layer_worker_shares" in sec:     # T-14190 — the pre-deploy run's table, the same shape
+        errs.extend(_layer_worker_shares_shape_errors(label, sec.get("pre_deploy_layer_worker_shares"), layers,
+                                                      key="pre_deploy_layer_worker_shares"))
     if "post_sync_set" in sec:              # T-14060 — the post-sync proof's quick set, same shape
-        errs.extend(_independent_layers_shape_errors(label, sec.get("post_sync_set"), layers,
-                                                     key="post_sync_set"))
+        if isinstance(layers, list) and len(layers) > 0:
+            errs.extend(_independent_layers_shape_errors(label, sec.get("post_sync_set"), layers,
+                                                         key="post_sync_set"))
+        else:                               # T-14197 — no layer declared: the non-layer form
+            errs.extend(_post_sync_files_shape_errors(label, sec.get("post_sync_set")))
     if isinstance(layers, list) and len(layers) > 0:
         for i, ly in enumerate(layers):
             if not isinstance(ly, dict):
@@ -2405,6 +2768,10 @@ def _render_pending_scaffold_refresh(pending: list, cli_form: str, *, kinds=None
             # T-13801: staleness was NOT checked — say so; the owner of the file fixes its mode.
             lines.append(f"  ↻ {rel}: {kind} — this user cannot read it, so its staleness was not checked; "
                          f"its owner can make it group-readable (`chmod g+r {rel}`)")
+        elif kind == "UNPARSEABLE":
+            # T-14289: a provider config that is not a JSON object is never rewritten — say what to add.
+            lines.append(f"  ↻ {rel}: {ADAPTER_REWRITE_CAUSES['auto-memory-off-unparseable']} — "
+                         f"`--refresh-scaffolds` leaves it as it is")
         elif kind == "BEHIND":
             lines.append(f"  ↻ {rel}: BEHIND the kernel scaffold (an older kernel release) — pending refresh")
         elif kind == "UNDETERMINED":
@@ -2475,6 +2842,11 @@ def scaffold_staleness(REPO_ROOT, ENGINE_ROOT, templates) -> "tuple[list, dict]"
             kinds["CLAUDE.md"] = "BEHIND"
     except (OSError, UnicodeDecodeError):
         pass
+    # T-14289 (SPEC-1055): a committed provider config without the memory switch is offered the same way.
+    _memory_off = _provider_memory_off_delivery(REPO_ROOT, False)[0]
+    if _memory_off in ("pending", "unparseable"):
+        pending.append(PROVIDER_SETTINGS_REL)
+        kinds[PROVIDER_SETTINGS_REL] = "UNPARSEABLE" if _memory_off == "unparseable" else "BEHIND"
     return pending, kinds
 
 
@@ -3271,7 +3643,7 @@ def _section_values_are_wholly_kernel_rendered(carrier_path, val, repo_root) -> 
     leaf = born.get(carrier_path.split(".")[-1]) if isinstance(born, dict) else None
     if not (isinstance(leaf, dict) and leaf) or set(leaf) != set(val):
         return False
-    cli = r"\S+/bin/yitc-v2 -C " + re.escape(str(repo_root))
+    cli = r"\S+/bin/yitc-v2 -C " + re.escape(str(_project_root(repo_root)))
     for key, born_val in leaf.items():
         declared = val.get(key)
         if not (isinstance(born_val, str) and "__YITC_CLI__" in born_val
@@ -4100,6 +4472,30 @@ def _consumer_carrier_skew(ops: dict) -> list:
     return labels
 
 
+#: T-14193 — the SPEC-1045 admission section (the literal is machine_settings.ADMISSION_SECTION; init.py
+#: back-imports nothing by design, the BORN_OPS_TERMINATOR shape).
+_ADMISSION_SECTION = "admission"
+
+
+def _admission_reseed_fragment(fragment: str):
+    """SPEC-1045 rule 3 (T-14193): the born `admission:` section as a RE-SEED delivers it into an
+    EXISTING carrier — `mode: off`, never the born `engine`: an engine upgrade never switches an
+    existing project on, the project switches itself. A fresh birth takes the born template whole
+    (`mode: engine`). The result is PROVED by parsing it: its `admission.mode` must read off (YAML
+    reads an unquoted `off` as false); a born text this rewrite cannot prove off returns None and the
+    section is not delivered — fail-closed toward off."""
+    import re
+    from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader
+    text = re.sub(r"(?m)^(\s+mode:[ \t]*)engine[ \t]*$", r"\1off", fragment)
+    try:
+        parsed = state.load_ops_str(text)
+    except Exception:                                # noqa: BLE001 — unprovable: not delivered
+        return None
+    section = parsed.get(_ADMISSION_SECTION) if isinstance(parsed, dict) else None
+    mode = section.get("mode") if isinstance(section, dict) else None
+    return text if mode in (False, "off") else None
+
+
 def _update_ops_carrier(ops_path, write_text_atomic, cli_form: str = "bin/yitc-v2",
                         disclosed_out: "list | None" = None, *,
                         born_permissive_confirmations: "dict | None" = None,
@@ -4177,6 +4573,10 @@ def _update_ops_carrier(ops_path, write_text_atomic, cli_form: str = "bin/yitc-v
         if name in mandatory:
             continue                                 # slice-1 mandatory — never auto-added (fail-closed if missing)
         if name not in ops:                          # an EXTENSIBLE section the consumer's carrier lacks
+            if name == _ADMISSION_SECTION:           # T-14193 — an existing project is born OFF (SPEC-1045 r3)
+                fragment = _admission_reseed_fragment(fragment)
+                if fragment is None:
+                    continue                         # not provably off: never switch a project on
             appended += fragment
             pulled.append(name)
     if appended:
@@ -4925,8 +5325,16 @@ def _render_born_permissive_sweep(confirmed: dict | None, *, entries: list | Non
     rows = [e for e in born_permissive_concerns(entries) if e["section"].strip() not in confirmed]
     if not rows:
         return ""
+    # T-14282 — the headline names what is withheld in one line, so the person sees it before the list:
+    # a withheld section is ABSENT from the carrier. The `verify` clause is the one consequence the
+    # owner's speed review named (no verify layer at all); it is printed only when `verify` is withheld.
+    withheld = [e["section"].strip() for e in rows]
+    headline = ("WITHHELD — not written to yitc-ops.yaml: " + ", ".join(f"`{s}`" for s in withheld)
+                + ". Each is ABSENT until confirmed, so nothing it declares exists in this project")
+    headline += ("; with `verify` withheld there is NO verify layer." if "verify" in withheld else ".")
     out = [
         "",
+        headline,
         f"born-permissive concerns NOT confirmed ({len(rows)} — SPEC-0189 rule 8; no TTY, so nothing was asked):",
         "  each stays STRICT (fail-closed) until the person confirms it. An AI running init has no TTY:",
         "  relay this block to the person, then re-run init with the flags they agree to.",
@@ -7603,10 +8011,12 @@ def _sweep_extension_catalog_completeness(ops_path, members: list, _append_event
 # The exact reason VALUE the carrier template seeds — kept as a module constant so the swap is a targeted,
 # FAIL-LOUD `.replace()` of a known semantic unit (raises on template drift via the assert in
 # `_ops_carrier_body`), NOT a brittle positional newline-split (audit-pre T-9518 finding 1).
-_BORN_VERIFY_SECTION_NO_LAYERS_REASON = (
-    "Initialized via `bin/yitc-v2 init` — no land-verify layer declared yet; declare a `layers:` list "
-    "(each {layer, command} or per-layer {layer, waiver:{reason}}) as this project's land-verify layers "
-    "settle (SPEC-0152 rule 16).")
+# T-14221 — the born `verify:` section DECLARES the kernel-provided `integrity` layer (the generated
+# template carries exactly these lines; the swaps below edit them FAIL-LOUD, never positionally).
+_BORN_VERIFY_INTEGRITY_LAYER = ('  layers:\n'
+                                '    - layer: integrity\n'
+                                '      command: __YITC_CLI__ -C "$PWD" graph conformance --strict\n')
+_BORN_VERIFY_POST_SYNC_SET = "  post_sync_set: [integrity]\n"
 
 # The exact `deploy:` born-waiver reason VALUE the carrier template seeds (T-9772) — kept as a module
 # constant so the migration-aware swap in `_ops_carrier_body` is a targeted, FAIL-LOUD `.replace()` of a
@@ -7760,11 +8170,146 @@ def _born_verify_layers_seed(repo_root, ops_verify) -> "dict | None":
                 return None
     if not _pytest_importable():
         return None                                   # cannot prove the command runs — seed nothing
-    return {"layers": [{
+    layer = {
         "layer": "tests",
         "command": f"python3 -m pytest {test_dir}/ -q",
         "covers": [f"{test_dir}/**"],
-    }]}
+    }
+    # T-14279: the layer is born adapter-backed when the kernel's pytest sample reads (the copy init
+    # writes is named by `sources:`); the runner config files present ride `sources:` beside it.
+    if _born_adapter_sample("pytest") is not None:
+        layer["adapter"] = _born_adapter_block("pytest", [
+            c for c in _PYTEST_CONFIG_FILES if (Path(repo_root) / c).is_file()])
+    return {"layers": [layer]}
+
+
+# ── T-14279 — born adapter-backed layers with deciding selection and credit ─────────────────────────
+# Owner directive (kernel journal events.jsonl#ts=2026-10-27T14:24:50Z, kernel speed review item 5):
+# a project is born with what saves land/test time, test selection in the WORKING deciding mode, the
+# owner accepting the risk. A deciding mode leaves test files unrun (SPEC-1030 §7), so it is a RELAXING
+# born value (SPEC-0189 rule 8): it lives inside the `verify` declaration, a born-permissive concern
+# (T-11973), so `born_permissive_gate` writes it ONLY against the `verify` confirmation and
+# `record_born_permissive_ratifications` records the confirming handle; unconfirmed, none of it is
+# written — no layer, no adapter file. The reason (SPEC-1030 rule 1) names who accepted the risk.
+_BORN_DECIDING_REASON = (
+    "Born by `init` (T-14279): the kernel owner accepted the risk of the deciding mode at birth "
+    "(kernel speed review item 5, kernel events.jsonl#ts=2026-10-27T14:24:50Z); written only under "
+    "this birth's `verify` ratification (`--confirm-born-permissive verify:<owner>`, SPEC-0189 rule 8). "
+    "Set `off` or `shadow` (removing this reason) to run the full layer.")
+_BORN_ADAPTER_SAMPLES = {"pytest": "pytest-adapter.py", "vitest": "vitest-adapter.py"}
+_PYTEST_CONFIG_FILES = ("pytest.ini", "pyproject.toml", "setup.cfg", "tox.ini", "conftest.py")
+_VITEST_CONFIG_FILES = ("vitest.config.js", "vitest.config.ts", "vitest.config.mjs", "vitest.config.mts",
+                        "vite.config.js", "vite.config.ts", "vite.config.mjs", "vite.config.mts")
+_FRONTEND_DIR = "frontend"
+# T-14319 — the `verify.floor.dependencies` a born frontend layer comes with: an offline check that
+# the committed lockfile satisfies the manifest (`npm ls --package-lock-only` exits nonzero on a
+# missing or invalid entry). It installs nothing and needs no network; the advisory audit stays the
+# project's to add. One argv, no shell syntax: the floor runs its command with no shell.
+_BORN_FRONTEND_FLOOR = ("  floor:\n"
+                        "    dependencies:\n"
+                        f"      command: npm --prefix {_FRONTEND_DIR} ls --package-lock-only --all\n")
+
+
+def _born_adapter_path(kind: str) -> str:
+    return f"tools/{kind}-adapter.py"
+
+
+def _is_born_adapter_path(path: str) -> bool:
+    """Is `path` the name of an adapter copy `init` borns (`_born_adapter_path`, any kind)? The
+    bootstrap commit stages such a path only when this run wrote it."""
+    return path in {_born_adapter_path(k) for k in _BORN_ADAPTER_SAMPLES}
+
+
+def _born_adapter_sample(kind: str) -> "str | None":
+    """The text init copies to `tools/<kind>-adapter.py`, or None when the kernel sample cannot be read
+    (the layer is then born WITHOUT an adapter — fail-closed, never a block naming a missing file). The
+    vitest sample's RUNNER_DIR is set to the frontend tree, FAIL-LOUD if the sample's line drifted."""
+    from pathlib import Path   # function-local, matching this module's import idiom
+
+    src = (Path(__file__).resolve().parents[2] / "patterns" / "verify-layer-adapter-samples"
+           / _BORN_ADAPTER_SAMPLES[kind])
+    try:
+        text = src.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    if kind == "vitest":
+        line = 'RUNNER_DIR = "web"\n'
+        assert text.count(line) == 1, (
+            "init: the vitest adapter sample's RUNNER_DIR line drifted — cannot born the frontend "
+            "adapter safely (T-14279).")
+        text = text.replace(line, f'RUNNER_DIR = "{_FRONTEND_DIR}"\n')
+    return text
+
+
+def _born_adapter_block(kind: str, config_sources: list) -> dict:
+    """The `adapter:` block of a born layer (patterns/verify-layer-adapter-protocol.md §The declaration):
+    both deciding modes with their reasons; `rescue` left at its default (on). Both samples answer
+    `related` (T-14313: the pytest one from a static import graph); a pytest block declares
+    `modelled: [.py]`, without which the kernel counts every changed .py path as unknown (SPEC-1046
+    rule 3) and selection never narrows."""
+    path = _born_adapter_path(kind)
+    cmd = f"python3 {path}"
+    block = {"list": cmd, "related": cmd, "run": cmd, "report_profile": f"{kind}/1"}
+    if kind == "pytest":
+        block["modelled"] = [".py"]
+    block.update({
+        "sources": [path, *config_sources],
+        "selection": "deciding",
+        "selection_deciding_reason": _BORN_DECIDING_REASON,
+        "credit": "deciding",
+        "credit_deciding_reason": _BORN_DECIDING_REASON,
+    })
+    return block
+
+
+def _born_frontend_vitest_layer(repo_root) -> "dict | None":
+    """A born `frontend` layer for a SELF-CONTAINED vitest tree, or None (T-14279). Self-contained =
+    `frontend/package.json` names vitest in its dependencies, `frontend/package-lock.json` exists (the
+    npm-ci prep installs from it) and there is NO root package.json (a workspace's dependencies live at
+    the root, where this layer's prep would not install them). Any doubt — a malformed manifest, no
+    lockfile, no vitest — returns None: no guessed layer. Pure read."""
+    import json
+    from pathlib import Path   # function-local, matching this module's import idiom
+
+    root = Path(repo_root)
+    fe = root / _FRONTEND_DIR
+    try:
+        if (root / "package.json").exists() or not (fe / "package-lock.json").is_file():
+            return None
+        manifest = json.loads((fe / "package.json").read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return None
+    if not isinstance(manifest, dict):
+        return None
+    deps = [manifest.get(k) for k in ("dependencies", "devDependencies")]
+    if not any(isinstance(d, dict) and "vitest" in d for d in deps):
+        return None
+    layer = {
+        "layer": "frontend",
+        "command": f"cd {_FRONTEND_DIR} && npx --no-install vitest run",
+        "prep": {"mode": "npm-ci", "workdir": _FRONTEND_DIR,
+                 "manifest": f"{_FRONTEND_DIR}/package.json",
+                 "lockfile": f"{_FRONTEND_DIR}/package-lock.json"},
+        "subject_globs": [f"{_FRONTEND_DIR}/**"],
+    }
+    if _born_adapter_sample("vitest") is not None:
+        layer["adapter"] = _born_adapter_block("vitest", [f"{_FRONTEND_DIR}/package.json", *(
+            f"{_FRONTEND_DIR}/{c}" for c in _VITEST_CONFIG_FILES if (fe / c).is_file())])
+    return layer
+
+
+def _born_adapter_files(seed: "dict | None") -> dict:
+    """{repo-relative path: text} of every adapter copy the seeded layers name (T-14279)."""
+    out: dict = {}
+    for ly in (seed or {}).get("layers") or []:
+        ad = ly.get("adapter")
+        if not ad:
+            continue
+        kind = ad["report_profile"].split("/")[0]
+        text = _born_adapter_sample(kind)
+        if text is not None:
+            out[_born_adapter_path(kind)] = text
+    return out
 
 
 def _detect_migrations_dir(repo_root):
@@ -7784,33 +8329,45 @@ def _detect_migrations_dir(repo_root):
 
 
 def _swap_born_verify_waiver_for_layers(body: str, seed: dict) -> str:
-    """FAIL-LOUD swap of the born `verify:` section's KERNEL waiver for a covering `layers:` list (T-10531).
+    """FAIL-LOUD append of a covering `tests` layer to the born `verify:` layers (T-10531; T-14221).
 
-    The born template's verify section is structurally exactly:
-        verify:
-          waiver:
-            reason: "<_BORN_VERIFY_SECTION_NO_LAYERS_REASON>"
-    (plus the section's guidance comments, which are PRESERVED). Replacing the waiver mapping with the
-    seeded layers keeps the carrier's `layers` XOR `waiver` exclusivity (the init sweep enforces it), so
-    the placeholder is REPLACED, never left alongside. Same FAIL-LOUD posture as its sibling swaps: if the
-    generated template's shape drifted, raise rather than silently mis-render (audit-pre T-9518 finding 1).
+    The born template's verify section declares the kernel-provided `integrity` layer
+    (`_BORN_VERIFY_INTEGRITY_LAYER`, its guidance comments PRESERVED); the seeded layer is added right
+    after it, so the newborn carries both and `post_sync_set` still names `integrity` alone. Same
+    FAIL-LOUD posture as its sibling swaps: if the generated template's shape drifted, raise rather
+    than silently mis-render (audit-pre T-9518 finding 1).
     """
-    assert _BORN_VERIFY_SECTION_NO_LAYERS_REASON in body, (
-        "init: generated born template verify-section reason drifted from _BORN_VERIFY_SECTION_NO_LAYERS_REASON — "
+    assert body.count(_BORN_VERIFY_INTEGRITY_LAYER) == 1, (
+        "init: generated born template verify-section layers drifted from _BORN_VERIFY_INTEGRITY_LAYER — "
         "cannot seed verify.layers safely; run `yitc-v2 graph build` (T-10531).")
-    lines = body.splitlines(keepends=True)
-    ri = next(i for i, ln in enumerate(lines) if _BORN_VERIFY_SECTION_NO_LAYERS_REASON in ln)
-    assert lines[ri - 1].rstrip("\n") == "  waiver:" and lines[ri].rstrip().endswith('"'), (
-        "init: born template verify-waiver SHAPE drifted (expected a `  waiver:` line directly above a "
-        "single-line `    reason: \"...\"`) — cannot seed verify.layers safely; run `yitc-v2 graph build` "
-        "(T-10531).")
-    ly = seed["layers"][0]
-    block = ("  layers:\n"
-             f"    - layer: {ly['layer']}\n"
-             f"      command: {ly['command']}\n"
-             "      covers:\n"
-             + "".join(f"        - {c}\n" for c in ly["covers"]))
-    return "".join(lines[:ri - 1] + [block] + lines[ri + 1:])
+    import yaml
+
+    block = ""
+    for ly in seed["layers"]:   # T-14279: every seeded layer, its nested prep/adapter blocks included
+        dumped = yaml.safe_dump([ly], sort_keys=False, default_flow_style=False, width=4096)
+        block += "".join("    " + ln + "\n" for ln in dumped.splitlines())
+    body = body.replace(_BORN_VERIFY_INTEGRITY_LAYER, _BORN_VERIFY_INTEGRITY_LAYER + block)
+    if any(ly.get("layer") == "frontend" for ly in seed["layers"]):
+        # T-14319: the kernel-floor dependency atom refuses a dependency-declaring manifest with no
+        # `verify.floor.dependencies.command`, so a born frontend layer alone left the birth
+        # unlandable. Born beside it, inside the same confirmed `verify:` section.
+        assert body.count(_BORN_VERIFY_POST_SYNC_SET) == 1, (
+            "init: generated born template verify-section post_sync_set drifted from "
+            "_BORN_VERIFY_POST_SYNC_SET — cannot born the dependency floor safely (T-14319).")
+        body = body.replace(_BORN_VERIFY_POST_SYNC_SET, _BORN_VERIFY_POST_SYNC_SET + _BORN_FRONTEND_FLOOR)
+    return body
+
+
+def born_verify_seed(repo_root) -> "dict | None":
+    """The seeded `verify.layers` of a birth: the T-10531 pytest layer and the T-14279 self-contained
+    frontend vitest layer. The frontend layer is added only where the born section is not the T-14221
+    tests-exist waiver — a `layers:` list there would claim a verify that skips those tests. Splitting
+    Python packages into layers of their own is a first-steps item, never born (T-14317, SPEC-1045)."""
+    seed = _born_verify_layers_seed(repo_root, None)
+    fe = _born_frontend_vitest_layer(repo_root)
+    if fe is not None and (seed is not None or _detect_test_dir(repo_root) is None):
+        seed = {"layers": [*((seed or {}).get("layers") or []), fe]}
+    return seed
 
 
 def _ops_carrier_body(repo_root) -> str:
@@ -7840,13 +8397,16 @@ def _ops_carrier_body(repo_root) -> str:
     test_dir = _detect_test_dir(repo_root)
     # T-10531: the born carrier has no consumer-authored answer by construction (we are generating it), so
     # pass `None` — the seed's own conjuncts (test dir + sweep-unsound + pytest importable) still gate it.
-    verify_seed = _born_verify_layers_seed(repo_root, None)
+    verify_seed = born_verify_seed(repo_root)
     if verify_seed is not None:
         body = _swap_born_verify_waiver_for_layers(body, verify_seed)
     elif test_dir is not None:
-        assert _BORN_VERIFY_SECTION_NO_LAYERS_REASON in body, (
-            "init: generated born template verify-section reason drifted from _BORN_VERIFY_SECTION_NO_LAYERS_REASON — "
-            "the concern born (specs) must still carry it; run `yitc-v2 graph build` (T-9518/T-9719/T-10038).")
+        # T-14221: a born `layers:` list would claim a verify that does not run these tests, so this
+        # birth keeps the section waiver, its reason saying what is missing.
+        _born_layers = _BORN_VERIFY_INTEGRITY_LAYER + _BORN_VERIFY_POST_SYNC_SET
+        assert body.count(_born_layers) == 1, (
+            "init: generated born template verify-section layers drifted from _BORN_VERIFY_INTEGRITY_LAYER — "
+            "the concern born (specs) must still carry them; run `yitc-v2 graph build` (T-9518/T-9719/T-10038).")
         truthful = (
             "Initialized via `bin/yitc-v2 init` — tests EXIST (" + test_dir + "/) but no hermetic land-verify "
             "command is wired yet; replace this waiver with a `layers:` list whose `command:` per layer runs "
@@ -7855,7 +8415,7 @@ def _ops_carrier_body(repo_root) -> str:
             "concurrent worker `land`s each run it at once; it MUST use unique-per-run resource names (a "
             "random/ephemeral host port, an isolated per-run DB name / container — no fixed port and no shared "
             "DB name) so concurrent runs never collide, per the F-025 hermeticity contract (SPEC-0152 rule 16).")
-        body = body.replace(_BORN_VERIFY_SECTION_NO_LAYERS_REASON, truthful)
+        body = body.replace(_born_layers, '  waiver:\n    reason: "' + truthful + '"\n')
     migrations_dir = _detect_migrations_dir(repo_root)
     if migrations_dir is not None:
         assert _BORN_DEPLOY_WAIVER_NO_COMMAND_REASON in body, (
@@ -8372,7 +8932,104 @@ engine (the methodology handbook named by `session start`'s read-order echo, rea
 
 ## Product operating-context
 <fill in: product profile / safety bans / integration constraints / PII policy>
+
+## Card grouping
+This project's card grouping rule in the sense of the kernel SPEC-0046 §A paragraph «Project-declared
+task-grouping preference» (`__YITC_CLI__ graph query --kernel SPEC-0046`); how to cut, and how to name
+a rule a cut declined, live there, not here. Until the owner replaces it, the rule is the §A default:
+one provable claim per card, cut by claim, never by size.
+Replace it with this project's own grain when cards cost more than they carry: every card pays a
+fixed cost (two audits, a full test run, a land), so size a card to be worth that cost and group
+same-family work into one card, still one provable claim — and say why.
 """
+
+
+# T-14278 — the born project test-method spec stub: how tests are written and run in THIS project,
+# delivered at Plan and Execution (modelled on an adopter's own test-method spec). Born ONLY into an
+# empty spec corpus, so its id is the first of the consumer spec-id zone (SPEC-0092 §Allocation zones)
+# and an adopted project with specs of its own is never given one. Its placeholders are the project's
+# to fill; the rules it points at stay in their kernel homes.
+_BORN_TEST_METHOD_SPEC_REL = "specs/SPEC-5000-how-tests-are-written-and-run-here.yaml"
+_BORN_TEST_METHOD_SPEC = """\
+id: SPEC-5000
+title: 'How tests are written and run here — which layer a test belongs to, how a new test file joins it, hermetic tests'
+status: active
+travels: project
+consumed: false
+extension: ~
+implements: []                 # a process rule every worker applies while planning and writing tests
+
+body: |
+  ## Scenario
+
+  A worker plans a card and then writes its tests. At Plan it names, for each new test, the layer
+  that runs it; at Execution it writes the test in that layer's place and makes sure the layer will
+  actually select it. Born by `init` as a stub: replace each `<fill in: ...>` with this project's own
+  answer and delete what does not apply.
+
+  ## Internal
+
+  1. **Layers and the paths each one runs.** <fill in: one line per verify layer of
+     `yitc-ops.yaml` `verify.layers` — its name, the test paths it runs, the source paths its
+     `subject_globs` name, and its rough wall time>.
+  2. **A new test file is listed where its layer finds it, in the same card.** When a new test file
+     lies outside the paths its layer selects — the layer's `subject_globs`, and the adapter or trigger
+     that maps a test file to its runner — the same card adds it there. A test no declaration maps is
+     not run when its own file changes (own-tests then reads it `not-determined`).
+     <fill in: where this project's adapter / trigger lists test files>.
+  3. **Tests are hermetic.** A test never reads live product state — the production database, a live
+     service, a real account, the deploy host — and never depends on another test's leftovers. It
+     builds what it reads. <fill in: this project's fixture / sandbox route>.
+  4. **Kernel rules this stub points at, never restates.** A failing test names itself (kernel
+     SPEC-0165 item 10) and the suite is laid out so a change selects few tests (item 12):
+     `__YITC_CLI__ graph query --kernel SPEC-0165`. The worked catalog of cheaper test and layer
+     shapes is the kernel `patterns/verify-cost-playbook.md`.
+
+  ## Rationale
+
+  Born by `init` (kernel T-14278) so a new project carries, from day one, the project-specific
+  answer to which layer a new test file falls into and that its layer must list it — before, the
+  only signal was the after-the-fact own-tests `not-determined` line. Bound to Plan so the layer is
+  chosen before audit-pre, and to Execution where the test is written.
+
+  ## Verification
+
+  - **Delivery:** `stage Plan --task <card>` and `stage Execution --task <card>` list this spec as
+    `own` in the stage bundle.
+
+cites:
+  - kernel:SPEC-0165
+  - kernel:SPEC-0152
+
+requires: []
+supersedes: ~
+activation_owner_task: ~
+proposed_by: ~
+binding:
+  - stage-entry:Plan
+  - stage-entry:Execution
+init_concern: ~
+"""
+
+
+def _born_test_method_spec_text(cli_form: str) -> str:
+    """T-14278 — the stub's bytes as init writes them (the one render, shared by the write and the
+    T-13919 interrupted-delivery heal, so the two cannot disagree). Deterministic: no clock read."""
+    return _BORN_TEST_METHOD_SPEC.replace("__YITC_CLI__", cli_form)
+
+
+def _ensure_born_test_method_spec(REPO_ROOT, cli_form, write_text_atomic) -> list:
+    """T-14278 — born the test-method spec stub into an EMPTY spec corpus (no `specs/SPEC-*.yaml`).
+    Returns `[rel]` when written, else `[]`. Idempotent: once born the corpus is no longer empty, so a
+    re-init writes nothing and an edited stub is never overwritten; a project that already keeps
+    specs of its own is never given one. CONSUMER-ONLY — the caller gates on `_is_consumer_build()`."""
+    specs_dir = REPO_ROOT / "specs"
+    if specs_dir.is_dir() and any(specs_dir.glob("SPEC-*.yaml")):
+        return []
+    specs_dir.mkdir(parents=True, exist_ok=True)
+    write_text_atomic(REPO_ROOT / _BORN_TEST_METHOD_SPEC_REL,
+                      _born_test_method_spec_text(cli_form))
+    return [_BORN_TEST_METHOD_SPEC_REL]
 
 
 # T-13570 — the three causes `_restamp` rewrites an existing adapter/home for, each with the words the
@@ -8381,7 +9038,41 @@ ADAPTER_REWRITE_CAUSES = {
     "title-placeholder": "title placeholder replaced with the real project name",
     "start-block-inserted": "start-on-entry block inserted",
     "start-block-replaced": "stale start-on-entry block replaced",
+    "auto-memory-off": "provider auto-memory switched off (SPEC-1055), every other setting kept",
+    "auto-memory-off-unparseable": ("provider auto-memory switch NOT added — the file is not a JSON "
+                                    "object; add `\"autoMemoryEnabled\": false` by hand (SPEC-1055)"),
 }
+
+# T-14289 (SPEC-1055) — the project's committed provider config and the one key that switches the
+# provider's own assistant memory off. The binding is implementation config (CHARTER §P4b).
+PROVIDER_SETTINGS_REL = ".claude/settings.json"
+_PROVIDER_MEMORY_OFF_KEY = "autoMemoryEnabled"
+
+
+def _provider_memory_off_delivery(REPO_ROOT, refresh: bool) -> tuple:
+    """T-14289 (SPEC-1055 rule 2) — what init delivers at the committed provider config.
+
+    Returns `(action, text)`: `("born", text)` when the file is absent (a fresh file carrying only the
+    switch); `("current", None)` when it already carries the switch off; `("rewrite", text)` under
+    `refresh` for a JSON object lacking it (every other key kept, the switch added); `("pending", None)`
+    for the same file without `refresh` (the born-vs-present boundary: PRESENT is never auto-healed
+    silently); `("unparseable", None)` for a file that is not a readable JSON object — never touched."""
+    import json
+    path = REPO_ROOT / PROVIDER_SETTINGS_REL
+    if not path.exists():
+        return "born", json.dumps({_PROVIDER_MEMORY_OFF_KEY: False}, indent=2) + "\n"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return "unparseable", None
+    if not isinstance(data, dict):
+        return "unparseable", None
+    if data.get(_PROVIDER_MEMORY_OFF_KEY) is False:
+        return "current", None
+    if not refresh:
+        return "pending", None
+    data[_PROVIDER_MEMORY_OFF_KEY] = False
+    return "rewrite", json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
 def _render_adapter_rewrite_causes(rel: str, causes: dict) -> str:
@@ -8486,6 +9177,24 @@ def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
         created.append("CLAUDE.md")
     else:
         _restamp(claude_path, "CLAUDE.md")        # re-stamp a pre-fix born CLAUDE.md adapter
+    # T-14289 (SPEC-1055 rule 2): the committed provider config carries the memory switch — born when
+    # absent, added under `refresh` when present without it, else reported pending; never a rewrite of a
+    # file that is not a JSON object.
+    settings_path = REPO_ROOT / PROVIDER_SETTINGS_REL
+    action, text = _provider_memory_off_delivery(REPO_ROOT, refresh)
+    if action == "born":
+        settings_path.parent.mkdir(parents=True, exist_ok=True)
+        write_text_atomic(settings_path, text)
+        created.append(PROVIDER_SETTINGS_REL)
+    elif action in ("rewrite", "pending", "unparseable"):
+        cause = "auto-memory-off-unparseable" if action == "unparseable" else "auto-memory-off"
+        if causes_out is not None:
+            causes_out[PROVIDER_SETTINGS_REL] = [cause]
+        if action == "rewrite":
+            restamp_writes[settings_path] = text
+            restamped.append(PROVIDER_SETTINGS_REL)
+        else:
+            pending.append(PROVIDER_SETTINGS_REL)
     return created, restamped, pending, restamp_writes
 
 
@@ -10037,7 +10746,8 @@ def _foreign_security_producer(REPO_ROOT) -> str:
 
     from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader (T-9740)
 
-    findings = sorted(_glob.glob(_os.path.join(str(REPO_ROOT), ".yitc", "findings", "*-security.yaml")))
+    findings = sorted(_glob.glob(_os.path.join(str(_project_root(REPO_ROOT)), ".yitc", "findings",
+                                               "*-security.yaml")))
     if findings:
         latest = findings[-1]
         producer = _report_producer(latest)
@@ -10096,7 +10806,8 @@ def _scaffold_owned_security_producer(REPO_ROOT) -> bool:
 
     from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader (T-9740)
 
-    for report in sorted(_glob.glob(_os.path.join(str(REPO_ROOT), ".yitc", "findings", "*-security.yaml"))):
+    for report in sorted(_glob.glob(_os.path.join(str(_project_root(REPO_ROOT)), ".yitc", "findings",
+                                                  "*-security.yaml"))):
         if _report_producer(report) == _SCAFFOLD_PRODUCER_ID:
             return True
 
@@ -10391,7 +11102,8 @@ class _DryRunPlan:
 
     # ── the owner-facing render ──
     def render(self, *, untracked_paths=None, retired_swept=None, legacy_removed=None,
-               concerns_preseeded=None, adoption_records=None, would_bootstrap=False) -> None:
+               concerns_preseeded=None, adoption_records=None, would_bootstrap=False,
+               would_batch=False) -> None:
         """Print the FULL planned state change — both halves. Showing only the WRITE half would mis-preview
         a consumer carrying a born-empty retired surface or a legacy yitc-verify.yaml, whose init state
         change is a REMOVAL (audit-pre finding, absorbed mode-a). Every path is named individually; a
@@ -10426,7 +11138,10 @@ class _DryRunPlan:
             print(f"  adoption records (yitc-ops.yaml `adoption:`) — {len(concerns_preseeded)}:")
             for rec in (adoption_records or []):
                 print(f"    {rec}")
-        if would_bootstrap:
+        if would_bootstrap and would_batch:
+            print("  commit: would write and commit the scaffolds in a `work/init-<release>` worktree, "
+                  "never on `main` (this consumer's yitc-ops.yaml declares verify:, T-14192)")
+        elif would_bootstrap:
             print("  commit: would bootstrap-commit the staged scaffolds directly to `main`")
         print(f"  (re-run without --dry-run to apply; {len(self.events)} journal event(s) would be emitted)")
 
@@ -10544,7 +11259,8 @@ def _refresh_baked_engine_path(REPO_ROOT, install_root, *, memory_override=None)
     # `root` is PATH characters only (`[\w./~-]`) — never a greedy `\S+`, which would swallow a leading
     # Markdown/code delimiter (a backtick, quote, paren) into `root` and DELETE it on rewrite (audit-pre
     # finding). `\b` after the escaped consumer path stops a longer sibling path (…/<project>2) matching.
-    pat = re.compile(r"(?P<root>[\w./~-]+)/bin/yitc-v2(?P<tail> -C " + re.escape(str(REPO_ROOT)) + r"\b)")
+    pat = re.compile(r"(?P<root>[\w./~-]+)/bin/yitc-v2(?P<tail> -C "
+                     + re.escape(str(_project_root(REPO_ROOT))) + r"\b)")
 
     def _sub(m):
         if m.group("root") == install:
@@ -10583,14 +11299,16 @@ def _refresh_baked_engine_path(REPO_ROOT, install_root, *, memory_override=None)
 # two index-only untracks (churn `rm --cached`, legacy-verify `rm --cached`) — the bootstrap-commit /
 # scoped-self-commit seams (SPEC-0039/0147) run in reverse.
 #
-# WHY these seven: they are the only paths init may WRITE before the sweeps — .gitignore/.gitattributes
-# (append-or-create), the three born scaffolds (MEMORY.md, the carrier, .no-v1-hooks), and the consumer
-# vendor adapter (CLAUDE.md, AGENTS.md). Every OTHER delivery (folders, cadence, rematerialize, the
+# WHY these eight: they are the only paths init may WRITE before the sweeps — .gitignore/.gitattributes
+# (append-or-create), the three born scaffolds (MEMORY.md, the carrier, .no-v1-hooks), the consumer
+# vendor adapter (CLAUDE.md, AGENTS.md) and the born test-method spec stub written beside it (T-14278;
+# an empty `specs/` it created is left — git tracks no empty directory). Every OTHER delivery (folders, cadence, rematerialize, the
 # concern pre-seed, the deferred onboarding-seed / baked-path refresh) happens AFTER the sweeps, so a
 # refusal never reaches it — nothing to roll back. events.jsonl is DELIBERATELY excluded: the refusal
 # event is the durable D-0049 capture and must survive.
 _PRE_SWEEP_MANAGED_PATHS = (".gitignore", ".gitattributes", "MEMORY.md", CONSUMER_OPS_CONTRACT,
-                            ".no-v1-hooks", "CLAUDE.md", "AGENTS.md")
+                            ".no-v1-hooks", "CLAUDE.md", "AGENTS.md", PROVIDER_SETTINGS_REL,
+                            _BORN_TEST_METHOD_SPEC_REL)   # T-14278
 
 
 def _restore_pre_sweep_delivery(repo_root, snapshot, index_untracked, write_text_atomic,
@@ -10628,6 +11346,7 @@ def _adapter_delivery_over(rel: str, committed, cli_form: str, project_name: str
         if charter:
             (root / "CHARTER.md").write_text("", encoding="utf-8")
         if committed is not None:
+            (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_text(committed, encoding="utf-8")
         writes = _ensure_consumer_vendor_adapter(
             root, cli_form, (lambda path, text: path.write_text(text, encoding="utf-8")),
@@ -11084,6 +11803,133 @@ def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
     return ready
 
 
+# T-14221 — the born `integrity` layer screens the derived graph files a consumer `graph build` writes
+# and `graph conformance` compares, so an init commit that leaves the carrier declaring it carries them,
+# built from that commit's own corpus (the corpus dirs below, read off the CLI's own globals).
+_INTEGRITY_LAYER = "integrity"
+_INTEGRITY_GRAPH_FILES = ("graph/index.json", "graph/floor-trigger-map.md",
+                          "graph/activation-checklist.md", "graph/concern-registry.json",
+                          "graph/born-ops.yaml")
+# (CLI corpus-dir global, the file shape `graph build` reads there — the `lib.state` scan globs)
+_GRAPH_INPUTS = (("SPECS_DIR", "SPEC-*.yaml"), ("TASKS_DIR", "T-*.yaml"), ("DECISIONS_DIR", "*.yaml"),
+                 ("PATTERNS_DIR", "*.md"), ("PLANS_DIR", "*.md"), ("IDEAS_DIR", "*.md"),
+                 ("ERRORS_DIR", "E-*.yaml"), ("SCENARIOS_DIR", "*.md"), ("LESSONS_DIR", "*.md"))
+
+
+def _carrier_declares_integrity(repo_root) -> bool:
+    """True iff the ops carrier on disk declares the `integrity` verify layer. Unreadable: False."""
+    from pathlib import Path
+    from lib import state  # CHARTER §P5 one parser library
+    try:
+        ops = state.load_str((Path(repo_root) / CONSUMER_OPS_CONTRACT).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — absent or unparseable: declares nothing
+        return False
+    layers = ((ops or {}).get("verify") or {}).get("layers") if isinstance(ops, dict) else None
+    return isinstance(layers, list) and any(
+        isinstance(ly, dict) and ly.get("layer") == _INTEGRITY_LAYER for ly in layers)
+
+
+def _integrity_graph_for_commit(repo_root, staged, _run_git_cap) -> tuple:
+    """`(files, refusal)` for an init commit whose carrier declares the `integrity` layer (T-14221).
+
+    Runs the explicit `graph build` (stdout dropped — init prints its own report) and returns the
+    derived files it wrote, for the commit to carry. The graph must describe the commit's OWN corpus,
+    so a graph input changed in the working tree that this commit does not carry (`staged` is what it
+    stages) refuses before the build, and a build that fails refuses after it: `refusal` names the
+    cause, and the caller then commits nothing — a commit carrying no graph, or a graph of other
+    content, would hand the layer a red it did not earn. Fixing the cause and re-running init heals."""
+    import contextlib
+    import fnmatch
+    import io
+    import os
+    from pathlib import Path, PurePosixPath
+    from lib import cli as _cli   # local import: `lib.cli` imports this module (precedent audit.py)
+    root = Path(repo_root).resolve()
+    inputs = {}
+    for name, glob in _GRAPH_INPUTS:
+        try:
+            inputs[str(Path(getattr(_cli, name)).resolve().relative_to(root))] = glob
+        except (AttributeError, TypeError, ValueError):
+            continue                       # not a path under this repo — nothing of it to commit here
+    carried = set(staged)
+    # ONE invariant, read off the bytes rather than off git's view of them: every file `graph build`
+    # reads (what is on disk under the corpus globs — ignored, untracked or flagged unchanged alike)
+    # is a file this commit carries, either staged by it or equal to its HEAD blob; and no HEAD input
+    # is missing from disk. Anything else is a graph of other content than the commit's.
+    on_disk = sorted(f"{d}/{f.name}" for d, glob in inputs.items() if (root / d).is_dir()
+                     for f in (root / d).glob(glob) if f.is_file())
+    in_head = {}
+    if _run_git_cap(["rev-parse", "--verify", "-q", "HEAD"], root).returncode == 0:
+        res = _run_git_cap(["ls-tree", "-r", "-z", "HEAD", "--", *inputs], root)
+        if res.returncode != 0:
+            return [], f"the graph inputs at HEAD could not be read ({(res.stderr or '').strip() or 'no git output'})"
+        for entry in (res.stdout or "").split("\0"):
+            meta, _, path = entry.partition("\t")
+            if path and fnmatch.fnmatchcase(PurePosixPath(path).name,
+                                            inputs.get(str(PurePosixPath(path).parent), "")):
+                in_head[path] = meta.split()[-1]
+    unstaged = [p for p in on_disk if p not in carried]
+
+    def _head_blob(rel):
+        r = _run_git_cap(["rev-parse", "-q", "--verify", f"HEAD:{rel}"], root)
+        return (r.stdout or "").strip() if r.returncode == 0 else None
+
+    def _link_committed(rel, hop):
+        # a link hop the commit carries: staged by it, or its HEAD blob (the link text) equals the disk's
+        if rel in carried:
+            return True
+        sha = in_head.get(rel) or _head_blob(rel)
+        h = _run_git_cap(["cat-file", "blob", sha], root) if sha else None
+        return h is not None and h.returncode == 0 and h.stdout == os.readlink(hop)
+
+    # A symlinked input is judged on every half a checkout of the commit reads: the link text git
+    # stores at EACH hop of the chain (a HEAD blob is the link text, while `hash-object` reads the
+    # target) and the final target.
+    read_as = {}
+    for p in unstaged:
+        hop, rel = root / p, p
+        if not hop.is_symlink():
+            read_as[p] = (p, in_head.get(p))
+            continue
+        target = None
+        for _ in range(40):                # a chain longer than the kernel's own bound never resolves
+            if not _link_committed(rel, hop):
+                break
+            nxt = hop.parent / os.readlink(hop)
+            try:
+                rel = (nxt.parent.resolve() / nxt.name).relative_to(root).as_posix()
+            except ValueError:
+                break                      # a hop outside the repo is no content the commit carries
+            hop = root / rel
+            if not hop.is_symlink():
+                target = rel if hop.is_file() else None
+                break
+        if target is None:
+            read_as[p] = None
+        else:
+            read_as[p] = (target, None if target in carried else _head_blob(target))
+    hashed = sorted({ra[0] for ra in read_as.values() if ra})
+    disk_sha = {}
+    if hashed:
+        res = _run_git_cap(["hash-object", "--", *hashed], root)
+        shas = (res.stdout or "").split()
+        if res.returncode != 0 or len(shas) != len(hashed):
+            return [], f"the graph inputs on disk could not be hashed ({(res.stderr or '').strip() or 'no git output'})"
+        disk_sha = dict(zip(hashed, shas))
+    dirty = sorted({p for p, ra in read_as.items()
+                    if ra is None or (ra[0] not in carried and ra[1] != disk_sha[ra[0]])}
+                   | {p for p in in_head if p not in carried and not (root / p).is_file()})
+    if dirty:
+        return [], (f"graph input(s) changed but not committed: {', '.join(dirty)} — commit or remove "
+                    f"them, then re-run init")
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):
+            _cli.cmd_graph_build(argparse.Namespace())
+    except (Exception, SystemExit) as e:   # noqa: BLE001 — named in the refusal, never swallowed
+        return [], f"`graph build` failed ({e!r}) — fix the cause, then re-run init"
+    return [p for p in _INTEGRITY_GRAPH_FILES if (root / p).exists()], None
+
+
 def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT, REPO_ROOT, _BORN_GITIGNORE_LINES, _BORN_LESSONS_README, _BORN_MEMORY_MD, _BORN_NO_V1_HOOKS, _BORN_PATTERNS_GITKEEP, _BORN_GRAPH_GITKEEP, _BORN_VERIFY_YAML, _REMATERIALIZE_TEMPLATES, _append_event, _is_consumer_build, _run_git_cap, write_text_atomic, _seed_onboarding=None) -> None:
     """`bin/yitc-v2 -C <path> init` — idempotently deliver a consumer its born-empty scaffolds (T-0995).
 
@@ -11206,7 +12052,11 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # pure (`_engine_install_root` runs `git worktree list`), so the pure-carrier-write modes stay
     # side-effect-free before their write.
     _engine_install = _engine_install_root(ENGINE_ROOT, _run_git_cap)
-    _cli_form = f"{_engine_install}/bin/yitc-v2 -C {REPO_ROOT}" if _is_consumer_build() else "bin/yitc-v2"
+    # T-14192: inside the work batch worktree the project is still the MAIN checkout — every string
+    # this run bakes or journals names it (`_ident`); files are read and written in REPO_ROOT.
+    from pathlib import Path as _Path
+    _ident = _Path(_project_root(REPO_ROOT))
+    _cli_form = f"{_engine_install}/bin/yitc-v2 -C {_ident}" if _is_consumer_build() else "bin/yitc-v2"
 
     # PURE CARRIER-BACKFILL MODE (T-10982 / SPEC-0093 rule 11) — the third early return of this family,
     # for the X-0251 reason above PLUS one unique to it: the bare-init body ENDS in the two fail-closed
@@ -11385,7 +12235,9 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         # commit (staged in the `managed` list below) — so `.scratch/` is derived like every other
         # entry, from a path this repo tracks, rather than hard-coded into the allowlist.
         ([_p for _p in _tracked_ls.stdout.split("\0") if _p] if _tracked_ls.returncode == 0 else [])
-        + [f"{_BORN_SCRATCH_DIR}/.gitkeep"],
+        + [f"{_BORN_SCRATCH_DIR}/.gitkeep"]
+        # T-14289: the born provider config (SPEC-1055) is tracked by the same bootstrap commit
+        + ([PROVIDER_SETTINGS_REL] if _is_consumer_build() else []),
         # The dot-prefixed DIRECTORY rules the F-008 churn block denies on purpose — passed from the
         # single-SoT tuple, never re-listed, so the two can never drift apart.
         denied_dot_dirs=[_ln for _ln in _BORN_GITIGNORE_LINES
@@ -11514,6 +12366,19 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         else:
             write_text_atomic(path, body)
             created.append(name)
+    # T-14279: the adapter copies the born `verify` layers name — written ONLY with the carrier born THIS
+    # run and its `verify` declaration confirmed (an unconfirmed `verify` is withheld whole, so no layer
+    # names them); if-absent, so a project's own copy is never overwritten.
+    if CONSUMER_OPS_CONTRACT in created and "verify" in _bp_written:
+        for _rel, _text in _born_adapter_files(born_verify_seed(REPO_ROOT)).items():
+            _apath = REPO_ROOT / _rel
+            if _apath.exists():
+                skipped.append(_rel)
+                continue
+            if not dry:
+                _apath.parent.mkdir(parents=True, exist_ok=True)
+            write_text_atomic(_apath, _text)
+            created.append(_rel)
 
     # T-10275 (SPEC-0147 §7): seed the project OWNER's onboarding station pointers into the buffer.
     # COMPUTE-ONLY HERE — the WRITE + EMIT are DEFERRED to the bootstrap-commit seam below (T-10470).
@@ -11555,9 +12420,11 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         adapter_created, adapter_restamped, adapter_pending, adapter_restamp_writes = (
             _ensure_consumer_vendor_adapter(
                 REPO_ROOT, _cli_form, write_text_atomic,
-                project_name=REPO_ROOT.name, refresh=_adapter_refresh,
+                project_name=_ident.name, refresh=_adapter_refresh,
                 causes_out=adapter_rewrite_causes))
         created.extend(adapter_created)
+        # T-14278 — the born test-method spec stub (an empty spec corpus only; idempotent).
+        created.extend(_ensure_born_test_method_spec(REPO_ROOT, _cli_form, write_text_atomic))
 
     # UPDATE the ops-contract carrier (T-9375 / SPEC-0093 rule 11) — the "pull a new kernel section into
     # an EXISTING consumer" path. For a carrier the scaffold loop SKIPPED (it already existed), deliver any
@@ -11709,7 +12576,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                        and _run_git_cap(["show-ref", "--verify", "--quiet", "refs/heads/main"],
                                         REPO_ROOT).returncode == 0
                        and _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"],
-                                        REPO_ROOT).stdout.strip() != "main")
+                                        REPO_ROOT).stdout.strip() != _commit_branch(REPO_ROOT))
 
     # SWEEP the ops-contract carrier declare-or-waive (T-9389 / SPEC-0093 rule 3 — fail-closed). The
     # carrier is born all-WAIVED (answered), so a fresh seed always passes; this catches a carrier the
@@ -11762,7 +12629,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             write_text_atomic(ops_path, _ops_pre_theme)
         _skipped_themes = ", ".join(kernel_themes_seeded + kernel_themes_upgraded)
         kernel_themes_seeded, kernel_themes_upgraded = [], []
-        print(f"consumer init ({REPO_ROOT.name}): kernel theme write ({_skipped_themes}) SKIPPED — HEAD is "
+        print(f"consumer init ({_ident.name}): kernel theme write ({_skipped_themes}) SKIPPED — HEAD is "
               f"not on `main`, so init's bootstrap commit cannot carry the yitc-ops.yaml write "
               f"(T-13059/X-0332). Re-run init on `main` to deliver it.", file=sys.stderr)
 
@@ -11970,7 +12837,10 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     pending_refresh = list(cadence_pending) + templates_pending + adapter_pending
     if pending_refresh:
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
-        print(_render_pending_scaffold_refresh(pending_refresh, _cli_form), file=sys.stderr)
+        print(_render_pending_scaffold_refresh(
+            pending_refresh, _cli_form,
+            kinds={_rel: "UNPARSEABLE" for _rel, _c in adapter_rewrite_causes.items()
+                   if _rel in adapter_pending and "auto-memory-off-unparseable" in _c}), file=sys.stderr)
 
     # THE DIVERGENCE REFUSAL (T-10886 / X-0713) — one ordered list across both re-derivation sources.
     # Printed HERE (with the other scaffold signals) but ACTED ON at the very end of cmd_init: the refusal
@@ -11993,12 +12863,12 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     retired_surfaces_swept = _sweep_retired_surfaces(REPO_ROOT, _run_git_cap, apply=not dry)
     if retired_surfaces_swept:
         _append_event("retired_surface_swept", None, {
-            "path": str(REPO_ROOT),
+            "path": str(_ident),
             "surfaces": retired_surfaces_swept,   # e.g. ["CROSS-TASKS.md"] — born-empty/tombstone retired surfaces removed
         })
 
     _append_event("consumer_init", None, {
-        "path": str(REPO_ROOT),
+        "path": str(_ident),
         "created": created,
         "retired_surfaces_swept": retired_surfaces_swept,   # T-9610: born-empty/tombstone retired per-repo surfaces removed this run ([] = none)
         "skipped": skipped,
@@ -12093,7 +12963,9 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         material_delivery = _run_git_cap(["diff", "--cached", "--quiet", "--", CONSUMER_OPS_CONTRACT],
                                          REPO_ROOT).returncode == 1
     cur = _run_git_cap(["symbolic-ref", "--quiet", "--short", "HEAD"], REPO_ROOT)
-    on_main = cur.returncode == 0 and cur.stdout.strip() == "main"
+    # T-14192: "main" here is the branch this run may commit on — the batch branch inside the work
+    # batch worktree (`_commit_branch`).
+    on_main = cur.returncode == 0 and cur.stdout.strip() == _commit_branch(REPO_ROOT)
 
     # T-13919 (X-1968) — RE-RUN HEAL OF AN INTERRUPTED DELIVERY. The scaffolds above are written long
     # before the one commit below, so an init that died in between left them written and uncommitted;
@@ -12111,15 +12983,18 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     if on_main and head_exists:
         _consumer = _is_consumer_build()
         _charter = (REPO_ROOT / "CHARTER.md").exists()
-        _adapters = (["CLAUDE.md", *([] if _charter else ["AGENTS.md"])] if _consumer else [])
+        _adapters = (["CLAUDE.md", *([] if _charter else ["AGENTS.md"]), PROVIDER_SETTINGS_REL]
+                     if _consumer else [])
         _born_now = {".gitattributes": _BORN_GITATTRIBUTES, "MEMORY.md": _born_memory,
                      ".no-v1-hooks": _BORN_NO_V1_HOOKS, "lessons/README.md": _BORN_LESSONS_README,
                      "patterns/.gitkeep": _BORN_PATTERNS_GITKEEP, "graph/.gitkeep": _BORN_GRAPH_GITKEEP,
                      f"{_BORN_SCRATCH_DIR}/.gitkeep": _BORN_SCRATCH_GITKEEP}
         for _rel in _adapters:
-            _born = _adapter_delivery_over(_rel, None, _cli_form, REPO_ROOT.name, _charter)
+            _born = _adapter_delivery_over(_rel, None, _cli_form, _ident.name, _charter)
             if _born is not None:
                 _born_now[_rel] = _born
+        if _consumer:   # T-14278 — the born test-method spec stub, healed like any if-absent scaffold
+            _born_now[_BORN_TEST_METHOD_SPEC_REL] = _born_test_method_spec_text(_cli_form)
         # the cadence scaffold, only where this run delivers it at all (SPEC-0145 §9a): the launcher
         # tracks the kernel like a template; the trigger is an if-absent seed the project then grows
         if _consumer and not cadence_foreign and not cadence_stance:
@@ -12130,7 +13005,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         _own, _left = _uncommitted_init_deliveries(
             REPO_ROOT, _run_git_cap, _kernel_now, _born_now,
             {_rel: (lambda _committed, _rel=_rel: _adapter_delivery_over(
-                _rel, _committed, _cli_form, REPO_ROOT.name, _charter)) for _rel in _adapters},
+                _rel, _committed, _cli_form, _ident.name, _charter)) for _rel in _adapters},
             unproven=(".gitignore", CONSUMER_OPS_CONTRACT))
         # what this run wrote above, or writes at the commit seam below (the three deferred writes)
         _this_run = set(_wrote) | ({"MEMORY.md"} if onboarding_seeded else set()) | {
@@ -12144,7 +13019,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     material_delivery = material_delivery or bool(stranded)
     if _withheld:
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
-        print(f"consumer init ({REPO_ROOT.name}): left uncommitted — {', '.join(_withheld)}: "
+        print(f"consumer init ({_ident.name}): left uncommitted — {', '.join(_withheld)}: "
               f"{'it differs' if len(_withheld) == 1 else 'each differs'} from the last commit and "
               f"init cannot show it holds its own delivery, so it did not stage "
               f"{'it' if len(_withheld) == 1 else 'them'}. If init wrote the file, remove it "
@@ -12174,7 +13049,11 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                     adoption_records=_preseeded_adoption_records(
                         ops_path.read_text(encoding="utf-8") if ops_path.exists() else "",
                         concerns_preseeded),
-                    would_bootstrap=bool(on_main and material_delivery))
+                    would_bootstrap=bool(on_main and material_delivery),
+                    would_batch=(_BATCH.get("root") == str(REPO_ROOT)
+                                 or routes_to_batch(REPO_ROOT, ENGINE_ROOT, _run_git_cap)))
+        _DRY_VERDICT[str(REPO_ROOT)] = {"commit": bool(on_main and material_delivery),   # T-14192
+                                        "diverged": bool(diverged_scaffolds)}
         # T-12094 (X-1267) — the SPEC-0096 r8 born-waiver/default sweep is a READ (it renders the
         # engine's already-generated checklist and writes nothing), so the read-only PREVIEW must
         # print it too. Before this, the dry-run exit sat ABOVE the sweep call at the tail of a real
@@ -12210,7 +13089,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         # idempotent + recomputed every run); nothing is stranded.
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
         onboarding_seeded = []
-        print(f"consumer init ({REPO_ROOT.name}): onboarding seed SKIPPED — HEAD is not on `main`, so "
+        print(f"consumer init ({_ident.name}): onboarding seed SKIPPED — HEAD is not on `main`, so "
               f"init's bootstrap commit cannot carry the write and leaving it dirty would wedge the next "
               f"land (T-10470/X-0332). Re-run init on `main` to deliver the station pointers.",
               file=sys.stderr)
@@ -12223,7 +13102,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
         refreshed = []
         _refresh_writes = {}
-        print(f"consumer init ({REPO_ROOT.name}): stale baked engine-path refresh SKIPPED — HEAD is not "
+        print(f"consumer init ({_ident.name}): stale baked engine-path refresh SKIPPED — HEAD is not "
               f"on `main`, so init's bootstrap commit cannot carry the write (T-10533/X-0332). Re-run init "
               f"on `main` to repair the baked engine path.", file=sys.stderr)
 
@@ -12238,7 +13117,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                                        for rel in adapter_restamped)
         adapter_restamped = []
         adapter_restamp_writes = {}
-        print(f"consumer init ({REPO_ROOT.name}): adapter rewrite SKIPPED ({_skipped_rewrites}) — HEAD is "
+        print(f"consumer init ({_ident.name}): adapter rewrite SKIPPED ({_skipped_rewrites}) — HEAD is "
               f"not on `main`, so init's bootstrap commit cannot carry the write (T-10690/X-0332). Re-run "
               f"`init --refresh-scaffolds` on `main` to apply it.",
               file=sys.stderr)
@@ -12252,7 +13131,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         if onboarding_seeded:
             write_text_atomic(memory_path, _onboarding_seeded_text)
             _append_event("onboarding_seeded", None, {
-                "path": str(REPO_ROOT),
+                "path": str(_ident),
                 "user": _onboarding_user,        # T-13064: the recipient, so the ever-seeded fold keys on it
                 "stations": onboarding_seeded,   # seeded THIS run; [] (no event) on an idempotent re-run
             })
@@ -12281,14 +13160,14 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                 print(f"  ↻ {_render_adapter_rewrite_causes(rel, adapter_rewrite_causes)} (SPEC-0125)",
                       file=sys.stderr)
             _append_event("adapter_restamped", None, {
-                "path": str(REPO_ROOT),
+                "path": str(_ident),
                 "scaffolds": adapter_restamped,   # adapter/home rewritten this run (any cause)
-                "project_name": REPO_ROOT.name,
+                "project_name": _ident.name,
             })
 
         if refreshed:
             _append_event("engine_path_refreshed", None, {
-                "path": str(REPO_ROOT),
+                "path": str(_ident),
                 "scaffolds": refreshed,   # scaffolds whose stale baked engine path was repaired to the install root
                 "install_root": str(_engine_install),
             })
@@ -12314,14 +13193,28 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         # the case the literal got wrong.
         managed = [".gitignore", ".gitattributes",
                    *_journal_pathspecs(REPO_ROOT / "events.jsonl", REPO_ROOT), "MEMORY.md",
-                   CONSUMER_OPS_CONTRACT, ".no-v1-hooks", "CLAUDE.md", "AGENTS.md",
+                   CONSUMER_OPS_CONTRACT, ".no-v1-hooks", "CLAUDE.md", "AGENTS.md", PROVIDER_SETTINGS_REL,
                    "lessons/README.md", "patterns/.gitkeep", "graph/.gitkeep",
                    f"{_BORN_SCRATCH_DIR}/.gitkeep",   # T-11308: tracked, so the dir exists in every worktree
-                   *(p for p in _refresh_class if p in _written)]
+                   _BORN_TEST_METHOD_SPEC_REL,        # T-14278: the born test-method spec stub
+                   *(p for p in _refresh_class if p in _written),
+                   *(p for p in sorted(_written) if _is_born_adapter_path(p))]   # T-14279, T-14313
         present = [p for p in managed if (REPO_ROOT / p).exists()
                    and not (stranded and p in _withheld)]   # T-13919: a heal never sweeps a hand edit in
+        # T-14221 — a commit leaving the carrier declaring the `integrity` layer carries the derived graph
+        # of its own corpus (a birth, or the update leg that adds the layer); when it cannot, it is refused.
+        # A birth that declares no such layer (verify withheld) carries the graph too when it can; when it
+        # cannot, it carries none and is not refused — nothing it declares reads the graph.
+        _graph_refusal = None
+        _declares = _is_consumer_build() and _carrier_declares_integrity(REPO_ROOT)
+        _birth = (_is_consumer_build() and _BATCH.get("root") != str(REPO_ROOT)
+                  and _run_git_cap(["cat-file", "-e", f"HEAD:{CONSUMER_OPS_CONTRACT}"], REPO_ROOT).returncode != 0)
+        if _declares or _birth:
+            _graph_files, _graph_why = _integrity_graph_for_commit(REPO_ROOT, present, _run_git_cap)
+            _graph_refusal = _graph_why if _declares else None
+            present += [p for p in _graph_files if p not in present]
         _add_failed = ""
-        if present:
+        if present and not _graph_refusal:
             _added = _run_git_cap(["add", "--", *present], REPO_ROOT)
             if _added.returncode != 0:
                 _add_failed = (_added.stderr or _added.stdout).strip() or "no git output"
@@ -12333,18 +13226,24 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         has_staged = _run_git_cap(["diff", "--cached", "--quiet"], REPO_ROOT).returncode != 0
         staged_hits = (_staged_secret_hits(REPO_ROOT, _run_git_cap)
                        if has_staged and not _add_failed else [])
-        if _add_failed:
+        if _graph_refusal:
+            import sys   # module-local idiom: init.py imports sys per-function, never at module level
+            bootstrap_refused = True
+            print(f"consumer init ({_ident.name}): commit REFUSED — the carrier declares the `integrity` "
+                  f"verify layer, and this commit cannot carry its derived graph: {_graph_refusal}. "
+                  f"Nothing was staged or committed.", file=sys.stderr)
+        elif _add_failed:
             # T-13456: the staging return code used to be discarded, so a part-way `git add` was
             # committed as if it were the whole bootstrap. Now it is reported and nothing is committed.
             import sys   # module-local idiom: init.py imports sys per-function, never at module level
-            print(f"consumer init ({REPO_ROOT.name}): bootstrap commit SKIPPED — staging the scaffolds "
+            print(f"consumer init ({_ident.name}): bootstrap commit SKIPPED — staging the scaffolds "
                   f"failed ({_add_failed}), so a commit now would carry a partial set. The scaffolds "
                   f"are on disk; clear the cause (e.g. a held .git/index.lock) and re-run init.",
                   file=sys.stderr)
         elif staged_hits:
             import sys   # module-local idiom: init.py imports sys per-function, never at module level
             bootstrap_refused = True
-            print(f"consumer init ({REPO_ROOT.name}): bootstrap commit REFUSED — credential-shaped "
+            print(f"consumer init ({_ident.name}): bootstrap commit REFUSED — credential-shaped "
                   f"content is staged for it (SPEC-0163 §4e):", file=sys.stderr)
             if staged_hits == _STAGED_SCAN_UNREADABLE:
                 print("  the staged diff could not be read, so it cannot be shown to be credential-free "
@@ -12361,7 +13260,9 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             _removal_specs = [*_churn_specs, CONSUMER_VERIFY_CONTRACT, "CROSS-TASKS.md"]
             # T-13930 — bootstrap-class content: a scaffold born this run, or a healed (T-13919) delivery
             # other than a kernel-tracking scaffold or an adapter rewrite, which a refresh writes too.
-            if created or [p for p in stranded if p not in _kernel_now and p not in ("CLAUDE.md", "AGENTS.md")]:
+            _in_batch = _BATCH.get("root") == str(REPO_ROOT)   # T-14192: a batch is never the bootstrap
+            if not _in_batch and (
+                    created or [p for p in stranded if p not in _kernel_now and p not in ("CLAUDE.md", "AGENTS.md", PROVIDER_SETTINGS_REL)]):
                 _bootstrap_msg = (
                     f"{_INIT_COMMIT_SUBJECT}\n\n"
                     "One-time governed bootstrap commit — the init worktree-gate exception (T-9463): a fresh\n"
@@ -12379,8 +13280,12 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                 _bootstrap_msg = (
                     f"{_INIT_REFRESH_SUBJECT_HEAD}{_init_release_label(ENGINE_ROOT, _run_git_cap)}"
                     f"{_INIT_REFRESH_SUBJECT_TAIL}\n\n"
-                    "Governed scaffold refresh by a re-run of init on main (the T-9463 commit seam; this run\n"
-                    "births no scaffold). Paths this commit carries:\n"
+                    + ("Written by init in the work batch " + _BATCH.get("branch", "") + ", not on main: this\n"
+                       "consumer's yitc-ops.yaml declares verify:, so it reaches main through land (T-14192)."
+                       if _in_batch else
+                       "Governed scaffold refresh by a re-run of init on main (the T-9463 commit seam; this run\n"
+                       "births no scaffold).")
+                    + " Paths this commit carries:\n"
                     + "".join(f"  {x}\n" for x in (_carried or ["(not listed: the staged names could not be read)"]))
                     + "\n" + _from_line)
             # T-13456 — the commit carries init's OWN entries only: `present` as staged above, minus
@@ -12396,7 +13301,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                 bootstrapped = True
             elif _why_not:
                 import sys   # module-local idiom: init.py imports sys per-function, never at module level
-                print(f"consumer init ({REPO_ROOT.name}): bootstrap commit did NOT happen — "
+                print(f"consumer init ({_ident.name}): bootstrap commit did NOT happen — "
                       f"{_why_not}. The scaffolds stay staged; clear the cause and re-run init.",
                       file=sys.stderr)
 
@@ -12427,13 +13332,16 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             parts.append("born-waived catalog member(s) " + ", ".join(catalog_waived))
         if seeded_main:
             parts.append("seeded main")
-        if bootstrapped:
+        if bootstrapped and _BATCH.get("root") == str(REPO_ROOT):
+            parts.append(f"committed what it adds on the work batch {_BATCH['branch']}, not on main")
+        elif bootstrapped:
             parts.append("bootstrap-committed scaffolds to main")
         if bootstrapped and stranded:
             parts.append("committed what an earlier init wrote and left uncommitted: "
                          + ", ".join(stranded))
         if bootstrap_refused:
-            parts.append("bootstrap commit REFUSED — a staged credential (see above)")
+            parts.append("bootstrap commit REFUSED — " + ("its derived graph (see above)" if _graph_refusal
+                                                          else "a staged credential (see above)"))
         if rematerialized:
             parts.append("rematerialized " + ", ".join(rematerialized))
         if refreshed:
@@ -12442,22 +13350,22 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
             parts.append("refreshed adapter scaffold in " + ", ".join(adapter_restamped))
         if retired_surfaces_swept:
             parts.append("swept retired surface(s) " + ", ".join(retired_surfaces_swept))
-        print(f"consumer init ({REPO_ROOT.name}): " + "; ".join(parts))
+        print(f"consumer init ({_ident.name}): " + "; ".join(parts))
         # T-12094 (X-1267) — DISCOVERABILITY. This branch is the WRITING report; name the read-only
         # form here exactly once, where the owner/worker who just wrote is looking. Deliberately NOT
         # on the no-op tail (nothing was written, so there is nothing to have previewed) and NOT under
         # `--dry-run` (that arm returns far above — the reader is already using the form).
-        print(f"  (read-only preview of the same run: `bin/yitc-v2 -C {REPO_ROOT.name} init --dry-run` "
+        print(f"  (read-only preview of the same run: `bin/yitc-v2 -C {_ident.name} init --dry-run` "
               f"— computes this report without writing, journaling or committing)")
     else:
-        print(f"consumer init ({REPO_ROOT.name}): already initialized — no-op")
+        print(f"consumer init ({_ident.name}): already initialized — no-op")
 
     # T-12956 (SPEC-0086 rule 6e) — register this project in the host registry, birthing it if absent.
     # Reached only by an init that got past every refusal and the dry-run exit, and skipped when the
     # refresh was withheld (the exit-1 `diverged_scaffolds` case), so a refused init writes nothing here. A FAILED registration is part of the success transaction: the registry keeps its prior
     # bytes and init exits non-zero naming the cause (the T-10886 terminal-verdict seam below).
     registry_failed = (False if (diverged_scaffolds or bootstrap_refused)
-                       else _register_in_host_registry(REPO_ROOT))
+                       else _register_in_host_registry(_ident))
 
     # SPEC-0096 rule 8 (T-9529) — owner-visible born-waiver/default sweep: surface the generated SET of
     # init-defaultable concerns so EACH is decided explicitly (declare-or-waive), never a silent default.

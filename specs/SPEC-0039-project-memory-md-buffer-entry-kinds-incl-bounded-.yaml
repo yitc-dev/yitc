@@ -245,29 +245,17 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ for\n    missed (b) deletions, NOT a sanctioned \"drain-later\" path — the retired\
   \ drain-later model does\n    not survive here. (Discoverability pointer in QUEUE\
   \ §Re-review triggers — follow-up.)\n\n### 6. The assistant's own provider-side\
-  \ memory — the corpus first\nSome tools the primary AI runs in keep a memory of\
-  \ their own outside the repository: kept per\nperson, read when that assistant's\
-  \ session starts, and reaching no dispatched worker, no other\nprovider's assistant\
-  \ and no review. This section says what the assistant saves THERE. It is a\ndifferent\
-  \ surface from the `MEMORY.md` buffer: §0–§5 govern the buffer as before, and the\
-  \ §0\nprovider stance applies to this memory as it is written.\n- **It holds only:**\
-  \ (a) what has no home in the project's corpus AND no existing verb is able to\n\
-  \  put into it; (b) a short pointer to a tool that is awaited — for example a workaround\
-  \ kept until\n  an engine fix ships; (c) the person's preferences about how the\
-  \ assistant works with them. A\n  rule for how the project's work is done is a rule,\
-  \ not such a preference.\n- **Everything else goes to its governed home — the corpus\
-  \ first.** Each home's own spec says\n  how: a rule or a practice → a spec, a pattern\
-  \ or a lesson (<workshop-spec>, SPEC-0090); plan or card\n  state, and what was\
-  \ done or decided → the plan, the card and the journal (SPEC-0091 Rule 2);\n  continuity\
-  \ across a session refresh → the hand-off store (SPEC-1004); a gap in the engine\
-  \ → a\n  deviation capture (SPEC-0056).\n- **At the moment of saving,** the capture-routing\
-  \ view (SPEC-0157) carries the row for this\n  case.\n\n## Parameters\n\nNone consumed.\
-  \ No TTL constant is fixed here — the lifetime is per-entry, named at write time.\n\
-  \n## Rationale\n\nReal incident (anti-cx F4): a pre-/compact note persisted in the\
-  \ buffer and broadcast to EVERY\nsession indefinitely — MEMORY is auto-read by all\
-  \ sessions, so any entry was global + permanent\nuntil hand-drained. The rule extension\
-  \ makes the bounded case first-class and the unbounded case\nimpossible-by-default.\
-  \ Consumer pull: the orchestrate-posture plan\n[[orchestrate-posture-for-the-main-session-6-amendme]]\
+  \ memory — not used\nA memory some tools the primary AI runs in keep of their own,\
+  \ outside the repository, is a\ndifferent surface from the `MEMORY.md` buffer (§0–§5\
+  \ govern the buffer as before). That memory is\nnot used, for any provider: where\
+  \ each kind of note goes instead, and the switch every project\ncarries in its committed\
+  \ provider config, is SPEC-1055 (`bin/yitc-v2 graph query SPEC-1055`).\n\n## Parameters\n\
+  \nNone consumed. No TTL constant is fixed here — the lifetime is per-entry, named\
+  \ at write time.\n\n## Rationale\n\nReal incident (anti-cx F4): a pre-/compact note\
+  \ persisted in the buffer and broadcast to EVERY\nsession indefinitely — MEMORY\
+  \ is auto-read by all sessions, so any entry was global + permanent\nuntil hand-drained.\
+  \ The rule extension makes the bounded case first-class and the unbounded case\n\
+  impossible-by-default. Consumer pull: the orchestrate-posture plan\n[[orchestrate-posture-for-the-main-session-6-amendme]]\
   \ is PARKED behind this rule — its trial\nneeds MEMORY as a GOVERNED load-bearing\
   \ startup channel for a trial-pointer. Anti-complexity:\nEXTENDS the existing SPEC-0007\
   \ §6 rule (F1 — no new store/file/parser); a refinement with a\nMINIMAL 3-value\
@@ -374,14 +362,11 @@ body: "## Scenario\n\nA session opens, auto-reads the project-local `MEMORY.md` 
   \ `bin/yitc-v2#_journal_dirt_is_valid_append` (the `_TELEMETRY_EVENT_TYPES` event-type\
   \ set is REMOVED,\n  not extended — CHARTER §P1 filter 3; the X-0288 fleet-watcher\
   \ livelock stays fixed because a\n  `cli_invoked` poll line is simply one valid\
-  \ appended event line).\n\n- **VP12 (the assistant's own provider-side memory):**\
-  \ §6 states the three classes such\n  a memory holds and that everything else goes\
-  \ to its governed home, each home named by its\n  owning spec; the capture-routing\
-  \ view carries one row for that moment, owned by this spec. Probe:\n  tests/test_t10539_capture_routing_seed.py\
-  \ — `test_t13867_provider_side_memory_row_and_rule`\n  reads the row from the real\
-  \ view and the classes and pointers from this body,\n  `test_t13867_added_text_names_no_brand`\
-  \ searches both for a provider or tool brand, and\n  `test_t13867_checks_fail_on_planted_faults`\
-  \ shows each check failing on its own planted fault.\n"
+  \ appended event line).\n\n- **VP12 (the assistant's own provider-side memory —,\
+  \ re-homed):** §6 is a\n  pointer to SPEC-1055, which states that memory is not\
+  \ used for any provider and routes each kind\n  of note; the capture-routing view's\
+  \ row for that moment is owned by SPEC-1055. Probe:\n  tests/test_t10539_capture_routing_seed.py\
+  \ reads §6 here and the rule from SPEC-1055's body.\n"
 cites:
 - CHARTER.md#principle-4
 - CHARTER.md#principle-5

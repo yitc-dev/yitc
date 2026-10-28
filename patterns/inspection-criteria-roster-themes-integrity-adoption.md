@@ -159,9 +159,14 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   non-ok class is a report-only observation, not a finding. `failed` (the tests themselves went red)
   is the SUBJECT outcome, not an infrastructure class, and is excluded — counting it made the
   criterion fire on every window with two red lands. A row with no `fail_class` is counted in one of
-  three classes, printed apart: `reverify-skipped` (an ok land that skipped the re-verify — the
-  sanctioned shortcut, nothing to measure), `aborted` (an abort that never reached a measured
-  verify), and `no-metrics` (every other row). Only `no-metrics` is absent evidence, and it never
+  four classes, printed apart: `credited` (an ok land whose `stage6_credit` names its Stage-6 row —
+  the run happened there, so the block follows the pointer and counts that run ONCE: its outcome as
+  the class, its wall in the signals; the land's own ~20 s `verify_duration_ms` is prep, never a wall —
+, SPEC-0065 §Bound), `reverify-skipped` (any other ok land that skipped the re-verify),
+  `aborted` (an abort that never reached a measured verify), and `no-metrics` (every other row, a credit
+  whose Stage-6 row the window does not hold included). The window's Stage-6 runs are printed beside
+  the land rows, passed and failed, so trouble that never reached a land is not invisible. The follow
+  is `bin/lib/land_verify_legs.py#_stage6_credited_row`; the blocks import it. Only `no-metrics` is absent evidence, and it never
   reads as `ok`: a window whose unexplained rows are all of it says NO-DATA, a partly-unexplained one
   DEGRADED with its no-metrics share, and `clean` prints only when no row is `no-metrics`; every
   verdict names the window bounds and measured/total. **report-only — never an autonomous
@@ -169,22 +174,32 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   ```
   python3 -c 'import sys,json,collections; sys.path.insert(0,"bin")
   from lib.worktree import _verify_scaling_signals
-  ev=[e for e in (json.loads(l) for l in open("events.jsonl") if "\"land_completed\"" in l)
-      if e.get("type")=="land_completed"][-200:] # by TYPE — a substring also matches rows that merely mention it
+  from lib.land_verify_legs import _stage6_rows_index, _stage6_credited_row
+  allev=[e for e in (json.loads(l) for l in open("events.jsonl") if "\"land_completed\"" in l or "\"tests_" in l)
+         if e.get("type") in ("land_completed","tests_passed","tests_failed")] # by TYPE — a substring also matches rows that merely mention it
+  ev=[e for e in allev if e["type"]=="land_completed"][-200:]
+  s6=[e for e in allev if e["type"]!="land_completed"] # every Stage-6 row: a credit may name one older than the window
+  idx=_stage6_rows_index(s6)
   rows=[e.get("data",{}) for e in ev]
-  def cls(d): # a row with no fail_class is reverify-skipped / aborted (counted apart) or no-metrics
+  def cls(d): # a row with no fail_class is credited (followed) / reverify-skipped / aborted (counted apart) or no-metrics
       if (d.get("verify_metrics") or {}).get("fail_class"): return "measured"
+      if d.get("status")=="ok" and isinstance(d.get("stage6_credit"),dict):
+          return "credited" if _stage6_credited_row(d,idx) is not None else "no-metrics"
       if d.get("status")=="ok" and d.get("reverify_skipped") is True: return "reverify-skipped"
       return "aborted" if d.get("status")=="abort" else "no-metrics"
   kc=collections.Counter(cls(d) for d in rows)
   fc=collections.Counter(d["verify_metrics"]["fail_class"] for d in rows if cls(d)=="measured")
+  fc.update("ok" for d in rows if cls(d)=="credited") # a credit is taken from a green Stage-6 row only
+  s6c=collections.Counter(e["type"] for e in s6 if ev and ev[0].get("ts","")<=e.get("ts","")<=ev[-1].get("ts","")) # the Stage-6 runs inside the printed window
   bad={k:v for k,v in fc.items if k not in ("ok","failed")}
   recurring={k:v for k,v in bad.items if v>=2}
   nondet = len(bad)>=2
-  n=len(rows); m=kc["measured"]; nm=kc["no-metrics"]
+  n=len(rows); m=kc["measured"]+kc["credited"]; nm=kc["no-metrics"]
   win="window %s..%s, %d/%d measured" % (ev[0].get("ts","?") if ev else "-", ev[-1].get("ts","?") if ev else "-", m, n)
   print("window n=%d fail_class=%s" % (n, dict(fc)))
-  print("classes: measured=%d reverify-skipped=%d aborted=%d no-metrics=%d" % (m, kc["reverify-skipped"], kc["aborted"], nm))
+  print("classes: measured=%d reverify-skipped=%d aborted=%d no-metrics=%d" % (kc["measured"], kc["reverify-skipped"], kc["aborted"], nm))
+  print("credited=%d — ok lands whose run is the Stage-6 row they name, counted once in measured/total" % kc["credited"])
+  print("Stage-6 runs in window: passed=%d failed=%d" % (s6c["tests_passed"], s6c["tests_failed"]))
   if not m and nm:
       print("fail_class: NO-DATA — no row carries a fail_class, no verdict (%s)" % win)
   elif not m:
@@ -197,10 +212,10 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       print("observation (report-only, not a finding): lone one-off non-ok class(es)=%s (%s)" % (bad, win))
   elif m and not nm:
       print("fail_class: clean — no finding (%s)" % win)
-  hw=lambda d: isinstance(d.get("verify_metrics"),dict) and d["verify_metrics"].get("verify_wall_ms") is not None
+  hw=lambda d: (isinstance(d.get("verify_metrics"),dict) and d["verify_metrics"].get("verify_wall_ms") is not None) or cls(d)=="credited"
   walls=sum(1 for d in rows if hw(d))
   wmiss=sum(1 for d in rows if cls(d) in ("measured","no-metrics") and not hw(d)) # skipped/aborted owe no wall
-  sig="\n".join(_verify_scaling_signals(rows))
+  sig="\n".join(_verify_scaling_signals(rows, stage6_rows=s6))
   cov="%d/%d rows carry a verify wall; %s" % (walls, n, win)
   if not walls: print("scaling signals: NO-DATA — no row carries a verify wall (%s)" % cov)
   elif wmiss: print("scaling signals: DEGRADED — measured rows only (%s):" % cov, sig or "none over the measured rows")
@@ -222,22 +237,28 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
   never prints a pooled median and judges no threshold: the reader weighs each departure with n beside
   it. When the regime the park bound protects has moved away from the pinned value, the route is a
   card re-deriving the constant over a stated closed window and saying which regime (or mix) the bound
-  must cover, as did — never an automatic re-derive. Report-only, exit 0. Run from the engine
-  checkout (the block imports the pinned value from its `bin`), feeding it the segment-aware reader;
-  add `-C <consumer>` for a consumer's own split:
-  `bin/yitc-v2 [-C <repo>] journal query --type land_completed --since <START> --until <END> --limit 0 --json | python3 <this block> <START> <END>`
+  must cover, as did — never an automatic re-derive. A credited land (`stage6_credit`) is read
+  from the Stage-6 run it names — that row's wall and regime, counted once — and a credit the window
+  does not resolve is excluded under its own label. Report-only, exit 0. Run from the engine
+  checkout (the block imports the pinned value and the credit follow from its `bin`), feeding it the
+  segment-aware reader for both row types; add `-C <consumer>` for a consumer's own split:
+  `{ bin/yitc-v2 [-C <repo>] journal query --type land_completed --since <START> --until <END> --limit 0 --json; bin/yitc-v2 [-C <repo>] journal query --type tests_passed --since <START> --until <END> --limit 0 --json; } | python3 <this block> <START> <END>`
   ```
   import sys, json, os
   sys.path.insert(0, "bin")
   from lib.worktree import _VERIFY_WALL_SECONDS as pinned
+  from lib.land_verify_legs import _stage6_rows_index, _stage6_credited_row, _stage6_run_wall_ms
   start, end = sys.argv[1], sys.argv[2] # closed window [start, end): --until is inclusive, so ts == end is dropped here
   walls = {"venue": [], "local": []}
-  skipped = {"malformed": 0, "outside window": 0, "not ok or no wall": 0}
+  skipped = {"malformed": 0, "outside window": 0, "not ok or no wall": 0, "credit not resolved": 0}
+  rows = []
   for line in sys.stdin:
       try:
-          e = json.loads(line)
+          rows.append(json.loads(line))
       except ValueError:
-          skipped["malformed"] += 1; continue
+          skipped["malformed"] += 1
+  idx = _stage6_rows_index(rows)
+  for e in rows:
       if not isinstance(e, dict) or e.get("type") != "land_completed":
           continue
       if not (start <= str(e.get("ts", "")) < end):
@@ -245,6 +266,12 @@ applies_to: PART 5 of the single living inspection home (SPEC-0057) — the fres
       d = e.get("data") or {}
       m = d.get("verify_metrics") if isinstance(d.get("verify_metrics"), dict) else {}
       w = m.get("verify_wall_ms")
+      if d.get("status") == "ok" and isinstance(d.get("stage6_credit"), dict): # the run is the Stage-6 row's, once
+          s6 = _stage6_credited_row(d, idx)
+          if s6 is None:
+              skipped["credit not resolved"] += 1; continue
+          m = s6.get("verify_metrics") if isinstance(s6.get("verify_metrics"), dict) else {}
+          w = _stage6_run_wall_ms(s6)
       if d.get("status") != "ok" or isinstance(w, bool) or not isinstance(w, (int, float)):
           skipped["not ok or no wall"] += 1; continue
       v = m.get("venue")
@@ -477,6 +504,18 @@ reuses the shipped dry-run seams below.
   resolved / a layer ran as non-owner / the onboarding seam rendered), never a bare "none".
 
 - **G3 — deploy/rollback joins:** each deploy joins to the next `live_probe`; a rollback falls in the deployed range; count null `abort_class`; a product commit with no carrier task is a finding — `bin/yitc-v2 journal query --type live_probe` + `bin/yitc-v2 journal query --type land_completed`.
+
+- **scheduled-run days — did each project's scheduled pre-deploy run fire every day? (weekly;
+  report-only; owner events.jsonl#ts=, SPEC-1047).** For every project whose
+  `product_cron` declares the `deploy --scheduled-run` line (`patterns/project-release-guide.md` Part D):
+  read its scheduled rows of the past seven days — `bin/yitc-v2 -C <project> journal query --type
+  test_class_executed --since <seven days ago>`, keeping the rows whose data carries `run_kind:
+  scheduled` — and match each day's run, by time, to a line of that scheduler's OWN log for the same job
+  (the system cron log, or the notify wrapper's log). A day with a scheduler line and no row is a run
+  that started and wrote nothing (read the job's `<log>`); a day with neither is a cron that did not fire;
+  a row with no scheduler line is a hand run and does not count. Either gap → file a card for that
+  project (a `cross request` to it). There is no monitor for a stopped cron beside this check; the
+  red-run debt line (SPEC-1047 rule 6) only speaks for a run that happened.
 
 ### T8 — Adoption (done = adopted)
 

@@ -213,13 +213,11 @@ concern:
   born: '# anchors:
 
     # # SPEC-0006 (shape: SPEC-0160 rule 30) — this project''s OWN `<file>#<symbol>`
-    forms, for a code
+    forms. OPT-IN, born
 
-    # # shape the kernel grammar does not resolve. OPT-IN and born COMMENTED: absence
-    declares nothing.
+    # # COMMENTED.
 
-    # # A form is tried only after the built-in forms, within ONE line that carries
-    the symbol.
+    # # Rule text: `__YITC_CLI__ graph query SPEC-0006 --kernel`
 
     # # see SPEC-0006 §Internal; SPEC-0160 §30
 

@@ -376,51 +376,57 @@ body: "## Scenario\n\nWhen the owner/AI files a TASK, the card is FRONT-LOADED r
   \ the cue, or turn an observed\n   number into a pass/fail bar. (Rule home → this\
   \ item; the closure probe and the Triggered-mechanism\n   cue above prove adoption\
   \ ONCE at closure — this names what LATER runs leave. Consult:\n   decisions/live-signal-task-authoring-2026-09-14-r3-audit-adhoc.yaml.)\n\
-  5. **One provable claim?** — would this card prove >1 claim (then it should have\
-  \ been SPLIT)? The\n   cut itself is an ANALYSIS decision (cut-by-one-claim / `requires:`-order\
-  \ / verifier-after-settled\n   → SPEC-0046); filing only RECORDS the already-decided\
-  \ cut, never re-opens it.\n6. **Cites** — related ids noted as context? (`cites:`\
-  \ is informational; a blocking prerequisite is\n   `requires:` → QUEUE §Picker.)\n\
-  \   **Under-citation cue — two halves, a MISSING cite AND a cite you never\n   opened.**\
-  \ (a) MISSING: does the card DECLARE (via `expected_touch`) a concrete surface an\
-  \ ACTIVE\n   spec governs, without citing that spec? Then cite it — the governing\
-  \ rule is the context the\n   picked-up Analysis needs. (b) PRESENT-BUT-UNREAD:\
-  \ where a scope line or a criterion RESTS on a rule\n   you DO cite, did you OPEN\
-  \ that rule and quote the clause verbatim — or write from what you remember\n  \
-  \ it says? Author from the clause, never from a paraphrase, INCLUDING our own handbook's\
-  \ paraphrase of\n   it: a citation you did not open reads as grounding while carrying\
-  \ your remembered version, which can\n   be the rule INVERTED. What the cited\n\
-  \   rule actually says is never restated here — open its OWN home (`graph query\
-  \ <id>`), which is the\n   only text that cannot be stale. `task file` surfaces\
-  \ half (a) as a report-only UNDER-CITATION\n   advisory (see `## Implementation\
-  \ notes`); that advisory detects a missing cite, NOT a contradiction, and it\n \
-  \  is unchanged by this widening — half (b) has NO detector and is yours to run\
-  \ while authoring. An\n   authoring PROMPT only: no card is refused for either half,\
-  \ and a deliberate non-cite is legitimate\n   (ack it via `task update --note`).\n\
-  7. **Effort tier (stakes)** — is this change irreversible / wide-blast / critical?\
-  \ Mark it\n   `--critical` (else the `normal` default). It is the one sizing judgment\
-  \ you already make, and it\n   routes the background-dispatch worker's model/effort\
-  \ by STAKES (rule → SPEC-0072; schema → SPEC-0028).\n   **One judgment, two names\
-  \ (the stakes↔effort vocabulary):** the stakes tier you set here\n   (`normal` /\
-  \ `critical`) IS what dispatch then shows as the worker's effort (`normal`→`low`,\n\
-  \   `critical`→`high`) — so `effort=low (tier=normal)` in dispatch output is that\
-  \ 1:1 map, NOT a\n   third level. Choose by STAKES (irreversible / wide-blast →\
-  \ `critical`), NOT by how hard the work\n   looks (full mapping + the route-by-stakes-not-difficulty\
-  \ rule → SPEC-0072 §4; pointer, not\n   restated here — P5).\n8. **Queue-jump mark\
-  \ (only when the card's own PURPOSE is to clear the congestion)** — is THIS card\n\
-  \   the change that REMOVES a land-admission blockage? Then set the mark AT FILING,\
-  \ naming the\n   blockage: `task update --queue-jump <reason>` (field `queue_jump`;\
-  \ mechanism → SPEC-0184 rule 9,\n   not restated here — P5). Setting it later, once\
-  \ the card is already stuck behind the very queue it\n   fixes, is the failure this\
-  \ prompt exists to catch.\n   **The trigger is PURPOSE, never urgency — read yourself\
-  \ OUT of it if you are merely impatient.**\n   Ordinary work that merely happens\
-  \ to be stuck behind a queue is NOT this: it is the common case,\n   and using an\
-  \ EMERGENCY lane for convenience is how an emergency lane stops meaning anything.\
-  \ Ask\n   what the card DOES, not how long it has waited: it qualifies only if landing\
-  \ it is what\n   un-congests the queue.\n   An authoring PROMPT only: no card is\
-  \ refused for omitting it, and nothing detects the trigger for\n   you — the mark\
-  \ stays opt-in and author-judged (an automatic «this card unblocks lands» detector\n\
-  \   would be a behavioural detector, a CHARTER non-goal).\n\n### A post-land proof\
+  5. **One coherent change-set?** — the default grain is one coherent change-set per\
+  \ card (SPEC-0046\n   §A): related claims on the same files or surface, proven by\
+  \ one verify pass, stay in one card;\n   split only when the parts are independent\
+  \ and each pays for its own fixed cost, when a reviewer\n   must judge them separately,\
+  \ or when one part must land first. The cut itself is an ANALYSIS\n   decision (the\
+  \ split grounds / `requires:`-order / verifier-after-settled → SPEC-0046); filing\
+  \ only\n   RECORDS the already-decided cut, never re-opens it.\n6. **Cites** — related\
+  \ ids noted as context? (`cites:` is informational; a blocking prerequisite is\n\
+  \   `requires:` → QUEUE §Picker.)\n   **Under-citation cue — two halves, a MISSING\
+  \ cite AND a cite you never\n   opened.** (a) MISSING: does the card DECLARE (via\
+  \ `expected_touch`) a concrete surface an ACTIVE\n   spec governs, without citing\
+  \ that spec? Then cite it — the governing rule is the context the\n   picked-up\
+  \ Analysis needs. (b) PRESENT-BUT-UNREAD: where a scope line or a criterion RESTS\
+  \ on a rule\n   you DO cite, did you OPEN that rule and quote the clause verbatim\
+  \ — or write from what you remember\n   it says? Author from the clause, never from\
+  \ a paraphrase, INCLUDING our own handbook's paraphrase of\n   it: a citation you\
+  \ did not open reads as grounding while carrying your remembered version, which\
+  \ can\n   be the rule INVERTED. What the cited\n   rule actually says is never restated\
+  \ here — open its OWN home (`graph query <id>`), which is the\n   only text that\
+  \ cannot be stale. `task file` surfaces half (a) as a report-only UNDER-CITATION\n\
+  \   advisory (see `## Implementation notes`); that advisory detects a missing cite,\
+  \ NOT a contradiction, and it\n   is unchanged by this widening — half (b) has NO\
+  \ detector and is yours to run while authoring. An\n   authoring PROMPT only: no\
+  \ card is refused for either half, and a deliberate non-cite is legitimate\n   (ack\
+  \ it via `task update --note`).\n7. **Effort tier (stakes)** — is this change irreversible\
+  \ / wide-blast / critical? Mark it\n   `--critical` (else the `normal` default).\
+  \ It is the one sizing judgment you already make, and it\n   routes the background-dispatch\
+  \ worker's model/effort by STAKES (rule → SPEC-0072; schema → SPEC-0028).\n   **One\
+  \ judgment, two names (the stakes↔effort vocabulary):** the stakes tier you set\
+  \ here\n   (`normal` / `critical`) IS what dispatch then shows as the worker's effort\
+  \ (`normal`→`low`,\n   `critical`→`high`) — so `effort=low (tier=normal)` in dispatch\
+  \ output is that 1:1 map, NOT a\n   third level. Choose by STAKES (irreversible\
+  \ / wide-blast → `critical`), NOT by how hard the work\n   looks (full mapping +\
+  \ the route-by-stakes-not-difficulty rule → SPEC-0072 §4; pointer, not\n   restated\
+  \ here — P5).\n8. **Queue-jump mark (only when the card's own PURPOSE is to clear\
+  \ the congestion)** — is THIS card\n   the change that REMOVES a land-admission\
+  \ blockage? Then set the mark from the MAIN checkout right\n   after the filing\
+  \ batch lands, naming the blockage: `task update <id> --queue-jump <reason>` on\n\
+  \   `main` (field `queue_jump`; mechanism → SPEC-0184 rule 9, not restated here\
+  \ — P5). A set inside the\n   filing `work/` worktree is refused: the land queue\
+  \ reads the mark from `main` only. Setting it\n   later, once the card is already\
+  \ stuck behind the very queue it fixes, is the failure this prompt\n   exists to\
+  \ catch.\n   **The trigger is PURPOSE, never urgency — read yourself OUT of it if\
+  \ you are merely impatient.**\n   Ordinary work that merely happens to be stuck\
+  \ behind a queue is NOT this: it is the common case,\n   and using an EMERGENCY\
+  \ lane for convenience is how an emergency lane stops meaning anything. Ask\n  \
+  \ what the card DOES, not how long it has waited: it qualifies only if landing it\
+  \ is what\n   un-congests the queue.\n   An authoring PROMPT only: no card is refused\
+  \ for omitting it, and nothing detects the trigger for\n   you — the mark stays\
+  \ opt-in and author-judged (an automatic «this card unblocks lands» detector\n \
+  \  would be a behavioural detector, a CHARTER non-goal).\n\n### A post-land proof\
   \ is DECLARED, never CLAIMED\nWhen a criterion's proof lands AFTER the ship, the\
   \ card must SAY SO where the machinery reads it —\nan authoring PROMPT, not a gate.\
   \ Name the declaration that carries the deferral:\n- a multi-day production reading\

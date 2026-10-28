@@ -173,7 +173,12 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ this is not it.\n     Do NOT inline its normative sentences here — a second copy\
   \ would drift the day SPEC-0190 is\n     amended, and a stale copy delivered at\
   \ the authoring moment is worse than no copy at all,\n     which is the precise\
-  \ failure this bullet is written to avoid.\n   **PROVISIONAL, and named as such\
+  \ failure this bullet is written to avoid.\n   - **The worked catalog of cheaper\
+  \ shapes is `patterns/verify-cost-playbook.md`.** Each technique\n     there comes\
+  \ with the number it moved on a project of this methodology and where that number\
+  \ was\n     read; read it before choosing a shape. A pointer, per <workshop-spec>\
+  \ rule 8: the playbook adds no\n     rule, and where one of its techniques needs\
+  \ a declaration, the spec it names governs.\n   **PROVISIONAL, and named as such\
   \ so it cannot harden by default.** Its evidential basis\n   supports this PLACEMENT\
   \ doctrine only, not a broader standing cost discipline.\n   **Review trigger:**\
   \ accumulated slow-tail observations from the\n   report-only per-file duration\
@@ -209,9 +214,26 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ runs, still fails\n    loudly to a human, and still lands. A validator here would\
   \ be the behavioural detector CHARTER's\n    non-goals forbid, and it would be aimed\
   \ at the wrong target besides — the corrective surface is\n    review and the ledger\
-  \ row, never a check.\n\n11. **Absence is not evidence — the READER's dual of item\
-  \ 1.** Items 1-10 govern what a mechanism\n    must EMIT and what a tripwire must\
-  \ PROVE. This one governs what a READER of a signal — a\n    watcher, a status classifier,\
+  \ row, never a check.\n    **A test that SPAWNS A CHILD owes the child's words,\
+  \ not only its exit code.** When a test runs\n    a child process and the child's\
+  \ outcome is NOT the one the test expected — a nonzero exit where\n    zero was\
+  \ expected, a zero where a refusal was expected, a missing output — the failure\
+  \ message\n    keeps the assertion's own identity AND carries a compact TAIL of\
+  \ the child's stdout and stderr.\n    Build that message BEFORE the temporary directory\
+  \ holding the child's output is removed: once\n    the test deletes it, the cause\
+  \ is gone from this machine and from every remote verify alike,\n    and the exit\
+  \ code alone names no cause. Put the tail on the message's FIRST line, newlines\n\
+  \    folded, because the extractor binds one line per failure; keep that line short\
+  \ enough to pass\n    whole through the per-line bound the remote verify transports\
+  \ a failing file's output under —\n    that bound and the line count beside it are\
+  \ SPEC-1029 rule 4's, read them there\n    (`yitc-v2 graph query SPEC-1029`), never\
+  \ copied here. A tail cut from the END of the output\n    keeps the child's last\
+  \ words, which is where its cause usually is. An EXPECTED nonzero exit is\n    not\
+  \ a failure and owes nothing. This adds no helper the corpus must use and NO GATE:\
+  \ like the\n    rest of this item it is authoring doctrine, met by the message a\
+  \ test writes.\n\n11. **Absence is not evidence — the READER's dual of item 1.**\
+  \ Items 1-10 govern what a mechanism\n    must EMIT and what a tripwire must PROVE.\
+  \ This one governs what a READER of a signal — a\n    watcher, a status classifier,\
   \ a journal fold, a human tailing a log — may CONCLUDE from NOT\n    seeing something.\
   \ **The absence of a positive signal is never, on its own, evidence of any\n   \
   \ state.** A missing token, an empty output file, an unreadable row, a zero count,\
@@ -338,85 +360,110 @@ body: "## Scenario\n\nBefore any test is written or waived, one question is aske
   \ rest of this spec.** This is authoring guidance: nothing refuses,\n    warns or\
   \ exits nonzero on account of this item, and it adds no verb, validator or event\
   \ type.\n    A suite laid out against it still runs and still lands — it only selects\
-  \ more than it needed\n    to.\n\n## Rationale\n\nThe incident record behind each\
-  \ item — test accretion hung on tasks not rules, specs↔tests\nunlinked, a tripwire\
-  \ that fired and could not be attributed, a message that overstated its\nassertion\
-  \ (a tripwire whose MESSAGE overstated its assertion, worked through in item 3),\
-  \ the\nabsence-read recurrence — lives in git history and in the external consult\n\
-  verdicts this spec was absorbed from (`decisions/loud-failure-principle-audit-adhoc.yaml`,\n\
-  `decisions/absence-is-not-evidence-audit-adhoc.yaml`). Prior art extended, not re-invented:\n\
-  SPEC-0015 differential probes, SPEC-0060 AC discipline, the module→spec coverage-admission\n\
-  ledger shape.\n\n### History moved from the rule body\n\nEach entry is a passage\
-  \ moved word for word out of the rule text of the section it names;\nthe rule it\
-  \ explains stays there.\n\n- From «Internal item 3 (failure message / Worked example)»:\
-  \ Read as the content, that message cost\n  one full controller/worker cycle in\
-  \ which every step was right; the cycle existed because a\n  message overstated\
-  \ its assertion.\n\n### Moved from the rule body\n\nEach entry is a passage moved\
-  \ word for word out of the rule text of the section it names.\n\n- From «item 3,\
-  \ the failure-message clause»: Repo-local prior art, kept where it lives — whose\n\
-  \  rule 3 observed the same thing from one land:\n  `lessons/a-source-form-probe-is-not-a-behaviour-test.md`.\n\
-  \n## Verification\n\nDelivered at Tests stage-entry (binding). Probes: (a) a task\
-  \ adding a standalone test file whose\nrule already has a suite draws the review\
-  \ question \"which existing rule suite did you extend?\";\n(b) ledger rows answer\
-  \ rule→tripwire/waive for 100% of tier-1 normative rules; (c) kernel\nnew-test-file\
-  \ rate < 20/week within 2 weeks of adoption (baseline ≈124), REPORTED PAIRED with\
-  \ the\nnew-test-FUNCTION delta so growth cannot hide inside fat files; (d) a waive\
-  \ lacking the\n§4 contract fields is rejected at review; (e) for item 10, the machine-attributable-failure\n\
-  rule resolves in THIS spec's body and in no other spec (one doctrine, one home),\
-  \ NAMES BOTH\naccepted bindings independently, and is wired to NO code — `implements:`\
-  \ stays empty,\n`consumed:` stays false, and no code path reads or enforces the\
-  \ clause, so nothing refuses on\naccount of it; (f) for item 3's message-matches-assertion\
-  \ clause, the clause NAMES the violating\nshape concretely (a proxy-checking assertion\
-  \ under a behavioural message) and carries its worked\nexample with BOTH the assertion\
-  \ and the message, so a reader can fail a real tripwire against it\n— a reduction\
-  \ to a bare exhortation is a regression, and the clause is likewise wired to NO\
-  \ code.\n(h) for item 11, the rule resolves in THIS body and in no\nother spec,\
-  \ and its five prior homes carry a POINTER plus their own surface mechanics and\
-  \ NOT the\ngeneral rule — a DIFFERENTIAL with both legs: this body carries the rule,\
-  \ and a later edit that\nre-inlines it into any of those five surfaces goes RED.\
-  \ It is likewise wired to NO code:\n`implements:` stays empty and nothing refuses\
-  \ on account of it.\n(g) for item 9's journal-cost bullet, a DIFFERENTIAL tripwire\
-  \ holds BOTH legs at once: this body\nCARRIES the pointer naming SPEC-0190 rule\
-  \ 9, and it does NOT carry rule 9's normative sentences —\nthe second leg goes RED\
-  \ if a later edit inlines the rule here, which is the P5 second-home drift\nthe\
-  \ bullet exists to prevent. A missing pointer and an inlined rule are distinct failures\
-  \ and are\nreported as such; the bullet is, like every other item here, wired to\
-  \ NO code.\n(i) for item 11's journal-row clause, a DIFFERENTIAL with both legs\
-  \ held at once: this body\nCARRIES the rule (a check resolving a fixed historical\
-  \ journal row reads through the segment\nresolver, and the failure it prevents is\
-  \ NAMED as silent absence read as evidence loss), and it\ndoes NOT carry SPEC-0190\
-  \ rule 4's normative sentences — the second leg goes RED if a later edit\ninlines\
-  \ them here, which is the P5 second-home drift the clause's own pointer exists to\
-  \ prevent.\nA third state-check, because the clause is useless to anyone but its\
-  \ author without it: the\nworked NEGATIVE example is present WITH BOTH its failing\
-  \ texts (the reader's comment and the\nassertion message) AND the wording that would\
-  \ have passed, so a reader can hold a real check\nagainst it — a reduction to the\
-  \ abstract rule alone is a regression. And the clause must keep\nDENYING BY SHAPE\
-  \ rather than by prohibition: an edit that turned it into a ban on citing journal\n\
-  rows, or on reading the live segment for a reader that genuinely declares a short\
-  \ horizon, is a\nloss of real coverage and fails this probe. Wired to NO code, like\
-  \ every other item here:\n`implements:` stays empty, `consumed:` stays false, and\
-  \ nothing refuses on account of it.\n(j) for item 5's host-inspecting-test cue,\
-  \ a DIFFERENTIAL with both legs held at once: item 5's own\ntext CARRIES the cue\
-  \ (the authoring question) AND a fetchable pointer naming <workshop-spec> rule 8\
-  \ and the\nartifact that records the local-probe class, and it does NOT carry rule\
-  \ 8's normative sentences — the\nsecond leg goes RED if a later edit inlines them\
-  \ here, which is the P5 second-home drift the pointer\nexists to prevent. Both legs\
-  \ are held against negative fixtures built from the shipped body, so the\ncheck\
-  \ is shown to discriminate a stripped pointer from an inlined rule and to report\
-  \ them separately.\nDelivery is part of the probe: SPEC-0165 must still bind stage-entry:Filing\
-  \ and stage-entry:Tests, or\nthe cue reaches neither authoring moment. Wired to\
-  \ NO code, like every other item here.\n(k) for item 12's selection-friendly layout,\
-  \ a DIFFERENTIAL with three legs: item 12's own text\nCARRIES each of the five habits\
-  \ of (a) and the heavy-test split of (b); it CARRIES a pointer that\nresolves to\
-  \ the pattern section holding the split mechanics; and it does NOT carry that\n\
-  section's own sentences — the third leg goes RED if a later edit inlines the mechanics\
-  \ here. Each\nleg is held against a negative fixture built from the shipped body\
-  \ (one habit removed, the\npointer removed, a pattern sentence pasted in, the whole\
-  \ item removed), and each is reported by\nits own name. Clause (c) is held the same\
-  \ way: its sentences are in item 12, it names the\npattern's §The WASTE lever beside\
-  \ the split section, and item 12 with (c) cut out fails. Wired to\nNO code, like\
-  \ every other item here.\n"
+  \ more than it needed\n    to.\n    **(d) The worked catalog.** The layout cuts\
+  \ that have paid on this methodology's projects, each\n    with its measured number,\
+  \ are listed in `patterns/verify-cost-playbook.md` (§Layers by area,\n    §Split\
+  \ the longest file of a parallel layer). A pointer only, per <workshop-spec> rule\
+  \ 8.\n\n## Rationale\n\nThe incident record behind each item — test accretion hung\
+  \ on tasks not rules, specs↔tests\nunlinked, a tripwire that fired and could not\
+  \ be attributed, a message that overstated its\nassertion (a tripwire whose MESSAGE\
+  \ overstated its assertion, worked through in item 3), the\nabsence-read recurrence\
+  \ — lives in git history and in the external consult\nverdicts this spec was absorbed\
+  \ from (`decisions/loud-failure-principle-audit-adhoc.yaml`,\n`decisions/absence-is-not-evidence-audit-adhoc.yaml`).\
+  \ Prior art extended, not re-invented:\nSPEC-0015 differential probes, SPEC-0060\
+  \ AC discipline, the module→spec coverage-admission\nledger shape.\n\nItem 10's\
+  \ spawned-child paragraph answers a venue-only failure whose test sent a CLI\nchild's\
+  \ output to a file in its temporary directory, deleted the directory, and failed\
+  \ with the\nexit code alone, so the cause was read by hand on the remote box (deviation\n\
+  venue-only-test-failure-no-child-output-hand-ssh-diagnosis, events.jsonl#ts=;\n\
+  consult `decisions/venue-child-output-consult-audit-adhoc.yaml`, option A).\n\n\
+  ### History moved from the rule body\n\nEach entry is a passage moved word for word\
+  \ out of the rule text of the section it names;\nthe rule it explains stays there.\n\
+  \n- From «Internal item 3 (failure message / Worked example)»: Read as the content,\
+  \ that message cost\n  one full controller/worker cycle in which every step was\
+  \ right; the cycle existed because a\n  message overstated its assertion.\n\n###\
+  \ Moved from the rule body\n\nEach entry is a passage moved word for word out of\
+  \ the rule text of the section it names.\n\n- From «item 3, the failure-message\
+  \ clause»: Repo-local prior art, kept where it lives — whose\n  rule 3 observed\
+  \ the same thing from one land:\n  `lessons/a-source-form-probe-is-not-a-behaviour-test.md`.\n\
+  \n## Verification\n\nDelivered at Filing, Execution and Tests stage-entry (binding).\
+  \ Probes: (a) a task adding a standalone test file whose\nrule already has a suite\
+  \ draws the review question \"which existing rule suite did you extend?\";\n(b)\
+  \ ledger rows answer rule→tripwire/waive for 100% of tier-1 normative rules; (c)\
+  \ kernel\nnew-test-file rate < 20/week within 2 weeks of adoption (baseline ≈124),\
+  \ REPORTED PAIRED with the\nnew-test-FUNCTION delta so growth cannot hide inside\
+  \ fat files; (d) a waive lacking the\n§4 contract fields is rejected at review;\
+  \ (e) for item 10, the machine-attributable-failure\nrule resolves in THIS spec's\
+  \ body and in no other spec (one doctrine, one home), NAMES BOTH\naccepted bindings\
+  \ independently, and is wired to NO code — `implements:` stays empty,\n`consumed:`\
+  \ stays false, and no code path reads or enforces the clause, so nothing refuses\
+  \ on\naccount of it; (f) for item 3's message-matches-assertion clause, the clause\
+  \ NAMES the violating\nshape concretely (a proxy-checking assertion under a behavioural\
+  \ message) and carries its worked\nexample with BOTH the assertion and the message,\
+  \ so a reader can fail a real tripwire against it\n— a reduction to a bare exhortation\
+  \ is a regression, and the clause is likewise wired to NO code.\n(h) for item 11,\
+  \ the rule resolves in THIS body and in no\nother spec, and its five prior homes\
+  \ carry a POINTER plus their own surface mechanics and NOT the\ngeneral rule — a\
+  \ DIFFERENTIAL with both legs: this body carries the rule, and a later edit that\n\
+  re-inlines it into any of those five surfaces goes RED. It is likewise wired to\
+  \ NO code:\n`implements:` stays empty and nothing refuses on account of it.\n(g)\
+  \ for item 9's journal-cost bullet, a DIFFERENTIAL tripwire holds BOTH legs at once:\
+  \ this body\nCARRIES the pointer naming SPEC-0190 rule 9, and it does NOT carry\
+  \ rule 9's normative sentences —\nthe second leg goes RED if a later edit inlines\
+  \ the rule here, which is the P5 second-home drift\nthe bullet exists to prevent.\
+  \ A missing pointer and an inlined rule are distinct failures and are\nreported\
+  \ as such; the bullet is, like every other item here, wired to NO code.\n(i) for\
+  \ item 11's journal-row clause, a DIFFERENTIAL with both legs held at once: this\
+  \ body\nCARRIES the rule (a check resolving a fixed historical journal row reads\
+  \ through the segment\nresolver, and the failure it prevents is NAMED as silent\
+  \ absence read as evidence loss), and it\ndoes NOT carry SPEC-0190 rule 4's normative\
+  \ sentences — the second leg goes RED if a later edit\ninlines them here, which\
+  \ is the P5 second-home drift the clause's own pointer exists to prevent.\nA third\
+  \ state-check, because the clause is useless to anyone but its author without it:\
+  \ the\nworked NEGATIVE example is present WITH BOTH its failing texts (the reader's\
+  \ comment and the\nassertion message) AND the wording that would have passed, so\
+  \ a reader can hold a real check\nagainst it — a reduction to the abstract rule\
+  \ alone is a regression. And the clause must keep\nDENYING BY SHAPE rather than\
+  \ by prohibition: an edit that turned it into a ban on citing journal\nrows, or\
+  \ on reading the live segment for a reader that genuinely declares a short horizon,\
+  \ is a\nloss of real coverage and fails this probe. Wired to NO code, like every\
+  \ other item here:\n`implements:` stays empty, `consumed:` stays false, and nothing\
+  \ refuses on account of it.\n(j) for item 5's host-inspecting-test cue, a DIFFERENTIAL\
+  \ with both legs held at once: item 5's own\ntext CARRIES the cue (the authoring\
+  \ question) AND a fetchable pointer naming <workshop-spec> rule 8 and the\nartifact\
+  \ that records the local-probe class, and it does NOT carry rule 8's normative sentences\
+  \ — the\nsecond leg goes RED if a later edit inlines them here, which is the P5\
+  \ second-home drift the pointer\nexists to prevent. Both legs are held against negative\
+  \ fixtures built from the shipped body, so the\ncheck is shown to discriminate a\
+  \ stripped pointer from an inlined rule and to report them separately.\nDelivery\
+  \ is part of the probe: SPEC-0165 must still bind stage-entry:Filing and stage-entry:Tests,\
+  \ or\nthe cue reaches neither authoring moment. Wired to NO code, like every other\
+  \ item here.\n(k) for item 12's selection-friendly layout, a DIFFERENTIAL with three\
+  \ legs: item 12's own text\nCARRIES each of the five habits of (a) and the heavy-test\
+  \ split of (b); it CARRIES a pointer that\nresolves to the pattern section holding\
+  \ the split mechanics; and it does NOT carry that\nsection's own sentences — the\
+  \ third leg goes RED if a later edit inlines the mechanics here. Each\nleg is held\
+  \ against a negative fixture built from the shipped body (one habit removed, the\n\
+  pointer removed, a pattern sentence pasted in, the whole item removed), and each\
+  \ is reported by\nits own name. Clause (c) is held the same way: its sentences are\
+  \ in item 12, it names the\npattern's §The WASTE lever beside the split section,\
+  \ and item 12 with (c) cut out fails. Wired to\nNO code, like every other item here.\n\
+  (l) for item 10's spawned-child paragraph, a controlled failure: a test whose child\
+  \ writes a\nrandom marker into a temporary file and exits other than expected, builds\
+  \ its failure message,\nthen deletes that temporary directory, run through the real\
+  \ verify runner — the marker is in the\nfailing file's transported output tail AND\
+  \ in the failing assertion the extractor binds from it;\nDIFFERENTIAL: the same\
+  \ test with the tail left out of its message (the shape before this\nparagraph)\
+  \ loses the marker from both while still binding its identity. A state-check holds\
+  \ the\nparagraph in item 10 (unexpected outcome, before cleanup, expected nonzero\
+  \ exit exempt) without\nSPEC-1029 rule 4's numbers. Wired to NO code, like every\
+  \ other item here.\n(m) for delivery at Execution and the playbook pointers of items\
+  \ 9 and 12: the bundle `stage\nExecution` delivers lists this spec on the engine\
+  \ and on a blank consumer; DIFFERENTIAL: the same\nbundle derived with the binding\
+  \ cut back to Filing and Tests does not list it at Execution and still\nlists it\
+  \ at both; items 9 and 12 each name `patterns/verify-cost-playbook.md` in their\
+  \ own text,\nand either item with its pointer removed fails by its own name. Wired\
+  \ to NO code.\n"
 cites:
 - CHARTER.md#principle-3
 - SPEC-0015
@@ -428,5 +475,6 @@ activation_owner_task: null
 proposed_by: loud-failure-principle-one-tripwire-per-silently-b
 binding:
 - stage-entry:Filing
+- stage-entry:Execution
 - stage-entry:Tests
 init_concern: null

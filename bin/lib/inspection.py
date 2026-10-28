@@ -18,10 +18,12 @@ collaborators (the triage.py / spec.py precedent), so a `-C` REPO_ROOT rebind st
 from __future__ import annotations
 
 import argparse
+import datetime as _dt
 import hashlib
 import json
 import os
 import re
+import time
 
 # The fixed theme roster (SPEC-0057 §3 — small, fixed, owner-gated T1–T10). Validated at the verb so a
 # typo'd theme is refused rather than emitting a run-event for a non-theme. T10 (real-work observation
@@ -779,6 +781,17 @@ def ceiling_growth_lines(findings: list) -> list:
             for w in findings or []]
 
 
+def context_home_growth_lines(findings: list) -> list:
+    """T-14292 — the rendered `  context-home-growth:` lines `graph conformance` prints for a consumer
+    whose declared SPEC-0125 context home grew vs the merge-base (pure, the `ceiling_growth_lines`
+    precedent). Names where a project rule goes instead: an evidence-citing lesson (capture-routing)."""
+    return [f"  context-home-growth: {w['doc']} {w['delta']:+d} line(s) / {w['byte_delta']:+d} byte(s) "
+            f"vs merge-base ({w['base_lines']}→{w['cur_lines']} lines, {w['base_bytes']}→"
+            f"{w['cur_bytes']} bytes) — the SPEC-0125 context home grew: a project rule or practice "
+            f"goes to an evidence-citing lesson (`graph query capture-routing`), not the home (report-only)"
+            for w in findings or []]
+
+
 # ── Delivered-protocol weight (T7 sub-probe, T-13719) — report-only, NEVER a gate ─────────────
 # `durable_docs` above measures what a durable doc WEIGHS on disk. It says nothing about what is INSIDE
 # the text a spec DELIVERS to a reader, or how much each trigger delivers per firing. The 2026-10-08
@@ -1395,18 +1408,12 @@ def verify_cost_reading_lines(reading, indent="  ") -> list:
              f"covers {reading.get('covered_days')} days; thresholds "
              + ", ".join(f"{k} = {v['value']} ({v['source']})" if isinstance(v, dict) else f"{k} {v}"
                          for k, v in th.items())]
-    for side, verb in (("move_away", "move into a pre-deploy class"), ("move_back", "move back onto lands"),
-                       ("move_back_red_runs", "move back onto lands (red in pre-deploy runs)")):
+    for side, verb in (("move_away", "move into a pre-deploy class"), ("move_back", "move back onto lands")):
         block = reading.get(side) or {}
         for r in block.get("proposals") or []:
-            nums = ", ".join(f"{k} {r[k]}" for k in ("runs_at_place", "real_failures", "red_run_count", "median_s",
+            nums = ", ".join(f"{k} {r[k]}" for k in ("runs_at_place", "real_failures", "median_s",
                                                        "total_min") if k in r)
-            if r.get("red_runs"):
-                nums += " — runs " + ", ".join(str(x) for x in r["red_runs"])
             lines.append(f"{indent}  PROPOSE {verb}: {_name(r)} — {nums}")
-        if block.get("held_thin"):
-            lines.append(f"{indent}  held (costly, zero-catch, too few runs at its place): "
-                         + ", ".join(f"{_name(r)} {r.get('runs_at_place')}" for r in block["held_thin"]))
         if block.get("why_none"):
             lines.append(f"{indent}  no {side.replace('_', '-')} proposal: {block['why_none']}")
     lines.append(f"{indent}  writes: {reading.get('writes')}")
@@ -1673,10 +1680,32 @@ def sweep_payload_advisory(sp: dict) -> str:
     )
 
 
+def _utc_second() -> str:
+    return _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def emit_in_own_second(section, append, *, now_iso=_utc_second, sleep=time.sleep) -> str:
+    """T-14297 (public issue #207) — emit one row whose second no other run of this verb shares.
+
+    A `TYPE@ts` pin is second-granular and names a row only when it is the one row of its type in
+    that second (`_ts_locator_row`), so two runs in one second made both rows uncitable. Inside
+    `section` (the repository-wide journal lock, shared by every worktree of the repository) the row
+    is stamped and appended, and the lock is held until the clock has left that second: the next run
+    takes the lock only after it, so its stamp is later. No journal read — the invariant does not
+    depend on what else the journal holds. Returns the stamped ts."""
+    with section():
+        ts = now_iso()
+        append(ts)
+        while now_iso() == ts:
+            sleep(0.05)
+    return ts
+
+
 def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _append_event, _die,
                        REPO_ROOT=None, ENGINE_ROOT=None, _read_yaml=None, CANONICAL_DOCS=None,
                        _case_review=None, INSPECTED_CONSUMER=None, KERNEL_THEME_OWNER=None,
-                       _review_due=None, _delivered_weight=None, _verify_cost_reading=None) -> None:
+                       _review_due=None, _delivered_weight=None, _verify_cost_reading=None,
+                       _emit_section=None) -> None:
     """Emit exactly ONE `inspection_completed` event for a theme run (SPEC-0057 §6 proof-of-performance,
     even on zero findings) with a REAL checklist-hash `criteria_ref`. Owner-invoked, manual-first — no
     cron. The emit is an append-only journal write (the D-0049 no-worktree exception), so this verb runs
@@ -1708,6 +1737,10 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
     the moves it proposes both ways, never a move written. Unlike the report-only blocks above, the
     reading is what that record is FOR: a Lens C record without one — the fold not wired, raising, or
     answering no reading — is REFUSED as incomplete, and nothing is emitted.
+
+    T-14297 — with `_emit_section` injected (a zero-arg context manager: the repository-wide journal
+    lock) the row is emitted through `emit_in_own_second`, so no two runs of one repository share a
+    second and each row's `TYPE@ts` pin names exactly that row. Omitted -> the plain emit, unchanged.
 
     For a **`--tier weekly`** run it ALSO prints the triage review-due line when triage is due
     (T-13104): the weekly run is the moment an operator is already doing hygiene, so a lapsed triage
@@ -1944,7 +1977,10 @@ def cmd_inspect_record(args: argparse.Namespace, *, ROSTER_PATH, ROSTER_REL, _ap
     # probe renders its proof in the audit-post packet (_ac_probe_evidence_events_for ties by
     # task_id == the audited task). Omitted → None (back-compat: an untied run, unchanged).
     task_id = (getattr(args, "task", None) or "").strip() or None
-    _append_event("inspection_completed", task_id, data)
+    if _emit_section is None:
+        _append_event("inspection_completed", task_id, data)
+    else:
+        emit_in_own_second(_emit_section, lambda ts: _append_event("inspection_completed", task_id, data, ts=ts))
     print(f"inspection_completed emitted — {'tier' if tier else 'theme'}={subject_label} "
           f"findings={data['findings_count']} high={data['high_count']} criteria_ref={criteria_ref}")
     # T-11043 — every run SAYS its track coverage, from the contract's own renderer. Printed

@@ -180,6 +180,48 @@ def registry_users(registry_text: str) -> frozenset[str]:
     return frozenset(registry_roles(registry_text))
 
 
+def _registry_scalar(value: str) -> str:
+    return value.strip().strip("'\"").strip()
+
+
+def registry_git_identity(registry_text: str, user: str) -> tuple[str, str]:
+    """`user`'s declared COMMIT identity in the registry as (name, email) — ("", "") when the user is
+    absent or declares no usable `git_email:` (T-14185). The email is admitted only in a plain
+    `local@domain` shape (one `@`, no whitespace or angle bracket) — anything else is read as undeclared,
+    so a malformed value keeps git's own resolution rather than writing a broken ident. The name is
+    `git_name:`, else the first `git_authors:` entry, else the user key. A view over the ONE registry
+    parser (CHARTER §P5)."""
+    fields = _registry_fields(registry_text).get(user) if user else None
+    if not fields:
+        return ("", "")
+    email = _registry_scalar(fields.get("git_email", ""))
+    if email.count("@") != 1 or any(c.isspace() or c in "<>" for c in email) \
+            or email.startswith("@") or email.endswith("@"):
+        return ("", "")
+    name = _registry_scalar(fields.get("git_name", ""))
+    if not name:
+        authors = fields.get("git_authors", "").strip()
+        if authors.startswith("[") and authors.endswith("]"):
+            authors = authors[1:-1]
+        name = next((a for a in (_registry_scalar(x) for x in authors.split(",")) if a), "")
+    if any(c in "<>\n" for c in name):
+        name = ""
+    return (name or user, email)
+
+
+def project_people(registry_text: str, project: str) -> frozenset[str]:
+    """The registry users declared on `project` — `projects: all` or a flow list naming it (T-14185)."""
+    out = set()
+    for name, fields in _registry_fields(registry_text).items():
+        value = fields.get("projects", "").strip()
+        if value == "all":
+            out.add(name)
+        elif value.startswith("[") and value.endswith("]") and project in \
+                {_registry_scalar(x) for x in value[1:-1].split(",")}:
+            out.add(name)
+    return frozenset(out)
+
+
 def is_known_user(name: str, registry_text: str) -> bool:
     """Authoring-time check: is `name` a provisioned user in the registry? Empty registry => False."""
     return name in registry_users(registry_text)

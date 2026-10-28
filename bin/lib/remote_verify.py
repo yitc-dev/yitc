@@ -1950,9 +1950,10 @@ rm -f "$OUT/refs-before.tmp"
 # LOWER PRIORITY, MECHANISM 2 OF 2 (T-12199). `nice` is applied to the runner invocation itself so a
 # Stage-6 pass sharing the box with a land yields CPU to it; the value is RECORDED below out of
 # `os.nice(0)`, i.e. the priority the process ACTUALLY ran at, never the one the caller asked for.
-nice -n "$NICE" python3 - "$LEG" "$W" "$REQ" "$ATT" "$OUT" "$RUN/exclude.json" "$RUN/only.json" %(repo)s "$MAINREF" "$RUN/pinned_skip.json" "$RUNNER_BIN" "$LEG_JOURNAL" <<'PYRUN'
+nice -n "$NICE" python3 - "$LEG" "$W" "$REQ" "$ATT" "$OUT" "$RUN/exclude.json" "$RUN/only.json" %(repo)s "$MAINREF" "$RUN/pinned_skip.json" "$RUNNER_BIN" "$LEG_JOURNAL" "$RUN/pre_deploy_skip.json" <<'PYRUN'
 import json, os, pathlib, subprocess, sys, time
 leg, W, req, att, out, exclude_path, only_path, repo_git, main_ref, pinned_skip_path, runner_bin, leg_journal = sys.argv[1:13]
+pre_deploy_skip_path = sys.argv[13] if len(sys.argv) > 13 else None
 root = pathlib.Path.cwd()
 # T-13411 - WHOSE RUNNER. The candidate leg runs this checkout's own `bin/`; the pinned leg runs the
 # merged base's, materialised by the leg script (`runner_bin`). A pinned leg with no materialised tree
@@ -2186,8 +2187,36 @@ if pinned_skip:
         pinned_skipped = sorted(_would_run & set(pinned_skip))
     else:
         pinned_skip_read = "not-applied: would leave the pinned selection EMPTY (reads GREEN)"
-only = (sorted(base - set(excluded) - set(not_pinned) - set(pinned_skipped))
-        if (excluded or selected is not None or not_pinned or pinned_skipped) else None)
+# SPEC-1051 rule 2 / T-14288 — THE PRE-DEPLOY SKIP SET, COMPUTED ON THE HOST AND ONLY APPLIED HERE.
+# The listed order's skip set leaves a land's candidate leg and a Stage-6 run; the host computes it
+# once from the main checkout's journal (`_pre_deploy_run_skip` / the land request's read) and ships
+# the names, because this box has no main checkout to read and must not grow a second computation.
+# THE CANDIDATE LEG ONLY — the pinned last-green leg is never excluded (SPEC-1051 rule 2), so a
+# non-`cand` leg reads the file not at all. FAIL-SAFE IN THE SAME DIRECTION AS `pinned_skip`: absent,
+# unreadable, not-a-list or a non-string member skips NOTHING, and a skip that would empty the
+# selection is dropped whole (an empty selection reads GREEN). The applied names travel in
+# `pre_deploy_skipped` and the read outcome in `pre_deploy_skip_read`, so the row names what left.
+pre_deploy_skip, pre_deploy_skip_read, pre_deploy_skipped = [], "skipped-non-cand-leg", []
+if leg == "cand":
+    pre_deploy_skip_read = "ok"
+    try:
+        _raw = json.load(open(os.path.expanduser(pre_deploy_skip_path)))
+        if not isinstance(_raw, list):
+            pre_deploy_skip, pre_deploy_skip_read = [], f"invalid-skip: not a list ({type(_raw).__name__})"
+        elif not all(isinstance(n, str) for n in _raw):
+            pre_deploy_skip, pre_deploy_skip_read = [], "invalid-skip: non-string member"
+        else:
+            pre_deploy_skip = sorted(set(_raw))
+    except Exception as e:
+        pre_deploy_skip, pre_deploy_skip_read = [], f"{type(e).__name__}: {e}"
+if pre_deploy_skip:
+    _would_run = base - set(excluded) - set(not_pinned) - set(pinned_skipped)
+    if _would_run - set(pre_deploy_skip):
+        pre_deploy_skipped = sorted(_would_run & set(pre_deploy_skip))
+    else:
+        pre_deploy_skip_read = "not-applied: would leave the candidate selection EMPTY (reads GREEN)"
+only = (sorted(base - set(excluded) - set(not_pinned) - set(pinned_skipped) - set(pre_deploy_skipped))
+        if (excluded or selected is not None or not_pinned or pinned_skipped or pre_deploy_skipped) else None)
 t0 = time.monotonic()
 _ov_t0 = time.time()          # T-12260: the run window, in the sidecar's own EPOCH units
 try:
@@ -2412,6 +2441,7 @@ json.dump({"leg": leg, "workers_requested": int(W), "workers_in_effect": metrics
            "excluded_not_pinned": not_pinned, "not_pinned_count": len(not_pinned),
            "not_pinned_read": not_pinned_read,
            "pinned_skipped": pinned_skipped, "pinned_skip_read": pinned_skip_read,
+           "pre_deploy_skipped": pre_deploy_skipped, "pre_deploy_skip_read": pre_deploy_skip_read,
            "selected_count": (len(selected) if selected is not None else None),
            "only_read": only_read,
            "failing_count": len(failing), "failing": failing,
@@ -2946,6 +2976,7 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
              on_wait: "callable | None" = None,
              max_requests: "int | None" = None,
              pinned_skip: "set | list | None" = None,
+             pre_deploy_skip: "set | list | None" = None,
              stage6_exports: "dict | None" = None,
              admission_timeout: float = VENUE_ADMISSION_WAIT_BOUND_S,
              stage6_class_width: "int | None" = None,
@@ -2982,6 +3013,10 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
     on a routed land (the local driver that owns them is not called, and the leg script derives only
     `not_pinned`), so every venue land re-ran a stale pinned copy and paid a rebaseline round.
     ALWAYS written (a JSON list, `[]` when empty) for the same reason `exclude.json` always is.
+
+    T-14288 adds a SIXTH, on exactly those terms: `pre_deploy_skip` — the SPEC-1051 rule-2 skip set's
+    test file names, computed on the host (`pre_deploy_skip_names`) and shipped as
+    `pre_deploy_skip.json` for the CANDIDATE leg to apply. ALWAYS written, `[]` when empty.
 
     T-13967 — `verify_test_timeout` is the CALLER's resolved per-file bound (`route`), rendered into
     the leg script for both legs' runners; None renders none and the box resolves its own."""
@@ -3041,6 +3076,11 @@ def run_legs(box: str, shipped: dict, *, request: str, attempt: int = 1,
     psk.write_text(json.dumps(sorted(pinned_skip or [])))
     subprocess.run(["scp", *SSH_OPTS, "-q", str(psk),
                     f"{user}@{box}:{run_dir}/pinned_skip.json"], check=True, timeout=120)
+    # T-14288 — THIS pass's pre-deploy skip set, always written for the same reason.
+    pds = scratch / "pre_deploy_skip.json"
+    pds.write_text(json.dumps(sorted(pre_deploy_skip or [])))
+    subprocess.run(["scp", *SSH_OPTS, "-q", str(pds),
+                    f"{user}@{box}:{run_dir}/pre_deploy_skip.json"], check=True, timeout=120)
     _ssh(box, f"chmod +x {run_dir}/box-leg.sh", user=user, timeout=60)
 
     declared_env = venue_declaration_env()
@@ -3458,6 +3498,35 @@ def envelope_pinned_skipped(envelope: dict, *, leg: str = "pinned") -> list:
     return sorted(n for n in names if isinstance(n, str))
 
 
+def pre_deploy_skip_names(rec) -> list:
+    """SPEC-1051 rule 2 / T-14288 — the test file NAMES the box's candidate leg leaves out, from the
+    skip record the host computed (`land_verify_legs._pre_deploy_skip_read`). Only a `skipping` record
+    names any; only a unit file directly under `tests/` maps to a name the box runner discovers (it
+    globs `tests/test_*.py`), so a nested or non-test path is never shipped. PURE, total: anything else
+    is `[]`, which skips nothing."""
+    if not isinstance(rec, dict) or rec.get("state") != "skipping":
+        return []
+    units = rec.get("units")
+    out = set()
+    for u in (units if isinstance(units, list) else ()):
+        f = u.get("file") if isinstance(u, dict) else None
+        if isinstance(f, str) and f.startswith("tests/") and "/" not in f[6:] and f[6:]:
+            out.add(f[6:])
+    return sorted(out)
+
+
+def envelope_pre_deploy_skipped(envelope: dict, *, leg: str = "cand") -> list:
+    """T-14288 — the test files the CANDIDATE leg left out by the shipped pre-deploy skip set, read back
+    off the leg's own record (the APPLIED set). Total on malformed shapes: a non-dict envelope, `legs`
+    or leg record reads as nothing."""
+    legs = envelope.get("legs") if isinstance(envelope, dict) else None
+    rec = legs.get(leg) if isinstance(legs, dict) else None
+    names = rec.get("pre_deploy_skipped") if isinstance(rec, dict) else None
+    if not isinstance(names, list):
+        return []
+    return sorted(n for n in names if isinstance(n, str))
+
+
 # ── the entry point ──────────────────────────────────────────────────────────────────────────────
 
 def _execute_remote_verify_once(repo_root, box: str, *, ref: str = "HEAD", request: "str | None" = None,
@@ -3473,6 +3542,7 @@ def _execute_remote_verify_once(repo_root, box: str, *, ref: str = "HEAD", reque
                           nice: int = 0, on_wait: "callable | None" = None,
                           max_requests: "int | None" = None,
                           pinned_skip: "set | list | None" = None,
+                          pre_deploy_skip: "set | list | None" = None,
                           stage6_exports: "dict | None" = None,
                           on_shipped: "callable | None" = None,
                           stage6_class_width: "int | None" = None,
@@ -3524,6 +3594,7 @@ def _execute_remote_verify_once(repo_root, box: str, *, ref: str = "HEAD", reque
                            disconnect_after=disconnect_after, corrupt_path=corrupt_path,
                            legs=legs, exclude=exclude, only=only, nice=nice, on_wait=on_wait,
                            max_requests=max_requests, pinned_skip=pinned_skip,
+                           pre_deploy_skip=pre_deploy_skip,
                            stage6_exports=stage6_exports,
                            **({"stage6_class_width": stage6_class_width}
                               if stage6_class_width is not None else {}),
@@ -5167,6 +5238,7 @@ def routed_verify_bound(routed: "dict | None") -> dict:
 def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
           selection: "set | list | None" = None,
           pinned_skip: "set | list | None" = None,
+          pre_deploy_skip: "dict | None" = None,
           priority: str = "full", legs: "tuple | list" = LEGS,
           request: "str | None" = None, attempt: int = 1, seen: "set | tuple" = (),
           journal: "callable | None" = None, on_wait: "callable | None" = None,
@@ -5230,6 +5302,12 @@ def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
     `selection`: that one narrows the CANDIDATE leg, this one the PINNED leg, and each is bound to
     its own leg BOX-SIDE rather than trusted of this caller. `pinned_skip=None` is the pre-T-12313
     behaviour, byte-for-byte, and is the fail-safe default.
+
+    `pre_deploy_skip` (T-14288) — the SPEC-1051 rule-2 skip RECORD the caller already read for this
+    pass (`land_verify_legs._pre_deploy_run_skip` on Stage 6, the land request's read on a land),
+    reduced here to its test file names (`pre_deploy_skip_names`) and applied by the box to the
+    CANDIDATE leg alone. One computation, on the host: the box has no main checkout to read. None (and
+    any record that is not `skipping`) ships `[]`, the pre-T-14288 behaviour.
 
     THE SHIPPED REF IS COMPOSED HERE, AND IT DIFFERS BY KIND (T-12425). A `land` pass ships
     `HEAD` — the merged candidate COMMIT — exactly as it always did. A STAGE-6 pass ships a
@@ -5341,7 +5419,9 @@ def route(repo_root, *, kind: str, decision: dict, local, test_dir=None,
                          # `exclude`, never `local`: the pinned leg ignores the selection (T-12503).
                          legs=tuple(legs), exclude=set(partition["exclude"]),
                          only=(list(partition["remote"]) if partition["selection_applied"] else None),
-                         nice=nice, pinned_skip=pinned_skip, on_shipped=probe.start,
+                         nice=nice, pinned_skip=pinned_skip,
+                         pre_deploy_skip=pre_deploy_skip_names(pre_deploy_skip),
+                         on_shipped=probe.start,
                          **executor_kw)
     except BaseException:
         probe.join(reraise=False)
@@ -5469,6 +5549,17 @@ def venue_verify_metrics(result: dict, partition: "dict | None" = None) -> dict:
     _tail = _leg_failed_output_tail(result or {})
     if _tail:
         out[VENUE_FAILED_OUTPUT_TAIL_KEY] = _tail
+    # T-14288 (SPEC-1051 rule 2) — what the box's candidate leg left out by the shipped skip set, and
+    # how its read went. Present-only: a pass that skipped nothing carries no names (T-0358).
+    _env = (result or {}).get("envelope")
+    _pds = envelope_pre_deploy_skipped(_env)
+    if _pds:
+        out["venue_pre_deploy_skipped"] = _pds
+        out["venue_pre_deploy_skipped_count"] = len(_pds)
+    _legs = _env.get("legs") if isinstance(_env, dict) else None
+    _cand = _legs.get("cand") if isinstance(_legs, dict) else None
+    if isinstance(_cand, dict) and isinstance(_cand.get("pre_deploy_skip_read"), str):
+        out["venue_pre_deploy_skip_read"] = _cand["pre_deploy_skip_read"]
     if partition is not None:
         out["venue_local_probe_count"] = partition["counts"]["local"]
         # T-12503 — what the box was told never to run (both legs); >= the local leg on a narrow pass.

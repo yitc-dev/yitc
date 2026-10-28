@@ -418,22 +418,16 @@ binding:
 concern:
 - section: security_audit
   born_order: 70
-  born: "  audit:\n    # SECURITY-AUDIT CADENCE (SPEC-0145, pairs with SPEC-0093 rule\
-    \ for the `security.audit` shape).\n    # A DETERMINISTIC audit script (no AI\
-    \ in the loop) runs on a SYSTEM trigger (cron/systemd — NOT a\n    # provider\
-    \ scheduler) and writes an evidence-rich report to `.yitc/findings/`; the deploy\
-    \ gate\n    # rejects a report that is stale-by-SLA OR incomplete-by-evidence,\
-    \ even if its date is fresh.\n    # DECLARE `cadence:` (the system-trigger schedule)\
-    \ + `freshness_sla:` (the gate window) + `runner:`\n    # (the deterministic audit\
-    \ command) once this project has a security surface, OR keep this STRICT\n   \
-    \ # waiver. The waiver is STRICT (SPEC-0093 rule 6): reason + compensating_control\
-    \ + a real-ISO-date\n    # expiry are ALL required.\n    waiver:\n      reason:\
-    \ \"Initialized via `bin/yitc-v2 init` — no project-specific security-audit cadence\
-    \ yet; declare `cadence:` + `freshness_sla:` + `runner:` once this project has\
-    \ a security surface (SPEC-0145).\"\n      compensating_control: \"Kernel always-on\
-    \ security baseline: prompt-injection protection, the `security-review` skill,\
-    \ secrets-out-of-git, the host-leak canary.\"\n      expiry: \"2026-12-31\" #\
-    \ review-by date — REPLACE with your real security-review date.\n"
+  born: "  audit:\n    # SECURITY-AUDIT CADENCE: a deterministic script on a system\
+    \ trigger writes the report the deploy\n    # gate checks. DECLARE `cadence:`\
+    \ + `freshness_sla:` + `runner:`, or keep this STRICT waiver\n    # (SPEC-0093\
+    \ rule 6).\n    # Rule text: `__YITC_CLI__ graph query SPEC-0145 --kernel`\n \
+    \   waiver:\n      reason: \"Initialized via `bin/yitc-v2 init` — no project-specific\
+    \ security-audit cadence yet; declare `cadence:` + `freshness_sla:` + `runner:`\
+    \ once this project has a security surface (SPEC-0145).\"\n      compensating_control:\
+    \ \"Kernel always-on security baseline: prompt-injection protection, the `security-review`\
+    \ skill, secrets-out-of-git, the host-leak canary.\"\n      expiry: \"2026-12-31\"\
+    \ # review-by date — REPLACE with your real security-review date.\n"
   carrier_path: security.audit
   presence_policy: checked-if-present
   update_policy: init re-seed
@@ -442,26 +436,11 @@ concern:
   waiver_policy: strict
 - section: security_audit_profile_snapshot
   born_order: 70
-  born: "    profile_snapshot:\n      # PROFILE SNAPSHOT (SPEC-0198, delivered by\
-    \ for the SPEC-0145 report).\n      # ACTIVE AT BIRTH — and there is no stance\
-    \ here for you to take. The security-audit report\n      # annotates itself with\
-    \ this project's DERIVED growth profile — `snapshot_hash` +\n      # `check_set_hash`\
-    \ + the derived check set — so a report can be told apart from one produced\n\
-    \      # under a different risk profile. You do NOT maintain the profile: the\
-    \ kernel derives it from\n      # this checkout and its journal (read it any time\
-    \ with `__YITC_CLI__ profile`).\n      #\n      # `command:` below is NOT an answer\
-    \ you were asked for — it is a DERIVED VALUE the kernel\n      # RENDERS at init:\
-    \ the route from a byte-copied producer (no `bin/lib/` beside it) to the ONE\n\
-    \      # derivation site, `bin/lib/profile.py#resolve_profile`. A derived value\
-    \ is never asked as a\n      # question (SPEC-0198), so a section whose every\
-    \ value is kernel-rendered is ratified BY\n      # CONSTRUCTION and owes no unratified-adoption\
-    \ debt (SPEC-0119 rule 13's narrow exclusion).\n      #\n      # TO OPT OUT: replace\
-    \ `command:` with a `waiver:` whose `reason:` says why. The report is then\n \
-    \     # byte-identical to an unannotated one. A DECLARED-BUT-BROKEN command is\
-    \ never silent: the\n      # report degrades VISIBLY, carrying `profile_snapshot.status:\
-    \ unavailable` plus an open\n      # `SEC-PROFILE-SNAPSHOT` finding — so a broken\
-    \ declaration can never be mistaken for that\n      # deliberate opt-out.\n  \
-    \    command: \"__YITC_CLI__ --read-only profile --json\"\n"
+  born: "    profile_snapshot:\n      # PROFILE SNAPSHOT — active at birth, nothing\
+    \ to answer: `command:` is a kernel-rendered value\n      # (SPEC-0119 rule 13).\
+    \ To opt out, replace it with a `waiver:` whose `reason:` says why.\n      # Rule\
+    \ text: `__YITC_CLI__ graph query SPEC-0145 --kernel`\n      command: \"__YITC_CLI__\
+    \ --read-only profile --json\"\n"
   carrier_path: security.audit.profile_snapshot
   presence_policy: checked-if-present
   update_policy: init re-seed

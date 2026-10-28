@@ -97,6 +97,8 @@ DEAD_LAND_RED_EVIDENCE_KEYS = ("red_assertions", "red_isolation", "red_isolation
 AHEAD_BRANCH_NAMESPACES = ("task/", "work/")
 UNKNOWN_HOLDER = "UNKNOWN (unstamped / raw-git)"
 _ABORT_BREADTH_EVENTS = ("land_completed", "land_member_verdict")
+#: T-14241 — the row types `_slowest_records` reads: the debt echo declares them in its one-pass scan.
+SLOWEST_READ_TYPES = ("land_completed", "tests_passed")
 _ABORT_BREADTH_MEMBER_REQUEUE_VERDICT = "requeued-after-red-batch"   # SPEC-0184 rule 5's requeue
 _ABORT_BREADTH_MEMBER_LANDED_VERDICT = "landed"          # SPEC-0184 rule 5's member that REACHED main
 _ABORT_BREADTH_MAX_NAMED_ASSERTIONS = 3   # the bounded AC6 sample carried per cause (render shows <=2)
@@ -123,41 +125,106 @@ def _slowest_records(events_path) -> list:
     rotated away reads as a fresh ENTRANT, and below `SLOWEST_CHANGE_MIN_PRIOR` the fold says
     nothing at all. `segment_rows` resolves the segment SET and reads each member through the SAME
     `fold_rows` primitive T-11453 shared, so this is still ONE parse path and the judgement below is
-    untouched — the reader simply reads the whole history it was already judging."""
-    records: list = []
+    untouched — the reader simply reads the whole history it was already judging.
+
+    STAGE-6 RUNS ARE OBSERVATIONS TOO (T-14241). A runner-marked `tests_passed` row carries the same
+    record, so the walls a CREDITED land (SPEC-0065 §Bound) did not measure are read from the run it
+    credited — each run once, the credited land itself adding nothing. The returned list carries, per
+    record, its source (`land` / `stage6`) and ts, plus the ts of every credited land, so the judge
+    can say how many of its window's lands were credited and where the walls came from. ONLY A
+    CREDITED RUN IS AN OBSERVATION: a Stage-6 row no ok land names as its `stage6_credit` was measured
+    again by its own land, so it is dropped — with no credit in the journal the records are main's.
+    A credited run's walls take the POSITION of the land that credited it (that land's ts), never the
+    run's own: the latest observation is the latest land's, however the runs before it interleave."""
+    records = _SlowRecords()
+    runs: dict = {}                       # (task_id, ts) -> entries of a Stage-6 run awaiting its credit
     try:
-        # SPEC-0190 rule 4 — the WHOLE journal; T-13139 — declared: the land rows only.
-        for event in journal.segment_rows(events_path, types=("land_completed",)):
-            if not isinstance(event, dict) or event.get("type") != "land_completed":
+        # SPEC-0190 rule 4 — the WHOLE journal; T-13139 — declared: the land and Stage-6 rows only.
+        for event in journal.segment_rows(events_path, types=SLOWEST_READ_TYPES):
+            kind = event.get("type") if isinstance(event, dict) else None
+            if kind not in ("land_completed", "tests_passed"):
                 continue
             data = event.get("data")
-            if not isinstance(data, dict) or data.get("status") != "ok":
-                continue                  # an ABORTed land's timings prove nothing about a trend
-            metrics = data.get("verify_metrics")
-            if not isinstance(metrics, dict):
+            if not isinstance(data, dict):
                 continue
-            record = metrics.get("per_file_durations")
-            if not isinstance(record, dict):
-                continue
-            rows = record.get("slowest_files")
-            if not isinstance(rows, list) or not rows:
-                continue                  # no recorded tail ⇒ this land is not an observation
-            entries = {}
-            for row in rows:
-                if not isinstance(row, dict):
-                    continue
-                name = row.get("file")
-                wall = row.get("wall_ms")
-                if not isinstance(name, str) or not name.strip():
-                    continue
-                if isinstance(wall, bool) or not isinstance(wall, int):
-                    continue              # a non-integer wall is not a measurement
-                entries[name.strip()] = {"wall_ms": wall, "outcome": row.get("outcome")}
-            if entries:
-                records.append(entries)
+            if kind == "land_completed":
+                if data.get("status") != "ok":
+                    continue              # an ABORTed land's timings prove nothing about a trend
+                credit = data.get("stage6_credit")
+                if isinstance(credit, dict):
+                    records.credited_ts.append(str(event.get("ts") or ""))
+                    run_entries = runs.pop((credit.get("task"), credit.get("ts")), None)
+                    if run_entries and not _slow_entries(data):
+                        records.append(run_entries)     # the run stands at its crediting land
+                        records.sources.append("stage6")
+                        records.ts.append(str(event.get("ts") or ""))
+                        continue
+            elif not isinstance(data.get("stage6_run"), dict):
+                continue                  # a hand `--evidence` row measured nothing
+            entries = _slow_entries(data)
+            if not entries:
+                continue                  # no recorded tail ⇒ this row is not an observation
+            if kind == "tests_passed":
+                runs[(event.get("task_id"), event.get("ts"))] = entries
+                continue                  # read only once a land credits it, at that land
+            records.append(entries)
+            records.sources.append("land")
+            records.ts.append(str(event.get("ts") or ""))
     except (OSError, UnicodeDecodeError):
         return []
     return records
+
+
+def _slow_entries(data) -> dict:
+    """`{file: {wall_ms, outcome}}` of a row's recorded slowest files, or `{}` when it has none."""
+    metrics = data.get("verify_metrics") if isinstance(data, dict) else None
+    record = metrics.get("per_file_durations") if isinstance(metrics, dict) else None
+    rows = record.get("slowest_files") if isinstance(record, dict) else None
+    if not isinstance(rows, list):
+        return {}
+    entries = {}
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        name = row.get("file")
+        wall = row.get("wall_ms")
+        if not isinstance(name, str) or not name.strip():
+            continue
+        if isinstance(wall, bool) or not isinstance(wall, int):
+            continue                      # a non-integer wall is not a measurement
+        entries[name.strip()] = {"wall_ms": wall, "outcome": row.get("outcome")}
+    return entries
+
+
+class _SlowRecords(list):
+    """T-14241 — `_slowest_records`' list, plus per-record `sources` / `ts` and the `credited_ts` of
+    credited lands. A list, so every caller and injected stub that reads it as one is unchanged."""
+
+    def __init__(self):
+        super().__init__()
+        self.sources: list = []
+        self.ts: list = []
+        self.credited_ts: list = []
+
+
+def _slow_window_sources(records, window_records: int) -> dict:
+    """T-14241 — over the last `window_records` records: how many runs the walls come from, how many
+    of them are Stage-6 runs, and how many lands since the window's oldest record were credited.
+    `{}` when there is nothing to say (no Stage-6 run and no credited land in the window, or a plain
+    list without the attributes) — so a credit-free journal judges exactly as before."""
+    sources, ts = getattr(records, "sources", None), getattr(records, "ts", None)
+    credited = getattr(records, "credited_ts", None)
+    if sources is None or ts is None or credited is None or len(sources) != len(records):
+        return {}
+    n = max(0, min(int(window_records), len(records)))
+    if n == 0:
+        return {}
+    oldest = ts[-n]
+    stage6 = sum(1 for src in sources[-n:] if src == "stage6")
+    credited_n = sum(1 for t in credited if t >= oldest)
+    if not stage6 and not credited_n:
+        return {}
+    return {"credited_lands": credited_n, "stage6_runs": stage6, "runs": n}
 
 
 
@@ -235,7 +302,9 @@ def slowest_decile_changes(events_path, window_lands: int = SLOWEST_CHANGE_WINDO
         min_growth = SLOWEST_CHANGE_MIN_GROWTH_MS
     if len(records) < floor + 1:
         # Too little history to speak: not even ONE observation plus `floor` priors to compare it to.
-        return _slowest_change_result([], [], window, len(records), floor)
+        result = _slowest_change_result([], [], window, len(records), floor)
+        result.update(_slow_window_sources(records, len(records)))   # T-14241: counts still stated
+        return result
     latest = records[-1]
     baseline = records[-(window + 1):-1] if window > 0 else records[:-1]
     membership = {name for record in baseline for name in record}
@@ -262,7 +331,10 @@ def slowest_decile_changes(events_path, window_lands: int = SLOWEST_CHANGE_WINDO
                           "growth_pct": int(round(100.0 * delta / base))})
     entrants.sort(key=lambda e: (-e["wall_ms"], e["file"]))
     grown.sort(key=lambda g: (-g["growth_pct"], g["file"]))
-    return _slowest_change_result(entrants, grown, window, len(records), floor)
+    result = _slowest_change_result(entrants, grown, window, len(records), floor)
+    # T-14241 — where the window's walls came from; absent on a credit-free journal.
+    result.update(_slow_window_sources(records, len(baseline) + 1))
+    return result
 
 
 

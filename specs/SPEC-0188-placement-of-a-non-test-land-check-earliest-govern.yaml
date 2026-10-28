@@ -100,126 +100,134 @@ body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity gua
   \ writer→test\n   map is complete when written and wrong afterwards: the tripwire\
   \ that caught the incident in\n   §Worked example 2 did not exist when the writer\
   \ that broke it. Over-inclusion is harmless\n   (an extra green file costs its own\
-  \ bounded wall); under-inclusion is the defect.\n3. **WITHHOLDING IS THE FAIL-CLOSED\
-  \ DEFAULT, AND IT IS FREE ONLY BECAUSE THE WRITE IS\n   RE-DERIVABLE.** Red, timeout,\
-  \ budget, runner error — anything that is not positive proof\n   withholds. That\
-  \ is affordable precisely because every writer this rule governs recomputes its\n\
-  \   write from scratch on the next land, so a withheld write is DEFERRED, never\
-  \ lost. **A tail\n   write that is NOT re-derivable may not use this rule to skip\
-  \ itself** — it must be moved into\n   the verified candidate or else not be a tail\
-  \ write at all.\n\nThe five elements, filled (rule 2), for the seam this rule governs:\n\
-  - (1) SUBJECT — the tree ON `main` AFTER the fast-forward AND after this one writer's\
-  \ paths are\n  written; nothing earlier holds those bytes.\n- (2) REQUIRED FACTS\
-  \ — the written paths and the tests that read them. Unanswerable before the\n  write\
-  \ exists, which is what places the check here and not at either rule-2 point.\n\
-  - (3) LATER INVALIDATORS — none within the land: the check runs inside the same\
-  \ ff lock as the\n  write and the bookkeeping commit, so nothing mutates between\
-  \ the verdict and the commit.\n- (4) EXPECTED COST — the readers of ONE artifact,\
-  \ run in parallel under a wall budget, paid by\n  the LANDING land only and only\
-  \ when a write actually happened. Measured on this repo: ~11.4s\n  for the lane\
-  \ carrier's 5 readers, ~13.3s for the duration table's 13, against a measured\n\
-  \  incident cost of ~2.5h of serialized reservation, >15 parked lands and two halted\
-  \ workers.\n  The budget is also the deadlock bound — a reader that hangs against\
-  \ the held lock expires into\n  a withhold rather than wedging it.\n- (5) RECIPIENT\
-  \ OF FAILURE — the WRITER, not a branch: no branch caused this and none is refused.\n\
-  \  The `land_tail_write_withheld` row names the writer, its withheld paths and the\
-  \ failing reader,\n  and the derived debt view surfaces a run of them — which is\
-  \ the real signal, since one\n  withholding is a deferral and a repeated one means\
-  \ the writer and its readers genuinely\n  disagree.\n\n**What this rule does NOT\
-  \ license:** it is not a general post-ff re-verify (rule 5 stands — the\nfull candidate\
-  \ suite is NOT re-run), it gates no branch, it refuses no land, and it never makes\
-  \ a\nland that already integrated fail. Its only power is to decline to COMMIT a\
-  \ bookkeeping write.\n\n#### Rule 7's in-flight marker — how the tail's own write\
-  \ avoids being read as foreign dirt\nA tail write mutates `main` while a CONCURRENT\
-  \ land is running its earliest foreign-dirt check\nagainst that same shared checkout.\
-  \ For the window between the write and the bookkeeping commit (or\na withhold restore),\
-  \ the writer's paths are UNCOMMITTED on `main` — and they are indistinguishable,\n\
-  to a reader, from a human's stray work. MEASURED 2026-09-13 ( inside the tail):\
-  \ the\nconcurrent land's earliest arm read them as foreign work and ABORTED a healthy\
-  \ branch.\n\n**The tail NAMES what it is about to write, and the concurrent check\
-  \ WAITS on dirt that naming\ncovers — bounded — instead of refusing it.** This is\
-  \ not a separate rule: it exists only so rule 7's\nown write does not trip the foreign-dirt\
-  \ refusal, so it is stated with the write it serves. Six\nelements, each load-bearing:\n\
-  \n1. **FILE LOCATION.** ONE file, `land-tail-inflight`, in the EXISTING off-tree\
-  \ verify sidecar for\n   the main checkout — no new store (rule 3). OFF-TREE is\
-  \ load-bearing, not tidiness: a marker\n   inside the working tree would itself\
-  \ be uncommitted dirt, i.e. the very thing it exists to\n   classify.\n2. **LIFECYCLE.**\
-  \ Armed by the tail writer BEFORE its first write and inside the SAME ff lock as\n\
-  \   the write and the bookkeeping commit; cleared when the arming span exits — after\
-  \ the commit,\n   after a withhold restore, and on a raise alike, so no exit path\
-  \ leaks a marker. The write is\n   ATOMIC (a reader never sees a half-written marker).\
-  \ A failure to arm leaves NO marker, which is\n   exactly the un-marked behaviour:\
-  \ the concurrent land refuses. The mechanism therefore degrades\n   to the status\
-  \ quo ante, never to a weaker one.\n3. **HOLDER-PID LIVENESS.** The marker records\
-  \ the arming process's pid, and it covers only while\n   that pid is ALIVE; a clear\
-  \ removes only the holder's OWN marker, never another holder's. A\n   crashed or\
-  \ killed tail thus grants no standing waiver — its leftover marker covers nothing\
-  \ from\n   the moment it dies, so a stale file cannot silently suppress a real refusal.\n\
-  4. **EXACT/GLOB PATH COVERAGE.** Coverage requires EVERY foreign path to match one\
-  \ of the marker's\n   named entries, exact or glob. Globs are necessary, not convenient:\
-  \ some of the tail's written\n   paths carry ids ALLOCATED DURING the write and\
-  \ cannot be named in advance. Over-breadth is\n   bounded by DIRECTION — a genuinely\
-  \ foreign path an over-broad glob happens to cover costs a\n   bounded WAIT and\
-  \ then the same refusal; it never earns an admit.\n5. **THE BOUNDED WAIT.** On covered\
-  \ dirt the concurrent check re-classifies `main` on a poll until\n   the dirt clears,\
-  \ the covering live marker is gone, or the bound elapses. It takes NO budget of\n\
-  \   its own: it reuses the wall budget rule 7's element (4) already names\n   (`YITC_LAND_TAIL_TRIPWIRE_BUDGET_S`)\
-  \ — one knob, no parallel parameter (rule 3) — counted ONCE\n   PER TRIPWIRED TAIL\
-  \ WRITER, because the tail runs those writers one after the other (two today:\n\
-  \   the duration table, then the load-sensitive entry) and a waiter may arrive at\
-  \ the first one's\n   start. MEASURED : a tail held its marker ~148 s against a\
-  \ 120 s budget. When the marker\n   disappears between the classification and the\
-  \ coverage read, the answer is ONE more read, never\n   the stale one: the holder's\
-  \ commit or restore may have landed in between.\n6. **THE ADMISSION INVARIANT —\
-  \ the refusal is UNCHANGED.** Stated as what may be ADMITTED, never as\n   \"the\
-  \ refusal is merely delayed\": **the marker NEVER admits while foreign dirt REMAINS.**\
-  \ What it\n   defers is the CLASSIFICATION, not the verdict. Absent, unparseable,\
-  \ dead-holder or uncovered\n   skips the wait entirely; an EXPIRED wait returns\
-  \ the STILL-DIRTY verdict, so the caller refuses\n   exactly as before. On the success\
-  \ path the tail commits or restores, the re-classification comes\n   back CLEAN,\
-  \ and the land proceeds on the ORDINARY no-dirt admission — no refusal was owed\
-  \ and\n   none was suppressed. So the marker converts no dirty verdict into an admit,\
-  \ gates no branch and\n   weakens no guard; what it removes is a refusal issued\
-  \ against dirt that was never foreign.\n\n#### Rule 7's reader discipline — a read\
-  \ of the shared checkout takes no index lock\nThe marker stops a concurrent land\
-  \ MISREADING the tail's write. This is the other half of the same\nseam: the read\
-  \ must not KILL that write. A git status takes the checkout's index lock only to\
-  \ save\nthe stat data it refreshed, and a git write that meets that lock fails outright.\
-  \ MEASURED :\n28 of 1200 tail restores died under a polling reader — and a restore\
-  \ that dies leaves its dirt in\nplace for every later land.\n\n**Every git child\
-  \ the engine spawns runs with git's optional locks switched off** — the children\
-  \ of\nits two git runners and every git it launches past them. ONE implementation,\
-  \ used by both runners\n(rule 4) and by every direct launch: the child's environment\
-  \ is a COPY of the caller's — a supplied\none keeps every key and is never written\
-  \ — with the switch FORCED off, so a caller's own setting\ncannot turn an engine\
-  \ read back into a lock taker. The concrete form lives at the anchor\n`bin/lib/git_env.py#_git_child_env`\
-  \ and nowhere else; the runners' module binds that function, it\ndoes not restate\
-  \ it. It sits on every child because the reader of a shared checkout is not one\
-  \ call\nsite: freeing the two polled reads left every other engine read taking the\
-  \ lock. A direct launch is\nGUARDED rather than routed — it passes the policy over\
-  \ the environment it already passed and changes\nnothing else in its call, since\
-  \ a runner would change its argv — and\n`tests/test_engine_git_launch_guard.py`\
-  \ derives every launch from the engine source and fails one\nthat carries neither;\
-  \ the guarded adapters, the launches whose program the source cannot decide and\n\
-  the few exempt launches are listed there, each with its reason. REQUIRED locks are\
-  \ untouched — a\ncheckout, an add, a commit, a merge and an explicit index update\
-  \ lock exactly as before.\n\nThree bounds, each load-bearing:\n1. **NOTHING SAVES\
-  \ THE REFRESH.** A read still refreshes in memory and answers the same; it no\n\
-  \   longer writes the refreshed stat data back. A tracked file whose bytes are unchanged\
-  \ but whose\n   stat moved therefore stays \"to be re-checked\" until a WRITE persists\
-  \ the index. So **an engine\n   cleanliness decision is a content-aware read — a\
-  \ status or a diff — and never a stat-only read\n   of the saved index**: the stat-only\
-  \ form answers \"dirty\" for that unchanged file, and used to\n   answer \"clean\"\
-  \ only because some earlier status had saved its refresh. A stat-only read is\n\
-  \   admissible only where a wrong \"dirty\" is harmless by construction: it may\
-  \ cost a re-read, never\n   decide a verdict.\n2. **AN EXPLICIT REFRESH HAS ONE\
-  \ OWNER: THE WRITER THAT HOLDS THE LAND RESERVATION**, inside the\n   same ff lock\
-  \ as the write and the bookkeeping commit. No reader refreshes, no poll does, and\n\
-  \   there is no periodic refresh — each would be one more index writer on the shared\
-  \ checkout, which\n   is the collision this clause removes. NONE IS ADDED TODAY,\
-  \ because the land's own required\n   writes already persist a full refresh at that\
-  \ boundary on every land: the fast-forward and the\n   bookkeeping commit. MEASURED\
-  \ (10,000 tracked files, 12 concurrent readers): warm, and\n   with up to 100 stat-only\
+  \ bounded wall); under-inclusion is the defect. A test that\n   names an artifact\
+  \ is its reader unless the test itself carries a FIXTURE-ONLY opt-out for that\n\
+  \   artifact — a line-start `# tail-tripwire: fixture-only <path>` comment — and\
+  \ the opt-out holds\n   only while a suite test runs every marked file over a broken\
+  \ copy of the artifact that the run\n   must leave unread and green (`tests/test_t14287_tail_reader_live_only.py`).\
+  \ Any other artifact\n   the file names still selects it.\n3. **WITHHOLDING IS THE\
+  \ FAIL-CLOSED DEFAULT, AND IT IS FREE ONLY BECAUSE THE WRITE IS\n   RE-DERIVABLE.**\
+  \ Red, timeout, budget, runner error — anything that is not positive proof\n   withholds.\
+  \ That is affordable precisely because every writer this rule governs recomputes\
+  \ its\n   write from scratch on the next land, so a withheld write is DEFERRED,\
+  \ never lost. **A tail\n   write that is NOT re-derivable may not use this rule\
+  \ to skip itself** — it must be moved into\n   the verified candidate or else not\
+  \ be a tail write at all.\n\nThe five elements, filled (rule 2), for the seam this\
+  \ rule governs:\n- (1) SUBJECT — the tree ON `main` AFTER the fast-forward AND after\
+  \ this one writer's paths are\n  written; nothing earlier holds those bytes.\n-\
+  \ (2) REQUIRED FACTS — the written paths and the tests that read them. Unanswerable\
+  \ before the\n  write exists, which is what places the check here and not at either\
+  \ rule-2 point.\n- (3) LATER INVALIDATORS — none within the land: the check runs\
+  \ inside the same ff lock as the\n  write and the bookkeeping commit, so nothing\
+  \ mutates between the verdict and the commit.\n- (4) EXPECTED COST — the readers\
+  \ of ONE artifact, run in parallel under a wall budget, paid by\n  the LANDING land\
+  \ only and only when a write actually happened. Measured on this repo: ~11.4s\n\
+  \  for the lane carrier's 5 readers; for the duration table, 27 readers that open\
+  \ it, the longest\n  recorded at 13.6 s (one run at the lowest scheduler priority:\
+  \ 30.5 s), against 52-110 s for the\n  29 that merely named it — and a measured\
+  \ incident cost of ~2.5h of serialized reservation,\n  >15 parked lands and two\
+  \ halted workers.\n  The budget is also the deadlock bound — a reader that hangs\
+  \ against the held lock expires into\n  a withhold rather than wedging it.\n- (5)\
+  \ RECIPIENT OF FAILURE — the WRITER, not a branch: no branch caused this and none\
+  \ is refused.\n  The `land_tail_write_withheld` row names the writer, its withheld\
+  \ paths and the failing reader,\n  and the derived debt view surfaces a run of them\
+  \ — which is the real signal, since one\n  withholding is a deferral and a repeated\
+  \ one means the writer and its readers genuinely\n  disagree.\n\n**What this rule\
+  \ does NOT license:** it is not a general post-ff re-verify (rule 5 stands — the\n\
+  full candidate suite is NOT re-run), it gates no branch, it refuses no land, and\
+  \ it never makes a\nland that already integrated fail. Its only power is to decline\
+  \ to COMMIT a bookkeeping write.\n\n#### Rule 7's in-flight marker — how the tail's\
+  \ own write avoids being read as foreign dirt\nA tail write mutates `main` while\
+  \ a CONCURRENT land is running its earliest foreign-dirt check\nagainst that same\
+  \ shared checkout. For the window between the write and the bookkeeping commit (or\n\
+  a withhold restore), the writer's paths are UNCOMMITTED on `main` — and they are\
+  \ indistinguishable,\nto a reader, from a human's stray work. MEASURED 2026-09-13\
+  \ ( inside the tail): the\nconcurrent land's earliest arm read them as foreign work\
+  \ and ABORTED a healthy branch.\n\n**The tail NAMES what it is about to write, and\
+  \ the concurrent check WAITS on dirt that naming\ncovers — bounded — instead of\
+  \ refusing it.** This is not a separate rule: it exists only so rule 7's\nown write\
+  \ does not trip the foreign-dirt refusal, so it is stated with the write it serves.\
+  \ Six\nelements, each load-bearing:\n\n1. **FILE LOCATION.** ONE file, `land-tail-inflight`,\
+  \ in the EXISTING off-tree verify sidecar for\n   the main checkout — no new store\
+  \ (rule 3). OFF-TREE is load-bearing, not tidiness: a marker\n   inside the working\
+  \ tree would itself be uncommitted dirt, i.e. the very thing it exists to\n   classify.\n\
+  2. **LIFECYCLE.** Armed by the tail writer BEFORE its first write and inside the\
+  \ SAME ff lock as\n   the write and the bookkeeping commit; cleared when the arming\
+  \ span exits — after the commit,\n   after a withhold restore, and on a raise alike,\
+  \ so no exit path leaks a marker. The write is\n   ATOMIC (a reader never sees a\
+  \ half-written marker). A failure to arm leaves NO marker, which is\n   exactly\
+  \ the un-marked behaviour: the concurrent land refuses. The mechanism therefore\
+  \ degrades\n   to the status quo ante, never to a weaker one.\n3. **HOLDER-PID LIVENESS.**\
+  \ The marker records the arming process's pid, and it covers only while\n   that\
+  \ pid is ALIVE; a clear removes only the holder's OWN marker, never another holder's.\
+  \ A\n   crashed or killed tail thus grants no standing waiver — its leftover marker\
+  \ covers nothing from\n   the moment it dies, so a stale file cannot silently suppress\
+  \ a real refusal.\n4. **EXACT/GLOB PATH COVERAGE.** Coverage requires EVERY foreign\
+  \ path to match one of the marker's\n   named entries, exact or glob. Globs are\
+  \ necessary, not convenient: some of the tail's written\n   paths carry ids ALLOCATED\
+  \ DURING the write and cannot be named in advance. Over-breadth is\n   bounded by\
+  \ DIRECTION — a genuinely foreign path an over-broad glob happens to cover costs\
+  \ a\n   bounded WAIT and then the same refusal; it never earns an admit.\n5. **THE\
+  \ BOUNDED WAIT.** On covered dirt the concurrent check re-classifies `main` on a\
+  \ poll until\n   the dirt clears, the covering live marker is gone, or the bound\
+  \ elapses. It takes NO budget of\n   its own: it reuses the wall budget rule 7's\
+  \ element (4) already names\n   (`YITC_LAND_TAIL_TRIPWIRE_BUDGET_S`) — one knob,\
+  \ no parallel parameter (rule 3) — counted ONCE\n   PER TRIPWIRED TAIL WRITER, because\
+  \ the tail runs those writers one after the other (two today:\n   the duration table,\
+  \ then the load-sensitive entry) and a waiter may arrive at the first one's\n  \
+  \ start. MEASURED : a tail held its marker ~148 s against a 120 s budget. When the\
+  \ marker\n   disappears between the classification and the coverage read, the answer\
+  \ is ONE more read, never\n   the stale one: the holder's commit or restore may\
+  \ have landed in between.\n6. **THE ADMISSION INVARIANT — the refusal is UNCHANGED.**\
+  \ Stated as what may be ADMITTED, never as\n   \"the refusal is merely delayed\"\
+  : **the marker NEVER admits while foreign dirt REMAINS.** What it\n   defers is\
+  \ the CLASSIFICATION, not the verdict. Absent, unparseable, dead-holder or uncovered\n\
+  \   skips the wait entirely; an EXPIRED wait returns the STILL-DIRTY verdict, so\
+  \ the caller refuses\n   exactly as before. On the success path the tail commits\
+  \ or restores, the re-classification comes\n   back CLEAN, and the land proceeds\
+  \ on the ORDINARY no-dirt admission — no refusal was owed and\n   none was suppressed.\
+  \ So the marker converts no dirty verdict into an admit, gates no branch and\n \
+  \  weakens no guard; what it removes is a refusal issued against dirt that was never\
+  \ foreign.\n\n#### Rule 7's reader discipline — a read of the shared checkout takes\
+  \ no index lock\nThe marker stops a concurrent land MISREADING the tail's write.\
+  \ This is the other half of the same\nseam: the read must not KILL that write. A\
+  \ git status takes the checkout's index lock only to save\nthe stat data it refreshed,\
+  \ and a git write that meets that lock fails outright. MEASURED :\n28 of 1200 tail\
+  \ restores died under a polling reader — and a restore that dies leaves its dirt\
+  \ in\nplace for every later land.\n\n**Every git child the engine spawns runs with\
+  \ git's optional locks switched off** — the children of\nits two git runners and\
+  \ every git it launches past them. ONE implementation, used by both runners\n(rule\
+  \ 4) and by every direct launch: the child's environment is a COPY of the caller's\
+  \ — a supplied\none keeps every key and is never written — with the switch FORCED\
+  \ off, so a caller's own setting\ncannot turn an engine read back into a lock taker.\
+  \ The concrete form lives at the anchor\n`bin/lib/git_env.py#_git_child_env` and\
+  \ nowhere else; the runners' module binds that function, it\ndoes not restate it.\
+  \ It sits on every child because the reader of a shared checkout is not one call\n\
+  site: freeing the two polled reads left every other engine read taking the lock.\
+  \ A direct launch is\nGUARDED rather than routed — it passes the policy over the\
+  \ environment it already passed and changes\nnothing else in its call, since a runner\
+  \ would change its argv — and\n`tests/test_engine_git_launch_guard.py` derives every\
+  \ launch from the engine source and fails one\nthat carries neither; the guarded\
+  \ adapters, the launches whose program the source cannot decide and\nthe few exempt\
+  \ launches are listed there, each with its reason. REQUIRED locks are untouched\
+  \ — a\ncheckout, an add, a commit, a merge and an explicit index update lock exactly\
+  \ as before.\n\nThree bounds, each load-bearing:\n1. **NOTHING SAVES THE REFRESH.**\
+  \ A read still refreshes in memory and answers the same; it no\n   longer writes\
+  \ the refreshed stat data back. A tracked file whose bytes are unchanged but whose\n\
+  \   stat moved therefore stays \"to be re-checked\" until a WRITE persists the index.\
+  \ So **an engine\n   cleanliness decision is a content-aware read — a status or\
+  \ a diff — and never a stat-only read\n   of the saved index**: the stat-only form\
+  \ answers \"dirty\" for that unchanged file, and used to\n   answer \"clean\" only\
+  \ because some earlier status had saved its refresh. A stat-only read is\n   admissible\
+  \ only where a wrong \"dirty\" is harmless by construction: it may cost a re-read,\
+  \ never\n   decide a verdict.\n2. **AN EXPLICIT REFRESH HAS ONE OWNER: THE WRITER\
+  \ THAT HOLDS THE LAND RESERVATION**, inside the\n   same ff lock as the write and\
+  \ the bookkeeping commit. No reader refreshes, no poll does, and\n   there is no\
+  \ periodic refresh — each would be one more index writer on the shared checkout,\
+  \ which\n   is the collision this clause removes. NONE IS ADDED TODAY, because the\
+  \ land's own required\n   writes already persist a full refresh at that boundary\
+  \ on every land: the fast-forward and the\n   bookkeeping commit. MEASURED (10,000\
+  \ tracked files, 12 concurrent readers): warm, and\n   with up to 100 stat-only\
   \ files, a read costs the same with the switch off as on; with EVERY\n   entry stat-different\
   \ or racy each read repeats the content check (about 0.54 s a read,\n   against\
   \ 0.03 s warm) until one ordinary commit, after which it is back at the warm figure.\
@@ -312,22 +320,29 @@ body: "## Scenario\n\nA land check that is NOT a test — a corpus-integrity gua
   \ every non-test check on the land path had been appended to the END, and the measured\n\
   bill for that habit was three innocent branches per burst — one of them, task/,\
   \ spending\n735s + 1906s + 2495s across three lands, two of the aborts caused by\
-  \ other branches' off-path spec\nedits.\n\n## Verification\n\n- **VP1 (the rule\
-  \ is normative):** this spec resolves and is `active` — a `proposed` spec governs\n\
-  \  nothing (<workshop-spec> §4), so the status is asserted independently of the\
-  \ body.\n  PROBE: `tests/test_t11367_check_placement_rule.py`.\n- **VP2 (all five\
-  \ elements):** §Internal rule 2 carries all five named elements. PROBE: the same\n\
-  \  file asserts each of the five INDEPENDENTLY and names which one is missing on\
-  \ failure — never one\n  aggregate match, because a four-element author is exactly\
-  \ the failure mode.\n- **VP3 (vocabulary reuse):** the body names `land_completed.abort_preflight`\
-  \ and declares no\n  parallel placement enum or constant. PROBE: the same file asserts\
-  \ the key is named, that every\n  placement token this spec declares already resolves\
-  \ in the land implementation, and that no new\n  placement constant exists in `bin/lib/`.\n\
-  - **VP4 (adoption — CHARTER §P8, infra-class):** the rule is CONSUMED — §Worked\
-  \ example\n  re-describes both placements with all five elements FILLED, and a `consumer_read_evidence`\n\
-  \  event for names this spec, the placement and the five filled values. PROBE: the\
-  \ same file\n  checks the event, and its DIFFERENTIAL arm rejects the same evidence\
-  \ with the RECIPIENT OF FAILURE\n  value blanked.\n- **VP5 (no third placement point):**\
+  \ other branches' off-path spec\nedits.\n\nThe fixture-only opt-out of rule 7 bound\
+  \ 2 was added by (owner option A,\nevents.jsonl#ts=): land_completed rows of 2026-10-20..27\
+  \ showed 108 tail table\nwrites, all coverage writes, whose 52-110 s tripwire wall\
+  \ was set by two files that never open the\ntable (one names it in a `.gitattributes`\
+  \ check, one writes its own temp copy) while every live\nreader ran under 4 s. A\
+  \ syntactic \"opens the file\" derivation could not tell a fixture write from a\n\
+  live read, so the opt-out is read from the test and verified by a run, not trusted.\n\
+  \n## Verification\n\n- **VP1 (the rule is normative):** this spec resolves and is\
+  \ `active` — a `proposed` spec governs\n  nothing (<workshop-spec> §4), so the status\
+  \ is asserted independently of the body.\n  PROBE: `tests/test_t11367_check_placement_rule.py`.\n\
+  - **VP2 (all five elements):** §Internal rule 2 carries all five named elements.\
+  \ PROBE: the same\n  file asserts each of the five INDEPENDENTLY and names which\
+  \ one is missing on failure — never one\n  aggregate match, because a four-element\
+  \ author is exactly the failure mode.\n- **VP3 (vocabulary reuse):** the body names\
+  \ `land_completed.abort_preflight` and declares no\n  parallel placement enum or\
+  \ constant. PROBE: the same file asserts the key is named, that every\n  placement\
+  \ token this spec declares already resolves in the land implementation, and that\
+  \ no new\n  placement constant exists in `bin/lib/`.\n- **VP4 (adoption — CHARTER\
+  \ §P8, infra-class):** the rule is CONSUMED — §Worked example\n  re-describes both\
+  \ placements with all five elements FILLED, and a `consumer_read_evidence`\n  event\
+  \ for names this spec, the placement and the five filled values. PROBE: the same\
+  \ file\n  checks the event, and its DIFFERENTIAL arm rejects the same evidence with\
+  \ the RECIPIENT OF FAILURE\n  value blanked.\n- **VP5 (no third placement point):**\
   \ rule 5 states the refusal and rule 2 element 3 carries the\n  obligation that\
   \ licenses any later placement. PROBE: grep this body.\n- **VP6 (rule 7 — the tail\
   \ write is admitted only on proof):** a post-ff write whose reader goes\n  red is\
@@ -382,7 +397,7 @@ implements_signature:
   bin/lib/git_env.py#_git_child_env: 89dfccef69566d938d60f19ca3b5eb2477054b90f7057659cced1b323c82afaf
   bin/lib/worktree.py#_await_land_tail_marker: 4c5ae49e9f12a36fb6fb9b7a96d4b426e2b51fac4a37ce1fb659b7a6d4bf1f72
   bin/lib/worktree.py#_corpus_integrity_verdict: b3ef30926077e7edc63e502602f4adcf5d9d689335cb4472f583fdba9b4a67f5
-  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5
+  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
   bin/lib/worktree.py#_land_tail_marker_clear: 85489248e561e106b0438265d508544048970b2d70fb9fa6933319d478984622
   bin/lib/worktree.py#_land_tail_marker_live_covering: c78923ecb142409a171904f32dd3a256c86c3eb0458a0fc84d4071337a6f8f66
   bin/lib/worktree.py#_land_tail_marker_path: f67d3b61e2ed71a18bc0342bae34ac04b0fb0f69cbcf6c2ec93469e3dc692b9e

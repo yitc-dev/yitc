@@ -100,9 +100,9 @@ If task already filed (you're picking up an existing one) — skip to Stage 3.
 **Decomposition discipline (SPEC-0046 — delivered at the Analysis stage-entry; supersedes
 three earlier decomposition specs with the four cutting refinements + the plan-split criterion
 + the verifier-after-settled requires rule).** Before
-filing — or RESHAPING — a task, cut by **ONE provable claim per accept-unit** (not by size), and carry any
-deferral as a tracked task, never prose. If the unit proves >1 claim, **SPLIT** and encode the order via
-`requires:`. A **VERIFIER** unit (one that checks a SETTLED subject — a spec self-test / coherence check /
+filing — or RESHAPING — a task, cut by **one coherent change-set per card** (not by size), and carry any
+deferral as a tracked task, never prose. **SPLIT** only on a SPEC-0046 §A split ground, and encode any
+order via `requires:`. A **VERIFIER** unit (one that checks a SETTLED subject — a spec self-test / coherence check /
 conformance run) runs only AFTER its subject landed; at decomposition its `requires:` MUST name every
 writer of its subject — machine-readable, never prose/operator memory (§A3). SPEC-0046 binds
 `stage-entry:Analysis` only — the decompose decision (decide-how + split) is

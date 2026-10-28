@@ -884,16 +884,15 @@ concern:
   born_order: 100
   born: '# reads:
 
-    # # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the bounded EXEMPTION carrier
-    for a verb or seam
+    # # SPEC-0190 rule 10 (via SPEC-0160 rule 25) — the read-contract EXEMPTION carrier
+    for a seam
 
-    # # that cannot hold the read contract (one request-scoped ReadScope; folds <=
-    1 per segment).
+    # # that cannot hold the read contract. OPT-IN and born COMMENTED: absence exempts
+    no seam.
 
-    # # OPT-IN and born COMMENTED: absence exempts no seam. ALL FOUR fields are REQUIRED;
-    a malformed
+    # # Every entry needs all four fields; a malformed one is refused.
 
-    # # entry is REFUSED with the missing field NAMED (declare-or-waive, fail-closed).
+    # # Rule text: `__YITC_CLI__ graph query SPEC-0190 --kernel`
 
     # # see SPEC-0190 §Rule 10; SPEC-0160 §25
 

@@ -426,30 +426,41 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   \ runner's\nnamed `(file, wall, outcome)` data has always been available on `durations_out=`.\
   \ This EXTENDS the\nland bookkeeping seam that already commits events and rebuilds\
   \ the graph ( — extend the verb\nthat is before X): no new mechanism, no new store,\
-  \ no new event, no new verb.\n\n**THE WRITE POLICY (this is what keeps the order\
-  \ immobile).** Recomputing is free; WRITING is not.\nSo the two arms are asymmetric,\
-  \ and the asymmetry is the measurement — 91% of the whole win is\nCOVERAGE alone:\n\
-  \  - **(a) COVERAGE — no threshold, but never a partial table.** Any file on disk\
-  \ carrying\n    NO recorded duration ⇒ REWRITE, but ONLY when the resulting table\
-  \ (recorded ∪ re-derived)\n    records EVERY discovered file; otherwise NO WRITE\
-  \ with reason `coverage-incomplete` and the\n    unrecorded count. A narrowed land\
-  \ committed a partial table twice (fc17256 with 29 unrecorded;\n    0071976), reddening\
-  \ the committed-table completeness test on main, which judges a table only\n   \
-  \ once it is committed (the written table has had a reader of its own since — THE\n\
-  \    WRITTEN SET, below). This arm alone moves 323s -> 189s with every stale VALUE\
-  \ left untouched, because an\n    unrecorded file is imputed the median however\
-  \ expensive it really is. It is also what makes the\n    table self-healing: a suite\
-  \ growing by ~19 files a day can never again silently stop tracking\n    itself.\n\
-  \  - **(b) ORDER-GAIN — thresholded.** Every file recorded, so only VALUES could\
-  \ have drifted: worth\n    ~12s of 189s. REWRITE only when the re-derived order\
-  \ improves the predicted makespan by MORE\n    than BOTH a relative floor (5%) and\
-  \ an absolute one (10s), both makespans scored against the\n    re-derived durations\
-  \ as truth. Two floors and not one: a relative floor alone rewrites a small\n  \
-  \  suite on noise, an absolute floor alone never fires on one. Below either ⇒ fall\
-  \ to (c).\n  - **(c) WIDTH-GAIN.** Below the order-gain floors, REWRITE when the\
-  \ re-derived walls\n    change the width `remote_verify.derive_remote_w` derives\
-  \ from the table (one leg, lane\n    excluded): a stale LONGEST file barely moves\
-  \ the order yet sets the width's denominator\n    (measured: test_load_sensitive_set.py\
+  \ no new event, no new verb.\n**A CREDITED land measured nothing of its own.** A\
+  \ land that credits a Stage-6 run (SPEC-0065\n§Bound) takes its whole window from\
+  \ the journal history, and that history reads a runner-marked\n`tests_passed` row's\
+  \ `verify_metrics.per_file_durations` exactly as it reads a land's — so the\ncredited\
+  \ run is ONE sample, counted once, and the land adds nothing. Only a CREDITED run\
+  \ is read\nso, by this land or by an earlier ok land naming it as its credit: a\
+  \ run no land credited was\nmeasured again by its own land, and with no credit the\
+  \ window is what it was before. A narrowed run, whose series\nnames only the files\
+  \ it ran, takes its names from its own `per_file_outcomes` sidecar, admitted\nonly\
+  \ when the file's sha256 equals the locator's; otherwise the row is no sample. The\
+  \ refresh\nrecord names the credited run and whether it was sampled (`credited_run`);\
+  \ with no sample the\nreason stays `no-measurement`.\n\n**THE WRITE POLICY (this\
+  \ is what keeps the order immobile).** Recomputing is free; WRITING is not.\nSo\
+  \ the two arms are asymmetric, and the asymmetry is the measurement — 91% of the\
+  \ whole win is\nCOVERAGE alone:\n  - **(a) COVERAGE — no threshold, but never a\
+  \ partial table.** Any file on disk carrying\n    NO recorded duration ⇒ REWRITE,\
+  \ but ONLY when the resulting table (recorded ∪ re-derived)\n    records EVERY discovered\
+  \ file; otherwise NO WRITE with reason `coverage-incomplete` and the\n    unrecorded\
+  \ count. A narrowed land committed a partial table twice (fc17256 with 29 unrecorded;\n\
+  \    0071976), reddening the committed-table completeness test on main, which judges\
+  \ a table only\n    once it is committed (the written table has had a reader of\
+  \ its own since — THE\n    WRITTEN SET, below). This arm alone moves 323s -> 189s\
+  \ with every stale VALUE left untouched, because an\n    unrecorded file is imputed\
+  \ the median however expensive it really is. It is also what makes the\n    table\
+  \ self-healing: a suite growing by ~19 files a day can never again silently stop\
+  \ tracking\n    itself.\n  - **(b) ORDER-GAIN — thresholded.** Every file recorded,\
+  \ so only VALUES could have drifted: worth\n    ~12s of 189s. REWRITE only when\
+  \ the re-derived order improves the predicted makespan by MORE\n    than BOTH a\
+  \ relative floor (5%) and an absolute one (10s), both makespans scored against the\n\
+  \    re-derived durations as truth. Two floors and not one: a relative floor alone\
+  \ rewrites a small\n    suite on noise, an absolute floor alone never fires on one.\
+  \ Below either ⇒ fall to (c).\n  - **(c) WIDTH-GAIN.** Below the order-gain floors,\
+  \ REWRITE when the re-derived walls\n    change the width `remote_verify.derive_remote_w`\
+  \ derives from the table (one leg, lane\n    excluded): a stale LONGEST file barely\
+  \ moves the order yet sets the width's denominator\n    (measured: test_load_sensitive_set.py\
   \ recorded 300.2s while running ~33s held one-leg lands at\n    27 workers where\
   \ the measured walls give ~42). No tolerance — the width is already an integer.\n\
   \    Width unchanged ⇒ NO WRITE, and the table is left byte-identical.\n**THE WRITTEN\
@@ -675,31 +686,35 @@ body: "## Scenario\n\nSeveral `bin/yitc-v2 land` runs may verify at once on ONE 
   `SPEC-0077` (pinned double-verify), `SPEC-0071` (per-file timeout). Why measurement\
   \ resolves the fork\nrather than a prose pick, and the full share/serialize/hybrid\
   \ deliberation, live in the proposing plan\n(<workshop-spec> §3 content boundary\
-  \ — not restated here).\n\n## Verification\n\n- **Rule 1:** the postcheck record\
-  \ names the ladder level in effect with the A4 numbers that\n  selected it (replayable\
-  \ from the journaled trial runs); the governor's multi-resource bound is\n  fail-closed\
-  \ (a synthetic over-bound admission is refused).\n- **Rule 2:** a `land_completed`\
-  \ event carries the verify-metrics payload (grep the journal); the\n  minimal subset\
-  \ is present before governor final-adoption.\n- **Rules 3-4:** the watch-point /\
-  \ Tier-C triggers are report-only signals computed from the A4\n  metrics — a synthetic\
-  \ metric series over/under a threshold flips the reported signal (yes/no),\n  never\
-  \ an autonomous build.\n- **Rule 7, the layer subject:** a journal whose layer creeps\
-  \ across lands under one worker budget\n  makes the land tail print the line naming\
-  \ that layer and citing rows of that journal; the same\n  journal flattened, and\
-  \ the same growth split across two budgets, print nothing; and the\n  session-start\
-  \ output over the creeping journal is byte-identical to its output over the flat\
-  \ one\n  (`tests/test_t11127_duration_drift.py`).\n- **Rule 7, the layer step:**\
-  \ ten lands of a layer at 150-170 s and one observation at 364 s make\n  both the\
-  \ land tail and the Stage-6 run print the line naming that layer, and the run's\
-  \ green row\n  carry it; every layer doubling together, and a budget change, print\
-  \ nothing at either seam, and the\n  run's exit code does not move (`tests/test_t11127_duration_drift.py`).\n\
-  \n## Postcheck convergence soak\n\nA controlled real-data soak (SPEC-0035; never\
-  \ mutates production data) run at the plan's `postcheck`\nstage on the BUILT governor\
-  \ (not a pre-accept FSM `trial` on throwaway prototypes): run the\nnarrowest-default\
-  \ governor (serialize-ff + conservative shared verify cap) against a batch of real\n\
-  concurrent lands at the raised concurrency, ≥5 runs, capturing the Rule-2 A4 metrics\
-  \ per run into\n`land_completed`. Convergence = zero oversubscription/ff-race non-determinism\
-  \ at an acceptable p95\nland wall time within the resource bound. If the A4 metrics\
+  \ — not restated here).\n\nThe credited-land paragraph of rule 6 was added by :\
+  \ a land crediting a Stage-6 run left\n`_cand_file_durations` empty, so the table\
+  \ refresh read `no-measurement` on every credited land,\nand on 2026-10-26 none\
+  \ of 400 Stage-6 rows carried the walls the runner had measured.\n\n## Verification\n\
+  \n- **Rule 1:** the postcheck record names the ladder level in effect with the A4\
+  \ numbers that\n  selected it (replayable from the journaled trial runs); the governor's\
+  \ multi-resource bound is\n  fail-closed (a synthetic over-bound admission is refused).\n\
+  - **Rule 2:** a `land_completed` event carries the verify-metrics payload (grep\
+  \ the journal); the\n  minimal subset is present before governor final-adoption.\n\
+  - **Rules 3-4:** the watch-point / Tier-C triggers are report-only signals computed\
+  \ from the A4\n  metrics — a synthetic metric series over/under a threshold flips\
+  \ the reported signal (yes/no),\n  never an autonomous build.\n- **Rule 7, the layer\
+  \ subject:** a journal whose layer creeps across lands under one worker budget\n\
+  \  makes the land tail print the line naming that layer and citing rows of that\
+  \ journal; the same\n  journal flattened, and the same growth split across two budgets,\
+  \ print nothing; and the\n  session-start output over the creeping journal is byte-identical\
+  \ to its output over the flat one\n  (`tests/test_t11127_duration_drift.py`).\n\
+  - **Rule 7, the layer step:** ten lands of a layer at 150-170 s and one observation\
+  \ at 364 s make\n  both the land tail and the Stage-6 run print the line naming\
+  \ that layer, and the run's green row\n  carry it; every layer doubling together,\
+  \ and a budget change, print nothing at either seam, and the\n  run's exit code\
+  \ does not move (`tests/test_t11127_duration_drift.py`).\n\n## Postcheck convergence\
+  \ soak\n\nA controlled real-data soak (SPEC-0035; never mutates production data)\
+  \ run at the plan's `postcheck`\nstage on the BUILT governor (not a pre-accept FSM\
+  \ `trial` on throwaway prototypes): run the\nnarrowest-default governor (serialize-ff\
+  \ + conservative shared verify cap) against a batch of real\nconcurrent lands at\
+  \ the raised concurrency, ≥5 runs, capturing the Rule-2 A4 metrics per run into\n\
+  `land_completed`. Convergence = zero oversubscription/ff-race non-determinism at\
+  \ an acceptable p95\nland wall time within the resource bound. If the A4 metrics\
   \ show the default's queueing/throughput\ncost crosses a Rule-4 threshold, escalate\
   \ ONE ladder step (Rule 1) and re-soak. The owner judges\nconvergence on the journaled\
   \ runs and records the level in effect in the plan's **postcheck record**.\n"
@@ -726,17 +741,17 @@ implements_signature:
   bin/lib/land_verify_legs.py#_consumer_layer_duration_fold: 8fe4811218efa2b39f0b462a837ba3c5d5fef3e5b5999743cbbfaee74b70d5fc
   bin/lib/land_verify_legs.py#_consumer_layer_durations_report: b26e241a3fe5c09e97041c5d5a3d7b40919e1b7ea38b95c1a82119c68f8170a0
   bin/lib/land_verify_legs.py#_verify_duration_drift_signals: 8ac2cdbb412625dc21a0c47d7598451a16c5bc2a4be0c9b2267909863c3f5911
-  bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: 32da99cc15e2e4fb18de6eb8870876d781e3d957a04b64ac1a959e465ad8b0d7
+  bin/lib/land_verify_legs.py#_verify_duration_samples_from_journal: eabc3ff50bd06ba7cec1e4065e194efa60857590d292cf296946237fd2df0818
   bin/lib/land_verify_legs.py#_verify_layer_duration_drift_signals: a3221546efaffd7a8593688e5fd91adce8e97de66e35075c06dfe2975b426030
   bin/lib/land_verify_legs.py#_verify_layer_duration_step_signals: 2bb0c8e2a2a2e8b99cd64afc47ff7babd922a5bd6c27d8c99dfcdc1893e507b8
-  bin/lib/land_verify_legs.py#_verify_scaling_signals: 6567397a33ef6ad9d58b2beaf83bb3975174fb8fdda22dcc07783f34e386884e
+  bin/lib/land_verify_legs.py#_verify_scaling_signals: 7ee92cd34c76de1c8132efd9bf7142b9800a00ebf7ede273dd2fa5b3f14a3625
   bin/lib/verify_runner.py#_load_verify_duration_table: a7e65f0f31f369f01a0c4f9622277d149d9432a1d0d9ea54af9b2d8f666038db
-  bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
+  bin/lib/verify_runner.py#_run_verify_tests: b308ed4920b9ac7c61b8ae6bd80f1e08c1228e6b79518fe8ef6c4a4c6ab88d24
   bin/lib/verify_runner.py#_verify_dispatch_order: 3fe77f40cbc6a417ce8e5e1acf76dab473e7e62d2ecb35eb5334b9d8928ffa87
   bin/lib/verify_runner.py#cmd_verify_durations: e6dfc4e11bace9598795780e08cf0cb5feb612a824e578567b90a645b5ae6cc7
   bin/lib/views.py#_view_admission_series: a46e84f334ad70fea8b2f2233f15ebd4c47e852c73594a0c54dc46eaaf5b45df
-  bin/lib/worktree.py#_land_integrate: 53dac3475d41e0ad5db7e035ddba762dd166adad646dd3eaec804f27de0179c5
-  bin/lib/worktree.py#_refresh_verify_duration_table: fab9c3d40799a122489b253f03246ff9eb08586b6a26bf51dc4cb32c6d8410bd
+  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
+  bin/lib/worktree.py#_refresh_verify_duration_table: a2fa1d6db88f1c07a7b8744c3ee927dfcea385ec7953eda8e76a763a506da818
   bin/lib/worktree.py#_verify_makespan_ms: 73dc708938203c66a69417af5d1457415d4801b80de3fbb7b346f5f86bacf78d
   bin/lib/worktree.py#_verify_median_durations: 3f1384108794642657d9c720d73f0a272d58fc736154b9bf89a75cc3b27c0d52
   bin/lib/worktree.py#_verify_table_refresh_decision: cf1682aabb2b71d5fdcab920131b3bd0252eb7d74c4fe2aed56bf0b8befdd93e

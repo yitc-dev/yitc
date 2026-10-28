@@ -1693,7 +1693,7 @@ def cmd_plan_stage(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         # requirement). WORK = cut the plan into task cards. The cut-rules bundle (SPEC-0046 plan-cut
         # face + SPEC-0070) is delivered by `_emit_plan_stage_entered` below.
         _require_plan_decomposition_ready(slug, fm, body)
-        msg = "(cut into task cards — SPEC-0046: ONE provable claim per accept-unit, order via requires:)"
+        msg = "(cut into task cards — SPEC-0046: one coherent change-set per card, split only on its grounds, order via requires:)"
     elif name == "executing":
         # decomposition → executing (SPEC-0070 §3/§8): (1) the cut-rules read-gate — you cannot leave the
         # cut for build unless the decomposition bundle was fetched this session (graceful-empty until the

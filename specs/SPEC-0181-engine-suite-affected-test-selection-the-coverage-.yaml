@@ -34,8 +34,12 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ clear.\n\n## Internal\n\nTHE COVERAGE CONTRACT. A selection decision is a PROOF\
   \ OBLIGATION: the default is RUN, and an\nomission carries the argument. The decision\
   \ is a ladder, evaluated in order; every rung except the\nlast resolves to the FULL\
-  \ suite, so every unhandled state is safe by construction.\n\n  R1 SUPREMACY / SELF-GUARD.\
-  \ When the diff touches the verifier's own surface\n     (`_is_verify_implementation_touch`\
+  \ suite, so every unhandled state is safe by construction.\n\nTHE ENUMERATION THE\
+  \ LADDER READS. On a land's candidate run and a Stage-6 run, the runner's\nenumeration\
+  \ excludes the SPEC-1051 skip set (the listed units of a pre-deploy class) before\
+  \ anything\nis selected; every rung below, and the selection's counts, rollback\
+  \ and tripwire, read that\nenumeration.\n\n  R1 SUPREMACY / SELF-GUARD. When the\
+  \ diff touches the verifier's own surface\n     (`_is_verify_implementation_touch`\
   \ over `_VERIFY_IMPLEMENTATION_GLOBS`), NOTHING may be\n     omitted. A selector\
   \ may not select the tests that guard it: its own implementation lives\n     under\
   \ `bin/**` and its own tripwires under `tests/**`, both inside that constant, so\
@@ -925,7 +929,7 @@ init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: bd3c2ae84e964b704241edc160204d3deb75c32da7fed351aaa6eba3215111da
   bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
-  bin/lib/verify_runner.py#_run_verify_tests: 7c0df46186aa3e3a7eedda8708a3ac0c1b3c18f1c46cb33ae2d2889ca635a37e
+  bin/lib/verify_runner.py#_run_verify_tests: b308ed4920b9ac7c61b8ae6bd80f1e08c1228e6b79518fe8ef6c4a4c6ab88d24
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0

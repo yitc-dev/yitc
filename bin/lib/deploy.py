@@ -31,6 +31,7 @@ stay honored.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import fcntl
 import os
 import json
@@ -2865,6 +2866,21 @@ def _pre_deploy_recordable(guarding, *, REPO_ROOT, _record_probe) -> list:
     return failed
 
 
+def _pre_deploy_deploy_rows(_iter_events):
+    """T-14203 (SPEC-1047 rule 5) — THE DEPLOY READERS' VIEW of the journal: `_iter_events` with every
+    row carrying `run_kind: scheduled` dropped, of every type (its class rows and its start row), before
+    a reader chooses a newest run. A scheduled run is never a deploy's run: the SPEC-1044 reuse
+    (`_pre_deploy_reuse_decision`) and the last-passed-run history (`_pre_deploy_run_history`, which
+    the fail-to-end report reads) are handed this view. Same call shape as the reader it wraps."""
+    def _rows(*args, **kwargs):
+        for ev in _iter_events(*args, **kwargs):
+            data = ev.get("data") if isinstance(ev, dict) else None
+            if isinstance(data, dict) and data.get("run_kind") == "scheduled":
+                continue
+            yield ev
+    return _rows
+
+
 def _pre_deploy_run_history(target, *, _iter_events) -> dict:
     """SPEC-1042 rules 3-4 — what the earlier pre-deploy runs for `target` say, in ONE read of the
     `test_class_executed` rows whose `target` is it: `{last_passed, next_seq, unordered}`.
@@ -2932,6 +2948,81 @@ def _pre_deploy_cards_since(last, candidate, *, REPO_ROOT, _run_git_cap) -> "lis
         return None
     return sorted((cid for cid, own in cards.items() if own & now and not own & then),
                   key=lambda cid: int(cid[2:]))
+
+
+#: T-14267 — the kernel runner's own per-file outcome token (verify_runner `_per_file_outcomes_export`)
+#: as a unit status the land reading and `_pre_deploy_row_results` read; any other token is `missing`.
+_PRE_DEPLOY_KERNEL_STATUS = {"passed": "passed", "failed": "failed", "timed-out": "failed",
+                             "launch-error": "error"}
+
+
+def _pre_deploy_runner_call(call, tests_dir):
+    """T-14267 — run ONE land-runner call with the kernel runner's per-file outcome export
+    (`YITC_VERIFY_OUTCOMES_DIR`, T-12190) pointed at a fresh private directory, the value the caller's
+    environment held restored after; return `(result, outcomes)`. `outcomes` is the payload of the ONE
+    export whose file set is exactly the test files the runner's own discovery finds in `tests_dir`
+    (the candidate checkout's — what that run enumerated); a test's nested runner, which inherits the
+    directory, enumerates a fixture's files. None when no export, or more than one, matches: whose
+    results they are is then unknown. The directory is removed."""
+    import shutil
+    from lib import test_discovery, verify_runner
+    key, held = verify_runner._VERIFY_OUTCOMES_DIR_ENV, os.environ.get(verify_runner._VERIFY_OUTCOMES_DIR_ENV)
+    out = Path(tempfile.mkdtemp(prefix="yitc-pre-deploy-outcomes-"))
+    found = []
+    try:
+        os.environ[key] = str(out)
+        try:
+            result = call()
+        finally:
+            if held is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = held
+        try:
+            own = sorted(f.name for f in test_discovery.test_files(Path(tests_dir)))
+        except Exception:  # noqa: BLE001 — an unreadable checkout attributes nothing
+            own = []
+        for p in sorted(out.glob("*.json")) if own else ():
+            try:
+                doc = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            files = doc.get("files") if isinstance(doc, dict) else None
+            if isinstance(files, list) and sorted(
+                    str(f.get("file")) if isinstance(f, dict) else "" for f in files) == own:
+                found.append(doc)
+    finally:
+        shutil.rmtree(out, ignore_errors=True)
+    return result, (found[0] if len(found) == 1 else None)
+
+
+def _pre_deploy_kernel_units(result, outcomes, listed) -> dict:
+    """PURE — T-14267 (SPEC-1051 rules 2, 4): the land runner's `result` with the kernel runner's own
+    per-file outcomes (`outcomes`, `_pre_deploy_runner_call`) given to the ONE layer row that has no
+    adapter record, as the record an adapter layer carries: `adapter: {units, pre_deploy}` — every file
+    the run discovered as `{file: tests/<name>, status, duration_ms?}` and the listed classes'
+    membership (`listed`, `{file: class}`) as `{reason: pre-deploy-run, units: [{file, class}]}`. So the
+    reading counts each listed unit with its own result and names each failing file. Unchanged when no
+    class lists units, no export reads, the row ended `timed-out` (its export, if any, is not this
+    run's whole answer), or not exactly one row lacks an adapter record (whose files these are is
+    then unknown)."""
+    res = result if isinstance(result, dict) else {}
+    files = outcomes.get("files") if isinstance(outcomes, dict) else None
+    rows = res.get("layers") if isinstance(res.get("layers"), list) else []
+    bare = [r for r in rows if isinstance(r, dict) and "adapter" not in r]
+    if not listed or not isinstance(files, list) or len(bare) != 1 or bare[0].get("outcome") not in ("passed", "failed"):
+        return result
+    units = []
+    for f in files:
+        name = f.get("file") if isinstance(f, dict) else None
+        if not (isinstance(name, str) and name.startswith("test_") and name.endswith(".py") and "/" not in name):
+            continue
+        ms = f.get("wall_ms")
+        units.append({"file": f"tests/{name}", "status": _PRE_DEPLOY_KERNEL_STATUS.get(f.get("outcome"), "missing"),
+                      **({"duration_ms": ms} if isinstance(ms, int) and not isinstance(ms, bool) else {})})
+    record = {"units": units, "pre_deploy": {"reason": "pre-deploy-run", "units": [
+        {"file": f, "class": c} for f, c in sorted(listed.items())]}}
+    return {**res, "layers": [{**r, "adapter": record} if r is bare[0] else r for r in rows]}
 
 
 def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
@@ -3186,6 +3277,22 @@ def _pre_deploy_reuse(*, candidate, target, guarding, fingerprint, max_age_s, no
     return {"run_ref": ref, "run_target": sorted(str(t) for t in targets)[0], "age_s": age}
 
 
+def _pre_deploy_opt_in(ops, classes) -> dict:
+    """T-14160 (SPEC-1042 rules 3-4) — the marks every pre-deploy run writes where ANY pre-deploy class of
+    the PARSED `classes` declares `reuse_run:`: `{"fingerprint", "bound"}` (`_pre_deploy_fingerprint`;
+    the age bound in force, `{key, value, source}`, and its `notes`), else `{}`. Shared by a gated
+    deploy and a scheduled run (T-14203), so both runs carry the same marks under the same contract."""
+    from lib import init as _init
+    if not any(isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"
+               and _init._pre_deploy_reuse_run_ok(c.get("reuse_run"))
+               for c in (classes if isinstance(classes, list) else ())):
+        return {}
+    from lib import machine_settings
+    bound = machine_settings.in_force(PRE_DEPLOY_REUSE_MAX_AGE_KEY, ops=ops)
+    return {"fingerprint": _pre_deploy_fingerprint(ops, classes), "bound": bound,
+            "named": {"key": bound["key"], "value": bound["value"], "source": bound["source"]}}
+
+
 def _pre_deploy_reuse_decision(*, ops, classes, candidate, target, guarding, _iter_events, now=None) -> dict:
     """T-14160 (SPEC-1042 rule 3) — whether this gated deploy stands on an earlier run:
     `{"run": <a run result the caller reads as a green run> | None, "fingerprint": <str> | None,
@@ -3198,42 +3305,96 @@ def _pre_deploy_reuse_decision(*, ops, classes, candidate, target, guarding, _it
     `pre_deploy_reuse_max_age_minutes` and `_pre_deploy_reuse`, and print the run it stands on, or why
     it declines and runs its own (a read that raises declines). `bound` is what the rows the
     threshold decided name (SPEC-1031 rule 6)."""
-    from lib import init as _init
-    if not any(isinstance(c, dict) and str(c.get("moment") or "").strip() == "pre-deploy"
-               and _init._pre_deploy_reuse_run_ok(c.get("reuse_run"))
-               for c in (classes if isinstance(classes, list) else ())):
+    marks = _pre_deploy_opt_in(ops, classes)
+    if not marks:
         return {"run": None, "fingerprint": None, "bound": None}
-    from lib import machine_settings
-    fp = _pre_deploy_fingerprint(ops, classes)
-    bound = machine_settings.in_force(PRE_DEPLOY_REUSE_MAX_AGE_KEY, ops=ops)
-    named = {"key": bound["key"], "value": bound["value"], "source": bound["source"]}
+    fp, bound, named = marks["fingerprint"], marks["bound"], marks["named"]
     if not _pre_deploy_reuse_declared(classes, guarding):
         return {"run": None, "fingerprint": fp, "bound": named}
     for note in bound.get("notes") or ():
         print(f"deploy: {note}")
     try:
         got = _pre_deploy_reuse(candidate=candidate, target=target, guarding=guarding, fingerprint=fp,
-                                max_age_s=int(bound["value"]) * 60,
-                                now=time.time() if now is None else now, _iter_events=_iter_events)
+                                max_age_s=int(bound["value"]) * 60, now=time.time() if now is None else now,
+                                _iter_events=_pre_deploy_deploy_rows(_iter_events))   # T-14203: no scheduled row
     except Exception as exc:  # noqa: BLE001 — a read that cannot answer reuses nothing
         got = {"run_ref": None, "why": f"the journal could not be read ({exc!r})"}
     if got.get("run_ref") is None:
-        print(f"deploy: pre-deploy run reuse declined — {got['why']} (SPEC-1042 rule 3); this deploy "
+        print(f"deploy: pre-deploy run reuse declined — {got['why']} (SPEC-1044 rule 3); this deploy "
               f"runs its own pre-deploy run.")
         return {"run": None, "fingerprint": fp, "bound": named}
     print(f"deploy: PRE-DEPLOY RUN: REUSED {got['run_ref']} of {candidate} — the run of target "
           f"`{got['run_target']}`, {int(got['age_s'] // 60)} min old (bound {bound['value']} min, "
-          f"{bound['source']}); every class guarding `{target}` declares `reuse_run:` (SPEC-1042 "
+          f"{bound['source']}); every class guarding `{target}` declares `reuse_run:` (SPEC-1044 "
           f"rule 3), so no run is started. The land reservation and the SPEC-0094 §6 checks follow "
           f"as on every gated deploy.")
     return {"run": {"run_ref": got["run_ref"], "passed": True, "contended": False}, "fingerprint": fp,
             "bound": named}
 
 
+@contextlib.contextmanager
+def _pre_deploy_layer_workers():
+    """T-14187 (SPEC-0132 §1c, SPEC-1044 rule 3) — the worker allotment a pre-deploy run's layers are
+    given: the land candidate leg's own composition (`worktree.py`, the candidate-verify governor
+    block) — the host resource bound, the per-verify ceiling within it, then the width budget held
+    while the run goes, read at that width within the bound. Yields the int the runner publishes as
+    `YITC_VERIFY_LAYER_WORKERS`. No admission slot is taken (the run holds nothing — rule 3); the
+    width registration is held so a land started meanwhile counts it. An exhausted host RAISES, as
+    the land refuses: the caller records a red run."""
+    from lib import worktree as _wt           # lazy: names read at call time, so a stub is honoured
+    bound = _wt._verify_worker_bound()
+    if bound <= 0:
+        raise RuntimeError("verify-resource-exhausted — no verify worker fits within the host resource "
+                           "bound (SPEC-0132 governor)")
+    with _wt._verify_width_budget(min(bound, _wt._verify_worker_ceiling())) as budget:
+        yield _wt._land_candidate_width(bound, budget)
+
+
+_WHOLE_OUTPUT_RE = re.compile(r"WHOLE captured output: (\S+)")
+
+
+def _pre_deploy_failure_detail(result, root) -> list:
+    """T-14320 (SPEC-1051 rule 3) — the run log's copy of every failing layer's WHOLE output.
+
+    The guard writes a failing layer's whole output to `.yitc/land-logs/` (T-12758) and names the file
+    on the layer's row (`output_log`, `first_output_log`, `retry_output_log`, at any depth) and in
+    `bad` (`WHOLE captured output: <path>`). Each named file, in order and once, is copied WHOLE under
+    a `── layer output <path> ──` header, so the log a triager reads holds the assertion or traceback
+    suite.py printed for each failing file. No second clip: the file is already bounded by the guard's
+    tail-preserving clip. An unreadable file is one line naming it; a run with no failing layer names
+    no file and adds nothing."""
+    paths = []
+
+    def walk(o):
+        if isinstance(o, dict):
+            for k, v in o.items():
+                if isinstance(v, str) and k.endswith("output_log"):
+                    paths.append(v)
+                else:
+                    walk(v)
+        elif isinstance(o, (list, tuple)):
+            for v in o:
+                if isinstance(v, str):
+                    paths.extend(_WHOLE_OUTPUT_RE.findall(v))
+                else:
+                    walk(v)
+    walk(result)
+    out = []
+    for rel in dict.fromkeys(paths):
+        out.append(f"  ── layer output {rel} ──")
+        try:
+            out.append((Path(root) / rel).read_text(encoding="utf-8", errors="replace").rstrip("\n"))
+        except OSError as exc:
+            out.append(f"  (the layer output {rel} could not be read: {exc})")
+            continue
+        out.append(f"  ── end layer output {rel} ──")
+    return out
+
+
 def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROOT, _run_git_cap,
                     _append_event, _iter_events, _consumer_zero_probe_guard, attempt=1, run_ref=None,
                     history=None, _pre_deploy_beside=None, _pre_deploy_journal=None,
-                    fingerprint=None, reuse_bound=None) -> dict:
+                    fingerprint=None, reuse_bound=None, run_kind=None) -> dict:
     """SPEC-1042 rules 3-4 — RUN one attempt of the pre-deploy run of one gated deploy and RECORD it;
     returns `{run_ref, passed, contended, history, log, unrecorded?}`. Nothing here refuses: the caller
     refuses on `passed: False` and on `unrecorded` (a class row that could not be written, T-14107 —
@@ -3274,17 +3435,27 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
     given wherever any pre-deploy class of the contract declares `reuse_run:`, are written on each class row as
     `declaration_fingerprint` and `pre_deploy_reuse_bound`, and the attempt first writes one
     `pre_deploy_run_started` row (a start that cannot be written runs nothing and returns
-    `unrecorded`); without them the rows are as before."""
+    `unrecorded`); without them the rows are as before.
+
+    T-14203 (SPEC-1047 rules 4-6) — `run_kind="scheduled"`: the same run as the scheduled run of
+    `deploy --scheduled-run`, over `guarding` = every pre-deploy class, for no `target` (None). Nothing
+    it executes changes; its rows (the start row included) carry `run_kind: scheduled` and no `target`,
+    its report names no target, and the caller hands it `history` — the last passed SCHEDULED run
+    (`_pre_deploy_scheduled_history`, `next_seq` None, so no `seq` is written)."""
     import contextlib
     import shutil
     from lib import land_verify_legs
     run_ref = run_ref or f"pdr-{candidate[:12]}-{os.urandom(4).hex()}"
     decl = land_verify_legs._pre_deploy_declaration(pre_deploy_classes) or {"classes": [], "layers": {}}
+    scheduled = run_kind == "scheduled"                    # T-14203
+    kind_mark = {"run_kind": "scheduled"} if scheduled else {"target": target}
+    since_what = "the last passed scheduled run" if scheduled else f"the last passed run for `{target}`"
     if history is not None:              # T-14106: the contended re-run keeps attempt 1's reading
         history, last_fault = history
     else:
         try:                             # before this run's own rows; a read fault names no cards
-            history, last_fault = _pre_deploy_run_history(target, _iter_events=_iter_events), None
+            history, last_fault = _pre_deploy_run_history(   # T-14203: the deploy readers' view
+                target, _iter_events=_pre_deploy_deploy_rows(_iter_events)), None
         except Exception as exc:  # noqa: BLE001 — the report says so; the run is not changed by it
             history, last_fault = {"last_passed": None, "next_seq": None, "unordered": False}, repr(exc)
     last = history["last_passed"]
@@ -3292,7 +3463,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
     if fingerprint:                      # T-14160: an opted-in run records its start before it runs
         try:
             _append_event(PRE_DEPLOY_RUN_STARTED, None, {"run_ref": run_ref, "candidate": candidate,
-                                                         "target": target, "attempt": attempt})
+                                                         **kind_mark, "attempt": attempt})
         except (Exception, SystemExit) as exc:  # noqa: BLE001 — refused before anything runs
             return {"run_ref": run_ref, "passed": False, "contended": False, "history": (history, last_fault),
                     "log": log_rel, "not_started": True,
@@ -3312,11 +3483,17 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
             str(h.get("checkout") or "") == _own or str(h.get("checkout") or "").startswith(_own + os.sep))])
     with open(log_path, "w", encoding="utf-8") as log:
         out = _PreDeployTee(sys.stdout, log)
-        print(f"deploy: PRE-DEPLOY RUN {run_ref} — every verify layer whole plus the pre-deploy "
-              f"class(es) {', '.join(guarding)} guarding target `{target}`, on a fresh checkout of "
-              f"{candidate} (SPEC-1042 rule 3); log {log_rel}", file=out)
+        print(f"deploy: {'SCHEDULED ' if scheduled else ''}PRE-DEPLOY RUN {run_ref} — every verify layer whole "
+              f"plus the pre-deploy class(es) {', '.join(guarding)} "
+              + ("(every class the candidate declares, no target; SPEC-1047 rule 4)" if scheduled else
+                 f"guarding target `{target}`") + f", on a fresh checkout of {candidate} (SPEC-1044 rule 3); "
+              f"log {log_rel}", file=out)
         added = _run_git_cap(["worktree", "add", "--detach", str(scratch), candidate], REPO_ROOT)
         lone = None                      # T-14158: the layers re-run alone, once each
+        # T-14320 — a failing layer's WHOLE output goes to the guard's own artifact (T-12758), so the
+        # run log can carry the per-failure detail suite.py prints, not only its FAILED lines.
+        log_ctx = {"root": REPO_ROOT, "branch": run_ref, "attempt": str(attempt)}
+        allot, workers = contextlib.ExitStack(), None    # T-14187: the land's allotment, held for both calls
         try:
             if added.returncode != 0:
                 result = {"mode": "checkout-failed", "layers": [], "bad": [
@@ -3324,11 +3501,21 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                     f"{added.returncode}: {(added.stderr or added.stdout or '').strip()[:300]})"]}
             else:
                 try:
+                    workers = allot.enter_context(_pre_deploy_layer_workers())     # T-14187
                     with contextlib.redirect_stdout(out), (watch or contextlib.nullcontext()):
                         window[0] = time.time()
                         try:
-                            result = _consumer_zero_probe_guard(scratch, pre_deploy={
-                                "classes": decl["classes"], "layers": decl["layers"], "run": True})
+                            # T-14211 (SPEC-1051 rules 1, 3): a listed class's units are named by
+                            # its `units:`, and the run runs each unit once across its layers (`union`:
+                            # the guard allocates it from every layer's inventory before any runs).
+                            # T-14267: the kernel runner's per-file outcomes are a layer's units
+                            result, outcomes = _pre_deploy_runner_call(lambda: _consumer_zero_probe_guard(
+                                scratch, workers=workers, pre_deploy={
+                                    "classes": decl["classes"], "layers": decl["layers"], "run": True,
+                                    **({"listed": decl["listed"], "listed_classes": decl["listed_classes"]}
+                                       if decl.get("listed_classes") else {}),
+                                    "union": {}}, layer_log_ctx=log_ctx), scratch / "tests")
+                            result = _pre_deploy_kernel_units(result, outcomes, decl.get("listed"))
                         finally:
                             window[1] = time.time()
                 except Exception as exc:  # noqa: BLE001 — a runner fault is a red run, recorded
@@ -3359,12 +3546,15 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
             for layer in lone or ():
                 print(f"deploy: PRE-DEPLOY RUN {run_ref} — layer {layer!r} ran out of its own bound and no "
                       f"other failure stands: re-running that layer ONCE, alone, on the same checkout "
-                      f"(SPEC-1042 rule 3). The runner's lines below are that re-run's — its `only_layers` "
+                      f"(SPEC-1044 rule 3). The runner's lines below are that re-run's — its `only_layers` "
                       f"path, whose wording names a merge-base attribution re-run; this is not one.", file=out)
                 try:
                     with contextlib.redirect_stdout(out):
-                        again = _consumer_zero_probe_guard(scratch, only_layers={layer}, pre_deploy={
-                            "classes": decl["classes"], "layers": decl["layers"], "run": True})
+                        again, outcomes = _pre_deploy_runner_call(lambda: _consumer_zero_probe_guard(
+                            scratch, only_layers={layer}, workers=workers, pre_deploy={
+                                "classes": decl["classes"], "layers": decl["layers"], "run": True},
+                            layer_log_ctx={**log_ctx, "attempt": f"{attempt}-lone"}), scratch / "tests")
+                    again = _pre_deploy_kernel_units(again, outcomes, decl.get("listed"))   # T-14267
                 except Exception as exc:  # noqa: BLE001 — a re-run fault leaves the layer red
                     again = {"mode": "runner-raised", "layers": [], "bad": [f"the land runner raised {exc!r}"]}
                 result = _pre_deploy_layer_rescue_merge(result, layer, again)
@@ -3372,6 +3562,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                 reading = _pre_deploy_run_reading(result, guarding, decl["layers"])
                 passed = reading["run_outcome"] == "passed"
         finally:
+            allot.close()
             if added.returncode == 0:
                 _run_git_cap(["worktree", "remove", "--force", str(scratch)], REPO_ROOT)
             shutil.rmtree(scratch, ignore_errors=True)
@@ -3380,28 +3571,29 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
         cards = _pre_deploy_cards_since(last, candidate, REPO_ROOT=REPO_ROOT,
                                         _run_git_cap=_run_git_cap) if last else None
         lines = [f"PRE-DEPLOY RUN: {'PASS' if passed else 'CONTENDED' if contended else 'FAIL'} {candidate} "
-                 f"target={target} run_ref={run_ref} attempt={attempt}"]
+                 + ("run_kind=scheduled" if scheduled else f"target={target}") + f" run_ref={run_ref} attempt={attempt}"]
         if contended:
             lines.append(f"  CONTENDED — every failure is a timeout (a unit's own runner timeout or a layer's own "
                          f"bound) and a land or Stage-6 run "
                          f"of this repository ran beside the run ({_pre_deploy_beside_said(beside)}): it is "
-                         f"re-run once, as attempt 2 (SPEC-1042 rule 3)")
+                         f"re-run once, as attempt 2 (SPEC-1044 rule 3)")
         elif not passed and lone:        # T-14158: the lone-layer re-run ran and did not rescue the run
             lines.append("  red — nobody ran beside the run, so it is not re-run; its lone-layer re-run did "
-                         "not rescue it (SPEC-1042 rule 3)")
+                         "not rescue it (SPEC-1044 rule 3)")
         elif reads and not passed:
-            lines.append(f"  red at once, no re-run — {why} (SPEC-1042 rule 3)")
+            lines.append(f"  red at once, no re-run — {why} (SPEC-1044 rule 3)")
         elif attempt > 1 and not passed:
-            lines.append("  the contended re-run is red too — recorded `failed`, no further run (SPEC-1042 rule 3)")
+            lines.append("  the contended re-run is red too — recorded `failed`, no further run (SPEC-1044 rule 3)")
         for r in ((result.get("flaky_retry") or {}).get("rows") or ()) if isinstance(result, dict) \
                 and isinstance(result.get("flaky_retry"), dict) else ():
             if isinstance(r, dict) and r.get("pre_deploy_layer_rescue"):     # T-14158
                 lines.append(f"  layer {r.get('layer')!r} ran out of its own bound with nobody beside the run; "
-                             + ("re-run once alone, it PASSED — rescued (SPEC-1042 rule 3)"
+                             + ("re-run once alone, it PASSED — rescued (SPEC-1044 rule 3)"
                                 if r.get("isolated") == "pass" else
                                 f"re-run once alone, it ended `{r.get('retry_outcome')}` again — the run is red "
-                                f"(SPEC-1042 rule 3)"))
+                                f"(SPEC-1044 rule 3)"))
         lines += [f"  {b}" for b in reading["bad"]]
+        lines += _pre_deploy_failure_detail(result, REPO_ROOT)          # T-14320
         lines += [f"  FAILING  {f['layer']}" + (f" :: {f['file']}" if f.get("file") else " (the layer)")
                   + (f" [{f['project']}]" if f.get("project") else "") for f in reading["failing"]]
         lines += [f"  rescued  {r['layer']} :: " + (r.get('unit') or r.get('group') or "(the layer, re-run alone)")
@@ -3411,35 +3603,42 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
                          + (f"; membership unreadable on layer(s) {', '.join(got['unattributed'])}"
                             if got.get("unattributed") else "") + ")")
         if last_fault:
-            lines.append(f"  cards landed since the last passed run for `{target}`: UNKNOWN — the "
+            lines.append(f"  cards landed since {since_what}: UNKNOWN — the "
                          f"journal could not be read ({last_fault})")
         elif history["unordered"]:
-            lines.append(f"  cards landed since the last passed run for `{target}`: UNKNOWN — a passed "
-                         f"run for it was recorded without its place (`seq`; its history read had "
-                         f"failed), so which passed run is the last cannot be told")
+            lines.append(f"  cards landed since {since_what}: UNKNOWN — "
+                         + (history.get("why") or "a passed run for it was recorded without its place (`seq`; "
+                            "its history read had failed), so which passed run is the last cannot be told"))
         elif last is None:
-            lines.append(f"  cards landed since the last passed run for `{target}`: none recorded — no "
-                         f"pre-deploy run for this target has passed yet")
+            lines.append(f"  cards landed since {since_what}: none recorded — no "
+                         + ("scheduled run has passed yet" if scheduled else
+                            "pre-deploy run for this target has passed yet"))
         elif cards is None:
-            lines.append(f"  cards landed since the last passed run for `{target}` ({last[:12]}): "
+            lines.append(f"  cards landed since {since_what} ({last[:12]}): "
                          f"UNKNOWN — `git log {last[:12]}..{candidate[:12]}` did not answer")
         else:
-            lines.append(f"  cards landed since the last passed run for `{target}` ({last[:12]}): "
+            lines.append(f"  cards landed since {since_what} ({last[:12]}): "
                          + (", ".join(cards) if cards else "none"))
         print("\n".join(lines), file=out)
     unrecorded = None
     costs = _pre_deploy_layer_costs(result)  # T-14161: once per attempt, on its first class row
+    shares, share_key = _pre_deploy_layer_shares(result)    # T-14190: the share each layer took, and whose table
     try:                                 # T-14107: a row that cannot be written refuses the deploy
+        from lib import worktree as _wt  # T-14229: per failed kernel test file, the tests its output named
+        named = _wt._failed_test_names(reading["bad"])
         for i, (c, got) in enumerate(reading["classes"].items()):
             _append_event("test_class_executed", None, {
                 "class": c, "outcome": got["outcome"], "evidence": log_rel, "run_ref": run_ref,
-                "candidate": candidate, "target": target, "run_outcome": run_outcome,
+                "candidate": candidate, **kind_mark, "run_outcome": run_outcome,
                 "failing": reading["failing"], "rescued": reading["rescued"], "attempt": attempt,
                 **({"seq": history["next_seq"]} if history["next_seq"] else {}),
                 "consumer_verify_layers": got["consumer_verify_layers"],
                 **({"unattributed": got["unattributed"]} if got.get("unattributed") else {}),
                 **({"declaration_fingerprint": fingerprint} if fingerprint else {}),
                 **({"pre_deploy_reuse_bound": reuse_bound} if reuse_bound else {}),
+                **({"layer_worker_budget": workers} if isinstance(workers, int) else {}),   # T-14187
+                **({"layer_worker_shares": shares, "layer_worker_shares_key": share_key} if shares else {}),
+                **({"failed_test_names": named} if named else {}),
                 **({"layer_costs": costs} if i == 0 else {})})
     except (Exception, SystemExit) as exc:  # noqa: BLE001 — the caller refuses; nothing is launched
         unrecorded = f"the `test_class_executed` row of class `{c}` could not be written ({exc!r})"
@@ -4011,7 +4210,7 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
         who = (f"held by pid {h['pid']}" + (f" `{h['label']}`" if h.get("label") else "")) if h \
             else "holder unknown (not resolvable from /proc/locks)"
         print(f"deploy: WAITING for the land reservation — {waited:.0f}s so far; {who}. The pre-deploy "
-              f"run is green; the `deploy:` command starts once the reservation is free (SPEC-1042 "
+              f"run is green; the `deploy:` command starts once the reservation is free (SPEC-1044 "
               f"rule 3).", file=sys.stderr, flush=True)
 
     fd = _acquire_land_reservation(main_wt, on_wait=on_wait, on_degrade=spent.append,
@@ -4025,7 +4224,7 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
         return False, "the land reservation is held by this very process, so it cannot be taken for the command"
     hold.append(("reservation", fd))
     print(f"deploy: holding the land reservation for the `deploy:` command — a land of this project "
-          f"started now parks until this deploy ends (SPEC-1042 rule 3).")
+          f"started now parks until this deploy ends (SPEC-1044 rule 3).")
     return True, ""
 
 
@@ -4046,6 +4245,20 @@ def _pre_deploy_release(hold) -> None:
         hold.clear()
 
 
+def _pre_deploy_layer_shares(result) -> tuple:
+    """T-14190 (SPEC-1044 rule 3, SPEC-0152 rule 16 §pre_deploy_layer_worker_shares) — `({layer: share},
+    key)`: the share each layer of the run took, read off the runner's own layer rows
+    (`declared_worker_share`, a lone-layer re-run's merged row included), and the table it came from —
+    `pre_deploy_layer_worker_shares` when the run applied the project's pre-deploy table (the rows' own
+    `worker_share_key`), else `layer_worker_shares`. `({}, None)` when no layer carried a share."""
+    shares, key = {}, "layer_worker_shares"
+    for r in (result.get("layers") or ()) if isinstance(result, dict) else ():
+        if isinstance(r, dict) and r.get("layer") and "declared_worker_share" in r:
+            shares[r["layer"]] = r["declared_worker_share"]
+            key = r.get("worker_share_key") or key
+    return (shares, key) if shares else ({}, None)
+
+
 def _pre_deploy_layer_costs(result) -> list:
     """PURE — T-14161 (SPEC-1042 rule 4): each layer's wall and summed process CPU in one pre-deploy run
     attempt, taken off the land runner's OWN layer rows (`result["layers"]`): `duration_ms` (the layer's
@@ -4062,6 +4275,225 @@ def _pre_deploy_layer_costs(result) -> list:
     return [{"layer": r["layer"], "duration_ms": _ms(r.get("duration_ms")),
              "process_cpu_ms": _ms(r.get("process_cpu_ms")), **({"retried": True} if r.get("retried") else {})}
             for r in rows if isinstance(r, dict) and isinstance(r.get("layer"), str) and r["layer"]]
+
+
+# ── T-14203 — THE SCHEDULED PRE-DEPLOY RUN (SPEC-1047 rules 2-6) ─────────────────────────────────
+# `deploy --scheduled-run`, fired by a project's own cron, runs on main's head the pre-deploy run a gated
+# deploy runs — unchanged, over every pre-deploy class — inside the project's SPEC-1045 queue, and
+# deploys nothing: no command, no `deploy_*` row, no deploy lock, no land reservation. Its class rows
+# carry `run_kind: scheduled` and no `target`, and every deploy reader drops them.
+
+#: the `deploy` options a scheduled run takes none of (args attribute, the option as typed)
+_SCHEDULED_RUN_FOREIGN = (("rollback", "--rollback"), ("rev", "<rev>"), ("expect_revision", "--expect-revision"),
+                          ("deploy_target", "--target"), ("deploy_class", "--class"),
+                          ("owner_approved", "--owner-approved"), ("now", "--now"),
+                          ("security_override_advisory", "--security-override-advisory"),
+                          ("security_override_reason", "--security-override-reason"))
+
+
+def _pre_deploy_scheduled_history(candidate, *, REPO_ROOT, _iter_events, _run_git_cap) -> dict:
+    """SPEC-1047 rule 6 — the last PASSED scheduled run before a scheduled run of `candidate`, for its
+    fail-to-end report's «cards landed since»: `{last_passed, next_seq: None, unordered, why?}` — the
+    shape `_pre_deploy_run` reads, with no `seq` to write (a scheduled run has no target to place it in).
+
+    ONE read of the `test_class_executed` rows carrying `run_kind: scheduled` — a deploy's rows are never
+    read here. A run is the rows of one (`run_ref`, `attempt`) with one full-commit `candidate`; it
+    passed when every one of its rows reads `run_outcome: passed`. Of the passed runs' candidates, those
+    that are `candidate` or an ancestor of it are kept (`git merge-base --is-ancestor`; a commit git no
+    longer holds — gone after a rewrite — is in no history of `candidate` and is skipped), and the last
+    passed run is the kept candidate no other kept candidate descends from (`git merge-base
+    --independent`) — `main` only moves forward, the order SPEC-1047 rule 6 reads. A passed candidate git
+    cannot place against `candidate`, or kept candidates git cannot order to one, leave it UNKNOWN
+    (`unordered`, with `why`), never a guess. No stamp and no physical row order is read."""
+    full = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
+    runs: dict = {}
+    for ev in _iter_events(types=("test_class_executed",)):
+        data = ev.get("data") if isinstance(ev, dict) else None
+        if not (isinstance(data, dict) and data.get("run_kind") == "scheduled"):
+            continue
+        ref, cand, att = data.get("run_ref"), data.get("candidate"), data.get("attempt")
+        if not (isinstance(ref, str) and ref.strip()):
+            continue
+        att = att if isinstance(att, int) and not isinstance(att, bool) else 0
+        run = runs.setdefault((ref.strip(), att), {"cands": set(), "passed": True})
+        run["cands"].add(cand if isinstance(cand, str) else None)
+        run["passed"] = run["passed"] and data.get("run_outcome") == "passed"
+    passed = sorted({c for r in runs.values() if r["passed"] and len(r["cands"]) == 1
+                     for c in r["cands"] if isinstance(c, str) and full.fullmatch(c)})
+    out = {"last_passed": None, "next_seq": None, "unordered": False}
+    kept = []
+    for c in passed:
+        r = _run_git_cap(["merge-base", "--is-ancestor", c, candidate], REPO_ROOT)
+        if r.returncode not in (0, 1):
+            if _run_git_cap(["cat-file", "-e", f"{c}^{{commit}}"], REPO_ROOT).returncode != 0:
+                continue                 # no such commit here (gone after a rewrite): it is in no history of `candidate`
+            return {**out, "unordered": True,
+                    "why": f"git cannot tell whether the passed scheduled run's candidate {c[:12]} is an "
+                           f"ancestor of {candidate[:12]}, so which passed run is the last cannot be told"}
+        if r.returncode == 0:
+            kept.append(c)
+    if not kept:
+        return out
+    r = _run_git_cap(["merge-base", "--independent", *kept], REPO_ROOT)
+    tips = (r.stdout or "").split() if r.returncode == 0 else []
+    if len(tips) != 1 or tips[0] not in kept:
+        return {**out, "unordered": True,
+                "why": f"git does not order the passed scheduled runs' candidates {', '.join(k[:12] for k in kept)} "
+                       f"to one last run, so which passed run is the last cannot be told"}
+    return {**out, "last_passed": tips[0]}
+
+
+def _scheduled_run_contract(candidate, *, REPO_ROOT, _run_git_cap, tmp) -> dict:
+    """SPEC-1047 rule 2 — the candidate's OWN contract, never the working tree's: `git show
+    <candidate>:yitc-ops.yaml` written to `tmp/yitc-ops.yaml` and read by the one carrier reader.
+    `{ops, classes, refused, error}` — `classes` the PARSED `tests.classes` when it declares a pre-deploy
+    class (`land_verify_legs._pre_deploy_contract_verdict`), else None; `error` when git cannot list or
+    show the carrier, or it is there and cannot be read — never read as «no class». A candidate with no
+    carrier declares no class."""
+    from lib import land_verify_legs
+    listed = _run_git_cap(["ls-tree", "--name-only", candidate, "--", CONSUMER_OPS_CONTRACT], REPO_ROOT)
+    if listed.returncode != 0:
+        return {"ops": None, "classes": None, "refused": [],
+                "error": f"git cannot list it (`git ls-tree` exit {listed.returncode})"}
+    if not (listed.stdout or "").strip():
+        return {"ops": None, "classes": None, "refused": [], "error": None}    # no carrier: no class
+    shown = _run_git_cap(["show", f"{candidate}:{CONSUMER_OPS_CONTRACT}"], REPO_ROOT)
+    if shown.returncode != 0:
+        return {"ops": None, "classes": None, "refused": [],
+                "error": f"git cannot show it (`git show` exit {shown.returncode})"}
+    path = Path(tmp) / CONSUMER_OPS_CONTRACT
+    path.write_text(shown.stdout or "", encoding="utf-8")
+    try:
+        ops = state.load_ops(path)
+    except Exception as exc:  # noqa: BLE001 — a carrier that cannot be read refuses, never reads as «no class»
+        return {"ops": None, "classes": None, "refused": [], "error": f"{exc!r}"[:300]}
+    verdict = land_verify_legs._pre_deploy_contract_verdict(ops)
+    return {"ops": ops, "classes": verdict["classes"], "refused": verdict["refused"], "error": None}
+
+
+def _scheduled_run(args, *, REPO_ROOT, _append_event, _main_worktree, _run_git_cap, _iter_events,
+                   _consumer_zero_probe_guard, _record_probe=None, _session_contract=None, _scan_procs=None,
+                   _stage6_land_verifies_beside=None, _pre_deploy_main_journal=None,
+                   _live_task_worktrees=None) -> None:
+    """`deploy --scheduled-run` (SPEC-1047 rules 2-6) — THE SCHEDULED RUN of the project.
+
+    Refused before anything runs (exit 3; no ticket, no row): another `deploy` option given; no carried
+    `YITC_SESSION_REF` (`_session_contract()`; the SPEC-0142 §6 contract's other half, the `session start`
+    prefix, is the seed-read chokepoint, which refuses before this verb runs); a checkout other than
+    the project's MAIN checkout; `main` unresolvable; the candidate's contract unreadable or its
+    pre-deploy declaration refused; the SPEC-1045 queue switched off (naming `admission.mode: engine` and
+    the machine veto); rows this session could not record. A candidate contract declaring no pre-deploy
+    class prints one line and exits 0, writing nothing.
+
+    THE CANDIDATE is main's head when the command starts, a full commit id; the classes, the verify
+    section and the adapter inventory are read from the candidate's own checkout (the classes here, the
+    rest by the runner over its scratch checkout), so the working tree's `yitc-ops.yaml` and a `main`
+    that moves while the run waits change nothing. THE QUEUE: `admission.scheduled_run_entry` (SPEC-1045
+    rule 2 (p)). THE RUN, once admitted: `_pre_deploy_run(run_kind="scheduled")` over every pre-deploy
+    class, with the contended re-run once, its class rows stamped with the pass (`admission.stamping`,
+    rule 2 (e)) and its «cards since» from the last passed scheduled run, read after the pass
+    (`_pre_deploy_scheduled_history`). A red or
+    unrecorded run exits 1; a green one 0. No deploy command, no `deploy_*` row, no land reservation."""
+    import shutil
+    given = [flag for attr, flag in _SCHEDULED_RUN_FOREIGN if getattr(args, attr, None) not in (None, False, [])]
+    if given:
+        print(f"deploy --scheduled-run: REFUSED — it takes no {', '.join(given)}: it runs the pre-deploy run on "
+              f"main's head and deploys nothing (SPEC-1047 rule 2). Nothing was run.", file=sys.stderr)
+        sys.exit(3)
+    missing = _session_contract() if _session_contract is not None else \
+        "no session contract check was handed in"
+    if missing:
+        print(f"deploy --scheduled-run: REFUSED — the SPEC-0142 §6 invocation contract is not met: {missing}. "
+              f"The scheduled run fires from the project's own cron with the `session start` prefix and "
+              f"`YITC_SESSION_REF=cron-<name>` on the same line (SPEC-1047 rule 2). Nothing was run; no row "
+              f"written.", file=sys.stderr)
+        sys.exit(3)
+    main = _main_worktree(REPO_ROOT)
+    if main is None or os.path.realpath(main) != os.path.realpath(REPO_ROOT):
+        print(f"deploy --scheduled-run: REFUSED — it runs from the project's main checkout only, and "
+              f"{REPO_ROOT} is not it (main checkout: {main or 'not found'}; SPEC-1047 rule 2). Nothing was "
+              f"run.", file=sys.stderr)
+        sys.exit(3)
+    head = _run_git_cap(["rev-parse", "--verify", "--quiet", "refs/heads/main^{commit}"], REPO_ROOT)
+    candidate = (head.stdout or "").strip()
+    if head.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", candidate):
+        print(f"deploy --scheduled-run: REFUSED — main's head cannot be resolved at {REPO_ROOT}. Nothing was "
+              f"run.", file=sys.stderr)
+        sys.exit(3)
+    tmp = Path(tempfile.mkdtemp(prefix="yitc-scheduled-run-contract-"))
+    try:
+        got = _scheduled_run_contract(candidate, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap, tmp=tmp)
+        if got["error"] or got["refused"]:
+            why = got["error"] or "; ".join(got["refused"])
+            print(f"deploy --scheduled-run: REFUSED — the {CONSUMER_OPS_CONTRACT} of the candidate {candidate} "
+                  f"cannot be read or its `moment: pre-deploy` declaration is refused: {why}. Nothing was run.",
+                  file=sys.stderr)
+            sys.exit(3)
+        if got["classes"] is None:
+            print(f"deploy --scheduled-run: the candidate {candidate} declares no pre-deploy class — nothing to "
+                  f"run (SPEC-1047 rule 2).")
+            return
+        from lib import admission, land_verify_legs
+        classes = got["classes"]
+        names = (land_verify_legs._pre_deploy_declaration(classes) or {}).get("classes") or []
+        try:
+            sw = admission.switch(Path(main))
+        except Exception as exc:  # noqa: BLE001 — a switch that cannot be read is no switched-on queue
+            sw = {"on": False, "why": f"the switch could not be read ({exc!r})"}
+        if not sw.get("on"):
+            veto = " — the machine veto `YITC_ADMISSION_ENGINE=off` holds it off" if sw.get("veto") == "off" else ""
+            print(f"deploy --scheduled-run: REFUSED — the project's admission queue is off ({sw.get('why')}){veto}. "
+                  f"A scheduled run waits its turn in that queue only (SPEC-1047 rule 3): switch it on with "
+                  f"`admission.mode: engine` in the main checkout's {CONSUMER_OPS_CONTRACT}"
+                  + (" and lift the veto" if veto else "") + ". Nothing was run; no class row written.",
+                  file=sys.stderr)
+            sys.exit(3)
+        unrecordable = _pre_deploy_recordable(names, REPO_ROOT=tmp, _record_probe=_record_probe)
+        if unrecordable:
+            print("deploy --scheduled-run: REFUSED — this session cannot record the run's rows (SPEC-1044 rule 3, "
+                  "recordability first). Failed check(s):\n" + "\n".join(f"  - {why}" for why in unrecordable)
+                  + "\nNothing was run.", file=sys.stderr)
+            sys.exit(3)
+        marks = _pre_deploy_opt_in(got["ops"], classes)
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+    opted = {"fingerprint": marks["fingerprint"], "reuse_bound": marks["named"]} if marks else {}
+    common = _pre_deploy_git_common_dir(main)
+    run_kw = dict(candidate=candidate, target=None, guarding=names, pre_deploy_classes=classes, REPO_ROOT=REPO_ROOT,
+                  _run_git_cap=_run_git_cap, _iter_events=_iter_events,
+                  _consumer_zero_probe_guard=_consumer_zero_probe_guard, run_kind="scheduled",
+                  _pre_deploy_beside=((lambda: _pre_deploy_beside(common, _scan_procs=_scan_procs))
+                                      if _scan_procs is not None else None),
+                  _pre_deploy_journal=((lambda lo, hi: _pre_deploy_journal_beside(
+                      lo, hi, main_journal=_pre_deploy_main_journal, task_worktrees=_live_task_worktrees,
+                      _land_verifies_beside=_stage6_land_verifies_beside, _rows=journal_mod.segment_rows_since))
+                      if None not in (_stage6_land_verifies_beside, _pre_deploy_main_journal,
+                                      _live_task_worktrees) else None), **opted)
+    print(f"deploy --scheduled-run: candidate {candidate} (main's head now); class(es) {', '.join(names)}; "
+          f"entering the project's admission queue (SPEC-1047 rule 3)")
+    with admission.scheduled_run_entry(main=Path(main), append_event=_append_event) as record:
+        try:                             # after the pass: a run that passed while this one waited counts
+            history, fault = _pre_deploy_scheduled_history(candidate, REPO_ROOT=REPO_ROOT, _iter_events=_iter_events,
+                                                           _run_git_cap=_run_git_cap), None
+        except Exception as exc:  # noqa: BLE001 — the report says so; the run is not changed by it
+            history, fault = {"last_passed": None, "next_seq": None, "unordered": False}, repr(exc)
+        writer = admission.stamping(_append_event, record, types=("test_class_executed",))
+        run = _pre_deploy_run(**run_kw, _append_event=writer, history=(history, fault))
+        if run["contended"] and not run.get("unrecorded"):
+            run = _pre_deploy_run(**run_kw, _append_event=writer, attempt=2, run_ref=run["run_ref"],
+                                  history=run["history"])
+    if run.get("unrecorded"):
+        print(f"deploy --scheduled-run: the run {run['run_ref']} of {candidate} could not be recorded: "
+              f"{run['unrecorded']}. Its log is kept at {run['log']}. No deploy command was launched.",
+              file=sys.stderr)
+        sys.exit(1)
+    if not run["passed"]:
+        print(f"deploy --scheduled-run: the run {run['run_ref']} of {candidate} is RED — its report above names "
+              f"every failing unit; log {run['log']}. No deploy command was launched (SPEC-1047 rule 2).",
+              file=sys.stderr)
+        sys.exit(1)
+    print(f"deploy --scheduled-run: the run {run['run_ref']} of {candidate} PASSED; log {run['log']}. No deploy "
+          f"command was launched (SPEC-1047 rule 2).")
 
 
 class _DeployRunRecorder:
@@ -4568,7 +5000,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                _acquire_land_reservation=None, _land_reservation_path=None, _flock_holder=None,
                _flock_holder_record_path=None, _proc_starttime=None, _scan_procs=None,
                _land_hold=None, _stage6_land_verifies_beside=None, _pre_deploy_main_journal=None,
-               _live_task_worktrees=None) -> None:
+               _live_task_worktrees=None, _session_contract=None) -> None:
     """Run the project-declared deploy/rollback command (the executable gate) + emit deploy_completed
     on exit-0 (SPEC-0094 §1). `--rollback` selects the `rollback:` section + records `kind: rollback`.
 
@@ -4626,6 +5058,17 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         sys.stdout.write(DEPLOY_ROLLBACK_GUARD_SNIPPET if getattr(args, "rollback", False)
                          else DEPLOY_GUARD_SNIPPET)
         return
+
+    # T-14203 / SPEC-1047 rules 2-6 — `--scheduled-run` runs the deploy's pre-deploy run on main's head in
+    # the project's admission queue and DEPLOYS NOTHING: it returns here, before any deploy machinery — no
+    # command, no `deploy_*` row, no deploy lock and no `deploy-code` exercise (`grants.NON_PERFORMING_FLAGS`).
+    if getattr(args, "scheduled_run", False):
+        return _scheduled_run(
+            args, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _main_worktree=_main_worktree,
+            _run_git_cap=_run_git_cap, _iter_events=_iter_events, _consumer_zero_probe_guard=_consumer_zero_probe_guard,
+            _record_probe=_record_probe, _session_contract=_session_contract, _scan_procs=_scan_procs,
+            _stage6_land_verifies_beside=_stage6_land_verifies_beside, _pre_deploy_main_journal=_pre_deploy_main_journal,
+            _live_task_worktrees=_live_task_worktrees)
 
     kind = "rollback" if getattr(args, "rollback", False) else "deploy"
     rev = getattr(args, "rev", None)
@@ -4749,7 +5192,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         print(f"deploy: REFUSED — target `{pre_deploy_target}`"
               f"{' (the plain deploy, no --target)' if dtarget.name is None else ''} is guarded by "
               f"the pre-deploy class(es) "
-              f"{', '.join(pre_deploy_guarding)} (SPEC-1042 rule 3): a deploy to it first runs every "
+              f"{', '.join(pre_deploy_guarding)} (SPEC-1044 rule 3): a deploy to it first runs every "
               f"verify layer whole plus those classes on the exact revision it ships, so it REQUIRES "
               f"`--expect-revision <full commit id>` naming that revision. Nothing was run; no "
               f"deploy_completed emitted.", file=sys.stderr)
@@ -4763,7 +5206,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         if unrecordable:
             print(f"deploy: REFUSED — target `{dtarget.name}` is guarded by the pre-deploy class(es) "
                   f"{', '.join(pre_deploy_guarding)}, and this session cannot record the run's rows and "
-                  f"its own deploy rows (SPEC-1042 rule 3, recordability first). Failed check(s):\n"
+                  f"its own deploy rows (SPEC-1044 rule 3, recordability first). Failed check(s):\n"
                   + "\n".join(f"  - {why}" for why in unrecordable)
                   + "\nNothing was run (no gate, no pre-deploy run, no log); no deploy_completed emitted.",
                   file=sys.stderr)
@@ -5250,13 +5693,13 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} "
                   f"({'not started' if _run.get('not_started') else 'green' if _run['passed'] else 'RED'}) "
                   f"could not be recorded: {_run['unrecorded']} "
-                  f"(SPEC-1042 rule 3 — a command is never launched beside an unrecorded run). Its log "
+                  f"(SPEC-1044 rule 3 — a command is never launched beside an unrecorded run). Its log "
                   f"is kept at {_run['log']}. The project `deploy:` command was NOT launched, so nothing "
                   f"was deployed; no deploy_completed emitted.", file=sys.stderr)
             sys.exit(3)
         if not _run["passed"]:
             print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} is RED "
-                  f"(SPEC-1042 rule 3); its report above names every failing unit. The project "
+                  f"(SPEC-1044 rule 3); its report above names every failing unit. The project "
                   f"`deploy:` command was NOT launched, so nothing was deployed; no deploy_completed "
                   f"emitted. The next deploy starts a new run on its own candidate.", file=sys.stderr)
             sys.exit(3)
@@ -5279,7 +5722,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         if not _held:
             print(f"deploy: REFUSED — {_why}. The pre-deploy run {pre_deploy_run_ref} of {expected_revision} "
                   f"is green, but the command runs only while this deploy holds the project's land "
-                  f"reservation (SPEC-1042 rule 3). The project `deploy:` command was NOT launched, so "
+                  f"reservation (SPEC-1044 rule 3). The project `deploy:` command was NOT launched, so "
                   f"nothing was deployed; no deploy_completed emitted. The next deploy runs again on its "
                   f"own candidate.", file=sys.stderr)
             sys.exit(3)

@@ -1800,7 +1800,8 @@ def _closure_spec_binding_declaration(path: str, W: Path, audit_commit: str, *, 
     return True
 
 def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", tid: "str | None", *,
-                                   _run_git_cap, EVENTS_PATH, _blobs=None, _CLOSURE_LESSON_NOTE_RE=None, _CLOSURE_SPEC_PATH_RE=None, _ClosureBlobReader=None, _closure_spec_binding_declaration=None, _closure_spec_status_flip=None, _read_land_events=None, _CLOSURE_SPEC_STATUS_RE=None, _CLOSURE_SPEC_SUPERSEDES_RE=None, _main_point=None, _closure_spec_binding_block=None) -> set:
+                                   _run_git_cap, EVENTS_PATH, _blobs=None, _CLOSURE_LESSON_NOTE_RE=None, _CLOSURE_SPEC_PATH_RE=None, _ClosureBlobReader=None, _closure_spec_binding_declaration=None, _closure_spec_status_flip=None, _read_land_events=None, _CLOSURE_SPEC_STATUS_RE=None, _CLOSURE_SPEC_SUPERSEDES_RE=None, _main_point=None, _closure_spec_binding_block=None,
+                                   _release_view_doc_content=None) -> set:
     """T-10998 — the SUBSET of `paths` PROVEN to be exact deterministic governed closure side-effects,
     i.e. post-audit writes the lifecycle itself REQUIRES and that therefore do not stale the audit.
     Everything else is absent from the subset and stays refused exactly as today.
@@ -1842,7 +1843,14 @@ def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", t
           ONE verb (`task close`), so it attests the flip came from the governed closure and not from a
           hand-edit — but ONLY ever as the LAST conjunct. A hand-emitted row cannot admit a path whose
           shape failed (b), and a genuine flip whose row is missing is refused: provenance confirms an
-          already-mechanically-proven shape, it never grants trust on its own."""
+          already-mechanically-proven shape, it never grants trust on its own.
+
+    T-14255 — ONE derived file rides an activation proven above: `release-view/graph/floor-trigger-map.md`,
+    which the close's graph build regenerates from the floor map the activated spec's `binding:` changes.
+    It is admitted only when this call admitted an activation of THIS card (the `→ active` flip or the
+    binding declaration, axes (b)+(c)) AND its HEAD bytes equal `_release_view_doc_content` of HEAD's
+    `graph/floor-trigger-map.md` (the graph build's own transform, injected by the host). A hand edit that
+    is not that regeneration, an unreadable blob or a raising transform leaves it refused."""
     def _closure_spec_retarget_shape(old_text, new_text):
         """T-13954 — AXIS (b) for the shape the land's SUPERSESSION RE-TARGET writes on the spec this
         land activates (SPEC-0005 §4, `bin/lib/task.py#_land_supersession_retarget`). Return
@@ -2006,7 +2014,22 @@ def _governed_closure_side_effects(paths, W: Path, audit_commit: "str | None", t
             proven = (sid, new_status) in superseded         # the target flip it performed with it
         if proven:
             out.add(raw)
+    if _release_view_doc_content is not None and any(
+            raw in out and not isinstance(st, tuple) and sid in activated for raw, (sid, st, _b) in shaped.items()):
+        for raw in paths:
+            if str(raw).strip().removeprefix("./") != _CLOSURE_RELEASE_VIEW_FLOOR_MAP:
+                continue
+            try:
+                rv = _closure_blob(_CLOSURE_RELEASE_VIEW_FLOOR_MAP, W, "HEAD", _run_git_cap, _blobs)
+                fm = _closure_blob(_CLOSURE_GRAPH_FLOOR_MAP, W, "HEAD", _run_git_cap, _blobs)
+                if rv is not None and fm is not None and rv == _release_view_doc_content(_CLOSURE_GRAPH_FLOOR_MAP, fm):
+                    out.add(raw)
+            except Exception:                  # noqa: BLE001 — not proven ⇒ stays refused
+                pass
     return out
+
+_CLOSURE_GRAPH_FLOOR_MAP = "graph/floor-trigger-map.md"                     # T-14255
+_CLOSURE_RELEASE_VIEW_FLOOR_MAP = "release-view/graph/floor-trigger-map.md"   # T-14255 — its release-view twin
 
 def _observable_subtree_oids(revs, W: Path, *, _run_git_cap, _REBASELINE_PREFILTER_SUBTREES=None) -> "dict | None":
     """T-11505 — resolve the `bin` + `tests` SUBTREE OIDs for MANY revisions in ONE git subprocess.

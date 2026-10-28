@@ -2557,11 +2557,17 @@ _CAPTURE_ROUTING_ROWS = [
      "not a stage); never the context home (CHARTER.md / AGENTS.md)",
      "SPEC-1037", "the route + what each binding delivers: patterns/onboarding-onto-yitc-runbook.md "
                   "§Your project's own way of working; not a stage for every rule (plan-check F1)."),
+    ("a RULE or PRACTICE of THIS project to remember, not yet a spec",
+     "a `lessons/<slug>.md` whose every claim cites its evidence (a code path, a journal row, a test); "
+     "an uncited claim is marked hypothesis; never the context home (CHARTER.md / AGENTS.md), never "
+     "the provider memory",
+     "SPEC-0090", "a lesson becomes a stage-bound spec only by its own card (the row above)."),
     ("a general, TRAVELING reusable practice",
      "a `patterns/<name>.md` doc (cross-project methodology)",
      "SPEC-1037", "traveling = pattern; LOCAL = lesson (the SPEC-0090 boundary)."),
     ("a per-repo LOCAL craft note (non-traveling)",
-     "a `lessons/<slug>.md` node",
+     "a `lessons/<slug>.md` node, written in your own task worktree before its Stage-6 run "
+     "(learned after the run: `followup add` for the next card); no task worktree: a `work/<slug>` batch",
      "SPEC-0090", "the local counterpart of a pattern; project realm (SPEC-0073)."),
     ("an ENVIRONMENT FACT — neighbor-contracts / data-quirks / glossary",
      "a FACT-FLAVORED `lessons/<slug>.md` (human-read local fact)",
@@ -2589,10 +2595,10 @@ _CAPTURE_ROUTING_ROWS = [
      "SPEC-0039", "NEVER a durable rule home — route by purpose (SPEC-0091)."),
     ("about to save something to the assistant's OWN provider-side memory (kept by its tool, outside "
      "the repository)",
-     "the corpus first — route it by the rows above to its governed home; what is left for that "
-     "memory is listed in the owning spec, §6",
-     "SPEC-0039", "pointer only, nothing restated here: that memory reaches no dispatched worker, no "
-                  "other provider's assistant and no review."),
+     "the corpus first — nothing is kept in that memory; route it by the rows above to its governed "
+     "home, and the classes that memory used to take are routed in the owning spec, rule 3",
+     "SPEC-1055", "pointer only, nothing restated here: that memory is not used, for any provider, "
+                  "and each project switches it off in its committed provider config."),
 ]
 
 def _view_capture_routing(index: dict, *, engine_index: "dict | None" = None) -> dict:
@@ -7684,9 +7690,14 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
             # name is what gets cut, never a wall (audit-pre finding fp1:ed2812ff3c1f7e6f)
             _topfig = (f" [grew {_secs(_top.get('baseline_ms'))}->{_secs(_top.get('wall_ms'))} {_top['file']}]"
                        if _top else "")
+            # T-14241: where the window's walls came from — present only once a credited land or a
+            # Stage-6 run is in the window, so a credit-free line reads exactly as before.
+            _src = (f" ({_sd.get('credited_lands')} credited land(s) in the window; walls from "
+                    f"{_sd.get('runs')} run(s), {_sd.get('stage6_runs')} of them Stage-6)"
+                    if "runs" in _sd else "")
             lines.append(
                 f"debt: {sd} change(s){_topfig} in the recorded SLOWEST test files vs the median of the previous "
-                f"{_sd.get('window_lands')} land(s){_named} — a NEW entrant climbed into the recorded "
+                f"{_sd.get('window_lands')} land(s){_src}{_named} — a NEW entrant climbed into the recorded "
                 f"slow tail, or a member GREW past both the relative and the absolute bar. This is the "
                 f"DELTA, never the level: nothing prints while the tail is unchanged, and nothing here "
                 f"is gated or optimised. Read the named file's recent change and either accept the cost "
@@ -10213,6 +10224,130 @@ def _declared_pre_deploy_classes(repo_root) -> "dict":
     return {"read": True, "classes": [{"class": n, "declared_at": since[n]} for n in sorted(now)]}
 
 
+class _KernelRunnerHistory:
+    """T-14212 (SPEC-1051 rule 7, accept-gate residual F1) — the per-file history the KERNEL runner
+    already writes, read beside the adapter unit rows: a row with no `consumer_verify_layers`.
+      * A FULL green run — every test file passed: a `tests_passed` row whose `selection` reads `full`
+        or whose `selection_ran` equals its `selection_discovered` (place stage6; subject its `task_id`, version `stage6_run.tree`), or a `land_completed` row
+        whose verify ran every discovered file and reads `fail_class: ok` (`verify_metrics.test_file_count`
+        equal to `selection_discovered_count`, whether or not it lists the files it ran; place land;
+        subject the branch past `task/` / `work/`, version `verify_metrics.cand_tree`).
+      * A SELECTED green land — any other `fail_class: ok` land: the files its
+        `verify_metrics.selection_ran_tests` names passed.
+    Each named file's row counts the full runs too (its runs, its last green run).
+      * A FAILURE — a `tests_failed` row's `layers[].name`, each a `test_*.py` file (place stage6).
+    A file is `tests/<name>`. A failure is judged as the adapter units are: FLAKY when a later pass of
+    the same subject ran on the same version, REAL when a later pass of it ran on another version,
+    UNJUDGED otherwise. A selected Stage-6 pass names no files and passes none. Reads nothing itself.
+    T-14229: a failed file's unit also carries `failed_tests` — each test name its failing layers
+    recorded (`layers[].failed_tests`) with the file's own verdict counted per name, `unnamed` for a
+    failure whose layer named none (`named: false`), `not_recorded` for one whose row predates the
+    field; a unit whose failures all predate it reads `not recorded`, never zero."""
+
+    def __init__(self):
+        self.full = []        # (ts, place, subject, version)
+        self.selected = []    # (ts, subject, version, files)
+        self.failed = []      # (ts, subject, version, files)
+
+    @staticmethod
+    def _files(names):
+        return sorted({f"tests/{n}" for n in names if isinstance(n, str) and n.startswith("test_")
+                       and n.endswith(".py") and "/" not in n})
+
+    def read(self, e):
+        data, ts = e.get("data"), e.get("ts")
+        if not (isinstance(data, dict) and isinstance(ts, str) and ts):
+            return
+        def _s(v):
+            return v if isinstance(v, str) and v else None
+        if e.get("type") in ("tests_passed", "tests_failed"):
+            s6 = data.get("stage6_run") if isinstance(data.get("stage6_run"), dict) else {}
+            subject, version = _s(e.get("task_id")), _s(s6.get("tree"))
+            ran, found = data.get("selection_ran"), data.get("selection_discovered")
+            if e["type"] == "tests_passed" and (data.get("selection") == "full" or (
+                    isinstance(ran, int) and not isinstance(ran, bool) and ran > 0 and ran == found)):
+                self.full.append((ts, "stage6", subject, version))
+            elif e["type"] == "tests_failed" and isinstance(data.get("layers"), list):
+                files = self._files(ly.get("name") for ly in data["layers"] if isinstance(ly, dict))
+                named = {}               # T-14229: file -> the names its layer recorded, None = no field
+                for ly in data["layers"]:
+                    if isinstance(ly, dict) and self._files([ly.get("name")]):
+                        ft = ly.get("failed_tests")
+                        ok = (isinstance(ft, list) and all(isinstance(n, str) and n for n in ft)
+                              and ly.get("named") is bool(ft))   # any malformed part: not recorded
+                        named[f"tests/{ly['name']}"] = list(ft) if ok else None
+                if files:
+                    self.failed.append((ts, subject, version, files, named))
+        elif e.get("type") == "land_completed":
+            vm = data.get("verify_metrics") if isinstance(data.get("verify_metrics"), dict) else {}
+            if vm.get("fail_class") != "ok":
+                return
+            br = _s(data.get("branch"))
+            subject, version = (br.split("/", 1)[-1] if br else None), _s(vm.get("cand_tree"))
+            n = vm.get("test_file_count")
+            if isinstance(n, int) and not isinstance(n, bool) and n > 0 and n == vm.get("selection_discovered_count"):
+                self.full.append((ts, "land", subject, version))   # every discovered file ran, a list or not
+            elif isinstance(vm.get("selection_ran_tests"), list):
+                self.selected.append((ts, subject, version, self._files(vm["selection_ran_tests"])))
+
+    def answer(self):
+        if not (self.full or self.selected or self.failed):
+            return "not recorded — no kernel runner row (a full or selected green run, a Stage-6 failure) in this window"
+        passes = [(ts, sub, ver, None) for ts, _p, sub, ver in self.full] + list(self.selected)
+        units: dict = {}
+        for ts, sub, ver, files in self.selected:
+            for f in files:
+                u = units.setdefault(f, {"runs": 0, "last_green": None, "real": 0, "flaky": 0, "unjudged": 0,
+                                         "last_failure": None})
+                u["runs"] += 1
+                u["last_green"] = max(ts, u["last_green"] or ts)
+        for ts, sub, ver, files, named in self.failed:
+            for f in files:
+                u = units.setdefault(f, {"runs": 0, "last_green": None, "real": 0, "flaky": 0, "unjudged": 0,
+                                         "last_failure": None})
+                u["runs"] += 1
+                u["last_failure"] = max(ts, u["last_failure"] or ts)
+                later = [pv for pt, ps, pv, pf in passes if pt > ts and sub is not None and ps == sub
+                         and pv is not None and (pf is None or f in pf)]
+                v = ("flaky" if ver is not None and ver in later else "real" if ver is not None and later
+                     else "unjudged")
+                u[v] += 1
+                ft = u.setdefault("failed_tests", {"names": {}, "unnamed": {}, "not_recorded": {}})
+                got = named.get(f)
+                if got is None:
+                    ft["not_recorded"][v] = ft["not_recorded"].get(v, 0) + 1
+                elif not got:
+                    ft["unnamed"][v] = ft["unnamed"].get(v, 0) + 1
+                for n in got or ():
+                    c = ft["names"].setdefault(n, {"real": 0, "flaky": 0, "unjudged": 0})
+                    c[v] += 1
+        for u in units.values():          # T-14229: the per-name record, or `not recorded`
+            ft = u.get("failed_tests")
+            if ft is None:
+                continue
+            if not (ft["names"] or ft["unnamed"]):
+                u["failed_tests"] = "not recorded"
+                continue
+            zero = {"real": 0, "flaky": 0, "unjudged": 0}
+            u["failed_tests"] = {"names": [{"name": n, **c} for n, c in sorted(ft["names"].items())],
+                                 **({"unnamed": {**zero, **ft["unnamed"]}} if ft["unnamed"] else {}),
+                                 **({"not_recorded": {**zero, **ft["not_recorded"]}} if ft["not_recorded"] else {})}
+        full = sorted(self.full)
+        for u in units.values():          # every file ran in every full run
+            u["runs"] += len(full)
+            if full:
+                u["last_green"] = max(full[-1][0], u["last_green"] or full[-1][0])
+        out = {"full_runs": {"land": sum(1 for r in full if r[1] == "land"),
+                             "stage6": sum(1 for r in full if r[1] == "stage6"),
+                             "first": full[0][0] if full else None, "last": full[-1][0] if full else None},
+               "units": [{"file": f, **u} for f, u in sorted(units.items())],
+               "other_files": "every other test file: its runs are the full runs, its last green run the last "
+                              "full one, no failure recorded"}
+        if not full:
+            out["too_little_history"] = "no full green run of the kernel runner in this window"
+        return out
+
+
 def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=None, declared=None, *,
                            _iter_events=None, _ev_dt=None) -> dict:
     """verify-unit-cost lens (T-14110, SPEC-1042 rule 7) — the analysis aid a project reads before
@@ -10239,7 +10374,9 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     (SPEC-1042 rule 4 — the class row carries only its class's units).
 
     PER UNIT, over every place and then PER PLACE: runs, median and total duration (from integer
-    `duration_ms` only; a run without one is counted under `no_duration`), and failures split FLAKY /
+    `duration_ms` only; a run without one is counted under `no_duration`; over every place the median is
+    also given in whole milliseconds, `median_ms` — what an adapter `run` manifest carries, T-14206),
+    and failures split FLAKY /
     REAL / UNJUDGED — the version a failure ran on decides, never a name alone:
       * FLAKY — a re-run on its own record passed the unit (a `verify_metrics.flaky_retry` unit row
         reading `isolated: pass`), or a later run of the same subject passed it on the SAME version;
@@ -10254,6 +10391,11 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     `run_ref`, an attempt 2 named — in which the unit read red and was not rescued, neither by the
     row's own `rescued` list (a unit or group it names, or its whole layer) nor by a `flaky_retry`
     rescue, in a run none of whose rows reads `run_outcome: contended`.
+    T-14298: a unit with a failure also carries `failed_tests` — each test name its failed rows
+    recorded (the unit row's `failed_tests`, SPEC-1035 rule 13) with that failure's verdict counted per
+    name, `unnamed` for a failure whose row named none (`named: false`), `not_recorded` for a row that
+    predates the field; a unit whose failures all predate it reads `not recorded` — the kernel
+    runner's shape below.
 
     THE LAND-WAIT MODEL, over the land and Stage-6 records with at least one layer carrying an integer
     `duration_ms`: layers run side by side, so a record's wall is its slowest layer. Printed: the
@@ -10296,6 +10438,8 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     pd_red: dict = {}               # pre-deploy run key -> {entity: ts} red, not rescued by its row (T-14159)
     pd_contended: set = set()       # pre-deploy run keys a row records `run_outcome: contended`
     pd_costs: dict = {}             # pre-deploy run key -> (ts, json, its `layer_costs` list) (T-14161)
+    group_files: dict = {}          # group entity -> the files its unit rows name (T-14212)
+    group_file_pass: dict = {}      # (group entity, file) -> ts of the latest passed run that NAMED the file
     first = last = None
 
     def _entity(layer, project, group, name):
@@ -10308,12 +10452,14 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     def _ms(v):
         return v if isinstance(v, int) and not isinstance(v, bool) and v >= 0 else None
 
+    kernel = _KernelRunnerHistory()  # T-14212 (F1): the kernel runner's own per-file rows
     for e in _iter_events(events_path, types=kinds):
         if not isinstance(e, dict) or e.get("type") not in kinds or not in_window(e):
             continue
         data = e.get("data")
         layers = data.get("consumer_verify_layers") if isinstance(data, dict) else None
         if not isinstance(layers, list):
+            kernel.read(e)
             continue
         try:
             ident = json.dumps(e, sort_keys=True, default=str)
@@ -10350,8 +10496,10 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
             if key not in pd_costs or got[:2] < pd_costs[key][:2]:
                 pd_costs[key] = got
         units: dict = {}
+        unames: dict = {}           # T-14298: entity -> the failed tests its failed rows named, None = no field
         wall: dict = {}
         usable = False
+        ran_files: dict = {}        # group entity -> the files this record's unit rows name (T-14212)
         for lrow in layers:
             if not isinstance(lrow, dict) or not (isinstance(lrow.get("layer"), str) and lrow["layer"]):
                 continue
@@ -10369,12 +10517,24 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
                         ent = _entity(lrow["layer"], u.get("project"), u.get("group"), u.get("file"))
                         if ent is None:
                             continue
+                        if ent[2] == "group" and isinstance(u.get("file"), str) and u["file"]:
+                            group_files.setdefault(ent, set()).add(u["file"])   # T-14212: listed whole
+                            ran_files.setdefault(ent, set()).add(u["file"])
                         prev = units.get(ent)
                         failed = u["status"] != "passed" or (prev is not None and prev[0])
                         dur = _ms(u.get("duration_ms"))
                         dur = (prev[1] or 0) + (dur or 0) if prev is not None and (prev[1] or dur) else dur
                         units[ent] = (failed, dur)
                         lunits[ent] = dur
+                        if u["status"] != "passed":
+                            ft = u.get("failed_tests")
+                            ok = (isinstance(ft, list) and all(isinstance(n, str) and n for n in ft)
+                                  and u.get("named") is bool(ft))      # any malformed part: not recorded
+                            got = unames.get(ent)
+                            if ok:
+                                unames[ent] = list(dict.fromkeys((got or []) + ft))
+                            elif ent not in unames:
+                                unames[ent] = None
                 else:
                     records["not_usable"] += 1
             if place != "pre-deploy" and _ms(lrow.get("duration_ms")) is not None:
@@ -10424,12 +10584,19 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
             for ent, (failed, _d) in units.items():
                 if failed and ent not in rescued and ent not in row_saved and ent[0] not in row_layers:
                     pd_red.setdefault(key, {}).setdefault(ent, ts)
-        runs.append((ts, place, subject, key, units, rescued, cls))
+        for ent, fs in ran_files.items():   # T-14212: a group's pass is a pass of the members it ran, only
+            if not units[ent][0]:
+                for f in fs:
+                    group_file_pass[(ent, f)] = max(ts, group_file_pass.get((ent, f), ts))
+        runs.append((ts, place, subject, key, units, rescued, cls, unames))
 
     # Merge the rows of one pre-deploy run and attempt: a unit two class rows name is one run.
     merged: dict = {}
-    for ts, place, subject, key, units, rescued, cls in sorted(runs, key=lambda r: (r[0], r[1], repr(r[3]), r[6] or "")):
-        m = merged.setdefault(key, [ts, place, subject, {}, set(), {}])
+    for ts, place, subject, key, units, rescued, cls, unames in sorted(runs, key=lambda r: (r[0], r[1], repr(r[3]), r[6] or "")):
+        m = merged.setdefault(key, [ts, place, subject, {}, set(), {}, {}])
+        for ent, got in unames.items():         # T-14298: one run's names, its class rows merged
+            have = m[6].get(ent)
+            m[6][ent] = list(dict.fromkeys((have or []) + got)) if got is not None else have
         for ent, (failed, dur) in units.items():
             prev = m[3].get(ent)
             m[3][ent] = (failed or (prev is not None and prev[0]), dur if prev is None else prev[1])
@@ -10438,7 +10605,7 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
         m[4] |= rescued
     ordered = sorted(merged.values(), key=lambda m: (m[0], m[1], repr(m[2])))
     passes: dict = {}                 # (subject kind, subject, entity) -> [(ts, version)] it passed
-    for ts, place, subject, units, _r, _f in ordered:
+    for ts, place, subject, units, _r, _f, _n in ordered:
         for ent, (failed, _d) in units.items():
             if not failed and subject[1] is not None:
                 passes.setdefault((subject[0], subject[1], ent), []).append((ts, subject[2]))
@@ -10453,11 +10620,15 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
         return "flaky" if subject[2] in later else "real" if later else "unjudged"
     stats: dict = {}
     caught: dict = {}                 # class -> entity -> REAL failures recorded by that class's rows
-    for ts, place, subject, units, rescued, failed_in in ordered:
+    last_pass: dict = {}              # entity -> ts of its latest passed run (T-14212)
+    fnames: dict = {}                 # T-14298: entity -> its failed tests by name, per verdict
+    for ts, place, subject, units, rescued, failed_in, names in ordered:
         for ent, (failed, dur) in units.items():
             s = stats.setdefault(ent, {}).setdefault(place, {"runs": 0, "durs": [], "no_duration": 0,
                                                              "real": 0, "flaky": 0, "unjudged": 0})
             s["runs"] += 1
+            if not failed:
+                last_pass[ent] = max(ts, last_pass.get(ent, ts))
             if dur is None:
                 s["no_duration"] += 1
             else:
@@ -10465,6 +10636,15 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
             if failed:
                 verdict = _judge(subject, ent, ts, rescued)
                 s[verdict] += 1
+                ft = fnames.setdefault(ent, {"names": {}, "unnamed": {}, "not_recorded": {}})
+                got = names.get(ent)
+                if got is None:
+                    ft["not_recorded"][verdict] = ft["not_recorded"].get(verdict, 0) + 1
+                elif not got:
+                    ft["unnamed"][verdict] = ft["unnamed"].get(verdict, 0) + 1
+                for n in got or ():
+                    c = ft["names"].setdefault(n, {"real": 0, "flaky": 0, "unjudged": 0})
+                    c[verdict] += 1
                 for cname in failed_in.get(ent, ()) if verdict == "real" else ():
                     caught.setdefault(cname, {})[ent] = caught.get(cname, {}).get(ent, 0) + 1
 
@@ -10496,9 +10676,22 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
                                               for t, lab, ref in sorted(red_runs.get(ent, ()))]}
                                 if place == "pre-deploy" else {})}
         durs = [d for p in stats[ent] for d in stats[ent][p]["durs"]]
+        ft, failed_tests = fnames.get(ent), None
+        if ft is not None:                # T-14298: the kernel runner's shape (`_KernelRunnerHistory`)
+            zero = {"real": 0, "flaky": 0, "unjudged": 0}
+            failed_tests = ("not recorded" if not (ft["names"] or ft["unnamed"]) else
+                            {"names": [{"name": n, **c} for n, c in sorted(ft["names"].items())],
+                             **({"unnamed": {**zero, **ft["unnamed"]}} if ft["unnamed"] else {}),
+                             **({"not_recorded": {**zero, **ft["not_recorded"]}} if ft["not_recorded"] else {})})
         rows.append({**_ident(ent), "runs_in_window": sum(stats[ent][p]["runs"] for p in stats[ent]),
                      "median_s": round(_median(durs) / 1000, 1) if durs else None,
-                     "total_min": round(sum(durs) / 60000, 1), "places": places})
+                     "median_ms": round(_median(durs)) if durs else None,   # T-14206: what a run manifest carries
+                     "total_min": round(sum(durs) / 60000, 1), "places": places,
+                     "last_pass": last_pass.get(ent),                  # T-14212: a green run after a change
+                     **({"files": sorted(group_files[ent]),
+                         "file_last_pass": {f: group_file_pass.get((ent, f)) for f in sorted(group_files[ent])}}
+                        if ent in group_files else {}),
+                     **({"failed_tests": failed_tests} if failed_tests is not None else {})})
 
     # The land-wait model.
     want: list = []
@@ -10615,9 +10808,183 @@ def _view_verify_unit_cost(events_path: "Path", since=None, until=None, named=No
     out["land_wait"] = land_wait
     out["pre_deploy_classes"] = class_rows
     out["pre_deploy_layer_costs"] = layer_costs
+    out["kernel_runner"] = kernel.answer()
     if not decl.get("read"):
         out["pre_deploy_contract"] = f"not read — {decl.get('reason', 'unknown')}; declared classes unknown"
     return out
+
+
+def _pre_deploy_list_candidates(whole: dict, recent: dict, *, kernel_files, changed_at, task_lands,
+                                min_task_lands: int, never_move, always) -> dict:
+    """T-14212 (SPEC-1051 rule 7) — the units list `pre-deploy list` recomputes, WHOLE, from the
+    verify-unit-cost view. PURE: `whole` is the view over the whole history, `recent` over the silent
+    window (`pre_deploy_move_min_window_days` up to now); `kernel_files` the kernel runner's test files
+    (`tests/<name>`, empty in a consumer); `changed_at` `{file: ISO stamp of its last content change,
+    None unknown}`; `task_lands` the ISO stamps of the task lands; `never_move` the class's globs;
+    `always` the `# yitc: selection: always` files.
+
+    A FILE is listed when ALL hold, else it is named under `not_listed` with every reason:
+      * protected — it matches no `never_move:` glob and is no `always` file (the verb never lists one);
+      * its last content change is known, and at least `min_task_lands` task lands landed after it;
+      * no REAL or UNJUDGED failure in the silent window, at any place, of any unit naming it (each
+        execution context, the kernel runner's file included — one file is one unit across them);
+      * a green run of it after that change, in every unit naming it — for a group member, a passed run
+        of the group that NAMED that file; for a kernel file, a FULL green run of the kernel runner (a
+        selected green land is no full run).
+    A group (an adapter `group`) is listed whole or not at all: a member that is not listed keeps every
+    other member out, named `group`. Cost is not a criterion. Answers `listed` (sorted files) and
+    `not_listed` (`{file, why: [...]}`, sorted), plus `kernel_runner` when its history is too little."""
+    import bisect
+    import fnmatch
+
+    def _rows(view):
+        return [u for u in (view or {}).get("units") or () if isinstance(u, dict)]
+
+    def _key(u):
+        return (u.get("layer"), u.get("project") or "", "group" if u.get("group") else "unit",
+                u.get("group") or u.get("unit"))
+
+    def _files(u):
+        return list(u.get("files") or ()) if u.get("group") else [u.get("unit")]
+
+    bad_recent = {}
+    for u in _rows(recent):
+        for place, rec in (u.get("places") or {}).items():
+            f = rec.get("failures") if isinstance(rec, dict) else None
+            if isinstance(f, dict) and (f.get("real") or f.get("unjudged")):
+                bad_recent.setdefault(_key(u), []).append(place)
+    why: dict = {}
+    groups: dict = {}
+    for u in _rows(whole):
+        fs = [f for f in _files(u) if isinstance(f, str) and f]
+        for f in fs:
+            why.setdefault(f, [])
+            places = bad_recent.get(_key(u))
+            if places:
+                why[f].append(f"a REAL or UNJUDGED failure in the silent window (layer {u.get('layer')}, "
+                              f"{', '.join(sorted(set(places)))})")
+            green = (u.get("file_last_pass") or {}).get(f) if u.get("group") else u.get("last_pass")
+            if not (isinstance(green, str) and changed_at.get(f) and green > changed_at[f]):
+                why[f].append(f"no green run after its last change (layer {u.get('layer')})")
+        if u.get("group") and fs:
+            groups[_key(u)] = fs
+    kr_whole, kr_recent = (whole or {}).get("kernel_runner"), (recent or {}).get("kernel_runner")
+    kw = kr_whole if isinstance(kr_whole, dict) else {}
+    kbad = {r["file"] for r in ((kr_recent or {}).get("units") or () if isinstance(kr_recent, dict) else ())
+            if isinstance(r, dict) and (r.get("real") or r.get("unjudged"))}
+    for f in kernel_files or ():
+        why.setdefault(f, [])
+        if f in kbad:
+            why[f].append("a REAL or UNJUDGED failure in the silent window (kernel runner)")
+        green = (kw.get("full_runs") or {}).get("last")   # a FULL green run — a selected land is no full run
+        if not (isinstance(green, str) and changed_at.get(f) and green > changed_at[f]):
+            why[f].append("no full green run after its last change (kernel runner)")
+    lands = sorted(t for t in task_lands or () if isinstance(t, str))
+    for f in why:
+        hit = next((g for g in never_move or () if fnmatch.fnmatch(f, g)), None)
+        if hit is not None:
+            why[f].insert(0, f"protected: matches never_move {hit!r}")
+        if f in (always or ()):
+            why[f].insert(0, "protected: a `# yitc: selection: always` file")
+        at = changed_at.get(f)
+        if not at:
+            why[f].append("its last content change is unknown (not in git history)")
+        else:
+            n = len(lands) - bisect.bisect_right(lands, at)
+            if n < min_task_lands:
+                why[f].append(f"{n} task lands since its last change, under {min_task_lands}")
+    while True:                                          # a group is listed whole or not at all
+        more = False
+        for g, fs in groups.items():
+            if any(why[f] for f in fs):
+                for f in fs:
+                    if not why[f]:
+                        why[f].append(f"group {g[3]!r} (layer {g[0]}) has a member that is not listed")
+                        more = True
+        if not more:
+            break
+    out = {"listed": sorted(f for f, w in why.items() if not w),
+           "not_listed": [{"file": f, "why": w} for f, w in sorted(why.items()) if w]}
+    if isinstance(kr_whole, dict) and kr_whole.get("too_little_history"):
+        out["kernel_runner"] = f"too little history — {kr_whole['too_little_history']}"
+    elif kernel_files and not isinstance(kr_whole, dict):
+        out["kernel_runner"] = f"too little history — {kr_whole}"
+    return out
+
+
+def _pre_deploy_held_files(res: dict, whole: dict, recent: dict, *, durations_ms) -> dict:
+    """T-14225 (SPEC-1051 rule 7) — the files `pre-deploy list` shows as HELD in the lands: not listed,
+    NOT protected, and kept out by a REAL or UNJUDGED failure in the silent window or by too few task lands
+    since their last change (the two reasons `_pre_deploy_list_candidates` writes). PURE over that fold's
+    answer `res`, the verify-unit-cost view over the whole history (`whole`) and over the silent window
+    (`recent`), and `durations_ms` — the kernel's duration table `{test file name: ms}`, or None in a
+    consumer, which reads the view's own unit `median_s` (a group's median split over its files, summed
+    over the rows naming the file). Per row: serial `seconds` (None unknown), the window's `real` and
+    `unjudged` failure counts (adapter units + the kernel runner), `last_failure` (the kernel runner's;
+    None when not recorded), `failed_tests` (names — an adapter unit's and the kernel runner's alike, T-14298 —
+    `none named`, `not recorded`, or None with no failure) and `why`. Rows by seconds descending, unknown last, then file. `held_s` sums the known
+    seconds of the held rows, `whole_s` those of every file the fold judged. Reports, decides nothing."""
+    def _rows(view):
+        return [u for u in (view or {}).get("units") or () if isinstance(u, dict)]
+
+    def _files(u):
+        return [f for f in (u.get("files") or () if u.get("group") else [u.get("unit")]) if isinstance(f, str) and f]
+
+    secs: dict = {}
+    if durations_ms is None:
+        for u in _rows(whole):
+            fs, m = _files(u), u.get("median_s")
+            if fs and isinstance(m, (int, float)) and not isinstance(m, bool):
+                for f in fs:
+                    secs[f] = secs.get(f, 0.0) + m / len(fs)
+    else:
+        for name, ms in (durations_ms or {}).items():
+            secs[f"tests/{name}"] = ms / 1000
+
+    fails: dict = {}
+    for u in _rows(recent):
+        for rec in (u.get("places") or {}).values():
+            c = rec.get("failures") if isinstance(rec, dict) else None
+            if isinstance(c, dict):
+                for f in _files(u):
+                    r = fails.setdefault(f, {"real": 0, "unjudged": 0, "last": None, "names": None})
+                    r["real"] += c.get("real") or 0
+                    r["unjudged"] += c.get("unjudged") or 0
+        ft = u.get("failed_tests")       # T-14298: an adapter unit's names, read as the kernel's are
+        if isinstance(ft, dict):
+            for f in _files(u):
+                if f in fails:
+                    got = [n["name"] for n in ft.get("names") or () if isinstance(n, dict)]
+                    have = fails[f]["names"] if isinstance(fails[f]["names"], list) else []
+                    fails[f]["names"] = list(dict.fromkeys(have + got)) or fails[f]["names"] or "none named"
+    kr = (recent or {}).get("kernel_runner")
+    for k in (kr.get("units") or () if isinstance(kr, dict) else ()):
+        if not (isinstance(k, dict) and isinstance(k.get("file"), str)):
+            continue
+        r = fails.setdefault(k["file"], {"real": 0, "unjudged": 0, "last": None, "names": None})
+        r["real"] += k.get("real") or 0
+        r["unjudged"] += k.get("unjudged") or 0
+        r["last"] = k.get("last_failure") or r["last"]
+        ft = k.get("failed_tests")
+        if isinstance(ft, dict):
+            r["names"] = [n["name"] for n in ft.get("names") or () if isinstance(n, dict)] or "none named"
+
+    held_marks = ("a REAL or UNJUDGED failure in the silent window", " task lands since its last change, under ")
+    rows = []
+    for r in (res or {}).get("not_listed") or ():
+        why = r.get("why") or []
+        if any(w.startswith("protected") for w in why) or not any(m in w for w in why for m in held_marks):
+            continue
+        f = fails.get(r["file"], {"real": 0, "unjudged": 0, "last": None, "names": None})
+        failed = f["real"] or f["unjudged"]
+        rows.append({"file": r["file"], "seconds": secs.get(r["file"]), "why": why,
+                     "real": f["real"], "unjudged": f["unjudged"], "last_failure": f["last"] if failed else None,
+                     "failed_tests": (f["names"] or "not recorded") if failed else None})
+    rows.sort(key=lambda x: (x["seconds"] is None, -(x["seconds"] or 0), x["file"]))
+    judged = set((res or {}).get("listed") or ()) | {r["file"] for r in (res or {}).get("not_listed") or ()}
+    return {"rows": rows,
+            "held_s": round(sum(x["seconds"] for x in rows if x["seconds"] is not None), 1),
+            "whole_s": round(sum(secs[f] for f in judged if secs.get(f) is not None), 1)}
 
 
 def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -> dict:
@@ -10648,19 +11015,15 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
       * zero-catch — no REAL and no UNJUDGED failure at any place in the window (only FLAKY ones; an
         unjudged failure may have been a catch, so it holds the unit on lands);
       * costly — its median duration is above the median of the medians of the units on lands in the
-        reading (a reading with one timed unit on lands has no costlier unit, so it proposes none);
-      * it ran at least `pre_deploy_move_min_runs` times at its place (land + Stage-6) in the window;
-        a costly zero-catch unit under it is listed as held, with its run count.
+        reading (a reading with one timed unit on lands has no costlier unit, so it proposes none).
     MOVE-BACK — a unit the configuration places at pre-deploy with at least one REAL failure recorded
     at place pre-deploy is proposed back onto lands, on any window and any run count.
-    MOVE-BACK BY RED RUNS (T-14159) — a unit the configuration places at pre-deploy whose `red_runs`
-    (the view: red, not rescued, not in a contended run) name at least
-    `pre_deploy_move_back_min_red_runs` distinct runs is proposed back onto lands with those runs
-    named, on any window; an unread threshold proposes none and says so.
+    (T-14212: the run-count gate `pre_deploy_move_min_runs` and the red-run move-back
+    `pre_deploy_move_back_min_red_runs` are retired — SPEC-1051 rule 7: a listed class's membership is
+    the `pre-deploy list` verb's, and one final failure takes a listed unit out of the skip set.)
 
-    Answers the window, `covered_days`, the thresholds with their source, `move_away`, `move_back` and
-    `move_back_red_runs` (each `proposals` plus `why_none` when it has none), `place_unknown` when any,
-    and `writes: none`.
+    Answers the window, `covered_days`, the threshold with its source, `move_away` and `move_back`
+    (each `proposals` plus `why_none` when it has none), `place_unknown` when any, and `writes: none`.
     A view answering `no_data` passes it through and proposes nothing."""
     from datetime import datetime
 
@@ -10680,8 +11043,7 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
         rec = thresholds.get(key) if isinstance(thresholds, dict) else None
         return rec if isinstance(rec, dict) and isinstance(rec.get("value"), int) else None
 
-    days_rec, runs_rec = _th("pre_deploy_move_min_window_days"), _th("pre_deploy_move_min_runs")
-    red_rec = _th("pre_deploy_move_back_min_red_runs")
+    days_rec = _th("pre_deploy_move_min_window_days")
     units = [u for u in view.get("units") or [] if isinstance(u, dict)]
     placement = placement if isinstance(placement, dict) else {}
     declared = placement.get("declared")
@@ -10726,10 +11088,10 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
     deferred = [u for u in units if placed[id(u)][0] == "pre-deploy"]
     medians = [u["median_s"] for u in on_lands if isinstance(u.get("median_s"), (int, float))]
     bar = _median(medians) if len(medians) > 1 else None
-    away, held = [], []
+    away = []
     if view.get("no_data"):
         why_away = f"no data — {view['no_data']}"
-    elif days_rec is None or runs_rec is None:
+    elif days_rec is None:
         why_away = "a threshold value in force could not be read — no move-away is proposed"
     elif span is None:
         why_away = "the window could not be dated (no bound and no dated row) — it covers nothing"
@@ -10746,53 +11108,27 @@ def _verify_cost_weekly_reading(view: dict, thresholds: dict, placement: dict) -
             if bar is None or not isinstance(u.get("median_s"), (int, float)) or u["median_s"] <= bar:
                 continue                                   # not costly against the reading's median unit
             runs = sum(places[p].get("runs", 0) for p in ("land", "stage6") if isinstance(places.get(p), dict))
-            row = {**_ident(u), "runs_at_place": runs, "median_s": u["median_s"],
-                   "total_min": u.get("total_min")}
-            (away if runs >= runs_rec["value"] else held).append(row)
+            away.append({**_ident(u), "runs_at_place": runs, "median_s": u["median_s"],
+                         "total_min": u.get("total_min")})
         if not away:
-            why_away = (f"no costly zero-catch unit ran pre_deploy_move_min_runs = {runs_rec['value']} "
-                        f"({runs_rec['source']}) times at its place" if held else
-                        "no unit on lands is both costly (median above the median unit's) and zero-catch")
+            why_away = "no unit on lands is both costly (median above the median unit's) and zero-catch"
     back = []
     for u in deferred:
         pd = (u.get("places") or {}).get("pre-deploy") if isinstance(u.get("places"), dict) else None
         if isinstance(pd, dict) and _fails(pd).get("real"):
             back.append({**_ident(u), "runs_at_place": pd.get("runs"), "real_failures": _fails(pd)["real"],
                          "median_s": pd.get("median_s")})
-    by_red, red_held = [], []
-    for u in deferred:
-        pd = (u.get("places") or {}).get("pre-deploy") if isinstance(u.get("places"), dict) else None
-        reds = [r for r in (pd.get("red_runs") if isinstance(pd, dict) and isinstance(pd.get("red_runs"), list)
-                            else ()) if isinstance(r, dict) and isinstance(r.get("run_ref"), str)]
-        refs = sorted({r["run_ref"] for r in reds})
-        if not refs:
-            continue
-        row = {**_ident(u), "red_run_count": len(refs), "red_runs": [r.get("run") for r in reds]}
-        (by_red if red_rec is not None and len(refs) >= red_rec["value"] else red_held).append(row)
-    if red_rec is None:
-        why_red = "the threshold pre_deploy_move_back_min_red_runs in force could not be read — none is proposed"
-    elif not by_red:
-        why_red = (f"no unit the configuration places at pre-deploy read red (not rescued, not contended) "
-                   f"in pre_deploy_move_back_min_red_runs = {red_rec['value']} ({red_rec['source']}) "
-                   "pre-deploy runs")
-    else:
-        why_red = None
     return {
         "reading": "verify-cost weekly reading (T-14111 / SPEC-1042 rule 7) over the verify-unit-cost "
                    "view — it proposes moves both ways and writes none",
         "window": win, "covered_days": covered,
         "thresholds": {k: ({"value": r["value"], "source": r["source"]} if r else "not read")
-                       for k, r in (("pre_deploy_move_min_window_days", days_rec),
-                                    ("pre_deploy_move_min_runs", runs_rec),
-                                    ("pre_deploy_move_back_min_red_runs", red_rec))},
+                       for k, r in (("pre_deploy_move_min_window_days", days_rec),)},
         "costly_above_median_s": bar,
-        "move_away": {"proposals": away, **({"held_thin": held} if held else {}),
-                      **({"why_none": why_away} if why_away else {})},
+        "move_away": {"proposals": away, **({"why_none": why_away} if why_away else {})},
         "move_back": {"proposals": back,
                       **({} if back else {"why_none": "no unit the configuration places at pre-deploy has a "
                                                       "real failure there"})},
-        "move_back_red_runs": {"proposals": by_red, **({"below_threshold": red_held} if red_held else {}),
-                               **({"why_none": why_red} if why_red else {})},
         **({"place_unknown": unknown} if unknown else {}),
         "writes": "none — a move is the project's own edit of its yitc-ops.yaml `tests.classes[]`",
     }

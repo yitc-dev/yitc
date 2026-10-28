@@ -18,8 +18,8 @@ cites:
 > tests file by file — list them, run exactly the ones it names, and report each one. This page
 > states everything that script and the kernel say to each other, and points at four samples you
 > can copy. What the kernel then *does* with the per-file results — re-run a failed file alone,
-> count flaky files, record what a change would reach — is the contract, SPEC-1035
-> (`yitc-v2 graph query --kernel SPEC-1035`); none of it is restated here.
+> count flaky files, record what a change would reach — is the contract, SPEC-1046
+> (`yitc-v2 graph query --kernel SPEC-1046`); none of it is restated here.
 
 ## When you need this page
 
@@ -37,7 +37,7 @@ as before.
 |---|---|---|
 | `vitest/1` | `patterns/verify-layer-adapter-samples/vitest-adapter.py` | `list`, `related`, `run` |
 | `playwright/1` | `patterns/verify-layer-adapter-samples/playwright-adapter.py` | `list`, `related`, `run` |
-| `pytest/1` | `patterns/verify-layer-adapter-samples/pytest-adapter.py` | `list`, `run` |
+| `pytest/1` | `patterns/verify-layer-adapter-samples/pytest-adapter.py` | `list`, `related`, `run` |
 | `script/1` | `patterns/verify-layer-adapter-samples/script-adapter.py` | `list`, `run` |
 
 1. Copy the sample for your runner into your repository (for example to `tools/`).
@@ -86,8 +86,11 @@ wanted. The key set is closed — an unknown key fails the declaration before an
 | `credit_deciding_reason` | Written with `credit: deciding`, and only with it: who accepted the risk of that mode, and why. |
 | `rescue` | `on` (default) or `off`. Whether a file that fails and then passes alone keeps the verdict green. |
 
-What each key *means* for the verdict is SPEC-1035 rule 1 and the rules it names; the two
+What each key *means* for the verdict is <workshop-spec> rule 1 and the rules it names; the two
 `deciding` modes, their reasons and what makes such a declaration malformed are SPEC-1030.
+The `required` checks run on every run, whatever the selection picks; when the bring-up they need is
+most of a layer's wall, see «Move a layer's required checks into a layer of their own» in
+`patterns/verify-cost-playbook.md`.
 
 ## How the kernel calls your command
 
@@ -113,12 +116,12 @@ A JSON object. Read the keys you need and ignore any you do not know.
 | `action` | every call | `list`, `related` or `run` — what to do. |
 | `profile` | every call | The layer's `report_profile`. |
 | `project` | every call | On `run` of a listed inventory, for a profile whose report does not name the runner project: the one project to run (an empty string when the runner has a single project). Otherwise `null`. |
-| `units` | every call | On `run`: the units to execute, each as `list` gave it, or `null` when the layer has no `list` — then run everything the layer runs. On a re-run a unit may also carry `cases` (see «What `run` does»). On `related`: the whole inventory. On `list`: `null`. |
+| `units` | every call | On `run`: the units to execute, each as `list` gave it, or `null` when the layer has no `list` — then run everything the layer runs. On a re-run a unit may also carry `cases` (see «What `run` does»). On `run` — first attempt and re-run — a unit may also carry `median_ms` and `runs`, its median duration and run count from your project's recent runs (SPEC-1046 rule 3): facts for your own split, never an instruction. On `related`: the whole inventory. On `list`: `null`. |
 | `output` | every call | The path where `list` and `related` write their answer. |
 | `report` | every call | The path where `run` makes the runner write its JUnit report. |
 | `second_report` | every call | The path where `run` makes the runner write its second report, or `null` when the profile has none. |
 | `base` | `related` only | The commit the kernel compares against. |
-| `changed` | `related` only | The repository-relative paths the kernel sees as changed. |
+| `changed` | `related` only | The repository-relative paths the kernel sees as changed, less the inert bookkeeping paths (the journal, task cards, audit records, the derived graph — SPEC-1046 rule 3); empty when the change is all bookkeeping. |
 | `isolated` | a re-run or a lane run only | `true`: run the named units one at a time (no parallel files). Absent on a first attempt. |
 
 ## What `list` answers
@@ -154,7 +157,9 @@ whose report does not name the project.
 A unit MAY also carry `classes`: the names of the declared test classes it belongs to
 (`tests.classes[].class`); leave it out for a unit of no class. The kernel reads it only for a
 pre-deploy class: every unit of one `group` names the same pre-deploy class or none, and a land
-or a Stage-6 run leaves a pre-deploy unit out after every other choice (<workshop-spec> rules 1-2).
+or a Stage-6 run leaves a pre-deploy unit out after every other choice (SPEC-1051 rules 1-2).
+That after-selection order is the fallback's: a pre-deploy class that lists its units takes its
+skip set out of the inventory before any selection (SPEC-1051 rule 2).
 
 ## What `related` answers
 
@@ -180,7 +185,7 @@ itself.
 
 A unit the inventory does not hold, a nonzero exit or a missing answer makes `related` a failed
 answer, and the kernel records the full layer. An empty answer never means "nothing is affected"
-on its own — the kernel decides that, from what the runner can and cannot see (SPEC-1035 rule 3).
+on its own — the kernel decides that, from what the runner can and cannot see (<workshop-spec> rule 3).
 
 ## What `run` does
 
@@ -197,7 +202,13 @@ several files, and:
   `<Class>::<name>` or `<name>`). Running the whole file instead is also correct: the kernel
   reads the report the same way, and a file reads passed when every case that ran passed. Match
   the names exactly; never turn them into a pattern that can match another test;
-- exits with the runner's exit code: nonzero when a test failed.
+- exits with the runner's exit code: nonzero when a test failed;
+- MAY name the failed tests itself: a `<property name="failed_test" value="<test name>"/>` (one per
+  name) in the `<properties>` of a failed `<testcase>` of the unit. The kernel records each failed
+  unit's tests by name, and these names win over what it reads from the report; without them it
+  takes a case profile's failed case ids, or reads pytest, unittest, go test and jest / vitest
+  failure lines in a script unit's failure text (the rule: SPEC-1046 rule 13). pytest writes such a
+  property with `record_property`.
 
 The kernel reads the report against what it asked for. The report is dropped — and the layer's
 full `command:` or its exit code decides — when a requested unit has no record or only skipped
@@ -262,7 +273,7 @@ land(consumer): verify layer 'frontend' adapter report (vitest/1, first attempt)
   the commonest is a `report_id` that does not match the name in the runner's report.
 
 The void reason `unit-only-skipped` names a listed unit — a test file, within one runner project
-where the runner has several — whose every test was skipped in this run; SPEC-1035 rule 4 drops
+where the runner has several — whose every test was skipped in this run; <workshop-spec> rule 4 drops
 the report for it, and will on each run while the unit stays that way. Do not skip a whole file
 from inside it: take the file out of what the layer runs for that project, in the runner's own
 configuration, so that `list` no longer names the pair. Put it back when the file holds a test
@@ -283,9 +294,9 @@ This is a how-to, not a rule, and it adds none. It says in plain words what you 
 your row carries an answer, names the rule that holds the conditions, and says where to look. The
 rules it names:
 
-- the ladder, its steps and their order — SPEC-1035 rule 6;
-- what makes a changed path `unknown` — SPEC-1035 rule 3;
-- what a trigger does — SPEC-1035 rule 7;
+- the ladder, its steps and their order — <workshop-spec> rule 6;
+- what makes a changed path `unknown` — <workshop-spec> rule 3;
+- what a trigger does — <workshop-spec> rule 7;
 - when a layer is skipped whole, which changes run every layer and what a project may declare about
   that — SPEC-0152 rule 16;
 - how to lay tests out so that a change reaches few of them — SPEC-0165 item 12.
@@ -295,7 +306,7 @@ reader's words; the conditions are the rule's, and wherever this section and a r
 rule holds.
 
 This section is about one number: how often your layer's ladder reaches its last answer. A
-`shadow` layer already records it, and what `shadow` does with the answer is SPEC-1035 rule 8. The
+`shadow` layer already records it, and what `shadow` does with the answer is <workshop-spec> rule 8. The
 modes in which the answer decides what runs are not part of that contract: they are the active
 contract SPEC-1030's.
 
@@ -321,7 +332,7 @@ land(consumer): verify layer 'frontend' shadow selection (recorded, never acted 
 ```
 
 Count the `reason` values over those lands and start with the commonest. What clearing one answer
-earns while another still stands is the closing sentence of SPEC-1035 rule 6.
+earns while another still stands is the closing sentence of <workshop-spec> rule 6.
 
 A record that answers on rung (a) lists the paths of your change that produced the answer in
 `fired_paths` — at most 20 of them, with the count of the rest in `fired_paths_more`; SPEC-0025
@@ -339,22 +350,22 @@ seeing in your row, and the fourth names the rule that holds the conditions.
 |---|---|---|---|---|
 | `no-base` | none | The run had no commit to compare your change with, so it had no list of changed paths. | SPEC-0152 rule 16, its fail-closed edges | Nothing to declare; the kernel is right. |
 | `diff-unresolvable` | none | The run could not read the list of paths your change holds. The recorded reason carries the error after a colon. | SPEC-0152 rule 16, its fail-closed edges | Nothing to declare; the kernel is right. A repeat is a fault to report, not a setting. |
-| `no-diff` | none | The change the run compared holds no path. | SPEC-1035 rule 6, its default | Nothing to declare; the kernel is right. |
+| `no-diff` | none | The change the run compared holds no path. | <workshop-spec> rule 6, its default | Nothing to declare; the kernel is right. |
 | `no-verify-globs` | (a) | The kernel's own verify-infrastructure set read as empty on this run. No layer row shows this today. | SPEC-0152 rule 16, which names that set | Nothing to declare. |
-| `verify-implementation-touch` | (a) | Your change holds a path of the verify infrastructure the kernel names for every project: a file under the root `tests/`, or `yitc-ops.yaml`. A file under your root `bin/` is not such a path. Every layer of the run carries the same answer. | SPEC-0152 rule 16; SPEC-1035 rule 6 (a) | Which path it was — the record's `fired_paths`; what to do about it — «The two commonest answers» below. |
+| `verify-implementation-touch` | (a) | Your change holds a path of the verify infrastructure the kernel names for every project: a file under the root `tests/`, or `yitc-ops.yaml`. A file under your root `bin/` is not such a path. Every layer of the run carries the same answer. | SPEC-0152 rule 16; <workshop-spec> rule 6 (a) | Which path it was — the record's `fired_paths`; what to do about it — «The two commonest answers» below. |
 | `declared-check-surface` | (a) | Your change holds a file that one of your layers' `command:` names, a path your `verify.infra_globs` lists, or a file under an adapter's `sources:` entry kept under your root `bin/`. Every layer of the run carries the same answer. | SPEC-0152 rule 16, its `verify.infra_globs` paragraph | Which path it was — the record's `fired_paths`. What your cards edit there — «The two commonest answers» below. For an edit of the checks themselves the kernel is right. |
 | `owned-test-ownership` | (a) | A changed test file was taken as particular layers' own, and the layer list the run held did not bear that out. Every layer of the run carries the same answer. | SPEC-0152 rule 16, its ownership-aware paragraph | Nothing to declare; the kernel is right. Which test files they were — the record's `fired_paths`. A repeat is a fault to report. |
-| `adapter-sources` | (a) | Your change holds a path under this layer's `sources:`. | SPEC-1035 rules 1 and 6 (a) | Which path it was — the record's `fired_paths`. `sources:` — it lists what implements the adapter and the runner configuration, and for a change to one of those the kernel is right. Keep out of those files anything your cards edit for another reason. |
-| `dependency-manifest` | (b) | Your change holds a dependency manifest, a lockfile, or a toolchain or browser version pin. | SPEC-1035 rule 6 (b) | Nothing to declare; the kernel is right. |
-| `trigger-full` | (c) | One of your own `triggers:` entries that names the full layer covers a path of your change. | SPEC-1035 rules 6 (c) and 7 | That `triggers:` entry: whether it can name the `units:` that read those files instead. |
-| `trigger-unit-not-listed` | (c) | A `triggers:` entry that covers a path of your change names a test file this run's inventory does not hold. | SPEC-1035 rules 6 (c) and 7 | The `units:` of that `triggers:` entry — a test file renamed, moved or deleted since it was written. |
-| `no-inventory` | none | The run had no usable inventory from `list` for this layer. | SPEC-1035 rule 3, its safe fallback | The layer's line in the run's output — «Checking your adapter» above. |
-| `unrevealable-void` | none | The layer's report profile names a kind of failed run its report cannot show. No profile of this page does today. | SPEC-1035 rule 4, its limit clause | Nothing to declare. |
-| `related-absent` | (d) | The adapter declares no `related`. | SPEC-1035 rule 3, its safe fallback; rule 6 (d) | The adapter's `related` key: whether your runner can name the tests a change reaches without running them — the fourth habit of SPEC-0165 item 12 (a). |
-| `unknown-path` | (d) | At least one changed path this layer's `subject_globs` admit is `unknown`. The record lists them. | SPEC-1035 rules 3 and 6 (d) | The reason each listed path carries — «The `why` of an unknown path» below. |
-| `related-failed` | (d) | `related` was asked and gave no usable answer; `related_reason` names the cause. | SPEC-1035 rule 6 (d) | Your `related` command — «What `related` answers» above. |
-| `related-timed-out` | (d) | `related` was asked and did not finish in the time the run gave it. | SPEC-1035 rule 6 (d) | How long your `related` takes, and the layer's `timeout:`. |
-| `browser-layer-change` | (e) | On a layer that covers the `e2e` class: your change holds application, server or asset code for which the adapter declares no relation to its test files. | SPEC-1035 rule 6 (e) | `triggers:` that map application paths to the test files exercising them; and whether the layer should be split by product area — SPEC-0165 item 12 (b). |
+| `adapter-sources` | (a) | Your change holds a path under this layer's `sources:`. | <workshop-spec> rules 1 and 6 (a) | Which path it was — the record's `fired_paths`. `sources:` — it lists what implements the adapter and the runner configuration, and for a change to one of those the kernel is right. Keep out of those files anything your cards edit for another reason. |
+| `dependency-manifest` | (b) | Your change holds a dependency manifest, a lockfile, or a toolchain or browser version pin. | <workshop-spec> rule 6 (b) | Nothing to declare; the kernel is right. |
+| `trigger-full` | (c) | One of your own `triggers:` entries that names the full layer covers a path of your change. | <workshop-spec> rules 6 (c) and 7 | That `triggers:` entry: whether it can name the `units:` that read those files instead. |
+| `trigger-unit-not-listed` | (c) | A `triggers:` entry that covers a path of your change names a test file this run's inventory does not hold. | <workshop-spec> rules 6 (c) and 7 | The `units:` of that `triggers:` entry — a test file renamed, moved or deleted since it was written. |
+| `no-inventory` | none | The run had no usable inventory from `list` for this layer. | <workshop-spec> rule 3, its safe fallback | The layer's line in the run's output — «Checking your adapter» above. |
+| `unrevealable-void` | none | The layer's report profile names a kind of failed run its report cannot show. No profile of this page does today. | <workshop-spec> rule 4, its limit clause | Nothing to declare. |
+| `related-absent` | (d) | The adapter declares no `related`. | <workshop-spec> rule 3, its safe fallback; rule 6 (d) | The adapter's `related` key: whether your runner can name the tests a change reaches without running them — the fourth habit of SPEC-0165 item 12 (a). |
+| `unknown-path` | (d) | At least one changed path this layer's `subject_globs` admit is `unknown`. The record lists them. | <workshop-spec> rules 3 and 6 (d) | The reason each listed path carries — «The `why` of an unknown path» below. |
+| `related-failed` | (d) | `related` was asked and gave no usable answer; `related_reason` names the cause. | <workshop-spec> rule 6 (d) | Your `related` command — «What `related` answers» above. |
+| `related-timed-out` | (d) | `related` was asked and did not finish in the time the run gave it. | <workshop-spec> rule 6 (d) | How long your `related` takes, and the layer's `timeout:`. |
+| `browser-layer-change` | (e) | On a layer that covers the `e2e` class: your change holds application, server or asset code for which the adapter declares no relation to its test files. | <workshop-spec> rule 6 (e) | `triggers:` that map application paths to the test files exercising them; and whether the layer should be split by product area — SPEC-0165 item 12 (b). |
 
 One more full-layer record is not the ladder's answer: `selection-error`, a fault in the
 selection itself. Its `error` field carries the cause, and it is a fault to report.
@@ -365,10 +376,10 @@ Each `unknown` path in the record carries a `why`. The columns read as in the ta
 
 | `why` | What you are seeing | The rule | What to look at |
 |---|---|---|---|
-| `outside-modelled` | The path is of a kind your `modelled:` does not list, and no `triggers:` entry names it. | SPEC-1035 rule 3 (ii); rule 7 | Three declarations, in this order. First the layer's `subject_globs`: whether the layer's tests read that path at all. Then `triggers:`: an entry that names the test files reading it. Last `modelled:`: whether the runner's dependency tracking follows that kind of file. |
-| `deleted-or-renamed` | The path is no longer a file of the tree the run verified. | SPEC-1035 rule 3 (i) | Nothing to declare; the kernel is right. |
-| `not-in-runner-diff` | The runner's own diff — the form its profile names in the last column of the profiles table — does not hold the path. | SPEC-1035 rule 3 (iii) | Nothing to declare; the kernel is right. |
-| `runner-diff-unreadable` | The run could not read the runner's own diff. | SPEC-1035 rule 3 (iii) | Nothing to declare. A repeat is a fault to report. |
+| `outside-modelled` | The path is of a kind your `modelled:` does not list, and no `triggers:` entry names it. | <workshop-spec> rule 3 (ii); rule 7 | Three declarations, in this order. First the layer's `subject_globs`: whether the layer's tests read that path at all. Then `triggers:`: an entry that names the test files reading it. Last `modelled:`: whether the runner's dependency tracking follows that kind of file. |
+| `deleted-or-renamed` | The path is no longer a file of the tree the run verified. | <workshop-spec> rule 3 (i) | Nothing to declare; the kernel is right. |
+| `not-in-runner-diff` | The runner's own diff — the form its profile names in the last column of the profiles table — does not hold the path. | <workshop-spec> rule 3 (iii) | Nothing to declare; the kernel is right. |
+| `runner-diff-unreadable` | The run could not read the runner's own diff. | <workshop-spec> rule 3 (iii) | Nothing to declare. A repeat is a fault to report. |
 
 ### The two commonest answers
 
@@ -413,8 +424,8 @@ proposal to the kernel, not a declaration.
 
 **Narrow on evidence.** Each declaration here trades width for trust. Which direction of a glob is
 the unsound one is the third habit of SPEC-0165 item 12 (a); what an unlisted kind of file means
-for a `related` answer is SPEC-1035 rule 3. Declare what the tests are known to read, and watch the
-record's `disagreements` (SPEC-1035 rule 9).
+for a `related` answer is <workshop-spec> rule 3. Declare what the tests are known to read, and watch the
+record's `disagreements` (<workshop-spec> rule 9).
 
 ## Limits worth knowing
 

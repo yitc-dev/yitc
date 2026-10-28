@@ -13,6 +13,7 @@ cites:
   - <workshop-spec>
   - <workshop-spec>
   - SPEC-1030
+  - SPEC-1051
   - <workshop-spec>
   -
 ---
@@ -146,6 +147,26 @@ split's mechanics and its transition bill are `patterns/consumer-suite-paralleli
 **Measured.** <project>: the stack layer took 20 of the 34 verify hours and was skipped on 12 % of lands;
 after the same move at cryptochart its lands skipped the browser layers on 50–60 % (X-2013).
 
+### Move a layer's required checks into a layer of their own
+
+**Cuts.** A bring-up paid on every run by a layer whose own units are cheap.
+**Applies when.** A layer's bring-up (its `prep:` and the stack its `required:` checks run in) is most of
+its wall, its units take seconds, a deciding selection would save only those seconds, **and** the two
+halves read different inputs, so most changes would wake one half, not both. Read the co-fire rate first:
+where a split's parts mostly run together, each re-pays the bring-up and the split loses
+(`patterns/consumer-suite-parallelization.md` §How FINE to cut).
+**Do.** Unit selection cannot skip the `required:` checks: they run on every run of the layer, a run
+that selects no unit included (<workshop-spec> rule 5, SPEC-1030 rule 4), and so does the bring-up they need.
+Only the whole-layer skip of a layer no changed path touches skips the bring-up too (SPEC-0152 rule 16).
+So put the checks-only half in a layer of its own, with `subject_globs` covering every input of its
+checks, and leave the units in theirs; the split's mechanics are `patterns/consumer-suite-parallelization.md`
+§Splitting a monolithic layer.
+**Risk.** A checks layer whose globs miss an input of its checks is skipped when it should run; each
+change that reaches both halves pays the bring-up twice, so overlapping inputs undo the saving.
+**Measured.** <project>: the design layer's median wall was about 130 s, nearly all bring-up, for 5 units
+of about 1 s each, so a deciding selection would have saved 1–5 s a run; the kernel declined to scope
+the checks by their own inputs and named this split instead (X-2070).
+
 ### Write `subject_globs` as patterns, not per-file lists
 
 **Cuts.** Full-layer runs caused by editing the layer declarations themselves.
@@ -198,7 +219,7 @@ not taken there (cryptochart `lessons/measuring-on-this-host.md`).
 
 **Cuts.** A long run that ends red on a check that takes seconds.
 **Applies when.** Red causes include file-size limits, lint or formatting.
-**Do.** A first layer of the cheap checks, or the adapter's `required:` commands (SPEC-1035 rule 1).
+**Do.** A first layer of the cheap checks, or the adapter's `required:` commands (<workshop-spec> rule 1).
 **Risk.** None beyond one more layer to declare.
 **Measured.** <project>: the file-size limit reddened 40 Stage-6 runs and lint 13, each found at the end of
 a 4–5 min run (X-2006).
@@ -250,7 +271,7 @@ pixel ran 3.9 minutes (cryptochart `lessons/browser-tests-of-the-chart.md`).
 
 **Cuts.** Whole layers re-run because one timing-bound test failed under load.
 **Applies when.** The same tests go red together on loaded runs and pass alone.
-**Do.** The lane and its automatic entry are SPEC-1035 rule 11; a group that fails together leaves too few
+**Do.** The lane and its automatic entry are <workshop-spec> rule 11; a group that fails together leaves too few
 single rescues for the automatic entry, so append it by hand.
 **Risk.** The lane runs one file at a time and lengthens the tail.
 **Measured.** <project>: five browser specs went red 12 times each in 6 days; in 52 runs, 4–6 of them were
@@ -263,7 +284,7 @@ red at once (X-2014, X-2022). <project>: the coupling tests caused 30+ reds (X-2
 **Cuts.** Running a whole layer for a change that reaches a few of its files.
 **Applies when.** A runner can list its files and name the files a change reaches.
 **Do.** The adapter protocol and samples (`patterns/verify-layer-adapter-protocol.md`); `selection:` and
-`credit:` start at `shadow`, which only records (SPEC-1035 rule 8); `deciding` is SPEC-1030, with its
+`credit:` start at `shadow`, which only records (<workshop-spec> rule 8); `deciding` is SPEC-1030, with its
 recorded reason.
 **Risk.** Under `deciding` a skipped file's failure is not seen on that run and can reach `main`.
 **Measured.** <project> frontend: shadow answered `unknown-path` on 193 of 220 runs, and only 5 would have
@@ -305,7 +326,7 @@ cryptochart `docs/research/2026-10-04-verify-cost/trial-report.md`).
 **Cuts.** Re-running every layer after a red run or a failed land attempt.
 **Applies when.** A fix touches one layer, yet the next run repeats all of them.
 **Do.** The engine carries per-layer credit between runs and attempts; what still voids it (a timed-out
-layer's report, a card-wide full layer) is SPEC-1035 and SPEC-0186.
+layer's report, a card-wide full layer) is <workshop-spec> and SPEC-0186.
 **Risk.** None of its own.
 **Measured.** cryptochart: three cards re-ran all 15 layers after a red, at 456, 330 and 466 s
 (public issue #106); five land retries threw away about 40 min (public issue #107).
@@ -359,10 +380,10 @@ in flight averaging 0.6–1.3 for 19 of 24 hours.
 ## What to move before a deploy, and how to check it
 
 The rule for a declared pre-deploy class — what a land skips, what the deploy runs on the candidate,
-which targets it gates — is <workshop-spec>; this section is how a project reads its own numbers before it
+which targets it gates — is SPEC-1051; this section is how a project reads its own numbers before it
 moves anything. The numbers come from one saved view over the project's own journal:
 `bin/yitc-v2 graph query verify-unit-cost [<layer:file...>] [--since <date>] [--until <date>]`
-(<workshop-spec> rule 7). It prints, per unit and place, runs, median and total time, real and flaky
+(SPEC-1051 rule 7). It prints, per unit and place, runs, median and total time, real and flaky
 failures, the land-wait model and each pre-deploy class's catch record; it decides nothing. Every
 reading below quotes the plan `plans/deferred-checks-a-project-moves-costly-checks-out-.md` (plan), by
 its section.
@@ -407,6 +428,22 @@ week's real catches (3, 2, 4, 1 — plan §Model: what <project> would move); mo
 layer would have moved 21 real catches away (same section, Browser files).
 **Measured.** <project>'s week (events.jsonl#ts=, events.jsonl#ts=);
 cryptochart's heap test (events.jsonl#ts=, the plan's read of its implementation).
+
+### Split a test file held in the lands by one failing or edited part
+
+**Cuts.** A whole file kept in every land because one part of it failed or changed.
+**Applies when.** The held block of `bin/yitc-v2 pre-deploy list` names a file with a large serial
+share, its failure text naming one cheap test — a split candidate; a file held only by UNJUDGED
+failures that name no test leaves the window by itself, and a split does not help it.
+**Do.** Move the tests that never failed into a new file; the failing part keeps the original name,
+so its failure history stays with it (SPEC-1051 rule 7 judges a file). Helpers both files use go to
+one shared module, never copied. The weekly review files the split as a card (Lens C reading 5).
+**Risk.** A new file starts with no history and lists only once it reaches the land threshold with a
+full green run; shared setup is paid twice.
+**Measured.** Kernel, 2026-10-26, 28 days / 100 lands: a failure kept 329 files in the lands (26 % of
+serial time), a recent edit 72 files (5.5 %); of the 26 %, 13.5 % were files with one UNJUDGED failure
+(owner trial events.jsonl#ts=). The pilot split of
+test_publish_surface_boundary.py: the two catching tests 31 s of 144 s.
 
 ### Shadow before moving
 

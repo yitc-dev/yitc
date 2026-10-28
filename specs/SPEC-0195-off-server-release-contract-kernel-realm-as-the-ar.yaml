@@ -383,42 +383,30 @@ concern:
   declare_key: engine
   declare_type: mapping
   waiver_policy: loose
-  born: "kernel:\n  # SPEC-0195 — WHICH ENGINE + WHICH CONTENT this project runs,\
-    \ pinned. Rule 3: a consumer PINS\n  # the release, it never copies or forks it.\
-    \ ONE pin CONTRACT with TWO CARRIERS, because\n  # executable code and regenerable\
-    \ content need different checks.\n  #\n  # To DECLARE, replace the waiver below\
-    \ with:\n  # engine: # the EXECUTABLE dependency (rule 3, first carrier)\n  #\
-    \ release_repo: <absolute path to the local clone of the published release mirror>\n\
-    \  # release: <the EXACT release TAG — e.g. v0.5.0>\n  # anchor: <OPTIONAL — the\
-    \ out-of-band trust-root fingerprint (rule 7); when declared, the\n  # pinned\
-    \ tree is verified against the signed manifest before it is used>\n  # content:\
-    \ # OPTIONAL — this project's own RECORD of the content pin (rule 3,\n  # # second\
-    \ carrier). The carrier itself is the installed tree's\n  # # signed manifest,\
-    \ moved by `release update`; no kernel reader\n  # # consumes this mapping.\n\
-    \  # release: <the release tag the installed content was cut from>\n  # answers:\
-    \ <OPTIONAL — where this project keeps its own init answers, if it keeps any,\
-    \ or ~;\n  # no update reads it>\n  #\n  # THE REF IS EXACT AND IMMUTABLE, never\
-    \ a moving one. A release TAG is resolved to its PEELED\n  # COMMIT and the bytes\
-    \ read are that commit's — a branch name is REFUSED, and a tag that does\n  #\
-    \ not exist in `release_repo:` is a LOUD `pin-unresolved`, never a silent fall-through\
-    \ to\n  # whatever engine happened to invoke the command. That silence is exactly\
-    \ what rule 4 retires:\n  # `-C <project>` resolves the engine FROM this pin,\
-    \ not from an absolute host path baked into\n  # a launcher, a doc, or a default.\n\
-    \  #\n  # THE BORN STANCE IS A WAIVER, and it is a real key rather than commentary\
-    \ (the\n  # lesson, `lessons/a-stance-mirror-is-only-sound-at-birth.md`): this\
-    \ section is EMITTED for\n  # every project, so it is PRESENT — and a comment-only\
-    \ block declares NOTHING, so under\n  # declare-or-waive every freshly-`init`ed\
-    \ project would fail its own born template.\n  waiver:\n    reason: >-\n     \
-    \ Initialized via `bin/yitc-v2 init` — no pinned kernel release yet; this project\
-    \ runs the\n      engine it was invoked with, from the\n      workshop it lives\
-    \ beside. Replace this waiver with `engine: {release_repo, release}` once a\n\
-    \      release is published and this project installs from the artifact rather\
-    \ than the shared\n      filesystem (SPEC-0195 rules 3-4).\n"
+  born: "kernel:\n  # SPEC-0195 — WHICH engine and content release this project PINS,\
+    \ never copies. To declare,\n  # replace the waiver with:\n  # Rule text: `__YITC_CLI__\
+    \ graph query SPEC-0195 --kernel`\n  # engine: # the EXECUTABLE dependency (rule\
+    \ 3, first carrier)\n  # release_repo: <absolute path to the local clone of the\
+    \ published release mirror>\n  # release: <the EXACT release TAG — e.g. v0.5.0>\n\
+    \  # anchor: <OPTIONAL — the out-of-band trust-root fingerprint (rule 7); when\
+    \ declared, the\n  # pinned tree is verified against the signed manifest before\
+    \ it is used>\n  # content: # OPTIONAL — this project's own RECORD of the content\
+    \ pin (rule 3,\n  # # second carrier). The carrier itself is the installed tree's\n\
+    \  # # signed manifest, moved by `release update`; no kernel reader\n  # # consumes\
+    \ this mapping.\n  # release: <the release tag the installed content was cut from>\n\
+    \  # answers: <OPTIONAL — where this project keeps its own init answers, if it\
+    \ keeps any, or ~;\n  # no update reads it>\n  # The ref is an EXACT release tag:\
+    \ a branch is refused, an unknown tag is a loud `pin-unresolved`.\n  waiver:\n\
+    \    reason: >-\n      Initialized via `bin/yitc-v2 init` — no pinned kernel release\
+    \ yet; this project runs the\n      engine it was invoked with, from the\n   \
+    \   workshop it lives beside. Replace this waiver with `engine: {release_repo,\
+    \ release}` once a\n      release is published and this project installs from\
+    \ the artifact rather than the shared\n      filesystem (SPEC-0195 rules 3-4).\n"
 init_concern: null
 implements_signature:
-  bin/lib/release.py#_add_trust_surfaces: 9aaaf073111ea2ff3e24cdea6627fcc29eaddbe4e374eff58cb1ff2c1eaaea2b
+  bin/lib/release.py#_add_trust_surfaces: b72577832dd49c4dbfe21b201f77cfe07d1d5c680ae43a5bc61ac531742403e8
   bin/lib/release.py#cmd_release_update: 591047391c9872c824509383c77d8951114fa603cd08dca93bdd773f6063fdde
-  bin/lib/release.py#cmd_work_publish: 4e0b02d192ef0dcfd19a64b0c4c5961c011b526b1bb778c6f9bc4715481cd6e8
+  bin/lib/release.py#cmd_work_publish: a696b98ace57bd02bac309c89f63a9b01270eb44c0123f4886155c24593949d8
   bin/lib/release.py#cut_release_tree: fe2d3ae82d7bc2f6aaa2fee68235a59624d691c9b95dbe1b4b7d3d4ab073aec9
   bin/lib/release.py#host_literal_violations: 3c9b17eedb6df57aff0af813c33da78f3da0719e66818c22bb2e1ad470adea83
   bin/lib/release.py#update: 40a61645bdc53c046a151753ae10948a28b71efa078bd452d5884289ce08613f

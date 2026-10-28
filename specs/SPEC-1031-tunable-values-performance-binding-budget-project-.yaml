@@ -1,6 +1,6 @@
 id: SPEC-1031
-title: Tunable values — budgets on the machine, thresholds in the project, opened
-  one key at a time; GATE stays hard; a governing value written once
+title: Tunable values — budgets on the machine, thresholds and declarations in the
+  project, opened one key at a time; GATE stays hard; a governing value written once
 status: active
 created_at: 2026-10-16 08:40:25+00:00
 travels: null
@@ -24,6 +24,9 @@ implements:
 - bin/lib/cli.py#_verify_test_timeout_seconds
 - bin/lib/cli.py#_land_threshold_in_force
 - bin/lib/debt.py#_lane_bound
+- bin/lib/machine_settings.py#admission_settings
+- bin/lib/machine_settings.py#admission_switch
+- bin/lib/machine_settings.py#verify_switches
 body: "## Scenario\nA machine, a project or an adopter's host runs at a different\
   \ speed, load or size than the one the\nengine's numbers were written on. Its owner\
   \ reads `bin/yitc-v2 config list`, sees every tunable with\nits CLASS, its effective\
@@ -31,94 +34,130 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ its class lets them change: how fast and how wide work runs, which auditor answers,\
   \ how long a\nrun may take before it counts as stuck (a BUDGET, on the machine),\
   \ and the numbers a verdict or a\nsignal compares against that describe the project\
-  \ (a THRESHOLD, in the project's own\n`yitc-ops.yaml`). They do it without editing\
-  \ a spec, and a consumer without editing code. Every\nother value a verdict reads\
-  \ stays GATE and cannot be changed from a machine or a project; a card\nOPENS one\
-  \ when a real case needs it.\n\n## Internal\nRULE 1 — ONE INVENTORY (carried from\
-  \ <workshop-spec> rule 1). Every runtime tunable the engine reads — the\n`YITC_*`\
-  \ environment knobs and the module constants of the same nature — is enumerated\
-  \ ONCE, in\n`machine_settings.INVENTORY`, each entry with exactly one class. A knob\
-  \ absent from the inventory is\nunclassified, and an unclassified knob is GATE.\
-  \ An entry MAY declare bounds: for a numeric knob an\ninclusive range (its band),\
-  \ for a string knob the closed set of values its read site acts on;\n`config set`\
-  \ refuses a value outside them and `config list` prints them.\n\nRULE 2 — FIVE CLASSES.\n\
-  \  PERFORMANCE — how FAST or how CONCURRENTLY work runs, never whether it passes:\
-  \ parallelism, poll\n                intervals, batch/page sizes, heartbeat cadence.\
-  \ An ADMISSION value — one that decides\n                only WHEN a governed run\
-  \ may start (a load headroom it waits under, the bound on that\n               \
-  \ wait) — is PERFORMANCE even where its expiry refuses the run, provided all three\n\
-  \                hold: (i) the refusal judges nothing about the subject; (ii) it\
-  \ comes before the run\n                starts anything and records no row; (iii)\
-  \ the same run is admitted later unchanged,\n                or now through an explicit\
-  \ skip flag its record names. A value failing any one of\n                the three\
-  \ is GATE. Carried from <workshop-spec> unchanged.\n  BINDING — which external auditor\
-  \ answers on this machine and its no-answer timeout; the closed\n              \
-  \  enumeration of SPEC-0202 rule 1. Unchanged.\n  BUDGET — an OPENED wall-clock\
-  \ limit whose expiry ends a run as stuck; it belongs to the machine.\n  THRESHOLD\
-  \ — an OPENED number that a pass/fail, a stop rule or a report-only signal compares\n\
-  \                against and that describes the project; one value per project on\
-  \ every machine.\n  GATE — every other value a verdict reads, every protocol input\
-  \ the inventory lists (an\n                identity carry, a path resolver, a test-seam\
-  \ marker), every dynamic prefix stem, and\n                anything not confidently\
-  \ classified. Unchanged from <workshop-spec>: refused on every door\n          \
-  \      (rule 7), read only as its own spec defines.\n\nRULE 3 — A KEY IS OPENED\
-  \ ONE AT A TIME, BY A CARD. A GATE key becomes BUDGET or THRESHOLD only through\n\
-  a card whose scope names that key and which, in the same change: (a) gives it a\
-  \ declared band\n(`bounds=`); (b) for a BUDGET with an existing machine key — the\
-  \ BINDING `auditor.<tier>.timeout` —\nkeeps that key and its SPEC-0202 resolution\
-  \ instead of opening a second one; (c) folds every other\ninventory name for the\
-  \ same value into the one key it opens, so `config get` and `config list` show\n\
-  the value actually applied; (d) reconciles every active spec that STATES the key's\
-  \ value or class,\nthrough the <workshop-spec> §7 route (an equivalent reference\
-  \ in place, a changed obligation through a\nsuccessor); (e) wires the key's read\
-  \ site to rule 4 and its record to rule 6. A key no card opened\nstays GATE. There\
-  \ is no bulk reclassification.\n\nRULE 4 — WHERE AN OPENED KEY IS SET, AND IN WHICH\
-  \ ORDER IT IS READ.\n  BUDGET — the machine settings file (one path site, `resolve_settings_path`:\
-  \ `YITC_MACHINE_SETTINGS`\n  names it, else it sits beside the shared coordination\
-  \ store, SPEC-0084 rule 3). Read order:\n  environment > machine file > built-in\
-  \ default; where a project-declared bound exists beside it, the\n  chain its own\
-  \ spec defines is kept and the machine file takes the one place just above the\n\
-  \  built-in default (for the land-verify per-file bound, SPEC-0152: the `YITC_VERIFY_TEST_TIMEOUT`\n\
-  \  escape hatch · the layer's `timeout:` · the section's `timeout_seconds:` · the\
-  \ machine file · the\n  built-in default). A verify run routed to another machine\
-  \ (the remote venue, SPEC-1029) applies the\n  budget the CALLER resolved, forwarded\
-  \ with the run, and the caller's row names that value and its\n  source.\n  THRESHOLD\
-  \ — the project's `yitc-ops.yaml` section `thresholds:` (rule 5), keyed by the inventory\n\
-  \  name, then the built-in default. The environment is not read and the machine\
-  \ file never carries\n  one, so two machines verifying one project read one value;\
-  \ a test sets it by writing the fixture\n  project's section. The engine is deliberately\
-  \ not a consumer of its own ops contract (its\n  `yitc-ops.yaml` carries `verify_policy`\
-  \ only), so the engine's thresholds are their inventory\n  defaults.\n  PERFORMANCE\
-  \ and BINDING — environment > machine file > built-in default; the environment stays\
-  \ the\n  deterministic test seam (BINDING's own resolution as SPEC-0202 defines).\n\
-  \nRULE 5 — THE `thresholds:` SECTION. An opt-in `yitc-ops.yaml` section registered\
-  \ by this spec's\n`concern:` block (SPEC-0128 rule 3; the additive route SPEC-0093\
-  \ rule 1 provides). A mapping from\ninventory names of THRESHOLD class to values.\
-  \ An absent or malformed section (not a mapping, e.g. a\nlist) or an absent key\
-  \ means the built-in default; a key that is unknown, not THRESHOLD class, or\noutside\
-  \ its band is ignored with one report-only line naming it and the built-in default\
-  \ stands.\nNothing in the section ever fails a land.\n\nRULE 6 — THE VALUE IN FORCE\
-  \ IS RECORDED. `config set` journals `config_changed` (key, old, new,\nclass) as\
-  \ before; from the project door (rule 7) the row also carries `scope: project`.\
-  \ The row a run already writes names every opened BUDGET that bounded it, value\
-  \ and\nsource, whether the run passed, failed or was ended by it (for the land-verify\
-  \ per-file bound: the\nland and Stage-6 rows' bound-in-force fields `verify_test_timeout_s`\
-  \ / `verify_test_timeout_source`,\nand a declared layer's `timeout_s` / `timeout_source`).\
-  \ The duty is an opened budget's: the audit\ntimeouts stay BINDING (rule 3(b)).\
-  \ A result or a report-only signal that an opened\nTHRESHOLD decided names that\
-  \ threshold value and its source on its row. No warning or impact\nestimate is added\
-  \ here (owner directive events.jsonl#ts=; followup\nfu_30c49f88ec30).\n\nRULE 7\
-  \ — THE REFUSAL STAYS HARD FOR GATE, ON EVERY DOOR (<workshop-spec> rules 4-5, unchanged\
-  \ for GATE,\nextended to THRESHOLD on the machine). `set_value` refuses a GATE key\
-  \ and a THRESHOLD key (a threshold\nis the project's) and writes nothing; `load`/`get_value`\
-  \ drop either from the machine file; the\n`thresholds:` reader drops a GATE key;\
-  \ an out-of-band BUDGET value is refused at `set_value` and\nignored at file read\
-  \ (the next source answers). A governed write also removes the inert keys the\n\
-  file carries that the read path drops, and reports what it removed. `_refuse_gate`\
-  \ takes no override\nparameter; no flag and no environment escape exists. `ENTRYPOINTS`\
-  \ declares every way to reach the\nsetter, and the verifier drives each machine\
-  \ door with a GATE key and a THRESHOLD key and the\nproject door with a GATE key.\n\
-  THE PROJECT DOOR. `config set --project <key> <value>` (`set_project_threshold`)\
+  \ (a THRESHOLD, in the project's own\n`yitc-ops.yaml`), and — for an admission its\
+  \ spec makes opt-in — the project's opt-in, the order\nof its work and the lists\
+  \ that classify it (a DECLARATION, in the section that spec registers in\nthe project's\
+  \ `yitc-ops.yaml`). They do it without editing a spec, and a consumer without editing\
+  \ code. Every\nother value a verdict reads stays GATE and cannot be changed from\
+  \ a machine or a project; a card\nOPENS one when a real case needs it.\n\n## Internal\n\
+  RULE 1 — ONE INVENTORY (carried from <workshop-spec> rule 1). Every runtime tunable\
+  \ the engine reads — the\n`YITC_*` environment knobs and the module constants of\
+  \ the same nature — is enumerated ONCE, in\n`machine_settings.INVENTORY`, each entry\
+  \ with exactly one class. A knob absent from the inventory is\nunclassified, and\
+  \ an unclassified knob is GATE. An entry MAY declare bounds: for a numeric knob\
+  \ an\ninclusive range (its band), for a string knob the closed set of values its\
+  \ read site acts on;\n`config set` refuses a value outside them and `config list`\
+  \ prints them.\n\nRULE 2 — SIX CLASSES.\n  PERFORMANCE — how FAST or how CONCURRENTLY\
+  \ work runs, never whether it passes: parallelism, poll\n                intervals,\
+  \ batch/page sizes, heartbeat cadence. An ADMISSION value — one that decides\n \
+  \               only WHEN a governed run may start (a load headroom it waits under,\
+  \ the bound on that\n                wait) — is PERFORMANCE where it is a NUMBER\
+  \ or describes the MACHINE (a CPU set, a\n                slot count, the machine's\
+  \ veto), even where its expiry refuses the run, provided all\n                three\
+  \ hold: (i) the refusal judges nothing about the subject; (ii) it comes before\n\
+  \                the run starts anything and records no row; (iii) the same run\
+  \ is admitted later\n                unchanged, or now through an explicit skip\
+  \ flag its record names. A value failing\n                any one of the three is\
+  \ GATE. A non-numeric admission value that describes the\n                PROJECT\
+  \ is DECLARATION, not PERFORMANCE.\n  BINDING — which external auditor answers on\
+  \ this machine and its no-answer timeout; the closed\n                enumeration\
+  \ of SPEC-0202 rule 1. Unchanged.\n  BUDGET — an OPENED wall-clock limit whose expiry\
+  \ ends a run as stuck; it belongs to the machine.\n  THRESHOLD — an OPENED number\
+  \ that a pass/fail, a stop rule or a report-only signal compares\n             \
+  \   against and that describes the project; one value per project on every machine.\n\
+  \  DECLARATION — an OPENED non-numeric value that describes how the PROJECT's work\
+  \ is admitted —\n                its opt-in into an admission its spec makes opt-in,\
+  \ the order of its work, the\n                classes and lists that group it (names,\
+  \ paths, layer names, branch prefixes), and\n                the on/off of each\
+  \ admission step its spec names. It decides only WHEN the\n                project's\
+  \ work is admitted and changes nothing a run verifies; it meets the three\n    \
+  \            ADMISSION conditions above. One value per project on every machine.\
+  \ A number is\n                never a DECLARATION, and neither is a value that\
+  \ describes the machine.\n  GATE — every other value a verdict reads, every protocol\
+  \ input the inventory lists (an\n                identity carry, a path resolver,\
+  \ a test-seam marker), every dynamic prefix stem, and\n                anything\
+  \ not confidently classified. Unchanged from <workshop-spec>: refused on every door\n\
+  \                (rule 7), read only as its own spec defines.\nTHE SELECTION RULE,\
+  \ in order, so each admission value has exactly one class: (1) a number is\nPERFORMANCE,\
+  \ or BUDGET / THRESHOLD where rule 3 opened it so; (2) a non-numeric value that\
+  \ describes\nthe machine — a CPU set, which reading, the machine's veto, a mode\
+  \ of the host — is PERFORMANCE;\n(3) a non-numeric value that describes how the\
+  \ project's work is admitted is DECLARATION.\n\nRULE 3 — A KEY IS OPENED ONE AT\
+  \ A TIME, BY A CARD. A GATE key becomes BUDGET, THRESHOLD or DECLARATION\nonly through\
+  \ a card whose scope names that key and which, in the same change: (a) gives it\
+  \ a declared\nband (`bounds=` — for a DECLARATION, the closed set of names its read\
+  \ site acts on, or the shape of\nthe list it accepts); (b) for a BUDGET with an\
+  \ existing machine key — the BINDING `auditor.<tier>.timeout` —\nkeeps that key\
+  \ and its SPEC-0202 resolution instead of opening a second one; (c) folds every\
+  \ other\ninventory name for the same value into the one key it opens, so `config\
+  \ get` and `config list` show\nthe value actually applied; (d) reconciles every\
+  \ active spec that STATES the key's value or class,\nthrough the <workshop-spec>\
+  \ §7 route (an equivalent reference in place, a changed obligation through a\nsuccessor);\
+  \ (e) wires the key's read site to rule 4 and its record to rule 6. A key no card\
+  \ opened\nstays GATE. There is no bulk reclassification.\n\nRULE 4 — WHERE AN OPENED\
+  \ KEY IS SET, AND IN WHICH ORDER IT IS READ.\n  BUDGET — the machine settings file\
+  \ (one path site, `resolve_settings_path`: `YITC_MACHINE_SETTINGS`\n  names it,\
+  \ else it sits beside the shared coordination store, SPEC-0084 rule 3). Read order:\n\
+  \  environment > machine file > built-in default; where a project-declared bound\
+  \ exists beside it, the\n  chain its own spec defines is kept and the machine file\
+  \ takes the one place just above the\n  built-in default (for the land-verify per-file\
+  \ bound, SPEC-0152: the `YITC_VERIFY_TEST_TIMEOUT`\n  escape hatch · the layer's\
+  \ `timeout:` · the section's `timeout_seconds:` · the machine file · the\n  built-in\
+  \ default). A verify run routed to another machine (the remote venue, SPEC-1029)\
+  \ applies the\n  budget the CALLER resolved, forwarded with the run, and the caller's\
+  \ row names that value and its\n  source.\n  THRESHOLD — the project's `yitc-ops.yaml`\
+  \ section `thresholds:` (rule 5), keyed by the inventory\n  name, then the built-in\
+  \ default. The environment is not read and the machine file never carries\n  one,\
+  \ so two machines verifying one project read one value; a test sets it by writing\
+  \ the fixture\n  project's section. The engine is deliberately not a consumer of\
+  \ its own ops contract: its\n  `yitc-ops.yaml` carries only what SPEC-0186 rule\
+  \ 6 admits, its own `thresholds:` among them, read\n  as a project's are; the engine\
+  \ changes a threshold by a card editing that section, never through\n  the project\
+  \ door (rule 7).\n  DECLARATION — the project's `yitc-ops.yaml`, in the section\
+  \ the key's governing spec registers\n  through its `concern:` block (for the admission\
+  \ keys: `admission:`, SPEC-1045), read from the MAIN\n  checkout, then the built-in\
+  \ default. As for THRESHOLD, the environment is not read and the machine\n  file\
+  \ never carries one.\n  PERFORMANCE and BINDING — environment > machine file > built-in\
+  \ default; the environment stays the\n  deterministic test seam (BINDING's own resolution\
+  \ as SPEC-0202 defines).\n  VETO — a closed-set key one of whose values disables\
+  \ a mechanism (for the admission:\n  `YITC_ADMISSION_ENGINE`, value `off`) is read\
+  \ toward that value: it takes the disabling value when\n  ANY source above says\
+  \ so, whatever the others say, so a process environment can never keep a\n  mechanism\
+  \ on after `config set` turned it off. Its other values keep the ordinary order.\
+  \ A key is a\n  VETO only when its governing spec names it so.\n\nRULE 5 — THE `thresholds:`\
+  \ SECTION. An opt-in `yitc-ops.yaml` section registered by this spec's\n`concern:`\
+  \ block (SPEC-0128 rule 3; the additive route SPEC-0093 rule 1 provides). A mapping\
+  \ from\ninventory names of THRESHOLD class to values. An absent or malformed section\
+  \ (not a mapping, e.g. a\nlist) or an absent key means the built-in default; a key\
+  \ that is unknown, not THRESHOLD class, or\noutside its band is ignored with one\
+  \ report-only line naming it and the built-in default stands.\nNothing in the section\
+  \ ever fails a land. A DECLARATION section follows the same absent / malformed /\n\
+  unknown handling: an entry that is unknown, not DECLARATION class, or outside its\
+  \ declared set or\nshape is ignored with one report-only line, and the built-in\
+  \ default stands.\n\nRULE 6 — THE VALUE IN FORCE IS RECORDED. `config set` journals\
+  \ `config_changed` (key, old, new,\nclass) as before; from the project door (rule\
+  \ 7) the row also carries `scope: project`. The row a run already writes names every\
+  \ opened BUDGET that bounded it, value and\nsource, whether the run passed, failed\
+  \ or was ended by it (for the land-verify per-file bound: the\nland and Stage-6\
+  \ rows' bound-in-force fields `verify_test_timeout_s` / `verify_test_timeout_source`,\n\
+  and a declared layer's `timeout_s` / `timeout_source`). The duty is an opened budget's:\
+  \ the audit\ntimeouts stay BINDING (rule 3(b)). A result or a report-only signal\
+  \ that an opened\nTHRESHOLD decided names that threshold value and its source on\
+  \ its row. No warning or impact\nestimate is added here (owner directive events.jsonl#ts=;\
+  \ followup\nfu_30c49f88ec30).\n\nRULE 7 — THE REFUSAL STAYS HARD FOR GATE, ON EVERY\
+  \ DOOR (<workshop-spec> rules 4-5, unchanged for GATE,\nextended to THRESHOLD and\
+  \ DECLARATION on the machine). `set_value` refuses a GATE key, a THRESHOLD key\n\
+  and a DECLARATION key (a threshold or a declaration is the project's) and writes\
+  \ nothing;\n`load`/`get_value` drop any of them from the machine file; the `thresholds:`\
+  \ reader and every\nDECLARATION section reader drop a GATE key; an out-of-band BUDGET\
+  \ value is refused at `set_value` and\nignored at file read (the next source answers).\
+  \ A governed write also removes the inert keys the\nfile carries that the read path\
+  \ drops, and reports what it removed. `_refuse_gate` takes no override\nparameter;\
+  \ no flag and no environment escape exists. `ENTRYPOINTS` declares every way to\
+  \ reach the\nsetter, and the verifier drives each machine door with a GATE key,\
+  \ a THRESHOLD key and a\nDECLARATION key and the project door with a GATE key and\
+  \ a DECLARATION key. A DECLARATION is\nchanged by a card editing the project's section;\
+  \ no door writes one.\nTHE PROJECT DOOR. `config set --project <key> <value>` (`set_project_threshold`)\
   \ is the one door that\nwrites a THRESHOLD: that key only, inside its band, into\
   \ the project's own `yitc-ops.yaml`\n`thresholds:` section, every other byte of\
   \ the file kept. It refuses a GATE key through the same\n`_refuse_gate`, a key of\
@@ -129,68 +168,85 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ row only, refusing preexisting dirt in that file.\nThat commit is no card, so\
   \ the fast-path reading of a card's diff (LIFECYCLE §Two flow types,\nSPEC-0178\
   \ rule 3) does not reach it; inside a writing worktree it rides that card's batch,\
-  \ whose diff\nthen touches the operating contract like any other edit. Every other\
-  \ part of `yitc-ops.yaml` stays\ncard-governed.\n\nRULE 8 — ABSENT-FILE FALLBACK\
-  \ (<workshop-spec> rule 6): a missing, unreadable or malformed machine file or\n\
-  `thresholds:` section contributes no overrides and nothing errors; neither is ever\
-  \ a prerequisite.\n\nRULE 9 — A GOVERNING VALUE IS WRITTEN ONCE. A spec that governs\
-  \ a tunable names its inventory key and\nwhere its value lives (the inventory default,\
-  \ a `bin/*-config.yaml`, or a `yitc-ops.yaml` section)\nand does not restate the\
-  \ number; the code reads it from that one home and keeps no second default\nbeside\
-  \ it. A new spec follows this at once; an existing restatement or duplicate default\
-  \ moves when\na card first touches it. The rule reaches an author at `spec new`\
-  \ and `spec edit` through this\nspec's binding.\n\n## Parameters\nNone consumed\
-  \ from this spec — by construction (rule 9).\n\n## Rationale\n<workshop-spec> (owner\
-  \ directive 2026-09-02) kept every value a verdict reads out of reach, so that one\n\
-  branch could not pass on one host and abort on another because of a file nobody\
-  \ read. Measured\nsince: wall-clock limits calibrated on one host failed runs on\
-  \ another (the remote verify box,\n2026-10-08 and 2026-10-13..14; an adopter's full-tier\
-  \ audit within a minute of its 2160 s limit,\nissue 38 on the kernel's public tracker);\
-  \ consumers read the kernel's land thresholds and cannot set\ntheir own; an adopter\
-  \ rebuilt load admission with its own numbers outside the kernel (issues 93, 102\n\
-  and 109 there); a\nretune meant a spec edit, a code edit and a test edit together\
-  \ (SPEC-0132's two bounds). The owner\ndecided to let these values change (events.jsonl#ts=)\
-  \ and to open them one at a\ntime (#ts=): a bulk reclassification met, at every\
-  \ review round, one more\nactive spec that states a gate value. The <workshop-spec>\
-  \ reason is kept where it still holds — a THRESHOLD\nstays machine-independent,\
-  \ a BUDGET that differs between machines is named on the row it decided,\nand GATE\
-  \ keeps the hard refusal.\n\n## Verification\nCommands (a key NAME is a placeholder;\
+  \ whose diff\nthen touches the operating contract like any other edit. A pre-deploy\
+  \ class's `units:` list is\nwritten by its own verb of that family, `pre-deploy\
+  \ list --write` (SPEC-1051 rule 7). Every other part\nof `yitc-ops.yaml` stays card-governed.\n\
+  \nRULE 8 — ABSENT-FILE FALLBACK (<workshop-spec> rule 6): a missing, unreadable\
+  \ or malformed machine file or\n`thresholds:` section contributes no overrides and\
+  \ nothing errors; neither is ever a prerequisite.\n\nRULE 9 — A GOVERNING VALUE\
+  \ IS WRITTEN ONCE. A spec that governs a tunable names its inventory key and\nwhere\
+  \ its value lives (the inventory default, a `bin/*-config.yaml`, or a `yitc-ops.yaml`\
+  \ section)\nand does not restate the number; the code reads it from that one home\
+  \ and keeps no second default\nbeside it. A new spec follows this at once; an existing\
+  \ restatement or duplicate default moves when\na card first touches it. The rule\
+  \ reaches an author at `spec new` and `spec edit` through this\nspec's binding.\n\
+  \n## Parameters\nNone consumed from this spec — by construction (rule 9).\n\n##\
+  \ Rationale\n<workshop-spec> (owner directive 2026-09-02) kept every value a verdict\
+  \ reads out of reach, so that one\nbranch could not pass on one host and abort on\
+  \ another because of a file nobody read. Measured\nsince: wall-clock limits calibrated\
+  \ on one host failed runs on another (the remote verify box,\n2026-10-08 and 2026-10-13..14;\
+  \ an adopter's full-tier audit within a minute of its 2160 s limit,\nissue 38 on\
+  \ the kernel's public tracker); consumers read the kernel's land thresholds and\
+  \ cannot set\ntheir own; an adopter rebuilt load admission with its own numbers\
+  \ outside the kernel (issues 93, 102\nand 109 there); a\nretune meant a spec edit,\
+  \ a code edit and a test edit together (SPEC-0132's two bounds). The owner\ndecided\
+  \ to let these values change (events.jsonl#ts=) and to open them one at a\ntime\
+  \ (#ts=): a bulk reclassification met, at every review round, one more\nactive spec\
+  \ that states a gate value. The <workshop-spec> reason is kept where it still holds\
+  \ — a THRESHOLD\nstays machine-independent, a BUDGET that differs between machines\
+  \ is named on the row it decided,\nand GATE keeps the hard refusal.\n\nThe DECLARATION\
+  \ class and the VETO read order were added by (plan\nport-cryptochart-s-settled-admission-queue-into-th,\
+  \ card C1), taking the text of the closed plan\nproject-owned-admission-order-for-stage-6-runs-and\
+  \ §«SPEC-1031 amendment» with one correction: a\nvalue describing the machine (a\
+  \ CPU set, a slot count, any number) is PERFORMANCE or BUDGET, never\nDECLARATION,\
+  \ so that plan's project-declared CPU set is gone. In place, as an additive extension\n\
+  (SPEC-1037 §7): no key in INVENTORY before it was a project order or list or a veto,\
+  \ and every\nexisting key reads as before.\n\n (plan silent-tests-leave-every-land-for-the-release-run-,\
+  \ card C1) let the engine's own\n`yitc-ops.yaml` carry `thresholds:` (rule 4), in\
+  \ place as an additive extension; the project door\nstays refused in the engine's\
+  \ checkout (rule 7).\n\n## Verification\nCommands (a key NAME is a placeholder;\
   \ rule 1 keeps the enumeration in `INVENTORY`):\n  bin/yitc-v2 config list # every\
   \ knob: class, effective value, source, band\n  bin/yitc-v2 config set <a BUDGET\
   \ key> <v> # admitted inside its band, journalled config_changed\n  bin/yitc-v2\
   \ config set <a BUDGET key> <out-of-band v> # REFUSES; a hand-written one is ignored\
   \ at read\n  bin/yitc-v2 config set <a THRESHOLD key> <v> # REFUSES: a threshold\
   \ is set in the project's thresholds:\n  bin/yitc-v2 config set <a GATE key> <v>\
-  \ # REFUSES, writes nothing\n  bin/yitc-v2 -C <consumer> config set --project <a\
-  \ THRESHOLD key> <v> # in band: thresholds: written, self-committed\nTests (named\
-  \ by the cut's cards, each red on the pre-change code):\n  - rules 1-2: every inventory\
-  \ entry has one of the five classes; an unclassified one reads GATE; the\n    session-ref\
-  \ carry is still read as SPEC-0137 defines.\n  - rule 3: each opened key has a band;\
-  \ one key per opened value (`config get` equals the applied\n    value when two\
-  \ former names are both set); a key no card opened is still GATE.\n  - rule 4: for\
-  \ the per-file bound with every source present (a fixture: environment 60, layer\
-  \ 600,\n    section 900, machine 120, built-in default 300) the applied bound is\
-  \ 60; without the environment\n    600; without the layer 900; without the section\
-  \ 120. A venue run with the caller's bound 120 and\n    the venue's own 300 applies\
-  \ and records 120. Two differing machine files and environments leave one\n    project's\
-  \ THRESHOLD unchanged. Changing only an opened key's inventory default changes the\n\
-  \    applied value (no stale constant left at the read site).\n  - rule 5: a `thresholds:`\
-  \ that is a list, or holds an unknown, non-THRESHOLD or out-of-band key,\n    is\
-  \ ignored with one report-only line, the default stands and the land does not fail.\n\
-  \  - rule 6: a land and a Stage-6 run — passing and ended by the per-file budget,\
-  \ local and routed to\n    the venue — each name the budget value and source; a\
-  \ land stopped by an opened land threshold and\n    a report-only signal raised\
-  \ by an opened threshold each name the threshold value and source.\n  - rule 7:\
-  \ every declared entrypoint refuses a GATE key, and every machine door a THRESHOLD\
-  \ key;\n    the project door writes an in-band THRESHOLD, commits it alone with\
-  \ its row from main, and\n    refuses a GATE, a BUDGET, an unknown key and an out-of-band\
-  \ value —\n    tests/test_t14056_project_threshold_door.py.\n  - rule 9: after the\
-  \ worked example one source holds SPEC-0132's two bounds, no second default\n  \
-  \  remains in `bin/lib/debt.py`, and changing that source changes the shown default\
-  \ and the\n    applied value with no override set.\n  - delivery (rule 9 reaches\
-  \ the next author): `spec new` and `spec edit` deliver this spec among\n    their\
-  \ before-rule-change contracts while it is active, and not while it is proposed\
-  \ —\n    tests/test_t13969_opened_tunable_keys.py\n    ::test_ac4_spec_new_and_spec_edit_deliver_spec_1031_once_it_is_active.\n"
+  \ # REFUSES, writes nothing\n  bin/yitc-v2 config set <a DECLARATION key> <v> #\
+  \ REFUSES: a declaration is set in the project's section\n  bin/yitc-v2 -C <consumer>\
+  \ config set --project <a THRESHOLD key> <v> # in band: thresholds: written, self-committed\n\
+  Tests (named by the cut's cards, each red on the pre-change code):\n  - rules 1-2:\
+  \ every inventory entry has one of the six classes; an unclassified one reads GATE;\
+  \ the\n    session-ref carry is still read as SPEC-0137 defines.\n  - rule 3: each\
+  \ opened key has a band; one key per opened value (`config get` equals the applied\n\
+  \    value when two former names are both set); a key no card opened is still GATE.\n\
+  \  - rule 4: for the per-file bound with every source present (a fixture: environment\
+  \ 60, layer 600,\n    section 900, machine 120, built-in default 300) the applied\
+  \ bound is 60; without the environment\n    600; without the layer 900; without\
+  \ the section 120. A venue run with the caller's bound 120 and\n    the venue's\
+  \ own 300 applies and records 120. Two differing machine files and environments\
+  \ leave one\n    project's THRESHOLD unchanged. Changing only an opened key's inventory\
+  \ default changes the\n    applied value (no stale constant left at the read site).\n\
+  \  - rule 5: a `thresholds:` that is a list, or holds an unknown, non-THRESHOLD\
+  \ or out-of-band key,\n    is ignored with one report-only line, the default stands\
+  \ and the land does not fail.\n  - rule 6: a land and a Stage-6 run — passing and\
+  \ ended by the per-file budget, local and routed to\n    the venue — each name the\
+  \ budget value and source; a land stopped by an opened land threshold and\n    a\
+  \ report-only signal raised by an opened threshold each name the threshold value\
+  \ and source.\n  - rule 7: every declared entrypoint refuses a GATE key, and every\
+  \ machine door a THRESHOLD key;\n    the project door writes an in-band THRESHOLD,\
+  \ commits it alone with its row from main, and\n    refuses a GATE, a BUDGET, an\
+  \ unknown key and an out-of-band value —\n    tests/test_t14056_project_threshold_door.py.\n\
+  \  - rule 9: after the worked example one source holds SPEC-0132's two bounds, no\
+  \ second default\n    remains in `bin/lib/debt.py`, and changing that source changes\
+  \ the shown default and the\n    applied value with no override set.\n  - rules\
+  \ 2, 4, 5, 7 for DECLARATION and the VETO: a declared value is read from the main\
+  \ checkout's\n    section; a machine-file copy is dropped; an out-of-set entry is\
+  \ ignored with one line; every\n    machine door refuses the key; the veto `off`\
+  \ in the environment or the machine file switches the\n    admission off whatever\
+  \ the other source says — tests/test_t14193_admission_settings.py.\n  - delivery\
+  \ (rule 9 reaches the next author): `spec new` and `spec edit` deliver this spec\
+  \ among\n    their before-rule-change contracts while it is active, and not while\
+  \ it is proposed —\n    tests/test_t13969_opened_tunable_keys.py\n    ::test_ac4_spec_new_and_spec_edit_deliver_spec_1031_once_it_is_active.\n"
 cites:
 - SPEC-0202
 - SPEC-0093
@@ -198,6 +254,8 @@ cites:
 - SPEC-0132
 - SPEC-0084
 - CHARTER.md#principle-1
+- SPEC-0186
+- SPEC-1045
 requires: []
 supersedes: null
 activation_owner_task: null
@@ -214,6 +272,8 @@ concern:
     # SPEC-1031 rule 5 — this project''s THRESHOLD values, keyed by `config list`
     name;
 
+    # Rule text: `__YITC_CLI__ graph query SPEC-1031 --kernel`
+
     # absent = the kernel default. Opt-in.
 
     '
@@ -225,20 +285,23 @@ concern:
   waiver_policy: loose
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#_config_set_project: df40206fbf59fa195509ea8c5f788b3693038a892b00a38ef87a3b19371cf482
+  bin/lib/cli.py#_config_set_project: eaeeea6a6a1c405f27286d387416e99e85e075cb721128f416b4f93e046a25a3
   bin/lib/cli.py#_land_threshold_in_force: 654f62cf96da42d42d6b4ec96d71a37bf35afe51165a9090c5f97f2288e4f930
   bin/lib/cli.py#_verify_test_timeout_seconds: 0906151c1d859aaf9416c57d7c1fd6643a6948459071854cf2956ddbb5650aeb
-  bin/lib/cli.py#cmd_config_list: 47f223be01c0554b5bb35ff7ababd94783f79c70b653f16c04a1a70e17665656
+  bin/lib/cli.py#cmd_config_list: 867539a97e080ef218339e08a54ab8527a857c7e9a22582995ca14f83bc8cbd5
   bin/lib/cli.py#cmd_config_set: 892b3ecb784c1965faf00d3c54bc4d9784893b7fb07fe21250a09d330c69be61
   bin/lib/debt.py#_lane_bound: 09607422d04a15cbe2870c596c7d96421c17f394a592a71914e8f2d801bc6b8f
   bin/lib/machine_settings.py#ENTRYPOINTS: 7bdf6b9e29cc3e6d932c42a3698852b03a1ff29d273cee9b60c1c3ccff8247d0
-  bin/lib/machine_settings.py#INVENTORY: 43a8e75370cbb88895de9cf3d11b5e161bae25fe75e15427a25f10955e6da50e
-  bin/lib/machine_settings.py#_refuse_gate: edd26b3fe88509639dd1d57833b00551e9c6a1330d7f157b795a8d511be4d753
-  bin/lib/machine_settings.py#applied: 1bfb3db83111deb3f04ffa49e10fe4c3444a817342312faf345068de9926fb46
-  bin/lib/machine_settings.py#in_force: a8813997b0ca6edb622f61e618cabf7679a94391e9a44632af5fda5ac950ab08
+  bin/lib/machine_settings.py#INVENTORY: ab08fa561240fcff10089f65818366b2b30815a5f9d3eca7f131a03e03775375
+  bin/lib/machine_settings.py#_refuse_gate: dbce067d64b1b76a2f863ac73392118f9d149f42caa82b59c29db9336a733839
+  bin/lib/machine_settings.py#admission_settings: 9ceb7f27b872f90617a88eac66f25e52053e6af8f780c34c8a8616ddb3a4bc90
+  bin/lib/machine_settings.py#admission_switch: 956af3582090e20665537c05022d425a91f47ab88d9052cc448269b5f1b05e87
+  bin/lib/machine_settings.py#applied: 19d08eec15506a060363305ace7742a238fc0a0bf52792df4640fe83561cb944
+  bin/lib/machine_settings.py#in_force: 1fe1a6e2f54a6bc0b9586248d8160d2639049ae2221f13b257e1f46af7b28016
   bin/lib/machine_settings.py#load: b54b77b69340f21b531159b64006aba1d807419c1c6b3a3afe8c86c89ce1fd63
   bin/lib/machine_settings.py#project_thresholds: c66fb88d3db7390a739cfa38225267ab4ba20b2aa7ad48104bc04fe12063b38d
   bin/lib/machine_settings.py#resolve_settings_path: 5031380a4b5d8cf3f1624798cc7d1b8047ef1371f96169ebd5ea8caf11890307
   bin/lib/machine_settings.py#say_notes: 29f7cd98e2e92d966f0bb000379ebfe8ee248ec033bcc0948c01849948daba5e
   bin/lib/machine_settings.py#set_project_threshold: 537fe9f67ce7392e401f4c4cdc5045b88b5f1ce9be4c3811e3db715be1c84fa9
   bin/lib/machine_settings.py#set_value: e9927af8f088dfeb745a9ac44bc5c020f7b93cea517f561195e2f825e64c158f
+  bin/lib/machine_settings.py#verify_switches: 543327fb2009086ffb9f64cc8ef0f895b949d789ae796170dc23d2036bada695

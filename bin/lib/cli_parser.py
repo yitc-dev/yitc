@@ -172,7 +172,7 @@ class _HelpInventoryAction(argparse.Action):
         parser.exit()
 
 
-def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
+def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_pre_deploy_list, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
     # add_help=False + a custom top-level help action (T-9786): the inventory --help emits a fetch-receipt.
     # T-13700: the root help is the verb INVENTORY every session scans at start, so it carries ONE
     # line per verb — a fixed width, so a listing line never wraps to the terminal — and a verb's
@@ -512,6 +512,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "instead of the forward-deploy form — a wrong recovery instruction on the "
                           "emergency path is what this flavour exists to prevent (X-0597). No <rev> "
                           "needed: nothing is run.")
+    # T-14203 / SPEC-1047 rules 2-6 — the SCHEDULED pre-deploy run: a project's own cron runs the deploy's
+    # pre-deploy run on main's head in the project's admission queue, and nothing is deployed.
+    dep.add_argument("--scheduled-run", dest="scheduled_run", action="store_true",
+                     help="run the pre-deploy run a gated deploy runs — every verify layer whole plus EVERY "
+                          "declared pre-deploy class — on a fresh checkout of main's head, in the project's "
+                          "admission queue (it needs `admission.mode: engine`), and deploy nothing: no "
+                          "command, no deploy row, no deploy lock. From the project's MAIN checkout only; "
+                          "the classes are read from that commit, never the working tree. Fired by the "
+                          "project's own cron with the `session start` prefix and YITC_SESSION_REF on the "
+                          "same line, else refused. Takes no other deploy option. Rows: one "
+                          "`test_class_executed` per class with `run_kind: scheduled`, which no deploy reads "
+                          "(SPEC-1047).")
     dep.set_defaults(func=cmd_deploy, read_only_admit=("print_guard", RO_ZERO_WRITE))
 
     # T-9395 / SPEC-0094 §4 — the per-change live_probe RUNNER at the deploy seam. Runs the task-YAML
@@ -1244,6 +1256,8 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="T-11987: with --run, the explicit FULL-SUITE escape — run every discovered test_*.py, opting OUT of the SPEC-0181 affected-test selection that otherwise governs this run exactly as it governs land's candidate leg. Use it when you want the whole enumeration regardless of the diff; without it the run prints `selection: affected (n of N)` or `selection: full (fail-closed)` and records the mode on tests_passed")
     tt.add_argument("--whole", action="store_true",
                     help="T-14098: with --run, the MEASURING form — every declared verify layer and the test sweep run whole on this tree: no subject_globs skip, no deciding selection, no unit credit (it is not the candidate run of one card, SPEC-1030 rule 4); implies --full. The row is marked `whole: true`; the land takes it only on its own SPEC-0065 conditions")
+    tt.add_argument("--exclusive", action="store_true",
+                    help="T-14195 (SPEC-1045 rule 2 (a)): with --run, the EXCLUSIVE form of the repo's admission queue — the run passes only once no admitted work runs, and nothing passes while it runs (a reading that must be alone on the host). Refused without --run; while the queue is off it is said and the run is not held exclusive")
     tt.add_argument("--evidence", help="record Stage-6 result: emit a tests_passed event with this evidence summary (T-0123) — call after tests are green")
     tt.add_argument("--duration-ms", type=int, dest="duration_ms",
                     help="T-0375: test-run wall (author-reported, with --evidence) — all-or-nothing with --passed/--failed")
@@ -1551,8 +1565,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     tu.add_argument("--queue-jump", dest="queue_jump", metavar="REASON",
                     help="QUEUE-JUMP mode (T-11663, SPEC-0184 rule 9). "
                          "SELF-COMMIT: from the main checkout it commits its own record (the card + "
-                         "its journal receipt only); inside a writing worktree it commits that record "
-                         "on the worktree's branch, which reaches main with that batch's land — never "
+                         "its journal receipt only); inside a writing worktree it REFUSES a set before "
+                         "any write, because the land queue reads the mark from main only (T-13227), "
+                         "and names the main-checkout command — never "
                          "hand-commit it (family rule: AGENTS-SESSIONS "
                          "§Writes happen in a worktree; this mode's rule: SPEC-0184 rule 9). "
                          "Gives THIS card an emergency "
@@ -2626,6 +2641,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     gc = graph_sub.add_parser("conformance",
                               help="Binding-coverage conformance self-test (T-0284): RED if any active "
                                    "spec lacks a valid binding token; graph build stays non-validating")
+    gc.add_argument("--strict", action="store_true",
+                    help="T-14223: ALSO fail (exit 1) when an active spec has an implements anchor that "
+                         "does not resolve or a stale anchor signature, or graph/index.json differs from "
+                         "a fresh build of the corpus. Without it the verb is unchanged.")
     gc.set_defaults(func=cmd_graph_conformance, cli_invoked_verb="graph conformance", read_only_admit=RO_READ)  # T-0310: journal the verdict (exit_code + additive verdict key); stays report-only, NOT a gate
     grv = graph_sub.add_parser("release-view",
                                help="Generate the identity-agnostic release view of the handbook "
@@ -2733,6 +2752,33 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "rule: SPEC-1031 rule 7).")
     cfgs.set_defaults(func=cmd_config_set)
 
+    # T-14212 (SPEC-1051 rule 7) — the ONE writer of a listed pre-deploy class's `units:`; a member of the
+    # scoped self-commit family like `config set --project`, placed beside it.
+    pdp = sub.add_parser("pre-deploy", help="The pre-deploy units list (SPEC-1051 rule 7): list shows it, --write writes it",
+                         description="The pre-deploy units list (SPEC-1051 rule 7): `list` recomputes the "
+                                     "whole `units:` list of the ONE pre-deploy class declaring `units:` "
+                                     "and shows it; `--write` writes it.")
+    pd_sub = pdp.add_subparsers(dest="pre_deploy_action", required=True)
+    pdl = pd_sub.add_parser("list", help="recompute the class `units:` list from the journal; --write writes it",
+                            description="Recompute the WHOLE `units:` list of the one pre-deploy class "
+                                        "declaring `units:` (SPEC-1051 rule 7): a test file is listed when "
+                                        "at least `pre_deploy_move_min_task_lands` task lands landed since "
+                                        "its last content change, it had no REAL or UNJUDGED failure at any "
+                                        "place within `pre_deploy_move_min_window_days`, a green run of it "
+                                        "followed that change, and it is not protected (`never_move:`, "
+                                        "`# yitc: selection: always`). Its cost is not a criterion. Refuses "
+                                        "none or several classes declaring `units:` and a refused declaration.")
+    pdl.add_argument("--write", action="store_true",
+                     help="write the recomputed list into the class `units:` — its only writer; refused on "
+                          "preexisting yitc-ops.yaml dirt and on a main that moved since it computed (a re-run "
+                          "recomputes). SELF-COMMIT: from the main checkout it commits its own record "
+                          "(yitc-ops.yaml + its journal receipt only); inside a writing worktree it makes no "
+                          "commit — the write rides that batch's own commit and land — never hand-commit it "
+                          "(family rule: AGENTS-SESSIONS §Writes happen in a worktree; this verb's rule: "
+                          "SPEC-1051 rule 7).")
+    pdl.set_defaults(func=cmd_pre_deploy_list,
+                     read_only_refuse="it folds the whole journal and, with --write, writes and commits yitc-ops.yaml")
+
     # The verify venue (SPEC-0203 rule 6, T-12197) — placed beside `config`, the analog it copies:
     # a thin argparse+journal residue over `lib/venue.py`, with NO worktree gate, because the venue
     # record lives OUTSIDE every checkout exactly as the machine settings file does.
@@ -2798,10 +2844,21 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     vnu.add_argument("--task", help="the card this unpublish acts under")
     vnu.set_defaults(func=cmd_venue_unpublish, cli_invoked_verb="venue unpublish")
 
-    vnd = vn_sub.add_parser("delete", help="unpublish the record, then DESTROY the box (rule 6 order)")
+    vnd = vn_sub.add_parser("delete", help="the whole rule-6 teardown: unpublish the record, run the "
+                                           "refresh leg (a new seed snapshot), then DESTROY the box",
+                            description="The SPEC-1029 rule-6 teardown, in order: unpublish the record, "
+                                        "then the REFRESH LEG by default (drain on leases, ensure the "
+                                        "package set, prepare + verify the clone, fstrim, power off, "
+                                        "create_image, record the seed candidate the next bare `venue "
+                                        "raise` promotes), then DELETE the server. A consumer venue "
+                                        "(`serves`) has no refresh leg. A failed refresh deletes nothing "
+                                        "and prints the command that finishes the job.")
     vnd.add_argument("--server-id", default=None,
                      help="the provider server id — required only when no record names one")
     vnd.add_argument("--reason", default=None, help="why (journaled on the unpublish step)")
+    vnd.add_argument("--skip-refresh", default=None, metavar="REASON",
+                     help="delete WITHOUT the refresh leg (e.g. a broken box with nothing to snapshot, "
+                          "or a box already gone); the reason is required and journaled")
     vnd.add_argument("--task", help="the card this delete acts under")
     vnd.set_defaults(func=cmd_venue_delete, cli_invoked_verb="venue delete")
 

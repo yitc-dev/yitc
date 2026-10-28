@@ -2013,7 +2013,7 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
                      "--data '{\"captured_via\": \"controller-delegated\", \"mid_turn\": true, "
                      "\"cards\": [\"T-XXXX\"], ...}'  (owner_text omitted = taken from the entry; "
                      "if supplied it must be the owner's COMPLETE message, verbatim)")
-            data["owner_text"] = _proof["owner_text"]
+            data["owner_text"] = journal.redact_owner_text(_proof["owner_text"])   # T-14199: proven raw, stored redacted
             data["owner_text_verified"] = True
         _citation_refusal = _delegated_citation_refusal(
             caller_data, row_text=audit._directive_row_text, locator_re=audit._DIRECTIVE_LOCATOR_RE)

@@ -80,7 +80,7 @@ depends on what the thing IS (full per-type table in §File-type retention below
   are not the thing being retired — they describe **copies that still exist**, and because they are
   keyed to a schema, a schema change silently invalidates every sandbox copy taken before it. So
   they are the only record of what a previously-taken copy means, and they outlive the mechanism
-  that took it. The rules are **SPEC-0175** — `bin/yitc-v2 graph query SPEC-0175`; this bullet is a
+  that took it. The rules are **SPEC-1054** — `bin/yitc-v2 graph query SPEC-1054`; this bullet is a
   cue to go read them, not a second copy of them.
 
 ## File-type retention — what the terminal step means per type

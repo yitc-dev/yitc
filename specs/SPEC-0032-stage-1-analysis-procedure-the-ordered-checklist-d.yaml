@@ -28,44 +28,47 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ rejected/withdrawn methodological options + their why) — anti-reinvention #5:\
   \ is this approach already weighed and rejected? Extend it, don't create parallel.\
   \ ALSO surface relevant `lessons/` entries for this topic — the Stage-1 lessons\
-  \ read-surface (SPEC-0091 Rule 1).\n   - **Already-SHIPPED dup-check (BEFORE claiming/implementing)**\
-  \ — \"prior-art\" is not only \"is there an\n     analog?\" but \"is this exact\
-  \ work already DONE?\". Grep the task's core implementation SYMBOL (the\n     function\
-  \ / flag / artifact the task would create), AND check the CITED plan's done tasks\
-  \ +\n     `closed_into` — a realized plan that still carries `closed_into: []` makes\
-  \ the \"already done\" link\n     INVISIBLE, so check the plan's done-task list\
-  \ too, not only the field. If the symbol resolves to\n     shipped code OR a cited\
-  \ plan-task already closed it → it is a duplicate: HALT, do not re-implement.\n\
-  1a. **REPEATED-WORK CHECK** — the prevention half of filter 1: an \"existing analog?\"\
-  \ that is not\n   REUSED becomes the same work done twice. Does this change add\
-  \ a read, a loop, a poll, a remote\n   fetch, a scan or a worker pass? Then NAME\
-  \ the NEIGHBOURING mechanism at the same seam that\n   already folds / caches /\
-  \ bounds / watermarks that work and state what is reused — or record that\n   none\
-  \ exists (this change then owns the first one). Classes, detect heuristics and the\
-  \ severity\n   rubric: `patterns/repeated-work-lens.md` (the single home — never\
-  \ restated here, <workshop-spec> rule 8).\n   Report-only, like the rest of this\
-  \ checklist: no verb refuses on it, and the `analysis:` record is\n   its only carrier.\
-  \ The KERNEL-VERB counterpart of this check — the read contract for composed kernel\n\
-  \   seams — is SPEC-0190 rule 10.\n2. **Cite-the-proof** — (failure classes #7/#8):\
-  \ an asserted existence/absence MUST cite the\n   grep/path that proves it, and\
-  \ sweep `decisions/` (not only code). «I think it exists» is not prior-art.\n  \
-  \ - **Premise check — the CARD's own assertions. NARROW, and never a gate.** The\
-  \ rule above\n     governs YOUR assertions; this applies it to the CARD's. If the\
-  \ card STATES a **causal or empirical\n     premise** («X happens because Y», «no\
-  \ verb covers this», «the row is absent»), TEST that one claim\n     against the\
-  \ NEAREST code/corpus evidence and RECORD the outcome in the `analysis:` record\
-  \ as\n     **confirmed / refined / refuted**. A card that states no such claim is\
-  \ recorded **not-applicable** —\n     for a purely descriptive card that branch\
-  \ is the expected answer, not an escape.\n     **Three bounds, all load-bearing:**\
-  \ it is NOT a blanket re-derivation of the card (re-litigating a\n     card at Stage\
-  \ 1 costs more than the gap this closes), NOT a second decomposition pass, and NOT\n\
-  \     permission to reopen an accepted design decision the card is downstream of.\
-  \ **It never blocks:** no\n     verb refuses on it and it adds no artifact — the\
-  \ analysis record is its only carrier.\n     A REFUTED premise found BEFORE the\
-  \ claim takes the governed pre-claim exit (`task refuse` —\n     SPEC-0133); found\
-  \ AFTER, capture the deviation and escalate per SPEC-0103.\n     Siblings — pointers,\
-  \ not restatements, so the corpus reads as one rule: SPEC-0060 item 3 is the\n \
-  \    FILING-side cue (how a card is written); `patterns/validate-deviation-task-premise-at-analysis.md`\n\
+  \ read-surface (SPEC-0091 Rule 1):\n     search `lessons/` by the card's SURFACE\
+  \ — the files, verbs and specs it touches — and read the\n     lessons that cover\
+  \ it before planning; they hold what an assistant's own memory used to recall,\n\
+  \     and that memory is not used (SPEC-1055).\n   - **Already-SHIPPED dup-check\
+  \ (BEFORE claiming/implementing)** — \"prior-art\" is not only \"is there an\n \
+  \    analog?\" but \"is this exact work already DONE?\". Grep the task's core implementation\
+  \ SYMBOL (the\n     function / flag / artifact the task would create), AND check\
+  \ the CITED plan's done tasks +\n     `closed_into` — a realized plan that still\
+  \ carries `closed_into: []` makes the \"already done\" link\n     INVISIBLE, so\
+  \ check the plan's done-task list too, not only the field. If the symbol resolves\
+  \ to\n     shipped code OR a cited plan-task already closed it → it is a duplicate:\
+  \ HALT, do not re-implement.\n1a. **REPEATED-WORK CHECK** — the prevention half\
+  \ of filter 1: an \"existing analog?\" that is not\n   REUSED becomes the same work\
+  \ done twice. Does this change add a read, a loop, a poll, a remote\n   fetch, a\
+  \ scan or a worker pass? Then NAME the NEIGHBOURING mechanism at the same seam that\n\
+  \   already folds / caches / bounds / watermarks that work and state what is reused\
+  \ — or record that\n   none exists (this change then owns the first one). Classes,\
+  \ detect heuristics and the severity\n   rubric: `patterns/repeated-work-lens.md`\
+  \ (the single home — never restated here, <workshop-spec> rule 8).\n   Report-only,\
+  \ like the rest of this checklist: no verb refuses on it, and the `analysis:` record\
+  \ is\n   its only carrier. The KERNEL-VERB counterpart of this check — the read\
+  \ contract for composed kernel\n   seams — is SPEC-0190 rule 10.\n2. **Cite-the-proof**\
+  \ — (failure classes #7/#8): an asserted existence/absence MUST cite the\n   grep/path\
+  \ that proves it, and sweep `decisions/` (not only code). «I think it exists» is\
+  \ not prior-art.\n   - **Premise check — the CARD's own assertions. NARROW, and\
+  \ never a gate.** The rule above\n     governs YOUR assertions; this applies it\
+  \ to the CARD's. If the card STATES a **causal or empirical\n     premise** («X\
+  \ happens because Y», «no verb covers this», «the row is absent»), TEST that one\
+  \ claim\n     against the NEAREST code/corpus evidence and RECORD the outcome in\
+  \ the `analysis:` record as\n     **confirmed / refined / refuted**. A card that\
+  \ states no such claim is recorded **not-applicable** —\n     for a purely descriptive\
+  \ card that branch is the expected answer, not an escape.\n     **Three bounds,\
+  \ all load-bearing:** it is NOT a blanket re-derivation of the card (re-litigating\
+  \ a\n     card at Stage 1 costs more than the gap this closes), NOT a second decomposition\
+  \ pass, and NOT\n     permission to reopen an accepted design decision the card\
+  \ is downstream of. **It never blocks:** no\n     verb refuses on it and it adds\
+  \ no artifact — the analysis record is its only carrier.\n     A REFUTED premise\
+  \ found BEFORE the claim takes the governed pre-claim exit (`task refuse` —\n  \
+  \   SPEC-0133); found AFTER, capture the deviation and escalate per SPEC-0103.\n\
+  \     Siblings — pointers, not restatements, so the corpus reads as one rule: SPEC-0060\
+  \ item 3 is the\n     FILING-side cue (how a card is written); `patterns/validate-deviation-task-premise-at-analysis.md`\n\
   \     is the how-to for the deviation-framed subset («X is missing») — read it when\
   \ the card has that\n     shape; SPEC-0166 is the same discipline at the IMPORT-INTAKE\
   \ seam (`imported_from:` cards, where it\n     does gate dispatch) — this clause\
@@ -77,47 +80,49 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ a successor:** a card named in the `activation_owner_task` of a spec carrying\n\
   \     `supersedes:` runs the successor mention review of SPEC-1037 §7 and records\
   \ it in this\n     Analysis, before activation (`stage Analysis` prints the cue\
-  \ for such a card).\n4. **Decomposition check** — ONE provable claim per accept-unit\
-  \ (<workshop-spec>): if the unit proves >1\n   claim, SPLIT (encode the order via\
-  \ `requires:`); a deferral MUST be a tracked task, never prose.\n   - **Amending\
-  \ a criterion here is acceptance design** — SPEC-0060 item 4 holds its authoring\
-  \ cues\n     (`graph query SPEC-0060`); among them, an adoption probe drives the\
-  \ consumer round-trip and\n     needs no consumer whose `requires:` names this card\
-  \ before it closes (SPEC-0015 §Infra\n     adoption probe, §Work-first).\n5. **Spec-coverage\
-  \ reverse-lookup** — for EACH file/symbol this task EXPECTS TO TOUCH (its\n   `expected_touch`),\
-  \ run the reverse lookup `bin/yitc-v2 graph query <file>` (code→specs, SPEC-0031)\n\
-  \   → READ the governing active spec(s) → DECLARE in `implementation_plan` one line\
-  \ PER DIRECTION: (1)\n   the touched code IS governed by spec(s) → `spec update:\
-  \ yes <which>` OR `no, because <reason>`; (2)\n   the touched code has NO governing\
-  \ spec → either justified spec-less (the <workshop-spec> admission test\n   does\
-  \ not warrant one) OR name the candidate `proposed` spec (this JOINS step 3 standing-rule\
-  \ check,\n   it does not duplicate it).\n6. **Read the cited specs / decisions /\
-  \ prior tasks.**\n7. **Scope unclear?** File a clarification to a Review session\
-  \ — do NOT proceed on a guess.\n\n**Done when** you can name: (a) what already exists,\
-  \ (b) what changes, (c) the smallest concrete edit.\n\nCROSS-TERRITORY ROUTING HINT\
-  \ (additive —, <workshop-spec> §7). Alongside the structural pre-pass, the\nclaim\
-  \ path ALSO surfaces a **report-only cross-territory routing hint**:\nwhen the claimed\
-  \ task's forecast paths (`expected_touch`) resolve OUTSIDE own territory (a path-based\n\
-  signal — AGENTS §Scope boundary), the work looks like ANOTHER project's, so the\
-  \ hint names the\nterritory-safe route — file a coordination item via `yitc-v2 cross\
-  \ request --to <project>` (the shared\ncoordination log) instead of `task file`-ing\
-  \ it into THIS queue. The SAME hint fires at `cmd_task_file`\n(filing time, before\
-  \ the write). It is **report-not-block** like the pre-pass (never gates — CHARTER\n\
-  non-goal #7), and a **navigational POINTER** (<workshop-spec> rule 8): the governing\
-  \ routing CONTRACT lives\nsingle-SoT in **SPEC-0084** (the cross system) — this\
-  \ spec does not restate it, it only wires the\nwrite-side surfacing of it at the\
-  \ Analysis claim + filing moments.\n\n## Rationale\n\nProvenance (the founding incidents,\
-  \ the refinement history and the rejected alternatives) lives in\ngit history and\
-  \ the authoring plan — not here.\n\n### History moved from the rule body\n\nEach\
-  \ entry is a passage moved word for word out of the rule text of the section it\
-  \ names;\nthe rule it explains stays there.\n\nFrom «Internal»:\n\nThis spec HOMES\
-  \ the ordered SEQUENCE + the delivery contract — NOT a copy of each step's discipline\n\
-  (those are CHARTER §1 / / <workshop-spec> / <workshop-spec>). LIFECYCLE §Stage 1\
-  \ prose is demoted INTO this\nspec, and the standalone before-file decomposition\
-  \ surfacing is retired — the decomposition step now\nreaches the session at CLAIM,\
-  \ before filing.\n\n## Implementation notes\n\nNotes for the maintainer of the code,\
-  \ moved word for word out of the rule text of the section\neach names.\n\n- From\
-  \ «Internal»: (`cmd_worktree_new` → `_claim_task`)\n- From «Internal»: (`_analysis_procedure_reminder`)\n\
+  \ for such a card).\n4. **Decomposition check** — one coherent change-set per card\
+  \ (SPEC-0046 §A): keep related claims on\n   the same files or surface in one card;\
+  \ SPLIT only when the parts are independent and each pays for\n   its own fixed\
+  \ cost, when a reviewer must judge them separately, or when one part must land first\n\
+  \   (encode the order via `requires:`); a deferral MUST be a tracked task, never\
+  \ prose.\n   - **Amending a criterion here is acceptance design** — SPEC-0060 item\
+  \ 4 holds its authoring cues\n     (`graph query SPEC-0060`); among them, an adoption\
+  \ probe drives the consumer round-trip and\n     needs no consumer whose `requires:`\
+  \ names this card before it closes (SPEC-0015 §Infra\n     adoption probe, §Work-first).\n\
+  5. **Spec-coverage reverse-lookup** — for EACH file/symbol this task EXPECTS TO\
+  \ TOUCH (its\n   `expected_touch`), run the reverse lookup `bin/yitc-v2 graph query\
+  \ <file>` (code→specs, SPEC-0031)\n   → READ the governing active spec(s) → DECLARE\
+  \ in `implementation_plan` one line PER DIRECTION: (1)\n   the touched code IS governed\
+  \ by spec(s) → `spec update: yes <which>` OR `no, because <reason>`; (2)\n   the\
+  \ touched code has NO governing spec → either justified spec-less (the <workshop-spec>\
+  \ admission test\n   does not warrant one) OR name the candidate `proposed` spec\
+  \ (this JOINS step 3 standing-rule check,\n   it does not duplicate it).\n6. **Read\
+  \ the cited specs / decisions / prior tasks.**\n7. **Scope unclear?** File a clarification\
+  \ to a Review session — do NOT proceed on a guess.\n\n**Done when** you can name:\
+  \ (a) what already exists, (b) what changes, (c) the smallest concrete edit.\n\n\
+  CROSS-TERRITORY ROUTING HINT (additive —, <workshop-spec> §7). Alongside the structural\
+  \ pre-pass, the\nclaim path ALSO surfaces a **report-only cross-territory routing\
+  \ hint**:\nwhen the claimed task's forecast paths (`expected_touch`) resolve OUTSIDE\
+  \ own territory (a path-based\nsignal — AGENTS §Scope boundary), the work looks\
+  \ like ANOTHER project's, so the hint names the\nterritory-safe route — file a coordination\
+  \ item via `yitc-v2 cross request --to <project>` (the shared\ncoordination log)\
+  \ instead of `task file`-ing it into THIS queue. The SAME hint fires at `cmd_task_file`\n\
+  (filing time, before the write). It is **report-not-block** like the pre-pass (never\
+  \ gates — CHARTER\nnon-goal #7), and a **navigational POINTER** (<workshop-spec>\
+  \ rule 8): the governing routing CONTRACT lives\nsingle-SoT in **SPEC-0084** (the\
+  \ cross system) — this spec does not restate it, it only wires the\nwrite-side surfacing\
+  \ of it at the Analysis claim + filing moments.\n\n## Rationale\n\nProvenance (the\
+  \ founding incidents, the refinement history and the rejected alternatives) lives\
+  \ in\ngit history and the authoring plan — not here.\n\n### History moved from the\
+  \ rule body\n\nEach entry is a passage moved word for word out of the rule text\
+  \ of the section it names;\nthe rule it explains stays there.\n\nFrom «Internal»:\n\
+  \nThis spec HOMES the ordered SEQUENCE + the delivery contract — NOT a copy of each\
+  \ step's discipline\n(those are CHARTER §1 / / <workshop-spec> / <workshop-spec>).\
+  \ LIFECYCLE §Stage 1 prose is demoted INTO this\nspec, and the standalone before-file\
+  \ decomposition surfacing is retired — the decomposition step now\nreaches the session\
+  \ at CLAIM, before filing.\n\n## Implementation notes\n\nNotes for the maintainer\
+  \ of the code, moved word for word out of the rule text of the section\neach names.\n\
+  \n- From «Internal»: (`cmd_worktree_new` → `_claim_task`)\n- From «Internal»: (`_analysis_procedure_reminder`)\n\
   - From «Internal»: (`_plan_structural_findings` over scope+acceptance, reused —\
   \ not a parallel\n  validator)\n- From «Internal»: (`_print_cross_territory_routing_hint`)\n\
   - From «Internal»: (`_stage_sequence_skeleton`, appended to `_analysis_procedure_reminder`)\n\
@@ -199,7 +204,7 @@ proposed_by: null
 binding:
 - stage-entry:Analysis
 implements_signature:
-  bin/lib/cli.py#_analysis_procedure_reminder: d3f9d296de4dd08f844e4749177c5800d5112445c9a93938a1e904cf0b624da2
+  bin/lib/cli.py#_analysis_procedure_reminder: 6bb343799d36f6eaa0f967c37f0d7660364d4fff061ca647d7672d0a3a48623b
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
   bin/lib/cli.py#_print_cross_territory_routing_hint: 3178b489c3bbc6306346b1d27fc90e49053be940a358e70190c6b00babbf5f13
   bin/lib/cli.py#_stage_sequence_skeleton: 33fc20ae86129776ad149388fd535ccd63e7da9b217b0485f626e0029cf4e848

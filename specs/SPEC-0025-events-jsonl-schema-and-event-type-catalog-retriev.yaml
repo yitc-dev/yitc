@@ -916,90 +916,108 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ as `land_completed.verify_metrics.flaky_retry` (its LAYER ROWS\nparagraph below;\
   \ not restated here), so a green row that needed a re-run names the layer and keeps\n\
   the first-run failure excerpt. ABSENT on a first-try green and on a hand-authored\
-  \ `--evidence`.\n**`layer_duration_step` — a layer step this run printed.** OPTIONAL,\
-  \ present ONLY on a\n`--run --evidence` row whose run printed a SPEC-0132 Rule 7\
-  \ layer step line: those lines, verbatim,\nas a list of strings. ABSENT when no\
-  \ line printed and on a hand-authored `--evidence`. Report-only:\nnothing reads\
-  \ it to decide.\n**`land_verifies_beside` — the land verifies beside this run.**\
-  \ OPTIONAL, present on the row of an\ninvocation that RAN the suite — this row and\
-  \ `tests_failed` alike: how many lands of this\nrepository their own result rows\
-  \ prove were in their verify step (its wait for a verify slot\nincluded) during\
-  \ the run's wall time, and how many more those rows leave undecided (a land still\n\
-  running at the run's end included); where the reading was not taken, the field says\
-  \ so in place of\nthe numbers. Read from the MAIN checkout's land rows once the\
-  \ run is over. ABSENT on a\nhand-authored `--evidence`. Report-only: nothing reads\
-  \ it to decide.\n\n**`stage6_run` — the RUNNER's mark: which tree this green run\
-  \ tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence` row: `{tree, base}`\
-  \ — the tree the run tested (the files on\ndisk when it started, which the run left\
-  \ unchanged apart from the journal) and the `main` commit that\ntree sat on. ABSENT\
-  \ on a hand-authored `--evidence`, which ran nothing, and whenever the runner\n\
-  could not establish the tree (never a fabricated value — the discipline). It is\
-  \ RESERVED at\nthe hand route: `event --data` refuses it, so only the runner writes\
-  \ it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its candidate-leg\
-  \ verdict (rule home: SPEC-0065 §Bound).\nThe same mark, recorded the same way,\
-  \ also rides a failed run's `tests_failed` row : there\nit says only which tree\
-  \ the failed run tested, and the land never credits it.\n\n**`duration_ms` is REQUIRED\
-  \ on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the delegated-layer\
-  \ leg and the tests/ sweep alike) and writes the measured wall in ms, so the\nTests-stage\
-  \ wall splits into machine time and worker time without inference. An explicitly\
-  \ passed\n`--duration-ms` still WINS (and still stamps `counts_source: \"author_reported\"\
-  `). THE ONE EXEMPT\nSHAPE, stated so the requirement is honest rather than aspirational:\
-  \ a hand-authored `--evidence`\nwith NO run attached measured nothing, so it carries\
-  \ the field only via the author-reported group —\nnever a fabricated 0 (the discipline).\
-  \ Before the field was author-reported-only and\n25 of 511 kernel rows in 2026-08-19..09-02\
-  \ carried one.\n\n**tests_failed** — the RED half of `tests_passed`, emitted by\
-  \ `task test --run` when the Stage-6\nself-check FAILS. It exists because a green\
-  \ run had a home and a red one had none: the run\nhappened, cost its minutes, and\
-  \ left no row, so a later session could not see that a suite had\nalready failed\
-  \ here or why (<project> X-1112; measured on <project>, where the only surviving\n\
-  trace of a full failing run was prose in an unrelated message an hour later). `data:\
-  \ {current_stage,\nfailed, layers, evidence, duration_ms, counts_source: \"harness_measured\"\
-  , leg: \"candidate\"}` —\n* `duration_ms` — **REQUIRED **: the same measured subprocess\
-  \ wall `tests_passed` carries,\n  written on the SAME rule (an explicit `--duration-ms`\
-  \ wins, else the measurement), because a red\n  run costs exactly the minutes a\
-  \ green one does and the row exists to say what the run cost;\n* `failed` = the\
-  \ failing-entry COUNT; `evidence` = the runner's own failure messages, bounded,\
-  \ so the\n  row answers *what failed* without a re-run;\n* `layers` = an ordered\
-  \ list of `{name, attribution, rule}`, one per failing test file or consumer\n \
-  \ verify layer (SPEC-0152). `attribution` is a CLOSED set: **`in-diff`** (this card's\
-  \ changed-path set\n  — its working tree plus untracked files versus `merge-base(HEAD,\
-  \ main)` — contains that layer's own\n  file, or by the named-path rule below a\
-  \ path its failure message names) · **`not-in-diff`**\n  (neither) · **`undetermined`**\
-  \ (the relation could not be established; recorded explicitly, never\n  guessed).\
-  \ The FILE rule decides first. Only when it says `not-in-diff`, the NAMED-PATH rule\
-  \ reads\n  that layer's own failure message (the lines after its first line) and\
-  \ records `in-diff` when a path\n  token there EXACTLY equals a changed path — a\
-  \ token loses only literal leading `./` and a trailing\n  `.`; a leading `/`, a\
-  \ `../`, a suffix or a basename never matches. `rule` names the step that decided\n\
-  \  (`file` | `named-path`); an `undetermined` entry and a row written before the\
-  \ named-path rule carry\n  none. MATCHING IS EXACT: a failing TEST-FILE name is\
-  \ a basename and\n  is resolved only by joining it to the tests directory it came\
-  \ from, never by suffix — a changed\n  `docs/test_X.py` does NOT make a failing\
-  \ `tests/test_X.py` read `in-diff`, because a basename is\n  not an address. A name\
-  \ that addresses no file at all (a consumer verify LAYER label) is\n  `undetermined`,\
-  \ since a diff-touch relation is undefined for it; a confident wrong attribution\
-  \ is\n  worse than an absent one, because a reader acts on it.\n* `counts_source:\
-  \ \"harness_measured\"` — the deliberate CONTRAST with `tests_passed`'s\n  `author_reported`:\
-  \ these numbers come from the runner this verb just executed, not from an author.\n\
-  * `leg: \"candidate\"` — the row is scoped to the CANDIDATE leg this verb runs.\
-  \ `land` verifies TWO\n  legs (SPEC-0077); the pinned last-green leg is NOT run\
-  \ here and is NOT described by this row.\n* `stage6_run` — OPTIONAL : the tree the\
-  \ failed run tested and the `main` commit it sat on,\n  on the terms the `tests_passed`\
-  \ paragraph above gives the same mark; absent on a bare `--run`, which\n  records\
-  \ no tested tree. Never a credit: the land credits a green newest row only.\n\n\
-  **READ `attribution` AS THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH\
-  \ relation, not\na proof of causation: `not-in-diff` does NOT assert the failure\
-  \ is pre-existing on `main` (a card can\nbreak a file it never opened), and `in-diff`\
-  \ does not assert the card caused it. It is the strongest\nattribution computable\
-  \ without materializing and re-running main's tree, and it is what the incident\n\
-  needed — establishing that a red sat in a layer the card had not written.\n\n**NOT\
-  \ A GATE, and not blocklisted for P8.** The emit changes no verdict and no exit\
-  \ code: a failing\nrun refuses exactly what it refused before it existed. And unlike\
-  \ `tests_passed`, this type is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES`\
-  \ — the green row is blocklisted because\nCHARTER §P8 says tests green BY ITSELF\
-  \ proves nothing (every task earns one for free, zero\ndifferential), whereas this\
-  \ row exists ONLY when a run actually failed, so its presence IS a\ndifferential.\
-  \ Same reasoning as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
+  \ `--evidence`.\n**`verify_metrics.per_file_durations` + `verify_metrics.per_file_outcomes`\
+  \ on this row — the run's\nper-file walls.** OPTIONAL, present on a `--run --evidence`\
+  \ row whose run measured files\n— this row and `tests_failed` alike: the SAME two\
+  \ records, in the SAME shape, that\n`land_completed.verify_metrics` carries (the\
+  \ record with its `duration_series`, and the\n sidecar locator); on a routed run\
+  \ they are the land's own fold over the box rows. ABSENT\nwhere no file was measured\
+  \ here, on a layer-only or delegated run, and on a hand-authored\n`--evidence`.\
+  \ Read by the duration-table refresh (SPEC-0132 rule 6) and the slow-tail view\n\
+  (SPEC-0119 rule 19), so a land that credits this run leaves both something to read.\n\
+  **`layer_duration_step` — a layer step this run printed.** OPTIONAL, present ONLY\
+  \ on a\n`--run --evidence` row whose run printed a SPEC-0132 Rule 7 layer step line:\
+  \ those lines, verbatim,\nas a list of strings. ABSENT when no line printed and\
+  \ on a hand-authored `--evidence`. Report-only:\nnothing reads it to decide.\n**`land_verifies_beside`\
+  \ — the land verifies beside this run.** OPTIONAL, present on the row of an\ninvocation\
+  \ that RAN the suite — this row and `tests_failed` alike: how many lands of this\n\
+  repository their own result rows prove were in their verify step (its wait for a\
+  \ verify slot\nincluded) during the run's wall time, and how many more those rows\
+  \ leave undecided (a land still\nrunning at the run's end included); where the reading\
+  \ was not taken, the field says so in place of\nthe numbers. Read from the MAIN\
+  \ checkout's land rows once the run is over. ABSENT on a\nhand-authored `--evidence`.\
+  \ Report-only: nothing reads it to decide.\n\n**`stage6_run` — the RUNNER's mark:\
+  \ which tree this green run tested.** OPTIONAL, and\npresent ONLY on a `--run --evidence`\
+  \ row: `{tree, base}` — the tree the run tested (the files on\ndisk when it started,\
+  \ which the run left unchanged apart from the journal) and the `main` commit that\n\
+  tree sat on. ABSENT on a hand-authored `--evidence`, which ran nothing, and whenever\
+  \ the runner\ncould not establish the tree (never a fabricated value — the discipline).\
+  \ It is RESERVED at\nthe hand route: `event --data` refuses it, so only the runner\
+  \ writes it. Its one reader is `land`,\nwhich MAY credit a row carrying it as its\
+  \ candidate-leg verdict (rule home: SPEC-0065 §Bound).\nThe same mark, recorded\
+  \ the same way, also rides a failed run's `tests_failed` row : there\nit says only\
+  \ which tree the failed run tested, and the land never credits it.\n\n**`duration_ms`\
+  \ is REQUIRED on this row ** — `task test --run` TIMES ITS OWN SUBPROCESS\nRUN (the\
+  \ delegated-layer leg and the tests/ sweep alike) and writes the measured wall in\
+  \ ms, so the\nTests-stage wall splits into machine time and worker time without\
+  \ inference. An explicitly passed\n`--duration-ms` still WINS (and still stamps\
+  \ `counts_source: \"author_reported\"`). THE ONE EXEMPT\nSHAPE, stated so the requirement\
+  \ is honest rather than aspirational: a hand-authored `--evidence`\nwith NO run\
+  \ attached measured nothing, so it carries the field only via the author-reported\
+  \ group —\nnever a fabricated 0 (the discipline). Before the field was author-reported-only\
+  \ and\n25 of 511 kernel rows in 2026-08-19..09-02 carried one.\n\n**tests_failed**\
+  \ — the RED half of `tests_passed`, emitted by `task test --run` when the Stage-6\n\
+  self-check FAILS. It exists because a green run had a home and a red one had none:\
+  \ the run\nhappened, cost its minutes, and left no row, so a later session could\
+  \ not see that a suite had\nalready failed here or why (<project> X-1112; measured\
+  \ on <project>, where the only surviving\ntrace of a full failing run was prose\
+  \ in an unrelated message an hour later). `data: {current_stage,\nfailed, layers,\
+  \ evidence, duration_ms, counts_source: \"harness_measured\", leg: \"candidate\"\
+  }` —\n* `duration_ms` — **REQUIRED **: the same measured subprocess wall `tests_passed`\
+  \ carries,\n  written on the SAME rule (an explicit `--duration-ms` wins, else the\
+  \ measurement), because a red\n  run costs exactly the minutes a green one does\
+  \ and the row exists to say what the run cost;\n* `failed` = the failing-entry COUNT;\
+  \ `evidence` = the runner's own failure messages, bounded, so the\n  row answers\
+  \ *what failed* without a re-run;\n* `layers` = an ordered list of `{name, attribution,\
+  \ rule}`, one per failing test file or consumer\n  verify layer (SPEC-0152). `attribution`\
+  \ is a CLOSED set: **`in-diff`** (this card's changed-path set\n  — its working\
+  \ tree plus untracked files versus `merge-base(HEAD, main)` — contains that layer's\
+  \ own\n  file, or by the named-path rule below a path its failure message names)\
+  \ · **`not-in-diff`**\n  (neither) · **`undetermined`** (the relation could not\
+  \ be established; recorded explicitly, never\n  guessed). The FILE rule decides\
+  \ first. Only when it says `not-in-diff`, the NAMED-PATH rule reads\n  that layer's\
+  \ own failure message (the lines after its first line) and records `in-diff` when\
+  \ a path\n  token there EXACTLY equals a changed path — a token loses only literal\
+  \ leading `./` and a trailing\n  `.`; a leading `/`, a `../`, a suffix or a basename\
+  \ never matches. `rule` names the step that decided\n  (`file` | `named-path`);\
+  \ an `undetermined` entry and a row written before the named-path rule carry\n \
+  \ none. MATCHING IS EXACT: a failing TEST-FILE name is a basename and\n  is resolved\
+  \ only by joining it to the tests directory it came from, never by suffix — a changed\n\
+  \  `docs/test_X.py` does NOT make a failing `tests/test_X.py` read `in-diff`, because\
+  \ a basename is\n  not an address. A name that addresses no file at all (a consumer\
+  \ verify LAYER label) is\n  `undetermined`, since a diff-touch relation is undefined\
+  \ for it; a confident wrong attribution is\n  worse than an absent one, because\
+  \ a reader acts on it.\nA TEST-FILE entry also carries `failed_tests` (the test\
+  \ functions that file's own failure text\nnamed: a pytest `FAILED|ERROR <path>::<name>`\
+  \ line whose path is that file, bare or under its tests directory, or a\n`FAIL`\
+  \ / `FAIL:` / `ERROR:` marker before an identifier starting `test_`, a go test `---\
+  \ FAIL: <Name>`\nline, or a jest / vitest `✕ <name>` line or `● <suite> › <name>`\
+  \ header) and `named` (bool); a text\nnaming none, and a whole-file timeout, record\
+  \ `failed_tests: []`, `named: false`, never a guess.\nThe same `{file, failed_tests,\
+  \ named}` records, one per failed test file, ride a verify-fail\n`land_completed`\
+  \ abort and a pre-deploy `test_class_executed` row as `failed_test_names`, absent\n\
+  when no failed test file was recorded.\n* `counts_source: \"harness_measured\"`\
+  \ — the deliberate CONTRAST with `tests_passed`'s\n  `author_reported`: these numbers\
+  \ come from the runner this verb just executed, not from an author.\n* `leg: \"\
+  candidate\"` — the row is scoped to the CANDIDATE leg this verb runs. `land` verifies\
+  \ TWO\n  legs (SPEC-0077); the pinned last-green leg is NOT run here and is NOT\
+  \ described by this row.\n* `stage6_run` — OPTIONAL : the tree the failed run tested\
+  \ and the `main` commit it sat on,\n  on the terms the `tests_passed` paragraph\
+  \ above gives the same mark; absent on a bare `--run`, which\n  records no tested\
+  \ tree. Never a credit: the land credits a green newest row only.\n\n**READ `attribution`\
+  \ AS THE RELATION IT MEASURES, NOT AS A VERDICT.** It is a diff-TOUCH relation,\
+  \ not\na proof of causation: `not-in-diff` does NOT assert the failure is pre-existing\
+  \ on `main` (a card can\nbreak a file it never opened), and `in-diff` does not assert\
+  \ the card caused it. It is the strongest\nattribution computable without materializing\
+  \ and re-running main's tree, and it is what the incident\nneeded — establishing\
+  \ that a red sat in a layer the card had not written.\n\n**NOT A GATE, and not blocklisted\
+  \ for P8.** The emit changes no verdict and no exit code: a failing\nrun refuses\
+  \ exactly what it refused before it existed. And unlike `tests_passed`, this type\
+  \ is\ndeliberately ABSENT from `_NON_EVIDENTIAL_EVIDENCE_TYPES` — the green row\
+  \ is blocklisted because\nCHARTER §P8 says tests green BY ITSELF proves nothing\
+  \ (every task earns one for free, zero\ndifferential), whereas this row exists ONLY\
+  \ when a run actually failed, so its presence IS a\ndifferential. Same reasoning\
+  \ as the three named `land_completed` row-ref exceptions.\n\n**land_completed**\
   \ — emitted on BOTH outcomes of a `land` attempt ( — the journal mirror of\nthe\
   \ `LAND: OK|ABORT` stdout token contract). **Consumers MUST key off `data.status`\
   \ — NEVER\nread land_completed as success-only** (duration trend views filter `status:\
@@ -1407,11 +1425,14 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ LAYER ROWS (SPEC-0152 rule 16 §THE ISOLATED RE-RUN) = the same field on a\nCONSUMER\
   \ verify whose layer guard re-ran a sole failed verify layer. A row in `rows[]`\
   \ then names a\n`layer` INSTEAD OF a `file`: `{layer, leg, isolated, load1?, first_exit,\
-  \ first_duration_ms?,\nfirst_failure_excerpt, first_output_log?, retry_outcome,\
+  \ first_duration_ms?,\nfirst_failure_excerpt, first_output_log?, retry_files?, retry_outcome,\
   \ retry_exit?, retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`.\
-  \ `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`; `load1` is the host\
-  \ 1-minute load read just before the re-run (ABSENT when unmeasurable,\nnever a\
-  \ fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
+  \ `retry_files` (`tests/<file>` names) is present only\nwhen the re-run was handed\
+  \ the files the first run named failing AND confirmed on its own output\nthat it\
+  \ ran exactly those (SPEC-0152 rule 16 §THE ISOLATED RE-RUN); absent, the re-run\
+  \ was the whole\nlayer. `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`;\
+  \ `load1` is the host 1-minute load read just before the re-run (ABSENT when unmeasurable,\n\
+  never a fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
   \ and is\npresent on a RESCUED row too, which is its purpose; `retry_outcome` is\
   \ the re-run's own outcome\n(`passed` / `failed` / `timed-out`). A DECLINED layer\
   \ plan records `layers_skipped: [{leg, reason,\nlayers, bound?}]`, `reason` being\
@@ -1443,52 +1464,55 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ On an adapter-backed layer a LAYER row above may also carry\n`rescue` (`off`:\
   \ the pass on the re-run is diagnostic and the first failure blocks) and\n`first_void`\
   \ (the first attempt's void reasons), and `layers_skipped` may carry the reason\n\
-  `required-check`. A unit row carries no `file` key, so the engine suite's load-sensitive\
-  \ entry\nfold counts none. `lane` ( — <workshop-spec> rule 11) is true on the row\
-  \ of a unit that ran in\nits layer's load-sensitive lane on the first attempt; the\
-  \ per-unit entry fold\n(`bin/lib/land_verify_legs.py#_unit_rescue_passes`) counts\
-  \ the unit rows whose `rescued` is true\nand that carry no `lane`. `run_heads` (\
-  \ — SPEC-1035 rule 11) = `{<leg>: <commit>}` beside `rows`: the\ncommit a leg's\
-  \ units ran on, written by the guard as `run_head` on its own record on a land when\
-  \ that leg\nrecorded a unit row and its tracked files on disk were that commit,\
-  \ and absent otherwise; only the lane\nentry reads it.\nShape and semantics are\
-  \ homed at the writers (`bin/lib/land_verify_legs.py#_layer_unit_reruns`,\n`bin/lib/worktree.py#_consumer_zero_probe_guard`)\
-  \ and not restated. Report-only: a unit is cleared\nonly by passing alone on a usable\
-  \ report, and this key records that it did.\n`failed_output_tail` (dict) = THE LAST\
-  \ OUTPUT OF EVERY FILE THE RUN STILL FAILS ON. For\neach file named by the run's\
-  \ returned failures: the last <=40 lines of that file's raw combined\nstdout+stderr,\
-  \ each line clipped to 200 chars — a failure with EMPTY output records `[]`, never\
-  \ an\nabsent entry, and a timeout kill records the partial output drained before\
-  \ it. A file its isolated\nretry cleared records nothing. ONE aggregate bound: at\
-  \ most 20 entries — past 20 failing files the\nfirst 19 by name keep their tails\
-  \ and the 20th entry is `(overflow)`, naming how many were not\nrecorded. ABSENT\
-  \ — never `{}` — on a run with no failure. A ROUTED land carries it per leg\nin\
-  \ the venue envelope and folds it onto `venue_failed_output_tail`: ONE `{file: [...]}`\
-  \ map,\ncandidate-leg keys bare, pinned-leg keys `[pinned/last-green] <file>` (the\
-  \ `failing_assertions`\nprefix), under the same 20-entry bound, ABSENT when no leg\
-  \ recorded one. It exists because the\nrunner's 400-char failure excerpt and the\
-  \ leg's first-line-per-file record left a venue failure\nreadable only as «(no assertion\
-  \ captured)». Report-only, on the `flaky_retry` precedent: no new\nevent type, no\
-  \ second metrics path, no new store, and it gates nothing.\n`load_sensitive` (dict|str)\
-  \ = WHAT THE SERIALIZED TAIL DID on this land. The runner reads\nthe committed carrier\
-  \ `tests/load-sensitive.txt` (the declared load-sensitive set: one test file\nper\
-  \ line, comment-tolerant, ENTERED automatically at the land tail and REMOVED only\
-  \ by a card) and\nruns every listed file AFTER the concurrent pool, one at a time,\
-  \ on both legs; a pass or fail there\ndecides the verdict exactly as a pool result\
-  \ does — the set moves WHERE a file runs, never WHETHER.\n`{tail: [{file, outcome}],\
-  \ unresolved?}` — `outcome` is the file's real verdict in the same closed\nvocabulary\
-  \ as `per_file_outcomes` (`not-started` when a tripped fail-fast gate skipped the\
-  \ tail),\n`unresolved` (present only when non-empty) names listed files this run\
-  \ did not discover. A ROUTED\nland folds the per-leg record onto this SAME unprefixed\
-  \ key from the envelope (`venue_load_sensitive`\nper leg), and an envelope that\
-  \ never carried the key folds the STRING `\"unknown\"` — never `{}` and\nnever absence,\
-  \ both of which would read as \"every listed file passed\" (SPEC-0165 item 11).\
-  \ ABSENT\n— never an empty dict — when the carrier lists nothing, so a repo without\
-  \ a set reports\nnothing it did not do and its payload is byte-unchanged (additive\
-  \ / P5-safe). Report-only, on the\n`flaky_retry` precedent: no new event type, no\
-  \ second metrics path, no new store.\n`cost_zone` (dict) is RETIRED by (2026-10-04)\
-  \ and is NEVER WRITTEN AGAIN. It was the\nrecord-only shadow of a cost-zone verify\
-  \ policy that was cancelled before it governed anything\n(draft <workshop-spec>,\
+  `required-check` or `nonzero-exit-all-passed` ( — SPEC-1046 rule 4: the layer's\
+  \ report is void\nonly for a nonzero exit over all-passed units). Such a LAYER row\
+  \ is also written for a void-failed\nlayer the layer plan declined — its own whole\
+  \ re-run after every layer — with the plan's decline\nkept on `layers_skipped` beside\
+  \ it. A unit row carries no `file` key, so the engine suite's load-sensitive entry\n\
+  fold counts none. `lane` ( — <workshop-spec> rule 11) is true on the row of a unit\
+  \ that ran in\nits layer's load-sensitive lane on the first attempt; the per-unit\
+  \ entry fold\n(`bin/lib/land_verify_legs.py#_unit_rescue_passes`) counts the unit\
+  \ rows whose `rescued` is true\nand that carry no `lane`. `run_heads` ( — <workshop-spec>\
+  \ rule 11) = `{<leg>: <commit>}` beside `rows`: the\ncommit a leg's units ran on,\
+  \ written by the guard as `run_head` on its own record on a land when that leg\n\
+  recorded a unit row and its tracked files on disk were that commit, and absent otherwise;\
+  \ only the lane\nentry reads it.\nShape and semantics are homed at the writers (`bin/lib/land_verify_legs.py#_layer_unit_reruns`,\n\
+  `bin/lib/worktree.py#_consumer_zero_probe_guard`) and not restated. Report-only:\
+  \ a unit is cleared\nonly by passing alone on a usable report, and this key records\
+  \ that it did.\n`failed_output_tail` (dict) = THE LAST OUTPUT OF EVERY FILE THE\
+  \ RUN STILL FAILS ON. For\neach file named by the run's returned failures: the last\
+  \ <=40 lines of that file's raw combined\nstdout+stderr, each line clipped to 200\
+  \ chars — a failure with EMPTY output records `[]`, never an\nabsent entry, and\
+  \ a timeout kill records the partial output drained before it. A file its isolated\n\
+  retry cleared records nothing. ONE aggregate bound: at most 20 entries — past 20\
+  \ failing files the\nfirst 19 by name keep their tails and the 20th entry is `(overflow)`,\
+  \ naming how many were not\nrecorded. ABSENT — never `{}` — on a run with no failure.\
+  \ A ROUTED land carries it per leg\nin the venue envelope and folds it onto `venue_failed_output_tail`:\
+  \ ONE `{file: [...]}` map,\ncandidate-leg keys bare, pinned-leg keys `[pinned/last-green]\
+  \ <file>` (the `failing_assertions`\nprefix), under the same 20-entry bound, ABSENT\
+  \ when no leg recorded one. It exists because the\nrunner's 400-char failure excerpt\
+  \ and the leg's first-line-per-file record left a venue failure\nreadable only as\
+  \ «(no assertion captured)». Report-only, on the `flaky_retry` precedent: no new\n\
+  event type, no second metrics path, no new store, and it gates nothing.\n`load_sensitive`\
+  \ (dict|str) = WHAT THE SERIALIZED TAIL DID on this land. The runner reads\nthe\
+  \ committed carrier `tests/load-sensitive.txt` (the declared load-sensitive set:\
+  \ one test file\nper line, comment-tolerant, ENTERED automatically at the land tail\
+  \ and REMOVED only by a card) and\nruns every listed file AFTER the concurrent pool,\
+  \ one at a time, on both legs; a pass or fail there\ndecides the verdict exactly\
+  \ as a pool result does — the set moves WHERE a file runs, never WHETHER.\n`{tail:\
+  \ [{file, outcome}], unresolved?}` — `outcome` is the file's real verdict in the\
+  \ same closed\nvocabulary as `per_file_outcomes` (`not-started` when a tripped fail-fast\
+  \ gate skipped the tail),\n`unresolved` (present only when non-empty) names listed\
+  \ files this run did not discover. A ROUTED\nland folds the per-leg record onto\
+  \ this SAME unprefixed key from the envelope (`venue_load_sensitive`\nper leg),\
+  \ and an envelope that never carried the key folds the STRING `\"unknown\"` — never\
+  \ `{}` and\nnever absence, both of which would read as \"every listed file passed\"\
+  \ (SPEC-0165 item 11). ABSENT\n— never an empty dict — when the carrier lists nothing,\
+  \ so a repo without a set reports\nnothing it did not do and its payload is byte-unchanged\
+  \ (additive / P5-safe). Report-only, on the\n`flaky_retry` precedent: no new event\
+  \ type, no second metrics path, no new store.\n`cost_zone` (dict) is RETIRED by\
+  \ (2026-10-04) and is NEVER WRITTEN AGAIN. It was the\nrecord-only shadow of a cost-zone\
+  \ verify policy that was cancelled before it governed anything\n(draft <workshop-spec>,\
   \ withdrawn): what that policy WOULD have decided for the land, written\nbeside\
   \ a verify that ran exactly as it does without the key. It stays READ-TOLERATED\
   \ on the rows\nthat carry it — the lands of 2026-10-04, plus any land that had already\
@@ -1661,14 +1685,16 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ `error`, `identity`, `identity_unavailable`, `versions`, `selection`,\n`attempt`,\
   \ `attempt_unavailable`, `credit`, `lane` and `units` — a unit row carrying `project`,\
   \ `file`, `group`, `status`,\n`duration_ms`, `cases`, `skipped`, `failed_cases`,\
-  \ `failed_cases_more`, `excerpt`, `lane` and\n`unrequested`. `void` lists the reasons\
-  \ a report cannot be relied on: `report-missing`,\n`report-malformed`, `report-stale`,\
-  \ `second-report-missing`, `second-report-malformed`,\n`unit-missing`, `unit-only-skipped`,\
-  \ `unit-unrequested`, `unit-duplicate`, `non-test-failure`,\n`error-outside-units`,\
-  \ `native-retry`, `nonzero-exit-all-passed`. A case identity is recorded for a\n\
-  FAILED case only (passing cases are counted), so the row is bounded by the unit\
-  \ count. The same\nrows ride `tests_passed.consumer_verify_layers`; a FAILED Stage-6\
-  \ run on which a layer carries\nthis record also writes `consumer_verify` + `consumer_verify_layers`\
+  \ `failed_cases_more`, `excerpt`, `failed_tests`,\n`named`, `lane` and `unrequested`\
+  \ (`failed_tests` / `named` on a `failed` or `error` row only — the\nfailed tests\
+  \ by name, <workshop-spec> rule 13). `void` lists the reasons a report cannot be\
+  \ relied on: `report-missing`,\n`report-malformed`, `report-stale`, `second-report-missing`,\
+  \ `second-report-malformed`,\n`unit-missing`, `unit-only-skipped`, `unit-unrequested`,\
+  \ `unit-duplicate`, `non-test-failure`,\n`error-outside-units`, `native-retry`,\
+  \ `nonzero-exit-all-passed`. A case identity is recorded for a\nFAILED case only\
+  \ (passing cases are counted), so the row is bounded by the unit count. The same\n\
+  rows ride `tests_passed.consumer_verify_layers`; a FAILED Stage-6 run on which a\
+  \ layer carries\nthis record also writes `consumer_verify` + `consumer_verify_layers`\
   \ on `tests_failed` (ABSENT\nthere otherwise — a failed run with no adapter-backed\
   \ layer is byte-unchanged). `identity`\n( — <workshop-spec> rule 8) is the layer's\
   \ identity, a hash over the inputs that shape this\nevidence, issued only when every\
@@ -1751,7 +1777,7 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ before the check `failed` names had\ncompleted, which fails the layer; `ran` then\
   \ counts the checks that had run and passed.\nWriters: `bin/lib/land_verify_legs.py#_adapter_deciding_record`,\n\
   `#_adapter_run_plan`, `#_adapter_partial_record`, `#_adapter_passed_outcome` and\n\
-  `#_adapter_full_command_ran`.\n\n`pre_deploy` on that `adapter` record (dict — SPEC-1044\
+  `#_adapter_full_command_ran`.\n\n`pre_deploy` on that `adapter` record (dict — <workshop-spec>\
   \ rule 2) = THE PRE-DEPLOY EXCLUSION\nof a land's candidate leg or a Stage-6 run\
   \ handed a parsed pre-deploy declaration; absent where\nnone is handed, or where\
   \ no listed unit is a pre-deploy unit. `applied: true` with `removed` — the\nunits\
@@ -2169,7 +2195,8 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ and its `attempt_breakdown[-1]`\ncannot disagree.\nA `no-tests-unauthorized` /\
   \ `rebaseline-unauthorized` abort rides this same abort shape\nvia its `abort_class`;\
   \ a verify-fail abort additionally carries `failing_tests` + `failing_assertions`\n\
-  (the surfaced drowned assertion lines).\n`land_threshold` (dict `{key, value, source}`)\
+  (the surfaced drowned assertion lines) and `failed_test_names` (defined under\n\
+  `tests_failed` `layers` above).\n`land_threshold` (dict `{key, value, source}`)\
   \ = on an abort of class `repeated-abort-backstop`\nor `retries-exhausted` only,\
   \ the land threshold that decided it: its inventory key\n(`lib.cli.LAND_REPEATED_ABORT_THRESHOLD`\
   \ / `lib.cli._LAND_MAX_RETRIES`), the value applied, and where\nthat value came\
@@ -2365,18 +2392,18 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ it from the row above. `count` is the number of RESCUED per-unit `flaky_retry`\
   \ rows the unit\n(or the declared group, counted whole) accumulated inside the window,\
   \ under the same two tunables,\nand `locators` names each of them the same way.\
-  \ Only rescues of the unit file's current version are counted\n(SPEC-1035 rule 11):\
-  \ `filtered[]` — present when some were not — names each dropped rescue as\n`{locator,\
-  \ head, reason}`, `reason` being `lacks-change` (its recorded commit lacks the newest\
-  \ change of\nthe file), `head-unresolvable` or `head-unrecorded` (its leg recorded\
-  \ no commit; `head` is null). Emitted\non the same seam and folded into the same\n\
-  bookkeeping commit as the appended line. The list is one more path of the SAME tail\
-  \ writer's\ntransaction (`load_sensitive_entry`): a row is emitted for an attempt\
-  \ whose write was then\nWITHHELD too, and the `land_tail_write_withheld` row after\
-  \ it — naming the list among its\n`paths` — is its correction. So a line WITHOUT\
-  \ a row was hand-added, and a row without a line was\nwithheld. No card is filed\
-  \ by this entry and no row is emitted for a removal: the line leaves\nonly in a\
-  \ card's ship diff. Writer: `bin/lib/worktree.py#_unit_lane_entry_at_land_tail`.\n\
+  \ Only rescues of the unit file's current version are counted\n(<workshop-spec>\
+  \ rule 11): `filtered[]` — present when some were not — names each dropped rescue\
+  \ as\n`{locator, head, reason}`, `reason` being `lacks-change` (its recorded commit\
+  \ lacks the newest change of\nthe file), `head-unresolvable` or `head-unrecorded`\
+  \ (its leg recorded no commit; `head` is null). Emitted\non the same seam and folded\
+  \ into the same\nbookkeeping commit as the appended line. The list is one more path\
+  \ of the SAME tail writer's\ntransaction (`load_sensitive_entry`): a row is emitted\
+  \ for an attempt whose write was then\nWITHHELD too, and the `land_tail_write_withheld`\
+  \ row after it — naming the list among its\n`paths` — is its correction. So a line\
+  \ WITHOUT a row was hand-added, and a row without a line was\nwithheld. No card\
+  \ is filed by this entry and no row is emitted for a removal: the line leaves\n\
+  only in a card's ship diff. Writer: `bin/lib/worktree.py#_unit_lane_entry_at_land_tail`.\n\
   \n**land_tail_write_withheld** (SPEC-0188 rule 7) — ONE row per post-ff bookkeeping\
   \ WRITE\nthe land DECLINED to commit because the tests that READ what it wrote were\
   \ not proven green on the\nwritten tree. `data: {writer, paths[], reason, test,\

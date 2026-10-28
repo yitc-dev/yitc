@@ -200,31 +200,19 @@ concern:
   declare_type: mapping
   waiver_policy: loose
   born_order: 185
-  born: "profile:\n  # SPEC-0198 (project growth profile). This section is DERIVED\
-    \ by the kernel from what the\n  # checkout and journal show (routes, auth, payment\
-    \ SDKs, PII fields, keys, migrations, deploy\n  # class) — you do NOT maintain\
-    \ it. Read the current resolution with `__YITC_CLI__ profile`.\n  # Declare here\
-    \ ONLY what the kernel cannot derive, or an OVERRIDE you want shown as yours:\n\
-    \  # override:\n  # traffic_scale: \"<low | medium | high — the kernel cannot\
-    \ read real traffic from a checkout>\"\n  # collaborator_rights: \"<solo | named-collaborators\
-    \ — a commit-author count is not a proof>\"\n  # surface: \"<internal — ONLY if\
-    \ you know this project is never publicly reachable>\"\n  # money: \"<present\
-    \ — spend moved through a third-party API (ad bids, price writes, marketplace\
-    \ calls) the kernel cannot derive>\"\n  # An absent override keeps the derived\
-    \ value; an unknown dimension reads CONSERVATIVE\n  # (wider checks), never narrower.\
-    \ Widening happens by itself at the next seam; NARROWING a\n  # latched high-risk\
-    \ dimension (surface / money / data_sensitivity / users) is an explicit act HERE.\n\
-    \  #\n  # BORN WAIVED, like `deploy.policy` and `security` — and here the waiver\
-    \ is the literally true\n  # statement, not a placeholder: this section is DERIVED,\
-    \ so a fresh project owes it nothing.\n  # It is seeded as a waiver rather than\
-    \ as an empty `override: {}` because the SPEC-0093 rule-3\n  # stance reader reads\
-    \ an empty declare-key as UNANSWERED, which made every born consumer carry\n \
-    \ # a permanent conformance issue and failed a fresh `init` (caught by the land\
-    \ verify).\n  waiver:\n    reason: \"Born with no override: the growth profile\
-    \ is DERIVED by the kernel from this checkout and its journal, so nothing is owed\
-    \ here. Replace this waiver with an `override:` mapping only to declare what the\
-    \ kernel cannot derive (traffic_scale / collaborator_rights) or to narrow a latched\
-    \ dimension deliberately.\"\n"
+  born: "profile:\n  # SPEC-0198. DERIVED by the kernel (`__YITC_CLI__ profile`).\
+    \ Declare here only what it cannot\n  # derive, or an override; narrowing a latched\
+    \ high-risk dimension is an explicit act here:\n  # Rule text: `__YITC_CLI__ graph\
+    \ query SPEC-0198 --kernel`\n  # override:\n  # traffic_scale: \"<low | medium\
+    \ | high — the kernel cannot read real traffic from a checkout>\"\n  # collaborator_rights:\
+    \ \"<solo | named-collaborators — a commit-author count is not a proof>\"\n  #\
+    \ surface: \"<internal — ONLY if you know this project is never publicly reachable>\"\
+    \n  # money: \"<present — spend moved through a third-party API (ad bids, price\
+    \ writes, marketplace calls) the kernel cannot derive>\"\n  waiver:\n    reason:\
+    \ \"Born with no override: the growth profile is DERIVED by the kernel from this\
+    \ checkout and its journal, so nothing is owed here. Replace this waiver with\
+    \ an `override:` mapping only to declare what the kernel cannot derive (traffic_scale\
+    \ / collaborator_rights) or to narrow a latched dimension deliberately.\"\n"
 init_concern: null
 implements_signature:
   bin/lib/cli.py#cmd_profile: d0df6b596257342abe8efaef491da70cf7f791d6a051fe274c3d718e70703f84
@@ -233,4 +221,4 @@ implements_signature:
   bin/lib/profile.py#required_check_set: 0c48cde590be15b085207cca55f507dc59938e10b2b31ff5af09c7eeef752c2b
   bin/lib/profile.py#resolve_profile: bccb545615b89bd1d57454b1035ce80300006de598d39f47d393908ae5c77653
   bin/lib/profile.py#second_derivation_sites: aa77d3aa412aea4e1ed2b71990b3f2309888d4372b21d1860a2ca9ba3e146372
-  bin/lib/views.py#_render_debt_echo: 7181be1c148bb9877d6f1a4ed11029b46294bf14083d72b93709ace304a4d973
+  bin/lib/views.py#_render_debt_echo: 01274cd83b030fd548e96aca916048f2ef1dba4901683314f92db8e85d7605d8

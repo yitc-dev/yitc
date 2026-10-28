@@ -10050,6 +10050,99 @@ def uncovered_surface_debt_lines(REPO_ROOT, _read_yaml) -> list:
         return []
 
 
+# ── SPEC-1047 rule 6 (T-14202): a red CURRENT scheduled pre-deploy run ────────────────────────────
+#
+# ONE report-only line, suppressed when clean, when the project's CURRENT scheduled run is red. Its
+# rows are the SPEC-1047 rule-5 `test_class_executed` rows carrying `run_kind: scheduled` — a deploy's
+# rows carry no `run_kind` and are never read here, and a `pre_deploy_run_started` row is not read at
+# all (a start with no class rows is never a result). A run is the rows of one (`run_ref`, `attempt`);
+# it is red when any of its rows reads a `run_outcome` other than `passed`. The current run: of the
+# candidates inside the SPEC-0190 summary window, the one no other candidate descends from; of its
+# runs, the last by (stamp, attempt), a tie for last shown when either is red. Physical row order is
+# never read. The line names the run and its log and nothing about the cause (SPEC-1047 rule 6).
+
+def _git_is_ancestor(repo_root, older, newer) -> "bool | None":
+    """True/False from `git merge-base --is-ancestor older newer` in `repo_root`; None when git cannot
+    answer (an unknown commit, no repository) — the caller then keeps both candidates."""
+    import subprocess
+    from lib import git_env as _git_env
+    try:
+        r = subprocess.run(["git", "-C", str(repo_root), "merge-base", "--is-ancestor", older, newer],
+                           capture_output=True, text=True, timeout=30, env=_git_env._git_child_env())
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return {0: True, 1: False}.get(r.returncode)
+
+
+def red_scheduled_run(events_path, repo_root, now=None, *, _is_ancestor=None) -> "dict | None":
+    """The project's CURRENT scheduled pre-deploy run when it is red (SPEC-1047 rule 6), else None.
+
+    Returns `{date, candidate, run_ref, attempt, run_outcome, evidence}` of the red run. Report-only:
+    reads the journal (through the debt seam's one request-scoped read when installed) and asks git
+    which candidate descends from which; writes nothing. Where git cannot order two candidates neither
+    is dropped, so an undecidable history shows a red run rather than hiding one."""
+    is_anc = _is_ancestor or (lambda a, b: _git_is_ancestor(repo_root, a, b))
+    from lib import events as _events   # SPEC-0190 summary window — its one home
+    floor = _events.summary_window_floor(now)
+    runs: dict = {}
+    for event in journal.segment_rows(events_path, types=(EXECUTION_EVENT,), min_ts=floor):
+        if not isinstance(event, dict) or event.get("type") != EXECUTION_EVENT:
+            continue
+        data = event.get("data")
+        if not isinstance(data, dict) or data.get("run_kind") != "scheduled":
+            continue
+        ts = event.get("ts")
+        cand, ref = data.get("candidate"), data.get("run_ref")
+        if not (isinstance(ts, str) and isinstance(cand, str) and cand.strip()
+                and isinstance(ref, str) and ref.strip()):
+            continue
+        if floor is not None and ts < floor:
+            continue
+        attempt = data.get("attempt")
+        attempt = attempt if isinstance(attempt, int) and not isinstance(attempt, bool) else 0
+        key = (cand.strip(), ref.strip(), attempt)
+        run = runs.setdefault(key, {"stamp": ts, "red": False, "outcome": "passed", "evidence": ""})
+        run["stamp"] = max(run["stamp"], ts)
+        if data.get("run_outcome") != "passed":
+            run["red"] = True
+            run["outcome"] = str(data.get("run_outcome") or "missing")
+        ev = data.get("evidence")
+        if isinstance(ev, str) and ev.strip() and not run["evidence"]:
+            run["evidence"] = ev.strip()
+    if not runs:
+        return None
+    cands = sorted({k[0] for k in runs})
+    current = [c for c in cands
+               if not any(o != c and is_anc(c, o) is True for o in cands)]
+    reds = []
+    for c in current:
+        mine = {k: v for k, v in runs.items() if k[0] == c}
+        last = max((v["stamp"], k[2]) for k, v in mine.items())
+        reds += [(k, v) for k, v in mine.items() if (v["stamp"], k[2]) == last and v["red"]]
+    if not reds:
+        return None
+    (cand, ref, attempt), run = max(reds, key=lambda kv: (kv[1]["stamp"], kv[0]))
+    return {"date": run["stamp"][:10], "candidate": cand, "run_ref": ref, "attempt": attempt,
+            "run_outcome": run["outcome"], "evidence": run["evidence"] or "(no evidence recorded)"}
+
+
+def red_scheduled_run_lines(events_path, repo_root, *, views) -> list:
+    """The SPEC-1047 rule-6 debt line, marked for the session-start table; [] when clean or on any
+    failure — a report-only row never breaks a seam."""
+    try:
+        red = red_scheduled_run(events_path, repo_root)
+    except Exception:                              # noqa: BLE001 — a debt row never breaks a seam
+        return []
+    if red is None:
+        return []
+    text = (f"debt: scheduled pre-deploy run red [{red['date']} {red['candidate'][:12]} "
+            f"{red['run_ref']}] — the current scheduled run (candidate {red['candidate']}, run_ref "
+            f"{red['run_ref']}, attempt {red['attempt']}) reads run_outcome {red['run_outcome']}; its "
+            f"log: {red['evidence']} — read the log and file what it finds as ordinary work "
+            f"(report-only, SPEC-1047 rule 6)")
+    return [views._actionable(text, "scheduled pre-deploy run red")]
+
+
 INJECTS = {
     "_debt_echo_lines": ('DISPATCH_WAVE_WINDOW_SEC', 'ENGINE_ROOT', 'EVENTS_PATH', 'READ_ONLY_ROOT', 'REPO_ROOT', '_abort_cause_breadth_view', '_ahead_branch_view', '_behind_branch_view', '_born_permissive_concerns_for_echo', '_branch_attempt_burn_view', '_carried_session_refs', '_dead_land_view', '_debt_followup_floor', '_debt_prequeue_refusal_window_days', '_debt_security_finding_floor_days', '_debt_test_class_stale_floor_days', '_dispatch_events_memo', '_gap_ops_carrier', '_gap_register_view', '_is_consumer_build', '_load_sensitive_uncarded_view', '_open_followup_counts', '_profile_gap_autofile', '_profile_resolution', '_profile_snapshot_record', '_project_growth_reading', '_read_yaml', '_reads_exemptions', '_recorded_measurement_view', '_review_due_view', '_self_project_aliases', '_uncarried_p8_view', '_unmonitored_dispatch_view', '_unpickable_ready_view', '_unresolved_halt_view', '_view_not_adopted', '_view_overdue_recheck', '_worker_session_ref', 'audit', 'debt_mod', 'followup_mod', 'init_mod', 'journal_mod', 'profile_mod', 'session', 'views', 'worktree_mod'),
     "_debt_echo_compact": ('_cli_invocation_form', 'debt_mod'),
@@ -10082,6 +10175,7 @@ def debt_echo_scan(*, window_sec, followup_mod, views, profile_mod, journal_mod,
         PREQUEUE_REFUSAL_EVENT, KNOWN_BROKEN_CARRIER_EVENT, P8_WARN_EVENT, "nightly_run_completed",
         "task_closed", "commit_landed", "land_member_verdict", "triage_run_completed"}
     whole |= set(P8_ADOPTION_EVENT_TYPES) | set(debt_landing._ABORT_BREADTH_EVENTS)
+    whole |= set(debt_landing.SLOWEST_READ_TYPES)              # T-14241: the slow-tail fold's Stage-6 rows
     whole |= set(views.REVIEW_DUE_READ_TYPES) | set(views.NOT_ADOPTED_READ_TYPES)
     whole |= set(views.PROJECT_GROWTH_READ_TYPES) | set(GAP_FILED_READ_TYPES)
     whole |= set(profile_mod._LIVE_EVENT_TYPES) | set(profile_mod.PROFILE_SNAPSHOT_EVENT_TYPES)
@@ -10152,9 +10246,10 @@ def scope_fold_entry(paths, _segment_lines):
 
 def _consumer_carrier_posture(is_consumer, repo_root) -> bool:
     """T-13525 (SPEC-0186 rule 6): is THIS root's `yitc-ops.yaml` to be judged as a CONSUMER ops
-    contract? False on the engine's own checkout, whose root file is the kernel's verify-policy
-    declaration and nothing else — so the sweeps that judge a repository AS a consumer of the
-    contract are withheld BY IDENTITY, never by whether the file exists.
+    contract? False on the engine's own checkout, whose root file is the engine's own declaration
+    (what SPEC-0186 rule 6 admits — `init.engine_declaration_errors`), never a consumer contract —
+    so the sweeps that judge a repository AS a consumer of the contract are withheld BY IDENTITY,
+    never by whether the file exists or which admitted sections it carries.
 
     The identity is the canonical one (`_is_consumer_build`, T-0952 — an engine linked worktree is
     the engine), read consistently with the documented `YITC_REPO_ROOT` override it honours at
@@ -10769,6 +10864,9 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
         # T-12789 (SPEC-0119 rule 43): APPEND the uncovered-user-surface row — silent without a
         # `ui.surfaces:` declaration and when clean; rides the same 3 seams with no new mechanism.
         lines = list(lines) + uncovered_surface_debt_lines(REPO_ROOT, _read_yaml)
+        # T-14202 (SPEC-1047 rule 6): APPEND the red current scheduled pre-deploy run row — silent
+        # without a scheduled row and when clean; rides the same 3 seams with no new mechanism.
+        lines = list(lines) + red_scheduled_run_lines(EVENTS_PATH, REPO_ROOT, views=views)
         # T-10503 (SPEC-0119 rule 15 / SPEC-0093, X-0364): APPEND the per-user CAPABILITY preflight — which
         # DECLARED lifecycle commands (yitc-ops.yaml verify.layers/tests.classes + the ENGINE-resolved
         # external auditor binary) the CURRENT user cannot RUN (leading executable unresolvable). Read-only

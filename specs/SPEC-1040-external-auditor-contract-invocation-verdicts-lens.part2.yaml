@@ -391,8 +391,14 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ own-tests verifier is a finding. A missing, stale or undetermined\n  own-tests\
   \ result is INFORMATION, never a finding and never a reason to lower the verdict\
   \ (owner,\n  events.jsonl#ts=): the run proof is owed at Tests and enforced at Closure\n\
-  \  (SPEC-1038 §Tests), not here.\n  **Anchor-less activation is a RED-class closure\
-  \ defect (SPEC-0151).** When the audited\n  card is the `activation_owner_task`\
+  \  (SPEC-1038 §Tests), not here. One own-tests state is decided before the auditor\
+  \ is called:\n  when the newest own-tests row since the card's claim ran a test\
+  \ file the audited diff changes,\n  on the blob that diff carries, and recorded\
+  \ it failed, `audit post` refuses with no auditor\n  call and no pass counted, naming\
+  \ the files and `bin/yitc-v2 task test <T> --own` as the next\n  step. An absent,\
+  \ empty, stale or undetermined own-tests result is never refused; it reaches\n \
+  \ the auditor as the information above.\n  **Anchor-less activation is a RED-class\
+  \ closure defect (SPEC-0151).** When the audited\n  card is the `activation_owner_task`\
   \ of a `proposed` spec, its `task close` performs the\n  `proposed → active` flip\
   \ and nothing re-checks the spec after it. So the audit-post packet carries\n  an\
   \ `## Activates at closure` section listing each such spec's `implements:`, `binding:`,\n\

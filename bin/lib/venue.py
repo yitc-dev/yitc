@@ -584,6 +584,289 @@ def delete_server(server_id, *, env=None) -> int:
     return status
 
 
+# ── The teardown refresh leg (SPEC-1029 rule 6, T-14265) ─────────────────────────────────────
+# `venue delete` runs the leg between its unpublish and its server DELETE. THIS is the ONE home of
+# its ordered steps — ported from the v2-self recipe's `refresh` (T-12667), which never travels:
+# a release install carries this module, so a missing recipe script can never turn into a skipped
+# refresh. The recipe's box-side script functions print the texts below (one set of bytes, executed
+# by `tests/test_t12667_teardown_snapshot_refresh.py` against a local bare repo), and its `refresh`
+# subcommand names `venue delete`. The CLI host (`cmd_venue_delete`) owns the journal rows and the
+# seed-candidate write, as for every verb. The box-side layout read is remote_verify.py's: leases
+# `~/venue/leases/<req>-<att>-<leg>` (fields REQ ATT PG CLIENT LEG RUN CLASS), run dirs
+# `~/venue/runs/<req>-<att>`, transport refs `refs/venue/<req>-<att>/{cand,main}`.
+
+REFRESH_DRAIN_SCRIPT = """\
+# DRAIN ON LEASES, NEVER ON RUN DIRS (SPEC-0203 rule 6, T-12667). A lease whose recorded CLIENT pid
+# answers `kill -0` is the in-flight signal — the ONE liveness test the box already uses in its
+# sweep (remote_verify.py `_BOX_LEASE_PROLOGUE`). A run dir persists after its pass completes, so a
+# drain keyed on run dirs never fires (measured 2026-09-16: 3 stale run dirs on a box with nothing
+# running). An orphan lease (client gone) is finished work — the prepare step removes it.
+# A PARKED PRE-SHIP / land exit tail holds a DOTFILE lease `.preship-<key>-1` while it may push into
+# the clone (remote_verify.py `preship_lease_script`, T-13424) — read explicitly, since `*` skips
+# dotfiles, so a live one refuses the refresh exactly like a live leg lease.
+LEASES="${1:?leases dir}"; live=0
+for L in "$LEASES"/* "$LEASES"/.preship-*; do
+  [ -e "$L" ] || continue
+  read -r L_REQ L_ATT L_PG L_CLIENT L_LEG L_RUN L_CLASS < "$L" || continue
+  [ -n "${L_CLIENT:-}" ] || continue
+  if kill -0 "$L_CLIENT" 2>/dev/null; then
+    echo "LIVE LEASE: $(basename "$L") (request $L_REQ attempt $L_ATT leg $L_LEG client pid $L_CLIENT)"
+    live=$((live+1))
+  fi
+done
+[ "$live" = 0 ] || exit 5
+echo "drained: no live lease under $LEASES"
+"""
+
+REFRESH_PREPARE_SCRIPT = """\
+# PREPARE THE WORKED CLONE (SPEC-0203 rule 6, T-12667). Run ONLY after the drain above. Order matters:
+#  1. abandoned push quarantines (`objects/tmp_objdir-incoming-*`) survive killed pushes — 16 of them
+#     held 4.3 GB on 2026-09-16 and a naive snapshot would bake them into every future raise;
+#  2. orphan leases + finished run dirs — the drain proved no client is alive, so all are finished;
+#  3. the finished per-request transport refs `refs/venue/<req>-<att>/*` — a worked box carries
+#     these INSTEAD of `refs/venue/cand` (which ships only in a fresh-from-seed image); left in place
+#     they pin the objects of every pass the box ever ran;
+#  4. the stale `objects/info/commit-graph` — written for objects step 3 just unreferenced; a repack
+#     that keeps it makes `git fsck` report a phantom missing object (measured);
+#  5. repack to one pack (9 packs -> 1, 4.3 GB -> 3.7 GB in 95 s on 2026-09-16), then prune what
+#     the cleared refs left unreachable — `repack -a -d` drops unreachable objects only from the
+#     packs it rewrites, and a LOOSE unreachable object (a push that never got packed) survives it.
+# Every path is derived from a NON-EMPTY argument (`${x:?}`) and removed through `find -mindepth 1`
+# on a directory that must exist, so an unset argument can never widen a removal to `/`.
+set -e
+REPO_GIT="${1:?repo.git}"; LEASES="${2:?leases dir}"; RUNS="${3:?runs dir}"
+cd "$REPO_GIT"
+test -d objects
+find objects -mindepth 1 -maxdepth 1 -name 'tmp_objdir-incoming-*' -exec rm -rf {} +
+[ -d "$LEASES" ] && find "$LEASES" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+[ -d "$RUNS" ] && find "$RUNS" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+git for-each-ref --format='%(refname)' 'refs/venue/' | while read -r ref; do
+  git update-ref -d "$ref"
+done
+rm -f objects/info/commit-graph
+[ -d objects/info/commit-graphs ] && find objects/info/commit-graphs -mindepth 1 -delete && rmdir objects/info/commit-graphs
+git repack -a -d -q
+git prune-packed -q
+git prune --expire=now
+echo "prepared: $(git count-objects -v | sed -n 's/^size-pack: //p') KB in $(find objects/pack -maxdepth 1 -name '*.pack' | wc -l) pack(s)"
+"""
+
+REFRESH_VERIFY_SCRIPT = """\
+# VERIFY THE CLONE (SPEC-0203 rule 6). Admits BOTH a fresh-from-seed clone and a WORKED one: it
+# requires `refs/heads/main` — never `refs/venue/cand`, which exists only on a fresh-from-seed box
+# (the pre-T-12667 verification required it and so REFUSED every worked box). No transport ref may
+# remain (the prepare step cleared them), `for-each-ref` must be silent (a broken ref prints a
+# warning there), and connectivity must be whole — the phantom-missing-object case the stale
+# commit-graph produces is caught here, not at the next raise.
+set -e
+REPO_GIT="${1:?repo.git}"
+cd "$REPO_GIT"
+exec 3>/dev/null
+git rev-parse --verify -q refs/heads/main^{commit} >&3
+test -z "$(git for-each-ref 2>&1 >&3)"
+test -z "$(git for-each-ref --format='%(refname)' 'refs/venue/')"
+git fsck --connectivity-only --no-progress >&3 2>&1
+sync
+echo "verified: main@$(git rev-parse --short refs/heads/main)"
+"""
+
+#: The declared package set on the WORKED box, idempotent (T-12962): apt runs only when one is
+#: missing — the ONLY route by which a snapshot-raised box gains a package added to the set after
+#: its snapshot was taken (a snapshot-raised box never re-runs cloud-init). The set is
+#: `BUILD_BASE_PACKAGES`, pinned equal to the recipe's `SEED_PACKAGES` by t13977.
+REFRESH_ENSURE_SCRIPT = """\
+set -eu
+missing=""
+for p in "$@"; do
+  dpkg-query -W -f='${Status}' "$p" 2>/dev/null | grep -q 'install ok installed' || missing="$missing $p"
+done
+[ -z "$missing" ] && { echo "packages: all present"; exit 0; }
+echo "packages: installing$missing"
+# update FIRST: a snapshot's apt lists are stale or absent, and install against them fails
+sudo DEBIAN_FRONTEND=noninteractive apt-get update -q
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -q $missing
+"""
+
+REFRESH_FSTRIM_SCRIPT = "sudo fstrim -av && sync\n"
+#: Read the box clone's `refs/heads/main` — the sha the snapshot will carry (runs ON the box).
+REFRESH_READ_MAIN_SCRIPT = 'git -C "${1:?repo.git}" rev-parse refs/heads/main\n'
+
+#: The box clone and lease/run dirs the leg works on (remote_verify.py's box layout).
+REFRESH_BOX_REPO, REFRESH_BOX_LEASES, REFRESH_BOX_RUNS = "~/venue/repo.git", "~/venue/leases", "~/venue/runs"
+#: Bounded seams (seconds) — the recipe's measured values: prepare 95 s, fstrim of 895 GiB, image ~90 s.
+REFRESH_SSH_TIMEOUT = 120
+REFRESH_PACKAGES_TIMEOUT = 600
+REFRESH_PREPARE_TIMEOUT = 1800
+REFRESH_FSTRIM_TIMEOUT = 900
+REFRESH_POWEROFF_TIMEOUT, REFRESH_POWEROFF_INTERVAL = 300, 5
+REFRESH_IMAGE_TIMEOUT, REFRESH_IMAGE_INTERVAL = 1800, 15
+#: The drain's exit code while a lease is live — a pass is in flight, the box is left intact.
+REFRESH_LIVE_LEASE_RC = 5
+
+
+#: The steps before the power-off: a refusal there leaves the box intact and RUNNING, so a re-run of
+#: the leg can reach it; from `poweroff` on the box may be off and only `--skip-refresh` finishes.
+REFRESH_BOX_RUNNING_STEPS = ("read-main", "drain", "packages", "prepare", "verify", "fstrim")
+
+
+class VenueRefreshRefused(VenueError):
+    """The refresh leg refused at a step (`.step`); see `REFRESH_BOX_RUNNING_STEPS`."""
+
+    def __init__(self, step: str, message: str, *, image_id=None, main_sha=None):
+        super().__init__(message)
+        self.step = step
+        # Set once create_image returned: the snapshot exists and `venue seed --candidate` records it.
+        self.image_id = image_id
+        self.main_sha = main_sha
+
+
+def refresh_leg_applies(record) -> "tuple[bool, str]":
+    """Does rule 6's refresh leg apply to this delete? (applies, why-not). A READ, decided before any
+    mutation. `record` is the venue record, or None for a delete finished from the tombstone. Only a
+    consumer venue (`serves`) is not-applicable: the leg refreshes the KERNEL seed from the kernel
+    clone, and a consumer image is `venue seed --build`'s (SPEC-1032 rule 6)."""
+    if record is not None and record.get("serves"):
+        return False, (f"the venue serves {record.get('serves')} (a consumer venue, SPEC-1032 rule 6) — "
+                       f"the refresh leg refreshes the KERNEL seed from the kernel clone")
+    return True, ""
+
+
+def server_ip(server_id, *, env=None) -> str:
+    """A READ — the live box's public ipv4, from the provider."""
+    status, parsed = _api("GET", f"/servers/{server_id}", env=env)
+    if status != 200:
+        code, msg = _error_of(parsed)
+        raise VenueError(f"cannot read server {server_id} (HTTP {status}) — {code}: {msg}")
+    server = (parsed or {}).get("server") or {}
+    ip = (((server.get("public_net") or {}).get("ipv4") or {}).get("ip")) or ""
+    if not ip:
+        raise VenueError(f"server {server_id} reports no public ipv4")
+    return ip
+
+
+def _refresh_box(ip: str, script: str, *args: str, timeout: float):
+    """ONE ssh round of the leg: `bash -s -- <args>` reading `script` on stdin."""
+    command = "bash -s --" + "".join(f" {a}" for a in args)
+    return subprocess.run(remote_verify.ssh_argv(ip, command, user=BOX_USER), input=script,
+                          text=True, capture_output=True, timeout=timeout)
+
+
+def teardown_refresh(server_id, *, on_mutation, record_candidate, say=None, env=None,
+                     _sleep=time.sleep) -> dict:
+    """THE TEARDOWN REFRESH LEG (SPEC-1029 rule 6), in its ORDERED steps: (1) drain on LEASES,
+    (1b) ensure the declared package set, (2) prepare the WORKED clone, (3) verify it + sync,
+    (4) `fstrim -av` (REQUIRED), (5) power off and wait for `status=off`, (6) `create_image` and wait
+    `available`, (7) record the new image as the seed CANDIDATE through `record_candidate(image_id,
+    main_sha)`. It NEVER deletes the box: the caller does, only after this returned.
+    Each provider MUTATION calls `on_mutation(target, action)` once (the caller's `external_action`
+    row). A refusal raises `VenueRefreshRefused` naming its step (`drain` for a live lease); before
+    step 5 the box is intact and running, after it the box is powered off. Returns {snapshot_id,
+    main_sha, server_id, total_s}."""
+    say = say or (lambda line: print(line, flush=True))
+    provider = (binding(env) or {}).get("provider") or "venue-provider"
+    t_all = time.monotonic()
+
+    def refuse(step, why):
+        raise VenueRefreshRefused(step, f"refresh leg refused at step {step!r} — {why}")
+
+    def box(step, script, *args, timeout):
+        try:
+            r = _refresh_box(ip, script, *args, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            refuse(step, f"it exceeded its {timeout:g}s bound")
+        except OSError as exc:
+            refuse(step, f"ssh could not run: {exc}")
+        return r
+
+    def attempt(call, target, action):
+        """ONE provider mutation; a raise journals its ONE row as FAILED, then propagates."""
+        try:
+            return call()
+        except Exception as exc:
+            on_mutation(target, f"{action} — FAILED, the provider may have acted: {_tail(str(exc), 200)} "
+                                f"(venue delete teardown refresh)")
+            raise
+
+    ip = server_ip(server_id, env=env)
+    r = box("read-main", REFRESH_READ_MAIN_SCRIPT, REFRESH_BOX_REPO, timeout=REFRESH_SSH_TIMEOUT)
+    main_sha = (r.stdout or "").strip()
+    if r.returncode != 0 or not re.fullmatch(r"[0-9a-f]{40}", main_sha):
+        refuse("read-main", "the box clone has no refs/heads/main — nothing to snapshot")
+    say(f"venue delete: refresh — box {server_id} at {ip}, clone main@{main_sha[:8]}")
+    # (1) drain on leases — never on run dirs
+    r = box("drain", REFRESH_DRAIN_SCRIPT, REFRESH_BOX_LEASES, timeout=REFRESH_SSH_TIMEOUT)
+    if r.returncode != 0:
+        why = ("a lease is still LIVE on the box — a pass is in flight; run it again after the pass "
+               "finishes (the drain keys on leases, never on run dirs)"
+               if r.returncode == REFRESH_LIVE_LEASE_RC else f"the drain check failed (rc={r.returncode})")
+        refuse("drain", f"{why}: {_tail(r.stdout or r.stderr, 300)}")
+    # (1b) ensure the declared package set (T-12962)
+    r = box("packages", REFRESH_ENSURE_SCRIPT, *BUILD_BASE_PACKAGES, timeout=REFRESH_PACKAGES_TIMEOUT)
+    if r.returncode != 0:
+        refuse("packages", f"the declared package set could not be ensured — NOT snapshotting an image "
+                           f"the readiness probe would refuse: {_tail(r.stderr or r.stdout, 300)}")
+    # (2) prepare the worked clone
+    t0 = time.monotonic()
+    r = box("prepare", REFRESH_PREPARE_SCRIPT, REFRESH_BOX_REPO, REFRESH_BOX_LEASES, REFRESH_BOX_RUNS,
+            timeout=REFRESH_PREPARE_TIMEOUT)
+    if r.returncode != 0:
+        refuse("prepare", f"the worked-clone preparation failed: {_tail(r.stderr or r.stdout, 300)}")
+    say(f"  clone prepared in {time.monotonic() - t0:.0f}s — {(r.stdout or '').strip()}")
+    # (3) verify + sync
+    r = box("verify", REFRESH_VERIFY_SCRIPT, REFRESH_BOX_REPO, timeout=REFRESH_SSH_TIMEOUT)
+    if r.returncode != 0:
+        refuse("verify", "the prepared clone did not verify — refusing to snapshot an incomplete image")
+    # (4) fstrim — REQUIRED: a snapshot images the block device; freed blocks count until discarded
+    r = box("fstrim", REFRESH_FSTRIM_SCRIPT, timeout=REFRESH_FSTRIM_TIMEOUT)
+    if r.returncode != 0:
+        refuse("fstrim", "fstrim -av failed — NOT snapshotting (the un-trimmed image measured 27.0 GB "
+                         "against 4.52 GB)")
+    image_id = None
+    try:
+        step = "poweroff"
+        # (5) power off and wait for status=off
+        target = f"{provider}:server({server_id})"
+        attempt(lambda: poweroff_server(server_id, env=env), target,
+                f"POST /servers/{server_id}/actions/poweroff")
+        on_mutation(target, f"POST /servers/{server_id}/actions/poweroff — quiesce before create_image "
+                            f"(venue delete teardown refresh, SPEC-1029 rule 6)")
+        wait_status(lambda: server_status(server_id, env=env), "off", seam="server-powered-off",
+                    interval=REFRESH_POWEROFF_INTERVAL, timeout=REFRESH_POWEROFF_TIMEOUT, _sleep=_sleep)
+        step = "snapshot"
+        # (6) create_image, wait available
+        desc = (f"yitc-venue-seed-{time.strftime('%Y-%m-%d', time.gmtime())} repo.git main@{main_sha[:8]} "
+                f"(SPEC-1029 rule 6 teardown refresh; T-14265)")
+        image_id = attempt(lambda: create_image(server_id, desc, env=env), f"{provider}:image(?)",
+                           f"POST /servers/{server_id}/actions/create_image")
+        on_mutation(f"{provider}:image({image_id})",
+                    f"POST /servers/{server_id}/actions/create_image — venue seed snapshot REFRESHED AT "
+                    f"TEARDOWN from the caught-up box at main@{main_sha[:8]} (drained on leases, worked "
+                    f"clone prepared + verified, fstrim -av, powered off) (venue delete)")
+        wait_status(lambda: image_status(image_id, env=env), "available", seam="snapshot-available",
+                    interval=REFRESH_IMAGE_INTERVAL, timeout=REFRESH_IMAGE_TIMEOUT, _sleep=_sleep)
+        step = "candidate"
+        # (7) record the new image as the seed CANDIDATE — the next bare `venue raise` verifies it and
+        #     promotes it to canonical on a GREEN readiness probe (rule 1)
+        try:
+            record_candidate(image_id, main_sha)
+        except VenueError:
+            raise
+        except (Exception, SystemExit) as exc:
+            # The writer may exit through a fail-closed `_die` (T-14312: an unresolved session ref) —
+            # still a refusal of THIS step, so the caller's NOT-deleted message is printed.
+            raise VenueError(f"the seed-candidate writer failed ({type(exc).__name__}: {exc})") from None
+    except VenueError as exc:
+        made = f" Snapshot {image_id} was requested and is NOT recorded as the seed candidate." if image_id else ""
+        raise VenueRefreshRefused(step, f"refresh leg refused at step {step!r} — {exc}. The box may "
+                                        f"already be powered OFF, so a re-run cannot reach it.{made}",
+                                  image_id=image_id, main_sha=main_sha) from None
+    total = round(time.monotonic() - t_all, 1)
+    say(f"venue delete: refresh done in {total:g}s — snapshot {image_id} (main@{main_sha[:8]}) is the "
+        f"seed CANDIDATE; the box is powered off")
+    return {"snapshot_id": image_id, "main_sha": main_sha, "server_id": str(server_id),
+            "total_s": total}
+
+
 def list_servers(*, env=None, label: str = "purpose=remote-verify-venue") -> list:
     """A READ — used to see whether a box of this class is already live before raising into the
     quota. Not journaled: `external_action` is for MUTATIONS (SPEC-0116)."""

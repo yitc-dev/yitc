@@ -468,7 +468,8 @@ Read the verdict/class from the verb; pick the ACTION here. The verb never presc
   hang/orphan. The audit-ceiling halt names the residual FINGERPRINTS and carries NO
   `needs_owner_reset` (SPEC-0103 §3; the owner reset is retired, <workshop-spec> rule 6): the Controller
   records one `audit decide` per residual and the resumed worker runs ONE `audit pre|post
-  --on-decisions` pass. Controller path for an owner-gated stop:
+  --on-decisions` pass. A halt on a spent GREEN has no residual to decide: its exits are the rows of
+  the table in SPEC-1018 «Exits from a spent GREEN». Controller path for an owner-gated stop:
   escalate to the OWNER → on authorization, **RESPAWN a fresh worker by DEFAULT** to adopt the holder's
   worktree (the §6-preferred posture) — mechanically that is the plain `dispatch --task` of the
   §Premature-exit bullet above (this class classifies TERMINAL, so a dead holder gets the PRESERVING

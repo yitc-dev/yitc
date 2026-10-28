@@ -171,27 +171,24 @@ concern:
   declare_type: string
   waiver_policy: loose
   shape_hook: alert_routing_shape
-  born: "alert_routing:\n  # SPEC-0164. DECLARE where incident alerts GO and WHO reads\
-    \ them and ACTS — one stance, BOTH keys\n  # required (`sink:` without `receiver:`\
-    \ is an init ERROR). Replace this waiver with:\n  # sink: \"<WHERE an incident\
-    \ alert is delivered — a chat webhook, an email alias, a pager\n  # rota, an issue\
-    \ tracker, a log a human really reads>\"\n  # receiver: \"<WHO reads it and ACTS\
-    \ — a named human, rota, or on-call identity (or the\n  # automation that escalates\
-    \ to one)>\"\n  # A LIVE project (SPEC-0198 operational_criticality) is also asked\
-    \ how it is WATCHED — optional,\n  # each answered by itself; a present `slo:`\
-    \ needs BOTH `objective:` and `target:`:\n  # health: \"<the endpoint a human\
-    \ or a monitor can hit to ask 'is it up?'>\"\n  # logs: \"<the structured-log\
-    \ stance — what is logged, in what shape, and WHERE it is read>\"\n  # slo:\n\
-    \  # objective: \"<the ONE thing promised, e.g. 'checkout responds under 500ms\
-    \ at p95'>\"\n  # target: \"<the number that decides whether it was kept, e.g.\
-    \ '99.5% of requests'>\"\n  # GRADE-ONLY — the kernel never contacts the sink;\
-    \ no alerting product is mandated (SPEC-0093 rule 3 /\n  # SPEC-0110 rule 3).\
-    \ The waiver is LOOSE — but while it stands NOTHING tells you this project is\
-    \ broken.\n  # see SPEC-0164 §1, §2, §5\n  waiver:\n    reason: \"Initialized\
-    \ via `bin/yitc-v2 init` — no alert routing declared yet. Incidents in this project\
-    \ reach a human only when someone looks. If this project gains a sink, replace\
-    \ this waiver with `sink:` (where alerts go) + `receiver:` (who reads it and acts)\
-    \ — both (SPEC-0164 rule 2).\"\n"
+  born: "alert_routing:\n  # SPEC-0164. DECLARE where incident alerts GO and WHO acts\
+    \ — both keys:\n  # Rule text: `__YITC_CLI__ graph query SPEC-0164 --kernel`\n\
+    \  # sink: \"<WHERE an incident alert is delivered — a chat webhook, an email\
+    \ alias, a pager\n  # rota, an issue tracker, a log a human really reads>\"\n\
+    \  # receiver: \"<WHO reads it and ACTS — a named human, rota, or on-call identity\
+    \ (or the\n  # automation that escalates to one)>\"\n  # A LIVE project is also\
+    \ asked how it is WATCHED (optional; a present `slo:` needs both keys):\n  # health:\
+    \ \"<the endpoint a human or a monitor can hit to ask 'is it up?'>\"\n  # logs:\
+    \ \"<the structured-log stance — what is logged, in what shape, and WHERE it is\
+    \ read>\"\n  # slo:\n  # objective: \"<the ONE thing promised, e.g. 'checkout\
+    \ responds under 500ms at p95'>\"\n  # target: \"<the number that decides whether\
+    \ it was kept, e.g. '99.5% of requests'>\"\n  # GRADE-ONLY — the kernel never\
+    \ contacts the sink (SPEC-0093 rule 3 / SPEC-0110 rule 3).\n  # see SPEC-0164\
+    \ §1, §2, §5\n  waiver:\n    reason: \"Initialized via `bin/yitc-v2 init` — no\
+    \ alert routing declared yet. Incidents in this project reach a human only when\
+    \ someone looks. If this project gains a sink, replace this waiver with `sink:`\
+    \ (where alerts go) + `receiver:` (who reads it and acts) — both (SPEC-0164 rule\
+    \ 2).\"\n"
 init_concern: null
 implements_signature:
   bin/lib/debt.py#profile_gap_register: 773348a13ad46781d8d9d47762ccaf06e19522329c155b8e557e8c55c9a08c38
