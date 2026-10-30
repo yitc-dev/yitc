@@ -126,29 +126,34 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ — `--fix-red --owner-reset`, the\nspent-budget bypass — is RETIRED by <workshop-spec>\
   \ rule 6 and refuses: the audit-side owner reset it\nbootstrapped a subject for\
   \ no longer exists. Past the ceiling the route is the <workshop-spec> one — one\n\
-  `audit decide` per residual, then ONE `audit post --on-decisions` pass. Co-homed\
-  \ with\n<workshop-spec> §Audit-loop ceiling. The two flags are MUTUALLY EXCLUSIVE:\
-  \ a caller declares exactly one\ncycle. The commit is journal-marked (`commit_landed`\
-  \ `data.red_fix: true`).\n**THE GUARD IS NOT WEAKENED.** `--absorb` over a non-YELLOW\
-  \ verdict stays refused on every\npath, byte-unchanged; a FIXLESS RED absorption\
-  \ fails condition (iii) and is refused at THIS door too.\n**The failure DIRECTION\
-  \ is deliberately opposite to the second guard arm's, off the same primitive.**\n\
-  `_worktree_dirty_paths` returns `[]` on any git failure: the arm MISSES on that\
-  \ input, this leg\nREFUSES on it; a missing injection refuses identically. The one\
-  \ known over-admission (the collapsed\nbare `decisions/` row) is bounded by conditions\
-  \ (i), (ii) and (iv) holding simultaneously.\n**SCOPE BOUND — the leg is for a fix\
-  \ that SHIPS, and the refusal must ROUTE.** When a RED\ncause's ONLY honest fix\
-  \ is a correction to the task's OWN records (its card, its acceptance text, its\n\
-  audit YAML), that fix is BOOKKEEPING, and a bookkeeping-only commit cannot earn\
-  \ custody on the\nORDINARY leg. Such a correction either RIDES a commit that also\
-  \ carries authored work, or takes the\nCARD-REPAIR ARM below, or — when the card\
-  \ has no shipping fix at all — the governed exit is the\nSPEC-0103 escalation. The\
-  \ refusal text NAMES every route.\n\n**THE CARD-REPAIR ARM (`task commit --fix-red\
-  \ --card-repair`) — and the retirement it\ncarries.** RETIRED (P1 F3): the escalate-only\
-  \ ending the SCOPE BOUND above used to have for a RED whose\nONLY named cause was\
-  \ the card's OWN record (its only terminal was park-mid-audit, recording a\nCOMPLETE\
-  \ card as `parked`).\n\nIt is an ARM of this leg, never a leg of its own: passed\
-  \ alone it is refused, `--absorb` stays\nincompatible, and it relaxes NONE of conditions\
+  `audit decide` per residual, then ONE `audit post --on-decisions` pass. ONE case\
+  \ past (iv) is\nadmitted: AT the ceiling row, while no rule-3 pass (`--on-decisions`\
+  \ or its absorption re-audit)\nhas run for the card, `--fix-red` commits the in-scope\
+  \ fix, because the `fix` decision's\n`--evidence` must name that recorded commit\
+  \ (SPEC-1039 rule 2) and the `--on-decisions` pass is\nits re-audit (rule 3). Once\
+  \ such a pass has run, or the journal cannot be read, it refuses. Co-homed with\n\
+  <workshop-spec> §Audit-loop ceiling. The two flags are MUTUALLY EXCLUSIVE: a caller\
+  \ declares exactly one\ncycle. The commit is journal-marked (`commit_landed` `data.red_fix:\
+  \ true`).\n**THE GUARD IS NOT WEAKENED.** `--absorb` over a non-YELLOW verdict stays\
+  \ refused on every\npath, byte-unchanged; a FIXLESS RED absorption fails condition\
+  \ (iii) and is refused at THIS door too.\n**The failure DIRECTION is deliberately\
+  \ opposite to the second guard arm's, off the same primitive.**\n`_worktree_dirty_paths`\
+  \ returns `[]` on any git failure: the arm MISSES on that input, this leg\nREFUSES\
+  \ on it; a missing injection refuses identically. The one known over-admission (the\
+  \ collapsed\nbare `decisions/` row) is bounded by conditions (i), (ii) and (iv)\
+  \ holding simultaneously.\n**SCOPE BOUND — the leg is for a fix that SHIPS, and\
+  \ the refusal must ROUTE.** When a RED\ncause's ONLY honest fix is a correction\
+  \ to the task's OWN records (its card, its acceptance text, its\naudit YAML), that\
+  \ fix is BOOKKEEPING, and a bookkeeping-only commit cannot earn custody on the\n\
+  ORDINARY leg. Such a correction either RIDES a commit that also carries authored\
+  \ work, or takes the\nCARD-REPAIR ARM below, or — when the card has no shipping\
+  \ fix at all — the governed exit is the\nSPEC-0103 escalation. The refusal text\
+  \ NAMES every route.\n\n**THE CARD-REPAIR ARM (`task commit --fix-red --card-repair`)\
+  \ — and the retirement it\ncarries.** RETIRED (P1 F3): the escalate-only ending\
+  \ the SCOPE BOUND above used to have for a RED whose\nONLY named cause was the card's\
+  \ OWN record (its only terminal was park-mid-audit, recording a\nCOMPLETE card as\
+  \ `parked`).\n\nIt is an ARM of this leg, never a leg of its own: passed alone it\
+  \ is refused, `--absorb` stays\nincompatible, and it relaxes NONE of conditions\
   \ (i), (ii) or (iv), which run first and unchanged. It\nreplaces condition (iii)\
   \ ALONE, with a DIFFERENT positive proof rather than a weaker one. Its\nconjuncts\
   \ are all DERIVED from the repo, never asserted by the flag, and fail-closed on\

@@ -392,26 +392,39 @@ body: "## Scenario\n\nA spike sandbox is worth having because it holds REAL data
   \ read AFTER the restore. Any export output that does carry values is destroyed\
   \ as before.\n  **The METADATA around an unqueryable surface is its own surface.**\
   \ `attachments.filename =\n  passport-scan.jpg` discloses without the blob ever\
-  \ being read; classifying the blob and\n  forgetting its filename is a miss.\n-\
-  \ **(c) ACCEPTED AND OVERRIDDEN ITEMS ARE REPORTED BY NAME, never absorbed.** A\
-  \ pass that rests on a\n  recorded acceptance, on any strand, says so, naming each\
-  \ accepted class and the strand it was\n  accepted on; a pass under a recorded override\
-  \ of a §0 default names each default overridden. A\n  proof whose output cannot\
-  \ tell \"this class was treated\" from \"this class was accepted\", or \"the\n \
-  \ default held\" from \"the default was overridden\", is not a proof of this floor\
-  \ — it is the\n  reassurance the floor exists to replace.\n\n### 7. What travels\
-  \ and what does not\nThe **MECHANISM and the DEFAULTS travel** — the three strands,\
-  \ the declare obligation, the\nprove-by-querying obligation, the acceptance and\
-  \ override record, and the recommended defaults are\nkernel-realm methodology a\
-  \ consumer pins.\nThe **CLASS INVENTORY and the PROJECT's DECISIONS do not travel**\
-  \ — which tables, columns and stores\nhold which class, what a project accepted\
-  \ and which defaults it overrode are per-schema and\nirreducibly local (project\
-  \ realm, SPEC-0073). A kernel artifact that starts listing a project's\ncolumns\
-  \ or recording a project's acceptance has crossed that line.\n\n### 8. Layer + status\
-  \ honesty, and the scope bound\nThis floor inherits SPEC-0172 rule 4's standard\
-  \ verbatim, and it is not decoration: **every rule\nhere NAMES the layer that carries\
-  \ its check** (kernel CONTRACT · library MECHANICS · project\nPIN-AND-ENABLE), and\
-  \ **where the named layer does not carry the check yet, the rule says so plainly\n\
+  \ being read; classifying the blob and\n  forgetting its filename is a miss.\n \
+  \ **A PRODUCTION-LAG LIST — recommended project-side mechanics; the kernel checks\
+  \ none of it.**\n  Between the land of a migration that drops a surface and the\
+  \ release that runs that migration in\n  production, the copy still carries the\
+  \ surface while the project's declaration, kept equal to the\n  migrated schema,\
+  \ no longer decides it — so the sweep above refuses every refresh until the release.\n\
+  \  The recommended answer is an EXPIRING list in the project's own decision file,\
+  \ never a waiver:\n  each entry maps one copied surface to the migration that drops\
+  \ it; a listed surface counts as\n  decided for the project's sweep and is left\
+  \ out of the project's schema-equality check; each entry\n  must name a migration\
+  \ that really drops that surface, and the project's own check refuses an entry\n\
+  \  that does not; an entry whose surface the copy no longer carries is reported\
+  \ for removal (a report,\n  not a refusal — production has migrated). Every surface\
+  \ not on the list keeps its own decision. The\n  kernel names no key for the list\
+  \ and reads none of it (rule 7, §8a row 6b).\n- **(c) ACCEPTED AND OVERRIDDEN ITEMS\
+  \ ARE REPORTED BY NAME, never absorbed.** A pass that rests on a\n  recorded acceptance,\
+  \ on any strand, says so, naming each accepted class and the strand it was\n  accepted\
+  \ on; a pass under a recorded override of a §0 default names each default overridden.\
+  \ A\n  proof whose output cannot tell \"this class was treated\" from \"this class\
+  \ was accepted\", or \"the\n  default held\" from \"the default was overridden\"\
+  , is not a proof of this floor — it is the\n  reassurance the floor exists to replace.\n\
+  \n### 7. What travels and what does not\nThe **MECHANISM and the DEFAULTS travel**\
+  \ — the three strands, the declare obligation, the\nprove-by-querying obligation,\
+  \ the acceptance and override record, and the recommended defaults are\nkernel-realm\
+  \ methodology a consumer pins.\nThe **CLASS INVENTORY and the PROJECT's DECISIONS\
+  \ do not travel** — which tables, columns and stores\nhold which class, what a project\
+  \ accepted and which defaults it overrode are per-schema and\nirreducibly local\
+  \ (project realm, SPEC-0073). A kernel artifact that starts listing a project's\n\
+  columns or recording a project's acceptance has crossed that line.\n\n### 8. Layer\
+  \ + status honesty, and the scope bound\nThis floor inherits SPEC-0172 rule 4's\
+  \ standard verbatim, and it is not decoration: **every rule\nhere NAMES the layer\
+  \ that carries its check** (kernel CONTRACT · library MECHANICS · project\nPIN-AND-ENABLE),\
+  \ and **where the named layer does not carry the check yet, the rule says so plainly\n\
   and is DISCIPLINE — recorded and taught, never presented as prevention.** A later\
   \ surface MUST NOT\nre-inflate a DISCIPLINE rule into a claimed refusal, and MUST\
   \ NOT delete this sentence to make the\nfloor read stronger. DISCIPLINE is a truthful\
@@ -520,38 +533,43 @@ body: "## Scenario\n\nA spike sandbox is worth having because it holds REAL data
   \ acceptance escape of rule 4 and the disclosure-only ACCEPT\nrestriction of rule\
   \ 6b; F4 — X-2084. The accept-caged route the consumer proposed (a cage re-proof\n\
   on bring-up, credentials always neutralized) is NOT added: those are that project's\
-  \ own conditions,\nrecorded in its own decision file.\n\n## Verification\n\n- **VP1\
-  \ (five-question reader agreement).** Two independent readers, given this floor\
-  \ alone, answer\n  all five §Scenario questions identically.\n- **VP2 (the actor\
-  \ split is stated, as a default).** Rule 2 states BOTH halves and names them the\n\
-  \  recommended default. Probe: grep this body for `READ-ONLY`, `NEVER connects`\
-  \ and `recorded\n  override`.\n- **VP3 (per-strand verbs are distinct).** Rule 3\
-  \ gives disclosure its own verbs (mask / minimize /\n  exclude / accept) and does\
-  \ NOT fold it into the neutralize list. Probe: grep for `MASK, MINIMIZE,\n  EXCLUDE`.\n\
-  - **VP4 (control per detector — the differential).** Each detector catches a planted\
-  \ value of its\n  OWN class and passes after treatment; a run where one detector's\
-  \ control fails to catch its\n  planted value is NOT a pass.\n- **VP5 (scope completeness\
-  \ fails closed).** A proof run over a copy carrying a surface the\n  declaration\
-  \ does not decide REFUSES. Differential: if that run passes, the fail-closed half\
-  \ is\n  not.\n- **VP6a (the artifact chain is governed under the default).** In\
-  \ a project keeping the rule-4\n  default, a raw dump, staging copy or backup surviving\
-  \ after the restore is a REFUSAL. Probe: grep\n  this body for `FIRST EXPORTED BYTE`\
-  \ and `DESTRUCTION`.\n- **VP6b (a probe cannot disclose — the PROPERTY, not the\
-  \ shape).** THREE differentials: (i) a\n  known personal value seeded in the copy\
-  \ does not appear in any probe output; (ii) nor does a\n  deterministic hash of\
-  \ it; (iii) nor does a count keyed to a sensitive predicate or a small cohort.\n\
-  - **VP6c (accepted and overridden items are visible).** A proof run resting on an\
-  \ acceptance names\n  the accepted class and strand; a run under an override names\
-  \ the default overridden.\n  Differential: a run with an acceptance or an override\
-  \ byte-identical to a run without one fails.\n- **VP6d (the source manifest is real,\
-  \ aliased, and survives).** (i) a surface whose NAME carries\n  the payload appears\
-  \ under a stable opaque alias; (ii) the manifest is still readable after the\n \
-  \ destruction sweep, and a value-carrying export output does not survive it; (iii)\
-  \ a surface removed\n  by treatment appears with its disposal recorded.\n- **VP7\
-  \ (adoption, infra-class — CHARTER §P8).** Consumer-read or live-trigger evidence\
-  \ from at\n  least one adopting project: a declared `spike_data_safety` block —\
-  \ the registered carrier section\n  rule 5 names, a SIBLING of `spike_sandbox` and\
-  \ never nested inside it — plus a recorded proof run.\n- **VP8 (named non-goal).**\
+  \ own conditions,\nrecorded in its own decision file.\n\nThe production-lag list\
+  \ of rule 6(b) was added by as recommended mechanics only. Its worked\ninstance\
+  \ is <project> (cross X-2118), which built the list locally after a landed migration\n\
+  dropped a table production still carried and the sandbox refresh refused. The kernel\
+  \ card,\nwhich would have carried the list as a kernel mechanism, closed wont-do\
+  \ on the owner's decision\n(events.jsonl#ts=): the kernel ships no proof runner\
+  \ for it to extend.\n\n## Verification\n\n- **VP1 (five-question reader agreement).**\
+  \ Two independent readers, given this floor alone, answer\n  all five §Scenario\
+  \ questions identically.\n- **VP2 (the actor split is stated, as a default).** Rule\
+  \ 2 states BOTH halves and names them the\n  recommended default. Probe: grep this\
+  \ body for `READ-ONLY`, `NEVER connects` and `recorded\n  override`.\n- **VP3 (per-strand\
+  \ verbs are distinct).** Rule 3 gives disclosure its own verbs (mask / minimize\
+  \ /\n  exclude / accept) and does NOT fold it into the neutralize list. Probe: grep\
+  \ for `MASK, MINIMIZE,\n  EXCLUDE`.\n- **VP4 (control per detector — the differential).**\
+  \ Each detector catches a planted value of its\n  OWN class and passes after treatment;\
+  \ a run where one detector's control fails to catch its\n  planted value is NOT\
+  \ a pass.\n- **VP5 (scope completeness fails closed).** A proof run over a copy\
+  \ carrying a surface the\n  declaration does not decide REFUSES. Differential: if\
+  \ that run passes, the fail-closed half is\n  not.\n- **VP6a (the artifact chain\
+  \ is governed under the default).** In a project keeping the rule-4\n  default,\
+  \ a raw dump, staging copy or backup surviving after the restore is a REFUSAL. Probe:\
+  \ grep\n  this body for `FIRST EXPORTED BYTE` and `DESTRUCTION`.\n- **VP6b (a probe\
+  \ cannot disclose — the PROPERTY, not the shape).** THREE differentials: (i) a\n\
+  \  known personal value seeded in the copy does not appear in any probe output;\
+  \ (ii) nor does a\n  deterministic hash of it; (iii) nor does a count keyed to a\
+  \ sensitive predicate or a small cohort.\n- **VP6c (accepted and overridden items\
+  \ are visible).** A proof run resting on an acceptance names\n  the accepted class\
+  \ and strand; a run under an override names the default overridden.\n  Differential:\
+  \ a run with an acceptance or an override byte-identical to a run without one fails.\n\
+  - **VP6d (the source manifest is real, aliased, and survives).** (i) a surface whose\
+  \ NAME carries\n  the payload appears under a stable opaque alias; (ii) the manifest\
+  \ is still readable after the\n  destruction sweep, and a value-carrying export\
+  \ output does not survive it; (iii) a surface removed\n  by treatment appears with\
+  \ its disposal recorded.\n- **VP7 (adoption, infra-class — CHARTER §P8).** Consumer-read\
+  \ or live-trigger evidence from at\n  least one adopting project: a declared `spike_data_safety`\
+  \ block — the registered carrier section\n  rule 5 names, a SIBLING of `spike_sandbox`\
+  \ and never nested inside it — plus a recorded proof run.\n- **VP8 (named non-goal).**\
   \ Nothing here weakens SPEC-0172's CHECKED stack-identity atom or its\n  DISCIPLINE\
   \ dial-out half.\n- **VP9 (internal coherence).** No passage in this spec or in\
   \ `patterns/spike-mode.md` presupposes\n  an operation another forbids, and none\

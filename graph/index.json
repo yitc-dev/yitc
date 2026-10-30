@@ -77,7 +77,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e8d9c31ad) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (2db564818) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
@@ -117,7 +117,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_commit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (492e1b186) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (1b30e8121) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/triage.py#cmd_triage_run",
@@ -287,7 +287,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e8d9c31ad) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (2db564818) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#_DeployRunRecorder",
@@ -297,7 +297,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (7a8f9339e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (ee114d5de) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/live_probe.py#cmd_live_probe",
@@ -357,7 +357,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0097",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (7a8f9339e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (ee114d5de) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#graph_build_index",
@@ -447,7 +447,7 @@
   {
    "anchor": "bin/lib/debt_adoption.py#open_known_broken",
    "spec": "SPEC-0119",
-   "warn": "bin/lib/debt_adoption.py#open_known_broken: content changed since last verified-accurate signature (932ce0f29) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/debt_adoption.py#open_known_broken: content changed since last verified-accurate signature (78b9b00b3) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt_adoption.py#unresolved_worker_halts",
@@ -547,7 +547,7 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-0123",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (84c4be907) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (e27b55092) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#cmd_session_start",
@@ -637,12 +637,12 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0149",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (7a8f9339e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (ee114d5de) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#cmd_event",
    "spec": "SPEC-0149",
-   "warn": "bin/lib/events.py#cmd_event: content changed since last verified-accurate signature (639b497ec) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/events.py#cmd_event: content changed since last verified-accurate signature (b8d18bfe7) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/views.py#_render_debt_echo",
@@ -667,7 +667,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-0152",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (9902f9c25) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (27bf37523) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/verify_runner.py#_consumer_tests_delegation",
@@ -677,7 +677,7 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-0152",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (84c4be907) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (e27b55092) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_uncommitted_layer_surface",
@@ -692,7 +692,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0155",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (7a8f9339e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (ee114d5de) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/security-audit",
@@ -732,7 +732,7 @@
   {
    "anchor": "bin/lib/audit_packet.py#build_audit_prompt",
    "spec": "SPEC-0168",
-   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (5192a3c9f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (ecc337e59) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#_ac_probe_evidence_events_for",
@@ -762,7 +762,7 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0176",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e8d9c31ad) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (2db564818) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
@@ -777,7 +777,7 @@
   {
    "anchor": "bin/lib/debt_adoption.py#open_known_broken",
    "spec": "SPEC-0181",
-   "warn": "bin/lib/debt_adoption.py#open_known_broken: content changed since last verified-accurate signature (932ce0f29) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/debt_adoption.py#open_known_broken: content changed since last verified-accurate signature (78b9b00b3) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/batch_landing.py#_land_yield_target",
@@ -832,12 +832,12 @@
   {
    "anchor": "bin/lib/audit_packet.py#build_audit_prompt",
    "spec": "SPEC-0205",
-   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (5192a3c9f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_packet.py#build_audit_prompt: content changed since last verified-accurate signature (ecc337e59) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0205",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (7a8f9339e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (ee114d5de) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_land",
@@ -847,7 +847,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-0209",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (3de1682c0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (f999fbcc1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/textutil.py#ARGV_PROSE_SEAMS",
@@ -912,7 +912,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-1029",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (9902f9c25) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (27bf37523) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_land_integrate",
@@ -927,12 +927,12 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1034",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e8d9c31ad) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (2db564818) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e8d9c31ad) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (2db564818) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#advance_stage_pointer",
@@ -947,7 +947,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_commit",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (492e1b186) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (1b30e8121) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_plan",
@@ -957,17 +957,17 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_test",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (9902f9c25) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_test: content changed since last verified-accurate signature (27bf37523) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit.py#blocked_on_land_ceiling_disposition: content changed since last verified-accurate signature (b660e041a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#blocked_on_land_ceiling_disposition: content changed since last verified-accurate signature (a20d80a6f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (e8d9c31ad) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (2db564818) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#contentless_findings",
@@ -997,7 +997,7 @@
   {
    "anchor": "bin/lib/audit_ceiling.py#residual_finding_records",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit_ceiling.py#residual_finding_records: content changed since last verified-accurate signature (42386a01e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_ceiling.py#residual_finding_records: content changed since last verified-accurate signature (9b16d6c34) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit_ceiling.py#row_residual_fingerprints",
@@ -1017,7 +1017,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (3de1682c0) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (f999fbcc1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#retired_plan_gate_terminal_violations",
@@ -1037,7 +1037,7 @@
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
    "spec": "SPEC-1046",
-   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (84c4be907) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/worktree.py#_consumer_zero_probe_guard: content changed since last verified-accurate signature (e27b55092) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   }
  ],
  "_implements_warnings": [
@@ -2043,7 +2043,7 @@
   },
   "restating-an-active-spec-across-cards": {
    "class": "discipline",
-   "sourced_from": "public issue #81 (2026-10-12) — a consumer project's five-point recipe for a plan that restated an active spec across six cards; each point read against <workshop-spec>, SPEC-0046, SPEC-0070 and SPEC-0083 by "
+   "sourced_from": "public issue #81 (2026-10-12) — a consumer project's five-point recipe for a plan that restated an active spec across six cards; each point read against <workshop-spec>, SPEC-0046, SPEC-0070 and SPEC-0083; the third way (§6) from a consumer project's prototype transfer (cross item X-2126), written up by "
   },
   "retirement-procedure": {
    "class": "discipline",
@@ -7842,121 +7842,121 @@
   },
   {
    "content": "delta that cannot be read.",
-   "id": "rule:spec-0065:bound:105:must",
+   "id": "rule:spec-0065:bound:111:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 105,
+   "source_line": 111,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "events.jsonl#ts=).** Where (1) fails, the land MAY still credit the run when",
-   "id": "rule:spec-0065:bound:107:may",
+   "id": "rule:spec-0065:bound:113:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 107,
+   "source_line": 113,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "tested that tree. A failed run's row may carry the same mark; it is still a red row,",
-   "id": "rule:spec-0065:bound:143:may",
+   "id": "rule:spec-0065:bound:149:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 143,
+   "source_line": 149,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "(4) THE RUN COVERS THE LAND — where the land would sweep a declared test directory the run must",
-   "id": "rule:spec-0065:bound:145:must",
+   "id": "rule:spec-0065:bound:151:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 145,
+   "source_line": 151,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "only is a PARTIAL run and refuses `run-narrowed`; a land that cannot compute its own selection",
-   "id": "rule:spec-0065:bound:152:must",
+   "id": "rule:spec-0065:bound:158:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 152,
+   "source_line": 158,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "consumer every declared layer must have passed in the run,",
-   "id": "rule:spec-0065:bound:154:must",
+   "id": "rule:spec-0065:bound:160:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 154,
+   "source_line": 160,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "A project MAY switch the credit off (`verify_policy.stage6_credit`, SPEC-0186 rule 10); absent a",
-   "id": "rule:spec-0065:bound:167:may",
+   "id": "rule:spec-0065:bound:173:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 167,
+   "source_line": 173,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "observable or unknown, with its path count and its first 20 paths by name, and unknown (never inert) whenever it cannot be read; an",
-   "id": "rule:spec-0065:bound:184:must",
+   "id": "rule:spec-0065:bound:190:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 184,
+   "source_line": 190,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "or one that cannot be read, keeps the whole candidate verify), and the project declares verify",
-   "id": "rule:spec-0065:bound:191:must",
+   "id": "rule:spec-0065:bound:197:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 191,
+   "source_line": 197,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "layers, the candidate verify still runs, and the land MAY take the verdict of one or more declared",
-   "id": "rule:spec-0065:bound:192:may",
+   "id": "rule:spec-0065:bound:198:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 192,
+   "source_line": 198,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "the layers whose subject holds it run, the others may take the run's verdict; every",
-   "id": "rule:spec-0065:bound:214:may",
+   "id": "rule:spec-0065:bound:220:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 214,
+   "source_line": 220,
    "source_section": "bound",
    "status": "active"
   },
   {
    "content": "not asked the Stage-6 credit MAY take the per-layer case against that attempt in place of a",
-   "id": "rule:spec-0065:bound:261:may",
+   "id": "rule:spec-0065:bound:267:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 261,
+   "source_line": 267,
    "source_section": "bound",
    "status": "active"
   },
@@ -7972,11 +7972,11 @@
   },
   {
    "content": "has verified, not declaring a rebaseline, MAY take its CANDIDATE-leg verdict from the task's own",
-   "id": "rule:spec-0065:bound:91:may",
+   "id": "rule:spec-0065:bound:97:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 91,
+   "source_line": 97,
    "source_section": "bound",
    "status": "active"
   },
@@ -8012,11 +8012,11 @@
   },
   {
    "content": "run every file (its governor off) `run-narrowed-set-differs` and a selection the land cannot compute",
-   "id": "rule:spec-0065:verification:365:must",
+   "id": "rule:spec-0065:verification:384:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0065-land-inert-retry-re-verify-skip-an-inert-concurren.yaml",
    "source_domain": "spec",
-   "source_line": 365,
+   "source_line": 384,
    "source_section": "verification",
    "status": "active"
   },
@@ -8072,11 +8072,11 @@
   },
   {
    "content": "- **Candidate suggestion = report-only.** A close WITHOUT `--closes-fp` MAY surface CANDIDATE",
-   "id": "rule:spec-0069:r-b-closure-time-linkage-human-asserted-:52:may",
+   "id": "rule:spec-0069:r-b-closure-time-linkage-human-asserted-:56:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0069-triage-link-rule-closure-time-fingerprint-linkage-.yaml",
    "source_domain": "spec",
-   "source_line": 52,
+   "source_line": 56,
    "source_section": "r-b-closure-time-linkage-human-asserted-",
    "status": "active"
   },
@@ -12161,127 +12161,117 @@
    "status": "active"
   },
   {
-   "content": "that set — never admitted and left unfireable. The set is declared because the fold cannot be",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:203:must",
+   "content": "is declared because the fold cannot be told in advance which predicates are awaited: it marks",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:204:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 203,
+   "source_line": 204,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "row; and on a deferred-probe moment it may carry `@after=land` (SPEC-0028). An awaits carrying",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:209:may",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:218:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 209,
+   "source_line": 218,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "--awaits`, a park's `--awaits`, a deferred-probe moment) REFUSE it: their readers cannot read a",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:221:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:230:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 221,
+   "source_line": 230,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "- **THE ASK MAY ONLY PRESCRIBE AN AWAITS KEY THE ASKING SIDE HAS VERIFIED EXISTS.** The",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:264:may",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:273:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 264,
+   "source_line": 273,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "unanswerable as written and MUST NOT be filed as one (file the emitter card first, or drop the",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:269:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:278:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 269,
+   "source_line": 278,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "the brief must not offer it to the RECEIVER as a no-nag promise :** on the receiving",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:279:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:288:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 279,
+   "source_line": 288,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "also derives a `stale_provenance` flag. The task it was noticed under has CLOSED, so the followup may",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:359:may",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:368:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 359,
+   "source_line": 368,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "claim: for a land to have fixed a row, the row must have EXISTED when the land ran, so a followup",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:372:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:381:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 372,
+   "source_line": 381,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "captured AFTER its provenance reached terminal status provably cannot have been fixed by it.",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:373:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:382:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 373,
+   "source_line": 382,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "closing land may already have fixed it; verify before promoting\", is RETIRED: it named a MECHANISM,",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:412:may",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:421:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 412,
+   "source_line": 421,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "**SOLE fire key**, and no verb may auto-promote/auto-drop off this flag — a free-form provenance ref is",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:423:may",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:432:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 423,
+   "source_line": 432,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "about a FUTURE event; a regex over free prose must guess, and the two misclassifications are NOT",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:451:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
-   "source_domain": "spec",
-   "source_line": 451,
-   "source_section": "armed-waiters-the-derived-partition-of-t",
-   "status": "active"
-  },
-  {
-   "content": "**Why `awaits` is REQUIRED wherever a trigger is written — the write door, not the read",
    "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:460:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
@@ -12291,99 +12281,99 @@
    "status": "active"
   },
   {
-   "content": "So `--awaits` is REQUIRED beside `--trigger` at BOTH doors — `arm`, and `add`'s born-armed path, which",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:472:must",
+   "content": "**Why `awaits` is REQUIRED wherever a trigger is written — the write door, not the read",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:469:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 472,
+   "source_line": 469,
+   "source_section": "armed-waiters-the-derived-partition-of-t",
+   "status": "active"
+  },
+  {
+   "content": "So `--awaits` is REQUIRED beside `--trigger` at BOTH doors — `arm`, and `add`'s born-armed path, which",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:481:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
+   "source_domain": "spec",
+   "source_line": 481,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "not a new mechanism (CHARTER §P1 F1): `promote --into` was made REQUIRED for the identical stranding",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:476:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:485:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 476,
+   "source_line": 485,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "shape (X-0165) and `arm --trigger` was made required for it too; this closes the last optional field of",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:477:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:486:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 477,
+   "source_line": 486,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "own work, which must run AFTER this rule lands or it would re-create what it removes.",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:484:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:493:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 484,
+   "source_line": 493,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "must dispose BY HAND, exactly as an unresolvable plan-slug trigger already was, never one that hides.",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:503:must",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:512:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 503,
+   "source_line": 512,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "automatically, since the answer may still spawn work. Unmarked rows, rows marking an open card and",
-   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:511:may",
+   "id": "rule:spec-0095:armed-waiters-the-derived-partition-of-t:520:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 511,
+   "source_line": 520,
    "source_section": "armed-waiters-the-derived-partition-of-t",
    "status": "active"
   },
   {
    "content": "The fold read-path MUST resolve the SAME effective journal the append writes to: the host residue",
-   "id": "rule:spec-0095:read-path-write-path-resolution-hard:554:must",
+   "id": "rule:spec-0095:read-path-write-path-resolution-hard:563:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 554,
+   "source_line": 563,
    "source_section": "read-path-write-path-resolution-hard",
    "status": "active"
   },
   {
    "content": "the fold — otherwise a sink-quarantined run cannot observe its own capture (the hermetic-test",
-   "id": "rule:spec-0095:read-path-write-path-resolution-hard:556:must",
+   "id": "rule:spec-0095:read-path-write-path-resolution-hard:565:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 556,
+   "source_line": 565,
    "source_section": "read-path-write-path-resolution-hard",
    "status": "active"
   },
   {
    "content": "**This is a MUST-INCLUDE, not a MUST-BE-ALONE (X-0952).** One read-path — the DECLARED",
-   "id": "rule:spec-0095:read-path-write-path-resolution-hard:559:must",
+   "id": "rule:spec-0095:read-path-write-path-resolution-hard:568:must",
    "severity": "must",
-   "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
-   "source_domain": "spec",
-   "source_line": 559,
-   "source_section": "read-path-write-path-resolution-hard",
-   "status": "active"
-  },
-  {
-   "content": "worktree-before-write) that may have branched BEFORE the capture. So capture-on-main →",
-   "id": "rule:spec-0095:read-path-write-path-resolution-hard:568:may",
-   "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
    "source_line": 568,
@@ -12391,12 +12381,22 @@
    "status": "active"
   },
   {
-   "content": "are SPEC-0168 rule 1's, reused. Widening WHERE an id may be found does NOT widen WHAT is accepted —",
-   "id": "rule:spec-0095:read-path-write-path-resolution-hard:574:may",
+   "content": "worktree-before-write) that may have branched BEFORE the capture. So capture-on-main →",
+   "id": "rule:spec-0095:read-path-write-path-resolution-hard:577:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 574,
+   "source_line": 577,
+   "source_section": "read-path-write-path-resolution-hard",
+   "status": "active"
+  },
+  {
+   "content": "are SPEC-0168 rule 1's, reused. Widening WHERE an id may be found does NOT widen WHAT is accepted —",
+   "id": "rule:spec-0095:read-path-write-path-resolution-hard:583:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
+   "source_domain": "spec",
+   "source_line": 583,
    "source_section": "read-path-write-path-resolution-hard",
    "status": "active"
   },
@@ -12412,21 +12412,21 @@
   },
   {
    "content": "A task card MAY declare, in an optional `promotes: [fu_...]` field, the OPEN followups it CARRIES.",
-   "id": "rule:spec-0095:the-link-may-be-declared-at-filing:518:may",
+   "id": "rule:spec-0095:the-link-may-be-declared-at-filing:527:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 518,
+   "source_line": 527,
    "source_section": "the-link-may-be-declared-at-filing",
    "status": "active"
   },
   {
    "content": "declare, and prints nothing when every named one was declared. A screen may raise a question; only",
-   "id": "rule:spec-0095:the-link-may-be-declared-at-filing:535:may",
+   "id": "rule:spec-0095:the-link-may-be-declared-at-filing:544:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 535,
+   "source_line": 544,
    "source_section": "the-link-may-be-declared-at-filing",
    "status": "active"
   },
@@ -12512,26 +12512,16 @@
   },
   {
    "content": "- Required `awaits` (DIFFERENTIAL): `followup arm <id> --trigger X` with NO `--awaits` is",
-   "id": "rule:spec-0095:verification:608:must",
+   "id": "rule:spec-0095:verification:621:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 608,
+   "source_line": 621,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "so a fix that merely refused everything cannot pass, and the READ side is pinned unchanged: a legacy",
-   "id": "rule:spec-0095:verification:614:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
-   "source_domain": "spec",
-   "source_line": 614,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "cannot go green by never firing.",
    "id": "rule:spec-0095:verification:627:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
@@ -12541,12 +12531,22 @@
    "status": "active"
   },
   {
-   "content": "earlier-captured one STAYS FLAGGED, asserted together so the ordering cannot be claimed without",
-   "id": "rule:spec-0095:verification:635:must",
+   "content": "cannot go green by never firing.",
+   "id": "rule:spec-0095:verification:640:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
    "source_domain": "spec",
-   "source_line": 635,
+   "source_line": 640,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "earlier-captured one STAYS FLAGGED, asserted together so the ordering cannot be claimed without",
+   "id": "rule:spec-0095:verification:648:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0095-followup-capture-mechanism-one-command-no-worktree.yaml",
+   "source_domain": "spec",
+   "source_line": 648,
    "source_section": "verification",
    "status": "active"
   },
@@ -18121,6 +18121,16 @@
    "status": "active"
   },
   {
+   "content": "consumer must never hold the power to shrink the surface that guards it) and the ask was retracted",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:1009:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
+   "source_domain": "spec",
+   "source_line": 1009,
+   "source_section": "16-the-verify-section-schema-rule-4-sect",
+   "status": "active"
+  },
+  {
    "content": "layer MAY additionally carry an OPTIONAL `prep:` dependency-prep sub-field (the §per-layer prep sub-rule",
    "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:118:may",
    "severity": "may",
@@ -18261,117 +18271,127 @@
    "status": "active"
   },
   {
-   "content": "`(0, 1]`, never a bool. A fraction is required so that a change to the KERNEL's allotment re-splits",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:338:must",
+   "content": "not seen, units removed since may still be counted, and the selection, the credit and the pre-deploy",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:319:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
+   "source_domain": "spec",
+   "source_line": 319,
+   "source_section": "16-the-verify-section-schema-rule-4-sect",
+   "status": "active"
+  },
+  {
+   "content": "When it cannot be built, nothing is published, a value inherited from the calling environment never",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:323:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 338,
+   "source_line": 323,
+   "source_section": "16-the-verify-section-schema-rule-4-sect",
+   "status": "active"
+  },
+  {
+   "content": "`(0, 1]`, never a bool. A fraction is required so that a change to the KERNEL's allotment re-splits",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:359:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
+   "source_domain": "spec",
+   "source_line": 359,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "automatically with no project rewritten, which a frozen count cannot do; `0` is refused because a",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:339:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:360:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 339,
+   "source_line": 360,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "layer cannot be given no workers at all, and `> 1` because one layer cannot claim more than the",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:340:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:361:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 340,
+   "source_line": 361,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "guard: a normalized split cannot exceed the whole by construction, and the floor case (a share floors",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:342:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:363:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 342,
+   "source_line": 363,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "(`mode: malformed`, the `timeout_seconds:` / `independent_layers:` stance): a typo'd split must never",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:365:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:386:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 365,
+   "source_line": 386,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "`event` verb is serialized by the E-0021 sidecar lock, so concurrent members cannot interleave a row.",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:390:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:411:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 390,
+   "source_line": 411,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "at EVERY delegating site (one renderer, so they cannot drift):",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:421:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:442:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 421,
+   "source_line": 442,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "files that all execute (<project> measured 37 of 38, X-0883 / X-0886). The cap is REQUIRED, not",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:436:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:457:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 436,
+   "source_line": 457,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "layer, executes all 8 by name (the host-side tripwires the in-container pytest cannot run). So a",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:444:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:465:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 444,
+   "source_line": 465,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "OVER-reporting — and it must stay one: when that union registry names >=1 covered file the",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:452:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:473:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 452,
+   "source_line": 473,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "that it cannot rule out that the layer did not see them. The surface is the CONSUMER'S OWN declaration",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:479:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
-   "source_domain": "spec",
-   "source_line": 479,
-   "source_section": "16-the-verify-section-schema-rule-4-sect",
-   "status": "active"
-  },
-  {
-   "content": "REPORTED, never silent: a gate that stops running must say so, and name the layer now covering it.",
    "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:500:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
@@ -18381,77 +18401,77 @@
    "status": "active"
   },
   {
-   "content": "candidate; a candidate cannot conjure a verifier. A candidate that DELEGATES AWAY to nothing — naming a",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:545:must",
+   "content": "REPORTED, never silent: a gate that stops running must say so, and name the layer now covering it.",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:521:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 545,
+   "source_line": 521,
+   "source_section": "16-the-verify-section-schema-rule-4-sect",
+   "status": "active"
+  },
+  {
+   "content": "candidate; a candidate cannot conjure a verifier. A candidate that DELEGATES AWAY to nothing — naming a",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:566:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
+   "source_domain": "spec",
+   "source_line": 566,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "layer cannot run there (the X-0140 incident: a frontend layer left un-wired at land, or hand-symlinked",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:554:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:575:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 554,
+   "source_line": 575,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "- **DECLARE — a `prep:` mapping carrying a required non-empty `mode:`** naming the built-in prep mode.",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:564:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:585:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 564,
+   "source_line": 585,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "**Fail-closed contract (no silent best-effort → no false-green).** If ANY prep input dimension cannot be",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:588:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:609:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 588,
+   "source_line": 609,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "by a wall clock (the / SPEC-0071 hang guard — a verify must never hang the gate forever). That",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:608:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:629:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 608,
+   "source_line": 629,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "A project may now declare that bound DURABLY, in the carrier that already owns its verify policy:",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:613:may",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:634:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 613,
+   "source_line": 634,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "tuple · predefined statistic + margin BAND · an upper bound so it cannot be inflated into inertness ·",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:619:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
-   "source_domain": "spec",
-   "source_line": 619,
-   "source_section": "16-the-verify-section-schema-rule-4-sect",
-   "status": "active"
-  },
-  {
-   "content": "typo must never disable the bound) — and deliberately so: a typo'd DECLARATION must never silently",
    "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:640:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
@@ -18461,132 +18481,142 @@
    "status": "active"
   },
   {
+   "content": "typo must never disable the bound) — and deliberately so: a typo'd DECLARATION must never silently",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:661:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
+   "source_domain": "spec",
+   "source_line": 661,
+   "source_section": "16-the-verify-section-schema-rule-4-sect",
+   "status": "active"
+  },
+  {
    "content": "**WAIVE — the whole concern (section-level).** The section may instead carry a section-level `waiver:`",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:644:may",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:665:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 644,
+   "source_line": 665,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "**Exclusivity (fail-closed, mirrors rule 8).** A `verify:` section MUST NOT carry BOTH a `layers:`",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:647:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:668:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 647,
+   "source_line": 668,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "- layer: backend # required — the layer id (a non-empty string)",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:657:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:678:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 657,
+   "source_line": 678,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "The spec prescribes WHAT the reason must say; the code checks THAT an answer exists.",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:694:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:715:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 694,
+   "source_line": 715,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "declares one too, so it cannot distinguish the layers, and a false \"frontend detected\" would break the",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:702:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:723:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 702,
+   "source_line": 723,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "OUTSIDE that mount is invisible to it — it cannot fail a test that never sees it. X-0375 is that blind",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:719:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:740:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 719,
+   "source_line": 740,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "layers in `independent_layers:`. A `verify.layers[]` entry MAY therefore carry an OPTIONAL `owns:`",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:746:may",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:767:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 746,
+   "source_line": 767,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "not a new section).** A DECLARED layer MAY additionally carry an OPTIONAL `subject_globs:` — a",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:758:may",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:779:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 758,
+   "source_line": 779,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "matching NO glob here cannot affect this layer's verdict.\" When present, the land RUN MAY SKIP that",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:760:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:781:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 760,
+   "source_line": 781,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "skip authority); a declared `subject_globs` SHOULD be a superset of the layer's `covers:` globs —",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:772:should",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:793:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 772,
+   "source_line": 793,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "must list the carrier: the exhaustiveness this sub-rule already asks of `subject_globs` now carries",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:803:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:824:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 803,
+   "source_line": 824,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "kernel cannot hand to a glob as the path git means (an undecodable name; a directory git lists",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:902:must",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:923:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 902,
+   "source_line": 923,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
   {
    "content": "runs every layer at Stage 6 where the same edit committed is judged per layer. Stage 6 may thus run",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:905:may",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:926:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 905,
+   "source_line": 926,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
@@ -18602,21 +18632,11 @@
   },
   {
    "content": "absence was invisible. A project MAY therefore declare an OPTIONAL `verify.infra_globs:` — a flat",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:977:may",
+   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:998:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 977,
-   "source_section": "16-the-verify-section-schema-rule-4-sect",
-   "status": "active"
-  },
-  {
-   "content": "consumer must never hold the power to shrink the surface that guards it) and the ask was retracted",
-   "id": "rule:spec-0152:16-the-verify-section-schema-rule-4-sect:988:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
-   "source_domain": "spec",
-   "source_line": 988,
+   "source_line": 998,
    "source_section": "16-the-verify-section-schema-rule-4-sect",
    "status": "active"
   },
@@ -18632,121 +18652,121 @@
   },
   {
    "content": "broken session-start (a report-only surface must never nag on the unknown — the SPEC-0119 rule-1",
-   "id": "rule:spec-0152:17-the-startup-checks-section-schema-rul:1021:must",
+   "id": "rule:spec-0152:17-the-startup-checks-section-schema-rul:1042:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1021,
+   "source_line": 1042,
    "source_section": "17-the-startup-checks-section-schema-rul",
    "status": "active"
   },
   {
    "content": "one reaches a prod schema via `docker exec … psql`), which the `--read-only` promise cannot admit. So",
-   "id": "rule:spec-0152:17-the-startup-checks-section-schema-rul:1027:must",
+   "id": "rule:spec-0152:17-the-startup-checks-section-schema-rul:1048:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1027,
+   "source_line": 1048,
    "source_section": "17-the-startup-checks-section-schema-rul",
    "status": "active"
   },
   {
    "content": "a layer id and a class name, so the right KIND of name cannot be settled by inspection), and the run output",
-   "id": "rule:spec-0152:24-test-class-last-successful-execution-:1070:must",
+   "id": "rule:spec-0152:24-test-class-last-successful-execution-:1091:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1070,
+   "source_line": 1091,
    "source_section": "24-test-class-last-successful-execution-",
    "status": "active"
   },
   {
    "content": "It ABSTAINS wherever the declaration cannot be read — a missing carrier, a waived or absent `tests:` section",
-   "id": "rule:spec-0152:24-test-class-last-successful-execution-:1082:must",
+   "id": "rule:spec-0152:24-test-class-last-successful-execution-:1103:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1082,
+   "source_line": 1103,
    "source_section": "24-test-class-last-successful-execution-",
    "status": "active"
   },
   {
    "content": "**THE ADMISSION CRITERION (report-only authoring doctrine).** A suite/class declared hermetic MUST be",
-   "id": "rule:spec-0152:25-hermetic-class-admission-a-class-decl:1111:must",
+   "id": "rule:spec-0152:25-hermetic-class-admission-a-class-decl:1132:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1111,
+   "source_line": 1132,
    "source_section": "25-hermetic-class-admission-a-class-decl",
    "status": "active"
   },
   {
    "content": "gate cannot recognise. Narrowing it is a loss of governance.",
-   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1149:must",
+   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1170:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1149,
+   "source_line": 1170,
    "source_section": "27-the-product-source-section-what-this-",
    "status": "active"
   },
   {
    "content": "**WHY the two must not share a field (the defect this replaces).** Until the carrier gate read",
-   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1154:must",
+   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1175:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1154,
+   "source_line": 1175,
    "source_section": "27-the-product-source-section-what-this-",
    "status": "active"
   },
   {
    "content": "declare-or-waive stance and MUST NOT become it: a fail-closed stance here would refuse every land in",
-   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1173:must",
+   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1194:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1173,
+   "source_line": 1194,
    "source_section": "27-the-product-source-section-what-this-",
    "status": "active"
   },
   {
    "content": "what may be SAID about them: a waiver is an answer somebody gave, an absence is a question nobody has",
-   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1179:may",
+   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1200:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1179,
+   "source_line": 1200,
    "source_section": "27-the-product-source-section-what-this-",
    "status": "active"
   },
   {
    "content": "**THE NARROWING MUST NEVER BE SILENT — the report-only migration note.** When a repo's stance is",
-   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1198:must",
+   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1219:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1198,
+   "source_line": 1219,
    "source_section": "27-the-product-source-section-what-this-",
    "status": "active"
   },
   {
    "content": "boundary holds: the kernel MAY name cross-project build/deploy/container carrier surfaces and MUST NOT",
-   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1225:may",
+   "id": "rule:spec-0152:27-the-product-source-section-what-this-:1246:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1225,
+   "source_line": 1246,
    "source_section": "27-the-product-source-section-what-this-",
    "status": "active"
   },
   {
    "content": "declare-or-waive: a DECLARED layer MAY carry `prep: { mode: npm-ci... }` and the land runner prepares",
-   "id": "rule:spec-0152:verification:1297:may",
+   "id": "rule:spec-0152:verification:1318:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0152-yitc-ops-yaml-land-verify-coverage-and-startup-che.yaml",
    "source_domain": "spec",
-   "source_line": 1297,
+   "source_line": 1318,
    "source_section": "verification",
    "status": "active"
   },
@@ -23542,106 +23562,86 @@
   },
   {
    "content": "RULE 1a — WHAT THE FOLD MUST NEVER READ, each named with its incident. NOT `fail_class`: it is",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:611:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:612:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 611,
+   "source_line": 612,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "re-stamps that instant — the record is a fact about the newest tree, so evidence must post-date the",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:642:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:643:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 642,
+   "source_line": 643,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "both exist because COUNTS cannot say which files ran, and a recorded selection says exactly",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:654:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:655:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 654,
+   "source_line": 655,
+   "source_section": "known-broken-on-main-the-derived-record-",
+   "status": "active"
+  },
+  {
+   "content": "and it too must be STRICTLY LATER than the row that established the pair. For a pair opened",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:678:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 678,
+   "source_section": "known-broken-on-main-the-derived-record-",
+   "status": "active"
+  },
+  {
+   "content": "failed unit, a partial run against an establishing row whose failed units cannot be read, or",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:686:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 686,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "WHAT (c) DOES NOT CHANGE, each stated because a reader must be able to check it: rule 3's VACATE",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:715:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:748:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 715,
+   "source_line": 748,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "differ only in whether a clearing row exists MUST fold to different answers; two that differ only",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:740:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:773:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 740,
+   "source_line": 773,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "in how OLD the establishing row is MUST fold to the same one. Everything the fold cannot establish",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:741:must",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:774:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 741,
+   "source_line": 774,
    "source_section": "known-broken-on-main-the-derived-record-",
    "status": "active"
   },
   {
    "content": "under. This makes a broken main CHEAP TO KNOW ABOUT and must never make it cheap to bypass.",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:750:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 750,
-   "source_section": "known-broken-on-main-the-derived-record-",
-   "status": "active"
-  },
-  {
-   "content": "indistinguishable from no fold: the second branch to meet a broken main must learn it from a line,",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:756:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 756,
-   "source_section": "known-broken-on-main-the-derived-record-",
-   "status": "active"
-  },
-  {
-   "content": "refusal that reads this record refused only a branch whose diff the ladder proves CANNOT",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:760:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 760,
-   "source_section": "known-broken-on-main-the-derived-record-",
-   "status": "active"
-  },
-  {
-   "content": "row to `main`'s journal, naming the route and every standing pair. An admission whose row cannot",
-   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:781:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
-   "source_domain": "spec",
-   "source_line": 781,
-   "source_section": "known-broken-on-main-the-derived-record-",
-   "status": "active"
-  },
-  {
-   "content": "path the classifier calls observable, or whose merge cannot be computed, is judged by rule 7 as",
    "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:783:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
@@ -23651,12 +23651,52 @@
    "status": "active"
   },
   {
-   "content": "this spec; this body states the RULE the map must satisfy, never the map's contents (which would",
-   "id": "rule:spec-0181:parameters:791:must",
+   "content": "indistinguishable from no fold: the second branch to meet a broken main must learn it from a line,",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:789:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
    "source_domain": "spec",
-   "source_line": 791,
+   "source_line": 789,
+   "source_section": "known-broken-on-main-the-derived-record-",
+   "status": "active"
+  },
+  {
+   "content": "refusal that reads this record refused only a branch whose diff the ladder proves CANNOT",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:793:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 793,
+   "source_section": "known-broken-on-main-the-derived-record-",
+   "status": "active"
+  },
+  {
+   "content": "row to `main`'s journal, naming the route and every standing pair. An admission whose row cannot",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:814:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 814,
+   "source_section": "known-broken-on-main-the-derived-record-",
+   "status": "active"
+  },
+  {
+   "content": "path the classifier calls observable, or whose merge cannot be computed, is judged by rule 7 as",
+   "id": "rule:spec-0181:known-broken-on-main-the-derived-record-:816:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 816,
+   "source_section": "known-broken-on-main-the-derived-record-",
+   "status": "active"
+  },
+  {
+   "content": "this spec; this body states the RULE the map must satisfy, never the map's contents (which would",
+   "id": "rule:spec-0181:parameters:824:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0181-engine-suite-affected-test-selection-the-coverage-.yaml",
+   "source_domain": "spec",
+   "source_line": 824,
    "source_section": "parameters",
    "status": "active"
   },
@@ -28232,21 +28272,21 @@
   },
   {
    "content": ": the shared consult continuation semantics must already be safe before this entry shares the",
-   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:101:must",
+   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:105:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1018-audit-loop-ceiling-rare-ledger-skip-axis-clauses-o.yaml",
    "source_domain": "spec",
-   "source_line": 101,
+   "source_line": 105,
    "source_section": "on-demand-technical-fork-consult-mechani",
    "status": "active"
   },
   {
    "content": "- **Each call keeps its own record.** A card may run several on-demand consults; none replaces an",
-   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:110:may",
+   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:114:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1018-audit-loop-ceiling-rare-ledger-skip-axis-clauses-o.yaml",
    "source_domain": "spec",
-   "source_line": 110,
+   "source_line": 114,
    "source_section": "on-demand-technical-fork-consult-mechani",
    "status": "active"
   },
@@ -30402,31 +30442,31 @@
   },
   {
    "content": "named. A fixture refresh cannot be told from a test-logic change by its paths, so the Controller",
-   "id": "rule:spec-1038:fast-path-refusal:518:must",
+   "id": "rule:spec-1038:fast-path-refusal:533:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 518,
+   "source_line": 533,
    "source_section": "fast-path-refusal",
    "status": "active"
   },
   {
    "content": "- New file creation → full lifecycle, filing required.",
-   "id": "rule:spec-1038:hygiene-fast-path:347:must",
+   "id": "rule:spec-1038:hygiene-fast-path:362:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 347,
+   "source_line": 362,
    "source_section": "hygiene-fast-path",
    "status": "active"
   },
   {
    "content": "A task may interrupt mid-stage (owner-wait blocking, auditor abort, session boundary). When the AI",
-   "id": "rule:spec-1038:resume-contract:312:may",
+   "id": "rule:spec-1038:resume-contract:327:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 312,
+   "source_line": 327,
    "source_section": "resume-contract",
    "status": "active"
   },
@@ -30482,11 +30522,11 @@
   },
   {
    "content": "entry cannot carry an unaudited or untested commit to Closure. One artifact gate does apply to the",
-   "id": "rule:spec-1038:stage-fsm-per-class-current-stage-semant:410:must",
+   "id": "rule:spec-1038:stage-fsm-per-class-current-stage-semant:425:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 410,
+   "source_line": 425,
    "source_section": "stage-fsm-per-class-current-stage-semant",
    "status": "active"
   },
@@ -30521,52 +30561,62 @@
    "status": "active"
   },
   {
-   "content": "cannot be read, a waived layer, a section-level waiver) records nothing and the card stays",
-   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:199:must",
+   "content": "such runs) cannot take that reading before its first commit: a governed run needs a recorded",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:186:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 199,
+   "source_line": 186,
+   "source_section": "tests-the-governed-full-run-after-audit-",
+   "status": "active"
+  },
+  {
+   "content": "cannot be read, a waived layer, a section-level waiver) records nothing and the card stays",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:214:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
+   "source_domain": "spec",
+   "source_line": 214,
    "source_section": "tests-the-governed-full-run-after-audit-",
    "status": "active"
   },
   {
    "content": "narrower (SPEC-0181 §Stage-6 seam): the Tests run cannot read land's two optional refinement channels,",
-   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:239:must",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:254:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 239,
+   "source_line": 254,
    "source_section": "tests-the-governed-full-run-after-audit-",
    "status": "active"
   },
   {
    "content": "- Output must be visible (Evidence Rule — not «tests pass», but actual output).",
-   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:250:must",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:265:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 250,
+   "source_line": 265,
    "source_section": "tests-the-governed-full-run-after-audit-",
    "status": "active"
   },
   {
    "content": "behaviour-change test MUST be observed FAILING without the fix before its green is trusted (or it",
-   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:252:must",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:267:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 252,
+   "source_line": 267,
    "source_section": "tests-the-governed-full-run-after-audit-",
    "status": "active"
   },
   {
    "content": "included, and an unprivileged process cannot raise its priority back. On a host with no such",
-   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:272:must",
+   "id": "rule:spec-1038:tests-the-governed-full-run-after-audit-:287:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1038-lifecycle-stage-mechanics-non-gated-plan-execute-t.yaml",
    "source_domain": "spec",
-   "source_line": 272,
+   "source_line": 287,
    "source_section": "tests-the-governed-full-run-after-audit-",
    "status": "active"
   },
@@ -30712,41 +30762,41 @@
   },
   {
    "content": "ceiling row nor a recorded `late_finding` (rule 8); a required field is missing; the receiving card is not filed; or a decision",
-   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:200:must",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:202:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
    "source_domain": "spec",
-   "source_line": 200,
+   "source_line": 202,
    "source_section": "2-ceiling-decision-one-append-only-journ",
    "status": "active"
   },
   {
    "content": "worker-context gate, which keeps its checked-FIRST property (a Worker must not learn the",
-   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:222:must",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:224:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
    "source_domain": "spec",
-   "source_line": 222,
+   "source_line": 224,
    "source_section": "2-ceiling-decision-one-append-only-journ",
    "status": "active"
   },
   {
    "content": "surviving backtick is therefore NOT certified intact, and the refusal must never be read as",
-   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:232:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
-   "source_domain": "spec",
-   "source_line": 232,
-   "source_section": "2-ceiling-decision-one-append-only-journ",
-   "status": "active"
-  },
-  {
-   "content": "`--reason` is consequently no longer argparse-required: it may arrive in the mapping instead, so its",
    "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:234:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
    "source_domain": "spec",
    "source_line": 234,
+   "source_section": "2-ceiling-decision-one-append-only-journ",
+   "status": "active"
+  },
+  {
+   "content": "`--reason` is consequently no longer argparse-required: it may arrive in the mapping instead, so its",
+   "id": "rule:spec-1039:2-ceiling-decision-one-append-only-journ:236:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1039-ceiling-decisions-one-typed-controller-recorded-de.yaml",
+   "source_domain": "spec",
+   "source_line": 236,
    "source_section": "2-ceiling-decision-one-append-only-journ",
    "status": "active"
   },
@@ -31082,21 +31132,21 @@
   },
   {
    "content": "pass it holds: no new ticket, no second sync, its BUSY held throughout. A re-exec that cannot start",
-   "id": "rule:spec-1045:internal:116:must",
+   "id": "rule:spec-1045:internal:118:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 116,
+   "source_line": 118,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "section it cannot port unchanged records why and stops for the Controller.",
-   "id": "rule:spec-1045:internal:120:must",
+   "id": "rule:spec-1045:internal:136:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 120,
+   "source_line": 136,
    "source_section": "internal",
    "status": "active"
   },
@@ -31111,32 +31161,32 @@
    "status": "active"
   },
   {
-   "content": "land, or a scheduled pre-deploy run (SPEC-1047), may take the repo's verify resources — never WHICH work",
-   "id": "rule:spec-1045:internal:15:may",
+   "content": "may take the repo's verify resources — never WHICH work",
+   "id": "rule:spec-1045:internal:17:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 15,
+   "source_line": 17,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "that cannot be written (the write fails, or the journal writer's own lock wait runs out) is said once",
-   "id": "rule:spec-1045:internal:65:must",
+   "id": "rule:spec-1045:internal:67:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 65,
+   "source_line": 67,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "the CPUs the process may use;",
-   "id": "rule:spec-1045:internal:84:may",
+   "id": "rule:spec-1045:internal:86:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 84,
+   "source_line": 86,
    "source_section": "internal",
    "status": "active"
   },
@@ -31382,31 +31432,31 @@
   },
   {
    "content": "schedule (SPEC-0142 rule 1); a person may run the same command by hand, and its rows are the same.",
-   "id": "rule:spec-1047:2-the-starter:29:may",
+   "id": "rule:spec-1047:2-the-starter:30:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1047-scheduled-pre-deploy-run-a-project-s-own-cron-runs.yaml",
    "source_domain": "spec",
-   "source_line": 29,
+   "source_line": 30,
    "source_section": "2-the-starter",
    "status": "active"
   },
   {
    "content": "class, run exactly as a land runs them (adapter `list` → `required:` → `run`; a layer's `command:`",
-   "id": "rule:spec-1047:4-what-the-run-executes-the-deploy-s-pre:53:must",
+   "id": "rule:spec-1047:4-what-the-run-executes-the-deploy-s-pre:54:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1047-scheduled-pre-deploy-run-a-project-s-own-cron-runs.yaml",
    "source_domain": "spec",
-   "source_line": 53,
+   "source_line": 54,
    "source_section": "4-what-the-run-executes-the-deploy-s-pre",
    "status": "active"
   },
   {
    "content": "the other, and the later is the descendant; where git cannot say which, neither is dropped. A run is",
-   "id": "rule:spec-1047:6-a-red-last-run-is-named-at-session-sta:86:must",
+   "id": "rule:spec-1047:6-a-red-last-run-is-named-at-session-sta:87:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1047-scheduled-pre-deploy-run-a-project-s-own-cron-runs.yaml",
    "source_domain": "spec",
-   "source_line": 86,
+   "source_line": 87,
    "source_section": "6-a-red-last-run-is-named-at-session-sta",
    "status": "active"
   },
@@ -31531,22 +31581,22 @@
    "status": "active"
   },
   {
-   "content": "reservation after the §8 deploy lock, which no land takes, so the two cannot deadlock. While it",
-   "id": "rule:spec-1051:3-a-deploy-to-a-gated-target-runs-the-pr:186:must",
+   "content": "§8 deploy lock, which no land takes, so the two cannot deadlock. While it waits, it obeys the",
+   "id": "rule:spec-1051:3-a-deploy-to-a-gated-target-runs-the-pr:189:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
    "source_domain": "spec",
-   "source_line": 186,
+   "source_line": 189,
    "source_section": "3-a-deploy-to-a-gated-target-runs-the-pr",
    "status": "active"
   },
   {
    "content": "reuse; a start row that cannot be written refuses the deploy before anything runs; and the run's",
-   "id": "rule:spec-1051:4-what-the-run-records-a-record-never-de:232:must",
+   "id": "rule:spec-1051:4-what-the-run-records-a-record-never-de:247:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
    "source_domain": "spec",
-   "source_line": 232,
+   "source_line": 247,
    "source_section": "4-what-the-run-records-a-record-never-de",
    "status": "active"
   },
@@ -31562,51 +31612,51 @@
   },
   {
    "content": "change here must keep them green; the plan's probe letters in brackets):",
-   "id": "rule:spec-1051:verification:354:must",
+   "id": "rule:spec-1051:verification:388:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
    "source_domain": "spec",
-   "source_line": 354,
+   "source_line": 388,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "second such red is recorded `failed`; a unit timeout together with a `required:` failure or a",
-   "id": "rule:spec-1051:verification:387:must",
+   "id": "rule:spec-1051:verification:424:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
    "source_domain": "spec",
-   "source_line": 387,
+   "source_line": 424,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "`required:` or a `prep:` failure beside a land reads red at once; a lone layer timeout with nobody",
-   "id": "rule:spec-1051:verification:391:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
-   "source_domain": "spec",
-   "source_line": 391,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "- V8 [p] a session that cannot record the rows is refused before the run starts; a row write that",
-   "id": "rule:spec-1051:verification:401:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
-   "source_domain": "spec",
-   "source_line": 401,
-   "source_section": "verification",
-   "status": "active"
-  },
-  {
-   "content": "that cannot be written runs nothing — tests/test_t14160_pre_deploy_run_reuse.py.",
    "id": "rule:spec-1051:verification:428:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
    "source_domain": "spec",
    "source_line": 428,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "- V8 [p] a session that cannot record the rows is refused before the run starts; a row write that",
+   "id": "rule:spec-1051:verification:438:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
+   "source_domain": "spec",
+   "source_line": 438,
+   "source_section": "verification",
+   "status": "active"
+  },
+  {
+   "content": "that cannot be written runs nothing — tests/test_t14160_pre_deploy_run_reuse.py.",
+   "id": "rule:spec-1051:verification:465:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1051-pre-deploy-run-with-one-listed-membership-silent-t.yaml",
+   "source_domain": "spec",
+   "source_line": 465,
    "source_section": "verification",
    "status": "active"
   },
@@ -31961,72 +32011,82 @@
    "status": "active"
   },
   {
-   "content": "proof whose output cannot tell \"this class was treated\" from \"this class was accepted\", or \"the",
-   "id": "rule:spec-1054:6-prove-the-decisions-by-querying-the-co:387:must",
+   "content": "must name a migration that really drops that surface, and the project's own check refuses an entry",
+   "id": "rule:spec-1054:6-prove-the-decisions-by-querying-the-co:391:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 387,
+   "source_line": 391,
+   "source_section": "6-prove-the-decisions-by-querying-the-co",
+   "status": "active"
+  },
+  {
+   "content": "proof whose output cannot tell \"this class was treated\" from \"this class was accepted\", or \"the",
+   "id": "rule:spec-1054:6-prove-the-decisions-by-querying-the-co:398:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
+   "source_domain": "spec",
+   "source_line": 398,
    "source_section": "6-prove-the-decisions-by-querying-the-co",
    "status": "active"
   },
   {
    "content": "and is DISCIPLINE — recorded and taught, never presented as prevention.** A later surface MUST NOT",
-   "id": "rule:spec-1054:8-layer-status-honesty-and-the-scope-bou:404:must",
+   "id": "rule:spec-1054:8-layer-status-honesty-and-the-scope-bou:415:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 404,
+   "source_line": 415,
    "source_section": "8-layer-status-honesty-and-the-scope-bou",
    "status": "active"
   },
   {
    "content": "re-inflate a DISCIPLINE rule into a claimed refusal, and MUST NOT delete this sentence to make the",
-   "id": "rule:spec-1054:8-layer-status-honesty-and-the-scope-bou:405:must",
+   "id": "rule:spec-1054:8-layer-status-honesty-and-the-scope-bou:416:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 405,
+   "source_line": 416,
    "source_section": "8-layer-status-honesty-and-the-scope-bou",
    "status": "active"
   },
   {
    "content": "the kernel does not decide what a project protects, so it cannot be the layer that checks it.",
-   "id": "rule:spec-1054:8-layer-status-honesty-and-the-scope-bou:408:must",
+   "id": "rule:spec-1054:8-layer-status-honesty-and-the-scope-bou:419:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 408,
+   "source_line": 419,
    "source_section": "8-layer-status-honesty-and-the-scope-bou",
    "status": "active"
   },
   {
    "content": "| 4 — the untreated artifact: window, who may touch, inert restore, emission limbs, destruction | PROJECT policy | PROJECT + LIBRARY MECHANICS | DISCIPLINE | egress-denied + executable-schema-disabled",
-   "id": "rule:spec-1054:8a-the-per-obligation-layer-table-this-f:437:may",
+   "id": "rule:spec-1054:8a-the-per-obligation-layer-table-this-f:448:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 437,
+   "source_line": 448,
    "source_section": "8a-the-per-obligation-layer-table-this-f",
    "status": "active"
   },
   {
    "content": "a kernel decision about what that project may keep. The successor route follows SPEC-1037 rule 7:",
-   "id": "rule:spec-1054:rationale:474:may",
+   "id": "rule:spec-1054:rationale:485:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 474,
+   "source_line": 485,
    "source_section": "rationale",
    "status": "active"
   },
   {
    "content": "the change alters what a project must do in cases <workshop-spec> already covered (a reachability value,",
-   "id": "rule:spec-1054:rationale:475:must",
+   "id": "rule:spec-1054:rationale:486:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 475,
+   "source_line": 486,
    "source_section": "rationale",
    "status": "active"
   },
@@ -32062,11 +32122,11 @@
   },
   {
    "content": "- **VP6b (a probe cannot disclose — the PROPERTY, not the shape).** THREE differentials: (i) a",
-   "id": "rule:spec-1054:verification:505:must",
+   "id": "rule:spec-1054:verification:522:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1054-spike-sandbox-data-floor-mechanism-only-the-kernel.yaml",
    "source_domain": "spec",
-   "source_line": 505,
+   "source_line": 522,
    "source_section": "verification",
    "status": "active"
   },
@@ -34572,7 +34632,7 @@
    "cites_unresolved": [],
    "concern": [
     {
-     "born": "product_cron:\n # SPEC-0109. DECLARE this project's OWN scheduled work so v2 governs it (never runs it); example below.\n # Rule text: `__YITC_CLI__ graph query SPEC-0109 --kernel`\n # see SPEC-0109 §1, §2, §3, §4\n waiver:\n reason: \"Initialized via `bin/yitc-v2 init` — no product scheduler declared yet. This project runs no scheduled work of its own; if it gains one (a celery-beat schedule, a host cron), replace this waiver with `scheduler:` + `source:` (the definition that stays the sole source of truth) + a DERIVED `inventory:` (rendered from that source, never hand-entered — SPEC-0109 rule 2).\"\n # SCHEDULED PRE-DEPLOY RUN (SPEC-1047) — switch on after your first declared deploy: commit the\n # line as ops/crontab, install it, and put the block below in place of the waiver:\n # 17 4 * * * cd <project> && <engine>/bin/yitc-v2 -C <project> session start >> <log> 2>&1 && YITC_SESSION_REF=cron-<name> <engine>/bin/yitc-v2 -C <project> deploy --scheduled-run >> <log> 2>&1\n # scheduler: crontab\n # source: ops/crontab\n # inventory:\n # - job: scheduled-pre-deploy-run\n # schedule: \"17 4 * * *\"\n # command: deploy --scheduled-run\n",
+     "born": "product_cron:\n # SPEC-0109. DECLARE this project's OWN scheduled work so v2 governs it (never runs it); example below.\n # Rule text: `__YITC_CLI__ graph query SPEC-0109 --kernel`\n # see SPEC-0109 §1, §2, §3, §4\n waiver:\n reason: \"Initialized via `bin/yitc-v2 init` — no product scheduler declared yet. This project runs no scheduled work of its own; if it gains one (a celery-beat schedule, a host cron), replace this waiver with `scheduler:` + `source:` (the definition that stays the sole source of truth) + a DERIVED `inventory:` (rendered from that source, never hand-entered — SPEC-0109 rule 2).\"\n # SCHEDULED PRE-DEPLOY RUN (SPEC-1047) — switch on after your first declared deploy: commit the\n # line as ops/crontab, install it, and put the block below in place of the waiver:\n # 17 4 * * * cd <project> && export YITC_SESSION_REF=cron-<name> && <engine>/bin/yitc-v2 -C <project> session start >> <log> 2>&1 && <engine>/bin/yitc-v2 -C <project> deploy --scheduled-run >> <log> 2>&1\n # scheduler: crontab\n # source: ops/crontab\n # inventory:\n # - job: scheduled-pre-deploy-run\n # schedule: \"17 4 * * *\"\n # command: deploy --scheduled-run\n",
      "born_order": 150,
      "carrier_path": "product_cron",
      "declare_key": "scheduler",
@@ -35687,10 +35747,12 @@
     "bin/lib/land_verify_legs.py#_declared_layer_worker_shares",
     "bin/lib/land_verify_legs.py#_declared_verify_infra_globs",
     "bin/lib/land_verify_legs.py#_delegated_tests_execution_gap",
+    "bin/lib/land_verify_legs.py#_forecast_row_record",
     "bin/lib/land_verify_legs.py#_named_root_bin_touch",
     "bin/lib/land_verify_legs.py#_ops_carrier_freed_paths",
     "bin/lib/land_verify_legs.py#_owned_test_freed_paths",
     "bin/lib/land_verify_legs.py#_root_bin_aware_touch",
+    "bin/lib/land_verify_legs.py#_verify_layer_forecast",
     "bin/lib/land_verify_legs.py#_verify_selected_layers",
     "bin/lib/session.py#startup_check_lines",
     "bin/lib/task.py#cmd_task_test",
@@ -36417,7 +36479,9 @@
     "bin/lib/verify_runner.py#_selection_recorded_misses",
     "bin/lib/verify_runner.py#_shadow_select",
     "bin/lib/verify_runner.py#governed_selection",
-    "bin/lib/worktree.py#_land_known_broken_merged_reproduction"
+    "bin/lib/worktree.py#_known_broken_recheck_run",
+    "bin/lib/worktree.py#_land_known_broken_merged_reproduction",
+    "bin/lib/worktree.py#land_recheck_known_broken"
    ],
    "init_concern": null,
    "proposed_by": null,
@@ -38113,8 +38177,10 @@
     "bin/lib/admission.py#admit",
     "bin/lib/admission.py#after_run",
     "bin/lib/admission.py#carried_arrival",
+    "bin/lib/admission.py#deploy_run_entry",
     "bin/lib/admission.py#hand_set_busy",
     "bin/lib/admission.py#land_entry",
+    "bin/lib/admission.py#recheck_run_entry",
     "bin/lib/admission.py#reexec_on_engine_change",
     "bin/lib/admission.py#report",
     "bin/lib/admission.py#resumed",
@@ -38254,6 +38320,7 @@
    "cites_unresolved": [],
    "concern": null,
    "implements": [
+    "bin/lib/cli.py#_deploy_release_order",
     "bin/lib/cli.py#_pre_deploy_print_held",
     "bin/lib/cli.py#cmd_pre_deploy_list",
     "bin/lib/deploy.py#_pre_deploy_beside",
@@ -38263,6 +38330,8 @@
     "bin/lib/deploy.py#_pre_deploy_reuse",
     "bin/lib/deploy.py#_pre_deploy_run",
     "bin/lib/deploy.py#_pre_deploy_take_reservation",
+    "bin/lib/deploy.py#release_order_hold",
+    "bin/lib/deploy.py#release_order_targets",
     "bin/lib/init.py#_pre_deploy_units_errors",
     "bin/lib/init.py#pre_deploy_declaration_errors",
     "bin/lib/land_verify_legs.py#_pre_deploy_allocate",

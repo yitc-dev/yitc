@@ -4241,7 +4241,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#subscription_auth_present: 6d81b66d13b8d98ec5acf00b36fb125a8809e169721ede9eb5fe6335fbd3dcf2
-  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: bd3c2ae84e964b704241edc160204d3deb75c32da7fed351aaa6eba3215111da
+  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: 7dd22f85b24807ddd6d2971843cfde667abb94387a80dac963253076dbe89127
   bin/lib/cli.py#_abort_cause_breadth_head_lines: e8bb23412a2468dff2da834dcd8720b94a6c6e01c6454bd56f5a48d32bc945e5
   bin/lib/cli.py#_abort_cause_breadth_view: 0d177287e42cb92463bb40d35ea72711ee4c18137f51358a9ba5dba3c8cfb2cc
   bin/lib/cli.py#_ahead_branch_view: e21126ef27a20e765eab8736bcf4323434ef1cfdcd856ec96831af2160918694
@@ -4332,7 +4332,7 @@ implements_signature:
   bin/lib/debt_adoption.py#gap_dedupe_key: e34d3f3484f0662a969ab50d26dac636d65c17726842a402f21655c07003a378
   bin/lib/debt_adoption.py#gap_rank: 5651fb1e12cebea4d99c2f3f9c809aab69101edb4017d60082f0c277d739d67c
   bin/lib/debt_adoption.py#gap_task_linked: 3893e4f233a183b709d8e9d941484900586687c673663afdef13dc927f8166e6
-  bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
+  bin/lib/debt_adoption.py#open_known_broken: 78b9b00b36b21c12081c37ab5ff3534cfeeead2829cbab354bd226697c50c3dc
   bin/lib/debt_adoption.py#open_subcritical_findings: 0305df9e23683084a6d3967440e6482f7ae01900459800b54126e8d9a8647a4a
   bin/lib/debt_adoption.py#p8_carrier_followups: e2698a024c0101d29e9d11452007fa35c3aa71ed30a5a1f9e26026d25282b8c7
   bin/lib/debt_adoption.py#uncarried_p8_warns: 74e469fe3b704777d896e73981629e42e3369c0ceffa7213cc8e335768c21116

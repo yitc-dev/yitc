@@ -6602,7 +6602,7 @@ def _validate_closes_fp(values: list, *, _die) -> list:
     side admits them; whitespace, slashes and the empty string REFUSED) — reject anything else LOUDLY so a
     typo/arbitrary string can never pollute the canonical `cites:` LINK-RULE carrier.
 
-    STORED VERBATIM (T-10961): the token is returned stripped but otherwise UNCHANGED — never case-folded.
+    STORED VERBATIM (T-10961, T-14354): the token is returned exactly as given (a whitespace-bearing one is refused, never stripped) — never case-folded.
     Every reader of the link (`_fingerprint_cites_index` and the triage route/currency/cluster readers that
     key off it) matches the journal's `data.fingerprint` by EXACT string equality, so folding here would
     write an entry matching no capture — linked at close yet still reading un-routed, worse than refusing.
@@ -6610,14 +6610,15 @@ def _validate_closes_fp(values: list, *, _die) -> list:
     Returns the cleaned list (order preserved)."""
     cleaned: list = []
     for raw in (values or []):
-        fp = str(raw).strip()
-        if not fp:
+        fp = str(raw)
+        if not fp.strip():
             _die("--closes-fp value is empty — pass the fingerprint string this task remediated.")
-        if not _CLOSES_FP_RE.match(fp):
-            _die(f"--closes-fp {raw!r} is not a valid fingerprint (expected a whitespace-free token "
-                 f"matching {_CLOSES_FP_RE.pattern!r} — letters in ANY case, digits, `.` `_` `-` `:`; no "
-                 f"whitespace, no slashes). A fingerprint is the `data.fingerprint` of a "
-                 f"deviation_captured, copied VERBATIM — not free text or an artifact id.")
+        # T-14354: checked AS GIVEN (no strip) with the capture side's own message, so a token is
+        # admitted or refused identically at both doors (`triage.fingerprint_shape_refusal`).
+        msg = triage.fingerprint_shape_refusal("--closes-fp", fp)
+        if msg:
+            _die(f"{msg} Copy it from the capture row (`bin/yitc-v2 journal query --type "
+                 f"deviation_captured`) and re-run `bin/yitc-v2 task close` with it.")
         cleaned.append(fp)
     return cleaned
 
@@ -14817,27 +14818,13 @@ def _stage6_stop_recorder(fn):
     return wrapper
 
 
-@_pinned_suite_edit_preaudit_marker
-@_stage6_stop_recorder
-def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None, _stage_pointer_facts=None) -> None:
-    """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
-    writes current_stage). Without --evidence: ENTER Tests (emit tests_entered, print
-    ACs as a manual checklist). With --evidence: RECORD the Stage-6 result durably — emit a
-    `tests_passed` event {current_stage, evidence, acceptance} (T-0123: the deterministic
-    Stage-6-evidence capture audit-post reads, so the auditor has concrete test evidence BEFORE
-    Stage 8). No probe auto-execution (deferred per D-0033)."""
-    yaml, path, task = _load_task_for_transition(args.task)
+def stage6_stage_decision(task, path, yaml, *, _die, _require_stage_correspondence, _write_task_transition=None,
+                          _append_event, _stage_pointer_facts=None, _run_git_cap=None, REPO_ROOT=None) -> bool:
+    """T-14347 — THE stage decision of `task test` (SPEC-1038 §Tests «Position»): the status check, the
+    post-close rework admission, the pointer advance into Tests and the Audit-post gap exemption, else the
+    strict stage-correspondence refusal (`read_gate_refused`, then `_die`). Returns whether the run is a
+    post-close rework. Called by `cmd_task_test` and, before the admission queue, by `cli.cmd_task_test`."""
     tid = task.get("id")
-    # T-14098 — `--whole`, the MEASURING form: every declared layer and the test sweep run whole on
-    # this tree. It measures a run, so it takes `--run`; it implies `--full` (the sweep's selection),
-    # and below it takes the guard's base-less, not-one-card arm (no subject skip, no deciding
-    # selection, no unit credit — SPEC-1030 rule 4) and marks the row `whole: true`.
-    _whole = bool(getattr(args, "whole", False))
-    if _whole:
-        if not getattr(args, "run", False):
-            _die(f"{tid} task test --whole measures a run — pass it with --run "
-                 f"(`yitc-v2 task test {tid} --run --whole --evidence ...`)")
-        args.full = True
     # T-10975 (X-0820, fp done-unlanded-rework-no-clean-path) — the POST-CLOSE REWORK admission. A card
     # closed `done` whose closure is still branch-local may take a new fix (via the T-0367 `work commit`
     # route) and must be able to RE-PROVE it: this verb is the SOLE session-facing route to the suite
@@ -14850,17 +14837,18 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
     if task.get("status") == "done":
         if _run_git_cap is None or REPO_ROOT is None:
             _die(f"{tid} is done — post-close rework admission unavailable (internal wiring error); "
-                 f"the closure-landed determination could not run, so this refuses fail-closed.")
+                 f"the closure-landed determination could not run, so this refuses fail-closed. Re-run "
+                 f"`yitc-v2 task test {tid} --run` from the task's worktree; if it refuses again, ask the owner.")
         from pathlib import Path as _Path
         if not _closure_is_unlanded(tid, path, REPO_ROOT=_Path(REPO_ROOT), _run_git_cap=_run_git_cap):
             _die(f"{tid} is done and its closure REACHED `main` (or could not be proven otherwise) — a "
-                 f"LANDED done task has NO reopen: file a NEW task for the follow-on work (LIFECYCLE "
+                 f"LANDED done task has NO reopen: file a NEW task for the follow-on work (`yitc-v2 task file`; LIFECYCLE "
                  f"§Stage 9 / QUEUE §Prematurely-closed, T-0367 / T-10110). The post-close rework route "
                  f"admits ONLY a done-but-UNLANDED card, and unlanded-ness is determined from `main`, "
                  f"never asserted by the caller.")
         post_close_rework = True
     elif task.get("status") != "in-progress":
-        _die(f"{tid} status={task.get('status')!r} — claim it first via `worktree new --task {tid}` (must be in-progress; the worktree creation IS the claim per T-0124/D-0037)")
+        _die(f"{tid} status={task.get('status')!r} — claim it first via `yitc-v2 worktree new --task {tid}` (must be in-progress; the worktree creation IS the claim per T-0124/D-0037)")
     if post_close_rework:
         # A done card has no LIVE Tests stage and `stage Tests` hard-refuses it, so the
         # stage-correspondence precondition is structurally unsatisfiable here — the identical reason
@@ -14899,6 +14887,37 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                   f"{gates.TESTS_ENTRY_ROUTE.format(tid=tid)}")
         else:
             _require_stage_correspondence(task, tid, "Tests", verb="task test")   # T-0288: strict — requires current_stage==Tests
+    return post_close_rework
+
+
+@_pinned_suite_edit_preaudit_marker
+@_stage6_stop_recorder
+def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_rule_pointer, _load_task_for_transition, _post_action_hint, _require_stage_correspondence, _require_verification_artifact, _declared_test_sweep_paths=None, _write_task_transition=None, _run_verify_tests=None, _consumer_zero_probe_guard=None, _consumer_tests_delegation=None, _render_tests_delegation_note=None, _delegated_tests_execution_gap=None, _uncommitted_layer_surface=None, _render_uncommitted_layer_surface_note=None, _auto_rebuild_graph=None, REPO_ROOT=None, _run_git_cap=None, _is_consumer_build=None, _governed_selection=None, _classify_inert_paths=None, _verify_worker_governor=None, _main_worktree=None, _layer_step_lines=None, _stage_pointer_facts=None) -> None:
+    """Stage 6. Requires current_stage==Tests (set via `stage Tests` — T-0288; this verb no longer
+    writes current_stage). Without --evidence: ENTER Tests (emit tests_entered, print
+    ACs as a manual checklist). With --evidence: RECORD the Stage-6 result durably — emit a
+    `tests_passed` event {current_stage, evidence, acceptance} (T-0123: the deterministic
+    Stage-6-evidence capture audit-post reads, so the auditor has concrete test evidence BEFORE
+    Stage 8). No probe auto-execution (deferred per D-0033)."""
+    yaml, path, task = _load_task_for_transition(args.task)
+    tid = task.get("id")
+    # T-14098 — `--whole`, the MEASURING form: every declared layer and the test sweep run whole on
+    # this tree. It measures a run, so it takes `--run`; it implies `--full` (the sweep's selection),
+    # and below it takes the guard's base-less, not-one-card arm (no subject skip, no deciding
+    # selection, no unit credit — SPEC-1030 rule 4) and marks the row `whole: true`.
+    _whole = bool(getattr(args, "whole", False))
+    if _whole:
+        if not getattr(args, "run", False):
+            _die(f"{tid} task test --whole measures a run — pass it with --run "
+                 f"(`yitc-v2 task test {tid} --run --whole --evidence ...`)")
+        args.full = True
+    # T-14347 — the stage decision has ONE home, `stage6_stage_decision`; `cli.cmd_task_test` also calls it
+    # before the admission queue on a switched-on `--run`, so a refused run takes no slot (this call stays
+    # the authority: the card may move while the run waits).
+    post_close_rework = stage6_stage_decision(
+        task, path, yaml, _die=_die, _require_stage_correspondence=_require_stage_correspondence,
+        _write_task_transition=_write_task_transition, _append_event=_append_event,
+        _stage_pointer_facts=_stage_pointer_facts, _run_git_cap=_run_git_cap, REPO_ROOT=REPO_ROOT)
     # T-0598 — verification-artifact-exists readiness (SPEC-0059 §contract leg 2b): the Tests stage PROVES
     # the task against its `acceptance`, so the criteria must EXIST first. `task file` mandates ≥1
     # acceptance item (a normally-filed task always passes); this is the proving-stage backstop that
@@ -17665,7 +17684,7 @@ def commit_stage_spec_drift_warn(tid: str, drift_hits: list) -> str:
 
 def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_paths, _test_basename_re,
                   _run_git_cap, _verify_test_timeout_seconds, _consumer_tests_delegation=None,
-                  notes_out=None, _selection_always_set=None) -> list:
+                  notes_out=None, _selection_always_set=None, failures_out=None) -> list:
     """T-14034 (SPEC-1038 §Execution, the own-tests check) — run ONLY the changed test files, each
     through the project's OWN test declarations by the machinery the governed run uses, and return
     one entry per changed test file: `{file, runner, result: passed|failed|not-determined}` (+
@@ -17702,6 +17721,13 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
     one line per such layer and at most one install hint: a layer whose `prep:` declares `npm-ci`
     (SPEC-0152 rule 16, the same workdir/lockfile defaults as `_run_layer_prep`) with the lockfile on
     disk and no `node_modules` beside it — this check runs no prep.
+
+    T-14340 — a layer with a FAILED changed unit keeps what its `run` printed and says why, as the
+    land's adapter `units-failed` arm does (T-12758), through the same three functions: the output goes
+    to `.yitc/land-logs/` under `root` (attempt `own`), and `failures_out`, when given, gets one
+    `{layer, lines, log}` per such layer — `lines` the report's `FAILED <file>::<case> - <excerpt>`
+    lines for the failed changed units, `log` the root-relative path or None when it could not be
+    written. A layer with no failed changed unit writes and hands back nothing.
 
     T-14082 — the (1) sweep also runs the directory's DECLARED always-run set, the SPEC-0181 R5
     consistency tripwires (`_selection_always_set`, the one reader of the `# yitc: selection: always`
@@ -17865,10 +17891,12 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
         for row in rec.get("units") or ():
             if isinstance(row, dict) and isinstance(row.get("file"), str):
                 statuses.setdefault(row["file"], []).append(row.get("status"))
+        failed_here: list = []
         for f in sorted({u["file"] for u in units}):
             got = statuses.get(f) or []
             if usable and got and any(st in ("failed", "error") for st in got):
                 res = {"result": "failed"}
+                failed_here.append(f)
             elif usable and got and all(st == "passed" for st in got):
                 res = {"result": "passed"}
             else:
@@ -17877,7 +17905,14 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                                            else "the layer's report holds no passed/failed row for this file")}
             out.append({"file": f, "runner": f"layer:{name}", **res})
             left.remove(f)
-    globs = [g for g in declared_test_globs(root, ops) if isinstance(g, str) and g.strip()]
+        if failed_here and failures_out is not None:
+            # T-14340: the land's units-failed renderer, on this pass's own sink — nothing re-runs.
+            printed = _lv._adapter_invocations_output(run_sink.get("invocations"))[0]
+            log = _wt._write_layer_output_log({"root": root, "branch": "own-tests", "attempt": "own"},
+                                              name, printed)
+            rows = [r for r in rec.get("units") or () if isinstance(r, dict) and r.get("file") in failed_here]
+            failures_out.append({"layer": name, "lines": _lv._adapter_unit_failure_lines(rows), "log": log})
+    globs =[g for g in declared_test_globs(root, ops) if isinstance(g, str) and g.strip()]
     for f in left:
         shaped = (any(fnmatch.fnmatchcase(f, g) for g in globs) if globs
                   else bool(_test_basename_re.match(f.rsplit("/", 1)[-1])))
@@ -17984,12 +18019,14 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
     present = [p for p in changed if (root / p).is_file()]
     before = {p: _git_blob_id(root / p) for p in present}   # T-14035: hashed BEFORE the run ...
     notes: list = []                                        # T-14084: one line per unlisted layer + the install hint
+    failures: list = []                                     # T-14340: a failing layer's lines + kept output
     files = own_tests_run(root, present,
                           _run_verify_tests=_run_verify_tests,
                           _declared_test_sweep_paths=_declared_test_sweep_paths,
                           _test_basename_re=_test_basename_re, _run_git_cap=_run_git_cap,
                           _consumer_tests_delegation=_consumer_tests_delegation,
-                          _verify_test_timeout_seconds=_verify_test_timeout_seconds, notes_out=notes)
+                          _verify_test_timeout_seconds=_verify_test_timeout_seconds, notes_out=notes,
+                          failures_out=failures)
     results = {e["result"] for e in files}
     outcome = ("empty" if not files else "red" if "failed" in results
                else "not-determined" if "not-determined" in results else "green")
@@ -18005,7 +18042,13 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
     for e in files:
         print(f"own-tests: {e['file']} [{e['runner'] or 'no runner'}] -> {e['result']}"
               + (f" ({e['reason']})" if e.get("reason") else ""))
-    n_always = sum(1 for e in files if e.get("always"))
+    for fl in failures:
+        print(f"own-tests: layer {fl['layer']} failed:")
+        for ln in fl["lines"]:
+            print(f"  {ln}")
+        print(f"own-tests: layer {fl['layer']} — WHOLE captured output: {root / fl['log']}" if fl["log"]
+              else f"own-tests: layer {fl['layer']} — its captured output could not be kept")
+    n_always =sum(1 for e in files if e.get("always"))
     print(f"{tid}: own-tests {outcome.upper()} over {len(files) - n_always} changed test file(s)"
           + (f" + {n_always} declared always-run" if n_always else "") + f" at {stage} — "
           + ("the diff adds or changes no test file" if not files else
@@ -18653,15 +18696,50 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # at the ceiling first, T-13448), and the ONE bounded `--on-decisions` pass then VERIFIES it. The commit stops
         # being something to smuggle past a ceiling and becomes the ordinary subject of a governed
         # pass. The refusal is upstream of any staging, so nothing is written.
+        #
+        # T-14339 (X-2119) — THE FIX COMMIT AT THE CEILING ROW. `audit decide --disposition fix`
+        # refuses any `--evidence` that is not a RECORDED commit strictly descending the audited one,
+        # so the fix has to be committed before the decision can name it. Until T-14339 this branch
+        # refused at ceiling+1 unconditionally, which closed BOTH doors and left the fix disposition
+        # unreachable (<project> T-1189). The commit is now admitted at exactly ceiling+1 while the
+        # ceiling row's one bounded pass has not run (`audit.ceiling_fix_commit_open`, read from the
+        # same injected fold the `--reship` branch below reads). It grants no verdict and no pass:
+        # closure still needs that pass, and the pass still needs the Controller's decision.
         prior_fix_red = _count_audit_passes(tid, "post")
-        if prior_fix_red >= AUDIT_PASS_CEILING + 1:
+        _fix_why = None
+        if prior_fix_red > AUDIT_PASS_CEILING + 1:
+            _fix_why = (f"past_ceiling_row: {prior_fix_red} passes — the ceiling row's bounded pass "
+                        f"has already been spent")
+        elif prior_fix_red == AUDIT_PASS_CEILING + 1:
+            try:
+                _fix_rows = (_task_events_for(tid, audit.TEST_FOUND_FIX_ROW_TYPES)
+                             if _task_events_for is not None else None)
+            except Exception:      # noqa: BLE001 — an unreadable journal opens nothing (fail-closed)
+                _fix_rows = None
+            if _fix_rows is None:
+                _fix_why = "journal_unreadable: the card's journal rows could not be read"
+            else:
+                _fix_open, _fix_why = audit.ceiling_fix_commit_open(tid, _fix_rows)
+                _fix_why = None if _fix_open else (_fix_why or "closed")
+        if prior_fix_red >= AUDIT_PASS_CEILING + 1 and _fix_why:
             _die(audit.RETIRED_AUDIT_SURFACES["spent-budget-bypass"] + "\n\n"
                  + f"`--fix-red` refused: {prior_fix_red} audit-post passes are recorded for {tid}, "
                    f"which is past the {AUDIT_PASS_CEILING}-pass ceiling, and the one-pass-wide arm "
-                   f"that used to admit a commit here is retired with the reset it depended on.\n\n"
+                   f"that used to admit a commit here is retired with the reset it depended on. A fix "
+                   f"commit is admitted at the ceiling row only until its one bounded "
+                   f"`--on-decisions` pass runs (T-14339) — not here: {_fix_why}.\n\n"
                  + audit.RETIRED_CEILING_POINTER)
 
-        if prior_fix_red >= AUDIT_PASS_CEILING:
+        if prior_fix_red >= AUDIT_PASS_CEILING + 1:
+            print(f"# WARN --fix-red at {prior_fix_red} passes: the fix commit is admitted at the "
+                  f"ceiling row (T-14339). It earns no verdict: next the CONTROLLER records `yitc-v2 "
+                  f"audit decide --task {tid} --stage post --finding <fp> --disposition fix "
+                  f"--evidence <this new commit sha> --reason <why> --directive <locator>` for the "
+                  f"residual it fixes (and one decision for every other residual), then `yitc-v2 audit "
+                  f"post --task {tid} --on-decisions --sweep '<where you looked for the same defect "
+                  f"class and what you found>'` runs the ONE bounded pass (SPEC-1039 rules 2-3). "
+                  f"Without that pass, closure deadlocks (E-0008).", file=sys.stderr)
+        elif prior_fix_red >= AUDIT_PASS_CEILING:
             # SPEC-0204 rule 6 (T-12290) — the WARN keeps its job (say plainly that the REQUIRED
             # re-audit is past the ceiling and closure deadlocks without one) and names the route
             # that now admits it. Naming the retired flag here would send the reader to a refusal.
@@ -18676,9 +18754,14 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
             print(f"# --fix-red: committing the in-scope fix for {tid}'s RED audit-post cause "
                   f"({len(authored)} authored path(s): {', '.join(authored[:5])}"
                   f"{' …' if len(authored) > 5 else ''}). The superseded RED verdict is folded IN, "
-                  f"not deleted. REQUIRED next: `yitc-v2 audit post --task {tid} --commit <new>` — "
-                  f"it re-pins custody (D-0082) and carries the passes trail; `task close` "
-                  f"fail-closes until it runs.", file=sys.stderr)
+                  f"not deleted. "
+                  # T-14339: at the ceiling row the re-audit is the `--on-decisions` pass the WARN
+                  # above names, never a plain `audit post --commit` (one leg, one next step).
+                  + (f"REQUIRED next: the decision route in the WARN above; `task close` "
+                     f"fail-closes until its pass runs." if prior_fix_red >= AUDIT_PASS_CEILING + 1
+                     else f"REQUIRED next: `yitc-v2 audit post --task {tid} --commit <new>` — "
+                          f"it re-pins custody (D-0082) and carries the passes trail; `task close` "
+                          f"fail-closes until it runs."), file=sys.stderr)
     elif hazard and reship and hazard[0].endswith("-audit-post.yaml"):
         # T-12410 — the Stage-8 GREEN SECOND-SHIP leg: the THIRD member of a family that already had
         # one flag per admitting verdict and was missing exactly one. MEASURED (<project> X-1348 /

@@ -35,7 +35,7 @@ Default to the PLAIN register the owner otherwise has to request with an "explai
 - End with one plain recommendation or question (recommendation first — §Recommendation Default).
 - Target: understandable to a capable reader with zero context on this system.
 
-**Keep technical identifiers EXACT — but always gloss them.** Never rename / translate / paraphrase the token itself: verb & command names (`bin/yitc-v2 land`), ids (`SPEC-XXXX` / `T-XXXX` / `E-XXXX` / `X-XXXX`), event names, field keys, file paths. Pair each with a plain gloss in the surrounding sentence (precise token, plain sentence). "Exact" ≠ "unexplained". This is a REGISTER rule, distinct from the LANGUAGE rule below (Russian vs English) — it governs how plainly owner-facing prose is phrased, not which language.
+**Keep technical identifiers EXACT — but always gloss them.** Never rename / translate / paraphrase the token itself: verb & command names (`bin/yitc-v2 land`), ids (`SPEC-XXXX` / `T-XXXX` / `E-XXXX` / `X-XXXX`), event names, field keys, file paths. Pair each with a plain gloss in the surrounding sentence (precise token, plain sentence). "Exact" ≠ "unexplained". This is a REGISTER rule, distinct from the LANGUAGE rule below (the user's language vs English) — it governs how plainly owner-facing prose is phrased, not which language.
 
 
 <!-- source: AGENTS-SESSIONS.md (controller supplement) -->

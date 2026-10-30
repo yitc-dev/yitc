@@ -534,6 +534,12 @@ INVENTORY: "tuple[Knob, ...]" = (
        "its share over the layers that run (T-14205, SPEC-0152 rule 16). GATE by the fail-closed default, "
        "on the same terms as YITC_VERIFY_LAYER_WORKERS: setting it by hand changes nothing the kernel "
        "decides, and it is never read back"),
+    _g("YITC_VERIFY_LAYER_FORECAST", "str", None, "bin/lib/land_verify_legs.py#VERIFY_LAYER_FORECAST_ENV",
+       "NOT an input the kernel reads: the path of the run's forecast file — per layer the run executes, a "
+       "labelled estimate of its units and their known median time, bound to the run id — WRITTEN into each "
+       "layer command's env beside YITC_VERIFY_SELECTED_LAYERS (T-14343, SPEC-0152 rule 16). GATE by the "
+       "fail-closed default, on the same terms as YITC_VERIFY_LAYER_WORKERS: setting it by hand changes "
+       "nothing the kernel decides, and it is never read back"),
     _g("YITC_VERIFY_RERUN_FILES", "str", None, "bin/lib/verify_runner.py#VERIFY_RERUN_FILES_ENV",
        "a protocol input, not a tunable: the newline-separated test files the SPEC-0152 rule-16 isolated "
        "re-run of a layer hands its command when the first run named them (T-14276); the engine's suite "
@@ -918,8 +924,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        bounds=(1.0, 86400.0)),
     _p("YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT", "float", 10.0, "SPEC-1045 queue — THE RULE (T-14195)",
        "the most percent busy the window's mean may read for a run to start into a single land's tail "
-       "(the source's LAND_TAIL_THRESHOLD, its default). PERFORMANCE. Admissible 1..100",
-       bounds=(1.0, 100.0)),
+       "(the source's LAND_TAIL_THRESHOLD, its default). 0: no run starts into a land's tail — the run "
+       "takes the window rule, which waits while a land holds (T-14359). PERFORMANCE. Admissible 0..100",
+       bounds=(0.0, 100.0)),
     _p("YITC_ADMISSION_LIGHT_PIN", "cpus", "", "SPEC-1045 queue — THE PLACES (T-14195)",
        "the CPUs a light land runs on, a taskset list (the source's LIGHT_PIN); empty: no pinning — no "
        "affinity call (SPEC-1045 rule 2 (i)). PERFORMANCE: it describes the machine",
@@ -1364,10 +1371,16 @@ def get_value(name, env=None):
 
 
 # ── The file: write side ──────────────────────────────────────────────────────────────────────
+# The numeric knobs whose 0 is a meaning of its own rather than a disabled engine (T-14359): `coerce`
+# admits 0 for these and refuses it for every other numeric knob, whatever its band says.
+ZERO_ADMITTED = frozenset({"YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT"})
+
+
 def coerce(knob: Knob, raw, *, banded=True):
     """Validate + convert `raw` for `knob`, or raise SettingsRefused. Numeric knobs must be finite
     and > 0: every numeric performance knob here is a cadence or a worker count, and zero/negative
-    would not be a slower engine but a disabled or nonsensical one.
+    would not be a slower engine but a disabled or nonsensical one — except a knob in ZERO_ADMITTED,
+    whose 0 has a meaning of its own (>= 0 there).
 
     A boolean is never a number here, and an integer knob takes no fractional value: a hand-written
     `true` or `2.5` is refused rather than read as 1 or 2 (T-13966). `banded=False` skips the band
@@ -1402,7 +1415,7 @@ def coerce(knob: Knob, raw, *, banded=True):
     if knob.kind in ("int", "float"):
         if value != value or value in (float("inf"), float("-inf")):     # NaN / inf
             raise SettingsRefused(f"{knob.name}: {raw!r} is not a finite {knob.kind}")
-        if value <= 0:
+        if value < 0 or (value == 0 and knob.name not in ZERO_ADMITTED):
             raise SettingsRefused(f"{knob.name}: must be > 0 (got {value})")
         if banded and knob.bounds is not None:
             lo, hi = knob.bounds

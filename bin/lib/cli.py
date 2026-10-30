@@ -855,11 +855,93 @@ def cmd_task_file(args: argparse.Namespace) -> None:
     _scope = (contextlib.nullcontext() if getattr(args, "skeleton", False)
               else _advisory_read_scope(main_events_path=_main_ev))
     with _scope:
+        if getattr(args, "from_stdin", False) and not getattr(args, "skeleton", False):
+            text = sys.stdin.read()
+            docs = _stdin_batch_docs(text)
+            if len(docs) >= 2:
+                return _cmd_task_file_batch(args, _main_ev, docs)
+            if docs and isinstance(docs[0], dict) and any(
+                    _BATCH_REF_RE.fullmatch(str(r).strip()) for r in (docs[0].get("requires") or [])):
+                _die("task file --from-stdin: `@N` in requires names a card of a BATCH (several "
+                     "`---`-separated documents in one call); this stdin holds one card. Nothing was "
+                     "written. Name the task id instead and re-run `bin/yitc-v2 task file --from-stdin`, "
+                     "or pipe the whole batch to one `bin/yitc-v2 task file --from-stdin`.")
+            sys.stdin = io.StringIO(text)   # one card: the single-mapping path, unchanged
         return _cmd_task_file_body(args, _main_ev)
 
 
-def _cmd_task_file_body(args: argparse.Namespace, _main_ev) -> None:
-    return task_mod.cmd_task_file(args, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, TASKS_DIR=TASKS_DIR, _actor=_actor, _actor_vocabulary=_actor_vocabulary, _append_event=_append_event, _as_list=_as_list, _auto_cross_pick_for_file=_auto_cross_pick_for_file, _cross_overlap_inputs=_cross_overlap_inputs, _inflight_intent_scan=_inflight_intent_scan, _declared_surface_preview=_declared_surface_preview, _die=_die, _dump_state_yaml=_dump_state_yaml, _emit_task_skeleton=_emit_task_skeleton, _format_task_verdict_line=_format_task_verdict_line, _kernel_content_file=_kernel_content_file, _id_alloc_lock=_id_alloc_lock, _main_events_path=_main_ev, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_spike_mode_hint=_print_spike_mode_hint, _report_graft_parse_errors=_report_graft_parse_errors, _require_reads=_filing_read_gate, _require_writing_worktree=_require_writing_worktree, _slug=_slug, _utc_now_iso=_utc_now_iso, _with_live_nodes=_with_live_nodes, _work_batch_next_hint=_work_batch_next_hint, graph_build_index=graph_build_index, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _advisory_read_scope=_advisory_read_scope, _observed_event_types=_observed_event_types)
+# T-14329 (X-2108): a `task file --from-stdin` BATCH — several cards as `---`-separated YAML documents
+# in ONE call. Chained single filings shift every later id when one is refused, so a `requires:` the
+# author precomputed names the wrong sibling. In a batch a card names an EARLIER sibling as `@N` (its
+# 1-based position), resolved to the id that card was actually allocated; a refusal stops the batch,
+# so no later card files and no edge can point at a card other than the one the author named.
+_BATCH_REF_RE = re.compile(r"@(\d+)")
+
+
+def _stdin_batch_docs(text: str) -> list:
+    """The non-empty YAML documents on stdin (>= 2 = a batch). A parse error returns [] so the
+    single-mapping path refuses it with its own located message."""
+    try:
+        import yaml
+        return [d for d in yaml.load_all(text, Loader=state.yaml_loader()) if d is not None]
+    except Exception:   # noqa: BLE001 — the single path reports the parse error
+        return []
+
+
+def _cmd_task_file_batch(args: argparse.Namespace, _main_ev, docs: list) -> None:
+    # Every `@N` is checked BEFORE the first filing: a bad reference refuses the whole batch unwritten.
+    for i, doc in enumerate(docs, 1):
+        if not isinstance(doc, dict):
+            _die(f"task file --from-stdin batch: document {i} is not a YAML mapping. Nothing was "
+                 f"written. Fix it and re-run `bin/yitc-v2 task file --from-stdin`; "
+                 f"`bin/yitc-v2 task file --skeleton` prints one card's mapping.")
+        for raw in (doc.get("requires") or []):
+            m = _BATCH_REF_RE.fullmatch(str(raw).strip())
+            if m and not 1 <= int(m.group(1)) < i:
+                _die(f"task file --from-stdin batch: card {i} requires {raw!r}, but `@N` names an "
+                     f"EARLIER card of the batch by its 1-based position (card {i} may name @1..@{i - 1}; "
+                     f"card 1 may name none). Nothing was written. Fix the reference and re-run "
+                     f"`bin/yitc-v2 task file --from-stdin`.")
+    filed: list = []
+    seen: list = []
+
+    def _capture(etype, tid=None, *a, **kw):
+        tid = tid or kw.get("task_id")
+        if etype == "task_filed" and tid:
+            seen.append(tid)
+        return _append_event(etype, tid, *a, **kw)
+
+    saved_stdin = sys.stdin
+    try:
+        for i, doc in enumerate(docs, 1):
+            doc = dict(doc)
+            if doc.get("requires"):
+                doc["requires"] = [filed[int(m.group(1)) - 1]
+                                   if (m := _BATCH_REF_RE.fullmatch(str(r).strip())) else r
+                                   for r in doc["requires"]]
+            sys.stdin = io.StringIO(state.dump(doc))
+            before = len(seen)
+            try:
+                _cmd_task_file_body(args, _main_ev, _append_event_fn=_capture)
+            except SystemExit:
+                print(f"task file --from-stdin batch: card {i} of {len(docs)} was refused — the batch "
+                      f"stopped there; cards {i}..{len(docs)} were NOT filed"
+                      + (f" (filed before it: {', '.join(filed)})." if filed else "; nothing was filed."),
+                      file=sys.stderr)
+                raise
+            if len(seen) != before + 1:
+                _die(f"task file --from-stdin batch: card {i} filed no single id; stopping the batch "
+                     f"(filed: {', '.join(filed) or 'none'}). Check them with `bin/yitc-v2 task list` "
+                     f"and re-run `bin/yitc-v2 task file --from-stdin` with the cards not yet filed.")
+            filed.append(seen[-1])
+    finally:
+        sys.stdin = saved_stdin
+    print(f"task file --from-stdin batch: filed {len(filed)} card(s): " + ", ".join(
+        f"@{n}={t}" for n, t in enumerate(filed, 1)))
+
+
+def _cmd_task_file_body(args: argparse.Namespace, _main_ev, _append_event_fn=None) -> None:
+    return task_mod.cmd_task_file(args, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, TASKS_DIR=TASKS_DIR, _actor=_actor, _actor_vocabulary=_actor_vocabulary, _append_event=_append_event_fn or _append_event, _as_list=_as_list, _auto_cross_pick_for_file=_auto_cross_pick_for_file, _cross_overlap_inputs=_cross_overlap_inputs, _inflight_intent_scan=_inflight_intent_scan, _declared_surface_preview=_declared_surface_preview, _die=_die, _dump_state_yaml=_dump_state_yaml, _emit_task_skeleton=_emit_task_skeleton, _format_task_verdict_line=_format_task_verdict_line, _kernel_content_file=_kernel_content_file, _id_alloc_lock=_id_alloc_lock, _main_events_path=_main_ev, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_spike_mode_hint=_print_spike_mode_hint, _report_graft_parse_errors=_report_graft_parse_errors, _require_reads=_filing_read_gate, _require_writing_worktree=_require_writing_worktree, _slug=_slug, _utc_now_iso=_utc_now_iso, _with_live_nodes=_with_live_nodes, _work_batch_next_hint=_work_batch_next_hint, graph_build_index=graph_build_index, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _advisory_read_scope=_advisory_read_scope, _observed_event_types=_observed_event_types)
 
 
 def _deliver_filing_contracts(refused: bool = False) -> list:
@@ -1827,6 +1909,11 @@ def cmd_task_test(args: argparse.Namespace) -> None:
     adm = (_admission_switch_once() if getattr(args, "run", False) or getattr(args, "own", False) else None)
     if adm is not None and adm.get("on"):
         own = bool(getattr(args, "own", False))
+        if not own:
+            # T-14347 — the run's stage decision BEFORE the queue, by the one function `cmd_task_test` calls
+            # again after the wait (the card may move while queued): a run the stage refuses writes its
+            # `read_gate_refused` and takes no ticket, slot, sync or quick set.
+            _stage6_stage_decision(args.task)
         with admission_mod.task_test_entry(
                 main=adm["main"], root=REPO_ROOT, task=args.task, form="own" if own else "run",
                 kernel=not _is_consumer_build(), append_event=_append_event, sweep=_admission_sweep_runs(),
@@ -1840,6 +1927,12 @@ def cmd_task_test(args: argparse.Namespace) -> None:
             if code is not None:
                 if code:
                     raise SystemExit(code)
+                # T-14361 — the sync's proof ended the run: still end stdout with the terminal TEST: token
+                # (SPEC-1028 — every invocation form), naming the proof and the prior row it rests on.
+                print(task_mod._test_run_token(
+                    True, f"{args.task} post-sync proof passed and the prior green run covers Closure: no full "
+                    "run, the land credits the proof (SPEC-0065 §Bound); no new tests_passed row - the prior one "
+                    "stands"), flush=True)
                 return None
             out = _admitted(admission_mod.stamping(_append_event, admitted))
             if not own:
@@ -1849,6 +1942,16 @@ def cmd_task_test(args: argparse.Namespace) -> None:
         print(f"{args.task} task test --run --exclusive: the admission queue is off here (SPEC-1045 rule 3); "
               f"the run is not held exclusive", file=sys.stderr)
     return _admitted(_append_event)
+
+
+def _stage6_stage_decision(tid) -> bool:
+    """T-14347 — `task test`'s stage decision (`task.stage6_stage_decision`, its one home) over the card as
+    it is on disk now, with the host's own collaborators: the call `cmd_task_test` makes before the queue."""
+    yaml_mod, path, card = _load_task_for_transition(tid)
+    return task_mod.stage6_stage_decision(
+        card, path, yaml_mod, _die=_die, _require_stage_correspondence=_require_stage_correspondence,
+        _write_task_transition=_write_task_transition, _append_event=_append_event,
+        _stage_pointer_facts=_stage_pointer_facts, _run_git_cap=_run_git_cap, REPO_ROOT=REPO_ROOT)
 
 
 @contextlib.contextmanager
@@ -5171,6 +5274,18 @@ def _post_compact_journals() -> list:
     return paths
 
 
+def _brief_seed_parts(*, worker: bool, consumer: bool) -> list:
+    """The seed parts the restoration brief's section 6 names (T-14353). Engine session: the bare SOURCE
+    names of the read-order (or the `graph/` worker-seed chain). Under -C: each part as an absolute
+    path under the engine's release view — a bare release-view name has no `/`, so the consumer render
+    would leave it bare; the worker chain stays `graph/`-relative, which that render resolves."""
+    hb = ENGINE_ROOT / RELEASE_VIEW_DIR if consumer else ENGINE_ROOT
+    if worker:
+        return [f"{graph.GRAPH_DIR}/{p}" for p in graph.worker_seed_part_files(hb / graph.GRAPH_DIR)]
+    return [str(hb / graph.release_view_name(f"{x[0]}.md")) if consumer else f"{x[0]}.md"
+            for x in HANDBOOK_READ_ORDER]
+
+
 def _post_compact_root() -> str:
     """This project's MAIN checkout (shared by its worktrees) — what the re-fold block's head names."""
     return str(_main_worktree(REPO_ROOT) or REPO_ROOT)
@@ -6126,10 +6241,7 @@ def _restoration_brief(args, *, stream, delivery_point: str, reading=None) -> "t
     # ── section 6 (mandatory) — the same derivation as the post-compact re-fold block
     tail.append("6. what to do now (in order):")
     consumer = _is_consumer_build()
-    hb = ENGINE_ROOT / RELEASE_VIEW_DIR if consumer else ENGINE_ROOT
-    parts = ([f"{graph.GRAPH_DIR}/{p}" for p in graph.worker_seed_part_files(hb / graph.GRAPH_DIR)] if worker
-             else [graph.release_view_name(f"{x[0]}.md") if consumer else f"{x[0]}.md" for x in HANDBOOK_READ_ORDER])
-    # (under -C the consumer render resolves each part to the engine's identity-agnostic release-view path)
+    parts = _brief_seed_parts(worker=worker, consumer=consumer)
     s6_gaps = []
     task = plans = None
     if ref:
@@ -13445,7 +13557,7 @@ def _fingerprint_mention_index(known_fingerprints) -> dict:
     # `data.fingerprint=<fp>` — because none of the wrappers (backtick, quote, comma, `=`) is legal
     # inside the shape, so the run STOPS at them. A trailing `.`/`:`/`-` IS legal (`...:test_x.py`), so
     # a fingerprint ending a sentence is re-tried stripped; both forms are looked up, never guessed at.
-    tok_re = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
+    tok_re = re.compile(triage.FINGERPRINT_TOKEN_PATTERN)   # the ONE shape home (T-14354)
     for kind, directory, glob in (("task", TASKS_DIR, "T-*.yaml"),
                                   ("decision", DECISIONS_DIR, "D-*.yaml")):
         if not directory.exists():
@@ -14868,7 +14980,21 @@ def _ac_probe_evidence_events_for(task: dict, touched_paths=None, excluded_types
 
 def _ceiling_decision_events_for(task: dict) -> list:
     """T-13459 — the card's `ceiling_decision` rows of the SPEC-0168 fold: what SPEC-0204 rule 3's
-    admission (`audit pre|post --on-decisions`) binds its decisions from.
+    admission (`audit pre|post --on-decisions`) binds its decisions from. Read by
+    `_task_typed_events_for` below."""
+    return _task_typed_events_for(task, "ceiling_decision")
+
+
+def _state_checked_events_for(task: dict) -> list:
+    """T-14338 — the card's `state_checked` rows of the SPEC-0168 fold, for the audit-PRE packet's
+    T-14326 evidence section and its readiness block. Through `_task_typed_events_for`, so inside audit
+    pre's one-pass scope no segment is folded a second time (the full collector it replaced re-read
+    both journals whole there)."""
+    return _task_typed_events_for(task, "state_checked")
+
+
+def _task_typed_events_for(task: dict, etype: str) -> list:
+    """The card's rows of ONE event type `etype` from the SPEC-0168 fold (T-13459; typed by T-14338).
 
     Everywhere but inside audit PRE's one-pass scope this is the packet fold filtered to the type,
     exactly as before (on audit post that fold is served by the seam's evidence reducers).
@@ -14876,7 +15002,7 @@ def _ceiling_decision_events_for(task: dict) -> list:
     Audit pre's scope carries no evidence reducer, so there that read walked BOTH journals whole
     (measured 2026-10-02/03: 7.7-7.9 GB per `audit pre --on-decisions`). Inside it the SAME fold
     (`task_mod._folded_journal_events` — its rule-3 dedupe identity, rule-4 membership mark and order
-    untouched) is given a DECLARED slice (`lines_of`): each instance's `ceiling_decision` lines naming
+    untouched) is given a DECLARED slice (`lines_of`): each instance's `etype` lines naming
     the card. A row tied to the card names its id, so the slice holds every row the filter kept, and a
     MAIN row's twin on this checkout — the one thing the mark asks about — is itself in the slice.
       * served: the scope's rows naming the card (this checkout: within the task horizon; MAIN: the
@@ -14888,7 +15014,7 @@ def _ceiling_decision_events_for(task: dict) -> list:
     scope = journal_mod.scope_of(EVENTS_PATH) if EVENTS_PATH is not None else None
     if not tid or scope is None or not hasattr(scope, "audit_pre_main"):
         return [ev for ev in _ac_probe_evidence_events_for(task)
-                if isinstance(ev, dict) and ev.get("type") == "ceiling_decision"]
+                if isinstance(ev, dict) and ev.get("type") == etype]
     since = audit.audit_task_horizon(task)
 
     def _lines(path):
@@ -14898,15 +15024,15 @@ def _ceiling_decision_events_for(task: dict) -> list:
         rows = held.needle_rows(tid) if held is not None and held.has_needle(tid) else None
         if rows is not None:
             return [json.dumps(r, ensure_ascii=False) for r in rows
-                    if isinstance(r, dict) and r.get("type") == "ceiling_decision"]
-        return journal_mod.typed_lines(path, ("ceiling_decision",), since, lock=True, must=(tid,))
+                    if isinstance(r, dict) and r.get("type") == etype]
+        return journal_mod.typed_lines(path, (etype,), since, lock=True, must=(tid,))
     try:
         corpus = task_mod._folded_journal_events(EVENTS_PATH=EVENTS_PATH, _event_dedup_key=_event_dedup_key,
                                                  _main_events_path=_main_events_path(), lines_of=_lines)
     except OSError:
         return []
     return [ev for ev in corpus
-            if ev.get("type") == "ceiling_decision" and task_mod._event_task_id(ev) == tid]
+            if ev.get("type") == etype and task_mod._event_task_id(ev) == tid]
 
 
 # T-13381 — the TYPE-keyed candidate classes `evidence_candidate_pred` admits whatever the row's task tie:
@@ -18362,6 +18488,7 @@ def _build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | N
         diff_touched_files=_diff_touched_files,
         norm_repo_path=_norm_repo_path,
         ac_probe_evidence_events_for=_ac_probe_evidence_events_for,
+        state_checked_events_for=_state_checked_events_for,   # T-14338: the pre packet's rows, one pass
         cross_evidence_section_for=_cross_evidence_section_for,
         p8_carrier_section_for=_p8_carrier_section_for,
         spec_coverage_section=_spec_coverage_section,
@@ -19001,7 +19128,9 @@ INLINE_CORPUS_MAX_FILES = 20          # cap the inlined set
 # Path-like tokens: a slash-bearing path, OR a bare/relative name ending in an extension, OR a
 # Capitalized extensionless filename (Makefile / LICENSE / Dockerfile — conventionally capitalized,
 # so prose words are not swept). The fail-closed existence-under-REPO_ROOT gate filters the rest.
-INLINE_CORPUS_PATH_RE = re.compile(r"[\w./\-]*/[\w./\-]+|[\w.\-]+\.[\w]+|\b[A-Z][A-Za-z]{2,}\b")
+# A bare directory with a trailing slash («tasks/») is a token too (T-14357): it is never inlined,
+# and `audit adhoc --read-corpus` names it and keeps file tooling on for it.
+INLINE_CORPUS_PATH_RE = re.compile(r"[\w./\-]*/[\w./\-]+|[\w.\-]+/|[\w.\-]+\.[\w]+|\b[A-Z][A-Za-z]{2,}\b")
 
 # T-9637 (X-0125): `audit adhoc --sweep-file` inlines EXPLICIT pre-computed mechanical sweeps
 # (journal/git output). A sweep is bigger than a curated corpus file (a full git-log / journal-grep
@@ -26410,7 +26539,7 @@ def _plan_close_core(path: Path, fm: dict, body: str, slug: str, into: list,
 
 
 def _require_plan_decomposition_ready(slug: str, fm: dict, body: str) -> None:
-    return plan_mod._require_plan_decomposition_ready(slug, fm, body, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, SPEC_ABANDONED_TERMINAL=SPEC_ABANDONED_TERMINAL, _die=_die, _plan_content_hash=_plan_content_hash, _plan_specs=_plan_specs, _read_yaml=_read_yaml)
+    return plan_mod._require_plan_decomposition_ready(slug, fm, body, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, SPECS_DIR=SPECS_DIR, SPEC_ABANDONED_TERMINAL=SPEC_ABANDONED_TERMINAL, _die=_die, _plan_content_hash=_plan_content_hash, _read_yaml=_read_yaml)
 
 
 def _plan_card_set_context(slug: str) -> str:
@@ -30895,6 +31024,10 @@ def cmd_deploy(args: argparse.Namespace, *, pre_deploy_classes=None) -> None:
     held: list = []
     journal_half: dict = {}
     scheduled = bool(getattr(args, "scheduled_run", False))
+    # T-14333 / SPEC-1051 rule 3 — a release order: its targets resolved before anything runs (refusing
+    # with nothing deployed), then one hold for the whole order, below.
+    order = (deploy_mod.release_order_targets(args, REPO_ROOT=REPO_ROOT)
+             if getattr(args, "release_order", None) is not None else None)
     if pre_deploy_classes is None and not scheduled:
         _pd = worktree_mod.land_verify_legs._pre_deploy_contract_read(REPO_ROOT)
         if _pd["refused"] and not getattr(args, "rollback", False) and not getattr(args, "print_guard", False):
@@ -30915,13 +31048,53 @@ def cmd_deploy(args: argparse.Namespace, *, pre_deploy_classes=None) -> None:
                                 "_live_task_worktrees": _journal_locus_live_task_worktrees}
         except Exception:  # noqa: BLE001 — no journal half: the samples alone read who ran beside
             journal_half = {}
+    seams = dict(REPO_ROOT=REPO_ROOT, _append_event=_append_event, _main_worktree=_main_worktree, _git_resolve_sha=_git_resolve_sha, _die=_die, _run_git_cap=_run_git_cap, _worktree_dirty_paths=_worktree_dirty_paths, _is_ignorable_dirt=_deploy_ignorable_dirt, _iter_events=_iter_events, _journal_dirt_is_valid_append=_journal_dirt_is_valid_append, _dedup_events=_dedup_events, **({"pre_deploy_classes": pre_deploy_classes, "_consumer_zero_probe_guard": _consumer_zero_probe_guard, "_record_probe": _journal_record_probe, "_acquire_land_reservation": worktree_mod._acquire_land_reservation, "_land_reservation_path": worktree_mod._land_reservation_path, "_flock_holder": worktree_mod._flock_holder, "_flock_holder_record_path": worktree_mod._flock_holder_record_path, "_proc_starttime": worktree_mod._proc_starttime, "_scan_procs": worktree_mod._scan_procs, "_land_hold": held, **journal_half} if pre_deploy_classes is not None or scheduled or order else {}), **({"_session_contract": _scheduled_run_session_contract} if scheduled else {}))   # T-14105 / T-14106 / T-14107 / T-14203
     try:
-        out = deploy_mod.cmd_deploy(args, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _main_worktree=_main_worktree, _git_resolve_sha=_git_resolve_sha, _die=_die, _run_git_cap=_run_git_cap, _worktree_dirty_paths=_worktree_dirty_paths, _is_ignorable_dirt=_deploy_ignorable_dirt, _iter_events=_iter_events, _journal_dirt_is_valid_append=_journal_dirt_is_valid_append, _dedup_events=_dedup_events, **({"pre_deploy_classes": pre_deploy_classes, "_consumer_zero_probe_guard": _consumer_zero_probe_guard, "_record_probe": _journal_record_probe, "_acquire_land_reservation": worktree_mod._acquire_land_reservation, "_land_reservation_path": worktree_mod._land_reservation_path, "_flock_holder": worktree_mod._flock_holder, "_flock_holder_record_path": worktree_mod._flock_holder_record_path, "_proc_starttime": worktree_mod._proc_starttime, "_scan_procs": worktree_mod._scan_procs, "_land_hold": held, **journal_half} if pre_deploy_classes is not None or scheduled else {}), **({"_session_contract": _scheduled_run_session_contract} if scheduled else {}))   # T-14105 / T-14106 / T-14107 / T-14203
+        if order is None:
+            out = deploy_mod.cmd_deploy(args, **seams)
+        else:
+            out = _deploy_release_order(args, order, seams, held)
     finally:
-        if held:                         # only a gated deploy ever holds anything
+        if held:                         # a gated deploy or a release order (T-14333)
             deploy_mod._pre_deploy_release(held)
     _onboarding_seam_nudge("deploy")   # SPEC-0147 §5 station I rides this existing seam
     return out
+
+
+def _deploy_release_order(args, order, seams, held):
+    """T-14333 / SPEC-1051 rule 3 — run `cmd_deploy` once per target of a release order inside the order's
+    one hold (`deploy_mod.release_order_hold`: the queue pass, the land reservation into `held`, the §6
+    check). Each target gets its own copy of `args`: its `--target`, and `--class` only when the target
+    is a production one (a `production: false` target refuses a class, SPEC-0097 §12). A target that
+    exits non-zero stops the order — the later targets are not deployed — and the exit propagates; the
+    caller releases `held` when the verb ends, however it ends."""
+    names = [n for n, _p in order]
+    main_wt = Path(_main_worktree(REPO_ROOT) or REPO_ROOT)
+    recheck = lambda: deploy_mod._revision_recheck(   # noqa: E731 — the order's one early §6 question
+        args.expect_revision, main_line_required=False, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap,
+        _is_ignorable_dirt=_deploy_ignorable_dirt, _git_resolve_sha=_git_resolve_sha)
+    with deploy_mod.release_order_hold(
+            names, candidate=args.expect_revision, main_wt=main_wt, hold=held, append_event=_append_event,
+            recheck=recheck, _acquire_land_reservation=worktree_mod._acquire_land_reservation,
+            _land_reservation_path=worktree_mod._land_reservation_path, _flock_holder=worktree_mod._flock_holder,
+            _flock_holder_record_path=worktree_mod._flock_holder_record_path,
+            _proc_starttime=worktree_mod._proc_starttime) as hold_state:
+        for pos, (name, production) in enumerate(order, 1):
+            one = argparse.Namespace(**vars(args))
+            one.release_order, one.deploy_target = None, name
+            if production is False:
+                one.deploy_class = None
+            print(f"deploy: release order {','.join(names)} — target {pos} of {len(names)}: `{name}`")
+            try:
+                deploy_mod.cmd_deploy(one, **seams, _release_order={**hold_state, "position": pos})
+            except SystemExit as e:
+                if e.code not in (None, 0):
+                    left = names[pos:]
+                    print(f"deploy: release order STOPPED at target `{name}` ({pos} of {len(names)}, exit "
+                          f"{e.code})" + (f"; NOT deployed: {', '.join(left)}" if left else "")
+                          + " — the order's hold is released (SPEC-1051 rule 3).", file=sys.stderr)
+                raise
+    return None
 
 
 def _scheduled_run_session_contract() -> str:
@@ -32206,6 +32379,17 @@ def cmd_frontend_errors(args: argparse.Namespace) -> None:
 def cmd_land(args: argparse.Namespace) -> None:
     if not _zero_write_view(args):   # T-14008: `land --report` is a zero-write view — no gate row
         _require_help_read("land")   # T-9786 (X-0158): scan the verb inventory this session first
+    if getattr(args, "recheck_known_broken", False):
+        # T-14351 (SPEC-0181 rule 2 (g)) — the recheck of main's open known-broken records: no branch, no
+        # land body; it enters the admission queue through its own untied run entry (SPEC-1045 rule 2 (s)).
+        sys.exit(worktree_mod.land_recheck_known_broken(
+            args, REPO_ROOT=REPO_ROOT, _main_worktree=_main_worktree, _run_git_cap=_run_git_cap,
+            _append_event=_append_event,
+            _run_verify_tests=functools.partial(verify_wiring._run_verify_tests, _host_globals=globals()),
+            _layer_guard=lambda d, names: _consumer_zero_probe_guard(Path(d), None, only_layers=set(names)),
+            _read_yaml=_read_yaml, _declared_test_sweep_paths=_declared_test_sweep_paths,
+            _verify_failing_test_names=_verify_failing_test_names,
+            _VERIFY_TIMEOUT_MARKER=_VERIFY_TIMEOUT_MARKER))
 
     def _land_body():
         # the `land` body (pre-T-14196 `cmd_land` after its help gate), kept inside the verb
@@ -32245,9 +32429,10 @@ def cmd_land(args: argparse.Namespace) -> None:
 
 def _admission_is_a_land(args: argparse.Namespace) -> bool:
     """T-14196 — whether this `land` invocation integrates a branch (a report, a withdrawal and the
-    batch-eligibility answer land nothing and never enter the queue)."""
+    batch-eligibility answer land nothing and never enter the queue; a known-broken recheck, T-14351,
+    enters it through its own untied run entry, never as a land)."""
     return not any(getattr(args, k, None) for k in ("report", "report_then", "objects_dir", "withdraw",
-                                                      "batch_eligibility"))
+                                                      "batch_eligibility", "recheck_known_broken"))
 
 
 def _admission_land_inherited() -> "dict | None":

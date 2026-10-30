@@ -1704,6 +1704,7 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
     # time, through the SAME `_run_one` path — so its pass or fail decides the verdict exactly as a
     # pool result does. Read from the FIRST swept dir, the anchor the duration table already uses.
     _ls_set = _load_sensitive_set(test_dir)
+    _lane_busy = {}   # T-14346 — {basename: cpu_busy_pct} for the serialized tail, filled below
     # ── T-12764 (X-1509) — THE ZERO-COLLECT SHAPE, CLASSIFIED ONCE, BEFORE ANY LAUNCH ──────────
     # A `tests/test_*.py` that defines `def test_*` but carries no `__main__` driver and never
     # calls them at module level exits 0 under this runner's `python <file>` having executed
@@ -2406,8 +2407,20 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # file; under `fail_fast=False` (the pinned driver) every tail file reaches its own verdict.
         if failures:
             _trip_fail_fast()
+        # T-14346 (public issue #225 part 3) — each lane unit's CPU busy share over the run's CPUs,
+        # from admission's own snap read at the unit's start and end, so a review can see it really
+        # ran quiet. Unknown (None) when a reading fails, never zero. Reported on `load_sensitive.tail`.
+        def _lane_cpu():
+            try:
+                from lib import admission as _adm
+                return _adm, _adm.cpu_reading(_adm.affinity())
+            except Exception:
+                return None, None
         for _tf in _serial_files:
+            _adm, _cpu0 = _lane_cpu()
             _run_one(_tf)
+            _adm1, _cpu1 = _lane_cpu()
+            _lane_busy[_tf.name] = _adm1.busy_share(_cpu0, _cpu1)[0] if _adm1 else None
         # ── T-12426 — THE LANE RETEST: a lane member gets the pool flake's two isolated attempts ──
         # Still inside the `try` (the sandbox must be alive — the same rule the T-12357 block states).
         # A lane member is EXCLUDED from `_pool_files`, so its failure is never in `failures` when
@@ -2659,7 +2672,8 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # listed basenames this run did not discover — a stale line, reported rather than silent.
         if _ls_set:
             metrics_out["load_sensitive"] = {
-                "tail": [{"file": tf.name, "outcome": _decided.get(tf.name, "not-started")}
+                "tail": [{"file": tf.name, "outcome": _decided.get(tf.name, "not-started"),
+                          "cpu_busy_pct": _lane_busy.get(tf.name)}
                          for tf in _serial_files]}
             _ls_unresolved = sorted(n for n in _ls_set if n not in {tf.name for tf in test_files})
             if _ls_unresolved:
@@ -5289,7 +5303,7 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
                  # reddened test_t_issue204_selected_layers.py, and the inherited outcomes dir let
                  # nested runners write exports beside the run's own). A test that needs one sets it
                  # on its own child, as an overlay.
-                 "YITC_VERIFY_LAYER_WORKERS", "YITC_VERIFY_SELECTED_LAYERS",
+                 "YITC_VERIFY_LAYER_WORKERS", "YITC_VERIFY_SELECTED_LAYERS", "YITC_VERIFY_LAYER_FORECAST",
                  "YITC_VERIFY_WORKER_SHARES_KEY", "YITC_VERIFY_RERUN_FILES",
                  "YITC_VERIFY_OUTCOMES_DIR",
                  # T-11432 — the AMBIENT shared-store carrier, and ONLY the ambient one. It is the

@@ -2516,7 +2516,9 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
     # relationship is guaranteed by construction rather than by the two calls happening to be fast.
     _event_ts = _utc_now_iso()
     _derive_note_due = False
+    _fp_derived_here = False
     if event_type == "deviation_captured" and not str(data.get("fingerprint") or "").strip():
+        _fp_derived_here = True
         _derived = journal.derived_fingerprint(caller_data, ts=_event_ts,
                                                task_id=args.task, actor=data.get("actor"))
         data["fingerprint"] = _derived
@@ -2536,6 +2538,20 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
               f"(T-11880). A DESCRIPTIVE fingerprint you choose yourself still reads better to the "
               f"next person; pass one via --data '{{\"fingerprint\":\"<short-stable-slug>\"}}'.",
               file=sys.stderr)
+
+    # T-14354 (<project> X-2125): an AUTHORED fingerprint must fit the ONE shape `task close
+    # --closes-fp` admits, or the card that remediates the capture can never link it. Checked AS GIVEN
+    # (no strip) with the same message as the close door; refused BEFORE any append, and before the
+    # `--check` early return so a validation run sees it. A derived fingerprint is engine-made and
+    # blank/absent stays the derive arm above (the
+    # caller cannot opt out by sending `fingerprint_derived` itself).
+    if event_type == "deviation_captured" and not _fp_derived_here:
+        from lib import triage as _triage
+        _fp_msg = _triage.fingerprint_shape_refusal("deviation_captured fingerprint",
+                                                    data.get("fingerprint"))
+        if _fp_msg:
+            _die(f"{_fp_msg} Nothing was appended. Re-run `bin/yitc-v2 event deviation_captured` with a "
+                 f"fingerprint in that shape, or leave it out and one is derived from the payload.")
 
     # T-11770 (X-1189): NAME THE REFUSAL VERB WHERE THE FALSE PREMISE IS DISCOVERED. `task refuse` is
     # the governed pre-claim exit, but this generic verb is the seam a worker actually reaches at the

@@ -59,6 +59,9 @@ _FLOOR_SECRET_PATTERNS = (
     ("AWS access key id", re.compile(r"\b(?:AKIA|ASIA)[0-9A-Z]{16}\b")),
     ("private key block", re.compile(r"-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP )?PRIVATE KEY-----")),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{36,}\b")),
+    # T-14336: a fine-grained PAT (`github_pat_` + 82 of [A-Za-z0-9_]). A lookbehind, not `\b`: `_` is a
+    # word char, so `\b` misses an underscore-joined prefix (`GH_github_pat_...`).
+    ("GitHub fine-grained token", re.compile(r"(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{82,}")),
     ("Slack token", re.compile(r"\bxox[abprs]-[A-Za-z0-9-]{10,}\b")),
     ("Stripe secret key", re.compile(r"\bsk_live_[A-Za-z0-9]{16,}\b")),
     ("Google API key", re.compile(r"\bAIza[0-9A-Za-z_-]{35}\b")),
@@ -158,10 +161,11 @@ def _floor_is_interpolation(token: "str | None", *, _FLOOR_INTERPOLATION=_FLOOR_
     failure mode that gets a security gate disabled (the sibling comment on `_FLOOR_SECRET_PATTERNS`);
     this clause exists to remove exactly the false positives that are certain.
 
-    `None` — a pattern that declares no `secret` group — is NEVER an interpolation. Seven of the
-    eight named shapes are literal-prefixed runs (`AKIA`/`ASIA`, the PEM header, `gh[pousr]_`,
-    `xox[abprs]-`, `sk_live_`, `AIza`, `sk-ant-`/`sk-proj-`) that cannot admit an interpolation
-    character at all, so they declare no group and their verdicts are bit-for-bit unchanged. The
+    `None` — a pattern that declares no `secret` group — is NEVER an interpolation. Every named
+    shape but the PostgreSQL URL is a run that cannot admit an interpolation character at all
+    (`AKIA`/`ASIA`, the PEM header, `gh[pousr]_`, `github_pat_`, `xox[abprs]-`, `sk_live_`, `AIza`,
+    `sk-ant-`/`sk-proj-`, the Telegram `<id>:<secret>`), so they declare no group and their
+    verdicts are bit-for-bit unchanged. The
     group is a per-pattern OPT-IN, not a global weakening."""
     return bool(token) and bool(_FLOOR_INTERPOLATION.fullmatch(token))
 

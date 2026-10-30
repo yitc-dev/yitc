@@ -75,37 +75,45 @@ body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency r
   \ stage6-credit`) that recorded\n      the tree its credited Stage-6 run tested\
   \ (`stage6_credit.tree`) is such a row too, with V that\n      tree; a credited\
   \ row without it is passed over and the scan goes on to older rows.\n  (c) NET DELTA\
-  \ INERT — `V..HEAD`, tree to tree with rename detection OFF, is inert, with NO\n\
-  \      exemption: code from ANY commit after V — a raw commit, a `--no-tests` land,\
-  \ a merge's second\n      parent, a rename into an inert dir — is in it, and so\
-  \ is a `tests/verify-durations.json`\n      rewrite (tests read that table and nothing\
-  \ records which of its bytes a tail tripwire\n      validated, so an anchor whose\
-  \ own bookkeeping rewrote it simply does not anchor a skip).\n  (d) NO READER —\
-  \ no test file in any declared test dir names a changed readable path of (c) by\n\
-  \      basename (the reader derivation), so an earlier skip's card still unverified\
-  \ since V\n      is checked too. A readable path is any path but the journal, its\
-  \ archive segments and the\n      generated graph views: every land rebuilds those\
-  \ views from the merged sources, and a\n      changed source stays in the set. A\
-  \ test that reads a generated view's content by\n      id, without naming the source\
-  \ file, is outside this derivation: the same bound the lever-B\n      paragraph\
-  \ above names for a test that globs the card directory or folds the real journal.\n\
-  Soundness rests on CONTENT equality to V, never on which row or commit is attributed:\
-  \ a raw commit\nmade between V's verify and its row is in (c). Every path enumeration\
-  \ here (and lever B's) runs with\n`--no-renames` and keeps each path exactly as\
-  \ git names it, so a rename reports its deleted source as well as its new\npath,\
-  \ and the SPEC-0064 classifier judges each path EXACTLY (never whitespace-stripped:\
-  \ `\" tasks/x\"`\nis an unknown dir, not `tasks/`).\n**A skipped land is still floor-scanned.**\
-  \ The inert first-attempt skip withholds the\nsuite, the host-leak canary and the\
-  \ pinned re-run, and nothing else: on a consumer build the\nSPEC-0163 any-author\
-  \ land floor runs over the same branch delta as on a verifying land, and its\nrefusal\
-  \ aborts the land with `main` untouched. An inert-only diff is never landed unscanned.\n\
-  **The Stage-6 credit (`reverify_skip_reason: stage6-credit`).** A land none of whose\
-  \ attempts\nhas verified, not declaring a rebaseline, MAY take its CANDIDATE-leg\
-  \ verdict from the task's own\nStage-6 run instead of running the candidate verify\
-  \ again. Unlike every skip above it applies to an\nOBSERVABLE branch delta: what\
-  \ makes it sound is that the very tree the land is about to fast-forward\nwas already\
-  \ tested, on the very `main` it fast-forwards onto — so `main` still never advances\
-  \ to a\ncombination whose verification was not green. The land proves ALL FIVE conditions\
+  \ INERT — `V..HEAD`, tree to tree with rename detection OFF, is inert: code from\
+  \ ANY\n      commit after V — a raw commit, a `--no-tests` land, a merge's second\
+  \ parent, a rename into an\n      inert dir — is in it, and so is a `tests/verify-durations.json`\
+  \ rewrite. ONE exemption, for\n      that table alone: it is COVERED, and leaves\
+  \ (c) and (d), when its bytes at HEAD are exactly\n      the table a land's bookkeeping\
+  \ commit wrote after the tail tripwire ran the table's\n      readers GREEN on them.\
+  \ Proven from git and the journal together, all of: C, the newest commit\n     \
+  \ reaching HEAD that touched the table, has one parent, is on `main` (an ancestor\
+  \ of the merged\n      base) and is titled `land: bookkeeping (<branch>)`; HEAD's\
+  \ table blob is C's; C's own journal\n      diff adds that branch's ok `land_completed`\
+  \ row whose `verify_table_refresh` records the write\n      (`written` true) with\
+  \ tripwire `ok` true and reason `green`; and `C..HEAD` is inert. Any other\n   \
+  \   table bytes — a hand or branch edit, a withheld or red tripwire, no such row\
+  \ — stay in (c).\n  (d) NO READER — no test file in any declared test dir names\
+  \ a changed readable path of (c) by\n      basename (the reader derivation), so\
+  \ an earlier skip's card still unverified since V\n      is checked too. A readable\
+  \ path is any path but the journal, its archive segments and the\n      generated\
+  \ graph views: every land rebuilds those views from the merged sources, and a\n\
+  \      changed source stays in the set. A test that reads a generated view's content\
+  \ by\n      id, without naming the source file, is outside this derivation: the\
+  \ same bound the lever-B\n      paragraph above names for a test that globs the\
+  \ card directory or folds the real journal.\nSoundness rests on CONTENT equality\
+  \ to V, never on which row or commit is attributed: a raw commit\nmade between V's\
+  \ verify and its row is in (c). Every path enumeration here (and lever B's) runs\
+  \ with\n`--no-renames` and keeps each path exactly as git names it, so a rename\
+  \ reports its deleted source as well as its new\npath, and the SPEC-0064 classifier\
+  \ judges each path EXACTLY (never whitespace-stripped: `\" tasks/x\"`\nis an unknown\
+  \ dir, not `tasks/`).\n**A skipped land is still floor-scanned.** The inert first-attempt\
+  \ skip withholds the\nsuite, the host-leak canary and the pinned re-run, and nothing\
+  \ else: on a consumer build the\nSPEC-0163 any-author land floor runs over the same\
+  \ branch delta as on a verifying land, and its\nrefusal aborts the land with `main`\
+  \ untouched. An inert-only diff is never landed unscanned.\n**The Stage-6 credit\
+  \ (`reverify_skip_reason: stage6-credit`).** A land none of whose attempts\nhas\
+  \ verified, not declaring a rebaseline, MAY take its CANDIDATE-leg verdict from\
+  \ the task's own\nStage-6 run instead of running the candidate verify again. Unlike\
+  \ every skip above it applies to an\nOBSERVABLE branch delta: what makes it sound\
+  \ is that the very tree the land is about to fast-forward\nwas already tested, on\
+  \ the very `main` it fast-forwards onto — so `main` still never advances to a\n\
+  combination whose verification was not green. The land proves ALL FIVE conditions\
   \ itself (nothing is\ntaken on the worker's word), and any unproven part, or any\
   \ error, means the candidate verify\n(fail-closed):\n  (1) MAIN HAS NOT MOVED, OR\
   \ MOVED ONLY INERTLY — the branch contains `main`'s tip, and the base the\n    \
@@ -361,15 +369,27 @@ body: "## Scenario\n\nUnder concurrent sessions, land's optimistic-concurrency r
   \ were Stage-6 credits carrying `bin/` code, and while main is known\nbroken no\
   \ land that verifies can pass, so the anchor could only age. With the newest credited\n\
   land's tested tree as V the same proof passed (9 inert paths, read by no test).\n\
-  \n## Verification\n\nBehavioural probe (the load-bearing safety test): during a\
-  \ land's verify window, force the retry\nbranch with a concurrent sibling land (the\
-  \ sibling is what MAKES `main` advance; its own content is\nheld INERT throughout\
-  \ and is not the subject). What varies is the LANDING branch's OWN footprint —\n\
-  the delta this rule classifies: (i) INERT → the retry SKIPS re-verify AND ff's correctly;\
-  \ (ii)\nOBSERVABLE → the retry RE-RUNS the full verify before ff; (iii) classifier\
-  \ raises → fail-closed, full\nre-verify. Telemetry: `land_completed`\ncarries `reverify_skipped`\
-  \ (bool) + reason, so every skip is journal-visible (Principle 8 — never\nsilent).\
-  \ Seam: the existing `_after_verify_hook` deterministically drives the retry branch.\n\
+  \nThe covered table of (c). On 2026-10-29 a cards-only filing batch ran a 117-file\
+  \ verify\nand aborted on main's red (events.jsonl#ts=): its anchor was the credited\n\
+  \ tree, and that land's own bookkeeping commit had then rewritten the table (coverage,\
+  \ tail\ntripwire ok/green), so the skip answered `observable-since-anchor:tests`.\
+  \ Of 480 ok lands since\n2026-10-22, 148 rewrote the table, each leaving every filing\
+  \ batch a full verify until the next\nverified land. The proof the skip lacked already\
+  \ existed: the tripwire ran the table's readers on\nthe written bytes before the\
+  \ write was admitted.\n\n## Verification\nThe covered table of §Bound (c): a cards-only\
+  \ branch skips when the anchor land's bookkeeping wrote\nthe table under a green\
+  \ tripwire, and verifies on a hand edit, a withheld, red or non-green\ntripwire,\
+  \ a missing or foreign row, a non-bookkeeping writer, a tests/ change after the\
+  \ write (also\none reverted to V's bytes), and a branch editing the table\n(tests/test_t14344_bookkeeping_table_covered_by_tripwire.py).\n\
+  \nBehavioural probe (the load-bearing safety test): during a land's verify window,\
+  \ force the retry\nbranch with a concurrent sibling land (the sibling is what MAKES\
+  \ `main` advance; its own content is\nheld INERT throughout and is not the subject).\
+  \ What varies is the LANDING branch's OWN footprint —\nthe delta this rule classifies:\
+  \ (i) INERT → the retry SKIPS re-verify AND ff's correctly; (ii)\nOBSERVABLE → the\
+  \ retry RE-RUNS the full verify before ff; (iii) classifier raises → fail-closed,\
+  \ full\nre-verify. Telemetry: `land_completed`\ncarries `reverify_skipped` (bool)\
+  \ + reason, so every skip is journal-visible (Principle 8 — never\nsilent). Seam:\
+  \ the existing `_after_verify_hook` deterministically drives the retry branch.\n\
   \nStage-6 credit probes (one per condition, each differing from the credited fixture\
   \ by that\none thing): a consumer land after the REAL runner's green run on the\
   \ same tree, `main` unmoved, runs\nno candidate sweep and no layer, records `stage6-credit`\

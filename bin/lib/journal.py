@@ -12673,7 +12673,12 @@ def _print_admission_queue(p: dict) -> None:
         print("    no waiters")
     hold = p.get("hold")
     if hold:
-        print(f"    green hold of {hold.get('card') or 'no card (unreadable)'} since {hold.get('set_ts') or '?'}")
+        end, fence = hold.get("end"), hold.get("fence") or []
+        state = ("" if not end else
+                 f" — ended ({end.get('reason')}: {end.get('detail')})" if not hold.get("standing") else
+                 f" — due to end ({end.get('reason')}: {end.get('detail')}), fenced by "
+                 + ", ".join(f"{f.get('kind')} pid {f.get('pid')}" for f in fence))
+        print(f"    green hold of {hold.get('card') or 'no card (unreadable)'} since {hold.get('set_ts') or '?'}{state}")
     _print_admission_soak(p.get("soak"))
 
 

@@ -422,13 +422,16 @@ release window):
 
 <!-- scheduled-run-crontab-line -->
 ```
-17 4 * * * cd <project> && <engine>/bin/yitc-v2 -C <project> session start >> <log> 2>&1 && YITC_SESSION_REF=cron-<name> <engine>/bin/yitc-v2 -C <project> deploy --scheduled-run >> <log> 2>&1
+17 4 * * * cd <project> && export YITC_SESSION_REF=cron-<name> && <engine>/bin/yitc-v2 -C <project> session start >> <log> 2>&1 && <engine>/bin/yitc-v2 -C <project> deploy --scheduled-run >> <log> 2>&1
 ```
 
 Both halves of the SPEC-0142 §6 invocation contract are on that line and neither may be dropped: the
-`session start` before the verb, and `YITC_SESSION_REF=cron-<name>` carried into it. Without the first
-the verb is refused before it runs (no session record, SPEC-0137); without the second it is refused
-with «no YITC_SESSION_REF is carried»; either way no row is written and the day is lost. Run it from the
+`session start` before the verb, and `YITC_SESSION_REF=cron-<name>` exported once at the head of the
+line, so that `session start` and the verb both run under it. Without the first the verb is refused
+before it runs (no session record, SPEC-0137); without the second it is refused with «no
+YITC_SESSION_REF is carried»; either way no row is written and the day is lost. Set the ref on the
+verb alone and `session start` mints an id of its own: the run's `session_started` row then names a
+different session from its class rows. Run it from the
 main checkout: a run started anywhere else is refused (SPEC-1047 rule 2). A host that wraps its cron
 jobs in a notify script may put the wrapper in front of the whole line, as it does for its other jobs.
 

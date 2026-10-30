@@ -7544,6 +7544,7 @@ def recorded_measurement_drift(events_path, *, specs_dir, code_dir, margin,
 # the record is a FOLD. Like `open_proof_obligations` above, this module only READS and returns a
 # dict.
 KNOWN_BROKEN_CARRIER_EVENT = debt_adoption.KNOWN_BROKEN_CARRIER_EVENT   # T-12707 host re-export alias — moved WITH its readers
+KNOWN_BROKEN_RECHECK_EVENT = debt_adoption.KNOWN_BROKEN_RECHECK_EVENT   # T-14351: route (g)'s row, read by the same fold
 KNOWN_BROKEN_RECORD_KEY = debt_adoption.KNOWN_BROKEN_RECORD_KEY   # T-12707 host re-export alias — moved WITH its readers
 
 # THE FLAKE GUARD IS THE CARRIER'S OWN SHAPE, NOT A CLASSIFIER ON TOP OF IT. A pair reaches `at_main`
@@ -10172,7 +10173,8 @@ def debt_echo_scan(*, window_sec, followup_mod, views, profile_mod, journal_mod,
     whole = set(OBLIGATION_CARRIER_EVENTS) | {
         OBLIGATION_CLOSING_EVENT, OBLIGATION_MISS_EVENT, _GATE_OVERRIDE_EVENT, *LATE_FINDING_READ_TYPES,
         ADMISSION_EVENT, EXECUTION_EVENT, QUEUE_JUMP_FIRED_EVENT, TAIL_WITHHELD_EVENT, GIT_MAINTENANCE_EVENT,
-        PREQUEUE_REFUSAL_EVENT, KNOWN_BROKEN_CARRIER_EVENT, P8_WARN_EVENT, "nightly_run_completed",
+        PREQUEUE_REFUSAL_EVENT, KNOWN_BROKEN_CARRIER_EVENT, KNOWN_BROKEN_RECHECK_EVENT, P8_WARN_EVENT,
+        "nightly_run_completed",
         "task_closed", "commit_landed", "land_member_verdict", "triage_run_completed"}
     whole |= set(P8_ADOPTION_EVENT_TYPES) | set(debt_landing._ABORT_BREADTH_EVENTS)
     whole |= set(debt_landing.SLOWEST_READ_TYPES)              # T-14241: the slow-tail fold's Stage-6 rows

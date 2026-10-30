@@ -1512,14 +1512,18 @@ def stdin_mapping_ingest(args, table, *, stdin_text, die, carries="the field set
                 + f" — refusing before any write (T-11742/T-11873). The stdin mapping carries "
                   f"{carries}; check the spelling against `--help`. An unrecognised key used to be "
                   f"dropped in SILENCE at exit 0 while a recognised key in the SAME mapping WAS "
-                  f"written (X-1157) — leaving the caller reading that exit 0 as 'all of it applied'.")
+                  f"written (X-1157) — leaving the caller reading that exit 0 as 'all of it applied'.\n"
+                  # T-14341 (X-2123): plain commit text whose first line holds `: ` parses as a
+                  # one-key mapping and lands HERE, so this refusal names the shape too.
+                  f"{_stdin_expected_shape(carries, recognised)}")
         if argv_only:
             die(f"stdin carries key(s) {who} reads from ARGV, not from the stdin mapping: "
                 + ", ".join(argv_only)
                 + f" — refusing before any write (T-11742/T-11873). The stdin mapping carries "
                   f"{carries}; these are flags and keep working ALONGSIDE --from-stdin, so pass them "
                   f"on the command line (`--help`). Sending one via stdin used to drop it in SILENCE "
-                  f"at exit 0, which reads as 'the edit applied' (X-1157).")
+                  f"at exit 0, which reads as 'the edit applied' (X-1157).\n"
+                  f"{_stdin_expected_shape(carries, recognised)}")
     return fields
 
 

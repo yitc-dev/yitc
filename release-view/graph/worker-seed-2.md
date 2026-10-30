@@ -191,7 +191,7 @@ which atoms were loaded — NOT discussion content; useless for «what did we di
 
 ## Language
 
-- **Owner-facing communication** (chat replies, briefs, owner-directed messages / pings) — **Russian**.
+- **Person-facing communication** (chat replies, briefs, owner-directed messages / pings) — in **the user's language** (how it is determined: SPEC-0086 rule 6f(d)), never a fixed one.
 - **Code, commits, and identifiers** (source, commit messages, task / decision / spec IDs, event & verb names, YAML field keys) — **English**.
 
 This is V2's OWN rule, no longer inherited from the non-normative global `<host-home>/<vendor-adapter>.md` : AGENTS-STARTUP.md is part of the always-loaded session seed, so a `/clear`'d V2 session that holds **zero** global context still has it. **Distinct concern** from CHARTER §Principle 4b (provider-neutral *methodology text* — no provider brand names in normative docs); see it there, this section does not restate it.

@@ -3,9 +3,10 @@ admission/bind/matrix/projection/residual readers, the residual-fingerprint + fi
 the owner-directive resolvers and the card-record RED-cause reader), extracted byte-identical from
 `bin/lib/audit.py` (T-12706, card C7b of plan `extract-the-13-over-budget-bin-lib-modules-into-le`).
 
-WHAT IS IN HERE. The manifest of the plan's §Extraction map C7b — 25 top-level defs (the 24 frozen at
-the extraction plus `residual_finding_records`, which T-13169 added to the list):
-`cmd_audit_decide, on_decisions_admission, on_decisions_absorption_grant, on_decisions_bind, on_decisions_matrix, on_decisions_packet_block, on_decisions_projection, on_decisions_residuals, on_decisions_row_absorbable, on_decisions_row_problems, _on_decisions_row_is_real, plan_gate_synthetic_ceiling_row, prior_audit_record, row_residual_fingerprints, _red_cause_is_card_record, _ac_named_verifier_paths, _accept_reason_quotes_directive, _currency_finding_index, residual_finding_records, _directive_covers_task, _directive_row_text, _late_finding_index, _prose_names_token, _repo_path_tokens, _resolve_owner_directive`.
+WHAT IS IN HERE. The manifest of the plan's §Extraction map C7b — 26 top-level defs (the 24 frozen at
+the extraction plus `residual_finding_records`, which T-13169 added to the list, and the pure
+renderer `residual_key_listing`, which T-14356 added):
+`cmd_audit_decide, on_decisions_admission, on_decisions_absorption_grant, on_decisions_bind, on_decisions_matrix, on_decisions_packet_block, on_decisions_projection, on_decisions_residuals, on_decisions_row_absorbable, on_decisions_row_problems, _on_decisions_row_is_real, plan_gate_synthetic_ceiling_row, prior_audit_record, row_residual_fingerprints, _red_cause_is_card_record, _ac_named_verifier_paths, _accept_reason_quotes_directive, _currency_finding_index, residual_finding_records, residual_key_listing, _directive_covers_task, _directive_row_text, _late_finding_index, _prose_names_token, _repo_path_tokens, _resolve_owner_directive`.
 NOT IN HERE: `cmd_audit` / `cmd_audit_pre|post|adhoc|run|status|canary_backstop`, the gates, the
 `_invoke_*` / `_resolve_*` provider families, the ceiling COUNTERS (`terminal_ceiling_row`,
 `_ceiling_row_of`, `validate_ceiling_payload`, `finding_fingerprint`, …) and the packet / consult
@@ -205,7 +206,7 @@ def landed_pause_plan_basis(tid, card_path, ceiling_ts, repo_root, working_plan,
 # lib aliases, moved siblings). `audit._ceiling_inject(kw, name)` reads it at call time.
 # ---------------------------------------------------------------------------
 INJECTS = {
-    'cmd_audit_decide': ('AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS', 'AUDIT_DECIDE_STDIN_KEYS', 'EXPECTED_SESSION_REF_ENV', 'ON_DECISIONS_ABSORPTION_BASIS', '_accept_reason_quotes_directive', '_ceiling_row_of', '_currency_finding_index', '_decide_journal_view', '_directive_row_text', '_git_commit_on_a_branch', '_git_strict_descendant', '_late_finding_index', '_resolve_owner_directive', '_ship_contained_record_only', 'decision_names_subject', 'explicit_record_passes', 'late_finding_refs_by_fp', 'observe', 'on_decisions_admission', 'on_decisions_bind', 'plan_gate_synthetic_ceiling_row', 'prior_audit_record', 'row_residual_fingerprints', 'state', 'terminal_ceiling_row', 'textutil', 'validate_ceiling_payload'),
+    'cmd_audit_decide': ('AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS', 'AUDIT_DECIDE_STDIN_KEYS', 'EXPECTED_SESSION_REF_ENV', 'ON_DECISIONS_ABSORPTION_BASIS', '_accept_reason_quotes_directive', '_ceiling_row_of', '_currency_finding_index', '_decide_journal_view', '_directive_row_text', '_git_commit_on_a_branch', '_git_strict_descendant', '_late_finding_index', '_resolve_owner_directive', '_ship_contained_record_only', 'decision_names_subject', 'explicit_record_passes', 'late_finding_refs_by_fp', 'observe', 'on_decisions_admission', 'on_decisions_bind', 'plan_gate_synthetic_ceiling_row', 'prior_audit_record', 'residual_finding_records', 'row_residual_fingerprints', 'state', 'terminal_ceiling_row', 'textutil', 'validate_ceiling_payload'),
     'on_decisions_admission': ('on_decisions_bind',),
     'on_decisions_absorption_grant': ('ON_DECISIONS_ABSORPTION_BASIS', '_ceiling_row_of', 'on_decisions_row_absorbable'),
     'on_decisions_bind': ('decision_names_subject',),
@@ -245,7 +246,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                      _cross_instance_events=None, _cross_instance_path=None,
                      _evidence_subject_refusal=None,
                      _find_receiving_task_yaml=None,
-                     _t12614_authored_paths=None, _t12614_prior_record=None, _t12926_card_cause=None, _t12926_chain=None, AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS, AUDIT_DECIDE_STDIN_KEYS, EXPECTED_SESSION_REF_ENV, ON_DECISIONS_ABSORPTION_BASIS, _accept_reason_quotes_directive, _ceiling_row_of, _currency_finding_index, _decide_journal_view, _directive_row_text, _git_commit_on_a_branch, _git_strict_descendant, _late_finding_index, _resolve_owner_directive, _ship_contained_record_only, decision_names_subject, explicit_record_passes, late_finding_refs_by_fp, observe, on_decisions_admission, on_decisions_bind, plan_gate_synthetic_ceiling_row, prior_audit_record, row_residual_fingerprints, state, terminal_ceiling_row, textutil, validate_ceiling_payload) -> None:
+                     _t12614_authored_paths=None, _t12614_prior_record=None, _t12926_card_cause=None, _t12926_chain=None, AUDIT_DECIDE_STDIN_CONFLICTING_ARGV_FLAGS, AUDIT_DECIDE_STDIN_KEYS, EXPECTED_SESSION_REF_ENV, ON_DECISIONS_ABSORPTION_BASIS, _accept_reason_quotes_directive, _ceiling_row_of, _currency_finding_index, _decide_journal_view, _directive_row_text, _git_commit_on_a_branch, _git_strict_descendant, _late_finding_index, _resolve_owner_directive, _ship_contained_record_only, decision_names_subject, explicit_record_passes, late_finding_refs_by_fp, observe, on_decisions_admission, on_decisions_bind, plan_gate_synthetic_ceiling_row, prior_audit_record, residual_finding_records, row_residual_fingerprints, state, terminal_ceiling_row, textutil, validate_ceiling_payload) -> None:
     """SPEC-0204 rule 2 — record ONE typed Controller decision for ONE residual of a ceiling row.
 
     `bin/yitc-v2 audit decide --task T-XXXX --stage pre|post --finding <fp>
@@ -951,6 +952,18 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
             # «8 residual(s)» left the caller to recompute keys by hand, and the canonical `fp1:`
             # function collapses every fieldless plan-gate finding onto ONE value.
             decidable = sorted(residual_keys | set(late_index) | set(currency_index))
+            # T-14356 (X-2131) — and say WHICH finding each key stands for, from the rows and the
+            # saved record this verb already holds; a plan gate's findings may live in its gate
+            # record alone (the synthetic ceiling row carries none), read here when not yet read.
+            _listing_record = _gate_record if is_plan else local_record
+            if is_plan and _listing_record is None and _plan_consult_gate_audit_record is not None:
+                try:
+                    _listing_record = _plan_consult_gate_audit_record(plan_slug_arg, gate) or None
+                except Exception:   # noqa: BLE001 — a failed read leaves every key «finding not found»
+                    _listing_record = None
+            decidable_listing = residual_key_listing(decidable, residual_finding_records(
+                stage_rows, decidable, target_id, target_key, repo_root=[REPO_ROOT],
+                record=_listing_record))
             _refuse("fingerprint-not-residual", "fingerprint_not_a_residual",
                     f"{target_id} audit-{target_key}: {finding_fp} is neither a residual of the "
                     f"ceiling row "
@@ -960,7 +973,7 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     f"audit-currency row ({len(currency_index)}). A decision binds to a "
                     f"residual of THIS ceiling row (SPEC-0204 rules 1 + 4). Run `audit decide` "
                     f"ONCE PER RESIDUAL, passing one of these engine keys verbatim: "
-                    + (", ".join(decidable) or "(none resolvable)") + "."
+                    + ("; ".join(decidable_listing) or "(none resolvable)") + "."
                     # T-13860 — a RESOLVED empty set is a different fact from an unresolvable one.
                     + ("" if (decidable or residual.get("unresolvable") or not is_plan) else
                        " This ceiling row has NO residual to decide, so the next round is admitted "
@@ -1065,6 +1078,10 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                         f"{target_id} — `--evidence <revision>` is REQUIRED for a `fix`: the revision "
                         f"that carries the change (SPEC-0204 rule 2). «Already in the audited commit» "
                         f"is an `accept` with that reason, never a `fix`."
+                        + (f" At post that revision is committed FIRST, with `yitc-v2 task commit "
+                           f"{target_id} --fix-red` in the card's worktree (admitted at the ceiling "
+                           f"row until its bounded pass runs, T-14339); then name its sha here."
+                           if (not is_plan and stage == "post") else "")
                         + _pre_fix_gaps(rows))
             if is_plan:
                 # A plan-gate `fix` is a PLAN-BODY edit, so the evidence is the plan's CURRENT
@@ -1406,8 +1423,9 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                         f"{tid} audit-post: `--evidence {evidence}` is neither a recorded commit "
                         f"of {tid} (`commit_landed`) nor a merge `worktree sync` recorded on its "
                         f"branch (`worktree_synced`), so no `--on-decisions` pass could be "
-                        f"audited at it (SPEC-0204 rules 2-3, T-13256). Record the fix with "
-                        f"`yitc-v2 task commit {tid} …` (or produce the merge with `yitc-v2 "
+                        f"audited at it (SPEC-0204 rules 2-3, T-13256). The fix is committed FIRST: "
+                        f"`yitc-v2 task commit {tid} --fix-red` in its worktree, admitted at the "
+                        f"ceiling row until its bounded pass runs (T-14339) (or produce the merge with `yitc-v2 "
                         f"worktree sync --task {tid}`) and name THAT revision. Nothing was "
                         f"written.",
                         {"evidence_revision": evidence})
@@ -1629,6 +1647,11 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     p1 (what `worktree sync --resolved` records) and G5 merges (p1, main). No predicate injected, or
     any commit it does not prove transparent, keeps the `first_parent_not_prior_green` refusal.
 
+    T-14330 — the same predicate also crosses record-only NON-merge commits AFTER M (the journal dedup
+    commit `worktree sync --resolved` writes on top of its merge, T-14101): HEAD is walked back across
+    them before G1/G3, and the evidence names them `trailing`. No predicate, an authored commit, or a
+    merge keeps the `head_not_a_merge` refusal.
+
     The evidence is the marker the pass records (merge / prior / main shas, the conflict paths, the
     sync row locator; `resigned` + `resign_commit` only when a re-sign was admitted); `resolution_diff`
     rides beside it for the PACKET only and is never recorded, bounded by the host's existing packet
@@ -1705,6 +1728,25 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     if tff is not None:
         return None, (f"test_found_fix_pass_is_final: the test-found-fix pass ran for {tid} "
                       f"({tff.get('ts')}, {_d(tff).get('verdict')}) and no further audit-post pass follows it")
+    # T-14330 — HEAD may sit on record-only NON-merge commits written AFTER the merge (the journal dedup
+    # commit `worktree sync --resolved` folds on top of it, T-14101): walk back across them with the same
+    # predicate, bounded and fail-closed; the commit the walk stops on stands in for HEAD below.
+    trailing = []
+    if callable(transparent):
+        cur = _r(head_sha)
+        while cur and len(trailing) < _MI_CROSS_MAX:
+            cl = _g(["rev-list", "--parents", "-n", "1", cur])
+            cp = cl[1].split() if cl is not None and cl[0] == 0 else []
+            try:
+                ok = len(cp) == 2 and transparent(cur, tid) is True
+            except Exception:      # noqa: BLE001 — an unverifiable crossing is not granted
+                ok = False
+            if not ok:
+                break
+            trailing.append(cur)
+            cur = cp[1]
+        if trailing:
+            head_sha = cur
     # G1 — the latest real verdict is GREEN at A.
     a_sha = _r(custody_sha)
     if not a_sha:
@@ -1864,6 +1906,8 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         ev["resign_commit"] = r_sha
     if crossed:
         ev["crossed"] = crossed
+    if trailing:
+        ev["trailing"] = trailing
     return ev, None
 
 
@@ -1881,6 +1925,8 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
         f"at {ev.get('sync_evidence')}"
         + (f", after record-only bookkeeping commit(s) {', '.join(ev.get('crossed'))} (T-14301)"
            if ev.get("crossed") else "")
+        + (f", followed by record-only commit(s) {', '.join(ev.get('trailing'))} (T-14330)"
+           if ev.get("trailing") else "")
         + f". The subject is the WHOLE merged HEAD {ev.get('merge_commit')}. "
         "Judge whether the merged result still meets the card's acceptance, with particular attention "
         "to the hand-resolved conflict paths below — every other path is byte-identical to git's "
@@ -3969,7 +4015,8 @@ def _directive_row_text(row) -> str:
                      if isinstance(data.get(k), str))
 
 
-def residual_finding_records(stage_rows, keys, tid, stage, *, repo_root=None, finding_key_of) -> dict:
+def residual_finding_records(stage_rows, keys, tid, stage, *, repo_root=None, record=None,
+                             finding_key_of) -> dict:
     """T-13169 (SPEC-1014 «Rule 3 — admission of the one bounded pass, and what the pass reports») —
     `{fingerprint: recorded finding entry}` for the residual `keys`,
     read off the `findings[]` + `late_findings[]` of the (task, stage) rows.
@@ -3984,14 +4031,22 @@ def residual_finding_records(stage_rows, keys, tid, stage, *, repo_root=None, fi
     Keying is `finding_key_of`, the SAME the residual readers use (`_late_finding_index`,
     `_currency_finding_index`), so an entry is found under exactly the key the residual set holds. The
     first occurrence wins (the ceiling row precedes later rows in fold order). Pure f(rows); opens no
-    journal; never raises."""
+    journal; never raises.
+
+    `record` (T-14356) is the saved audit record the caller ALREADY read — the task's
+    `decisions/<tid>-audit-<stage>.yaml` or a plan gate's saved gate record. Its `findings[]` +
+    `late_findings[]` are scanned AFTER the rows, because a plan gate whose ceiling row is the
+    read-time synthetic one carries no findings on any row: the gate record is their only home."""
     want = set(keys or ())
     out: dict = {}
     if not want:
         return out
     try:
-        for row in stage_rows or ():
-            data = row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
+        sources = [row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
+                   for row in stage_rows or ()]
+        if isinstance(record, dict):
+            sources.append(record)
+        for data in sources:
             for e in list(data.get("findings") or ()) + list(data.get("late_findings") or ()):
                 if not isinstance(e, dict):
                     continue
@@ -4000,6 +4055,31 @@ def residual_finding_records(stage_rows, keys, tid, stage, *, repo_root=None, fi
                     out[k] = e
     except Exception:   # noqa: BLE001 — a missing record degrades to «no recorded finding», never a crash
         return out
+    return out
+
+
+def residual_key_listing(keys, records) -> list:
+    """T-14356 (X-2131) — one line per residual key, IN THE GIVEN ORDER: `<key> - <what> @ <where>`.
+
+    The two surfaces a Controller copies a key from — the `audit decide` refusal
+    `fingerprint_not_a_residual` and the dispatched-worker ceiling halt — listed the keys alone, so
+    which key stood for which finding had to be guessed before a per-residual reason could be written.
+    `records` is `residual_finding_records`' map; `where` is a task finding's `locator`, else a plan-gate
+    finding's `where`. A key with no record is printed `<key> - finding not found`, never dropped: the
+    key itself is still the decidable one. Pure; never raises."""
+    recs = records if isinstance(records, dict) else {}
+    cap = 160   # the longest `what` a listing line carries; the record keeps the whole text
+    out = []
+    for k in (keys or ()):
+        rec = recs.get(k)
+        if not isinstance(rec, dict):
+            out.append(f"{k} - finding not found")
+            continue
+        what = " ".join(str(rec.get("what") or "").split()) or "?"
+        if len(what) > cap:
+            what = what[:cap - 1].rstrip() + "…"
+        where = " ".join(str(rec.get("locator") or rec.get("where") or "").split()) or "?"
+        out.append(f"{k} - {what} @ {where}")
     return out
 
 

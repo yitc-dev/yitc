@@ -74,7 +74,30 @@ _STEM_SHARED_MIN = 3      # AND at least this many SHARED significant tokens (gu
 # tokens) could never be linked to the task that fixed them and read as un-routed debt forever.
 # The shape is a WHITESPACE-FREE token: uppercase + colon admitted; whitespace, slashes and the empty
 # string still REFUSED, so a typo / free text can never pollute the canonical `cites:` carrier.
-FINGERPRINT_SHAPE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]*$")
+# T-14354 (<project> X-2125): letters and digits are UNICODE (`t1192-входил-vs-spec0071-rule2` was
+# captured but could never be linked), and the CAPTURE side (`event deviation_captured`) now checks this
+# same shape, so a token one door admits the other admits too. The value is checked AS GIVEN at both
+# doors — no strip — so any whitespace in it, leading or trailing included, is refused.
+# `[^\W_]` = a letter or digit (`\w` without `_`), so the first character stays letter-or-digit.
+FINGERPRINT_TOKEN_PATTERN = r"[^\W_][\w.:-]*"
+FINGERPRINT_SHAPE_RE = re.compile(r"^" + FINGERPRINT_TOKEN_PATTERN + r"\Z")
+FINGERPRINT_SHAPE_TEXT = ("a whitespace-free token: a letter or digit (any script, any case) first, "
+                          "then letters, digits, `_` `.` `-` `:`; no whitespace, no slashes")
+
+
+def fingerprint_shape_refusal(label: str, raw) -> "str | None":
+    """The ONE refusal message for a fingerprint outside FINGERPRINT_SHAPE_RE, or None when it fits.
+
+    Checks `raw` AS GIVEN (str(), never stripped) — capture and `task close --closes-fp` both call it,
+    so the same token gets the same verdict and the same sentence at either door (T-14354)."""
+    value = str(raw)
+    if FINGERPRINT_SHAPE_RE.match(value):
+        return None
+    return (f"{label} {value!r} is not a valid fingerprint — expected {FINGERPRINT_SHAPE_TEXT} "
+            f"(pattern {FINGERPRINT_SHAPE_RE.pattern!r}). A fingerprint is a short stable slug, "
+            f"copied VERBATIM between the capture and the card that closes it — not free text.")
+
+
 _FP_SHAPE = FINGERPRINT_SHAPE_RE   # historical name kept for the local readers below
 
 # A `cites:` entry is a MIXED bag — fingerprints live beside artifact ids (SPEC-0147, T-10319, D-0086).

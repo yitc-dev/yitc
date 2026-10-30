@@ -6611,7 +6611,10 @@ def _land_prequeue_known_broken_refusal(branch: str, main_wt: Path, *, _run_git_
                   "a broken test file is refused here only when that file still FAILS on its own "
                   "merged tree (T-13318), so the repair path is never blocked, and "
                   "the record clears on that land's EVIDENCE — a later run observing the test pass "
-                  "on a fresh main — never on elapsed time."),
+                  "on a fresh main — never on elapsed time. Once main is repaired, `bin/yitc-v2 land "
+                  "--recheck-known-broken` (with `-C <repo>` in a consumer) re-runs the named test(s) on "
+                  "main's head and clears each record they now pass (SPEC-0181 rule 2 (g)) — no land "
+                  "needed."),
                 {"prequeue_known_broken": {"branch": branch, "pairs": recorded,
                                            "main": main_rev, "merge_base": base_sha,
                                            # T-13318 — present only when the refusal was earned by

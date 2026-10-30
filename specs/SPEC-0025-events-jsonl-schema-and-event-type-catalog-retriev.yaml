@@ -1452,15 +1452,17 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ counted\nwhole — plus `project` where the runner has several, and carries `attempts`,\
   \ which is what tells\nit from a layer row: `{layer, leg, unit | group, project?,\
   \ isolated, lane?, rescue, rescued,\nfirst_failed_cases?, first_failed_cases_more?,\
-  \ first_excerpt?, retry_output_log?, attempts:\n[{status, load1?, duration_ms?,\
-  \ failed_cases?, failed_cases_more?, excerpt?, void?}]}`.\n`isolated` is `pass`\
-  \ when a re-run attempt read every unit of the row passed, else `fail`;\n`rescue`\
-  \ is the layer's setting (`on` / `off`) and `rescued` is true only for `isolated:\
+  \ first_excerpt?, first_output_log?, retry_output_log?, attempts:\n[{status, load1?,\
+  \ duration_ms?, failed_cases?, failed_cases_more?, excerpt?, void?}]}`.\n`isolated`\
+  \ is `pass` when a re-run attempt read every unit of the row passed, else `fail`;\n\
+  `rescue` is the layer's setting (`on` / `off`) and `rescued` is true only for `isolated:\
   \ pass`\nunder `rescue: on`; the `first_*` keys are the FIRST attempt's failed cases\
-  \ (`id`, `excerpt`) and\nare present on a rescued row too; an attempt's `status`\
-  \ is `passed` / `failed` / `void` /\n`timed-out` / `error`, the last three ending\
-  \ that layer's re-runs. A layer whose failed units\nwere NOT re-run records `units_skipped:\
-  \ [{leg, layer, reason, failed, bound?}]`, `reason` being\n`retry-off` / `over-unit-bound`.\
+  \ (`id`, `excerpt`) and\nare present on a rescued row too; `first_output_log` names\
+  \ the kept file holding the first attempt's WHOLE failure text, on a row whose re-run\
+  \ passed, where the run keeps layer output logs; an attempt's `status` is `passed`\
+  \ / `failed` / `void` /\n`timed-out` / `error`, the last three ending that layer's\
+  \ re-runs. A layer whose failed units\nwere NOT re-run records `units_skipped: [{leg,\
+  \ layer, reason, failed, bound?}]`, `reason` being\n`retry-off` / `over-unit-bound`.\
   \ On an adapter-backed layer a LAYER row above may also carry\n`rescue` (`off`:\
   \ the pass on the re-run is diagnostic and the first failure blocks) and\n`first_void`\
   \ (the first attempt's void reasons), and `layers_skipped` may carry the reason\n\

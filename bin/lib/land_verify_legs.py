@@ -2025,6 +2025,124 @@ def _verify_selected_layers(layers, not_run, *, timeout_ok) -> list:
     return out
 
 
+#: T-14343 (SPEC-0152 rule 16 §layer_worker_shares, public issue #215) — the variable naming, to every
+#: layer command, the run's forecast file; written beside `YITC_VERIFY_SELECTED_LAYERS`.
+VERIFY_LAYER_FORECAST_ENV = "YITC_VERIFY_LAYER_FORECAST"
+#: the outcomes a layer row reads when the layer's command never ran
+_FORECAST_NOT_RAN = ("malformed", "prep-failed", "waived", "skipped-disjoint-subject", "credited-stage6-run")
+
+
+def _forecast_entity_key(layer: str, project, unit: dict):
+    """The medians key of one listed unit as `_adapter_units_with_medians` keys it: a unit in a
+    declared group is its group, so a group counts ONCE however many files it holds."""
+    proj = str(unit.get("project") or project or "")
+    return ((layer, proj, "group", unit["group"]) if unit.get("group")
+            else (layer, proj, "unit", unit.get("file")))
+
+
+def _verify_layer_forecast(selected, decls_by_name, medians, *, pre_deploy_active: bool) -> list:
+    """T-14343 — the labelled FORECAST of each layer this run executes, one entry per `selected` name
+    (`_verify_selected_layers`), in that order, published before any layer runs. A VIEW over facts the
+    run already holds — the layer set and the ONE `_adapter_unit_medians` read of this run — so it
+    starts no adapter invocation and reads no journal. PURE.
+
+    It is an ESTIMATE, never the selected set: a layer's units are decided inside its own adapter
+    pass, when the loop reaches it. The basis is the units of this layer that ran inside the summary
+    window: a unit listed since then and never measured is absent from it, a unit removed since then
+    may still be counted, and the change-based selection, the credit and the pre-deploy exclusion are
+    applied later and are NOT applied here — each entry says so. Counts are ENTITIES (a group once, an
+    ungrouped unit once). A missing median is unknown cost, never zero: a layer with no adapter or no
+    measured unit reads `unknown`. The table does not say which units a group holds, so a layer holding
+    both unit and group rows gets no total count and no total time (they may overlap) — only each
+    kind's own figures, never summed together."""
+    out = []
+    by_layer: dict = {}
+    for key, got in (medians or {}).items():
+        if isinstance(key, tuple) and len(key) == 4 and isinstance(got, dict) \
+                and isinstance(got.get("median_ms"), int) and not isinstance(got.get("median_ms"), bool):
+            by_layer.setdefault(key[0], []).append((key[2], got["median_ms"]))
+    for name in selected:
+        decl = decls_by_name.get(name)
+        entry = {"layer": name, "kind": "unknown", "estimated_unit_count": "unknown",
+                 "known_median_ms": "unknown",
+                 "pre_deploy_exclusion": "not-applied" if pre_deploy_active else "none"}
+        if decl is None:
+            entry["basis"] = "no-adapter: the layer reports no units"
+            out.append(entry)
+            continue
+        entry["selection"] = ("applied-later" if decl.get("selection") == "deciding"
+                              or decl.get("credit") == "deciding" else "none")
+        rows = by_layer.get(name) or []
+        if not rows:
+            entry["basis"] = "no unit of this layer measured inside the summary window"
+            out.append(entry)
+            continue
+        parts = {kind: {"count": sum(1 for k, _ in rows if k == kind),
+                        "known_median_ms": sum(m for k, m in rows if k == kind)}
+                 for kind in ("unit", "group") if any(k == kind for k, _ in rows)}
+        entry.update({"kind": "estimate",
+                      "basis": "units of this layer measured inside the summary window",
+                      "completeness": {"measured_units": len(rows), "unmeasured_units": "unknown",
+                                       "removed_units": "may be counted"}})
+        if len(parts) == 1:
+            only = next(iter(parts.values()))
+            entry.update({"estimated_unit_count": only["count"], "known_median_ms": only["known_median_ms"]})
+        else:
+            entry["by_kind"] = {("units" if k == "unit" else "groups"): v for k, v in parts.items()}
+            entry["not_summed"] = "unit and group rows may overlap"
+        out.append(entry)
+    return out
+
+
+def _adapter_requested_reading(layer: str, units, to_run, medians) -> dict:
+    """T-14343 — what ONE adapter pass of `layer` requested, read where its `run` batches are formed:
+    after selection, credit, the pre-deploy skip and exclusion and the union allocation. `to_run` None
+    is the whole inventory `units`; `units` None is no inventory — the full `command:` decides, so the
+    request is `unknown`, never zero. `requested_unit_count` counts files; `requested_entities` counts
+    a group once (the forecast's unit); `known_median_ms` sums each entity's median once and
+    `unmeasured_entities` counts the entities with none — unknown cost, never zero. PURE."""
+    if not isinstance(units, list):
+        return {"requested_unit_count": "unknown", "requested_entities": "unknown",
+                "known_median_ms": "unknown", "unmeasured_entities": "unknown", "why": "no inventory"}
+    asked = units if to_run is None else to_run
+    keys: list = []
+    for u in asked:
+        if isinstance(u, dict):
+            k = _forecast_entity_key(layer, None, u)
+            if k not in keys:
+                keys.append(k)
+    known = [medians[k]["median_ms"] for k in keys if isinstance((medians or {}).get(k), dict)]
+    return {"requested_unit_count": len(asked), "requested_entities": len(keys),
+            "known_median_ms": sum(known), "unmeasured_entities": len(keys) - len(known)}
+
+
+def _forecast_row_record(run_id: str, entry: dict, requested, *, outcome) -> dict:
+    """T-14343 — the `forecast` key of a forecast layer's outcome row: the run id and entry it was
+    forecast under, what the layer's FIRST attempt requested (a re-run adds nothing) and the gap,
+    requested minus forecast. Unknown on either side is `unknown`, never zero; a layer whose command
+    never ran reads `ran: false` and nothing requested. PURE."""
+    ran = outcome not in _FORECAST_NOT_RAN
+    req = requested if isinstance(requested, dict) and ran else None
+    if req is None:
+        req = {"requested_unit_count": "unknown", "requested_entities": "unknown",
+               "known_median_ms": "unknown", "unmeasured_entities": "unknown",
+               "why": "the layer did not run" if not ran else "no inventory"}
+
+    def _gap(a, b):
+        return a - b if isinstance(a, int) and isinstance(b, int) else "unknown"
+
+    rec = {"run_id": run_id, "entry": dict(entry), "ran": ran,
+           "requested_unit_count": req["requested_unit_count"],
+           "requested_entities": req["requested_entities"],
+           "requested_known_median_ms": req["known_median_ms"],
+           "unmeasured_entities": req["unmeasured_entities"],
+           "entity_gap": _gap(req["requested_entities"], entry.get("estimated_unit_count")),
+           "known_median_gap_ms": _gap(req["known_median_ms"], entry.get("known_median_ms"))}
+    if "why" in req:
+        rec["unknown_because"] = req["why"]
+    return rec
+
+
 #: T-14190 (SPEC-0152 rule 16 §pre_deploy_layer_worker_shares) — the one home of the pre-deploy run's
 #: share-table key: the table that run (and its lone-layer re-run) applies in place of `layer_worker_shares`.
 PRE_DEPLOY_WORKER_SHARES_KEY = "pre_deploy_layer_worker_shares"
@@ -5978,9 +6096,87 @@ def _adapter_second_report_signals(kind: str, doc, checkpoint=None) -> "list | N
     return reasons
 
 
+_TAP_NOT_OK_RE = re.compile(r"^([ \t]*)not ok \d+\b")
+#: T-14363 — the diagnostic keys a compacted TAP failure block keeps, in this order: what the
+#: assertion compared first, then what was thrown, then where.
+_TAP_KEPT_KEYS = ("expected", "actual", "operator", "error", "stack")
+
+
+def _first_tap_failure_block(text: str) -> "list[str] | None":
+    """The lines of the FIRST `not ok N` entry of a TAP stream (node --test and every TAP producer)
+    with its indented YAML diagnostic — from the header through the `...` line at the diagnostic's
+    own indent — or None when the text has no `not ok` line. A header with no `---` after it is a
+    block of one line. PURE."""
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        m = _TAP_NOT_OK_RE.match(line)
+        if not m:
+            continue
+        block = [line]
+        nxt = lines[i + 1] if i + 1 < len(lines) else ""
+        if nxt.strip() != "---" or len(nxt) - len(nxt.lstrip()) <= len(m.group(1)):
+            return block
+        diag_indent = nxt[:len(nxt) - len(nxt.lstrip())]
+        for ln in lines[i + 1:]:
+            block.append(ln)
+            if ln.rstrip() == diag_indent + "...":
+                break
+        return block
+    return None
+
+
+def _compact_tap_block(block: list, budget: int) -> str:
+    """A TAP failure block over its budget, cut to its header plus the `_TAP_KEPT_KEYS` entries
+    found in its diagnostic (`error` and `stack` keep their key line and first content line — for
+    `stack` the first frame). The budget is SHARED before assembly: each kept item is clipped to an
+    equal share, so a long `expected` never pushes `actual` or the frame out (audit-pre T-14363). PURE."""
+    entries: dict = {}
+    key, base = None, None
+    key_re = re.compile(r"^([ \t]*)([A-Za-z_]\w*):(.*)$")
+    for ln in block[2:]:
+        m = key_re.match(ln)
+        if m and (base is None or len(m.group(1)) <= base):
+            base, key = len(m.group(1)), m.group(2)
+            entries.setdefault(key, [ln.strip()])
+        elif key in entries and ln.strip() and ln.strip() != "...":
+            entries[key].append(ln.strip())
+    items = [block[0].strip()]
+    for k in _TAP_KEPT_KEYS:
+        got = entries.get(k)
+        if not got:
+            continue
+        items.append(" ".join(got[:2] if k in ("error", "stack") else got))
+    share = max(1, (budget - (len(items) - 1)) // len(items))
+    return "\n".join(x[:share] for x in items)[:budget]
+
+
+def _failure_excerpt(text: str, budget: int, block_text: "str | None" = None) -> str:
+    """T-14363 — a unit failure's excerpt within `budget` characters. A text that fits is kept
+    whole. Otherwise, where the text holds a TAP `not ok` entry, that FIRST failure block is kept
+    whole when it fits (else compacted, `_compact_tap_block`) and the rest of the budget takes the
+    front of the text outside it after ` [...] `; a text with no such block keeps its front, the
+    failure element's message and first frames — byte-identical to the clip before T-14363.
+    `block_text`, when given, is where the block is looked for — the failure element's own text, so a
+    message joined in front of a stream that opens with `not ok` cannot hide its header. PURE."""
+    text = text or ""
+    if len(text) <= budget:
+        return text
+    block = _first_tap_failure_block(text if block_text is None else block_text)
+    if block is None:
+        return text[:budget]
+    whole = "\n".join(block)
+    kept = whole if len(whole) <= budget else _compact_tap_block(block, budget)
+    room = budget - len(kept) - len(" [...] ")
+    if room <= 0:
+        return kept
+    rest = text.replace(whole, "", 1).strip()
+    return (kept + " [...] " + rest[:room]) if rest else kept
+
+
 def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_text, second_text=None,
                              started_at=None, project=None, outer=None, checkpoint=None,
-                             excerpt_chars: int = 300, max_failed_cases: int = 20) -> dict:
+                             excerpt_chars: int = 300, max_failed_cases: int = 20,
+                             texts_out=None) -> dict:
     """SPEC-1006 rule 4 — read ONE adapter `run` invocation's native report against the kernel's
     manifest. PURE (texts in, a dict out; no I/O, no clock of its own). Returns `{void: [reason,
     ...], units: [row, ...]}`, or `{outer, void: [], units: []}` when an outer failure decided first.
@@ -6039,7 +6235,11 @@ def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_te
     `<property name="failed_test" value=...>` on a failed case of the unit, else the ids of its
     `failed_cases`, else what `_failed_test_names` reads off its whole failure text — none when that
     text reports a timeout (`_UNIT_TIMEOUT_RE`), since a killed unit's partial output is not its
-    verdict; `[]` / `false` when none names a test — never a guess."""
+    verdict; `[]` / `false` when none names a test — never a guess.
+
+    An `excerpt` keeps the first failure block whole within `excerpt_chars` (`_failure_excerpt`,
+    T-14363). `texts_out`, when a dict, receives every `failed` / `error` unit's WHOLE failure
+    text under its `(project, file)` key — beside the return value, never in a row."""
     import xml.etree.ElementTree as ET
     if outer:
         return {"outer": outer, "void": [], "units": []}
@@ -6051,8 +6251,9 @@ def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_te
             void.append(reason)
 
     def _clip(el):
-        text = " ".join(x for x in (el.get("message") or "", (el.text or "").strip()) if x)
-        return text[:excerpt_chars]
+        body = (el.text or "").strip()
+        text = " ".join(x for x in (el.get("message") or "", body) if x)
+        return _failure_excerpt(text, excerpt_chars, block_text=body)
 
     def _secs(raw):
         """A report's `time` attribute as non-negative finite seconds; anything else reads 0."""
@@ -6313,6 +6514,8 @@ def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_te
                                            timeout_marker="")
                 names = names[0]["failed_tests"] if names else []
             row["failed_tests"], row["named"] = names, bool(names)
+            if isinstance(texts_out, dict) and rec["texts"]:
+                texts_out[(uid[0], uid[1])] = "\n".join(rec["texts"])
         if rec["unrequested"]:
             row["unrequested"] = True
         rows.append(row)
@@ -7237,6 +7440,9 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     planned["narrowed"] = {"inventory": units, "units": to_run, "left_out": []}
                 print(f"land(consumer): verify layer {layer!r} {len(_dup)} unit(s) another layer of this "
                       f"pre-deploy run runs — not run again here (SPEC-1051 rule 3)")
+        if sink is not None and rerun is None:
+            # T-14343: what this attempt requests, for the layer row's forecast comparison — the caller's own sink
+            sink["requested"] = _adapter_requested_reading(layer, units, to_run, unit_medians)
         if (deciding or crediting) and first_attempt and units is None:
             # No inventory on a deciding layer's first attempt (`list` absent or unusable): the
             # full `command:` decides, and `run` is not invoked ahead of it.
@@ -7296,7 +7502,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     report_text=_adapter_read_output(box / "report.xml", max_output_bytes, _checkpoint),
                     second_text=(_adapter_read_output(box / "report.json", max_output_bytes, _checkpoint)
                                  if prof["second_report"] else None),
-                    started_at=started, project=proj, checkpoint=_checkpoint)
+                    started_at=started, project=proj, checkpoint=_checkpoint,
+                    texts_out=sink.setdefault("failure_texts", {}) if isinstance(sink, dict) else None)
                 _checkpoint()                              # and once more when the reading is done
             except _AdapterPassDeadline:
                 # The bound passed WHILE the report was being read: the reading stopped there.
@@ -7652,7 +7859,7 @@ def _adapter_passed_outcome(rec) -> str:
     return "passed-partial" if isinstance(rec, dict) and isinstance(rec.get("partial"), dict) else "passed"
 
 
-# ───────── T-14104 — the PRE-DEPLOY exclusion, applied LAST (SPEC-1042 rule 1, SPEC-1044 rule 2) ─────────
+# ───────── T-14104 — the PRE-DEPLOY exclusion, applied LAST (SPEC-1042 rule 1, SPEC-1051 rule 2) ─────────
 #
 # A pre-deploy class names its units in the ONE adapter inventory (each `list` unit's optional
 # `classes:`, SPEC-1035 rule 3) or whole layers (`layers:`). On a land's candidate leg and a Stage-6
@@ -7732,7 +7939,7 @@ def _pre_deploy_contract_read(tree) -> dict:
 
 
 def _pre_deploy_contract_kw(tree) -> dict:
-    """T-14114 (SPEC-1044 rule 2) — the keyword a land's candidate leg and a Stage-6 run hand the layer
+    """T-14114 (SPEC-1051 rule 2) — the keyword a land's candidate leg and a Stage-6 run hand the layer
     runner: `{"pre_deploy": <the declaration>}` when `tree`'s contract declares an admitted pre-deploy
     class (`_pre_deploy_contract_read`), else `{}` — so a project declaring none, or one whose
     declaration the contract read refuses, calls the runner exactly as before: every unit runs."""
@@ -7775,7 +7982,7 @@ def _pre_deploy_membership(raw):
 
 def _pre_deploy_exclusion(inventory, to_run, memberships, declared, *, decl, change,
                           first_attempt=True, run=False, listed=None, listed_classes=()) -> tuple:
-    """SPEC-1044 rule 2 — the pre-deploy exclusion of ONE run of an adapter-backed layer, applied
+    """SPEC-1051 rule 2 — the pre-deploy exclusion of ONE run of an adapter-backed layer, applied
     LAST: `to_run` is the set the run would execute today (`_adapter_run_plan`'s units, None = the
     whole `inventory`), `memberships` `{(project, file): _pre_deploy_membership(...)}` from the
     `list` answer, `declared` the declared pre-deploy class names. Returns `(units, record)`:
@@ -7878,7 +8085,7 @@ def _pre_deploy_refusal_line(layer, record) -> str:
 
 
 def _pre_deploy_layer_skip_row(name: str, cls: str, change, decl=None) -> "dict | None":
-    """SPEC-1044 rule 2 — the row of a layer a pre-deploy class names WHOLE (`layers:`) on a run the
+    """SPEC-1051 rule 2 — the row of a layer a pre-deploy class names WHOLE (`layers:`) on a run the
     exclusion applies to: `{layer, outcome: passed-partial, pre_deploy: {applied: true, layer: {class}}}`
     — the layer is skipped and the skip is never silent. `decl` is the layer's parsed adapter
     declaration, None for a layer with no adapter. None — the layer runs whole as today — on a
@@ -7948,7 +8155,7 @@ def _pre_deploy_parse_ts(ts) -> "float | None":
 
 def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, bound_hours, is_ancestor) -> "dict | None":
     """T-14211 (SPEC-1051 rule 2) — THE SKIP SET of one run, or None where no pre-deploy class declares
-    `units:` (the fallback order, SPEC-1044 — nothing here is asked).
+    `units:` (the fallback order, SPEC-1051 rule 2 — nothing here is asked).
 
     `decl` is `_pre_deploy_declaration`'s record; `rows` the `(ts, data)` of every `test_class_executed`
     row of the MAIN checkout's journal IN THE ORDER the segment-aware reader returns them (None: it could
@@ -7974,7 +8181,7 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                 bound — `reason` names which; or `not-applied` (every listed file runs) when `changed`
                 is unknown — the card exception cannot be decided.
     A row with `run_outcome: contended` (an attempt the contended re-run replaces) is read by neither
-    the coverage nor the return: its re-run's row is the run's result (SPEC-1044 rule 3).
+    the coverage nor the return: its re-run's row is the run's result (SPEC-1051 rule 3).
     A group is the adapter inventory's and is kept whole where the units are taken out
     (`_pre_deploy_skip_units`). PURE but for `is_ancestor`."""
     if not isinstance(decl, dict) or not decl.get("listed_classes"):
@@ -7989,7 +8196,7 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
         return _all_run("uncovered", "unreadable")
     ordered = [(i, ts, data, _pre_deploy_row_results(data)) for i, (ts, data) in enumerate(rows)
                if isinstance(data, dict)]
-    # a contended attempt is not a run's result — its re-run is (SPEC-1044 rule 3, SPEC-1051 rule 7)
+    # a contended attempt is not a run's result — its re-run is (SPEC-1051 rules 3 and 7)
     ordered = [o for o in ordered if o[2].get("run_outcome") != "contended"]
     runs: dict = {}
     for i, ts, data, res in ordered:
@@ -8217,7 +8424,7 @@ def _pre_deploy_allocate(inventories) -> dict:
     that lists it and no group already runs it; every other listing drops it. So a unit an ungrouped
     listing took never runs again because a group needs it — the group takes it. What only a second run
     can satisfy — two groups in two layers sharing a unit — is named (`again`), never split. A layer
-    whose `list` did not answer (None) runs whole as SPEC-1044 runs it and drops nothing. Returns
+    whose `list` did not answer (None) runs whole as SPEC-1051 rule 2's fallback runs it and drops nothing. Returns
     `{layer: {drop: [(project, file)], again: [(project, file)]}}`. Never fewer than once: every dropped
     unit is run by the layer it was allocated to. PURE."""
     out = {ly: {"drop": [], "again": []} for ly in inventories}

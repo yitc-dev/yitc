@@ -91,19 +91,19 @@ body: "## Scenario\n\nThe owner/AI stands up a GOVERNED recurring obligation —
   \ one daily line declared in its `product_cron` section (SPEC-0109), invoking\n\
   \  the deterministic verb; no AI judgement on the trigger->run path — an agent only\
   \ triages the red\n  run's log afterwards (the separable §2 layer). INVOCATION CONTRACT:\
-  \ the line carries the\n  `session start` prefix and `YITC_SESSION_REF=cron-<name>`,\
-  \ and the verb refuses before it runs,\n  writing no row, when either is missing.\
-  \ The exact line: `patterns/project-release-guide.md` Part D.\n- **role↔provider\
-  \ execution (audit=<external-auditor> / worker):** OUT-OF-SCOPE — <workshop-spec>\
-  \ owns this axis.\n- **background-worker Watcher (in-session completion monitor):**\
-  \ OUT-OF-SCOPE — a session-scoped monitor\n  the Controller arms within ONE authorized\
-  \ batch, not a standing \"run periodically\" governed\n  obligation (resolved from\
-  \ the plan's CANDIDATE-C; no separate task needed).\n- **session-log materialization\
-  \ (journal sync):** OUT-OF-SCOPE — on-demand/recovery, not a\n  provider-scheduled\
-  \ cadence; already abstracts the provider-specific path (resolved from the\n  plan's\
-  \ CANDIDATE-D; no separate task needed).\n\n## Parameters\nNone consumed.\n\n##\
-  \ Rationale\nCHARTER §P4b governs provider-neutral DOCS; the OPERATIONAL sibling\
-  \ was missing. Two real incidents this\nsession ground the rule: (a) a security-audit\
+  \ the line exports\n  `YITC_SESSION_REF=cron-<name>` at its head, so the `session\
+  \ start` prefix and the verb run under\n  the same ref, and the verb refuses before\
+  \ it runs,\n  writing no row, when either is missing. The exact line: `patterns/project-release-guide.md`\
+  \ Part D.\n- **role↔provider execution (audit=<external-auditor> / worker):** OUT-OF-SCOPE\
+  \ — <workshop-spec> owns this axis.\n- **background-worker Watcher (in-session completion\
+  \ monitor):** OUT-OF-SCOPE — a session-scoped monitor\n  the Controller arms within\
+  \ ONE authorized batch, not a standing \"run periodically\" governed\n  obligation\
+  \ (resolved from the plan's CANDIDATE-C; no separate task needed).\n- **session-log\
+  \ materialization (journal sync):** OUT-OF-SCOPE — on-demand/recovery, not a\n \
+  \ provider-scheduled cadence; already abstracts the provider-specific path (resolved\
+  \ from the\n  plan's CANDIDATE-D; no separate task needed).\n\n## Parameters\nNone\
+  \ consumed.\n\n## Rationale\nCHARTER §P4b governs provider-neutral DOCS; the OPERATIONAL\
+  \ sibling was missing. Two real incidents this\nsession ground the rule: (a) a security-audit\
   \ cadence about to be stood up on a provider cloud-agent\nscheduler — owner rejected\
   \ it; (b) the `yitc-v2-nightly` OS cron failing exit-1 because its invocation\n\
   contract coupled to a provider/harness session-identity runtime. Origin: cross-log\

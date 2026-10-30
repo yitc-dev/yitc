@@ -472,6 +472,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "{command: <cmd>}` (never the top-level `rollback:`), admitted ONLY for a "
                           "`production: false` target that declares one — any other target REFUSES "
                           "(a production rollback is the unflagged `deploy --rollback <rev>`).")
+    # T-14333 / SPEC-1051 rule 3 — a RELEASE ORDER: the same revision to several targets in one verb, the
+    # project's land reservation held from the first target's deploy to the last one's end.
+    dep.add_argument("--release-order", dest="release_order", metavar="T1,T2[,...]", default=None,
+                     help="forward-deploy the SAME --expect-revision to the named `deploy.targets`, in "
+                          "this order, in one verb (e.g. `acceptance,production`). The project's land "
+                          "reservation is taken once before the first target and held until the last "
+                          "one ends, so no land moves `main` between them; the first target that fails "
+                          "or is refused stops the order (later targets are NOT deployed) and the hold "
+                          "is released. Needs --expect-revision and two or more distinct names, every "
+                          "one resolved before anything runs; refused with --target, --rollback and "
+                          "--scheduled-run. --class applies to the production targets only "
+                          "(SPEC-1051 rule 3).")
     dep.add_argument("--owner-approved", dest="owner_approved", action="store_true",
                      help="the owner took the escalation decision — proceed a Class-C2 deploy (NOT "
                           "autonomous; SPEC-0097 §5). The verb first runs the pre-deploy dump the "
@@ -911,7 +923,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                     help="read task fields as a YAML mapping from stdin. Carries the WHOLE field set: "
                          "combining it with a content flag (--resolves-cross / --cites / --scope / ...) "
                          "is REFUSED (T-10437) — put the field in the stdin mapping instead. It used to "
-                         "drop such a flag silently (X-0304).")
+                         "drop such a flag silently (X-0304). BATCH (T-14329): several cards as "
+                         "`---`-separated documents file in order in ONE call; a card names an EARLIER "
+                         "card of the batch in `requires:` as `@N` (its 1-based position), resolved to "
+                         "the id that card was allocated. A refused card stops the batch: no later card "
+                         "files, so no edge names a card other than the one meant.")
     tf.add_argument("--skeleton", action="store_true",
                     help="emit the fillable task-authoring skeleton (SPEC-0060 prompts + the "
                          "tasks/_template.yaml schema) to stdout and exit — fill it and pipe back via "
@@ -1326,7 +1342,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "alongside it is REFUSED (fail-closed, T-10437/X-0304). Feeding it from a file? "
                           "Make the file in the gitignored `.scratch/` dir — `"
                           + vocab.SCRATCH_TEMPFILE_RECIPE + "`, then `< \"$f\"` — never "
-                          "the checkout root, which this verb's add-all would commit (T-12930)")
+                          "the checkout root, which this verb's add-all would commit (T-12930). "
+                          "Example (T-14341): `printf 'message: |\\n  docs(T-1): subject\\n' | "
+                          "yitc-v2 task commit T-1 --from-stdin` — plain commit text on stdin is "
+                          "REFUSED; indent the message under `message: |`")
     tcm.add_argument("--from", dest="from_ref", help="override from: trailer (default tasks/T-XXXX-*.yaml)")
     tcm.add_argument("--absorb", action="store_true",
                      help="Stage-8 mode-a carve-out (T-0370): commit an inline absorption of audit-post "
@@ -3876,6 +3895,17 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                 "uncommitted dirt) — then a note that queue-relative exclusions are "
                                 "decided only at formation. Target: --task / --branch, else this "
                                 "checkout's branch.")
+    # T-14351 (SPEC-0181 §Known-broken-on-main rule 2 (g)) — a MODE beside --withdraw / --report: it
+    # integrates nothing and takes no target, so it sits in `land_mode`, never in `land_tgt`.
+    land_mode.add_argument("--recheck-known-broken", dest="recheck_known_broken", action="store_true",
+                           help="RECHECK MAIN instead of landing: re-run, on main's head, ONLY the tests (or "
+                                "verify layers) the open known-broken-on-main records name, in a throwaway "
+                                "checkout of that commit inside the project's admission queue, and append "
+                                "one `known_broken_recheck` row to main's journal; each record the run shows "
+                                "passing clears (SPEC-0181 rule 2 (g)). No task, no worktree, from any "
+                                "checkout; takes no --task/--branch. Never prints a `LAND:` token. Exit 0 = "
+                                "every addressed record cleared (or none was open), 1 = one still stands, "
+                                "3 = refused (nothing run).")
     land.add_argument("--then", dest="report_then", action="append", metavar="BRANCH",
                       help="with --report merge: merge BRANCH after the target, in the order given "
                            "(repeatable) — the land's own batch probe + accumulator; the walk stops at "

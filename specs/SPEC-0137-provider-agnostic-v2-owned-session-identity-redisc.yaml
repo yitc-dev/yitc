@@ -386,4 +386,4 @@ implements_signature:
   bin/lib/cli.py#_resolve_session_ref_with_source: 5199e4cf40f4304c77772d2514aab04c7a11f776ca733cdb75696caa9b4aefdb
   bin/lib/cli.py#_try_resolve_session_ref: a0b0c89d7a03dca5d501962473340f43ba896452422ca24d58ea59887ee44277
   bin/lib/dispatch.py#_dispatch_worker_env: 60eed2e226422524d44ccb66c37e0ee837ba0396dbdfb5a190836960351d6dd0
-  bin/lib/verify_wiring.py#_run_verify_tests: 73cbf21b479a2c5e7fdf6f1975f598e552f9769812dabb7ff69ece7a9f71e0ba
+  bin/lib/verify_wiring.py#_run_verify_tests: 52c2ecc1abf43dd5c8c76c1bab50b7497d5d0c572b3355b4c3279190cb07fcbe

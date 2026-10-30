@@ -360,7 +360,51 @@ AWAITS_AFTER_SEP = "@after="
 # predicate cannot hide inside one, and a row value outside the shape is simply never awaitable.
 AWAITS_PREDICATE_SEP = "&"
 AWAITS_PREDICATE_TASK_KEY = "task_id"
-AWAITS_PREDICATE_TYPES = frozenset({"consumer_read_evidence", "live_trigger_evidence", "release_tagged"})
+AWAITS_PREDICATE_TYPES = frozenset({"consumer_read_evidence", "live_trigger_evidence", "release_tagged",
+                                    "deploy_completed", "test_class_executed"})
+
+# ── T-14328 — THE DEPLOY TARGET as a predicate key: `deploy_completed&target=<name>|production` ──────
+# THE GAP (<project> X-2105). A deferred probe needing the first PRODUCTION deploy was written as
+# `events.jsonl#type=deploy_completed@after=land` and read DUE on a stand or sandbox deploy — the class
+# alone cannot tell the surfaces apart. A deploy row names its surface in a NESTED `target` mapping
+# (`{name, production, deploy_class}`), which the top-level-string predicate above cannot read, and a
+# PRODUCTION deploy usually names no target at all: production is a STANCE, not a name.
+#
+# SO THE `deploy_completed` CLASS OWNS ITS `target` KEY WHOLE. A named target answers
+# `target=<name>`; the row answers `target=production` iff it is a production FORWARD deploy — `kind`
+# `deploy` (or absent) and the stance rule of `deploy.py#is_production_live_record` (`target` absent,
+# or a mapping whose `production` is literally True). A rollback never answers production: it serves an
+# older revision, not one carrying the card. The generic pass SKIPS `target` on this class, so a
+# hand-written string `target` (not a mapping, hence no production record) answers no target key at
+# all. This module is a stdlib leaf and cannot import `deploy`; `tests/test_t14328_*` pins agreement.
+#
+# `test_class_executed` needs no branch: a pre-deploy run row carries a top-level string `target`
+# (deploy.py `_pre_deploy_run`), a land-time class row carries none — so `&target=stand` already
+# separates them through the generic pass.
+_DEPLOY_EVENT = "deploy_completed"
+_DEPLOY_TARGET_KEY = "target"
+_PRODUCTION_TARGET = "production"
+
+
+def _deploy_target_keys(data) -> list:
+    """The `target=` arrival keys of one `deploy_completed` payload (T-14328). PURE."""
+    if not isinstance(data, dict):
+        return []
+    keys = []
+    target = data.get(_DEPLOY_TARGET_KEY)
+    production = target is None or (isinstance(target, dict) and target.get("production") is True)
+    if isinstance(target, dict):
+        name = target.get("name")
+        # `target=production` is minted ONLY by the stance branch below, so a target NAMED
+        # `production` never answers it on a rollback or a non-production stance (audit-post fp1:c9f6071b).
+        if isinstance(name, str) and _AWAITS_PREDICATE_VALUE_RE.match(name) and name != _PRODUCTION_TARGET:
+            keys.append(f"{_DEPLOY_EVENT}{AWAITS_PREDICATE_SEP}{_DEPLOY_TARGET_KEY}={name}")
+    if production and data.get("kind", "deploy") == "deploy":
+        key = f"{_DEPLOY_EVENT}{AWAITS_PREDICATE_SEP}{_DEPLOY_TARGET_KEY}={_PRODUCTION_TARGET}"
+        if key not in keys:
+            keys.append(key)
+    return keys
+
 
 _AWAITS_TASK_RE = re.compile(r"T-\d{4,}\Z")
 _AWAITS_CROSS_RE = re.compile(r"X-\d{4,}\Z")
@@ -394,7 +438,9 @@ AWAITS_GRAMMAR_HELP = (
     "                              one predicate, <value> 1-64 chars of [A-Za-z0-9._:/-]. Admitted on\n"
     "                              these classes only: " + ", ".join(sorted(AWAITS_PREDICATE_TYPES)) + "\n"
     "                              (e.g. events.jsonl#type=consumer_read_evidence&task_id=T-1234"
-    "@after=2026-09-04T08:25:51Z)\n"
+    "@after=2026-09-04T08:25:51Z). On deploy_completed, `target=<name>`\n"
+    "                              names the deploy target and `target=production` a production\n"
+    "                              forward deploy (no target, or a target declared production)\n"
     "A wait for a calendar DATE takes `--due <date>` instead of `--awaits` (T-13938).")
 
 
@@ -416,11 +462,15 @@ def predicate_arrival_keys(etype, envelope_task_id, data) -> list:
     keys = []
     if isinstance(envelope_task_id, str) and _AWAITS_PREDICATE_VALUE_RE.match(envelope_task_id):
         keys.append(f"{etype}{AWAITS_PREDICATE_SEP}{AWAITS_PREDICATE_TASK_KEY}={envelope_task_id}")
+    owned = _DEPLOY_TARGET_KEY if etype == _DEPLOY_EVENT else None   # T-14328: the class owns `target`
     if isinstance(data, dict):
         for key, value in data.items():
-            if (key != AWAITS_PREDICATE_TASK_KEY and isinstance(key, str) and isinstance(value, str)
+            if (key != AWAITS_PREDICATE_TASK_KEY and key != owned and isinstance(key, str)
+                    and isinstance(value, str)
                     and _AWAITS_EVENT_TYPE_RE.match(key) and _AWAITS_PREDICATE_VALUE_RE.match(value)):
                 keys.append(f"{etype}{AWAITS_PREDICATE_SEP}{key}={value}")
+    if owned:
+        keys.extend(_deploy_target_keys(data))
     return keys
 
 

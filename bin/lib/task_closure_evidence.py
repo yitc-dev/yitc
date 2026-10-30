@@ -790,9 +790,21 @@ def _resolve_metric_row_ref(key: str, ts: str, events: list) -> bool:
 # VERIFY-LAYER ADAPTER ship class. Spelled `land_completed@<ts>#adapter=<layer>`; the literal
 # `adapter=` prefix cannot collide with its siblings, and a bare layer name has never contained `=`.
 _ADAPTER_ROW_SELECTOR_PREFIX = "adapter="
+# T-14327 (<project> X-2104) — the ONE qualifier form (12) takes: `#adapter=<layer>&selection=<mode>`
+# addresses a CHANGE of the adapter's selection mode instead of the adapter record's first appearance.
+_ADAPTER_SELECTION_QUALIFIER = "&selection="
 
 
-def _resolve_adapter_row_ref(layer: str, tid: str, ts: str, events: list) -> bool:
+def _adapter_selection_mode(row: dict):
+    """T-14327 — the `adapter.selection.mode` a layer row records, or None. A missing / wrong-typed
+    field at any level is UNKNOWN (None), never a mode. Pure."""
+    adapter = row.get("adapter")
+    sel = adapter.get("selection") if isinstance(adapter, dict) else None
+    mode = sel.get("mode") if isinstance(sel, dict) else None
+    return mode if isinstance(mode, str) and mode.strip() else None
+
+
+def _resolve_adapter_row_ref(layer: str, tid: str, ts: str, events: list, selection=None) -> bool:
     """T-13924 — does the ADAPTER-ROW ref `land_completed@<ts>#adapter=<layer>` resolve?
 
     THE CLASS: a card whose ship DECLARES a SPEC-1006 `adapter:` on an EXISTING `verify.layers` entry.
@@ -821,7 +833,16 @@ def _resolve_adapter_row_ref(layer: str, tid: str, ts: str, events: list) -> boo
             admitted, as for form (6): the qualifying row is by construction another card's land.
     RESIDUAL, as for form (6): a card could cite an adapter some OTHER card declared. Close checks the
     claim is CHECKABLE, audit-post checks it is TRUE (SPEC-0015). Every missing or wrong-typed field is
-    UNKNOWN, never a match. Pure function of (layer, tid, ts, events) — no I/O."""
+    UNKNOWN, never a match. Pure function of (layer, tid, ts, events) — no I/O.
+
+    T-14327 (<project> X-2104) — with `selection=<mode>` (the `&selection=` qualifier) the ref addresses
+    a SELECTION-MODE CHANGE of an adapter that already existed: <project> T-1116 moved the `design`
+    layer's selection from `shadow` to `deciding`; its own land was a credited Stage-6 run whose row
+    reads `definition_changed: false`, and the adapter record had been there since earlier lands, so
+    neither form (3) nor plain (12) could resolve it. (i) and (iv) are unchanged; (ii) also needs the
+    pinned row's `adapter.selection.mode == <mode>` (the AFTER reading); (iii) becomes the BEFORE
+    reading: some EARLIER land's row of `layer` recorded a DIFFERENT selection mode. A row recording no
+    mode is UNKNOWN on both sides — it is neither the after nor the before reading."""
     own_ship = min((str(ev.get("ts") or "") for ev in events
                     if ev.get("type") == _LAYER_ROW_EVIDENCE_TYPE and isinstance(ev.get("data"), dict)
                     and ev["data"].get("status") == "ok" and ev["data"].get("branch") == f"task/{tid}"
@@ -844,7 +865,11 @@ def _resolve_adapter_row_ref(layer: str, tid: str, ts: str, events: list) -> boo
         if ev_ts == ts:
             pinned = pinned or any(                                     # (i) + (ii)
                 r.get("outcome") == "passed" and isinstance(r.get("adapter"), dict)
-                and r["adapter"].get("usable") is True for r in rows)
+                and r["adapter"].get("usable") is True
+                and (selection is None or _adapter_selection_mode(r) == selection) for r in rows)
+        elif ev_ts < ts and selection is not None:
+            if any(_adapter_selection_mode(r) not in (None, selection) for r in rows):
+                had_a_beginning = True                                  # (iii) the BEFORE reading
         elif ev_ts < ts and any(not isinstance(r.get("adapter"), dict) for r in rows):
             had_a_beginning = True                                      # (iii)
     return pinned and had_a_beginning
@@ -1694,8 +1719,18 @@ def _resolve_evidence_ref(ref: str, tid: str, events: list, *,
         if layer.startswith(_ADAPTER_ROW_SELECTOR_PREFIX):
             # (T-13924) the ADAPTER-ROW form `adapter=<layer>` — an empty layer is MALFORMED, never a
             # match-any layer. Called directly: a pure same-module reader, like the stage-6 index.
-            name = layer[len(_ADAPTER_ROW_SELECTOR_PREFIX):].strip()
-            return bool(name) and _resolve_adapter_row_ref(name, tid, ts, events)
+            # (T-14327) an optional `&selection=<mode>` qualifier — an empty mode, or anything after
+            # the layer name that is not exactly that qualifier, is MALFORMED (fail-closed).
+            name, amp, qualifier = layer[len(_ADAPTER_ROW_SELECTOR_PREFIX):].partition("&")
+            name, mode = name.strip(), None
+            if amp:
+                qualifier = "&" + qualifier
+                if not qualifier.startswith(_ADAPTER_SELECTION_QUALIFIER):
+                    return False
+                mode = qualifier[len(_ADAPTER_SELECTION_QUALIFIER):].strip()
+                if not mode or "&" in mode:
+                    return False
+            return bool(name) and _resolve_adapter_row_ref(name, tid, ts, events, selection=mode)
         return _resolve_layer_row_ref(layer, tid, ts, events)
     if etype in _NON_EVIDENTIAL_EVIDENCE_TYPES:
         return False

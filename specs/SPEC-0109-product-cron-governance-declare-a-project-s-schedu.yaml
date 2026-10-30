@@ -98,8 +98,8 @@ concern:
     \ from that source, never hand-entered — SPEC-0109 rule 2).\"\n  # SCHEDULED PRE-DEPLOY\
     \ RUN (SPEC-1047) — switch on after your first declared deploy: commit the\n \
     \ # line as ops/crontab, install it, and put the block below in place of the waiver:\n\
-    \  # 17 4 * * * cd <project> && <engine>/bin/yitc-v2 -C <project> session start\
-    \ >> <log> 2>&1 && YITC_SESSION_REF=cron-<name> <engine>/bin/yitc-v2 -C <project>\
+    \  # 17 4 * * * cd <project> && export YITC_SESSION_REF=cron-<name> && <engine>/bin/yitc-v2\
+    \ -C <project> session start >> <log> 2>&1 && <engine>/bin/yitc-v2 -C <project>\
     \ deploy --scheduled-run >> <log> 2>&1\n  # scheduler: crontab\n  # source: ops/crontab\n\
     \  # inventory:\n  # - job: scheduled-pre-deploy-run\n  # schedule: \"17 4 * *\
     \ *\"\n  # command: deploy --scheduled-run\n"

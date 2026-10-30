@@ -320,97 +320,99 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ shape. Re-runs of several failed units MAY share one invocation that runs\nthem\
   \ one at a time, so a layer's setup (a build, a server) is paid once per attempt\
   \ rather than once per unit.\nEvery first-attempt\nfailure is recorded with its\
-  \ case identities and failure excerpt, whatever happens next. With `rescue: on`\n\
-  (the default — the owner decision events.jsonl#ts= made for the layer-level re-run,\
-  \ carried here) a pass on the re-run keeps the verdict green; with `rescue: off`\
-  \ the re-run is\ndiagnostic only and the first failure blocks. A unit none of whose\
-  \ R attempts passes blocks under either\nsetting. RESIDUAL RISK accepted with the\
-  \ default: a real race that fails under load and passes alone is rescued;\nit stays\
-  \ visible (the recorded first failure, the rescue count, the unit's flaky rate and\
-  \ lane entry, rule 11)\nbut does not block, and no artifact may claim a rescue proves\
-  \ the first failure harmless. No rescue when more than M units failed in the batch\
-  \ (a\nsystemic failure), for a `required:` check (rule 5), and no per-unit rescue\
-  \ rests on a report voided by rule 4\n(that case is rule 4's whole-layer re-run).\
-  \ The switch that turns SPEC-0152 rule 16's layer re-run off — the\nmachine retry\
-  \ bound `YITC_VERIFY_RETRY_MAX_FILES` at 0 — turns this per-unit re-run off too\
-  \ (one switch, no\nsecond knob), and the merge-base attribution run re-runs no unit.\
-  \ \"Alone\" means alone\ninside this verify, never on the host: the host load is\
-  \ recorded beside every re-run and no host isolation is\nclaimed (the existing worker-share\
-  \ controls apply).\nWHAT A RE-RUN ASKS FOR. A failed unit whose first-attempt report\
-  \ names EVERY failed case of that unit — the run\nreport's own case identities (rule\
-  \ 2), none of them left uncounted by the bound a row keeps — is re-run as those\n\
-  cases of that unit: the kernel hands the adapter the unit together with the identities\
-  \ of its failed cases (the\nprotocol home, rule 3, says how). Every other failed\
-  \ unit is re-run whole: a unit whose report names no failed case\nof its own (a\
-  \ script-style suite, rule 3), a unit whose report names only part of its failed\
-  \ cases, and every\nunit of a declared group (rule 2), which is re-run and counted\
-  \ whole. An adapter that runs the whole unit for the\nnamed cases decides exactly\
-  \ as a whole-unit re-run does; what an adapter runs for the named cases is\nproject-authored,\
-  \ under rule 4's LIMIT. Whatever is asked, the re-run is the UNIT's: it starts after\
-  \ the batch and\nruns alone as above, a pass is a pass of every case it ran and\
-  \ rescues the unit under its `rescue:` setting, and\nthe unit is the one identity\
-  \ counted for the flaky rate and for lane entry (rule 11).\n\n### 11. The per-test\
-  \ load-sensitive lane\nA unit rescued at least E times within W days enters the\
-  \ layer's load-sensitive list automatically — the\nengine-suite rule of applied\
-  \ per unit: listed units run after the batch, one at a time, and STILL decide\n\
-  the verdict; the list is append-only for automation; a unit leaves it only through\
-  \ a card that makes it robust\nor ratifies it with a reason. E and W are the existing\
-  \ `YITC_FLAKY_SENSITIVE_ENTER` / `_WINDOW_DAYS` tunables.\nThe rescues counted are\
-  \ those a land's verify recorded and those a governed Stage-6 run (`task test --run`)\n\
-  recorded, the Stage-6 run's commit being its merge-base with main; a land that took\
-  \ a Stage-6 run as its\ncandidate leg adds no candidate-leg rescue of it, so that\
-  \ run is counted once.\nOnly a rescue of the unit file's CURRENT version counts\
-  \ toward entry: the commit its leg's units ran on, as the\nland recorded it, must\
-  \ contain the newest commit of the main line that changed the unit's file;\na rescue\
-  \ on a commit that does not (a run of an older version of the test, as on a branch\
-  \ cut before its fix),\non a commit whose ancestry the repository cannot answer,\
-  \ or whose leg recorded no commit at all (a row written\nbefore the commit was recorded,\
-  \ or a leg whose files on disk differ from that commit) is not counted, and each\n\
-  such rescue is named with its reason in the land tail's report and on the journal\
-  \ row of an entry it did not\nprevent. When the repository cannot name that newest\
-  \ change, the unit is not entered. A declared group is\ncounted as before.\n\n###\
-  \ 12. Tests stage decides like the land\n`task test --run` takes the same adapter\
-  \ path and the same ladder decision on the same diff as the land\n(the SPEC-0152\
-  \ Stage-6 parity of).\n\n### 13. Evidence home — the existing journal only\nEvery\
-  \ per-test result, re-run, rescue, selection decision, rung, credit and disagreement\
-  \ is recorded on\n`land_completed` (and the Tests-stage rows) as fields registered\
-  \ in SPEC-0025. Flaky rates and the layout\nHOTSPOT report — units selected by at\
-  \ least H% of changes in the shadow window — are derived views over those\nrows;\
-  \ there is no second mutable register of results.\nGRANULARITY — what is per unit\
-  \ and what is per case. Selected, executed, rescued, credited and laned: the UNIT\n\
-  (rule 2), never a single case. Re-run: the unit, or — where its first attempt's\
-  \ report names every failed case of\nit — those cases of the unit (rule 10); the\
-  \ re-run's verdict and its count are still the unit's.\nRecorded per CASE on every\
-  \ attempt: its status, and for a failed case its\nidentity and failure excerpt;\
-  \ and per failed UNIT, its failed tests by name (`failed_tests`, with `named`):\
-  \ the\nnames an adapter gives itself as a `failed_test` property on a failed case\
-  \ of that unit win; else the ids of\nits failed cases; else the names the kernel's\
-  \ failed-test reader finds in the unit's failure text — `[]` and\n`named: false`\
-  \ when none names a test, never a guess. Derived per UNIT: the flaky rate (first-attempt\
-  \ failures a re-run rescued, over the\nunit's runs) and lane entry (rule 11). Derived\
-  \ per CASE: how often each case failed on a first attempt a re-run\nthen rescued\
-  \ — the view that names WHICH test in a file is flaky; it is diagnostic and decides\
-  \ nothing.\n\n### 14. Re-verify after a fix — the would-be credit from the previous\
-  \ attempt\nWhen a land or Tests-stage run of a layer FAILED and the next attempt\
-  \ runs on the SAME base, the decision this\nrule describes is: re-run every unit\
-  \ that failed and every unit the changed paths reach through the rule-6\nladder,\
-  \ and CREDIT every other unit with its pass from the previous attempt. Under `credit:\
-  \ shadow` the next\nattempt runs the FULL layer and records that decision beside\
-  \ it — the would-re-run and the would-credit units —\nand a would-credited unit\
-  \ failing in that full run is a rule-9 disagreement. The previous attempt is read\
-  \ from\nits RECORD alone, never from state a run leaves behind: the row rule 13\
-  \ writes carries the attempt's tree (the\ntree git would commit from the files on\
-  \ disk — the tree notion already records for a Stage-6 green), its\nbase and its\
-  \ per-unit results. The changed paths are the diff between that recorded tree and\
-  \ the current\ncandidate's tree, never the branch's own fix commits alone, and the\
-  \ adapter's `related` diffs the current\ncandidate against the recorded tree (a\
-  \ commit object over that tree where a runner needs one). The decision\ncredits\
-  \ NOTHING when (i) the base moved between the attempts — a main-side change can\
-  \ break a unit the previous\nattempt passed and the fix's own diff does not show\
-  \ it; (ii) the previous attempt's report was void under rule 4\n— its per-unit rows\
-  \ decide nothing; (iii) the record is missing or incomplete, or its tree no longer\
-  \ resolves in\nthe repository; (iv) any rung (a)-(e) answers the full layer for\
-  \ the changed paths — rung (d) included, so a\nlayer whose runner has no enumeration-only\
+  \ case identities and failure excerpt, whatever happens next; the excerpt keeps\
+  \ the first failure block whole within its bound, and when a re-run passes the unit\
+  \ its first attempt's whole failure text is kept as a file beside the run's records,\
+  \ named on the unit's re-run record. With `rescue: on`\n(the default — the owner\
+  \ decision events.jsonl#ts= made for the layer-level re-run, carried here) a pass\
+  \ on the re-run keeps the verdict green; with `rescue: off` the re-run is\ndiagnostic\
+  \ only and the first failure blocks. A unit none of whose R attempts passes blocks\
+  \ under either\nsetting. RESIDUAL RISK accepted with the default: a real race that\
+  \ fails under load and passes alone is rescued;\nit stays visible (the recorded\
+  \ first failure, the rescue count, the unit's flaky rate and lane entry, rule 11)\n\
+  but does not block, and no artifact may claim a rescue proves the first failure\
+  \ harmless. No rescue when more than M units failed in the batch (a\nsystemic failure),\
+  \ for a `required:` check (rule 5), and no per-unit rescue rests on a report voided\
+  \ by rule 4\n(that case is rule 4's whole-layer re-run). The switch that turns SPEC-0152\
+  \ rule 16's layer re-run off — the\nmachine retry bound `YITC_VERIFY_RETRY_MAX_FILES`\
+  \ at 0 — turns this per-unit re-run off too (one switch, no\nsecond knob), and the\
+  \ merge-base attribution run re-runs no unit. \"Alone\" means alone\ninside this\
+  \ verify, never on the host: the host load is recorded beside every re-run and no\
+  \ host isolation is\nclaimed (the existing worker-share controls apply).\nWHAT A\
+  \ RE-RUN ASKS FOR. A failed unit whose first-attempt report names EVERY failed case\
+  \ of that unit — the run\nreport's own case identities (rule 2), none of them left\
+  \ uncounted by the bound a row keeps — is re-run as those\ncases of that unit: the\
+  \ kernel hands the adapter the unit together with the identities of its failed cases\
+  \ (the\nprotocol home, rule 3, says how). Every other failed unit is re-run whole:\
+  \ a unit whose report names no failed case\nof its own (a script-style suite, rule\
+  \ 3), a unit whose report names only part of its failed cases, and every\nunit of\
+  \ a declared group (rule 2), which is re-run and counted whole. An adapter that\
+  \ runs the whole unit for the\nnamed cases decides exactly as a whole-unit re-run\
+  \ does; what an adapter runs for the named cases is\nproject-authored, under rule\
+  \ 4's LIMIT. Whatever is asked, the re-run is the UNIT's: it starts after the batch\
+  \ and\nruns alone as above, a pass is a pass of every case it ran and rescues the\
+  \ unit under its `rescue:` setting, and\nthe unit is the one identity counted for\
+  \ the flaky rate and for lane entry (rule 11).\n\n### 11. The per-test load-sensitive\
+  \ lane\nA unit rescued at least E times within W days enters the layer's load-sensitive\
+  \ list automatically — the\nengine-suite rule of applied per unit: listed units\
+  \ run after the batch, one at a time, and STILL decide\nthe verdict; the list is\
+  \ append-only for automation; a unit leaves it only through a card that makes it\
+  \ robust\nor ratifies it with a reason. E and W are the existing `YITC_FLAKY_SENSITIVE_ENTER`\
+  \ / `_WINDOW_DAYS` tunables.\nThe rescues counted are those a land's verify recorded\
+  \ and those a governed Stage-6 run (`task test --run`)\nrecorded, the Stage-6 run's\
+  \ commit being its merge-base with main; a land that took a Stage-6 run as its\n\
+  candidate leg adds no candidate-leg rescue of it, so that run is counted once.\n\
+  Only a rescue of the unit file's CURRENT version counts toward entry: the commit\
+  \ its leg's units ran on, as the\nland recorded it, must contain the newest commit\
+  \ of the main line that changed the unit's file;\na rescue on a commit that does\
+  \ not (a run of an older version of the test, as on a branch cut before its fix),\n\
+  on a commit whose ancestry the repository cannot answer, or whose leg recorded no\
+  \ commit at all (a row written\nbefore the commit was recorded, or a leg whose files\
+  \ on disk differ from that commit) is not counted, and each\nsuch rescue is named\
+  \ with its reason in the land tail's report and on the journal row of an entry it\
+  \ did not\nprevent. When the repository cannot name that newest change, the unit\
+  \ is not entered. A declared group is\ncounted as before.\n\n### 12. Tests stage\
+  \ decides like the land\n`task test --run` takes the same adapter path and the same\
+  \ ladder decision on the same diff as the land\n(the SPEC-0152 Stage-6 parity of).\n\
+  \n### 13. Evidence home — the existing journal only\nEvery per-test result, re-run,\
+  \ rescue, selection decision, rung, credit and disagreement is recorded on\n`land_completed`\
+  \ (and the Tests-stage rows) as fields registered in SPEC-0025. Flaky rates and\
+  \ the layout\nHOTSPOT report — units selected by at least H% of changes in the shadow\
+  \ window — are derived views over those\nrows; there is no second mutable register\
+  \ of results.\nGRANULARITY — what is per unit and what is per case. Selected, executed,\
+  \ rescued, credited and laned: the UNIT\n(rule 2), never a single case. Re-run:\
+  \ the unit, or — where its first attempt's report names every failed case of\nit\
+  \ — those cases of the unit (rule 10); the re-run's verdict and its count are still\
+  \ the unit's.\nRecorded per CASE on every attempt: its status, and for a failed\
+  \ case its\nidentity and failure excerpt; and per failed UNIT, its failed tests\
+  \ by name (`failed_tests`, with `named`): the\nnames an adapter gives itself as\
+  \ a `failed_test` property on a failed case of that unit win; else the ids of\n\
+  its failed cases; else the names the kernel's failed-test reader finds in the unit's\
+  \ failure text — `[]` and\n`named: false` when none names a test, never a guess.\
+  \ Derived per UNIT: the flaky rate (first-attempt failures a re-run rescued, over\
+  \ the\nunit's runs) and lane entry (rule 11). Derived per CASE: how often each case\
+  \ failed on a first attempt a re-run\nthen rescued — the view that names WHICH test\
+  \ in a file is flaky; it is diagnostic and decides nothing.\n\n### 14. Re-verify\
+  \ after a fix — the would-be credit from the previous attempt\nWhen a land or Tests-stage\
+  \ run of a layer FAILED and the next attempt runs on the SAME base, the decision\
+  \ this\nrule describes is: re-run every unit that failed and every unit the changed\
+  \ paths reach through the rule-6\nladder, and CREDIT every other unit with its pass\
+  \ from the previous attempt. Under `credit: shadow` the next\nattempt runs the FULL\
+  \ layer and records that decision beside it — the would-re-run and the would-credit\
+  \ units —\nand a would-credited unit failing in that full run is a rule-9 disagreement.\
+  \ The previous attempt is read from\nits RECORD alone, never from state a run leaves\
+  \ behind: the row rule 13 writes carries the attempt's tree (the\ntree git would\
+  \ commit from the files on disk — the tree notion already records for a Stage-6\
+  \ green), its\nbase and its per-unit results. The changed paths are the diff between\
+  \ that recorded tree and the current\ncandidate's tree, never the branch's own fix\
+  \ commits alone, and the adapter's `related` diffs the current\ncandidate against\
+  \ the recorded tree (a commit object over that tree where a runner needs one). The\
+  \ decision\ncredits NOTHING when (i) the base moved between the attempts — a main-side\
+  \ change can break a unit the previous\nattempt passed and the fix's own diff does\
+  \ not show it; (ii) the previous attempt's report was void under rule 4\n— its per-unit\
+  \ rows decide nothing; (iii) the record is missing or incomplete, or its tree no\
+  \ longer resolves in\nthe repository; (iv) any rung (a)-(e) answers the full layer\
+  \ for the changed paths — rung (d) included, so a\nlayer whose runner has no enumeration-only\
   \ `related` (rule 3's safe fallback) would re-run in full after every\nfix. Each\
   \ case is recorded with its reason. `required:` checks (rule 5) run on every attempt;\
   \ a unit that fails\nagain goes to rule 10 like any first-attempt failure. This\
@@ -555,15 +557,15 @@ implements_signature:
   bin/lib/land_verify_legs.py#_adapter_stamp_identity: f0f585104835bdc62a850a85d4205a22fcbdacd5f57b2f850a0acc2d6d965aa9
   bin/lib/land_verify_legs.py#_adapter_unit_medians: 810dd3026fce4aaff965182c1e5a0a4632cacb1413a4a43e4989d078fb351558
   bin/lib/land_verify_legs.py#_adapter_units_with_medians: 7bed152315540262997c4107bf465690b7de39af518f257af36c9eb2c696ac3f
-  bin/lib/land_verify_legs.py#_classify_adapter_report: fbc5ec31294abd3b72be84c5c7a3bdb1963f2f2e980d58bc47ecfec7319f8b68
+  bin/lib/land_verify_legs.py#_classify_adapter_report: 7fd8e9c2b7c857ef76f9cd07ebd6866946218f5fb8d968c8fb13a876e2c41624
   bin/lib/land_verify_legs.py#_declared_layer_adapters: 2a39b7ac020431b16e1e97fef6e77ddc76a1b7cd971a0e2d10b85dc195891c7e
   bin/lib/land_verify_legs.py#_edge_own_test_paths: 14a48592aded032ae51476352f91add38f31c26f1adf62408dc68ac5521032c9
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 97bb70355bea7154c12d380b9476bb22acf3e3805a756ea6b6c188ad2271b381
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: b3c2c27f62d28edb2088ff10db1d3051dff8f799de5d04bfc3c99dc34c1760ea
   bin/lib/land_verify_legs.py#_layer_unit_reruns: 14ad914b2b988883352e084260c43cae1fc3469cec05b247331260382a2dd69c
   bin/lib/land_verify_legs.py#_per_case_rescued_failures: 755af95c558362383831eb6dc412cfccd1b7b78bdb51e3999a574dded8c4482d
   bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 3d29311179a51d49011d79871b44b0154250788785629aee17ae63f59abcc378
   bin/lib/land_verify_legs.py#_unit_rescue_passes: d5d6e38e933a318ed909051ffbd4d294bc178afe2ef0b57cd68259d309e9d231
   bin/lib/views.py#_view_test_layout_hotspots: b5257fb40327e4498a3d2088769ee509c647de92e6bc843174ad272eb5a3b2af
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 84c4be907f28ef15dcf0541ff8423179d664e95bf7dbd9cb9384b5f81a0e7c28
+  bin/lib/worktree.py#_consumer_zero_probe_guard: e27b5509245b443ce3a9d9b83ff1a7ed572752c398b128e30c5e1aecde39837b
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37
   bin/lib/worktree.py#_unit_lane_entry_at_land_tail: d0a9deeb45664ebbb951750729f686d086018535acbcc4f05df30e2f0f38e322

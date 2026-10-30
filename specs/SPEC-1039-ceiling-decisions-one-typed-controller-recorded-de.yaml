@@ -260,69 +260,71 @@ body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-af
   \ (in that worktree, or landed on main), then pass its\nid as `--receiving`), `evidence_revision`\
   \ (REQUIRED\nfor `fix` — the revision that carries the change, a STRICT descendant\
   \ of the audited commit; «already in\nthe audited commit» is an `accept` with that\
-  \ reason, never a `fix`, rule 3. At audit-POST it is journaled\nas the RESOLVED\
-  \ full commit identity of whatever the Controller typed — never the typed form —\
-  \ and a\nrevision that does not resolve is refused by name with nothing written;\
-  \ at audit-PRE it is the plan\nfingerprint verbatim as it reads when the decision\
-  \ is recorded — the `--on-decisions` pass binds the\nplan fingerprint current when\
-  \ it runs (rule 3), so a plan edited again after the decision needs no\nnew decision.\
-  \ Rule 3's admission compares every revision on RESOLVED identity, so a row that\n\
-  recorded a short form before this clause is admitted when it names the subject —;\
-  \ the\n«already in the audited subject» refusal holds at audit-PRE and at a PLAN\
-  \ GATE too: a `fix` whose\nevidence EQUALS the ceiling row's own audited subject\
-  \ — the unedited plan fingerprint / the gate's\nrecorded signature — is refused\
-  \ `evidence-is-audited-subject` with nothing written; edit the plan\nfirst, then\
-  \ record the `fix` against the NEW fingerprint), `decided_by`\n(the session ref).\n\
-  A PLAN GATE takes this same rule with its own target pair — see rule 9.\nWriter:\
-  \ `bin/yitc-v2 audit decide --task T-XXXX --stage pre|post --finding <fp> --disposition\
-  \ …\n--reason … --directive <locator> [--receiving T-YYYY] [--evidence <revision>]`\
-  \ — an arm of the existing\n`audit` verb. It is a journal append (no worktree —\
-  \ AGENTS §Writes-happen-in-a-worktree) and\nis REFUSED, fail-closed, when: the caller\
-  \ is a dispatched Worker (`YITC_EXPECTED_SESSION_REF` set —\n«no self-grant past\
-  \ the ceiling» is preserved by the AUTHORITY OF THE WRITER, not by budget\narithmetic);\
-  \ `prior_passes` at that stage is below the ceiling — EXCEPT for a recorded `late_finding`\n\
-  at that stage, decidable at any pass incl. after a reship reset the saved counter;\
-  \ the fingerprint is neither a residual of the\nceiling row nor a recorded `late_finding`\
-  \ (rule 8); a required field is missing; the receiving card is not filed; or a decision\n\
-  for that fingerprint already exists on the same `ceiling_ref` (append-only means\
-  \ a decision is never\nedited — a wrong one is superseded by a NEW ceiling row,\
-  \ rule 4; a TASK gets no new ceiling row after\nits one `--on-decisions` pass, so\
-  \ no route corrects a wrong TASK decision: escalate to the owner and\ncapture a\
-  \ deviation). Each refusal emits the existing\n`read_gate_refused` with a distinct\
-  \ `kind`.\nTHE REASON'S INPUT CHANNEL IS PART OF THE CONTRACT. The channel is named:\n\
-  \  - **`--from-stdin` is the shell-proof route, and the prescribed one for any non-trivial\
-  \ reason.**\n    It reads the CONTENT-bearing fields — `reason`, `directive`, `receiving`,\
-  \ `evidence` — as a YAML\n    mapping on stdin, through the SAME shared ingest every\
-  \ prose-bearing sibling already uses\n    (`task file`, `task update`, `followup\
-  \ add`, `task commit`, `work commit`, `worktree park`,\n    `blocked-on-land`).\
-  \ There is no second ingest.\n  - **On that route the `reason` is stored VERBATIM.**\
-  \ It is the one field never stripped, because\n    the promise of the route is a\
-  \ byte-for-byte round trip of what the author wrote; the three\n    id-shaped fields\
-  \ keep their normalization, and the argv route's own normalization is unchanged.\n\
-  \  - **The TARGET/ROUTING flags stay ARGV-ONLY** — `--task` / `--plan` / `--stage`\
-  \ / `--gate` /\n    `--finding` / `--disposition`. They are id-shaped, carry no\
-  \ prose and ride no shell hazard. One\n    sent inside the mapping is REFUSED BY\
-  \ NAME, never silently dropped.\n  - **A field supplied on BOTH argv and stdin is\
-  \ a fail-closed CONFLICT** — refused before any read\n    and any emit, naming the\
-  \ flag and the key. It is never resolved by precedence.\n  - **An argv `--reason`\
-  \ carrying a BACKTICK is REFUSED** — nonzero exit, NO `ceiling_decision` row,\n\
-  \    one `read_gate_refused` with its own kind (`reason-argv-backtick`). It is checked\
-  \ AFTER the\n    worker-context gate, which keeps its checked-FIRST property (a\
-  \ Worker must not learn the\n    residual set by probing a later refusal), and BEFORE\
-  \ every journal read and every write. ANY\n    surviving backtick, not an odd count.\
-  \ It does not fire on the stdin route, where no shell sits\n    in that position\
-  \ — a guard that cried wolf at the usage it prescribes would teach the reader to\n\
-  \    skim it.\n  - **THE HONEST BOUND — part of the rule, not a caveat on it: NO\
-  \ argv-side check can PREVENT an\n    execution the shell already performed.** The\
-  \ shell runs before the verb exists, and a fully\n    substituted span leaves no\
-  \ backtick at all. What the refusal protects is the WRITE: whenever a\n    backtick\
-  \ SURVIVED to argv, a partly-substituted reason never becomes an uncorrectable\n\
-  \    governance record. Preventing the EXECUTION is what `--from-stdin` is for.\
-  \ A reason without a\n    surviving backtick is therefore NOT certified intact,\
-  \ and the refusal must never be read as\n    such a guarantee.\n`--reason` is consequently\
-  \ no longer argparse-required: it may arrive in the mapping instead, so its\nabsence\
-  \ — or a value that is blank once stripped — is a GOVERNED refusal at this seam,\
-  \ the posture\n`--directive` already takes.\n"
+  \ reason, never a `fix`, rule 3. At audit-POST that revision is a\nrecorded commit\
+  \ of the card, so the fix is committed FIRST, with `task commit --fix-red`, admitted\
+  \ at the\nceiling row until a rule-3 pass runs (SPEC-0015 §Internal, condition (iv));\
+  \ the decision then names it. It is journaled\nas the RESOLVED full commit identity\
+  \ of whatever the Controller typed — never the typed form — and a\nrevision that\
+  \ does not resolve is refused by name with nothing written; at audit-PRE it is the\
+  \ plan\nfingerprint verbatim as it reads when the decision is recorded — the `--on-decisions`\
+  \ pass binds the\nplan fingerprint current when it runs (rule 3), so a plan edited\
+  \ again after the decision needs no\nnew decision. Rule 3's admission compares every\
+  \ revision on RESOLVED identity, so a row that\nrecorded a short form before this\
+  \ clause is admitted when it names the subject —; the\n«already in the audited subject»\
+  \ refusal holds at audit-PRE and at a PLAN GATE too: a `fix` whose\nevidence EQUALS\
+  \ the ceiling row's own audited subject — the unedited plan fingerprint / the gate's\n\
+  recorded signature — is refused `evidence-is-audited-subject` with nothing written;\
+  \ edit the plan\nfirst, then record the `fix` against the NEW fingerprint), `decided_by`\n\
+  (the session ref).\nA PLAN GATE takes this same rule with its own target pair —\
+  \ see rule 9.\nWriter: `bin/yitc-v2 audit decide --task T-XXXX --stage pre|post\
+  \ --finding <fp> --disposition …\n--reason … --directive <locator> [--receiving\
+  \ T-YYYY] [--evidence <revision>]` — an arm of the existing\n`audit` verb. It is\
+  \ a journal append (no worktree — AGENTS §Writes-happen-in-a-worktree) and\nis REFUSED,\
+  \ fail-closed, when: the caller is a dispatched Worker (`YITC_EXPECTED_SESSION_REF`\
+  \ set —\n«no self-grant past the ceiling» is preserved by the AUTHORITY OF THE WRITER,\
+  \ not by budget\narithmetic); `prior_passes` at that stage is below the ceiling\
+  \ — EXCEPT for a recorded `late_finding`\nat that stage, decidable at any pass incl.\
+  \ after a reship reset the saved counter; the fingerprint is neither a residual\
+  \ of the\nceiling row nor a recorded `late_finding` (rule 8); a required field is\
+  \ missing; the receiving card is not filed; or a decision\nfor that fingerprint\
+  \ already exists on the same `ceiling_ref` (append-only means a decision is never\n\
+  edited — a wrong one is superseded by a NEW ceiling row, rule 4; a TASK gets no\
+  \ new ceiling row after\nits one `--on-decisions` pass, so no route corrects a wrong\
+  \ TASK decision: escalate to the owner and\ncapture a deviation). Each refusal emits\
+  \ the existing\n`read_gate_refused` with a distinct `kind`.\nTHE REASON'S INPUT\
+  \ CHANNEL IS PART OF THE CONTRACT. The channel is named:\n  - **`--from-stdin` is\
+  \ the shell-proof route, and the prescribed one for any non-trivial reason.**\n\
+  \    It reads the CONTENT-bearing fields — `reason`, `directive`, `receiving`, `evidence`\
+  \ — as a YAML\n    mapping on stdin, through the SAME shared ingest every prose-bearing\
+  \ sibling already uses\n    (`task file`, `task update`, `followup add`, `task commit`,\
+  \ `work commit`, `worktree park`,\n    `blocked-on-land`). There is no second ingest.\n\
+  \  - **On that route the `reason` is stored VERBATIM.** It is the one field never\
+  \ stripped, because\n    the promise of the route is a byte-for-byte round trip\
+  \ of what the author wrote; the three\n    id-shaped fields keep their normalization,\
+  \ and the argv route's own normalization is unchanged.\n  - **The TARGET/ROUTING\
+  \ flags stay ARGV-ONLY** — `--task` / `--plan` / `--stage` / `--gate` /\n    `--finding`\
+  \ / `--disposition`. They are id-shaped, carry no prose and ride no shell hazard.\
+  \ One\n    sent inside the mapping is REFUSED BY NAME, never silently dropped.\n\
+  \  - **A field supplied on BOTH argv and stdin is a fail-closed CONFLICT** — refused\
+  \ before any read\n    and any emit, naming the flag and the key. It is never resolved\
+  \ by precedence.\n  - **An argv `--reason` carrying a BACKTICK is REFUSED** — nonzero\
+  \ exit, NO `ceiling_decision` row,\n    one `read_gate_refused` with its own kind\
+  \ (`reason-argv-backtick`). It is checked AFTER the\n    worker-context gate, which\
+  \ keeps its checked-FIRST property (a Worker must not learn the\n    residual set\
+  \ by probing a later refusal), and BEFORE every journal read and every write. ANY\n\
+  \    surviving backtick, not an odd count. It does not fire on the stdin route,\
+  \ where no shell sits\n    in that position — a guard that cried wolf at the usage\
+  \ it prescribes would teach the reader to\n    skim it.\n  - **THE HONEST BOUND\
+  \ — part of the rule, not a caveat on it: NO argv-side check can PREVENT an\n  \
+  \  execution the shell already performed.** The shell runs before the verb exists,\
+  \ and a fully\n    substituted span leaves no backtick at all. What the refusal\
+  \ protects is the WRITE: whenever a\n    backtick SURVIVED to argv, a partly-substituted\
+  \ reason never becomes an uncorrectable\n    governance record. Preventing the EXECUTION\
+  \ is what `--from-stdin` is for. A reason without a\n    surviving backtick is therefore\
+  \ NOT certified intact, and the refusal must never be read as\n    such a guarantee.\n\
+  `--reason` is consequently no longer argparse-required: it may arrive in the mapping\
+  \ instead, so its\nabsence — or a value that is blank once stripped — is a GOVERNED\
+  \ refusal at this seam, the posture\n`--directive` already takes.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-5
@@ -350,8 +352,8 @@ init_concern: null
 implements_signature:
   bin/lib/audit.py#_AUDIT_FULL_VERDICT_CLAUSE: 8b988a0c0eb36be0ccb8c74876baa7ae074c4ce15236f11014cd9b6842959561
   bin/lib/audit.py#audit_ceiling_blocked: cec7de584e38045317a1dc6695ac6145c608804d4661f5820b5f9ccdbfc1a48c
-  bin/lib/audit.py#blocked_on_land_ceiling_disposition: b660e041a8a8dff56bd3f7fa8b01cf7dc8035fd82b6fa47da7654c95a7303ca1
-  bin/lib/audit.py#cmd_audit: e8d9c31ad96b9cc54344353a72d2f85e04034df0a9524985844ceae4a666b5a8
+  bin/lib/audit.py#blocked_on_land_ceiling_disposition: a20d80a6f14f06f7f236e0b9c4f824fb8b83e025a97c8a504d3c199245f5561c
+  bin/lib/audit.py#cmd_audit: 2db56481872d8f18a37b3bbe319ef0a3d91140f90a87f269bdfe8e83844b76bd
   bin/lib/audit.py#contentless_findings: acd721c69ee04718ba3e882904e1fa4eb78c5c5dfcc06daebbaf5bd5e35bcb09
   bin/lib/audit.py#locator_content_unchanged: 61da529655521b5fd0c70839373853d5850eb729352baf17624180a9cac9f147
   bin/lib/audit.py#plan_gate_ceiling_row_payload: ebb6bc045a30054a9822d965409473801d2a3a7407f7ebdac7af6d8b5217fbec
@@ -368,7 +370,7 @@ implements_signature:
   bin/lib/audit_ceiling.py#on_decisions_admission: e8f6af48a6d9e6eb626f63731e4083989de427479bd34fba5619eb61814d34aa
   bin/lib/audit_ceiling.py#on_decisions_matrix: d1294c1f756f1160221b132daab146ad0ec0cd5f0662231cbd2c257b6e721b47
   bin/lib/audit_ceiling.py#plan_gate_synthetic_ceiling_row: 371fb303fb8d251d050c4cea88e1d77ea4ba53f13472dd75be1814c9394d5c79
-  bin/lib/audit_ceiling.py#residual_finding_records: 42386a01ed3ee65dc52959e9f95af21f502e948cbde3369766fbbef30d5d673c
+  bin/lib/audit_ceiling.py#residual_finding_records: 9b16d6c3417a41ae9640fa0da0d6b02da1064b51bce7c4f778951eab588b103b
   bin/lib/audit_ceiling.py#row_residual_fingerprints: 8dc0ced2fa3e700494e211b1a09aa7b072cf972faf7249ff504423aace91b70d
   bin/lib/audit_ceiling.py#test_found_fix_admission: 42f667bd7c80f36a3ee9ab0b00ce023d4faf29f2c841355ed02d02f1b9bed87c
   bin/lib/audit_ceiling.py#test_found_fix_window: 1b661d6648824b4ce7c2a81aa44fbd98f13410acafa55386731f3b32ac6370fe
@@ -377,7 +379,7 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: f7776a3f50843ad0514b16fc69fbe55b42ef14e7af84528368d403ee1849d193
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: 3de1682c08dc56e46b72effa65ea30594b717d4fd11fe5a4232e3e5828eb17b8
+  bin/lib/cli_parser.py#build_parser: f999fbcc14a8c6f77236b65c62349d8864734a300af20aec23aba6bcec4eb3e9
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
   bin/lib/plan.py#_run_plan_gate_audit: 102ba93b8e347fa24eacae2aaf39ec032c90775b66351e66ec020e43ec756f71

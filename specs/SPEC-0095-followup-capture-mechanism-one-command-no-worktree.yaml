@@ -255,96 +255,106 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ of `[A-Za-z0-9._:/-]` beginning with a letter\n    or a digit.\n  - **A DECLARED\
   \ set of classes.** The predicate is admitted only on the classes the parse home\n\
   \    declares (`followup.py#split_event_awaits`; today `consumer_read_evidence`,\n\
-  \    `live_trigger_evidence` and `release_tagged`), and on any other class it is\
-  \ REFUSED naming\n    that set — never admitted and left unfireable. The set is\
-  \ declared because the fold cannot be\n    told in advance which predicates are\
-  \ awaited: it marks every matchable key of every row of a\n    declared class, in\
-  \ the walk it was already making. Widening the set is an edit to that one\n    declaration.\n\
-  \  - **It composes with the anchors and changes neither.** With `@after=<ISO ts>`\
-  \ it arrives on a\n    MATCHING row strictly later than the anchor; with no anchor,\
-  \ on the existence of a matching\n    row; and on a deferred-probe moment it may\
-  \ carry `@after=land` (SPEC-0028). An awaits carrying\n    no predicate reads exactly\
-  \ as it did, byte-for-byte.\n  - **ONE parse home, still.** `followup.py#split_event_awaits`\
-  \ parses the predicate and returns it\n    inside the ARRIVAL KEY it already returned\
-  \ — the class, or the class with its predicate. The\n    fold marks that same key\
-  \ for a matching row, and the membership test, the `@after=` comparison\n    and\
-  \ the land comparison each look it up unchanged, so no reader parses a predicate\
-  \ for itself.\n  - **The same bound: the KERNEL journal only.** A predicate does\
-  \ not reach a consumer's journal;\n    that wait still routes as a `cross request`\
-  \ (below).\n- **`due:<YYYY-MM-DDTHH:MM:SSZ>`** — a CALENDAR MOMENT: it arrives once\
-  \ the read-time clock has\n  REACHED it (`>=` — the moment itself, unlike the strictly-later\
-  \ `@after=`), with no event needed.\n  Written ONLY by `followup add --due` / `followup\
-  \ arm --due`. It is NOT an `awaits_kind` shape, so\n  `--awaits due:<ts>` and every\
-  \ other door that admits an awaits through `awaits_kind` (`task pause\n  --awaits`,\
-  \ a park's `--awaits`, a deferred-probe moment) REFUSE it: their readers cannot\
-  \ read a\n  clock. Decided at read time by the followup partition — nothing is stored\
-  \ or scheduled, and a\n  fired date wait surfaces where every fired followup does\
-  \ (the session-start debt line, `debt`,\n  `followup list --status fired`). A stored\
-  \ `due:` value not in that spelling never fires.\n\n**BORN ARMED IS THE DEFAULT\
-  \ WHEREVER THE AWAITED MOMENT IS A NAMEABLE ARTIFACT (NORMATIVE).** A followup whose\
-  \ firing moment IS a reference the grammar above resolves is CAPTURED\nborn-armed\
-  \ (`add --trigger … --awaits <ref>`); it is not captured actionable with the wait\
-  \ written\nas PROSE. ACTIONABLE is the honest state only for a wait no grammar can\
-  \ name. The mechanism alone\nnever delivered this — measured on the kernel 2026-09-04\
-  \ the headline read 246 actionable / 9 armed,\nand well over a hundred of the 246\
-  \ named their waiting moment in prose — so the CAPTURE DOOR says\nso: when no `--awaits`\
-  \ was given and the capture's own text names a still-OPEN `T-NNNN` or a\nnon-terminal\
-  \ `X-NNNN` other than the `relates_to` provenance ref, `followup add` prints ONE\n\
-  report-only line naming it and the exact `arm` command. It NEVER gates, emits, or\
-  \ changes the exit\ncode; it names only references `awaits_kind` already resolves\
-  \ and never guesses a trigger PHRASE\n(armedness stays a human judgement — §Why\
-  \ the trigger is DECLARED); and it is fail-open to SILENCE,\nbecause a report-only\
-  \ signal about a reader fails the opposite way to a guard. The EVENT grammar is\n\
-  deliberately OUTSIDE the advisory: an event class ARRIVES on MEMBERSHIP, so a class\
-  \ with rows\nalready in the journal fires IMMEDIATELY — advising one would manufacture\
-  \ the false-armed\nstate that grammar was narrowed to end. AMENDS the SECOND half\
-  \ of that reason without moving\nthe advisory: a «next occurrence of <type>» wait\
-  \ now HAS an artifact — the time-anchored `@after=`\nshape above — so it is no longer\
-  \ INEXPRESSIBLE, merely UNDEDUCIBLE. The advisory still declines to\npropose one,\
-  \ and the distinction is the point: the anchor is a TIME THE OPERATOR CHOOSES, and\
-  \ no scan\ncan read a chosen moment out of prose, so proposing one would be the\
-  \ guess this advisory exists not\nto make. The remedy is delivered where the problem\
-  \ is OBSERVABLE instead — at `arm`'s existing\nrow-count report, which now names\
-  \ the fourth shape and prints the exact re-arm command whenever the\nclass it just\
-  \ armed on already has rows (report-only; the operator's awaits is never rewritten).\n\
-  `cli.py#_arm_cross_re_entry` stays actionable-by-design, unchanged (the consult:\
-  \ the\npeer's condition names no local artifact).\n\n**WHERE THE MOMENT LANDS DECIDES\
-  \ THE CARRIER (owner ruling 2026-09-04, NORMATIVE).** Every\nshape in the grammar\
-  \ above resolves against THE JOURNAL OF THE REPO THE FOLLOWUP LIVES IN. So the\n\
-  first question about any wait is not WHICH shape names it, but WHOSE journal its\
-  \ firing moment\nlands in — and when the answer is ANOTHER PROJECT, no followup\
-  \ in this repo can carry it. Such a\nwait is carried by a **`cross request --kind\
-  \ task --to <project>`** (SPEC-0085 §3) whose brief asks\nthat project to (a) ARM\
-  \ ITS OWN followup on the moment, in its own repo, with the grammar above\n(typically\
-  \ `events.jsonl#type=<type>@after=<ISO ts>`), and (b) REPORT THE READING BACK with\
-  \ `cross\ndone <X-NNNN> --note '<the reading + its locator>'` — plus **AT MOST ONE**\
-  \ followup on this side\nARMED on the resulting `X-NNNN`. The kernel then wakes\
-  \ exactly when the peer answers, cites the\nanswer as `coordination.jsonl#cross=X-NNNN`\
-  \ (the SPEC-0015 shared-store locator kind), and\npolls nothing in between. Grounds:\
-  \ the owner ruling of 2026-09-04 — this project does not monitor\nother projects\
-  \ — and the measurement that made it necessary: of the 212 followups left actionable\n\
-  after that day's sweep, an estimated 60-80 waited on a row in a CONSUMER's journal,\
-  \ every one of\nthem unfireable by construction and permanently resident in the\
-  \ actionable headline.\n- **THE ASK MAY ONLY PRESCRIBE AN AWAITS KEY THE ASKING\
-  \ SIDE HAS VERIFIED EXISTS.** The\n  asking side owns every emitter the awaited\
-  \ moment could fire from and the receiver owns none of\n  them, so the key is knowable\
-  \ at authoring time and guessable only at reading time: name the\n  literal `events.jsonl#type=<t>`,\
-  \ checked against the SPEC-0025 / SPEC-0161 catalog, never a\n  placeholder for\
-  \ the peer to resolve — and when NO emitter fires at that moment, the ask is\n \
-  \ unanswerable as written and MUST NOT be filed as one (file the emitter card first,\
-  \ or drop the\n  carrier / record it wont-hold). This does not reinstate validation\
-  \ of a TYPE (§the event grammar\n  REPORTS rather than validates, below — a class\
-  \ that has never fired is exactly what these records\n  wait for); a placeholder\
-  \ is not an uncatalogued type, it is the absence of a type.\n  `cross.py#placeholder_awaits_key_warning`\
-  \ reports the literal placeholder on a `--kind task`\n  request, report-only. Grounds:\
-  \ <project> X-1379 over the X-1274..X-1291 family, 2026-09-11 —\n  three asks of\
-  \ one family prescribed an awaits key on a moment that emits no event at all.\n\
-  - **The `X-NNNN` item STAYS OPEN (`picked`) while the peer holds the obligation,\
-  \ and that is the\n  CARRIER.** `picked` rows are outside the session-start outbox\
-  \ cut, so an item the peer\n  is working is not something THE AUTHOR is re-asked\
-  \ about. **That cut is the AUTHOR's outbox, and\n  the brief must not offer it to\
-  \ the RECEIVER as a no-nag promise :** on the receiving\n  side `session start`\
-  \ prints «N inbox item(s) ACCEPTED (picked) but tracked by NO local task»\n  (`cross.inbox_picked_untracked_rows`)\
+  \    `live_trigger_evidence`, `release_tagged`, `deploy_completed` and `test_class_executed`),\
+  \ and\n    on any other class it is REFUSED naming that set — never admitted and\
+  \ left unfireable. The set\n    is declared because the fold cannot be told in advance\
+  \ which predicates are awaited: it marks\n    every matchable key of every row of\
+  \ a declared class, in the walk it was already making.\n    Widening the set is\
+  \ an edit to that one declaration.\n  - **The deploy target.** On `deploy_completed`\
+  \ the key `target` names the deploy surface:\n    `target=<name>` matches a deploy\
+  \ to that named target, and `target=production` matches a\n    PRODUCTION FORWARD\
+  \ deploy — one naming no target, or a target declared production — never a\n   \
+  \ rollback and never a row whose target is not a mapping. So a deferred probe needing\
+  \ the first\n    production deploy awaits `events.jsonl#type=deploy_completed&target=production@after=land`\n\
+  \    and is not due after a stand or sandbox deploy; a probe needing a stand pre-deploy\
+  \ run awaits\n    `events.jsonl#type=test_class_executed&target=stand@after=land`,\
+  \ which a land-time class row\n    (it names no target) never matches. Due is not\
+  \ settled: the settle verb still checks the\n    revision.\n  - **It composes with\
+  \ the anchors and changes neither.** With `@after=<ISO ts>` it arrives on a\n  \
+  \  MATCHING row strictly later than the anchor; with no anchor, on the existence\
+  \ of a matching\n    row; and on a deferred-probe moment it may carry `@after=land`\
+  \ (SPEC-0028). An awaits carrying\n    no predicate reads exactly as it did, byte-for-byte.\n\
+  \  - **ONE parse home, still.** `followup.py#split_event_awaits` parses the predicate\
+  \ and returns it\n    inside the ARRIVAL KEY it already returned — the class, or\
+  \ the class with its predicate. The\n    fold marks that same key for a matching\
+  \ row, and the membership test, the `@after=` comparison\n    and the land comparison\
+  \ each look it up unchanged, so no reader parses a predicate for itself.\n  - **The\
+  \ same bound: the KERNEL journal only.** A predicate does not reach a consumer's\
+  \ journal;\n    that wait still routes as a `cross request` (below).\n- **`due:<YYYY-MM-DDTHH:MM:SSZ>`**\
+  \ — a CALENDAR MOMENT: it arrives once the read-time clock has\n  REACHED it (`>=`\
+  \ — the moment itself, unlike the strictly-later `@after=`), with no event needed.\n\
+  \  Written ONLY by `followup add --due` / `followup arm --due`. It is NOT an `awaits_kind`\
+  \ shape, so\n  `--awaits due:<ts>` and every other door that admits an awaits through\
+  \ `awaits_kind` (`task pause\n  --awaits`, a park's `--awaits`, a deferred-probe\
+  \ moment) REFUSE it: their readers cannot read a\n  clock. Decided at read time\
+  \ by the followup partition — nothing is stored or scheduled, and a\n  fired date\
+  \ wait surfaces where every fired followup does (the session-start debt line, `debt`,\n\
+  \  `followup list --status fired`). A stored `due:` value not in that spelling never\
+  \ fires.\n\n**BORN ARMED IS THE DEFAULT WHEREVER THE AWAITED MOMENT IS A NAMEABLE\
+  \ ARTIFACT (NORMATIVE).** A followup whose firing moment IS a reference the grammar\
+  \ above resolves is CAPTURED\nborn-armed (`add --trigger … --awaits <ref>`); it\
+  \ is not captured actionable with the wait written\nas PROSE. ACTIONABLE is the\
+  \ honest state only for a wait no grammar can name. The mechanism alone\nnever delivered\
+  \ this — measured on the kernel 2026-09-04 the headline read 246 actionable / 9\
+  \ armed,\nand well over a hundred of the 246 named their waiting moment in prose\
+  \ — so the CAPTURE DOOR says\nso: when no `--awaits` was given and the capture's\
+  \ own text names a still-OPEN `T-NNNN` or a\nnon-terminal `X-NNNN` other than the\
+  \ `relates_to` provenance ref, `followup add` prints ONE\nreport-only line naming\
+  \ it and the exact `arm` command. It NEVER gates, emits, or changes the exit\ncode;\
+  \ it names only references `awaits_kind` already resolves and never guesses a trigger\
+  \ PHRASE\n(armedness stays a human judgement — §Why the trigger is DECLARED); and\
+  \ it is fail-open to SILENCE,\nbecause a report-only signal about a reader fails\
+  \ the opposite way to a guard. The EVENT grammar is\ndeliberately OUTSIDE the advisory:\
+  \ an event class ARRIVES on MEMBERSHIP, so a class with rows\nalready in the journal\
+  \ fires IMMEDIATELY — advising one would manufacture the false-armed\nstate that\
+  \ grammar was narrowed to end. AMENDS the SECOND half of that reason without moving\n\
+  the advisory: a «next occurrence of <type>» wait now HAS an artifact — the time-anchored\
+  \ `@after=`\nshape above — so it is no longer INEXPRESSIBLE, merely UNDEDUCIBLE.\
+  \ The advisory still declines to\npropose one, and the distinction is the point:\
+  \ the anchor is a TIME THE OPERATOR CHOOSES, and no scan\ncan read a chosen moment\
+  \ out of prose, so proposing one would be the guess this advisory exists not\nto\
+  \ make. The remedy is delivered where the problem is OBSERVABLE instead — at `arm`'s\
+  \ existing\nrow-count report, which now names the fourth shape and prints the exact\
+  \ re-arm command whenever the\nclass it just armed on already has rows (report-only;\
+  \ the operator's awaits is never rewritten).\n`cli.py#_arm_cross_re_entry` stays\
+  \ actionable-by-design, unchanged (the consult: the\npeer's condition names no local\
+  \ artifact).\n\n**WHERE THE MOMENT LANDS DECIDES THE CARRIER (owner ruling 2026-09-04,\
+  \ NORMATIVE).** Every\nshape in the grammar above resolves against THE JOURNAL OF\
+  \ THE REPO THE FOLLOWUP LIVES IN. So the\nfirst question about any wait is not WHICH\
+  \ shape names it, but WHOSE journal its firing moment\nlands in — and when the answer\
+  \ is ANOTHER PROJECT, no followup in this repo can carry it. Such a\nwait is carried\
+  \ by a **`cross request --kind task --to <project>`** (SPEC-0085 §3) whose brief\
+  \ asks\nthat project to (a) ARM ITS OWN followup on the moment, in its own repo,\
+  \ with the grammar above\n(typically `events.jsonl#type=<type>@after=<ISO ts>`),\
+  \ and (b) REPORT THE READING BACK with `cross\ndone <X-NNNN> --note '<the reading\
+  \ + its locator>'` — plus **AT MOST ONE** followup on this side\nARMED on the resulting\
+  \ `X-NNNN`. The kernel then wakes exactly when the peer answers, cites the\nanswer\
+  \ as `coordination.jsonl#cross=X-NNNN` (the SPEC-0015 shared-store locator kind),\
+  \ and\npolls nothing in between. Grounds: the owner ruling of 2026-09-04 — this\
+  \ project does not monitor\nother projects — and the measurement that made it necessary:\
+  \ of the 212 followups left actionable\nafter that day's sweep, an estimated 60-80\
+  \ waited on a row in a CONSUMER's journal, every one of\nthem unfireable by construction\
+  \ and permanently resident in the actionable headline.\n- **THE ASK MAY ONLY PRESCRIBE\
+  \ AN AWAITS KEY THE ASKING SIDE HAS VERIFIED EXISTS.** The\n  asking side owns every\
+  \ emitter the awaited moment could fire from and the receiver owns none of\n  them,\
+  \ so the key is knowable at authoring time and guessable only at reading time: name\
+  \ the\n  literal `events.jsonl#type=<t>`, checked against the SPEC-0025 / SPEC-0161\
+  \ catalog, never a\n  placeholder for the peer to resolve — and when NO emitter\
+  \ fires at that moment, the ask is\n  unanswerable as written and MUST NOT be filed\
+  \ as one (file the emitter card first, or drop the\n  carrier / record it wont-hold).\
+  \ This does not reinstate validation of a TYPE (§the event grammar\n  REPORTS rather\
+  \ than validates, below — a class that has never fired is exactly what these records\n\
+  \  wait for); a placeholder is not an uncatalogued type, it is the absence of a\
+  \ type.\n  `cross.py#placeholder_awaits_key_warning` reports the literal placeholder\
+  \ on a `--kind task`\n  request, report-only. Grounds: <project> X-1379 over the\
+  \ X-1274..X-1291 family, 2026-09-11 —\n  three asks of one family prescribed an\
+  \ awaits key on a moment that emits no event at all.\n- **The `X-NNNN` item STAYS\
+  \ OPEN (`picked`) while the peer holds the obligation, and that is the\n  CARRIER.**\
+  \ `picked` rows are outside the session-start outbox cut, so an item the peer\n\
+  \  is working is not something THE AUTHOR is re-asked about. **That cut is the AUTHOR's\
+  \ outbox, and\n  the brief must not offer it to the RECEIVER as a no-nag promise\
+  \ :** on the receiving\n  side `session start` prints «N inbox item(s) ACCEPTED\
+  \ (picked) but tracked by NO local task»\n  (`cross.inbox_picked_untracked_rows`)\
   \ at EVERY start until they declare a local carrier\n  — a card filed `--resolves-cross\
   \ <X-NNNN>`, or a non-terminal plan's frontmatter\n  `resolves_cross:`. So the ask\
   \ states that cost plainly and names the silencer, which is\n  also what tracks\
@@ -656,13 +666,16 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ (worktree+land per staging note). The cross verb family (SPEC-0085/0086) is the\
   \ direct\nstructural prior-art: a journal-append FSM verb family whose state is\
   \ a derived fold. Owner-approved\nnew mechanism (when-NOT-to-add ratified 2026-06-21).\
-  \ Authored work-first.\n\n## Verification\n\n- Adoption (§P3/§P8): activates at\
-  \ close; a live `followup add` records a real `followup_added`\n  (the live-trigger\
-  \ probe).\n- State-check: a hermetic test drives `add → promote` and `add → drop`\
-  \ (both legs) and asserts the fold\n  reports the right terminal state; an unknown-id\
-  \ / double-transition is refused.\n- No-worktree: `followup add` succeeds from a\
-  \ non-worktree checkout (the -class append).\n- Fire key (DIFFERENTIAL): a followup\
-  \ whose `relates_to` is TERMINAL but whose `awaits` is not\n  reads `armed_waiting`;\
+  \ Authored work-first.\n\n (<project> X-2105) admitted `deploy_completed` and `test_class_executed`\
+  \ to the predicate\nset and gave the deploy class its `target` key: 4 of 16 due\
+  \ deferred probes there were due only\nbecause the moment grammar could not name\
+  \ a deploy target. An additive extension, in place.\n\n## Verification\n\n- Adoption\
+  \ (§P3/§P8): activates at close; a live `followup add` records a real `followup_added`\n\
+  \  (the live-trigger probe).\n- State-check: a hermetic test drives `add → promote`\
+  \ and `add → drop` (both legs) and asserts the fold\n  reports the right terminal\
+  \ state; an unknown-id / double-transition is refused.\n- No-worktree: `followup\
+  \ add` succeeds from a non-worktree checkout (the -class append).\n- Fire key (DIFFERENTIAL):\
+  \ a followup whose `relates_to` is TERMINAL but whose `awaits` is not\n  reads `armed_waiting`;\
   \ its sibling whose `awaits` IS terminal still reads `armed_fired`. A fix that\n\
   \  merely suppressed the lens would fail the second half.\n- Re-arm : `arm` on a\
   \ FIRED followup returns it to `armed` with the new trigger recorded.\n- Migration\
@@ -754,7 +767,7 @@ implements_signature:
   bin/lib/followup.py#due_arrived: 2b3acb8e65636b293e3702c0784c224adfc3f849f553de301c7c4b6d3ad661d9
   bin/lib/followup.py#event_after_arrived: b5ad9b49efc3ec0423ef0c78ad2f4ffb5a3e77fc918d41bfe65caee8236ee542
   bin/lib/followup.py#open_followup_counts: 11ba3ed08124ce021df7be23082be0d5f8b40c5d071c8103e780fef430d19b89
-  bin/lib/followup.py#predicate_arrival_keys: 2aa9ceb2cddd8ac21c02762629d7fbddb78cc258f1044f9eb975fbc3c18b4f15
+  bin/lib/followup.py#predicate_arrival_keys: e3dbc8d441c63c3c8438eab19faf10e726935f440beaf1c1bb89e2c68381f72a
   bin/lib/followup.py#promote_at_filing: 1516f301183382cfd26a9cbe40fa34198911e19f39724ddfa7da0aa1c3b0b22d
   bin/lib/followup.py#require_promote_provenance: 16b60a00bd7ab9254fdb31085dab4858eb3e57689afb99aaea555eb1481812ac
   bin/lib/followup.py#split_due_awaits: 91a9baf836def19f23a4aa62f674979d2679ed774ab3b4787f650a4ca4a3b7ef

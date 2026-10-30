@@ -1022,7 +1022,7 @@ def _plan_close_core(path: Path, fm: dict, body: str, slug: str, into: list,
     return data
 
 
-def _require_plan_decomposition_ready(slug: str, fm: dict, body: str, *, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, SPEC_ABANDONED_TERMINAL, _die, _plan_content_hash, _plan_specs, _read_yaml) -> None:
+def _require_plan_decomposition_ready(slug: str, fm: dict, body: str, *, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, SPECS_DIR, SPEC_ABANDONED_TERMINAL, _die, _plan_content_hash, _read_yaml) -> None:
     """The `accepted → decomposition` entry gate (RELOCATED from the `executing` gate by SPEC-0070 §9.3 —
     was `_require_plan_executing_ready`): refuse (nonzero, with a reason) unless (a) a FRESH GREEN/YELLOW
     `plan check`, (b) `implementation_plan` composed (non-empty), and (c) the plan's specs are `proposed`
@@ -1036,7 +1036,12 @@ def _require_plan_decomposition_ready(slug: str, fm: dict, body: str, *, AUDIT_V
     (`SPEC_ABANDONED_TERMINAL` = withdrawn/rejected) — a plan-born spec deliberately abandoned (a
     scope-cut tracked as a follow-up) must not block the plan's own lifecycle, symmetric with
     the postcheck `_plan_postcheck_exempt_specs` exemption. NARROW: only those two; a `draft` (un-born)
-    or `superseded`/`retired` corpus spec still BLOCKS, as before."""
+    or `superseded`/`retired` corpus spec still BLOCKS, as before.
+
+    T-14352: clause (c) reads the plan's OWN born specs (`proposed_by == slug`) only — never the broad
+    `_plan_specs` finalization corpus (T-0256/T-9152), which also holds specs activated by any task that
+    merely CITES the slug. Such a task may belong to another plan and its specs may be long superseded
+    (<project> X-2138); they are not this plan's births, so they cannot be "not yet proposed" here."""
     audit_path = DECISIONS_DIR / f"{slug}-audit.yaml"
     if not audit_path.exists():
         _die(f"{slug}: `plan stage decomposition` needs a fresh GREEN/YELLOW `plan check` — none on record. "
@@ -1061,7 +1066,12 @@ def _require_plan_decomposition_ready(slug: str, fm: dict, body: str, *, AUDIT_V
     if not (ip and str(ip).strip()):
         _die(f"{slug}: implementation_plan is empty — compose the decomposition map (the acceptance-stage "
              f"output) into the plan frontmatter before `plan stage decomposition`.")
-    not_proposed = [sid for sid, stt in _plan_specs(slug)
+    own = {}
+    for p in state.scan_specs(SPECS_DIR):   # SPEC-* glob excludes _template.yaml
+        d = _read_yaml(p)
+        if isinstance(d, dict) and d.get("proposed_by") == slug:
+            own[d.get("id") or p.stem] = d.get("status")
+    not_proposed = [sid for sid, stt in sorted(own.items())
                     if stt not in ("proposed", "active") and stt not in SPEC_ABANDONED_TERMINAL]
     if not_proposed:
         _die(f"{slug}: these specs are not yet proposed: {', '.join(not_proposed)} — births happen at "

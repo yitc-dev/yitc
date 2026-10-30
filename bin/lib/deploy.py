@@ -2869,7 +2869,7 @@ def _pre_deploy_recordable(guarding, *, REPO_ROOT, _record_probe) -> list:
 def _pre_deploy_deploy_rows(_iter_events):
     """T-14203 (SPEC-1047 rule 5) — THE DEPLOY READERS' VIEW of the journal: `_iter_events` with every
     row carrying `run_kind: scheduled` dropped, of every type (its class rows and its start row), before
-    a reader chooses a newest run. A scheduled run is never a deploy's run: the SPEC-1044 reuse
+    a reader chooses a newest run. A scheduled run is never a deploy's run: the SPEC-1051 rule 3 reuse
     (`_pre_deploy_reuse_decision`) and the last-passed-run history (`_pre_deploy_run_history`, which
     the fail-to-end report reads) are handed this view. Same call shape as the reader it wraps."""
     def _rows(*args, **kwargs):
@@ -3320,12 +3320,12 @@ def _pre_deploy_reuse_decision(*, ops, classes, candidate, target, guarding, _it
     except Exception as exc:  # noqa: BLE001 — a read that cannot answer reuses nothing
         got = {"run_ref": None, "why": f"the journal could not be read ({exc!r})"}
     if got.get("run_ref") is None:
-        print(f"deploy: pre-deploy run reuse declined — {got['why']} (SPEC-1044 rule 3); this deploy "
+        print(f"deploy: pre-deploy run reuse declined — {got['why']} (SPEC-1051 rule 3); this deploy "
               f"runs its own pre-deploy run.")
         return {"run": None, "fingerprint": fp, "bound": named}
     print(f"deploy: PRE-DEPLOY RUN: REUSED {got['run_ref']} of {candidate} — the run of target "
           f"`{got['run_target']}`, {int(got['age_s'] // 60)} min old (bound {bound['value']} min, "
-          f"{bound['source']}); every class guarding `{target}` declares `reuse_run:` (SPEC-1044 "
+          f"{bound['source']}); every class guarding `{target}` declares `reuse_run:` (SPEC-1051 "
           f"rule 3), so no run is started. The land reservation and the SPEC-0094 §6 checks follow "
           f"as on every gated deploy.")
     return {"run": {"run_ref": got["run_ref"], "passed": True, "contended": False}, "fingerprint": fp,
@@ -3334,12 +3334,12 @@ def _pre_deploy_reuse_decision(*, ops, classes, candidate, target, guarding, _it
 
 @contextlib.contextmanager
 def _pre_deploy_layer_workers():
-    """T-14187 (SPEC-0132 §1c, SPEC-1044 rule 3) — the worker allotment a pre-deploy run's layers are
+    """T-14187 (SPEC-0132 §1c, SPEC-1051 rule 3) — the worker allotment a pre-deploy run's layers are
     given: the land candidate leg's own composition (`worktree.py`, the candidate-verify governor
     block) — the host resource bound, the per-verify ceiling within it, then the width budget held
     while the run goes, read at that width within the bound. Yields the int the runner publishes as
-    `YITC_VERIFY_LAYER_WORKERS`. No admission slot is taken (the run holds nothing — rule 3); the
-    width registration is held so a land started meanwhile counts it. An exhausted host RAISES, as
+    `YITC_VERIFY_LAYER_WORKERS`. No verify slot is taken (the run's place is its admission pass and
+    the land reservation, SPEC-1051 rule 3); the width registration is held so a land counts it. An exhausted host RAISES, as
     the land refuses: the caller records a red run."""
     from lib import worktree as _wt           # lazy: names read at call time, so a stub is honoured
     bound = _wt._verify_worker_bound()
@@ -3486,7 +3486,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
         print(f"deploy: {'SCHEDULED ' if scheduled else ''}PRE-DEPLOY RUN {run_ref} — every verify layer whole "
               f"plus the pre-deploy class(es) {', '.join(guarding)} "
               + ("(every class the candidate declares, no target; SPEC-1047 rule 4)" if scheduled else
-                 f"guarding target `{target}`") + f", on a fresh checkout of {candidate} (SPEC-1044 rule 3); "
+                 f"guarding target `{target}`") + f", on a fresh checkout of {candidate} (SPEC-1051 rule 3); "
               f"log {log_rel}", file=out)
         added = _run_git_cap(["worktree", "add", "--detach", str(scratch), candidate], REPO_ROOT)
         lone = None                      # T-14158: the layers re-run alone, once each
@@ -3546,7 +3546,7 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
             for layer in lone or ():
                 print(f"deploy: PRE-DEPLOY RUN {run_ref} — layer {layer!r} ran out of its own bound and no "
                       f"other failure stands: re-running that layer ONCE, alone, on the same checkout "
-                      f"(SPEC-1044 rule 3). The runner's lines below are that re-run's — its `only_layers` "
+                      f"(SPEC-1051 rule 3). The runner's lines below are that re-run's — its `only_layers` "
                       f"path, whose wording names a merge-base attribution re-run; this is not one.", file=out)
                 try:
                     with contextlib.redirect_stdout(out):
@@ -3576,22 +3576,22 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
             lines.append(f"  CONTENDED — every failure is a timeout (a unit's own runner timeout or a layer's own "
                          f"bound) and a land or Stage-6 run "
                          f"of this repository ran beside the run ({_pre_deploy_beside_said(beside)}): it is "
-                         f"re-run once, as attempt 2 (SPEC-1044 rule 3)")
+                         f"re-run once, as attempt 2 (SPEC-1051 rule 3)")
         elif not passed and lone:        # T-14158: the lone-layer re-run ran and did not rescue the run
             lines.append("  red — nobody ran beside the run, so it is not re-run; its lone-layer re-run did "
-                         "not rescue it (SPEC-1044 rule 3)")
+                         "not rescue it (SPEC-1051 rule 3)")
         elif reads and not passed:
-            lines.append(f"  red at once, no re-run — {why} (SPEC-1044 rule 3)")
+            lines.append(f"  red at once, no re-run — {why} (SPEC-1051 rule 3)")
         elif attempt > 1 and not passed:
-            lines.append("  the contended re-run is red too — recorded `failed`, no further run (SPEC-1044 rule 3)")
+            lines.append("  the contended re-run is red too — recorded `failed`, no further run (SPEC-1051 rule 3)")
         for r in ((result.get("flaky_retry") or {}).get("rows") or ()) if isinstance(result, dict) \
                 and isinstance(result.get("flaky_retry"), dict) else ():
             if isinstance(r, dict) and r.get("pre_deploy_layer_rescue"):     # T-14158
                 lines.append(f"  layer {r.get('layer')!r} ran out of its own bound with nobody beside the run; "
-                             + ("re-run once alone, it PASSED — rescued (SPEC-1044 rule 3)"
+                             + ("re-run once alone, it PASSED — rescued (SPEC-1051 rule 3)"
                                 if r.get("isolated") == "pass" else
                                 f"re-run once alone, it ended `{r.get('retry_outcome')}` again — the run is red "
-                                f"(SPEC-1044 rule 3)"))
+                                f"(SPEC-1051 rule 3)"))
         lines += [f"  {b}" for b in reading["bad"]]
         lines += _pre_deploy_failure_detail(result, REPO_ROOT)          # T-14320
         lines += [f"  FAILING  {f['layer']}" + (f" :: {f['file']}" if f.get("file") else " (the layer)")
@@ -3649,9 +3649,9 @@ def _pre_deploy_run(*, candidate, target, guarding, pre_deploy_classes, REPO_ROO
 # ── T-14106 — A CONTENDED RUN IS RE-RUN ONCE; A GREEN RUN HOLDS THE PROJECT'S LANDS OFF (SPEC-1042 rule 3)
 # A red is CONTENDED only when every one of its failure reasons is a single unit's own runner timeout
 # and a land or Stage-6 run of the project ran a verify beside it: it is re-run once in the same deploy,
-# and a second red is `failed`. Any other reason, or nobody beside the run, reads red at once. After a
-# green run the deploy takes the project's land reservation — the one lock a land holds through its
-# verify and its move of `main` — waiting as a parked land waits, and keeps it until the verb ends.
+# and a second red is `failed`. Any other reason, or nobody beside the run, reads red at once. Before
+# the run (T-14325) the deploy takes the project's land reservation — the one lock a land holds through
+# its verify and its move of `main` — waiting as a parked land waits, and keeps it until the verb ends.
 
 #: A unit's OWN runner timeout as its runner words it on the failed test case (SPEC-1035 §4 «a test's
 #: own timeout inside the runner»): Vitest `Test timed out in <N>ms`, Jest `Exceeded timeout of <N> ms`,
@@ -4171,10 +4171,11 @@ def _pre_deploy_beside_said(beside) -> str:
 
 def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_land_reservation,
                                  _land_reservation_path, _flock_holder, _flock_holder_record_path,
-                                 _proc_starttime, every=30.0) -> "tuple[bool, str]":
-    """SPEC-1042 rule 3 — after a green pre-deploy run, TAKE the project's land reservation (SPEC-0132
-    rule 1a / SPEC-0184: the flock every land takes at its first attempt and holds through its verify
-    and its move of `main`), so no land moves the checkout while the deploy command builds it.
+                                 _proc_starttime, every=30.0, label=None) -> "tuple[bool, str]":
+    """SPEC-1051 rule 3 (T-14325) — before the pre-deploy run starts, TAKE the project's land reservation
+    (SPEC-0132 rule 1a / SPEC-0184: the flock every land takes at its first attempt and holds through its
+    verify and its move of `main`), so no land moves the checkout while the run checks the candidate and
+    the deploy command builds it.
     `(True, "")` holding it — its fd, and the holder record when one was written, are appended to
     `hold`, which `_pre_deploy_release` empties when the verb ends — or `(False, why)` holding nothing.
 
@@ -4197,7 +4198,7 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
     record = Path(_flock_holder_record_path(path))
     try:
         _publish_holder_record(record, json.dumps({"pid": os.getpid(), "starttime": _proc_starttime(),
-                                                   "label": f"deploy --target {target} @ {candidate}"}).encode())
+                                                   "label": label or f"deploy --target {target} @ {candidate}"}).encode())
         hold.append(("record", record))
     except OSError:
         record = None
@@ -4210,8 +4211,7 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
         who = (f"held by pid {h['pid']}" + (f" `{h['label']}`" if h.get("label") else "")) if h \
             else "holder unknown (not resolvable from /proc/locks)"
         print(f"deploy: WAITING for the land reservation — {waited:.0f}s so far; {who}. The pre-deploy "
-              f"run is green; the `deploy:` command starts once the reservation is free (SPEC-1044 "
-              f"rule 3).", file=sys.stderr, flush=True)
+              f"run starts once the reservation is free (SPEC-1051 rule 3).", file=sys.stderr, flush=True)
 
     fd = _acquire_land_reservation(main_wt, on_wait=on_wait, on_degrade=spent.append,
                                    self_branch=f"deploy:{target}")
@@ -4223,8 +4223,8 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
                            f"({spent[0]:.0f}s waited, SPEC-0132 rule 1a)")
         return False, "the land reservation is held by this very process, so it cannot be taken for the command"
     hold.append(("reservation", fd))
-    print(f"deploy: holding the land reservation for the `deploy:` command — a land of this project "
-          f"started now parks until this deploy ends (SPEC-1044 rule 3).")
+    print(f"deploy: holding the land reservation for the pre-deploy run and the `deploy:` command — a land "
+          f"of this project started now parks until this deploy ends (SPEC-1051 rule 3).")
     return True, ""
 
 
@@ -4245,8 +4245,109 @@ def _pre_deploy_release(hold) -> None:
         hold.clear()
 
 
+# ── T-14333 — A RELEASE ORDER: ONE HOLD ACROSS SEVERAL TARGETS OF ONE REVISION (SPEC-1051 rule 3) ─────
+# `deploy --release-order a,b --expect-revision X` deploys X to each named target in turn, in ONE process.
+# The order takes T-14325's hold once, before the first target — its `deploy` queue ticket first (with the
+# project's queue on), then the land reservation, then the §6 check — and keeps it until the verb ends, so
+# a land started between two targets parks instead of moving `main` under the next one. Each target runs
+# the unchanged `cmd_deploy` and neither files a ticket nor takes the reservation again: a land admitted
+# meanwhile parks on the reservation, and a second ticket would wait for that land (admission.group).
+# The first failing or refused target stops the order; a killed process frees the flock with it.
+
+#: the `deploy` options a release order takes none of (args attribute, the option as typed)
+_RELEASE_ORDER_FOREIGN = (("deploy_target", "--target"), ("rollback", "--rollback"),
+                          ("scheduled_run", "--scheduled-run"), ("print_guard", "--print-guard"))
+
+
+def release_order_targets(args, *, REPO_ROOT) -> list:
+    """SPEC-1051 rule 3 (T-14333) — the targets of `--release-order`, as `[(name, production)]` in order,
+    each resolved by `_resolve_deploy_target` against the carrier's `deploy.targets` BEFORE anything runs,
+    so a wrong second name never lets the first target go. Refuses (exit 3, nothing run, no row, no hold)
+    a release order given with a foreign option, without `--expect-revision`, with fewer than two names,
+    an empty or repeated name, an unresolvable one, or `--class` with no production target among them
+    (the class would be dropped unread: a `production: false` target refuses it, SPEC-0097 §12)."""
+    def refuse(why):
+        print(f"deploy: REFUSED — {why} (SPEC-1051 rule 3). Nothing was deployed; no deploy_completed "
+              f"emitted.", file=sys.stderr)
+        sys.exit(3)
+    given = [flag for attr, flag in _RELEASE_ORDER_FOREIGN if getattr(args, attr, None) not in (None, False, [])]
+    if given:
+        refuse(f"--release-order is not accepted with {', '.join(given)}: a release order is a forward "
+               f"deploy of one revision to the targets it names")
+    if not getattr(args, "expect_revision", None):
+        refuse("--release-order needs --expect-revision: every target of the order ships that one revision")
+    names = [n.strip() for n in str(args.release_order).split(",")]
+    if len(names) < 2 or any(not n for n in names) or len(set(names)) != len(names):
+        refuse(f"--release-order {args.release_order!r} must name two or more distinct targets, comma-separated "
+               f"(one target is `--target <name>`)")
+    try:
+        ops = state.load_ops(Path(REPO_ROOT) / CONSUMER_OPS_CONTRACT)
+    except (OSError, yaml.YAMLError) as e:
+        refuse(f"{CONSUMER_OPS_CONTRACT} could not be read to resolve the release order's targets ({e})")
+    section = ops.get("deploy") if isinstance(ops, dict) else None
+    out = []
+    for n in names:
+        t = _resolve_deploy_target(section if isinstance(section, dict) else {}, n)
+        if t.error:
+            refuse(f"release-order target `{n}`: {t.error}")
+        out.append((n, t.production))
+    if getattr(args, "deploy_class", None) and not any(p is not False for _n, p in out):
+        refuse(f"`--class {args.deploy_class}` was given but no target of the order is a production target, "
+               f"so no target would read it")
+    return out
+
+
+@contextlib.contextmanager
+def release_order_hold(names, *, candidate, main_wt, hold, append_event, recheck, _acquire_land_reservation,
+                       _land_reservation_path, _flock_holder, _flock_holder_record_path, _proc_starttime):
+    """SPEC-1051 rule 3 (T-14333) — the hold of a release order of `candidate` to `names`: the queue pass
+    first (the project's SPEC-1045 queue on: one `deploy` ticket, `admission.deploy_run_entry`), then the
+    land reservation (`_pre_deploy_take_reservation`, its holder record naming the order) into `hold`, then
+    the SPEC-0094 §6 question once (`recheck()` -> why main moved, or None). Refuses before any target:
+    exit 3 when the reservation is not taken, 4 when main moved. Yields `{targets, record}` — the queue's
+    pass record (None with the queue off) the targets' run rows are stamped with. The reservation stays in
+    `hold`, which the caller releases when the verb ends (`_pre_deploy_release`)."""
+    from lib import admission as admission_queue
+    order = ",".join(names)
+
+    def _take():
+        held, why = _pre_deploy_take_reservation(
+            main_wt, target=order, candidate=candidate, hold=hold,
+            _acquire_land_reservation=_acquire_land_reservation, _land_reservation_path=_land_reservation_path,
+            _flock_holder=_flock_holder, _flock_holder_record_path=_flock_holder_record_path,
+            _proc_starttime=_proc_starttime, label=f"deploy --release-order {order} @ {candidate}")
+        if not held:
+            print(f"deploy: REFUSED — {why}. The release order {order} of {candidate} did not start: it runs only "
+                  f"while it holds the project's land reservation (SPEC-1051 rule 3). Nothing was deployed; no "
+                  f"deploy_completed emitted.", file=sys.stderr)
+            sys.exit(3)
+        moved = recheck()
+        if moved:
+            print(f"deploy: REFUSED — the checkout stopped being the expected revision before the release order "
+                  f"{order} started (SPEC-0094 §6, SPEC-1051 rule 3): {moved}. Nothing was deployed; no "
+                  f"deploy_completed emitted. Test the commit that is now at HEAD and re-run naming it.",
+                  file=sys.stderr)
+            sys.exit(4)
+        print(f"deploy: release order {order} of {candidate} holds the land reservation until its last target "
+              f"ends — a land of this project started now parks (SPEC-1051 rule 3).")
+
+    try:
+        switch = admission_queue.switch(main_wt)
+    except Exception:  # noqa: BLE001 — a switch that cannot be read is no switched-on queue
+        switch = {"on": False}
+    if switch.get("on"):
+        print(f"deploy: the release order {order} enters the project's admission queue first in its order "
+              f"(SPEC-1045 rule 2 (r))")
+        with admission_queue.deploy_run_entry(main=main_wt, append_event=append_event) as record:
+            _take()
+            yield {"targets": list(names), "record": record}
+    else:
+        _take()
+        yield {"targets": list(names), "record": None}
+
+
 def _pre_deploy_layer_shares(result) -> tuple:
-    """T-14190 (SPEC-1044 rule 3, SPEC-0152 rule 16 §pre_deploy_layer_worker_shares) — `({layer: share},
+    """T-14190 (SPEC-1051 rule 3, SPEC-0152 rule 16 §pre_deploy_layer_worker_shares) — `({layer: share},
     key)`: the share each layer of the run took, read off the runner's own layer rows
     (`declared_worker_share`, a lone-layer re-run's merged row included), and the table it came from —
     `pre_deploy_layer_worker_shares` when the run applied the project's pre-deploy table (the rows' own
@@ -4263,17 +4364,24 @@ def _pre_deploy_layer_costs(result) -> list:
     """PURE — T-14161 (SPEC-1042 rule 4): each layer's wall and summed process CPU in one pre-deploy run
     attempt, taken off the land runner's OWN layer rows (`result["layers"]`): `duration_ms` (the layer's
     wall, `_layer_duration_ms`) and `process_cpu_ms` (the summed CPU of the layer's own invocations,
-    `_LayerCpuSampler.finish`) — no reading of its own. One `{layer, duration_ms, process_cpu_ms}` per
-    named layer row, `retried: True` on a row a lone-layer re-run replaced (T-14158); a value that is not
-    a number >= 0 is None; a row that is not a mapping or names no layer is skipped; no rows -> []."""
+    `_LayerCpuSampler.finish`) — no reading of its own. One `{layer, duration_ms, process_cpu_ms,
+    started_at, ended_at}` per named layer row, `retried: True` on a row a lone-layer re-run replaced
+    (T-14158); a value that is not a number >= 0 is None; a row that is not a mapping or names no layer
+    is skipped; no rows -> []. T-14345: `started_at` / `ended_at` are the row's own UTC times
+    (`worktree._layer_duration_ms`), None when the row carries no string time (a layer that ran nothing)."""
     res = result if isinstance(result, dict) else {}
     rows = res.get("layers") if isinstance(res.get("layers"), list) else []
 
     def _ms(v):
         return int(round(v)) if isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 0 else None
 
+    def _at(v):
+        return v if isinstance(v, str) and v else None
+
     return [{"layer": r["layer"], "duration_ms": _ms(r.get("duration_ms")),
-             "process_cpu_ms": _ms(r.get("process_cpu_ms")), **({"retried": True} if r.get("retried") else {})}
+             "process_cpu_ms": _ms(r.get("process_cpu_ms")),
+             "started_at": _at(r.get("started_at")), "ended_at": _at(r.get("ended_at")),
+             **({"retried": True} if r.get("retried") else {})}
             for r in rows if isinstance(r, dict) and isinstance(r.get("layer"), str) and r["layer"]]
 
 
@@ -4288,7 +4396,8 @@ _SCHEDULED_RUN_FOREIGN = (("rollback", "--rollback"), ("rev", "<rev>"), ("expect
                           ("deploy_target", "--target"), ("deploy_class", "--class"),
                           ("owner_approved", "--owner-approved"), ("now", "--now"),
                           ("security_override_advisory", "--security-override-advisory"),
-                          ("security_override_reason", "--security-override-reason"))
+                          ("security_override_reason", "--security-override-reason"),
+                          ("release_order", "--release-order"))
 
 
 def _pre_deploy_scheduled_history(candidate, *, REPO_ROOT, _iter_events, _run_git_cap) -> dict:
@@ -4450,7 +4559,7 @@ def _scheduled_run(args, *, REPO_ROOT, _append_event, _main_worktree, _run_git_c
             sys.exit(3)
         unrecordable = _pre_deploy_recordable(names, REPO_ROOT=tmp, _record_probe=_record_probe)
         if unrecordable:
-            print("deploy --scheduled-run: REFUSED — this session cannot record the run's rows (SPEC-1044 rule 3, "
+            print("deploy --scheduled-run: REFUSED — this session cannot record the run's rows (SPEC-1051 rule 3, "
                   "recordability first). Failed check(s):\n" + "\n".join(f"  - {why}" for why in unrecordable)
                   + "\nNothing was run.", file=sys.stderr)
             sys.exit(3)
@@ -5000,7 +5109,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                _acquire_land_reservation=None, _land_reservation_path=None, _flock_holder=None,
                _flock_holder_record_path=None, _proc_starttime=None, _scan_procs=None,
                _land_hold=None, _stage6_land_verifies_beside=None, _pre_deploy_main_journal=None,
-               _live_task_worktrees=None, _session_contract=None) -> None:
+               _live_task_worktrees=None, _session_contract=None, _release_order=None) -> None:
     """Run the project-declared deploy/rollback command (the executable gate) + emit deploy_completed
     on exit-0 (SPEC-0094 §1). `--rollback` selects the `rollback:` section + records `kind: rollback`.
 
@@ -5041,12 +5150,22 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     Stage-6 run of the repository beside it — seen by `_pre_deploy_beside` over `_scan_procs`, or,
     seen by none, placed in the run's window by `_pre_deploy_journal_beside` over the main journal
     `_pre_deploy_main_journal` (lands, `_stage6_land_verifies_beside`) and the journals of
-    `_live_task_worktrees()` then main (Stage-6 runs)) is run once more; a GREEN run then takes the project's land reservation (`_acquire_land_reservation`,
-    `_pre_deploy_take_reservation`, its holder record at `_flock_holder_record_path` stamped with
-    `_proc_starttime`) before the §6
-    moment-(b) check, refusing with nothing launched when the land park limit is spent, and holds it
-    through the command and moment (c): what it holds goes into `_land_hold`, which the cli residue
-    empties when the verb ends (`_pre_deploy_release`; the OS releases it if the process dies)."""
+    `_live_task_worktrees()` then main (Stage-6 runs)) is run once more.
+
+    T-14325 (SPEC-1051 rule 3, SPEC-1045 rule 2 (r)) — BEFORE the run, the deploy enters the project's
+    admission queue as a `deploy` ticket when it is switched on (`admission.deploy_run_entry`, first in
+    the order), and at its pass (queue off: at once; a reused run: where the run would start) takes the
+    project's land reservation (`_acquire_land_reservation`, `_pre_deploy_take_reservation`, its holder
+    record at `_flock_holder_record_path` stamped with `_proc_starttime`), refusing with nothing run when
+    the land park limit is spent, then makes the §6 check once and refuses with no run when `main` moved.
+    It holds the reservation through the run, the command and moment (c): what it holds goes into
+    `_land_hold`, which the cli residue empties when the verb ends (`_pre_deploy_release`; the OS
+    releases it if the process dies).
+
+    T-14333 (SPEC-1051 rule 3) — `_release_order` ({targets, position, record}) marks this call as one
+    target of a release order whose hold (`release_order_hold`) is already taken: the gated block files no
+    ticket and takes no reservation (its run rows stamped with the order's pass `record` when there is
+    one), keeps its §6 check, and the deploy's row carries `release_order: {targets, position}`."""
     # --print-guard: emit the canonical guard snippet a consumer embeds in its deploy.sh (SPEC-0094 §1,
     # X-0160) + exit. A pure delivery surface — needs no ops carrier / -C context / git, so it is handled
     # FIRST, before any of the deploy machinery below.
@@ -5192,7 +5311,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         print(f"deploy: REFUSED — target `{pre_deploy_target}`"
               f"{' (the plain deploy, no --target)' if dtarget.name is None else ''} is guarded by "
               f"the pre-deploy class(es) "
-              f"{', '.join(pre_deploy_guarding)} (SPEC-1044 rule 3): a deploy to it first runs every "
+              f"{', '.join(pre_deploy_guarding)} (SPEC-1051 rule 3): a deploy to it first runs every "
               f"verify layer whole plus those classes on the exact revision it ships, so it REQUIRES "
               f"`--expect-revision <full commit id>` naming that revision. Nothing was run; no "
               f"deploy_completed emitted.", file=sys.stderr)
@@ -5206,7 +5325,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         if unrecordable:
             print(f"deploy: REFUSED — target `{dtarget.name}` is guarded by the pre-deploy class(es) "
                   f"{', '.join(pre_deploy_guarding)}, and this session cannot record the run's rows and "
-                  f"its own deploy rows (SPEC-1044 rule 3, recordability first). Failed check(s):\n"
+                  f"its own deploy rows (SPEC-1051 rule 3, recordability first). Failed check(s):\n"
                   + "\n".join(f"  - {why}" for why in unrecordable)
                   + "\nNothing was run (no gate, no pre-deploy run, no log); no deploy_completed emitted.",
                   file=sys.stderr)
@@ -5662,13 +5781,20 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # §9 window, before the moment-(b) check below, which so also covers the time the run took. A red
     # run refuses here, above the launch, so it writes no row of the deploy (its class rows are
     # written); nothing else starts a run and no earlier run's row stands in for this one.
+    # T-14325 / SPEC-1051 rule 3 — FIRST PLACE AND A STILL MAIN FOR THE RUN. With the project's
+    # admission queue on, the run enters it as a `deploy` ticket, which passes before every queued land
+    # and Stage-6 run (SPEC-1045 rule 2 (r)). At its pass (queue off: at once) the deploy takes the
+    # project's land reservation — the one lock a land holds through its verify and its move of `main` —
+    # and holds it to the verb's end, so a land started during the run parks instead of voiding it. It
+    # then asks the SPEC-0094 §6 question once before the run starts: a `main` that moved while the
+    # deploy waited costs no run. Refused above the launch, each of these writes no row of the deploy.
     pre_deploy_run_ref, pre_deploy_reused = None, False
     if pre_deploy_guarding:
         _main_wt = Path(_main_worktree(REPO_ROOT) or REPO_ROOT)
         _common = _pre_deploy_git_common_dir(_main_wt)
         _pdr = dict(candidate=expected_revision, target=pre_deploy_target, guarding=pre_deploy_guarding,
                     pre_deploy_classes=pre_deploy_classes, REPO_ROOT=REPO_ROOT, _run_git_cap=_run_git_cap,
-                    _append_event=_append_event, _iter_events=_iter_events,
+                    _iter_events=_iter_events,
                     _consumer_zero_probe_guard=_consumer_zero_probe_guard,
                     _pre_deploy_beside=((lambda: _pre_deploy_beside(_common, _scan_procs=_scan_procs))
                                         if _scan_procs is not None else None),
@@ -5685,47 +5811,84 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         pre_deploy_reused = _reuse["run"] is not None
         _opted = {"fingerprint": _reuse["fingerprint"], "reuse_bound": _reuse["bound"]} \
             if _reuse["fingerprint"] else {}
-        _run = _reuse["run"] if pre_deploy_reused else _pre_deploy_run(**_pdr, **_opted)
-        # T-14106: a timeout-only red with a verify beside it runs once more — never an unrecorded one
-        if _run["contended"] and not _run.get("unrecorded"):
-            _run = _pre_deploy_run(**_pdr, attempt=2, run_ref=_run["run_ref"], history=_run["history"], **_opted)
+        if _land_hold is None:
+            _land_hold = []              # a caller that releases nothing leaves it to process exit
+        _seam = (_acquire_land_reservation, _land_reservation_path, _flock_holder, _flock_holder_record_path,
+                 _proc_starttime)
+
+        def _hold_main_still():
+            if _release_order is not None:   # T-14333: the order already holds the reservation
+                _held, _why = True, ""
+            else:
+                _held, _why = (_pre_deploy_take_reservation(
+                    _main_wt, target=pre_deploy_target, candidate=expected_revision, hold=_land_hold,
+                    _acquire_land_reservation=_acquire_land_reservation,
+                    _land_reservation_path=_land_reservation_path,
+                    _flock_holder=_flock_holder, _flock_holder_record_path=_flock_holder_record_path,
+                    _proc_starttime=_proc_starttime)
+                    if all(f is not None for f in _seam) else (False, "this deploy was handed no land reservation seam"))
+            if not _held:
+                print(f"deploy: REFUSED — {_why}. The pre-deploy run of {expected_revision} was NOT started: it "
+                      f"runs only while this deploy holds the project's land reservation (SPEC-1051 rule 3). "
+                      f"The project `deploy:` command was NOT launched, so nothing was deployed; no "
+                      f"deploy_completed emitted.", file=sys.stderr)
+                sys.exit(3)
+            moved = _revision_recheck(
+                expected_revision, main_line_required=main_line_required, REPO_ROOT=REPO_ROOT,
+                _run_git_cap=_run_git_cap, _is_ignorable_dirt=_is_ignorable_dirt,
+                _git_resolve_sha=_git_resolve_sha) if expected_revision is not None else None
+            if moved:
+                print(f"deploy: REFUSED — the checkout stopped being the expected revision before the "
+                      f"pre-deploy run started (SPEC-0094 §6, SPEC-1051 rule 3): {moved}. The run was NOT "
+                      f"started and the project `deploy:` command was NOT launched, so nothing was deployed; "
+                      f"no deploy_completed emitted. Test the commit that is now at HEAD and re-run naming "
+                      f"it.", file=sys.stderr)
+                sys.exit(4)
+
+        def _hold_and_run(writer):
+            _hold_main_still()
+            if pre_deploy_reused:
+                return _reuse["run"]
+            run = _pre_deploy_run(**_pdr, _append_event=writer, **_opted)
+            # T-14106: a timeout-only red with a verify beside it runs once more — never an unrecorded one
+            if run["contended"] and not run.get("unrecorded"):
+                run = _pre_deploy_run(**_pdr, _append_event=writer, attempt=2, run_ref=run["run_ref"],
+                                      history=run["history"], **_opted)
+            return run
+
+        from lib import admission as admission_queue
+        _switch = {"on": False}
+        if not pre_deploy_reused and _release_order is None:
+            try:
+                _switch = admission_queue.switch(_main_wt)
+            except Exception as exc:  # noqa: BLE001 — a switch that cannot be read is no switched-on queue
+                _switch = {"on": False, "why": f"the switch could not be read ({exc!r})"}
+        if _switch.get("on"):
+            print(f"deploy: the pre-deploy run of {expected_revision} enters the project's admission queue "
+                  f"first in its order (SPEC-1045 rule 2 (r))")
+            with admission_queue.deploy_run_entry(main=_main_wt, append_event=_append_event) as _record:
+                _run = _hold_and_run(admission_queue.stamping(_append_event, _record,
+                                                              types=("test_class_executed",)))
+        elif _release_order is not None and _release_order.get("record") is not None:
+            _run = _hold_and_run(admission_queue.stamping(_append_event, _release_order["record"],
+                                                          types=("test_class_executed",)))
+        else:
+            _run = _hold_and_run(_append_event)
         if _run.get("unrecorded"):
             print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} "
                   f"({'not started' if _run.get('not_started') else 'green' if _run['passed'] else 'RED'}) "
                   f"could not be recorded: {_run['unrecorded']} "
-                  f"(SPEC-1044 rule 3 — a command is never launched beside an unrecorded run). Its log "
+                  f"(SPEC-1051 rule 3 — a command is never launched beside an unrecorded run). Its log "
                   f"is kept at {_run['log']}. The project `deploy:` command was NOT launched, so nothing "
                   f"was deployed; no deploy_completed emitted.", file=sys.stderr)
             sys.exit(3)
         if not _run["passed"]:
             print(f"deploy: REFUSED — the pre-deploy run {_run['run_ref']} of {expected_revision} is RED "
-                  f"(SPEC-1044 rule 3); its report above names every failing unit. The project "
+                  f"(SPEC-1051 rule 3); its report above names every failing unit. The project "
                   f"`deploy:` command was NOT launched, so nothing was deployed; no deploy_completed "
                   f"emitted. The next deploy starts a new run on its own candidate.", file=sys.stderr)
             sys.exit(3)
         pre_deploy_run_ref = _run["run_ref"]
-        # T-14106 / SPEC-1042 rule 3 — HOLD THE PROJECT'S LANDS OFF FOR THE COMMAND. The run held
-        # nothing; now take the land reservation every land holds through its verify and its move of
-        # `main`, waiting as a parked land waits, and only then make the moment-(b) check below, which
-        # so covers the run AND the wait. Held through the command and moment (c), released when the
-        # verb ends. Refused above the launch, so it writes no row of the deploy.
-        if _land_hold is None:
-            _land_hold = []              # a caller that releases nothing leaves it to process exit
-        _seam = (_acquire_land_reservation, _land_reservation_path, _flock_holder, _flock_holder_record_path,
-                 _proc_starttime)
-        _held, _why = (_pre_deploy_take_reservation(
-            _main_wt, target=pre_deploy_target, candidate=expected_revision, hold=_land_hold,
-            _acquire_land_reservation=_acquire_land_reservation, _land_reservation_path=_land_reservation_path,
-            _flock_holder=_flock_holder, _flock_holder_record_path=_flock_holder_record_path,
-            _proc_starttime=_proc_starttime)
-            if all(f is not None for f in _seam) else (False, "this deploy was handed no land reservation seam"))
-        if not _held:
-            print(f"deploy: REFUSED — {_why}. The pre-deploy run {pre_deploy_run_ref} of {expected_revision} "
-                  f"is green, but the command runs only while this deploy holds the project's land "
-                  f"reservation (SPEC-1044 rule 3). The project `deploy:` command was NOT launched, so "
-                  f"nothing was deployed; no deploy_completed emitted. The next deploy runs again on its "
-                  f"own candidate.", file=sys.stderr)
-            sys.exit(3)
 
     # T-13874 / SPEC-0094 §6, moment (b) — the gates above can run for minutes (a Class-C1 dump, the
     # security-audit producer), and a `land` in that time moves the tree the command is about to build.
@@ -5754,6 +5917,9 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     failure_base = {"revision": revision, "project": project, "kind": kind, **admission}
     if dtarget.name is not None:
         failure_base["target"] = dtarget.name
+    if _release_order is not None:              # T-14333 / SPEC-1051 rule 3: the order this target is in
+        failure_base["release_order"] = {"targets": list(_release_order["targets"]),
+                                         "position": _release_order["position"]}
     if pre_deploy_run_ref is not None:          # T-14105 / SPEC-1042 rule 4: the run this deploy ran
         failure_base["pre_deploy_run_ref"] = pre_deploy_run_ref
         if pre_deploy_reused:                   # T-14160: it stood on an earlier run, and says so
@@ -5919,6 +6085,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
 
     # Convergence verified (or nothing declared): the revision is live. Emit the governed adoption record.
     payload = {"revision": revision, "project": project, "kind": kind}
+    if _release_order is not None:              # T-14333 / SPEC-1051 rule 3
+        payload["release_order"] = failure_base["release_order"]
     # T-13962 / SPEC-0094 §9 — how this deploy was admitted: the outcome, the wait and the load1 read
     # at its start, as land_completed carries its admission wait. Fields on the existing row.
     payload.update(admission)

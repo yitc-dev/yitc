@@ -11558,10 +11558,11 @@ _NEW_PROJECT_NAME_RE = r"^[a-z0-9][a-z0-9-]{0,39}$"
 def _home_picker_body(engine_root) -> str:
     cli = f"{engine_root}/bin/yitc-v2"
     return ("Show the projects on this machine and enter the one the person chooses.\n\n"
-            "Answer the person in the language the person writes in — every message, this one included. "
-            "If the person has written nothing yet except this command, use the language their own "
-            "user-level AI instructions name (the ones already loaded in this session — open no file for "
-            "this); if they name none, stay in the language of this text until the person writes.\n\n"
+            "Answer the person in the user's language — every message, this one included. Determine it in "
+            "this order: the language the instructions already loaded in this session name (user-level, or "
+            "the directory's or project's — open no file for this); else the language the person writes in; "
+            "while neither names one and the person has not written, the language of this text. (The order's "
+            "home is the engine's SPEC-0086 rule 6f(d).)\n\n"
             "1. Run this and show its list to the person:\n\n"
             f"```\n{cli} session pick\n```\n\n"
             "2. Ask which project they want as plain text in the chat — never a form, a menu or buttons; "
@@ -11591,7 +11592,8 @@ def _home_picker_body(engine_root) -> str:
 # 7bd9967738 = the T-13386 body T-13491 replaced, 549f8b4126 = the T-13491 body T-13504 replaced — the last
 # one that told the AI to say the come-back line at every start; station [A] Start says it once now;
 # the T-13504 body T-13527 replaced — its step 4 said "first message" and named no moment; the T-13527 body
-# T-13955 replaced — its step 4 sent the start line before the handbook and never said to continue).
+# T-13955 replaced — its step 4 sent the start line before the handbook and never said to continue; the
+# T-13955 body T-14362 replaced — it named user-level instructions only and put the person's writing first).
 # A command file matching one of these (or the current body) is engine-written and is refreshed on install;
 # anything else is a person's and is left. When `_home_picker_body` changes, add the outgoing body's digest.
 _HOME_PICKER_ENGINE_DIGESTS = frozenset({
@@ -11603,6 +11605,7 @@ _HOME_PICKER_ENGINE_DIGESTS = frozenset({
     "7c8891caea470c7c2d25e63bb1d38d33e7c63dfeb145be57420065461b91b3f0",
     "4205c0c9dcef3701a51b6c4cb2427a69fb1a9b032084193ef2830dc1825b7a20",
     "834d042ddeb48fedaa714817b7698a467ec5af5e8aedfe07ec44daef5da3db29",
+    "bc0ea60857f35772d36aa58a26e9cd222518fdab43888b7ee0d4dadbabe3379f",
 })
 
 

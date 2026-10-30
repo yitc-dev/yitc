@@ -204,8 +204,23 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ any plan change does. For an audit-exempt\n  card (hygiene, or a declared SPEC-0178\
   \ case) the fix is an ordinary `task commit` and the card\n  goes Commit → Tests\
   \ → Closure again, its exemption unchanged. A re-run of Tests on the SAME commit\n\
-  \  (an environmental failure, no new commit) needs no re-audit.\n- **Closure-time\
-  \ coverage.** `task close` asks one question of the journal: is the newest\n  runner-marked\
+  \  (an environmental failure, no new commit) needs no re-audit.\n- **A measurement\
+  \ card — readings OF governed runs.** A card whose deliverable is a reading of\n\
+  \  the governed runs `task test --run` records (how a selection, a skip set or a\
+  \ share behaves on\n  such runs) cannot take that reading before its first commit:\
+  \ a governed run needs a recorded\n  commit, and none exists yet. It names this\
+  \ route in its plan at Analysis and uses only these\n  verbs — no other run form,\
+  \ no other flag, and no change to what a governed run credits:\n  (1) ship the instrument\
+  \ with its readings marked not yet taken — `task commit`;\n  (2) audit that ship\
+  \ — `audit post`;\n  (3) take the readings from governed runs on the audited commit\
+  \ — `task test --run --evidence`,\n  which runs and records while the pointer waits\
+  \ at Audit-post (§Position above);\n  (4) ship the readings by the re-ship arm the\
+  \ verdict admits — `task commit --reship` after\n  GREEN, `task commit --absorb`\
+  \ after YELLOW — then audit the new commit with\n  `audit post --commit <new>`;\n\
+  \  (5) Tests and Closure as for any card — `task test --run --evidence`, then `task\
+  \ close`.\n  A reading run never covers Closure: it precedes the commit that ships\
+  \ the readings\n  (§Closure-time coverage below).\n- **Closure-time coverage.**\
+  \ `task close` asks one question of the journal: is the newest\n  runner-marked\
   \ governed run recorded after the card's LAST SUBSTANTIVE COMMIT green? That commit\
   \ is\n  the card's newest `commit_landed` whose commit changes at least one path\
   \ outside the inert\n  bookkeeping paths — the inert-path classification the land's\
@@ -543,22 +558,27 @@ body: "## Scenario\n\nA Build session runs a task through nine stages, in the or
   \ handed between the signal handler, the runners and a\ndeadline ran while a sibling\
   \ layer's group lived, and the layer's bound stopped applying once its\ncommand\
   \ had exited. The rule above keeps one writer that runs after every runner has returned.\n\
-  \n## Implementation notes\n\nNotes for the maintainer of the code, moved word for\
-  \ word out of the rule text of the section\neach names.\n\n- From «Stage FSM per\
-  \ class»: Code: `bin/lib/gates.py#stage_pointer_move` +\n  `#advance_stage_pointer`;\
-  \ verifier `tests/test_stage_pointer_advance.py`.\n\n### Moved from the rule body\n\
-  \n- From «Stage 3 — Plan (detail) — REPEATED-WORK STATEMENT»: The cue is where the\
-  \ cost is cheapest\n  to remove; the enforcement, such as it is, is the audit-pre\
-  \ lens question (<workshop-spec> §Universal\n  V2 evaluation lens).\n- From «Plan-entry\
-  \ pre-flight checklist (GREEN-first)»: Pre-flight self-check, NOT a new gate —\n\
-  \  audit-pre (<workshop-spec>) stays the enforcer.\n- From «Stage 5 — Execution\
-  \ (detail) — Reopen boundary»: This adds no new guard and no new\n  fingerprint\
-  \ of its own — it just reuses that rule.\n- From «Stage FSM per class — what does\
-  \ NOT change»: No new field, status, event type, verb or\n  state machine is added\
-  \ — the successor relation is a READ of the row this section already\n  publishes,\
-  \ and the write goes through the same `_write_task_transition` the `stage` verb\
-  \ uses\n  (CHARTER non-goal #7 holds; this is not a workflow-engine FSM).\n\n##\
-  \ Verification\n\nOrder-change probes (plan `run-the-full-governed-test-stage-after-audit-post-`):\
+  \n### A measurement card\n\nA consumer card measuring governed runs (cryptochart,\
+  \ public issue #217 item 2) shipped an\nempty readings table, passed audit-post,\
+  \ took its readings at Audit-post and re-shipped: no rule\nnamed that route, so\
+  \ the worker found it by trial. The owner ruled it a rules clarification only\n\
+  — no new run form, no new flag, no change to what a governed run credits\n(events.jsonl#ts=)\
+  \ — so the §Tests bullet names verbs that already exist.\n\n## Implementation notes\n\
+  \nNotes for the maintainer of the code, moved word for word out of the rule text\
+  \ of the section\neach names.\n\n- From «Stage FSM per class»: Code: `bin/lib/gates.py#stage_pointer_move`\
+  \ +\n  `#advance_stage_pointer`; verifier `tests/test_stage_pointer_advance.py`.\n\
+  \n### Moved from the rule body\n\n- From «Stage 3 — Plan (detail) — REPEATED-WORK\
+  \ STATEMENT»: The cue is where the cost is cheapest\n  to remove; the enforcement,\
+  \ such as it is, is the audit-pre lens question (<workshop-spec> §Universal\n  V2\
+  \ evaluation lens).\n- From «Plan-entry pre-flight checklist (GREEN-first)»: Pre-flight\
+  \ self-check, NOT a new gate —\n  audit-pre (<workshop-spec>) stays the enforcer.\n\
+  - From «Stage 5 — Execution (detail) — Reopen boundary»: This adds no new guard\
+  \ and no new\n  fingerprint of its own — it just reuses that rule.\n- From «Stage\
+  \ FSM per class — what does NOT change»: No new field, status, event type, verb\
+  \ or\n  state machine is added — the successor relation is a READ of the row this\
+  \ section already\n  publishes, and the write goes through the same `_write_task_transition`\
+  \ the `stage` verb uses\n  (CHARTER non-goal #7 holds; this is not a workflow-engine\
+  \ FSM).\n\n## Verification\n\nOrder-change probes (plan `run-the-full-governed-test-stage-after-audit-post-`):\
   \ the rows admit exactly the forward edges of the\ntable above plus the `absorb`\
   \ / `return` / `exempt` moves and refuse every other move\n(tests/test_stage_pointer_advance.py,\
   \ extended); an own-tests row is never credited by land, never\ncounted as the governed\
@@ -652,11 +672,11 @@ supersedes: null
 activation_owner_task: null
 proposed_by: run-the-full-governed-test-stage-after-audit-post-
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e8d9c31ad96b9cc54344353a72d2f85e04034df0a9524985844ceae4a666b5a8
+  bin/lib/audit.py#cmd_audit: 2db56481872d8f18a37b3bbe319ef0a3d91140f90a87f269bdfe8e83844b76bd
   bin/lib/gates.py#advance_stage_pointer: f2c4432ca2437c59d0d708dc73e7fb9f64d57d610427925044db52f8a0c05089
   bin/lib/gates.py#stage_pointer_move: a4d7b90fa1c95f4ce44d604dcaa78fd898bbcb079543dcf990c91e7efc7e76a3
   bin/lib/task.py#cmd_task_close: 82d6fa48886117506a2185ef696441562db851d77d6fcf7d7fcb532310c192ab
-  bin/lib/task.py#cmd_task_commit: 492e1b1862ee599790f2f062d2e0f991f7cf078bc29a24e61a7b12a6cc36260e
+  bin/lib/task.py#cmd_task_commit: 1b30e81218e26b333fb7fe1f26f3bc68766031ae17c16adf6c57957aa16f4540
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
-  bin/lib/task.py#cmd_task_test: 9902f9c250792a2f35dd856ca4d019793ca592cf4ade97d4d55c8e3be4b856d0
+  bin/lib/task.py#cmd_task_test: 27bf375237cf27bd8e820bcb9e80e50d657051aaa306b5c41dd122ba8a96b550

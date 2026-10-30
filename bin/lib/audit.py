@@ -5818,6 +5818,44 @@ def test_found_fix_window_can_open(tid, rows, *, resolve) -> bool:
     return bool(facts) or str(why or "").startswith(TEST_FOUND_FIX_REOPENABLE)
 
 
+def ceiling_fix_commit_open(tid, rows) -> tuple:
+    """T-14339 (X-2119) — may `task commit --fix-red` commit an in-scope fix AT the audit-post ceiling
+    row? The fix disposition's order is: the fix commit FIRST, then `audit decide --disposition fix
+    --evidence <that sha>` (which refuses any revision that is not a recorded commit strictly
+    descending the audited one), then the ONE bounded `--on-decisions` pass. So the commit door must
+    stay open while that pass has not run, and close once it has (a rule-3 RED is TERMINAL,
+    SPEC-1039 rules 3-4).
+
+    Reads the card's REAL `(task, post)` completion rows (the same read the T-14090 window uses,
+    phantom rule-3 rows dropped). Open — `(True, None)` — ONLY when every row with a real verdict is
+    an ORDINARY pass (no `basis`, or the no-pass `currency` basis) and the newest of them is RED. Any
+    other basis — on-decisions, its absorption re-audit, merge-integration, test-found-fix, or one
+    this reader does not know — means the row's one bounded pass or a later exit has run: closed.
+    Else `(False, reason)`, the reason NAMED. Pure f(rows); fail-closed on every unreadable input."""
+    try:
+        _rows, real = _test_found_fix_inputs(tid, rows)
+        verdicts = []
+        for r in real:
+            d = r.get("data") if isinstance(r.get("data"), dict) else {}
+            if str(d.get("verdict") or "").strip().upper() not in ("GREEN", "YELLOW", "RED"):
+                continue
+            basis = str(d.get("basis") or "")
+            if basis == CURRENCY_BASIS:
+                continue
+            if basis:
+                return False, (f"ceiling_pass_spent: an audit-post pass with basis `{basis}` is recorded "
+                               f"for {tid} ({r.get('ts')}) — the ceiling row's one bounded pass, or a "
+                               f"later exit, has already run")
+            verdicts.append(str(d.get("verdict")).strip().upper())
+    except Exception:   # noqa: BLE001 — an unreadable journal opens nothing (fail-closed)
+        return False, "journal_unreadable: the card's audit-post rows could not be read"
+    if not verdicts:
+        return False, f"no_ceiling_row: no recorded audit-post verdict for {tid}"
+    if verdicts[-1] != "RED":
+        return False, f"ceiling_row_not_red: the newest audit-post verdict for {tid} is {verdicts[-1]}"
+    return True, None
+
+
 def test_found_fix_admission_for(tid, rows, *, custody_sha, resolve, strict_descendant) -> tuple:
     """T-14090 — the host binding of `audit_ceiling.test_found_fix_admission` (the AUDIT door)."""
     rows, real = _test_found_fix_inputs(tid, rows)
@@ -6893,7 +6931,8 @@ RETIRED_CEILING_POINTER = (
     "typed decision per residual of the ceiling row — `yitc-v2 audit decide --task <T-XXXX> --stage "
     "<pre|post> --finding <fp1:...> --disposition <fix|accept|defer> --reason \"<why>\" --directive "
     "<events.jsonl#ts=...> [--evidence <revision>]` (rule 2; a `fix` REQUIRES --evidence: the fixing "
-    "commit at post, the card's current plan fingerprint at pre); then (2) ONE bounded pass runs on those decisions — `yitc-v2 "
+    "commit at post — committed FIRST with `task commit --fix-red`, admitted at the ceiling row until "
+    "its bounded pass runs — the card's current plan fingerprint at pre); then (2) ONE bounded pass runs on those decisions — `yitc-v2 "
     "audit pre|post --task <T-XXXX> --on-decisions --sweep '<where you looked for the same defect class and what you found>'` (rule 3). A dispatched WORKER never decides: it "
     "halts with `blocked-on-land` naming its residual fingerprints and the Controller decides.")
 
@@ -8482,7 +8521,8 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
                                         worktree=None,
                                         spent_green=None,
                                         merge_integration_refusal=None,
-                                        test_found_fix_open=False) -> "list[str]":
+                                        test_found_fix_open=False,
+                                        residual_records=None) -> "list[str]":
     """T-9618 / SPEC-0204 rule 6 — the audit-loop-ceiling halt of a DISPATCHED worker.
 
     A worker (`worker_ref` truthy = `YITC_EXPECTED_SESSION_REF` set) that reaches the ceiling emits a
@@ -8585,10 +8625,14 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
     # refused or records an uncorrectable decision against a residual that is not on the row. Rendering
     # from the emitted list rather than re-deriving is the whole point: there is no second derivation
     # for a divergence to live in.
+    # T-14356 (X-2131) — each id beside WHICH finding it stands for (`<key> - <what> @ <where>`, from
+    # `residual_records`, the caller's `residual_finding_records` map); an id with no record is printed
+    # `- finding not found`, never dropped. The ids themselves are still `fingerprints`, verbatim.
     if fingerprints:
         _fp_render = (f" Residual fingerprints, VERBATIM — COPY these, never re-type or re-derive them "
                       f"(they are `residual_fingerprints` on the bg_dispatch_halted row just emitted): "
-                      + ", ".join(fingerprints) + ".")
+                      + "; ".join(audit_ceiling.residual_key_listing(fingerprints, residual_records))
+                      + ".")
     else:
         # The EMPTY case says so rather than reporting «0», and makes NO existence claim about a file
         # it has not read (audit-pre finding fp1:54ebf912578004e7): the row it names is the one this
@@ -11239,8 +11283,14 @@ class InlinedCorpus(tuple):
     the doubles tests inject into `cmd_audit_adhoc` return a bare 3-tuple, so the cut rides along
     without changing the shape any of them reads. `truncated` holds, in inlining order, one
     `{"path", "kept_bytes", "total_bytes"}` entry per file cut at the per-file cap. It is a RETURNED
-    signal: a value without the attribute (a bare tuple) reports no cut."""
+    signal: a value without the attribute (a bare tuple) reports no cut.
+
+    `not_inlined` (T-14357, X-2135) holds, in reference order, every REFERENCED PATH the inliner did
+    not inline — a directory, a path absent from this checkout or outside its root, an unreadable
+    file, a file past INLINE_CORPUS_MAX_FILES. The verb keeps read-only file tooling on while it is
+    non-empty and names each entry. A bare tuple carries none."""
     truncated = ()
+    not_inlined = ()
 
 
 def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS_MAX_FILES, INLINE_CORPUS_PATH_RE, REPO_ROOT) -> tuple[str, list[str], int]:
@@ -11287,9 +11337,29 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
     blocks: list[str] = []
     inlined_bytes = 0
     cut: list[dict] = []   # T-13898 — one entry per file the per-file cap cut
+    # T-14357 (X-2135) — a token is a REFERENCED PATH when it carries a "/" or names something that
+    # exists under the corpus root; one the loop below does not inline is listed, so the caller can
+    # keep file tooling on for it. A bare dotted token naming nothing here («e.g», «2.5») is prose
+    # and is not listed — counting it would keep tooling on for almost every prompt.
+    not_inlined: list[str] = []
+
+    def _referenced_path(spelling: str):
+        """The name to report for a referenced path `spelling` that was not inlined, else None."""
+        name = spelling.rstrip(".") or spelling
+        if "/" in name:
+            return name
+        try:
+            exists = (REPO_ROOT / name).exists()
+        except (OSError, ValueError):
+            exists = False
+        return name if exists else None
+
+    def _not_inlined(spelling: str) -> None:
+        name = _referenced_path(spelling)
+        if name and name not in not_inlined:
+            not_inlined.append(name)
+
     for tok in candidates:
-        if len(inlined_paths) >= INLINE_CORPUS_MAX_FILES:
-            break
         found = _corpus_file(tok)
         if found is None and tok.endswith("."):
             # T-13861 — a path that ends a sentence carries the full stop into its token
@@ -11301,13 +11371,18 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
             if bare and not bare.endswith("/"):
                 found = _corpus_file(bare)
         if found is None:
+            _not_inlined(tok)
             continue
         real, rel = found
         if real in seen_real:
             continue
+        if len(inlined_paths) >= INLINE_CORPUS_MAX_FILES:
+            _not_inlined(rel)   # past the count cap — named, never silently dropped (T-14357)
+            continue
         try:
             raw = real.read_bytes()
         except OSError:
+            _not_inlined(rel)
             continue
         seen_real.add(real)
         truncated = ""
@@ -11322,11 +11397,19 @@ def _inline_corpus_files(request: str, *, INLINE_CORPUS_MAX_BYTES, INLINE_CORPUS
         inlined_bytes += len(raw)  # T-9328 — raw attached byte count (post-truncation), NOT decoded chars
 
     if not inlined_paths:
-        return "", [], 0
+        empty = InlinedCorpus(("", [], 0))
+        empty.not_inlined = not_inlined
+        return empty
     header = ("\n\n--- inlined corpus files (auto-attached for --read-corpus; the auditor has no "
               "file tooling — read these inline) ---\n")
+    if not_inlined:
+        # T-14357 — tooling stays on for the paths not inlined, so the header must not deny it.
+        header = ("\n\n--- inlined corpus files (auto-attached for --read-corpus — read these inline; "
+                  "read-only file tooling is available for the referenced paths not inlined: "
+                  + ", ".join(not_inlined) + ") ---\n")
     inlined = InlinedCorpus((header + "\n\n".join(blocks), inlined_paths, inlined_bytes))
     inlined.truncated = cut
+    inlined.not_inlined = not_inlined
     return inlined
 
 
@@ -13216,9 +13299,13 @@ def _scoped_ceiling_decisions(events_path, tid, event_task_id) -> "list | None":
     legs = [journal_mod.scope_needle_rows(events_path, str(tid))]
     main = scope.audit_pre_main
     if main is not None:
-        # declared late, before MAIN's lazy walk: a walk already run for the session refs declines
-        legs.append(journal_mod.scope_needle_rows(main, str(tid))
-                    if journal_mod.scope_add_needles(main, str(tid)) else None)
+        # declared late, before MAIN's lazy walk: a walk already run for the session refs declines.
+        # T-14338 — a walk already run WITH the task needle (another reader declared it first, e.g. the
+        # pre packet's `state_checked` read) serves it: `add_needles` answers False once the walk ran.
+        _held = journal_mod.scope_of(main)
+        _declared = journal_mod.scope_add_needles(main, str(tid)) or (
+            _held is not None and _held.has_needle(str(tid)))
+        legs.append(journal_mod.scope_needle_rows(main, str(tid)) if _declared else None)
     if any(rows is None for rows in legs):
         return None
     return [ev for rows in legs for ev in rows
@@ -13529,6 +13616,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                     # T-12614 redirect so its target is the SETTLED subject.
     merge_integration_reaudit = None   # T-13260 — the admitted post-GREEN merge-integration evidence
     merge_integration_refusal = None   # T-13260 — why it was NOT admitted (appended to the ceiling refusal)
+    od_merge_follows = None            # T-14330 — (evidence, refusal) of that route, asked on the `--on-decisions` leg
     sync_merge_below_ceiling = None    # T-14181 — the same evidence, admitted BELOW the ceiling (ordinary pass)
     test_found_fix_reaudit = None      # T-14090 — the admitted test-found-fix evidence (SPEC-1041 «Rule 4»)
     test_found_fix_refusal = None      # T-14090 — why it was NOT admitted (appended to the ceiling refusal)
@@ -14378,7 +14466,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # re-points the subject to M — an ORDINARY counted pass: no basis, no marker, not one-shot,
             # not final — and a refusal stays silent (the ordinary subject A, as before). At/past the
             # ceiling nothing changes.
-            if (ordinary_subject and stage == "post" and not on_decisions and not _t12614_ship
+            # T-14330 — asked on the `--on-decisions` leg too, only to REFUSE that pass below while the
+            # route is open (it would judge the pre-merge commit); it never re-points that leg's subject.
+            if (ordinary_subject and stage == "post" and not _t12614_ship
                     and not _t13256_ship and _iter_events is not None):
                 _mi_at_ceiling = _count_audit_passes(tid, "post") >= AUDIT_PASS_CEILING
                 def _mi_git(_args):
@@ -14414,7 +14504,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                         transparent=lambda _c, _t: _card_repair_chain_transparent(
                             _c, _t, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths,
                             REPO_ROOT=REPO_ROOT)))
-                if _mi_at_ceiling:
+                if on_decisions:
+                    od_merge_follows = (_mi_ev, _mi_refusal)
+                elif _mi_at_ceiling:
                     merge_integration_reaudit, merge_integration_refusal = _mi_ev, _mi_refusal
                     if merge_integration_reaudit:
                         print(f"# {tid} audit-post: POST-GREEN MERGE INTEGRATION — the GREEN at {sha[:12]} "
@@ -14434,6 +14526,39 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                           file=sys.stderr)
                     _t13256_ship, sha, audited_span = sha, (_mi_ev.get("resign_commit")
                                                             or _mi_ev["merge_commit"]), None
+                elif _mi_refusal:
+                    # T-14342 (yitc#214) — below the ceiling a refused admission was SILENT, so a pass
+                    # re-audited the pre-merge commit and the land refused the merge on SPEC-0077 §3a.
+                    # When the card's latest hand-resolved merge is in HEAD but not in the recorded
+                    # commit, refuse naming the failed condition instead (no auditor, no pass). A
+                    # recorded commit that already contains the merge, a sync no longer in HEAD, or an
+                    # unanswerable ancestry keeps the ordinary subject.
+                    _mi_sync = None
+                    for _r in _mi_view["rows"] or ():
+                        if (isinstance(_r, dict) and _r.get("type") == "merge_resolved_by_hand"
+                                and str(_r.get("task_id") or "") == str(tid)):
+                            _mi_sync = _r
+                    _mi_m = _git_resolve_sha(str(((_mi_sync or {}).get("data") or {}).get("merge_commit")
+                                                 or "")) if _mi_sync else None
+                    _mi_head = _git_resolve_sha("HEAD")
+                    if (_mi_m and _mi_head
+                            and (_mi_m == _mi_head
+                                 or _git_strict_descendant(_mi_m, _mi_head, repo_root=REPO_ROOT) is True)
+                            and _git_strict_descendant(sha, _mi_m, repo_root=REPO_ROOT) is True):
+                        try:
+                            _append_event("read_gate_refused", tid, {
+                                "verb": "audit post", "action": "audit the recorded commit",
+                                "kind": "merge-follows", "stage": stage,
+                                "reason": str(_mi_refusal).split(":", 1)[0],
+                                "merge_commit": _mi_m})
+                        except (Exception, SystemExit):     # noqa: BLE001 — never mask the refusal
+                            pass
+                        _die(f"audit post: {tid}: the governed `worktree sync --resolved` merge "
+                             f"{_mi_m[:12]} follows the recorded commit {sha[:12]}, but it is not "
+                             f"admitted as this pass's subject — {_mi_refusal}. Auditing {sha[:12]} "
+                             f"would leave the merge unaudited and `land` would refuse it (SPEC-0077 "
+                             f"§3a). Fix that condition, then re-run `yitc-v2 audit post --task {tid}` "
+                             f"(T-14342; SPEC-1018 «Exits from a spent GREEN»).")
             # T-14090 (SPEC-1041 «Rule 4 — custody») — THE ONE ORDINARY audit-post past the ceiling on an
             # in-scope fix answering a red governed Tests run recorded after the card's GREEN rule-3 pass
             # (yitc#168): no residual exists for `audit decide` and the row's bounded pass is spent, so
@@ -15194,6 +15319,20 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                            f"SPEC-1041 «Rule 4 — custody»). A YELLOW there proceeds to closure with its "
                            f"findings filed as a followup (LIFECYCLE §Stage 7); a RED is terminal.",
                            {"test_found_fix_at": _od_tff_row.get("ts")})
+            # T-14330 — a governed hand-resolved merge follows the recorded commit and its own route is
+            # open (admitted, or waiting only on the Stage-6 run after the merge): this pass would judge
+            # the pre-merge commit and leave the merge unaudited, so it is refused and the route named.
+            _od_mf_ev, _od_mf_why = od_merge_follows or (None, None)
+            if _od_mf_ev or str(_od_mf_why or "").startswith("stage6_evidence_predates_merge"):
+                _od_refuse("merge-follows", "merge_integration_route_open",
+                           f"{tid} audit-{stage}: a governed `worktree sync --resolved` merge follows the "
+                           f"recorded commit {sha[:12]} — an `--on-decisions` pass would judge the "
+                           f"pre-merge commit and leave the merge unaudited (T-14330). Run the ordinary "
+                           f"`yitc-v2 audit post --task {tid}`"
+                           + (f" after `yitc-v2 task test {tid} --run --evidence` at the merge"
+                              if _od_mf_why else "")
+                           + " — it audits the merge (SPEC-1018 «Post-GREEN merge integration»).",
+                           {"merge_commit": (_od_mf_ev or {}).get("merge_commit")})
             if _od_ceiling_row is None:
                 _od_refuse("below-ceiling", "no_completion_row",
                            f"{tid} audit-{stage} has no `external_audit_completed` row in the journal "
@@ -15665,7 +15804,12 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     spent_green=ceiling_spent_green,
                     merge_integration_refusal=merge_integration_refusal,
                     # T-14178 — and names the test-found-fix exit while that window can still open.
-                    test_found_fix_open=ceiling_tff_open):
+                    test_found_fix_open=ceiling_tff_open,
+                    # T-14356 — and which finding each fingerprint stands for, off the rows and the
+                    # record this seam already read (no second read).
+                    residual_records=residual_finding_records(
+                        _od_stage_rows, ceiling_residual_fingerprints, tid, stage,
+                        repo_root=[REPO_ROOT], record=_ceiling_prior)):
                 print(_ln, file=sys.stderr)
         # SPEC-0204 rule 6 (T-12290) — ONE forward path, named once. The three hints that used to
         # branch here (the spent-reset consult re-open, the dispatched-worker auto-consult, the
@@ -18774,12 +18918,14 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     full = not args.routine
     read_corpus = bool(getattr(args, "read_corpus", False))   # T-0713 — opt-in corpus-read mode
     # T-9318: --read-corpus auto-inlines the referenced corpus files into the prompt (the auditor
-    # declines `-s read-only` file tooling and asks for inline content — F-020). When at least one
-    # referenced file is inlined we do NOT request the no-op tooling; if none is inlinable we fall
-    # back to the prior tooling path so behaviour is never worse than before.
+    # declines `-s read-only` file tooling and asks for inline content — F-020). When every
+    # referenced path is inlined we do NOT request the no-op tooling; if any referenced path could
+    # not be inlined (a directory, a path absent here, one past the count cap) tooling stays on and
+    # each such path is named — else the auditor could read none of them and ABORTs (T-14357, X-2135).
     inlined_corpus_files: list[str] = []
     inlined_corpus_bytes = 0
     inlined_corpus_truncated: list[dict] = []   # T-13898 — files the per-file cap cut
+    not_inlined_corpus_paths: list[str] = []    # T-14357 — referenced paths not inlined
     use_tooling = read_corpus
     if read_corpus:
         _inlined = _inline_corpus_files(request)
@@ -18787,9 +18933,10 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         # T-13898 (X-1939): the cuts ride on the returned value as an attribute (`InlinedCorpus`);
         # a bare tuple — an injected double — carries none.
         inlined_corpus_truncated = list(getattr(_inlined, "truncated", None) or [])
+        not_inlined_corpus_paths = list(getattr(_inlined, "not_inlined", None) or [])
         if inlined_corpus_files:
             request = request + inlined_block
-            use_tooling = False
+            use_tooling = bool(not_inlined_corpus_paths)
     # T-9637 (X-0125): --sweep-file inlines EXPLICIT pre-computed journal/git sweep files into the
     # prompt, so a -C external blind pass on journal/git-grounded themes (T3 AI-execution / T5 meta-loop)
     # receives DATA instead of NO-DATA. Sibling input channel to --read-corpus (SAME prompt, SAME
@@ -18823,6 +18970,11 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         print(f"# NOTE ({slug}): --read-corpus cut {_cut['path']!r} at the per-file cap — the auditor "
               f"receives its first {_cut['kept_bytes']} of {_cut['total_bytes']} bytes; the remaining "
               f"{_cut['total_bytes'] - _cut['kept_bytes']} bytes are NOT in the prompt.", file=sys.stderr)
+    # T-14357 (X-2135) — REPORT-ONLY, one line per referenced path not inlined, before the auditor
+    # is invoked: the auditor reads it through the read-only file tooling kept on above.
+    for _path in not_inlined_corpus_paths:
+        print(f"# NOTE ({slug}): --read-corpus did not inline {_path!r} — read-only file tooling "
+              f"stays on so the auditor can read it.", file=sys.stderr)
 
     provider = _resolve_audit_provider(full)   # T-12350: decides admission (SPEC-0201 rule 1)
     model = resolve_model_for_provider(_resolve_audit_model, full, provider)
@@ -18836,6 +18988,9 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
     if read_corpus:
         _corpus_tag = (f" [corpus-read: {len(inlined_corpus_files)} inlined]"
                        if inlined_corpus_files else " [corpus-read: tooling fallback]")
+        if inlined_corpus_files and not_inlined_corpus_paths:
+            _corpus_tag = (f" [corpus-read: {len(inlined_corpus_files)} inlined + tooling for "
+                           f"{len(not_inlined_corpus_paths)} not inlined]")
     _sweep_tag = (f" [sweeps: {len(inlined_sweep_files)} inlined, {inlined_sweep_bytes}B]"
                   if inlined_sweep_files else "")
     print(f"# Invoking external auditor: {provider}/{model} ({'full' if full else 'routine'}) — "
@@ -18849,6 +19004,7 @@ def cmd_audit_adhoc(args: argparse.Namespace, *, _work_batch_next_hint=None, _ca
         "inlined_corpus_files": inlined_corpus_files,   # T-9318 — files auto-inlined into the prompt
         "inlined_corpus_bytes": inlined_corpus_bytes,   # T-9318 — positive proof content was attached
         "inlined_corpus_truncated": inlined_corpus_truncated,   # T-13898 — each cut file: path, kept, total
+        "not_inlined_corpus_paths": not_inlined_corpus_paths,   # T-14357 — referenced, not inlined; tooling kept on
         "inlined_sweep_files": inlined_sweep_files,   # T-9637 — explicit --sweep-file sweeps inlined
         "inlined_sweep_bytes": inlined_sweep_bytes,   # T-9637 — positive proof sweep DATA reached the prompt
     })

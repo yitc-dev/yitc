@@ -1087,12 +1087,12 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: e8d9c31ad96b9cc54344353a72d2f85e04034df0a9524985844ceae4a666b5a8
+  bin/lib/audit.py#cmd_audit: 2db56481872d8f18a37b3bbe319ef0a3d91140f90a87f269bdfe8e83844b76bd
   bin/lib/deploy.py#_DeployRunRecorder: d60a058fb838f0ae96577f169d36259c210c8620698a0ed5f42e4e35c1acd2ec
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
   bin/lib/deploy.py#_resolve_rollback_target: 783479b12cb944fb6d24607a4fe5ebd926ee6e75d00a8732eedeed345a51e22b
-  bin/lib/deploy.py#cmd_deploy: 7a8f9339ecc78d23083217f197f26a521083f33117066f8d844536afdc1cdd6e
+  bin/lib/deploy.py#cmd_deploy: ee114d5de576a0c919312b17b8cc726221b3eae707d9c41340cd286b161d8b63
   bin/lib/deploy.py#is_production_live_record: d1d46285eb3e2f980f40a5b941ea0a9448a6408e7f83e19ef2b464c6c6229142
   bin/lib/live_probe.py#cmd_live_probe: e63237018f5d25654b86ff07dc741d8cbae85eb164d30077d30a3c5b932c4ef4
   bin/lib/task.py#_all_touched_non_runtime_surface: dd0302b43fedfff3b4325000a9c7a59b52e41d0c991ffed0e2488f284eedd2f9

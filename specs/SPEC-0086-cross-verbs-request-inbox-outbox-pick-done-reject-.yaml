@@ -479,60 +479,65 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ under a temporary folder (the temp dir, `/tmp`, `/var/tmp`) installs and refreshes\
   \ nothing in a HOME outside them and says so in one line, for the same reason. Its\n\
   \      body runs `<engine-absolute>/bin/yitc-v2 session pick`, then the chosen project's\
-  \ start in the same\n      session, tells the AI to answer in the person's language,\
-  \ and ends with the start-line relay — it\n      does not repeat the return order\
-  \ at every run. The ONE start order stands:\n      to start, restart or come back,\
-  \ open the AI tool in any folder (or clear the open session) and\n      run the\
-  \ command again — never a relaunch in the project folder, which the engine does\
-  \ not need\n      (it finds the session record by session id in any folder); the\
-  \ person is told it once, at the\n      first start, by station [A] Start (SPEC-0147).\
-  \ The\n      non-interactive hint names the engine-absolute path. No in-project\
-  \ command, no hooks.\n\n### 7. Receiver-side premise review — before any pick /\
-  \ resolves_cross association\nHOMED in SPEC-1010 §3 — the premise review, the default\
-  \ disposition, the ownership judgement,\nthe outcomes and the report-only cue —\
-  \ and NOT restated here (<workshop-spec> rule 8).\n\n## Parameters\n\nNone consumed.\n\
-  \n## Rationale\n\nThe pre-specs audit named the AUTHOR-side close-loop as the missing\
-  \ piece: `inbox` (receiver pickup)\nalone does not make the done-criterion (\"consumer\
-  \ sees fixed → verify at start\") provable, so an\nexplicit author-side `outbox`\
-  \ view + its session-start delivery (rule 4) is required, and — because it\nchanges\
-  \ a `session start` surface — it must co-design its post-`/compact` re-delivery\
-  \ (SPEC-0007 §5b).\nThe verb names are D3-pinned (owner-settled); each is checked\
-  \ against the verb-design rubric (the\ncontrol-chokepoint that makes the FSM role-guard\
-  \ + deterministic emit enforceable — verb-design #2/#3/\n#4/#5). Module-home-from-day-1\
-  \ (rule 5) is the owner's scale-aware code-placement refinement. Anti-\ncomplexity:\
-  \ REUSES the existing `session start` surface slot + the `task file`-style id-allocation\
-  \ +\nthe fold (no stored status) — adds the verb group as the ONE governed write\
-  \ path, no new gate, no\nsecond state store. The deliberation lives in the plan\
-  \ (<workshop-spec> §3).\n\n## Verification\n\n- **VP1 (verbs are the only write\
-  \ path):** a raw append to the shared store is not the sanctioned path;\n  each\
-  \ `cross` mutating verb allocates/append/emits atomically and refuses a wrong-role/wrong-state\n\
-  \  emit with a journal-observable refusal. (test at activation)\n- **VP2 (views\
-  \ derived, no stored status):** `cross inbox`/`outbox` fold the log at read time;\
-  \ a\n  terminal item is absent from both with no stored flag. (test)\n- **VP3 (outbox\
-  \ startup surface replaces the inbound count):** `session start` surfaces the outbox/inbox\n\
-  \  count+pointer (report-only, no auto-pull); the <workshop-spec> per-repo inbound\
-  \ count is gone and cannot\n  over-count (terminal items fold out). (test + grep\
-  \ AGENTS startup)\n- **VP4 (post-`/compact` re-delivery co-designed — D5 probe):**\
-  \ consumer-session journal/read evidence\n  that `outbox` surfaced at session start,\
-  \ DROPPED from the view after `cross close`, and was\n  RE-DELIVERED correctly after\
-  \ `/compact` (by re-folding the log, not by re-running `session start`).\n  (the\
-  \ plan's startup-surface probe — D5)\n- **VP5 (module home):** the verbs live in\
-  \ `bin/lib/cross.py` with thin `bin/yitc-v2` dispatch, not in\n  the monolith body;\
-  \ classified kernel per SPEC-0073. (state-check at activation)\n- **VP6 (re-entry\
-  \ disposition, DIFFERENTIAL):** MOVED with `cross close` — its verification is\n\
-  \  SPEC-1020 VP1.\n- **VP7 (re-entry disposition on the RECEIVER terminals, DIFFERENTIAL):**\
-  \ a `cross reject`\n  whose `--reason` NAMES a re-entry condition, declaring neither\
-  \ flag, EXITS NONZERO, emits no\n  `cross_rejected` (the item stays non-terminal)\
-  \ and arms nothing; the SAME reject carrying\n  `--re-entry` succeeds and arms exactly\
-  \ ONE followup whose `relates_to` is that X-NNNN. COHORT\n  COMPLEMENT, in the same\
-  \ probe: a reject with an UNCONDITIONAL reason goes terminal cleanly,\n  refuses\
-  \ nothing and arms nothing — so forcing the predicate always-true turns the complement\
-  \ RED\n  and the guard cannot be green by construction. Second axis: the armed row\
-  \ lands in the journal of\n  the session that ran the REJECT (the RECEIVER's — the\
-  \ whose-echo decision above, asserted rather\n  than assumed) and names the AUTHOR\
-  \ as its counterparty. Third axis: the same guard holds on\n  `cross ack`, including\
-  \ the note-attach from `acked`. (test)\n- **VP8 (triage default disposition):**\
-  \ MOVED with rule 7 — its verification is\n  SPEC-1010 VP1.\n"
+  \ start in the same\n      session, tells the AI to answer in the user's language\
+  \ — determined in this order: the language the instructions already loaded in the\
+  \ session name (user-level, or the directory's or project's), else the language\
+  \ the person writes in; the command's own language only while neither names one\
+  \ and the person has not written (this order is the normative home of the person-facing\
+  \ language rule; AGENTS.md §Language carries its cue) — and ends with the start-line\
+  \ relay — it\n      does not repeat the return order at every run. The ONE start\
+  \ order stands:\n      to start, restart or come back, open the AI tool in any folder\
+  \ (or clear the open session) and\n      run the command again — never a relaunch\
+  \ in the project folder, which the engine does not need\n      (it finds the session\
+  \ record by session id in any folder); the person is told it once, at the\n    \
+  \  first start, by station [A] Start (SPEC-0147). The\n      non-interactive hint\
+  \ names the engine-absolute path. No in-project command, no hooks.\n\n### 7. Receiver-side\
+  \ premise review — before any pick / resolves_cross association\nHOMED in SPEC-1010\
+  \ §3 — the premise review, the default disposition, the ownership judgement,\nthe\
+  \ outcomes and the report-only cue — and NOT restated here (<workshop-spec> rule\
+  \ 8).\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nThe pre-specs audit\
+  \ named the AUTHOR-side close-loop as the missing piece: `inbox` (receiver pickup)\n\
+  alone does not make the done-criterion (\"consumer sees fixed → verify at start\"\
+  ) provable, so an\nexplicit author-side `outbox` view + its session-start delivery\
+  \ (rule 4) is required, and — because it\nchanges a `session start` surface — it\
+  \ must co-design its post-`/compact` re-delivery (SPEC-0007 §5b).\nThe verb names\
+  \ are D3-pinned (owner-settled); each is checked against the verb-design rubric\
+  \ (the\ncontrol-chokepoint that makes the FSM role-guard + deterministic emit enforceable\
+  \ — verb-design #2/#3/\n#4/#5). Module-home-from-day-1 (rule 5) is the owner's scale-aware\
+  \ code-placement refinement. Anti-\ncomplexity: REUSES the existing `session start`\
+  \ surface slot + the `task file`-style id-allocation +\nthe fold (no stored status)\
+  \ — adds the verb group as the ONE governed write path, no new gate, no\nsecond\
+  \ state store. The deliberation lives in the plan (<workshop-spec> §3).\n\n## Verification\n\
+  \n- **VP1 (verbs are the only write path):** a raw append to the shared store is\
+  \ not the sanctioned path;\n  each `cross` mutating verb allocates/append/emits\
+  \ atomically and refuses a wrong-role/wrong-state\n  emit with a journal-observable\
+  \ refusal. (test at activation)\n- **VP2 (views derived, no stored status):** `cross\
+  \ inbox`/`outbox` fold the log at read time; a\n  terminal item is absent from both\
+  \ with no stored flag. (test)\n- **VP3 (outbox startup surface replaces the inbound\
+  \ count):** `session start` surfaces the outbox/inbox\n  count+pointer (report-only,\
+  \ no auto-pull); the <workshop-spec> per-repo inbound count is gone and cannot\n\
+  \  over-count (terminal items fold out). (test + grep AGENTS startup)\n- **VP4 (post-`/compact`\
+  \ re-delivery co-designed — D5 probe):** consumer-session journal/read evidence\n\
+  \  that `outbox` surfaced at session start, DROPPED from the view after `cross close`,\
+  \ and was\n  RE-DELIVERED correctly after `/compact` (by re-folding the log, not\
+  \ by re-running `session start`).\n  (the plan's startup-surface probe — D5)\n-\
+  \ **VP5 (module home):** the verbs live in `bin/lib/cross.py` with thin `bin/yitc-v2`\
+  \ dispatch, not in\n  the monolith body; classified kernel per SPEC-0073. (state-check\
+  \ at activation)\n- **VP6 (re-entry disposition, DIFFERENTIAL):** MOVED with `cross\
+  \ close` — its verification is\n  SPEC-1020 VP1.\n- **VP7 (re-entry disposition\
+  \ on the RECEIVER terminals, DIFFERENTIAL):** a `cross reject`\n  whose `--reason`\
+  \ NAMES a re-entry condition, declaring neither flag, EXITS NONZERO, emits no\n\
+  \  `cross_rejected` (the item stays non-terminal) and arms nothing; the SAME reject\
+  \ carrying\n  `--re-entry` succeeds and arms exactly ONE followup whose `relates_to`\
+  \ is that X-NNNN. COHORT\n  COMPLEMENT, in the same probe: a reject with an UNCONDITIONAL\
+  \ reason goes terminal cleanly,\n  refuses nothing and arms nothing — so forcing\
+  \ the predicate always-true turns the complement RED\n  and the guard cannot be\
+  \ green by construction. Second axis: the armed row lands in the journal of\n  the\
+  \ session that ran the REJECT (the RECEIVER's — the whose-echo decision above, asserted\
+  \ rather\n  than assumed) and names the AUTHOR as its counterparty. Third axis:\
+  \ the same guard holds on\n  `cross ack`, including the note-attach from `acked`.\
+  \ (test)\n- **VP8 (triage default disposition):** MOVED with rule 7 — its verification\
+  \ is\n  SPEC-1010 VP1.\n"
 amends:
 - AGENTS.md (Three-phase startup + After /compact): the <workshop-spec> per-repo cross-log
     inbound-count session-start surface is replaced by the fold-derived outbox/inbox

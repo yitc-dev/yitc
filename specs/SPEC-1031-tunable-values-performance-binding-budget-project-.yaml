@@ -292,7 +292,7 @@ implements_signature:
   bin/lib/cli.py#cmd_config_set: 892b3ecb784c1965faf00d3c54bc4d9784893b7fb07fe21250a09d330c69be61
   bin/lib/debt.py#_lane_bound: 09607422d04a15cbe2870c596c7d96421c17f394a592a71914e8f2d801bc6b8f
   bin/lib/machine_settings.py#ENTRYPOINTS: 7bdf6b9e29cc3e6d932c42a3698852b03a1ff29d273cee9b60c1c3ccff8247d0
-  bin/lib/machine_settings.py#INVENTORY: ab08fa561240fcff10089f65818366b2b30815a5f9d3eca7f131a03e03775375
+  bin/lib/machine_settings.py#INVENTORY: a4a2fb7808fd273203a3aebcb73ebceee43cfa0222072444d74867ac29ff270e
   bin/lib/machine_settings.py#_refuse_gate: dbce067d64b1b76a2f863ac73392118f9d149f42caa82b59c29db9336a733839
   bin/lib/machine_settings.py#admission_settings: 9ceb7f27b872f90617a88eac66f25e52053e6af8f780c34c8a8616ddb3a4bc90
   bin/lib/machine_settings.py#admission_switch: 956af3582090e20665537c05022d425a91f47ab88d9052cc448269b5f1b05e87

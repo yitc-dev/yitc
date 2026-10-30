@@ -432,7 +432,8 @@ def read_json(path):
 
 # ═══ THE TICKETS ══════════════════════════════════════════════════════════════════════════════
 # Each waiter files a ticket in QUEUE (its name: arrival time in ns, pid, kind land|run, mark 1|0, and
-# a fifth part `x` for an exclusive run, `l` for a light land or a light run, `p` for a planning land;
+# a fifth part `x` for an exclusive run, `l` for a light land or a light run, `p` for a planning land,
+# `d` for a gated deploy's pre-deploy run (T-14325);
 # its content: cwd, the card, for a land the runs that passed ahead of it, for a light run its reason,
 # and the wait row that named it); dead waiters' tickets are swept under the lock.
 def kind_mark(name):
@@ -463,13 +464,22 @@ def land_ticket(ns, pid, cls, mark) -> str:
     return f"{ns}-{pid}-land-{1 if mark else 0}"
 
 
-def run_ticket(ns, pid, mark, exclusive=False, light=False) -> str:
+def run_ticket(ns, pid, mark, exclusive=False, light=False, deploy=False) -> str:
+    if deploy:
+        return f"{ns}-{pid}-run-0-d"
     return f"{ns}-{pid}-run-{1 if mark else 0}" + ("-x" if exclusive else "-l" if light else "")
 
 
+def is_deploy(name) -> bool:
+    parts = name.split("-")
+    return len(parts) > 4 and parts[2] == "run" and parts[4] == "d"
+
+
 def ticket_class(name) -> str:
-    """`light`, `land-mark` (a land its card marks, or a planning land), `run-mark`, `run-light`, `run`
-    (an exclusive run among them) or `land`."""
+    """`deploy` (a gated deploy's pre-deploy run), `light`, `land-mark` (a land its card marks, or a
+    planning land), `run-mark`, `run-light`, `run` (an exclusive run among them) or `land`."""
+    if is_deploy(name):
+        return "deploy"
     kind, mark = kind_mark(name)
     if kind == "land":
         return "light" if land_class(name) == "light" else "land-mark" if mark == "1" else "land"
@@ -488,8 +498,11 @@ def class_in(name, names) -> str:
 
 # ═══ THE ORDER ════════════════════════════════════════════════════════════════════════════════
 # The classes in the order ORDER names them, read at each check; a class it leaves out comes after
-# the named ones, in the default order; within each, arrival.
+# the named ones, in the default order; within each, arrival. A gated deploy's pre-deploy run comes
+# before every class whatever ORDER says — a fixed rule, not a setting (SPEC-1045 rule 2 (r), T-14325).
 def order(name):
+    if is_deploy(name):
+        return (-1, int(name.split("-")[0]))
     named = tuple(cur()["ORDER"])
     rank = (named + tuple(c for c in QUEUE_CLASSES if c not in named)).index(class_in(name, named))
     return (rank, int(name.split("-")[0]))
@@ -540,7 +553,9 @@ def count_run(queue, q) -> None:
 def group(q, land_held=False, tail=False) -> list:
     """The ticket that passes next (under LOCK; `q` in its order). While a land holds (`land_held`)
     none: nothing passes into a land's tail — but with `tail` (one land holds alone) the ticket that
-    would pass with no land holding, when it is one run that is not exclusive. Else a light land alone;
+    would pass with no land holding, when it is one run that is neither exclusive nor a deploy's run
+    (that one waits for the land's end, SPEC-1045 rule 2 (r)). Else a gated deploy's run alone (it heads
+    the order whatever ORDER says, T-14325); else a light land alone;
     else a marked or planning land alone; else the oldest ordinary land when BATCH_MAX (1) of them wait
     or the oldest has let RUNS_AHEAD runs pass; else the first run; else the ordinary land. Rule 2: one
     land at a time, so a land group is always one land."""
@@ -548,9 +563,10 @@ def group(q, land_held=False, tail=False) -> list:
         return []
     if land_held:
         g = group(q) if tail else []
-        return g if len(g) == 1 and kind_mark(g[0])[0] == "run" and not is_exclusive(g[0]) else []
+        return g if (len(g) == 1 and kind_mark(g[0])[0] == "run" and not is_exclusive(g[0])
+                     and not is_deploy(g[0])) else []
     head = ticket_class(q[0])
-    if head in ("light", "land-mark"):
+    if head in ("deploy", "light", "land-mark"):
         return q[:1]
     lands = [t for t in q if ticket_class(t) == "land"][:BATCH_MAX]
     if head == "land" or (lands and (len(lands) == BATCH_MAX
@@ -574,7 +590,7 @@ def remark(p, s=None) -> None:
         parts = name.split("-")
         if len(parts) < 4 or parts[2] not in ("run", "land") or parts[3] not in ("0", "1"):
             continue
-        if parts[2] == "land" and land_class(name) != "land":
+        if (parts[2] == "land" and land_class(name) != "land") or is_deploy(name):
             continue
         task = ticket_task(p, name)
         now = queue_jump(p["main"], task)
@@ -1002,6 +1018,20 @@ def hold_says(h, s) -> str:
             f"({time.time() - h['set_at']:.0f} s of GREEN_HOLD {s['GREEN_HOLD']:g} s; it ends at that card's land)")
 
 
+def hold_end(h, s, now):
+    """The end of the green hold `h` as its end tests read at `now`, or None while it holds: (`off`,
+    ..) under GREEN_HOLD 0, (`expired`, ..) past its bound, (`cleared`, paused|halted|land, row) at its
+    card's row. Reads the journals only — no lock, no removal, no step row — so hold_now() and the
+    read-only report() judge a hold by the same tests (T-14358). The fence is the caller's: a hold
+    ended by its bound or its card's row stands while a live RUNNING entry of its card stands."""
+    if not s["GREEN_HOLD"]:
+        return ("off", "admission.green_hold off", None)
+    if now - h["set_at"] >= s["GREEN_HOLD"]:
+        return ("expired", f"GREEN_HOLD {s['GREEN_HOLD']:g} s", None)
+    row = hold_row(h, land=True) if h["card"] else None
+    return ("cleared", row[0], row[1]) if row else None
+
+
 def hold_now(p, s):
     """The green hold standing now (under LOCK), or None. GREEN_HOLD 0 (admission.green_hold off): none,
     and the file is left as it is. A hold past its bound, or whose card has a pause or halt row since
@@ -1012,11 +1042,9 @@ def hold_now(p, s):
     h = hold_read(p)
     if h is None:
         return None
-    age = time.time() - h["set_at"]
-    why = ("expired", f"GREEN_HOLD {s['GREEN_HOLD']:g} s", None) if age >= s["GREEN_HOLD"] else None
-    if why is None and h["card"]:
-        row = hold_row(h, land=True)
-        why = ("cleared", row[0], row[1]) if row else None
+    now = time.time()
+    age = now - h["set_at"]
+    why = hold_end(h, s, now)
     if why is None:
         return h
     live = sorted((pid, kind) for pid, (kind, task) in running_tasks(p).items() if h["card"] and task == h["card"])
@@ -1320,6 +1348,40 @@ class Samples:
         return round(100 * (1 - idle / max(1, tot)), 3), a[0], b[0] - rows[0][0]
 
 
+def cpu_reading(cpus):
+    """T-14346 — one reading of `cpus` (the CPUs a run may use) for the run's mean busy share:
+    {"cpus": [...], "rows": [[cpu, total, idle], ...]}, JSON-safe so a re-exec carries it. None when
+    /proc/stat cannot be read or ANY of `cpus` is missing from it: a partial set is not the run's."""
+    try:
+        now = snap()
+    except (OSError, ValueError, IndexError):
+        return None
+    cpus = sorted(cpus)
+    if not cpus or any(n not in now for n in cpus):
+        return None
+    return {"cpus": cpus, "rows": [[n, now[n][0], now[n][1]] for n in cpus]}
+
+
+def busy_share(a, b):
+    """(mean busy percent, CPUs counted) between two cpu_readings of the same CPUs, as Samples.mean
+    computes it; (None, 0) — unknown, never zero — when either is absent, a CPU of `a` is missing
+    from `b`, or a CPU's delta is not a valid interval (no time passed, a counter went back)."""
+    if not a or not b:
+        return None, 0
+    end = {r[0]: r for r in b.get("rows") or ()}
+    tot = idle = 0
+    for n, t0, i0 in a.get("rows") or ():
+        if n not in end:
+            return None, 0
+        dt, di = end[n][1] - t0, end[n][2] - i0
+        if dt <= 0 or di < 0 or di > dt:
+            return None, 0
+        tot, idle = tot + dt, idle + di
+    if tot <= 0:
+        return None, 0
+    return round(100 * (1 - idle / tot), 3), len(a["rows"])
+
+
 def load1_now() -> str:
     try:
         value = os.getloadavg()[0]
@@ -1443,14 +1505,15 @@ def _release(fd) -> None:
 #              most THRESHOLD; SPACING does not hold it.
 #   land-tail  a run (not exclusive) while one land holds alone: it passes, when the queue's next
 #              ticket with no land holding would be that run, under SPACING and the mean over WINDOW
-#              at most LAND_TAIL_THRESHOLD. No land starts into any land's tail.
+#              at most LAND_TAIL_THRESHOLD. No land starts into any land's tail. A LAND_TAIL_THRESHOLD
+#              of 0 turns this rule off: the run takes the window rule and waits for the land's end.
 #   window     anything else held: a run or a land starts under SPACING when the mean of the read set
 #              over the last WINDOW s is at most THRESHOLD and no land holds.
-def rule_of(p, lh, kind, exclusive, skip=()):
+def rule_of(p, lh, kind, exclusive, skip=(), tail_pct=None):
     what = holds(p, skip)
     if not what:
         return "empty", [f"{k} pid {pid}" for pid, k in sorted(running_kinds(p).items()) if k in skip]
-    if lh and kind == "run" and not exclusive and land_alone(p):
+    if lh and kind == "run" and not exclusive and tail_pct != 0 and land_alone(p):
         return "land-tail", what
     return "window", what
 
@@ -1474,7 +1537,7 @@ class Refused(Exception):
 
 def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=None, recheck=None,
           land_cls=None, reclassify=None, venue=None, placed=None, fast=None, light=None, unit=None,
-          kernel=False, state=None, carry=None):
+          kernel=False, state=None, carry=None, deploy=False):
     """Wait for this waiter's turn and for room, then pass. Returns (busy, land hold) descriptors: a
     flock on BUSY kept for the work (shared; exclusive with `exclusive`); a land takes the land hold
     shared at its pass, when no other land holds it. `info` is written into the ticket; `recheck` (a
@@ -1495,7 +1558,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
         if land_cls is not None:
             me_name = land_ticket(ns, os.getpid(), land_cls, mark)
         else:
-            me_name = run_ticket(ns, os.getpid(), mark, exclusive, bool(light))
+            me_name = run_ticket(ns, os.getpid(), mark, exclusive, bool(light), deploy)
         q_before = tickets(p["queue"])
         write_json(Path(p["queue"]) / me_name,
                    {"v": FORMAT, "cwd": os.getcwd(), "runs_ahead": 0, **(info or {}), "task": task,
@@ -1613,7 +1676,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             resync()
             q = tickets(p["queue"])
             lh = land_holding(p)
-            rule, what = rule_of(p, lh, kind, exclusive, skip)
+            rule, what = rule_of(p, lh, kind, exclusive, skip, s["LAND_TAIL_THRESHOLD"])
             green = hold_now(p, s)
             qh = held_q(p, q, green, s)
             free = planning_free(me_name, s)
@@ -1801,7 +1864,7 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
                                    "LAND_TAIL_THRESHOLD", "REMOTE_SLOTS", "LOCAL_RUNS", "LIGHT_PIN", "ORDER", "AT_ONCE",
                                    "PLANNING_BRANCHES", "PLANNING_LANDS", "RUN_LAND_UNIT") if confirmed[k] != s[k]]
             lh = land_holding(p)
-            now_rule, now_what = rule_of(p, lh, kind, exclusive, skip)
+            now_rule, now_what = rule_of(p, lh, kind, exclusive, skip, s["LAND_TAIL_THRESHOLD"])
             moved = None if now_rule == rule else f"{rule} -> {now_rule}"
             placed_moved = None
             if venue is not None:
@@ -2254,7 +2317,7 @@ def reexec_on_engine_change(p, s, card, wt, r, argv=None) -> None:
     say(f"the sync of {card} moved the engine code this run started on ({len(changed)} path(s) under "
         f"{here.name}/, {start[:12]} -> {now[:12]}): re-executing on the current engine, keeping its pass")
     marker = {"pid": os.getpid(), "task": card, "fds": list(_INHERIT), "sync": r, "token": pass_token(p["main"]),
-              "record": {k: rec.get(k) for k in ("pass_ts", "pass_sha", "kind", "place")}}
+              "record": {k: rec.get(k) for k in ("pass_ts", "pass_sha", "kind", "place", "cpu_start")}}
     cmd = list(argv) if argv else [sys.executable, *sys.orig_argv[1:]]
     with contextlib.suppress(Exception):
         sys.stdout.flush()
@@ -2523,8 +2586,14 @@ def switch(main) -> dict:
 
 
 def stamp(record) -> dict:
-    """The fields every Stage-6 result row carries while switched on (rule 2 (e))."""
-    return {"admission": "engine", "admission_revision": record.get("revision"),
+    """The fields every Stage-6 result row carries while switched on (rule 2 (e)). T-14346: plus the
+    mean busy share of the CPUs the run may use, from its pass to this row (a host-wide reading of
+    those CPUs, other work on them included), and the seconds its runnable threads exceeded them —
+    unknown (None) always: no loop every run has samples it. An absent reading is None, never 0."""
+    start = record.get("cpu_start")
+    pct, n = busy_share(start, cpu_reading(start["cpus"]) if start else None)
+    return {"cpu_busy_pct": pct, "cpu_busy_cpus": n, "cpu_over_capacity_s": None,
+            "admission": "engine", "admission_revision": record.get("revision"),
             "admission_config_hash": record.get("config_hash"), "admission_pass_ts": record.get("pass_ts")}
 
 
@@ -2705,7 +2774,8 @@ def task_test_entry(*, main, root, task, form, kernel, append_event, sweep=False
                 os.nice(max(0, nice - os.nice(0)))
         prow = state.get("pass") or {}
         record.update(pass_ts=prow.get("ts"), pass_sha=prow.get("sha"), kind=kind,
-                      config_hash=cur()["_hash"])
+                      config_hash=cur()["_hash"],
+                      cpu_start=again["record"].get("cpu_start") if again else cpu_reading(affinity()))
         _ADMITTED[0] = record
         yield record
     except PinFailed as e:
@@ -2736,6 +2806,11 @@ def task_test_entry(*, main, root, task, form, kernel, append_event, sweep=False
 # holds BUSY shared while it runs, inherited by its children, and its ticket ends in one terminal row.
 SCHEDULED_PLACE = {"published": False, "token": "scheduled-run", "box": None, "slots": None,
                    "forced_local": False, "why": "a scheduled pre-deploy run runs on this host (SPEC-1047 rule 4)"}
+DEPLOY_PLACE = {"published": False, "token": "deploy-run", "box": None, "slots": None,
+                "forced_local": False, "why": "a gated deploy's pre-deploy run runs on this host (SPEC-1051 rule 3)"}
+RECHECK_PLACE = {"published": False, "token": "known-broken-recheck", "box": None, "slots": None,
+                 "forced_local": False,
+                 "why": "a known-broken recheck runs on this host (SPEC-0181 §Known-broken-on-main rule 2 (g))"}
 
 
 @contextlib.contextmanager
@@ -2744,6 +2819,42 @@ def scheduled_run_entry(*, main, append_event):
     ticket, the wait, the pass; yields the pass record its result rows are stamped with (`stamp`). At
     exit the RUNNING entry goes and the descriptors this process holds are closed (its children keep
     theirs)."""
+    with _untied_run_entry(main=main, append_event=append_event, log_kind="scheduled-run", place=SCHEDULED_PLACE,
+                           said="scheduled pre-deploy run queued (SPEC-1047): tied to no card — no sync, no quick "
+                                "step, no land preview, no green hold, no unit, no credit answer") as record:
+        yield record
+
+
+@contextlib.contextmanager
+def deploy_run_entry(*, main, append_event):
+    """The queue's entry for a gated deploy's pre-deploy run (SPEC-1045 rule 2 (r), T-14325), switched on:
+    as the scheduled run's entry, but its ticket is of class `deploy`, which passes before every queued
+    ticket whatever the declared order. Yields the pass record."""
+    with _untied_run_entry(main=main, append_event=append_event, log_kind="deploy-run", place=DEPLOY_PLACE,
+                           deploy=True,
+                           said="gated deploy's pre-deploy run queued (SPEC-1051 rule 3): first in the order, tied "
+                                "to no card — no sync, no quick step, no land preview, no green hold, no unit, no "
+                                "credit answer") as record:
+        yield record
+
+
+@contextlib.contextmanager
+def recheck_run_entry(*, main, append_event):
+    """The queue's entry for a known-broken recheck (SPEC-1045 rule 2 (s), T-14351), switched on: admitted
+    as a scheduled run is (rule 2 (p)) — one run ticket tied to no card, the local place. Yields the pass
+    record its evidence row is stamped with."""
+    with _untied_run_entry(main=main, append_event=append_event, log_kind="known-broken-recheck",
+                           place=RECHECK_PLACE,
+                           said="known-broken recheck queued (SPEC-0181 rule 2 (g)): tied to no card — no sync, "
+                                "no quick step, no land preview, no green hold, no unit, no credit answer") as record:
+        yield record
+
+
+@contextlib.contextmanager
+def _untied_run_entry(*, main, append_event, log_kind, place, said, deploy=False):
+    """One run ticket tied to no card (a scheduled or a deploy's pre-deploy run): the wait, the pass;
+    yields the pass record. At exit the RUNNING entry goes and the descriptors this process holds are
+    closed (its children keep theirs)."""
     p = paths(main)
     try:
         ensure(p)
@@ -2765,14 +2876,13 @@ def scheduled_run_entry(*, main, append_event):
 
     try:
         with _waiting_signals(lambda signo: _left("signal", signal.Signals(signo).name)):
-            say("scheduled pre-deploy run queued (SPEC-1047): tied to no card — no sync, no quick step, no land "
-                "preview, no green hold, no unit, no credit answer")
-            fds.extend(admit(p, "run", False, task=None, log_kind="scheduled-run", venue=lambda: SCHEDULED_PLACE,
-                             state=state))
+            say(said)
+            fds.extend(admit(p, "run", False, task=None, log_kind=log_kind, venue=lambda: place,
+                             state=state, deploy=deploy))
         inherit(fds)
         prow = state.get("pass") or {}
-        record.update(pass_ts=prow.get("ts"), pass_sha=prow.get("sha"), kind="scheduled-run",
-                      config_hash=cur()["_hash"])
+        record.update(pass_ts=prow.get("ts"), pass_sha=prow.get("sha"), kind=log_kind,
+                      config_hash=cur()["_hash"], cpu_start=cpu_reading(affinity()))
         yield record
     except PinFailed as e:
         _left("pin-failed", str(e)[:300])
@@ -3325,7 +3435,8 @@ def land_entry(t, *, append_event):
                         fds.append(take_lightcore(p))
         inherit(fds)
         prow = state.get("pass") or {}
-        record.update(pass_ts=prow.get("ts"), pass_sha=prow.get("sha"), kind=kind, config_hash=cur()["_hash"])
+        record.update(pass_ts=prow.get("ts"), pass_sha=prow.get("sha"), kind=kind, config_hash=cur()["_hash"],
+                      cpu_start=cpu_reading(affinity()))
     except Refused as e:
         reason, detail = e.why if isinstance(e.why, tuple) else ("refused", e.why)
         _left(reason, detail)
@@ -3604,7 +3715,7 @@ def report(main) -> "dict | None":
     try:
         p = paths(main)
         _P[0], _MAIN[0] = p, Path(main)
-        cur(main)
+        s = cur(main)
         names = sorted((n for n in os.listdir(p["queue"]) if n.split("-")[1:2] and n.split("-")[1].isdigit()
                         and alive(int(n.split("-")[1]))), key=order) if Path(p["queue"]).is_dir() else []
         for pos, name in enumerate(names, 1):
@@ -3621,8 +3732,16 @@ def report(main) -> "dict | None":
                                            "task": e.get("task") if isinstance(e.get("task"), str) else None,
                                            "since": e.get("since_ts")})
         h = hold_read(p) if Path(p["hold"]).exists() else None
-        out["hold"] = None if h is None else {"card": h.get("card"), "set_ts": h.get("set_ts"),
-                                              "unreadable": bool(h.get("unreadable"))}
+        if h is not None:              # judged by hold_now()'s own end tests, without its removal (T-14358)
+            end = hold_end(h, s, time.time())
+            fence = [{"pid": e["pid"], "kind": e["kind"]} for e in out["holders"]
+                     if h.get("card") and e["task"] == h["card"]] if end and end[0] != "off" else []
+            out["hold"] = {"card": h.get("card"), "set_ts": h.get("set_ts"), "unreadable": bool(h.get("unreadable")),
+                           "set_at": h["set_at"],
+                           "ends_at": h["set_at"] + s["GREEN_HOLD"] if s["GREEN_HOLD"] else None,
+                           "seen": list(h.get("seen") or []), "standing": end is None or bool(fence),
+                           "end": None if end is None else {"reason": end[0], "detail": end[1], "row": end[2]},
+                           "fence": fence}
     except (OSError, ValueError) as e:
         out.update(readable=False, error=f"{type(e).__name__}: {e}")
     try:                               # the comparison protocol over the main journal (T-14198)

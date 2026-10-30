@@ -27,6 +27,8 @@ implements:
 - bin/lib/land_verify_legs.py#_declared_independent_layers
 - bin/lib/land_verify_legs.py#_declared_layer_worker_shares
 - bin/lib/land_verify_legs.py#_verify_selected_layers
+- bin/lib/land_verify_legs.py#_verify_layer_forecast
+- bin/lib/land_verify_legs.py#_forecast_row_record
 - bin/lib/worktree.py#_work_batch_declared_product_source
 - bin/lib/worktree.py#_work_batch_product_source_migration_note
 - bin/lib/worktree.py#_work_batch_unanswered_paths
@@ -353,7 +355,31 @@ body: "## Scenario\n\nThe land-verify, coverage-admission, and startup-check fac
   \ and a value\ninherited from the calling environment never reaches a layer. The\
   \ kernel still divides nothing: the\nlist is a fact the runner already holds, and\
   \ what the project does with it — for instance dividing a\nlayer's share by the\
-  \ sum of the shares of the layers named — is the project's arithmetic.\n\nA DECLARED\
+  \ sum of the shares of the layers named — is the project's arithmetic.\n\nBESIDE\
+  \ THE LIST, A FORECAST OF WHAT EACH LISTED LAYER WILL RUN. Wherever the kernel publishes\n\
+  `YITC_VERIFY_SELECTED_LAYERS`, it also publishes `YITC_VERIFY_LAYER_FORECAST`: the\
+  \ path of ONE file\nwritten for this run before any layer runs, carrying this run's\
+  \ id and one entry per listed layer,\nin the same order. An entry is an ESTIMATE,\
+  \ never the selected set — a layer's units are chosen in\nits own pass, when the\
+  \ run reaches it: it reads `estimate` or `unknown`, names its basis (the units\n\
+  of that layer measured inside the journal's summary window), and gives an estimated\
+  \ unit count and\nthe sum of the KNOWN medians, a group counting once. A missing\
+  \ median is unknown cost, never zero; a\nlayer with no adapter or no measured unit\
+  \ reads `unknown`; units listed since and never measured are\nnot seen, units removed\
+  \ since may still be counted, and the selection, the credit and the pre-deploy\n\
+  exclusion are applied later — the entry says each. Where the measured rows mix units\
+  \ and groups, it\ngives no total count or time, only each kind's own. The forecast\
+  \ is built from what the run already\nreads — the layer list and its one read of\
+  \ the unit medians — and starts no adapter invocation.\nWhen it cannot be built,\
+  \ nothing is published, a value inherited from the calling environment never\nreaches\
+  \ a layer, and every layer runs exactly as it would have: a project reader keeps\
+  \ its previous\nsplit. Each listed layer's outcome row records `forecast`: the run\
+  \ id and the entry it ran under,\nwhat its first attempt requested after selection,\
+  \ credit and the pre-deploy exclusion (files and\nentities, a re-run adding nothing),\
+  \ the known-median sum of that request, and the gap to the\nentry — `unknown` where\
+  \ either side is unknown, and `ran: false` for a layer whose command never\nran;\
+  \ or `state: unavailable` with the reason when no forecast was built. What the project\
+  \ does with\nthe forecast stays its own arithmetic, as for the list.\n\nA DECLARED\
   \ SHARE OWES A READER — that is the project half, stated as the one obligation the\n\
   declaration carries. Declaring a share for a layer OBLIGATES the project to READ\
   \ the allotment and\nAPPLY the share: the layer's `command:`, or an in-repo script\
@@ -1515,16 +1541,18 @@ implements_signature:
   bin/lib/land_verify_legs.py#_declared_layer_worker_shares: c58a7c766c5072e1edd013bf4b69a1a0ed921afe1ccff5bc964428e2dd271dc9
   bin/lib/land_verify_legs.py#_declared_verify_infra_globs: 6a01477ca4038b25296d2d0ddb40f31a5a9f57b764bee6d3d4ab47d2cb1d3d59
   bin/lib/land_verify_legs.py#_delegated_tests_execution_gap: cba017264e89f4114726489b3f64c5800839860b0d6afe52faa0f4f51fce8574
+  bin/lib/land_verify_legs.py#_forecast_row_record: 6c04ad1198d0505a707d31f1eda6939686a864747bbbae557dfd27c0440cace0
   bin/lib/land_verify_legs.py#_named_root_bin_touch: 51d734fbcb2fd835f10e662d44568cb3bece36d451179af897f6a937b06424ad
   bin/lib/land_verify_legs.py#_ops_carrier_freed_paths: f812ac548fccafd0b322801a0324bc6784f3ec1c631b5f708c150834f8358f42
   bin/lib/land_verify_legs.py#_owned_test_freed_paths: e3a7436884b2fbbf01145620a0a1587d30e7b0725e7ab86ab677715de08e2338
   bin/lib/land_verify_legs.py#_root_bin_aware_touch: b2bec83b16fb6a7d1eff24655a91cd5560f0da305ca358858a3bdb69c3bda38f
+  bin/lib/land_verify_legs.py#_verify_layer_forecast: d71acfb0af91c44098f5f0ad7da6e290471f54498d76127f739ab869108c2aaf
   bin/lib/land_verify_legs.py#_verify_selected_layers: 26fe747f068bb04690ca8293db9ed6ef59abe73ead1e09677805890c87655d13
   bin/lib/session.py#startup_check_lines: 0176f94a54ce9b6d270e1ad7705097a2a8d114c386d7338823d13b8f5eb775af
-  bin/lib/task.py#cmd_task_test: 9902f9c250792a2f35dd856ca4d019793ca592cf4ade97d4d55c8e3be4b856d0
+  bin/lib/task.py#cmd_task_test: 27bf375237cf27bd8e820bcb9e80e50d657051aaa306b5c41dd122ba8a96b550
   bin/lib/verify_runner.py#_consumer_tests_delegation: 9794ab0499c6adb68322d1f6f612c19953c3bc5861df046f1bac2012740ef477
   bin/lib/verify_wiring.py#_verify_infrastructure_globs: 24b9da17eacfdc1d6fa4bd2dcfa4dae66744eed2a379c0dfa2233fa8b1389099
-  bin/lib/worktree.py#_consumer_zero_probe_guard: 84c4be907f28ef15dcf0541ff8423179d664e95bf7dbd9cb9384b5f81a0e7c28
+  bin/lib/worktree.py#_consumer_zero_probe_guard: e27b5509245b443ce3a9d9b83ff1a7ed572752c398b128e30c5e1aecde39837b
   bin/lib/worktree.py#_render_tests_delegation_note: 47055127c5324796ca382ae9306cb8b0d000c6573ad001a1252362d9e395e881
   bin/lib/worktree.py#_render_uncommitted_layer_surface_note: 95913eb39c9bbee5da1ffafaca8fb3cd583fe5c70912137f45bf2c924861c82c
   bin/lib/worktree.py#_uncommitted_layer_surface: 122e3d57666772467765a670809cbbca6ef814f2889364c86686c317069f7279

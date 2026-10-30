@@ -452,7 +452,7 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#COMPACTION_CUE_DELIVERED: 45468c37dcfbc9d6ed7706dab43972278375b58cb09544075c21f05393d1372c
   bin/lib/cli.py#_compaction_backstop: f1104515f4aec4ee2d2374603119beebfe20321757f8dd3790a5e5d695dfa4ab
-  bin/lib/cli.py#_restoration_brief: 4640c51d200d9cf52c08ce6305a526b412092336cf1b456444884549d5ecbba5
+  bin/lib/cli.py#_restoration_brief: 58fe2b2818d244de8dc280705f730c4770609861220e509594478e6579c39dc6
   bin/lib/cli.py#_session_start_print_only: e1c27fa58b8afced470f7ceec831cbf98d1f6eaac51ff237c207ae02622787e8
   bin/lib/cli.py#cmd_session_start: 129c0b76e8d06456de4840d9e6ea0a00aa6e73421cb1ba36008a49bedacc41d7
   bin/lib/journal.py#conversation_entry: 5a51900cba11b61ec9dcbbc3293996bf383f56e9ed4a83151169477b7f70b48b

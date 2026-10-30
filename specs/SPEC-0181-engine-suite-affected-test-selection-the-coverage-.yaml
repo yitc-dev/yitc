@@ -16,6 +16,8 @@ implements:
 - bin/lib/verify_runner.py#_selection_omission_tripwire
 - bin/lib/worktree.py#_land_known_broken_merged_reproduction
 - bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal
+- bin/lib/worktree.py#land_recheck_known_broken
+- bin/lib/worktree.py#_known_broken_recheck_run
 - bin/lib/debt_adoption.py#open_known_broken
 body: "## Scenario\n\nA land runs the tests its diff can actually break, instead of\
   \ all of them. Which tests those are is\ndecided by a ladder whose default is RUN\
@@ -643,24 +645,25 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ and `at_branch` those it did not.\nNO new event type is minted, and none is needed.\n\
   \nTHE RECORD IS A FOLD, NOT A STORE. `debt.open_known_broken` derives the current\
   \ set on demand from\nthose journal rows. There is NO side ledger, NO stored status\
-  \ field, NO followup-queue carrier and\nno new verb — the same acceptance boundary\
-  \ SPEC-0149 holds for post-deploy obligations, for the\nsame reason: a stored status\
-  \ is a second truth that drifts from the journal that produced it.\n\nRULE 1 — WHAT\
-  \ ESTABLISHES A RECORD. A pair listed in a row's `at_main`. That pair failed TWICE,\
-  \ in\ntwo independent executions on two different trees: once in the land's candidate\
-  \ verify (the merged\ntree) and once in the attribution probe's fresh checkout of\
-  \ `merged_base`. The confirming re-run is\ntherefore already paid for on every red\
-  \ land, and FIRST SIGHT ESTABLISHES NOTHING — a failure that\ndoes not reproduce\
-  \ lands in `at_branch` and opens no record.\n\nRULE 1a — WHAT THE FOLD MUST NEVER\
-  \ READ, each named with its incident. NOT `fail_class`: it is\ndemonstrably unreliable\
-  \ (the 2026-08-23 mislabel recorded above under the artefact carve-out\nwithdrawal),\
-  \ and a guard built on it would both freeze the repository on a mislabel and miss\
-  \ the\nbreakages it exists to catch. NOT `failing_tests` / `failing_assertions`:\
-  \ those are the FIRST-SIGHT\nkeys, and an implementation reading them records a\
-  \ standing \"main is broken\" claim on a single\nobservation — it would satisfy\
-  \ the reporting criterion and fail the flake guard outright.\n\nRULE 1b — A MATCH\
-  \ ON AN ID THAT NAMES NO ASSERTION ESTABLISHES NOTHING. A consumer verify-layer\n\
-  pair whose assertion half is `(no assertion captured)` or an `unmarked-layer-failure:`\
+  \ field, NO followup-queue carrier and\nno verb of its own beyond the on-demand\
+  \ recheck of rule 2 (g), which appends evidence and stores\nnothing — the same acceptance\
+  \ boundary SPEC-0149 holds for post-deploy obligations, for the\nsame reason: a\
+  \ stored status is a second truth that drifts from the journal that produced it.\n\
+  \nRULE 1 — WHAT ESTABLISHES A RECORD. A pair listed in a row's `at_main`. That pair\
+  \ failed TWICE, in\ntwo independent executions on two different trees: once in the\
+  \ land's candidate verify (the merged\ntree) and once in the attribution probe's\
+  \ fresh checkout of `merged_base`. The confirming re-run is\ntherefore already paid\
+  \ for on every red land, and FIRST SIGHT ESTABLISHES NOTHING — a failure that\n\
+  does not reproduce lands in `at_branch` and opens no record.\n\nRULE 1a — WHAT THE\
+  \ FOLD MUST NEVER READ, each named with its incident. NOT `fail_class`: it is\n\
+  demonstrably unreliable (the 2026-08-23 mislabel recorded above under the artefact\
+  \ carve-out\nwithdrawal), and a guard built on it would both freeze the repository\
+  \ on a mislabel and miss the\nbreakages it exists to catch. NOT `failing_tests`\
+  \ / `failing_assertions`: those are the FIRST-SIGHT\nkeys, and an implementation\
+  \ reading them records a standing \"main is broken\" claim on a single\nobservation\
+  \ — it would satisfy the reporting criterion and fail the flake guard outright.\n\
+  \nRULE 1b — A MATCH ON AN ID THAT NAMES NO ASSERTION ESTABLISHES NOTHING. A consumer\
+  \ verify-layer\npair whose assertion half is `(no assertion captured)` or an `unmarked-layer-failure:`\
   \ digest of\nthe layer's output names no assertion, so the merge-base run failing\
   \ it under the same id shows\nonly that both runs printed the same output. The attribution\
   \ probe records such a red\n`undecidable` / `base-layer-digest-only-match`, not\
@@ -686,7 +689,7 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   as its deploy really did happen after it, while here \"later\" IS the whole claim.)\
   \ A RE-OBSERVATION\nre-stamps that instant — the record is a fact about the newest\
   \ tree, so evidence must post-date the\nnewest observation, not the original one.\
-  \ Exactly five routes:\n  (a) PAIR-LEVEL. A later row lists that pair in `at_branch`\
+  \ Exactly seven routes:\n  (a) PAIR-LEVEL. A later row lists that pair in `at_branch`\
   \ — its merge-base run did NOT reproduce\n      the failure, which is a direct observation\
   \ of it passing on main.\n  (b) FULL-ENUMERATION GREEN LAND. A later `status: ok`\
   \ row whose verify ran the WHOLE discovered\n      enumeration (`verify_metrics.test_file_count\
@@ -709,43 +712,82 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ verify layer its first half names FAILED, and no other failing pair of that\n\
   \      row carries the same first half — a later `status: ok` row on which THAT\
   \ layer's own\n      outcome reads `passed`, the layer was not re-run to reach it,\
-  \ and no unit of its per-unit\n      report reads other than passed. The record\
-  \ opened on the layer failing again at the\n      merge-base, so the layer passing\
-  \ in a later green land is that same observation. The name\n      alone does not\
-  \ decide: a pair whose establishing row does not show this — a test file's\n   \
-  \   pair, or a first half that a test file and a layer both carry — is not cleared\
-  \ by this\n      route, whatever layer later passes under that name. A layer the\
-  \ land skipped, took from an\n      earlier run, waived, or ran to any other outcome\
-  \ is not evidence; neither is a different\n      layer passing, nor two rows under\
-  \ the layer's name. Route (e) adds evidence for clearing\n      only: routes (a)-(d)\
-  \ and rules 1, 1a and 3-7 read as before.\nWHY (d) EXISTS, AND THE DEADLOCK IT REMOVES.\
-  \ Routes (a), (b) and (c) ALL close under delegation,\nand they close on the repo\
-  \ that did exactly what the delegation contract (SPEC-0185 §1a) tells it\nto do.\
-  \ Measured twice on 2026-08-27 by an adopting consumer (X-1151, escalated by X-1164):\
-  \ a sweep\nwidening opened a known-broken record for a test that was NOT broken\
-  \ — it passed 18/18 in that\nrepo's own verify-layer venv — the repo delegated its\
-  \ test dir to the layer that runs the suite\nproperly, and from then on (a) needed\
-  \ a FAILING land, (b) needed a full enumeration the delegated\nsweep never runs,\
-  \ and (c) needed a selection the skipped sweep never records. The record therefore\n\
-  could not clear BY CONSTRUCTION, and every governance-only branch (plan, spec, card)\
-  \ was refused\nPRE-QUEUE from then on. The block was invisible until it bit: code-bearing\
-  \ branches still reach the\nbreak and are admitted, so only paperwork was refused.\n\
-  WHAT (d) DOES NOT OPEN, and this is the reason it is a conjunction rather than a\
-  \ layer name. The\nreporting consumer identified a mechanical route to clear the\
-  \ record — revert the delegation and\npoint the sweep's python3 at the layer venv,\
-  \ making all 47 files import and exit 0 WITHOUT\nexecuting a single assertion —\
-  \ and REFUSED to take it, because a full-enumeration green that\nasserts nothing\
-  \ is the precise false-green rule 2 exists to refuse. That judgement is upheld here,\n\
-  not undone: (d) requires the delegated layer's own recorded outcome to be exactly\
-  \ `passed` (a\nfailed / timed-out / waived / skipped layer, or a DIFFERENT layer\
-  \ passing, is not evidence), the\nrow to SAY explicitly that it was green (never\
-  \ a default — the same finding that shaped (c)), and\nthe pair's file to be IN the\
-  \ recorded surface. That last conjunct is not decoration: clearing on a\nbare layer\
-  \ NAME would clear pairs the delegated layer never claimed, which is over-clearing,\
-  \ not\nevidence. A file outside the recorded surface is simply not evidence and\
-  \ the record stands.\nWHAT (d) DOES NOT CHANGE, each stated so a reader can check\
-  \ it: rule 1/1a are untouched — this\nchanges what counts as EVIDENCE FOR CLEARING,\
-  \ never what ESTABLISHES a record; rule 3's VACATE\ndisposition is untouched, because\
+  \ and no unit of its per-unit\n      report reads other than passed — or reads `passed-partial`\
+  \ under the per-unit standard (f)\n      holds a credited partial run to, one standard\
+  \ for both routes. The record opened on the\n      layer failing again at the merge-base,\
+  \ so the layer passing in a later green land is that same observation. The name\n\
+  \      alone does not decide: a pair whose establishing row does not show this —\
+  \ a test file's\n      pair, or a first half that a test file and a layer both carry\
+  \ — is not cleared by this\n      route, whatever layer later passes under that\
+  \ name. A layer the land skipped, took from an\n      earlier run, waived, or ran\
+  \ to any other outcome is not evidence; neither is a different\n      layer passing,\
+  \ nor two rows under the layer's name. Route (e) adds evidence for clearing\n  \
+  \    only: routes (a)-(d) and rules 1, 1a and 3-7 read as before.\n  (f) CREDITED\
+  \ STAGE-6 RUN. A later `status: ok` row whose candidate leg was credited from a\
+  \ Stage-6\n      run (SPEC-0065 §Bound) and which names that run (`stage6_credit`,\
+  \ or per layer\n      `stage6_layer_credit`, by task and ts): the named `tests_passed`\
+  \ row is read as the evidence,\n      and it too must be STRICTLY LATER than the\
+  \ row that established the pair. For a pair opened\n      by a layer red, as in\
+  \ (e): the run holds exactly one row for that layer, the land took that\n      layer\
+  \ from the run (a per-layer credit names it among the layers it credited), the layer\
+  \ was\n      not re-run, and its row reads `passed` with no unit of its per-unit\
+  \ report other than passed —\n      or reads `passed-partial` and its per-unit report\
+  \ ran EVERY unit the establishing row's own\n      layer row shows not passing,\
+  \ each passed, with no unit of it other than passed. For a test\n      file's pair,\
+  \ as in (c): a whole-land credit only, and the run's recorded selection names the\n\
+  \      pair's test file. A credit naming a row the journal does not hold, a run\
+  \ that did not run a\n      failed unit, a partial run against an establishing row\
+  \ whose failed units cannot be read, or\n      a run in the same second as the establishing\
+  \ row or earlier is not evidence. Route (f) adds\n      evidence for clearing only:\
+  \ routes (a)-(e) and rules 1, 1a and 3-7 read as before.\n  (g) RECHECK OF MAIN'S\
+  \ HEAD. A later `known_broken_recheck` row, written by `bin/yitc-v2 land\n     \
+  \ --recheck-known-broken` (`-C <repo>` in a consumer) — a run on main's head, in\
+  \ a scratch checkout\n      of that commit and inside the project's admission queue\
+  \ (SPEC-1045 rule 2 (s)), of ONLY what the\n      open records name: a test file's\
+  \ record runs its file, with no isolated re-run; a layer record\n      runs its\
+  \ declared layer whole. The row names that head as a full commit id and addresses\
+  \ each\n      record by its observation identity — the `since`, `last_seen` and\
+  \ `seen` the record had when the\n      run read it. It clears a pair only when\
+  \ it addresses that pair exactly once with the identity\n      the record has NOW\
+  \ (a land that re-observed the pair meanwhile, in the same second included,\n  \
+  \    leaves the row about an older observation) and, as in (c), exactly one of its\
+  \ test entries names\n      the pair's file reading `passed`, not re-run — or, for\
+  \ a pair opened by a layer red, as in (e),\n      exactly one of its layer rows\
+  \ names the layer and reads `passed` clean, or `passed-partial`\n      under (f)'s\
+  \ per-unit standard. A row naming that file or layer `failed` is a fresh observation\n\
+  \      at main: the record stands and is re-stamped as a re-observation re-stamps\
+  \ it. A recheck row\n      never opens, re-opens or vacates a record. The verb runs\
+  \ only when a person or a session runs\n      it — no schedule, hook or land fires\
+  \ it — and with no open record it runs nothing and writes\n      no row. Route (g)\
+  \ adds evidence for clearing only: routes (a)-(f) and rules 1, 1a and 3-7 read\n\
+  \      as before.\nWHY (d) EXISTS, AND THE DEADLOCK IT REMOVES. Routes (a), (b)\
+  \ and (c) ALL close under delegation,\nand they close on the repo that did exactly\
+  \ what the delegation contract (SPEC-0185 §1a) tells it\nto do. Measured twice on\
+  \ 2026-08-27 by an adopting consumer (X-1151, escalated by X-1164): a sweep\nwidening\
+  \ opened a known-broken record for a test that was NOT broken — it passed 18/18\
+  \ in that\nrepo's own verify-layer venv — the repo delegated its test dir to the\
+  \ layer that runs the suite\nproperly, and from then on (a) needed a FAILING land,\
+  \ (b) needed a full enumeration the delegated\nsweep never runs, and (c) needed\
+  \ a selection the skipped sweep never records. The record therefore\ncould not clear\
+  \ BY CONSTRUCTION, and every governance-only branch (plan, spec, card) was refused\n\
+  PRE-QUEUE from then on. The block was invisible until it bit: code-bearing branches\
+  \ still reach the\nbreak and are admitted, so only paperwork was refused.\nWHAT\
+  \ (d) DOES NOT OPEN, and this is the reason it is a conjunction rather than a layer\
+  \ name. The\nreporting consumer identified a mechanical route to clear the record\
+  \ — revert the delegation and\npoint the sweep's python3 at the layer venv, making\
+  \ all 47 files import and exit 0 WITHOUT\nexecuting a single assertion — and REFUSED\
+  \ to take it, because a full-enumeration green that\nasserts nothing is the precise\
+  \ false-green rule 2 exists to refuse. That judgement is upheld here,\nnot undone:\
+  \ (d) requires the delegated layer's own recorded outcome to be exactly `passed`\
+  \ (a\nfailed / timed-out / waived / skipped layer, or a DIFFERENT layer passing,\
+  \ is not evidence), the\nrow to SAY explicitly that it was green (never a default\
+  \ — the same finding that shaped (c)), and\nthe pair's file to be IN the recorded\
+  \ surface. That last conjunct is not decoration: clearing on a\nbare layer NAME\
+  \ would clear pairs the delegated layer never claimed, which is over-clearing, not\n\
+  evidence. A file outside the recorded surface is simply not evidence and the record\
+  \ stands.\nWHAT (d) DOES NOT CHANGE, each stated so a reader can check it: rule\
+  \ 1/1a are untouched — this\nchanges what counts as EVIDENCE FOR CLEARING, never\
+  \ what ESTABLISHES a record; rule 3's VACATE\ndisposition is untouched, because\
   \ (d) makes no file-EXISTENCE claim and so route (b)'s historical\nblob probe has\
   \ nothing to add here; rule 4 is untouched and the fold stays free of `now`, any\n\
   window and any deadline — (d) reads a recorded NAME SET and an OUTCOME, never an\
@@ -865,9 +907,28 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ a later FAILING land — could clear such a record.\nAs reported on 2026-10-10:\
   \ a record opened at 19:25:34Z, the fix landed, three green lands followed\nin which\
   \ the layer ran and passed, the record stood, and plan-only branches of other sessions\
-  \ were\nrefused before the land queue.\n\nRule 8 of §Known-broken-on-main. On 2026-10-11\
-  \ a test that depended on the length of the\ncheckout path opened a record. The\
-  \ branch carrying only the card filed for its repair could not\nreach the broken\
+  \ were\nrefused before the land queue.\n\nRoute (f) of §Known-broken-on-main rule\
+  \ 2 (from an adopting consumer's report X-2129,\n2026-10-29). A stack-db layer red\
+  \ opened a record at 09:21:32Z; the repair's Stage-6 run at\n10:11:32Z ran the layer\
+  \ `passed-partial` (other units left to the pre-deploy run) with both failed\nfiles\
+  \ among its 75 passed units; its land at 10:15:20Z credited that run and wrote no\
+  \ stack-db row,\nso no route saw the repair and a spec-only branch was refused before\
+  \ the queue at 10:17:38Z. The\ngap was known since (followup fu_e7c79b370039). The\
+  \ card measured, before choosing, that\nthe credited run did observe both files:\
+  \ a record whose test no land can run (a listed pre-deploy\nunit) did not arise\
+  \ here, and no rule for it was added. The same consumer then reported (X-2133,\n\
+  2026-10-29) that a land running the layer itself reads it `passed-partial` at every\
+  \ land, because\nlisted pre-deploy units are skipped there (SPEC-1051 rule 2): its\
+  \ land at 10:45:43Z ran and passed\nboth repaired files, and route (e), which read\
+  \ only an exact `passed`, still left the record. On\nthe owner's decision (events.jsonl#ts=)\
+  \ route (e) takes (f)'s partial-run\nstandard; no new rule was added.\n\nRoute (g)\
+  \ of §Known-broken-on-main rule 2 (owner decision events.jsonl#ts=).\nAfter main\
+  \ was repaired, an adopting consumer was refused twice in one day (X-2129, X-2133)\
+  \ because a\nrecord clears only when some later land happens to observe the pass.\
+  \ The alternative of reading the\nscheduled pre-deploy rows (SPEC-1047) was dropped:\
+  \ they run only the listed classes, whole.\n\nRule 8 of §Known-broken-on-main. On\
+  \ 2026-10-11 a test that depended on the length of the\ncheckout path opened a record.\
+  \ The branch carrying only the card filed for its repair could not\nreach the broken\
   \ file and was refused before the queue twice, `land --no-tests --owner-authorized`\n\
   included, so the card was put on `main` by hand in owner-authorized emergency mode;\
   \ 28 refusals\nacross three branches followed that day. An adopting consumer reported\
@@ -927,11 +988,13 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: bd3c2ae84e964b704241edc160204d3deb75c32da7fed351aaa6eba3215111da
-  bin/lib/debt_adoption.py#open_known_broken: 932ce0f29abacad3a8984f0efaecc0c2f2c62749a3e0b84bd9b4975db4df7df7
-  bin/lib/verify_runner.py#_run_verify_tests: b308ed4920b9ac7c61b8ae6bd80f1e08c1228e6b79518fe8ef6c4a4c6ab88d24
+  bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: 7dd22f85b24807ddd6d2971843cfde667abb94387a80dac963253076dbe89127
+  bin/lib/debt_adoption.py#open_known_broken: 78b9b00b36b21c12081c37ab5ff3534cfeeead2829cbab354bd226697c50c3dc
+  bin/lib/verify_runner.py#_run_verify_tests: 1db401a797ad3eb8e1ff4177c31dbf3338359dcec592c2f6dbdbabca0be7530c
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0
   bin/lib/verify_runner.py#_shadow_select: 628730f15c2f65f73f7fa4ab55d2a13d7228774519faa44ec33422b4edf256f9
   bin/lib/verify_runner.py#governed_selection: cea15af5b8c5d8ddd19594b1062d030f0dc38e85ac329616aaf960e7c8c1d20c
+  bin/lib/worktree.py#_known_broken_recheck_run: cb822136c971d17b35ece230d41acfcd89def5ee469304eace8b4ac88bb67555
+  bin/lib/worktree.py#land_recheck_known_broken: 610bf6f5ac029edf425ce36611c0d83f4e8f811cdf0d216b4cddd6f86cd83992

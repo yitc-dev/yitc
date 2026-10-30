@@ -1374,6 +1374,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                        yaml_dump_block, latest_event_for, diff_touched_files,
                        norm_repo_path, ac_probe_evidence_events_for,
                        spec_coverage_section, build_referenced_files_section,
+                       state_checked_events_for=None,
                        scenario_contract_section=None, evidence_sink=None,
                        activation_section=None,
                        readiness_sink=None, readiness_journal_silent: bool = False,
@@ -2778,6 +2779,31 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                         "UNVERIFIED: no GREEN may rest on an activation the packet could not show.\n")
             if _act:
                 parts.append(_act)
+        # T-14326 (<project> X-2089) — audit-PRE carries the task-tied `state_checked` rows too. Only
+        # the post branch above collected evidence, so a criterion proven before the change by such
+        # a row was invisible to the pre auditor AND read ABSENT in the preview. The SAME injected
+        # collector (one call, the SPEC-0168 cross-instance fold), narrowed to that one type; the
+        # rows feed the readiness block below through `evidence_events`, never `evidence_sink` (the
+        # post custody count). Guarded: an evidence read must never break an audit.
+        # T-14338 — read through the host's typed reader when injected (`cli._state_checked_events_for`):
+        # inside audit pre's one-pass scope it serves the rows from that scope, where the full collector
+        # folded both journals a second time. Un-injected: the collector, as before.
+        if target_kind == "task" and stage == "pre":
+            try:
+                _tid = str(task.get("id") or "")
+                _sc_read = state_checked_events_for or ac_probe_evidence_events_for
+                evidence_events = [
+                    ev for ev in (_sc_read(task) or [])
+                    if str((ev or {}).get("type") or "") == "state_checked"
+                    and _tid in {str((ev or {}).get("task_id") or ""),
+                                 str(((ev or {}).get("data") or {}).get("task_id") or "")}]
+                _pre_ev = pre_state_checked_evidence_section(
+                    task.get("acceptance"), evidence_events, _ac_canonical_id,
+                    _format_adoption_evidence_lines)
+                if _pre_ev:
+                    parts.append(_pre_ev)
+            except Exception:      # noqa: BLE001 — report-only; an audit never fails on an evidence read
+                evidence_events = []
         # T-11820 — the declared-vs-audited touch reconciliation, rendered INTO the packet. Appended
         # HERE, inside the one assembler, is the whole of the preview/real identity guarantee: the
         # preview writes THIS string and the real invocation hands the auditor THIS string, so the two
@@ -3275,6 +3301,57 @@ _CRITERION_KEYS = frozenset({"criterion", "criteria", "check", "ac"})
 _ROW_AC_ID_RE = re.compile(r"(?<![A-Za-z0-9_])AC\d+(?![A-Za-z0-9_])")
 
 
+def state_checked_row_keyed_ids(row) -> set:
+    """T-14326 — the `ACn` ids a `state_checked` row's criterion keys (`criterion` / `criteria` /
+    `check` / `ac`) name — T-14100's keyed reading, extracted so the readiness block and the audit-pre
+    evidence section read a row the SAME way. An empty set means the row is unkeyed (the caller then
+    falls back to the ids in the row's whole JSON). Pure."""
+    ids = set()
+    if isinstance(row, dict):
+        for k, v in row.items():
+            if str(k).lower() in _CRITERION_KEYS:
+                for x in (v if isinstance(v, (list, tuple)) else [v]):
+                    if isinstance(x, str):
+                        ids.update(_ROW_AC_ID_RE.findall(x))
+    return ids
+
+
+def state_checked_row_ac_ids(row) -> set:
+    """T-14326 — every `ACn` id a `state_checked` row is evidence for, by the readiness block's rule:
+    its keyed ids when it has any, else the ids anywhere in its whole JSON. Pure."""
+    ids = state_checked_row_keyed_ids(row)
+    if ids or not row:
+        return ids
+    return set(_ROW_AC_ID_RE.findall(json.dumps(row, ensure_ascii=False, sort_keys=True, default=str)))
+
+
+def pre_state_checked_evidence_section(acceptance, events, canonical_id, format_rows) -> str:
+    """T-14326 (<project> X-2089) — the audit-PRE packet's view of the task-tied `state_checked` rows,
+    each listed under the criterion id it names (a row naming two criteria is listed under both; a
+    row naming none under `(no criterion named)`). "" when there are no rows, so a pre packet with no
+    such row is byte-identical to before. The readiness block reads the SAME rows, so a row the
+    auditor sees here is never reported ABSENT there."""
+    events = [ev for ev in (events or []) if ev]
+    if not events:
+        return ""
+    lines = ["### Acceptance-probe evidence (task-tied state_checked rows, audit-pre)", "",
+             "Diff-invisible journal rows recorded for this task before the change (events.jsonl is",
+             "excluded from every diff). Each is listed under the criterion its payload names.", ""]
+    placed = set()
+    for i, crit in enumerate(list(acceptance or []), start=1):
+        ac_id = canonical_id(str(crit), i)
+        mine = [ev for ev in events if ac_id in state_checked_row_ac_ids((ev or {}).get("data"))]
+        if mine:
+            placed.update(id(ev) for ev in mine)
+            lines.append(f"{ac_id}:")
+            lines.append(format_rows(mine, keep_types={"state_checked"}))
+    rest = [ev for ev in events if id(ev) not in placed]
+    if rest:
+        lines.append("(no criterion named):")
+        lines.append(format_rows(rest, keep_types={"state_checked"}))
+    return "\n".join(lines) + "\n"
+
+
 def packet_readiness_section(acceptance, task_class, evidence_types, stage6_present,
                              p8_present, deferred_field, stale_anchors, touch_recon,
                              prior_findings_unanswered, p8_carrier_ids=(),
@@ -3361,13 +3438,7 @@ def packet_readiness_section(acceptance, task_class, evidence_types, stage6_pres
     for r in (state_checked_rows or ()):
         if not r:
             continue
-        ids = set()
-        if isinstance(r, dict):
-            for k, v in r.items():
-                if str(k).lower() in _CRITERION_KEYS:
-                    for x in (v if isinstance(v, (list, tuple)) else [v]):
-                        if isinstance(x, str):
-                            ids.update(_ROW_AC_ID_RE.findall(x))
+        ids = state_checked_row_keyed_ids(r)
         if ids:
             keyed_ids.append(ids)
         else:

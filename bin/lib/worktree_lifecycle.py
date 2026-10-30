@@ -3943,8 +3943,11 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         payload = {"branch": branch, "main_sha": merge_head, "merge_commit": merge_commit,
                    "head_before": head_before, "resolved": conflicted,
                    "resolved_source": conflicted_source, "worktree": str(W)}
+        # T-14355 — into the WORKTREE's journal, whichever checkout ran the verb: `audit post` and the
+        # land read the branch's rows there, and under `-C <main>` the default target is main's journal.
+        _row_journal = _branch_journal(W, None)
         try:
-            _append_event("merge_resolved_by_hand", task, payload)
+            _append_event("merge_resolved_by_hand", task, payload, events_path=_row_journal)
         except Exception as e:                 # noqa: BLE001 — STEP 3a(b): FAIL LOUD, NEVER claim success
             # The commit is NEVER rolled back (STEP 3a(c)): it carries the operator's hand resolution,
             # content that exists nowhere else. Destroying unrecoverable work to make this verb look
@@ -3954,7 +3957,9 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
             _die("worktree sync --resolved: the merge WAS COMMITTED as " + merge_commit[:12] +
                  " but its `merge_resolved_by_hand` row could NOT be written: " + str(e) +
                  "\nThe resolution is safe — only its RECORD is missing. Recover it with (needs no "
-                 "worktree, D-0049):\n  bin/yitc-v2 event merge_resolved_by_hand"
+                 "worktree, D-0049):\n  bin/yitc-v2"
+                 + (f" -C {shlex.quote(str(W))}" if _row_journal is not None else "")
+                 + " event merge_resolved_by_hand"
                  + (f" --task {task}" if task else "") + " --data "
                  # shlex-quoted, so the pasted argument reaches `event` as the JSON OBJECT itself
                  # (a double-quoted JSON-of-JSON form is readable by a shell too, but only after

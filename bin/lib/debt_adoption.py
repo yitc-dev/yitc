@@ -82,6 +82,9 @@ KNOWN_BROKEN_DELEGATED_LAYER_KEY = "consumer_tests_delegated_layer"
 KNOWN_BROKEN_DELEGATED_FILES_KEY = "consumer_tests_delegated_files"
 KNOWN_BROKEN_LAYER_ROWS_KEY = "consumer_verify_layers"
 KNOWN_BROKEN_LAYER_PASSED = "passed"
+KNOWN_BROKEN_LAYER_PASSED_PARTIAL = "passed-partial"   # T-14350 route (f): a layer run in part
+KNOWN_BROKEN_STAGE6_EVENT = "tests_passed"             # T-14350 route (f): the run a credit names
+KNOWN_BROKEN_RECHECK_EVENT = "known_broken_recheck"     # T-14351 route (g): a recheck run on main's head
 P8_WARN_EVENT = "task_closed"
 P8_WARN_KEY = "adoption_evidence_seen"
 P8_CARRIER_MARKER = "P8-CARRIER:"
@@ -1724,7 +1727,7 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         The pair is corroborated by construction (see KNOWN_BROKEN_ESTABLISHING_SIDE): it failed in
         the candidate verify AND again at the merge-base, two runs on two trees. First sight
         establishes nothing.
-      * CLEAR — a LATER row is evidence for a pair by exactly one of five routes:
+      * CLEAR — a LATER row is evidence for a pair by exactly one of seven routes:
           (a) that pair appears in the row's `at_branch` — the merge-base run did NOT reproduce it,
               which is a direct pair-level observation of it passing on main;
           (b) the row is a GREEN land that ran the whole discovered enumeration AND the pair's test
@@ -1742,9 +1745,18 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
           (e) the pair was OPENED BY A CONSUMER VERIFY-LAYER RED — the row that established it
               shows the layer its first half names FAILED, and no other failing pair of that row
               shares that first half — and the row is a GREEN land whose own row for THAT layer
-              reads `passed` with no failure of the layer on record (T-13835). The record was
+              reads `passed` with no failure of the layer on record (T-13835) — or reads
+              `passed-partial` having run and passed every unit file the establishing row showed
+              failing (T-14350, the same per-row standard as (f)). The record was
               established by re-running the LAYER at the merge-base, so the same layer passing in
               a later green land is the same observation at the same granularity.
+          (f) the row is a GREEN land whose candidate leg was CREDITED from a Stage-6 run, and that
+              run — itself strictly later than the establishing row — observed the pair pass, held
+              to (c)'s standard for a test file and (e)'s for a layer; a `passed-partial` layer run
+              counts only when it ran every unit the establishing row showed failing (T-14350).
+          (g) a `known_broken_recheck` row — `land --recheck-known-broken`, a run on main's head of only
+              what the open records named (T-14351) — addressing the pair with its CURRENT observation
+              identity and showing its file / layer pass to (c)'s / (e)'s standard (`_recheck`).
         A green full-enumeration land whose tree did NOT contain the file VACATES the record instead:
         reported as its own count, never as a pass.
       * RE-BREAK — a later `at_main` observation re-opens a cleared pair, because it is a new fact
@@ -1773,6 +1785,7 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
     probe = _blob_exists if _blob_exists is not None else _known_broken_blob_exists
 
     rows: list = []
+    stage6_rows: list = []
     try:
         # T-11592 — the SEGMENT fold (SPEC-0190 rule 4), still the ONE shared parse path (T-11453):
         # `segment_rows` resolves the segment SET and reads each member through the same `fold_rows`
@@ -1783,9 +1796,19 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         # ESTABLISH archived lost the pair it needed. Segment order is concatenation, never
         # chronology (union-merge has always made physical order not-chronology, SPEC-0002) — the
         # `rows.sort` below already restores it, exactly as it had to before.
-        # T-13139 — declared: the land rows only (the whole history, unchanged).
-        for event in journal.segment_rows(events_path, types=(KNOWN_BROKEN_CARRIER_EVENT,)):
-            if not isinstance(event, dict) or event.get("type") != KNOWN_BROKEN_CARRIER_EVENT:
+        # T-13139 — declared: the land rows (the whole history, unchanged). T-14350 — plus the
+        # Stage-6 `tests_passed` rows, read in the SAME pass: route (f) follows a credited land to
+        # the run it credited, and that run is a row of this journal like any other.
+        # T-14351 — plus the `known_broken_recheck` rows route (g) reads, in the SAME pass and ordered
+        # with the land rows by `ts` (a stable sort, so a same-second pair keeps its journal order).
+        for event in journal.segment_rows(events_path, types=(KNOWN_BROKEN_CARRIER_EVENT,
+                                                              KNOWN_BROKEN_STAGE6_EVENT,
+                                                              KNOWN_BROKEN_RECHECK_EVENT)):
+            if isinstance(event, dict) and event.get("type") == KNOWN_BROKEN_STAGE6_EVENT:
+                stage6_rows.append(event)
+                continue
+            if not isinstance(event, dict) or event.get("type") not in (KNOWN_BROKEN_CARRIER_EVENT,
+                                                                        KNOWN_BROKEN_RECHECK_EVENT):
                 continue
             data = event.get("data")
             if not isinstance(data, dict):
@@ -1793,10 +1816,14 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
             event_ts = _parse_stamped_deadline(event.get("ts"))
             if event_ts is None:
                 continue          # no establishable ordering ⇒ neither opens nor closes
-            rows.append((event_ts, data))
+            rows.append((event_ts, data, event.get("type") == KNOWN_BROKEN_RECHECK_EVENT))
     except (OSError, UnicodeDecodeError):
-        rows = []
+        rows, stage6_rows = [], []
     rows.sort(key=lambda r: r[0])
+    # T-14350 — `{(task_id, ts): data}` over the Stage-6 green rows: the ONE home of the credit
+    # follow (`land_verify_legs`, T-14243), reused rather than restated.
+    from lib import land_verify_legs as _lvl
+    stage6_index = _lvl._stage6_rows_index(stage6_rows)
 
     open_records: dict = {}     # pair -> {file, assertion, since, branch, seen}
     vacated: dict = {}          # pair -> {file, at, sha}
@@ -1856,19 +1883,13 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         return sum(1 for p in _known_broken_pairs(data, "failing")
                    if _known_broken_file(p) == name) == 1
 
-    def _layers_passed_clean(data) -> "frozenset | None":
-        """ROUTE (e), the CLEARING side — the consumer verify LAYERS this row shows passing with
-        no failure of that layer on record, or None = COULD NOT ANSWER (SPEC-0165 item 11: `None`
-        is not an empty set).
-
-        Closures, like the two above: one caller each, reading nothing but the row. Each limb is a
-        way a row could otherwise be read as evidence nobody wrote:
-          * `status` is EXPLICITLY `ok` — never a default, as on routes (c) and (d).
-          * the layer rows are a list, and a name counts only when EXACTLY ONE row carries it: two
-            rows under one name cannot both be that layer's verdict.
+    def _layer_row_passed_clean(row) -> bool:
+        """ONE layer row read to a clean `passed`. Each limb is a way a row could otherwise be read
+        as evidence nobody wrote:
           * that row's `outcome` is exactly `passed`. Every other outcome the writer has — failed,
             timed-out, waived, malformed, prep-failed, skipped-disjoint-subject,
-            credited-stage6-run — means the layer did not run to a pass in THIS land.
+            credited-stage6-run — means the layer did not run to a pass (a `passed-partial` row is
+            `_layer_row_observes`'s second arm, never this one).
           * the row is not `retried`: a pass reached only by a re-run records a first-attempt
             failure of this layer in this land.
           * where the row carries the layer's per-unit report, EVERY unit row reads `passed` — the
@@ -1876,31 +1897,159 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
             (`land_verify_legs._adapter_first_attempt`). A report that is not a dict, units that
             are not a list, or a unit that is not a dict fails closed.
         """
-        if str(data.get("status") or "") != "ok":
-            return None
-        by_name = _layer_rows_by_name(data)
-        if by_name is None:
-            return None
-        clean = set()
-        for name, same in by_name.items():
-            if len(same) != 1:
-                continue
-            row = same[0]
-            if row.get("outcome") != KNOWN_BROKEN_LAYER_PASSED or row.get("retried"):
-                continue
-            if "adapter" in row:
-                report = row["adapter"]
-                if not isinstance(report, dict):
-                    continue
-                units = report.get("units")
-                if "units" in report and not (isinstance(units, list) and all(
-                        isinstance(u, dict) and u.get("status") == KNOWN_BROKEN_LAYER_PASSED
-                        for u in units)):
-                    continue
-            clean.add(name)
-        return frozenset(clean)
+        if row.get("outcome") != KNOWN_BROKEN_LAYER_PASSED or row.get("retried"):
+            return False
+        if "adapter" in row:
+            report = row["adapter"]
+            if not isinstance(report, dict):
+                return False
+            units = report.get("units")
+            if "units" in report and not (isinstance(units, list) and all(
+                    isinstance(u, dict) and u.get("status") == KNOWN_BROKEN_LAYER_PASSED
+                    for u in units)):
+                return False
+        return True
 
-    for event_ts, data in rows:
+    def _failed_units(data, pair) -> "frozenset | None":
+        """ROUTE (f), the ESTABLISHING side — the unit FILES the establishing row's own row for the
+        pair's layer shows not passing, or None = COULD NOT ANSWER (no unit list, a malformed one,
+        or none of its units failed). Read off the row the layer runner wrote, never parsed out of
+        the assertion text. Only a `passed-partial` credited run needs it: a partial run proves the
+        pair only by having RUN each of these files."""
+        same = (_layer_rows_by_name(data) or {}).get(_known_broken_file(pair))
+        report = same[0].get("adapter") if same and len(same) == 1 else None
+        units = report.get("units") if isinstance(report, dict) else None
+        if not isinstance(units, list) or not all(isinstance(u, dict) for u in units):
+            return None
+        failed = [u.get("file") for u in units if u.get("status") != KNOWN_BROKEN_LAYER_PASSED]
+        # Typed BEFORE hashing: a non-string `file` (a list, a dict) would raise inside a set and
+        # take the whole fold down instead of failing closed to "cannot answer".
+        if not failed or not all(isinstance(f, str) and f for f in failed):
+            return None
+        return frozenset(failed)
+
+    def _layer_row_observes(rec, row) -> bool:
+        """ONE layer row read as an observation that the LAYER record `rec` passes — the single
+        per-row standard routes (e) and (f) share (T-14350), so a land's own row and a credited
+        run's row are held to exactly the same test:
+          * a clean `passed` (`_layer_row_passed_clean`); or
+          * `passed-partial`, not retried, whose unit report ran EVERY unit file the establishing
+            row showed failing, and no unit of it reads other than `passed`. A partial row that
+            left a failed file out, a unit that is not a dict or names no file, or an establishing
+            row naming no failed unit (`failed_units` None) is not evidence.
+        """
+        if _layer_row_passed_clean(row):
+            return True
+        if row.get("outcome") != KNOWN_BROKEN_LAYER_PASSED_PARTIAL or row.get("retried"):
+            return False
+        failed = rec["failed_units"]
+        report = row.get("adapter")
+        units = report.get("units") if isinstance(report, dict) else None
+        if not failed or not isinstance(units, list) or not all(
+                isinstance(u, dict) and u.get("status") == KNOWN_BROKEN_LAYER_PASSED
+                and isinstance(u.get("file"), str) for u in units):
+            return False
+        return failed <= {u["file"] for u in units}
+
+    def _credited_run_observes(rec, pair, credit, taken, run) -> bool:
+        """ROUTE (f), the CLEARING side — did the credited Stage-6 run `run` OBSERVE `pair` pass?
+
+        Held to the standard of the route the land would have used had it run the verify itself:
+          * a LAYER record (route (e)): the run holds exactly one row for that layer, the land took
+            that layer from the run (`taken` — a per-layer credit's `credited` list; None for a
+            whole-land credit, which takes every layer), and the row reads a clean `passed` — or
+            `passed-partial` whose unit report ran EVERY unit the establishing row showed failing,
+            each `passed`, and no unit of it reads other than passed. A partial run that left a
+            failed file out, or an establishing row naming no failed unit, is not evidence.
+          * a TEST-FILE record (route (c)): a WHOLE-land credit only, and the run's recorded
+            selection names the pair's file.
+        """
+        name = _known_broken_file(pair)
+        if rec["by_layer"]:
+            if taken is not None and name not in taken:
+                return False
+            same = (_layer_rows_by_name(run) or {}).get(name)
+            return bool(same) and len(same) == 1 and _layer_row_observes(rec, same[0])
+        if credit != "stage6_credit":
+            return False
+        ran = _known_broken_ran_tests(run)
+        return ran is not None and name in ran
+
+    def _recheck_unit(entries, name, key):
+        """ROUTE (g) — the ONE entry of a recheck row's list `entries` whose `key` names `name`, or None
+        when the list is not a list, an entry is not a dict, or the name is carried by none or by two."""
+        if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+            return None
+        same = [e for e in entries if isinstance(e.get(key), str) and e[key].strip() == name]
+        return same[0] if len(same) == 1 else None
+
+    def _recheck(data) -> None:
+        """ROUTE (g) — T-14351. A `known_broken_recheck` row: a run, on main's head, of ONLY what the open
+        records named (`land --recheck-known-broken`). Read to (c)'s standard for a test file's record and
+        to (e)'s for a layer's, and judged per OPEN pair it ADDRESSES:
+          * strictly later than the establishing row (`_clears`), and a full commit id in `head`;
+          * the row addresses the pair EXACTLY ONCE with the record's CURRENT observation identity —
+            `since`, `last_seen` and `seen` all equal. Every re-observation bumps `seen` (and a
+            clear-then-reopen moves `since`), so a land that re-observed the pair while the recheck ran —
+            in the same second included — makes this row about an older observation, and it is ignored;
+          * a TEST-FILE record: exactly one `tests` entry names its file, reading `passed`, not retried;
+            a LAYER record (`by_layer`): exactly one layer row names the layer and `_layer_row_observes`
+            holds — the same unit standard as (e)/(f), a `passed-partial` row counting only when it ran
+            and passed every unit the establishing row showed failing.
+        A `failed` entry/row for such a pair is a FRESH AT-MAIN OBSERVATION: the record stands and is
+        re-stamped (`established`, `last_seen`, `seen`, and a layer record's failed units, taken from
+        THIS row) exactly as a land's re-observation re-stamps it. A
+        recheck row never opens, re-opens or vacates a record. Every malformed shape is not-evidence."""
+        nonlocal cleared_count
+        head = data.get("head")
+        if not (isinstance(head, str) and re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", head)):
+            return
+        addresses = data.get("addresses")
+        if not isinstance(addresses, list):
+            return
+        by_pair: dict = {}
+        for a in addresses:
+            if isinstance(a, dict) and isinstance(a.get("pair"), str):
+                by_pair.setdefault(a["pair"], []).append(a)
+        stamp = event_ts.isoformat().replace("+00:00", "Z")
+        for pair in list(open_records):
+            rec = open_records[pair]
+            addr = by_pair.get(pair)
+            if not _clears(pair) or not addr or len(addr) != 1:
+                continue
+            addr = addr[0]
+            seen = addr.get("seen")
+            if (type(seen) is not int or seen != rec["seen"] or addr.get("since") != rec["since"]
+                    or addr.get("last_seen") != rec["last_seen"]):
+                continue
+            name = _known_broken_file(pair)
+            if rec["by_layer"]:
+                row = _recheck_unit(data.get(KNOWN_BROKEN_LAYER_ROWS_KEY), name, "layer")
+                passed = row is not None and _layer_row_observes(rec, row)
+                failed = row is not None and row.get("outcome") == "failed"
+            else:
+                row = _recheck_unit(data.get("tests"), name, "file")
+                passed = row is not None and row.get("outcome") == KNOWN_BROKEN_LAYER_PASSED \
+                    and not row.get("retried")
+                failed = row is not None and row.get("outcome") == "failed"
+            if passed:
+                open_records.pop(pair, None)
+                vacated.pop(pair, None)
+                cleared_count += 1
+            elif failed:
+                rec["established"] = event_ts
+                rec["last_seen"] = stamp
+                rec["seen"] += 1
+                if rec["by_layer"]:
+                    # The NEWEST observation decides the failed units, as on a land's re-observation:
+                    # read off THIS row's layer row, and None (a report it cannot read) leaves no
+                    # partial run able to clear — only a clean `passed` then does (audit-post finding).
+                    rec["failed_units"] = _failed_units(data, pair)
+
+    for event_ts, data, is_recheck in rows:
+        if is_recheck:
+            _recheck(data)
+            continue
         # CLEAR FIRST, then establish — a single row can legitimately do both (an attribution record
         # naming one pair at the merge-base and another on the branch), and a pair this row places on
         # the branch is passing on main as of this row whatever another pair says.
@@ -1985,18 +2134,67 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
         # PER NAMED LAYER, NEVER "SOME LAYER PASSED", AND NEVER ON THE NAME ALONE. Only a record
         # its OWN establishing row showed to be that layer's red (`by_layer`, set where the record
         # is opened or re-observed) is looked at, and only when its first half IS the name of a
-        # layer this row shows passing clean. A test file that happens to share a layer's name
+        # layer this row shows observing it pass. A test file that happens to share a layer's name
         # was never opened by that layer, so a pass of the layer says nothing about it.
         #
         # NOTHING TIME-BASED IS ADDED: `_clears` is the same strictly-later test every route uses.
-        clean_layers = _layers_passed_clean(data)
-        if clean_layers is not None:
+        #
+        # THE ROW IS READ BY `_layer_row_observes`, the one per-row standard route (f) also uses
+        # (T-14350, X-2133): a clean `passed`, or a `passed-partial` whose unit report ran and passed
+        # every unit file the establishing row showed failing. A land skips listed pre-deploy units
+        # (SPEC-1051 rule 2), so a layer carrying one reads `passed-partial` at EVERY land; reading only
+        # an exact `passed` left such a record no clearing land at all. GREEN is explicit (`status`
+        # `ok`, never a default, as on routes (c) and (d)), and a name counts only when EXACTLY ONE row
+        # carries it: two rows under one name cannot both be that layer's verdict.
+        by_name = (_layer_rows_by_name(data)
+                   if str(data.get("status") or "") == "ok" else None)
+        if by_name is not None:
             for pair in list(open_records):
+                same = by_name.get(_known_broken_file(pair))
                 if (_clears(pair) and open_records[pair]["by_layer"]
-                        and _known_broken_file(pair) in clean_layers):
+                        and same and len(same) == 1
+                        and _layer_row_observes(open_records[pair], same[0])):
                     open_records.pop(pair, None)
                     cleared_count += 1
                     vacated.pop(pair, None)
+        # ROUTE (f) — T-14350. A GREEN land whose candidate leg was CREDITED from its Stage-6 run
+        # (SPEC-0065 §Bound) ran no verify of its own for what it credited: it writes no row for a
+        # credited layer and no recorded selection, so routes (c)-(e) had nothing to read and a
+        # repair landed that way never cleared the record it repaired (<project>, X-2129). The land
+        # row NAMES the run it took (`stage6_credit` / `stage6_layer_credit`, by task and ts), and
+        # that run is the observation — so the route follows the pointer and reads THE RUN, held to
+        # the standard routes (c) and (e) hold a land's own verify to (`_credited_run_observes`).
+        #
+        # BOTH the land and the run must be strictly later than the establishing row: the land by
+        # `_clears`, the run by its own ts. A run older than the record observed a tree from before
+        # the breakage was established, whatever the land that credited it did later.
+        # NOTHING TIME-BASED IS ADDED, and a pointer to a row this journal does not hold is
+        # not-evidence: the record stands.
+        if str(data.get("status") or "") == "ok":
+            for credit in ("stage6_credit", "stage6_layer_credit"):
+                ptr = data.get(credit)
+                if not isinstance(ptr, dict):
+                    continue
+                # Typed BEFORE the lookup: an unhashable task or ts would raise in the index and
+                # take the fold down; a malformed pointer is not-evidence, and the record stands.
+                key = (ptr.get("task"), ptr.get("ts"))
+                run = (stage6_index.get(key)
+                       if all(isinstance(k, str) for k in key) else None)
+                run_ts = _parse_stamped_deadline(key[1]) if run is not None else None
+                taken = None
+                if credit == "stage6_layer_credit":
+                    taken = ptr.get("credited")
+                    taken = (frozenset(t for t in taken if isinstance(t, str))
+                             if isinstance(taken, list) else frozenset())
+                if run_ts is None:
+                    break
+                for pair in list(open_records):
+                    if (_clears(pair) and run_ts > open_records[pair]["established"]
+                            and _credited_run_observes(open_records[pair], pair, credit, taken, run)):
+                        open_records.pop(pair, None)
+                        cleared_count += 1
+                        vacated.pop(pair, None)
+                break
         sha = str(data.get("sha") or "").strip()
         # THE SHA GATE LIVES HERE, NOT IN THE PROBE. Route (b) is "the file was in the tree THIS row
         # produced", so a row that names no tree cannot answer it — and the guarantee must not rest
@@ -2029,20 +2227,22 @@ def open_known_broken(events_path, root=None, _blob_exists=None, *, KNOWN_BROKEN
                                       "assertion": str(pair).partition(": ")[2].strip(),
                                       "since": stamp, "last_seen": stamp, "established": event_ts,
                                       "branch": str(data.get("branch") or ""), "seen": 1,
-                                      "by_layer": by_layer}
+                                      "by_layer": by_layer,
+                                      "failed_units": _failed_units(data, pair) if by_layer else None}
             else:
                 # A RE-OBSERVATION RE-STAMPS the establishing instant: the record is now a fact about
                 # THIS tree, so evidence must post-date THIS observation, not the original one.
                 rec["established"] = event_ts
                 rec["by_layer"] = by_layer        # the NEWEST observation decides, as for the instant
+                rec["failed_units"] = _failed_units(data, pair) if by_layer else None
                 rec["last_seen"] = stamp
                 rec["seen"] += 1
                 rec["branch"] = str(data.get("branch") or rec["branch"])
 
     # `established` is the ORDERING datetime, an internal of the pass — the returned record carries
     # the same instant as the ISO `since` string every reader (and every citation by ts) uses.
-    # `by_layer` is route (e)'s internal mark and is not part of the returned record either.
-    broken = sorted((({k: v for k, v in r.items() if k not in ("established", "by_layer")})
+    # `by_layer` / `failed_units` are routes (e)/(f)'s internal marks and are not returned either.
+    broken = sorted((({k: v for k, v in r.items() if k not in ("established", "by_layer", "failed_units")})
                      for r in open_records.values()), key=lambda r: (r["since"], r["pair"]))
     vacated_rows = sorted(vacated.values(), key=lambda r: (r["at"], r["pair"]))
     return {
