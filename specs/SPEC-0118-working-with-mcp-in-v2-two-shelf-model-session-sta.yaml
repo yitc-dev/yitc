@@ -44,7 +44,7 @@ body: "## Scenario\n\nA session (the kernel's own, or a consumer's) needs an ext
   \ below, this spec\ncarries NO governance rule of its own — the rules (the two-shelf\
   \ model, the host-provided connector class, the reconcile, the capture\nobligation,\
   \ the delivery axis, the territory composition) live ONLY in the pattern sections\
-  \ named\nabove, and the capture floor in SPEC-0116 (P5 — no restatement here, so\
+  \ named\nabove, and the capture floor in SPEC-1057 (P5 — no restatement here, so\
   \ nothing can drift beside the\npattern + the AGENTS re-delivery pointer). Read\
   \ `patterns/working-with-mcp-in-v2.md` for the rules.\n\n## Design-backend capability\
   \ (provider-neutral rule)\n\nA design backend has two project types — a reusable\
@@ -93,14 +93,13 @@ body: "## Scenario\n\nA session (the kernel's own, or a consumer's) needs an ext
   \ (CHARTER §P4b):** the pattern `patterns/working-with-mcp-in-v2.md` normative\n\
   \  text contains NONE of {`the AI provider mcp`, `the AI tool`, `/mcp`, `.mcp.json`,\
   \ `~/<provider-config>.json`} — those\n  live ONLY in the `class: adapter` runbook.\n\
-  - **Capture composition:** a substantive MCP-mediated external write emits a SPEC-0116\n\
+  - **Capture composition:** a substantive MCP-mediated external write emits a SPEC-1057\n\
   \  `external_action` event (probed there, not duplicated here).\n"
 cites:
 - CHARTER.md#principle-4
 - CHARTER.md#principle-5
 - SPEC-0013
 - SPEC-0084
-- SPEC-0116
 - SPEC-0100
 requires: []
 supersedes: null

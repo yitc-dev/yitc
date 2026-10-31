@@ -1653,6 +1653,9 @@ def _hook_verify(label: str, sec: dict, ops: dict) -> list:
     layers = sec.get("layers")
     if "independent_layers" in sec:
         errs.extend(_independent_layers_shape_errors(label, sec.get("independent_layers"), layers))
+    if "decide_first" in sec and not isinstance(sec.get("decide_first"), bool):   # T-14376 (SPEC-1046 rule 3)
+        errs.append(f"{label}.decide_first: present but not true or false — the opt-in decide-first "
+                    "barrier (SPEC-1046 rule 3 — shape, not value)")
     if "layer_worker_shares" in sec:
         errs.extend(_layer_worker_shares_shape_errors(label, sec.get("layer_worker_shares"), layers))
     if "pre_deploy_layer_worker_shares" in sec:     # T-14190 — the pre-deploy run's table, the same shape
@@ -11198,7 +11201,15 @@ def _engine_install_root(engine_root, _run_git_cap):
     (CLAUDE.md, MEMORY.md, yitc-ops.yaml, the security launcher) — a path a reboot or a cache sweep
     deletes. The pin does not re-exec the pinned code, so the engine that RUNS is this module's own
     checkout: that is the durable root to bake, resolved exactly as any other invoking engine.
+
+    THE TEST-HARNESS OVERRIDE (T-14388). Under `YITC_BAKE_INVOKING_ENGINE=1` the invoking checkout is
+    baked as is — after the release-cache remap above, so a pinned cache is still never baked. The hermetic verify child env sets it for every test child
+    (`verify_runner.hermetic_child_env`): a consumer a kernel test bears with the engine under test must
+    be judged by that engine — its born integrity layer (`graph conformance --strict`) compares the
+    committed index the branch engine built with a fresh build, and main's engine lacks the branch's
+    vocabulary (index-stale). The checkout outlives the test that uses it. Real use never sets it.
     """
+    import os
     import tempfile
     from pathlib import Path   # function-local, matching this module's import idiom
 
@@ -11211,6 +11222,8 @@ def _engine_install_root(engine_root, _run_git_cap):
         except ImportError:   # loaded off bin/lib directly — no served copy to map from
             pass
 
+    if os.environ.get("YITC_BAKE_INVOKING_ENGINE") == "1":   # T-14388 — after the cache remap: never a cache
+        return engine_root
     r = _run_git_cap(["worktree", "list", "--porcelain"], engine_root)
     if r.returncode != 0:
         return engine_root

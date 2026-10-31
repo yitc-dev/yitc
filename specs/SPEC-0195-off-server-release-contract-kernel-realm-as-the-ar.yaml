@@ -153,55 +153,59 @@ body: "## Scenario\n\nA machine that shares NO filesystem and NO `main` with the
   set at its activation (owner acceptance `events.jsonl#ts=`). The body named that\
   \ account's\nordinary word three times: two were reworded, and the third is the\
   \ workshop-instruments directory\nname in the table above — a real path, which cannot\
-  \ be reworded — so the ceiling moved by exactly\nthat one.\n\n**A PROJECT OF THE\
-  \ HOST IS A HOST LITERAL TOO — ABSTRACTED as provenance, REFUSED as a value\n(homed\
-  \ at SPEC-0074 rule 4b).** Unlike an account name it is not refusal-only: the corpus\n\
-  cites the host's projects as PROVENANCE about two thousand times, a record the workshop\
-  \ relies on,\nand a source scrub would destroy it without making one published file\
-  \ more correct. So prose and\nthe comments + docstrings of engine code are abstracted\
-  \ at publish, while an engine-code string,\na machine-read value or a path is refused\
-  \ for a source fix. The reproducibility cost of a\nhost-derived rewrite — the very\
-  \ reason the account arm refuses instead — is not waved away: rule 5\nstates the\
-  \ rebuild input and the journaled fingerprint that proves it.\n\n**RESIDUAL INVENTORY,\
-  \ re-decided for a PUBLIC mirror (owner directive\n`events.jsonl#ts=` — open the\
-  \ mirror).** Each class is pinned to a ceiling in\nthe boundary test, so growth\
-  \ fails there rather than shipping:\n- **the venue IP quoted in a `bin/` comment\
-  \ — ABSTRACTED, ceiling 1 -> 0.** It was kept while the\n  mirror was private on\
-  \ the provenance carve-out. Published to strangers a reachable\n  address is a scanning\
-  \ target, and the comment's measured incident reads exactly as well with\n  `<venue-ip>`\
-  \ — the identity was never the content. The sibling server id was already\n  must-be-absent,\
-  \ so this closes the pair.\n- **`/home/<workshop-account>` citations in `bin/` docstrings\
-  \ and comments — KEPT, ceiling 12.**\n  They name no person: the account is the\
-  \ workshop's service account, the path carries no secret,\n  and each is a verbatim\
-  \ citation of where a measured incident happened, which is the carve-out\n  this\
-  \ table already ratifies. Abstracting them would cost fidelity and buy nothing an\
-  \ adopter can\n  use.\n- **`~/snap/...` tool-home paths in published patterns (7)\
-  \ and the workshop worktree dir name (1)\n  — KEPT, unchanged.** Home-relative and\
-  \ not host-identifying.\n\n### 2. Three ownership classes on the consumer side\n\
-  Every file a consumer holds after install belongs to exactly ONE class:\n- **upstream-owned,\
-  \ read-only** — the living rule corpus (engine code, released handbook, kernel\n\
-  \  specs, patterns). Replaced wholesale on update; a local edit is a DIVERGENCE\
-  \ (rule 8), never a\n  fork.\n- **template-owned** — a SMALL, explicitly enumerated\
-  \ surface the release SCAFFOLDS into the\n  project and may re-scaffold on update:\
-  \ the artifact scaffold templates and the born ops template\n  (`graph/born-ops.yaml`).\
-  \ Enumerated in the release manifest (rule 5), never implied. The\n  project's own\
-  \ `yitc-ops.yaml`, once scaffolded from that template, is consumer-owned: no release\n\
-  \  ships it.\n- **consumer-owned** — the project's own realm (its specs, tasks,\
-  \ journal, graph, product context\n  home, ops VALUES). A skip-list on update: never\
-  \ overwritten, never read by the kernel as truth.\nA REGISTERED divergence from\
-  \ an upstream-owned file is an **override**; its ledger is the sibling\noverride-ledger\
-  \ spec, not this rule.\n\n### 3. One pin CONTRACT, two CARRIERS\nA consumer pins\
-  \ the release, never copies or forks it. The pin is ONE contract — an EXACT,\nimmutable\
-  \ release ref (a release TAG resolved to its peeled commit; a moving ref such as\
-  \ a branch\nis REFUSED) — realised by two carriers because executable code and regenerable\
-  \ content need\ndifferent checks:\n- **the ENGINE pin** — the executable dependency:\
-  \ `release_repo` (the local clone of the published\n  mirror) + the exact release\
-  \ tag, and optionally `anchor` (the rule-7 out-of-band trust-root\n  fingerprint);\
-  \ resolution reuses the existing pinned-release resolver shape (SPEC-0172 rule 3\
-  \ /\n  SPEC-0122 R2: annotated tag → peeled commit; a missing tag is a LOUD `pin-unresolved`,\
-  \ never a\n  silent fall-through). Where the pin declares `anchor`, resolution ADDS\
-  \ integrity — the resolved\n  tree verifies against the signed release manifest\
-  \ (rules 5-6) before the engine is used, and a\n  tree that fails resolves `pin-unresolved`.\
+  \ be reworded — so the ceiling moved by exactly\nthat one.\nIt was RE-DECIDED 401\
+  \ -> 402 when the release's CONTRIBUTING began naming the community commons\n(owner\
+  \ acceptance `events.jsonl#ts=`): the one extra occurrence is the\npublic org name\
+  \ inside the commons address, kept as a single literal at its source.\n\n**A PROJECT\
+  \ OF THE HOST IS A HOST LITERAL TOO — ABSTRACTED as provenance, REFUSED as a value\n\
+  (homed at SPEC-0074 rule 4b).** Unlike an account name it is not refusal-only: the\
+  \ corpus\ncites the host's projects as PROVENANCE about two thousand times, a record\
+  \ the workshop relies on,\nand a source scrub would destroy it without making one\
+  \ published file more correct. So prose and\nthe comments + docstrings of engine\
+  \ code are abstracted at publish, while an engine-code string,\na machine-read value\
+  \ or a path is refused for a source fix. The reproducibility cost of a\nhost-derived\
+  \ rewrite — the very reason the account arm refuses instead — is not waved away:\
+  \ rule 5\nstates the rebuild input and the journaled fingerprint that proves it.\n\
+  \n**RESIDUAL INVENTORY, re-decided for a PUBLIC mirror (owner directive\n`events.jsonl#ts=`\
+  \ — open the mirror).** Each class is pinned to a ceiling in\nthe boundary test,\
+  \ so growth fails there rather than shipping:\n- **the venue IP quoted in a `bin/`\
+  \ comment — ABSTRACTED, ceiling 1 -> 0.** It was kept while the\n  mirror was private\
+  \ on the provenance carve-out. Published to strangers a reachable\n  address is\
+  \ a scanning target, and the comment's measured incident reads exactly as well with\n\
+  \  `<venue-ip>` — the identity was never the content. The sibling server id was\
+  \ already\n  must-be-absent, so this closes the pair.\n- **`/home/<workshop-account>`\
+  \ citations in `bin/` docstrings and comments — KEPT, ceiling 12.**\n  They name\
+  \ no person: the account is the workshop's service account, the path carries no\
+  \ secret,\n  and each is a verbatim citation of where a measured incident happened,\
+  \ which is the carve-out\n  this table already ratifies. Abstracting them would\
+  \ cost fidelity and buy nothing an adopter can\n  use.\n- **`~/snap/...` tool-home\
+  \ paths in published patterns (7) and the workshop worktree dir name (1)\n  — KEPT,\
+  \ unchanged.** Home-relative and not host-identifying.\n\n### 2. Three ownership\
+  \ classes on the consumer side\nEvery file a consumer holds after install belongs\
+  \ to exactly ONE class:\n- **upstream-owned, read-only** — the living rule corpus\
+  \ (engine code, released handbook, kernel\n  specs, patterns). Replaced wholesale\
+  \ on update; a local edit is a DIVERGENCE (rule 8), never a\n  fork.\n- **template-owned**\
+  \ — a SMALL, explicitly enumerated surface the release SCAFFOLDS into the\n  project\
+  \ and may re-scaffold on update: the artifact scaffold templates and the born ops\
+  \ template\n  (`graph/born-ops.yaml`). Enumerated in the release manifest (rule\
+  \ 5), never implied. The\n  project's own `yitc-ops.yaml`, once scaffolded from\
+  \ that template, is consumer-owned: no release\n  ships it.\n- **consumer-owned**\
+  \ — the project's own realm (its specs, tasks, journal, graph, product context\n\
+  \  home, ops VALUES). A skip-list on update: never overwritten, never read by the\
+  \ kernel as truth.\nA REGISTERED divergence from an upstream-owned file is an **override**;\
+  \ its ledger is the sibling\noverride-ledger spec, not this rule.\n\n### 3. One\
+  \ pin CONTRACT, two CARRIERS\nA consumer pins the release, never copies or forks\
+  \ it. The pin is ONE contract — an EXACT,\nimmutable release ref (a release TAG\
+  \ resolved to its peeled commit; a moving ref such as a branch\nis REFUSED) — realised\
+  \ by two carriers because executable code and regenerable content need\ndifferent\
+  \ checks:\n- **the ENGINE pin** — the executable dependency: `release_repo` (the\
+  \ local clone of the published\n  mirror) + the exact release tag, and optionally\
+  \ `anchor` (the rule-7 out-of-band trust-root\n  fingerprint); resolution reuses\
+  \ the existing pinned-release resolver shape (SPEC-0172 rule 3 /\n  SPEC-0122 R2:\
+  \ annotated tag → peeled commit; a missing tag is a LOUD `pin-unresolved`, never\
+  \ a\n  silent fall-through). Where the pin declares `anchor`, resolution ADDS integrity\
+  \ — the resolved\n  tree verifies against the signed release manifest (rules 5-6)\
+  \ before the engine is used, and a\n  tree that fails resolves `pin-unresolved`.\
   \ A pin that declares no `anchor` resolves the tagged\n  commit's bytes without\
   \ that check: at this seam integrity follows the declaration, and the paths\n  that\
   \ verify unconditionally are rule 6's enumerated entrypoints;\n- **the CONTENT pin**\
@@ -405,7 +409,7 @@ concern:
 init_concern: null
 implements_signature:
   bin/lib/release.py#_add_trust_surfaces: b72577832dd49c4dbfe21b201f77cfe07d1d5c680ae43a5bc61ac531742403e8
-  bin/lib/release.py#cmd_release_update: 591047391c9872c824509383c77d8951114fa603cd08dca93bdd773f6063fdde
+  bin/lib/release.py#cmd_release_update: bcb92ddab5f873cee07df795880729b83fd137e8bf30540ba79e2595fdf8387c
   bin/lib/release.py#cmd_work_publish: a696b98ace57bd02bac309c89f63a9b01270eb44c0123f4886155c24593949d8
   bin/lib/release.py#cut_release_tree: fe2d3ae82d7bc2f6aaa2fee68235a59624d691c9b95dbe1b4b7d3d4ab073aec9
   bin/lib/release.py#host_literal_violations: 3c9b17eedb6df57aff0af813c33da78f3da0719e66818c22bb2e1ad470adea83

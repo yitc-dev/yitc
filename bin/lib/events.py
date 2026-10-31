@@ -2566,6 +2566,35 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
     if _premise_hint:
         print(_premise_hint, file=sys.stderr)
 
+    # T-14379 (SPEC-1057): the PUBLICATION PACKAGE of a public post. `--package <manifest>` makes the
+    # verb compute `package_sha256` over the canonical form itself, from the bytes it reads now, so the
+    # row names the package actually read and never a caller's claim about it. Pre-append and above the
+    # `--check` return, like every check here: a refusal leaves the journal byte-identical.
+    _package = getattr(args, "package", None)
+    if _package is not None:
+        if event_type != "external_action":
+            _die(f"--package is for an `external_action` row (SPEC-1057), not `{event_type}`. "
+                 f"Nothing was appended. Record the post with `bin/yitc-v2 event external_action "
+                 f"--package <manifest> --data '<channel/target/action/from>'`, or drop --package.")
+        from lib import publication   # noqa: PLC0415 — only this branch needs it
+        try:
+            _pkg = publication.load_package(_package)
+            _pkg_sha = publication.package_sha256(_pkg)
+        except publication.PackageError as exc:
+            _die(f"external_action --package: {exc}. Nothing was appended. Fix the manifest, then "
+                 f"re-run `bin/yitc-v2 event external_action --package <manifest> --data '...'`.")
+        if "package_sha256" in caller_data and caller_data["package_sha256"] != _pkg_sha:
+            _die(f"external_action --package: the supplied package_sha256 "
+                 f"{caller_data['package_sha256']!r} is not the hash of the package read now "
+                 f"({_pkg_sha}) — the package changed after consent, or the hash names another one; "
+                 f"fresh consent is needed (SPEC-1057). Nothing was appended. Show the person the "
+                 f"package as it is now, and after their consent re-run `bin/yitc-v2 event "
+                 f"external_action --package <manifest>` with the new hash or none.")
+        data["package_sha256"] = _pkg_sha
+        data["package_parts"] = publication.package_parts_summary(_pkg)
+        data["package_destination"] = _pkg["destination"]
+        data["package_visibility"] = _pkg["visibility"]
+
     # T-13508: will this task-tied row be folded OUT of its task's audit-post packet by the card
     # opt-in? Report-only and fail-open — contract in `_packet_fold_emit_warning`; this stays a call
     # site. Same family and same placement as the hints above: BEFORE the `--check` early return, so a

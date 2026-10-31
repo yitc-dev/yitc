@@ -10,7 +10,7 @@ sourced_from: official AI tool MCP docs (code.claude.com/docs/en/mcp.md, mcp-qui
 > **`class: adapter` — NON-NORMATIVE, NOT a governance source.** This file is a provider binding: the
 > concrete the AI tool commands that implement the provider-neutral discipline. It establishes NO rule,
 > gate, or obligation. The governance lives in **`patterns/working-with-mcp-in-v2.md`** (neutral) and
-> **SPEC-0116** (capture); on any conflict, those WIN. Provider commands change upstream — when they do,
+> **SPEC-1057** (capture); on any conflict, those WIN. Provider commands change upstream — when they do,
 > THIS file is updated, the neutral pattern is not. (Same boundary CHARTER §Principle 4b draws:
 > methodology text stays provider-neutral; provider bindings live in adapters/runbooks like this one and
 > the root `<vendor-adapter>.md` vendor adapter.)
@@ -106,7 +106,7 @@ the AI provider.ai the AI tool Remote: https://api.anthropic.com/v1/code/mcp/met
 This closes the loop the runbook describes: **register/connect → discover the `mcp__…` tool →
 call it → get a real result.** Two boundaries the example also pins:
 
-- **It is a READ, so NO capture fires.** `list_environments` only reads — the SPEC-0116
+- **It is a READ, so NO capture fires.** `list_environments` only reads — the SPEC-1057
   `external_action` floor excludes reads (the spec's negative probe), so this round-trip emits no
   `external_action` event. A *write* through such a tool would (see §Capture reminder).
 - **A built-in harness tool is NOT this proof.** The harness-native `DesignSync` tool is the
@@ -115,19 +115,19 @@ call it → get a real result.** Two boundaries the example also pins:
 
 ## Capture reminder (the one rule that is NOT optional)
 
-A substantive external WRITE through any `mcp__<server>__<tool>` tool incurs the SPEC-0116
+A substantive external WRITE through any `mcp__<server>__<tool>` tool incurs the SPEC-1057
 `external_action` capture floor — emit:
 
 ```
 bin/yitc-v2 event external_action --data '{"channel":"mcp:<server>","target":"<external-object>","action":"<what>","from":"<task/plan/spec id>"}'
 ```
 
-Reads need nothing. This is governance (SPEC-0116), reproduced here only as an operational reminder —
+Reads need nothing. This is governance (SPEC-1057), reproduced here only as an operational reminder —
 the rule's home is the spec, not this adapter.
 
 ## See also
 
 - `patterns/working-with-mcp-in-v2.md` — the provider-neutral discipline this runbook implements.
-- **SPEC-0116** — the `external_action` capture floor (`bin/yitc-v2 graph query SPEC-0116`).
+- **SPEC-1057** — the `external_action` capture floor (`bin/yitc-v2 graph query SPEC-1057`).
 - Upstream depth: the official AI tool MCP docs (code.claude.com/docs/en/mcp.md, mcp-quickstart,
   managed-mcp) — the authoritative, version-current command reference.

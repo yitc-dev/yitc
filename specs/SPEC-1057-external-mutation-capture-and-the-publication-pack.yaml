@@ -1,0 +1,184 @@
+id: SPEC-1057
+title: External-mutation capture and the publication package - external_action for
+  an un-verbed outbound mutation; a public post names the consented package
+status: active
+created_at: 2026-10-30 08:33:16+00:00
+travels: null
+consumed: false
+extension: null
+implements:
+- bin/lib/publication.py#canonical_form
+- bin/lib/publication.py#package_sha256
+- bin/lib/publication.py#load_package
+- bin/lib/publication.py#findings
+- bin/lib/publication.py#scrub
+- bin/lib/publication.py#split_uncleanable
+- bin/lib/publication.py#consent_text
+- bin/lib/publication.py#consent_covers
+- bin/lib/publication.py#prepare_publication
+- bin/lib/events.py#cmd_event
+body: "## Scenario\n\nWhen a session does something that changes the world OUTSIDE\
+  \ every repo — writes a correction into a\ndesign project, posts to a chat service,\
+  \ calls a third-party write API — and **no dedicated v2 verb\nalready captures that\
+  \ action**, the session records it with ONE journal line: an `external_action`\n\
+  event (via `bin/yitc-v2 event`). So the mutation is visible across sessions the\
+  \ same way a `deploy`\nor a `cross request` is. READS and trivial/no-effect calls\
+  \ need nothing.\n\n## Internal\n\nTHE RULE (the fallback capture FLOOR for outbound\
+  \ external mutations):\n\nA **substantive outbound external mutation** that **lacks\
+  \ a dedicated capturing verb** MUST emit an\n`external_action` journal event at\
+  \ the time of the action, via `bin/yitc-v2 event` (no worktree — it\nrides the append-only\
+  \ journal path, the exception, exactly like `deviation_captured`).\n\n- **\"Substantive\
+  \ external mutation\"** = a WRITE / side-effect to a system OUTSIDE every repo (an\n\
+  \  external service, project, or API). **READS and trivial/no-effect calls are EXCLUDED**\
+  \ — the bright\n  line is a state change in the external world, mirroring the Principle-2\
+  \ \"substantive action\"\n  threshold. (Capturing reads would be noise.)\n- **\"\
+  Lacks a dedicated verb\"** = no existing verb already produces that action's capture.\
+  \ Named\n  external interactions that DO have richer, dedicated capture are governed\
+  \ by THEIR verb, NOT this\n  floor: `deploy` (`deploy_completed` + `live_probe`,\
+  \ SPEC-0094); `cross *` (`cross_requested`,\n  SPEC-0085/0086); the shared-store\
+  \ append (SPEC-0084). This doctrine is the **fallback floor for the\n  un-verbed\
+  \ remainder only** — it does NOT replace or weaken those, and the §Verb-execution\
+  \ discipline\n  is unchanged (where a dedicated verb exists, using it stays the\
+  \ obligatory path; hand-emitting this\n  generic event instead of the proper verb\
+  \ is NOT permitted).\n- **Required `data` fields** of the `external_action` event:\n\
+  \  - `channel` — HOW the mutation was issued (e.g. `mcp:<server>`, `harness-tool:<name>`,\
+  \ `bash:<cmd>`).\n  - `target` — WHAT external system/object changed (e.g. `design-project:c95f02ff`,\
+  \ `slack:<channel>`).\n  - `action` — WHAT was done (e.g. `write_files`, `post_message`,\
+  \ `PUT /resource`).\n  - `from` — the durable basis for the action (CHARTER §P2):\
+  \ a task/plan/spec id or a journal locator.\n- **Publication package.** A post to\
+  \ the community commons or to any public forge — an issue, a\n  pull request, a\
+  \ comment, a discussion, an entry — names the PACKAGE the person consented to:\n\
+  \  content, attachments, published metadata, destination and visibility; the row\
+  \ that records the post\n  — its `external_action` row, or the journal row of the\
+  \ dedicated verb that made the post — carries\n  the package content hash (`package_sha256`),\
+  \ and a change to\n  any part after consent needs fresh consent before posting.\
+  \ Before consent the package is scrubbed\n  of secrets, private data and business\
+  \ detail, and third-party code in it needs the right to publish.\n  Disclosure:\
+  \ the author is visible (the account that posts); the project is described generically\n\
+  \  (stack, environment class, scale), and its name and domain appear only when the\
+  \ person explicitly\n  chooses to name the project; its customers, data and credentials\
+  \ are never disclosed; a raw log or dump is never\n  posted, only a minimal reproduction\
+  \ or a redacted excerpt. This is the one home of the disclosure\n  boundary; other\
+  \ texts point here.\n  Content that cannot be cleaned is not posted: the person\
+  \ is told, and the matter goes to the\n  installation's internal channel (the cross\
+  \ log, SPEC-0084) only as a description and a pointer,\n  after the kernel's redaction\
+  \ — the uncleanable part itself is written to no journal. An agent\n  never posts\
+  \ on its own.\n- **Territory composition:** an external-service write is OUTSIDE\
+  \ every repo, so it is NOT a\n  cross-repo write — the SAME legality basis as the\
+  \ SPEC-0084 shared-store carve-out. The capture\n  obligation therefore does not\
+  \ conflict with the scope-boundary discipline (it neither writes nor\n  probes another\
+  \ project's repo).\n- **Channel-agnostic:** the obligation is INDEPENDENT of transport\
+  \ — an MCP tool, a harness-native\n  tool, or a raw `curl`/API call in Bash all\
+  \ incur it equally. (MCP transport specifics: the\n  \"working with MCP in v2\"\
+  \ pattern, which POINTS here for capture — it does not restate this rule.)\n\n##\
+  \ Parameters\n\nNone consumed. The `data` field set above is the event PAYLOAD contract\
+  \ (channel/target/action/from),\nnot a code-read scalar governance param — so `consumed:\
+  \ false`.\n\n## Rationale\n\nSuccessor of <workshop-spec> (its rationale: `graph\
+  \ query <workshop-spec>`). This version adds the publication\npackage: a post to\
+  \ a public forge, already covered by the capture floor, now also names the consented\n\
+  package and its hash — a changed obligation for an already-covered case, so a successor\
+  \ rather than an\nin-place amendment (SPEC-1037 §7; plan community-commons-kernel-keeps-principles-and-exch,\
+  \ plan check\n#7 F3). Outbound safety of the community commons (Level-1: publication\
+  \ only with the person's consent\nto the whole package, sensitive matters to the\
+  \ internal channel, agents never post on their own) is\nthe reason; the consult\
+  \ on that plan named the consent-then-change gap (finding 4).\n\n## Implementation\
+  \ notes\n\n### Moved from the rule text\n\nReference and maintainer passages moved\
+  \ word for word out of the rule text of the section\neach names; no rule an acting\
+  \ reader applies moved with them.\n\nFrom «Internal»:\n\n`package_sha256` is the\
+  \ SHA-256 of the package's canonical form: the five parts in a fixed order —\ncontent,\
+  \ each attachment, published metadata, destination, visibility — each written as\
+  \ its name, its\nbyte length and its bytes, attachments sorted by name; so a change\
+  \ to any part changes the hash.\n\n### The canonical form, byte for byte\n\nEnough\
+  \ to reimplement the hash from these notes alone. The parts, in this order: `content`;\
+  \ one\n`attachment/<name>` per attachment, sorted by name (byte order of the UTF-8\
+  \ name); `metadata`;\n`destination`; `visibility`. Each part is written as: the\
+  \ decimal ASCII byte length of its name, LF,\nthe name in UTF-8, LF, the decimal\
+  \ ASCII byte length of its data, LF, the data, LF. Every field is\nlength-prefixed,\
+  \ so no two packages share a form (an attachment name holding LF cannot imitate\
+  \ a\npart boundary). The data: the content and each attachment as their raw bytes;\
+  \ the metadata as\n`json.dumps(metadata, sort_keys=True, separators=(\",\", \":\"\
+  ), ensure_ascii=False)` encoded UTF-8;\nthe destination and the visibility as UTF-8.\
+  \ `package_sha256` is the lowercase hex SHA-256 of the\nconcatenation. Known vector:\
+  \ content `hi`, one attachment `a.txt` = `xyz`, metadata `{\"k\":\"v\"}`,\ndestination\
+  \ `d`, visibility `public` give the form\n`7\\ncontent\\n2\\nhi\\n16\\nattachment/a.txt\\\
+  n3\\nxyz\\n8\\nmetadata\\n9\\n{\"k\":\"v\"}\\n11\\ndestination\\n1\\nd\\n10\\nvisibility\\\
+  n6\\npublic\\n`.\n\nThe code: `bin/lib/publication.py` — the canonical form and\
+  \ hash, the manifest loader, the scrub\nfindings (the journal's write-time redaction\
+  \ for secret shapes, the release host-leak pattern for\nprivate paths, the project's\
+  \ names unless the person chose to name it), the split of what cannot\nbe cleaned,\
+  \ the consent text and the consent check, and `prepare_publication`, which routes\
+  \ the\ndescription of what was cut through `cross request --kind note`. What the\
+  \ scrub identifies as\nuncleanable, mechanically: bytes that are not UTF-8; an opaque\
+  \ run of 32 or more base64 / hex\ncharacters with a segment of 8 or more mixing\
+  \ letters and digits, except the 43-character base64 body\nof an OpenSSH key fingerprint\
+  \ written `SHA256:<body>`, a public value read as text; and a whole content, attachment\n\
+  or metadata string value that is nothing but base64 / hex characters at any length\
+  \ and holds a\ndigit or one of `+ / =` (a word of letters, `-` and `_` is text).\
+  \ A short encoded token inside prose\nis not cut: the consent text shows every remaining\
+  \ byte in full, so the person sees and classifies\nit. The metadata must be plain\
+  \ JSON (objects with string keys, arrays, strings, numbers, booleans,\nnull) or\
+  \ the package is refused, so every string the canonical form serializes is one the\
+  \ scan and\nthe scrub walk. A finding, a description, a removal notice and the internal-channel\
+  \ brief name a part\nby its position in the draft (`attachment 2`, `metadata[1]`),\
+  \ never by its text, so none of them can\nre-publish a name, a key or a destination.\
+  \ Two attachment names or metadata keys that become the same\nafter cleaning are\
+  \ refused, never merged; a project name is never matched inside a placeholder the\n\
+  scrub wrote. `bin/yitc-v2 event external_action --package <manifest>` computes the\
+  \ hash from the files it\nreads at that moment and records `package_sha256`, the\
+  \ part sizes, the destination and the\nvisibility; a supplied `package_sha256` that\
+  \ differs is refused.\n\n`external_action` is a NEW event type added to the events\
+  \ catalog (SPEC-0025 / extension) —\nadditive to the one journal (CHARTER §P5),\
+  \ no new store/parser/format.\n\n## Verification\n\n- **Probe (behavioral):** after\
+  \ a substantive un-verbed external mutation, `bin/yitc-v2 journal query\n  --type\
+  \ external_action` (the segment-aware reader, SPEC-0190) shows the event carrying\
+  \ `channel` /\n  `target` / `action` / `from`.\n- **Negative probe (reads):** a\
+  \ READ-only external call emits NO `external_action` event (reads excluded).\n-\
+  \ **Negative probe (no verb bypass):** an action that a DEDICATED verb covers (a\
+  \ deploy, a `cross`\n  request) emitted via a hand `external_action` event INSTEAD\
+  \ of its verb is a VIOLATION, not\n  compliance — the §Verb-execution discipline\
+  \ holds; this floor is the fallback for the un-verbed\n  remainder only, never an\
+  \ escape from a covering verb.\n- **Probe (package):** a post to the commons or\
+  \ a public forge — un-verbed or through a dedicated verb\n  — has a row (its `external_action`\
+  \ row or that verb's own row) whose `package_sha256` equals the\n  hash of the package\
+  \ the consent named; a post naming the project without the person's explicit\n \
+  \ choice is refused; a package changed after consent\n  (an attachment or a metadata\
+  \ field) is refused until fresh consent; a draft holding a credential\n  shape or\
+  \ a private path is refused before the consent text is shown; content that cannot\
+  \ be\n  cleaned is routed to the cross log and not posted.\n- **Adoption (P8), in\
+  \ two parts.** The carried rule: the event fires for ≥1 real (PIGGYBACKED on an\n\
+  \  already-authorized) external mutation — its rows already exist from <workshop-spec>'s\
+  \ life (e.g. the forge\n  comments and release pushes of 2026-10-29/30), read by\
+  \ `journal query --type external_action`. The\n  package: at the activating card's\
+  \ close, an end-to-end synthetic publication record — the real event\n  verb, in\
+  \ a scratch checkout, writes an `external_action` row whose `package_sha256` the\
+  \ shipped code\n  computed and an independent reimplementation of the canonical\
+  \ form reproduces; the first real\n  publication's row, its hash recomputed over\
+  \ the approved package, is checked by the card that\n  publishes. Graph presence\
+  \ is not adoption.\n"
+cites:
+- CHARTER.md#principle-2
+- CHARTER.md#principle-5
+- CHARTER.md#principle-8
+- SPEC-0025
+- SPEC-0084
+- SPEC-0094
+- SPEC-1056
+- community-commons-kernel-keeps-principles-and-exch
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: community-commons-kernel-keeps-principles-and-exch
+binding:
+- before-external-mutation
+init_concern: null
+implements_signature:
+  bin/lib/events.py#cmd_event: 805422ae5fecd3b203d1332463615ef4f43a9832d4e60dcd822098fb6fcf96ea
+  bin/lib/publication.py#canonical_form: fb6592d440d7a8d83ecaf8f335ed20c1ac55921416fccb4358eb9067b5cc1a41
+  bin/lib/publication.py#consent_covers: 86c89dc67f20e2d6c72adb0a437f809429699121e0cbb6d30a8d27c672b36c9b
+  bin/lib/publication.py#consent_text: cc3e7fb386ff7d8866282e2257d410f0396a6515de105dc913d26d85460c6b44
+  bin/lib/publication.py#findings: fa552ba6501838678ec80d74c58acf16f1f3fc6f5d53e1cbd563d8d74b169c3d
+  bin/lib/publication.py#load_package: 4ef3c59b832020921088b30ae55cb00a86ef57b2dd4f863bdccfb50f4dde71e0
+  bin/lib/publication.py#package_sha256: 82a1676d8ef7a2442b0e5c7027118e296546b9a882d6e433be17feecb0e84eac
+  bin/lib/publication.py#prepare_publication: c857f6d7896ee56e35c603b3a64bfcfd92b3270285516c630762e466e229d974
+  bin/lib/publication.py#scrub: b7d8eddd0cd5c87407f9ca4cdd5910c19ea68c35baca4015836d7e0218393e82
+  bin/lib/publication.py#split_uncleanable: 4f86ac37a6917b7fc3a6d778551d683ed02eb507d449b1b2d7a2bb7eefa448f5

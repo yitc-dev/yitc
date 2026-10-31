@@ -291,7 +291,7 @@ controller may send is a **hint** that stays inside the worker's audited plan an
 pointer, a reminder of a rule. A mid-flight **ASSIGNMENT change** (another task, a changed scope,
 acceptance or plan) is never sent as a message: it stays a planned stop → respawn →
 resume-from-claim-point (§Enrichment C5 of the picker plan). A message is not the owner's word and
-authorizes nothing. Each send leaves one `external_action` row (SPEC-0116 — the capture floor for an
+authorizes nothing. Each send leaves one `external_action` row (<workshop-spec> — the capture floor for an
 outbound action no verb covers), tied to the worker's card: `bin/yitc-v2 event external_action --task
 <worker's card> --data '{"channel":"harness-tool:<send tool>","target":"session:<worker ref>","action":"post_message","from":"<basis locator>","kind":"hint"}'`.
 

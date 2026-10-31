@@ -5304,7 +5304,7 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
                  # nested runners write exports beside the run's own). A test that needs one sets it
                  # on its own child, as an overlay.
                  "YITC_VERIFY_LAYER_WORKERS", "YITC_VERIFY_SELECTED_LAYERS", "YITC_VERIFY_LAYER_FORECAST",
-                 "YITC_VERIFY_WORKER_SHARES_KEY", "YITC_VERIFY_RERUN_FILES",
+                 "YITC_VERIFY_LAYER_DECIDED", "YITC_VERIFY_WORKER_SHARES_KEY", "YITC_VERIFY_RERUN_FILES",
                  "YITC_VERIFY_OUTCOMES_DIR",
                  # T-11432 — the AMBIENT shared-store carrier, and ONLY the ambient one. It is the
                  # exact sibling of the three journal-store carriers above (SPEC-0084 rule 5: the
@@ -5558,4 +5558,7 @@ def hermetic_child_env(box: Path, tf_name: str, cwd, *, source_env=None,
             _bf.write(json.dumps({"ts": "2000-01-01T00:00:01Z", "type": "cli_invoked",
                                   "session_ref": _seed_ref,
                                   "data": {"node_id": "cli:seed", "verb": "session start"}}) + "\n")
+    # T-14388 — a consumer a test bears is judged by the engine under test, never main's install
+    # (`init._engine_install_root`). A test proving the real-use durable bake pops it (T-10530).
+    env["YITC_BAKE_INVOKING_ENGINE"] = "1"
     return env

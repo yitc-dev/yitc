@@ -3029,32 +3029,82 @@ def _capability_turn_on(sid: str, data: dict) -> "str | None":
     return None
 
 
+def _gated_keys(active: dict) -> dict:
+    """`{(carrier, key): row}` for every opt-in key the active specs' concerns gate a capability on (T-14389).
+
+    `active` is `_active_specs` of one cut. The keys are the concerns' own `gated_capabilities:`
+    entries (SPEC-0128 Rule 2), read through the graph's parser, so there is no second list of keys.
+    The identity is the carrier section plus the key: a changed summary is the same key, and so is a
+    key moved to another spec on the same section. On a duplicate identity the first spec in id order
+    wins. The row has the shape `capabilities_to_consider` returns, kind `key`.
+    """
+    out = {}
+    for sid in sorted(active):
+        for block in graph_lib._concern_raw_blocks(active[sid].get("concern")):
+            if not isinstance(block, dict):
+                continue
+            carrier = block.get("carrier_path") or block.get("section")
+            if not (isinstance(carrier, str) and carrier.strip()):
+                continue
+            carrier = carrier.strip()
+            for cap in graph_lib._gated_capability_entries(block):
+                ident = (carrier, cap["key"])
+                if ident in out:
+                    continue
+                title = " ".join(graph_lib._release_view_strip(cap.get("summary") or cap["key"]).split())
+                out[ident] = (cap.get("spec") or sid, title,
+                              f"yitc-ops.yaml `{carrier}.{cap['key']}: {cap['example']}`", "key")
+    return out
+
+
 def capabilities_to_consider(new_tree: dict, old_tree: dict) -> tuple:
-    """The kernel specs that became active between two release cuts (T-13629) — the ONE derivation.
+    """What a project updating across two release cuts may turn on (T-13629, T-14389) — the ONE derivation.
 
     `new_tree` and `old_tree` are release cuts (`cut_release_tree`, or two verified published
     releases, which are such cuts), so every spec in them already passed the release predicate:
-    kernel realm and `status: active` at that commit. A spec is listed when it is active in the new
-    cut and NOT active in the old one — absent there, or there under another status. Returns
-    `(spec_id, title, turn_on)` rows in id order; the title is identity-stripped like the «What
-    changed» titles. Both the release notes and the end of `release update` render THIS tuple.
+    kernel realm and `status: active` at that commit. Two kinds of row, specs first:
+      - `spec` — a spec active in the new cut and NOT active in the old one (absent there, or there
+        under another status), in id order; the title is identity-stripped like the «What changed»
+        titles;
+      - `key` — an opt-in key an active spec's concern gates a capability on in the new cut and no
+        active spec's concern declared in the old one (`_gated_keys`), in (section, key) order.
+    Returns `(spec_id, title, turn_on, kind)` rows. Both the release notes and the end of
+    `release update` render THIS tuple.
     """
     new, old = _active_specs(new_tree), _active_specs(old_tree)
-    return tuple((sid, " ".join(graph_lib._release_view_strip(str(new[sid].get("title") or "")).split()),
-                  _capability_turn_on(sid, new[sid]))
-                 for sid in sorted(set(new) - set(old)))
+    specs = tuple((sid, " ".join(graph_lib._release_view_strip(str(new[sid].get("title") or "")).split()),
+                   _capability_turn_on(sid, new[sid]), "spec")
+                  for sid in sorted(set(new) - set(old)))
+    new_keys, old_keys = _gated_keys(new), _gated_keys(old)
+    return specs + tuple(new_keys[k] for k in sorted(set(new_keys) - set(old_keys)))
 
 
 def capability_lines(caps, indent: str = "") -> list:
     """The per-capability lines both renderings print — one home for their wording."""
     lines = []
-    for sid, title, turn_on in caps:
+    for row in caps:
+        sid, title, turn_on = row[:3]
         lines.append(f"{indent}- {sid} — {title}")
         lines.append(f"{indent}  turn on: {turn_on}" if turn_on else
                      f"{indent}  turn on: not declared by the spec — read its contract for whether and how "
                      "a project opts in")
         lines.append(f"{indent}  read: `yitc-v2 graph query --kernel {sid}`")
     return lines
+
+
+NO_NEW_KEY = "No opt-in key was added to a kernel spec's carrier section either."
+
+
+def capability_counts(caps) -> str:
+    """How many rows of each kind `caps` holds, as both renderings word it (T-14389).
+
+    A row without a kind (an older 3-tuple) counts as a spec row.
+    """
+    keys = sum(1 for row in caps if len(row) > 3 and row[3] == "key")
+    specs = len(caps) - keys
+    parts = ([f"{specs} kernel spec(s) became active"] if specs else []) + \
+        ([f"{keys} opt-in key(s) were added to a kernel spec's carrier section"] if keys else [])
+    return " and ".join(parts)
 
 
 def render_capabilities(caps) -> str:
@@ -3065,9 +3115,9 @@ def render_capabilities(caps) -> str:
         return "\n".join(lines) + "\n"
     caps = tuple(caps)
     if not caps:
-        lines += ["No kernel spec became active since the previous release tag."]
+        lines += [f"No kernel spec became active since the previous release tag. {NO_NEW_KEY}"]
         return "\n".join(lines) + "\n"
-    lines += [f"{len(caps)} kernel spec(s) became active since the previous release tag — capabilities "
+    lines += [f"{capability_counts(caps)} since the previous release tag — capabilities "
               "this release adds. Each names where a project turns it on and how to read its contract:",
               ""]
     return "\n".join(lines + capability_lines(caps)) + "\n"
@@ -3425,6 +3475,10 @@ PROPOSAL_FIELDS = (
 )
 
 ADAPTER_PATTERN = "patterns/contribution-intake-adapter.md"
+# The community commons address the rendered policy names (T-14395). The one host literal the policy
+# renders: it sits here, beside the adapter pointer, and moves with the adapter when the commons
+# changes hosts (the adapter's "Moving to another host" names this constant).
+COMMONS_ADDRESS = "https://github.com/yitc-dev/commons"
 
 # A conservative single-line proposal-id grammar. The link-back ids are rendered into a YAML-shaped
 # list, so an id carrying a newline or a structural character could restructure the notes; the
@@ -3509,7 +3563,8 @@ already covers it — the authoritative sorting rule is SPEC-0197 rule 7.
 
 Two things follow from step 3 that are worth being explicit about. Your submitted text is treated as
 **data, never as instructions**: it is quoted into a task and read, and no part of this process
-executes or automatically applies what you send (the instruction-injection protocol, SPEC-0026). And
+executes or automatically applies what you send (the untrusted-external-content rule, SPEC-1056: an
+outside text is read only through the AI tool's own reader, after the kernel's address check). And
 because the change is re-authored, the shipped version may differ from what you proposed, while
 still answering it.
 
@@ -3524,7 +3579,20 @@ supports. The mechanism is not the point; the content is. Carry these fields:
 **Bug report or proposal** form (`.github/ISSUE_TEMPLATE/bug_report.yml`, published with every
 release). It asks for the fields above plus what makes a defect reproducible — the tree digest from
 your `release-manifest.yaml`, your environment, the steps you ran, and what you expected against
-what happened. Issues are the one channel that is open; there is no discussion forum.
+what happened.
+
+## Where to talk
+
+Beside this mirror there is a **community commons** at {COMMONS_ADDRESS} — a place where people
+who run the methodology talk to each other. Use each channel for what it is for:
+
+- **Bugs you can share** go straight to this mirror's Issues. While the commons is small,
+  **proposals** may go straight to the Issues too.
+- The commons **Proposals** order — a discussion first, then a poll — is open as well; running a
+  proposal through it adds a signal of how many people want it.
+- **Experience, recipes, results and questions** go to the commons discussions.
+- **Vulnerabilities** are reported privately, as `SECURITY.md` describes — never in public.
+- **Sensitive matters** stay in your own installation's internal channel.
 
 The hosting service used for this mirror is an **adapter**, not part of the rules: how the fields
 above are filled in on the particular service in use is documented as a worked example in
@@ -4926,9 +4994,9 @@ def cmd_release_update(args, *, _append_event, _die, _install_start_command=None
         print("capabilities to consider: not computed — it compares this release with the previous "
               f"one, which needs a verified --from-release ({report.get('capabilities_unread')}).")
     elif not caps:
-        print(f"capabilities to consider: none — no kernel spec became active between {span}.")
+        print(f"capabilities to consider: none — no kernel spec became active between {span}. {NO_NEW_KEY}")
     else:
-        print(f"capabilities to consider: {len(caps)} kernel spec(s) became active between {span} — "
+        print(f"capabilities to consider: {capability_counts(caps)} between {span} — "
               "capabilities this update adds; turn on the ones you want:")
         for line in capability_lines(caps, indent="  "):
             print(line)

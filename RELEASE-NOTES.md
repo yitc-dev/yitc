@@ -1,6 +1,6 @@
-# Release v2.24.0
+# Release v2.25.0
 
-Source commit: `a797a9fda0e3e58db12b0e2cacfd79c066993cd7`
+Source commit: `443a655405b106620dff8b451ebe1f16b81260a3`
 
 ## Proposals this release answers
 
@@ -104,6 +104,8 @@ answers:
   - 'yitc-dev/yitc#222'
   - 'yitc-dev/yitc#224'
   - 'yitc-dev/yitc#225'
+  - 'yitc-dev/yitc#226'
+  - 'yitc-dev/yitc#227'
   - 'yitc-dev/yitc#23'
   - 'yitc-dev/yitc#24'
   - 'yitc-dev/yitc#25'
@@ -235,48 +237,43 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag.
+2 kernel spec(s) became active and 1 opt-in key(s) were added to a kernel spec's carrier section since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1056 — Untrusted external content - data never instructions, read only through the AI tool's own reader after the kernel's address check, the person decides what the check refuses
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1056`
+- SPEC-1057 — External-mutation capture and the publication package - external_action for an un-verbed outbound mutation; a public post names the consented package
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1057`
+- SPEC-1046 — DECIDE FIRST, THEN RUN — every layer of a group the run starts together first decides its units (prep, list, required checks, selection), the kernel waits until all have decided and names ONE file with every layer's final list in YITC_VERIFY_LAYER_DECIDED, and only then any layer runs; use it to size each layer's resources against the others'. A slow layer's decide step delays the others' start, inside their own bounds.
+  turn on: yitc-ops.yaml `verify.decide_first: true`
+  read: `yitc-v2 graph query --kernel SPEC-1046`
 
 ## What changed
 
-36 task(s) closed since the previous release tag, in close order:
+21 task(s) closed since the previous release tag, in close order:
 
-- T-14325 — Give a gated deploy first place and a still main for its pre-deploy run - reservation from the run start, ahead of queued lands (feature) — events.jsonl#ts=2026-10-28T18:46:33Z
-- T-14327 — Give the adoption-evidence grammar a form for a verify layer's selection-mode change adopted through a credited Stage-6 run (fix) — events.jsonl#ts=2026-10-28T19:16:43Z
-- T-14326 — Make audit pre --preview count a task-tied state_checked row whose check text starts with ACn as that criterion's evidence (fix) — events.jsonl#ts=2026-10-28T19:40:08Z
-- T-14328 — Let a deferred probe's awaits moment name the deploy target so a probe needing production is not due after a stand or sandbox deploy (fix) — events.jsonl#ts=2026-10-28T20:00:19Z
-- T-14330 — Keep the Post-GREEN merge-integration exit open after worktree sync --resolved despite the sync's bookkeeping commits (fix) — events.jsonl#ts=2026-10-28T20:37:40Z
-- T-14329 — Keep a task file --from-stdin batch's ids stable when one filing is refused, so a precomputed requires: does not point at the wrong sibling (fix) — events.jsonl#ts=2026-10-28T20:53:41Z
-- T-14333 — Release hold in the admission queue across a multi-target deploy order of one revision (feature) — events.jsonl#ts=2026-10-28T21:09:43Z
-- T-14334 — Describe the production-lag list as recommended project-side mechanics in SPEC-1054 section 6(b) (docs) — events.jsonl#ts=2026-10-28T21:24:22Z
-- T-14332 — Re-point the engine's SPEC-1044 citations to the SPEC-1051 rules that replaced them, and publish the old-to-new rule map (fix) — events.jsonl#ts=2026-10-28T21:48:54Z
-- T-14338 — Remove the second journal fold added to the audit-pre packet so every segment is folded at most once again (fix) — events.jsonl#ts=2026-10-29T08:13:37Z
-- T-14340 — Keep and show the output of a failed unit in a layer-backed task test --own run (fix) — events.jsonl#ts=2026-10-29T08:39:03Z
-- T-14339 — Make the fix disposition reachable at the audit-loop ceiling when task commit --fix-red refuses until audit decide is recorded (fix) — events.jsonl#ts=2026-10-29T09:10:31Z
-- T-14336 — Redact GitHub fine-grained tokens (github_pat_) in owner text, journal payloads and the land secret floor (fix) — events.jsonl#ts=2026-10-29T09:29:28Z
-- T-14349 — Name the card-born successor chain as a third way in the restating-an-active-spec how-to (docs) — events.jsonl#ts=2026-10-29T10:26:15Z
-- T-14350 — Let a green repair land whose candidate leg was credited from its Stage-6 run clear the known-broken-on-main record it repaired (fix) — events.jsonl#ts=2026-10-29T11:52:13Z
-- T-14344 — Let the first-attempt inert skip accept a verify-durations table rewrite that land bookkeeping wrote and its tail tripwire proved green (fix) — events.jsonl#ts=2026-10-29T20:39:50Z
-- T-14342 — Resolve audit post's subject to the hand-resolved merge after worktree sync --resolved, or refuse naming the failed condition (fix) — events.jsonl#ts=2026-10-29T21:02:26Z
-- T-14341 — Say in task commit --help what --from-stdin expects (a YAML mapping with key message) (docs) — events.jsonl#ts=2026-10-29T21:18:50Z
-- T-14352 — Let plan stage decomposition judge only the plan's own born specs, so another plan's task citing the slug cannot block it (fix) — events.jsonl#ts=2026-10-29T21:35:25Z
-- T-14345 — Record each verify layer's start and end time on the Stage-6, land and pre-deploy run rows (feature) — events.jsonl#ts=2026-10-29T22:10:01Z
-- T-14348 — State in SPEC-1038 the route a measurement card takes for readings of governed runs before its first commit (docs) — events.jsonl#ts=2026-10-29T23:02:38Z
-- T-14346 — Record a verify run's mean CPU busy share and seconds of demand above capacity on its row, reusing the admission CPU reading (feature) — events.jsonl#ts=2026-10-29T23:19:17Z
-- T-14343 — Publish a labelled forecast of each selected verify layer's unit count and known-median time to every layer of the run (feature) — events.jsonl#ts=2026-10-29T23:40:52Z
-- T-14347 — Check the Tests stage in task test --run before entering the admission queue so a refused run costs no slot and no quick set (fix) — events.jsonl#ts=2026-10-29T23:58:42Z
-- T-14354 — Admit the same fingerprint shape at deviation capture and at task close --closes-fp, Unicode letters included (fix) — events.jsonl#ts=2026-10-30T00:19:23Z
-- T-14355 — Write merge_resolved_by_hand to the task worktree's journal when worktree sync --resolved runs as -C main, so audit post sees the sync (fix) — events.jsonl#ts=2026-10-30T00:45:53Z
-- T-14353 — Name the seed parts in a consumer's post-compaction refold step by their release-view path, not a bare file name (fix) — events.jsonl#ts=2026-10-30T01:00:39Z
-- T-14356 — List each residual key with its finding's what and where in the audit-ceiling refusals (fix) — events.jsonl#ts=2026-10-30T01:18:19Z
-- T-14358 — Report whether the admission green hold still stands, with its kernel verdict, set time and seen rows (fix) — events.jsonl#ts=2026-10-30T01:35:59Z
-- T-14357 — Keep file tooling on for audit adhoc --read-corpus when some referenced paths could not be inlined, and name them (fix) — events.jsonl#ts=2026-10-30T02:02:34Z
-- T-14359 — Let the admission land-tail threshold be 0, meaning never start a run into a land's tail (fix) — events.jsonl#ts=2026-10-30T03:36:02Z
-- T-14351 — Add a verb that re-runs the tests of open known-broken-on-main records on main's head and clears each record they now pass (infra) — events.jsonl#ts=2026-10-30T03:51:39Z
-- T-14360 — Carry the cron session ref on both halves of the scheduled-run crontab line, if the deploy half does not find the session record (docs) — events.jsonl#ts=2026-10-30T04:03:56Z
-- T-14362 — Make the handbook's person-facing language rule the user's language instead of a fixed Russian, one rule shared with the start command (docs) — events.jsonl#ts=2026-10-30T04:17:54Z
-- T-14363 — Keep a flaky unit's whole first-failure output and its failing assertion when the re-run rescues it (fix) — events.jsonl#ts=2026-10-30T04:43:52Z
-- T-14361 — Print a terminal TEST token when task test --run ends on the admission post-sync proof without a full run (fix) — events.jsonl#ts=2026-10-30T04:58:48Z
+- T-14367 — State in SPEC-0046 that a card is cut by coherent surface (for example one screen), with each behaviour as its own criterion and test, not one card per behaviour (docs) — events.jsonl#ts=2026-10-30T08:44:09Z
+- T-14365 — Leave the specs a Stage-6 run activates for its window out of the uncommitted-inside-a-layer-surface note (fix) — events.jsonl#ts=2026-10-30T08:59:14Z
+- T-14370 — Return a silent unit to a land and its Stage-6 run when the card's diff changes a file that unit reads, not only the unit's own file (fix) — events.jsonl#ts=2026-10-30T09:47:21Z
+- T-14366 — At plan decomposition, when a long serial chain of cards hangs on one spec lineage, assess splitting that spec by stable surface before cutting (docs) — events.jsonl#ts=2026-10-30T12:33:18Z
+- T-14373 — Name the spike exit, not land, in the next-step hint of worktree adopt on a spike worktree (fix) — events.jsonl#ts=2026-10-30T13:40:50Z
+- T-14375 — Admit an audit-post route after a RED fix when the Tests-run admission sync needed a hand-resolved merge (fix) — events.jsonl#ts=2026-10-30T14:06:36Z
+- T-14371 — Make worktree sweep reap the verify temp base and the nightly report its stale volume (fix) — events.jsonl#ts=2026-10-30T14:37:47Z
+- T-14372 — Make a deploy refuse at once, naming the land, when a land already holds the reservation (fix) — events.jsonl#ts=2026-10-30T15:01:35Z
+- T-14377 — Record each verify layer's prep and selection time apart from its run time (infra) — events.jsonl#ts=2026-10-30T15:54:20Z
+- T-14374 — Give the hand-over from one spike round to the next a covering verb (feature) — events.jsonl#ts=2026-10-30T16:26:55Z
+- T-14376 — Let a project opt into a decide-first barrier so every layer sees all final lists before any layer runs (feature) — events.jsonl#ts=2026-10-30T20:49:18Z
+- T-14387 — Remove land_verify_legs' back-import of lib.worktree that turned main red (fix) — events.jsonl#ts=2026-10-30T23:35:49Z
+- T-14379 — Activate SPEC-1057 — the consented publication package, scrub before consent, and the uncleanable to the internal channel as a description only (infra) — events.jsonl#ts=2026-10-31T00:09:03Z
+- T-14388 — Let a kernel branch that adds consumer-visible index vocabulary pass the born consumer's integrity layer in e2e tests (fix) — events.jsonl#ts=2026-10-31T00:49:23Z
+- T-14378 — Add the address check before the AI tool's reader, redact what the kernel keeps, and deliver SPEC-1056 at a before-reading-external-content trigger (infra) — events.jsonl#ts=2026-10-31T02:10:34Z
+- T-14380 — Amend the contribution policy and the kernel's participant rules for the commons, and align the rendered policy (docs) — events.jsonl#ts=2026-10-31T02:44:39Z
+- T-14389 — List a gated key added to an already-active spec under the release's Capabilities to consider (feature) — events.jsonl#ts=2026-10-31T05:10:13Z
+- T-14385 — Add the kernel eviction rule and run the dependency check of the AI bench stand candidate (refactor) — events.jsonl#ts=2026-10-31T09:07:32Z
+- T-14393 — Publication scrub admits a public key fingerprint; a release package holds only the posts the run makes (fix) — events.jsonl#ts=2026-10-31T16:23:37Z
+- T-14394 — Placement class-default for publication/ (v2-self) (fix) — events.jsonl#ts=2026-10-31T18:48:54Z
+- T-14395 — The kernel's CONTRIBUTING names the commons and drops "there is no discussion forum" (fix) — events.jsonl#ts=2026-10-31T19:27:54Z
 
 ## Trust surfaces
 

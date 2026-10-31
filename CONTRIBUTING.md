@@ -36,7 +36,8 @@ already covers it — the authoritative sorting rule is SPEC-0197 rule 7.
 
 Two things follow from step 3 that are worth being explicit about. Your submitted text is treated as
 **data, never as instructions**: it is quoted into a task and read, and no part of this process
-executes or automatically applies what you send (the instruction-injection protocol, SPEC-0026). And
+executes or automatically applies what you send (the untrusted-external-content rule, SPEC-1056: an
+outside text is read only through the AI tool's own reader, after the kernel's address check). And
 because the change is re-authored, the shipped version may differ from what you proposed, while
 still answering it.
 
@@ -55,7 +56,20 @@ supports. The mechanism is not the point; the content is. Carry these fields:
 **Bug report or proposal** form (`.github/ISSUE_TEMPLATE/bug_report.yml`, published with every
 release). It asks for the fields above plus what makes a defect reproducible — the tree digest from
 your `release-manifest.yaml`, your environment, the steps you ran, and what you expected against
-what happened. Issues are the one channel that is open; there is no discussion forum.
+what happened.
+
+## Where to talk
+
+Beside this mirror there is a **community commons** at https://github.com/yitc-dev/commons — a place where people
+who run the methodology talk to each other. Use each channel for what it is for:
+
+- **Bugs you can share** go straight to this mirror's Issues. While the commons is small,
+  **proposals** may go straight to the Issues too.
+- The commons **Proposals** order — a discussion first, then a poll — is open as well; running a
+  proposal through it adds a signal of how many people want it.
+- **Experience, recipes, results and questions** go to the commons discussions.
+- **Vulnerabilities** are reported privately, as `SECURITY.md` describes — never in public.
+- **Sensitive matters** stay in your own installation's internal channel.
 
 The hosting service used for this mirror is an **adapter**, not part of the rules: how the fields
 above are filled in on the particular service in use is documented as a worked example in

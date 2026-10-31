@@ -542,6 +542,31 @@ A done card is never edited.
 Neither spike lands, so the carry is legal: the carried commits are still spike content, and `land`
 still refuses them (SPEC-0205 rule 2) on any branch — a `prototype_ref` card re-does the work.
 
+### 5b. Next round — nothing handed off, the whole spike continues
+
+The rule is SPEC-0205 rule 12; these are the steps. Commit the round first, then from the main
+checkout:
+
+```
+bin/yitc-v2 worktree new --work spike-<next> --spike --from-spike spike-<served>
+# → opens spike-<next> AT the served round's tip, runs your declared hand-over step there,
+# then parks spike-<served> → spike/<served> (the round's prototype tag)
+```
+
+Your project's own part — copying build outputs, re-pointing the stand — is ONE command you declare
+once in `yitc-ops.yaml`; the kernel runs it inside the new worktree, with the working directory set
+there and these in its environment: `YITC_SPIKE_FROM_WORKTREE`, `YITC_SPIKE_TO_WORKTREE`,
+`YITC_SPIKE_FROM_BRANCH`, `YITC_SPIKE_TO_BRANCH`.
+
+```yaml
+spike_sandbox:
+  handover: 'cp -a "$YITC_SPIKE_FROM_WORKTREE/node_modules". && bin/stand-up.sh "$YITC_SPIKE_TO_WORKTREE"'
+```
+
+Undeclared, nothing project-specific runs, and the output says so. If the step fails, or the served
+round changes while it runs, the served round is left UNPARKED and the next round stays open: fix it,
+then `bin/yitc-v2 worktree park --work spike-<served>`.
+
 ### 6. Record the run
 
 Two lines in the journal, and they cost nothing:

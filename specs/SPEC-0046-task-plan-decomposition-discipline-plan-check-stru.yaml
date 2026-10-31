@@ -41,50 +41,59 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ separate judgement** — a reviewer must judge them separately (one part could honestly\
   \ be\n  rejected while the other ships);\n- **(3) landing order** — one part must\
   \ land first; encode the order via `requires:`.\nNone of the three holds → keep\
-  \ the change-set in one card.\n\n- An **accept-unit** is whatever the gate evaluates\
-  \ as one verdict — a task (audit-pre/post) or a\n  decision (`decision accept`/`finalize`).\
-  \ Frame the cut against the gate the unit will actually\n  face: one card may carry\
-  \ several related claims across several files when one verdict honestly\n  covers\
-  \ them; a plan decomposes into several cards only where a split ground holds.\n\
-  - **Cut by change-set, not by line count.** Size is a proxy/secondary symptom, never\
-  \ the criterion:\n  a large unit is risky because it may hide independent parts,\
-  \ not because it is long. A single\n  coherent artifact may legitimately be long\
-  \ (cf. LIFECYCLE §Stage 3 — the ~30-line plan guideline is\n  a WARN, not a gate).\
-  \ When a unit feels too big, ask whether one of the three split grounds holds —\n\
-  \  split only if one does.\n\n**Project-declared task-grouping preference — the\
-  \ project's declared rules decide its grouping\n(amended).** A project MAY declare\
-  \ a task-grouping preference in its SPEC-0125\nprovider-neutral project-context\
-  \ home (the ONE declared home that spec names); where an existing\nproject spec\
-  \ owns the preference, that home holds only a pointer to it. At decomposition, cut\
-  \ by\nthe preference, and identify its SOURCE and RATIONALE in the existing decomposition-fidelity\
-  \ audit\ninput — the plan body or the cut cards the SPEC-0070 §3 gate is already\
-  \ handed; a preference the\ncutter considered and DECLINED is named there the same\
-  \ way, with the reason it was not followed.\nWhere a project declares grouping rules,\
-  \ those rules decide its grouping; §A is the default where\nnone is declared, and\
-  \ the lens a reviewer uses to RECOMMEND a split. A recommendation to split a\ncard\
-  \ is ADVISORY: it does not block the fidelity gate, and the project decides by its\
-  \ own declared\nrules whether to follow it. Without a\ndeclaration, apply §A; approving\
-  \ one cut does not establish a standing convention. The preference\nis read from\
-  \ the project context a session has already loaded — it adds no read, store, field,\n\
-  event or gate, and neither a `lessons/` note (zero-normative, SPEC-0090) nor the\
-  \ project\nops-contract carrier is a home for it. The reviewer of the boundary is\
-  \ the fidelity gate; its\nquestion is asked in the SPEC-0083 P5 template.\n\n**audit-pre\
-  \ RED red-flag catalog** — a unit is mis-cut (expect audit-pre RED/strong-YELLOW)\
-  \ when:\n- **(a) independent parts in one unit** — two invariants/contracts bundled\
-  \ that a split ground\n  (§A (1)-(3)) separates.\n- **(b) contradiction / dissonance\
-  \ with an already-accepted artifact** (CHARTER §Principle 7).\n- **(c) under-specified\
-  \ mechanism** — the claim is stated but how it holds is hand-waved. This INCLUDES\
-  \ an AC/probe written as an IDEAL not calibrated to the system's OBSERVED behaviour,\
-  \ an un-enumerated input state-space, or an unbacked purity/invariant claim (the\
-  \ **E-0016 planning-quality root**: when the plan/AC is under-specified against\
-  \ observed behaviour, the external audit surfaces the design's latent defects ONE\
-  \ FACET PER PASS and the controller absorbs them leaf-by-leaf — the ceiling cost).\
-  \ Calibrate probes to observed behaviour, enumerate the state-space, and back purity/invariant\
-  \ claims AT PLAN TIME; and when the auditor hits the SAME plan area >=2x, ROOT-CAUSE-REWRITE\
-  \ that section rather than absorb leaves serially (extend the existing red-flag,\
-  \ P1 F1; pointer home: patterns/big-plan-checklist.md Probe 7).\n- **(d) self-referential\
-  \ / bootstrap ordering** — the unit mutates the rules or infrastructure\n  governing\
-  \ its OWN gated execution (commit / audit / close) before the replacement is active/live.\n\
+  \ the change-set in one card.\n\n**Worked example — a UI project: one card per coherent\
+  \ surface.** Where a project's work is\nscreens, the coherent change-set is usually\
+  \ one surface, such as one screen, not one behaviour.\nCut one card per screen and\
+  \ write every behaviour on it as a numbered acceptance criterion of that\ncard,\
+  \ each with its own test. A behaviour gets a card of its own only when one of the\
+  \ three grounds\nabove holds for it — for example it carries its own migration,\
+  \ it activates its own spec, or it\nmust ship before the rest of the screen. Being\
+  \ a separate behaviour is not a ground: one card per\nbehaviour pays the fixed per-card\
+  \ cost once per behaviour and buys no separate verdict.\n\n- An **accept-unit**\
+  \ is whatever the gate evaluates as one verdict — a task (audit-pre/post) or a\n\
+  \  decision (`decision accept`/`finalize`). Frame the cut against the gate the unit\
+  \ will actually\n  face: one card may carry several related claims across several\
+  \ files when one verdict honestly\n  covers them; a plan decomposes into several\
+  \ cards only where a split ground holds.\n- **Cut by change-set, not by line count.**\
+  \ Size is a proxy/secondary symptom, never the criterion:\n  a large unit is risky\
+  \ because it may hide independent parts, not because it is long. A single\n  coherent\
+  \ artifact may legitimately be long (cf. LIFECYCLE §Stage 3 — the ~30-line plan\
+  \ guideline is\n  a WARN, not a gate). When a unit feels too big, ask whether one\
+  \ of the three split grounds holds —\n  split only if one does.\n\n**Project-declared\
+  \ task-grouping preference — the project's declared rules decide its grouping\n\
+  (amended).** A project MAY declare a task-grouping preference in its SPEC-0125\n\
+  provider-neutral project-context home (the ONE declared home that spec names); where\
+  \ an existing\nproject spec owns the preference, that home holds only a pointer\
+  \ to it. At decomposition, cut by\nthe preference, and identify its SOURCE and RATIONALE\
+  \ in the existing decomposition-fidelity audit\ninput — the plan body or the cut\
+  \ cards the SPEC-0070 §3 gate is already handed; a preference the\ncutter considered\
+  \ and DECLINED is named there the same way, with the reason it was not followed.\n\
+  Where a project declares grouping rules, those rules decide its grouping; §A is\
+  \ the default where\nnone is declared, and the lens a reviewer uses to RECOMMEND\
+  \ a split. A recommendation to split a\ncard is ADVISORY: it does not block the\
+  \ fidelity gate, and the project decides by its own declared\nrules whether to follow\
+  \ it. Without a\ndeclaration, apply §A; approving one cut does not establish a standing\
+  \ convention. The preference\nis read from the project context a session has already\
+  \ loaded — it adds no read, store, field,\nevent or gate, and neither a `lessons/`\
+  \ note (zero-normative, SPEC-0090) nor the project\nops-contract carrier is a home\
+  \ for it. The reviewer of the boundary is the fidelity gate; its\nquestion is asked\
+  \ in the SPEC-0083 P5 template.\n\n**audit-pre RED red-flag catalog** — a unit is\
+  \ mis-cut (expect audit-pre RED/strong-YELLOW) when:\n- **(a) independent parts\
+  \ in one unit** — two invariants/contracts bundled that a split ground\n  (§A (1)-(3))\
+  \ separates.\n- **(b) contradiction / dissonance with an already-accepted artifact**\
+  \ (CHARTER §Principle 7).\n- **(c) under-specified mechanism** — the claim is stated\
+  \ but how it holds is hand-waved. This INCLUDES an AC/probe written as an IDEAL\
+  \ not calibrated to the system's OBSERVED behaviour, an un-enumerated input state-space,\
+  \ or an unbacked purity/invariant claim (the **E-0016 planning-quality root**: when\
+  \ the plan/AC is under-specified against observed behaviour, the external audit\
+  \ surfaces the design's latent defects ONE FACET PER PASS and the controller absorbs\
+  \ them leaf-by-leaf — the ceiling cost). Calibrate probes to observed behaviour,\
+  \ enumerate the state-space, and back purity/invariant claims AT PLAN TIME; and\
+  \ when the auditor hits the SAME plan area >=2x, ROOT-CAUSE-REWRITE that section\
+  \ rather than absorb leaves serially (extend the existing red-flag, P1 F1; pointer\
+  \ home: patterns/big-plan-checklist.md Probe 7).\n- **(d) self-referential / bootstrap\
+  \ ordering** — the unit mutates the rules or infrastructure\n  governing its OWN\
+  \ gated execution (commit / audit / close) before the replacement is active/live.\n\
   \  A task cannot safely remove the rules it must itself pass under, before its replacement\
   \ governs.\n  (This is distinct from (a): it is not just \"two claims\", it is an\
   \ ordering DEPENDENCY where bundling\n  the add and the remove creates a self-referential\
@@ -182,20 +191,31 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \ and the producer-owns-the-seam rule:\na CONTENT discipline on the cut, enforced\
   \ by the decomposition reviewer + the fidelity gate, NOT a\nnew machinery (the scope-boundary\
   \ path-gate that catches it at dispatch already exists — this rule\nmoves the catch\
-  \ EARLIER, to the cut, so the mis-cut never dispatches).\n\n### A2. Plan-level split\
-  \ — one convergence regime / one fate per plan (<workshop-spec> head's delta)\n\n\
-  The PLAN-altitude mirror of §A's default grain: a PLAN is cut by **convergence regime\
-  \ /\nfate**, never by topic affinity or authoring convenience. One plan = parts\
-  \ that converge under ONE\nvalidation regime and share ONE fate (the plan's single\
-  \ accept / realize / reject verdict honestly\ncovers all of them). **Split signals\
-  \ — any YES recommends splitting:**\n\n- **(1) Different validation horizons** —\
-  \ one part is provable NOW (text-audit / immediate state\n  check), the other needs\
-  \ ACCUMULATED REAL DATA (a soak window, N real runs, observation period).\n- **(2)\
-  \ Independently rejectable fates** — one half could honestly be `rejected`/`cancelled`\
-  \ while\n  the other ships `realized`; a single plan verdict would falsify one of\
-  \ them.\n- **(3) Producer/consumer over real data** — one part CONSUMES the real-data\
-  \ output of the other\n  (the consumer cannot even be designed-converged until the\
-  \ producer's data exists).\n\n**Split shape:** SEPARATE plans with INFORMATIONAL\
+  \ EARLIER, to the cut, so the mis-cut never dispatches).\n\n**One spec lineage under\
+  \ a long serial chain — assess splitting that spec before the cut.**\nA spec has\
+  \ one active head per lineage (SPEC-1037), so every card that changes the same spec\
+  \ sits on\none serial `requires:` chain and runs one after another. Before cutting,\
+  \ when the cut would hang a\nlong chain of cards on one spec lineage, first assess\
+  \ splitting that spec by stable surface with no\nbehaviour change — SPEC-1037 rule\
+  \ 6 is the split rule — so the cards land on separate lineages and\nrun in parallel,\
+  \ and the spec stops growing into a giant one. A split is a change of its own,\n\
+  ordered by `requires:` before the cards that change the new specs. A cut that keeps\
+  \ the one spec\nnames why, where a declined grouping is named (the plan body or\
+  \ the cut cards). This is a judgement\nread at the cut: no gate, detector or refusal\
+  \ reads it. Worked example: §Rationale «The one-lineage\nserial chain ».\n\n###\
+  \ A2. Plan-level split — one convergence regime / one fate per plan (<workshop-spec>\
+  \ head's delta)\n\nThe PLAN-altitude mirror of §A's default grain: a PLAN is cut\
+  \ by **convergence regime /\nfate**, never by topic affinity or authoring convenience.\
+  \ One plan = parts that converge under ONE\nvalidation regime and share ONE fate\
+  \ (the plan's single accept / realize / reject verdict honestly\ncovers all of them).\
+  \ **Split signals — any YES recommends splitting:**\n\n- **(1) Different validation\
+  \ horizons** — one part is provable NOW (text-audit / immediate state\n  check),\
+  \ the other needs ACCUMULATED REAL DATA (a soak window, N real runs, observation\
+  \ period).\n- **(2) Independently rejectable fates** — one half could honestly be\
+  \ `rejected`/`cancelled` while\n  the other ships `realized`; a single plan verdict\
+  \ would falsify one of them.\n- **(3) Producer/consumer over real data** — one part\
+  \ CONSUMES the real-data output of the other\n  (the consumer cannot even be designed-converged\
+  \ until the producer's data exists).\n\n**Split shape:** SEPARATE plans with INFORMATIONAL\
   \ cross-refs (tracked ids in body / `cites` —\nresolvable per §C(i) in `## Implementation\
   \ notes`); **NO `requires:` between plans** — plans carry no blocking-dep semantics\n\
   (ordering lives in each plan's own entry-gates and the consumer plan's stated input).\n\
@@ -268,50 +288,64 @@ body: "## Scenario\n\nBefore a plan is accepted (and as the AI cuts a large conc
   \  task granularity.\n- From «A. Bidirectional cut»: (refinement 2026-06-04/05,\
   \ N=3)\n- From «A. Plan STAGE is INPUT»: (refinement, N=2)\n- From «A. Cross-cutting\
   \ obligation»: (refinement, N=2)\n- From «A. Execution-readiness»: Fold pointer\
-  \ added.\n- From «A2. Trial-FSM carve-out»: (proven trial-run-1)\n\n## Parameters\n\
-  \nNone consumed. Governing constants referenced live in their OWN specs/decisions\
-  \ — NOT duplicated here.\n\n## Implementation notes\n\n### Moved from the rule text\n\
-  \nReference and maintainer passages moved word for word out of the rule text of\
-  \ the section\neach names; no rule an acting reader applies moved with them.\n\n\
-  From «Internal»:\n\n`big-plan-checklist`\nkeeps only LINKS + judgement-only items;\
-  \ `plan-lifecycle` keeps only a POINTER here (single-SoT, P5).\n\nFrom «A. Plan\
-  \ STAGE is INPUT»:\n\n**Two delivery faces :** this cut discipline reaches the AI\
-  \ at BOTH the task-Analysis face\n(`stage-entry:Analysis` — when a task is claimed)\
-  \ AND the plan-cut face (`plan-stage-entry:decomposition`\n— at the gated `decomposition`\
-  \ plan-FSM stage where a plan is sliced into cards, SPEC-0070 §9.5). Same\nsingle\
-  \ rule, two orthogonal delivery moments for two consumers (task author vs plan decomposer).\n\
-  \nFrom «A2. Where the net fires»:\n\n**Where the net fires — EXISTING surfaces only,\
-  \ nothing new.** No new verb / field / gate.\nThe question is asked where splitting\
-  \ is still cheap (pre task-cut): the plan-draft shaping\ntemplate (P1) CITES this\
-  \ rule as its home (never duplicates it — P5); the matching JUDGEMENT item\nin `patterns/big-plan-checklist.md`\
-  \ Probe 7 (delegated to the external auditor like the other\njudgement items) surfaces\
-  \ it for big plans at the executing-gate `plan check --full` and in\nplan-level\
-  \ audit prompts. The §C structural pre-pass does NOT mechanize this — it is judgement,\n\
-  peer to enumerate-halves / probe-quality / one-route.\n\nFrom «A3. No new mechanism»:\n\
-  \n**No new mechanism (anti-complexity F1/F3).** `requires:` already orders dispatch\
-  \ and is already the\npicker's eligibility gate; this rule fixes WHAT goes into\
-  \ a verifier's `requires:` edge-set (every\nwriter of the settled subject), not\
-  \ HOW ordering works. It is a §A-class CONTENT discipline on the\ndecomposition\
-  \ cut — the verifier-specialization of the general \"decompose consumers against\
-  \ shipped\nreality\" + \"encode a real claim-dependency as a machine-readable `requires:`\
-  \ edge\" rules. The\nCONSUMING side (a dispatch picker reading `requires:` for eligibility)\
-  \ is homed with the\nparallel-dispatch selection rule (SPEC-0044 §2 explicitly defers\
-  \ this content discipline back HERE);\nthis spec owns only the decomposition-side\
-  \ content of the edge (single home, P5).\n\nFrom «C. The structural pre-pass»:\n\
-  \n### C. The structural pre-pass — what `plan check` enforces deterministically\
-  \ (report-not-block)\n\n`plan check` computes `_plan_structural_findings(slug, body)`\
-  \ (regardless of the auditor outcome,\nso it is ALWAYS recorded) and stores it under\
-  \ `structural_findings:` in `decisions/<slug>-audit.yaml`.\nEvery finding is WARN-level\
-  \ (`severity: low`, `source: structural`) and is recorded in the verdict\nbut **NEVER\
-  \ flips the auditor verdict** (report-not-block, mirroring the resolve-not-block\n\
-  anchor resolver). Two HONESTLY-DISTINCT halves:\n\n- **(i) REUSE — id/path resolution\
-  \ ( resolve-not-block).** Each referenced `T-`/`SPEC-`/`D-XXXX`\n  id resolves via\
-  \ the EXISTING finders (`_find_task_yaml` / `_find_spec_path` / `_find_decision_yaml`),\n\
-  \  and each \"Depends on\" code-path resolves via `_resolve_implements_anchor` (the\
-  \ same resolver\n  used by `graph build`). No parallel resolver.\n- **(ii) NEW NARROW\
-  \ prose-deferral validator (declared new machinery — see §New machinery scope).**\n\
-  \nThe **accept-gate path CONSUMES** the structural verdict: `plan accept` reads\
-  \ the recorded\n`structural_findings` and records `structural_findings_consumed`\
+  \ added.\n- From «A2. Trial-FSM carve-out»: (proven trial-run-1)\n\n### The one-lineage\
+  \ serial chain\nAdded on an owner decision of 2026-10-30. In a consumer (<project>\
+  \ X-2134, X-2141) one UI spec,\n<workshop-spec> (591 lines, 23 rules over six screens,\
+  \ cited by 74 cards), carried 14 of the 15 round-1\ncards on one lineage: a serial\
+  \ chain of 15. Round 1 took 4 h 45 min against an estimated 10-13 h\nserial. After\
+  \ the spec was split one spec per screen, round 2 ran on lineages of at most 3 cards\n\
+  (the longest chain, 6, was set by shared files), 18 one-behaviour cards were cut\
+  \ to 9 per-screen\ncards, and the round took 5 h 41 min with 0 land aborts and 0\
+  \ hand-resolved conflicts. SPEC-1037\nrule 6 already bounded spec size; nothing\
+  \ at the cut asked the question when it mattered.\n\n### The UI worked example in\
+  \ §A\nAdded on an owner decision of 2026-10-30 («do not over-split; cut, for example,\
+  \ one screen per card\nat once»). A consumer's first cut of a UI round produced\
+  \ 18 one-behaviour cards, regrouped to 9\nper-screen cards before dispatch, although\
+  \ §A already set the default grain; each extra card paid two\naudits, a verify run\
+  \ and a land (about 20-30 minutes per land in the queue). The example adds no split\n\
+  ground and no gate.\n\n## Parameters\n\nNone consumed. Governing constants referenced\
+  \ live in their OWN specs/decisions — NOT duplicated here.\n\n## Implementation\
+  \ notes\n\n### Moved from the rule text\n\nReference and maintainer passages moved\
+  \ word for word out of the rule text of the section\neach names; no rule an acting\
+  \ reader applies moved with them.\n\nFrom «Internal»:\n\n`big-plan-checklist`\n\
+  keeps only LINKS + judgement-only items; `plan-lifecycle` keeps only a POINTER here\
+  \ (single-SoT, P5).\n\nFrom «A. Plan STAGE is INPUT»:\n\n**Two delivery faces :**\
+  \ this cut discipline reaches the AI at BOTH the task-Analysis face\n(`stage-entry:Analysis`\
+  \ — when a task is claimed) AND the plan-cut face (`plan-stage-entry:decomposition`\n\
+  — at the gated `decomposition` plan-FSM stage where a plan is sliced into cards,\
+  \ SPEC-0070 §9.5). Same\nsingle rule, two orthogonal delivery moments for two consumers\
+  \ (task author vs plan decomposer).\n\nFrom «A2. Where the net fires»:\n\n**Where\
+  \ the net fires — EXISTING surfaces only, nothing new.** No new verb / field / gate.\n\
+  The question is asked where splitting is still cheap (pre task-cut): the plan-draft\
+  \ shaping\ntemplate (P1) CITES this rule as its home (never duplicates it — P5);\
+  \ the matching JUDGEMENT item\nin `patterns/big-plan-checklist.md` Probe 7 (delegated\
+  \ to the external auditor like the other\njudgement items) surfaces it for big plans\
+  \ at the executing-gate `plan check --full` and in\nplan-level audit prompts. The\
+  \ §C structural pre-pass does NOT mechanize this — it is judgement,\npeer to enumerate-halves\
+  \ / probe-quality / one-route.\n\nFrom «A3. No new mechanism»:\n\n**No new mechanism\
+  \ (anti-complexity F1/F3).** `requires:` already orders dispatch and is already\
+  \ the\npicker's eligibility gate; this rule fixes WHAT goes into a verifier's `requires:`\
+  \ edge-set (every\nwriter of the settled subject), not HOW ordering works. It is\
+  \ a §A-class CONTENT discipline on the\ndecomposition cut — the verifier-specialization\
+  \ of the general \"decompose consumers against shipped\nreality\" + \"encode a real\
+  \ claim-dependency as a machine-readable `requires:` edge\" rules. The\nCONSUMING\
+  \ side (a dispatch picker reading `requires:` for eligibility) is homed with the\n\
+  parallel-dispatch selection rule (SPEC-0044 §2 explicitly defers this content discipline\
+  \ back HERE);\nthis spec owns only the decomposition-side content of the edge (single\
+  \ home, P5).\n\nFrom «C. The structural pre-pass»:\n\n### C. The structural pre-pass\
+  \ — what `plan check` enforces deterministically (report-not-block)\n\n`plan check`\
+  \ computes `_plan_structural_findings(slug, body)` (regardless of the auditor outcome,\n\
+  so it is ALWAYS recorded) and stores it under `structural_findings:` in `decisions/<slug>-audit.yaml`.\n\
+  Every finding is WARN-level (`severity: low`, `source: structural`) and is recorded\
+  \ in the verdict\nbut **NEVER flips the auditor verdict** (report-not-block, mirroring\
+  \ the resolve-not-block\nanchor resolver). Two HONESTLY-DISTINCT halves:\n\n- **(i)\
+  \ REUSE — id/path resolution ( resolve-not-block).** Each referenced `T-`/`SPEC-`/`D-XXXX`\n\
+  \  id resolves via the EXISTING finders (`_find_task_yaml` / `_find_spec_path` /\
+  \ `_find_decision_yaml`),\n  and each \"Depends on\" code-path resolves via `_resolve_implements_anchor`\
+  \ (the same resolver\n  used by `graph build`). No parallel resolver.\n- **(ii)\
+  \ NEW NARROW prose-deferral validator (declared new machinery — see §New machinery\
+  \ scope).**\n\nThe **accept-gate path CONSUMES** the structural verdict: `plan accept`\
+  \ reads the recorded\n`structural_findings` and records `structural_findings_consumed`\
   \ in the `plan_accepted` event (a\nconsumer-read signal), so the pre-pass is not\
   \ merely printable at check time.\n\nFrom «New machinery scope»:\n\nFilter 1 (existing\
   \ analog) covers the id/path half: it REUSES the resolver. The prose-deferral\n\

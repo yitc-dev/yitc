@@ -144,46 +144,47 @@ body: "## Scenario\n\nTwo SPEC-0025 event-schema sections, re-homed VERBATIM: (1
   \ required verification artifact is absent, is built downstream).\n- `missing` —\
   \ the unfetched governing-contract spec ids; `read-check`/`contracts_unfetched`\
   \ only.\n  Additive, consumers ignore unknown keys. Surfaced by `journal query --type\
-  \ read_gate_refused`.\n\n**external_action** (per SPEC-0116; emitted via the generic\
-  \ `bin/yitc-v2 event` — NO dedicated verb) —\nthe FALLBACK capture FLOOR for a SUBSTANTIVE\
-  \ outbound external mutation (a write / side-effect to a\nsystem OUTSIDE every repo\
-  \ — a design project, a chat service, a third-party write API) that LACKS a\ndedicated\
-  \ capturing verb. Named external interactions that DO have a dedicated verb stay\
-  \ governed by\nTHAT verb (deploy → `deploy_completed`, SPEC-0094; `cross` → `cross_requested`,\
-  \ SPEC-0085/0086; the\nshared-store append, SPEC-0084) — this floor covers the un-verbed\
-  \ remainder ONLY, never an escape from\na covering verb (§Verb-execution discipline\
-  \ holds). READS / trivial calls emit NOTHING. Shape: the\n`deviation_captured` analog\
-  \ — a generic, no-worktree, fire-from-anywhere journal event. Required `data`\n\
-  fields: `channel` (HOW — e.g. `mcp:<server>` / `harness-tool:<name>` / `bash:<cmd>`),\
-  \ `target` (WHAT\nexternal object changed), `action` (WHAT was done), `from` (the\
-  \ durable basis — a task/plan/spec id or\na journal locator).\n```jsonc\n{\"ts\"\
-  : \"...\", \"type\": \"external_action\", \"task_id\": \"T-XXXX | null\",\n \"data\"\
-  : {\"channel\": \"mcp:design\", \"target\": \"design-project:c95f02ff\", \"action\"\
-  : \"write_files\",\n          \"from\": \"T-XXXX | <plan-slug> | events.jsonl#ts=<ISO>\"\
-  }}\n```\n\nOther event types emerge organically as needed. No upfront catalog.\n\
-  \n**Parser-captured chat-class events.** The chat-class events\n`owner_directive`\
-  \ + `instruction_injection` are now **parser-captured** — the adapter reads the\n\
-  source session log, materializes into events.jsonl with populated provenance fields\
-  \ (`source_ref`,\n`session_ref`, `agent`). AI manual-emit obligation REMAINS retired\
-  \ (preserved from) but the\nreason updated: the parser captures structurally, not\
-  \ from AI memory. The other retired\nchat-class events — `dissonance_detected`,\
-  \ `failed_attempt`, `ai_reasoning_note` — REMAIN\nmanual-emit-optional per the original\
-  \ rationale (the parser does not extract these specifically —\ndefer until an incident\
-  \ requires).\n\nHistorical entries remain valid (append-only). Cite materialized\
-  \ journal entries\n(`events.jsonl#source_ref=...`), NOT the raw session log. CLI-emitted\
-  \ events above\n(`audit_pre_completed` / `task_closed` / etc.) are RETAINED — they\
-  \ fire deterministically from\n`bin/yitc-v2`, not from AI memory.\n\n## Rationale\n\
-  \nSPEC-0025 grew past the SPEC-0120 §3 must-split ceiling (800 lines / 63000 bytes).\
-  \ Split by stable\nSURFACE/boundary (<workshop-spec> rule 6/7): the two self-contained\
-  \ dispatched-session contracts\n(terminal-marker; per-dispatch correlation) re-home\
-  \ VERBATIM here\n(SPLIT-never-delete, aggregate-neutral). No rule-node of the moved\
-  \ sections was cited anywhere and\nno active doc pointed at these sections, so the\
-  \ split perturbs no anchor ( analysis).\n\n## Verification\n\n- Size: SPEC-0025\
-  \ back under the SPEC-0120 §3 ceiling (durable_docs metrics; over_ceiling / over_ceiling_bytes\n\
-  \  no longer list it) after the two sections re-home here.\n- Verbatim: the moved\
-  \ body text is byte-identical to the SPEC-0025 pre-split source (no content deleted).\n\
-  - Retrieval: `bin/yitc-v2 graph query SPEC-0153` returns the two contracts; SPEC-0025\
-  \ §Terminal-marker /\n  §Per-dispatch pointer stubs name this spec id.\n"
+  \ read_gate_refused`.\n\n**external_action** (per <workshop-spec>; emitted via the\
+  \ generic `bin/yitc-v2 event` — NO dedicated verb) —\nthe FALLBACK capture FLOOR\
+  \ for a SUBSTANTIVE outbound external mutation (a write / side-effect to a\nsystem\
+  \ OUTSIDE every repo — a design project, a chat service, a third-party write API)\
+  \ that LACKS a\ndedicated capturing verb. Named external interactions that DO have\
+  \ a dedicated verb stay governed by\nTHAT verb (deploy → `deploy_completed`, SPEC-0094;\
+  \ `cross` → `cross_requested`, SPEC-0085/0086; the\nshared-store append, SPEC-0084)\
+  \ — this floor covers the un-verbed remainder ONLY, never an escape from\na covering\
+  \ verb (§Verb-execution discipline holds). READS / trivial calls emit NOTHING. Shape:\
+  \ the\n`deviation_captured` analog — a generic, no-worktree, fire-from-anywhere\
+  \ journal event. Required `data`\nfields: `channel` (HOW — e.g. `mcp:<server>` /\
+  \ `harness-tool:<name>` / `bash:<cmd>`), `target` (WHAT\nexternal object changed),\
+  \ `action` (WHAT was done), `from` (the durable basis — a task/plan/spec id or\n\
+  a journal locator).\n```jsonc\n{\"ts\": \"...\", \"type\": \"external_action\",\
+  \ \"task_id\": \"T-XXXX | null\",\n \"data\": {\"channel\": \"mcp:design\", \"target\"\
+  : \"design-project:c95f02ff\", \"action\": \"write_files\",\n          \"from\"\
+  : \"T-XXXX | <plan-slug> | events.jsonl#ts=<ISO>\"}}\n```\n\nOther event types emerge\
+  \ organically as needed. No upfront catalog.\n\n**Parser-captured chat-class events.**\
+  \ The chat-class events\n`owner_directive` + `instruction_injection` are now **parser-captured**\
+  \ — the adapter reads the\nsource session log, materializes into events.jsonl with\
+  \ populated provenance fields (`source_ref`,\n`session_ref`, `agent`). AI manual-emit\
+  \ obligation REMAINS retired (preserved from) but the\nreason updated: the parser\
+  \ captures structurally, not from AI memory. The other retired\nchat-class events\
+  \ — `dissonance_detected`, `failed_attempt`, `ai_reasoning_note` — REMAIN\nmanual-emit-optional\
+  \ per the original rationale (the parser does not extract these specifically —\n\
+  defer until an incident requires).\n\nHistorical entries remain valid (append-only).\
+  \ Cite materialized journal entries\n(`events.jsonl#source_ref=...`), NOT the raw\
+  \ session log. CLI-emitted events above\n(`audit_pre_completed` / `task_closed`\
+  \ / etc.) are RETAINED — they fire deterministically from\n`bin/yitc-v2`, not from\
+  \ AI memory.\n\n## Rationale\n\nSPEC-0025 grew past the SPEC-0120 §3 must-split\
+  \ ceiling (800 lines / 63000 bytes). Split by stable\nSURFACE/boundary (<workshop-spec>\
+  \ rule 6/7): the two self-contained dispatched-session contracts\n(terminal-marker;\
+  \ per-dispatch correlation) re-home VERBATIM here\n(SPLIT-never-delete, aggregate-neutral).\
+  \ No rule-node of the moved sections was cited anywhere and\nno active doc pointed\
+  \ at these sections, so the split perturbs no anchor ( analysis).\n\n## Verification\n\
+  \n- Size: SPEC-0025 back under the SPEC-0120 §3 ceiling (durable_docs metrics; over_ceiling\
+  \ / over_ceiling_bytes\n  no longer list it) after the two sections re-home here.\n\
+  - Verbatim: the moved body text is byte-identical to the SPEC-0025 pre-split source\
+  \ (no content deleted).\n- Retrieval: `bin/yitc-v2 graph query SPEC-0153` returns\
+  \ the two contracts; SPEC-0025 §Terminal-marker /\n  §Per-dispatch pointer stubs\
+  \ name this spec id.\n"
 cites:
 - SPEC-0025
 - SPEC-0120

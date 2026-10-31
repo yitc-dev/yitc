@@ -36,7 +36,7 @@ Every step is a read, a lesson written in a worktree, or an existing verb. No ne
    listed name, the owner compares its modification time with the one the inventory recorded: a note
    changed since then is not deleted, because its new content has not been checked, and it gets a
    row of its own first. The owner deletes the rest and records it as an `external_action` event
-   (SPEC-0116). No session deletes from that directory.
+   (<workshop-spec>). No session deletes from that directory.
 6. **Take the memory-off setting** through `init --refresh-scaffolds` once the kernel release that
    carries it serves the project. Then check that no new file appears in the directory after
    the switch.
@@ -111,5 +111,5 @@ large). The kernel's `provider-memory-sweep-2026-10` lessons are the model. It r
 
 SPEC-0039 §6 (what the provider memory may hold) · SPEC-0125 rule 1a (what the context home keeps) ·
 SPEC-0157 (capture-routing, the home for each disposition) · SPEC-0090 (lessons stay local, patterns
-travel) · SPEC-0116 (`external_action` for the owner's delete) · (the kernel drain) ·
+travel) · <workshop-spec> (`external_action` for the owner's delete) · (the kernel drain) ·
 (the memory-off setting) · (the quick-rule route).

@@ -712,7 +712,7 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
   \ Its verbs: **`venue raise`** (create from the snapshot, wait for ssh, run the\n\
   readiness probe — fingerprint + `nofile` + the engine's test deps — and emit an\
-  \ `external_action`\n`from:` the session's card, SPEC-0116), **`venue publish`**\
+  \ `external_action`\n`from:` the session's card, <workshop-spec>), **`venue publish`**\
   \ (mirror the host's main onto the box\nclone, THEN write rule 1's record; refused\
   \ when the probe or the mirror failed), **`venue unpublish`** (remove the record\
   \ — the explicit break-glass and the\nfirst step of every delete), **`venue delete`**\
@@ -810,9 +810,9 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ No other\ndirect-to-main self-commit (`task refuse`, the `task close` settle arms,\
   \ `_scoped_selfcommit`) takes it.\n**THE JOURNAL CARRIER, verb by verb (amended).**\
   \ `raise` and `delete` emit\n`external_action` — they MUTATE a system outside every\
-  \ repo, which is the whole of what SPEC-0116\ncovers — and so does `publish`'s mirror\
-  \ push into the box clone, whatever its outcome. `unpublish`\nwrites only a MACHINE-LOCAL\
-  \ file and emits **`venue_unpublished`**; `publish` emits\n**`venue_published`**\
+  \ repo, which is the whole of what <workshop-spec>\ncovers — and so does `publish`'s\
+  \ mirror push into the box clone, whatever its outcome. `unpublish`\nwrites only\
+  \ a MACHINE-LOCAL file and emits **`venue_unpublished`**; `publish` emits\n**`venue_published`**\
   \ ONLY after its mirror succeeded, carrying the MEASURED `push_s`,\n`clone_main_sha`\
   \ EQUAL to `host_main_sha` or a DESCENDANT of it (the relation named by\n`venue_main_mirror`),\
   \ `clone_main_behind: 0` and the pre-mirror lag — both homed here\nin the spec that\
@@ -934,14 +934,14 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   named the envelope must-haves rule 4 realises, the anti-complexity retirements rule\
   \ 7 realises,\nand the host-sensitive coverage rule 8 realises. Prior-art reused:\
   \ the hermetic runner + result\nfile (SPEC-0041 / SPEC-0077 §3), the machine-scoped\
-  \ coordination sidecar (SPEC-0132 Rule 1a), `external_action` (SPEC-0116), the duration\
-  \ table (SPEC-0132 §6), the durable-state\nwatcher shape (`dispatch --watch`). The\
-  \ owner constraints this spec encodes — opt-in only, a\nseparate compute-controller\
-  \ session, kernel-only first slice, every kernel pass remote while\npublished, local\
-  \ W constant / remote W derived — were recorded as followups on and are\ncarried\
-  \ by the proposing plan. Deliberation and rejected alternatives (a permanent host,\
-  \ local\ncgroup isolation — wont-do) live in the plan, not here.\n\n### The queue-jump\
-  \ exception of rule 5\n\nThe owner's proposal of 2026-10-13 (`events.jsonl#ts=`):\
+  \ coordination sidecar (SPEC-0132 Rule 1a), `external_action` (<workshop-spec>),\
+  \ the duration table (SPEC-0132 §6), the durable-state\nwatcher shape (`dispatch\
+  \ --watch`). The owner constraints this spec encodes — opt-in only, a\nseparate\
+  \ compute-controller session, kernel-only first slice, every kernel pass remote\
+  \ while\npublished, local W constant / remote W derived — were recorded as followups\
+  \ on and are\ncarried by the proposing plan. Deliberation and rejected alternatives\
+  \ (a permanent host, local\ncgroup isolation — wont-do) live in the plan, not here.\n\
+  \n### The queue-jump exception of rule 5\n\nThe owner's proposal of 2026-10-13 (`events.jsonl#ts=`):\
   \ a card marked to\njump the land queue still ran its Stage-6 pass at the lowest\
   \ priority and at a fraction of the\nwidth, so the mark shortened only the last\
   \ minutes of the card's way to main. Two external\nconsults preceded the build (`decisions/queue-jump-stage6-priority-audit-adhoc.yaml`,\n\
@@ -1026,7 +1026,6 @@ cites:
 - CHARTER.md#principle-6
 - SPEC-0077
 - SPEC-0132
-- SPEC-0116
 - SPEC-0041
 - SPEC-0025
 - SPEC-0105
@@ -1042,7 +1041,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#cmd_venue_publish: b338dea07e1a473ef5cf838496e9e0b30e4d9a1b972cdf6ececfd11125bf7d7e
+  bin/lib/cli.py#cmd_venue_publish: f3499427484d6d84a3f064658da9b581d1f08798622595b11380da0545194e20
   bin/lib/remote_verify.py#ParkedPreship: 0faeee925227453f0ad571bcd11393c1729e55ad23ce78bff9819a8bcfbdb1ac
   bin/lib/remote_verify.py#SHIP_PUSH_TIMEOUT_S: 2c319cde46aece5469cebfff02bfbe21ddf7659aefe0dc7fb7065d49809596ef
   bin/lib/remote_verify.py#box_lease_prologue: 5519e46317f9b8cfae6bfc08efcf06a6c9708c3975f1043aea2e68104db6613a
@@ -1066,7 +1065,7 @@ implements_signature:
   bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
   bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
-  bin/lib/task.py#cmd_task_test: 27bf375237cf27bd8e820bcb9e80e50d657051aaa306b5c41dd122ba8a96b550
+  bin/lib/task.py#cmd_task_test: 9e5675037a946920be9daa29fa40eedace95066ca25a4302a408e7724e2921ee
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd

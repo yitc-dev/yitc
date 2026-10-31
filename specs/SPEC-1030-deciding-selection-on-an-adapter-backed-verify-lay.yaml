@@ -129,117 +129,120 @@ body: "## Scenario\n\nA project whose full verify is too slow to pay on every ca
   \ and credit act at exactly two seams, which\ndecide alike on the same diff (<workshop-spec>\
   \ rule 12): the Tests-stage run and the land's candidate leg.\nEvery other run of\
   \ a layer runs it in full and credits nothing: the pinned last-green leg, the merge-base\n\
-  attribution run and the combined candidate of a batch.\n\n### 5. The record — a\
-  \ partial run says so\nEVERY run of a layer declaring a deciding mode records, as\
-  \ <workshop-spec> rule 13 already does under\n`shadow`, the mode (`deciding`), the\
-  \ decision and its rung or reason — for the selection, and for the\ncredit where\
-  \ the layer declares it.\nA PARTIAL run records in addition the layer's total units\
-  \ and, BY NAME, the units that ran, the units\nleft out and the units credited;\
-  \ and, where it credited any unit, the previous attempt's reference. A\nlayer that\
-  \ passed on a partial run records the outcome `passed-partial` — never `passed`,\
-  \ the outcome of\na full run — so a reader that does not know the modes cannot take\
-  \ it for one.\nA run that is NOT partial records none of that paragraph and the\
-  \ outcomes a full run records: a layer\nthe ladder ran in full, and a layer that\
-  \ ran its full `command:` because no inventory could be listed —\nthere the kernel\
-  \ knows neither the total nor the units, and writes neither a count nor a list.\
-  \ A field\nthe kernel does not know is ABSENT, never zero and never an empty list;\
-  \ an empty list is the claim\n«none» and is written only where the kernel knows\
-  \ it is none.\n\n### 6. A partial run is never read as full breadth\n  - THE STAGE-6\
-  \ CREDIT (SPEC-0065 §Bound) takes a Tests-stage row in which a layer records a partial\
-  \ run\n    ONLY when, for every such layer, the land's own decision on its candidate\
-  \ needs EXACTLY the units\n    that row ran or credited — and every other condition\
-  \ of that §Bound holds. In every other case it\n    refuses the row and the land\
-  \ runs its own candidate leg.\n    The question is asked of a land none of whose\
-  \ attempts has verified (that §Bound): a land that\n    refused the row has run\
-  \ its own candidate leg and is not asked again on a retry — the refusal stays\n\
-  \    the land's own record — while a land that took the row proves every condition\
-  \ again on a retry.\n    THE REFUSAL IS RECORDED SO THAT IT CAN BE ANALYSED: the\
-  \ row of the land names WHICH condition failed,\n    and where the unit sets differ\
-  \ it names, per layer, the units only the Tests-stage row holds and the\n    units\
-  \ only the land needs. A difference on an UNCHANGED tree and base is recorded under\
-  \ a reason of\n    its own: there the adapter answered one question two ways, and\
-  \ that is the project's to explain.\n  - NO DERIVED READING counts a partial run\
-  \ as a full run of its layer, and none counts a left-out or\n    credited unit as\
-  \ run, passed or skipped by eligibility — the per-unit flaky rate, the layout hotspot\n\
-  \    report, the false-skip detector and the zero-skip reading included.\n  - NO\
-  \ ROW, MESSAGE OR REPORT of the kernel states that a partial run verified its layer.\n\
-  \n### 7. The accepted limit\nUnder a deciding mode a failure in a unit a partial\
-  \ run did not execute is NOT seen on that run: a unit\nthe selection left out was\
-  \ not run at all, and a credited unit was last run on the previous attempt's\ntree,\
-  \ not on this one. Such a failure can reach `main` — a land that takes a partial\
-  \ Tests-stage run\nunder rule 6 never runs those units itself — and the kernel runs\
-  \ no full verify after it: the failure is\nseen when a later land runs that layer\
-  \ wider or in full, or by a full run the project itself makes before\nit deploys.\
-  \ This contract names no miss and gates no deploy; the full run before a gated deploy\
-  \ is\n<workshop-spec>'s, a reading naming a miss a later contract's.\n\n## Parameters\n\
-  \nNone.\n\n## Rationale\n\nPublic proposal 89 on the kernel's public tracker (consumer\
-  \ cryptochart): one full verify of its 12 layers took about ten\nminutes and kept\
-  \ about 17 of 32 cores busy, so the host admitted one worker full run at a time;\
-  \ over 48\ncards 21.9 of 30.9 Tests-stage hours went into failed runs. The owner\
-  \ decided on 2026-10-13 that a\nproject may declare a deciding selection under its\
-  \ own responsibility with a reason, with no shadow\nwindow or trial owed first (events.jsonl#ts=\
-  \ and the rows it binds); that the credit\nof a partial Tests-stage run to a land\
-  \ naming the same units and the reuse of passes after a fix are\nbuilt with it (events.jsonl#ts=,\
-  \ events.jsonl#ts=, confirmed for\nthis slice by the owner row the proposing plan\
-  \ names as decision 9; widened to a layer that passed in a\nfailed attempt by its\
-  \ decision 10 — on <project>, 2026-10-12..13, 8 of 11 failed runs failed on another\n\
-  layer while the adapter-backed layer passed, and each next attempt ran that layer\
-  \ again in full); and that the kernel-run full verify\nbefore deploy is built by\
-  \ the next plan, deciding-selection-nets-a-miss-reading-a-restorati, together\n\
-  with the miss reading (events.jsonl#ts=). The earned-admission design this replaces\n\
-  (a recorded window, an automatic switch-off, a periodic full land, cost gates) stays\
-  \ in the proposing\nplan's history. Prior art: the kernel's own suite selection\
-  \ (SPEC-0181 — default is RUN, a narrowed run\nis a partial run for the credit);\
-  \ the declared opt-in with a reason (SPEC-0186); a distinct outcome\ninstead of\
-  \ a reused one (SPEC-0186 rule 7). Rule 3's single-attempt bound is chosen over\
-  \ a credit carried\nalong a chain of attempts because the second needs the tree\
-  \ each unit last ran on. Rule 6 compares the\nland's needed set with the units the\
-  \ row ran OR credited because a land that refused every row with a\ncredited unit\
-  \ would make the after-fix credit cost a run instead of saving one. Rule 3's same-tree\n\
-  exception (public issue 106, owner route events.jsonl#ts=): on cryptochart\n9 of\
-  \ 15 layers that had passed re-ran whole on a byte-identical tree because the card\
-  \ reached the\nwhole layer; the recorded tree already proves those passes, so the\
-  \ rerun bought nothing.\n\n## Verification\n\nProbe contracts — on a sandbox consumer,\
-  \ each observed failing first:\n- Each form of the declaration, for `selection:`\
-  \ and for `credit:` alike: valid; no reason; an empty\n  reason; a blank reason;\
-  \ a reason that is not a string; a reason without the mode; `on`; a boolean —\n\
-  \  every invalid one fails closed before any layer runs, the refusal naming the\
-  \ cause.\n- Each rung (a)-(e), and each no-rung full answer, runs the FULL layer\
-  \ under `selection: deciding`; rung\n  (f) runs only the selected units; a selection\
-  \ naming no unit runs the `required:` checks and no unit.\n- After a failed attempt\
-  \ on the same base, under `credit: deciding`: the failed units and the units the\n\
-  \  fix reaches run, the other needed units are recorded credited with the previous\
-  \ attempt's reference;\n  the same holds for a layer that passed while that attempt\
-  \ failed on another layer, and nothing is\n  credited after an attempt that passed\
-  \ as a whole;\n  each rule-14 case (i)-(iv) credits nothing and records its reason;\
-  \ a unit the previous attempt left\n  out or credited runs.\n- Both modes on one\
-  \ layer: the attempt runs and credits only among the units its own selection needs.\n\
-  - The card that turns a mode on fails its first attempt and is fixed on the same\
-  \ base: the second attempt\n  runs the full layer and credits nothing; so does a\
-  \ retry of a card whose change the ladder answers on\n  any rung (a)-(e).\n- A layer\
-  \ declaring one key `deciding` and the other `shadow`, either way round, fails closed\
-  \ before any\n  layer runs.\n- A deciding layer whose `list` fails runs its full\
-  \ `command:` and records the decision `full` with its\n  reason, the outcome `passed`,\
-  \ no total and no unit list; a first attempt under `credit: deciding`\n  records\
-  \ no previous attempt's reference.\n- A failing `required:` check fails a partial\
-  \ run.\n- A void report on a partial run with a zero exit runs the layer's full\
-  \ `command:`.\n- The land that introduces a mode and the land that removes it each\
-  \ run every layer in full.\n- A planted failure in a left-out unit, and one in a\
-  \ credited unit, pass the run — the accepted limit,\n  shown.\n- The Tests-stage\
-  \ run and the land decide alike on the same diff.\n- The pinned last-green leg,\
-  \ the merge-base attribution run and a batch's combined candidate run a\n  layer\
-  \ in full under either mode.\n- A partial run's row carries the modes, the total,\
-  \ the units run, left out and credited, and the\n  outcome `passed-partial`; a layer\
-  \ that ran all of its units carries `passed`.\n- The Stage-6 credit takes a row\
-  \ holding a partial layer run when the land's own decision needs exactly\n  the\
-  \ units the row ran or credited, and refuses it — the land running its own candidate\
-  \ leg — when the\n  sets differ by one unit either way; the refusal names the failed\
-  \ condition and, per layer, the units\n  on each side only, and a difference on\
-  \ an unchanged tree and base carries its own reason.\n- Each derived reading — the\
-  \ per-unit flaky rate, the layout hotspot report, the false-skip detector, the\n\
-  \  zero-skip reading — on fixture rows holding a partial run: none counts it as\
-  \ a full run, none counts a\n  left-out or credited unit as run.\n- A project that\
-  \ declares no deciding mode produces the rows it produced before.\n"
+  attribution run and the combined candidate of a batch.\nUnder a project's opt-in\
+  \ decide-first barrier the selection and credit are taken in each layer's decide\n\
+  step, before any layer of its group runs (SPEC-1046 rule 3, the one home of that\
+  \ order).\n\n### 5. The record — a partial run says so\nEVERY run of a layer declaring\
+  \ a deciding mode records, as <workshop-spec> rule 13 already does under\n`shadow`,\
+  \ the mode (`deciding`), the decision and its rung or reason — for the selection,\
+  \ and for the\ncredit where the layer declares it.\nA PARTIAL run records in addition\
+  \ the layer's total units and, BY NAME, the units that ran, the units\nleft out\
+  \ and the units credited; and, where it credited any unit, the previous attempt's\
+  \ reference. A\nlayer that passed on a partial run records the outcome `passed-partial`\
+  \ — never `passed`, the outcome of\na full run — so a reader that does not know\
+  \ the modes cannot take it for one.\nA run that is NOT partial records none of that\
+  \ paragraph and the outcomes a full run records: a layer\nthe ladder ran in full,\
+  \ and a layer that ran its full `command:` because no inventory could be listed\
+  \ —\nthere the kernel knows neither the total nor the units, and writes neither\
+  \ a count nor a list. A field\nthe kernel does not know is ABSENT, never zero and\
+  \ never an empty list; an empty list is the claim\n«none» and is written only where\
+  \ the kernel knows it is none.\n\n### 6. A partial run is never read as full breadth\n\
+  \  - THE STAGE-6 CREDIT (SPEC-0065 §Bound) takes a Tests-stage row in which a layer\
+  \ records a partial run\n    ONLY when, for every such layer, the land's own decision\
+  \ on its candidate needs EXACTLY the units\n    that row ran or credited — and every\
+  \ other condition of that §Bound holds. In every other case it\n    refuses the\
+  \ row and the land runs its own candidate leg.\n    The question is asked of a land\
+  \ none of whose attempts has verified (that §Bound): a land that\n    refused the\
+  \ row has run its own candidate leg and is not asked again on a retry — the refusal\
+  \ stays\n    the land's own record — while a land that took the row proves every\
+  \ condition again on a retry.\n    THE REFUSAL IS RECORDED SO THAT IT CAN BE ANALYSED:\
+  \ the row of the land names WHICH condition failed,\n    and where the unit sets\
+  \ differ it names, per layer, the units only the Tests-stage row holds and the\n\
+  \    units only the land needs. A difference on an UNCHANGED tree and base is recorded\
+  \ under a reason of\n    its own: there the adapter answered one question two ways,\
+  \ and that is the project's to explain.\n  - NO DERIVED READING counts a partial\
+  \ run as a full run of its layer, and none counts a left-out or\n    credited unit\
+  \ as run, passed or skipped by eligibility — the per-unit flaky rate, the layout\
+  \ hotspot\n    report, the false-skip detector and the zero-skip reading included.\n\
+  \  - NO ROW, MESSAGE OR REPORT of the kernel states that a partial run verified\
+  \ its layer.\n\n### 7. The accepted limit\nUnder a deciding mode a failure in a\
+  \ unit a partial run did not execute is NOT seen on that run: a unit\nthe selection\
+  \ left out was not run at all, and a credited unit was last run on the previous\
+  \ attempt's\ntree, not on this one. Such a failure can reach `main` — a land that\
+  \ takes a partial Tests-stage run\nunder rule 6 never runs those units itself —\
+  \ and the kernel runs no full verify after it: the failure is\nseen when a later\
+  \ land runs that layer wider or in full, or by a full run the project itself makes\
+  \ before\nit deploys. This contract names no miss and gates no deploy; the full\
+  \ run before a gated deploy is\n<workshop-spec>'s, a reading naming a miss a later\
+  \ contract's.\n\n## Parameters\n\nNone.\n\n## Rationale\n\nPublic proposal 89 on\
+  \ the kernel's public tracker (consumer cryptochart): one full verify of its 12\
+  \ layers took about ten\nminutes and kept about 17 of 32 cores busy, so the host\
+  \ admitted one worker full run at a time; over 48\ncards 21.9 of 30.9 Tests-stage\
+  \ hours went into failed runs. The owner decided on 2026-10-13 that a\nproject may\
+  \ declare a deciding selection under its own responsibility with a reason, with\
+  \ no shadow\nwindow or trial owed first (events.jsonl#ts= and the rows it binds);\
+  \ that the credit\nof a partial Tests-stage run to a land naming the same units\
+  \ and the reuse of passes after a fix are\nbuilt with it (events.jsonl#ts=, events.jsonl#ts=,\
+  \ confirmed for\nthis slice by the owner row the proposing plan names as decision\
+  \ 9; widened to a layer that passed in a\nfailed attempt by its decision 10 — on\
+  \ <project>, 2026-10-12..13, 8 of 11 failed runs failed on another\nlayer while\
+  \ the adapter-backed layer passed, and each next attempt ran that layer again in\
+  \ full); and that the kernel-run full verify\nbefore deploy is built by the next\
+  \ plan, deciding-selection-nets-a-miss-reading-a-restorati, together\nwith the miss\
+  \ reading (events.jsonl#ts=). The earned-admission design this replaces\n(a recorded\
+  \ window, an automatic switch-off, a periodic full land, cost gates) stays in the\
+  \ proposing\nplan's history. Prior art: the kernel's own suite selection (SPEC-0181\
+  \ — default is RUN, a narrowed run\nis a partial run for the credit); the declared\
+  \ opt-in with a reason (SPEC-0186); a distinct outcome\ninstead of a reused one\
+  \ (SPEC-0186 rule 7). Rule 3's single-attempt bound is chosen over a credit carried\n\
+  along a chain of attempts because the second needs the tree each unit last ran on.\
+  \ Rule 6 compares the\nland's needed set with the units the row ran OR credited\
+  \ because a land that refused every row with a\ncredited unit would make the after-fix\
+  \ credit cost a run instead of saving one. Rule 3's same-tree\nexception (public\
+  \ issue 106, owner route events.jsonl#ts=): on cryptochart\n9 of 15 layers that\
+  \ had passed re-ran whole on a byte-identical tree because the card reached the\n\
+  whole layer; the recorded tree already proves those passes, so the rerun bought\
+  \ nothing.\n\n## Verification\n\nProbe contracts — on a sandbox consumer, each observed\
+  \ failing first:\n- Each form of the declaration, for `selection:` and for `credit:`\
+  \ alike: valid; no reason; an empty\n  reason; a blank reason; a reason that is\
+  \ not a string; a reason without the mode; `on`; a boolean —\n  every invalid one\
+  \ fails closed before any layer runs, the refusal naming the cause.\n- Each rung\
+  \ (a)-(e), and each no-rung full answer, runs the FULL layer under `selection: deciding`;\
+  \ rung\n  (f) runs only the selected units; a selection naming no unit runs the\
+  \ `required:` checks and no unit.\n- After a failed attempt on the same base, under\
+  \ `credit: deciding`: the failed units and the units the\n  fix reaches run, the\
+  \ other needed units are recorded credited with the previous attempt's reference;\n\
+  \  the same holds for a layer that passed while that attempt failed on another layer,\
+  \ and nothing is\n  credited after an attempt that passed as a whole;\n  each rule-14\
+  \ case (i)-(iv) credits nothing and records its reason; a unit the previous attempt\
+  \ left\n  out or credited runs.\n- Both modes on one layer: the attempt runs and\
+  \ credits only among the units its own selection needs.\n- The card that turns a\
+  \ mode on fails its first attempt and is fixed on the same base: the second attempt\n\
+  \  runs the full layer and credits nothing; so does a retry of a card whose change\
+  \ the ladder answers on\n  any rung (a)-(e).\n- A layer declaring one key `deciding`\
+  \ and the other `shadow`, either way round, fails closed before any\n  layer runs.\n\
+  - A deciding layer whose `list` fails runs its full `command:` and records the decision\
+  \ `full` with its\n  reason, the outcome `passed`, no total and no unit list; a\
+  \ first attempt under `credit: deciding`\n  records no previous attempt's reference.\n\
+  - A failing `required:` check fails a partial run.\n- A void report on a partial\
+  \ run with a zero exit runs the layer's full `command:`.\n- The land that introduces\
+  \ a mode and the land that removes it each run every layer in full.\n- A planted\
+  \ failure in a left-out unit, and one in a credited unit, pass the run — the accepted\
+  \ limit,\n  shown.\n- The Tests-stage run and the land decide alike on the same\
+  \ diff.\n- The pinned last-green leg, the merge-base attribution run and a batch's\
+  \ combined candidate run a\n  layer in full under either mode.\n- A partial run's\
+  \ row carries the modes, the total, the units run, left out and credited, and the\n\
+  \  outcome `passed-partial`; a layer that ran all of its units carries `passed`.\n\
+  - The Stage-6 credit takes a row holding a partial layer run when the land's own\
+  \ decision needs exactly\n  the units the row ran or credited, and refuses it —\
+  \ the land running its own candidate leg — when the\n  sets differ by one unit either\
+  \ way; the refusal names the failed condition and, per layer, the units\n  on each\
+  \ side only, and a difference on an unchanged tree and base carries its own reason.\n\
+  - Each derived reading — the per-unit flaky rate, the layout hotspot report, the\
+  \ false-skip detector, the\n  zero-skip reading — on fixture rows holding a partial\
+  \ run: none counts it as a full run, none counts a\n  left-out or credited unit\
+  \ as run.\n- A project that declares no deciding mode produces the rows it produced\
+  \ before.\n"
 cites:
 - CHARTER.md#principle-1
 - SPEC-0152
@@ -265,7 +268,7 @@ implements_signature:
   bin/lib/land_verify_legs.py#_adapter_previous_attempt: 6f1e1777718fd01983b639e8401e9adf31171ea362167eb7c0decd226e96817f
   bin/lib/land_verify_legs.py#_adapter_run_plan: 45d27fa94d7eab6edd051d5b723921ce3ed73e3e615daf7b1c1d87fa97b10c4a
   bin/lib/land_verify_legs.py#_declared_layer_adapters: 2a39b7ac020431b16e1e97fef6e77ddc76a1b7cd971a0e2d10b85dc195891c7e
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: b3c2c27f62d28edb2088ff10db1d3051dff8f799de5d04bfc3c99dc34c1760ea
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: e90fc17683027c87c63dfb8d7781449f18670e8f84e2e288065fd5ae4efcc077
   bin/lib/land_verify_legs.py#_layer_row_is_partial_run: 3ea94e55b8b232807647ffbdbed0710b3bc16c3d9dc21f18fcc85963f74a9e31
   bin/lib/land_verify_legs.py#_one_card_candidate_kw: ac919cfe304064caeeafb01205bcfc796226802d5bb484e5c9cc064659277329
   bin/lib/land_verify_legs.py#_payload_partial_layers: a75c7c0150397b06ef5f6eddc7f0f3de77896c954e3a3fd54e9380385b2ea084

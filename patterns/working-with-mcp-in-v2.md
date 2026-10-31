@@ -83,11 +83,11 @@ reconcile you RUN, not a guard that fires.
 ## Capture — a substantive MCP write incurs the external_action floor
 
 A **substantive external WRITE performed through an MCP tool — on EITHER shelf — is governed by the
-SPEC-0116 `external_action` capture floor**: it MUST emit one `external_action` journal event
+SPEC-1057 `external_action` capture floor**: it MUST emit one `external_action` journal event
 (`channel` / `target` / `action` / `from`) at the time of the action, exactly as a write through any
 other channel would. The shelf classification (standing vs one-off) does **not** change this. **READS
-and trivial/no-effect calls are excluded** — the SPEC-0116 bright line. This pattern POINTS at
-SPEC-0116; it does not restate the capture rule (`bin/yitc-v2 graph query SPEC-0116`). MCP is just one
+and trivial/no-effect calls are excluded** — the SPEC-1057 bright line. This pattern POINTS at
+SPEC-1057; it does not restate the capture rule (`bin/yitc-v2 graph query SPEC-1057`). MCP is just one
 transport for that channel-agnostic obligation — a harness-native tool or a raw API call in a shell
 incur it equally.
 
@@ -126,7 +126,7 @@ the design specifics stay there; do not duplicate).
 3. **Connect** per your client's mechanics — the concrete commands are in your client's per-client
    `class: adapter` runbook (the provider-named adapter that links back here), never here.
 4. **Use** the server's tools for the work.
-5. **Capture every substantive external WRITE** with a SPEC-0116 `external_action` event (no worktree —
+5. **Capture every substantive external WRITE** with a SPEC-1057 `external_action` event (no worktree —
    the journal-append path); reads need nothing.
 
 ## What this pattern is NOT
@@ -136,13 +136,13 @@ the design specifics stay there; do not duplicate).
   `bin/yitc-v2 event` append (no new store/parser).
 - **NOT** a startup step — it adds no read and no action to session start (SPEC-0007 §5b done-when).
 - **NOT** a provider reference — it names no commands; the runbook (adapter) carries those.
-- **NOT** a second home for the capture rule (that is SPEC-0116) or the design round-trip
+- **NOT** a second home for the capture rule (that is SPEC-1057) or the design round-trip
   (that is `design-tool-roundtrip.md`) — it POINTS at both.
 
 ## Anti-complexity check (CHARTER §Principle 1, four filters — written down)
 
 1. **Existing analog?** Yes — `design-tool-roundtrip.md §Delivery axis` (the delivery axis, here
-   GENERALIZED), SPEC-0116 (capture, here POINTED-at), SPEC-0084 (the territory carve-out, reused as the
+   GENERALIZED), SPEC-1057 (capture, here POINTED-at), SPEC-0084 (the territory carve-out, reused as the
    legality basis). Composed, not duplicated.
 2. **New entity or new view?** A **view** — it adds the two-shelf + reconcile discipline as prose;
    delivery reuses the existing `binding` floor/seed mechanism (SPEC-0118), capture reuses
@@ -165,7 +165,7 @@ craft (which servers THIS repo declares) stays in that repo's `lessons/`.
 ## See also
 
 - **SPEC-0118** — this pattern's delivery contract (`bin/yitc-v2 graph query SPEC-0118`).
-- **SPEC-0116** — the `external_action` external-mutation capture floor (`graph query SPEC-0116`).
+- **SPEC-1057** — the `external_action` external-mutation capture floor (`graph query SPEC-1057`).
 - **SPEC-0084** — the shared-store append carve-out (the territory legality basis).
 - the per-client `class: adapter` MCP command runbook(s) — the provider-named adapter(s) that carry
   the concrete commands and link back here (non-normative; discover them in the graph / `patterns/`).

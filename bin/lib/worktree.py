@@ -2684,6 +2684,24 @@ def _declare_spike_late(*a, **kw):
     return worktree_lifecycle._declare_spike_late(*a, **kw)
 
 
+@functools.wraps(worktree_lifecycle._spike_handover_command)
+def _spike_handover_command(*a, **kw):
+    """T-14374 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_spike_handover_command`."""
+    return worktree_lifecycle._spike_handover_command(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._spike_round_preflight)
+def _spike_round_preflight(*a, **kw):
+    """T-14374 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_spike_round_preflight`."""
+    return worktree_lifecycle._spike_round_preflight(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._spike_round_handover)
+def _spike_round_handover(*a, **kw):
+    """T-14374 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_spike_round_handover`."""
+    return worktree_lifecycle._spike_round_handover(*a, **kw)
+
+
 @functools.wraps(worktree_lifecycle._worktree_teardown_blocker)
 def _worktree_teardown_blocker(*a, **kw):
     """T-12584 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_worktree_teardown_blocker`."""
@@ -3137,6 +3155,12 @@ def _created_tmp_prefixes(*a, **kw):
 def _live_held_paths(*a, **kw):
     """T-11522 host residue — the body now lives in `bin/lib/worktree_lifecycle.py#_live_held_paths`."""
     return worktree_lifecycle._live_held_paths(*a, **kw)
+
+
+@functools.wraps(worktree_lifecycle._verify_temp_base)
+def _verify_temp_base(*a, **kw):
+    """T-11522 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_verify_temp_base` (T-14371)."""
+    return worktree_lifecycle._verify_temp_base(*a, **kw)
 
 
 # ── Removal-failure classification (T-10891) ──────────────────────────────────────────────────────
@@ -14026,7 +14050,7 @@ def _adapter_attempt_stamp(worktree: Path, run: dict, *, _run_git_cap) -> dict:
         return {"attempt_unavailable": "tree-unreadable"}
 
 
-def _layer_duration_ms(t0: float) -> dict:
+def _layer_duration_ms(t0: float, prep_end: "float | None" = None, selected_at: "float | None" = None) -> dict:
     """T-11200 — the ONE place a verify layer's elapsed wall becomes a row field. Returns the
     additive `{"duration_ms": <int ms>}` fragment spread into the outcome row at the append.
 
@@ -14041,13 +14065,23 @@ def _layer_duration_ms(t0: float) -> dict:
     the row, and `started_at` is that instant minus the SAME elapsed `duration_ms` is made of, so the
     three never disagree. A timed-out layer's row is built right after the runner returns from the
     kill, so its `ended_at` is the kill. A row that executed nothing never calls this and carries no
-    times."""
+    times.
+
+    T-14377: given `prep_end` (the monotonic instant the layer's `prep:` returned — `t0` itself when it
+    ran no prep), the fragment also carries `prep_ms` and `select_ms`, both measured from `t0` on the
+    same clock: `select_ms` ends at `selected_at`, the instant the layer's final unit list was decided,
+    never earlier than the prep's end. A caller that passes neither gets the fragment above unchanged."""
     elapsed, now = time.monotonic() - t0, time.time()
 
     def _iso(ts):
         return time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime(ts)) + f".{int(ts * 1000) % 1000:03d}Z"
 
-    return {"duration_ms": int(elapsed * 1000), "started_at": _iso(now - elapsed), "ended_at": _iso(now)}
+    out = {"duration_ms": int(elapsed * 1000), "started_at": _iso(now - elapsed), "ended_at": _iso(now)}
+    if prep_end is not None:
+        sel = prep_end if selected_at is None else max(selected_at, prep_end)
+        out["prep_ms"] = int((prep_end - t0) * 1000)
+        out["select_ms"] = int((sel - t0) * 1000)
+    return out
 
 
 _VERIFY_LAYER_WORKERS_ENV = "YITC_VERIFY_LAYER_WORKERS"   # T-12589: the admitted OUTPUT, never the
@@ -15296,6 +15330,8 @@ _LAYER_RETRY_FAILING_OUTCOMES = ("failed", "timed-out", "prep-failed")
 _LAYER_RETRY_DECLINE_WHY = {
     "timeout-class": "a layer timed out — a verify timeout is not retried, and a re-run costs another full bound",
     "prep-failed": "a layer's dependency prep failed — a setup fault, not a flaky check",
+    # T-14376 (SPEC-1046 rule 3): the decided-lists file could not be written — a setup fault.
+    "decide-first": "the decide-first lists file could not be written — a setup fault, not a flaky check",
     "over-bound": "more than one layer did not pass, or the retry bound "
                   "YITC_VERIFY_RETRY_MAX_FILES is 0 — the re-run is for a sole failed layer",
     # T-13607 (SPEC-1006 rule 5) — the one decline `_layer_flaky_retry_plan` does not make: the
@@ -15521,6 +15557,13 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     non-fabrication stance `definition_changed` takes; a MEASURED 0 on a genuinely instant layer is a
     real reading and is kept. Per-LAYER is the unit, deliberately: a layer runs a project-owned
     script and the kernel does not know its phases, so no phase protocol is invented here.
+    T-14377: the same rows also carry `prep_ms` — the share of that wall spent in the layer's `prep:`
+    (0 when it declares none, a waived one, or is the re-run that reuses the first run's prep) — and
+    `select_ms`, the wall from the prep's start to the instant its final unit list was decided: for
+    an adapter that answers `list`, after `list`, the selection, its `required:` checks and any
+    pre-deploy narrowing; for every other layer, the prep's end (its unit set is its whole command).
+    So `select_ms - prep_ms` is the selection step and `duration_ms - select_ms` the run. Both are
+    REPORT-ONLY and ABSENT exactly where `duration_ms` is (`_layer_duration_ms`).
 
     `base_ref` (T-10504 / X-0368, OPTIONAL) — the commit this land integrates ONTO (the land call-site
     passes its `merged_base`). Given it, a row for a layer whose command RUNS also carries
@@ -15852,6 +15895,14 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # worker allotment. Read here, with its sibling, so a malformed declaration fails CLOSED before any
     # layer runs — a typo'd split must never silently fall back to the unsplit default it was written
     # to replace. The kernel records it and publishes nothing per-layer (see the reader's contract).
+    # T-14376 (SPEC-1046 rule 3): the OPT-IN decide-first barrier. Absent or false = off (the pass is
+    # unchanged); anything but a bool is malformed and fails CLOSED before any layer runs.
+    decide_first = ver.get("decide_first", False) if isinstance(ver, dict) else False
+    if not isinstance(decide_first, bool):
+        return {"mode": "malformed", "bad": [
+            f"land(consumer): {CONSUMER_OPS_CONTRACT} `verify.decide_first:` is malformed — "
+            f"{decide_first!r} is not true or false. Declare `true` to have every layer decide its "
+            f"units before any layer runs, or omit the key (SPEC-1046 rule 3)."], "layers": []}
     try:
         worker_shares = _declared_layer_worker_shares(ver, layers)
     except ValueError as e:
@@ -16188,6 +16239,14 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 shutil.rmtree(_fc_dir, ignore_errors=True)
             _fc = {"state": "unavailable", "reason": f"{type(e).__name__}: {e}"[:300],
                    "layers": set(json.loads(_selected))}
+    # T-14376 (SPEC-1046 rule 3): with `verify.decide_first: true`, one fresh directory per run holds
+    # the decided-lists file every first-attempt layer is told about; the attribution re-run
+    # (`only_layers`) takes no barrier. Removed where the forecast directory is removed.
+    _df: dict = {"path": None, "dir": None, "written": {}}
+    if decide_first and only_layers is None:
+        import tempfile
+        _df["dir"] = Path(tempfile.mkdtemp(prefix="yitc-verify-decided-"))
+        _df["path"] = str(_df["dir"] / "decided.json")
     # What the skip line below says the layer's subject is disjoint FROM — the diff actually judged.
     _judged_diff = ("this working tree's changes against the merge-base with main (committed, "
                     "uncommitted and untracked)" if working_tree else "the candidate diff")
@@ -16260,7 +16319,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
 
     @_with_layer_progress
     def _execute(i, ly, name, cmd, layer_timeout, own_timeout=False, project=None, peers=(), retry=False,
-                 rerun_files=None) -> dict:
+                 rerun_files=None, barrier=None) -> dict:
         """The EXECUTE phase of one runnable layer — from `_layer_t0` through its outcome row: prep →
         provenance → the bounded command → timed-out / failed / passed. Same code, clock and messages
         as the pre-T-12585 inline body; returns `{bad, row, prep}` and touches nothing shared, so it
@@ -16366,6 +16425,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                                         if _src[0] == "declared" else _src[0])
         prep_record = None
         prep = None if retry else ly.get("prep")   # T-13545: the re-run reuses the first run's prep
+        # T-14377: where the prep ended — `_layer_t0` itself (prep_ms 0) unless a declared prep RAN below
+        _prep_end = _layer_t0
         _log_ctx = layer_log_ctx
         if retry and isinstance(layer_log_ctx, dict):
             _log_ctx = {**layer_log_ctx, "attempt": f"{layer_log_ctx.get('attempt') or 1}-retry"}
@@ -16395,6 +16456,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                                         _verify_contention_context=functools.partial(
                                             _verify_contention_context,
                                             _land_verifies_running=_land_verifies_running))
+                _prep_end = time.monotonic()
                 if _prep["bad"]:
                     # T-12758: the prep's own captured output (the `npm ci` log) — present only on the
                     # two branches that RAN something; a shape refusal has none and writes no artifact.
@@ -16404,7 +16466,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                         e_bad.append(f"land(consumer): verify layer {name!r} prep — WHOLE captured output: {_log}")
                     return {"bad": e_bad, "row": {"layer": name, "outcome": "prep-failed",
                                                   **({"output_log": _log} if _log else {}),
-                                                  **_bound, **_layer_duration_ms(_layer_t0),
+                                                  **_bound, **_layer_duration_ms(_layer_t0, _prep_end, _prep_end),
                                                   **_adapter_fields(outer="prep-failed", outer_at="prep")},
                             "prep": None}   # fail-closed: do NOT run the command against wrong deps
                 if _prep["record"]:
@@ -16455,6 +16517,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _pub[land_verify_legs.VERIFY_SELECTED_LAYERS_ENV] = _selected
         if _fc["state"] == "published":  # T-14343: and the run's forecast file
             _pub[land_verify_legs.VERIFY_LAYER_FORECAST_ENV] = _fc["path"]
+        if _df["path"] and not retry:    # T-14376: and, under `verify.decide_first`, the decided lists
+            _pub[land_verify_legs.VERIFY_LAYER_DECIDED_ENV] = _df["path"]
         # T-14276 (SPEC-0152 rule 16): the isolated re-run of a layer whose first run named its failing
         # files hands it exactly those files; every other call strips an inherited selection, so an
         # outer run's re-run never narrows a layer this run starts.
@@ -16463,6 +16527,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         _layer_env = ({**os.environ, **_pub} if _pub or _VERIFY_WORKER_SHARES_KEY_ENV in os.environ
                       or land_verify_legs.VERIFY_SELECTED_LAYERS_ENV in os.environ
                       or land_verify_legs.VERIFY_LAYER_FORECAST_ENV in os.environ
+                      or land_verify_legs.VERIFY_LAYER_DECIDED_ENV in os.environ
                       or verify_runner.VERIFY_RERUN_FILES_ENV in os.environ else None)
         if _layer_env is not None and not rerun_files:
             _layer_env.pop(verify_runner.VERIFY_RERUN_FILES_ENV, None)
@@ -16472,6 +16537,8 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _layer_env.pop(land_verify_legs.VERIFY_SELECTED_LAYERS_ENV, None)
         if _layer_env is not None and _fc["state"] != "published":   # T-14343: never another run's forecast
             _layer_env.pop(land_verify_legs.VERIFY_LAYER_FORECAST_ENV, None)
+        if _layer_env is not None and not (_df["path"] and not retry):   # T-14376: nor another run's lists
+            _layer_env.pop(land_verify_legs.VERIFY_LAYER_DECIDED_ENV, None)
         _cpu = _LayerCpuSampler(worktree, _container_cpu_reader, project=project, peers=peers)
         _proc_ms = None
         _captured = None        # T-12758: bound before the call, so an exceptional path is unchanged
@@ -16484,6 +16551,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         # pass follows the command, as before.
         _first = "command"
         _sink: dict = {}
+        _sel_at = None   # T-14377: the instant the unit list was decided; None = the prep's end
         r = None
         _term_grace = ("", {})
         land_verify_legs._layer_kill.ending = None   # T-13993: no earlier layer's ending is read as this one's
@@ -16491,19 +16559,52 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         try:
             if _adapter_first:
                 _pre.append(_adapter_pass(timeout=effective_timeout, env=_layer_env,
-                                          first_attempt=True, sink=_sink))
+                                          first_attempt=True, sink=_sink,
+                                          **({"decided": lambda e, left: barrier.arrive(name, e, left)
+                                              or (barrier.failed or "expired")}
+                                             if barrier is not None else {})))
                 if "requested" in _sink:   # T-14343: the first attempt's request; a re-run never sets it
                     _fc_requested.setdefault(name, _sink["requested"])
                 _term_grace = land_verify_legs._layer_term_grace()   # T-13993: read on this thread, now
+                # T-14377: the pass decided its unit list at `selected_at`; a pass that decided none
+                # (no usable `list`, a failed `required:` check) settled the layer when it returned
+                _sel_at = _sink.get("selected_at") or time.monotonic()
                 _first = _adapter_first_attempt(_pre[0])
                 _proc_ms = _sink.get("proc_ms")
+            _cmd_bound = effective_timeout
+            if barrier is not None and _first == "command":
+                # T-14376: a layer that runs its whole `command:` decides here, as running whole (a
+                # no-op when its adapter pass already arrived), inside what is left of its bound —
+                # and its command is bounded by what the wait left of it.
+                _w0 = time.monotonic()
+                barrier.arrive(name, None, effective_timeout - (_w0 - _layer_t0))
+                _cmd_bound = effective_timeout - (time.monotonic() - _w0)
+            _fail = (barrier.failed, barrier.reason) if barrier is not None and barrier.failed else None
+            if _fail is None and _cmd_bound <= 0:   # this layer alone: the wait left nothing of its bound
+                _fail = ("expired", f"layer {name!r} spent its whole bound waiting for its group to decide")
+            if _fail is not None and _first in ("command", "timed-out"):
+                _first = "decide-failed"   # no run step without every list published (fail closed)
             if _first == "command":
                 r, _cmd_ms, _captured = _nice_kw.get("_run_layer_command", _run_layer_command)(
-                    cmd, worktree, effective_timeout, _layer_env)
+                    cmd, worktree, _cmd_bound, _layer_env)
                 _term_grace = land_verify_legs._layer_term_grace()   # T-13993: read on this thread, now
                 _proc_ms = _cmd_ms if _proc_ms is None else _proc_ms + (_cmd_ms or 0)
         finally:
             _cpu_fields = _cpu.finish(_proc_ms)   # REPORT-ONLY reading, read by nothing that decides
+        if _first == "decide-failed":
+            _row_tail = {**_layer_duration_ms(_layer_t0, _prep_end, _sel_at), **_cpu_fields,
+                         **({"adapter": _pre[0]} if _pre else {})}
+            if _fail[0] == "expired":
+                e_bad.append(f"land(consumer): verify layer {name!r} TIMED OUT before its run step: "
+                             f"{_fail[1]} — no layer of the group runs without every list "
+                             f"(`verify.decide_first`, SPEC-1046 rule 3).")
+                return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share,
+                                              **_bound, **_row_tail}, "prep": prep_record}
+            e_bad.append(f"land(consumer): verify layer {name!r} FAILED before its run step: the decided-"
+                         f"lists file could not be written ({_fail[1]}) — no layer of the group runs "
+                         f"without it (`verify.decide_first`, SPEC-1046 rule 3).")
+            return {"bad": e_bad, "row": {"layer": name, "outcome": "failed", **_prov, **_share, **_bound,
+                                          **_row_tail}, "prep": prep_record, "no_rerun": "decide-first"}
         if _first == "command" and _pre:
             # T-13907 (SPEC-1030 rule 4): the launcher of the full `command:` has returned — the
             # command was started after the adapter's attempt — so whatever that attempt
@@ -16518,7 +16619,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             # last — a per-project runner's failing project need not be the last one invoked.
             _printed, _not_passed = _adapter_invocations_output(_sink.get("invocations"))
             _ran = _not_passed or _adapter["run"]
-            _row_tail = {**_layer_duration_ms(_layer_t0), **_cpu_fields, "adapter": _rec}
+            _row_tail = {**_layer_duration_ms(_layer_t0, _prep_end, _sel_at), **_cpu_fields, "adapter": _rec}
             if _first == "passed":
                 # T-13907 (SPEC-1030 rule 5): a layer that passed on a PARTIAL run reads
                 # `passed-partial`, and its line never says the layer passed.
@@ -16610,7 +16711,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
                 e_bad.append(f"land(consumer): verify layer {name!r} — WHOLE captured output: {_log}")
             return {"bad": e_bad, "row": {"layer": name, "outcome": "timed-out", **_prov, **_share, **_bound,
                                           **({"output_log": _log} if _log else {}), **_term_grace[1],
-                                          **_layer_duration_ms(_layer_t0), **_cpu_fields,
+                                          **_layer_duration_ms(_layer_t0, _prep_end, _sel_at), **_cpu_fields,
                                           **_adapter_fields(outer="timed-out", outer_at="command")},
                     "prep": prep_record}
         if r.returncode != 0:
@@ -16631,7 +16732,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             _ff = None if rerun_files else _layer_failing_files(r.stdout, r.returncode)
             return {"bad": e_bad, "row": {"layer": name, "outcome": "failed", **_prov, **_share, **_bound,
                                           **({"output_log": _log} if _log else {}),
-                                          **_layer_duration_ms(_layer_t0), **_cpu_fields,
+                                          **_layer_duration_ms(_layer_t0, _prep_end, _sel_at), **_cpu_fields,
                                           **_adapter_fields(effective_timeout, _layer_env)},
                     "prep": prep_record, "exit": r.returncode, "excerpt": tail,
                     **({"failing_files": _ff} if _ff else {}),
@@ -16646,7 +16747,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             print(f"land(consumer): attribution re-run at the merge-base (main WITHOUT this branch): "
                   f"verify layer {name!r} passed there — this is NOT this branch's result")
         return {"bad": e_bad, "row": {"layer": name, "outcome": "passed", **_prov, **_share, **_bound,
-                                      **_layer_duration_ms(_layer_t0), **_cpu_fields,
+                                      **_layer_duration_ms(_layer_t0, _prep_end, _sel_at), **_cpu_fields,
                                       **_adapter_fields(effective_timeout, _layer_env)},
                 "prep": prep_record, "exit": 0,
                 **({"ran_subset": True} if rerun_files and _layer_ran_subset(r.stdout, rerun_files) else {})}
@@ -16658,6 +16759,22 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
     # runnable layer flushes the (empty) group and runs inline, exactly as before.
     pending: list = []
 
+    def _decide_barrier(group):
+        """T-14376 (SPEC-1046 rule 3): the group's decide-first barrier — None when the project did not
+        declare `verify.decide_first` (the pass unchanged). A serially-run layer is a group of one."""
+        if not _df["path"]:
+            return None
+        return land_verify_legs._DecideBarrier(_df["path"], [g[2] for g in group], _df["written"])
+
+    def _run_member(args, bar, **kw):
+        """One member's `_execute`; a member that ends without deciding leaves the barrier, so its
+        peers are never held by a layer that will not decide."""
+        try:
+            return _execute(*args, **kw, **({"barrier": bar} if bar is not None else {}))
+        finally:
+            if bar is not None:
+                bar.leave(args[2])
+
     def _flush():
         if not pending:
             return
@@ -16666,7 +16783,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         if len(group) == 1:
             # A group of ONE overlaps nothing, so the worktree predicate is still exact for it and no
             # token is issued: its row is byte-identical to the serial path (T-12657).
-            results[group[0][0]] = _execute(*group[0])
+            results[group[0][0]] = _run_member(group[0], _decide_barrier(group))
             return
         # T-12657: these layers WILL overlap, so each takes its own run-issued compose project name,
         # minted HERE — before any thread starts — and published to its command as
@@ -16685,9 +16802,10 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         # sampler. Exact by construction — the runner is the only thing that knows this set, which is
         # why peer recognition belongs here and not in a name pattern (audit-post, spec-coherence).
         import concurrent.futures as _cf
+        _bar = _decide_barrier(group)
         with _cf.ThreadPoolExecutor(max_workers=len(group)) as pool:
             for g, res in zip(group, pool.map(
-                    lambda gt: _execute(*gt[0], project=gt[1], peers=tokens), zip(group, tokens))):
+                    lambda gt: _run_member(gt[0], _bar, project=gt[1], peers=tokens), zip(group, tokens))):
                 # T-12757: this member ACTUALLY ran overlapped with >=1 peer — stamped HERE, in the
                 # only branch that overlaps anything, because "the runner overlapped these" is a fact
                 # only the runner holds: `independent` names what MAY overlap, and a group of one (or
@@ -16784,7 +16902,7 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
             pending.append(runnable[i])
         else:
             _flush()
-            results[i] = _execute(*runnable[i])
+            results[i] = _run_member(runnable[i], _decide_barrier([runnable[i]]))
     _flush()
     # ── T-13545 — THE ISOLATED RE-RUN OF A SOLE FAILED LAYER (SPEC-0152 rule 16) ─────────────────
     # HERE: after the declaration loop and the final `_flush()`, so every other layer of this verify
@@ -17060,6 +17178,9 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         if _fc.get("dir") is not None:
             import shutil
             shutil.rmtree(_fc["dir"], ignore_errors=True)
+    if _df["dir"] is not None:   # T-14376: the decided-lists file lives as long as the run's layers
+        import shutil
+        shutil.rmtree(_df["dir"], ignore_errors=True)
     for res in results:
         bad.extend(res["bad"])
         outcomes.append(res["row"])
@@ -22349,56 +22470,12 @@ def _await_live_land_tail_dirt(main_wt, *, _run_git_cap) -> None:
 _TAIL_EXPECTED_SESSION_REF_ENV = "YITC_EXPECTED_SESSION_REF"
 
 
-def _land_tail_tripwire_readers(test_dir, artifacts) -> list:
-    """T-12420 — the tests that READ the given artifacts, DERIVED from the corpus, never declared.
-
-    A test file is a reader of an artifact when its SOURCE mentions that artifact's BASENAME. The
-    derivation is the whole point: the tripwire that caught the 2026-09-11 lane incident
-    (`tests/test_t12378_t11906_lane_line_removed.py`) DID NOT EXIST when the writer that broke it
-    shipped, so any hand-maintained writer->test map would have been complete and still wrong. A
-    derived set cannot go stale, and over-inclusion is harmless (an extra green file costs its own
-    wall, bounded by the budget) while under-inclusion is the defect.
-
-    T-14287 — A FIXTURE-ONLY OPT-OUT, READ FROM THE TEST ITSELF. A mention is not an open: two files
-    that only named the duration table — one in a `.gitattributes` string check, one writing its own
-    temp copy — set the tail's 52-110 s wall while every live reader ran under 4 s. A file whose own
-    text carries a line-start `# tail-tripwire: fixture-only <path>` comment is not a reader of the
-    artifact with that basename; any OTHER artifact it mentions still selects it. The opt-out is
-    VERIFIED, not trusted: `tests/test_t14287_tail_reader_live_only.py` runs every marked file over a
-    broken, never-read copy of the artifact and fails when the run is red or the copy was read."""
-    names = {Path(a).name for a in artifacts if a}
-    out = []
-    if not names:
-        return out
-    for path in test_discovery.test_files(test_dir):
-        try:
-            text = path.read_text(encoding="utf-8", errors="ignore")
-        except OSError:
-            # Unreadable is NOT "not a reader": count it, so an unreadable tripwire fails its run
-            # and withholds rather than silently shrinking the evidence set.
-            out.append(path.name)
-            continue
-        fixture_only = {Path(m).name for m in _TAIL_FIXTURE_ONLY_RE.findall(text)}
-        if any(n in text for n in names - fixture_only):
-            out.append(path.name)
-    return out
-
-
-_TAIL_FIXTURE_ONLY_RE = re.compile(r"^[ \t]*#[ \t]*tail-tripwire:[ \t]*fixture-only[ \t]+(\S+)", re.M)
-
-
-def _reader_trigger_artifacts(paths) -> list:
-    """T-13939 — the paths of a delta a test can READ by name: every path except the journal, its
-    archive segments and the generated graph views (`graph_mod.GRAPH_DIR`).
-
-    Every file in that directory is `graph build` output, rebuilt by every land from the merged sources:
-    what a test reads of one follows from source paths, and a changed source stays in the list. Without this cut each land's `graph/index.json` rebuild matched the 264 test files
-    that mention any `index.json`, and no inert advance ever kept the Stage-6 credit (the 9 lands of
-    2026-10-07..14). The journal is cut for the reason it always was: it is union-merged, never a
-    named fixture."""
-    return [p for p in paths if p and p != "events.jsonl"
-            and not str(p).startswith(graph_mod.GRAPH_DIR + "/")   # the one value home, T-0631
-            and not events.is_archive_segment(Path(p), Path("events.jsonl"))]
+# T-12420 / T-13939 — the land-tail reader derivation lives in the leaf `land_verify_legs` (its
+# `_pre_deploy_changed_readers` reads it too, and a leaf never imports its host); these names keep
+# every caller and test of `worktree.<name>` working.
+_land_tail_tripwire_readers = land_verify_legs._land_tail_tripwire_readers
+_TAIL_FIXTURE_ONLY_RE = land_verify_legs._TAIL_FIXTURE_ONLY_RE
+_reader_trigger_artifacts = land_verify_legs._reader_trigger_artifacts
 
 
 def _worktree_disk_tree(W, _run_git_cap) -> "str | None":

@@ -60,7 +60,10 @@ body: "## Scenario\n\nA reusable engineering capability a project adopts — an 
   \ §Named retirements (b); closed\n   `wont-do`), not deferred. This rule states\
   \ its own requirement and holds on its own;\n   SPEC-0195 rule 3 is named ONLY as\
   \ the home where that pin's resolution + integrity-verification\n   MECHANICS are\
-  \ settled — a provenance pointer, NOT the authority this rule leans on.\n\n4. **Adopt\
+  \ settled — a provenance pointer, NOT the authority this rule leans on.\n   A list\
+  \ of entries a community keeps in its own commons is community content: it is read\
+  \ under\n   SPEC-1056, the kernel builds none, resolves and installs nothing from\
+  \ it, and adoption stays the\n   project's own act (SPEC-1056 rule 7).\n\n4. **Adopt\
   \ / cite (\"install\") — DELEGATED to SPEC-0093 rule 13 (the settled amends-map).**\
   \ The adopt/\n   cite \"install\" contract — the `yitc-ops.yaml` `extensions:` adopt-declaration\
   \ section schema + the\n   governed `init --adopt-extension` path — is OWNED by\

@@ -201,7 +201,10 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
   \ — the guard CONSUMES it (flagging `kernel-realm \\ slice` at every land via `graph\n\
   conformance`), and the future spec-materializing exporter ( spec slice) calls the\
   \ same helper.\nSo the filter is LIVE in production, not test-only; there is no\
-  \ second definition of the export slice (P5).\n\n## Parameters\n\nNone consumed.\
+  \ second definition of the export slice (P5).\n\n### 9. Eviction to the community\
+  \ commons\nEvicting kernel content to the commons is limited to a standalone OPTIONAL\
+  \ solution, after a dependency\nand compatibility check; a mandatory contract and\
+  \ what it needs stay in the versioned kernel.\n\n## Parameters\n\nNone consumed.\
   \ The class-default matrix (`_PLACEMENT_CLASS_DEFAULTS`), the exception-capable\
   \ set\n(`_PLACEMENT_EXCEPTION_CAPABLE`), and the spec class-default (`_SPEC_CLASS_DEFAULT\
   \ = kernel`) are CODE\nconstants in `bin/yitc-v2`, single-source — not spec-read\
@@ -220,23 +223,25 @@ body: "## Scenario\n\nEvery YITC artifact and code file has a PLACEMENT realm �
   \ manifest §1 SPEC classification»: Closes E-0039 — formerly §3 was the one\n  hand-maintained\
   \ section, so a new code-backed spec's row surfaced late at land.\n- From «8. Active-only\
   \ export slice»: (reconciling deviation fingerprint\n  conformance-leak-check-vs-test0890-contradict-on-proposed-kernel-spec-post-T0883)\n\
-  \n## Implementation notes\n\n### Moved from the rule body\n\nEach entry is a passage\
-  \ moved word for word out of the rule text of the section it names\n(its class per\
-  \ <workshop-spec> rule 3 in brackets); every acting rule stays in the rule text.\n\
-  \n- From «4. Within-file placement» [MECH]: (`bin/yitc-v2#_build_audit_prompt` audit-pre\
-  \ overlay)\n\n## Verification\n\n- **VP1 (matrix exhaustive):** every tracked top-level\
-  \ corpus dir is a key in\n  `_PLACEMENT_CLASS_DEFAULTS` (and the named class taxonomy\
-  \ tests/docs/examples/templates/\n  dev-utilities is present); an unlisted class\
-  \ fails safe to v2-self. (test_t0888_placement_contract)\n- **VP2 (fail-closed write-point):**\
-  \ `spec new` WITHOUT `--travels` dies with an actionable refusal\n  and burns no\
-  \ SPEC-id. (test)\n- **VP3 (durable decision + no redundant marker):** `spec_filed`\
-  \ carries `travels` + `travels_explicit`\n  for every new spec; a body `travels:`\
-  \ marker is written ONLY for a non-default exception. (test)\n- **VP4 (derivation\
-  \ primitive):** `_resolve_placement` is pure; unmarked → class-default; a realm\n\
-  \  marker is honored ONLY on an exception-capable class, ignored on a hard class.\
-  \ (test)\n- **VP5 (audit-pre lens):** the `_build_audit_prompt` audit-pre overlay\
-  \ carries the\n  \"correctly placed kernel vs v2-self?\" placement line. (grep)\n\
-  - **VP6 (realm rule stated):** this body states `<realm>:<ID>` mandatory-at-first-merged-discovery-\n\
+  \nRule 9 was added by (plan community-commons-kernel-keeps-principles-and-exch,\
+  \ card C8, the\ntext of its §Draft amendments), in place as an additive case: no\
+  \ eviction rule existed before it.\n\n## Implementation notes\n\n### Moved from\
+  \ the rule body\n\nEach entry is a passage moved word for word out of the rule text\
+  \ of the section it names\n(its class per <workshop-spec> rule 3 in brackets); every\
+  \ acting rule stays in the rule text.\n\n- From «4. Within-file placement» [MECH]:\
+  \ (`bin/yitc-v2#_build_audit_prompt` audit-pre overlay)\n\n## Verification\n\n-\
+  \ **VP1 (matrix exhaustive):** every tracked top-level corpus dir is a key in\n\
+  \  `_PLACEMENT_CLASS_DEFAULTS` (and the named class taxonomy tests/docs/examples/templates/\n\
+  \  dev-utilities is present); an unlisted class fails safe to v2-self. (test_t0888_placement_contract)\n\
+  - **VP2 (fail-closed write-point):** `spec new` WITHOUT `--travels` dies with an\
+  \ actionable refusal\n  and burns no SPEC-id. (test)\n- **VP3 (durable decision\
+  \ + no redundant marker):** `spec_filed` carries `travels` + `travels_explicit`\n\
+  \  for every new spec; a body `travels:` marker is written ONLY for a non-default\
+  \ exception. (test)\n- **VP4 (derivation primitive):** `_resolve_placement` is pure;\
+  \ unmarked → class-default; a realm\n  marker is honored ONLY on an exception-capable\
+  \ class, ignored on a hard class. (test)\n- **VP5 (audit-pre lens):** the `_build_audit_prompt`\
+  \ audit-pre overlay carries the\n  \"correctly placed kernel vs v2-self?\" placement\
+  \ line. (grep)\n- **VP6 (realm rule stated):** this body states `<realm>:<ID>` mandatory-at-first-merged-discovery-\n\
   \  surface + bare-id-local-only + bare-foreign-id-INVALID, and couples [[]] for\
   \ the wiring.\n- **VP7 (re-eval rule stated):** this body states placement re-evaluation\
   \ on consumer-relevance edits\n  + the manifest drift check ([[]]).\n- **VP8 (active-only\

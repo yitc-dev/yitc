@@ -1129,6 +1129,16 @@ concern:
       your layers do. The sum is deliberately unchecked: there is no over-allocation
       guard, and a share that floors at one worker is your arithmetic.'
     absent: every layer reads the whole allotment — unsplit, as today.
+  - key: decide_first
+    example: 'true'
+    spec: SPEC-1046
+    summary: DECIDE FIRST, THEN RUN — every layer of a group the run starts together
+      first decides its units (prep, list, required checks, selection), the kernel
+      waits until all have decided and names ONE file with every layer's final list
+      in YITC_VERIFY_LAYER_DECIDED, and only then any layer runs; use it to size each
+      layer's resources against the others'. A slow layer's decide step delays the
+      others' start, inside their own bounds.
+    absent: every layer decides and runs in one pass, as today; no file is written.
 - section: coverage
   carrier_path: coverage
   presence_policy: opt-in

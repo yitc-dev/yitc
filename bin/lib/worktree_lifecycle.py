@@ -1148,7 +1148,12 @@ def cmd_worktree_adopt(args: argparse.Namespace, *, _append_event, _die, _main_w
               f"{[c.get('container') for c in reaped['containers']]}; worktree_children_reaped emitted")
     print(f"  re-stamped {wt} → session_ref {new_stamp['session_ref']}; worktree_adopted emitted")
     print(f"cd {wt}")
-    if work:
+    if work and (prior or {}).get("spike"):
+        # T-14373 (X-2146) — a declared spike never lands (SPEC-0205 rule 2); its exit is the park,
+        # whose rule-4 step tags the prototype (#_tag_spike_prototype). The re-stamp kept the marker.
+        print(f"next: the spike is yours again — a spike never lands (SPEC-0205); exit it with "
+              f"`worktree park --work {work}` from the main checkout, which tags the prototype spike/<slug>.")
+    elif work:
         # A batch has no card to close — its exit is the batch land (AGENTS §Writes happen in a worktree).
         print(f"next: the batch is yours again — finish/commit its filing work, then "
               f"`land --branch {branch}` from the main checkout.")
@@ -5380,6 +5385,28 @@ def _live_held_paths() -> list:
 
 
 
+def _verify_temp_base(*, _environ=None, _venue_root=None) -> "Path | None":
+    """The verify temp base a host's verify runs leave entries in, or None (T-14371).
+
+    `YITC_VERIFY_TMPDIR` when set — an explicit declaration wins and is never second-guessed by the
+    venue fallback — else `remote_verify.VENUE_TMPDIR_ROOT` when that directory exists, else None.
+    The env var is invocation-scoped (`verify_runner._install_verify_tmpdir`), so a cron run carries
+    none and reaches the base through the venue root. A base that is not a real directory (absent, a
+    file, a symlink) resolves to None: nothing under it is ever read or removed. ONE definition — the
+    nightly host axis reads the same base through this function."""
+    env = os.environ if _environ is None else _environ
+    raw = (env.get("YITC_VERIFY_TMPDIR") or "").strip()
+    if not raw:
+        if _venue_root is None:
+            from lib.remote_verify import VENUE_TMPDIR_ROOT as _venue_root   # noqa: PLC0415 — its one home
+        raw = str(_venue_root)
+    p = Path(raw)
+    if p.is_symlink() or not p.is_dir():
+        return None
+    return p
+
+
+
 def _rmtree_collect(path, errnos: list) -> None:
     """`shutil.rmtree` that COLLECTS each failure's errno instead of discarding it (T-10891).
 
@@ -5717,7 +5744,7 @@ def _record_residue_once(events_path: Path, paths: list, _append_event, *, _RESI
 def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed_task_ids, _main_worktree,
                        _read_worktree_stamp, _run_git_cap, _session_proc_alive, _stamp_is_own, REPO_ROOT,
                        _tmp_glob_patterns=None, _tmp_base=None, _scratch_base=None,
-                       _pid_alive=None, _wt_parent=_DERIVE_WT_PARENT,
+                       _verify_base=None, _pid_alive=None, _wt_parent=_DERIVE_WT_PARENT,
                        _sandbox_prefix_glob=_SANDBOX_PREFIX_GLOB, _proc_scan=None,
                        _proc_age_sec=None, _reap=None,
                        _classify_residue=None, _partial_removal=_removal_left_partial,
@@ -5789,7 +5816,10 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
     derived cohort that are NOT registered worktrees and are held by no live process (`shutil.rmtree`) —
     the residual leak the at-source `finally` cannot catch under a killed/timed-out land or an OOM-kill;
     and (T-10928) UNREGISTERED leftover dirs directly under the worktree parent `<repo>-wt/` that carry
-    NO `.git` — de-registered residue git can neither track nor land from, previously covered by NOTHING.
+    NO `.git` — de-registered residue git can neither track nor land from, previously covered by NOTHING;
+    and (T-14371) EVERY direct entry of the verify temp base (`_verify_temp_base`) past the same clamped
+    retention that no live process occupies — whatever its name — except a scratch root (left to the
+    scratch-root fence) and anything another category owns; reported aggregated, failures retried.
     NOT swept, and DOCUMENTED here as the contract's stated exclusion (T-10928 audit-pre, AC1 second
     horn): an unregistered dir under that parent that DOES carry a `.git`, and any dot-dir there. The
     `.git` carrier is ambiguous — a pruned-but-ADOPTABLE worktree, or a nested repo — and it is not this
@@ -5810,6 +5840,13 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
     import shutil
     import fnmatch as _fnmatch
     import tempfile
+    # T-14371 — the verify temp base (Category B3). `None` resolves it, but ONLY in production derived
+    # mode: an injected pattern set or tmp base is a hermetic test, which must never reach the host's
+    # verify base through this side door (the T-13203 rule). `False` turns it off; a path injects it.
+    if _verify_base is None:
+        _verify_base = (_verify_temp_base() if _tmp_glob_patterns is None and _tmp_base is None
+                        else False)
+    verify_base = Path(_verify_base) if _verify_base else None
     if _tmp_glob_patterns is None:
         # DERIVED, not listed (T-10855). `_tmp_base` is injectable so a test can drive the REAL derived
         # cohort inside its own sandbox instead of polluting (or trusting) the host's /tmp.
@@ -5994,7 +6031,14 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
     # Kept OUT of `_tmp_glob_patterns` on purpose, so a worktree inside a root never becomes a
     # Category-A "pinned" candidate. A root is swept only when past the floor, not own, its ref not
     # proc-alive, no registered worktree inside it, and no live process occupies it.
-    if _scratch_base is not None:
+    # T-14371 — a session's scratch root can also sit in the verify temp base (a worker run under
+    # `YITC_VERIFY_TMPDIR` mints it there): the SAME fence covers both bases, and Category B3 below
+    # leaves every scratch-root name to it.
+    _scratch_bases = []
+    for _b in (_scratch_base, verify_base):
+        if _b is not None and all(os.path.realpath(_b) != os.path.realpath(x) for x in _scratch_bases):
+            _scratch_bases.append(_b)
+    if _scratch_bases:
         from lib.dispatch import SCRATCH_ROOT_PREFIX   # noqa: PLC0415 — T-13203, the root's one home
         # Injected (cli's signal-0 `_pid_alive`); absent → every pid reads ALIVE, fail-closed toward keeping.
         _alive = _pid_alive or (lambda _pid: True)
@@ -6021,7 +6065,8 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
                 except OSError:
                     return "unknown"
             return None
-        for path in sorted(_glob.glob(str(Path(_scratch_base) / f"{SCRATCH_ROOT_PREFIX}*"))):
+        for path in sorted(p_ for b_ in _scratch_bases
+                           for p_ in _glob.glob(str(Path(b_) / f"{SCRATCH_ROOT_PREFIX}*"))):
             sp = Path(path)
             if sp.is_symlink() or not sp.is_dir():
                 continue
@@ -6066,7 +6111,7 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
         # The engine's detached land/test log+pid pairs, grouped by stem. Removed only past the floor,
         # the log held by no live process, and the pidfile's pid dead — i.e. after token AND exit.
         stems: dict = {}
-        for kind_ in ("land", "test"):
+        for kind_ in ("land", "test") if _scratch_base is not None else ():
             for ext in ("log", "pid"):
                 for f in _glob.glob(str(Path(_scratch_base) / f"yitc-{kind_}-u{_euid()}-*.{ext}")):
                     stems.setdefault(f[: -len(ext) - 1], []).append(f)
@@ -6088,6 +6133,61 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
                 continue
             for f in sorted(files):
                 swept.append((f, "transport-log", "(engine land/test transport)", age))
+
+    # ── Category B3: EVERY stale entry of the verify temp base (T-14371) ──────────────────────────
+    # THE GAP: Category B globs only the derived `yitc-*` cohort in the SYSTEM tempdir, but the verify
+    # temp base (a tmpfs, so RAM) collects whatever a verify run's tests mint there — measured
+    # 2026-10-30: ~14.3k entries / 6.5G, the bulk unprefixed `mkdtemp` names no prefix cohort can
+    # describe. So here the fence is not a name but state: every DIRECT entry past the same clamped
+    # retention that no live process occupies (SPEC-0051 occupancy), minus what another category owns —
+    # a scratch root (B2's stronger fence above), a registered worktree, a path already classified.
+    # AGGREGATED like Category E: a cohort this size printed or journaled per path would bury the run.
+    vb_sel: dict = {"candidates": [], "young": 0, "held": 0, "owned": 0, "considered": 0, "error": None}
+    if verify_base is not None:
+        from lib.dispatch import SCRATCH_ROOT_PREFIX as _SRP   # noqa: PLC0415 — the root's one home
+        classified = {str(p) for p, *_r in swept} | {str(p) for p, _r in skipped}
+        try:
+            vb_real = os.path.realpath(verify_base)
+            with os.scandir(verify_base) as it:
+                vb_entries = sorted(it, key=lambda e: e.name)
+        except OSError as e:
+            vb_entries = []
+            vb_sel["error"] = f"{verify_base} unreadable ({e.strerror or e}) — nothing considered"
+        held_tops = None   # built once, lazily: only a run with an OLD entry pays the /proc walk.
+        for ent in vb_entries:
+            vb_sel["considered"] += 1
+            path = ent.path
+            if ent.name.startswith(_SRP) or path in classified:
+                vb_sel["owned"] += 1
+                continue
+            try:
+                pr = Path(path).resolve()
+                if any(r == pr or pr in r.parents for r in registered):
+                    vb_sel["owned"] += 1
+                    continue
+            except OSError:
+                vb_sel["owned"] += 1   # cannot tell → never ours to remove (fail-closed toward keeping).
+                continue
+            try:
+                # The ENTRY's own mtime, never a link target's (`_age_sec` follows symlinks).
+                age = now - ent.stat(follow_symlinks=False).st_mtime
+            except OSError:
+                age = -1.0   # unreadable → young, kept (fail-closed, as `_age_sec`).
+            if age < retention_sec:
+                vb_sel["young"] += 1
+                continue
+            if held_tops is None:
+                # The SAME occupancy inventory `_in_use` reads, folded ONCE into the set of top-level
+                # names under the base it occupies — ancestry semantics, O(1) per entry.
+                if not _held:
+                    _held.append(_live_held_paths())
+                pref = vb_real.rstrip(os.sep) + os.sep
+                held_tops = {h[len(pref):].split(os.sep, 1)[0] for h in _held[0] if h.startswith(pref)}
+            if ent.name in held_tops:
+                vb_sel["held"] += 1
+                continue
+            is_dir = ent.is_dir(follow_symlinks=False)
+            vb_sel["candidates"].append((path, is_dir, age))
 
     # ── Category D: UNREGISTERED leftover dirs under the worktree parent (T-10928) ────────────────
     # THE GAP this closes: Category A covers only worktrees git still KNOWS about, and Category B only
@@ -6428,6 +6528,45 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
                 print(f"worktree sweep: {len(lock_failed)} journal sidecar lock(s) could not be "
                       f"removed (reported, retried next run): {'; '.join(lock_failed[:3])}"
                       + (f" (+{len(lock_failed) - 3} more)" if len(lock_failed) > 3 else ""))
+    # Category B3 act + report (T-14371). Aggregated, one summary + a bounded sample, folded into the
+    # SAME `worktree_swept` event as one `verify-tmp` element (no second event type). A failed removal
+    # is named and retried next run, NOT routed into the T-10891 exit contract: its recognised classes
+    # describe the system-tempdir cohort, not this base (the journal-lock precedent above).
+    if verify_base is not None:
+        vb_c = vb_sel["candidates"]
+        print(f"worktree sweep: verify temp base {verify_base}: {len(vb_c)} stale entr(ies) of "
+              f"{vb_sel['considered']} {'would be removed' if dry else 'to remove'} "
+              f"(kept: {vb_sel['young']} young, {vb_sel['held']} in use by a live process, "
+              f"{vb_sel['owned']} owned by another category)"
+              + (f" — {vb_sel['error']}" if vb_sel["error"] else ""))
+        for path, _d, age in vb_c[:5]:
+            print(f"  STALE verify-tmp: {path}  [age {age / 3600:.1f}h]")
+        if len(vb_c) > 5:
+            print(f"  … and {len(vb_c) - 5} more stale verify temp entr(ies) (not listed)")
+        if not dry and vb_c:
+            vb_failed = []
+            for path, is_dir, _age in vb_c:
+                errnos: list = []
+                if is_dir:
+                    _rmtree_collect(path, errnos)
+                else:
+                    try:
+                        os.unlink(path)   # a file or a symlink — the link itself, never its target.
+                    except FileNotFoundError:
+                        pass
+                    except OSError as e:
+                        errnos.append(e.errno)
+                if os.path.lexists(path):
+                    vb_failed.append(f"{path} [{_errno_names(errnos)}]" if _errno_names(errnos) else path)
+            done = len(vb_c) - len(vb_failed)
+            if done:
+                removed.append({"kind": "verify-tmp", "base": str(verify_base), "count": done,
+                                "oldest_age_hours": round(max(a for _p, _d, a in vb_c) / 3600, 1),
+                                "sample": [p for p, _d, _a in vb_c[:5]]})
+            if vb_failed:
+                print(f"worktree sweep: {len(vb_failed)} verify temp entr(ies) could not be removed "
+                      f"(reported, retried next run): {'; '.join(vb_failed[:3])}"
+                      + (f" (+{len(vb_failed) - 3} more)" if len(vb_failed) > 3 else ""))
     for path, reason in skipped:
         print(f"  skip {path}: {reason}")
     # T-11750 — `partial` ALONE is enough to emit: a run that removed nothing but left a worktree
@@ -6782,7 +6921,106 @@ def _committed_anchor_exists(sref, wt_events: Path, card, *, _session_started_lo
     return bool(_session_started_lower_bound(sref, events=rest) is not None)
 
 
-def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, _append_event, _die, _foreign_hold_report, _format_task_verdict_line, _live_claimed_task_ids, _main_worktree, _plan_structural_findings, _print_cross_territory_routing_hint, _print_scenario_impact_warn, _read_worktree_stamp, _report_graft_parse_errors, _run_git_cap, _stamp_is_own, _task_safety_verdict, _with_live_nodes, _with_repo_lock, _worktree_parent_leaf, _worktree_path_for_branch, graph_build_index, REPO_ROOT, _assert_task_claimable, _claim_task, _orphan_resume_task, _resume_orphan_in_worktree, _write_worktree_stamp, _session_started_lower_bound, _resolve_session_ref, _BOOKKEEPING_ALLOWLIST, _inflight_worktree_intents=None, _print_inflight_intent_overlap=None, _print_spike_mode_hint=lambda: None, _live_path_holders=None, _session_proc_alive=None, _work_resume_candidate=None, _print_scenario_staleness_warn=lambda **k: None, SPIKE_BRANCH_PREFIX=None, _is_journal_archive_dirt=None, _live_holder_refusal=None, _open_work_batch_hint_lines=None, _own_open_work_batches=None, _unclassified_dirt=None, _filing_read_gate_hint_lines=None, _await_live_land_tail=None) -> None:
+def _spike_handover_command(main_wt: Path, *, _die) -> "str | None":
+    """T-14374 (SPEC-0205 rule 12) — the project's declared next-round step, `spike_sandbox.handover`, or
+    None when the project declares none (no carrier, no section, no key). The step is the PROJECT's own
+    (copy build outputs, re-point its stand); the kernel only runs it. Any other shape — and a carrier
+    that cannot be read — refuses: whether a step is declared cannot then be told (fail-closed)."""
+    from lib import host_apply as _host_apply
+    from lib import state
+    carrier_path = Path(main_wt) / _host_apply.CONSUMER_OPS_CONTRACT
+    if not carrier_path.is_file():
+        return None
+    try:
+        carrier = state.load_ops(carrier_path)
+    except Exception as exc:                           # noqa: BLE001 — unreadable: cannot tell, say so
+        _die(f"worktree new: --from-spike cannot read {carrier_path.name} ({exc}) — whether a "
+             f"`spike_sandbox.handover` step is declared cannot be told. Nothing was created. Fix the "
+             f"carrier, then re-run `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    sec = carrier.get("spike_sandbox") if isinstance(carrier, dict) else None
+    if not isinstance(sec, dict) or "handover" not in sec:
+        return None
+    cmd = sec.get("handover")
+    if not isinstance(cmd, str) or not cmd.strip():
+        _die(f"worktree new: `spike_sandbox.handover` in {carrier_path.name} must be one non-empty "
+             f"shell command string, got {type(cmd).__name__} (SPEC-0205 rule 12). Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    return cmd
+
+
+def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _read_worktree_stamp,
+                           _run_git_cap, _worktree_path_for_branch) -> dict:
+    """T-14374 (SPEC-0205 rule 12) — every refusal of `worktree new --from-spike`, BEFORE any row, branch
+    or worktree exists. Returns the served round: {branch, wt, tip, step}."""
+    if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", served or ""):
+        _die(f"worktree new: --from-spike must be a kebab-case batch slug, got {served!r}. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    if served == new_slug:
+        _die(f"worktree new: --from-spike {served} names the batch being opened — the next round needs "
+             f"its own slug. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    sbranch = f"work/{served}"
+    swt = _worktree_path_for_branch(sbranch)
+    if not swt or not Path(swt).exists() or not (_read_worktree_stamp(swt) or {}).get("spike"):
+        _die(f"worktree new: --from-spike {served} — {sbranch} is not a live DECLARED spike (no worktree, "
+             f"or its stamp does not carry spike: true). Only a served spike round hands over "
+             f"(SPEC-0205 rule 12). Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    if _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/work/{new_slug}"], main_wt).stdout.strip():
+        _die(f"worktree new: --from-spike opens a NEW round, but work/{new_slug} already exists — choose "
+             f"the next round's slug. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    dirt = _run_git_cap(["status", "--porcelain"], Path(swt)).stdout.strip()
+    if dirt:
+        _die(f"worktree new: --from-spike {served} — the served round has uncommitted changes, which the "
+             f"next round would not inherit. Commit the round in {swt} first, then re-run. "
+             f"Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.\n{dirt}")
+    tip = _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/{sbranch}"], main_wt).stdout.strip()
+    if not tip:
+        _die(f"worktree new: --from-spike {served} — the tip of {sbranch} could not be resolved. "
+             f"Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    step = _spike_handover_command(main_wt, _die=_die)
+    if step is None:
+        # No project step will re-point a stand that serves the round, and the park would refuse it
+        # AFTER the new tree exists — so refuse up front with the park's own record read (T-13397).
+        _cage = globals()["_cage_serving_worktree"](Path(swt), Path(main_wt) / "events.jsonl")
+        if _cage:
+            why = _cage.get("unanswered") or (f"spike cage {_cage.get('compose_project')} serves it "
+                                              f"as live code ({CAGE_SERVED_SOURCE_EVENT}@{_cage.get('ts')})")
+            _die(f"worktree new: --from-spike {served} — {why}, and no `spike_sandbox.handover` step is "
+                 f"declared to re-point it, so the served round could not be parked. Declare the step, or "
+                 f"bring the stand down, then re-run. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+    return {"branch": sbranch, "wt": Path(swt), "tip": tip, "step": step}
+
+
+def _spike_round_handover(served: dict, branch: str, path: Path, main_wt: Path, *, _die, _run_git_cap,
+                          _park_spike_round) -> None:
+    """T-14374 (SPEC-0205 rule 12) — after the next round opened at the served tip: run the project's
+    step (if declared) in the new worktree, then park the served round bound to the captured tip."""
+    print(f"  next round: opened at the served round's tip {served['tip'][:12]} ({served['branch']})")
+    step = served["step"]
+    if step is None:
+        print("  hand-over step: none declared (spike_sandbox.handover) — nothing project-specific ran")
+    else:
+        print(f"  hand-over step (spike_sandbox.handover): {step}")
+        sys.stdout.flush()
+        env = dict(os.environ, YITC_SPIKE_FROM_WORKTREE=str(served["wt"]), YITC_SPIKE_TO_WORKTREE=str(path),
+                   YITC_SPIKE_FROM_BRANCH=served["branch"], YITC_SPIKE_TO_BRANCH=branch)
+        rc = subprocess.run(step, shell=True, cwd=str(path), env=env).returncode
+        if rc != 0:
+            _die(f"worktree new: the hand-over step exited {rc}. The next round {branch} is OPEN at "
+                 f"{path}; the served round {served['branch']} is NOT parked (worktree + branch intact). "
+                 f"Fix the step, run it by hand, then `bin/yitc-v2 worktree park --work "
+                 f"{served['branch'][len('work/'):]}`.")
+    # Bind the park to the tip the next round inherited: a commit or an edit in the served tree while
+    # the step ran would be parked into the prototype but not continued (audit-pre fp1:5fe86014afac53f6).
+    now = _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/{served['branch']}"], main_wt).stdout.strip()
+    dirt = _run_git_cap(["status", "--porcelain"], served["wt"]).stdout.strip() if served["wt"].exists() else ""
+    if now != served["tip"] or dirt:
+        _die(f"worktree new: the served round {served['branch']} changed while the hand-over ran (tip "
+             f"{served['tip'][:12]} → {(now or '?')[:12]}{', uncommitted changes' if dirt else ''}) — it is "
+             f"NOT parked, so nothing it gained is lost. The next round {branch} is OPEN at "
+             f"{served['tip'][:12]}. Carry the change across, then `bin/yitc-v2 worktree park --work "
+             f"{served['branch'][len('work/'):]}`.")
+    _park_spike_round(served["branch"][len("work/"):])
+
+
+def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, _append_event, _die, _foreign_hold_report, _format_task_verdict_line, _live_claimed_task_ids, _main_worktree, _plan_structural_findings, _print_cross_territory_routing_hint, _print_scenario_impact_warn, _read_worktree_stamp, _report_graft_parse_errors, _run_git_cap, _stamp_is_own, _task_safety_verdict, _with_live_nodes, _with_repo_lock, _worktree_parent_leaf, _worktree_path_for_branch, graph_build_index, REPO_ROOT, _assert_task_claimable, _claim_task, _orphan_resume_task, _resume_orphan_in_worktree, _write_worktree_stamp, _session_started_lower_bound, _resolve_session_ref, _BOOKKEEPING_ALLOWLIST, _inflight_worktree_intents=None, _print_inflight_intent_overlap=None, _print_spike_mode_hint=lambda: None, _live_path_holders=None, _session_proc_alive=None, _work_resume_candidate=None, _print_scenario_staleness_warn=lambda **k: None, SPIKE_BRANCH_PREFIX=None, _is_journal_archive_dirt=None, _live_holder_refusal=None, _open_work_batch_hint_lines=None, _own_open_work_batches=None, _unclassified_dirt=None, _filing_read_gate_hint_lines=None, _await_live_land_tail=None, _park_spike_round=None) -> None:
     """`worktree new` creation control-point (D-0051 — inverse of `land`, a CLI verb per D-0033,
     NOT a hook). Create a writing worktree + branch off `main` and print the `cd <path>` (a CLI
     cannot change the parent shell's cwd). Narrow by design: only --task / --work — no
@@ -6794,8 +7032,14 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
     task = getattr(args, "task", None)
     work = getattr(args, "work", None)
     spike = bool(getattr(args, "spike", False))
+    from_spike = getattr(args, "from_spike", None)
     if bool(task) == bool(work):
         _die("worktree new: pass exactly one of --task T-XXXX or --work <slug>")
+    # T-14374 (SPEC-0205 rule 12): the next round of a spike is itself a declared spike `--work` batch.
+    if from_spike is not None and (task or not spike):
+        _die("worktree new: --from-spike opens the NEXT ROUND of a spike — it needs --work <next> --spike "
+             "(SPEC-0205 rule 12). Nothing was created. Run: `bin/yitc-v2 worktree new --work <next> --spike "
+             "--from-spike <served>`.")
     # T-11071 (SPEC-0172 rule 5): `--spike` DECLARES a disposable exploration, and a `task/T-XXXX`
     # flow is by definition landing work — its whole 9-stage contract ends in `land`. Declaring one
     # disposable is incoherent, and accepting it silently would create a task that can never close.
@@ -6839,6 +7083,11 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
              "then `bin/yitc-v2 worktree new --work <slug>` (a `--work` batch is the path for the "
              "first governed commit — `--task` needs a filed task id, which filing allocates inside "
              "the worktree). `main` is the sole V2 integration branch (D-0037).")
+    # T-14374 (SPEC-0205 rule 12): every --from-spike refusal runs here, before any row, branch or tree.
+    served_round = (_spike_round_preflight(from_spike, work.strip(), main_wt, _die=_die,
+                                           _read_worktree_stamp=_read_worktree_stamp, _run_git_cap=_run_git_cap,
+                                           _worktree_path_for_branch=_worktree_path_for_branch)
+                    if from_spike is not None else None)
     # T-10596 (E-0015 pre-claim seam): REFUSE to open a worktree while the MAIN checkout carries
     # substantive (non-bookkeeping) uncommitted dirt. `worktree new` branches from `main`'s COMMITTED
     # HEAD, so any pre-claim edit made on the main checkout stays STRANDED on main — invisible to the
@@ -7028,7 +7277,8 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
             # unlanded commits are preserved rather than a second branch being born beside them.
             r = _run_git_cap(["worktree", "add", str(path), branch], main_wt)
         else:
-            r = _run_git_cap(["worktree", "add", "-b", branch, str(path), "main"], main_wt)
+            r = _run_git_cap(["worktree", "add", "-b", branch, str(path),
+                              served_round["tip"] if served_round else "main"], main_wt)
         if r.returncode != 0:
             _err = (r.stderr or r.stdout or "").strip()
             if declared_row is not None:
@@ -7249,6 +7499,9 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         print("    ANOTHER checkout of the same repo (e.g. main) does NOT count here, because this")
         print("    worktree's events.jsonl is a branch copy that main's appends reach only at `land`.")
         print("    Reads/filings before them are refused.")
+        if served_round is not None:
+            _spike_round_handover(served_round, branch, path, main_wt, _die=_die, _run_git_cap=_run_git_cap,
+                                  _park_spike_round=_park_spike_round)
 
 
 

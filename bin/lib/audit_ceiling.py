@@ -1601,7 +1601,7 @@ _MI_CROSS_MAX = 16
 
 def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, rows, stage_rows,
                                 git, resolve, diff_cap=None, spec_parts=None, sign_at=None,
-                                transparent=None) -> tuple:
+                                transparent=None, red_fix_ok=False) -> tuple:
     """T-13260 (SPEC-0124 §Ledger-skip axes, «Post-GREEN merge integration») — may ONE ordinary
     audit-post run past the ceiling because the only thing since a GREEN is a merge with main?
 
@@ -1651,6 +1651,14 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     commit `worktree sync --resolved` writes on top of its merge, T-14101): HEAD is walked back across
     them before G1/G3, and the evidence names them `trailing`. No predicate, an authored commit, or a
     merge keeps the `head_not_a_merge` refusal.
+
+    T-14375 — ONE further prior state for G1, asked only when the caller passes `red_fix_ok` (the
+    ordinary leg BELOW the ceiling): the latest real verdict is RED and the custody commit A is this
+    card's `task commit --fix-red` commit — a `commit_landed` row of the card marked `red_fix`, naming
+    A, recorded AFTER that RED in journal order. The saved record must then read RED (not yet re-pinned).
+    G2-G6 are unchanged, so a commit after the fix carrying authored content beyond the governed merge
+    is refused exactly as after a GREEN. The evidence then carries `red_fix` and `fix_diff` (A's own
+    diff), so the packet shows the fix beside the resolution.
 
     The evidence is the marker the pass records (merge / prior / main shas, the conflict paths, the
     sync row locator; `resigned` + `resign_commit` only when a re-sign was admitted); `resolution_diff`
@@ -1758,10 +1766,27 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         return None, "no_prior_verdict: no recorded audit-post verdict for this card"
     latest = real[-1]
     lv = str(_d(latest).get("verdict") or "").strip().upper()
-    if lv != "GREEN":
+    red_fix = False
+    if lv == "RED" and red_fix_ok:
+        # T-14375 — a RED answered by this card's `--fix-red` commit A, recorded after the RED
+        seen_red = False
+        for r in rows or ():
+            if r is latest or r == latest:
+                seen_red = True
+            elif (seen_red and isinstance(r, dict) and r.get("type") == "commit_landed"
+                  and str(r.get("task_id") or "") == str(tid) and _d(r).get("red_fix") is True
+                  and _r(_d(r).get("commit")) == a_sha):
+                red_fix = True
+        if not red_fix:
+            return None, (f"prior_verdict_not_green: the latest recorded audit-post verdict is RED and "
+                          f"the recorded commit {a_sha[:12]} is not a `task commit --fix-red` commit "
+                          f"recorded after it")
+    elif lv != "GREEN":
         return None, f"prior_verdict_not_green: the latest recorded audit-post verdict is {lv}"
     r_sha, r_paths = None, []
-    if _r(_d(latest).get("commit")) != a_sha:
+    if red_fix:
+        pass   # the RED pins the pre-fix ship; custody A is the fix, proven above
+    elif _r(_d(latest).get("commit")) != a_sha:
         # T-14180 — the ONE admitted exception: custody is HEAD, a re-sign-only commit R recorded on
         # the merge M over the GREEN commit. Then A is the GREEN's commit and M stands in for HEAD.
         why = None
@@ -1783,7 +1808,12 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
                           f"not the recorded commit {a_sha[:12]}"
                           + (f" ({why})" if why and why not in ("resign_unverifiable", "not_a_spec_record")
                              else ""))
-    if isinstance(prior_record, dict):
+    if isinstance(prior_record, dict) and red_fix:
+        pv = str(prior_record.get("verdict") or "").strip().upper()
+        if pv in _MI_REAL_VERDICTS and pv != "RED":
+            return None, (f"saved_record_disagrees: the saved audit-post record reads {pv}, not the RED "
+                          f"the fix at {a_sha[:12]} answers")
+    elif isinstance(prior_record, dict):
         pv = str(prior_record.get("verdict") or "").strip().upper()
         if pv in _MI_REAL_VERDICTS and (pv != "GREEN" or _r(prior_record.get("commit")) != a_sha):
             return None, (f"saved_record_disagrees: the saved audit-post record reads {pv} at "
@@ -1897,9 +1927,20 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         res_diff += rr[1]
     if isinstance(diff_cap, int) and diff_cap > 0 and len(res_diff) > diff_cap:
         res_diff = res_diff[:diff_cap] + f"\n... [truncated at {diff_cap} bytes]\n"
+    fix_diff = None
+    if red_fix:
+        fd = _g(["diff", f"{a_sha}^", a_sha])
+        if fd is None or fd[0] != 0:
+            return None, "fix_patch_unreadable: git could not produce the `--fix-red` commit's diff"
+        fix_diff = fd[1]
+        if isinstance(diff_cap, int) and diff_cap > 0 and len(fix_diff) > diff_cap:
+            fix_diff = fix_diff[:diff_cap] + f"\n... [truncated at {diff_cap} bytes]\n"
     ev = {"merge_commit": m_sha, "prior_commit": a_sha, "main_sha": p2,
           "conflict_paths": recorded, "sync_evidence": f"events.jsonl#ts={sync_ts}",
           "resolution_diff": res_diff}
+    if red_fix:
+        ev["red_fix"] = True
+        ev["fix_diff"] = fix_diff
     if m_paths or r_paths:
         ev["resigned"] = sorted(set(m_paths) | set(r_paths))
     if r_sha:
@@ -1918,10 +1959,17 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
     ev = evidence if isinstance(evidence, dict) else {}
     bound = ("This is an ordinary counted pass below the audit-loop ceiling (T-14181)."
              if below_ceiling else "This pass is admitted ONCE; a RED here ENDS audit-post for this card.")
-    return (
+    lead = (
+        "## RED fix, then merge integration (T-14375, SPEC-1018 «Exits from a spent GREEN»)\n\n"
+        f"This card's latest audit-post was RED. Its in-scope fix {ev.get('prior_commit')} was committed "
+        "with `task commit --fix-red`; this pass is that fix's required re-audit. Since the fix its "
+        "branch took ONE "
+        if ev.get("red_fix") else
         "## Post-GREEN merge integration (T-13260, SPEC-1034 §Ledger-skip axes)\n\n"
-        f"This card's audit-post was GREEN at {ev.get('prior_commit')}. Since then its branch took ONE "
-        f"merge with main ({ev.get('main_sha')}) via the governed `worktree sync --resolved`, recorded "
+        f"This card's audit-post was GREEN at {ev.get('prior_commit')}. Since then its branch took ONE ")
+    return (
+        lead
+        + f"merge with main ({ev.get('main_sha')}) via the governed `worktree sync --resolved`, recorded "
         f"at {ev.get('sync_evidence')}"
         + (f", after record-only bookkeeping commit(s) {', '.join(ev.get('crossed'))} (T-14301)"
            if ev.get("crossed") else "")
@@ -1938,6 +1986,8 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
                     + (f", committed on the merge as {ev.get('resign_commit')}" if ev.get("resign_commit")
                        else "") + ":\n"] + [f"- {p}\n" for p in ev.get("resigned")])
            if ev.get("resigned") else "")
+        + ("\nThe `--fix-red` commit's own diff (judge whether it resolves the RED's findings):\n```diff\n"
+           + str(ev.get("fix_diff") or "(empty)") + "\n```\n" if ev.get("red_fix") else "")
         + "\nResolution diff (mechanical merge -> merged HEAD, conflict paths only):\n```diff\n"
         + str(ev.get("resolution_diff") or "(empty)") + "\n```\n")
 

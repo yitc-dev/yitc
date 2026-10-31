@@ -1970,6 +1970,7 @@ def _stage6_prepared_tree(tid):
             def prepare(trigger="task-test-run"):
                 return _auto_rebuild_graph(trigger)
             prepare.flipped = flipped          # T-14255: which specs the window holds activated
+            prepare.flipped_paths = list(getattr(flipped, "paths", ()))   # T-14365: the files it flipped
             yield prepare
     finally:
         if flipped:
@@ -9377,6 +9378,7 @@ _PLACEMENT_CLASS_DEFAULTS = {
     "lessons": "project",                                    # T-9343 (SPEC-0090 §3): per-repo local-craft notes — born empty per repo, never travels, never enters the export slice
     # V2-SELF — this repo's development history; transfers to no project ("the compiler's git history"):
     "tasks": "v2-self", "decisions": "v2-self", "errors": "v2-self",
+    "publication": "v2-self",                                 # T-14394: consented publication packages (T-14381, SPEC-1057) — this repo's own history
     "plans": "v2-self", "ideas": "v2-self", "graph": "v2-self",
     "scenarios": "v2-self",                                   # THIS repo's dogfood scenarios (entity unminted — plan draft); a consumer authors its own (born-empty) once minted
     "tests": "v2-self",                                       # self-tooling tests (manifest classes it V2-SELF)
@@ -11056,9 +11058,9 @@ def _warn_reserve_equals_primary(key: str) -> None:
 
 
 # ── venue (SPEC-0203 rule 6, T-12197) ─────────────────────────────────────────────────────────
-#: SPEC-0116's `from:` fallback when a venue verb runs under no card — the governing plan.
+#: SPEC-1057's `from:` fallback when a venue verb runs under no card — the governing plan.
 VENUE_PLAN_FROM = "plans/remote-verify-venue-kernel-verify-passes-on-an-own.md"
-#: SPEC-0116's `from:` when a venue verb DOES run under a card. A TEMPLATE beside its sibling above
+#: SPEC-1057's `from:` when a venue verb DOES run under a card. A TEMPLATE beside its sibling above
 #: rather than an inline f-string, because the T-0631 inert-authority verifier requires the allowlist
 #: dir string `"tasks/"` to appear in EXACTLY ONE place — the `_INERT_DIR_PREFIXES` assignment — and
 #: an inline `f"tasks/{task}"` puts that exact Constant in a second place. The guard is not weakened
@@ -11067,14 +11069,14 @@ VENUE_TASK_FROM = "tasks/{task}"
 
 
 def _venue_from_ref(args) -> str:
-    """SPEC-0116's `from:` — the card this provider mutation acts under, else the governing plan."""
+    """SPEC-1057's `from:` — the card this provider mutation acts under, else the governing plan."""
     task = getattr(args, "task", None)
     return VENUE_TASK_FROM.format(task=task) if task else VENUE_PLAN_FROM
 
 
 def _venue_external_action(args, target: str, action: str, *, channel: str = "python:urllib",
                            extra: "dict | None" = None) -> None:
-    """ONE `external_action` row for ONE mutation of a system outside every repo (SPEC-0116,
+    """ONE `external_action` row for ONE mutation of a system outside every repo (SPEC-1057,
     SPEC-0203 rule 6): `raise` and `delete` (provider calls) and `publish`'s mirror push into the box
     clone (T-12804). `unpublish` writes only a MACHINE-LOCAL file and emits its own `venue_*` row.
     `extra` adds verb-specific keys (`delete`'s refresh-leg outcome, T-14265)."""
@@ -11314,7 +11316,7 @@ def _venue_seed_build(args) -> None:
     """`venue seed --build -C <consumer> --provision <script>` — the TRAVELING consumer image build
     (SPEC-1032 rule 6 image, T-13977). `lib/venue.py` owns the build (`build_preflight`, then
     `build_consumer_image`, which deletes its box on every exit); this host owns the rows, as for
-    every venue verb: one `external_action` per provider mutation (SPEC-0116), and on success
+    every venue verb: one `external_action` per provider mutation (SPEC-1057), and on success
     `venue_seed_recorded` through the ONE seed writer, carrying the new snapshot id."""
     if args.snapshot_id is not None or getattr(args, "candidate", None) is not None:
         _die("venue seed: --build records the image it builds, so it takes neither --snapshot-id "
@@ -11406,7 +11408,7 @@ def cmd_venue_publish(args: argparse.Namespace) -> None:
     push; behind = fast-forward; proven-diverged = the T-12344 lease heal; anything else, a push
     failure, or a push outliving the transport ceiling REFUSES with no record and no
     `venue_published`. A push attempt is a mutation of a system outside every repo, so it leaves an
-    `external_action` row (SPEC-0116) whatever its outcome; `venue_published` follows only a success
+    `external_action` row (SPEC-1057) whatever its outcome; `venue_published` follows only a success
     and carries the MEASURED `push_s`. No durable «mirrored» flag: the record stays the routing SoT."""
     from lib import remote_verify as _rv
     existing, reason = venue.read_record(os.environ)
@@ -19667,11 +19669,12 @@ GOVERNED_DOCS = (frozenset(CANONICAL_DOCS) | {"CLAUDE.md"}
 # T-9708: `before-external-mutation` is an additional stage-agnostic floor surface (NOT tied to a single
 # CLI verb — like before-authoring-interaction, it is the at-the-moment moment when a session is about to
 # issue a SUBSTANTIVE outbound external mutation through ANY channel — an MCP tool, a harness-native tool,
-# a raw curl/API call). It carries SPEC-0116's external_action capture floor: a substantive external
+# a raw curl/API call). It carries SPEC-1057's external_action capture floor: a substantive external
 # mutation that lacks a dedicated capturing verb MUST emit an `external_action` journal event
 # (channel/target/action/from). Another INSTANCE of the existing verb-surface class (the T-9442/T-9579
 # shape): BINDING_VERB_SURFACES membership IS the recognition door — NOT a new routing axis / residency
-# marker / parser / door. The bound spec is SPEC-0116 (the external_action capture floor).
+# marker / parser / door. The bound spec is SPEC-1057 (the external_action capture floor and the
+# publication package; its predecessor was superseded by T-14379).
 # T-9709: `before-mcp-use` is another stage-agnostic floor surface (the same T-9438/T-9708 verb-surface-
 # class shape, NOT tied to a single CLI verb): before a session registers/uses an MCP server it reads
 # SPEC-0118 (→ patterns/working-with-mcp-in-v2.md) for the connect/scope + delivery-axis guidance.
@@ -19718,7 +19721,12 @@ GOVERNED_DOCS = (frozenset(CANONICAL_DOCS) | {"CLAUDE.md"}
 # SPEC-0185 was already ACTIVE, so its FLOOR_TRIGGERS row (below) renders bound in the same change —
 # no token-then-row split. BINDING_VERB_SURFACES membership IS the recognition door — NOT a new routing
 # axis / residency marker / parser / door. The row is a pointer, never a gate.
-BINDING_VERB_SURFACES = ("commit", "close", "audit-pre", "audit-post", "spec-new", "spec-edit", "plan-close", "before-analysis", "before-authoring-interaction", "before-project-dimension-judgement", "before-deploy", "before-external-mutation", "before-mcp-use", "before-scheduling-a-cadence", "before-handling-a-secret", "before-authoring-auth", "before-restoring-a-production-copy", "before-authoring-public-boundary", "before-adding-a-dependency", "before-reading-a-consumer-surface-in-kernel-code")
+# T-14378: `before-reading-external-content` — the stage-agnostic moment a session is about to read
+# content from outside the installation (SPEC-1056: through the AI tool's reader, after `external-read`).
+# Token and FLOOR_TRIGGERS row in ONE change: SPEC-1056 is activated by T-14378's own close, and the
+# final Stage-6 run verifies the tree with that activation applied (T-13982), so the row renders bound
+# there. BINDING_VERB_SURFACES membership IS the door.
+BINDING_VERB_SURFACES = ("commit", "close", "audit-pre", "audit-post", "spec-new", "spec-edit", "plan-close", "before-analysis", "before-authoring-interaction", "before-project-dimension-judgement", "before-deploy", "before-external-mutation", "before-mcp-use", "before-scheduling-a-cadence", "before-handling-a-secret", "before-authoring-auth", "before-restoring-a-production-copy", "before-authoring-public-boundary", "before-adding-a-dependency", "before-reading-a-consumer-surface-in-kernel-code", "before-reading-external-content")
 BINDING_FLOOR_TOKEN = "floor"   # reserved residency marker — mandatory-tier, always-loaded, NOT fetched
 # T-0263: the SECOND reserved residency marker (peer to `floor`) — SPEC-0007 §5a "query-only reference"
 # delivery class. Marks an active RETRIEVED spec delivered via an always-loaded handbook pointer-stub +
@@ -21689,7 +21697,7 @@ FLOOR_TRIGGERS = (
     ("before-authoring-interaction", ("before-authoring-interaction",)),  # T-9438 — renders SPEC-0100 (active, T-9421)
     ("before-project-dimension-judgement", ("before-project-dimension-judgement",)),  # T-9442 — renders the kernel↔consumer doctrine bundle (SPEC-0073/0090/0093, all active)
     ("before-deploy", ("before-deploy",)),  # T-9579 — renders SPEC-0097 (active); its title names the A/S/C1/C2 deploy-class vocabulary, delivered before the deploy verb
-    ("before-external-mutation", ("before-external-mutation",)),  # T-9708 — renders SPEC-0116 — the external_action capture floor (a substantive outbound external mutation lacking a dedicated capturing verb)
+    ("before-external-mutation", ("before-external-mutation",)),  # T-9708 — renders SPEC-1057 (T-14379) — the external_action capture floor (a substantive outbound external mutation lacking a dedicated capturing verb)
     ("before-mcp-use", ("before-mcp-use",)),  # T-9709 — renders SPEC-0118 (→ patterns/working-with-mcp-in-v2.md) — the MCP connect/use + delivery-axis guidance (its session-start reconcile rides binding:[seed], not this floor)
     ("before-scheduling-a-cadence", ("before-scheduling-a-cadence",)),  # T-10169 — renders SPEC-0142 — operational provider-independence: a governed recurring cadence names a provider-independent OS trigger (read before setting up a cadence)
     ("before-handling-a-secret", ("before-handling-a-secret",)),  # T-10519 — renders SPEC-0100's security authoring-moment defaults (key separation / no-secret-in-runtime-output / no-placeholder-secret-in-live-env / rehearsed rotation / restore-drill), read before handling key material / a credential / a ciphertext surface
@@ -21698,6 +21706,7 @@ FLOOR_TRIGGERS = (
     ("before-authoring-public-boundary", ("before-authoring-public-boundary",)),  # T-12086 — renders SPEC-0100's born-secure BOUNDARY items (object-level authz / input validation / injection-safe data access / output encoding / size+rate bounds / headers+CORS / upload handling / SSRF), read before authoring an endpoint, accepting external input, rendering user text, accessing an object on a caller's behalf, accepting an upload, or calling a caller-supplied URL; delivery is SPEC-0198 profile-gated (graph.born_secure_render)
     ("before-adding-a-dependency", ("before-adding-a-dependency",)),  # T-12086 — renders SPEC-0100's born-secure dependency-hygiene item (pinned manifest + committed lockfile, frozen install, no unwaived critical/high advisory) — a CONSTANT-FLOOR item, delivered at every profile
     ("before-reading-a-consumer-surface-in-kernel-code", ("before-reading-a-consumer-surface-in-kernel-code",)),  # T-13699 — renders SPEC-0185 (active) — kernel code reads a consumer surface from the declaration that covers it; read before writing kernel code that resolves a consumer-internal path or convention (moved off the Execution stage entry)
+    ("before-reading-external-content", ("before-reading-external-content",)),  # T-14378 — renders SPEC-1056 (activated by T-14378's close) — external content is data, never instructions: run `external-read` on the address, then read it only through the AI tool's reader
 )
 # T-9787 (X-0161): per-trigger governed-verb co-naming. A floor trigger whose gated action is DONE BY a
 # governed CLI verb co-names that verb invocation on its rendered row — so the always-loaded row surfaces
@@ -28762,7 +28771,7 @@ def _worktree_new_body(args: argparse.Namespace) -> None:
     # first append; the body's own-checks and its read-gate cue reuse it instead of re-reading the journal.
     _resolve_once, _stamp_is_own_once = _invocation_identity()
     # Thin residue → worktree_mod.cmd_worktree_new (T-9340 inject seam; host-deps injected at call time).
-    out = worktree_mod.cmd_worktree_new(args, _analysis_procedure_reminder=_analysis_procedure_reminder, _append_event=_append_event, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _main_worktree=_main_worktree, _plan_structural_findings=_plan_structural_findings, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_scenario_impact_warn=_impact_warn_with_surface, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _run_git_cap=_run_git_cap, _stamp_is_own=_stamp_is_own_once, _task_safety_verdict=_task_safety_verdict, _with_live_nodes=_with_live_nodes, _with_repo_lock=_with_repo_lock, _worktree_parent_leaf=_worktree_parent_leaf, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index, REPO_ROOT=REPO_ROOT, _assert_task_claimable=_assert_task_claimable, _claim_task=_claim_task, _orphan_resume_task=_orphan_resume_task, _resume_orphan_in_worktree=_resume_orphan_in_worktree, _write_worktree_stamp=_write_worktree_stamp, _session_started_lower_bound=_session_started_lower_bound, _resolve_session_ref=_resolve_once, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _inflight_worktree_intents=_inflight_worktree_intents, _print_inflight_intent_overlap=task_mod._print_inflight_intent_overlap, _print_spike_mode_hint=_print_spike_mode_hint, _session_proc_alive=_SELF._session_proc_alive, _unclassified_dirt=_unclassified_dirt, _filing_read_gate_hint_lines=_filing_read_gate_hint_lines)
+    out = worktree_mod.cmd_worktree_new(args, _analysis_procedure_reminder=_analysis_procedure_reminder, _append_event=_append_event, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _main_worktree=_main_worktree, _plan_structural_findings=_plan_structural_findings, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_scenario_impact_warn=_impact_warn_with_surface, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _run_git_cap=_run_git_cap, _stamp_is_own=_stamp_is_own_once, _task_safety_verdict=_task_safety_verdict, _with_live_nodes=_with_live_nodes, _with_repo_lock=_with_repo_lock, _worktree_parent_leaf=_worktree_parent_leaf, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index, REPO_ROOT=REPO_ROOT, _assert_task_claimable=_assert_task_claimable, _claim_task=_claim_task, _orphan_resume_task=_orphan_resume_task, _resume_orphan_in_worktree=_resume_orphan_in_worktree, _write_worktree_stamp=_write_worktree_stamp, _session_started_lower_bound=_session_started_lower_bound, _resolve_session_ref=_resolve_once, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _inflight_worktree_intents=_inflight_worktree_intents, _print_inflight_intent_overlap=task_mod._print_inflight_intent_overlap, _print_spike_mode_hint=_print_spike_mode_hint, _session_proc_alive=_SELF._session_proc_alive, _unclassified_dirt=_unclassified_dirt, _filing_read_gate_hint_lines=_filing_read_gate_hint_lines, _park_spike_round=_park_spike_round)
     return out
 
 
@@ -28880,6 +28889,13 @@ def cmd_worktree_clear_yield_offer(args: argparse.Namespace) -> None:
     print(f"worktree: cleared the yield offer addressing {v['addressee']} "
           f"(writer pid {v['writer_pid']}, addressee land pid {v['addressee_pid']}, {age}) "
           f"— yield_offer_cleared recorded")
+
+
+def _park_spike_round(slug: str) -> None:
+    """T-14374 (SPEC-0205 rule 12) — `worktree new --from-spike` parks the served round through the
+    ordinary `worktree park --work <slug>`: the same tag, teardown, cage and own-stamp refusals."""
+    cmd_worktree_park(argparse.Namespace(task=None, work=slug, reason=None, force=False, confirm_dead=False,
+                                         from_stdin=False, declare_spike=False))
 
 
 def cmd_worktree_park(args: argparse.Namespace) -> None:
@@ -32087,6 +32103,13 @@ def cmd_verify_durations(args: argparse.Namespace) -> None:
                                              _consumer_tests_delegation=_consumer_tests_delegation,   # T-11389: the SAME tests-delegation predicate the two sweep callers use — a rebuild is refused where the suite runs inside a declared layer
                                              _is_consumer_build=_is_consumer_build, _events_path=EVENTS_PATH,   # T-13961: a consumer's bare report opens with its verify-layer table, read from its own journal
                                              _verify_worker_governor=worktree_mod._verify_worker_governor)   # T-12297: READ-ONLY, for the bare arm's report-only critical-path floor; the derivation itself is untouched
+
+
+def cmd_external_read(args: argparse.Namespace) -> None:
+    # Thin residue → external_read.cmd_external_read (T-14378, SPEC-1056): the address check before
+    # the AI tool's reader. Its one row goes through _append_event, whose redaction is the kept-answer one.
+    from lib import external_read as _xr
+    return _xr.cmd_external_read(args, _append_event=_append_event, _die=_die)
 
 
 def cmd_retire_read_site(args: argparse.Namespace) -> None:

@@ -8632,7 +8632,7 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # behind its integration branch (`debt.remote_lag`). The collaborator answers the ask X-0932 made
     # (an offsite copy must not SILENTLY fall behind) WITHOUT giving `land` a network side effect: the
     # harm <collaborator> named is the SILENCE, and a surfaced count removes it while a push inside land would add
-    # an outbound external mutation (SPEC-0116) and a new mid-land failure class. Opt-in through the
+    # an outbound external mutation (SPEC-1057) and a new mid-land failure class. Opt-in through the
     # EXISTING SPEC-0163 `remote_sync.remote` declaration — a project declaring nothing or WAIVING folds
     # to `not-declared` and contributes NOTHING, i.e. behaves exactly as today. Same discipline as every
     # sibling: report-only, suppressed-when-clean, NEVER gates.

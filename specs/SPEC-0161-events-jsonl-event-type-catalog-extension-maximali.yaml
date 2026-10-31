@@ -325,7 +325,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ events\n  (`read_gate_refused`, `external_action`, error/friction, chat-class);\
   \ split VERBATIM from SPEC-0025\n  at.\n- **Per-mechanism homes** — a mechanism\
   \ spec catalogs its OWN events: SPEC-0050 (`read_gate_refused`),\n  SPEC-0094 (`deploy_*`),\
-  \ SPEC-0116 (`external_action`), SPEC-0085 (`cross_*`), SPEC-0095 (`followup_*`).\n\
+  \ <workshop-spec> (`external_action`), SPEC-0085 (`cross_*`), SPEC-0095 (`followup_*`).\n\
   \n**Sweep method (mechanical, so the next run is reproducible).** Ground truth =\
   \ the journal window\n(types with a `last` emission inside the window) UNION a code-grep\
   \ of emitters in `bin/`, measured\nagainst the WHOLE `specs/` corpus — never the\
@@ -1276,14 +1276,20 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ not of\nthose rows; by the LENIENT readback above that makes both pairs governing,\
   \ so the introducing card names\nthem. Nothing that reads `live_trigger_evidence`\
   \ or `state_checked` branches on either key. CANDIDATE\nstanding like every name\
-  \ here; the COUNT above is NOT inflated.\n`venue_published.ssh_user` was missed\
-  \ here for exactly the reason this paragraph gives and then\ndid not follow through\
-  \ on: the record is journaled WHOLE, so EVERY field of it travels — not the\none\
-  \ field the forward name happened to think of. The first REAL publication (the venue\n\
-  this card's own routing verifies on) put the row in a checkout's journal and the\
-  \ oracle\nimmediately reported the pair unnamed, which is the refusal the forward\
-  \ naming exists to spend on\nthe card that causes it. `bin/lib/venue.py` reads `ssh_user`\
-  \ back off the persisted record\n(`route` hands it to the executor as the ssh user),\
+  \ here; the COUNT above is NOT inflated.\n**FOUR keys on an EXISTING row, named\
+  \ BY THEIR INTRODUCING CARD on identical terms :**\n`external_action.package_sha256|package_parts|package_destination|package_visibility`\
+  \ — the\npublication package of a public post (SPEC-1057): `event external_action\
+  \ --package` stamps the hash it\ncomputes over the canonical form, the part sizes,\
+  \ the destination and the visibility; the verb reads\na supplied `package_sha256`\
+  \ back and refuses one that differs. CANDIDATE standing like every name\nhere; the\
+  \ COUNT above is NOT inflated.\n`venue_published.ssh_user` was missed here for exactly\
+  \ the reason this paragraph gives and then\ndid not follow through on: the record\
+  \ is journaled WHOLE, so EVERY field of it travels — not the\none field the forward\
+  \ name happened to think of. The first REAL publication (the venue\nthis card's\
+  \ own routing verifies on) put the row in a checkout's journal and the oracle\n\
+  immediately reported the pair unnamed, which is the refusal the forward naming exists\
+  \ to spend on\nthe card that causes it. `bin/lib/venue.py` reads `ssh_user` back\
+  \ off the persisted record\n(`route` hands it to the executor as the ssh user),\
   \ so the readback conjunct is met on the same\nfooting as `snapshot_id`. The COUNT\
   \ above is NOT inflated for it, for the same reason. `venue publish` (the venue\
   \ verbs, <workshop-spec> rules 1+6) journals the\npublication record WHOLE rather\

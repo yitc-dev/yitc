@@ -2143,6 +2143,96 @@ def _forecast_row_record(run_id: str, entry: dict, requested, *, outcome) -> dic
     return rec
 
 
+#: T-14376 (SPEC-1046 rule 3, the decide-first barrier) — the variable naming, to every first-attempt
+#: layer command of a run whose project declares `verify.decide_first: true`, the file holding every
+#: decided layer's FINAL unit list; published only under that declaration.
+VERIFY_LAYER_DECIDED_ENV = "YITC_VERIFY_LAYER_DECIDED"
+
+
+def _decided_units_entry(layer: str, units, to_run, medians):
+    """T-14376 — ONE layer's entry in the decided-lists file: None when the layer runs whole (no
+    inventory, or no narrowing — `to_run` None), else the units its `run` is asked for, each
+    `{file, project, median_ms}` with `project` / `median_ms` None when absent / unknown — a missing
+    median is unknown cost, never zero. The median is the forecast's entity key (a group's numbers).
+    PURE."""
+    if not isinstance(units, list) or to_run is None:
+        return None
+    out = []
+    for u in to_run:
+        if not isinstance(u, dict):
+            continue
+        got = (medians or {}).get(_forecast_entity_key(layer, None, u))
+        med = got.get("median_ms") if isinstance(got, dict) else None
+        out.append({"file": u.get("file"), "project": u.get("project") or None,
+                    "median_ms": med if isinstance(med, int) and not isinstance(med, bool) else None})
+    return out
+
+
+class _DecideBarrier:
+    """T-14376 (SPEC-1046 rule 3) — the decide-first barrier of ONE concurrent group of layers.
+
+    Each member `arrive`s once with its decided entry (`_decided_units_entry`); the LAST arrival
+    merges the group's entries into `written` (the run's entries so far — earlier groups included)
+    and writes the whole map to `path` atomically, then wakes every waiter. A member that leaves
+    without deciding (`leave` — its prep or a `required:` check failed, or it raised) is dropped from
+    the group and appears in no list. A waiter waits at most `left_s`, its own layer's remaining bound.
+    FAIL CLOSED: a failed write or an expired wait marks the barrier FAILED for EVERY member (`failed`
+    = `expired` / `unpublished`, `reason` its text) — `arrive` then answers False, and no member may
+    start its run step."""
+
+    def __init__(self, path, names, written: dict):
+        self.path = str(path)
+        self._waiting = set(names)
+        self._entries: dict = {}
+        self._written = written
+        self._cv = threading.Condition()
+        self.done = False
+        self.failed = None
+        self.reason = None
+
+    def _publish_if_complete(self):
+        if self.done or self.failed or self._waiting:
+            return
+        try:
+            merged = {**self._written, **self._entries}
+            tmp = f"{self.path}.{os.getpid()}.tmp"
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump({"schema": 1, "kind": "decided", "layers": merged}, fh)
+            os.replace(tmp, self.path)
+            self._written.update(self._entries)
+            self.done = True
+        except OSError as e:
+            self.failed, self.reason = "unpublished", f"{type(e).__name__}: {e}"[:300]
+        self._cv.notify_all()
+
+    def arrive(self, name: str, entry, left_s) -> bool:
+        """Record `name`'s entry (a second arrival is a no-op), then wait — at most `left_s` seconds,
+        None = no bound — until every member has decided. True = the file holds every list."""
+        with self._cv:
+            if name in self._waiting:
+                self._waiting.discard(name)
+                self._entries[name] = entry
+                self._publish_if_complete()
+            end = None if left_s is None else time.monotonic() + max(0.0, float(left_s))
+            while not (self.done or self.failed):
+                rest = None if end is None else end - time.monotonic()
+                if rest is not None and rest <= 0:
+                    self.failed = "expired"
+                    self.reason = (f"layer {name!r} waited its remaining bound ({float(left_s):.0f}s) for "
+                                   f"the other layers of its group to decide")
+                    self._cv.notify_all()
+                    break
+                self._cv.wait(rest)
+            return self.done and not self.failed
+
+    def leave(self, name: str) -> None:
+        """`name` will not decide (or has already): it leaves the group, which may complete it."""
+        with self._cv:
+            if name in self._waiting:
+                self._waiting.discard(name)
+                self._publish_if_complete()
+
+
 #: T-14190 (SPEC-0152 rule 16 §pre_deploy_layer_worker_shares) — the one home of the pre-deploy run's
 #: share-table key: the table that run (and its lone-layer re-run) applies in place of `layer_worker_shares`.
 PRE_DEPLOY_WORKER_SHARES_KEY = "pre_deploy_layer_worker_shares"
@@ -6573,7 +6663,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                                rerun=None, sink=None, max_kept_output_chars: int = 1024 * 1024,
                                change=None, _subject_globs_would_skip=None, credit=None,
                                lane=None, one_card_candidate: bool = False, shipped=None,
-                               pre_deploy=None, unit_medians=None) -> dict:
+                               pre_deploy=None, unit_medians=None, decided=None) -> dict:
     """SPEC-1006 rules 3-4 — the REPORT-ONLY adapter pass of ONE layer: `list`, then `run`, inside
     the layer's prepared worktree, read through the layer's report profile. Returns the record that
     rides the layer's outcome row as `adapter` (registered in SPEC-0025):
@@ -6591,7 +6681,8 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     reported collection error, a unit that is not a canonical repo-relative path, a file declared
     twice — `list_reason` says which; the adapter path is then unusable for this run and
     `run` is not invoked) / `not-run` (an outer failure decided before it). `outer` records an outer failure (`timed-out` / `prep-failed`) and
-    `outer_at` where (`prep` / `command` / `run`, or `report` — the pass's bound passed while a
+    `outer_at` where (`prep` / `command` / `run` / `decide` — T-14376, the decide-first wait, `outer` then
+    `timed-out` on an expired wait or `decide-first` on an unwritten file — or `report` — the pass's bound passed while a
     report was being read); nothing is read then, and nothing read is kept. `exit` is the `run`
     command's exit code (the first nonzero one across per-project invocations); `load1` the host
     1-minute load read just before `run` (ABSENT when unmeasurable — never a fabricated 0);
@@ -7440,9 +7531,28 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                     planned["narrowed"] = {"inventory": units, "units": to_run, "left_out": []}
                 print(f"land(consumer): verify layer {layer!r} {len(_dup)} unit(s) another layer of this "
                       f"pre-deploy run runs — not run again here (SPEC-1051 rule 3)")
+        if sink is not None:
+            # T-14377: the instant this attempt's final unit list is decided (after `list`, the selection,
+            # the `required:` checks and the pre-deploy narrowing) — the end of the layer row's `select_ms`
+            sink["selected_at"] = time.monotonic()
         if sink is not None and rerun is None:
             # T-14343: what this attempt requests, for the layer row's forecast comparison — the caller's own sink
             sink["requested"] = _adapter_requested_reading(layer, units, to_run, unit_medians)
+        if decided is not None and rerun is None:
+            # T-14376 (SPEC-1046 rule 3): THE DECIDE-FIRST BARRIER — this layer's final list is handed
+            # over and the pass waits, inside its own bound, until every layer of its group has decided;
+            # a barrier that failed (an expired wait, an unpublished file) starts no run step.
+            left = None if deadline is None else deadline - clock()
+            got = decided(_decided_units_entry(layer, units, to_run, unit_medians), left)
+            if got is not True:     # the barrier failed: `unpublished` (no file) or an expired wait
+                rec.pop("exit", None)
+                rec.update({"outer": "decide-first" if got == "unpublished" else "timed-out",
+                            "outer_at": "decide"})
+                if deciding and "selection" not in rec:
+                    rec["selection"] = _no_decision("outer-failure")
+                if crediting and "credit" not in rec:
+                    rec["credit"] = _no_credit("outer-failure")
+                return rec
         if (deciding or crediting) and first_attempt and units is None:
             # No inventory on a deciding layer's first attempt (`list` absent or unusable): the
             # full `command:` decides, and `run` is not invoked ahead of it.
@@ -8153,7 +8263,8 @@ def _pre_deploy_parse_ts(ts) -> "float | None":
         return None
 
 
-def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, bound_hours, is_ancestor) -> "dict | None":
+def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, bound_hours, is_ancestor,
+                         readers=None) -> "dict | None":
     """T-14211 (SPEC-1051 rule 2) — THE SKIP SET of one run, or None where no pre-deploy class declares
     `units:` (the fallback order, SPEC-1051 rule 2 — nothing here is asked).
 
@@ -8164,7 +8275,9 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
     known-broken-on-main records (SPEC-0181); `always` the `# yitc: selection: always` files; `changed`
     the paths the card's diff changes (None: unknown); `now` epoch seconds; `bound_hours` the uncovered
     bound; `is_ancestor(a, b)` git's answer (True/False/None) whether candidate `a` is `b` or an
-    ancestor of it. A file's result in a row is `_pre_deploy_row_results`'.
+    ancestor of it; `readers` `{test basename: [changed paths it names]}` — the readers of the card's
+    changed paths (`_pre_deploy_changed_readers`; None: none). A file's result in a row is
+    `_pre_deploy_row_results`'.
 
     Returns `{order: "listed", classes, state, reason?, units, kept}`:
       `units` — `{file, class}` of each listed file the run leaves out, in file order;
@@ -8173,7 +8286,8 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                 between-deploys or pre-deploy run, not followed by a row passing that file on the SAME
                 candidate or a DESCENDANT of it — ordered as SPEC-1047 rule 6 orders candidates: an
                 ancestor's later pass never clears it, and a pair git cannot order leaves it standing),
-                `card-changed` (the card's diff changes the file itself);
+                `card-changed` (the card's diff changes the file itself), `reads-changed` (the file
+                names a path the card's diff changes — T-14370; its entry's `reads` lists those paths);
       `state` — `skipping`; or `uncovered` (every listed file runs, `units` empty) while the LAST
                 between-deploys run (`run_kind: scheduled`; one run = one `(run_ref, attempt)`, the last
                 = the one whose last row comes last) is absent, unreadable, incomplete for the current
@@ -8240,9 +8354,12 @@ def _pre_deploy_skip_set(decl, *, rows, known_broken, always, changed, now, boun
                "always" if f in (always or ()) else
                "known-broken" if f in broken or os.path.basename(f) in broken else
                "final-failure" if f in standing else
-               "card-changed" if f in changed_set else None)
-        (kept.append({"file": f, "class": listed[f], "why": why}) if why
-         else units.append({"file": f, "class": listed[f]}))
+               "card-changed" if f in changed_set else
+               "reads-changed" if os.path.basename(f) in (readers or {}) else None)
+        entry = {"file": f, "class": listed[f], "why": why}
+        if why == "reads-changed":
+            entry["reads"] = list(readers[os.path.basename(f)])
+        (kept.append(entry) if why else units.append({"file": f, "class": listed[f]}))
     return {**base, "state": "skipping", "units": units, "kept": kept}
 
 
@@ -8332,6 +8449,7 @@ def _pre_deploy_skip_read(tree, decl, *, changed, main_root=None, now=None, _row
         tests_dir = Path(tree) / "tests"
         always = ({f"tests/{n}" for n in _vr._selection_always_set(tests_dir)[0]}
                   if tests_dir.is_dir() else set())
+        readers = _pre_deploy_changed_readers(tests_dir, changed)
     except Exception as e:                           # noqa: BLE001
         return _not_applied(f"protected-set-unreadable: {type(e).__name__}")
     if _is_ancestor is None:
@@ -8339,9 +8457,79 @@ def _pre_deploy_skip_read(tree, decl, *, changed, main_root=None, now=None, _row
         _is_ancestor = lambda a, b: True if a == b else _debt._git_is_ancestor(main, a, b)   # noqa: E731
     rec = _pre_deploy_skip_set(decl, rows=rows, known_broken=broken, always=always, changed=changed,
                                now=time.time() if now is None else now, bound_hours=bound["value"],
-                               is_ancestor=_is_ancestor)
+                               is_ancestor=_is_ancestor, readers=readers)
     rec["bound"] = {"key": bound["key"], "value": bound["value"], "source": bound["source"]}
     return rec
+
+
+def _land_tail_tripwire_readers(test_dir, artifacts) -> list:
+    """T-12420 — the tests that READ the given artifacts, DERIVED from the corpus, never declared.
+
+    A test file is a reader of an artifact when its SOURCE mentions that artifact's BASENAME. The
+    derivation is the whole point: the tripwire that caught the 2026-09-11 lane incident
+    (`tests/test_t12378_t11906_lane_line_removed.py`) DID NOT EXIST when the writer that broke it
+    shipped, so any hand-maintained writer->test map would have been complete and still wrong. A
+    derived set cannot go stale, and over-inclusion is harmless (an extra green file costs its own
+    wall, bounded by the budget) while under-inclusion is the defect.
+
+    T-14287 — A FIXTURE-ONLY OPT-OUT, READ FROM THE TEST ITSELF. A mention is not an open: two files
+    that only named the duration table — one in a `.gitattributes` string check, one writing its own
+    temp copy — set the tail's 52-110 s wall while every live reader ran under 4 s. A file whose own
+    text carries a line-start `# tail-tripwire: fixture-only <path>` comment is not a reader of the
+    artifact with that basename; any OTHER artifact it mentions still selects it. The opt-out is
+    VERIFIED, not trusted: `tests/test_t14287_tail_reader_live_only.py` runs every marked file over a
+    broken, never-read copy of the artifact and fails when the run is red or the copy was read."""
+    names = {Path(a).name for a in artifacts if a}
+    out = []
+    if not names:
+        return out
+    for path in test_discovery.test_files(test_dir):
+        try:
+            text = path.read_text(encoding="utf-8", errors="ignore")
+        except OSError:
+            # Unreadable is NOT "not a reader": count it, so an unreadable tripwire fails its run
+            # and withholds rather than silently shrinking the evidence set.
+            out.append(path.name)
+            continue
+        fixture_only = {Path(m).name for m in _TAIL_FIXTURE_ONLY_RE.findall(text)}
+        if any(n in text for n in names - fixture_only):
+            out.append(path.name)
+    return out
+
+
+_TAIL_FIXTURE_ONLY_RE = re.compile(r"^[ \t]*#[ \t]*tail-tripwire:[ \t]*fixture-only[ \t]+(\S+)", re.M)
+
+
+def _reader_trigger_artifacts(paths) -> list:
+    """T-13939 — the paths of a delta a test can READ by name: every path except the journal, its
+    archive segments and the generated graph views (`graph_mod.GRAPH_DIR`).
+
+    Every file in that directory is `graph build` output, rebuilt by every land from the merged sources:
+    what a test reads of one follows from source paths, and a changed source stays in the list. Without this cut each land's `graph/index.json` rebuild matched the 264 test files
+    that mention any `index.json`, and no inert advance ever kept the Stage-6 credit (the 9 lands of
+    2026-10-07..14). The journal is cut for the reason it always was: it is union-merged, never a
+    named fixture."""
+    from lib import events, graph as graph_mod   # lazy, as the rest of this module reads them
+    return [p for p in paths if p and p != "events.jsonl"
+            and not str(p).startswith(graph_mod.GRAPH_DIR + "/")   # the one value home, T-0631
+            and not events.is_archive_segment(Path(p), Path("events.jsonl"))]
+
+
+def _pre_deploy_changed_readers(tests_dir, changed) -> dict:
+    """T-14370 (SPEC-1051 rule 2) — `{test basename: [changed paths it names]}`: the tests under
+    `tests_dir` that READ a path of `changed`, by the ONE existing reader derivation — the land tail's
+    tripwire readers (`worktree._land_tail_tripwire_readers`: the test's source names the path's
+    basename, its verified fixture-only opt-out honoured) over the paths a test can read by name
+    (`worktree._reader_trigger_artifacts`: not the journal, its segments or the generated graph). Empty
+    when `changed` is unknown or empty, or there is no tests dir. A failing scan raises: the caller
+    then skips nothing. Reads only."""
+    if not changed or not Path(tests_dir).is_dir():
+        return {}
+    out: dict = {}
+    for path in _reader_trigger_artifacts(sorted({str(p) for p in changed})):
+        for name in _land_tail_tripwire_readers(Path(tests_dir), [path]):
+            out.setdefault(name, []).append(path)
+    return out
 
 
 def _pre_deploy_run_skip(tree, *, changed) -> "dict | None":

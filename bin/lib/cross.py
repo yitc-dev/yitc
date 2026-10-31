@@ -1640,8 +1640,8 @@ def render_kernel_intake_draft(pending: list, *, fields, release_version: str, s
     """PURE (T-12950 / SPEC-0197 rule 2) — render the pending kernel-bound captures as ONE public-intake
     issue body carrying every proposal field in `fields` order (INJECTED — release.PROPOSAL_FIELDS — so
     this module stays identity-agnostic and the field set has one home). The body is a DRAFT: it is
-    headed NOT SENT and its footer says nothing was sent; sending is an external action taken only with
-    the person's consent (SPEC-0116). Nothing here is invented: a value the journal does not hold (the
+    headed NOT SENT and its footer says nothing was sent; sending is a public post taken only with the
+    person's consent to the whole publication package (SPEC-1057). Nothing here is invented: a value the journal does not hold (the
     contact, a proposal the capture did not state) is an explicit ask-the-person placeholder."""
     from lib import journal   # noqa: PLC0415 — deferred, same reason as kernel_deviations_to_file
     ask = "(ask the person — not recorded in the capture)"

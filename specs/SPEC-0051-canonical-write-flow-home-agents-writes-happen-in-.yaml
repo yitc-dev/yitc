@@ -111,4 +111,4 @@ implements_signature:
   bin/lib/worktree.py#_main_dirt_verdict: 051463fe76ee7e4881adaace5872309b9fd48b22859b7ad8d22e4ebe11db5215
   bin/lib/worktree.py#_selfcommit_held_paths: 0ce5cd8d51743eec72711d39b2e453ee9c6f099044fdce2fd8a233156e50caf1
   bin/lib/worktree_lifecycle.py#_live_held_paths: af5173bf434c35676d96d3ba4b11f2639ca6dc2734e306b09e11c229c8535de4
-  bin/lib/worktree_lifecycle.py#cmd_worktree_sweep: c9b140ccb3d09b7a9f6313ad8ee10b61607556e10acdb00cbb0bf8753bcd69b3
+  bin/lib/worktree_lifecycle.py#cmd_worktree_sweep: 86d40e83b6667fbf845b19fee8389bdc7ba0684635c2c6e465e7ca36dd7abcf8

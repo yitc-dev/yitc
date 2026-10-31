@@ -4228,6 +4228,37 @@ def _pre_deploy_take_reservation(main_wt, *, target, candidate, hold, _acquire_l
     return True, ""
 
 
+def _pre_deploy_land_in_flight(main_wt, *, queue_on, _land_reservation_path, _flock_holder, _try_flock,
+                               _land_holding, _queue_paths) -> "str | None":
+    """SPEC-1051 rule 3 (T-14372, owner option C) — FAIL FAST behind a land already in flight. Asked
+    once, before the deploy enters the admission queue or waits for the land reservation: a land that
+    already holds the reservation (or, queue on, the queue's land hold) will move `main` off the
+    candidate before the deploy could start, so the wait could only end in the SPEC-0094 §6 refusal.
+    Returns why (naming the holder) or None. A holder whose record names a deploy (`deploy --target …`
+    / `deploy --release-order …`, `_pre_deploy_take_reservation`) never moves `main`, so the deploy
+    waits behind it as before; this very process is never a land in flight. One non-blocking look at
+    each lock: a land that takes the reservation after it meets the ordinary wait."""
+    path = _land_reservation_path(main_wt)
+    fd = _try_flock(path, fcntl.LOCK_EX)
+    if fd is not None:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+    else:
+        h = _flock_holder(path)
+        if h is None:
+            return "the project's land reservation is held, holder unknown (not resolvable from /proc/locks)"
+        if h.get("pid") != os.getpid() and not str(h.get("label") or "").startswith("deploy "):
+            return f"the project's land reservation is held by pid {h['pid']}" + \
+                (f" `{h['label']}`" if h.get("label") else "")
+    if queue_on:
+        p = _queue_paths(main_wt)
+        if _land_holding(p):
+            h = _flock_holder(p["landhold"])
+            return "a land holds the admission queue's land hold" + \
+                (f" (pid {h['pid']}" + (f" `{h['label']}`" if h.get("label") else "") + ")" if h else "")
+    return None
+
+
 def _pre_deploy_release(hold) -> None:
     """Release what `_pre_deploy_take_reservation` took, when the verb ends, in the reverse order: the
     reservation flock first (closing its fd releases it; the OS does the same on process death), then
@@ -5863,6 +5894,21 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                 _switch = admission_queue.switch(_main_wt)
             except Exception as exc:  # noqa: BLE001 — a switch that cannot be read is no switched-on queue
                 _switch = {"on": False, "why": f"the switch could not be read ({exc!r})"}
+        # T-14372 / SPEC-1051 rule 3: a land already in flight refuses the deploy at once, not after a wait
+        if expected_revision is not None and _release_order is None and _land_reservation_path is not None \
+                and _flock_holder is not None:
+            _in_flight = _pre_deploy_land_in_flight(
+                _main_wt, queue_on=bool(_switch.get("on")), _land_reservation_path=_land_reservation_path,
+                _flock_holder=_flock_holder, _try_flock=admission_queue.try_flock,
+                _land_holding=admission_queue.land_holding, _queue_paths=admission_queue.paths)
+            if _in_flight:
+                print(f"deploy: REFUSED — a land is in flight: {_in_flight} (SPEC-1051 rule 3). It will move "
+                      f"`main` off {expected_revision}, so this deploy does not wait for it: nothing was run "
+                      f"and the project `deploy:` command was NOT launched, so nothing was deployed; no "
+                      f"deploy_completed emitted. Retry: once that land completes, test the new head of "
+                      f"`main` and re-run the deploy naming it (--expect-revision <new head>).",
+                      file=sys.stderr)
+                sys.exit(3)
         if _switch.get("on"):
             print(f"deploy: the pre-deploy run of {expected_revision} enters the project's admission queue "
                   f"first in its order (SPEC-1045 rule 2 (r))")

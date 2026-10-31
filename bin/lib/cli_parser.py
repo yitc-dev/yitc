@@ -172,7 +172,7 @@ class _HelpInventoryAction(argparse.Action):
         parser.exit()
 
 
-def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_pre_deploy_list, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
+def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_GATES, PLAN_STATUSES, RESERVED_DATA_KEYS, STAGE_AXIS_NAMES, TASK_CLASSES, TASK_FILING_STATUSES, TASK_LIST_STATUSES, TASK_PRIORITIES, TRIAGE_CONTENT_EVENT_TYPES, _HelpInventoryAction, _NO_TESTS_MIN_REASON_CHARS, _SELF, _absorb_trailing_reason_words, _worktree_parent_leaf, cmd_audit, cmd_audit_adhoc, cmd_audit_canary_backstop, cmd_audit_consult, cmd_audit_decide, cmd_audit_run, cmd_audit_status, cmd_blocked_on_land, cmd_cage_preflight, cmd_config_get, cmd_config_list, cmd_config_set, cmd_cross_ack, cmd_cross_close, cmd_cross_dispute, cmd_cross_done, cmd_cross_inbox, cmd_cross_intake_draft, cmd_cross_outbox, cmd_cross_pick, cmd_cross_reject, cmd_cross_request, cmd_cross_show, cmd_debt, cmd_decision_new, cmd_deploy, cmd_dispatch, cmd_error_file, cmd_error_list, cmd_error_promote, cmd_error_resolve, cmd_error_show, cmd_event, cmd_external_read, cmd_followup_add, cmd_followup_arm, cmd_followup_drop, cmd_followup_list, cmd_followup_promote, cmd_followup_show, cmd_followup_unarm, cmd_frontend_errors, cmd_grants_authorize, cmd_grants_exercise, cmd_grants_identity, cmd_grants_reach, cmd_grants_report, cmd_grants_trail, cmd_graph_build, cmd_graph_conformance, cmd_graph_query, cmd_graph_release_view, cmd_host_apply, cmd_init, cmd_inspect_record, cmd_journal_query, cmd_journal_redact, cmd_journal_sync, cmd_land, cmd_live_probe, cmd_memory_consume, cmd_memory_seed, cmd_nightly, cmd_plan_check, cmd_plan_draft, cmd_plan_file, cmd_plan_list, cmd_plan_show, cmd_plan_stage, cmd_plan_to_idea, cmd_pre_deploy_list, cmd_profile, cmd_release_check, cmd_release_install, cmd_release_update, cmd_release_verify, cmd_retire_read_site, cmd_scenario_list, cmd_scenario_new, cmd_scenario_show, cmd_session_context, cmd_session_handoff, cmd_session_pick, cmd_session_start, cmd_spec_edit, cmd_spec_ledger_label, cmd_spec_new, cmd_spec_reverify, cmd_stage, cmd_task_analyze, cmd_task_claim_landed, cmd_task_close, cmd_task_commit, cmd_task_execute, cmd_task_file, cmd_task_intake, cmd_task_list, cmd_task_pause, cmd_task_pick, cmd_task_plan, cmd_task_reclaim, cmd_task_refuse, cmd_task_resume, cmd_task_show, cmd_task_test, cmd_task_update, cmd_triage_remedy, cmd_triage_run, cmd_triage_sweep, cmd_v1_quiesce, cmd_venue_delete, cmd_venue_publish, cmd_venue_raise, cmd_venue_seed, cmd_venue_show, cmd_venue_unpublish, cmd_verify_durations, cmd_work_commit, cmd_work_publish, cmd_work_tag, cmd_worktree_adopt, cmd_worktree_clear_yield_offer, cmd_worktree_new, cmd_worktree_park, cmd_worktree_recover_land, cmd_worktree_sweep, cmd_worktree_sync, cross, deploy_mod, grants, inspection, journal_mod) -> argparse.ArgumentParser:
     # add_help=False + a custom top-level help action (T-9786): the inventory --help emits a fetch-receipt.
     # T-13700: the root help is the verb INVENTORY every session scans at start, so it carries ONE
     # line per verb — a fixed width, so a listing line never wraps to the terminal — and a verb's
@@ -271,6 +271,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "payload contract without authoring a permanent row in an append-only "
                          "journal. Not judged: the recurrence reopen + kernel-bound cross auto-file, "
                          "which run only on a row that exists.")
+    ev.add_argument("--package", metavar="MANIFEST",
+                    help="external_action only (SPEC-1057): a JSON manifest of the publication package "
+                         "— {content: <file>, attachments: [<file>, ...], metadata: {...}, destination, "
+                         "visibility}, file paths relative to the manifest. The verb reads the files, "
+                         "computes package_sha256 over the canonical form and records it with the part "
+                         "sizes, destination and visibility; a supplied package_sha256 that differs is "
+                         "refused (the package changed after consent).")
     ev.set_defaults(func=cmd_event, read_only_refuse="appends a journal row — capture from your own checkout, "
                                                     "without -C --read-only")
 
@@ -699,6 +706,32 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                            "N Stage-6 run records that carry layer rows (default 100)")
     vdur.set_defaults(func=cmd_verify_durations, cli_invoked_receipt="verify-durations", read_only_admit=RO_RECEIPT,
                       read_only_refuse=("rebuild", "--rebuild runs the whole suite and rewrites tests/verify-durations.json in the target"))  # T-12846
+
+    xr = sub.add_parser("external-read",
+                        help="The address check before the AI tool's reader (SPEC-1056): OK / REFUSED / PENDING / KEPT",
+                        description="The kernel's address check, run by the session BEFORE it hands an "
+                             "address to its AI tool's reader (SPEC-1056 rules 2, 2a and 5 — read them: "
+                             "`bin/yitc-v2 graph query SPEC-1056`). Prints `OK <address>` (exit 0) or "
+                             "`REFUSED <reason> :: <address>` (exit 3) with the address as shown to the "
+                             "person — user info and secret-named values masked, an address that does "
+                             "not parse not shown at all. A redirect to another host the reader reports "
+                             "is checked as a new address. A target with no `://` (a local file or a "
+                             "copy), --no-reader and --reader-failed print a PENDING line for the person "
+                             "(exit 3); --keep-answer journals a reader's answer through the existing "
+                             "redaction. Every run writes ONE `external_read_routed` row; nothing is "
+                             "fetched and nothing goes to stderr on these routes")
+    xr.add_argument("target", help="the address to check (or a local file / copy, which is not read)")
+    xr_mode = xr.add_mutually_exclusive_group()
+    xr_mode.add_argument("--no-reader", action="store_true",
+                         help="this AI tool provides no reader (or one that follows a redirect to "
+                              "another host by itself): print the PENDING line, read nothing")
+    xr_mode.add_argument("--reader-failed", action="store_true",
+                         help="the reader failed on this address: print the PENDING line — never "
+                              "fall back to a shell fetch, a forge command or a clone")
+    xr_mode.add_argument("--keep-answer", metavar="FILE", default=None,
+                         help="journal the reader's answer in FILE for this address; credential "
+                              "shapes are removed on write (SPEC-0163 §4e)")
+    xr.set_defaults(func=cmd_external_read)
 
     rrs = sub.add_parser("retire-read-site",
                          help="Retire a tracked root-cwd read-site (SPEC-0192): for a card whose declared work is the removal",
@@ -3940,6 +3973,13 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "spike — the `work/spike-` slug prefix no longer does (X-0857: it refused a "
                          "governed batch that was merely NAMED after the kernel's own `spike_sandbox` "
                          "ask). Invalid with --task.")
+    wn.add_argument("--from-spike", dest="from_spike", default=None, metavar="SLUG",
+                    help="NEXT ROUND (T-14374, SPEC-0205 rule 12), with --work <next> --spike: open the "
+                         "new spike AT the tip of the served spike batch work/<SLUG> instead of "
+                         "main, run the project's declared `spike_sandbox.handover` step (if any) inside "
+                         "the new worktree, then park the served round (its prototype tag spike/<x>). "
+                         "Refused, creating nothing, when the served batch is not a live declared spike "
+                         "or carries uncommitted changes.")
     wn.set_defaults(func=cmd_worktree_new, cli_invoked_receipt="worktree new")   # D-0049: auto-syncs (default-on); main dirt folded by land (T-0099)
     wa = wt_sub.add_parser("adopt",
                            help="Controller takeover of a CONFIRMED-DEAD holder's orphan worktree "

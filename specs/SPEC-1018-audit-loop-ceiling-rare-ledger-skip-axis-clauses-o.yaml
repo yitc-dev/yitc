@@ -158,19 +158,20 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ subject has moved past it, so `audit decide`\nhas no residual to bind. Each way\
   \ out is one row: when it is admitted, the verbs, what it spends,\nand the function\
   \ that admits or refuses it. The row points at the rule's home and restates none\
-  \ of\nit; a new exit is authored as a new row here. The re-sign row narrows two\
-  \ clauses of the\nmerge-integration block under «Rare ceiling cases» — «a commit\
-  \ after M» and «a hand edit of ANY\nnon-conflict path» — for that verified re-sign\
-  \ alone; every other shape they refuse stays refused.\n\n| Exit | Admitted when\
-  \ | Verbs | What it spends | Guard |\n|---|---|---|---|---|\n| **Post-GREEN merge\
-  \ integration** | the only delta since the GREEN is one governed sync merge whose\
-  \ hand-resolved paths are the recorded conflicts, with a governed Tests pass after\
-  \ it — the clauses are SPEC-1034's axes row and its block under «Rare ceiling cases»\
-  \ | `worktree sync --resolved` → `task test --run` → `audit post --task <T>`, before\
-  \ `task close` | below the ceiling: one ordinary counted pass at the merge — when\
-  \ a clause fails while the merge is in HEAD but not in the recorded commit, `audit\
-  \ post` refuses naming the clause, no pass spent, never re-auditing the pre-merge\
-  \ commit; at or past it: one counted pass, ONE-SHOT and final | `audit_ceiling.merge_integration_admission`\
+  \ of\nit; a new exit is authored as a new row here. One row starts from a RED instead:\
+  \ «RED fix, then\nmerge integration». The re-sign row narrows two clauses of the\n\
+  merge-integration block under «Rare ceiling cases» — «a commit after M» and «a hand\
+  \ edit of ANY\nnon-conflict path» — for that verified re-sign alone; every other\
+  \ shape they refuse stays refused.\n\n| Exit | Admitted when | Verbs | What it spends\
+  \ | Guard |\n|---|---|---|---|---|\n| **Post-GREEN merge integration** | the only\
+  \ delta since the GREEN is one governed sync merge whose hand-resolved paths are\
+  \ the recorded conflicts, with a governed Tests pass after it — the clauses are\
+  \ SPEC-1034's axes row and its block under «Rare ceiling cases» | `worktree sync\
+  \ --resolved` → `task test --run` → `audit post --task <T>`, before `task close`\
+  \ | below the ceiling: one ordinary counted pass at the merge — when a clause fails\
+  \ while the merge is in HEAD but not in the recorded commit, `audit post` refuses\
+  \ naming the clause, no pass spent, never re-auditing the pre-merge commit; at or\
+  \ past it: one counted pass, ONE-SHOT and final | `audit_ceiling.merge_integration_admission`\
   \ |\n| **Verified re-sign at the merge** | the post-GREEN merge integration above,\
   \ where the merge brought main's change to code a spec anchors and the re-sign rides\
   \ INSIDE the merge or as ONE commit directly on it carrying only `specs/SPEC-*.yaml`\
@@ -179,21 +180,30 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ | `worktree sync --resolved` → `spec reverify --anchor` + `task commit` (or the\
   \ re-sign in the merge) → `task test --run` → `audit post --task <T>`, before `task\
   \ close` | as the merge-integration row; the subject is the re-sign commit when\
-  \ there is one | `audit_ceiling.merge_integration_admission` |\n| **Test-found fix**\
-  \ | the latest audit-post is a GREEN SPEC-1039 rule-3 pass and the newest governed\
-  \ Tests run after it is RED — SPEC-1041 «A test-found fix after a spent GREEN» |\
-  \ `task test --run` → `task commit` (`--reship` while the recorded commit is still\
-  \ the GREEN one) → `audit post --task <T> --commit <fix>` | one counted pass, final\
-  \ for the stage | `audit_ceiling.test_found_fix_window` (commit door), `audit_ceiling.test_found_fix_admission`\
-  \ (audit door) |\n| **Empty-set `--on-decisions`** | the ceiling row is an ORDINARY\
-  \ GREEN pass (no rule-3 pass yet) and the subject strictly descends from its commit\
-  \ — SPEC-1041 «Rule 3» | `audit post --task <T> --on-decisions --sweep '<…>'`, no\
-  \ `audit decide`; at the ceiling `audit post` names this pass and emits no halt\
-  \ row, so the worker runs it itself, no pause and no Controller cue | the ONE bounded\
-  \ rule-3 pass; after it this row is closed | `audit_ceiling.on_decisions_admission`\
-  \ |\n| **Return to the GREEN commit** | always: the GREEN covers its own commit\
-  \ | drop the commits after the GREEN in the task worktree → `task test --run` →\
-  \ `task close` → `land` | no pass; the later change leaves this card | `gates._require_audit_post_for_commit`\
+  \ there is one | `audit_ceiling.merge_integration_admission` |\n| **RED fix, then\
+  \ merge integration** | below the ceiling only: the latest audit-post is RED, the\
+  \ recorded commit is this card's `task commit --fix-red` commit recorded after it,\
+  \ and the only delta since that commit is one governed sync merge meeting the clauses\
+  \ of the merge-integration row | `task commit --fix-red` → `worktree sync --resolved`\
+  \ → `task test --run` → `audit post --task <T>`, before `task close` | one ordinary\
+  \ counted pass at the merge, its packet carrying the fix's own diff beside the hand-resolved\
+  \ paths; a failing clause is refused as in the merge-integration row; at or past\
+  \ the ceiling and on `--on-decisions` this row does not apply | `audit_ceiling.merge_integration_admission`\
+  \ |\n| **Test-found fix** | the latest audit-post is a GREEN SPEC-1039 rule-3 pass\
+  \ and the newest governed Tests run after it is RED — SPEC-1041 «A test-found fix\
+  \ after a spent GREEN» | `task test --run` → `task commit` (`--reship` while the\
+  \ recorded commit is still the GREEN one) → `audit post --task <T> --commit <fix>`\
+  \ | one counted pass, final for the stage | `audit_ceiling.test_found_fix_window`\
+  \ (commit door), `audit_ceiling.test_found_fix_admission` (audit door) |\n| **Empty-set\
+  \ `--on-decisions`** | the ceiling row is an ORDINARY GREEN pass (no rule-3 pass\
+  \ yet) and the subject strictly descends from its commit — SPEC-1041 «Rule 3» |\
+  \ `audit post --task <T> --on-decisions --sweep '<…>'`, no `audit decide`; at the\
+  \ ceiling `audit post` names this pass and emits no halt row, so the worker runs\
+  \ it itself, no pause and no Controller cue | the ONE bounded rule-3 pass; after\
+  \ it this row is closed | `audit_ceiling.on_decisions_admission` |\n| **Return to\
+  \ the GREEN commit** | always: the GREEN covers its own commit | drop the commits\
+  \ after the GREEN in the task worktree → `task test --run` → `task close` → `land`\
+  \ | no pass; the later change leaves this card | `gates._require_audit_post_for_commit`\
   \ (closure needs an audit-post of the recorded commit) |\n| **Re-cut on a new card**\
   \ | always: the later change is carried by a new card with its own audits | file\
   \ the new card; this card returns to its GREEN and closes, or ends `task update\
@@ -201,17 +211,20 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ (`land` refuses a wont-do branch carrying unaudited authored content) |\n\n##\
   \ Parameters\n\nNone consumed.\n\n## Rationale\n\nThe below-ceiling refusal on the\
   \ merge-integration row is (yitc#214): a silent refusal\nthere re-audited the pre-merge\
-  \ commit, and the land then refused the merge on SPEC-0077 §3a.\n\nEach case above\
-  \ arises on a small minority of audit passes. Rendered inside <workshop-spec> this\
-  \ detail\nreached every session entering Audit-pre or Audit-post; as a reference\
-  \ behind one index paragraph\nand the head of the acting verb's help it is met by\
-  \ the session that has the case at hand\n(<workshop-spec> §6, the rare-case option).\n\
-  \n## Verification\n\n- VP1 (one home): every block of §Rare ceiling cases is present\
-  \ in this spec and absent from\n  <workshop-spec>, and <workshop-spec> carries exactly\
-  \ one index paragraph naming this spec and the heading to\n  search.\n- VP2 (reachable\
-  \ from the verb): the first lines of the `audit pre`, `audit post`,\n  `audit consult`\
-  \ and `task commit` help name this spec.\n- VP3 (no stage render): no stage entry\
-  \ delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
+  \ commit, and the land then refused the merge on SPEC-0077 §3a.\n\nThe RED-fix row\
+  \ is (yitc#227): after a RED, a `--fix-red` commit and a hand-resolved\nTests-run\
+  \ admission sync, every `audit post` subject was refused, and only a rewind of the\
+  \ task\nbranch got out.\n\nEach case above arises on a small minority of audit passes.\
+  \ Rendered inside <workshop-spec> this detail\nreached every session entering Audit-pre\
+  \ or Audit-post; as a reference behind one index paragraph\nand the head of the\
+  \ acting verb's help it is met by the session that has the case at hand\n(<workshop-spec>\
+  \ §6, the rare-case option).\n\n## Verification\n\n- VP1 (one home): every block\
+  \ of §Rare ceiling cases is present in this spec and absent from\n  <workshop-spec>,\
+  \ and <workshop-spec> carries exactly one index paragraph naming this spec and the\
+  \ heading to\n  search.\n- VP2 (reachable from the verb): the first lines of the\
+  \ `audit pre`, `audit post`,\n  `audit consult` and `task commit` help name this\
+  \ spec.\n- VP3 (no stage render): no stage entry delivers this spec.\nThe executable\
+  \ form of VP1-VP3 is `tests/test_t13694_rare_ceiling_cases_reference.py`.\n"
 cites:
 - SPEC-0015
 - SPEC-0013

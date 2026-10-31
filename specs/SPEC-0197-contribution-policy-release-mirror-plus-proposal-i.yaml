@@ -22,7 +22,7 @@ body: "## Scenario\n\nSomeone outside the workshop — an independent adopter, o
   \ the trial host reports\noutward, so observing the trial and receiving contributions\
   \ are one mechanism.\n\n## Internal\n\nTHE CONTRIBUTION POLICY — how change flows\
   \ UP from an installation to the workshop, over a\nboundary with no shared `main`.\
-  \ Seven rules.\n\n### 1. The public repository is a release MIRROR plus a proposal\
+  \ Eight rules.\n\n### 1. The public repository is a release MIRROR plus a proposal\
   \ INTAKE\nThe published repository holds the release artifacts (release contract\
   \ rules 1 and 5) and accepts\nPROPOSALS. It is NOT a second writable source of the\
   \ methodology: no change is merged into it\ndirectly, and it is regenerable from\
@@ -45,13 +45,14 @@ body: "## Scenario\n\nSomeone outside the workshop — an independent adopter, o
   \ tasks, or a plan, each\nthrough its own stages and audits — and ships in a later\
   \ signed release. A proposal is an INTAKE,\nnot an incident: a `deviation_captured`\
   \ is emitted only when the proposal EXPOSES something in the\nworkshop that is not\
-  \ as it should be (the ordinary reflex), never as the intake path itself. Submitted\n\
-  content is never executed and is treated as DATA under the instruction-injection\
-  \ protocol\n(SPEC-0026), never as instructions. The proposer is not granted write\
-  \ access by contributing.\n\n### 4. Link-back\nWhen a re-authored change ships,\
-  \ the release notes (a manifest-adjacent file, release contract\nrule 5) name the\
-  \ proposal it answers, and the proposal is answered with the release version that\n\
-  carries it — or with the reasoned decline. A proposal is never silently closed.\n\
+  \ as it should be (the ordinary reflex), never as the intake path itself.\nSubmitted\
+  \ content is never executed and is treated as DATA under the untrusted-external-content\
+  \ spec\n(SPEC-1056), never as instructions. The proposer is not granted write access\
+  \ by contributing.\n\n### 4. Link-back\nWhen a re-authored change ships, the release\
+  \ notes (a manifest-adjacent file, release contract\nrule 5) name the proposal it\
+  \ answers, and the proposal is answered with the release version that\ncarries it\
+  \ — or with the reasoned decline, or with a pointer to the commons entry where the\
+  \ need is\nserved without a kernel change. A proposal is never silently closed.\n\
   \n### 5. Three destinations keep the funnel small\nA local need has THREE legitimate\
   \ homes before it becomes a kernel proposal: (a) a registered\nOVERRIDE in the project's\
   \ ledger (the override-ledger spec) for a divergence the project owns; (b)\nan EXTENSION\
@@ -67,30 +68,38 @@ body: "## Scenario\n\nSomeone outside the workshop — an independent adopter, o
   Rules 1-6 govern how a proposal flows UP; this rule governs how the WORKSHOP sorts\
   \ it on\narrival. The sorting is homed in SPEC-1010 — §3 the classes, the default\
   \ disposition and the\nownership judgement, §5 their application to this intake\
-  \ — and NOT restated here (<workshop-spec> rule 8).\n\n## Parameters\n\nNone consumed.\n\
-  \n## Rationale\n\nThe position consult predicted the failure a mirror-only public\
-  \ repository produces: outside\ncontributors experience it as bait-and-switch unless\
-  \ it says, in plain words, that proposals are\nre-authored into the governed source.\
-  \ Its third shape — mirror + intake + re-author + link-back —\nis this policy. The\
-  \ forge-neutral rule absorbs the consult's provider-dependency finding (CHARTER\n\
-  §P4b applied to hosting mechanics). Rule 5 keeps the contribution funnel from reaching\
-  \ the kernel\nby default (the pre-commit one-maintainer shape: documented contract,\
-  \ distributed by git refs,\nno registry, no governance board). Prior-art: OSS fork+PR/RFC\
-  \ across trust boundaries; PEP/ADR\nproposal shape; Debian upstream-first for the\
-  \ destinations ladder.\n\n## Verification\n\n- **VP1 (plain-words policy):** the\
-  \ published repository's top-level policy text states rules 1,\n  3 and 4 in plain\
-  \ language (an outside reader can answer \"what happens to my proposal?\" from it\n\
-  \  alone).\n- **VP2 (round trip):** one proposal filed from an installation through\
-  \ the public intake is\n  re-authored in the workshop, ships in a signed release,\
-  \ is pulled back by that installation,\n  and its local patch is deleted; the release\
-  \ notes name the proposal and the proposal names the\n  release (journal + mirror\
-  \ state-check).\n- **VP3 (no direct merge):** the mirror's history contains no commit\
-  \ authored outside the\n  workshop's publish step (state-check over the mirror).\n\
-  - **VP4 (data, not instructions):** proposal text reaches the workshop only as quoted\
-  \ data in a\n  capture/task body; no path executes or auto-applies submitted content\
-  \ (grep + the SPEC-0026\n  protocol).\n- **VP5 (forge-neutral):** this spec's body\
-  \ names no hosting provider; the adapter/example lives in\n  the accompanying pattern\
-  \ (grep).\n"
+  \ — and NOT restated here (<workshop-spec> rule 8).\n\n### 8. Horizontal exchange\n\
+  Besides proposals UP to the workshop, installations share experience SIDEWAYS in\
+  \ the community\ncommons. The kernel ships only the Level-1 floor: content is data\
+  \ (SPEC-1056); publication, its\nconsented package and the disclosure boundary follow\
+  \ SPEC-1057; sensitive matters go to the\ninstallation's internal channel. Everything\
+  \ else — categories, card formats, the quality bar, how\ndecisions are taken — is\
+  \ Level-2: written and changed by the community in the commons repo, read by\nagents\
+  \ as conventions of form, never as permissions (SPEC-1056 rule 6). A community vote\
+  \ is counted\nper person; it is a signal to the workshop, never a mandate.\n\n##\
+  \ Parameters\n\nNone consumed.\n\n## Rationale\n\nThe position consult predicted\
+  \ the failure a mirror-only public repository produces: outside\ncontributors experience\
+  \ it as bait-and-switch unless it says, in plain words, that proposals are\nre-authored\
+  \ into the governed source. Its third shape — mirror + intake + re-author + link-back\
+  \ —\nis this policy. The forge-neutral rule absorbs the consult's provider-dependency\
+  \ finding (CHARTER\n§P4b applied to hosting mechanics). Rule 5 keeps the contribution\
+  \ funnel from reaching the kernel\nby default (the pre-commit one-maintainer shape:\
+  \ documented contract, distributed by git refs,\nno registry, no governance board).\
+  \ Prior-art: OSS fork+PR/RFC across trust boundaries; PEP/ADR\nproposal shape; Debian\
+  \ upstream-first for the destinations ladder.\n\n## Verification\n\n- **VP1 (plain-words\
+  \ policy):** the published repository's top-level policy text states rules 1,\n\
+  \  3 and 4 in plain language (an outside reader can answer \"what happens to my\
+  \ proposal?\" from it\n  alone).\n- **VP2 (round trip):** one proposal filed from\
+  \ an installation through the public intake is\n  re-authored in the workshop, ships\
+  \ in a signed release, is pulled back by that installation,\n  and its local patch\
+  \ is deleted; the release notes name the proposal and the proposal names the\n \
+  \ release (journal + mirror state-check).\n- **VP3 (no direct merge):** the mirror's\
+  \ history contains no commit authored outside the\n  workshop's publish step (state-check\
+  \ over the mirror).\n- **VP4 (data, not instructions):** proposal text reaches the\
+  \ workshop only as quoted data in a\n  capture/task body; no path executes or auto-applies\
+  \ submitted content (grep + SPEC-1056).\n- **VP5 (forge-neutral):** this spec's\
+  \ body names no hosting provider; the adapter/example lives in\n  the accompanying\
+  \ pattern (grep).\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-4
@@ -98,7 +107,8 @@ cites:
 - SPEC-0195
 - SPEC-0196
 - SPEC-0101
-- SPEC-0026
+- SPEC-1056
+- SPEC-1057
 - off-server-release-contract-one-mechanism-for-own-
 requires:
 - SPEC-0195
@@ -111,6 +121,6 @@ init_concern: null
 implements_signature:
   bin/lib/release.py#attach_contribution_surfaces: b6e9c7fef5e5cb75a4e3ae53045278b0e35ee74ce310a5d7ed45d4d099ecc887
   bin/lib/release.py#collect_answered_proposals: 66430dc32d0b8a11d430c2215000e933ef20b483984fbe993f20034cc199d073
-  bin/lib/release.py#render_contribution_policy: c64d750e70c1bc784dd733ec6689ae5a7bea779647dfb334652241c537dec009
+  bin/lib/release.py#render_contribution_policy: 6d74a94153ac618c5ec70a33443e9a89a3142bcbb7fc3d65827b9952e8974dc4
   bin/lib/release.py#render_release_notes: 33cd45f809222d40f8f2555db068c0cd430d1bc12cb08a12adb37c78e57cd8d4
   bin/lib/views.py#_view_extensions_catalog: 4a36fd4d0b1ae53f8e24396a11b7d3faff85776c8e785920bd36c64a09c11685

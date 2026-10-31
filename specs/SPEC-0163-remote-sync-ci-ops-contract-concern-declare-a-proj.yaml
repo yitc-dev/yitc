@@ -500,7 +500,6 @@ cites:
 - SPEC-0093
 - SPEC-0145
 - SPEC-0125
-- SPEC-0116
 requires: []
 supersedes: null
 activation_owner_task: null

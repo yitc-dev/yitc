@@ -14503,7 +14503,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                         # T-14301 — cross record-only sync bookkeeping commits (T-12436 predicate)
                         transparent=lambda _c, _t: _card_repair_chain_transparent(
                             _c, _t, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths,
-                            REPO_ROOT=REPO_ROOT)))
+                            REPO_ROOT=REPO_ROOT),
+                        # T-14375 — below the ceiling, a `--fix-red` re-audit whose merge followed the fix
+                        red_fix_ok=not _mi_at_ceiling and not on_decisions))
                 if on_decisions:
                     od_merge_follows = (_mi_ev, _mi_refusal)
                 elif _mi_at_ceiling:
@@ -14519,7 +14521,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                                                 or merge_integration_reaudit["merge_commit"]), None
                 elif _mi_ev:
                     sync_merge_below_ceiling = _mi_ev
-                    print(f"# {tid} audit-post: the GREEN at {sha[:12]} is followed only by the governed "
+                    print(f"# {tid} audit-post: the "
+                          + ("`--fix-red` commit answering the RED" if _mi_ev.get("red_fix") else "GREEN")
+                          + f" at {sha[:12]} is followed only by the governed "
                           f"`worktree sync --resolved` merge {_mi_ev['merge_commit'][:12]} (conflict paths: "
                           f"{', '.join(_mi_ev['conflict_paths'])}); auditing the merged HEAD as an "
                           f"ordinary pass (T-14181, SPEC-1018 «Exits from a spent GREEN»).",

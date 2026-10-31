@@ -1597,119 +1597,119 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ WITHOUT giving `land` a network side\n    effect. `cmd_land` is not touched by\
   \ this rule at all.\n    **WHY A SIGNAL AND NOT A PUSH (the rejected direction,\
   \ named — CHARTER §P1 F3/F4).** A push is a\n    substantive OUTBOUND EXTERNAL MUTATION\
-  \ (SPEC-0116). Making one an unconditional side effect of\n    every land would\
-  \ change what `land` IS: it would add the kernel's first network write to the\n\
-  \    integration path, and a new mid-land failure class (a push that fails halfway).\
-  \ It also cannot\n    satisfy its own purpose — because a push must never fail a\
-  \ land that otherwise succeeded, a\n    failed push must be swallowed, and a swallowed\
-  \ push RECREATES the exact harm reported (an\n    offsite copy silently behind)\
-  \ while appearing to handle it. A count cannot fail silently. A\n    separate push\
-  \ VERB was also rejected: `git push` already is that verb, and wrapping it removes\n\
-  \    nothing and drags in the credentials surface the request put out of scope.\
-  \ Neither rejection is\n    permanent — a lag count that turns out to be routinely\
-  \ acted on by hand is the real incident\n    that would justify an operator-invoked\
-  \ push verb later, properly capturable under SPEC-0116.\n    **OPT-IN THROUGH THE\
-  \ EXISTING DECLARATION — no new carrier.** The subject is SPEC-0163's\n    `remote_sync:`\
-  \ concern (`remote:` + `pusher:` + `ci:`, declare-or-waive). A project that declares\n\
-  \    nothing, or WAIVES, contributes NOTHING and behaves exactly as before this\
-  \ rule. No new config\n    key, no new section, no new stance to take.\n    **LOCAL\
-  \ READ ONLY — NO NETWORK, BY CONSTRUCTION.** The baseline is the LOCAL remote-tracking\
-  \ ref;\n    the fold never runs `fetch` / `ls-remote` / `push` / `pull` (a declared\
-  \ forbidden set, asserted\n    by test rather than promised in prose). Three grounds:\
-  \ SPEC-0163 rule 3 holds that the kernel\n    checks the STANCE and \"never the\
-  \ remote's reachability\" — scoped to the init sweep, but its\n    INTENT reaches\
-  \ here and is honoured rather than routed around (CHARTER §P7); it makes \"land\
-  \ is\n    never contingent on the remote\" STRUCTURAL rather than a matter of remembering\
-  \ every error path;\n    and it costs nothing at two hot seams.\n    **WHY THE LOCAL\
-  \ READ IS HONEST — AND THE ONE CONDITION IT RESTS ON (<project> X-1094).**\n   \
-  \ `git push` updates the tracking ref ONLY when it names a CONFIGURED REMOTE; a\
-  \ push BY URL updates\n    the offsite copy and no local ref at all. Since `remote_sync.remote`\
-  \ may itself BE a URL, the\n    baseline is EXACT for the single declared `pusher:`\
-  \ PROVIDED that pusher pushes by remote NAME —\n    which is why the rendered remedy\
-  \ prints the RESOLVED CONFIGURED NAME rather than the declared\n    string. That\
-  \ condition is not decorative: while the line interpolated the declared value, a\n\
-  \    URL-declaring project that followed this view's OWN advice pushed successfully\
-  \ and the count did\n    not move, so the remedy could not clear the signal that\
-  \ printed it (measured, <project>\n    2026-08-22). The motivating failure — a pusher\
-  \ that STOPS (<project>'s v1\n    auto-pusher died at quiesce, SPEC-0163 rationale)\
-  \ — leaves the ref frozen while `main`\n    advances, so the count climbs at every\
-  \ seam. The residual imprecision runs in ONE direction only:\n    a third party\
-  \ pushing elsewhere leaves our ref behind, so the count may OVER-report. It can\
-  \ never\n    under-report to a false zero from staleness alone, so the view cannot\
-  \ go SILENT on real lag. The\n    line states this bound rather than presenting\
-  \ the reading as more than it is.\n    **UNFLOORED (rule 3 applied).** An offsite\
-  \ copy ONE commit behind is already the state this makes\n    visible, and the failure\
-  \ mode is a count growing unwatched — a floor would re-hide precisely the\n    early\
-  \ reading that is cheapest to act on.\n    **THE DEGRADES PRINT; ONLY A REAL OPT-OUT\
-  \ IS SILENT.** `not-declared` (absent carrier / no\n    section / waived / no `remote:`)\
-  \ is suppressed. But an UNREADABLE carrier, a MALFORMED\n    declaration, a declared\
-  \ remote that is NOT CONFIGURED, and a MISSING tracking ref each get their\n   \
-  \ OWN line — a project that MEANT to declare must never be silently read as having\
-  \ declared\n    nothing, and \"cannot compute the lag\" is not the same fact as\
-  \ \"in sync\". This is the rule-23\n    live-revision adapter's named-degrade discipline,\
-  \ and it is the false-zero this view must never\n    have.\n    It rides rules 2/3/5\
-  \ verbatim — the SAME seams (session-start / `debt` re-fold)\n    from the ONE host\
-  \ residue, SUPPRESSED-WHEN-CLEAN, REPORT-ONLY, never a gate: no verb gains a\n \
-  \   refusal on account of this row and no exit code moves. NO new store / event\
-  \ type / verb / env\n    knob / seam / config key — one more OPTIONAL injected collaborator\
-  \ over a declaration that\n    already exists (P1 F1/F2). A repo declaring no remote\
-  \ ⇒ suppressed, so nothing is retro-charged.\n\n23. **DEAD LANDS — the land that\
-  \ died before its own terminal signal (<project> X-0976).**\n    An OPTIONAL injected\
-  \ report-only view over the BRANCH FRONTIER joined to the journal\n    (`debt.dead_lands`),\
-  \ wired at the ONE shared host residue like every sibling and riding all\n    seams\
-  \ (session-start / the `debt` re-fold).\n    **SUBJECT.** A `land` killed between\
-  \ its FIRST COMMIT and its FIRST EVENT. This is the one\n    failure every existing\
-  \ surface is blind to AT ONCE, and the blindness is structural rather than\n   \
-  \ an oversight: they all key off rows such a land never wrote. The `LAND:` terminal-status\
-  \ token\n    is stdout of a process that is gone. The repeated-abort backstop counts\
-  \ `land_completed{abort}`\n    ROWS. Rules 12/18 fold dispatches and worker halts;\
-  \ rules 4/21 fold followups and plans. So the\n    ONE trace a dead land leaves\
-  \ is a GIT COMMIT — `land` step-1's bookkeeping fold — and this rule\n    is the\
-  \ only reader that looks at it.\n    **THE MEASUREMENT (kernel, 2026-08-18; the\
-  \ consumer half is <project> X-0976).** `land` ran on\n    `work/cross-triage-round-2`\
-  \ at, committed its step-1 bookkeeping\n    (5fe2f328d) and died before update-from-main\
-  \ / verify / ff. NO `land_completed` row exists in\n    main's journal, the branch's\
-  \ own journal, or the still-present worktree's — not even\n    `status=abort`. Three\
-  \ filed cards sat stranded and INVISIBLE on\n    main for ~16 hours, and were found\
-  \ only because an unrelated `task file` overlap advisory\n    happened to name the\
-  \ branch. In the consumer half, two detached lands had aborted and the\n    controller\
-  \ learned of it only when the OWNER asked why nothing was running — the box at loadavg\n\
-  \    11 with zero building workers for ~20 minutes. Both causes were trivial; the\
-  \ cost was entirely\n    in NOT KNOWING.\n    **THE PREDICATE — two conditions,\
-  \ BOTH necessary.** A branch reports iff (1) it is NOT merged\n    into main AND\
-  \ its tip subject is the land step-1 fold marker FOR THAT SAME BRANCH\n    (`land:\
-  \ bookkeeping (<branch>)`) — so a land STARTED here; AND (2) NO `land_completed`\
-  \ row names\n    that branch at a ts AT OR AFTER the tip's own committerdate — so\
-  \ that land never REPORTED.\n    **WHY CONDITION 2 IS HALF THE DESIGN, NOT A REFINEMENT\
-  \ — the measured trap.** \"A branch ahead of\n    main with a bookkeeping-only tip\"\
-  \ is BY ITSELF a false-positive generator. SIX branches in the\n    kernel repo\
-  \ carry that tip and are unmerged; FIVE landed FINE, each carrying a\n    `land_completed{ok}`\
-  \ at or just after its tip. They persist only because\n    `_land_bookkeeping_commit`\
-  \ AMENDS its commit, leaving the stale PRE-amend object on the\n    local ref while\
-  \ main carries the amended one. The tip test ALONE would report 6 and be WRONG on\n\
-  \    5. A view that flags every unlanded branch does not satisfy this rule — it\
-  \ is a noise generator,\n    and noise buries the echo it rides (the SPEC-0149 39-line\
-  \ trial disproof, paid for once already).\n    **AT OR AFTER THE TIP, never merely\
-  \ \"any row for this branch\".** A branch may have landed ok once\n    and had a\
-  \ LATER land die on it; anchoring to the tip's OWN timestamp is what lets the newest\
-  \ land\n    be judged on its own evidence instead of being excused by an ancestor's\
-  \ success.\n    **AN ABORT IS NOT HERE — it REPORTED.** A `land_completed{abort}`\
-  \ suppresses exactly as an `ok`\n    does. This rule is for SILENCE, not for failure:\
-  \ the repeated-abort backstop already owns the\n    abort class, and duplicating\
-  \ it here would bury the row that has no other home.\n    **THE ROW SET IS THE UNIONED\
-  \ ONE — a correctness condition, not a wiring detail.** `land` runs\n    from main\
-  \ and appends to MAIN's journal, but a row can also sit in a branch's own journal\
-  \ or a\n    live worktree's; a local-only read would report a land that DID report.\
-  \ The view binds the SAME\n    unioned reader rule 18 uses (local checkout + MAIN\
-  \ + every live worktree), narrowed BY TYPE and\n    never by AGE — a dead land must\
-  \ not age out of its own detection. Verified across all three loci\n    on the live\
-  \ incident before shipping: 0 rows in each.\n    **UNCERTAINTY DIRECTION — deliberately\
-  \ the OPPOSITE of rule 18, and the difference is the\n    SUBJECT, not a change\
-  \ of posture** (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`:\n  \
-  \  the missing-value judgement belongs to the use site). Rule 18 fails closed toward\
-  \ VISIBLE because\n    its subject is a decision still owed. THIS subject is \"\
-  nothing was reported at all\", so a\n    terminal row that EXISTS but whose ts will\
-  \ not parse is already not that class and SUPPRESSES.\n    Every OTHER uncertainty\
+  \ (<workshop-spec>). Making one an unconditional side effect of\n    every land\
+  \ would change what `land` IS: it would add the kernel's first network write to\
+  \ the\n    integration path, and a new mid-land failure class (a push that fails\
+  \ halfway). It also cannot\n    satisfy its own purpose — because a push must never\
+  \ fail a land that otherwise succeeded, a\n    failed push must be swallowed, and\
+  \ a swallowed push RECREATES the exact harm reported (an\n    offsite copy silently\
+  \ behind) while appearing to handle it. A count cannot fail silently. A\n    separate\
+  \ push VERB was also rejected: `git push` already is that verb, and wrapping it\
+  \ removes\n    nothing and drags in the credentials surface the request put out\
+  \ of scope. Neither rejection is\n    permanent — a lag count that turns out to\
+  \ be routinely acted on by hand is the real incident\n    that would justify an\
+  \ operator-invoked push verb later, properly capturable under <workshop-spec>.\n\
+  \    **OPT-IN THROUGH THE EXISTING DECLARATION — no new carrier.** The subject is\
+  \ SPEC-0163's\n    `remote_sync:` concern (`remote:` + `pusher:` + `ci:`, declare-or-waive).\
+  \ A project that declares\n    nothing, or WAIVES, contributes NOTHING and behaves\
+  \ exactly as before this rule. No new config\n    key, no new section, no new stance\
+  \ to take.\n    **LOCAL READ ONLY — NO NETWORK, BY CONSTRUCTION.** The baseline\
+  \ is the LOCAL remote-tracking ref;\n    the fold never runs `fetch` / `ls-remote`\
+  \ / `push` / `pull` (a declared forbidden set, asserted\n    by test rather than\
+  \ promised in prose). Three grounds: SPEC-0163 rule 3 holds that the kernel\n  \
+  \  checks the STANCE and \"never the remote's reachability\" — scoped to the init\
+  \ sweep, but its\n    INTENT reaches here and is honoured rather than routed around\
+  \ (CHARTER §P7); it makes \"land is\n    never contingent on the remote\" STRUCTURAL\
+  \ rather than a matter of remembering every error path;\n    and it costs nothing\
+  \ at two hot seams.\n    **WHY THE LOCAL READ IS HONEST — AND THE ONE CONDITION\
+  \ IT RESTS ON (<project> X-1094).**\n    `git push` updates the tracking ref ONLY\
+  \ when it names a CONFIGURED REMOTE; a push BY URL updates\n    the offsite copy\
+  \ and no local ref at all. Since `remote_sync.remote` may itself BE a URL, the\n\
+  \    baseline is EXACT for the single declared `pusher:` PROVIDED that pusher pushes\
+  \ by remote NAME —\n    which is why the rendered remedy prints the RESOLVED CONFIGURED\
+  \ NAME rather than the declared\n    string. That condition is not decorative: while\
+  \ the line interpolated the declared value, a\n    URL-declaring project that followed\
+  \ this view's OWN advice pushed successfully and the count did\n    not move, so\
+  \ the remedy could not clear the signal that printed it (measured, <project>\n \
+  \   2026-08-22). The motivating failure — a pusher that STOPS (<project>'s v1\n\
+  \    auto-pusher died at quiesce, SPEC-0163 rationale) — leaves the ref frozen while\
+  \ `main`\n    advances, so the count climbs at every seam. The residual imprecision\
+  \ runs in ONE direction only:\n    a third party pushing elsewhere leaves our ref\
+  \ behind, so the count may OVER-report. It can never\n    under-report to a false\
+  \ zero from staleness alone, so the view cannot go SILENT on real lag. The\n   \
+  \ line states this bound rather than presenting the reading as more than it is.\n\
+  \    **UNFLOORED (rule 3 applied).** An offsite copy ONE commit behind is already\
+  \ the state this makes\n    visible, and the failure mode is a count growing unwatched\
+  \ — a floor would re-hide precisely the\n    early reading that is cheapest to act\
+  \ on.\n    **THE DEGRADES PRINT; ONLY A REAL OPT-OUT IS SILENT.** `not-declared`\
+  \ (absent carrier / no\n    section / waived / no `remote:`) is suppressed. But\
+  \ an UNREADABLE carrier, a MALFORMED\n    declaration, a declared remote that is\
+  \ NOT CONFIGURED, and a MISSING tracking ref each get their\n    OWN line — a project\
+  \ that MEANT to declare must never be silently read as having declared\n    nothing,\
+  \ and \"cannot compute the lag\" is not the same fact as \"in sync\". This is the\
+  \ rule-23\n    live-revision adapter's named-degrade discipline, and it is the false-zero\
+  \ this view must never\n    have.\n    It rides rules 2/3/5 verbatim — the SAME\
+  \ seams (session-start / `debt` re-fold)\n    from the ONE host residue, SUPPRESSED-WHEN-CLEAN,\
+  \ REPORT-ONLY, never a gate: no verb gains a\n    refusal on account of this row\
+  \ and no exit code moves. NO new store / event type / verb / env\n    knob / seam\
+  \ / config key — one more OPTIONAL injected collaborator over a declaration that\n\
+  \    already exists (P1 F1/F2). A repo declaring no remote ⇒ suppressed, so nothing\
+  \ is retro-charged.\n\n23. **DEAD LANDS — the land that died before its own terminal\
+  \ signal (<project> X-0976).**\n    An OPTIONAL injected report-only view over the\
+  \ BRANCH FRONTIER joined to the journal\n    (`debt.dead_lands`), wired at the ONE\
+  \ shared host residue like every sibling and riding all\n    seams (session-start\
+  \ / the `debt` re-fold).\n    **SUBJECT.** A `land` killed between its FIRST COMMIT\
+  \ and its FIRST EVENT. This is the one\n    failure every existing surface is blind\
+  \ to AT ONCE, and the blindness is structural rather than\n    an oversight: they\
+  \ all key off rows such a land never wrote. The `LAND:` terminal-status token\n\
+  \    is stdout of a process that is gone. The repeated-abort backstop counts `land_completed{abort}`\n\
+  \    ROWS. Rules 12/18 fold dispatches and worker halts; rules 4/21 fold followups\
+  \ and plans. So the\n    ONE trace a dead land leaves is a GIT COMMIT — `land` step-1's\
+  \ bookkeeping fold — and this rule\n    is the only reader that looks at it.\n \
+  \   **THE MEASUREMENT (kernel, 2026-08-18; the consumer half is <project> X-0976).**\
+  \ `land` ran on\n    `work/cross-triage-round-2` at, committed its step-1 bookkeeping\n\
+  \    (5fe2f328d) and died before update-from-main / verify / ff. NO `land_completed`\
+  \ row exists in\n    main's journal, the branch's own journal, or the still-present\
+  \ worktree's — not even\n    `status=abort`. Three filed cards sat stranded and\
+  \ INVISIBLE on\n    main for ~16 hours, and were found only because an unrelated\
+  \ `task file` overlap advisory\n    happened to name the branch. In the consumer\
+  \ half, two detached lands had aborted and the\n    controller learned of it only\
+  \ when the OWNER asked why nothing was running — the box at loadavg\n    11 with\
+  \ zero building workers for ~20 minutes. Both causes were trivial; the cost was\
+  \ entirely\n    in NOT KNOWING.\n    **THE PREDICATE — two conditions, BOTH necessary.**\
+  \ A branch reports iff (1) it is NOT merged\n    into main AND its tip subject is\
+  \ the land step-1 fold marker FOR THAT SAME BRANCH\n    (`land: bookkeeping (<branch>)`)\
+  \ — so a land STARTED here; AND (2) NO `land_completed` row names\n    that branch\
+  \ at a ts AT OR AFTER the tip's own committerdate — so that land never REPORTED.\n\
+  \    **WHY CONDITION 2 IS HALF THE DESIGN, NOT A REFINEMENT — the measured trap.**\
+  \ \"A branch ahead of\n    main with a bookkeeping-only tip\" is BY ITSELF a false-positive\
+  \ generator. SIX branches in the\n    kernel repo carry that tip and are unmerged;\
+  \ FIVE landed FINE, each carrying a\n    `land_completed{ok}` at or just after its\
+  \ tip. They persist only because\n    `_land_bookkeeping_commit` AMENDS its commit,\
+  \ leaving the stale PRE-amend object on the\n    local ref while main carries the\
+  \ amended one. The tip test ALONE would report 6 and be WRONG on\n    5. A view\
+  \ that flags every unlanded branch does not satisfy this rule — it is a noise generator,\n\
+  \    and noise buries the echo it rides (the SPEC-0149 39-line trial disproof, paid\
+  \ for once already).\n    **AT OR AFTER THE TIP, never merely \"any row for this\
+  \ branch\".** A branch may have landed ok once\n    and had a LATER land die on\
+  \ it; anchoring to the tip's OWN timestamp is what lets the newest land\n    be\
+  \ judged on its own evidence instead of being excused by an ancestor's success.\n\
+  \    **AN ABORT IS NOT HERE — it REPORTED.** A `land_completed{abort}` suppresses\
+  \ exactly as an `ok`\n    does. This rule is for SILENCE, not for failure: the repeated-abort\
+  \ backstop already owns the\n    abort class, and duplicating it here would bury\
+  \ the row that has no other home.\n    **THE ROW SET IS THE UNIONED ONE — a correctness\
+  \ condition, not a wiring detail.** `land` runs\n    from main and appends to MAIN's\
+  \ journal, but a row can also sit in a branch's own journal or a\n    live worktree's;\
+  \ a local-only read would report a land that DID report. The view binds the SAME\n\
+  \    unioned reader rule 18 uses (local checkout + MAIN + every live worktree),\
+  \ narrowed BY TYPE and\n    never by AGE — a dead land must not age out of its own\
+  \ detection. Verified across all three loci\n    on the live incident before shipping:\
+  \ 0 rows in each.\n    **UNCERTAINTY DIRECTION — deliberately the OPPOSITE of rule\
+  \ 18, and the difference is the\n    SUBJECT, not a change of posture** (`lessons/fail-closed-belongs-to-the-reader-not-the-parser`:\n\
+  \    the missing-value judgement belongs to the use site). Rule 18 fails closed\
+  \ toward VISIBLE because\n    its subject is a decision still owed. THIS subject\
+  \ is \"nothing was reported at all\", so a\n    terminal row that EXISTS but whose\
+  \ ts will not parse is already not that class and SUPPRESSES.\n    Every OTHER uncertainty\
   \ — an unreadable frontier reader, an unreadable journal reader — folds the\n  \
   \  WHOLE view to a clean zero rather than a partial guess (rule 12's report-only\
   \ posture, verbatim).\n    **COLLABORATOR CRITICALITY — two classes, never conflated.**\
@@ -4218,7 +4218,6 @@ cites:
 - SPEC-0152
 - SPEC-0185
 - SPEC-0163
-- SPEC-0116
 - SPEC-0156
 - SPEC-0093
 - SPEC-0086
@@ -4397,7 +4396,7 @@ implements_signature:
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 01274cd83b030fd548e96aca916048f2ef1dba4901683314f92db8e85d7605d8
+  bin/lib/views.py#_render_debt_echo: 177f60d8bf56eb3d41ec9846af92956f7315eb1217158af97ccc0fe2b8224876
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

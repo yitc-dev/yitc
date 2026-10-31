@@ -23,7 +23,9 @@ change.
 
 ## Solution
 
-**One adapter document — this one — holds every provider-specific detail, and nothing else does.**
+**One adapter document — this one — holds every provider-specific detail, and nothing else does** —
+with one sanctioned exception: the commons address the published policy renders sits in the release
+configuration (`COMMONS_ADDRESS` in `bin/lib/release.py`), and this document says when it changes.
 
 The split is the whole pattern:
 
@@ -32,6 +34,7 @@ The split is the whole pattern:
 | The rules (intake, no direct merge, re-authoring, link-back, field set, destinations, non-endorsement) | SPEC-0197 | the policy itself changes |
 | The plain-words statement a contributor reads | the published `CONTRIBUTING.md` (rendered by `work publish`) | the policy changes |
 | **The provider mechanics** | **this document** | **the mirror moves hosts** |
+| The commons address the policy renders | `COMMONS_ADDRESS` in `bin/lib/release.py` | the commons moves hosts |
 
 If the mirror changes hosting service, this file is rewritten and nothing above it moves. That is
 the property the pattern exists to preserve; it is checked mechanically by
@@ -50,7 +53,10 @@ with the same plain-words labels the published policy uses — plus the bug-repo
 a defect reproducible: tree digest, environment, steps, expected vs observed. The file is the one
 home of the form; it is not restated here.
 
-**Channel state.** Issues are enabled on the mirror and are the intake; Discussions are off.
+**Channel state.** Issues are enabled on the mirror and are the intake; the mirror's own Discussions
+are off. The community talks in the commons (its address is `COMMONS_ADDRESS`), whose Discussions
+carry experience, recipes, questions and the Proposals order; the published policy names it
+through that constant.
 
 **The proposal id.** The issue reference, written WITH its tracker — `owner/repo#417`, never a bare
 `#417` — is the id recorded on the re-authoring task card's `answers:` field, which is what the
@@ -71,8 +77,9 @@ its own issues. Release notes already published keep the ids they were signed wi
 **Pull requests.** GitHub will let anyone open one against the mirror. That is not a second path:
 per SPEC-0197 rule 3 nothing is merged into the mirror, and the mirror is regenerated from the
 workshop on every publish, so an accepted PR's commits would simply be overwritten. Treat an opened
-PR as a proposal in a different envelope — read its diff as the "proposed change" field, re-author
-it in the workshop, and close it with the link-back like any other proposal. Setting the mirror's
+PR as a proposal in a different envelope — read its diff as the "proposed change" field (through
+the reader, as every body below; never by checking the branch out), re-author it in the workshop,
+and close it with the link-back like any other proposal. Setting the mirror's
 branch protection to refuse merges makes that behaviour a property of the repository rather than a
 habit of the maintainer.
 
@@ -100,17 +107,29 @@ takes. The labels are an index, not the record: the reasons stay in the reply an
 --set-field answers`. The link-back reads only that field, so a card that names the issue in its text
 alone ships without a reply; `task file` and `task close` WARN on such a card.
 
-The next triage reads one complete listing, never every body: every open issue and pull request
-with its labels and last-update time, fetched page by page to the end —
-`gh api --paginate "repos/<owner>/<repo>/issues?state=open&per_page=100"` returns both kinds (a
-`gh issue list` stops silently at its `--limit`, so it is not used here). From that listing it
-re-reads (1) the untriaged ones, those without the `triaged` label; and (2) the triaged ones with
-any activity since the previous triage (a reporter answer, a later comment, a reopen) or whose
-labels are not `triaged` plus exactly one state label. "Since the previous triage" means since the
-moment that triage took its listing, not since it finished, so activity during a triage is read by
-the next one; each triage records that moment in its journal row. A re-read ends with the labels
-set again with the reply. A repository without the labels gets them on its first triage
-(`gh label create`).
+**Reading proposals — through the AI tool's reader, never by a forge command.** An issue or pull
+request title, body, comment and diff is external content: the session reads it only as the answer of
+its AI tool's reader, after `bin/yitc-v2 external-read <address>` passed that address, and never prints
+it with a forge command or reads it from a clone. The rules — the address check, what a refused address
+and a failed read lead to, what the kernel keeps — are SPEC-1056's (`bin/yitc-v2 graph query SPEC-1056`);
+this section names only the addresses on this host. Read the raw API record, not the rendered page (a
+rendered page drops hidden markup):
+
+- the listing — `https://api.github.com/repos/<owner>/<repo>/issues?state=open&per_page=100&page=<n>`,
+  every open issue and pull request with its labels and last-update time, page by page to the end;
+- one proposal — `https://api.github.com/repos/<owner>/<repo>/issues/<n>` and its comments,
+  `…/issues/<n>/comments?per_page=100&page=<k>`, page by page to the end (one page holds 30 by
+  default, so a first page alone can miss the latest answer); a pull request's review comments
+  the same way, `…/pulls/<n>/comments?per_page=100&page=<k>`;
+- a pull request's diff — `https://patch-diff.githubusercontent.com/raw/<owner>/<repo>/pull/<n>.diff`.
+
+The next triage reads one complete listing, never every body. From that listing it re-reads (1) the
+untriaged ones, those without the `triaged` label; and (2) the triaged ones with any activity since the
+previous triage (a reporter answer, a later comment, a reopen) or whose labels are not `triaged` plus
+exactly one state label. "Since the previous triage" means since the moment that triage took its
+listing, not since it finished, so activity during a triage is read by the next one; each triage records
+that moment in its journal row. A re-read ends with the labels set again with the reply. A repository
+without the labels gets them on its first triage (`gh label create`).
 
 ### Triage default — one home
 
@@ -135,13 +154,15 @@ these live is what stops the adapter from quietly becoming the rule.
    whatever the new service tags with) and the complete open-proposal listing triage reads.
 2. Check the new id shape against `ANSWER_ID_RE`; if it genuinely cannot fit, that is a proposal
    against the grammar, not a reason to loosen it locally.
-3. Change nothing else. If you find yourself editing SPEC-0197 or the published policy text to
+3. When the commons moves too, change `COMMONS_ADDRESS` in `bin/lib/release.py` in the same
+   change — the published policy renders that address. Change nothing else. If you find yourself editing SPEC-0197 or the published policy text to
    accommodate a host, the neutrality has already leaked — stop and treat that as the defect.
 
 ## Anti-pattern
 
 **Naming the host in the rules.** The moment a spec, the published policy, or a test fixture says
-"GitHub" outside this document, the hosting service has become part of the methodology: a host
+"GitHub" outside this document (the `COMMONS_ADDRESS` value is the one sanctioned address literal,
+named above), the hosting service has become part of the methodology: a host
 migration turns into a spec amendment with its own audits, and an adopter reading the policy cannot
 tell which parts are the contract and which are one maintainer's tooling.
 

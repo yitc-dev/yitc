@@ -869,7 +869,7 @@ def teardown_refresh(server_id, *, on_mutation, record_candidate, say=None, env=
 
 def list_servers(*, env=None, label: str = "purpose=remote-verify-venue") -> list:
     """A READ — used to see whether a box of this class is already live before raising into the
-    quota. Not journaled: `external_action` is for MUTATIONS (SPEC-0116)."""
+    quota. Not journaled: `external_action` is for MUTATIONS (SPEC-1057)."""
     status, parsed = _api("GET", f"/servers?label_selector={label}", env=env)
     if status != 200:
         code, msg = _error_of(parsed)
@@ -1220,7 +1220,7 @@ def build_consumer_image(pre: dict, *, name: str, on_mutation=None, say=None, en
     acted — the cleanup finds the box by that label and deletes it. Only a quota refusal (a
     DEFINITE "nothing was created") skips the cleanup.
 
-    ONE ROW PER MUTATION, WHATEVER ITS OUTCOME (SPEC-0116). Each provider MUTATION the build attempts
+    ONE ROW PER MUTATION, WHATEVER ITS OUTCOME (SPEC-1057). Each provider MUTATION the build attempts
     — create, poweroff, create_image, delete — calls `on_mutation(target, action)` exactly once, so
     the CLI host journals one `external_action` row each: the done row, or, when the call raised
     after the request may have reached the provider, ONE row saying the outcome is UNKNOWN (naming

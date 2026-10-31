@@ -540,6 +540,12 @@ INVENTORY: "tuple[Knob, ...]" = (
        "layer command's env beside YITC_VERIFY_SELECTED_LAYERS (T-14343, SPEC-0152 rule 16). GATE by the "
        "fail-closed default, on the same terms as YITC_VERIFY_LAYER_WORKERS: setting it by hand changes "
        "nothing the kernel decides, and it is never read back"),
+    _g("YITC_VERIFY_LAYER_DECIDED", "str", None, "bin/lib/land_verify_legs.py#VERIFY_LAYER_DECIDED_ENV",
+       "NOT an input the kernel reads: the path of the run's decided-lists file — per decided layer its "
+       "final unit list, or null when it runs whole — WRITTEN into each first-attempt layer command's env "
+       "only when the project declares `verify.decide_first: true` (T-14376, SPEC-1046 rule 3). GATE by the "
+       "fail-closed default, on the same terms as YITC_VERIFY_LAYER_WORKERS: setting it by hand changes "
+       "nothing the kernel decides, and it is never read back"),
     _g("YITC_VERIFY_RERUN_FILES", "str", None, "bin/lib/verify_runner.py#VERIFY_RERUN_FILES_ENV",
        "a protocol input, not a tunable: the newline-separated test files the SPEC-0152 rule-16 isolated "
        "re-run of a layer hands its command when the first run named them (T-14276); the engine's suite "
@@ -1021,6 +1027,10 @@ INVENTORY: "tuple[Knob, ...]" = (
     _g("YITC_AUDIT_TIMEOUT_SECONDS", "int", 300, "bin/lib/audit.py",
        "the card's own named example: expiry ABORTS the audit, so the value participates in the "
        "verdict"),
+    _g("YITC_BAKE_INVOKING_ENGINE", "str", None, "bin/lib/init.py#_engine_install_root",
+       "T-14388: the test-harness switch the hermetic verify child env sets — `1` bakes the invoking "
+       "engine checkout into a born consumer instead of the main install; it changes which engine "
+       "judges that consumer's integrity layer, so it participates in the verdict"),
     _g("YITC_C2_BACKUP_HANG_CAP_S", "int", 3600, "bin/lib/deploy.py",
        "T-13514: the owner-approved Class-C2 dump's hang-cap — its expiry REFUSES the deploy "
        "(SPEC-0097 §5), so the value participates in the verdict"),
@@ -1076,6 +1086,22 @@ INVENTORY: "tuple[Knob, ...]" = (
        "journal-write guard root — a refusal reads it"),
     _g("YITC_EVENTS_PATH_DEFAULT", "str", None, "bin/lib/events.py", "WHICH journal is written"),
     _g("YITC_EVENTS_SINK", "str", None, "bin/lib/events.py", "the journal quarantine target"),
+    _g("YITC_SPIKE_FROM_WORKTREE", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
+       "NOT an input the kernel reads: the served round's worktree path, WRITTEN into the env of the project's declared "
+       "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "
+       "never read back. GATE by the fail-closed default"),
+    _g("YITC_SPIKE_TO_WORKTREE", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
+       "NOT an input the kernel reads: the next round's worktree path, WRITTEN into the env of the project's declared "
+       "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "
+       "never read back. GATE by the fail-closed default"),
+    _g("YITC_SPIKE_FROM_BRANCH", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
+       "NOT an input the kernel reads: the served round's branch, WRITTEN into the env of the project's declared "
+       "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "
+       "never read back. GATE by the fail-closed default"),
+    _g("YITC_SPIKE_TO_BRANCH", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
+       "NOT an input the kernel reads: the next round's branch, WRITTEN into the env of the project's declared "
+       "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "
+       "never read back. GATE by the fail-closed default"),
     _g("YITC_EXPECTED", "str", None, "bin/lib/plan.py",
        "a PREFIX STEM of the dispatched-worker marker family — unclassifiable, therefore GATE"),
     _g("YITC_EXPECTED_SESSION_REF", "str", None, "bin/lib/plan.py",

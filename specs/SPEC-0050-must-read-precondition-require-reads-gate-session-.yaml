@@ -709,7 +709,7 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 2db56481872d8f18a37b3bbe319ef0a3d91140f90a87f269bdfe8e83844b76bd
+  bin/lib/audit.py#cmd_audit: c0e1eaa0b1ec9afda02abc98a3a14a0958273937f969fddee28176c6bdb29e33
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
   bin/lib/cli.py#_deliver_stage_bundle_contracts: 6356353534842c736adbd8515eebcdd8ad5ad25be6ebbd8af67b14c14458fc76
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c

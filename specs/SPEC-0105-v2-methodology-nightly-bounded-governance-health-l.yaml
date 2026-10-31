@@ -57,8 +57,8 @@ body: "## Scenario\n\nA MIGRATED v2 project (one whose `registry.yaml` `methodol
   \ only READS it (the SPEC-1003 rule 8 posture: which\nproject carries one is an\
   \ owner decision recorded in the host registry); no verb writes it, and\nthe session\
   \ that edits the registry on the owner's word records that edit as an external action\n\
-  (SPEC-0116). Reversal is removing the declaration: the next run alerts again. The\
-  \ declaration's\nconcrete form is homed with its one reader in the code (`bin/lib/nightly.py#_declared_dormancy`),\n\
+  (<workshop-spec>). Reversal is removing the declaration: the next run alerts again.\
+  \ The declaration's\nconcrete form is homed with its one reader in the code (`bin/lib/nightly.py#_declared_dormancy`),\n\
   not here.\n\n### 1b. The per-project STAGE-PROFILE reading — what did each lifecycle\
   \ stage cost here?\nBeside the §1 health checks, which answer whether a project\
   \ is WELL, the run takes one READING of\nwhat that project's work COSTS: per lifecycle\
@@ -436,4 +436,4 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/nightly.py#_declared_dormancy: 37414b9ee67dd395160489503baa1f4aad79c3ee17ced3bb6d213651a7da45ae
-  bin/lib/nightly.py#cmd_nightly: cd2f08bc38e6b1aa3b419b162064f4db3f65e65d4110034a80d393c6e7641d53
+  bin/lib/nightly.py#cmd_nightly: 4e92dd9a991a417df0ef4af95550975c6fc592a23d109af15c130bd5a3501e62

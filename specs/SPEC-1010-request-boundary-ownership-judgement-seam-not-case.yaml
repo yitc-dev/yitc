@@ -282,10 +282,17 @@ body: "## Scenario\n\nA project meets something the kernel does not handle the w
   \ is\nlinked to the existing card. Every proposal is answered (SPEC-0197 rule 4),\
   \ whichever way it is\nsorted. Worked example: the v2.0.4 trial report (`events.jsonl#ts=`)\
   \ — twelve\nDEFECT cards, two items already fixed on main, one duplicate linked\
-  \ to.\n\n### 6. Delivery — cues and pointers only, never a gate\nThis spec is reached\
-  \ through EXISTING surfaces, each carrying a cue and a pointer and none of the\n\
-  rule text (<workshop-spec> rule 8): the premise-review cue printed at `cross pick`\
-  \ and at a\n`resolves_cross` filing (the receiver side); the consumer kernel-signaling\
+  \ to.\nA proposal may also be answered from the commons: a reasoned decline naming\
+  \ the commons entry that\nserves the need — an additional answer, the sorting above\
+  \ unchanged. A practice the workshop meets\nby reading the commons, not a proposal\
+  \ on the intake, is absorbed only when it is a principle or a\nsafety rule rather\
+  \ than a concrete solution, recurs as SPEC-0197 rule 5 requires (rule of three,\n\
+  across installations or across time), and passes the four filters including what\
+  \ it removes; the\nworkshop's own sessions read the commons under SPEC-1056.\n\n\
+  ### 6. Delivery — cues and pointers only, never a gate\nThis spec is reached through\
+  \ EXISTING surfaces, each carrying a cue and a pointer and none of the\nrule text\
+  \ (<workshop-spec> rule 8): the premise-review cue printed at `cross pick` and at\
+  \ a\n`resolves_cross` filing (the receiver side); the consumer kernel-signaling\
   \ line at session start\nand the capture-routing view (the requester side); the\
   \ plan front-load item that names the judgement\nfor a plan that would change the\
   \ kernel in answer to a project (SPEC-0043). No surface refuses a\npick, a filing\

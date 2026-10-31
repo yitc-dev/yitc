@@ -15669,7 +15669,12 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
         # byte-unchanged and the parity invariant is stated honestly rather than weakened.
         if _uncommitted_layer_surface is not None and _render_uncommitted_layer_surface_note is not None:
             try:
-                _unc_note = _render_uncommitted_layer_surface_note(_uncommitted_layer_surface(root))
+                # T-14365: leave out the paths this run's own close-time activation window flipped
+                # (`_stage6_prepared_tree`'s `prepare.flipped_paths`); every other row stays.
+                _own = set(getattr(_auto_rebuild_graph, "flipped_paths", None) or ())
+                _rows = [{**r, "paths": [p for p in r["paths"] if p not in _own]}
+                         for r in _uncommitted_layer_surface(root)]
+                _unc_note = _render_uncommitted_layer_surface_note([r for r in _rows if r["paths"]])
             except Exception:
                 _unc_note = None    # a SIGNAL fails toward silence, never toward breaking the verb
             if _unc_note:
@@ -21269,6 +21274,26 @@ def _stage6_activation_guard(root):
         yield
 
 
+class _Stage6Flipped(list):
+    """T-14365 — the activated ids `_stage6_close_activation` yields, carrying `.paths`: the files the
+    window flipped that held HEAD's bytes before it (what the uncommitted-surface note leaves out)."""
+    def __init__(self, ids, *, paths=()):
+        super().__init__(ids)
+        self.paths = list(paths)
+
+
+def _head_bytes(root, rel):
+    """`rel`'s text at HEAD in `root`, or None when it cannot be read (then it is not left out)."""
+    import subprocess   # noqa: PLC0415
+    from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    try:
+        r = subprocess.run(["git", "-C", str(root), "show", f"HEAD:{rel}"], capture_output=True,
+                           env=_git_env._git_child_env())
+        return r.stdout.decode("utf-8") if r.returncode == 0 else None
+    except Exception:   # noqa: BLE001
+        return None
+
+
 @contextlib.contextmanager
 def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_path, read_yaml):
     """Hold the close-time activation of `tid`'s proposed spec(s) on disk for one Stage-6 run; yields
@@ -21323,6 +21348,10 @@ def _stage6_close_activation(root, tid: str, *, specs_dir, activate, find_spec_p
             if ids:
                 print(f"{tid} Stage-6 run tests the close-time activation: {', '.join(ids)} "
                       "(restored after the run)")
+                # T-14365: the repo-relative paths this window itself rewrote, but only those that held
+                # HEAD's bytes before it — a spec with uncommitted edits of its own stays reportable.
+                ids = _Stage6Flipped(ids, paths=sorted(
+                    rel[p] for p in snap if _head_bytes(root, rel[p]) == snap[p]))
             yield ids
         finally:
             for p, raw in snap.items():

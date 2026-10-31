@@ -51,6 +51,7 @@ import os
 import re
 import statistics
 import subprocess
+import stat as _stat
 import time as _time
 from pathlib import Path
 
@@ -2379,6 +2380,75 @@ def _sandbox_dir_volume(base: Path, prefixes) -> tuple:
     return (out, total)
 
 
+_VERIFY_BASE_SIZE_BUDGET = 20000   # T-14371 — stat calls the byte walk may spend before it stops
+
+
+def _verify_base_volume(base: Path, retention_sec: float, *, _size_budget=None) -> "dict":
+    """T-14371 — the verify temp base's volume past `retention_sec`: every DIRECT entry, whatever its
+    name (the reaper's Category B3 cohort), counted EXACTLY (one lstat each), and its bytes — a file by
+    its own size, a directory by its regular files, a symlink by nothing (never followed). Stdlib
+    stat/scandir only, no subprocess, never deletes, never raises: an unreadable base is reported as
+    such, and an entry that vanishes mid-walk contributes nothing.
+
+    THE BYTE WALK IS BOUNDED, AND SAYS SO. Sizing a backlog means statting every file under it
+    (measured 2026-10-30: 14k stale entries / 5.2 GB took 14 s), and every end-to-end nightly run pays
+    it. So the walk stops after `_VERIFY_BASE_SIZE_BUDGET` stat calls and the payload carries
+    `bytes_complete: false` — the bytes are then a LOWER BOUND, never a silent undercount. A read that
+    fails for any reason but the entry having vanished (EACCES on a subdirectory, a stat error) marks
+    the bytes incomplete the same way. The count is never bounded."""
+    budget = _VERIFY_BASE_SIZE_BUDGET if _size_budget is None else _size_budget
+    now = _time.time()
+    try:
+        children = sorted(base.iterdir())
+    except OSError as exc:
+        return {"path": str(base), "unreadable": True, "reason": str(exc), "total": 0,
+                "stale_count": 0, "stale_bytes": 0, "bytes_complete": False, "oldest_age_hours": 0.0}
+    stale, stale_bytes, oldest, complete = 0, 0, 0.0, True
+    for child in children:
+        try:
+            st = child.lstat()
+        except FileNotFoundError:
+            continue   # vanished between the listing and the stat — nothing left to count.
+        except OSError:
+            complete = False   # present but unreadable: its bytes are unknown, so the total is a floor.
+            continue
+        age = max(0.0, now - st.st_mtime)
+        if age < retention_sec:
+            continue
+        stale += 1
+        oldest = max(oldest, age)
+        if not complete:
+            continue
+        if _stat.S_ISREG(st.st_mode):
+            stale_bytes += st.st_size
+        elif _stat.S_ISDIR(st.st_mode):
+            stack = [str(child)]
+            while stack and complete:
+                try:
+                    with os.scandir(stack.pop()) as it:
+                        for ent in it:
+                            budget -= 1
+                            if budget < 0:
+                                complete = False
+                                break
+                            try:
+                                if ent.is_dir(follow_symlinks=False):
+                                    stack.append(ent.path)
+                                elif ent.is_file(follow_symlinks=False):
+                                    stale_bytes += ent.stat(follow_symlinks=False).st_size
+                            except FileNotFoundError:
+                                continue
+                            except OSError:
+                                complete = False   # unreadable → its bytes are missing from the total.
+                except FileNotFoundError:
+                    continue
+                except OSError:
+                    complete = False   # a directory we cannot list: the total is a lower bound.
+    return {"path": str(base), "total": len(children), "stale_count": stale,
+            "stale_bytes": stale_bytes, "bytes_complete": complete,
+            "oldest_age_hours": round(oldest / 3600.0, 1)}
+
+
 def _inflow_ts(row) -> "_dt.datetime | None":
     """A row's `ts` as an aware UTC datetime, or None when absent/unparseable (the row is then skipped)."""
     try:
@@ -2524,7 +2594,7 @@ def _check_filesystem_headroom(path: Path, *, _statvfs=None) -> dict:
 
 def _check_host_sandbox(*, now: _dt.datetime, engine_root: Path, min_age_hours=None, globs=None,
                         tmp_base=None, _selector=None, _scan=None, _age_of=None,
-                        _prefixes=None) -> dict:
+                        _prefixes=None, verify_base=None) -> dict:
     """THE HOST axis (T-11089, SPEC-0105 §1 read-only health): how many orphan verify-sandbox PROCESSES
     are alive on this host past the age floor, and how much disk the sandbox directories hold.
 
@@ -2579,7 +2649,14 @@ def _check_host_sandbox(*, now: _dt.datetime, engine_root: Path, min_age_hours=N
     verb followed by a space anywhere in this module — its subject is SQL, but the shorter name
     followed by ` or …` trips it just as well, and the failure then reads as a project-specific
     source format leaking into the kernel. The token is deliberately not written out here either.
-    Deviation captured under `kernel-purity-substring-guard-collides-with-unrelated-identifier`."""
+    Deviation captured under `kernel-purity-substring-guard-collides-with-unrelated-identifier`.
+
+    THE VERIFY TEMP BASE (T-14371). The reaper's Category B3 sweeps every stale entry of the verify
+    temp base, whatever its name; this axis REPORTS that base's volume past the same floor it applies
+    to the sandbox dirs (count + bytes, `_verify_base_volume`) and deletes nothing. The base comes from
+    the reaper's own resolver (`worktree_lifecycle._verify_temp_base`); `verify_base` injects it, and a
+    run that uses the fixture seam above (`tmp_base` / `globs` / `_prefixes` /
+    `YITC_NIGHTLY_SANDBOX_TMP_BASE`) never reaches the host's base unless it injects one."""
     from lib import worktree as _worktree  # noqa: PLC0415 — lazy, like `init`/`deploy`
     import tempfile as _tempfile
 
@@ -2600,6 +2677,7 @@ def _check_host_sandbox(*, now: _dt.datetime, engine_root: Path, min_age_hours=N
         prefixes = tuple(env_pref.split(":"))
     else:
         prefixes = _worktree._created_tmp_prefixes(Path(engine_root))
+    globs_injected = globs is not None
     if globs is None:
         globs = tuple(f"{base}/{p}*" for p in prefixes)
 
@@ -2680,12 +2758,26 @@ def _check_host_sandbox(*, now: _dt.datetime, engine_root: Path, min_age_hours=N
                          "oldest_age_hours": round(max(d["age_sec"] for d in stale_dirs) / 3600.0, 1),
                          "dirs": [{"path": d["path"], "bytes": d["bytes"],
                                    "age_hours": round(d["age_sec"] / 3600.0, 1)} for d in stale_dirs]})
+    # T-14371 — the verify temp base's stale volume (report-only; see the docstring).
+    if verify_base is None and tmp_base is None and globs_injected is False and _prefixes is None \
+            and not os.environ.get("YITC_NIGHTLY_SANDBOX_TMP_BASE"):
+        from lib import worktree_lifecycle as _wl  # noqa: PLC0415 — the reaper's resolver, one definition
+        verify_base = _wl._verify_temp_base()
+    vb = _verify_base_volume(Path(verify_base), retention_sec) if verify_base else None
+    if vb and vb.get("stale_count"):
+        findings.append({"kind": "stale-verify-base-volume", "base": vb["path"],
+                         "count": vb["stale_count"], "bytes": vb["stale_bytes"],
+                         "bytes_complete": vb["bytes_complete"],
+                         "oldest_age_hours": vb["oldest_age_hours"]})
     reason = ""
     if findings:
         reason = (f"{len(orphans)} orphan sandbox process(es) and {len(stale_dirs)} sandbox dir(s) "
                   f"holding {stale_bytes} bytes are past their floor ({orphan_min_age_hours}h for a "
                   f"process whose sandbox root is provably gone, {min_age_hours}h otherwise) — the "
-                  f"reaper should already have removed them")
+                  f"reaper should already have removed them"
+                  + (f"; the verify temp base {vb['path']} holds {vb['stale_count']} entr(ies) / "
+                     f"{'' if vb['bytes_complete'] else 'at least '}{vb['stale_bytes']} bytes past "
+                     f"{min_age_hours}h" if vb and vb.get("stale_count") else ""))
     return {"verdict": "alert" if findings else "ok", "findings": findings,
             "orphans": len(orphans), "stale_dirs": len(stale_dirs), "stale_bytes": stale_bytes,
             "stale_empty_dirs": empty_husks,
@@ -2696,6 +2788,7 @@ def _check_host_sandbox(*, now: _dt.datetime, engine_root: Path, min_age_hours=N
             "min_age_hours": min_age_hours, "orphan_min_age_hours": orphan_min_age_hours,
             "cohort": list(globs),
             "unclassified_residents": len(sel["residents"]),
+            "verify_base": vb,
             **({"reason": reason} if reason else {})}
 
 
@@ -4283,6 +4376,10 @@ def cmd_nightly(args: argparse.Namespace, *, REGISTRY_PATH, ENGINE_ROOT, KERNEL_
                       f"oldest {f_['oldest_age_hours']}h")
                 for d_ in f_["dirs"]:
                     print(f"      - {d_['path']}  [{d_['bytes']} bytes, age {d_['age_hours']}h]")
+            elif f_["kind"] == "stale-verify-base-volume":   # T-14371
+                print(f"  ! verify temp base {f_['base']}: {f_['count']} entr(ies) past the floor "
+                      f"holding {'' if f_['bytes_complete'] else 'at least '}{f_['bytes']} bytes, "
+                      f"oldest {f_['oldest_age_hours']}h")
     # T-12198 (SPEC-0203 rule 6): the FORGOTTEN-BOX line, SUPPRESSED WHEN CLEAN (the `host_sandbox`
     # discipline above — a machine with no rented box, or with one that is genuinely working, prints
     # nothing here, so the day it does print is the day money is being spent on nothing). When it
