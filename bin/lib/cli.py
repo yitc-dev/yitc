@@ -5576,6 +5576,8 @@ def cmd_session_start(args: argparse.Namespace) -> None:
             # COMPUTED VALUE of the ONE shared helper stay green — and they still describe the truth:
             # the helper's return value is what is injected, now via a pure presentation fold.
             _debt_echo_lines=_debt_echo_compact(_debt_echo_lines=_debt_echo_lines()) if not _receipt_only else [],
+            # T-14403 (SPEC-1057): the same value injection, before the start's own row exists.
+            _standing_post_lines=_standing_post_echo() if not _receipt_only and args.type != "build" else [],
             # T-10153: inject the runtime-record writer + the live provider-KIND reader (references, not
             # Calls — D-0052 F5 startup-allowlist-safe, the _session_start_identity precedent) so session-start births
             # a runtime record carrying the FORENSIC provider_meta (SPEC-0137 Rule 2.5). NARROW forensic
@@ -8508,6 +8510,22 @@ def _validated_explicit_source_ref(raw: str) -> str:
              f"  defect one step over.\n"
              f"  pass a whitespace-free locator (T-11741 / X-1174).")
     return raw
+
+
+def _standing_post_rows(since) -> list:
+    """The session_started and external_action rows from `since` on, in journal order."""
+    return list(journal.iter_rows(EVENTS_PATH, types={"session_started", "external_action"}, since=since))
+
+
+def _standing_post_echo() -> list:
+    """The session-start lines of SPEC-1057's standing-consent posts, inside the SPEC-0190 summary
+    window. Report-only: a failing read prints one degraded line and never blocks a start."""
+    from lib import publication   # noqa: PLC0415
+    try:
+        return publication.standing_post_lines(_standing_post_rows(events.summary_window_floor()))
+    except Exception:   # noqa: BLE001 — a report-only surface never breaks startup
+        return ["standing consent posts: the journal could not be read; "
+                "`bin/yitc-v2 journal query --type external_action`"]
 
 
 @functools.wraps(events.cmd_event)
@@ -12594,7 +12612,7 @@ def _onboarding_repeat_params():
     repeat and no recap (fail-closed, never a guessed default)."""
     try:
         for sp in sorted((ENGINE_ROOT / "specs").glob("SPEC-0147-*.yaml")):
-            return memory_mod.repeat_parameters(sp.read_text(encoding="utf-8"))
+            return memory_mod.repeat_parameters(state.spec_decoded_text(sp.read_text(encoding="utf-8")))
     except OSError:
         return None
     return None

@@ -16324,6 +16324,24 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                       f"will be byte-identical to the prototype's is refused at `land` unless it is declared "
                       f"before this audit: `bin/yitc-v2 task update {tid} --set-field prototype_identical "
                       f"--from-file <path>` (SPEC-0205 rule 5)", file=sys.stderr)
+                if preview:
+                    # T-14400 — the identity preview over the worktree draft, while a declaration can
+                    # still go into the first real pass. Stderr only: the packet stays the real one.
+                    try:
+                        from lib.task import prototype_main_journal as _pmj_pre   # noqa: PLC0415
+                        prototype_post_context(
+                            REPO_ROOT, tid, artifact, _si_decl.working_tree_commit(REPO_ROOT),
+                            reaudit_after_close=False, events_path=EVENTS_PATH or (REPO_ROOT / "events.jsonl"),
+                            main_events_path=_pmj_pre(REPO_ROOT), append_event=_append_event,
+                            utc_now_iso=_utc_now_iso, iter_events=_iter_events)
+                        print(f"# prototype_identity: the line above reads this worktree as it stands (draft "
+                              f"the edit here and re-run; no auditor, no pass). A file it names as IDENTITY "
+                              f"and identical by construction is declared on the card NOW, so the first real "
+                              f"`audit pre` shows it; until that pass it reads «not shown to the auditor».",
+                              file=sys.stderr)
+                    except Exception as e:   # noqa: BLE001 — advisory: never breaks the look at the packet
+                        print(f"# prototype_identity: not computed ({type(e).__name__}: {str(e)[:200]})",
+                              file=sys.stderr)
         if target_kind == "task" and stage == "post" and sha:
             from lib.task import prototype_main_journal as _pmj   # noqa: PLC0415
             _proto_identity, _proto_refusal = prototype_post_context(

@@ -148,7 +148,8 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
                       _write_runtime_record=None, _provider_kind=None, _provider_session_id=None,
                       _controller_acting_holder=None,
                       _kernel_is_local_peer=None, _project_name=None,
-                      _read_only_journal=None, _own_floor_map=None) -> "tuple[str, str]":
+                      _read_only_journal=None, _own_floor_map=None,
+                      _standing_post_lines=None) -> "tuple[str, str]":
     """Session activation (per D-0041): durable journal MARKUP + startup-protocol ECHO.
 
     Returns the session's AUTHORITATIVE `(resolved_session_ref, source_kind)` (T-10246; the provenance
@@ -660,6 +661,10 @@ def cmd_session_start(args: argparse.Namespace, *, _resolve_or_mint_identity,
     # (AGENTS §After-`/compact`) — this echo is evicted like the cross-coord echo, re-surfaced by re-fold.
     for _debt_ln in (_debt_echo_lines or ()):
         print(_kq(_debt_ln + " " + OWNER_CUED))
+    # T-14403 (SPEC-1057): the posts made under a standing consent since the last Controller start — a
+    # host-computed VALUE, as above; the rows stay in `journal query --type external_action`.
+    for _standing_ln in (_standing_post_lines or ()):
+        print(_kq(_standing_ln + " " + REPORT_ONLY))
     # (3) Posture-dispatch (per D-0052, amended T-9698): a NON-MUTATING startup SUMMARY. The
     # Build|Review interactive type CHOICE is retired (T-9697 / CHARTER §6) — `--type build` is the
     # dispatched Worker (build-framed resume-or-await); NO `--type` is the interactive Controller

@@ -305,9 +305,10 @@ def read_summary_window_days() -> "int | None":
     if not _SUMMARY_WINDOW_MEMO:
         val = None
         try:
+            from lib import state
             specs = Path(__file__).resolve().parent.parent.parent / "specs"
             for sp in sorted(specs.glob("SPEC-0190-*.yaml")):
-                m = _SUMMARY_WINDOW_RE.search(sp.read_text(encoding="utf-8"))
+                m = _SUMMARY_WINDOW_RE.search(state.spec_decoded_text(sp.read_text(encoding="utf-8")))
                 if m:
                     val = int(m.group(1))
                     break
@@ -2571,6 +2572,21 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
     # row names the package actually read and never a caller's claim about it. Pre-append and above the
     # `--check` return, like every check here: a refusal leaves the journal byte-identical.
     _package = getattr(args, "package", None)
+    # T-14403 (SPEC-1057): the post under a standing consent is THIS run. The row keys it writes are
+    # the verb's alone, so no hand row can claim the consent or a hash nobody froze.
+    _standing = getattr(args, "standing_consent", False)
+    _standing_pkg = _standing_declared = None
+    if event_type == "external_action":
+        _claimed = [k for k in ("standing_consent", "standing_consent_from", "package_frozen")
+                    if k in caller_data]
+        if _claimed:
+            _die(f"external_action: {', '.join(_claimed)} are written only by the post itself "
+                 f"(SPEC-1057). Nothing was appended. Post with `bin/yitc-v2 event external_action "
+                 f"--package <manifest> --standing-consent --data '<from>'`, or drop these keys.")
+    if _standing and (_package is None or event_type != "external_action"):
+        _die("--standing-consent needs `external_action` and --package (SPEC-1057). Nothing was "
+             "posted or appended. Post with `bin/yitc-v2 event external_action --package <manifest> "
+             "--standing-consent --data '<from>'`.")
     if _package is not None:
         if event_type != "external_action":
             _die(f"--package is for an `external_action` row (SPEC-1057), not `{event_type}`. "
@@ -2594,6 +2610,33 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
         data["package_parts"] = publication.package_parts_summary(_pkg)
         data["package_destination"] = _pkg["destination"]
         data["package_visibility"] = _pkg["visibility"]
+        if _standing:
+            import yaml   # noqa: PLC0415 — only this branch needs it
+            from lib import state   # noqa: PLC0415 — only this branch needs it
+            try:
+                _standing_declared = publication.standing_declaration(
+                    state.load_ops(REPO_ROOT / "yitc-ops.yaml"))
+            except (OSError, UnicodeDecodeError, yaml.YAMLError):
+                _standing_declared = None   # unreadable is never read as declared
+            _common = _resolve_git_common_dir(REPO_ROOT)
+            _standing_names = [REPO_ROOT.name] + ([_common.parent.name] if _common else [])
+            _refused = publication.standing_refusals(_pkg, _standing_declared,
+                                                     project_names=_standing_names)
+            if _refused:
+                _die(f"external_action --standing-consent: outside the standing consent: "
+                     f"{'; '.join(_refused)}. Nothing was posted or appended. This post needs the "
+                     f"person's per-package consent (SPEC-1057): show them the package, then record the post "
+                     f"with `bin/yitc-v2 event external_action --package <manifest> --data '...'`.")
+            if _common is None:
+                _die("external_action --standing-consent: no git common directory holds the frozen "
+                     "package here. Nothing was posted or appended. Run it from a checkout of the project: "
+                     "`bin/yitc-v2 -C <repo> event external_action --package <manifest> --standing-consent`.")
+            _standing_pkg = _pkg
+            data.setdefault("channel", "gh:issue-create")
+            data.setdefault("action", "issue create")
+            data.setdefault("target", _pkg["destination"])
+            data.setdefault("from", _standing_declared["from"])
+            print(f"event: standing consent covers package_sha256 {_pkg_sha}")
 
     # T-13508: will this task-tied row be folded OUT of its task's audit-post packet by the card
     # opt-in? Report-only and fail-open — contract in `_packet_fold_emit_warning`; this stays a call
@@ -2642,7 +2685,32 @@ def cmd_event(args: argparse.Namespace, *, EVENTS_PATH, KERNEL_NAME, PLACEMENT_R
         except Exception:   # noqa: BLE001 — an advisory must never break the capture reflex
             _near = []
 
-    witness = _append_event(event_type, args.task, data, source_ref=source_ref, ts=_event_ts)
+    # T-14403 (SPEC-1057): every pre-append check has passed, so a refused emit never follows a post.
+    # The post and the row read the frozen copy only; a failure here dies with no row.
+    _standing_url = None
+    if _standing_pkg is not None:
+        try:
+            _frozen_manifest, _frozen = publication.freeze_package(
+                _standing_pkg, _common / "yitc" / "publication")
+            _standing_url = publication.post_standing(_frozen)
+        except (OSError, publication.PackageError, publication.PackageChanged,
+                publication.PublicationError) as exc:
+            _die(f"external_action --standing-consent: {exc}. No row was appended. Fix the cause, then "
+                 f"re-run `bin/yitc-v2 event external_action --package <manifest> --standing-consent`.")
+        data.update(package_sha256=publication.package_sha256(_frozen),
+                    package_parts=publication.package_parts_summary(_frozen),
+                    package_frozen=str(_frozen_manifest), target=_standing_url,
+                    standing_consent=publication.STANDING_CLASS,
+                    standing_consent_from=_standing_declared["from"])
+        print(f"event: posted {_standing_url}")
+
+    try:
+        witness = _append_event(event_type, args.task, data, source_ref=source_ref, ts=_event_ts)
+    except BaseException:
+        if _standing_url:
+            print(f"yitc-v2: the post EXISTS at {_standing_url} but its row was not appended: record "
+                  f"it by hand, do not post again.", file=sys.stderr)
+        raise
 
     # T-10949 (T-10948 residual R3): SUCCESS IS NOT SILENT. Before this line a successful emit wrote
     # exactly one thing — the row — so when a row later turned out to be missing there was no exit

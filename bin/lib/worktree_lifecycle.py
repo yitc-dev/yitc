@@ -3131,7 +3131,8 @@ def _sync_mention_review_lines(W, task, main_tip: str, *, _run_git_cap) -> "list
 
     The activation owner of a `proposed` spec carrying `supersedes:` records its whole-repository
     mention review in its Analysis, naming the main commit the search read and the target it reviewed
-    (`mention review snapshot: <commit> target: <id>`). A merge from main can bring a lineage change
+    (`mention review snapshot: <commit> target: <id>`); the line is read from the Analysis and from the
+    card's `amend_notes` (T-14401). A merge from main can bring a lineage change
     (the `land` re-target onto a sibling-landed head) or new mentions after that snapshot; this phase
     says so while the branch is still off the land queue, naming the difference to re-review. The
     measurement is `graph._mention_review_currency` against the main commit this sync merged.
@@ -3148,6 +3149,9 @@ def _sync_mention_review_lines(W, task, main_tip: str, *, _run_git_cap) -> "list
         cards = sorted(tdir.glob(f"{task}-*.yaml")) or sorted(tdir.glob(f"{task}.yaml"))
         card = (_state.load_path(cards[0]) or {}) if cards else {}
         analysis = card.get("analysis") if isinstance(card, dict) else None
+        notes = card.get("amend_notes") if isinstance(card, dict) else None
+        if isinstance(notes, list):            # T-14401 — a line recorded by `task update --note`
+            analysis = "\n".join([str(analysis or "")] + [str(n) for n in notes])
         return _graph._mention_review_currency(W, task, analysis, main_tip, _run_git_cap=_run_git_cap)
     except Exception as e:                     # noqa: BLE001 — a pre-flight never kills the sync
         return [f"  mention review (SPEC-1037 §7): COULD NOT ANSWER (raised {type(e).__name__}: "
@@ -6947,6 +6951,20 @@ def _spike_handover_command(main_wt: Path, *, _die) -> "str | None":
     return cmd
 
 
+def _served_round_dirt(wt: Path, _run_git_cap) -> str:
+    """T-14397 (SPEC-0205 rule 12) — what a served round holds uncommitted, for both hand-over gates.
+    A content change of the live `events.jsonl` is left out: every `-C <served>` verb appends its own
+    row AFTER its settle commit, so no governed verb could ever make the round clean (X-2154). The test
+    is positive and narrower than the land's fold set: an archive segment or the `.yitc` tail stays dirt,
+    because the park would snapshot those onto the branch, past the tip the next round inherited. A
+    deleted or renamed journal stays dirt, and a status that could not run reads as dirt."""
+    st = _run_git_cap(["status", "--porcelain"], wt)
+    if st.returncode != 0:
+        return f"git status failed in {wt}: {(st.stderr or st.stdout or '').strip()[:200]}"
+    return "\n".join(ln for ln in st.stdout.splitlines()
+                     if ln.strip() and not (ln[:2] in (" M", "M ", "MM") and ln[3:] == "events.jsonl"))
+
+
 def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _read_worktree_stamp,
                            _run_git_cap, _worktree_path_for_branch) -> dict:
     """T-14374 (SPEC-0205 rule 12) — every refusal of `worktree new --from-spike`, BEFORE any row, branch
@@ -6965,7 +6983,7 @@ def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _
     if _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/work/{new_slug}"], main_wt).stdout.strip():
         _die(f"worktree new: --from-spike opens a NEW round, but work/{new_slug} already exists — choose "
              f"the next round's slug. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
-    dirt = _run_git_cap(["status", "--porcelain"], Path(swt)).stdout.strip()
+    dirt = _served_round_dirt(Path(swt), _run_git_cap)
     if dirt:
         _die(f"worktree new: --from-spike {served} — the served round has uncommitted changes, which the "
              f"next round would not inherit. Commit the round in {swt} first, then re-run. "
@@ -7010,7 +7028,7 @@ def _spike_round_handover(served: dict, branch: str, path: Path, main_wt: Path, 
     # Bind the park to the tip the next round inherited: a commit or an edit in the served tree while
     # the step ran would be parked into the prototype but not continued (audit-pre fp1:5fe86014afac53f6).
     now = _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/{served['branch']}"], main_wt).stdout.strip()
-    dirt = _run_git_cap(["status", "--porcelain"], served["wt"]).stdout.strip() if served["wt"].exists() else ""
+    dirt = _served_round_dirt(served["wt"], _run_git_cap) if served["wt"].exists() else ""
     if now != served["tip"] or dirt:
         _die(f"worktree new: the served round {served['branch']} changed while the hand-over ran (tip "
              f"{served['tip'][:12]} → {(now or '?')[:12]}{', uncommitted changes' if dirt else ''}) — it is "

@@ -76,12 +76,25 @@ def growth_window_days(specs_dir=None) -> "int | None":
         specs = Path(specs_dir) if specs_dir is not None else (
             Path(__file__).resolve().parent.parent.parent / "specs")
         for sp in sorted(specs.glob("SPEC-0189-*.yaml")):
-            m = _GROWTH_WINDOW_RE.search(sp.read_text(encoding="utf-8"))
+            m = _GROWTH_WINDOW_RE.search(state.spec_decoded_text(sp.read_text(encoding="utf-8")))
             if m:
                 return int(m.group(1))
     except (OSError, ValueError):
         return None
     return None
+
+
+def rotation_verdict_carrier_text(sp) -> "str | None":
+    """The text of the rotation verdict carrier, or None when absent or unreadable. A spec is decoded,
+    since the release build re-serializes it (T-14406); a consumer's `yitc-ops.yaml` stays raw, because
+    the release never touches it and its token may sit in a comment."""
+    if sp is None or not sp.exists():
+        return None
+    try:
+        text = sp.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    return state.spec_decoded_text(text) if sp.name.startswith("SPEC-") else text
 
 
 def _growth_row_ts(event) -> "object | None":
@@ -1458,13 +1471,7 @@ def _view_displacement_retention(index: dict, *, DECISIONS_DIR=None, EVENTS_PATH
         """The verdict carrier's TEXT, or None when absent/unreadable. ONE read-only text scan
         path for both tokens (CHARTER §P5) — no new parser family, and identical in mechanism to
         the pre-T-10810 single-spec scan it generalizes."""
-        sp = _rotation_verdict_source()
-        if sp is None or not sp.exists():
-            return None
-        try:
-            return sp.read_text(encoding="utf-8")
-        except OSError:
-            return None
+        return rotation_verdict_carrier_text(_rotation_verdict_source())
 
     def _rotation_rereview_bound_mb():
         """The re-review bound (MB) recorded WITH the standing DEFER verdict in this repo's

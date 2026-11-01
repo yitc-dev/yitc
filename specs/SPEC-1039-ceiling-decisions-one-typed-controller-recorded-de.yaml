@@ -379,7 +379,7 @@ implements_signature:
   bin/lib/audit_consult.py#consult_prompt_overlay: f7776a3f50843ad0514b16fc69fbe55b42ef14e7af84528368d403ee1849d193
   bin/lib/cli.py#_TASK_SUBJECT_EVIDENCE_TYPES: af5a855a9fbb25617905f43b7397d41eb9fbb1e2c2266756528d155c8d2da19b
   bin/lib/cli.py#_audit_help_texts: d44c8f1ed60cd5b8b99e34388781a62eddc6e9537ea9ca3a7ee5f067993e9cf0
-  bin/lib/cli_parser.py#build_parser: 4803b891bfda7f807b25a0d32af6f267bb113f9436099d80e9c62f84389ba6d1
+  bin/lib/cli_parser.py#build_parser: 2fae8c30fe45872448d10c4eea0e9b3aeaff73f78613172767a90ab3ec54f83d
   bin/lib/graph.py#retired_audit_flag_violations: be10fc542e526459b7dfcc255799dff6a6c99dbe332c110ebdc9265b655a974f
   bin/lib/graph.py#retired_plan_gate_terminal_violations: a6a95d27d3b04ba897627d83a76d680c3c60ddfb4c99780768ef8eb41c41abf5
   bin/lib/plan.py#_run_plan_gate_audit: 102ba93b8e347fa24eacae2aaf39ec032c90775b66351e66ec020e43ec756f71

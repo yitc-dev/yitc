@@ -43,92 +43,94 @@ body: "## Scenario\n\nWhen the owner/AI starts a PLAN, the draft is FRONT-LOADED
   \   homed there — this is a pointer. ALSO surface relevant `lessons/` entries for\
   \ this topic — the\n   plan-draft lessons read-surface (SPEC-0091 Rule 1). For a\
   \ plan that would change the kernel in\n   answer to a project, the ownership judgement\
-  \ to make first is homed in SPEC-1010 — a pointer.\n2. **Owner-visible done-criterion.**\
-  \ Name the result the OWNER would recognize as \"done\" (the\n   plan's eventual\
-  \ `realized` proof reads back to it). Not \"code shipped\" — an observable outcome\n\
-  \   (CHARTER §P3 done=adopted, homed there).\n3. **Verification plan UPFRONT.**\
-  \ Sketch the probe targets, the real-data soak expectation, and a\n   `postcheck`\
-  \ probe-block STUB (observed / min-runs / failure-threshold / evidence-home) — so\
-  \ the\n   plan declares HOW it will be proven before it is built, not after. The\
-  \ postcheck probe-block\n   contract is normative in SPEC-0034 §postcheck — this\
-  \ is a pointer to fill the stub there.\n4. **External-checks map + trial-eligibility\
-  \ question.** Note which external audits apply at which\n   boundaries (gate templates:\
-  \ SPEC-1040 / SPEC-0034 §Audit-posture), and answer the\n   trial-eligibility question\
-  \ (SPEC-0035) — does this plan need a real-data trial?\n5. **Deferrals as tracked\
-  \ tasks, never prose — and only for this plan's own deliverable.** Two\n   cases,\
-  \ two homes:\n   (a) A part of THIS plan's own deliverable that is postponed: name\
-  \ it in the draft as a\n   deliverable of the plan, and file it as a tracked task\
-  \ at the `decomposition` cut together\n   with the plan's other cards (SPEC-0034\
-  \ §decomposition — the plan-carve <workshop-spec> §B names),\n   parked with a `return_trigger`.\
-  \ Not filed at draft, and never a draft sentence with no\n   deliverable behind\
-  \ it (the deferral-as-prose trap) — rule + check in <workshop-spec>. A remainder\n\
-  \   left undecomposed when the plan ends `partial` goes to a new plan instead (SPEC-0034\
-  \ §Terminals).\n   (b) An ask from a requester that the plan does not take is not\
-  \ a deferral: record it in the\n   plan's out-of-scope list with its reason (for\
-  \ a public proposal, answer it through the\n   SPEC-0197 link-back). It is not filed\
-  \ as a card at draft.\n6. **Quantitative / foundational claims → big-plan discipline.**\
-  \ If the draft makes\n   quantitative/foundational claims, apply the big-plan discipline\n\
-  \   (`patterns/big-plan-checklist.md` / SPEC-0034 §Mandatory-big-plan-check). If\
-  \ a claim is a SCOPE\n   SIZING of a refactor / rename / relocation (a ref-count\
-  \ / blast-radius), it must be BACKED by the\n   SPEC-0046 §A Sizing rule, not estimated\
-  \ — pointer only, rule homed there (P5).\n7. **Planned artifacts / corpus impact.**\
-  \ Name the expected spec/task/decision OUTPUTS the plan\n   anticipates creating\
-  \ or changing — or explicitly say \"none yet\". This keeps a draft from staying\n\
-  \   vague about its corpus footprint. And\n   declare the plan's SCENARIO INPUTS\
-  \ the same way: if the plan shapes/touches a user-path, list\n   the scenario slug(s)\
-  \ in the plan's `cites:` (reuse the any→any cites edge — NOT a new\n   `scenarios:`\
-  \ field, CHARTER §P1 F2; the `cites(plan→scenario)` direction semantics are homed\
-  \ in\n   SPEC-0076 §4 — pointer, not restated here).\n8. **Realization-exit criteria\
-  \ UP FRONT.** Author the plan's realization-exit criteria — the\n   postcheck probe\
-  \ block (observed-behaviour / min-runs / failure-threshold / evidence-home) — the\
-  \ way a\n   TASK authors its `acceptance` at FILING, so the plan declares HOW it\
-  \ will be proven `realized` BEFORE it\n   is built, not improvised at postcheck\
-  \ entry. The skeleton seeds a `## Realization-exit criteria` prompt\n   for this\
-  \ — the CANONICAL section name. FILLING that section IS the declaration the checks\
-  \ read: the\n   `plan draft --finalize` advisory and the `plan stage accepted` /\
-  \ `plan stage postcheck` REQUIRE-gates\n   share ONE predicate over it (`_postcheck_probe_block_declared`;\
-  \ a legacy `## Postcheck probe block`\n   section still counts). So an author who\
-  \ fills the seeded skeleton verbatim is never WARNed for content\n   they authored,\
-  \ and an UNFILLED skeleton stub never satisfies the gate.\n   The criteria are CONFIRMED\
-  \ into the plan at `accepted`; the normative contract (incl. that they\n   are author-declared\
-  \ + owner-judged, no coded gate) is homed in SPEC-0034 §accepted/§postcheck — this\
-  \ is a\n   pointer to fill them, not a second home (P5 / rule-3 content-boundary).\
-  \ (Distinct from item 3's\n   verification-plan SKETCH: item 3 sketches probe targets;\
-  \ this names the concrete EXIT criteria.)\n9. **Current design only — no history\
-  \ in the body.** A plan body states the design as it stands\n   now: superseded\
-  \ designs, earlier rule variants and their numbers, and the deliberation\n   chronology\
-  \ are removed, not kept beside it — git history, the journal and the audit records\n\
-  \   keep them. Each correction is named by its one line in the External checks /\
-  \ audits section\n   (SPEC-0083 §The record — a pointer, not restated here).\n\n\
-  ### Resume path for an existing `status: draft` plan (no new read verb)\nSessions\
-  \ never scan `plans/` (the picker reads `tasks/` only), and `plan stage draft` is\
-  \ unreachable\n(draft is the INITIAL status — the bundle is delivered by `plan file`,\
-  \ not by a stage verb). So a\nsession reopening a draft rediscovers this doctrine\
-  \ via the ALWAYS-LOADED LIFECYCLE §Plan-lifecycle\ndraft-row pointer → `graph query\
-  \ SPEC-0043`. That pointer IS the sole rediscovery route by design;\nno read verb\
-  \ is added for resumed draft authoring.\n\n### Delivery wiring (how this doctrine\
-  \ reaches the author)\nIdeas (`plan file --idea`) are flat holding pens —\nthey\
-  \ get NEITHER the draft-stage delivery NOR the heavy skeleton (unchanged).\n( last-touch\
-  \ refresh: `cmd_plan_file`'s trailing next-hint also carries the post-specs FORK\n\
-  pointer — trial-eligible → `plan stage trial`, else → `plan stage accepted` — but\
-  \ that pointer is\ngoverned by SPEC-0034/SPEC-0035, NOT this front-load doctrine;\
-  \ this spec's delivery rule + skeleton\nsections are unchanged.)\n\n### Anti-complexity\
-  \ note (<workshop-spec> §7 / CHARTER §P1 F3 — what is retired)\nNOTHING is retired\
-  \ by this spec. It is admitted because it fills a real WIRING + CONTENT gap (the\n\
-  draft bundle was never delivered, and no doctrine said what a draft should front-load),\
-  \ NOT because\nit accretes a parallel mechanism: it REUSES the existing plan-stage-entry\
-  \ axis, the existing\n`_emit_plan_stage_entered` delivery helper, and the existing\
-  \ `cmd_plan_file` verb — no new gate, no\nnew verb, no new store, no draft-completeness\
-  \ validator.\n\n## Parameters\n\nNone consumed. Every governing constant referenced\
-  \ (the big-plan apply-when criteria; the audit\ntemplates; the trial-eligibility\
-  \ rule; the decomposition discipline) lives in its OWN spec/pattern\n(SPEC-0034\
-  \ / SPEC-0035 / <workshop-spec> / big-plan-checklist) — pointed at, NEVER duplicated\
-  \ or\n`consumed:` here (<workshop-spec> rule 3 / P5).\n\n## Rationale\n\nThe TASK\
-  \ lifecycle front-loads thinking (Stage-1 Analysis is a delivered, ordered procedure);\
-  \ the\nPLAN draft stage had the delivery AXIS (SPEC-0034 binds `plan-stage-entry:draft`)\
-  \ but the bundle was\nnever delivered — `draft` is the initial status, so `plan\
-  \ stage draft` is never called. A session\nfiling a plan therefore got no front-load\
-  \ guidance, and a draft could stay a bare title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
+  \ to make first is homed in SPEC-1010 — a pointer.\n   For a problem of a common\
+  \ class, the sweep may include the commons and the web, read under SPEC-1056.\n\
+  2. **Owner-visible done-criterion.** Name the result the OWNER would recognize as\
+  \ \"done\" (the\n   plan's eventual `realized` proof reads back to it). Not \"code\
+  \ shipped\" — an observable outcome\n   (CHARTER §P3 done=adopted, homed there).\n\
+  3. **Verification plan UPFRONT.** Sketch the probe targets, the real-data soak expectation,\
+  \ and a\n   `postcheck` probe-block STUB (observed / min-runs / failure-threshold\
+  \ / evidence-home) — so the\n   plan declares HOW it will be proven before it is\
+  \ built, not after. The postcheck probe-block\n   contract is normative in SPEC-0034\
+  \ §postcheck — this is a pointer to fill the stub there.\n4. **External-checks map\
+  \ + trial-eligibility question.** Note which external audits apply at which\n  \
+  \ boundaries (gate templates: SPEC-1040 / SPEC-0034 §Audit-posture), and answer\
+  \ the\n   trial-eligibility question (SPEC-0035) — does this plan need a real-data\
+  \ trial?\n5. **Deferrals as tracked tasks, never prose — and only for this plan's\
+  \ own deliverable.** Two\n   cases, two homes:\n   (a) A part of THIS plan's own\
+  \ deliverable that is postponed: name it in the draft as a\n   deliverable of the\
+  \ plan, and file it as a tracked task at the `decomposition` cut together\n   with\
+  \ the plan's other cards (SPEC-0034 §decomposition — the plan-carve <workshop-spec>\
+  \ §B names),\n   parked with a `return_trigger`. Not filed at draft, and never a\
+  \ draft sentence with no\n   deliverable behind it (the deferral-as-prose trap)\
+  \ — rule + check in <workshop-spec>. A remainder\n   left undecomposed when the\
+  \ plan ends `partial` goes to a new plan instead (SPEC-0034 §Terminals).\n   (b)\
+  \ An ask from a requester that the plan does not take is not a deferral: record\
+  \ it in the\n   plan's out-of-scope list with its reason (for a public proposal,\
+  \ answer it through the\n   SPEC-0197 link-back). It is not filed as a card at draft.\n\
+  6. **Quantitative / foundational claims → big-plan discipline.** If the draft makes\n\
+  \   quantitative/foundational claims, apply the big-plan discipline\n   (`patterns/big-plan-checklist.md`\
+  \ / SPEC-0034 §Mandatory-big-plan-check). If a claim is a SCOPE\n   SIZING of a\
+  \ refactor / rename / relocation (a ref-count / blast-radius), it must be BACKED\
+  \ by the\n   SPEC-0046 §A Sizing rule, not estimated — pointer only, rule homed\
+  \ there (P5).\n7. **Planned artifacts / corpus impact.** Name the expected spec/task/decision\
+  \ OUTPUTS the plan\n   anticipates creating or changing — or explicitly say \"none\
+  \ yet\". This keeps a draft from staying\n   vague about its corpus footprint. And\n\
+  \   declare the plan's SCENARIO INPUTS the same way: if the plan shapes/touches\
+  \ a user-path, list\n   the scenario slug(s) in the plan's `cites:` (reuse the any→any\
+  \ cites edge — NOT a new\n   `scenarios:` field, CHARTER §P1 F2; the `cites(plan→scenario)`\
+  \ direction semantics are homed in\n   SPEC-0076 §4 — pointer, not restated here).\n\
+  8. **Realization-exit criteria UP FRONT.** Author the plan's realization-exit criteria\
+  \ — the\n   postcheck probe block (observed-behaviour / min-runs / failure-threshold\
+  \ / evidence-home) — the way a\n   TASK authors its `acceptance` at FILING, so the\
+  \ plan declares HOW it will be proven `realized` BEFORE it\n   is built, not improvised\
+  \ at postcheck entry. The skeleton seeds a `## Realization-exit criteria` prompt\n\
+  \   for this — the CANONICAL section name. FILLING that section IS the declaration\
+  \ the checks read: the\n   `plan draft --finalize` advisory and the `plan stage\
+  \ accepted` / `plan stage postcheck` REQUIRE-gates\n   share ONE predicate over\
+  \ it (`_postcheck_probe_block_declared`; a legacy `## Postcheck probe block`\n \
+  \  section still counts). So an author who fills the seeded skeleton verbatim is\
+  \ never WARNed for content\n   they authored, and an UNFILLED skeleton stub never\
+  \ satisfies the gate.\n   The criteria are CONFIRMED into the plan at `accepted`;\
+  \ the normative contract (incl. that they\n   are author-declared + owner-judged,\
+  \ no coded gate) is homed in SPEC-0034 §accepted/§postcheck — this is a\n   pointer\
+  \ to fill them, not a second home (P5 / rule-3 content-boundary). (Distinct from\
+  \ item 3's\n   verification-plan SKETCH: item 3 sketches probe targets; this names\
+  \ the concrete EXIT criteria.)\n9. **Current design only — no history in the body.**\
+  \ A plan body states the design as it stands\n   now: superseded designs, earlier\
+  \ rule variants and their numbers, and the deliberation\n   chronology are removed,\
+  \ not kept beside it — git history, the journal and the audit records\n   keep them.\
+  \ Each correction is named by its one line in the External checks / audits section\n\
+  \   (SPEC-0083 §The record — a pointer, not restated here).\n\n### Resume path for\
+  \ an existing `status: draft` plan (no new read verb)\nSessions never scan `plans/`\
+  \ (the picker reads `tasks/` only), and `plan stage draft` is unreachable\n(draft\
+  \ is the INITIAL status — the bundle is delivered by `plan file`, not by a stage\
+  \ verb). So a\nsession reopening a draft rediscovers this doctrine via the ALWAYS-LOADED\
+  \ LIFECYCLE §Plan-lifecycle\ndraft-row pointer → `graph query SPEC-0043`. That pointer\
+  \ IS the sole rediscovery route by design;\nno read verb is added for resumed draft\
+  \ authoring.\n\n### Delivery wiring (how this doctrine reaches the author)\nIdeas\
+  \ (`plan file --idea`) are flat holding pens —\nthey get NEITHER the draft-stage\
+  \ delivery NOR the heavy skeleton (unchanged).\n( last-touch refresh: `cmd_plan_file`'s\
+  \ trailing next-hint also carries the post-specs FORK\npointer — trial-eligible\
+  \ → `plan stage trial`, else → `plan stage accepted` — but that pointer is\ngoverned\
+  \ by SPEC-0034/SPEC-0035, NOT this front-load doctrine; this spec's delivery rule\
+  \ + skeleton\nsections are unchanged.)\n\n### Anti-complexity note (<workshop-spec>\
+  \ §7 / CHARTER §P1 F3 — what is retired)\nNOTHING is retired by this spec. It is\
+  \ admitted because it fills a real WIRING + CONTENT gap (the\ndraft bundle was never\
+  \ delivered, and no doctrine said what a draft should front-load), NOT because\n\
+  it accretes a parallel mechanism: it REUSES the existing plan-stage-entry axis,\
+  \ the existing\n`_emit_plan_stage_entered` delivery helper, and the existing `cmd_plan_file`\
+  \ verb — no new gate, no\nnew verb, no new store, no draft-completeness validator.\n\
+  \n## Parameters\n\nNone consumed. Every governing constant referenced (the big-plan\
+  \ apply-when criteria; the audit\ntemplates; the trial-eligibility rule; the decomposition\
+  \ discipline) lives in its OWN spec/pattern\n(SPEC-0034 / SPEC-0035 / <workshop-spec>\
+  \ / big-plan-checklist) — pointed at, NEVER duplicated or\n`consumed:` here (<workshop-spec>\
+  \ rule 3 / P5).\n\n## Rationale\n\nThe TASK lifecycle front-loads thinking (Stage-1\
+  \ Analysis is a delivered, ordered procedure); the\nPLAN draft stage had the delivery\
+  \ AXIS (SPEC-0034 binds `plan-stage-entry:draft`) but the bundle was\nnever delivered\
+  \ — `draft` is the initial status, so `plan stage draft` is never called. A session\n\
+  filing a plan therefore got no front-load guidance, and a draft could stay a bare\
+  \ title. The\nmotivating ad-hoc audit (decisions/plan-draft-authoring-spec-audit-adhoc.yaml,\
   \ YELLOW) confirmed\nOption A — keep doctrine in ONE normative home, reuse the existing\
   \ stage-entry axis, add no new\ngate/verb/store — and surfaced three refinements\
   \ absorbed here: F1 (state the resume path\nexplicitly), F2 (require a planned-artifacts/corpus-impact\

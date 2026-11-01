@@ -3862,7 +3862,8 @@ def _plan_seam_default_line(cur: str, nxts, *, spec_text=None) -> "str | None":
     if spec_text is None:
         try:
             specs = Path(__file__).resolve().parents[2] / "specs"
-            spec_text = next(specs.glob("SPEC-0126-*.yaml")).read_text(encoding="utf-8")
+            spec_text = state.spec_decoded_text(
+                next(specs.glob("SPEC-0126-*.yaml")).read_text(encoding="utf-8"))
         except (OSError, StopIteration):
             return None
     i = spec_text.find("### 7. Plan-drive autonomy seam-map")

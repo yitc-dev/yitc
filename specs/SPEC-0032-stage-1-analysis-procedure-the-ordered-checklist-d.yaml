@@ -31,13 +31,14 @@ body: "## Scenario\n\nThe moment a Build session CLAIMS a task (`worktree new --
   \ read-surface (SPEC-0091 Rule 1):\n     search `lessons/` by the card's SURFACE\
   \ — the files, verbs and specs it touches — and read the\n     lessons that cover\
   \ it before planning; they hold what an assistant's own memory used to recall,\n\
-  \     and that memory is not used (SPEC-1055).\n   - **Already-SHIPPED dup-check\
-  \ (BEFORE claiming/implementing)** — \"prior-art\" is not only \"is there an\n \
-  \    analog?\" but \"is this exact work already DONE?\". Grep the task's core implementation\
-  \ SYMBOL (the\n     function / flag / artifact the task would create), AND check\
-  \ the CITED plan's done tasks +\n     `closed_into` — a realized plan that still\
-  \ carries `closed_into: []` makes the \"already done\" link\n     INVISIBLE, so\
-  \ check the plan's done-task list too, not only the field. If the symbol resolves\
+  \     and that memory is not used (SPEC-1055).\n     For a problem of a common class,\
+  \ the sweep may include the commons and the web, read under SPEC-1056.\n   - **Already-SHIPPED\
+  \ dup-check (BEFORE claiming/implementing)** — \"prior-art\" is not only \"is there\
+  \ an\n     analog?\" but \"is this exact work already DONE?\". Grep the task's core\
+  \ implementation SYMBOL (the\n     function / flag / artifact the task would create),\
+  \ AND check the CITED plan's done tasks +\n     `closed_into` — a realized plan\
+  \ that still carries `closed_into: []` makes the \"already done\" link\n     INVISIBLE,\
+  \ so check the plan's done-task list too, not only the field. If the symbol resolves\
   \ to\n     shipped code OR a cited plan-task already closed it → it is a duplicate:\
   \ HALT, do not re-implement.\n1a. **REPEATED-WORK CHECK** — the prevention half\
   \ of filter 1: an \"existing analog?\" that is not\n   REUSED becomes the same work\

@@ -565,9 +565,14 @@ body: "## Scenario\n\nA project that rides the kernel keeps its cross-cutting OP
   \ repair (the next land would still name a missing program) and is refused\nnaming\
   \ that shape; a command swap whose replacement program is absent is refused; a PASSING\
   \ base\nleg yields no carve-out (an altered passing program is steady state — it\
-  \ runs from the next land).\nA PASSING DECLARED COMMAND IS RECORDED ON THE LAND\
-  \ ROW. When at least one trusted-base\n`verify.floor.<atom>.command` ran and exited\
-  \ 0 on a land whose floor passed, the existing\n`land_completed.consumer_verify_layers`\
+  \ runs from the next land).\nA SECOND ADMISSION on the same row: when the `dependencies`\
+  \ command fails on a branch whose diff\nis bookkeeping ONLY (the exact journal and\
+  \ derived-graph paths, a direct-child `.yaml` of `tasks/`\nor `decisions/`; deletions\
+  \ count; an empty or unreadable diff does not qualify), the command has\nrun, its\
+  \ failure is named, and the land proceeds with kind `planning-only` and `executed:\
+  \ true`.\nEvery other atom refuses as before.\nA PASSING DECLARED COMMAND IS RECORDED\
+  \ ON THE LAND ROW. When at least one trusted-base\n`verify.floor.<atom>.command`\
+  \ ran and exited 0 on a land whose floor passed, the existing\n`land_completed.consumer_verify_layers`\
   \ trail carries ONE row `{layer: kernel-floor, outcome: passed,\natoms: [{atom,\
   \ command, exit: 0}...]}` naming each command that ran — so a consumer can prove\n\
   (CHARTER §P8) its declared floor actually executed. A land where no declared command\
@@ -1286,4 +1291,4 @@ implements_signature:
   bin/lib/init.py#_integrity_graph_for_commit: 10ed757dd5ca1c461a0922f799e12994807de506e6a23b764b3f1b750d449b63
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
   bin/lib/init.py#cmd_init: cea00177794045410e75b5d1bac4c07494445b204d4bfc13e04a29b4067cce0a
-  bin/lib/worktree.py#_any_author_land_floor: 0ccef3b9d02eddb4af0e242d5431675ad828d44714e51d35bb94dc16249e7592
+  bin/lib/worktree.py#_any_author_land_floor: 0043829235509924a5949f7b0b03d611b3ebdc978311a2aa22d78172cc1372cc

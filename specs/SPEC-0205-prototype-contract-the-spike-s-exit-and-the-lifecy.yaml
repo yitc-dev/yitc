@@ -19,6 +19,7 @@ implements:
 - bin/lib/worktree_lifecycle.py#_declare_spike_late
 - bin/lib/worktree_lifecycle.py#_spike_round_preflight
 - bin/lib/worktree_lifecycle.py#_spike_round_handover
+- bin/lib/worktree_lifecycle.py#_served_round_dirt
 - bin/lib/audit_packet.py#build_audit_prompt
 - bin/lib/audit.py#prototype_post_context
 - bin/lib/task.py#prototype_ref_error
@@ -406,27 +407,41 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ `patterns/spike-mode.md` §5b). With no declaration nothing project-specific\n\
   runs, and the output says so.\n- **Refused, creating nothing:** without `--work\
   \ … --spike`; a served batch that is not a live\ndeclared spike; a served round\
-  \ with uncommitted changes (commit the round first); a next-round\nslug that already\
-  \ exists or equals the served one; a declaration that is not one non-empty command\n\
-  or a carrier that cannot be read; and, with no step declared, a served round a cage\
-  \ still serves.\n- **The park is bound to the tip the next round inherited.** A\
-  \ failing step, or a served round whose\ntip moved or became dirty while the step\
-  \ ran, leaves the served round UNPARKED and intact and the\nnext round open, and\
-  \ the command fails naming the way on (`worktree park --work <served>` once the\n\
-  change is carried). A park refusal of its own (rule 3's served-tree refusal, an\
-  \ existing tag) is\nthe park's, unchanged.\nCheck layer: KERNEL.\n\n## Parameters\n\
-  \nNone consumed. The abort class `spike-content`, the tag prefix `spike/` (annotated\
-  \ tags), the stamp key `spike`,\nthe journal rows `spike_declared_late` / `spike_content_checked`\
-  \ / `spike_content_previewed`, the report\nline prefix `spike-content:` and the\
-  \ packet field `prototype_identity` are IDENTIFIERS fixed by this text, not tunables.\
-  \ Deliberately ABSENT tunables:\na similarity threshold, a changed-line minimum,\
-  \ a grace period.\n\n## Rationale\n\nEvery rule here EXTENDS an existing analog\
-  \ (the `--spike` stamp, `_spike_land_verdict`, the\nwork-batch product-source gate,\
-  \ SPEC-0094 targets + facts, <workshop-spec> overlays, `worktree park`) and\nadds\
-  \ no new entity or store — refusals on existing verbs, a git ref, a folded set,\
-  \ packet fields.\nThe per-rule CHARTER §P1 filter record, the incidents behind each\
-  \ rule, and the alternatives\nrejected at the consults are DELIBERATION HISTORY,\
-  \ not rule text: they live in plan\n`prototype-never-a-transfer-close-every-path-by-whi`\
+  \ with uncommitted changes (commit the round first; rows appended to its live journal\
+  \ are not round content, so here and at the park-time check below they do not count);\
+  \ a next-round\nslug that already exists or equals the served one; a declaration\
+  \ that is not one non-empty command\nor a carrier that cannot be read; and, with\
+  \ no step declared, a served round a cage still serves.\n- **The park is bound to\
+  \ the tip the next round inherited.** A failing step, or a served round whose\n\
+  tip moved or became dirty while the step ran, leaves the served round UNPARKED and\
+  \ intact and the\nnext round open, and the command fails naming the way on (`worktree\
+  \ park --work <served>` once the\nchange is carried). A park refusal of its own\
+  \ (rule 3's served-tree refusal, an existing tag) is\nthe park's, unchanged.\nCheck\
+  \ layer: KERNEL.\n\n### 13. Helpers in a spike — the Controller may hand sandbox\
+  \ edits to in-session helper subagents\nThe one bounded exception to the CHARTER\
+  \ §6 fence against an in-process subagent (owner decision\n`events.jsonl#ts=`):\
+  \ in a declared spike session the Controller keeps talking\nwith the person while\
+  \ in-session helper subagents make the edits, several in parallel.\n- **Spike worktree\
+  \ only.** A helper edits inside the declared spike worktree (rule 1) and nowhere\
+  \ else.\n- **No land, no production.** A helper claims, lands, parks and deploys\
+  \ nothing, and reaches no production\n  resource; those acts stay outside it.\n\
+  - **Prototype only.** What a helper writes is spike content: rule 2 holds, and it\
+  \ reaches `main` only\n  through a `prototype_ref` card that pays all nine stages\
+  \ (rule 5).\n- **No parallel-edit guard.** By the owner's decision: it is a sandbox.\n\
+  A dispatched Worker and every card flow stay under the fence. Nothing enforces the\
+  \ fence on an in-process\nsubagent, so nothing is changed to admit a helper. Check\
+  \ layer: discipline.\n\n## Parameters\n\nNone consumed. The abort class `spike-content`,\
+  \ the tag prefix `spike/` (annotated tags), the stamp key `spike`,\nthe journal\
+  \ rows `spike_declared_late` / `spike_content_checked` / `spike_content_previewed`,\
+  \ the report\nline prefix `spike-content:` and the packet field `prototype_identity`\
+  \ are IDENTIFIERS fixed by this text, not tunables. Deliberately ABSENT tunables:\n\
+  a similarity threshold, a changed-line minimum, a grace period.\n\n## Rationale\n\
+  \nEvery rule here EXTENDS an existing analog (the `--spike` stamp, `_spike_land_verdict`,\
+  \ the\nwork-batch product-source gate, SPEC-0094 targets + facts, <workshop-spec>\
+  \ overlays, `worktree park`) and\nadds no new entity or store — refusals on existing\
+  \ verbs, a git ref, a folded set, packet fields.\nThe per-rule CHARTER §P1 filter\
+  \ record, the incidents behind each rule, and the alternatives\nrejected at the\
+  \ consults are DELIBERATION HISTORY, not rule text: they live in plan\n`prototype-never-a-transfer-close-every-path-by-whi`\
   \ §Deliberation chronology (<workshop-spec> rule 8 —\nthe spec keeps rules, the\
   \ plan keeps the why).\n\n### Rule 12 — the round hand-over\n\nX-2143 (a consumer,\
   \ 2026-10-30): each sandbox round was moved to the next spike by hand — open the\n\
@@ -617,8 +632,9 @@ implements_signature:
   bin/lib/task.py#prototype_ref_error: 976fed2553c45f8cb9ebee95330ccf5cb85028b1cfd3aaee1e8c21a99238bc05
   bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
-  bin/lib/worktree_lifecycle.py#_spike_round_handover: 6f59507eb7d8858171e25b24f961d1b8c9c747b67689daa0d6d9e84b82d0ce0a
-  bin/lib/worktree_lifecycle.py#_spike_round_preflight: 69c68221ed2e0bb3e54058d8d5d3fd092d3417abd5743ccb0135928d29a3c984
+  bin/lib/worktree_lifecycle.py#_served_round_dirt: 7711c54aa7b9c64ff9793fb7592ac90819f1c20492eb435c441380f6229b32a5
+  bin/lib/worktree_lifecycle.py#_spike_round_handover: 9559321ff7d38cd01c82320e237ed3fdac001ba615c75a5888e3c4b479f981a3
+  bin/lib/worktree_lifecycle.py#_spike_round_preflight: bb8e4b1a25568b1129a12e94ec49ffd20f1eaab3d3d3beddf7adfb136554d232
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
   bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a
   bin/lib/worktree_lifecycle.py#cmd_worktree_new: f24ce5352abb768ebe02c1ee07e1aba9aec00ffdfeecb9fe2eb847602abf54d3

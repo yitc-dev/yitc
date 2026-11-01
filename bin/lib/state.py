@@ -347,6 +347,32 @@ def dump(obj, sort_keys: bool = False) -> str:
     return yaml.safe_dump(obj, sort_keys=sort_keys, allow_unicode=True, default_flow_style=False)
 
 
+def spec_decoded_text(text: str) -> str:
+    """The string values of a spec file's YAML, joined by newlines (T-14406): what a raw-text token
+    scan must read, because the release build re-serializes every spec through `dump` and a long
+    string comes out as an escaped folded scalar, with the token and its value on separate lines.
+    Text that does not parse is returned as it is, so a reader keeps its own fail direction."""
+    import yaml
+    try:
+        doc = load_str(text)
+    except yaml.YAMLError:
+        return text
+    out: list = []
+
+    def walk(node):
+        if isinstance(node, str):
+            out.append(node)
+        elif isinstance(node, dict):
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(doc)
+    return "\n".join(out)
+
+
 # T-11930 — the block-scalar extent, by INDENTATION only. String surgery, the same idiom
 # `strip_top_key` below uses: a second (round-trip-safe) YAML parser is what CHARTER §P5 forbids
 # and what `dropped_comment_lines` exists to compensate for, so it cannot be the thing that fixes it.

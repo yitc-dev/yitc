@@ -278,6 +278,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "computes package_sha256 over the canonical form and records it with the part "
                          "sizes, destination and visibility; a supplied package_sha256 that differs is "
                          "refused (the package changed after consent).")
+    ev.add_argument("--standing-consent", dest="standing_consent", action="store_true",
+                    help="external_action with --package only (SPEC-1057): the verb IS the post, under "
+                         "the project's declared `publication.standing_consent`. It checks the package "
+                         "against the class, freezes it, posts the frozen bytes to the kernel's tracker "
+                         "and records that hash and the issue URL. Anything outside the class refuses "
+                         "and needs per-package consent. With --check it stops before freezing or posting.")
     ev.set_defaults(func=cmd_event, read_only_refuse="appends a journal row — capture from your own checkout, "
                                                     "without -C --read-only")
 
@@ -2186,6 +2192,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                              "earlier, so what it prints IS the packet the next real invocation "
                              "assembles. Carries two ADVISORY observations (declared-vs-audited "
                              "touch; no-journal-row-since-the-previous-RED) that gate nothing. "
+                             "On `audit pre` for a card with prototype_ref it also reports the "
+                             "SPEC-0205 identity preview of the worktree draft on stderr and "
+                             "writes its spike_content_previewed row (T-14400). "
                              "Ceiling-neutral by construction: it runs AT or PAST the audit-loop "
                              "ceiling, because a preview has no pass for the ceiling to bound. "
                              "Not combinable with --on-decisions"

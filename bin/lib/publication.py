@@ -23,8 +23,10 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 PARTS = ("content", "attachments", "metadata", "destination", "visibility")
@@ -444,6 +446,151 @@ def require_consent(consented_sha256, pkg) -> None:
     if not consent_covers(consented_sha256, pkg):
         raise PackageChanged(f"the package changed after consent (consented {consented_sha256}, now "
                              f"{package_sha256(pkg)}): fresh consent is needed before posting")
+
+
+# ── the standing consent: one declared class, posted by the verb from one frozen package ────────
+
+#: The ONE class a project may declare a standing consent for (SPEC-1057).
+STANDING_CLASS = "kernel-defect-report"
+REPORT_KINDS = ("kernel-defect", "method-proposal")
+#: The `data` keys only the standing post itself writes: a hand row can claim none of them.
+STANDING_ROW_KEYS = ("standing_consent", "standing_consent_from", "package_frozen")
+
+
+def kernel_tracker() -> str:
+    from lib import release   # noqa: PLC0415 — lazy: a large host
+    return release.KERNEL_TRACKER
+
+
+def standing_declaration(ops):
+    """The project's `publication.standing_consent` entry, or None when it declares none (the absent
+    entry IS the revocation). Never raises on a shape: `standing_refusals` judges what is returned."""
+    section = ops.get("publication") if isinstance(ops, dict) else None
+    entry = section.get("standing_consent") if isinstance(section, dict) else None
+    return entry or None
+
+
+def standing_refusals(pkg, declaration, *, project_names=()) -> list:
+    """Why this package is outside the declared class, as reason strings naming positions and never
+    values; empty = inside it. Raw logs and third-party code cannot be detected mechanically, so the
+    poster attests to both inside the hashed metadata; a project name in the package refuses whatever
+    the attestation says."""
+    _check(pkg)
+    if not isinstance(declaration, dict) or declaration.get("class") != STANDING_CLASS \
+            or not isinstance(declaration.get("from"), str) or not declaration["from"].strip():
+        return [f"no well-formed `publication.standing_consent` entry of class {STANDING_CLASS} "
+                f"with a `from` is declared"]
+    declared = declaration.get("project_names", [])
+    if not isinstance(declared, list) or not all(isinstance(n, str) for n in declared):
+        return ["`publication.standing_consent.project_names` is not a list of strings"]
+    out = []
+    if pkg["destination"] != kernel_tracker():
+        out.append("the destination is not the kernel's public tracker")
+    if pkg["visibility"] != "public":
+        out.append("the visibility is not public")
+    if pkg["attachments"]:
+        out.append("the package has an attachment")
+    meta = pkg["metadata"]
+    if set(meta) != {"title", "report_kind", "name_project", "raw_logs", "third_party_code"}:
+        out.append("the metadata keys are not exactly title, report_kind, name_project, raw_logs, "
+                   "third_party_code")
+    if not isinstance(meta.get("title"), str) or not meta.get("title", "").strip():
+        out.append("metadata.title is absent or empty")
+    if meta.get("report_kind") not in REPORT_KINDS:
+        out.append("metadata.report_kind is not one of the class's kinds")
+    out += [f"metadata.{k} is not false" for k in ("name_project", "raw_logs", "third_party_code")
+            if meta.get(k) is not False]
+    out += [f"{kind} in {field}" for kind, field in
+            findings(pkg, project_names=list(project_names) + declared)]
+    return out
+
+
+def _as_manifest(pkg) -> dict:
+    return {"content": "content", "attachments": [f"attachments/{n}" for n in sorted(pkg["attachments"])],
+            "metadata": pkg["metadata"], "destination": pkg["destination"],
+            "visibility": pkg["visibility"]}
+
+
+def _unfreeze(directory: Path) -> None:
+    for d, _subdirs, _files in os.walk(directory):
+        os.chmod(d, 0o755)
+
+
+def freeze_package(pkg, root) -> tuple:
+    """The package as an immutable copy at <root>/<sha>/ (content-addressed, never rewritten), written
+    through a temporary directory and an atomic rename, read-only. An existing copy is reused only when
+    its bytes rehash to <sha>. Returns (frozen manifest path, the package reloaded FROM THE COPY) — the
+    only bytes a standing post and its row may use. PackageChanged when the copy does not rehash."""
+    sha = package_sha256(pkg)
+    root = Path(root)
+    root.mkdir(parents=True, exist_ok=True)
+    dest = root / sha
+    if not dest.exists():
+        tmp = Path(tempfile.mkdtemp(dir=root, prefix=f".{sha[:12]}."))
+        try:
+            (tmp / "content").write_bytes(pkg["content"])
+            for name, data in pkg["attachments"].items():
+                (tmp / "attachments").mkdir(exist_ok=True)
+                (tmp / "attachments" / name).write_bytes(data)
+            (tmp / "manifest.json").write_text(json.dumps(_as_manifest(pkg)), encoding="utf-8")
+            for d, _subdirs, files in os.walk(tmp, topdown=False):
+                for f in files:
+                    os.chmod(Path(d) / f, 0o444)
+                os.chmod(d, 0o555)
+            os.rename(tmp, dest)
+        except OSError:
+            if not dest.exists():      # a real failure; a lost rename race reads the winner's copy below
+                _unfreeze(tmp)
+                shutil.rmtree(tmp, ignore_errors=True)
+                raise
+            _unfreeze(tmp)
+            shutil.rmtree(tmp, ignore_errors=True)
+    frozen = load_package(dest / "manifest.json")
+    if package_sha256(frozen) != sha:
+        raise PackageChanged(f"the frozen package at {dest} does not rehash to {sha}: nothing is posted")
+    return dest / "manifest.json", frozen
+
+
+def post_standing(frozen) -> str:
+    """Post the frozen package's bytes to the kernel's tracker; the issue URL the forge returned.
+    PublicationError on every failure, naming whether the post may exist."""
+    tracker = kernel_tracker()
+    repo = tracker.removeprefix("https://github.com/").removesuffix("/issues")
+    try:
+        r = subprocess.run(["gh", "issue", "create", "--repo", repo, "--title", frozen["metadata"]["title"],
+                            "--body-file", "-"], input=frozen["content"], capture_output=True, timeout=120)
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise PublicationError(f"`gh issue create` did not complete ({type(exc).__name__}): check the "
+                               f"tracker before any retry, the post state is unknown") from exc
+    out = (r.stdout or b"").decode("utf-8", "replace")
+    if r.returncode != 0:
+        tail = (r.stderr or b"").decode("utf-8", "replace").strip()[-300:]
+        raise PublicationError(f"`gh issue create` exited {r.returncode}: {tail}")
+    m = re.search(re.escape(tracker) + r"/\d+", out)
+    if not m:
+        raise PublicationError("`gh issue create` exited 0 and printed no issue URL: the post state is "
+                               "unknown, check the tracker before any retry")
+    return m.group(0)
+
+
+def standing_post_lines(rows) -> list:
+    """One line per post under a standing consent since the last Controller start, `rows` being
+    session_started and external_action rows in journal order. When `rows` hold no Controller start
+    the read cannot name the interval, so a closing line says so and points at the whole journal."""
+    posts, started = [], False
+    for row in rows:
+        data = row.get("data") or {}
+        if row.get("type") == "session_started":
+            if data.get("type") != "build":
+                posts, started = [], True
+        elif data.get("standing_consent"):
+            posts.append(data)
+    lines = [f"standing consent post: {d.get('target') or '?'} package_sha256 "
+             f"{d.get('package_sha256') or '?'} ({d.get('standing_consent')})" for d in posts]
+    if not started:
+        lines.append("standing consent posts: no Controller start in the read window, so older posts "
+                     "may not be listed; `bin/yitc-v2 journal query --type external_action`")
+    return lines
 
 
 # ── the internal channel and the one preparation entry point ────────────────────────────────────

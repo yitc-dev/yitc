@@ -4389,7 +4389,7 @@ implements_signature:
   bin/lib/session.py#_resolve_declared_executable: 1073a7e9f324cf8be3196666da9af1b53427ad4e5797014ed3906a6826c1f783
   bin/lib/session.py#born_skew_check_line: 01c8dd8bcee9171140b41bfcfa3573bba4caa561492c708b1f7318b54be777a8
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
-  bin/lib/session.py#cmd_session_start: 3e3f9d346b226777570b5a88d0a8e83bdd944beaadba93bbdf83a45777ee6482
+  bin/lib/session.py#cmd_session_start: 209518a0b12ba06d7ca13514a927034ad0d08c8cc5416340463977967526f8ee
   bin/lib/task.py#_render_live_dependents: 02e538bf32a90192c8b9f576da4fbde037c70ebd8d3eab47cb21286e5fc53aa7
   bin/lib/task.py#cmd_task_update: c43a2b042dde6187a1c00cbd9290899e8129a03262bdf042cef5dde72e9c3b56
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47

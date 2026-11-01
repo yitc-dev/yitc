@@ -16825,8 +16825,9 @@ def _deliverable_landed_on_main(tid: str, task_path: "Path", *, REPO_ROOT, EVENT
     is REFUSED. Two wider derivations were measured against this repo's `main` before being rejected:
     commit-subject attribution (8 ready cards match, 3 of them via their own FILING commit — one of
     which also carried another card's code) and expected_touch existence (declared paths exist long
-    before the deliverable does). Both admit cards whose deliverable is absent, so both are out. The
-    refusal NAMES what would have proved the card, so the caller learns the shape of the missing
+    before the deliverable does). Both admit cards whose deliverable is absent, so both are out. T-14398
+    admits ONE narrow case of the first (`_work_land_delivery_row`): the attribution must also
+    survive a land and an authored-path read. The refusal NAMES what would have proved the card, so the caller learns the shape of the missing
     evidence instead of only hearing "no"."""
     try:
         rel = str(task_path.relative_to(REPO_ROOT))
@@ -16873,9 +16874,15 @@ def _deliverable_landed_on_main(tid: str, task_path: "Path", *, REPO_ROOT, EVENT
     except Exception:                                     # noqa: BLE001 — unreadable journal → refuse
         return (False, "", "`main`'s journal could not be read — undeterminable")
     if proof is None:
+        try:
+            proof = _work_land_delivery_row(tid, EVENTS_PATH, REPO_ROOT, _run_git_cap)
+        except Exception:                                 # noqa: BLE001 — unreadable → refuse
+            proof = None
+    if proof is None:
         return (False, "", f"no delivery proof for {tid} on `main`: neither a SUCCESSFUL "
-                           f"`land_completed` for branch `{_LANDED_BRANCH_FOR(tid)}` nor a "
-                           f"`task_closed`. Without one, whether the deliverable is on `main` cannot "
+                           f"`land_completed` for branch `{_LANDED_BRANCH_FOR(tid)}`, nor a "
+                           f"`task_closed`, nor a successful `work/` land carrying a non-chore "
+                           f"`<type>({tid}):` commit with authored paths. Without one, whether the deliverable is on `main` cannot "
                            f"be DERIVED — and this route never guesses")
     return (True, f"{proof.get('type')}@{proof.get('ts')} on main", "")
 
@@ -16960,6 +16967,55 @@ def _delivery_proof_row(tid: str, events_path) -> "dict | None":
             if found is None or str(ev.get("ts") or "") >= str(found.get("ts") or ""):
                 found = ev
     return found
+
+
+def _work_land_delivery_row(tid: str, events_path, REPO_ROOT, _run_git_cap) -> "dict | None":
+    """T-14398 (public issue #228) — the successful `work/` land that shipped `tid`'s deliverable, or
+    None. A floor repair rides one `work/` branch with its own card, so no `task/<tid>` land exists.
+
+    `land_completed` carries no task id, so all three links are derived from `main`: (1) a commit whose
+    subject is exactly `<type>(<tid>):`, `chore` excluded (the filing and record type, the T-11305
+    measured false match); (2) that commit carries a path that is not bookkeeping, so a card edit
+    proves nothing; (3) the FIRST successful land at or after it, in commit order, is on a `work/`
+    branch; a `task/` land reached first is another card's. HONEST BOUND: a raw commit made directly
+    on `main` under such a subject is attributed to the next `work/` land; its deliverable is on `main`
+    all the same, which is the only thing this route asks."""
+    import re
+    from lib import land_floors
+    from lib.cli import _BOOKKEEPING_ALLOWLIST as _bk
+    log = _run_git_cap(["log", "main", "--format=%H%x00%s", "--fixed-strings",
+                        f"--grep=({tid})"], REPO_ROOT)
+    if log.returncode != 0:
+        return None
+    subject = re.compile(rf"(?!chore\b)[a-z]+\({re.escape(tid)}\)!?: ")
+    commits = [ln.split("\0", 1)[0] for ln in (log.stdout or "").splitlines()
+               if "\0" in ln and subject.match(ln.split("\0", 1)[1])]
+    lands = None
+    for sha in commits:
+        files = _run_git_cap(["diff-tree", "--no-commit-id", "--name-only", "-r", "-z", "--root", sha],
+                             REPO_ROOT)
+        if files.returncode != 0 or all(land_floors._path_is_bookkeeping(p, _bk)
+                                        for p in files.stdout.split("\0") if p):
+            continue
+        if lands is None:
+            lands = {}
+            for ev in _delivery_proof_segment_rows(Path(str(events_path)), '"land_completed"'):
+                data = ev.get("data") if isinstance(ev.get("data"), dict) else {}
+                if ev.get("type") == "land_completed" and _land_completed_succeeded(data):
+                    short = str(data.get("sha")).strip()
+                    if len(short) >= 7:                # a shorter one prefix-matches too much
+                        lands[short] = ev
+        after = _run_git_cap(["rev-list", "--reverse", "--topo-order", "--ancestry-path",
+                              f"{sha}..main"], REPO_ROOT)
+        if after.returncode != 0:
+            continue
+        for walked in [sha, *after.stdout.split()]:
+            hit = next((ev for short, ev in lands.items() if walked.startswith(short)), None)
+            if hit is not None:
+                if str(hit["data"].get("branch") or "").startswith("work/"):
+                    return hit
+                break
+    return None
 
 
 #: T-11305 — the ONLY paths the no-worktree claim self-commit may stage: the card it moves and the

@@ -1951,6 +1951,30 @@ def _floor_repair_kind(worktree: Path, atom: str, base_cmd: str, base_argv: list
     return None, None
 
 
+def _path_is_bookkeeping(path: str, allowlist) -> bool:
+    """T-14398 — is `path` a filing or lifecycle record rather than anything a build could execute or
+    resolve? Exact paths only for the journal and the derived graph views (`allowlist`, the engine's
+    `_BOOKKEEPING_ALLOWLIST`), and a DIRECT child `.yaml` of `tasks/` or `decisions/`: a lockfile,
+    a script or a nested file under those directories is not a record."""
+    if path in allowlist:
+        return True
+    parts = path.split("/")
+    return len(parts) == 2 and parts[0] in ("tasks", "decisions") and parts[1].endswith(".yaml")
+
+
+def _floor_diff_bookkeeping_only(worktree: Path, base_ref, _run_git_cap, allowlist) -> bool:
+    """T-14398 (public issue #228) — does this branch change bookkeeping paths ONLY? Deletions count,
+    which is why this asks git directly rather than `_floor_changed_paths` (added and modified only).
+    An unresolved base, a failed read or an empty diff is False: the floor keeps refusing."""
+    if not base_ref or _run_git_cap is None:
+        return False
+    r = _run_git_cap(["diff", "--name-only", "-z", "--no-renames", str(base_ref), "HEAD"], worktree)
+    if r.returncode != 0:
+        return False
+    paths = [p for p in r.stdout.split("\0") if p]
+    return bool(paths) and all(_path_is_bookkeeping(p, allowlist) for p in paths)
+
+
 def _floor_project_commands(worktree: Path, floor: dict, _verify_test_timeout_seconds,
                             base_ref=None, _run_git_cap=None, candidate_floor=None, repairs_out=None,
                             passed_out=None, *, _FLOOR_ATOMS=_FLOOR_ATOMS, _floor_command_env, _floor_trusted_executable,

@@ -167,5 +167,5 @@ implements_signature:
   bin/lib/init.py#born_permissive_gate: 16dda58eea7ef5c96b5988f205de595a7595919afca3d49410a9abdeada0619b
   bin/lib/init.py#record_born_permissive_ratifications: cc663c078b089f97971ba7feed13e442891ab2eafe5d7373699fb33d9b1ca9d0
   bin/lib/views.py#_render_growth_relevance: c309bc3b04e330e068c3c1992e5b28f9d4e0b641b06828d195bd896955e22f82
-  bin/lib/views.py#growth_window_days: c4e93f98b05db0cde278340f9008105963a61bc644067b5fc1deba5f39c57780
+  bin/lib/views.py#growth_window_days: 272b19b7e6910f0fa72981d3b3397b6c4f25774940714566339f38db7053c92d
   bin/lib/views.py#project_growth: 08bf332e2525ae0c10d49d812d0ecc32d0589d9d13dc8818a6a876e0aed58330

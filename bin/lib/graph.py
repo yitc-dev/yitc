@@ -803,8 +803,9 @@ def _mention_frozen_class(path: str, spec_status: dict, card_status: dict) -> "s
 def _mention_review_currency(root, task_id: str, analysis, main_tip: str, *, _run_git_cap) -> "list[str]":
     """The SPEC-1037 §7 snapshot re-run check for `worktree sync` (T-14022): report-only lines for each
     spec carrying `supersedes:` whose `activation_owner_task` is `task_id` — `proposed`, or `active`
-    after the card's own close and before its land; [] for any other card. The card's Analysis names its
-    snapshot as `mention review snapshot: <main commit> target: <id>`; per successor the record naming
+    after the card's own close and before its land; [] for any other card. `analysis` is the text holding the
+    snapshot line `mention review snapshot: <main commit> target: <id>` (the caller passes the card's
+    Analysis and its notes); per successor the record naming
     its re-targeted target wins over one naming the declared target, and among those the newest commit
     by ancestry counts. A successor already `active` at `main_tip` has landed: nothing is owed. Paths
     whose frozen class is fixed by the path alone (journal, decisions, test fixtures) are not searched,

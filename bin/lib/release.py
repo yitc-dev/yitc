@@ -3479,6 +3479,8 @@ ADAPTER_PATTERN = "patterns/contribution-intake-adapter.md"
 # renders: it sits here, beside the adapter pointer, and moves with the adapter when the commons
 # changes hosts (the adapter's "Moving to another host" names this constant).
 COMMONS_ADDRESS = "https://github.com/yitc-dev/commons"
+#: The kernel's public tracker: the one destination of a standing consent (SPEC-1057).
+KERNEL_TRACKER = COMMONS_ADDRESS.rsplit("/", 1)[0] + "/yitc/issues"
 
 # A conservative single-line proposal-id grammar. The link-back ids are rendered into a YAML-shaped
 # list, so an id carrying a newline or a structural character could restructure the notes; the

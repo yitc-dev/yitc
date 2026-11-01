@@ -1,6 +1,6 @@
-# Release v2.25.0
+# Release v2.26.0
 
-Source commit: `443a655405b106620dff8b451ebe1f16b81260a3`
+Source commit: `1e579e8fb0c67970604423b3884530100202925f`
 
 ## Proposals this release answers
 
@@ -106,7 +106,10 @@ answers:
   - 'yitc-dev/yitc#225'
   - 'yitc-dev/yitc#226'
   - 'yitc-dev/yitc#227'
+  - 'yitc-dev/yitc#228'
+  - 'yitc-dev/yitc#229'
   - 'yitc-dev/yitc#23'
+  - 'yitc-dev/yitc#230'
   - 'yitc-dev/yitc#24'
   - 'yitc-dev/yitc#25'
   - 'yitc-dev/yitc#26'
@@ -237,43 +240,20 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-2 kernel spec(s) became active and 1 opt-in key(s) were added to a kernel spec's carrier section since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
-
-- SPEC-1056 — Untrusted external content - data never instructions, read only through the AI tool's own reader after the kernel's address check, the person decides what the check refuses
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1056`
-- SPEC-1057 — External-mutation capture and the publication package - external_action for an un-verbed outbound mutation; a public post names the consented package
-  turn on: not declared by the spec — read its contract for whether and how a project opts in
-  read: `yitc-v2 graph query --kernel SPEC-1057`
-- SPEC-1046 — DECIDE FIRST, THEN RUN — every layer of a group the run starts together first decides its units (prep, list, required checks, selection), the kernel waits until all have decided and names ONE file with every layer's final list in YITC_VERIFY_LAYER_DECIDED, and only then any layer runs; use it to size each layer's resources against the others'. A slow layer's decide step delays the others' start, inside their own bounds.
-  turn on: yitc-ops.yaml `verify.decide_first: true`
-  read: `yitc-v2 graph query --kernel SPEC-1046`
+No kernel spec became active since the previous release tag. No opt-in key was added to a kernel spec's carrier section either.
 
 ## What changed
 
-21 task(s) closed since the previous release tag, in close order:
+8 task(s) closed since the previous release tag, in close order:
 
-- T-14367 — State in SPEC-0046 that a card is cut by coherent surface (for example one screen), with each behaviour as its own criterion and test, not one card per behaviour (docs) — events.jsonl#ts=2026-10-30T08:44:09Z
-- T-14365 — Leave the specs a Stage-6 run activates for its window out of the uncommitted-inside-a-layer-surface note (fix) — events.jsonl#ts=2026-10-30T08:59:14Z
-- T-14370 — Return a silent unit to a land and its Stage-6 run when the card's diff changes a file that unit reads, not only the unit's own file (fix) — events.jsonl#ts=2026-10-30T09:47:21Z
-- T-14366 — At plan decomposition, when a long serial chain of cards hangs on one spec lineage, assess splitting that spec by stable surface before cutting (docs) — events.jsonl#ts=2026-10-30T12:33:18Z
-- T-14373 — Name the spike exit, not land, in the next-step hint of worktree adopt on a spike worktree (fix) — events.jsonl#ts=2026-10-30T13:40:50Z
-- T-14375 — Admit an audit-post route after a RED fix when the Tests-run admission sync needed a hand-resolved merge (fix) — events.jsonl#ts=2026-10-30T14:06:36Z
-- T-14371 — Make worktree sweep reap the verify temp base and the nightly report its stale volume (fix) — events.jsonl#ts=2026-10-30T14:37:47Z
-- T-14372 — Make a deploy refuse at once, naming the land, when a land already holds the reservation (fix) — events.jsonl#ts=2026-10-30T15:01:35Z
-- T-14377 — Record each verify layer's prep and selection time apart from its run time (infra) — events.jsonl#ts=2026-10-30T15:54:20Z
-- T-14374 — Give the hand-over from one spike round to the next a covering verb (feature) — events.jsonl#ts=2026-10-30T16:26:55Z
-- T-14376 — Let a project opt into a decide-first barrier so every layer sees all final lists before any layer runs (feature) — events.jsonl#ts=2026-10-30T20:49:18Z
-- T-14387 — Remove land_verify_legs' back-import of lib.worktree that turned main red (fix) — events.jsonl#ts=2026-10-30T23:35:49Z
-- T-14379 — Activate SPEC-1057 — the consented publication package, scrub before consent, and the uncleanable to the internal channel as a description only (infra) — events.jsonl#ts=2026-10-31T00:09:03Z
-- T-14388 — Let a kernel branch that adds consumer-visible index vocabulary pass the born consumer's integrity layer in e2e tests (fix) — events.jsonl#ts=2026-10-31T00:49:23Z
-- T-14378 — Add the address check before the AI tool's reader, redact what the kernel keeps, and deliver SPEC-1056 at a before-reading-external-content trigger (infra) — events.jsonl#ts=2026-10-31T02:10:34Z
-- T-14380 — Amend the contribution policy and the kernel's participant rules for the commons, and align the rendered policy (docs) — events.jsonl#ts=2026-10-31T02:44:39Z
-- T-14389 — List a gated key added to an already-active spec under the release's Capabilities to consider (feature) — events.jsonl#ts=2026-10-31T05:10:13Z
-- T-14385 — Add the kernel eviction rule and run the dependency check of the AI bench stand candidate (refactor) — events.jsonl#ts=2026-10-31T09:07:32Z
-- T-14393 — Publication scrub admits a public key fingerprint; a release package holds only the posts the run makes (fix) — events.jsonl#ts=2026-10-31T16:23:37Z
-- T-14394 — Placement class-default for publication/ (v2-self) (fix) — events.jsonl#ts=2026-10-31T18:48:54Z
-- T-14395 — The kernel's CONTRIBUTING names the commons and drops "there is no discussion forum" (fix) — events.jsonl#ts=2026-10-31T19:27:54Z
+- T-14383 — Add commons cue lines (1) and (5) at Analysis, plan draft and Closure (docs) — events.jsonl#ts=2026-10-31T21:03:41Z
+- T-14398 — A broken land floor still admits a filing-only work batch, and claim-landed accepts the work land that shipped the deliverable (fix) — events.jsonl#ts=2026-10-31T23:14:01Z
+- T-14397 — from-spike hand-over is not blocked by journal-only dirt in the spike worktree (fix) — events.jsonl#ts=2026-10-31T23:26:03Z
+- T-14402 — Spike-only carve-out — the Controller may hand sandbox edits to in-session helper subagents (feature) — events.jsonl#ts=2026-10-31T23:53:49Z
+- T-14401 — The mention-review snapshot is read from where it is recorded, not only from the analysis field (fix) — events.jsonl#ts=2026-11-01T01:30:29Z
+- T-14400 — The SPEC-0205 identity preview arrives before audit-pre for a tiny by-construction edit (fix) — events.jsonl#ts=2026-11-01T03:24:45Z
+- T-14403 — A declared standing consent for kernel-defect reports to the kernel's public tracker (SPEC-1057) (feature) — events.jsonl#ts=2026-11-01T06:02:41Z
+- T-14406 — The summary window resolves on a released tree, where the release serializer escapes the SPEC-0190 token line (fix) — events.jsonl#ts=2026-11-01T06:45:27Z
 
 ## Trust surfaces
 

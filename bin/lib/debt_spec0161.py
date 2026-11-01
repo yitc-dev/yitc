@@ -37,6 +37,7 @@ import re
 import tokenize
 from pathlib import Path
 
+from lib import state  # the one parser (T-14406)
 from lib import journal  # the ONE parsed journal fold + its request-scoped memo (CHARTER §P5)
 
 
@@ -1239,7 +1240,8 @@ def _spec0161_corpus_inputs(specs_dir, code_dir, *, engine_specs_dir=None, _SEAR
         # must not break `session start` or `land`.
         try:
             for path in sorted(Path(engine_specs_dir).glob("SPEC-0161-*.yaml")):
-                spec_text = path.read_text(encoding="utf-8", errors="ignore")
+                # A borrowed record is the kernel's, in released form on an installed engine (T-14406).
+                spec_text = state.spec_decoded_text(path.read_text(encoding="utf-8", errors="ignore"))
                 break
         except OSError:
             pass

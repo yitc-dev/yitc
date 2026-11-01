@@ -52,10 +52,10 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
 
 
-def _git(repo, *args, raw=False, inp=None, check=True):
+def _git(repo, *args, raw=False, inp=None, check=True, env=None):
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
     p = subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=not raw, input=inp,
-                       env=_git_env._git_child_env())
+                       env=_git_env._git_child_env(env))
     if check and p.returncode != 0:
         err = p.stderr if isinstance(p.stderr, str) else p.stderr.decode("utf-8", "replace")
         raise RuntimeError(f"git {' '.join(args)}: {err.strip()[:300]}")
@@ -813,6 +813,25 @@ def _run(repo, branch, *, events_path, append_event, read_stamp, task_id, previe
     except Exception:  # noqa: BLE001
         pass
     return payload
+
+
+def working_tree_commit(repo) -> str:
+    """T-14400 (SPEC-0205 rule 5): a commit of the checkout AS IT STANDS (HEAD plus every tracked and
+    untracked change git would add), for a preview before anything is committed. Composed in a throwaway
+    index; the real index, the working tree and every ref are untouched and no ref names the commit.
+    Raises on a git failure — the caller's preview is advisory and reports it."""
+    import tempfile   # noqa: PLC0415
+    from lib import git_env as _git_env   # noqa: PLC0415
+    with tempfile.TemporaryDirectory(prefix="yitc-spike-preview-") as td:
+        env = {**_git_env._git_child_env(), "GIT_INDEX_FILE": str(Path(td) / "index"),
+               "GIT_AUTHOR_NAME": "yitc-preview", "GIT_AUTHOR_EMAIL": "preview@yitc.invalid",
+               "GIT_COMMITTER_NAME": "yitc-preview", "GIT_COMMITTER_EMAIL": "preview@yitc.invalid"}
+
+        _git(repo, "read-tree", "HEAD", env=env)
+        _git(repo, "add", "-A", env=env)
+        tree = _git(repo, "write-tree", env=env).strip()
+        return _git(repo, "commit-tree", tree, "-p", "HEAD", "-m", "spike-content preview of the working tree",
+                    env=env).strip()
 
 
 def check_spike_content(repo, branch, *, events_path, append_event, reservation_ts=None, read_stamp=None,

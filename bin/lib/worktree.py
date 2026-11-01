@@ -2690,6 +2690,12 @@ def _spike_handover_command(*a, **kw):
     return worktree_lifecycle._spike_handover_command(*a, **kw)
 
 
+@functools.wraps(worktree_lifecycle._served_round_dirt)
+def _served_round_dirt(*a, **kw):
+    """T-14397 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_served_round_dirt`."""
+    return worktree_lifecycle._served_round_dirt(*a, **kw)
+
+
 @functools.wraps(worktree_lifecycle._spike_round_preflight)
 def _spike_round_preflight(*a, **kw):
     """T-14374 host residue — the body lives in `bin/lib/worktree_lifecycle.py#_spike_round_preflight`."""
@@ -15147,6 +15153,18 @@ def _floor_repair_programs(worktree: Path, base_floor, candidate_floor) -> tuple
     return tuple(out)
 
 
+@functools.wraps(land_floors._path_is_bookkeeping)
+def _path_is_bookkeeping(*a, **kw):
+    """T-14398 host residue — the body lives in `bin/lib/land_floors.py`."""
+    return land_floors._path_is_bookkeeping(*a, **kw)
+
+
+@functools.wraps(land_floors._floor_diff_bookkeeping_only)
+def _floor_diff_bookkeeping_only(*a, **kw):
+    """T-14398 host residue — the body lives in `bin/lib/land_floors.py`."""
+    return land_floors._floor_diff_bookkeeping_only(*a, **kw)
+
+
 @functools.wraps(land_floors._floor_project_commands)
 def _floor_project_commands(*a, **kw):
     """T-12695 host residue — the body now lives in `bin/lib/land_floors.py#_floor_project_commands`.
@@ -15286,9 +15304,27 @@ def _any_author_land_floor(worktree: Path, base_ref, *, _read_yaml=None,
     # (the runner owns the predicate; `repairs` is its out-param, the `metrics_out` idiom).
     repairs = []
     passed = []                                        # T-13168: declared commands that ran green
-    bad.extend(_floor_project_commands(worktree, base_floor or {}, _verify_test_timeout_seconds,
-                                      base_ref, _run_git_cap, candidate_floor=floor,
-                                      repairs_out=repairs, passed_out=passed))
+    _run_floor = lambda section: _floor_project_commands(   # noqa: E731
+        worktree, section, _verify_test_timeout_seconds, base_ref, _run_git_cap,
+        candidate_floor=floor, repairs_out=repairs, passed_out=passed)
+    _all_atoms = base_floor or {}
+    bad.extend(_run_floor({a: v for a, v in _all_atoms.items() if a != "dependencies"}))
+    # T-14398 (public issue #228) — a failing dependency command cannot be caused or cured by a
+    # branch that changes only bookkeeping, and refusing it would keep the repair card off `main`.
+    # The command still RUNS and its failure is NAMED and recorded; every other atom, the secrets
+    # scan and the hygiene read above are untouched. Any failure shape is one refusal list here.
+    _dep_bad = _run_floor({a: v for a, v in _all_atoms.items() if a == "dependencies"})
+    if _dep_bad:
+        from lib.cli import _BOOKKEEPING_ALLOWLIST as _bk
+        if _floor_diff_bookkeeping_only(worktree, base_ref, _run_git_cap, _bk):
+            for _msg in _dep_bad:
+                print(f"{_msg}\nland(floor): ADMITTED ANYWAY — this branch changes bookkeeping paths "
+                      f"only, so the failure above is not its doing. Recorded as `floor_repair` kind "
+                      f"`planning-only` on this land's row (T-14398).")
+            repairs.append({"atom": "dependencies", "program": None, "kind": "planning-only",
+                            "base_exit": None, "executed": True})
+        else:
+            bad.extend(_dep_bad)
     if bad:
         return {"bad": bad, "layers": [{"layer": KERNEL_FLOOR_LAYER, "outcome": "failed"}]}
     print(f"land(floor): {KERNEL_FLOOR_LAYER!r} OK — secrets scan "
@@ -15311,7 +15347,7 @@ def _any_author_land_floor(worktree: Path, base_ref, *, _read_yaml=None,
                                "programs": [r["program"] for r in repairs if r["program"]],
                                "base_exit": {r["atom"]: r["base_exit"] for r in repairs},
                                "kinds": {r["atom"]: r["kind"] for r in repairs},
-                               "executed": False}
+                               "executed": any(r["executed"] for r in repairs)}
     return res
 
 
@@ -25706,7 +25742,7 @@ def journal_live_window_days() -> "int | None":
     try:
         specs = Path(__file__).resolve().parent.parent.parent / "specs"
         for sp in sorted(specs.glob("SPEC-0190-*.yaml")):
-            m = _JOURNAL_WINDOW_RE.search(sp.read_text(encoding="utf-8"))
+            m = _JOURNAL_WINDOW_RE.search(state.spec_decoded_text(sp.read_text(encoding="utf-8")))
             if m:
                 return int(m.group(1))
     except (OSError, ValueError):

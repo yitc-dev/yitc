@@ -152,85 +152,88 @@ body: "## Scenario\n\nA project that rides the kernel answers ONE question at ac
   \ land; the NEXT land runs the\nrepaired program from main — recorded as `floor_repair`\
   \ on the land row and admitted at the\nwork-batch gate under the `floor-repair`\
   \ carrier. A candidate that leaves the failing leg untouched\nis refused as before.\
-  \ The SHAPE (both predicates and their bounds) is SPEC-0093 rule 27.\nWHY A TRUSTED\
-  \ BASE AND NOT A SANDBOX: `shell=False` plus a scrubbed child environment (retained,\n\
-  as defence in depth) remove shell SYNTAX and the launching session's identity carriers,\
-  \ but the\ncandidate still NAMES the program — so a collaborator branch could still\
-  \ have the kernel run an\narbitrary networked executable at land. An execution sandbox\
-  \ and trusting candidate-authored\nscripts were BOTH considered and REJECTED by\
-  \ the same ruling: the sandbox is a platform this\nmethodology does not want to\
-  \ own (CHARTER §P1 F1/F3), and trusting the candidate is the weakness\nitself. Reusing\
-  \ the merge-base read the layer-identity check already performs adds no new\nmechanism.\n\
-  \n### 4c. A BRANCH-WRITTEN JOURNAL ROW has a governed route out — `journal redact`\
-  \ (X-1507)\nRule 4a makes the secrets atom unwaivable and scans the branch's ADDED\
-  \ lines with NO path\nexclusion, and `events.jsonl` (with its `archive/events-*.jsonl`\
-  \ segments) is one of those paths.\nSo a row THIS BRANCH WROTE carrying a credential-shaped\
-  \ token had NO route out at all: the journal\nis append-only, the floor cannot be\
-  \ waived, a project `verify.floor.<atom>.command` is ADDITIVE\nonly, and the land-seam\
-  \ rotation writes a NEW archive file every line of which is diff-added. The\nmeasured\
-  \ consequence (<project>, 2026-09-19) is a DONE card with a GREEN audit-post that\n\
-  cannot land, with its whole plan chain behind it, and a refusal sentence — «remove\
-  \ it and rotate\nit» — that is not performable on an append-only row. This rule\
-  \ gives that row one narrow verb.\n\nTHE MAIN-CHECKOUT ARM. A journal append from\
-  \ the main checkout is sanctioned and stays UNCOMMITTED\nuntil the next land folds\
-  \ it — which is where a leaked owner text sits before it reaches git\nhistory. Run\
-  \ from the main checkout, the verb admits ONLY a row that is in that checkout's\n\
-  working-tree journal and NOT in HEAD; a row whose bytes are in HEAD is refused,\
-  \ and that refusal\nnames rotation of the credential as the remedy. The «not in\
-  \ HEAD» answer is asked again under the\njournal lock immediately before the receipt\
-  \ and again before the rewrite — the lock a land holds\nwhile it folds main's journal\
-  \ and fast-forwards `main` — so no land commits the row between the\nanswer and\
-  \ the write. A later transcript sync does not write the value back: it redacts at\
-  \ write\nover the same shapes (rule 4e), and the redacted row keeps its source locator.\n\
-  \nTHE ROUTE. `bin/yitc-v2 journal redact --ts <row-ts> --atom <floor-atom> [--path\
-  \ <segment>]\n[--line <n>]` replaces the matched token(s) IN THAT ROW with `<redacted:<atom>:<rid>>`\
-  \ and appends\nexactly ONE `journal_redacted` receipt carrying `{ts_redacted, atom,\
-  \ path, line, label,\nredaction_id, redacted_sha256, actor, source}` — the LAST\
-  \ of which is the journal envelope's own\nemitter marker every governed row carries,\
-  \ named here so the normative list and the exact-key probe\ndescribe ONE receipt\
-  \ — so the redaction is itself journaled and no history is\nrewritten unrecorded.\
-  \ `ts_redacted` is the REDACTED ROW's `ts` (the envelope `ts` is already the\ntime\
-  \ of the redaction). Rotating the credential at its source remains the operator's\
-  \ duty: this\nverb unwedges the land, it does not make a leaked credential safe.\n\
-  \nTHE `rid` IS RANDOM, NEVER SECRET-DERIVED. An unkeyed digest of a low-entropy\
-  \ password is an\noffline guessing oracle, and a keyed one would need a key store\
-  \ — a new mechanism. The `rid` is\nthe stable handle joining the placeholder to\
-  \ its receipt; `redacted_sha256` digests the FULLY\nREDACTED line, which already\
-  \ carries the placeholder in place of the credential and therefore\nleaks nothing\
-  \ about the token. THIS ROUTE PERSISTS NO SECRET-DERIVED MATERIAL (the write-time\n\
-  redaction's one scoped exception, for high-entropy token shapes only, is rule 4e).\n\
-  \nTHE ORDER IS RECEIPT-BEFORE-REWRITE, and that is the whole failure-atomicity argument.\
-  \ Two files\nand a non-re-entrant journal lock mean no single critical section can\
-  \ span both, so the two\norderings are judged by what a CRASH BETWEEN THEM leaves.\
-  \ Rewrite-then-receipt leaves REWRITTEN\nHISTORY WITH NO RECORD — silent, irreversible,\
-  \ the governance failure. Receipt-then-rewrite leaves\na RECORD OF A REDACTION THAT\
-  \ DID NOT HAPPEN — the credential still in the row, the floor still\nrefusing it,\
-  \ and the state SELF-CORRECTING. Only the second is fail-closed.\n\nTHE ORPHAN-RECEIPT\
-  \ READER — the verb CONSUMES the signal its own ordering creates. An ORPHAN is,\n\
-  mechanically, a `journal_redacted` receipt whose row does NOT carry that receipt's\
-  \ PLACEHOLDER —\ndetectable by anyone from the bytes alone, with no second store,\
-  \ no new event type and no\nrecovery file. THE PLACEHOLDER, not the bare `redaction_id`:\
-  \ an id is eight hex characters, and a\nraw substring test for it matches any row\
-  \ that happens to CONTAIN them — a replacement\ncredential, an unrelated ticket\
-  \ reference — so a false «already complete» would SUPPRESS recovery\nand the ordinary\
-  \ path would append a second receipt. The placeholder is what a redaction actually\n\
-  writes. AND THE PLACEHOLDER ALONE IS STILL NOT THE COMPLETION: because completeness\
-  \ is asked of\nthe whole `ts` population (next paragraph) and a `ts` is not a row\
-  \ id, a DIFFERENT same-ts row\nthat merely CARRIES the marker — it quotes a refusal,\
-  \ an operator pasted it, a redaction of its\nown collided on the id — would answer\
-  \ «already complete» for a row still holding its credential.\nCOMPLETION IS THEREFORE\
-  \ THE CONJUNCTION: one row carrying the placeholder AND reproducing the\nreceipt's\
-  \ recorded `redacted_sha256`, the digest of the exact bytes the rewrite was to leave\n\
-  behind — already recorded, and already the identity the completion path judges candidates\
-  \ by. A\nreceipt that records no digest can prove no completion, so it reads as\
-  \ an orphan and is refused\nby name with nothing written, never fallen through to\
-  \ a second receipt.\nAND THE COMPLETENESS QUESTION IS ASKED OF THE WHOLE `ts` POPULATION,\
-  \ never of a pinned\nsubset: a receipt is keyed `(ts, atom)` while a `ts` is NOT\
-  \ a row id, so judging one against a\n`--path`/`--line`-narrowed candidate set asks\
-  \ «is this receipt complete HERE» and answers\n«orphan» whenever the operator pinned\
-  \ a DIFFERENT row sharing the ts — which then completes row\nA's receipt onto row\
-  \ B, leaving ONE receipt apparently governing TWO rows. The pinned set still\ndecides\
-  \ what an invocation OPERATES on; only completeness is asked of everything the receipt\n\
+  \ A branch changing bookkeeping only is not refused by a failing dependency\ncommand,\
+  \ which runs and is named: such a branch cannot cause or cure the failure, and refusing\
+  \ it\nwould keep the repair card off `main`. The SHAPE (both predicates and their\
+  \ bounds) is SPEC-0093 rule 27.\nWHY A TRUSTED BASE AND NOT A SANDBOX: `shell=False`\
+  \ plus a scrubbed child environment (retained,\nas defence in depth) remove shell\
+  \ SYNTAX and the launching session's identity carriers, but the\ncandidate still\
+  \ NAMES the program — so a collaborator branch could still have the kernel run an\n\
+  arbitrary networked executable at land. An execution sandbox and trusting candidate-authored\n\
+  scripts were BOTH considered and REJECTED by the same ruling: the sandbox is a platform\
+  \ this\nmethodology does not want to own (CHARTER §P1 F1/F3), and trusting the candidate\
+  \ is the weakness\nitself. Reusing the merge-base read the layer-identity check\
+  \ already performs adds no new\nmechanism.\n\n### 4c. A BRANCH-WRITTEN JOURNAL ROW\
+  \ has a governed route out — `journal redact` (X-1507)\nRule 4a makes the secrets\
+  \ atom unwaivable and scans the branch's ADDED lines with NO path\nexclusion, and\
+  \ `events.jsonl` (with its `archive/events-*.jsonl` segments) is one of those paths.\n\
+  So a row THIS BRANCH WROTE carrying a credential-shaped token had NO route out at\
+  \ all: the journal\nis append-only, the floor cannot be waived, a project `verify.floor.<atom>.command`\
+  \ is ADDITIVE\nonly, and the land-seam rotation writes a NEW archive file every\
+  \ line of which is diff-added. The\nmeasured consequence (<project>, 2026-09-19)\
+  \ is a DONE card with a GREEN audit-post that\ncannot land, with its whole plan\
+  \ chain behind it, and a refusal sentence — «remove it and rotate\nit» — that is\
+  \ not performable on an append-only row. This rule gives that row one narrow verb.\n\
+  \nTHE MAIN-CHECKOUT ARM. A journal append from the main checkout is sanctioned and\
+  \ stays UNCOMMITTED\nuntil the next land folds it — which is where a leaked owner\
+  \ text sits before it reaches git\nhistory. Run from the main checkout, the verb\
+  \ admits ONLY a row that is in that checkout's\nworking-tree journal and NOT in\
+  \ HEAD; a row whose bytes are in HEAD is refused, and that refusal\nnames rotation\
+  \ of the credential as the remedy. The «not in HEAD» answer is asked again under\
+  \ the\njournal lock immediately before the receipt and again before the rewrite\
+  \ — the lock a land holds\nwhile it folds main's journal and fast-forwards `main`\
+  \ — so no land commits the row between the\nanswer and the write. A later transcript\
+  \ sync does not write the value back: it redacts at write\nover the same shapes\
+  \ (rule 4e), and the redacted row keeps its source locator.\n\nTHE ROUTE. `bin/yitc-v2\
+  \ journal redact --ts <row-ts> --atom <floor-atom> [--path <segment>]\n[--line <n>]`\
+  \ replaces the matched token(s) IN THAT ROW with `<redacted:<atom>:<rid>>` and appends\n\
+  exactly ONE `journal_redacted` receipt carrying `{ts_redacted, atom, path, line,\
+  \ label,\nredaction_id, redacted_sha256, actor, source}` — the LAST of which is\
+  \ the journal envelope's own\nemitter marker every governed row carries, named here\
+  \ so the normative list and the exact-key probe\ndescribe ONE receipt — so the redaction\
+  \ is itself journaled and no history is\nrewritten unrecorded. `ts_redacted` is\
+  \ the REDACTED ROW's `ts` (the envelope `ts` is already the\ntime of the redaction).\
+  \ Rotating the credential at its source remains the operator's duty: this\nverb\
+  \ unwedges the land, it does not make a leaked credential safe.\n\nTHE `rid` IS\
+  \ RANDOM, NEVER SECRET-DERIVED. An unkeyed digest of a low-entropy password is an\n\
+  offline guessing oracle, and a keyed one would need a key store — a new mechanism.\
+  \ The `rid` is\nthe stable handle joining the placeholder to its receipt; `redacted_sha256`\
+  \ digests the FULLY\nREDACTED line, which already carries the placeholder in place\
+  \ of the credential and therefore\nleaks nothing about the token. THIS ROUTE PERSISTS\
+  \ NO SECRET-DERIVED MATERIAL (the write-time\nredaction's one scoped exception,\
+  \ for high-entropy token shapes only, is rule 4e).\n\nTHE ORDER IS RECEIPT-BEFORE-REWRITE,\
+  \ and that is the whole failure-atomicity argument. Two files\nand a non-re-entrant\
+  \ journal lock mean no single critical section can span both, so the two\norderings\
+  \ are judged by what a CRASH BETWEEN THEM leaves. Rewrite-then-receipt leaves REWRITTEN\n\
+  HISTORY WITH NO RECORD — silent, irreversible, the governance failure. Receipt-then-rewrite\
+  \ leaves\na RECORD OF A REDACTION THAT DID NOT HAPPEN — the credential still in\
+  \ the row, the floor still\nrefusing it, and the state SELF-CORRECTING. Only the\
+  \ second is fail-closed.\n\nTHE ORPHAN-RECEIPT READER — the verb CONSUMES the signal\
+  \ its own ordering creates. An ORPHAN is,\nmechanically, a `journal_redacted` receipt\
+  \ whose row does NOT carry that receipt's PLACEHOLDER —\ndetectable by anyone from\
+  \ the bytes alone, with no second store, no new event type and no\nrecovery file.\
+  \ THE PLACEHOLDER, not the bare `redaction_id`: an id is eight hex characters, and\
+  \ a\nraw substring test for it matches any row that happens to CONTAIN them — a\
+  \ replacement\ncredential, an unrelated ticket reference — so a false «already complete»\
+  \ would SUPPRESS recovery\nand the ordinary path would append a second receipt.\
+  \ The placeholder is what a redaction actually\nwrites. AND THE PLACEHOLDER ALONE\
+  \ IS STILL NOT THE COMPLETION: because completeness is asked of\nthe whole `ts`\
+  \ population (next paragraph) and a `ts` is not a row id, a DIFFERENT same-ts row\n\
+  that merely CARRIES the marker — it quotes a refusal, an operator pasted it, a redaction\
+  \ of its\nown collided on the id — would answer «already complete» for a row still\
+  \ holding its credential.\nCOMPLETION IS THEREFORE THE CONJUNCTION: one row carrying\
+  \ the placeholder AND reproducing the\nreceipt's recorded `redacted_sha256`, the\
+  \ digest of the exact bytes the rewrite was to leave\nbehind — already recorded,\
+  \ and already the identity the completion path judges candidates by. A\nreceipt\
+  \ that records no digest can prove no completion, so it reads as an orphan and is\
+  \ refused\nby name with nothing written, never fallen through to a second receipt.\n\
+  AND THE COMPLETENESS QUESTION IS ASKED OF THE WHOLE `ts` POPULATION, never of a\
+  \ pinned\nsubset: a receipt is keyed `(ts, atom)` while a `ts` is NOT a row id,\
+  \ so judging one against a\n`--path`/`--line`-narrowed candidate set asks «is this\
+  \ receipt complete HERE» and answers\n«orphan» whenever the operator pinned a DIFFERENT\
+  \ row sharing the ts — which then completes row\nA's receipt onto row B, leaving\
+  \ ONE receipt apparently governing TWO rows. The pinned set still\ndecides what\
+  \ an invocation OPERATES on; only completeness is asked of everything the receipt\n\
   could describe. On EVERY invocation, BEFORE any write, the verb looks for one. Finding\n\
   it, it COMPLETES that redaction under the SAME receipt (reusing its `redaction_id`,\
   \ appending NO\nsecond receipt — a second one would be a contradictory attestation,\
