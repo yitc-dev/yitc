@@ -353,6 +353,18 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                             "settings file. This flag is the person's yes: without it init only prints "
                             "the recommended lines and writes none of them. A setting this host already "
                             "set is kept as it is.")
+    # T-14463 (SPEC-0086 rule 6f(d) step 1) — the person's language, recorded once so a fresh session
+    # in any folder starts in it.
+    def _person_language(v):   # the rule's one home is init._person_language_arg (imported at use)
+        from lib import init as _init_mod
+        return _init_mod._person_language_arg(v)
+    initp.add_argument("--person-language", dest="person_language", metavar="LANG",
+                       type=_person_language, default=None,
+                       help="the person's language, as they confirmed it (e.g. ru): init appends ONE line "
+                            "naming it to the user-level instructions file of each present AI tool "
+                            "(`instructions_path` in bin/ai-tools.yaml), which every new session loads "
+                            "before its first reply. A file that already speaks of the reply language "
+                            "is left as it is; a dry run writes nothing.")
     # T-10535 / X-0401 / SPEC-0093 rule 12 — the GOVERNED inspection-theme declare path: append a theme to
     # this consumer's yitc-ops.yaml `inspection.themes[]` as a SURGICAL TEXT edit that preserves every
     # existing byte, incl. the kernel contract delivered through the carrier's COMMENTS. It exists because
@@ -459,9 +471,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # (kernel-owned A/S/C1/C2 vocabulary); the gate reads the carrier `deploy.policy` + selects the
     # per-class evidence requirement. REQUIRED only on a project that opted into autonomous deploys
     # (declared `deploy.policy.classes`); a pre-policy / waived carrier ignores it (back-compat).
-    dep.add_argument("--class", dest="deploy_class",
+    dep.add_argument("--class", dest="deploy_class", action="append",
                      choices=list(deploy_mod.DEPLOY_CLASSES) + [deploy_mod.HOST_CONFIG_CLASS],
-                     help="deploy class (SPEC-0097): A=code-only · S=security-surface · C1=expand/"
+                     help="deploy class, repeatable: a deploy shipping several classes names each and "
+                          "pays the evidence of each (SPEC-0097 §13): A=code-only · S=security-surface · C1=expand/"
                           "contract migration · C2=destructive/irreversible · host-config=host nginx/"
                           "vhost change. A/S/C1 select the per-class evidence from deploy.policy.classes; "
                           "C2 escalates to the owner; host-config is NOT image-deployable (it rides the "
@@ -852,9 +865,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # the consumer help renderer (T-13176) rewrites a fetch only when it reads it unbroken.
     # T-13695: the same head points at the reference the SPEC-0060 item-4 cues lead to; the prototype
     # pointer stays last, its fetch on the last line.
+    # T-14440: the head opens with the carrier choice (SPEC-1043 S1), named where a card is filed.
     tf = task_sub.add_parser("file", help="File a new task (auto-ID + schema validation)",
                              formatter_class=argparse.RawDescriptionHelpFormatter,
                              description="File a new task card.\n\n"
+                                         "READ FIRST when you choose this change's carrier (a plan, one or a\n"
+                                         "few tasks, or a staged followup): run the SPEC-1043 sieve and name\n"
+                                         "SPEC-1043 S1 (is a plan warranted?) in the card's carrier choice.\n"
+                                         "Fetch it:\n"
+                                         "  `bin/yitc-v2 graph query SPEC-1043`\n\n"
                                          "READ FIRST when the acceptance criterion you are writing has the\n"
                                          "shape a cue of SPEC-0060 item 4 names and that cue ends with a\n"
                                          "pointer to the reference: the whole worked example (measured cases,\n"
@@ -900,6 +919,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "(NOT a plan slug — no existence check). Stored only when given; absent = not "
                          "an imported card. SCHEMA carrier only — the premise-verify pass that consumes "
                          "it ships in SPEC-0166 (T-10703).")
+    tf.add_argument("--prototype-lines", dest="prototype_lines", default=None, metavar="R-1,R-2|all",
+                    help="a carry card's registry items (SPEC-1058 §3): comma-joined `R-<n>` ids, `all` "
+                         "for the verifier, or an empty value for a card that builds no item")
     tf.add_argument("--prototype-ref", dest="prototype_ref", default=None, metavar="spike/<slug>",
                     help="OPTIONAL (T-12571, SPEC-0205 rule 5 / SPEC-0028): the prototype this card builds "
                          "on — an ANNOTATED spike/* tag written by `worktree park`. Refused unless it "
@@ -1167,6 +1189,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "its journal receipt only); inside a writing worktree it makes no commit — the "
                          "write rides that batch's own commit and land — never hand-commit it (family rule: AGENTS-SESSIONS "
                          "§Writes happen in a worktree; this arm's rule: SPEC-0036 variant (e)). "
+                         "Also admitted on a `wont-do` card whose ship reached `main` (the ship reading "
+                         "the overdue-recheck lens uses); a never-shipped wont-do card stays refused "
+                         "(T-14420). "
                          "The value is the locator naming WHERE the recorded reading "
                          "landed: `events.jsonl#ts=<ISO>` or `events.jsonl#source_ref=<ref>` (the "
                          "D-0030 citation form), which must RESOLVE to a real journal row. Scoped to "
@@ -1524,7 +1549,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     # so an author reading --note's help had no way to learn the escape existed, wrote the note on
     # argv, and the shell ate its backticked spans. Same one-home steer the other prose flags carry.
     tu.add_argument("--reason", help="required for --status parked (→ parked_reason) and "
-                                     "--status wont-do (→ wont_do_reason). "
+                                     "--status wont-do (→ wont_do_reason), and for the done-card "
+                                     "probe-moment RE-ARM (--set-field probe_moments on a done card, "
+                                     "recorded on its task_amended row — T-14476, SPEC-1008). "
                                      f"{_PROSE_STEER_FOR('task update')}")
     tu.add_argument("--return-trigger", dest="return_trigger",
                     help="optional unpark condition recorded when parking (→ return_trigger). "
@@ -1608,7 +1635,9 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "withdraws it — T-13856, SPEC-0205 rule 5); every verb-owned field (status, class, "
                          "effort_tier, id, …) is refused — host_config / host_config_kind too: their "
                          "route is the --old/--new superset above. Emits ONE task_amended(field_edit). Its own "
-                         "mode; refused on done/wont-do cards EXCEPT for answers.")
+                         "mode; refused on done/wont-do cards EXCEPT for answers, and probe_moments on a DONE card "
+                         "as a RE-ARM: only criteria whose probe is still `deferred` may change, no "
+                         "recorded moment may be dropped, --reason is required (T-14476, SPEC-1008).")
     tu.add_argument("--from-file", dest="from_file", metavar="PATH",
                     help="with --replace-acceptance / --set-field ONLY: read the value from PATH "
                          "(`-` = stdin), so argv quoting never touches it; "
@@ -2618,6 +2647,7 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     mc.add_argument("--station", dest="station_flag", metavar="ID", help="the station id whose pointer was just VOICED at its work-juncture — the canonical form every seam hint prints")
     mc.add_argument("--user", help="the recipient (default: this session's provisioned user identity). A pointer addressed to another person is never drained.")
     # T-13217 (SPEC-0147 rule 10): a due repeat of the full body / the person's «I know it» — one journal row each.
+    mc.add_argument("--voiced", action="store_true", help="the station's body was told to the person in their language; a retire names this or --known (T-14464)")
     mc.add_argument("--repeat", action="store_true", help="record a DUE repeat of this station's full body (refused when not due; no MEMORY.md write)")
     mc.add_argument("--known", action="store_true", help="the person said «I know it» — one idempotent ack row; this station never repeats again")
     mc.set_defaults(func=cmd_memory_consume, read_only_refuse="rewrites the target's MEMORY.md and commits it")
@@ -2830,13 +2860,16 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                                         "`# yitc: selection: always`). Its cost is not a criterion. Refuses "
                                         "none or several classes declaring `units:` and a refused declaration.")
     pdl.add_argument("--write", action="store_true",
-                     help="write the recomputed list into the class `units:` — its only writer; refused on "
-                          "preexisting yitc-ops.yaml dirt and on a main that moved since it computed (a re-run "
+                     help="write the recomputed list into the class units file `yitc-ops-units-<class>.txt` — its only writer; "
+                          "refused on preexisting dirt in it or yitc-ops.yaml and on a main that moved since it computed (a re-run "
                           "recomputes). SELF-COMMIT: from the main checkout it commits its own record "
-                          "(yitc-ops.yaml + its journal receipt only); inside a writing worktree it makes no "
+                          "(its units file, with yitc-ops.yaml on the move, + its journal receipt only); inside a writing worktree it makes no "
                           "commit — the write rides that batch's own commit and land — never hand-commit it "
                           "(family rule: AGENTS-SESSIONS §Writes happen in a worktree; this verb's rule: "
                           "SPEC-1051 rule 7).")
+    pdl.add_argument("--move", action="store_true",
+                     help="with --write: move the list IN FORCE, unchanged, into the class's generated sibling "
+                          "file and point `units_file:` at it; no recompute (SPEC-1051 rule 7).")
     pdl.set_defaults(func=cmd_pre_deploy_list,
                      read_only_refuse="it folds the whole journal and, with --write, writes and commits yitc-ops.yaml")
 
@@ -3005,6 +3038,19 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
     cpk.add_argument("--force", action="store_true",
                      help="override the T-9362 intake-staleness REFUSAL (a DONE local task already "
                           "resolves this item); use when re-picking a legitimately reopened item")
+    cpk.add_argument("--class", dest="triage_class", metavar="CLASS",
+                     help="the triage class, in the SPEC-1010 section 3 words; goes with --ownership. "
+                          "A pick with no triage refuses and lists the choices")
+    cpk.add_argument("--ownership", metavar="ANSWER", help="the SPEC-1010 ownership answer for --class")
+    cpk.add_argument("--exception", metavar="NAME",
+                     help="one of the SPEC-1010 named exceptions, in place of --class; needs --reason")
+    cpk.add_argument("--reason", metavar="TEXT",
+                     help="why the exception holds; on a --class pick, the pick note "
+                          f"({_PROSE_STEER_FOR('cross pick')})")
+    cpk.add_argument("--from-stdin", dest="from_stdin", action="store_true",
+                     help="read the pick PROSE as a YAML mapping on stdin (reason) — the SHELL-PROOF path; "
+                          "an argv --reason alongside it is REFUSED")
+    cpk.add_argument("--task", metavar="T-NNNN", help="this project's card that resolves the item")
     cpk.set_defaults(func=cmd_cross_pick)
     cdn = cross_sub.add_parser("done", help="RECEIVER finishes (emits cross_done; may carry --task/--note)")
     cdn.add_argument("id", help="X-NNNN coordination id")

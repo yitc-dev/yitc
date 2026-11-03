@@ -116,28 +116,27 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   holder reads as. `held` is None when the item was never picked; a pick DROPPED by\
   \ the legality check\n(rule 2 defense-in-depth) never becomes a holder, so a wrong-role\
   \ append cannot fabricate one. `task` is\nthe holder's resolving card when the pick\
-  \ payload carries one (the auto-pick-on-file emits it; a bare\n`cross pick` does\
-  \ not). This is a DERIVED VIEW over the existing event chain — no new store, no\
-  \ new\nevent type, no FSM change (CHARTER §P1 F2). It exists because status alone\
-  \ (`picked`) told a second\nconcurrent intake THAT the item was taken but never\
-  \ BY WHOM, so the race was unnameable: two\ncontrollers both intook X-0452 -> duplicate\
-  \ cards. The intake surfaces that CONSUME\nthis view (the `cross pick` refusal +\
-  \ the `task file --resolves-cross` advisory) live in the verb\nsibling SPEC-0086\
-  \ — this spec owns the data model only.\n**New issue = new\nid:** a reopen of a\
-  \ terminal item is a NEW `cross_requested` (new id) LINKED to the old via\n`origin_fp`/cites\
-  \ — NEVER more events reanimating a terminal id (no terminal reanimation).\n**The\
-  \ AUTHOR's DISPUTE edge — `cross_disputed` cancels a `done` that does not reach\
-  \ the case\n(X-1093).** `done` asserts the receiver FIXED it; `closed` asserts the\
-  \ author VERIFIED that\nfix. When the author verifies and the fix does NOT reach\
-  \ the reported case, both existing author\nmoves misreport it: `cross_closed` writes\
-  \ a verification that did not happen, and `cross_withdrawn`\nretracts an ask that\
-  \ still stands. Silence is no better — the item stays `done`, i.e. inside the\n\
-  author's fixed-to-verify cut (rule 5a), re-surfacing at every session start awaiting\
-  \ a close that\nmust never come. Measured 2026-08-22 on X-1044 + X-1045, both sitting\
-  \ `done` on a fix the kernel had\nitself retracted; the retraction could only be\
-  \ attached by the RECEIVER re-emitting `cross_done`\n(the note-attach below), a\
-  \ route the author does not have and which leaves the item reading `done`.\nSo the\
-  \ AUTHOR gets the symmetric negative edge the RECEIVER has always had in `cross_rejected`:\n\
+  \ payload carries one (`cross pick --task`). This is a DERIVED VIEW over the existing\
+  \ event chain — no new store, no new\nevent type, no FSM change (CHARTER §P1 F2).\
+  \ It exists because status alone (`picked`) told a second\nconcurrent intake THAT\
+  \ the item was taken but never BY WHOM, so the race was unnameable: two\ncontrollers\
+  \ both intook X-0452 -> duplicate cards. The intake surfaces that CONSUME\nthis\
+  \ view (the `cross pick` refusal + the `task file --resolves-cross` advisory) live\
+  \ in the verb\nsibling SPEC-0086 — this spec owns the data model only.\n**New issue\
+  \ = new\nid:** a reopen of a terminal item is a NEW `cross_requested` (new id) LINKED\
+  \ to the old via\n`origin_fp`/cites — NEVER more events reanimating a terminal id\
+  \ (no terminal reanimation).\n**The AUTHOR's DISPUTE edge — `cross_disputed` cancels\
+  \ a `done` that does not reach the case\n(X-1093).** `done` asserts the receiver\
+  \ FIXED it; `closed` asserts the author VERIFIED that\nfix. When the author verifies\
+  \ and the fix does NOT reach the reported case, both existing author\nmoves misreport\
+  \ it: `cross_closed` writes a verification that did not happen, and `cross_withdrawn`\n\
+  retracts an ask that still stands. Silence is no better — the item stays `done`,\
+  \ i.e. inside the\nauthor's fixed-to-verify cut (rule 5a), re-surfacing at every\
+  \ session start awaiting a close that\nmust never come. Measured 2026-08-22 on X-1044\
+  \ + X-1045, both sitting `done` on a fix the kernel had\nitself retracted; the retraction\
+  \ could only be attached by the RECEIVER re-emitting `cross_done`\n(the note-attach\
+  \ below), a route the author does not have and which leaves the item reading `done`.\n\
+  So the AUTHOR gets the symmetric negative edge the RECEIVER has always had in `cross_rejected`:\n\
   `cross_disputed`, legal for kinds `{task, bugfix}` from state `done`, carrying a\
   \ REQUIRED `reason`\n(the disproof; it rides `_NOTE_KEYS`, so the read side surfaces\
   \ it unchanged).\n**It introduces NO status class.** `cross_disputed` is deliberately\

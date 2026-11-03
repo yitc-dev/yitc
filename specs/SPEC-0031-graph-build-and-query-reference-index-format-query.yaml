@@ -58,88 +58,94 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ drift warnings read\n     it via a default `git log -1 -- <path>`, which passes\
   \ straight through a commit TREESAME to its\n     first parent for that path — so\
   \ no such commit can sit above the kept sha, and a history\n     rewrite of any\
-  \ input-touching commit changes that sha. Exactly two\n     paths are EXCLUDED,\
-  \ each with a proof rather than a heuristic: the append-only JOURNAL (the\n    \
-  \ build takes no journal input at all since the graph-slim cut, while every command\n\
-  \     appends to it — left in, the cache could never hit once) and the machine-local\
-  \ operational\n     dir that holds this repo's machine-local operational state.\
-  \ (The cache's own files live\n     under the checkout's GIT DIR, never in the working\
-  \ tree: a working-tree cache file shows as\n     untracked dirt in any repo whose.gitignore\
-  \ does not name it, and the claim verb refuses on\n     main dirt — measured, it\
-  \ broke the blank-consumer lifecycle outright.)\n   - **A miss is fail-safe.** Every\
-  \ failure inside the cache — an unreadable input, a corrupt or\n     absent payload,\
-  \ a foreign schema version, an unavailable git — falls through to an ordinary\n\
-  \     FULL build, as does an explicit disable. A stale HIT is the one unacceptable\
-  \ failure; a miss\n     costs only time.\n   - **Inert by measurement, not by configuration.**\
-  \ ONE kernel code path serves every repo. The\n     key is computed only where a\
-  \ hit can pay for it, judged on the PREVIOUS build's measured cost\n     against\
-  \ the measured cost of the key itself. A repo whose build is cheap relative to its\
-  \ own\n     key never consults the cache and pays nothing; the measured cost is\
-  \ refreshed on every build,\n     so a corpus that grows past the ratio re-arms\
-  \ itself with no per-project mechanism, config\n     key, or threshold that fits\
-  \ nobody.\n   - **It reports its own hit rate.** Every build records its cache state\
-  \ — hit, miss, skipped or\n     disabled — on the `graph_built` event, on EVERY\
-  \ outcome and not only on a hit; the rate is\n     folded into the land tail. That\
-  \ line is deliberately NOT suppressed-when-clean: a 0% rate and\n     an inert repo\
-  \ both PRINT. The prior art is the reason : a cache wrote 1135\n     markers, read\
-  \ none across 1390 lands, recorded its field only on the hit that never came, and\n\
-  \     so was indistinguishable from a working one until someone went looking.\n\
-  \   - **ONE document, published atomically.** The key and the index it describes\
-  \ live in a SINGLE\n     object, written to a temp file in the same directory and\
-  \ published by an atomic `os.replace`,\n     under a filename namespaced by the\
-  \ resolved checkout path. This is a RULE, not an\n     implementation detail, because\
-  \ the alternative reads reasonable: a payload file beside a meta\n     file naming\
-  \ its key carries a cross-file invariant nothing holds, so two interleaving stores\n\
-  \     leave a meta naming key A beside a payload built for key B and the next reader\
-  \ is served a\n     mismatched pair — a stale hit reached with NO staleness in the\
-  \ key, which is why the\n     content-exact key above does not cover it. A reader\
-  \ observes the WHOLE previous document or\n     the WHOLE new one, never a partial\
-  \ write; a lock was the explicitly worse option (tripwires `a_torn_document_reads_as_a_miss`,\n\
-  \     `no_interleaving_can_pair_one_key_with_another_builds_index`,\n     `the_document_is_published_by_atomic_replace`).\n\
-  \   - **A bounded set of recent trees, in that same document.** Beside its newest\
-  \ entry the\n     document keeps a few older {key, index} entries, newest first,\
-  \ each with no key twice, so a\n     checkout whose tree alternates between a small\
-  \ number of states (a run that flips a spec for\n     its judgement and restores\
-  \ it after) is served on every return instead of rebuilt. Each entry\n     carries\
-  \ its index beside its own key, so the one-document property above holds per entry;\
-  \ an\n     entry of an unexpected shape, or a document written before the set existed,\
-  \ reads as no older\n     entry — an ordinary miss. A tree not in the set is always\
-  \ rebuilt.\n1. Walk `specs/*.yaml`, `patterns/*.md` + `plans/*.md` +\n   `ideas/*.md`\
-  \ frontmatter (planning artifacts → `plan` nodes, `kind: plan|idea`) + `errors/E-*.yaml`\n\
-  \   (→ `error` nodes; the `E-*` glob excludes `errors/_template.yaml`)\n - NON-EMITTING\
-  \ passes: the build STILL walks `tasks/*.yaml` (for the `tasks_citing`\n   reverse-index\
-  \ — the surviving `cites` edge) and reads `tasks/*.yaml` + the audit-verdict /\n\
-  \   `D-NNNN-` files under `decisions/` via `_read_yaml(errors=parse_errors)` for\
-  \ parse-error\n   observability (→ `_parse_errors` → exit 2 / land block). These\
-  \ passes EMIT no `tasks` /\n   `decisions` / `audits` graph SECTION (those node-types\
-  \ are cut) — they are reverse-indexing\n   + parse-error-surfacing reads only.\n\
-  \   - For each spec `implements:` anchor (`<file>` / `<file>#<symbol>`), **resolve**\
-  \ it\n     against the current tree (file exists; symbol = a def/class/const/heading\
-  \ present). Unresolved\n     anchors are collected as **report-only warnings** (stderr,\
-  \ NOT a build failure — report-not-block).\n     The `code_to_specs` reverse index\
-  \ is keyed by the normalized **file component** (so `graph query\n     <file>` matches\
-  \ `<file>#<symbol>`).\n2. **[ — the commit/event/audit_verdict build-walk steps\
-  \ were REMOVED by the graph-slim cut: the build no longer parses git `from:` trailers,\
-  \ `events.jsonl`, or `decisions/<id>-audit-*.yaml` into graph sections.]**\n3. *(removed\
-  \ — event/emitted_by cut)*\n4. *(removed — audit_verdict/audited cut)*\n5. **Parse\
-  \ canonical docs (CHARTER + AGENTS + LIFECYCLE + QUEUE + GRAPH) for rule extraction:**\n\
-  \   - Match lines with markers `[MUST]` / `[SHOULD]` / `[MAY]` or keywords (`Must`\
-  \ / `Cannot` / `Required`)\n   - Generate rule node per match: `rule:<doc-slug>:<section-slug>:<severity>`\n\
-  \   - Store with fields `{source_doc, source_section, source_line, severity, content,\
-  \ status}`\n   - Emit `defined_in` edge (rule → source doc node)\n6. Output `graph/index.json`\
-  \ ( — the DERIVED index is JSON-serialized: json.dumps\n   sort_keys=True + indent=1\
-  \ + ensure_ascii=False, datetime/date values serialized as ISO-8601\n   strings\
-  \ at build time; ~100x cheaper than the prior yaml.safe_dump/parse on the ~2.3MB\
-  \ tree.\n   P5 unchanged: one-YAML-format governs AUTHORED operational state, not\
-  \ this derived view.\n   Structure (shown as YAML for readability — keys identical\
-  \ in JSON)):\n```yaml\nspecs:\n  <workshop-spec>:\n    title: All operational state\
-  \ is YAML\n    status: active\n    implements: # durable anchors — file / file#symbol,\
-  \ NOT line ranges\n      - bin/lib/task.py#cmd_task_file\n      - bin/lib/state.py\n\
-  code_to_specs: # keyed by the normalized FILE component ( — so\n  bin/yitc-v2: #\
-  \ `graph query <file>` matches a `<file>#<symbol>` anchor)\n    - <workshop-spec>\n\
-  \    - <workshop-spec>\n  bin/lib/state.py:\n    - <workshop-spec>\ntasks_citing:\n\
-  \  <workshop-spec>:\n    -\n    -\nerrors: # : 11th node type — promotion-only case\
-  \ files (errors/E-XXXX.yaml)\n  E-0001:\n    kind: friction # defect | friction\
+  \ input-touching commit changes that sha. Exactly three\n     classes of path are\
+  \ EXCLUDED, each with a proof rather than a heuristic: the append-only JOURNAL (the\n\
+  \     build takes no journal input at all since the graph-slim cut, while every\
+  \ command\n     appends to it — left in, the cache could never hit once); the machine-local\
+  \ operational\n     dir that holds this repo's machine-local operational state;\
+  \ and the build's OWN OUTPUTS — a\n     NAMED set of the derived files it writes\
+  \ into the graph dir and reads in no pass (left in, a\n     build's own write misses\
+  \ the next build on an unchanged checkout). A written file the build\n     also\
+  \ READS — an `implements:` anchor such as the activation checklist — stays in the\
+  \ key; and\n     where the corpus being built, a consumer's included, anchors a\
+  \ member of the set, its cached\n     index is never served and the build runs in\
+  \ full. (The cache's own files live\n     under the checkout's GIT DIR, never in\
+  \ the working tree: a working-tree cache file shows as\n     untracked dirt in any\
+  \ repo whose.gitignore does not name it, and the claim verb refuses on\n     main\
+  \ dirt — measured, it broke the blank-consumer lifecycle outright.)\n   - **A miss\
+  \ is fail-safe.** Every failure inside the cache — an unreadable input, a corrupt\
+  \ or\n     absent payload, a foreign schema version, an unavailable git — falls\
+  \ through to an ordinary\n     FULL build, as does an explicit disable. A stale\
+  \ HIT is the one unacceptable failure; a miss\n     costs only time.\n   - **Inert\
+  \ by measurement, not by configuration.** ONE kernel code path serves every repo.\
+  \ The\n     key is computed only where a hit can pay for it, judged on the PREVIOUS\
+  \ build's measured cost\n     against the measured cost of the key itself. A repo\
+  \ whose build is cheap relative to its own\n     key never consults the cache and\
+  \ pays nothing; the measured cost is refreshed on every build,\n     so a corpus\
+  \ that grows past the ratio re-arms itself with no per-project mechanism, config\n\
+  \     key, or threshold that fits nobody.\n   - **It reports its own hit rate.**\
+  \ Every build records its cache state — hit, miss, skipped or\n     disabled — on\
+  \ the `graph_built` event, on EVERY outcome and not only on a hit; the rate is\n\
+  \     folded into the land tail. That line is deliberately NOT suppressed-when-clean:\
+  \ a 0% rate and\n     an inert repo both PRINT. The prior art is the reason : a\
+  \ cache wrote 1135\n     markers, read none across 1390 lands, recorded its field\
+  \ only on the hit that never came, and\n     so was indistinguishable from a working\
+  \ one until someone went looking.\n   - **ONE document, published atomically.**\
+  \ The key and the index it describes live in a SINGLE\n     object, written to a\
+  \ temp file in the same directory and published by an atomic `os.replace`,\n   \
+  \  under a filename namespaced by the resolved checkout path. This is a RULE, not\
+  \ an\n     implementation detail, because the alternative reads reasonable: a payload\
+  \ file beside a meta\n     file naming its key carries a cross-file invariant nothing\
+  \ holds, so two interleaving stores\n     leave a meta naming key A beside a payload\
+  \ built for key B and the next reader is served a\n     mismatched pair — a stale\
+  \ hit reached with NO staleness in the key, which is why the\n     content-exact\
+  \ key above does not cover it. A reader observes the WHOLE previous document or\n\
+  \     the WHOLE new one, never a partial write; a lock was the explicitly worse\
+  \ option (tripwires `a_torn_document_reads_as_a_miss`,\n     `no_interleaving_can_pair_one_key_with_another_builds_index`,\n\
+  \     `the_document_is_published_by_atomic_replace`).\n   - **A bounded set of recent\
+  \ trees, in that same document.** Beside its newest entry the\n     document keeps\
+  \ a few older {key, index} entries, newest first, each with no key twice, so a\n\
+  \     checkout whose tree alternates between a small number of states (a run that\
+  \ flips a spec for\n     its judgement and restores it after) is served on every\
+  \ return instead of rebuilt. Each entry\n     carries its index beside its own key,\
+  \ so the one-document property above holds per entry; an\n     entry of an unexpected\
+  \ shape, or a document written before the set existed, reads as no older\n     entry\
+  \ — an ordinary miss. A tree not in the set is always rebuilt.\n1. Walk `specs/*.yaml`,\
+  \ `patterns/*.md` + `plans/*.md` +\n   `ideas/*.md` frontmatter (planning artifacts\
+  \ → `plan` nodes, `kind: plan|idea`) + `errors/E-*.yaml`\n   (→ `error` nodes; the\
+  \ `E-*` glob excludes `errors/_template.yaml`)\n - NON-EMITTING passes: the build\
+  \ STILL walks `tasks/*.yaml` (for the `tasks_citing`\n   reverse-index — the surviving\
+  \ `cites` edge) and reads `tasks/*.yaml` + the audit-verdict /\n   `D-NNNN-` files\
+  \ under `decisions/` via `_read_yaml(errors=parse_errors)` for parse-error\n   observability\
+  \ (→ `_parse_errors` → exit 2 / land block). These passes EMIT no `tasks` /\n  \
+  \ `decisions` / `audits` graph SECTION (those node-types are cut) — they are reverse-indexing\n\
+  \   + parse-error-surfacing reads only.\n   - For each spec `implements:` anchor\
+  \ (`<file>` / `<file>#<symbol>`), **resolve** it\n     against the current tree\
+  \ (file exists; symbol = a def/class/const/heading present). Unresolved\n     anchors\
+  \ are collected as **report-only warnings** (stderr, NOT a build failure — report-not-block).\n\
+  \     The `code_to_specs` reverse index is keyed by the normalized **file component**\
+  \ (so `graph query\n     <file>` matches `<file>#<symbol>`).\n2. **[ — the commit/event/audit_verdict\
+  \ build-walk steps were REMOVED by the graph-slim cut: the build no longer parses\
+  \ git `from:` trailers, `events.jsonl`, or `decisions/<id>-audit-*.yaml` into graph\
+  \ sections.]**\n3. *(removed — event/emitted_by cut)*\n4. *(removed — audit_verdict/audited\
+  \ cut)*\n5. **Parse canonical docs (CHARTER + AGENTS + LIFECYCLE + QUEUE + GRAPH)\
+  \ for rule extraction:**\n   - Match lines with markers `[MUST]` / `[SHOULD]` /\
+  \ `[MAY]` or keywords (`Must` / `Cannot` / `Required`)\n   - Generate rule node\
+  \ per match: `rule:<doc-slug>:<section-slug>:<severity>`\n   - Store with fields\
+  \ `{source_doc, source_section, source_line, severity, content, status}`\n   - Emit\
+  \ `defined_in` edge (rule → source doc node)\n6. Output `graph/index.json` ( — the\
+  \ DERIVED index is JSON-serialized: json.dumps\n   sort_keys=True + indent=1 + ensure_ascii=False,\
+  \ datetime/date values serialized as ISO-8601\n   strings at build time; ~100x cheaper\
+  \ than the prior yaml.safe_dump/parse on the ~2.3MB tree.\n   P5 unchanged: one-YAML-format\
+  \ governs AUTHORED operational state, not this derived view.\n   Structure (shown\
+  \ as YAML for readability — keys identical in JSON)):\n```yaml\nspecs:\n  <workshop-spec>:\n\
+  \    title: All operational state is YAML\n    status: active\n    implements: #\
+  \ durable anchors — file / file#symbol, NOT line ranges\n      - bin/lib/task.py#cmd_task_file\n\
+  \      - bin/lib/state.py\ncode_to_specs: # keyed by the normalized FILE component\
+  \ ( — so\n  bin/yitc-v2: # `graph query <file>` matches a `<file>#<symbol>` anchor)\n\
+  \    - <workshop-spec>\n    - <workshop-spec>\n  bin/lib/state.py:\n    - <workshop-spec>\n\
+  tasks_citing:\n  <workshop-spec>:\n    -\n    -\nerrors: # : 11th node type — promotion-only\
+  \ case files (errors/E-XXXX.yaml)\n  E-0001:\n    kind: friction # defect | friction\
   \ | improvement\n    severity: low\n    status: open\n    fingerprint: <stable-dedup-key>\n\
   \    relates_to: '#10 Format drift'\n    refs: [events.jsonl#ts=..., <git-sha>]\n\
   ```\n**Read-order regen side-effect — EXPLICIT build only.** Beyond the index +\
@@ -213,9 +219,10 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ proceeds.\nPre- the doc-set was own-only and a blank consumer's stage read-check\
   \ was VACUOUS — the F-016\nsilent-OFF (`read_gate_refused`=0 read as compliant while\
   \ the read-CHECK leg never fired); that own-only\nrule is RETIRED for the read-gate.\
-  \ **Plan-axis is UNCHANGED** (`_plan_stage_bundle_specs` has no\nkernel-merge knob,\
-  \ so plan-stage delivery AND enforcement both stay own-only — already symmetric,\
-  \ NOT\nthe F-016 asymmetry). The engine self-build is byte-unchanged (`_is_consumer_build`\
+  \ **Plan-axis likewise:** under `-C` `_plan_stage_bundle_specs` reads\nthe kernel\
+  \ corpus too (own first), so plan-stage delivery AND the plan-axis doc-set show\
+  \ and enforce the\nkernel `plan-stage-entry:` contracts, realm-qualified as on the\
+  \ task axis (SPEC-0050). The engine self-build is byte-unchanged (`_is_consumer_build`\
   \ is false there). **DELIVERY + DOC-SET vs BUILD (amended).** Under `-C` BOTH the\
   \ delivery surfaces AND the TASK-axis read-gate DOC-SET (the set the gate REQUIRES\
   \ fetched before the stage action) are kernel-MERGED; the graph BUILD stays own-only\
@@ -417,166 +424,176 @@ body: "## Scenario\n\nWhen the AI works ON the graph tooling — building the in
   \ (kind `postcheck-plans-readiness`) lists\nplans at `postcheck` with their realize-readiness\
   \ against the 3 CODED `plan stage realized` exit clauses\n— `finalization_ready`\
   \ (specs reached-active + fresh GREEN/YELLOW aggregate `audit post --plan`),\n`retire_on_proof_resolved`,\
-  \ `captures_routed` — plus `realize_ready` (their AND — exactly the 3 clauses,\n\
-  no hidden gate), per-plan `blockers`, an explicit `plan_file_readable` flag, and\
-  \ a clearly-labelled\n`postcheck_probe_block_declared` ADVISORY (a plan-body PRESENCE\
-  \ heuristic over the explicit probe-block\nphrasing, NOT a content parser and NOT\
-  \ a \"soak min-runs met\" boolean — real-data ×N is owner-judged per\nplan, SPEC-0034\
-  \ §postcheck). Both retire a manual grep; both are report-not-block (CHARTER §P1).\n\
-  \n**What query layer is NOT:** NOT a separate index mechanism (INDEX.md generator\
-  \ etc. — those are\nquery outputs, not tools); NOT a caching layer beyond graph-build\
-  \ freshness; NOT a real-time dashboard\n(queries run on-demand); NOT mutating —\
-  \ a lens is a pure READ (over the graph artifact, or — for a\nraw-source lens like\
-  \ `token-rollup` — over raw transcript files + owner config; never a writer).\n\n\
-  ### Graph schema bounds — what the graph is NOT, and how each node type was admitted\n\
-  Read this before proposing a new node type, a new edge type or a new graph layer.\
-  \ The always-loaded\nGRAPH.md keeps the node and edge tables and points here; «§Schema»\
-  \ in the text of this section is\nGRAPH.md §Schema, and a request for anything on\
-  \ the fence list meets the anti-complexity filters\n(CHARTER §Principle 1) — the\
-  \ most likely answer is «defer until empirical pull».\n\n**What the graph is NOT.**\n\
-  \n- **NOT** multi-type beyond stated 8 nodes / 4 edges (no `methodology` / `runtime`\
-  \ / 25-type ontology like v1 — stays bounded per §Schema)\n- **NOT** edge classification\
-  \ beyond stated 4 edges (no `subsumes` / `replaces` / 9-type taxonomy like v1)\n\
-  - **NOT** validation layer (no «check that all RULE-* have implements» — humans\
-  \ write specs correctly OR they don't, graph just indexes). **TWO narrow named exceptions,\
-  \ each a check of FACT.** **The first (SPEC-0076 §3):** `graph build` deterministically\
-  \ REJECTS a scenario frontmatter that STORES an illegal `status` (only `retired`\
-  \ or absent is legal — `draft|building` are a computed view, and the now-retired\
-  \ `live` stays illegal to store). This is a storage-FORMAT contract check (a malformed\
-  \ field, like the YAML-parse fail-closed), NOT semantic/legality validation — the\
-  \ graph still never judges transition legality, never gates on suspicion (scenario\
-  \ staleness stays a read-only WARN). **The second (SPEC-0076 rule 6(b), the home\
-  \ of the rule — pointed at, not restated):** `graph build` also FAILS on a `building`\
-  \ scenario whose `covers` anchor does not resolve or whose cited spec does not exist;\
-  \ a `draft` or `retired` scenario is outside this check, and its dangling `covers`\
-  \ anchor stays report-only.\n- **NOT** an unconditional rebuild — the build consults\
-  \ a result cache first; the cache contract is §Build tool step 0 of this spec. **The\
-  \ cost it addresses is measured, not assumed** — folded from each repo's own recorded\
-  \ build durations. Cost tracks CORPUS SIZE and so differs by orders of magnitude\
-  \ per repo — near-instant on the smallest consumers, seconds in the engine — so\
-  \ **re-fold the figure for YOUR repo before reasoning from it**.\n- **NOT** an async/reactive\
-  \ event-emitter service: the build runs synchronously and has no reactive observability\
-  \ layer. The one provenance row a build appends to the journal is a record of that\
-  \ build, never an event-sourced or reactive layer.\n- **NOT** soft-delete / lifecycle\
-  \ (retired specs stay in `specs/` with `status: retired`; graph indexes them too)\n\
-  - **NOT** N-wave history versioning\n\n**How each node type was admitted.**\n\n\
-  **`error` node — anti-complexity note :** the `error` node-type was added by an\
-  \ explicit decision ( §GRAPH — errors are indexed from day 1 because recurrence-matching\
-  \ is a core graph query), satisfying Principle 1 Filter 4 (real decision, not speculation).\
-  \ It REUSES the surviving `cites` edge only — and adds **no** new edge type (a promotion\
-  \ link reuses `cites`). Nothing was removed because this is a decision-backed new\
-  \ entity, not parallel storage.\n\n**`scenario` node + `covers` edge — the 4-filter\
-  \ justification (per SPEC-0076).** Re-introducing a first-class scenario reverses\
-  \ the deliberate graph-slim cut (11→6) and the B3 \"fold a scenario into a spec-section\"\
-  \ choice — so it MUST earn its way back through the CHARTER §P1 four filters (written\
-  \ here, the §When-NOT-to-add discipline):\n1. **Existing analog?** The `pattern`/`error`\
+  \ `captures_routed` (an advisory) — plus `coded_clauses_pass` (the two gating\n\
+  clauses' AND), `realization_exit` (the plan's own declared exit criteria, listed\
+  \ verbatim and never\njudged — they are owner-judged, SPEC-0034 §postcheck), `realize_ready`\
+  \ (`coded_clauses_pass` AND no\ndeclared exit criteria), per-plan `blockers`, an\
+  \ explicit `plan_file_readable` flag, and a clearly-labelled\n`postcheck_probe_block_declared`\
+  \ ADVISORY (a plan-body PRESENCE heuristic over the explicit probe-block\nphrasing,\
+  \ NOT a content parser and NOT a \"soak min-runs met\" boolean — real-data ×N is\
+  \ owner-judged per\nplan, SPEC-0034 §postcheck). Both retire a manual grep; both\
+  \ are report-not-block (CHARTER §P1).\n\n**What query layer is NOT:** NOT a separate\
+  \ index mechanism (INDEX.md generator etc. — those are\nquery outputs, not tools);\
+  \ NOT a caching layer beyond graph-build freshness; NOT a real-time dashboard\n\
+  (queries run on-demand); NOT mutating — a lens is a pure READ (over the graph artifact,\
+  \ or — for a\nraw-source lens like `token-rollup` — over raw transcript files +\
+  \ owner config; never a writer).\n\n### Graph schema bounds — what the graph is\
+  \ NOT, and how each node type was admitted\nRead this before proposing a new node\
+  \ type, a new edge type or a new graph layer. The always-loaded\nGRAPH.md keeps\
+  \ the node and edge tables and points here; «§Schema» in the text of this section\
+  \ is\nGRAPH.md §Schema, and a request for anything on the fence list meets the anti-complexity\
+  \ filters\n(CHARTER §Principle 1) — the most likely answer is «defer until empirical\
+  \ pull».\n\n**What the graph is NOT.**\n\n- **NOT** multi-type beyond stated 8 nodes\
+  \ / 4 edges (no `methodology` / `runtime` / 25-type ontology like v1 — stays bounded\
+  \ per §Schema)\n- **NOT** edge classification beyond stated 4 edges (no `subsumes`\
+  \ / `replaces` / 9-type taxonomy like v1)\n- **NOT** validation layer (no «check\
+  \ that all RULE-* have implements» — humans write specs correctly OR they don't,\
+  \ graph just indexes). **TWO narrow named exceptions, each a check of FACT.** **The\
+  \ first (SPEC-0076 §3):** `graph build` deterministically REJECTS a scenario frontmatter\
+  \ that STORES an illegal `status` (only `retired` or absent is legal — `draft|building`\
+  \ are a computed view, and the now-retired `live` stays illegal to store). This\
+  \ is a storage-FORMAT contract check (a malformed field, like the YAML-parse fail-closed),\
+  \ NOT semantic/legality validation — the graph still never judges transition legality,\
+  \ never gates on suspicion (scenario staleness stays a read-only WARN). **The second\
+  \ (SPEC-0076 rule 6(b), the home of the rule — pointed at, not restated):** `graph\
+  \ build` also FAILS on a `building` scenario whose `covers` anchor does not resolve\
+  \ or whose cited spec does not exist; a `draft` or `retired` scenario is outside\
+  \ this check, and its dangling `covers` anchor stays report-only.\n- **NOT** an\
+  \ unconditional rebuild — the build consults a result cache first; the cache contract\
+  \ is §Build tool step 0 of this spec. **The cost it addresses is measured, not assumed**\
+  \ — folded from each repo's own recorded build durations. Cost tracks CORPUS SIZE\
+  \ and so differs by orders of magnitude per repo — near-instant on the smallest\
+  \ consumers, seconds in the engine — so **re-fold the figure for YOUR repo before\
+  \ reasoning from it**.\n- **NOT** an async/reactive event-emitter service: the build\
+  \ runs synchronously and has no reactive observability layer. The one provenance\
+  \ row a build appends to the journal is a record of that build, never an event-sourced\
+  \ or reactive layer.\n- **NOT** soft-delete / lifecycle (retired specs stay in `specs/`\
+  \ with `status: retired`; graph indexes them too)\n- **NOT** N-wave history versioning\n\
+  \n**How each node type was admitted.**\n\n**`error` node — anti-complexity note\
+  \ :** the `error` node-type was added by an explicit decision ( §GRAPH — errors\
+  \ are indexed from day 1 because recurrence-matching is a core graph query), satisfying\
+  \ Principle 1 Filter 4 (real decision, not speculation). It REUSES the surviving\
+  \ `cites` edge only — and adds **no** new edge type (a promotion link reuses `cites`).\
+  \ Nothing was removed because this is a decision-backed new entity, not parallel\
+  \ storage.\n\n**`scenario` node + `covers` edge — the 4-filter justification (per\
+  \ SPEC-0076).** Re-introducing a first-class scenario reverses the deliberate graph-slim\
+  \ cut (11→6) and the B3 \"fold a scenario into a spec-section\" choice — so it MUST\
+  \ earn its way back through the CHARTER §P1 four filters (written here, the §When-NOT-to-add\
+  \ discipline):\n1. **Existing analog?** The `pattern`/`error` doc-that-`cites` node\
+  \ is the structural analog (node-reuses-`cites`) — REUSED for the node shape. But\
+  \ a scenario (the owner's PRIMARY human-facing working instrument — a user-path)\
+  \ is semantically distinct from a `pattern` (a rarely-touched methodology practice);\
+  \ folding them onto one type re-muddies the legibility that motivates the entity.\
+  \ So the NODE is new, the edge-reuse pattern is not.\n2. **New entity or new view?**\
+  \ A scenario MUST be a graph node to carry `cites`/`covers` + be queried for integrity;\
+  \ the status FSM (`draft|building`) is a derived VIEW, never stored (SPEC-0076 §3,\
+  \ which also records why the former `live` state was retired). The ONE new edge\
+  \ `covers` is justified by a relation `cites` cannot express by endpoint-typing\
+  \ alone — a scenario→code/anchor coverage link.\n3. **What gets removed (RETIREMENT,\
+  \ P1 F3 — named):** (a) \"a scenario = an ad-hoc prose doc INVISIBLE to the graph\"\
+  \ CEASES to be canonical — `scenarios/<slug>.md` indexed as a `scenario` node is\
+  \ now the **SOLE canonical scenario carrier** in the v2 corpus; (b) the B3 representation\
+  \ of a cross-spec user-journey as a scenario-PARENT spec is **retired-in-role**\
+  \ (the journey is the scenario ARTIFACT/node now). The single-rule `## Scenario`\
+  \ spec SECTION (one rule's external-behaviour face) is **UNAFFECTED** — a different\
+  \ altitude.\n4. **Real incident / prior-art / analog?** v1 `SCN-*` first-class nodes\
+  \ (prior-art) + <project>'s matured `SCN↔FSM↔code` graph + <project>/<project> `scenarios/`\
+  \ dirs (≥3-project prior-art) + the asymmetric multi-project retrofit cost (CHARTER\
+  \ §P1 scale-aware refinement) — passes strongly.\n\n**Scope bound (honest +1/+1):**\
+  \ `covers` targets ONLY anchors the graph resolves TODAY (the `<file>` / `<file>#<symbol>`\
+  \ address space `implements` uses) — NO new symbol-indexer, NO `FSM-state` node-type\
+  \ (both deferred to their own future spec). So the change is EXACTLY +1 node + 1\
+  \ edge.\n\n**`lesson` node — the 4-filter justification (per SPEC-0090).** A `lesson`\
+  \ is a per-repo, NON-traveling local-craft note (`lessons/<slug>.md`) — the LOCAL\
+  \ counterpart of a `pattern`. Adding an 8th node-type earns its way through the\
+  \ CHARTER §P1 four filters:\n1. **Existing analog?** The `pattern`/`scenario`/`error`\
   \ doc-that-`cites` node is the structural analog (node-reuses-`cites`) — REUSED\
-  \ for the node shape. But a scenario (the owner's PRIMARY human-facing working instrument\
-  \ — a user-path) is semantically distinct from a `pattern` (a rarely-touched methodology\
-  \ practice); folding them onto one type re-muddies the legibility that motivates\
-  \ the entity. So the NODE is new, the edge-reuse pattern is not.\n2. **New entity\
-  \ or new view?** A scenario MUST be a graph node to carry `cites`/`covers` + be\
-  \ queried for integrity; the status FSM (`draft|building`) is a derived VIEW, never\
-  \ stored (SPEC-0076 §3, which also records why the former `live` state was retired).\
-  \ The ONE new edge `covers` is justified by a relation `cites` cannot express by\
-  \ endpoint-typing alone — a scenario→code/anchor coverage link.\n3. **What gets\
-  \ removed (RETIREMENT, P1 F3 — named):** (a) \"a scenario = an ad-hoc prose doc\
-  \ INVISIBLE to the graph\" CEASES to be canonical — `scenarios/<slug>.md` indexed\
-  \ as a `scenario` node is now the **SOLE canonical scenario carrier** in the v2\
-  \ corpus; (b) the B3 representation of a cross-spec user-journey as a scenario-PARENT\
-  \ spec is **retired-in-role** (the journey is the scenario ARTIFACT/node now). The\
-  \ single-rule `## Scenario` spec SECTION (one rule's external-behaviour face) is\
-  \ **UNAFFECTED** — a different altitude.\n4. **Real incident / prior-art / analog?**\
-  \ v1 `SCN-*` first-class nodes (prior-art) + <project>'s matured `SCN↔FSM↔code`\
-  \ graph + <project>/<project> `scenarios/` dirs (≥3-project prior-art) + the asymmetric\
-  \ multi-project retrofit cost (CHARTER §P1 scale-aware refinement) — passes strongly.\n\
-  \n**Scope bound (honest +1/+1):** `covers` targets ONLY anchors the graph resolves\
-  \ TODAY (the `<file>` / `<file>#<symbol>` address space `implements` uses) — NO\
-  \ new symbol-indexer, NO `FSM-state` node-type (both deferred to their own future\
-  \ spec). So the change is EXACTLY +1 node + 1 edge.\n\n**`lesson` node — the 4-filter\
-  \ justification (per SPEC-0090).** A `lesson` is a per-repo, NON-traveling local-craft\
-  \ note (`lessons/<slug>.md`) — the LOCAL counterpart of a `pattern`. Adding an 8th\
-  \ node-type earns its way through the CHARTER §P1 four filters:\n1. **Existing analog?**\
-  \ The `pattern`/`scenario`/`error` doc-that-`cites` node is the structural analog\
-  \ (node-reuses-`cites`) — REUSED for the node shape and the edge. A lesson is semantically\
-  \ distinct from a `pattern` precisely along the axis this architecture exists to\
-  \ make queryable — **LOCAL/non-traveling vs GENERAL/traveling** (SPEC-0090 §1) —\
-  \ so folding the two onto one type would destroy that distinction. The NODE is new;\
-  \ the `cites`-reuse pattern is not.\n2. **New entity or new view?** A lesson MUST\
-  \ be a graph node to carry `cites` + be queryable. It has **NO status FSM** (unlike\
-  \ `scenario`): it is zero-normative, so the OPTIONAL `status: retired` is the only\
-  \ stored marker (SPEC-0090 §5) — simpler than the scenario.\n3. **What gets removed\
-  \ (RETIREMENT, P1 F3 — named):** the «a project-specific craft note had nowhere\
-  \ to live except the cross-project `patterns/` catalog» drift is removed — `lessons/`\
-  \ is now the honest home for local craft, so `patterns/` holds only GENERAL traveling\
-  \ methodology. (The *routing* retirements + the route-by-purpose enforcement live\
-  \ in the SIBLING behavioral plan / SPEC-0089 — this node-type leg is additive-only,\
-  \ SPEC-0090 §7.)\n4. **Real incident / prior-art / analog?** The `ideas/`-catch-all\
-  \ drift (deviation 2026-06-19) is the real incident; the `scenario` node-type (SPEC-0076)\
-  \ is the immediate +1-node-reuses-`cites` prior-art; ≥3-project local-craft accumulation\
-  \ (<project>/<project> specifics) is the scale driver.\n\n**Scope bound (honest\
-  \ +1/0):** the `lesson` node REUSES `cites` — NO new edge (the 4-edge bound is UNCHANGED).\
-  \ A lesson is indexed PER-REPO, by each repository's own build: a lesson never travels\
-  \ (project realm, SPEC-0073). So the change is EXACTLY +1 node, +0 edge.\n\n####\
-  \ Why this schema (not more, not less) — per CHARTER §1 Filter 4 refined\n\n- **Prior-art\
-  \ from v1**: the entity + edge patterns were observed across months of v1 production\
-  \ usage. Not speculation.\n- **V2 Day 2+ projection**: ~30 cite-able artifacts after\
-  \ closure; 100+ within first production-task week; 500+ within first month. Indexed\
-  \ graph beats grep at that scale.\n- **Build cost**: ~200 LOC (build script + query\
-  \ CLI). All data already structured.\n\n### Node-volume — consolidation is a Review\
-  \ judgement, not a count-gate\nThere is **no numeric node-volume trigger** for any\
-  \ node type. Consolidating / retiring / archiving\nnodes (tasks, decisions, patterns)\
-  \ is a **regular Review judgement** made on observed cost — never an\narbitrary\
-  \ count threshold: counts grow with the work, so a fixed number signals nothing\
-  \ (owner\ndirective 2026-06-06). The arbitrary per-node-type count thresholds that\
-  \ once lived here\nare removed. The **spec count cap is likewise REPLACED** by the\
-  \ admission test + two-bound volume\ndiscipline (homed in <workshop-spec> rules\
-  \ 2 + 6; GRAPH.md §When-to-add points there) — anti-bloat is held\nby that discipline\
-  \ + retrieval precision + currency, not a count cap (<workshop-spec> rule 6).\n\n\
-  ## Rationale\n\nDemoted to the retrieved tier (SPEC-0007 §5a query-only): the build\
-  \ walk + query-CLI surface are\nconsulted only when working ON the graph tooling\
-  \ — not before a gated control-point — so the\nalways-loaded GRAPH core stays small\
-  \ (node/edge schema + Spec lifecycle FSM + What-a-spec-is-FOR). The\nbuild↔query\
-  \ contract (the `index.json` format) is kept in ONE spec so the producer-doc and\n\
-  consumer-doc do not drift apart (rule-1 merge: separating them would worsen change\
-  \ analysis).\n\nThe fence bullet «NOT validation layer» was written, when the stored-status\
-  \ check was\nthe only one that failed a build and a dangling `covers` anchor was\
-  \ only reported. then\nput the broken-reference check into the build (June 2026)\
-  \ and added the cited-spec case,\nwhile the bullet kept its earlier wording. (2026-10-10)\
-  \ corrected the bullet to that\nshipped behaviour and counted the second exception;\
-  \ the build itself did not change.\n\nThe lineage head line and `lineage_cited_by`\
-  \ (§Query CLI) were added in place by (plan\nspec-references-resolve-to-the-active-head-of-a-sp,\
-  \ card 1b), as additive output above an unchanged\nread (<workshop-spec> rule 7):\
-  \ before it, the point-lookup showed one hop of `superseded_by` and nothing\nabout\
-  \ where a lineage stands or who cites its earlier ids.\n\n## Verification\n\n- **Fidelity\
-  \ (RED-GREEN):** substantive phrases (e.g. `keyed by the normalized FILE component`\
-  \ /\n  `it stores the QUERY, never a materialized output`) resolve in THIS spec\
-  \ and are ABSENT from\n  GRAPH.md after the demote. RED before strip, GREEN after.\n\
-  - **Delivery (query-only):** `bin/yitc-v2 graph query SPEC-0031` resolves; the GRAPH.md\
-  \ pointer-stub\n  names `SPEC-0031` + lookup command. NO floor-trigger.\n- **Non-dangling:**\
-  \ non-empty `implements:` (cmd_graph_build + cmd_graph_query) ⇒ excluded from\n\
-  \  `dangling_specs` once active.\n- **Boundary:** the 7-node / 4-edge schema (post\
-  \ the 11->6 node / 6->3 edge cut, then the\n  SPEC-0076 scenario node + covers edge\
-  \ re-grow to 7/4) + Spec lifecycle FSM stay MANDATORY in\n  GRAPH.md (grep).\n-\
-  \ **Re-verified current (refreshed):** the build-walk (specs/tasks/decisions/patterns/\n\
-  \  plans/ideas/errors/scenarios + `from:` trailers + events + audits + rule-extraction)\
-  \ confirmed against `graph_build_index`; the\n  `index.yaml` format and the `--projected`\
-  \ structural flags (`added`/`changed`/`superseded`/`stale`/\n  `multi-proposer-unordered`/`dangling`)\
-  \ confirmed all-present in code. `cmd_graph_query` region is\n  IDENTICAL to the\
-  \ spec last-touch baseline (no code-drift). The only freshness signal was the cosmetic\n\
-  \   `cmd_graph_build` path-derivation refactor — no format impact. The query-CLI\
-  \ implemented-vs-\n  design split was clarified above (`graph query --help`). Anchor\
-  \ refreshed by this touch.\n- **Re-verified current :** the index serialization\
-  \ switched YAML→JSON (graph/index.json;\n  the single write helper `_write_graph_index`\
-  \ serves both build sites; `_read_yaml`\n  suffix-dispatches `.json` via json.loads,\
-  \ un-memoized). The `--as-of` json-first/yaml-fallback\n  split verified by tests/test_graph_asof.py.\
-  \ Anchor refreshed by this touch.\n- **Re-verified current (2026-06-07 — E-0019\
-  \ reconcile):** `cmd_graph_query`'s region drifted\n  since last-touch ( graph-slim\
-  \ cut reshaped the build/query node assembly). GOVERNED SURFACE\n  re-verified ACCURATE\
-  \ vs current code (scope = the `index.json` format + the query-CLI surface\n  `cmd_graph_query`\
-  \ owns, NOT the full body) — the index format + point-lookup/filters/--projected/\n\
-  \  saved-views the spec documents are intact; the cut dropped the task/decision/commit/audit/event\n\
-  \  NODE-types (re-sourced on demand), which the body already reflects via the §What-graph-is-NOT\
+  \ for the node shape and the edge. A lesson is semantically distinct from a `pattern`\
+  \ precisely along the axis this architecture exists to make queryable — **LOCAL/non-traveling\
+  \ vs GENERAL/traveling** (SPEC-0090 §1) — so folding the two onto one type would\
+  \ destroy that distinction. The NODE is new; the `cites`-reuse pattern is not.\n\
+  2. **New entity or new view?** A lesson MUST be a graph node to carry `cites` +\
+  \ be queryable. It has **NO status FSM** (unlike `scenario`): it is zero-normative,\
+  \ so the OPTIONAL `status: retired` is the only stored marker (SPEC-0090 §5) — simpler\
+  \ than the scenario.\n3. **What gets removed (RETIREMENT, P1 F3 — named):** the\
+  \ «a project-specific craft note had nowhere to live except the cross-project `patterns/`\
+  \ catalog» drift is removed — `lessons/` is now the honest home for local craft,\
+  \ so `patterns/` holds only GENERAL traveling methodology. (The *routing* retirements\
+  \ + the route-by-purpose enforcement live in the SIBLING behavioral plan / SPEC-0089\
+  \ — this node-type leg is additive-only, SPEC-0090 §7.)\n4. **Real incident / prior-art\
+  \ / analog?** The `ideas/`-catch-all drift (deviation 2026-06-19) is the real incident;\
+  \ the `scenario` node-type (SPEC-0076) is the immediate +1-node-reuses-`cites` prior-art;\
+  \ ≥3-project local-craft accumulation (<project>/<project> specifics) is the scale\
+  \ driver.\n\n**Scope bound (honest +1/0):** the `lesson` node REUSES `cites` — NO\
+  \ new edge (the 4-edge bound is UNCHANGED). A lesson is indexed PER-REPO, by each\
+  \ repository's own build: a lesson never travels (project realm, SPEC-0073). So\
+  \ the change is EXACTLY +1 node, +0 edge.\n\n#### Why this schema (not more, not\
+  \ less) — per CHARTER §1 Filter 4 refined\n\n- **Prior-art from v1**: the entity\
+  \ + edge patterns were observed across months of v1 production usage. Not speculation.\n\
+  - **V2 Day 2+ projection**: ~30 cite-able artifacts after closure; 100+ within first\
+  \ production-task week; 500+ within first month. Indexed graph beats grep at that\
+  \ scale.\n- **Build cost**: ~200 LOC (build script + query CLI). All data already\
+  \ structured.\n\n### Node-volume — consolidation is a Review judgement, not a count-gate\n\
+  There is **no numeric node-volume trigger** for any node type. Consolidating / retiring\
+  \ / archiving\nnodes (tasks, decisions, patterns) is a **regular Review judgement**\
+  \ made on observed cost — never an\narbitrary count threshold: counts grow with\
+  \ the work, so a fixed number signals nothing (owner\ndirective 2026-06-06). The\
+  \ arbitrary per-node-type count thresholds that once lived here\nare removed. The\
+  \ **spec count cap is likewise REPLACED** by the admission test + two-bound volume\n\
+  discipline (homed in <workshop-spec> rules 2 + 6; GRAPH.md §When-to-add points there)\
+  \ — anti-bloat is held\nby that discipline + retrieval precision + currency, not\
+  \ a count cap (<workshop-spec> rule 6).\n\n## Rationale\n\nDemoted to the retrieved\
+  \ tier (SPEC-0007 §5a query-only): the build walk + query-CLI surface are\nconsulted\
+  \ only when working ON the graph tooling — not before a gated control-point — so\
+  \ the\nalways-loaded GRAPH core stays small (node/edge schema + Spec lifecycle FSM\
+  \ + What-a-spec-is-FOR). The\nbuild↔query contract (the `index.json` format) is\
+  \ kept in ONE spec so the producer-doc and\nconsumer-doc do not drift apart (rule-1\
+  \ merge: separating them would worsen change analysis).\n\nThe fence bullet «NOT\
+  \ validation layer» was written, when the stored-status check was\nthe only one\
+  \ that failed a build and a dangling `covers` anchor was only reported. then\nput\
+  \ the broken-reference check into the build (June 2026) and added the cited-spec\
+  \ case,\nwhile the bullet kept its earlier wording. (2026-10-10) corrected the bullet\
+  \ to that\nshipped behaviour and counted the second exception; the build itself\
+  \ did not change.\n\nThe lineage head line and `lineage_cited_by` (§Query CLI) were\
+  \ added in place by (plan\nspec-references-resolve-to-the-active-head-of-a-sp, card\
+  \ 1b), as additive output above an unchanged\nread (<workshop-spec> rule 7): before\
+  \ it, the point-lookup showed one hop of `superseded_by` and nothing\nabout where\
+  \ a lineage stands or who cites its earlier ids.\n\nThe third excluded class (the\
+  \ build's own outputs, step 0) was added in place by as an\nadditive exclusion beside\
+  \ the two named before it (SPEC-1037 §7): every path the build reads still\nmoves\
+  \ the key. Measured before it: of the last 60 consecutive `graph_built` misses in\
+  \ this engine,\n6 had unchanged inputs and only the previous build's own writes\
+  \ moved (145 of 1740 over the whole\njournal). The typical case was land's second\
+  \ build, about 14 s after its first; on the engine tree\none input change cost three\
+  \ full builds (miss, miss, hit).\n\n## Verification\n\n- **Fidelity (RED-GREEN):**\
+  \ substantive phrases (e.g. `keyed by the normalized FILE component` /\n  `it stores\
+  \ the QUERY, never a materialized output`) resolve in THIS spec and are ABSENT from\n\
+  \  GRAPH.md after the demote. RED before strip, GREEN after.\n- **Delivery (query-only):**\
+  \ `bin/yitc-v2 graph query SPEC-0031` resolves; the GRAPH.md pointer-stub\n  names\
+  \ `SPEC-0031` + lookup command. NO floor-trigger.\n- **Non-dangling:** non-empty\
+  \ `implements:` (cmd_graph_build + cmd_graph_query) ⇒ excluded from\n  `dangling_specs`\
+  \ once active.\n- **Boundary:** the 7-node / 4-edge schema (post the 11->6 node\
+  \ / 6->3 edge cut, then the\n  SPEC-0076 scenario node + covers edge re-grow to\
+  \ 7/4) + Spec lifecycle FSM stay MANDATORY in\n  GRAPH.md (grep).\n- **Re-verified\
+  \ current (refreshed):** the build-walk (specs/tasks/decisions/patterns/\n  plans/ideas/errors/scenarios\
+  \ + `from:` trailers + events + audits + rule-extraction) confirmed against `graph_build_index`;\
+  \ the\n  `index.yaml` format and the `--projected` structural flags (`added`/`changed`/`superseded`/`stale`/\n\
+  \  `multi-proposer-unordered`/`dangling`) confirmed all-present in code. `cmd_graph_query`\
+  \ region is\n  IDENTICAL to the spec last-touch baseline (no code-drift). The only\
+  \ freshness signal was the cosmetic\n   `cmd_graph_build` path-derivation refactor\
+  \ — no format impact. The query-CLI implemented-vs-\n  design split was clarified\
+  \ above (`graph query --help`). Anchor refreshed by this touch.\n- **Re-verified\
+  \ current :** the index serialization switched YAML→JSON (graph/index.json;\n  the\
+  \ single write helper `_write_graph_index` serves both build sites; `_read_yaml`\n\
+  \  suffix-dispatches `.json` via json.loads, un-memoized). The `--as-of` json-first/yaml-fallback\n\
+  \  split verified by tests/test_graph_asof.py. Anchor refreshed by this touch.\n\
+  - **Re-verified current (2026-06-07 — E-0019 reconcile):** `cmd_graph_query`'s region\
+  \ drifted\n  since last-touch ( graph-slim cut reshaped the build/query node assembly).\
+  \ GOVERNED SURFACE\n  re-verified ACCURATE vs current code (scope = the `index.json`\
+  \ format + the query-CLI surface\n  `cmd_graph_query` owns, NOT the full body) —\
+  \ the index format + point-lookup/filters/--projected/\n  saved-views the spec documents\
+  \ are intact; the cut dropped the task/decision/commit/audit/event\n  NODE-types\
+  \ (re-sourced on demand), which the body already reflects via the §What-graph-is-NOT\
   \ bound.\n  Last-touch refreshed. Kind-(B) symbol-level TRUE-positive — durable\
   \ fix (content-signature, new store)\n  is owner-Review-gated; legitimate one-time\
   \ reconcile, not a cosmetic re-pin. (The ## Verification §Boundary stale pre- node/edge\
@@ -636,7 +653,7 @@ implements_signature:
   bin/lib/graph.py#cmd_graph_query: b6686bef39239aa658686f9ea5ac5d7eeb07b97296db976a04b10bc8fec79aca
   bin/lib/graph.py#graph_cache_report_lines: f6531ec48ac729e790ee9020b118372b073deb54446b84c94c5b5d69633c1d24
   bin/lib/graph.py#graph_index_text: 2eeddea466e78e5897f487b3012527a6adac4bdfd8c505ceb39f71d36016b195
-  bin/lib/graph.py#index_cache_lookup: 965fc72fd8f21ebe2686fb060a23a63b4535a468d4f74c7bc5e18282e5e10735
+  bin/lib/graph.py#index_cache_lookup: 37d9935af3445409fb4dc221934210399d6cfdf28299ff0fa6fbef58141fe5fa
   bin/lib/graph.py#index_cache_store: 6128dc2131cc9293efebfa43ef27a0aac1108524eff831dad6bb067c4a619d2d
   bin/lib/graph.py#repo_state_fingerprint: 25461b04058bc29b7edac6b18dc74df25e4b5c0ae66d624a13611a0b7e8784df
   bin/lib/graph.py#strict_integrity_violations: 7f09829269f84ae69d7302f7c4029ca0c5a915ae49466278bb2847fb6c1678ff

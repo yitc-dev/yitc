@@ -676,56 +676,63 @@ body: "## Scenario\n\nA land runs the tests its diff can actually break, instead
   \ is the excerpt on its summary line, unless\nthat is only the unit's status value,\
   \ and every line printed after that summary up to the next\none, verbatim; a line\
   \ that differs between the runs — a duration, a checkout path — therefore\nmakes\
-  \ the match decline.\nA record whose\nmerge-base run happened names that run's tree\
-  \ and the ids it failed (`base_sha`, `at_base`), and the\nabort's ATTRIBUTION: MAIN\
-  \ line prints both; beside a file-granular id the record also carries that\nrun's\
-  \ failure lines (`base_failure_lines`), which the ATTRIBUTION line prints.\n\nRULE\
-  \ 2 — WHAT CLEARS A RECORD, and it is ONLY evidence that this pair's test RAN and\
-  \ PASSED on a\nfresh main, recorded STRICTLY LATER than the row that established\
-  \ it. The journal stamps whole\nSECONDS, so two rows can share a `ts`; a same-instant\
-  \ row is not later evidence, it is a tie broken\nby where the row happens to sit\
-  \ in the file, and the tie FAILS CLOSED to not-evidence. (The\nopposite direction\
-  \ from SPEC-0149's `>=`, deliberately: there a recheck appended in the same second\n\
-  as its deploy really did happen after it, while here \"later\" IS the whole claim.)\
-  \ A RE-OBSERVATION\nre-stamps that instant — the record is a fact about the newest\
-  \ tree, so evidence must post-date the\nnewest observation, not the original one.\
-  \ Exactly seven routes:\n  (a) PAIR-LEVEL. A later row lists that pair in `at_branch`\
-  \ — its merge-base run did NOT reproduce\n      the failure, which is a direct observation\
-  \ of it passing on main.\n  (b) FULL-ENUMERATION GREEN LAND. A later `status: ok`\
-  \ row whose verify ran the WHOLE discovered\n      enumeration (`verify_metrics.test_file_count\
-  \ >= selection_discovered_count > 0`) AND whose\n      own recorded `sha` names\
-  \ a tree CONTAINING that pair's test file. Green means every executed\n      file\
-  \ passed, and the sha it fast-forwarded main to IS main's new tip.\n  (c) RECORDED-SELECTION\
-  \ GREEN LAND. A later `status: ok` row whose\n      `verify_metrics.selection_ran_tests`\
-  \ NAMES that pair's test file. This is a direct\n      observation that the file\
-  \ ran and passed on the tree that land produced, so it clears the\n      pair whether\
-  \ or not the land ran the whole enumeration. It needs NEITHER of (b)'s conjuncts:\n\
-  \      both exist because COUNTS cannot say which files ran, and a recorded selection\
-  \ says exactly\n      that — so no sha probe and no git are involved. A file NOT\
-  \ in the recorded set is simply not\n      evidence and the record stays reported.\n\
-  \  (d) DELEGATED-LAYER GREEN. A later `status: ok` row whose recorded DELEGATED\
-  \ verify\n      layer PASSED and whose recorded delegated SURFACE contains that\
-  \ pair's test file. A consumer\n      whose declared layer `covers:` its test dir\
-  \ REPLACES the kernel's bare sweep (SPEC-0152 rule\n      16), so it runs no sweep,\
-  \ writes no selection, and (c) has nothing to read.\n  (e) LAYER GREEN. For a pair\
-  \ OPENED BY A LAYER RED — the newest row that established it shows\n      the consumer\
-  \ verify layer its first half names FAILED, and no other failing pair of that\n\
-  \      row carries the same first half — a later `status: ok` row on which THAT\
-  \ layer's own\n      outcome reads `passed`, the layer was not re-run to reach it,\
-  \ and no unit of its per-unit\n      report reads other than passed — or reads `passed-partial`\
-  \ under the per-unit standard (f)\n      holds a credited partial run to, one standard\
-  \ for both routes. The record opened on the\n      layer failing again at the merge-base,\
-  \ so the layer passing in a later green land is that same observation. The name\n\
-  \      alone does not decide: a pair whose establishing row does not show this —\
-  \ a test file's\n      pair, or a first half that a test file and a layer both carry\
-  \ — is not cleared by this\n      route, whatever layer later passes under that\
-  \ name. A layer the land skipped, took from an\n      earlier run, waived, or ran\
-  \ to any other outcome is not evidence; neither is a different\n      layer passing,\
-  \ nor two rows under the layer's name. Route (e) adds evidence for clearing\n  \
-  \    only: routes (a)-(d) and rules 1, 1a and 3-7 read as before.\n  (f) CREDITED\
-  \ STAGE-6 RUN. A later `status: ok` row whose candidate leg was credited from a\
-  \ Stage-6\n      run (SPEC-0065 §Bound) and which names that run (`stage6_credit`,\
-  \ or per layer\n      `stage6_layer_credit`, by task and ts): the named `tests_passed`\
+  \ the match decline.\nA layer red whose candidate layer row carries a usable adapter\
+  \ report naming every failed unit's\ncases (its failed case ids, or the tests the\
+  \ unit names) is not compared by text: it becomes one\npair per (file, case, project)\
+  \ tuple, and a tuple is reproduced only when the merge-base run's row\nof the same\
+  \ layer names the identical tuple. A failed base row that names no case is\n`base-layer-failed-differently`;\
+  \ the record lists the tuples as `pairs`. A layer whose report does\nnot name every\
+  \ failed case keeps the text id and the rules above.\nA record whose\nmerge-base\
+  \ run happened names that run's tree and the ids it failed (`base_sha`, `at_base`),\
+  \ and the\nabort's ATTRIBUTION: MAIN line prints both; beside a file-granular id\
+  \ the record also carries that\nrun's failure lines (`base_failure_lines`), which\
+  \ the ATTRIBUTION line prints.\n\nRULE 2 — WHAT CLEARS A RECORD, and it is ONLY\
+  \ evidence that this pair's test RAN and PASSED on a\nfresh main, recorded STRICTLY\
+  \ LATER than the row that established it. The journal stamps whole\nSECONDS, so\
+  \ two rows can share a `ts`; a same-instant row is not later evidence, it is a tie\
+  \ broken\nby where the row happens to sit in the file, and the tie FAILS CLOSED\
+  \ to not-evidence. (The\nopposite direction from SPEC-0149's `>=`, deliberately:\
+  \ there a recheck appended in the same second\nas its deploy really did happen after\
+  \ it, while here \"later\" IS the whole claim.) A RE-OBSERVATION\nre-stamps that\
+  \ instant — the record is a fact about the newest tree, so evidence must post-date\
+  \ the\nnewest observation, not the original one. Exactly seven routes:\n  (a) PAIR-LEVEL.\
+  \ A later row lists that pair in `at_branch` — its merge-base run did NOT reproduce\n\
+  \      the failure, which is a direct observation of it passing on main.\n  (b)\
+  \ FULL-ENUMERATION GREEN LAND. A later `status: ok` row whose verify ran the WHOLE\
+  \ discovered\n      enumeration (`verify_metrics.test_file_count >= selection_discovered_count\
+  \ > 0`) AND whose\n      own recorded `sha` names a tree CONTAINING that pair's\
+  \ test file. Green means every executed\n      file passed, and the sha it fast-forwarded\
+  \ main to IS main's new tip.\n  (c) RECORDED-SELECTION GREEN LAND. A later `status:\
+  \ ok` row whose\n      `verify_metrics.selection_ran_tests` NAMES that pair's test\
+  \ file. This is a direct\n      observation that the file ran and passed on the\
+  \ tree that land produced, so it clears the\n      pair whether or not the land\
+  \ ran the whole enumeration. It needs NEITHER of (b)'s conjuncts:\n      both exist\
+  \ because COUNTS cannot say which files ran, and a recorded selection says exactly\n\
+  \      that — so no sha probe and no git are involved. A file NOT in the recorded\
+  \ set is simply not\n      evidence and the record stays reported.\n  (d) DELEGATED-LAYER\
+  \ GREEN. A later `status: ok` row whose recorded DELEGATED verify\n      layer PASSED\
+  \ and whose recorded delegated SURFACE contains that pair's test file. A consumer\n\
+  \      whose declared layer `covers:` its test dir REPLACES the kernel's bare sweep\
+  \ (SPEC-0152 rule\n      16), so it runs no sweep, writes no selection, and (c)\
+  \ has nothing to read.\n  (e) LAYER GREEN. For a pair OPENED BY A LAYER RED — the\
+  \ newest row that established it shows\n      the consumer verify layer its first\
+  \ half names FAILED, and no other failing pair of that\n      row carries the same\
+  \ first half — a later `status: ok` row on which THAT layer's own\n      outcome\
+  \ reads `passed`, the layer was not re-run to reach it, and no unit of its per-unit\n\
+  \      report reads other than passed — or reads `passed-partial` under the per-unit\
+  \ standard (f)\n      holds a credited partial run to, one standard for both routes.\
+  \ The record opened on the\n      layer failing again at the merge-base, so the\
+  \ layer passing in a later green land is that same observation. The name\n     \
+  \ alone does not decide: a pair whose establishing row does not show this — a test\
+  \ file's\n      pair, or a first half that a test file and a layer both carry —\
+  \ is not cleared by this\n      route, whatever layer later passes under that name.\
+  \ A layer the land skipped, took from an\n      earlier run, waived, or ran to any\
+  \ other outcome is not evidence; neither is a different\n      layer passing, nor\
+  \ two rows under the layer's name. Route (e) adds evidence for clearing\n      only:\
+  \ routes (a)-(d) and rules 1, 1a and 3-7 read as before.\n  (f) CREDITED STAGE-6\
+  \ RUN. A later `status: ok` row whose candidate leg was credited from a Stage-6\n\
+  \      run (SPEC-0065 §Bound) and which names that run (`stage6_credit`, or per\
+  \ layer\n      `stage6_layer_credit`, by task and ts): the named `tests_passed`\
   \ row is read as the evidence,\n      and it too must be STRICTLY LATER than the\
   \ row that established the pair. For a pair opened\n      by a layer red, as in\
   \ (e): the run holds exactly one row for that layer, the land took that\n      layer\
@@ -990,7 +997,7 @@ init_concern: null
 implements_signature:
   bin/lib/batch_landing.py#_land_prequeue_known_broken_refusal: 7dd22f85b24807ddd6d2971843cfde667abb94387a80dac963253076dbe89127
   bin/lib/debt_adoption.py#open_known_broken: 78b9b00b36b21c12081c37ab5ff3534cfeeead2829cbab354bd226697c50c3dc
-  bin/lib/verify_runner.py#_run_verify_tests: 1db401a797ad3eb8e1ff4177c31dbf3338359dcec592c2f6dbdbabca0be7530c
+  bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
   bin/lib/verify_runner.py#_selection_governs: 8691451bf791aac7cce04144ad320ce781490b24be46be849b9b1c56d6fac28d
   bin/lib/verify_runner.py#_selection_omission_tripwire: 7150515317570116e0af6042e10aefb80d394512cdbead0685ed23423c67091e
   bin/lib/verify_runner.py#_selection_recorded_misses: 8803abef3d247651f6015a9c0435e83e4d7aae23212e6a24c630000264b73ac0

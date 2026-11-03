@@ -873,7 +873,8 @@ INVENTORY: "tuple[Knob, ...]" = (
                "bookkeeping", "credit", "no-layer", "own-tests")),
     _d("admission.green_hold", "switch", "on", "bin/lib/machine_settings.py#admission_settings",
        "on: after a card's green Stage-6 run no other card's run and no land that runs a verify layer "
-       "passes until that card's land ends, it pauses or halts, or YITC_ADMISSION_GREEN_HOLD_S passes "
+       "passes until that card's land ends, it pauses or halts, or it shows no progress once "
+       "YITC_ADMISSION_GREEN_HOLD_S has passed "
        "(the source's GREEN_HOLD > 0; in force at cryptochart, #197 body). A DECLARATION: on/off only",
        bounds=("on", "off")),
     _d("admission.light_layers", "names", ("deps", "static", "ops", "integrity"),
@@ -924,8 +925,9 @@ INVENTORY: "tuple[Knob, ...]" = (
        "to decide. PERFORMANCE, read as a VETO. Admissible: auto | off",
        bounds=("auto", "off"), veto="off"),
     _p("YITC_ADMISSION_GREEN_HOLD_S", "float", 900.0, "SPEC-1045 queue — THE GREEN HOLD (T-14197)",
-       "the most seconds a green hold stands (the source's GREEN_HOLD seconds; 900 in force at "
-       "cryptochart, #197 body). PERFORMANCE: bounds a wait; whether there is a hold is "
+       "the seconds after which a green hold's card is checked for progress, and again at every read "
+       "after: the hold ends once the card shows none (T-14483; 900 in force at cryptochart, #197 "
+       "body). PERFORMANCE: paces a check; whether there is a hold is "
        "admission.green_hold. Admissible 1..86400",
        bounds=(1.0, 86400.0)),
     _p("YITC_ADMISSION_LAND_TAIL_THRESHOLD_PCT", "float", 10.0, "SPEC-1045 queue — THE RULE (T-14195)",
@@ -1107,8 +1109,11 @@ INVENTORY: "tuple[Knob, ...]" = (
     _g("YITC_EXPECTED_SESSION_REF", "str", None, "bin/lib/plan.py",
        "the dispatched-worker marker an owner-gated refusal reads"),
     _g("YITC_DISPATCH_LOG_RETENTION_DAYS", "int", 30, "bin/git-maintenance.sh",
-       "how many days .yitc/dispatch-logs files survive before maintenance deletes them — DATA "
-       "RETENTION, not speed (T-12502)"),
+       "how many days .yitc/dispatch-logs and .yitc/land-logs files survive before maintenance deletes "
+       "them — DATA RETENTION, not speed (T-12502, T-14480)"),
+    _g("YITC_FRESH_SUBENV", "str", None, "bin/lib/cli.py#_in_fresh_subenv",
+       "an INTERNAL marker the external-auditor spawn core sets on its child so the child never adopts "
+       "the launcher's worktree stamp (T-14467) — process topology, not a tunable"),
     _g("YITC_FE_SRC", "str", None, "bin/lib/frontend_errors.py", "a query input, not a cadence"),
     _g("YITC_GC_PRUNE_EXPIRE", "str", "7.days", "bin/git-maintenance.sh",
        "how long unreachable objects survive — DATA RETENTION, not speed"),

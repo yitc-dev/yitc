@@ -2178,7 +2178,10 @@ class _DecideBarrier:
     the group and appears in no list. A waiter waits at most `left_s`, its own layer's remaining bound.
     FAIL CLOSED: a failed write or an expired wait marks the barrier FAILED for EVERY member (`failed`
     = `expired` / `unpublished`, `reason` its text) — `arrive` then answers False, and no member may
-    start its run step."""
+    start its run step.
+
+    T-14422: each member's WAIT is stamped — from its first arrival to its release (or to the failure
+    that ended the wait) — and read back by `wait_fields` onto the member's outcome row."""
 
     def __init__(self, path, names, written: dict):
         self.path = str(path)
@@ -2189,6 +2192,8 @@ class _DecideBarrier:
         self.done = False
         self.failed = None
         self.reason = None
+        self._arrived_at: dict = {}
+        self._waited: dict = {}
 
     def _publish_if_complete(self):
         if self.done or self.failed or self._waiting:
@@ -2212,6 +2217,7 @@ class _DecideBarrier:
             if name in self._waiting:
                 self._waiting.discard(name)
                 self._entries[name] = entry
+                self._arrived_at.setdefault(name, time.monotonic())
                 self._publish_if_complete()
             end = None if left_s is None else time.monotonic() + max(0.0, float(left_s))
             while not (self.done or self.failed):
@@ -2223,7 +2229,20 @@ class _DecideBarrier:
                     self._cv.notify_all()
                     break
                 self._cv.wait(rest)
+            if name in self._arrived_at and name not in self._waited:   # T-14422: the first wait only
+                self._waited[name] = (int(round((time.monotonic() - self._arrived_at[name]) * 1000)),
+                                      self.failed)
             return self.done and not self.failed
+
+    def wait_fields(self, name: str) -> dict:
+        """T-14422 (SPEC-1046 rule 3): the outcome-row keys for `name` — `barrier_wait_ms` (integer
+        milliseconds from its first arrival to its release) and, when the wait ended failed,
+        `barrier_wait_end` (`expired` / `unpublished`). Empty for a member that never arrived."""
+        with self._cv:
+            if name not in self._waited:
+                return {}
+            ms, end = self._waited[name]
+            return {"barrier_wait_ms": ms, **({"barrier_wait_end": end} if end else {})}
 
     def leave(self, name: str) -> None:
         """`name` will not decide (or has already): it leaves the group, which may complete it."""
@@ -4996,6 +5015,15 @@ _ADAPTER_REPORT_PROFILES = {
                  "file_named_case": False, "outside_suites": (), "second_report": None,
                  "report_id": "dotted-module", "cases": True, "retries_off": "no rerun plugin",
                  "unrevealable": (), "related_diff": "kernel"},
+    # T-14492 — the GENERIC JUnit profile: any runner that writes JUnit XML (pytest, jest-junit,
+    # vitest, playwright, go via gotestsum, mocha, phpunit, ...). A case's unit is its own `file`
+    # attribute, else its suite's `file`, else the suite name; a case with none of them resolving
+    # to a requested unit voids the report (`unit-unrequested`), so a guess never names a file.
+    "junit/1": {"unit_from": "file-attr", "project_in_report": False, "case_error": "unit",
+                "file_named_case": False, "outside_suites": (), "second_report": None,
+                "report_id": "file", "cases": True,
+                "retries_off": "the runner's own retry option off",
+                "unrevealable": (), "related_diff": "kernel"},
     "script/1": {"unit_from": "suite", "project_in_report": False, "case_error": "unit",
                  "file_named_case": False, "outside_suites": (), "second_report": None,
                  "report_id": "file", "cases": False,
@@ -6263,6 +6291,79 @@ def _failure_excerpt(text: str, budget: int, block_text: "str | None" = None) ->
     return (kept + " [...] " + rest[:room]) if rest else kept
 
 
+# T-14492 — the adapter block a gap line names, per gap kind (the generic route first).
+_PER_TEST_GAP_BLOCK = ("adapter: {run: <a command writing the runner's JUnit XML to the manifest's "
+                       "`report` path>, report_profile: junit/1}")
+_PER_TEST_GAP_SCRIPT = ("name each failed test as <property name=\"failed_test\" value=...> on the "
+                        "failed case (or print the runner's own failure lines), or move the layer to "
+                        "`report_profile: junit/1`")
+
+
+def _per_test_report_gaps(ops_doc, named_by_layer=None) -> list:
+    """T-14492 (SPEC-1046) — the declared verify layers whose red cannot be told apart from main's
+    per test. PURE. Returns `[(layer, kind)]` in declaration order, `kind` one of:
+      `no-adapter`  the layer declares no `adapter:` — its red is the whole layer's;
+      `file-grain`  its profile has no case rows (`script/1`) AND its newest recorded failed unit
+                    did not read `named: true` (`named_by_layer[layer]` is not True) — a red names
+                    the file only. A script layer whose adapter names its failed tests is no gap.
+    Skipped: a layer carrying a `waiver:` (it runs nothing), and a layer whose command is the
+    kernel's own `graph conformance` corpus check (no tests of the project's). A malformed or
+    absent `verify:` section yields `[]` — this reports, it never judges a declaration."""
+    named_by_layer = named_by_layer if isinstance(named_by_layer, dict) else {}
+    verify = ops_doc.get("verify") if isinstance(ops_doc, dict) else None
+    layers = verify.get("layers") if isinstance(verify, dict) else None
+    out: list = []
+    for ly in layers if isinstance(layers, list) else []:
+        if not isinstance(ly, dict) or "waiver" in ly:
+            continue
+        name = str(ly.get("layer") or "").strip()
+        command = str(ly.get("command") or "")
+        if not name or "graph conformance" in command:
+            continue
+        adapter = ly.get("adapter")
+        if not isinstance(adapter, dict):
+            out.append((name, "no-adapter"))
+            continue
+        prof = _ADAPTER_REPORT_PROFILES.get(str(adapter.get("report_profile") or ""))
+        if prof is not None and not prof["cases"] and named_by_layer.get(name) is not True:
+            out.append((name, "file-grain"))
+    return out
+
+
+def _per_test_gap_lines(gaps) -> list:
+    """T-14492 — the session-start lines for `_per_test_report_gaps`: one head line, then one line
+    per layer naming what to add. `[]` when there is no gap (suppressed when clean)."""
+    if not gaps:
+        return []
+    lines = [f"per-test report: {len(gaps)} verify layer(s) report a red as a whole layer or file, "
+             "so a land cannot tell main's failure from this branch's — add a per-test report "
+             "(patterns/verify-layer-adapter-protocol.md; SPEC-1046):"]
+    for name, kind in gaps:
+        if kind == "no-adapter":
+            lines.append(f"  layer `{name}`: no adapter — add {_PER_TEST_GAP_BLOCK}")
+        else:
+            lines.append(f"  layer `{name}`: script/1 reports by file — {_PER_TEST_GAP_SCRIPT}")
+    return lines
+
+
+def _named_by_layer(rows) -> dict:
+    """T-14492 — `{layer: bool}`: whether the NEWEST failed adapter unit recorded for each layer read
+    `named: true`. `rows` is the journal rows carrying `consumer_verify_layers` in journal order
+    (`tests_failed` / `land_completed`); a later row overwrites an earlier one. PURE."""
+    out: dict = {}
+    for ev in rows or ():
+        data = ev.get("data") if isinstance(ev, dict) else None
+        layers = data.get("consumer_verify_layers") if isinstance(data, dict) else None
+        for r in layers if isinstance(layers, list) else []:
+            rec = r.get("adapter") if isinstance(r, dict) else None
+            units = rec.get("units") if isinstance(rec, dict) else None
+            failed = [u for u in units if isinstance(u, dict) and u.get("status") == "failed"] \
+                if isinstance(units, list) else []
+            if failed and isinstance(r.get("layer"), str):
+                out[r["layer"]] = all(u.get("named") is True for u in failed)
+    return out
+
+
 def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_text, second_text=None,
                              started_at=None, project=None, outer=None, checkpoint=None,
                              excerpt_chars: int = 300, max_failed_cases: int = 20,
@@ -6448,7 +6549,7 @@ def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_te
             _flag("report-stale")
         suite_uid = None
         in_suite: set = set()            # classname profile: the units THIS suite reports
-        if prof["unit_from"] != "classname":
+        if prof["unit_from"] not in ("classname", "file-attr"):
             key = (suite.get("hostname") or "", sname) if prof["unit_from"] == "suite+hostname" else sname
             if requested is None:
                 suite_uid = (key[0], key[1]) if isinstance(key, tuple) else (str(project or ""), key)
@@ -6494,6 +6595,34 @@ def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_te
                     _unit(uid)
                     in_suite.add(uid)
                 case_seen.setdefault((cname, tname), []).append(error is not None)
+            elif prof["unit_from"] == "file-attr":
+                fkey = case.get("file") or suite.get("file") or sname
+                if requested is None:
+                    uid = (str(project or ""), fkey) if fkey else None
+                elif fkey in wanted:
+                    proj, file_, group = wanted[fkey]
+                    uid = (proj, file_)
+                    _unit(uid, group)
+                elif fkey:
+                    _flag("unit-unrequested")
+                    uid = (str(project or ""), fkey)
+                    _unit(uid, unrequested=True)
+                else:
+                    uid = None
+                if uid is not None:
+                    _unit(uid)
+                    in_suite.add(uid)
+                    # the classname is part of the case id unless it only repeats the test name
+                    # or the file: two classes of one file may hold a test of the same name, and
+                    # they are two tests. The file's own dotted module is stripped (pytest/1's form).
+                    dotted = re.sub(r"\.\w+$", "", fkey).replace("/", ".")
+                    if cname.startswith(dotted + "."):
+                        case_id = f"{cname[len(dotted) + 1:]}::{tname}"
+                    elif cname and cname not in (tname, fkey, dotted):
+                        case_id = f"{cname}::{tname}"
+                # the same case of one unit recorded twice IN ONE SUITE is the runner retrying it
+                # (across two suites it is `unit-duplicate`, flagged below)
+                case_seen.setdefault(("file-attr", id(suite), uid, case_id), []).append(False)
             apart = (error is not None and prof["case_error"] == "apart") or (
                 prof["file_named_case"] and (failure is not None or error is not None) and tname == sname)
             if apart or (uid is None and (failure is not None or error is not None)):
@@ -7593,13 +7722,20 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
             batches = [(p, b, False) for p, b in _batches(units)]
         void: list = []
         rows: list = []
-        for proj, batch, in_lane in batches:
+        for _bi, (proj, batch, in_lane) in enumerate(batches):
             res, box, started = _invoke("run", batch, proj, in_lane=in_lane)
             if box is not None:         # T-13907: this invocation was STARTED (a bound hit inside
                 launched.extend(batch or ())    # it included); one never started names no unit
             if res is None:
                 rec.pop("exit", None)                      # nothing of this pass is read
                 rec.update({"outer": "timed-out", "outer_at": "run"})
+                # T-14493 — what this pass knew at the kill: the finished batches' rows by status,
+                # this batch's units as running, the later batches' units as never reached. Report
+                # only; the verdict is still the layer `command:`'s exit code.
+                # A batch the bound never let START (`box` is None) is not running: it is not reached.
+                _later = batches[_bi + 1:] if box is not None else batches[_bi:]
+                rec["timeout_kill"] = _adapter_timeout_kill(rows, batch if box is not None else (),
+                                                            _later)
                 print(f"land(consumer): verify layer {layer!r} adapter `run` hit the layer's bound "
                       f"({timeout}s) — no report is read; the layer's verdict is its `command:` exit code")
                 return rec
@@ -7679,6 +7815,29 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 rec["lane"]["units"] = sum(1 for u in planned["laned"] if (u["project"], u["file"]) in begun)
         if scratch is not None:
             shutil.rmtree(scratch, ignore_errors=True)
+
+
+def _adapter_timeout_kill(rows, running, later, *, cap: int = 50) -> dict:
+    """T-14493 — an adapter `run` killed on the layer's bound: the units whose batch FINISHED (their
+    rows, counted by status, failed ones named), the units of the batch that was RUNNING, and the
+    units of the batches NOT REACHED. PURE; every name list capped at `cap`, counts exact. `running`
+    is None when the pass had no inventory (the whole layer ran as one batch with no unit names)."""
+    def _names(units):
+        return [str((u or {}).get("file") or "") for u in (units or []) if isinstance(u, dict)]
+    finished: dict = {}
+    for r in rows or []:
+        st = str((r or {}).get("status") or "")
+        finished[st] = finished.get(st, 0) + 1
+    failed = [str((r or {}).get("file") or "") for r in rows or []
+              if str((r or {}).get("status") or "") in ("failed", "error")]
+    passed = [str((r or {}).get("file") or "") for r in rows or []
+              if str((r or {}).get("status") or "") == "passed"]
+    run_names = _names(running)
+    not_reached = [n for _p, b, _l in (later or []) for n in _names(b)]
+    return {"finished": finished, "passed": passed[:cap], "passed_count": len(passed),
+            "failed": failed[:cap], "failed_count": len(failed),
+            "running_at_kill": run_names[:cap], "running_at_kill_count": len(run_names),
+            "not_reached": not_reached[:cap], "not_reached_count": len(not_reached)}
 
 
 #: T-13609 (SPEC-1006 rule 11) — the PER-UNIT sibling of the engine suite's load-sensitive carrier

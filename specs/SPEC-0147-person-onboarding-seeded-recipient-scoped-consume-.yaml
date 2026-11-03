@@ -101,32 +101,38 @@ body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and 
   \ Rule 1\n(consume-on-encounter, never detect-on-mastery), VP2 (consume-once), and\
   \ VP5 (no mastery state) hold\nVERBATIM (a re-ask-until-mastery variant is out of\
   \ scope precisely because it would reintroduce the\nmastery tracking rule 1 forbids).\n\
-  \n**Voicing frame (how a voiced body is SET APART — a VOICING form, not a new trigger;\
-  \ additive).** A\nstation body is never voiced as running text inside the reply.\
-  \ Each time a body is voiced — a first\nvoicing, a due repeat (rule 10), an on-request\
-  \ «remind me» voicing, and Station A alike — it is voiced\ninside one fixed frame,\
-  \ in this order:\n- **(i) its own block, after the working part of the reply** —\
-  \ never inside the answer on the\n  person's task, and never between its lines;\n\
-  - **(ii) a constant opening label line**, localized at voicing like the body (rule\
-  \ 6) — Russian\n  reference wording «Справка по работе в системе: <тема>», where\
-  \ `<тема>` is the station's topic;\n- **(iii) one line** saying that this explains\
-  \ how the system works and is not part of the answer on\n  the current task;\n-\
-  \ **(iv) the body**, with any advice about the person's CURRENT work set apart from\
-  \ the general\n  explanation (its own marked line), never blended into it;\n- **(v)\
-  \ a closing line that states what, if anything, is asked of the person** — the station's\n\
-  \  «you say» cue and the rule-7 «unclear → ask to explain simpler» tail live there;\
-  \ when nothing is\n  asked, the line says so.\n\nThe ask-first question stays outside\
-  \ the frame: only a voiced body is framed, so a station consumed\non a «yes» voices\
-  \ no frame. The frame changes only HOW a body is set apart — never WHEN a station\
-  \ is\nvoiced or retires: the occasion, the consume-once retirement, the pointer\
-  \ deletion and the rule-10\nrepetition are exactly as before, `memory consume` neither\
-  \ reads nor records the frame, and no state\nis added. **Delivery:** the frame reaches\
-  \ the voicing session on the one surface every occasion takes\na body from — the\
-  \ station catalog (rule 3), whose reading contracts carry it — so a session that\n\
-  never opened this spec still voices inside the frame.\n\n### 6. English SoT, delivered\
-  \ in the person's language\nThe station-copy SoT is authored in English (canonical,\
-  \ one source). It is DELIVERED in the person's\nlanguage by localize-at-voicing\
-  \ (the AI voices it; the raw body is never shown), reusing the existing\nowner-facing-language\
+  \n**The retire states what happened.** A retire names which way the occasion went:\
+  \ `--voiced` (the\nbody was told to the person in their language) or `--known` (the\
+  \ person said they know it). A bare\nretire refuses and records nothing; the row\
+  \ carries the statement as `how`. It is the session's own\nclaim made countable:\
+  \ nothing checks it (rule 1), and what the person is shown as progress is the\n\
+  catalog's §Delivery protocol.\n\n**Voicing frame (how a voiced body is SET APART\
+  \ — a VOICING form, not a new trigger; additive).** A\nstation body is never voiced\
+  \ as running text inside the reply. Each time a body is voiced — a first\nvoicing,\
+  \ a due repeat (rule 10), an on-request «remind me» voicing, and Station A alike\
+  \ — it is voiced\ninside one fixed frame, in this order:\n- **(i) its own block,\
+  \ after the working part of the reply** — never inside the answer on the\n  person's\
+  \ task, and never between its lines;\n- **(ii) a constant opening label line**,\
+  \ localized at voicing like the body (rule 6) — Russian\n  reference wording «Справка\
+  \ по работе в системе: <тема>», where `<тема>` is the station's topic;\n- **(iii)\
+  \ one line** saying that this explains how the system works and is not part of the\
+  \ answer on\n  the current task;\n- **(iv) the body**, with any advice about the\
+  \ person's CURRENT work set apart from the general\n  explanation (its own marked\
+  \ line), never blended into it;\n- **(v) a closing line that states what, if anything,\
+  \ is asked of the person** — the station's\n  «you say» cue and the rule-7 «unclear\
+  \ → ask to explain simpler» tail live there; when nothing is\n  asked, the line\
+  \ says so.\n\nThe ask-first question stays outside the frame: only a voiced body\
+  \ is framed, so a station consumed\non a «yes» voices no frame. The frame changes\
+  \ only HOW a body is set apart — never WHEN a station is\nvoiced or retires: the\
+  \ occasion, the consume-once retirement, the pointer deletion and the rule-10\n\
+  repetition are exactly as before, `memory consume` neither reads nor records the\
+  \ frame, and no state\nis added. **Delivery:** the frame reaches the voicing session\
+  \ on the one surface every occasion takes\na body from — the station catalog (rule\
+  \ 3), whose reading contracts carry it — so a session that\nnever opened this spec\
+  \ still voices inside the frame.\n\n### 6. English SoT, delivered in the person's\
+  \ language\nThe station-copy SoT is authored in English (canonical, one source).\
+  \ It is DELIVERED in the person's\nlanguage by localize-at-voicing (the AI voices\
+  \ it; the raw body is never shown), reusing the existing\nowner-facing-language\
   \ rule (AGENTS §Language) — NOT N pre-translated files. Exact tokens\n(worktree/land/deploy/spec/plan/followup)\
   \ stay verbatim, glossed in-language. Per-language curated\nvariants are deferred\
   \ until pulled.\n\n### 7. Always-on safety net + seed events\nIndependently of the\
@@ -208,27 +214,27 @@ body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and 
   \  digest; the AI re-voices the full body at the station's next seam crossing (A:\
   \ now; a verb seam: that\n  verb; an AI-judged seam: the recognized moment) and\
   \ records `memory consume --station X --repeat`\n  (refused when not due).\n- **Recap.**\
-  \ The start line carries one plain «already met / next» line for stations met within\n\
-  \  `ONBOARDING_RECAP_DAYS`.\n- **«Remind me what X is»** — the AI voices the body\
-  \ on request (no verb; journaled as `--repeat` only\n  when due). **«I know it»**\
-  \ — `memory consume --station X --known`: ONE idempotent ack row (a still-held\n\
-  \  pointer is consumed with it); that station never repeats.\n- **No stored recap\
-  \ state.** No progress store, countdown, mastery score, quiz, or MEMORY.md field;\n\
-  \  nothing blocks a verb. Rule 1 holds: nothing infers understanding — only elapsed\
-  \ days and the\n  person's own words decide.\n- **Bounded cost (owner constraint).**\
-  \ The check rides the session-start `rows_memo` read scope\n  (SPEC-0190 rule 10)\
-  \ and is skipped on a receipt-only start and for a Worker. It reads ZERO journal\n\
-  \  rows when the parameters are unreadable or MEMORY.md was last written longer\
-  \ ago than the window\n  (every first delivery rewrites MEMORY.md, a first-start\
-  \ happens only while it is absent — so an older\n  buffer proves nothing can be\
-  \ due). Otherwise ONE declared typed read opens only the segments dated\n  inside\
-  \ the window (SPEC-0190 rule 4). It adds at most the one start line; a full body\
-  \ only on a due\n  crossing, at most COUNT times per station.\n\n## Parameters\n\
-  \nConsumed by `bin/lib/cli.py#_onboarding_repeat_params` (rule 10); tunable here\
-  \ without a card.\nUnreadable ⇒ no repeat and no recap (fail-closed, never a guessed\
-  \ default).\n\n- ONBOARDING_REPEAT_PAUSE_DAYS: 3\n- ONBOARDING_REPEAT_COUNT: 2\n\
-  - ONBOARDING_REPEAT_WINDOW_DAYS: 30\n- ONBOARDING_RECAP_DAYS: 7\n\nThe station catalog\
-  \ is content (the companion SoT), not a governing scalar; the audience vocabulary\n\
+  \ The start line carries one plain «already met» line for stations told to the person\n\
+  \  within `ONBOARDING_RECAP_DAYS`: never a `known` station, never a station not\
+  \ yet voiced.\n- **«Remind me what X is»** — the AI voices the body on request (no\
+  \ verb; journaled as `--repeat` only\n  when due). **«I know it»** — `memory consume\
+  \ --station X --known`: ONE idempotent ack row (a still-held\n  pointer is consumed\
+  \ with it); that station never repeats.\n- **No stored recap state.** No progress\
+  \ store, countdown, mastery score, quiz, or MEMORY.md field;\n  nothing blocks a\
+  \ verb. Rule 1 holds: nothing infers understanding — only elapsed days and the\n\
+  \  person's own words decide.\n- **Bounded cost (owner constraint).** The check\
+  \ rides the session-start `rows_memo` read scope\n  (SPEC-0190 rule 10) and is skipped\
+  \ on a receipt-only start and for a Worker. It reads ZERO journal\n  rows when the\
+  \ parameters are unreadable or MEMORY.md was last written longer ago than the window\n\
+  \  (every first delivery rewrites MEMORY.md, a first-start happens only while it\
+  \ is absent — so an older\n  buffer proves nothing can be due). Otherwise ONE declared\
+  \ typed read opens only the segments dated\n  inside the window (SPEC-0190 rule\
+  \ 4). It adds at most the one start line; a full body only on a due\n  crossing,\
+  \ at most COUNT times per station.\n\n## Parameters\n\nConsumed by `bin/lib/cli.py#_onboarding_repeat_params`\
+  \ (rule 10); tunable here without a card.\nUnreadable ⇒ no repeat and no recap (fail-closed,\
+  \ never a guessed default).\n\n- ONBOARDING_REPEAT_PAUSE_DAYS: 3\n- ONBOARDING_REPEAT_COUNT:\
+  \ 2\n- ONBOARDING_REPEAT_WINDOW_DAYS: 30\n- ONBOARDING_RECAP_DAYS: 7\n\nThe station\
+  \ catalog is content (the companion SoT), not a governing scalar; the audience vocabulary\n\
   lives in SPEC-0039; the seam bindings are the plan's table.\n\n## Rationale\n\n\
   Real driver: user-provisioning is live (`provision-user.sh`, `users.<name>` in `registry.yaml`),\
   \ so \"a\nnew person lands on a project knowing nothing\" is a near-term reality,\
@@ -251,9 +257,10 @@ body: "## Scenario\n\nA brand-new person is provisioned onto a YITC project and 
   - **VP6 (pointer-only buffer):** `MEMORY.md` holds only pointer entries; station\
   \ bodies live solely in\n  the companion SoT.\n- **VP7 (no recap state stored):**\
   \ repeats and recaps are recomputed from `onboarding_station_consumed`\n  rows;\
-  \ no new state file, buffer field, or payload key beyond `kind` exists\n  (tests/test_t13217_onboarding_first_start_and_repeats.py).\n\
-  - **VP8 (bounded read):** the due-check opens only window-dated segments and reads\
-  \ nothing once MEMORY.md\n  is older than the window (same test, `journal.read_counters`).\n\
+  \ no new state file, buffer field, or payload key beyond `kind` and `how` exists\n\
+  \  (tests/test_t13217_onboarding_first_start_and_repeats.py).\n- **VP8 (bounded\
+  \ read):** the due-check opens only window-dated segments and reads nothing once\
+  \ MEMORY.md\n  is older than the window (same test, `journal.read_counters`).\n\
   - **VP9 (voicing frame delivered):** the catalog text every occasion reads a body\
   \ from — its reading\n  contracts, ahead of the first station — carries all five\
   \ frame elements, the reference label\n  wording and the four occasions, word-for-word\
@@ -271,7 +278,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#cmd_memory_consume: 8156ae5ecbd596191b4b23adee8837a004721df2da1684b69a9282ed8c659c0a
+  bin/lib/cli.py#cmd_memory_consume: f07f3bc064f5d417b831f9fd206522e9021dab20b5a5610a35f2bc469f5b1838
   bin/lib/cli.py#cmd_memory_seed: 4d6372bca1ebe6db3a044c57ee67d6e492c195b82ede46f74435e350d572b6eb
-  bin/lib/init.py#cmd_init: cea00177794045410e75b5d1bac4c07494445b204d4bfc13e04a29b4067cce0a
+  bin/lib/init.py#cmd_init: c74aac182c26da92e7f6311eec9b7a3703fd8e0bf10e730771f0cfef9ef91a54
   bin/lib/memory.py#seed_pointers: 8254559bcaf18d82cc35880b110e930c60de30f87504f95233c658766b30359d

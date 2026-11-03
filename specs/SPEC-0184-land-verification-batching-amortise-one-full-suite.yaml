@@ -2453,5 +2453,5 @@ implements_signature:
   bin/lib/land_reservation.py#_queued_premerge_from_main: 343b8d86c05a681b2fc658d546720bd0b7c994fedfbb58c2a579f129d3fb37a1
   bin/lib/land_verify_legs.py#_verify_under_admission: 1faf4c88b41b370fc343289ef7bd03e1ac4438f10002f1c2fc9dcf4ba5730494
   bin/lib/worktree.py#_land_emit_queue_jump_firings: 622ec4db8a9c53b3fe52f338ecdb21e1971349eca92b8d25206412946c8d000c
-  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
-  bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c
+  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663
+  bin/lib/worktree.py#cmd_land: df7fe2aa7abe7cd34fa52151776180237eb12d295d404a5a208fa1e141f4d4ef

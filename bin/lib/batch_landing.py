@@ -1444,6 +1444,13 @@ def _land_attribution_line(rec: "dict | None", *, _land_ambient_yitc_overrides=N
                     + "\n- ".join(str(p) for p in ((rec or {}).get("failing") or []))
                     + _land_attribution_base_leg(rec or {})
                     + "\nTHE LAND STILL ABORTS ON THEM — judge the red on this branch's own run.\n\n")
+    # T-14493 — the file(s) killed on their timeout are this run's TIMEOUT CAUSE, attributed to
+    # nobody; SAID before the split below so a branch/main line is not read as covering them.
+    _to = [p for p in ((rec or {}).get("timed_out") or []) if str(p).strip()]
+    if _to and outcome != "undecidable":
+        _q_lead += ("ATTRIBUTION: TIMEOUT CAUSE — the file(s) below were killed on their per-file "
+                    "timeout; they are the run's timeout cause and are attributed to NOBODY. The "
+                    "finished failures are attributed below:\n- " + "\n- ".join(_to) + "\n\n")
     if outcome not in _LAND_ATTRIBUTION_OUTCOMES or outcome == "undecidable":
         return _q_lead
     if outcome == "main":
@@ -4136,7 +4143,8 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                                     _is_verify_implementation_touch=None,
                                     _subject_globs_would_skip=None,
                                     _NO_ASSERTION_CAPTURED: "str | None" = None,
-                                    _UNMARKED_LAYER_FAILURE_PREFIX: "str | None" = None) -> dict:
+                                    _UNMARKED_LAYER_FAILURE_PREFIX: "str | None" = None,
+                                    layer_rows: "list | None" = None) -> dict:
     """T-11464 — WHOSE failure is this red: MAIN's, or this branch's? Returns a RECORD; decides
     nothing, journals nothing, and gates nothing. The caller reports it beside an abort whose class,
     message tail and exit are unchanged.
@@ -4234,7 +4242,8 @@ def _land_failure_attribution_probe(bad: "list | None", *,
     import tempfile
 
     rec: dict = {"outcome": "undecidable", "reason": None, "failing": [],
-                 "at_main": [], "at_branch": [], "quarantined": [], "unreachable": []}
+                 "at_main": [], "at_branch": [], "quarantined": [], "unreachable": [],
+                 "timed_out": []}
     # T-13449 — the layer names whose failure the diff provably cannot reach. Empty until the
     # merge-base tree is in hand, so every path that never reaches it exempts NOTHING.
     unreachable_layers: set = set()
@@ -4280,13 +4289,42 @@ def _land_failure_attribution_probe(bad: "list | None", *,
 
     _layer_reds: list = []
     _layers_ok = _consumer_verify_layer_key is not None and _run_layer_at_base is not None
+    # T-14493 — the timed-out files are set aside (the run's timeout cause, attributed to nobody)
+    # and the finished failures beside them are attributed as usual; a red of timeouts only
+    # still declines `verify-timeout`.
+    _timed_out: list = []
     failing, refusal = _land_red_isolation_entries(
-        bad, _VERIFY_TIMEOUT_MARKER, _surface_failing_assertions,
+        bad, _VERIFY_TIMEOUT_MARKER, _surface_failing_assertions, timeouts_out=_timed_out,
         **({"_consumer_verify_layer_key": _consumer_verify_layer_key, "layers_out": _layer_reds}
            if _layers_ok else {}))
+    rec["timed_out"] = list(_timed_out)
     if refusal:
         return _undecidable(refusal)
     _test_pairs = list(failing)
+    # T-14492 — A LAYER RED WHOSE ADAPTER REPORT NAMES ITS FAILED CASES IS COMPARED PER CASE. With
+    # the candidate's layer rows in hand (`layer_rows`, the land's own guard rows), a layer red whose
+    # row names every failed unit's cases (`_layer_case_keys`) becomes one id per (file, case)
+    # tuple; the base run then reproduces a tuple only when ITS row of the layer names the identical
+    # tuple. Run-varying failure text no longer decides, and a second failing case no longer turns
+    # the whole layer `undecidable`. A layer whose row names no case keeps today's single text id.
+    _case_layers: dict = {}            # layer name -> {display id: tuple}
+    _rows_by_layer = {str((r or {}).get("layer")): r for r in (layer_rows or []) if isinstance(r, dict)}
+    if _rows_by_layer and _layer_reds:
+        _split: list = []
+        for _sid, _name in _layer_reds:
+            _keys = _layer_case_keys(_rows_by_layer.get(_name)) if _name not in _case_layers else None
+            _disp = {_layer_case_display(_name, _k): _k for _k in sorted(_keys or ())}
+            if _keys and len(_disp) == len(_keys) and not any(_d in failing for _d in _disp):
+                _case_layers[_name] = _disp
+                _split += [(_d, _name) for _d in _disp]
+            elif _name in _case_layers:
+                continue                       # a second text entry of a layer already split
+            else:
+                _split.append((_sid, _name))
+        _layer_reds[:] = _split
+        rec["pairs"] = [dict({"layer": _n, "file": _k[0], "case": _k[1]},
+                             **({"project": _k[2]} if _k[2] else {}))
+                        for _n, _d in _case_layers.items() for _k in _d.values()]
     failing = _test_pairs + [_l[0] for _l in _layer_reds]
     rec["failing"] = list(failing)
     # The FILE half of each pair, for the two places that address files rather than failures: the
@@ -4377,7 +4415,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
         if not _layer_reds:
             return ([], None)
         try:
-            res = _run_layer_at_base(tree, [_l[1] for _l in _layer_reds])
+            res = _run_layer_at_base(tree, list(dict.fromkeys(_l[1] for _l in _layer_reds)))
         except Exception as _e:                # noqa: BLE001 — the layer runner itself could not run
             return ([], f"base-run-error:{type(_e).__name__}")
         res = res if isinstance(res, dict) else {}
@@ -4386,9 +4424,27 @@ def _land_failure_attribution_probe(bad: "list | None", *,
         _note_base(res.get("bad"))
         rows = {str((r or {}).get("layer")): str((r or {}).get("outcome"))
                 for r in (res.get("layers") or []) if isinstance(r, dict)}
+        base_rows = {str((r or {}).get("layer")): r
+                     for r in (res.get("layers") or []) if isinstance(r, dict)}
         out: list = []
         for _sid, _name in _layer_reds:
             _o = rows.get(_name)
+            if _name in _case_layers and _o in ("failed", "passed"):
+                # T-14492 — per (file, case) tuple, never per display text.
+                if _o == "passed":
+                    continue
+                if any(_BASE_LAYER_EXIT_RE.match(str(_b)) and int(_BASE_LAYER_EXIT_RE.match(str(_b)).group(1))
+                       in (126, 127) and _consumer_verify_layer_key(str(_b).splitlines()[0].strip()) == _name
+                       for _b in (res.get("bad") or []) if str(_b).strip()):
+                    return ([], "runner-launch-failure")
+                _bk = _layer_case_keys(base_rows.get(_name))
+                # a base row naming no case, or none of this layer's failed cases, observed nothing
+                # about them (its own environment failed something else): decline, never `branch`
+                if _bk is None or not (set(_case_layers[_name].values()) & _bk):
+                    return ([], "base-layer-failed-differently")
+                if _case_layers[_name][_sid] in _bk:
+                    out.append(_sid)
+                continue
             if _o is None:
                 return ([], "base-layer-undeclared")
             if _o == "timed-out":
@@ -4492,7 +4548,7 @@ def _land_failure_attribution_probe(bad: "list | None", *,
                 except OSError:                 # noqa: BLE001 — absent/unreadable = NOT admitted
                     continue
         unreachable_layers.update(_land_attribution_unreachable_layers(
-            wt, [_l[1] for _l in _layer_reds], diff_paths, diff_inert=diff_inert,
+            wt, list(dict.fromkeys(_l[1] for _l in _layer_reds)), diff_paths, diff_inert=diff_inert,
             reachability_freed=reachability_freed,
             _is_verify_implementation_touch=_is_verify_implementation_touch,
             _subject_globs_would_skip=_subject_globs_would_skip))
@@ -7980,6 +8036,46 @@ def _land_entry_is_verify_timeout(entry, timeout_marker: "str | None") -> bool:
     """
     return bool(timeout_marker) and timeout_marker in str(entry)
 
+def _layer_case_keys(layer_row) -> "set | None":
+    """T-14492 — the (file, case, project) tuples a consumer verify-layer row's adapter record
+    names for its FAILED units, or None when the row cannot name them all. PURE.
+
+    A failed unit names its cases by its `failed_cases` ids when the row's bound kept every one (no
+    `failed_cases_more`), else by `failed_tests` when `named`. None — today's single text id stays —
+    for an absent row, an absent or void adapter record, zero failed units, or any failed unit that
+    is `error` / `missing` / `timed-out` / unnamed: a red the report cannot name case by case is
+    never compared case by case. Tuples are STRUCTURED (never parsed out of display text), so a case
+    id that itself contains ` - ` or `::` is kept verbatim."""
+    if not isinstance(layer_row, dict):
+        return None
+    adapter = layer_row.get("adapter")
+    if (not isinstance(adapter, dict) or adapter.get("usable") is not True or adapter.get("void")
+            or not isinstance(adapter.get("units"), list)):
+        return None
+    keys: set = set()
+    bad = [u for u in adapter["units"] if isinstance(u, dict) and u.get("status") not in ("passed", "skipped")]
+    if not bad:
+        return None
+    for u in bad:
+        if u.get("status") != "failed" or not u.get("file"):     # error / missing / timed-out
+            return None
+        cases = u.get("failed_cases") if isinstance(u.get("failed_cases"), list) else []
+        ids = [str(c.get("id")) for c in cases if isinstance(c, dict) and c.get("id")]
+        if not ids or u.get("failed_cases_more") or len(ids) != len(cases):
+            ids = [str(t) for t in (u.get("failed_tests") or []) if str(t)] if u.get("named") else []
+        if not ids:
+            return None
+        keys.update((str(u["file"]), i, str(u.get("project") or "")) for i in ids)
+    return keys
+
+
+def _layer_case_display(layer: str, key) -> str:
+    """T-14492 — the display id of one (file, case, project) tuple: `<layer>: <file>::<case>`, plus
+    ` [project <p>]` when the runner names a project. Derived FROM the tuple, never parsed back."""
+    file_, case, proj = key
+    return f"{layer}: {file_}::{case}" + (f" [project {proj}]" if proj else "")
+
+
 def _land_layer_red_id(entry, _surface_failing_assertions) -> str:
     """T-13958 — the ONE derivation of a consumer layer red's `"<layer>: <assertion>"` id, read by
     both sides of the merge-base attribution: the branch's failing entries and the base run's."""
@@ -7990,7 +8086,8 @@ def _land_layer_red_id(entry, _surface_failing_assertions) -> str:
 
 def _land_red_isolation_entries(bad: "list | None", timeout_marker: "str | None",
                                 _surface_failing_assertions=None, *, _land_red_isolation_surface_one=None,
-                                _consumer_verify_layer_key=None, layers_out: "list | None" = None) -> "tuple[list, str | None]":
+                                _consumer_verify_layer_key=None, layers_out: "list | None" = None,
+                                timeouts_out: "list | None" = None) -> "tuple[list, str | None]":
     """The failing CANDIDATE-leg `(test file, assertion)` PAIRS this oracle may re-run — or the reason
     it may not run. Returns `(pairs, refusal_reason)`; exactly one of the two is meaningful.
 
@@ -8033,6 +8130,13 @@ def _land_red_isolation_entries(bad: "list | None", timeout_marker: "str | None"
         match a member's run against, and matching on the file alone would be exactly the weaker
         comparison the pair rule above exists to refuse. Same refusal T-11259's gate 2 makes, for the
         same reason.
+
+    T-14493 — A TIMED-OUT ENTRY BESIDE FINISHED FAILURES. A caller that passes a `timeouts_out` sink
+    (only the T-11464 attribution probe does) opts in to setting each timeout entry ASIDE: its file
+    name is appended there and the rest of the red is answered as usual, so a file that ran to its own
+    failing exit is compared with main instead of the whole record declining. A red made ONLY of
+    timeouts still refuses `verify-timeout`. Without the sink (the batch isolation oracle) every
+    timeout entry refuses exactly as before, so a timeout is still never consumed by a retry.
     """
     if not bad:
         return ([], "no-failing-entries")
@@ -8045,7 +8149,13 @@ def _land_red_isolation_entries(bad: "list | None", timeout_marker: "str | None"
         if first.startswith(_LAND_PINNED_ENTRY_PREFIX):
             return ([], "pinned-entry")
         if _land_entry_is_verify_timeout(entry, timeout_marker):
-            return ([], "verify-timeout")
+            _tname = first[len(_LAND_TEST_FAILED_PREFIX):].strip() \
+                if first.startswith(_LAND_TEST_FAILED_PREFIX) else ""
+            if timeouts_out is None or not _tname:
+                return ([], "verify-timeout")
+            if _tname not in timeouts_out:
+                timeouts_out.append(_tname)
+            continue
         if _LAND_LAUNCH_FAILURE_MARKER in s:
             return ([], "runner-launch-failure")
         if not first.startswith(_LAND_TEST_FAILED_PREFIX):
@@ -8065,6 +8175,8 @@ def _land_red_isolation_entries(bad: "list | None", timeout_marker: "str | None"
             return ([], why)
         if surfaced not in pairs:
             pairs.append(surfaced)
+    if not (pairs or layers_out) and timeouts_out:
+        return ([], "verify-timeout")            # T-14493: a red of timeouts only declines as before
     return (pairs, None if (pairs or layers_out) else "no-failing-test-files")
 
 def _land_red_isolation_probe(members: "list[dict]", bad: "list | None", *,

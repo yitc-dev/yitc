@@ -1788,6 +1788,12 @@ ARGV_PROSE_SEAMS = (
      ("cross:REJECT_STDIN_CONFLICTING_ARGV_FLAGS", "cross:PROSE_BEARING_REJECT_FIELDS"),
      ()),
 
+    (("cross", "pick"),
+     (("--reason", "reason"),),
+     "the RECEIVER's triage reason on a shared ledger item — appended, peer-visible, uncorrectable",
+     ("cross:PICK_STDIN_CONFLICTING_ARGV_FLAGS", "cross:PROSE_BEARING_PICK_FIELDS"),
+     (("--task", "a T-NNNN id"), ("--class", "a SPEC-1010 word"), ("--ownership", "a SPEC-1010 word"),
+      ("--exception", "a SPEC-1010 word"))),
     (("cross", "done"),
      (("--note", "note"),),
      "the RECEIVER's resolution note on a shared ledger item — appended, peer-visible, uncorrectable",

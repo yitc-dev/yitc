@@ -294,23 +294,23 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ IS NOT OWED, AND IS COUNTED APART\n.** The clause above counts an obligation on\
   \ a SHIPPED change. A card that went\n   `wont-do` and never shipped has no subject\
   \ for its declared observation — and no verb can settle\n   it, since `task close\
-  \ --settle-observation` admits a `done` card only. A `wont-do` card SHIPPED\n  \
-  \ when its card carries a `commit`, or when one of its `task commit` ship commits\
-  \ (a\n   `commit_landed` row of the card with no `kind`) is reachable from `main`;\
-  \ where that check\n   cannot be answered, the observation stays counted.\n   An\
-  \ observation on a never-shipped `wont-do` card leaves the pending / overdue counts\
-  \ and is\n   reported on its OWN named,\n   counted set, each row carrying its task\
-  \ id. It is MOVED, never dropped: the echo names the\n   group beside the observation\
-  \ line, and alone when the group is all that is left. A `wont-do`\n   card that\
-  \ DID ship is a partial ship with something to observe and stays counted;\n   every\
-  \ other status is counted exactly as before.\n   **A WAIVER ON A `wont-do` CARD\
-  \ LEAVES THE OVERDUE-RECHECK COUNT AND IS REPORTED APART.** A\n   user-facing waiver\
-  \ past its `recheck_by` on a card whose status is `wont-do` is not counted in\n\
-  \   the overdue-recheck line, and the echo does not name it: neither settle route\
-  \ admits such a\n   card (the settle arms of `task close` admit a `done` card only,\
-  \ and the live-probe arms of\n   `task update` refuse a terminal card). The overdue-recheck\
-  \ view reports it on its OWN named,\n   counted set, each row carrying its task\
-  \ id, and a triage reads it there with `bin/yitc-v2\n   graph query overdue-recheck`.\
+  \ --settle-observation` admits a `done` card, or a `wont-do` card that. A `wont-do`\
+  \ card SHIPPED\n   when its card carries a `commit`, or when one of its `task commit`\
+  \ ship commits (a\n   `commit_landed` row of the card with no `kind`) is reachable\
+  \ from `main`; where that check\n   cannot be answered, the observation stays counted.\n\
+  \   An observation on a never-shipped `wont-do` card leaves the pending / overdue\
+  \ counts and is\n   reported on its OWN named,\n   counted set, each row carrying\
+  \ its task id. It is MOVED, never dropped: the echo names the\n   group beside the\
+  \ observation line, and alone when the group is all that is left. A `wont-do`\n\
+  \   card that DID ship is a partial ship with something to observe and stays counted;\n\
+  \   every other status is counted exactly as before.\n   **A WAIVER ON A `wont-do`\
+  \ CARD LEAVES THE OVERDUE-RECHECK COUNT AND IS REPORTED APART.** A\n   user-facing\
+  \ waiver past its `recheck_by` on a card whose status is `wont-do` is not counted\
+  \ in\n   the overdue-recheck line, and the echo does not name it: neither settle\
+  \ route admits such a\n   card (the settle arms of `task close` admit a `done` card\
+  \ only, and the live-probe arms of\n   `task update` refuse a terminal card). The\
+  \ overdue-recheck view reports it on its OWN named,\n   counted set, each row carrying\
+  \ its task id, and a triage reads it there with `bin/yitc-v2\n   graph query overdue-recheck`.\
   \ It is MOVED, never dropped. The test is the card's status\n   alone: it says nothing\
   \ about whether any of the card's work. A waiver on a card of\n   any other status\
   \ is counted exactly as before, and the line stays unfloored: a row moves by\n \
@@ -4391,15 +4391,15 @@ implements_signature:
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
   bin/lib/session.py#cmd_session_start: 209518a0b12ba06d7ca13514a927034ad0d08c8cc5416340463977967526f8ee
   bin/lib/task.py#_render_live_dependents: 02e538bf32a90192c8b9f576da4fbde037c70ebd8d3eab47cb21286e5fc53aa7
-  bin/lib/task.py#cmd_task_update: c43a2b042dde6187a1c00cbd9290899e8129a03262bdf042cef5dde72e9c3b56
+  bin/lib/task.py#cmd_task_update: c999bbc22cfd85dfe28ed5858249cdd743c178fb4058c7fc3e9655adfe4ee05e
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: 177f60d8bf56eb3d41ec9846af92956f7315eb1217158af97ccc0fe2b8224876
+  bin/lib/views.py#_render_debt_echo: b0f2d5d120498351a52423b2b7a32fe8b5af59f9afcc84bebd868959c7836378
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6
   bin/lib/worktree.py#_land_prequeue_known_broken_row: 29d65f5dad15f19442debf3756a426da2394651b067af6b31533758194ff15c3
   bin/lib/worktree.py#_load_sensitive_file_card: e18678b2d56985f14fc3021ee4247db7c1eb3b6b61d58de0c19b13b23335b66a
-  bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c
+  bin/lib/worktree.py#cmd_land: df7fe2aa7abe7cd34fa52151776180237eb12d295d404a5a208fa1e141f4d4ef

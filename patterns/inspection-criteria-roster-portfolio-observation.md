@@ -250,6 +250,7 @@ SPEC-0170 · SPEC-0174 — and 1 is `internal-only` (<workshop-spec>, no adopt-p
 > row itself rewritten.
 
 - **G7 — waiver premise vs profile:** each waiver's premise is re-checked against the derived profile; a born placeholder is not an answer — `bin/yitc-v2 -C <repo> --read-only profile` + `bin/yitc-v2 nightly`.
+- **2026-11 refresh (external-only finding):** count the waivers whose reason still equals the born placeholder (`BORN_CATALOG_WAIVE_MARKER`) per project — each is an unanswered cell, never a waiver; and re-read a waiver's «nothing deployed» premise against the project's `deploy_completed` rows.
 
 #### T9 RAW candidate surface (idea-pool — NO obligation; each tagged; promote to an ACTIVE row only when a probe exists)
 

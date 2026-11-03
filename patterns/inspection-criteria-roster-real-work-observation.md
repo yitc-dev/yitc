@@ -355,3 +355,5 @@ lens-checklist over an existing derived view). F3 removed = the ad-hoc "where to
 AI» question that had no periodic home. F4 real pull = the SPEC-0135 doctrine + the CHARTER
 §Success-criteria measurement gap it closes (the 10th inspection theme SPEC-0135 §Scenario names).
 
+
+- **2026-11 refresh :** `NO-DATA: T10 blind external track — instrument absent: consumer `.yitc/transcript-archive` and auditor transcripts empty in the window` (2026-11-01: all ten consumers); check that input before launching the track (part 2 run-mode precondition) — the primary track still runs.

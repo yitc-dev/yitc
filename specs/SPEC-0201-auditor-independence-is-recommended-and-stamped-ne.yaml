@@ -54,28 +54,42 @@ body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool �
   \ own registered adapter.\n\n### Rule 3 — The reminder, at ONE seam (session start),\
   \ suppressed when clean\nWhile NO external provider resolves for the routine tier\
   \ (resolution order homed in SPEC-0202 /\n — env → binding file → PATH → repo config\
-  \ default), the system prints ONE report-only line\nat `session start` (engine and\
-  \ `-C` consumer) — the SESSION-START SEAM ONLY. There is NO per-audit\nreminder:\
-  \ the former clause (b) («at each same-provider `audit pre|post|adhoc`») is DROPPED\
-  \ per owner\ndecision 2026-09-06 «только на старте» (events.jsonl#ts=). One seam,\
-  \ one line.\nText (provider-neutral): «external auditor: not bound — this audit\
-  \ ran on the same provider as the\nprimary AI (N same-provider verdicts so far);\
-  \ a different provider catches this one's blind spots —\nbind one: <SPEC-0202 pointer\
-  \ / bootstrap doc §6>». Nothing gated, nothing refused. Silent the moment\nan external\
-  \ provider resolves. Post-`/compact` re-fold: `bin/yitc-v2 audit status` (SPEC-0202).\n\
-  \n### Rule 4 — The ceiling and every other audit rule are UNCHANGED\nA same-provider\
-  \ pass counts against the <workshop-spec> audit-loop ceiling exactly as an external\
-  \ pass;\nverdict handling (GREEN/YELLOW/RED/ABORT), tiers, overlays and the consult\
-  \ are unchanged. This spec\nchanges WHO may audit and HOW it is recorded — nothing\
-  \ about WHAT is judged.\n\n### Rule 5 — Disposition of <workshop-spec> rule 2 (the\
-  \ draft «strict cross-provider, the change WAITS»)\n<workshop-spec> (draft, plan-local\
-  \ to `provider-independence-learn-provider-portability-o`, in trial) rule 2\n+ VP2\
-  \ state the opposite of rule 1 for OPERATION. On this spec's activation that clause\
-  \ is DEMOTED to\na pointer: «operation: per SPEC-0201 — same-provider admitted +\
-  \ stamped + reminded against»; its\nrule 1 (binding is a configurable variable),\
-  \ rule 3 (the bench same-provider carve-out, measurement\nonly) and rules 4-5 are\
-  \ UNTOUCHED and remain that plan's. Done by a card of THIS plan editing the\ndraft\
-  \ file (a draft is hand-edited by construction — `spec edit` serves active/proposed\
+  \ default), the system prints ONE line at\n`session start` (engine and `-C` consumer)\
+  \ — the SESSION-START SEAM ONLY. There is NO per-audit\nreminder: the former clause\
+  \ (b) («at each same-provider `audit pre|post|adhoc`») is DROPPED per owner\ndecision\
+  \ 2026-09-06 «только на старте» (events.jsonl#ts=). One seam, one line.\nThe line\
+  \ is OWNER-CUED on the interactive Controller's first start in a context: the reminder\
+  \ is\naddressed to the person, so the session names it to the person in its reply.\
+  \ On a dispatched\nworker's start and on a same-epoch repeat it is report-only,\
+  \ as the other owner-cued lines are not\nrepeated there. The line itself carries\
+  \ no runnable command; the commands to bind one ride a\nseparate on-demand line\
+  \ beside it. Its text (provider-neutral) has two same-provider forms:\n- a DIFFERENT\
+  \ MODEL of the same provider is bound (the routine model is set by the binding or\
+  \ the\n  environment, the primary AI's model is known, and the two differ) → the\
+  \ line names that model\n  and says a different provider is better, then names where\
+  \ to bind one;\n- otherwise — nothing bound, the bound model equals the primary's,\
+  \ or the primary's model is not\n  known (read fail-closed, as rule 2) → the line\
+  \ says audits run on the same provider and, as far\n  as the start can tell, the\
+  \ same model, and asks to bind one (a different provider, or at least a\n  different\
+  \ model), naming where (<SPEC-0202 pointer / bootstrap doc §I6>).\nBoth forms keep\
+  \ the prefix «external auditor: not bound» and the same-provider verdict count.\
+  \ A\ndifferent model of the same provider is still stamped `same-provider` (rule\
+  \ 2). A recorded «no\ndifferent provider» answer of the person does not silence\
+  \ the line. Nothing gated, nothing\nrefused. Silent the moment an external provider\
+  \ resolves. Post-`/compact` re-fold:\n`bin/yitc-v2 audit status` (SPEC-0202), which\
+  \ prints the same line.\n\n### Rule 4 — The ceiling and every other audit rule are\
+  \ UNCHANGED\nA same-provider pass counts against the <workshop-spec> audit-loop\
+  \ ceiling exactly as an external pass;\nverdict handling (GREEN/YELLOW/RED/ABORT),\
+  \ tiers, overlays and the consult are unchanged. This spec\nchanges WHO may audit\
+  \ and HOW it is recorded — nothing about WHAT is judged.\n\n### Rule 5 — Disposition\
+  \ of <workshop-spec> rule 2 (the draft «strict cross-provider, the change WAITS»)\n\
+  <workshop-spec> (draft, plan-local to `provider-independence-learn-provider-portability-o`,\
+  \ in trial) rule 2\n+ VP2 state the opposite of rule 1 for OPERATION. On this spec's\
+  \ activation that clause is DEMOTED to\na pointer: «operation: per SPEC-0201 — same-provider\
+  \ admitted + stamped + reminded against»; its\nrule 1 (binding is a configurable\
+  \ variable), rule 3 (the bench same-provider carve-out, measurement\nonly) and rules\
+  \ 4-5 are UNTOUCHED and remain that plan's. Done by a card of THIS plan editing\
+  \ the\ndraft file (a draft is hand-edited by construction — `spec edit` serves active/proposed\
   \ only), cited\nfrom both plans; a Principle-7 dissonance resolved by naming ONE\
   \ authoritative home, not silently.\n\n## Parameters\nNone consumed (the reminder\
   \ text and the stamp values are code constants, not governing scalars).\n\n## Rationale\n\
@@ -85,7 +99,10 @@ body: "## Scenario\n\nA person installs v2 on a clean machine with ONE AI tool �
   \ §Auditor selection) — the\nMECHANISM to audit on any provider is present; only\
   \ the doctrine forbade it. What is REMOVED (F3):\nthe hard ABORT-with-no-exit and\
   \ §4a's MUST. What stays: the ceiling, the tiers, the bench carve-out.\nOwner directives\
-  \ 2026-09-06 (verbatim in the plan body) are the basis.\n\n## Verification\n  bin/yitc-v2\
+  \ 2026-09-06 (verbatim in the plan body) are the basis.\nRule 3's owner-cued class\
+  \ and its different-model form were added by (owner directives\nevents.jsonl#ts=,\
+  \ #ts=), after a clean-install rerun in\nwhich the report-only line was never voiced\
+  \ and the person was never offered an auditor.\n\n## Verification\n  bin/yitc-v2\
   \ audit pre --task T-XXXX # with no external provider bound: runs, verdict YAML\
   \ carries\n                                           # auditor_independence: same-provider\
   \ + auditor_model; one\n                                           # audit_self_provider_used\

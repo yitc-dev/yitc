@@ -242,28 +242,32 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ THIS task's diff left possibly-stale; a `--reverify` of any other spec is REFUSED\
   \ up\nfront. A genuine BEHAVIOUR change is NOT --reverify's job — the author edits\
   \ the spec body. The\nreverified ids are recorded in `task_closed` (`reverified_specs`,\
-  \ honest-only). No new gate, ledger,\nor FSM (CHARTER non-goal #7).\n\n### Reverify-at-commit\
-  \ (`task commit --reverify SPEC-XXXX`)\nThe SAME author signal, one seam earlier,\
-  \ so the re-stamp rides the PRODUCT commit instead of a\nseparate re-sign commit\
-  \ (and precedes audit-post by construction). `task commit --reverify SPEC-XXXX`\n\
-  (repeatable) is never automatic and asserts exactly what the close flag asserts.\
-  \ FAIL-CLOSED scope:\neligibility is the PRE-commit drift set — the Stage-6 touched\
-  \ set (merge-base..working tree +\nuntracked) fed to the one detector — narrowed\
-  \ PER ANCHOR to anchors whose content signature\ndiffers from their signature at\
-  \ merge-base(HEAD, main); any other id is REFUSED before anything\nis written, naming\
-  \ the eligible set. Only those moved anchors are re-signed (`only_anchors`,\nSPEC-0006\
-  \ scope — every other anchor's baseline stays byte-identical), the re-stamp is\n\
-  written before staging so it ships in the same commit, and each sign emits `spec_reverified`\n\
-  (`via: task-commit`). The Stage-6 report names it as the one-commit route; the post-commit\
-  \ Stage-7\nWARN names it as the one-command recovery. No new gate, event, or store.\n\
-  \n**RECOVERY RECIPES → patterns/rare-task-recovery-recipes.md (index).** Two rare\
-  \ states have their\nrecipe in that how-to (`graph query rare-task-recovery-recipes`):\
-  \ a task the owner parks while its\naudit-post is RED — lead «Park-mid-audit land\
-  \ path»; and a task closed before its land-verify passed,\nwhose closure is still\
-  \ on its branch — lead «Prematurely-closed UNLANDED task» (rework in place, or\n\
-  discard + re-claim). Read it before acting in either state.\n\n### Ship-custody\
-  \ RE-PIN — a custody recovery route, not a commit cycle (X-0422)\nThe guard above\
-  \ pins custody to `_recorded_commit_sha` = the LATEST `commit_landed`. THREE\ngoverned\
+  \ honest-only). No new gate, ledger,\nor FSM (CHARTER non-goal #7). On an already-DONE\
+  \ card `--reverify` is REFUSED before any write: the\nclosure-record commit it folds\
+  \ into already exists. The refusal names the route that re-stamps — after\n`land`,\
+  \ a `work/<slug>` batch running `spec reverify <SPEC> --anchor <anchor>`, then `work\
+  \ commit` and\n`land --branch`.\n\n### Reverify-at-commit (`task commit --reverify\
+  \ SPEC-XXXX`)\nThe SAME author signal, one seam earlier, so the re-stamp rides the\
+  \ PRODUCT commit instead of a\nseparate re-sign commit (and precedes audit-post\
+  \ by construction). `task commit --reverify SPEC-XXXX`\n(repeatable) is never automatic\
+  \ and asserts exactly what the close flag asserts. FAIL-CLOSED scope:\neligibility\
+  \ is the PRE-commit drift set — the Stage-6 touched set (merge-base..working tree\
+  \ +\nuntracked) fed to the one detector — narrowed PER ANCHOR to anchors whose content\
+  \ signature\ndiffers from their signature at merge-base(HEAD, main); any other id\
+  \ is REFUSED before anything\nis written, naming the eligible set. Only those moved\
+  \ anchors are re-signed (`only_anchors`,\nSPEC-0006 scope — every other anchor's\
+  \ baseline stays byte-identical), the re-stamp is\nwritten before staging so it\
+  \ ships in the same commit, and each sign emits `spec_reverified`\n(`via: task-commit`).\
+  \ The Stage-6 report names it as the one-commit route; the post-commit Stage-7\n\
+  WARN names it as the one-command recovery. No new gate, event, or store.\n\n**RECOVERY\
+  \ RECIPES → patterns/rare-task-recovery-recipes.md (index).** Two rare states have\
+  \ their\nrecipe in that how-to (`graph query rare-task-recovery-recipes`): a task\
+  \ the owner parks while its\naudit-post is RED — lead «Park-mid-audit land path»;\
+  \ and a task closed before its land-verify passed,\nwhose closure is still on its\
+  \ branch — lead «Prematurely-closed UNLANDED task» (rework in place, or\ndiscard\
+  \ + re-claim). Read it before acting in either state.\n\n### Ship-custody RE-PIN\
+  \ — a custody recovery route, not a commit cycle (X-0422)\nThe guard above pins\
+  \ custody to `_recorded_commit_sha` = the LATEST `commit_landed`. THREE\ngoverned\
   \ self-commits legitimately emit a `commit_landed` AFTER the ship — `task update\
   \ --status\nparked`, `task pause`, and `task update --status wont-do` — and so SHIFT\n\
   recorded custody past the ship, wedging the task: `audit post --commit <ship>` refuses\

@@ -25,6 +25,10 @@ implements:
 - bin/lib/remote_verify.py#validate_consumer_envelope
 - bin/lib/land_verify_legs.py#_layer_row_listed_none
 - bin/lib/venue.py#consumer_readiness_failures
+- bin/lib/venue.py#declared_check_failures
+- bin/lib/venue.py#ensure_declared_environment
+- bin/lib/venue.py#install_failures
+- bin/lib/cli.py#_venue_raise_once
 - bin/lib/cli.py#cmd_venue_publish
 - bin/lib/task.py#refuse_kernel_local_placement
 - bin/lib/cli.py#_venue_show_leases
@@ -56,49 +60,56 @@ body: "## Scenario\n\nA consumer project whose Stage-6 run is heavy declares, in
   \  - `environment: [{name, cmd, expect}, …]` — the checks the box must pass: each\
   \ `cmd` runs on the box,\n    must exit 0, and its stdout must equal `expect` exactly.\
   \ The outputs of the declared checks are the\n    consumer part of the environment\
-  \ fingerprint — what is not declared is not compared.\n  - `width: whole | per-live-pass`\
-  \ — OPTIONAL: how wide a routed pass runs on the box (rule 3). Absent\n    reads\
-  \ `whole`.\nA mapping that does not parse, lacks `stage6: on`, holds a malformed\
-  \ check, or holds a `width` that is\nneither of the two is INVALID: the pass runs\
-  \ locally under the reason `venue-declaration-invalid`,\nshown on the Stage-6 row\
-  \ — never a silent local run.\n\n### 2. Routing — the consumer arm of `venue_decision`\n\
-  For a consumer pass, in this order: undeclared → `consumer`; declaration invalid\
-  \ →\n`venue-declaration-invalid`; no record → `no-venue`; a record not published\
-  \ for a consumer →\n`consumer-needs-consumer-venue`; a record published for ANOTHER\
-  \ repository → `venue-other-project`; a\nland leg → `consumer-land-local`; an explicit\
-  \ `--placement local` → `placement-local` (rule 6); else →\n`venue`. Every reason\
-  \ but `venue` runs the pass locally. SPEC-1029's `small-selection` cut and its\n\
-  sandbox carve-out apply unchanged. The Stage-6 row names the reason (`verify_metrics.venue_routing`)\n\
-  for every pass of a consumer that declares `verify.venue`, and for a kernel pass\
-  \ that reads\n`venue-consumer-only`; an undeclared consumer's row and every other\
-  \ kernel row carry none. **A consumer venue serves ONE consumer repository's Stage-6\
-  \ passes\nonly:** a kernel pass on a machine whose record is published for a consumer\
-  \ reads\n`venue-consumer-only` and runs locally.\n\n### 3. Sharing the box — the\
-  \ project balances it\n- **A pass alone on the box has the whole box.** The width\
-  \ written into its layer commands\n  (`YITC_VERIFY_LAYER_WORKERS`) is the box's\
-  \ thread count; the project's own declared\n  `verify.layer_worker_shares` divide\
-  \ it among layers exactly as on its host. SPEC-1029 rule 5's\n  suite-partition\
-  \ derivation and its lower-priority arm do not apply to a consumer pass: no land\
-  \ runs\n  on a consumer venue, so a consumer pass runs at normal priority.\n- **Under\
-  \ `width: per-live-pass`** a pass runs at the box's thread count divided by the\
-  \ consumer\n  passes live on the box at its admission, itself included, and at least\
-  \ 1: alone it still has the\n  whole box, beside one live pass half of it. The pass\
-  \ keeps that width to its end; its Stage-6 row\n  names the width, the policy and\
-  \ the count (`venue_workers`, `venue_workers_bound`,\n  `venue_width_live`). Under\
-  \ `whole`, or with no `width`, every pass has the box's thread count.\n- **How many\
-  \ passes share the box is the project's machine setting:** the existing\n  `YITC_VENUE_STAGE6_MAX_CONCURRENT`\
-  \ on the machine that publishes the venue — an UPPER bound. Unset, a\n  consumer\
-  \ venue admits ONE pass at a time. SPEC-1029's load headroom (`YITC_VENUE_STAGE6_HEADROOM_LOAD1`,\n\
-  \  the same machine settings) still applies: a pass waits while either bound holds\
-  \ it, and the wait names\n  which one (`cap` or `headroom`). Passes admitted together\
-  \ share the box's CPUs through the operating\n  system.\n- **The kernel never touches\
-  \ a consumer pass's CPUs.** It assigns no CPU set, and\n  `_venue_core_split_apply`\
-  \ does not run on a consumer venue: a mask the project's own commands set\n  (e.g.\
-  \ `taskset`) stays as the project set it.\n- **Admission is SPEC-1029's box lease,\
-  \ atomic only — at every admission.** A consumer venue requires the\n  atomic admission\
-  \ primitive (`flock`) on the box: the readiness probe checks it and `venue publish`\n\
-  \  refuses without it; and the box's admission prologue checks it again for EVERY\
-  \ consumer pass, which\n  aborts INDETERMINATE with the class `atomic-admission-unavailable`\
+  \ fingerprint — what is not declared is not compared. A check MAY\n    also carry\
+  \ `install`: a command that makes the check pass, which `venue raise` runs on the\
+  \ box as\n    root (the box user's passwordless sudo) when the check fails, then\
+  \ checks again (rule 6). The\n    project decides what its box needs and how to\
+  \ install it; the kernel runs only what is declared.\n    TRUST BOUNDARY: an install\
+  \ runs as root on a box the owner raised for that one project (a venue\n    serves\
+  \ one project at a time, rule 2), so it is trusted exactly as that project's own\n\
+  \    provisioning script is.\n  - `width: whole | per-live-pass` — OPTIONAL: how\
+  \ wide a routed pass runs on the box (rule 3). Absent\n    reads `whole`.\nA mapping\
+  \ that does not parse, lacks `stage6: on`, holds a malformed check, or holds a `width`\
+  \ that is\nneither of the two is INVALID: the pass runs locally under the reason\
+  \ `venue-declaration-invalid`,\nshown on the Stage-6 row — never a silent local\
+  \ run.\n\n### 2. Routing — the consumer arm of `venue_decision`\nFor a consumer\
+  \ pass, in this order: undeclared → `consumer`; declaration invalid →\n`venue-declaration-invalid`;\
+  \ no record → `no-venue`; a record not published for a consumer →\n`consumer-needs-consumer-venue`;\
+  \ a record published for ANOTHER repository → `venue-other-project`; a\nland leg\
+  \ → `consumer-land-local`; an explicit `--placement local` → `placement-local` (rule\
+  \ 6); else →\n`venue`. Every reason but `venue` runs the pass locally. SPEC-1029's\
+  \ `small-selection` cut and its\nsandbox carve-out apply unchanged. The Stage-6\
+  \ row names the reason (`verify_metrics.venue_routing`)\nfor every pass of a consumer\
+  \ that declares `verify.venue`, and for a kernel pass that reads\n`venue-consumer-only`;\
+  \ an undeclared consumer's row and every other kernel row carry none. **A consumer\
+  \ venue serves ONE consumer repository's Stage-6 passes\nonly:** a kernel pass on\
+  \ a machine whose record is published for a consumer reads\n`venue-consumer-only`\
+  \ and runs locally.\n\n### 3. Sharing the box — the project balances it\n- **A pass\
+  \ alone on the box has the whole box.** The width written into its layer commands\n\
+  \  (`YITC_VERIFY_LAYER_WORKERS`) is the box's thread count; the project's own declared\n\
+  \  `verify.layer_worker_shares` divide it among layers exactly as on its host. SPEC-1029\
+  \ rule 5's\n  suite-partition derivation and its lower-priority arm do not apply\
+  \ to a consumer pass: no land runs\n  on a consumer venue, so a consumer pass runs\
+  \ at normal priority.\n- **Under `width: per-live-pass`** a pass runs at the box's\
+  \ thread count divided by the consumer\n  passes live on the box at its admission,\
+  \ itself included, and at least 1: alone it still has the\n  whole box, beside one\
+  \ live pass half of it. The pass keeps that width to its end; its Stage-6 row\n\
+  \  names the width, the policy and the count (`venue_workers`, `venue_workers_bound`,\n\
+  \  `venue_width_live`). Under `whole`, or with no `width`, every pass has the box's\
+  \ thread count.\n- **How many passes share the box is the project's machine setting:**\
+  \ the existing\n  `YITC_VENUE_STAGE6_MAX_CONCURRENT` on the machine that publishes\
+  \ the venue — an UPPER bound. Unset, a\n  consumer venue admits ONE pass at a time.\
+  \ SPEC-1029's load headroom (`YITC_VENUE_STAGE6_HEADROOM_LOAD1`,\n  the same machine\
+  \ settings) still applies: a pass waits while either bound holds it, and the wait\
+  \ names\n  which one (`cap` or `headroom`). Passes admitted together share the box's\
+  \ CPUs through the operating\n  system.\n- **The kernel never touches a consumer\
+  \ pass's CPUs.** It assigns no CPU set, and\n  `_venue_core_split_apply` does not\
+  \ run on a consumer venue: a mask the project's own commands set\n  (e.g. `taskset`)\
+  \ stays as the project set it.\n- **Admission is SPEC-1029's box lease, atomic only\
+  \ — at every admission.** A consumer venue requires the\n  atomic admission primitive\
+  \ (`flock`) on the box: the readiness probe checks it and `venue publish`\n  refuses\
+  \ without it; and the box's admission prologue checks it again for EVERY consumer\
+  \ pass, which\n  aborts INDETERMINATE with the class `atomic-admission-unavailable`\
   \ before any test starts when it is\n  missing. SPEC-1029's non-atomic admission\
   \ fallback never applies to a consumer pass.\n\n### 4. The executor of a consumer\
   \ pass\nA consumer tree carries no engine, so SPEC-1029 rule 3's «the runner of\
@@ -129,30 +140,40 @@ body: "## Scenario\n\nA consumer project whose Stage-6 run is heavy declares, in
   \ clone of the consumer\n  repository (never shallow); the consumer's engine release\
   \ at the SAME absolute path its host runs it\n  from, so a test that imports the\
   \ engine by its host path finds it unchanged; and the declared\n  environment. The\
-  \ readiness probe runs every declared check; `venue publish` refuses on a failing\
-  \ or\n  mismatching check, naming it. The image is built by `venue seed --build\
-  \ -C <consumer> --provision <script>`.\n  The image and the engine release identity\
-  \ (rule 5) are taken over the files the release carries:\n  the install's own files\
-  \ — the venue binding at its default home, a root `events.jsonl`, `.yitc/` —\n \
-  \ are part of neither, and any other file added, changed or removed (a byte cache\
-  \ or a symlink aside)\n  still refuses the build and mismatches the identity.\n\
-  - **Published for one repository.** `venue publish` run for a consumer (`-C <consumer>`)\
-  \ writes into the\n  venue record (SPEC-1029 rule 1) `serves:` — the real path of\
-  \ that repository's git common dir on the\n  publishing machine — which rule 2 compares;\
-  \ one machine path is one repository. A kernel pass reads\n  `venue-consumer-only`\
-  \ from the first moment such a record can exist.\n- **Named per-pass placement.**\
-  \ `task test --run --placement local` runs a declared consumer's pass\n  locally\
-  \ while a venue is published, under the reason `placement-local` on the Stage-6\
-  \ row;\n  `--placement auto` (the default) is rule 2. On a kernel pass `--placement\
-  \ local` is refused\n  (`placement-kernel-unsupported`); SPEC-1029 rule 7 is unchanged\
-  \ for kernel passes. An unreachable or\n  faulting venue stays SPEC-1029 rule 7's\
-  \ INDETERMINATE abort — never an implicit `placement-local`.\n- **The occupancy\
-  \ view.** `venue show --leases` prints the admitted passes, the cap and the headroom.\n\
-  \  It is read-only, does not wait, and decides nothing.\n- **Layer timeouts on the\
-  \ box are uncalibrated** until the consumer measures them there under SPEC-0208\n\
-  \  (its tuple, at the maximum admission it runs, n ≥ 20 over a closed window); an\
-  \ estimate never stands in\n  for that measurement.\n\n## Parameters\n\n| Name |\
-  \ Where | Default | consumed |\n|---|---|---|---|\n| `YITC_VENUE_STAGE6_MAX_CONCURRENT`\
+  \ readiness probe runs every declared check. `venue raise`, run for the repository\n\
+  \  that declares them, runs the `install` of each failing check that declares one,\
+  \ checks again, and\n  refuses the box naming `check:<name>` when a check still\
+  \ fails, fails with no `install`, or its\n  `install` did not exit 0 — the box is\
+  \ torn down; each install is an `external_action` row. A passing check installs\
+  \ nothing.\n  `venue publish` installs nothing and refuses on a failing or mismatching\
+  \ check, naming it. The image is built by `venue seed --build -C <consumer> --provision\
+  \ <script>`.\n  The image and the engine release identity (rule 5) are taken over\
+  \ the files the release carries:\n  the install's own files — the venue binding\
+  \ at its default home, a root `events.jsonl`, `.yitc/` —\n  are part of neither,\
+  \ and any other file added, changed or removed (a byte cache or a symlink aside)\n\
+  \  still refuses the build and mismatches the identity.\n- **Published for one repository.**\
+  \ `venue publish` run for a consumer (`-C <consumer>`) writes into the\n  venue\
+  \ record (SPEC-1029 rule 1) `serves:` — the real path of that repository's git common\
+  \ dir on the\n  publishing machine — which rule 2 compares; one machine path is\
+  \ one repository. A kernel pass reads\n  `venue-consumer-only` from the first moment\
+  \ such a record can exist.\n- **The kernel declares its own box needs the same way.**\
+  \ The kernel is a project too: what its\n  suite needs on a box beyond SPEC-1029's\
+  \ readiness floor sits in the kernel's own `yitc-ops.yaml`\n  `verify.venue.environment`,\
+  \ in the rule-1 shape, and the kernel's `venue raise` and `venue publish`\n  judge\
+  \ it as above — no project tool is a hardcoded readiness row. The kernel's Stage-6\
+  \ and land\n  routing never read that mapping (rule 2 reads it for a consumer pass\
+  \ only).\n- **Named per-pass placement.** `task test --run --placement local` runs\
+  \ a declared consumer's pass\n  locally while a venue is published, under the reason\
+  \ `placement-local` on the Stage-6 row;\n  `--placement auto` (the default) is rule\
+  \ 2. On a kernel pass `--placement local` is refused\n  (`placement-kernel-unsupported`);\
+  \ SPEC-1029 rule 7 is unchanged for kernel passes. An unreachable or\n  faulting\
+  \ venue stays SPEC-1029 rule 7's INDETERMINATE abort — never an implicit `placement-local`.\n\
+  - **The occupancy view.** `venue show --leases` prints the admitted passes, the\
+  \ cap and the headroom.\n  It is read-only, does not wait, and decides nothing.\n\
+  - **Layer timeouts on the box are uncalibrated** until the consumer measures them\
+  \ there under SPEC-0208\n  (its tuple, at the maximum admission it runs, n ≥ 20\
+  \ over a closed window); an estimate never stands in\n  for that measurement.\n\n\
+  ## Parameters\n\n| Name | Where | Default | consumed |\n|---|---|---|---|\n| `YITC_VENUE_STAGE6_MAX_CONCURRENT`\
   \ | machine settings (existing, SPEC-1029 / <workshop-spec>) | on a consumer venue:\
   \ 1 | false |\n| `YITC_VENUE_STAGE6_HEADROOM_LOAD1` | machine settings (existing,\
   \ SPEC-1029) | as SPEC-1029 | false |\n| `verify.venue.width` | the project's `yitc-ops.yaml`\
@@ -183,70 +204,80 @@ body: "## Scenario\n\nA consumer project whose Stage-6 run is heavy declares, in
   \ box and its pass read green. Forwarding a\nproject's environment variables to\
   \ the box was declined; such a card runs with `--placement local`.\nThe width policy\
   \ removes the overload only in part: a pass keeps the width of its own admission,\
-  \ so\none admitted alone keeps the whole box when a second joins at half.\n\n##\
-  \ Implementation notes\n\n- `venue_decision` gains the consumer inputs (declaration,\
-  \ the record's `serves`, the placement) and the\n  reasons of rule 2; it stays pure\
-  \ and box-free, as SPEC-1029 requires.\n- The venue record gains `serves`, written\
-  \ only by `venue publish -C <consumer>`; a record without it is\n  a kernel venue.\n\
-  - SPEC-1029 rule 2's paragraph «Consumers are OPT-IN ONLY and out of this slice\
-  \ … » is replaced,\n  in place (`spec edit`, additive per <workshop-spec> rule 7),\
-  \ by one line pointing at this spec; that edit\n  ships with the card that activates\
-  \ this spec.\n- A routed consumer pass is composed in `remote_verify.consumer_route`\
-  \ and never goes through\n  `execute_remote_verify`, which stays the kernel executor's\
-  \ one call site.\n- `per-live-pass` : the box divides the request's width by the\
-  \ admission prologue's own\n  count of the other live Stage-6 leases, taken under\
-  \ its lock, plus one (`_CONSUMER_WIDTH_STEP`, right\n  after the admission), and\
-  \ writes the derivation into the envelope; the host checks the width\n  against\
-  \ it (`consumer_expected_width`). The empty-layer case travels as the plan's per-layer\n\
-  \  `listed` count (`land_verify_legs._adapter_shipped_decision`) and the box follower's\
-  \ `listed_none`\n  mark, read by both Stage-6 credit readers (`worktree._stage6_row_covers_land`,\n\
-  \  `_stage6_layer_credit`). The install's own paths are `release.INSTALL_LOCAL_PATHS`,\
-  \ the one carrier\n  both digests read past. The identity (`_engine_identity`) keeps\
-  \ its `bin_digest` and adds a\n  `tree_digest`, the same fold over every regular\
-  \ file of a root that holds a manifest, with the\n  build's own component exclusion\
-  \ (`release.NON_ARTIFACT_COMPONENTS`); the box walks the tree the\n  image installed\
-  \ and the host its own install (`release install` writes a plain directory), so\
-  \ the\n  two read the same files. A git checkout used as the engine root is walked\
-  \ whole too: an untracked\n  file there, which the image build does not read, mismatches\
-  \ the identity. A layer whose selection\n  and credit are not deciding is not in\
-  \ the plan, so no `listed` count travels for it and the box\n  marks nothing for\
-  \ it; nor does a box `list` that fails for another reason (an exit, a timeout, a\n\
-  \  malformed answer), whose layer verdict is its `command:` as on any host.\n\n\
-  ## Verification\n\nProbe contracts, each observed failing first:\n- Rule 1: absent\
-  \ mapping → `consumer`, byte-identical to SPEC-1029; each invalid form (no `stage6`,\
-  \ a\n  malformed check) → `venue-declaration-invalid`; a check whose command fails\
-  \ while its stdout equals\n  `expect` fails the readiness probe; a routed pass whose\
-  \ declared layers depend on each other runs them\n  in the runner's order on the\
-  \ box.\n- Rule 2: every reason of the order above, one probe each, including a pass\
-  \ from a second repository on\n  the same machine → `venue-other-project` and a\
-  \ kernel pass on a consumer venue → `venue-consumer-only`.\n- Rule 3: a pass alone\
-  \ runs at the box's thread count; with the cap unset a second pass waits (`cap`)\n\
-  \  until the first ends; with the cap 2 and the load under the headroom two passes\
-  \ run at once; with the\n  cap 2 and the load over the headroom the second waits\
-  \ (`headroom`); two clients racing for the last\n  admission → exactly one is admitted;\
-  \ a box without `flock` refuses `venue publish`; `flock` removed\n  after publish\
-  \ → the next consumer admission aborts `atomic-admission-unavailable` and no test\
-  \ starts;\n  a mask a layer sets with `taskset` is unchanged after several admission\
-  \ polls.\n- Rule 4: a consumer tree with no engine in it runs on the box through\
-  \ the installed engine; a SPEC-1030\n  narrowed plan runs exactly the shipped units\
-  \ and its row is a partial run; a retry after a failed\n  attempt runs the host-resolved\
-  \ plan with its credits.\n- Rule 5: a corrupted shipped tree, a different engine\
-  \ release, a changed shipped plan, a changed output\n  of a declared check (the\
-  \ pilot declares one over its font set) and a different width each yield\n  `consumer-identity-mismatch`,\
-  \ never GREEN.\n- Rule 6: a shallow clone, or a failing declared check, refuses\
-  \ `venue publish` naming it;\n  `--placement local` → `placement-local` on the row;\
-  \ on a kernel pass → refused; an unreachable venue\n  → INDETERMINATE, never `placement-local`;\
-  \ `venue show --leases` changes no lease.\n- Rules 1, 3, 5 and 6 : an install holding\
-  \ the binding, a root journal and `.yitc/` passes the\n  image pre-flight and its\
-  \ identity equals the bare release's, while a changed or added release file\n  fails\
-  \ both; `per-live-pass` alone runs at the thread count, beside a live pass at half\
-  \ of it, floor\n  1, and `whole` or no `width` at the thread count; an unknown `width`\
-  \ is `venue-declaration-invalid`;\n  a layer the plan lists units for whose `list`\
-  \ names none on the box is named on the row and no land\n  takes its verdict from\
-  \ the pass (tests/test_t13994_consumer_venue_pilot_fixes.py).\n- Live trigger (CHARTER\
-  \ §P8): the pilot consumer's first routed Stage-6 passes on its own published box,\n\
-  \  each with reason `venue` from the real `venue_decision` and credited by its `land`\
-  \ — its journal rows,\n  reported through its public tracker issue.\n"
+  \ so\none admitted alone keeps the whole box when a second joins at half.\n\nThe\
+  \ `install` field and the kernel's own declaration were added by (owner direction\n\
+  2026-11-02, option A): box <ip> had no npm, the readiness probe read it GREEN, and\
+  \ four\nunrelated cards went red on the box until nodejs was installed by hand\n\
+  (events.jsonl#ts=, #ts=). The jq readiness row of\nmoved into the kernel's declaration\
+  \ with it. In place, as an additive extension (SPEC-1037 §7): a\ndeclaration without\
+  \ `install` and an undeclared project read exactly as before.\n\n## Implementation\
+  \ notes\n\n- `venue_decision` gains the consumer inputs (declaration, the record's\
+  \ `serves`, the placement) and the\n  reasons of rule 2; it stays pure and box-free,\
+  \ as SPEC-1029 requires.\n- The venue record gains `serves`, written only by `venue\
+  \ publish -C <consumer>`; a record without it is\n  a kernel venue.\n- SPEC-1029\
+  \ rule 2's paragraph «Consumers are OPT-IN ONLY and out of this slice … » is replaced,\n\
+  \  in place (`spec edit`, additive per <workshop-spec> rule 7), by one line pointing\
+  \ at this spec; that edit\n  ships with the card that activates this spec.\n- A\
+  \ routed consumer pass is composed in `remote_verify.consumer_route` and never goes\
+  \ through\n  `execute_remote_verify`, which stays the kernel executor's one call\
+  \ site.\n- `per-live-pass` : the box divides the request's width by the admission\
+  \ prologue's own\n  count of the other live Stage-6 leases, taken under its lock,\
+  \ plus one (`_CONSUMER_WIDTH_STEP`, right\n  after the admission), and writes the\
+  \ derivation into the envelope; the host checks the width\n  against it (`consumer_expected_width`).\
+  \ The empty-layer case travels as the plan's per-layer\n  `listed` count (`land_verify_legs._adapter_shipped_decision`)\
+  \ and the box follower's `listed_none`\n  mark, read by both Stage-6 credit readers\
+  \ (`worktree._stage6_row_covers_land`,\n  `_stage6_layer_credit`). The install's\
+  \ own paths are `release.INSTALL_LOCAL_PATHS`, the one carrier\n  both digests read\
+  \ past. The identity (`_engine_identity`) keeps its `bin_digest` and adds a\n  `tree_digest`,\
+  \ the same fold over every regular file of a root that holds a manifest, with the\n\
+  \  build's own component exclusion (`release.NON_ARTIFACT_COMPONENTS`); the box\
+  \ walks the tree the\n  image installed and the host its own install (`release install`\
+  \ writes a plain directory), so the\n  two read the same files. A git checkout used\
+  \ as the engine root is walked whole too: an untracked\n  file there, which the\
+  \ image build does not read, mismatches the identity. A layer whose selection\n\
+  \  and credit are not deciding is not in the plan, so no `listed` count travels\
+  \ for it and the box\n  marks nothing for it; nor does a box `list` that fails for\
+  \ another reason (an exit, a timeout, a\n  malformed answer), whose layer verdict\
+  \ is its `command:` as on any host.\n\n## Verification\n\nProbe contracts, each\
+  \ observed failing first:\n- Rule 1: absent mapping → `consumer`, byte-identical\
+  \ to SPEC-1029; each invalid form (no `stage6`, a\n  malformed check) → `venue-declaration-invalid`;\
+  \ a check whose command fails while its stdout equals\n  `expect` fails the readiness\
+  \ probe; a routed pass whose declared layers depend on each other runs them\n  in\
+  \ the runner's order on the box.\n- Rule 2: every reason of the order above, one\
+  \ probe each, including a pass from a second repository on\n  the same machine →\
+  \ `venue-other-project` and a kernel pass on a consumer venue → `venue-consumer-only`.\n\
+  - Rule 3: a pass alone runs at the box's thread count; with the cap unset a second\
+  \ pass waits (`cap`)\n  until the first ends; with the cap 2 and the load under\
+  \ the headroom two passes run at once; with the\n  cap 2 and the load over the headroom\
+  \ the second waits (`headroom`); two clients racing for the last\n  admission →\
+  \ exactly one is admitted; a box without `flock` refuses `venue publish`; `flock`\
+  \ removed\n  after publish → the next consumer admission aborts `atomic-admission-unavailable`\
+  \ and no test starts;\n  a mask a layer sets with `taskset` is unchanged after several\
+  \ admission polls.\n- Rule 4: a consumer tree with no engine in it runs on the box\
+  \ through the installed engine; a SPEC-1030\n  narrowed plan runs exactly the shipped\
+  \ units and its row is a partial run; a retry after a failed\n  attempt runs the\
+  \ host-resolved plan with its credits.\n- Rule 5: a corrupted shipped tree, a different\
+  \ engine release, a changed shipped plan, a changed output\n  of a declared check\
+  \ (the pilot declares one over its font set) and a different width each yield\n\
+  \  `consumer-identity-mismatch`, never GREEN.\n- Rule 6: a shallow clone, or a failing\
+  \ declared check, refuses `venue publish` naming it;\n  `--placement local` → `placement-local`\
+  \ on the row; on a kernel pass → refused; an unreachable venue\n  → INDETERMINATE,\
+  \ never `placement-local`; `venue show --leases` changes no lease.\n- Rules 1, 3,\
+  \ 5 and 6 : an install holding the binding, a root journal and `.yitc/` passes the\n\
+  \  image pre-flight and its identity equals the bare release's, while a changed\
+  \ or added release file\n  fails both; `per-live-pass` alone runs at the thread\
+  \ count, beside a live pass at half of it, floor\n  1, and `whole` or no `width`\
+  \ at the thread count; an unknown `width` is `venue-declaration-invalid`;\n  a layer\
+  \ the plan lists units for whose `list` names none on the box is named on the row\
+  \ and no land\n  takes its verdict from the pass (tests/test_t13994_consumer_venue_pilot_fixes.py).\n\
+  - Rules 1 and 6 : a failing declared check with `install` is installed and checked\
+  \ again\n  at raise; without `install` it refuses the box naming the check; a passing\
+  \ check installs\n  nothing; the kernel's own declaration is read at its raise and\
+  \ publish, and no project tool is a\n  readiness row (tests/test_t14486_venue_declared_install.py).\n\
+  - Live trigger (CHARTER §P8): the pilot consumer's first routed Stage-6 passes on\
+  \ its own published box,\n  each with reason `venue` from the real `venue_decision`\
+  \ and credited by its `land` — its journal rows,\n  reported through its public\
+  \ tracker issue.\n"
 cites:
 - SPEC-1029
 - SPEC-0093
@@ -263,9 +294,10 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
+  bin/lib/cli.py#_venue_raise_once: c1b946509ab4bb4432cdad6459f80e5e7b99adf1d2f4513696f983d2b9fbf208
   bin/lib/cli.py#_venue_seed_build: bee80994d868d364d6bb40e1ae923c13f98aa75366e2ff61268158a23e0eca9d
   bin/lib/cli.py#_venue_show_leases: 62fffd70d72f96bdcd42850c75d7857f6ca050fd6cb2831e099180c51a5764b8
-  bin/lib/cli.py#cmd_venue_publish: f3499427484d6d84a3f064658da9b581d1f08798622595b11380da0545194e20
+  bin/lib/cli.py#cmd_venue_publish: 953dc19580c2dbaa96dd6d84f1c94c42c47dabb04f01def3499d617ec9d953b1
   bin/lib/land_verify_legs.py#_layer_row_listed_none: 4bb4745dd55ba37fa865e11b460bbfdede23bb5c20e88221ba86f9e4fcb8a803
   bin/lib/remote_verify.py#_venue_core_split_apply: b796b150df4ab72beee5f52245c51d3792a6addbd79c97279fbfb9770efd52d1
   bin/lib/remote_verify.py#box_lease_prologue: 5519e46317f9b8cfae6bfc08efcf06a6c9708c3975f1043aea2e68104db6613a
@@ -281,6 +313,9 @@ implements_signature:
   bin/lib/task.py#_stage6_consumer_venue: 2b41c6b3e73cfbbd1efbbf265e0babc9385150431612fb3a3cc18010ed024b88
   bin/lib/task.py#_stage6_routing_record: 2ef037bdb93294a98aaca01e69ff601fbd38c6b7cc79f81b66674419671b3f1b
   bin/lib/task.py#refuse_kernel_local_placement: 1126b5c133997b94dbe6eef5d16463064bb27507632f8beb1eda7f417c756a31
-  bin/lib/venue.py#consumer_declaration: 77c81e47359e653e804a81aee99f9d31924b594f17bdac8a075d0b6adc06e423
+  bin/lib/venue.py#consumer_declaration: 17078e41b18e12e6ad8fdd818d1d0d56a6b4f8991462beb4d91f4633b39035e4
   bin/lib/venue.py#consumer_declaration_of: f50687999787a63eba1f4176201774a5014ac008d1f3e130597258b2e947bfa7
-  bin/lib/venue.py#consumer_readiness_failures: 66df18c284fd38a13023a1f53b5a505a2b39d82d73596e9de6282864b196532e
+  bin/lib/venue.py#consumer_readiness_failures: a5fd294c5c5a1a65b43e13f0dc9f2e8c003bd8f1b4673338d642dfe068a91ee1
+  bin/lib/venue.py#declared_check_failures: f363fb1e3c9bfbc350e4cc0b5dc569a8f3fd71865ddc13f5656b7e1c9267a5d3
+  bin/lib/venue.py#ensure_declared_environment: 43ebf086a1cb601ae2968b9a6a22204c2f68d1e4940d8d6ab251a39eb0fd5740
+  bin/lib/venue.py#install_failures: 4dd5ab2f2386ad87f3184884a3e2b740231adf355b792111eab7b6523b160e9e

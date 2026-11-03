@@ -86,19 +86,49 @@ GOVERNED_REASON_FIELDS = (
 _CANONICAL_TS_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
 
 
+# T-14479: the word written immediately before a locator — `<project> events.jsonl#ts=…`,
+# `<project>/events.jsonl#ts=…`, `<project>:events.jsonl#ts=…`. It names a PEER journal only when the
+# caller's peer map knows that word; ordinary prose (`see events.jsonl#ts=…`) is never in the map, so
+# such a claim keeps resolving against this repository's journal exactly as before.
+_PEER_WORD_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+
+def _peer_word_before(prefix: str):
+    """The word that ends `prefix` once ONE separator (any run of whitespace, or one `/` or `:`) is
+    removed, lowercased; None when `prefix` does not end in a separator. The whitespace run is
+    stripped whole, so no length of it hides the word (audit-post finding fp1:255352ef048963c6)."""
+    if prefix.endswith(("/", ":")):
+        prefix = prefix[:-1]
+    elif prefix[-1:].isspace():
+        prefix = prefix.rstrip()
+    else:
+        return None
+    wm = _PEER_WORD_RE.search(prefix[-128:])
+    return wm.group(0).lower() if wm else None
+
+
+def locator_claims_with_peer(value) -> list:
+    """`[(token, ts_or_None, peer_word_or_None)]` for every claim in `value`. PURE — no I/O.
+
+    `peer_word` is the word directly before `events.jsonl#ts=` (see `_peer_word_before`), lowercased;
+    whether it names a peer is the caller's map's decision, never this function's."""
+    if not isinstance(value, str) or "events.jsonl#ts=" not in value:
+        return []
+    out = []
+    for m in _LOCATOR_CLAIM_RE.finditer(value):
+        tok = m.group(1)
+        out.append((tok, tok if _CANONICAL_TS_RE.match(tok) else None,
+                    _peer_word_before(value[:m.start()])))
+    return out
+
+
 def locator_claims(value) -> list:
     """Every `events.jsonl#ts=<...>` claim in `value`, as `[(token, ts_or_None)]`. PURE — no I/O.
 
     `ts_or_None` is None exactly when the captured token FAILED the canonical timestamp form (the
     `malformed` verdict); otherwise it is the timestamp to resolve. A non-string value yields [].
     """
-    if not isinstance(value, str) or "events.jsonl#ts=" not in value:
-        return []
-    out = []
-    for m in _LOCATOR_CLAIM_RE.finditer(value):
-        tok = m.group(1)
-        out.append((tok, tok if _CANONICAL_TS_RE.match(tok) else None))
-    return out
+    return [(tok, ts) for tok, ts, _peer in locator_claims_with_peer(value)]
 
 
 def locator_row_present(journal_path, ts) -> bool | None:
@@ -143,7 +173,8 @@ def locator_row_present(journal_path, ts) -> bool | None:
     return False if read_any else None
 
 
-def scan_governed_locators(values_by_field, journal_path, main_journal_path=None) -> list:
+def scan_governed_locators(values_by_field, journal_path, main_journal_path=None,
+                           peer_journal_paths=None) -> list:
     """Resolve every locator claim in `{field: value}`. Returns one entry per OFFENDER:
     `{"field":…, "locator":…, "why": "malformed" | "no-row"}`.
 
@@ -154,12 +185,22 @@ def scan_governed_locators(values_by_field, journal_path, main_journal_path=None
     checkout's journal, or None when there is none. A task worktree's journal was cut from main BEFORE
     the Controller appended the directive a worker cites, so a claim absent here is looked up there too
     and is `no-row` only when BOTH lookups are a decisive False. An undecidable main lookup stays silent.
+
+    `peer_journal_paths` (T-14479) is `{peer_word: <peer events.jsonl>}`. A claim written as
+    `<peer> events.jsonl#ts=<ts>` whose peer word is in the map is a claim about THAT peer's journal,
+    so it is resolved there and only there — a ts absent in the peer is `no-row` even if this
+    repository happens to carry a row at the same second. A word not in the map is ordinary prose.
     """
+    peers = peer_journal_paths or {}
     findings = []
     for field, value in (values_by_field or {}).items():
-        for token, ts in locator_claims(value):
+        for token, ts, peer in locator_claims_with_peer(value):
             if ts is None:
                 findings.append({"field": field, "locator": token, "why": "malformed"})
+                continue
+            if peer is not None and peer in peers:
+                if locator_row_present(peers[peer], ts) is False:
+                    findings.append({"field": field, "locator": token, "why": "no-row"})
                 continue
             present = locator_row_present(journal_path, ts)
             if present is False and main_journal_path is not None:
@@ -315,13 +356,67 @@ def _classify_cc_entry(e: dict, *, _extract_text) -> str | None:
     # import — dispatch imports journal, so a module-level import here would be circular. Fail-SAFE:
     # any import/attribute failure leaves today's classification untouched (a best-effort denoise must
     # never be able to break the materializer).
-    try:
-        from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy by design (leaf-order)
-        if text.startswith(_dispatch.DISPATCH_PREAMBLE_MARKER):
-            return "instruction_injection"
-    except Exception:
-        pass
+    # T-14468: the same holds for a kernel-composed AUDIT prompt (an auditor session's own transcript
+    # is a conversation whose `user` turn is the packet the kernel built) — `kernel_composed_text`
+    # recognises both. on_error=False here: a best-effort denoise must never break the materializer.
+    if kernel_composed_text(text, on_error=False):
+        return "instruction_injection"
     return "owner_directive"
+
+
+# T-14468 (deviation plan-gate-audit-prompt-recorded-as-owner-directive): the openings of every prompt
+# the kernel composes for its external auditor. Literals HERE, in the low leaf, so recognising them
+# needs no import that can fail. Each is the first line its composer emits — `audit_packet`'s
+# `_AUDIT_REVIEW_ONLY_CLAUSE` / `_AUDIT_ADHOC_REVIEW_ONLY_CLAUSE` (task / decision / ad-hoc packets),
+# `cli._PLAN_AUDIT_LENS` (plan check + plan-gate audits) and the aspect-audit prompt in `audit.py`;
+# `tests/test_t14468_kernel_prompt_not_owner_directive.py` builds each composer's real opening and fails
+# when one drifts from this tuple.
+KERNEL_AUDIT_PROMPT_OPENINGS = (
+    "## Your role: REVIEW only — do NOT act",
+    "## Your role: REVIEW only — do NOT mutate",
+    "## V2 evaluation lens",
+    "# Aspect-audit external opinion",
+)
+
+
+def kernel_composed_text(text, *, on_error: bool = False) -> bool:
+    """T-14468: True when `text` OPENS with a prompt the kernel itself composed — an auditor packet
+    (`KERNEL_AUDIT_PROMPT_OPENINGS`) or the dispatch preamble (`dispatch.DISPATCH_PREAMBLE_MARKER`,
+    lazy import by leaf order, T-12400). Only the OPENING counts: an owner turn that quotes a lens
+    mid-text is still the owner's. Empty / non-str text -> False.
+
+    `on_error` is what a FAILED recognition answers, and each caller states it: the materializer
+    passes False (a denoise never breaks the sync), an AUTHORITY reader passes True — failed
+    recognition is never proof of owner authorship (audit-pre fp1:cebd5fec8c0c5e0d)."""
+    try:
+        if not isinstance(text, str):
+            return False
+        head = text.lstrip()
+        if not head:
+            return False
+        if head.startswith(KERNEL_AUDIT_PROMPT_OPENINGS):
+            return True
+        from lib import dispatch as _dispatch   # noqa: PLC0415 — lazy by design (leaf-order)
+        return head.startswith(_dispatch.DISPATCH_PREAMBLE_MARKER)
+    except Exception:   # noqa: BLE001 — the caller's stated answer, never a guess
+        return on_error
+
+
+def owner_authorship_unproven(row) -> bool:
+    """T-14468 — the AUTHORITY readers' test: True for an `owner_directive` row whose words
+    (`data.owner_text`, else `data.text`) are a kernel-composed prompt, or whose check could not run
+    (fail-closed). Such a row is history, never owner intent: `audit decide`'s directive resolution,
+    the restoration brief's owner decisions and the dispatch brief's owner rules all skip it. A row
+    already written that way (events.jsonl#ts=2026-11-02T14:06:44Z) is neutralised by this read — the
+    journal stays append-only. Any other row -> False (its own readers judge it)."""
+    try:
+        if not isinstance(row, dict) or row.get("type") != "owner_directive":
+            return False
+        data = row.get("data") if isinstance(row.get("data"), dict) else {}
+        words = data.get("owner_text") or data.get("text")
+        return kernel_composed_text(words, on_error=True)
+    except Exception:   # noqa: BLE001 — fail-closed on the authority side
+        return True
 
 
 # T-13788 (SPEC-1024 rule 6, §Parameters «Session-log adapter coverage»): the providers whose
@@ -2684,6 +2779,12 @@ _FOLD_LINES: dict = {}          # path -> that path's own line count, from the f
 # rather than the whole of it (see `reads_mark` / `read_counters(since=)`). A few thousand tuples at
 # most per process, and it adds no read: it is written by the same `note_fold` call as the rest.
 _FOLD_LOG: list = []
+# T-14424 — rows a request READ WITHOUT A FOLD: the lines an index-served (or borrowed) archive segment
+# replays into the walk (`_FoldLineSource._serve`). The walk parses them, so they sit in `rows_parsed`;
+# before this log they sat in no denominator, and every verb served through the T-13356 index read
+# ~5-10x on `rows_parse_ratio` (~413k replayed rows over a ~50k-row live segment) although each row is
+# parsed ONCE. Kept apart from `_FOLD_LOG` so it adds to `rows` only — never to `folds` or `artifacts`.
+_SERVED_LOG: list = []
 
 
 def note_fold(path, nlines: int, secs: float = 0.0) -> None:
@@ -2710,6 +2811,15 @@ def note_fold(path, nlines: int, secs: float = 0.0) -> None:
         _FOLD_LOG.append((key, int(nlines)))
     except (TypeError, ValueError):
         _FOLD_LOG.append((str(path), 0))
+
+
+def note_rows_served(path, nlines: int) -> None:
+    """Record `nlines` rows of `path` replayed from its index summary (or a peer's walk) — read, but not
+    folded. Joins the `rows` denominator once per path (largest seen), like a fold's line count."""
+    try:
+        _SERVED_LOG.append((str(path), int(nlines)))
+    except (TypeError, ValueError):
+        pass
 
 
 def note_rows_parsed(n: int) -> None:
@@ -2739,10 +2849,14 @@ def read_counters(since=None) -> dict:
     per_path: dict = {}
     for key, n in span:
         per_path[key] = max(per_path.get(key, 0), n)
+    served: dict = {}
+    for key, n in _SERVED_LOG[base.get("served_log", 0):]:
+        served[key] = max(served.get(key, 0), n)
     # Clamped at 0: only a TEST can reset the counters inside a span, and a negative count would be
     # a number nobody measured.
     out = {k: max(0, _READ_COUNTERS[k] - base[k]) for k in _READ_COUNTERS}
-    out["rows"] = sum(per_path.values())
+    # A path both folded and served in one span counts its largest reading once, never the sum.
+    out["rows"] = sum(max(per_path.get(k, 0), served.get(k, 0)) for k in set(per_path) | set(served))
     out["artifacts"] = len(per_path)
     if since is not None:
         _sr = state.read_counters()
@@ -2751,7 +2865,7 @@ def read_counters(since=None) -> dict:
     return out
 
 
-_ZERO_MARK = {"log": 0, "folds": 0, "rows_parsed": 0, "wall_ms": 0.0, "segments_skipped": 0,
+_ZERO_MARK = {"log": 0, "served_log": 0, "folds": 0, "rows_parsed": 0, "wall_ms": 0.0, "segments_skipped": 0,
               "cards_parsed": 0, "card_wall_ms": 0.0}
 
 
@@ -2759,6 +2873,7 @@ def reads_mark() -> dict:
     """An opaque BASELINE for `read_counters(since=)` — the start of the span a row will measure."""
     mark = dict(_READ_COUNTERS)
     mark["log"] = len(_FOLD_LOG)
+    mark["served_log"] = len(_SERVED_LOG)
     _sr = state.read_counters()
     mark["cards_parsed"] = _sr.get("cards_parsed", 0)
     mark["card_wall_ms"] = _sr.get("wall_ms", 0.0)
@@ -2833,6 +2948,7 @@ def reset_read_counters() -> None:
     _READ_COUNTERS.update({"folds": 0, "rows_parsed": 0, "wall_ms": 0.0, "segments_skipped": 0})
     _FOLD_LINES.clear()
     _FOLD_LOG.clear()
+    _SERVED_LOG.clear()
 
 
 # T-13108 — a CALL-SCOPED out-slot, not a parameter: `JournalRowsMemo.lines` sets it around its one
@@ -3935,8 +4051,9 @@ class _FoldLineSource:
         self.on_segment_end = on_segment_end
         self.cur_k = -1
 
-    def _serve(self, idx):
+    def _serve(self, idx, seg=None):
         sv = self.served[idx]
+        n = 0
         # T-14286 — a segment BORROWED from another checkout's walk is the same bytes the file holds, so
         # it feeds `on_line` exactly as a streamed one would; a summary-served one does not (its
         # reducers were restored from the summary).
@@ -3947,7 +4064,9 @@ class _FoldLineSource:
             if self.needles and any(n in line for n in self.needles):
                 self.needle_lines.setdefault(idx, []).append((k, line))
             self.cur_k = k
+            n += 1
             yield line
+        note_rows_served(seg if seg is not None else idx, n)     # T-14424 — read, not folded
         self.line_counts[idx] = sv.header["line_count"]
         if sv.header["lossy"]:
             self.lossy.add(idx)
@@ -3956,7 +4075,7 @@ class _FoldLineSource:
         for idx, seg in zip(self.indices, self.segments):
             self.seg_idx = idx
             if idx in self.served:
-                yield from self._serve(idx)
+                yield from self._serve(idx, seg)
                 if self.on_segment_end is not None:
                     self.on_segment_end(idx)
                 continue
@@ -4104,9 +4223,19 @@ class _LineStore:
         if not self._lines and self._blocks:
             seqs, segs, blob = self._blocks.pop()
             lines = zlib.decompress(blob).decode("utf-8").split("\n")
-            self._seqs, self._segs, self._lines = seqs, segs, lines
+            # T-14437 — the block's arrays may be SHARED with a copy (`copy`): pop from our own.
+            self._seqs, self._segs, self._lines = array("q", seqs), array("i", segs), lines
             self._size = sum(len(line) for line in lines)
         return (self._seqs[-1], self._segs[-1], self._lines[-1]) if self._lines else None
+
+    def copy(self) -> "_LineStore":
+        """T-14437 — an independent store holding the same lines: the packed blocks are immutable and
+        shared, the unpacked tail is copied, so popping or appending on either leaves the other as is."""
+        out = _LineStore()
+        out._blocks = list(self._blocks)
+        out._seqs, out._segs = array("q", self._seqs), array("i", self._segs)
+        out._lines, out._size = list(self._lines), self._size
+        return out
 
     def pop(self):
         """Remove and return the last `(seq, seg, line)`, or None when the store is empty."""
@@ -5486,13 +5615,14 @@ class JournalScan:
             raise ValueError("keep_all and extendable go together, and never with reducers, a window, "
                              "a remainder walk (an extension IS this scope's remainder), a catch-up "
                              "or the whole-history index")
-        if follow_live and (not catch_up or not since or keep or reducers or needles or remainder
-                            or task or index or keep_all or extendable):
-            raise ValueError("follow_live needs catch_up, a horizon (`since`) and a window-only "
-                             "declaration: a line read from a rewritten live segment can be taken "
-                             "back from the all-types window, not from a typed projection, a "
-                             "reducer, a needle or the index, and the segments a walk would take "
-                             "now are asked through the horizon")
+        if follow_live and (not catch_up or remainder or task or keep_all or extendable or parsed
+                            or any(rule is not None for rule in (keep or {}).values())):
+            raise ValueError("follow_live needs catch_up and a declaration whose every kept line can "
+                             "be taken back by its text alone: the all-types window, a whole-history "
+                             "typed projection kept as lines and the needles (T-14437); never a "
+                             "retention rule, a parsed projection, a task, a remainder walk or "
+                             "keep_all — a reducer may be declared, and its scope then goes stale on "
+                             "a rewrite as before (a reducer cannot un-read a line)")
         self._path = Path(path)
         self._key = JournalRowsMemo._key(path)
         self._keep = {}
@@ -5556,6 +5686,8 @@ class JournalScan:
         self._shared_fn = None       # T-14286 — () -> the archive segments verified identical to the peer's
         self._shared = None          # T-14286 — that set's basenames, computed once at first use
         self.borrowed: list = []     # T-14286 — basenames of the segments served from the peer's walk
+        self._closed_live = None     # T-14437 — the live resume point a `close` left, for `carry`
+        self.carried_from = None     # T-14437 — the journal this scope was carried from, if any
 
     def holds(self, path) -> bool:
         """True iff `path` is this scope's logical journal or one of its segments (`JournalRowsMemo.holds`,
@@ -6282,7 +6414,7 @@ class JournalScan:
         resume identity is made from the bytes that passed, not by a look back at the file. The
         bytes read are recorded beside the lines (`resumed`), so the one read is checkable: it
         equals the file's size."""
-        if not self._follow or self._allowed(self._since, None, None) != self._walked \
+        if not self._follow or self._reducers or self._walk_set_now() != self._walked \
                 or self._segment_ids() != self._seg_ids:
             return False
         t0 = time.monotonic()
@@ -6314,7 +6446,21 @@ class JournalScan:
         (self._src.lossy.add if state["lossy"] else self._src.lossy.discard)(idx)
         self.resumed.append((str(seg), keep, taken, state["read"], src.read))
         note_fold(seg, same + state["read"], time.monotonic() - t0)     # the ONE read of the file
+        self.folds += 1                       # T-14437 — a physical read of the file, counted as one
         return True
+
+    def _walk_set_now(self):
+        """T-14437 — the segment positions a walk of this scope's declaration would take NOW, or None
+        when that is not this scope's snapshot: through the horizon for a floored scope (T-13846), and
+        for an unfloored one every segment — while the segment NAMES are still the ones it walked (a
+        rotation adds an archive this scope never read)."""
+        if self._since:
+            return self._allowed(self._since, None, None)
+        try:
+            now = [Path(str(s)).name for s in events.segment_paths(self._path)]
+        except OSError:
+            return None
+        return set(range(len(self._segs))) if now == [Path(str(s)).name for s in self._segs] else None
 
     def _lines_still_there(self, src):
         """`(keep, same, lossy, tail)`: the first `same` lines this scope holds of its live segment
@@ -6367,7 +6513,19 @@ class JournalScan:
             last = self._window.last()
             if last is not None and last[1] == idx and last[2] == line:
                 self._window.pop()
-        self._src.line_counts[idx] = self._src.line_counts.get(idx, 0) - count
+            # T-14437 — a typed projection kept as LINES (every rule None) admits a line by its text
+            # alone, exactly as the window does, so the same end-matching takes its entry back.
+            for store in self._rows.values():
+                last = store.last()
+                if last is not None and last[1] == idx and last[2] == line:
+                    store.pop()
+                    break
+        kept = self._src.line_counts.get(idx, 0) - count
+        self._src.line_counts[idx] = kept
+        held = self._src.needle_lines.get(idx)
+        if held:                              # T-14437 — needle lines sit at their positions
+            while held and held[-1][0] >= kept:
+                held.pop()
         return count
 
     def live_lines(self):
@@ -6435,6 +6593,7 @@ class JournalScan:
             for r in self._reducers.values():
                 getattr(r, "finish", lambda: None)()
         _handdown_offer(self)       # T-13995 — an armed request's typed hand-down (see `typed_handdown`)
+        self._closed_live = self._live    # T-14437 — a closed scope can still be carried from
         self._live = None
 
     def fresh(self) -> bool:
@@ -6451,6 +6610,81 @@ class JournalScan:
             return False
         self._ensure()
         return not self._stale
+
+    # ── T-14437 — CARRY: one scope lineage across a request's journal states ──────────────────────
+    def carry(self, path, *, keep=(), needles=(), shared=None):
+        """A scope over the journal at `path` holding what THIS scope read, brought current by the
+        follow proof (`_follow_rewrite`) on its first request — or None, and the caller walks fresh.
+
+        WHY. land reads one journal in four states (`worktree._LandReadScopes`): every merge, fold or
+        ff rewrites a live segment, and each new state used to cost a whole walk of the logical
+        journal (measured 10.7-13.4 s on the kernel, T-14437). The archived segments are the same
+        bytes in every state and the live segments share their head, so the walk's stores are copied
+        here block by reference — nothing decompressed, nothing parsed — and only the part of the
+        live segment that differs from what this scope read is taken back and read.
+
+        Admitted only where the copy is exactly what a walk of `path` would hold: this scope walked
+        every segment (unfloored, not stale, not keep_all, no task) and kept every live line
+        (`follow_live`); `keep` / `needles` (the new reader's declaration) are covered by this one's;
+        `path` has the same segment NAMES; and every archived segment is the file this scope read —
+        unchanged on disk (`_segment_ids`) for this journal, or, for another checkout's journal, also
+        in `shared()` (the T-12494 git-verified identity, fail-open to None). Reducers and the index
+        hooks are not carried: a reducer cannot be split at a line, so a declaration needing one walks."""
+        live = self._live if self._live is not None else self._closed_live
+        if (not self._ran or self._stale or not self._follow or live is None or self._since
+                or self._keep_all or self._task is not None or len(self._sources) != 1
+                or self._walked != set(range(len(self._segs)))
+                or any(t not in self._keep for t in keep) or any(n not in self._needles for n in needles)):
+            return None
+        path = Path(path)
+        try:
+            segs = list(events.segment_paths(path))
+            if [Path(str(x)).name for x in segs] != [Path(str(x)).name for x in self._segs]:
+                return None
+            if self._segment_ids() != self._seg_ids:
+                return None
+            if not self.holds(path):
+                if shared is None:
+                    return None
+                names = {Path(str(x)).name for x in shared()}
+                if any(Path(str(x)).name not in names for x in segs[:-1]):
+                    return None
+        except Exception:                         # noqa: BLE001 — an optimisation, never a fault
+            return None
+        new = object.__new__(JournalScan)
+        new.__dict__.update(self.__dict__)
+        new._path, new._key = path, JournalRowsMemo._key(path)
+        new._segs = segs
+        new._seg_index = {JournalRowsMemo._key(x): i for i, x in enumerate(segs)}
+        new._rows = {t: st.copy() for t, st in self._rows.items()}
+        new._window = self._window.copy()
+        new._live_lines = self._live_lines.copy()
+        src = _FoldLineSource([segs[i] for i in self._src.indices], indices=self._src.indices,
+                              needles=self._needles, on_line=new._on_line)
+        src.needle_lines = {i: list(v) for i, v in self._src.needle_lines.items()}
+        src.line_counts = dict(self._src.line_counts)
+        src.lossy = set(self._src.lossy)
+        src.ends = dict(self._src.ends)
+        src.seg_idx = self._src.seg_idx
+        new._src, new._sources = src, [src]
+        new._walked = set(self._walked)
+        new._reducers, new._factories, new._reducer_allowed, new._reducer_floor = {}, {}, {}, {}
+        new._reducer_list = new._nondict_reducers = new._line_reducers = ()
+        new._seg_feeds = new._recs = None
+        new._per_seg, new._extended = {}, set()
+        new._index_on = False
+        new.index_state = {"served": 0, "folded": 0, "stored": 0, "reason": "carried"}
+        new._peer = new._shared_fn = new._shared = None
+        new.borrowed, new.fallbacks, new.resumed = [], [], []
+        new.extensions, new.undeclared = [], []
+        new.served = new.folds = 0
+        new.task_floors = dict(self.task_floors)
+        new._live, new._closed_live = live, None
+        new._live_id = None                  # the first request re-proves the live segment (follow)
+        new._seg_ids = new._segment_ids()
+        new._stale = False
+        new.carried_from = str(self._path)
+        return new
 
     # ── T-13332 — read-only accessors for the audit seam's served readers ──────────────────────────
     def has_needle(self, needle) -> bool:
@@ -6921,6 +7155,25 @@ def scan_scope(path, **declaration):
         yield prior
         return
     scope = JournalScan(path, **declaration)
+    stack = getattr(_SCAN_TLS, "stack", None)
+    if stack is None:
+        stack = _SCAN_TLS.stack = []
+    stack.append(scope)
+    try:
+        yield scope
+    finally:
+        stack.remove(scope)
+        scope.close()
+
+
+@contextlib.contextmanager
+def install_scope(scope):
+    """T-14437 — `scan_scope`'s install / close for a scope already built (`JournalScan.carry`): an
+    enclosing scope that already holds its journal serves instead, exactly as `scan_scope` does."""
+    prior = _scope_for(scope._path)
+    if prior is not None:
+        yield prior
+        return
     stack = getattr(_SCAN_TLS, "stack", None)
     if stack is None:
         stack = _SCAN_TLS.stack = []

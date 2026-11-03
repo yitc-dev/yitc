@@ -123,36 +123,39 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \                       # event classes the parse home (followup.py#split_event_awaits)\n\
   \                               # declares. It rides either event form above (`@after=<ISO>`\
   \ or\n                               # `@after=land`). Rule home: SPEC-0095 §Armed.\n\
-  \                               # Written by `task close --probe-deferred <AC>:<moment>`,\
-  \ which\n                               # REFUSES a bare key at every close-time\
-  \ door onto `probes:`. The\n                               # RESULT stays the authoritative\
-  \ discriminator in `probes:` (where the\n                               # settle\
-  \ writes it and views.py keys the discharge); this says only\n                 \
-  \              # WHEN a deferral comes back. Absent / no entry for a deferred key\
-  \ =\n                               # a LEGACY key-only deferral, which the lens\
-  \ reads DUE.\nparked_reason: null # filled if status=parked (written by `task file\
-  \ --status parked` / `task update --status parked`)\nreturn_trigger: null # optional,\
-  \ when parked\nparked_awaits: null # — optional, verb-owned (`task update --status\
-  \ parked --awaits <ref>`):\n                               # the DECLARED awaited\
-  \ artifact of a park, in the same grammar as\n                               # paused_awaits\
-  \ (followup.awaits_kind). Set or cleared on every park,\n                      \
-  \         # cleared on unpark / wont-do. Session start lists the parked card\n \
-  \                              # (UNPARKABLE) ONLY once the ref has arrived; prose\
-  \ return_trigger is\n                               # never parsed for it (declared,\
-  \ never inferred).\nunparked_note: null # optional — written at the parked→ready\
-  \ unpark (`task update --status ready --note …`; prior-art / hand-edits). parked_reason/return_trigger\
-  \ are RETAINED as history.\nwont_do_reason: null # rationale, written at any-active→wont-do\
-  \ (`task update --status wont-do --reason …`; prior-art)\namend_notes: [] # optional\
-  \ — timestamped amendment notes appended by `task update --note …` (no --status),\
-  \ each emitting task_amended\n\n# Optional fields ( — fill if applicable):\npost_verification:\
-  \ null # optional — authored at Stage 9 (Closure): {criterion, signal} mapping\n\
-  \                               # OR explicit waive {none: <reason>} (mutually exclusive);\
-  \ hygiene\n                               # auto-waives. Rule home: SPEC-0038 (admitted\
-  \ exception, see guard below).\ndescription: null # multi-line context — why this\
-  \ task, who interested. Distinct from title (one-line).\nsuccess_metric: null #\
-  \ measurable improvement (distinct from acceptance which = test conditions)\nblockers:\
-  \ [] # explicit blockers (vs cites which mixes context + blockers)\nestimate_tier:\
-  \ null # small | medium | large (per quantitative-claim discipline)\nexpected_touch:\
+  \                               # Re-armed on a DONE card by `task update --set-field\
+  \ probe_moments\n                               # --reason` (rule home: <workshop-spec>\
+  \ §1).\n                               # Written by `task close --probe-deferred\
+  \ <AC>:<moment>`, which\n                               # REFUSES a bare key at\
+  \ every close-time door onto `probes:`. The\n                               # RESULT\
+  \ stays the authoritative discriminator in `probes:` (where the\n              \
+  \                 # settle writes it and views.py keys the discharge); this says\
+  \ only\n                               # WHEN a deferral comes back. Absent / no\
+  \ entry for a deferred key =\n                               # a LEGACY key-only\
+  \ deferral, which the lens reads DUE.\nparked_reason: null # filled if status=parked\
+  \ (written by `task file --status parked` / `task update --status parked`)\nreturn_trigger:\
+  \ null # optional, when parked\nparked_awaits: null # — optional, verb-owned (`task\
+  \ update --status parked --awaits <ref>`):\n                               # the\
+  \ DECLARED awaited artifact of a park, in the same grammar as\n                \
+  \               # paused_awaits (followup.awaits_kind). Set or cleared on every\
+  \ park,\n                               # cleared on unpark / wont-do. Session start\
+  \ lists the parked card\n                               # (UNPARKABLE) ONLY once\
+  \ the ref has arrived; prose return_trigger is\n                               #\
+  \ never parsed for it (declared, never inferred).\nunparked_note: null # optional\
+  \ — written at the parked→ready unpark (`task update --status ready --note …`; prior-art\
+  \ / hand-edits). parked_reason/return_trigger are RETAINED as history.\nwont_do_reason:\
+  \ null # rationale, written at any-active→wont-do (`task update --status wont-do\
+  \ --reason …`; prior-art)\namend_notes: [] # optional — timestamped amendment notes\
+  \ appended by `task update --note …` (no --status), each emitting task_amended\n\
+  \n# Optional fields ( — fill if applicable):\npost_verification: null # optional\
+  \ — authored at Stage 9 (Closure): {criterion, signal} mapping\n               \
+  \                # OR explicit waive {none: <reason>} (mutually exclusive); hygiene\n\
+  \                               # auto-waives. Rule home: SPEC-0038 (admitted exception,\
+  \ see guard below).\ndescription: null # multi-line context — why this task, who\
+  \ interested. Distinct from title (one-line).\nsuccess_metric: null # measurable\
+  \ improvement (distinct from acceptance which = test conditions)\nblockers: [] #\
+  \ explicit blockers (vs cites which mixes context + blockers)\nestimate_tier: null\
+  \ # small | medium | large (per quantitative-claim discipline)\nexpected_touch:\
   \ [] # OPTIONAL forecast — coarse touch units this task is expected to\n       \
   \                        # touch: a file path | a doc#section | a test-target bucket\
   \ | a\n                               # hand-NAMED function (e.g. bin/yitc-v2#_run_view).\
@@ -616,23 +619,31 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \ Readers: `audit pre`\n                               # (inlines the prototype\
   \ diff + overlay), `audit post` (prototype_identity\n                          \
   \     # line), spike_identity.consumed_prototype_ships. Absent = not built on a\
-  \ spike.\nprototype_identical: null # OPTIONAL, only beside prototype_ref (SPEC-0205\
-  \ rule 5): the\n                               # files this card declares byte-identical\
-  \ to its prototype's BY\n                               # CONSTRUCTION — a list\
-  \ of entries, each exactly `path` (one literal\n                               #\
-  \ repo-relative file path, never a pattern or a directory) and `reason`\n      \
-  \                         # (one plain non-blank line); the entries' rendered lines\
-  \ together are\n                               # bounded (16000 bytes). ONE governed\
-  \ write-path: `task update --set-field\n                               # prototype_identical\
-  \ --from-file` (refused: a card naming no prototype,\n                         \
-  \      # a malformed, reasonless or over-size declaration, a path the prototype\n\
-  \                               # has no file at; `[]` withdraws; task_amended(field_edit)).\
-  \ NOT authored at `task file`\n                               # (a stdin key is\
-  \ not written, with a warning naming the verb), and the\n                      \
-  \         # --old/--new text edit refuses to change it. Readers: `audit pre` (shows\n\
-  \                               # each entry to the auditor and records what it\
-  \ showed), `land` (admits a\n                               # shown entry against\
-  \ the card's own prototype only),\n                               # spike_identity.landing_declaration.\
+  \ spike.\nprototype_lines: null # OPTIONAL, a card of a plan that names `prototype_ref`\
+  \ (rules: SPEC-1058 §1, §3):\n                               # a non-empty list\
+  \ of registry item ids `R-<n>` (a writer), `[]` (builds no\n                   \
+  \            # item) or `all` (the verifier). Governed write-path: `task file\n\
+  \                               # --prototype-lines` / stdin key `prototype_lines`;\
+  \ absent is not `[]`. On\n                               # such a card `task file`\
+  \ fills `prototype_ref` from the plan and refuses\n                            \
+  \   # another. Reader: the gate to `executing`.\nprototype_identical: null # OPTIONAL,\
+  \ only beside prototype_ref (SPEC-0205 rule 5): the\n                          \
+  \     # files this card declares byte-identical to its prototype's BY\n        \
+  \                       # CONSTRUCTION — a list of entries, each exactly `path`\
+  \ (one literal\n                               # repo-relative file path, never\
+  \ a pattern or a directory) and `reason`\n                               # (one\
+  \ plain non-blank line); the entries' rendered lines together are\n            \
+  \                   # bounded (16000 bytes). ONE governed write-path: `task update\
+  \ --set-field\n                               # prototype_identical --from-file`\
+  \ (refused: a card naming no prototype,\n                               # a malformed,\
+  \ reasonless or over-size declaration, a path the prototype\n                  \
+  \             # has no file at; `[]` withdraws; task_amended(field_edit)). NOT authored\
+  \ at `task file`\n                               # (a stdin key is not written,\
+  \ with a warning naming the verb), and the\n                               # --old/--new\
+  \ text edit refuses to change it. Readers: `audit pre` (shows\n                \
+  \               # each entry to the auditor and records what it showed), `land`\
+  \ (admits a\n                               # shown entry against the card's own\
+  \ prototype only),\n                               # spike_identity.landing_declaration.\
   \ Absent / null / [] = nothing declared.\npremise: null # OPTIONAL premise-verify\
   \ marker : one of\n                               # verified | already-done | stale\
   \ | unclassifiable — the outcome of the SPEC-0166\n                            \

@@ -1082,10 +1082,11 @@ concern:
     \ TO CHOOSE THE NUMBER: SPEC-0208.\n  # BORN LAYER `integrity` — the engine's\
     \ corpus check over THIS checkout: spec binding\n  # tokens + the derived graph\
     \ files (`graph build` refreshes them). Hermetic and read-only, needs\n  # no\
-    \ test files. Add your own layers beside it; it is also the quick set `post_sync_set`\
-    \ names.\n  # `--strict` also fails a dead implements anchor, a stale anchor signature,\
-    \ a stale index.\n  layers:\n    - layer: integrity\n      command: __YITC_CLI__\
-    \ -C \"$PWD\" graph conformance --strict\n  post_sync_set: [integrity]\n"
+    \ test files. Add layers with a per-test adapter (patterns/verify-layer-adapter-protocol.md)\n\
+    \  # beside it; it is also the quick set `post_sync_set` names.\n  # `--strict`\
+    \ also fails a dead implements anchor, a stale anchor signature, a stale index.\n\
+    \  layers:\n    - layer: integrity\n      command: __YITC_CLI__ -C \"$PWD\" graph\
+    \ conformance --strict\n  post_sync_set: [integrity]\n"
   carrier_path: verify
   presence_policy: checked-if-present
   update_policy: init re-seed
@@ -1290,5 +1291,5 @@ implements_signature:
   bin/lib/init.py#_inject_nested_subfield: 105851197d6f39cf750d5575a3d752f05406947e932653f130297c1ac40b8a42
   bin/lib/init.py#_integrity_graph_for_commit: 10ed757dd5ca1c461a0922f799e12994807de506e6a23b764b3f1b750d449b63
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
-  bin/lib/init.py#cmd_init: cea00177794045410e75b5d1bac4c07494445b204d4bfc13e04a29b4067cce0a
+  bin/lib/init.py#cmd_init: c74aac182c26da92e7f6311eec9b7a3703fd8e0bf10e730771f0cfef9ef91a54
   bin/lib/worktree.py#_any_author_land_floor: 0043829235509924a5949f7b0b03d611b3ebdc978311a2aa22d78172cc1372cc

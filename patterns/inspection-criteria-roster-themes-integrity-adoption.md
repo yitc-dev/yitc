@@ -497,13 +497,14 @@ reuses the shipped dry-run seams below.
 - **Exercise (c) — the onboarding-delivery seam (read-only):** confirm the onboarding seam still DELIVERS
   a due station — the seam nudge / `session start` onboarding digest RENDERS the due station
   (`_onboarding_seam_nudge` / `_onboarding_digest`, read-only, no consume), OR run
-  `bin/yitc-v2 memory consume --station <id>` against a **DISPOSABLE fixture station only** (the exercise
+  `bin/yitc-v2 memory consume --station <id> --voiced` against a **DISPOSABLE fixture station only** (the exercise
   consumes NO live MEMORY.md pointer → no durable corpus mutation). A seam that no longer surfaces a due
   station = a finding (the rarely-walked delivery path rotted).
 - **Probe null ≠ clean (F-#2):** a clean result NAMES which gated paths were exercised (deploy guard
   resolved / a layer ran as non-owner / the onboarding seam rendered), never a bare "none".
 
 - **G3 — deploy/rollback joins:** each deploy joins to the next `live_probe`; a rollback falls in the deployed range; count null `abort_class`; a product commit with no carrier task is a finding — `bin/yitc-v2 journal query --type live_probe` + `bin/yitc-v2 journal query --type land_completed`.
+- **2026-11 refresh — single-track T6 findings, made checklist items:** (a) **guard walk on every branch kind** — for each verb that terminates a worktree (`worktree sweep` / `park`, `land` removal) read its occupancy and dirt guard on EACH kind (`task/`, `work/`, pinned-detached); a kind that skips it is a finding; (b) a withheld or deferred bookkeeping write (`land_tail_write_withheld`) joins to a later regeneration — unjoined rows are a finding; (c) a signal's printed population label equals the n it is computed over (`_verify_scaling_signals`); (d) the EXTERNAL packet carries each consumer's `deploy.command` and the null-field counts of `land_completed` (`abort_class`, `verify_mode`) — they were primary-only for want of them; (e) a test failing under pytest but passing as a script is a harness-mode fact, graded LOW; (f) **run the T6 external track as two halves up front** — one 20 KB single-theme consult exceeded a worker's foreground cap (2026-11-01); (g) new surfaces: the SPEC-1045 admission rows (weekly row, part 1), the SPEC-1029/1032 venue records (`venue show`), the SPEC-1003 per-sha engine serving and its canary.
 
 - **scheduled-run days — did each project's scheduled pre-deploy run fire every day? (weekly;
   report-only; owner events.jsonl#ts=, SPEC-1047).** For every project whose
@@ -573,8 +574,10 @@ the shipped read-only seams below; it never deploys, reconciles, or mutates anyt
   *Cause-side sibling:* the implicit-shipping-path topology (bind mounts / mutable tags) is watched by
   the shipped runtime-delivery declaration + mount advisory — this probe catches the
   RESULT when that path fired.
-- **Probe (b) — post-deploy-proof debt (SPEC-0149).** Read `graph query not-adopted`, which STATES its
-  status (the `debt` echo is suppressed-when-clean: its silence is not an empty result). A deploy whose proof never landed is a shipped-but-unproven
+- **Probe (b) — post-deploy-proof debt (SPEC-0149).** Read the SPEC-0149 OPEN PROOF OBLIGATIONS — the
+  `bin/yitc-v2 debt` proof-obligation line (`debt_adoption.open_proof_obligations`), whose silence is
+  suppressed-when-clean and is reported as «no line printed», never as an empty result. NOT `graph query
+  not-adopted`: that lists commits awaiting deploy — shipping lag, not proof debt (re-pointed). A deploy whose proof never landed is a shipped-but-unproven
   runtime claim — the reverse-direction sibling of a closure with no P8 evidence.
 - **Probe (c) — live-probe reachability vs DECLARED surface.** Run the per-change `live_probe` GET
   (`bin/yitc-v2 liveprobe`, non-mutating) against what the corpus DECLARES is live. A probe that
@@ -644,6 +647,7 @@ not an empty result.
 
 - **G6 — P8 by realm:** partition P8 evidence by subject realm; name which closure classes must carry P8; waived concerns are checked against the active profile — `bin/yitc-v2 journal query --type consumer_read_evidence` + `bin/yitc-v2 profile`.
 - **G14 — stage-discard root cause:** `NO-DATA: stage-discard root cause — instrument absent: per-session command-shape archive`.
+- **2026-11 refresh :** (a) **CONSUMER-SIDE verbs are not read off this host's journals.** The SPEC-0195 `release` verbs run on an adopter's own host and journal into THAT checkout (`release_verified` / `release_installed` / `release_updated`; `release check` journals nothing), so zero rows here and in the registered consumers' journals is NOT non-use: read adoption off adopter link-backs (issues / `cross` items naming the verb, e.g. public issues #218, #219), and report the verb `no-data (consumer-side)` when none exists — never `built-not-invoked`; (b) a `case_review` block whose case name prints `None` is an instrument defect (finding), not a reading; (c) the at-close flag vs the P8 join is reported as its four cells (flag × row present), not one ratio; (d) new surface: SPEC-1000 degraded execution — a demonstrated kernel defect an adopter worked around is read from its `cross` item.
 
 ## The other parts of this roster
 

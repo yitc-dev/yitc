@@ -460,6 +460,9 @@ def _no_write_tail(main_root, args, *, diverged, engine_cli, _append_event) -> N
     Nothing in the repository is written; the journal row a setting write appends is D-0049's."""
     import sys
     registry_failed = False if diverged else _register_in_host_registry(main_root)
+    if not diverged:
+        from pathlib import Path as _P
+        _record_person_language_if_asked(args, _P(__file__).resolve().parents[2], _P.home())
     _ls_failure = None
     if getattr(args, "apply_load_settings", False) and not (diverged or registry_failed):
         _ls_rec, _ls_already = _load_recommendation()
@@ -1180,7 +1183,12 @@ def _pre_deploy_entry_errors(label: str, i: int, c: dict, ops: dict) -> list:
         errs.append(f"{at}.reuse_run: must be exactly `{{reason: <why>}}` with a non-empty reason — the "
                     "project's record of why one passed run may stand for a second gated target "
                     "(SPEC-1042 rule 3).")
-    if "units" in c:
+    if c.get("units_error"):
+        errs.append(f"{at}.units_file: {c['units_error']} (SPEC-1051 rule 1).")
+    elif "units_file" in c and "units" not in c:
+        errs.append(f"{at}.units_file: this reading did not load the file it names — read the contract "
+                    "through `state.load_ops` (SPEC-1051 rule 1).")
+    elif "units" in c:
         errs.extend(_pre_deploy_units_errors(c.get("units"), f"{at}.units"))
     if "never_move" in c:
         errs.extend(_glob_list_errors(c.get("never_move"), f"{at}.never_move",
@@ -1310,7 +1318,9 @@ def engine_declaration_errors(ops) -> list:
 #: SPEC-0186 rule 6 — the top-level sections the ENGINE's own `yitc-ops.yaml` may carry.
 ENGINE_DECLARATION_SECTIONS = ("verify_policy", "admission", "verify", "deploy", "tests", "thresholds")
 #: SPEC-0186 rule 6 — the engine's `verify:` keys: the admission queue's three, and `layers` (ONE layer).
-ENGINE_VERIFY_KEYS = ("post_sync_set", "sync_at_stage6_admission", "post_sync_set_first", "layers")
+# T-14486: `venue` — the engine's own verify-box needs (SPEC-1032 rule 1), judged by its own reader.
+ENGINE_VERIFY_KEYS = ("post_sync_set", "sync_at_stage6_admission", "post_sync_set_first", "layers",
+                      "venue")
 
 
 def _hook_tests(label: str, sec: dict, ops: dict) -> list:
@@ -9801,7 +9811,59 @@ def _bridge_declaration(repo_path, section="spike_sandbox", key="bridge"):
 # Where a TAG-declared release is materialised (see `_materialize_tagged_release`). CONTENT-ADDRESSED
 # by the peeled commit sha, so a cached directory can never be stale: a different commit is a different
 # directory, and the same commit is the same bytes.
-_TAG_RELEASE_CACHE = "yitc-pinned-release"
+# ONE CACHE PER OS USER (T-14455, SPEC-0195 rule 3): a consumer run by two OS users must resolve its pin
+# for both, and a cache parent the first user created is not writable by the second. Per user, not
+# group-writable: a cache another user can write would let that user plant a tree that a pin declaring
+# no `anchor` accepts unverified. Every reader takes this constant, so they all follow it.
+_TAG_RELEASE_CACHE = f"yitc-pinned-release-u{__import__('os').geteuid()}"
+
+
+def _private_cache_parent(parent, why=None, uid=None):
+    """Make sure `parent` (this user's release cache root) is PRIVATE before anything in it is read or
+    written — True when it is, else False with the reason in `why` (T-14455 audit-post finding).
+
+    A per-user NAME alone is no boundary: another user can pre-create the name in the shared temp dir,
+    writable, and plant a tree a pin with no `anchor` would accept. So the parent is created 0700, and an
+    existing one is admitted only when it is a real directory (never a symlink), owned by this user, and
+    writable by nobody else. Never raises: a parent that cannot be made or read is refused."""
+    import os
+    import stat
+    uid = os.geteuid() if uid is None else uid
+    try:
+        try:
+            os.mkdir(str(parent), 0o700)
+            os.chmod(str(parent), 0o700)      # the umask may have narrowed it; never widened
+        except FileExistsError:
+            pass
+        st = os.lstat(str(parent))
+    except OSError as exc:
+        if why is not None:
+            why.append(f"the release cache {parent} cannot be created or read ({exc})")
+        return False
+    problem = ("is not a directory (or is a symlink)" if not stat.S_ISDIR(st.st_mode)
+               else f"is owned by uid {st.st_uid}, not {uid}" if st.st_uid != uid
+               else "is writable by group or others" if st.st_mode & 0o022 else None)
+    if problem is None:
+        return True
+    if why is not None:
+        why.append(f"the release cache {parent} {problem} — it is not private to this user, so it is "
+                   f"not used; remove it and re-run (it is re-created 0700)")
+    return False
+
+
+def _release_repo_trust(repo):
+    """The git options for a READ-ONLY plumbing call into a declared release repo (T-14455).
+
+    A release repo owned by another OS user is refused by git as "dubious ownership", so for that user
+    the pin read `pin-unresolved` and every `-C <consumer>` command failed. The repo is the consumer's
+    OWN declaration (`release_repo:`), the calls only read objects, and the bytes are the peeled tag's,
+    checked against `anchor:` where one is declared — so the per-call `-c safe.directory=<repo>` adds
+    no trust the declaration did not already give (the T-13108 per-call precedent, journal.py). A value
+    git would read as a pattern rather than this one path gets no trust (SPEC-0169 rule 11d)."""
+    from lib import grants as _grants
+    if _grants.safe_directory_value_is_literal(repo):
+        return ["-c", f"safe.directory={repo}"]
+    return []
 
 
 def _pinned_release_integrity_ok(root, anchor):
@@ -9858,7 +9920,7 @@ def _pinned_tree_drift(repo, sha, root, limit=10):
 
     root = Path(root)
     try:
-        out = subprocess.run(["git", "-C", str(repo), "ls-tree", "-r", "-z", "--full-tree", sha],
+        out = subprocess.run(["git", *_release_repo_trust(repo), "-C", str(repo), "ls-tree", "-r", "-z", "--full-tree", sha],
                              capture_output=True, timeout=60, env=_git_env._git_child_env())
     except Exception:  # noqa: BLE001 — diagnostics are best-effort; the refusal stands without them
         return None
@@ -9952,8 +10014,8 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
     if any(c in ref for c in " \t\n~^:?*[\\") or ref.startswith("-"):
         return None                       # not a plausible tag name — never handed to git
     try:
-        sha = subprocess.run(["git", "-C", str(repo), "rev-parse", "-q", "--verify",
-                              f"refs/tags/{ref}^{{commit}}"],
+        sha = subprocess.run(["git", *_release_repo_trust(repo), "-C", str(repo), "rev-parse", "-q",
+                              "--verify", f"refs/tags/{ref}^{{commit}}"],
                              capture_output=True, text=True, timeout=60,
                              env=_git_env._git_child_env()).stdout.strip()
     except Exception:  # noqa: BLE001 — git missing/failing is UNRESOLVED, never a crash
@@ -9962,6 +10024,8 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
         return None                       # no such tag in that repo — LOUD, per the caller
 
     cache = Path(tempfile.gettempdir()) / _TAG_RELEASE_CACHE / f"{repo.name}-{sha}"
+    if not _private_cache_parent(cache.parent, why):
+        return None                       # a cache another user could write is never read or filled
     if cache.is_dir():
         # Completed by construction (the atomic rename below) — but NOT necessarily verified: this
         # cache entry may have been published by an EARLIER call that declared no anchor, so handing
@@ -9980,10 +10044,13 @@ def _materialize_tagged_release(repo_decl, ref, anchor=None, why=None):
                        + f". It was modified after it was verified; remove {cache} and re-run "
                        f"(it is re-extracted from the tag)")
         return None
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    staging = Path(tempfile.mkdtemp(dir=str(cache.parent), prefix=f".{repo.name}-{sha}."))
+    staging = None
     try:
-        proc = subprocess.run(["git", "-C", str(repo), "archive", "--format=tar", sha],
+        # INSIDE the try (T-14455): a cache parent this user cannot write is a loud None
+        # (`pin-unresolved`), never an exception escaping the resolver.
+        staging = Path(tempfile.mkdtemp(dir=str(cache.parent), prefix=f".{repo.name}-{sha}."))
+        proc = subprocess.run(["git", *_release_repo_trust(repo), "-C", str(repo), "archive",
+                               "--format=tar", sha],
                               capture_output=True, timeout=300, env=_git_env._git_child_env())
         if proc.returncode != 0:
             return None
@@ -11685,7 +11752,7 @@ def _check_ai_tool_row(key, row: dict) -> None:
         v = row.get(f)
         if v is not None and not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
             raise ValueError(f"tool {key}: `{f}` must be a list of strings")
-    for f in ("label", "command_path", "format", "invoke", "clear_session"):
+    for f in ("label", "command_path", "format", "invoke", "clear_session", "instructions_path"):
         if row.get(f) is not None and not isinstance(row.get(f), str):
             raise ValueError(f"tool {key}: `{f}` must be a string")
     reqs = row.get("prerequisites")
@@ -11817,6 +11884,84 @@ def _install_home_picker_command(REPO_ROOT, engine_root, home) -> list:
                 print(f"  ! {label} needs {req.get('note') or req.get('command')} — "
                       f"`{req.get('command')}` is not installed on this machine")
     return ready
+
+
+# T-14463 (SPEC-0086 rule 6f(d) step 1) — the person's language, recorded ONCE in each present AI tool's
+# user-level instructions file (`instructions_path` in bin/ai-tools.yaml), which a fresh session in any
+# folder loads before its first reply. Written only on `init --person-language` (the person's confirmed
+# answer); a file that already speaks of the reply language — this marker, a person's labelled line or
+# prose — is left byte-identical.
+_PERSON_LANGUAGE_MARK = "<!-- yitc:person-language -->"
+_PERSON_LANGUAGE_SEEN_RE = (r"(?i)(language|язык|respond in|reply in|answer in|write in|отвечай|пиши на)")
+
+
+def _person_language_arg(value: str) -> str:
+    """argparse type for `init --person-language`: one short name, no line break or markup."""
+    import argparse
+    v = (value or "").strip()
+    if not v or len(v) > 40 or any(c in v for c in "\r\n<>`"):
+        raise argparse.ArgumentTypeError("a language is one short name (1-40 characters, no line break, "
+                                         "`<`, `>` or backtick), e.g. ru, Russian, русский")
+    return v
+
+
+def _person_language_line(language: str) -> str:
+    return (f"Language: answer the person in {language} — every message (recorded at install by "
+            f"`init --person-language`; the order's home is the engine's SPEC-0086 rule 6f(d)). "
+            f"{_PERSON_LANGUAGE_MARK}\n")
+
+
+def _record_person_language(engine_root, home, language: str) -> list:
+    """Append the language line to the user-level instructions file of every present AI tool (none
+    detected: the `default` row) whose row names `instructions_path`. Returns the paths written. A file
+    that already speaks of the reply language is kept as it is; a read or write fault is reported, never
+    fatal. The test-harness guard of the start command applies: an armed harness never writes into a
+    HOME outside the temp dir."""
+    import os
+    import re
+    import tempfile
+    from pathlib import Path
+    home = Path(home).resolve()
+    if os.environ.get("YITC_TEST_JOURNAL_GUARD") and Path(tempfile.gettempdir()).resolve() not in home.parents:
+        return []
+    tools = _load_ai_tools(engine_root, home)
+    chosen = [(k, r) for k, r in tools.items() if _ai_tool_present(r, home)] \
+        or [(k, r) for k, r in tools.items() if r.get("default")]
+    written = []
+    for key, row in chosen:
+        rel = str(row.get("instructions_path") or "")
+        if not rel:
+            continue
+        label = row.get("label") or key
+        target = home / rel
+        try:
+            have = target.read_text(encoding="utf-8") if target.exists() else None
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"  ! {label}: language not recorded — {target} could not be read: {e}")
+            continue
+        if have is not None and (_PERSON_LANGUAGE_MARK in have or re.search(_PERSON_LANGUAGE_SEEN_RE, have)):
+            print(f"  = {label}: {target} already speaks of the reply language — the person's own "
+                  f"instruction is kept as it is (not changed)")
+            continue
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            with open(target, "a", encoding="utf-8") as fh:
+                fh.write(("\n" if have and not have.endswith("\n") else "") + _person_language_line(language))
+        except OSError as e:
+            print(f"  ! {label}: language not recorded in {target}: {e}")
+            continue
+        print(f"  + {label}: the person's language ({language}) recorded in {target} — every new "
+              f"session answers in it")
+        written.append(target)
+    return written
+
+
+def _record_person_language_if_asked(args, engine_root, home) -> list:
+    """The init call site: records only on `--person-language`, and never on a dry run."""
+    lang = getattr(args, "person_language", None)
+    if not lang or getattr(args, "dry_run", False):
+        return []
+    return _record_person_language(engine_root, home, lang)
 
 
 # T-14221 — the born `integrity` layer screens the derived graph files a consumer `graph build` writes
@@ -13382,6 +13527,9 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # bytes and init exits non-zero naming the cause (the T-10886 terminal-verdict seam below).
     registry_failed = (False if (diverged_scaffolds or bootstrap_refused)
                        else _register_in_host_registry(_ident))
+    if not (diverged_scaffolds or bootstrap_refused):
+        from pathlib import Path as _P
+        _record_person_language_if_asked(args, ENGINE_ROOT, _P.home())
 
     # SPEC-0096 rule 8 (T-9529) — owner-visible born-waiver/default sweep: surface the generated SET of
     # init-defaultable concerns so EACH is decided explicitly (declare-or-waive), never a silent default.

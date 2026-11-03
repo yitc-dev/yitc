@@ -20,6 +20,9 @@
 # skill = the same text under a `name` + `description` front matter block
 # invoke what the person types in the tool to run the command
 # clear_session what the person types to clear an open session before starting
+# instructions_path the tool's user-level instructions file, relative to HOME, which every session
+# loads in any folder; `init --person-language` records the person's language there
+# once (a file that already speaks of the reply language is left as is)
 # prerequisites host programs the tool needs: {command, platform (optional), note};
 # a missing one is reported at install, never fatal
 # default true on the one row written when no tool is detected
@@ -32,6 +35,7 @@ tools:
     format: markdown
     invoke: /{name}
     clear_session: /clear
+    instructions_path: .claude/CLAUDE.md
     prerequisites: []
     default: true
   codex:
@@ -43,6 +47,7 @@ tools:
     format: skill
     invoke: ${name}
     clear_session: /new
+    instructions_path: .codex/AGENTS.md
     prerequisites:
       - command: bwrap
         platform: linux

@@ -616,6 +616,27 @@ def own_ticket(queue, ns, pid):
         return None
 
 
+def unlink_own(queue, ns, pid) -> None:
+    """Remove the ticket of arrival `ns` and pid `pid` from `queue`, and its writer's temporaries,
+    WITHOUT the queue lock (SPEC-1045: a waiting run's stop takes no queue lock, so a signal ends it
+    whoever holds that lock — another process, or its own interrupted main thread). An unlink is
+    atomic and every reader of the queue takes a vanished ticket as gone. It returns only once a fresh
+    listing shows no ticket of its own: a `remark` of another waiter may rename it between the listing
+    and the unlink, and each such rename is followed by a new listing (there is no attempt cap)."""
+    while True:
+        name = own_ticket(queue, ns, pid)
+        if name is None:
+            break
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(os.path.join(queue, name))
+    head = f".tmp-{ns}-{pid}-"
+    with contextlib.suppress(OSError):
+        for name in os.listdir(queue):
+            if name.startswith(head):
+                with contextlib.suppress(OSError):
+                    os.unlink(os.path.join(queue, name))
+
+
 def carried_arrival(p, card):
     """The arrival (ns) a NEW run ticket of `card` keeps (T-14273, SPEC-1045 rule 2 (d)): when the card's
     newest run ticket was admitted and its sync at admission stopped on a merge conflict, the next run
@@ -893,7 +914,8 @@ def exclusive_running(p) -> list:
 # the time and the journals a pause or halt row of X is read from. One of X already standing is
 # renewed; one of another card is kept and none set (one owner, never handed over). It ends: (1) when
 # a land of X ends with 0 (`landed`) — or a land_completed ok row of task/X is on a journal at or after
-# its set, whatever path landed X (T-14266) —; (2) GREEN_HOLD s after its set (`expired`); (3) at a
+# its set, whatever path landed X (T-14266) —; (2) GREEN_HOLD s after its set or later, once X shows no
+# progress (`expired`; card_progress, T-14483); (3) at a
 # task_paused or bg_dispatch_halted row of X in either journal at or after its set — read over the
 # LOGICAL journal (rule 2 (c): every segment, an archived one included; the row named by its
 # timestamp and row sha, never a byte offset). (2) and (3) wait while a live RUNNING entry of X stands
@@ -929,14 +951,15 @@ def journals_of(main, wt) -> list:
     return out
 
 
-def _card_end_rows(card, journals, since, land=False):
+def _card_end_rows(card, journals, since, land=False, extra=()):
     """The task_paused / bg_dispatch_halted rows of `card` in `journals` with a timestamp at or after
     `since`, each as (row, journal), read through the engine's segment-aware reader (SPEC-0190 rule 1):
     a row rotated into an archive segment is read like any other; a journal that cannot be read
     contributes nothing. With `land` also the card's ok land: a `land_completed` row of branch
-    task/<card> with status ok, by whatever path it landed (T-14266, yitc#197)."""
+    task/<card> with status ok, by whatever path it landed (T-14266, yitc#197). `extra` adds row types
+    of the card to the same read (T-14483: its progress rows)."""
     from lib import journal as journal_mod
-    types = HOLD_TYPES + (LAND_TYPE,) if land else HOLD_TYPES
+    types = (HOLD_TYPES + (LAND_TYPE,) if land else HOLD_TYPES) + tuple(extra)
     out = []
     for path in journals or ():
         try:
@@ -1015,19 +1038,66 @@ _UNREADABLE_SINCE: dict = {}   # hold path -> when this process first found its 
 
 def hold_says(h, s) -> str:
     return (f"a green hold stands for {h['card'] or 'no card (an unreadable hold file)'} "
-            f"({time.time() - h['set_at']:.0f} s of GREEN_HOLD {s['GREEN_HOLD']:g} s; it ends at that card's land)")
+            f"({time.time() - h['set_at']:.0f} s; its liveness is checked at GREEN_HOLD {s['GREEN_HOLD']:g} s; "
+            "it ends at that card's land, or once the card shows no progress)")
+
+
+# T-14483 (owner rule events.jsonl#ts=2026-11-02T20:33:37Z): GREEN_HOLD is the point where the hold's
+# card is checked for life, not a deadline. The card's own lifecycle rows are its progress; the queue's
+# own admission_* rows never are, and a process merely existing is not progress either.
+PROGRESS_TYPES = ("stage_entered", "task_amended", "worktree_synced", "commit_landed", "audit_prompt_sent",
+                  "external_audit_completed", "audit_pre_completed", "audit_post_completed",
+                  "audit_packet_previewed", "own_tests_ran", "tests_passed", "tests_failed", "task_closed",
+                  "land_started", "execution_started", "plan_finalized", "task_resumed",
+                  "audit_finding_absorbed", "read_gate_refused")
+AUDIT_OPEN, AUDIT_DONE = "audit_prompt_sent", ("external_audit_completed", "audit_pre_completed",
+                                                "audit_post_completed")
+
+
+def _audit_flight_bound() -> float:
+    """How long an audit may run silently: twice the full-tier wall-clock (its primary door and its one
+    reserve door, SPEC-0202 rule 6), read from the audit module's own resolution."""
+    try:
+        from lib import audit as audit_mod
+        return 2.0 * float(audit_mod.audit_timeout_resolution(audit_mod.AUDIT_FULL_CONSULT_CLASS)[0])
+    except Exception:                  # noqa: BLE001 — unreadable: the routine default's double
+        return 600.0
+
+
+def card_progress(h, s, now):
+    """Why the card of the hold `h` still shows progress at `now`, or None (it is hung: no progress).
+    Read over rows of the card after the hold's set, in its journals: (a) a PROGRESS_TYPES row in the
+    last GREEN_HOLD s; (b) an audit in flight — its newest audit_prompt_sent has no completion after it
+    and is younger than the audit's own bound. An unreadable hold or journal shows no progress."""
+    card, since = h.get("card"), h.get("set_ts")
+    if not card or not isinstance(since, str):
+        return None
+    floor = iso(now - s["GREEN_HOLD"])
+    rows = [r for r, _j in _card_end_rows(card, h.get("journals"), since, extra=PROGRESS_TYPES)
+            if r.get("type") in PROGRESS_TYPES and str(r.get("ts", "")) > since]
+    recent = [r for r in rows if str(r.get("ts", "")) >= floor]
+    if recent:
+        return f"progress: {recent[-1]['type']} at {recent[-1].get('ts')}"
+    opened = [r for r in rows if r["type"] == AUDIT_OPEN]
+    if opened:
+        last = str(opened[-1].get("ts", ""))
+        done = any(r["type"] in AUDIT_DONE and str(r.get("ts", "")) >= last for r in rows)
+        if not done and last >= iso(now - _audit_flight_bound()):
+            return f"progress: an audit in flight since {last}"
+    return None
 
 
 def hold_end(h, s, now):
     """The end of the green hold `h` as its end tests read at `now`, or None while it holds: (`off`,
-    ..) under GREEN_HOLD 0, (`expired`, ..) past its bound, (`cleared`, paused|halted|land, row) at its
-    card's row. Reads the journals only — no lock, no removal, no step row — so hold_now() and the
-    read-only report() judge a hold by the same tests (T-14358). The fence is the caller's: a hold
-    ended by its bound or its card's row stands while a live RUNNING entry of its card stands."""
+    ..) under GREEN_HOLD 0, (`expired`, ..) at or past its check point when its card shows no progress
+    (card_progress, T-14483), (`cleared`, paused|halted|land, row) at its card's row. Reads the journals
+    only — no lock, no removal, no step row — so hold_now() and the read-only report() judge a hold by
+    the same tests (T-14358). The fence is the caller's: a hold ended by its bound or its card's row
+    stands while a live RUNNING entry of its card stands."""
     if not s["GREEN_HOLD"]:
         return ("off", "admission.green_hold off", None)
-    if now - h["set_at"] >= s["GREEN_HOLD"]:
-        return ("expired", f"GREEN_HOLD {s['GREEN_HOLD']:g} s", None)
+    if now - h["set_at"] >= s["GREEN_HOLD"] and not card_progress(h, s, now):
+        return ("expired", f"GREEN_HOLD {s['GREEN_HOLD']:g} s, no progress of its card", None)
     row = hold_row(h, land=True) if h["card"] else None
     return ("cleared", row[0], row[1]) if row else None
 
@@ -1122,7 +1192,8 @@ def set_hold(p, card, wt, s=None) -> str:
         outcome = "renewed" if h is not None else "set"
         log_step(p, card, "hold", outcome, s["GREEN_HOLD"], card)
     say(f"green hold {outcome} for {card}: no Stage-6 run and no land whose changes run a layer passes "
-        f"until its land ends with 0, its pause, or GREEN_HOLD {s['GREEN_HOLD']:g} s")
+        f"until its land ends with 0, its pause, or its card shows no progress at GREEN_HOLD {s['GREEN_HOLD']:g} s "
+        "or later")
     return outcome
 
 
@@ -1599,14 +1670,9 @@ def admit(p, kind, mark, *, task=None, log_kind="run", exclusive=False, info=Non
             mark = kind_mark(now)[1] == "1"
 
     def drop():
-        """Remove this waiter's ticket under whatever name it has now (called under LOCK)."""
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(Path(p["queue"]) / (own_ticket(p["queue"], ns, pid0) or me_name))
-
-    def drop_locked():
-        with Locked(p["lock"]):
-            drop()
-    state["drop"] = drop_locked
+        """Remove this waiter's ticket under whatever name it has now — without LOCK (SPEC-1045)."""
+        unlink_own(p["queue"], ns, pid0)
+    state["drop"] = drop
 
     def retitle(cls):
         nonlocal me_name, me

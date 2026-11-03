@@ -85,6 +85,44 @@ project's machine:
    row, and its land does not take that layer's verdict from the pass. Any other layer gated that way
    is not detected; run such a card with `--placement local`.
 
+## Declaring what the box needs — a check and how to install it
+
+Your project decides what its suite needs on a box beyond the venue's own floor (OS, Python, git,
+cores, memory, shared memory, `nofile`, rsync, the seeded clone), and declares it; the engine only runs
+what you declared. The engine itself is such a project: its jq and npm are declared in its own
+`yitc-ops.yaml`. Each entry of `verify.venue.environment` may add an `install` command beside its
+check (the rule is SPEC-1032 rules 1 and 6):
+
+```yaml
+verify:
+  venue:
+    stage6: on
+    environment:
+      - name: npm
+        cmd: test -x "$(command -v npm)" && echo present
+        expect: present
+        install: >-
+          curl -fsSL https://deb.nodesource.com/setup_22.x | bash - &&
+          DEBIAN_FRONTEND=noninteractive apt-get install -y -q nodejs
+      - name: jq
+        cmd: test -x "$(command -v jq)" && echo present
+        expect: present
+        install: apt-get update -q && DEBIAN_FRONTEND=noninteractive apt-get install -y -q jq
+```
+
+- **Write the check so its output is fixed.** `expect` is compared exactly, so print a word you
+  choose (`present`) rather than a version that changes with every package update — unless the
+  version is what must match.
+- **`venue raise` installs, then checks again.** A failing check that declares `install` has it run
+  on the box as root, one `external_action` row per install; a check that still fails, a check that
+  fails with no `install` declared, or an install that does not exit 0 refuses the box naming
+  `check:<name>`, and the box is torn down. A passing
+  check installs nothing. `venue publish` judges the same checks and installs nothing.
+- **Bake slow installs into the image instead** (your `--provision` script, step 2 above) when an
+  install at every raise costs more than you want to wait; keep the `install` as the safety net.
+- **Trust.** An install command runs as root on a box raised for your project only; write only what
+  you would run on your own build machine.
+
 **The layer timeouts are not calibrated for the box.** They were set on your own machine; measure
 them on the box under SPEC-0208 (its tuple, at the most passes you admit at once) before trusting a
 timeout there.

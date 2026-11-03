@@ -169,33 +169,33 @@ body: "## Scenario\nA machine, a project or an adopter's host runs at a differen
   \ the fast-path reading of a card's diff (LIFECYCLE §Two flow types,\nSPEC-0178\
   \ rule 3) does not reach it; inside a writing worktree it rides that card's batch,\
   \ whose diff\nthen touches the operating contract like any other edit. A pre-deploy\
-  \ class's `units:` list is\nwritten by its own verb of that family, `pre-deploy\
-  \ list --write` (SPEC-1051 rule 7). Every other part\nof `yitc-ops.yaml` stays card-governed.\n\
-  \nRULE 8 — ABSENT-FILE FALLBACK (<workshop-spec> rule 6): a missing, unreadable\
-  \ or malformed machine file or\n`thresholds:` section contributes no overrides and\
-  \ nothing errors; neither is ever a prerequisite.\n\nRULE 9 — A GOVERNING VALUE\
-  \ IS WRITTEN ONCE. A spec that governs a tunable names its inventory key and\nwhere\
-  \ its value lives (the inventory default, a `bin/*-config.yaml`, or a `yitc-ops.yaml`\
-  \ section)\nand does not restate the number; the code reads it from that one home\
-  \ and keeps no second default\nbeside it. A new spec follows this at once; an existing\
-  \ restatement or duplicate default moves when\na card first touches it. The rule\
-  \ reaches an author at `spec new` and `spec edit` through this\nspec's binding.\n\
-  \n## Parameters\nNone consumed from this spec — by construction (rule 9).\n\n##\
-  \ Rationale\n<workshop-spec> (owner directive 2026-09-02) kept every value a verdict\
-  \ reads out of reach, so that one\nbranch could not pass on one host and abort on\
-  \ another because of a file nobody read. Measured\nsince: wall-clock limits calibrated\
-  \ on one host failed runs on another (the remote verify box,\n2026-10-08 and 2026-10-13..14;\
-  \ an adopter's full-tier audit within a minute of its 2160 s limit,\nissue 38 on\
-  \ the kernel's public tracker); consumers read the kernel's land thresholds and\
-  \ cannot set\ntheir own; an adopter rebuilt load admission with its own numbers\
-  \ outside the kernel (issues 93, 102\nand 109 there); a\nretune meant a spec edit,\
-  \ a code edit and a test edit together (SPEC-0132's two bounds). The owner\ndecided\
-  \ to let these values change (events.jsonl#ts=) and to open them one at a\ntime\
-  \ (#ts=): a bulk reclassification met, at every review round, one more\nactive spec\
-  \ that states a gate value. The <workshop-spec> reason is kept where it still holds\
-  \ — a THRESHOLD\nstays machine-independent, a BUDGET that differs between machines\
-  \ is named on the row it decided,\nand GATE keeps the hard refusal.\n\nThe DECLARATION\
-  \ class and the VETO read order were added by (plan\nport-cryptochart-s-settled-admission-queue-into-th,\
+  \ class's units list is\nwritten, to its sibling file, by its own verb of that family,\
+  \ `pre-deploy list --write` (SPEC-1051 rule 7). Every other part\nof `yitc-ops.yaml`\
+  \ stays card-governed.\n\nRULE 8 — ABSENT-FILE FALLBACK (<workshop-spec> rule 6):\
+  \ a missing, unreadable or malformed machine file or\n`thresholds:` section contributes\
+  \ no overrides and nothing errors; neither is ever a prerequisite.\n\nRULE 9 — A\
+  \ GOVERNING VALUE IS WRITTEN ONCE. A spec that governs a tunable names its inventory\
+  \ key and\nwhere its value lives (the inventory default, a `bin/*-config.yaml`,\
+  \ or a `yitc-ops.yaml` section)\nand does not restate the number; the code reads\
+  \ it from that one home and keeps no second default\nbeside it. A new spec follows\
+  \ this at once; an existing restatement or duplicate default moves when\na card\
+  \ first touches it. The rule reaches an author at `spec new` and `spec edit` through\
+  \ this\nspec's binding.\n\n## Parameters\nNone consumed from this spec — by construction\
+  \ (rule 9).\n\n## Rationale\n<workshop-spec> (owner directive 2026-09-02) kept every\
+  \ value a verdict reads out of reach, so that one\nbranch could not pass on one\
+  \ host and abort on another because of a file nobody read. Measured\nsince: wall-clock\
+  \ limits calibrated on one host failed runs on another (the remote verify box,\n\
+  2026-10-08 and 2026-10-13..14; an adopter's full-tier audit within a minute of its\
+  \ 2160 s limit,\nissue 38 on the kernel's public tracker); consumers read the kernel's\
+  \ land thresholds and cannot set\ntheir own; an adopter rebuilt load admission with\
+  \ its own numbers outside the kernel (issues 93, 102\nand 109 there); a\nretune\
+  \ meant a spec edit, a code edit and a test edit together (SPEC-0132's two bounds).\
+  \ The owner\ndecided to let these values change (events.jsonl#ts=) and to open them\
+  \ one at a\ntime (#ts=): a bulk reclassification met, at every review round, one\
+  \ more\nactive spec that states a gate value. The <workshop-spec> reason is kept\
+  \ where it still holds — a THRESHOLD\nstays machine-independent, a BUDGET that differs\
+  \ between machines is named on the row it decided,\nand GATE keeps the hard refusal.\n\
+  \nThe DECLARATION class and the VETO read order were added by (plan\nport-cryptochart-s-settled-admission-queue-into-th,\
   \ card C1), taking the text of the closed plan\nproject-owned-admission-order-for-stage-6-runs-and\
   \ §«SPEC-1031 amendment» with one correction: a\nvalue describing the machine (a\
   \ CPU set, a slot count, any number) is PERFORMANCE or BUDGET, never\nDECLARATION,\
@@ -292,7 +292,7 @@ implements_signature:
   bin/lib/cli.py#cmd_config_set: 892b3ecb784c1965faf00d3c54bc4d9784893b7fb07fe21250a09d330c69be61
   bin/lib/debt.py#_lane_bound: 09607422d04a15cbe2870c596c7d96421c17f394a592a71914e8f2d801bc6b8f
   bin/lib/machine_settings.py#ENTRYPOINTS: 7bdf6b9e29cc3e6d932c42a3698852b03a1ff29d273cee9b60c1c3ccff8247d0
-  bin/lib/machine_settings.py#INVENTORY: 817b7b99cefcfb6d705af69ac8f075b43f33b5cd8ed27ced1bfe36be9b53892e
+  bin/lib/machine_settings.py#INVENTORY: e2f11c2dfad077380db6917b19b7ab52dd3da1776505cb79db9be6cf951521f0
   bin/lib/machine_settings.py#_refuse_gate: dbce067d64b1b76a2f863ac73392118f9d149f42caa82b59c29db9336a733839
   bin/lib/machine_settings.py#admission_settings: 9ceb7f27b872f90617a88eac66f25e52053e6af8f780c34c8a8616ddb3a4bc90
   bin/lib/machine_settings.py#admission_switch: 956af3582090e20665537c05022d425a91f47ab88d9052cc448269b5f1b05e87

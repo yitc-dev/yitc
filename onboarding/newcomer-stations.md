@@ -85,11 +85,15 @@ pointer, the AI then does exactly two things, once:
    paste the raw English body, never voice a station before its occasion has arrived, never several at
    once. **Station A is EXEMPT** — it is always voiced plainly, with no preceding question (asking a
    brand-new person whether YITC is already familiar is meaningless).
-2. **Retire** it: `bin/yitc-v2 memory consume --station <id>` (a `-C` consumer invokes the engine CLI).
+2. **Retire** it, naming what happened: `bin/yitc-v2 memory consume --station <id> --voiced` (the body was
+   told to the person) or `--known` (the person said they know it); a `-C` consumer invokes the engine CLI.
    The pointer is deleted whichever way the person answered — consume-once — and one
    `onboarding_station_consumed` event is written. There is no re-ask loop and no stored asked / learned /
    mastery state of any kind (rule 1 / VP2 / VP5 hold verbatim): the question is a per-occasion voicing
    choice that persists nothing.
+
+The person is never shown a list of station names as 'done' / 'next': progress is told only as stations
+actually voiced, and the next one is voiced at its own moment, as a short explanation.
 
 Station C — and the AI-recognized stations K, M, N, O, P, Q, R (and L) — have no verb to ride: the AI voices
 each when it first hands the person the matching real moment. A person holding no pointers (a seasoned
@@ -120,6 +124,15 @@ How we work together, in short: you describe what you want; I plan it, have a re
 and the result, run the checks, and save the work. (Who the reviewer is depends on setup — see the
 auditor station: a different AI when a second provider is connected, otherwise the same AI as me.) I ask you only when something is
 genuinely your call — never to type a command — and I always ask before anything that cannot be undone.
+The map of the work, in short: you describe what you want and I write it down as a scenario. Known
+things become tasks; uncertain ones — say, something we must first try on real data — become a plan
+with a trial (what a trial is: [The sandbox](overview.md#the-sandbox)). Tasks are run by background Workers (separate AI sessions): you talk only to me, I start
+them only on your yes and report back as each one finishes. Each task goes plan, review, code, review,
+tests, then land (saved into the main line); deploy (going live) happens only with your OK. A
+conversation has a limited memory: when you say «обновим сессию» / "refresh the session", I save a
+hand-off and we continue in a new session from it. Several sessions may run side by side. The details
+of each come at their own moment.
+
 Each time we start, I tell you in one line whether anything needs you. It reads one of two ways:
 
 > Plain start — all fine: All fine — nothing needs your decision right now.
@@ -216,9 +229,10 @@ At important gates an auditor checks the work. Who it is depends on setup — I 
 say which applies:
 - **Second provider connected:** a different AI, not me; its independence is the point — it catches
   mistakes and blind spots I might miss on my own.
-- **Same provider (no second one connected):** the same AI as me reviews my own work in a separate pass.
-  I say so plainly and never call it independent — it still catches slips, but shares my blind spots. A
-  second provider would add the truly independent view; you can connect one anytime. For big and
+- **Same provider (no second one connected):** the same AI as me — at least a different model of it —
+  reviews my own work in a separate pass. I say so plainly and never call it independent — it still
+  catches slips, but shares my blind spots. A different provider is the norm, not an option: until you
+  connect one I tell you at every start and ask again. For big and
 architectural work — a full, thorough pass; for routine — a light one. How "heavy" the work is decides
 which model is used; you don't need to pick a model.
 

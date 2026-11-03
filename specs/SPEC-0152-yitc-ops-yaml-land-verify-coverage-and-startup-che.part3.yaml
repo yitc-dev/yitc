@@ -1,0 +1,417 @@
+body: "### 17. The `startup_checks:` section schema (rule-4 section-add — OPT-IN report-only\
+  \ startup surface; / X-0191)\nThe OPTIONAL `startup_checks:` top-level section lets\
+  \ a project declare its OWN cheap, report-only\nstartup checks — so a project-specific\
+  \ \"you have N things to look at\" (e.g. in-work proposals in a\nsubsystem, un-applied\
+  \ config) is SURFACED at session-start instead of being invisible (the X-0191\n\
+  real incident: 3 in-work proposals in a ticket subsystem were invisible at session\
+  \ start). It is\n**OPT-IN, like `extensions:` (rule 13) / `coverage:` (rule 15)**\
+  \ — ABSENT = the project declares no\nstartup checks (never fail-closed, never a\
+  \ sweep ERROR). It is deliberately NOT in the concern\nregistry, so the generic\
+  \ declare-or-waive sweep IGNORES it (the rule-3 non-whitelist invariant):\nadding\
+  \ checks is zero-onboarding-friction and demands no waiver (P1 anti-complexity).\n\
+  \n**DECLARE — a `startup_checks:` list.** Each entry is a mapping with three string\
+  \ keys:\n- `label:` — a short slug naming the check (the echo label).\n- `command:`\
+  \ — a CHEAP shell command run at each session-start / land seam; a NON-ZERO exit\
+  \ means\n  the check FLAGS (there is something to look at), exit 0 means CLEAN.\n\
+  - `detail:` — a short pointer (a doc path / a command to run) telling the reader\
+  \ where to look.\n\n**Echo semantics — REUSE the SPEC-0119 proactive-debt echo plumbing\
+  \ (no new mechanism, P1).** The\ndeclared checks are run and AGGREGATED into ONE\
+  \ report-only line — count + per-check `label (detail)`\n— appended to the SPEC-0119\
+  \ debt-echo output, so it rides the SAME seams for free\n(session-start and the\
+  \ `bin/yitc-v2 debt` post-`/compact` re-fold; the land-tail seam was retired, SPEC-0119\
+  \ rule 2(b)). Print discipline is\nSPEC-0119's verbatim: SUPPRESSED-WHEN-CLEAN (nothing\
+  \ prints when zero checks flag), REPORT-ONLY (it\nnever gates / blocks / auto-acts).\
+  \ TOKEN-FRUGAL by contract: count + pointer only, never the checks'\nstdout — coherent\
+  \ with the always-loaded-seed-weight-trim doctrine (plan\n`reduce-always-loaded-startup-seed-weight-controlle`),\
+  \ adding no new startup noise.\n\n**Fail-SAFE reader (never breaks startup).** The\
+  \ reader is best-effort: an absent section, a malformed\nentry, an unreadable carrier,\
+  \ or a command that errors/times-out is SKIPPED, never surfaced as a\nbroken session-start\
+  \ (a report-only surface must never nag on the unknown — the SPEC-0119 rule-1\n\
+  principle). Because the section is un-swept, the kernel does NOT shape-validate\
+  \ it — a malformed entry\nis silently skipped rather than an init ERROR (the price\
+  \ of zero-friction opt-in). The ENGINE's own\nfile declares none of this section,\
+  \ so this surface is a no-op in the kernel's own sessions.\n\n**Read-only sessions\
+  \ run NOTHING.** A declared check is arbitrary project code (measured:\none reaches\
+  \ a prod schema via `docker exec … psql`), which the `--read-only` promise cannot\
+  \ admit. So\nwhen `READ_ONLY_ROOT` is set no declared command is executed; the echo\
+  \ instead prints ONE report-only\nline counting the declared check(s) as skipped\
+  \ under read-only. The operating-mode path is unchanged.\n\n### 24. Test-class last-successful-execution\
+  \ — a declared class records that it actually RAN (X-0375)\nSPEC-0156 admits a declared\
+  \ kernel-graded check on a recorded RED demonstration — proof it CAN fail. It\n\
+  never asks whether the check has ever ACTUALLY RUN green. <project>'s e2e test class\
+  \ was DECLARED (rule 10\n`tests.classes[]`) but its browsers were never installed:\
+  \ nothing ran, so nothing failed, and a class that\nnever executed read as coverage\
+  \ while catching nothing (X-0375). This rule is the EXECUTION axis of that\nadmission\
+  \ doctrine: a declared test class records its LAST SUCCESSFUL EXECUTION in the journal,\
+  \ and a class\nwith none — or one gone stale — surfaces report-only in the debt\
+  \ echo (SPEC-0119), never a gate.\n\n**JOURNAL-DERIVED, NO NEW STORE (the SPEC-0149\
+  \ §2 acceptance boundary).** There is no stored last-run\nfield on the carrier and\
+  \ no new FSM: the carrier says what is DECLARED, the journal says what was RUN,\
+  \ and\nthe debt is the difference — recomputed fresh at read time by `bin/lib/debt_adoption.py#unexecuted_test_classes`.\n\
+  The carrier holds NO computed status (rule 7).\n\n**THE PRODUCER IS A DELIBERATE,\
+  \ EVIDENCE-BEARING ACT — never a declaration-derived auto-emit.** A pinned\nsuite\
+  \ PASSING does NOT positively observe that a SPECIFIC declared class ran: `land`\
+  \ runs `verify.layers`\nby LAYER id, never per tests-class, so auto-recording \"\
+  executed\" from the declaration list would be the\nvery \"nothing ran, nothing failed\"\
+  \ false-green this doctrine exists to end ( audit-pre). The\nexecution is recorded\
+  \ by whoever ACTUALLY RAN the class — a CI job, a post-deploy hook, a human — via\
+  \ the\nEXISTING generic `event` verb: `bin/yitc-v2 event test_class_executed --data\
+  \ '{\"class\":…,\"outcome\":\n\"pass\",\"evidence\":…}'`. This is the SPEC-0156\
+  \ `check_admission_demonstrated` producer precedent EXACTLY:\nno new verb, no new\
+  \ emitter, no new store (the event is catalogued in SPEC-0025).\n\n**RECORD contract\
+  \ — the fold CLEARS a class ONLY on a COMPLETE record** (the SPEC-0156 conservative\n\
+  direction — under-evidenced ⇒ still owed): a non-empty `class`, an `outcome` of\
+  \ `pass`, AND a non-empty\n`evidence:` naming the run (a CI url / a log ref / a\
+  \ harness id). A bare \"it ran\" with no named run is a\nCLAIM anyone could type,\
+  \ and clearing a class on a claim is the false-green this rule exists to end. A\n\
+  non-pass / under-evidenced / mis-attributed record does not clear — the class stays\
+  \ visible as debt.\n\n**DECLARED-CLASS validation AT THE POINT OF CONSTRUCTION —\
+  \ an undeclared `class:` does not pass silently\n(X-1057).** The RECORD contract\
+  \ above is a COMPLETENESS test: it asks whether the payload names\nan outcome and\
+  \ an evidence, never whether the `class:` it names is one this project DECLARED.\
+  \ A row naming\nan undeclared class is therefore complete — it is written, it reads\
+  \ to a human as coverage, it matches no\ndeclared class so it clears nothing, and\
+  \ it appears on no surface at all (the near-miss report of the same\nrule is scoped\
+  \ to still-surfaced DECLARED names, so it does not see the row either). MEASURED,\
+  \ <project>\n2026-08-20: two rows emitted with `class=stack` and `class=static`\
+  \ — verify LAYER ids, not any of the\neight classes that carrier declares — were\
+  \ accepted without a word, the next morning's fold still reported\nthe same declared-but-unproven\
+  \ count, and the acceptance criterion that named the event stayed unmet for a\n\
+  day. The wrong value is the EASY one to write, which is why this is a kernel defect\
+  \ and not carelessness:\nboth vocabularies live in ONE file a few sections apart,\
+  \ they OVERLAP (<project>'s `frontend-unit` is BOTH\na layer id and a class name,\
+  \ so the right KIND of name cannot be settled by inspection), and the run output\n\
+  on screen at the moment of recording prints the LAYER names, never the class names.\n\
+  \nSo the `class:` is validated against the project's OWN `tests.classes[]` declaration\
+  \ AT THE EMIT — the one\nseam where the mistake is still cheap and the vocabulary\
+  \ is already in hand. It FAILS BY IMPROVING THE\nARTIFACT, not by a bare refusal:\
+  \ the append is refused so no false coverage row is ever written, and the\nmessage\
+  \ hands back what the author lacked — every legal value NAMED, and, where the given\
+  \ value is a\ndeclared `verify.layers[]` LAYER id, that layer's own `covers_classes:`\
+  \ named as the classes it carries\n(the exact translation the author needed). A\
+  \ silent accept is the defect this replaces; a BARE refusal\nwould be the weaker\
+  \ fix, sending the author back to the same confusing file with no more information\
+  \ than\nthey started with.\n\nIt ABSTAINS wherever the declaration cannot be read\
+  \ — a missing carrier, a waived or absent `tests:` section\n(the engine kernel's\
+  \ case), zero declared classes, or any parse failure. A project that has declared\
+  \ no\nvocabulary has authorised no refusal, and history is never retro-charged (the\
+  \ SPEC-0149 lesson, and the\nreader-owns-the-missing-value discipline). The declaration\
+  \ is read in FULL, the UNION of declared classes,\nnever a first match (SPEC-0185\
+  \ §1b). This adds NO new verb, NO new flag, NO new gate class: it is one\nvocabulary\
+  \ check at the existing generic `event` write, in the same fail-closed family as\
+  \ the\n`deviation_captured` realm and `deviation_resolved` disposition checks that\
+  \ already live there. Contract\nhome `bin/lib/debt.py#undeclared_class_remedy`;\
+  \ the `event` verb is the call site.\n\n**The DEBT view (report-only, two surfaces).**\
+  \ For each declared `tests.classes[]` class (a waived section\nor a waived entry\
+  \ declares no class — rule 6, an ANSWERED question): a class with NO matching complete\n\
+  record surfaces `never`; one whose latest one has aged past the staleness floor\n\
+  (`YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`, default 30 days) surfaces `stale`. NEVER-run\
+  \ is unconditional\ndebt (unfloored); STALE surfaces only while the floor is active\
+  \ (a non-positive floor disables the\nstaleness arm, the sibling-fold AGE-floor\
+  \ discipline). Wired at the ONE shared debt residue\n(`bin/yitc-v2#_debt_echo_lines`)\
+  \ so it rides every debt seam (session-start / `debt` re-fold),\nsuppressed-when-clean.\
+  \ A repo that declares none of these classes (the engine kernel itself)\nfolds to\
+  \ zero, so history is never retro-charged (the SPEC-0149 lesson).\n\n### 25. Hermetic-class\
+  \ admission — a class declared HERMETIC is hermetic in TIME, not just DATA (X-0431)\n\
+  Rules 10/16 let a project DECLARE a test class or verify-layer HERMETIC (the `tests.classes[]`\
+  \ taxonomy\n+ the rule-16 F-025 per-layer hermeticity contract — `land` runs it\
+  \ on the LIVE tree with no network /\nno shared fixture mutation). That contract\
+  \ is hermetic in DATA: no test sees another's rows, no external\nis really mutated.\
+  \ It says nothing about TIME. A declared-hermetic suite can still, per test, fire\
+  \ a\nprod code path that reaches out to an external infra dependency that the hermetic\
+  \ container does NOT\nprovide (a broker `.delay` with no Redis, a cache client with\
+  \ no cache, a third-party HTTP client) and\nthen WAIT OUT that dependency's connect/retry\
+  \ timeout — a hidden per-test stall that is invisible to\nevery DATA-hermeticity\
+  \ check. This rule is the TIME axis of the hermetic-class admission doctrine.\n\n\
+  **THE ADMISSION CRITERION (report-only authoring doctrine).** A suite/class declared\
+  \ hermetic MUST be\nhermetic in TIME: **every external infrastructure dependency\
+  \ it can reach (broker / queue / cache /\nthird-party API) is stubbed, run EAGER\
+  \ (in-process, e.g. celery `task_always_eager`), or mocked — OR it\nfails FAST**\
+  \ (a short connect timeout configured in the TEST environment, so an absent external\
+  \ errors in\nmilliseconds instead of waiting out a real ~15-20s connect/retry).\
+  \ **Waiting out a real connect timeout\nto an absent external is a DOCTRINE VIOLATION,\
+  \ not a slow test** — the class was never hermetic in time.\nThe unmocked external\
+  \ is easy to miss precisely because the OBVIOUS externals (email, a bot API) are\n\
+  already mocked: it takes only ONE prod code path firing ONE unmocked infra call\
+  \ to silently set a whole\nsuite's per-test floor (X-0431: <project>'s declared-hermetic\
+  \ backend suite carried a hidden\n~19.5s-per-test celery result-backend connect-retry\
+  \ stall — 7 tests ≈ 136s of a 145s file — that\nsurvived 990-test growth and pinned\
+  \ the whole suite's parallel floor, found only by a faulthandler stack\ndump; PuzzleBot\
+  \ + email were mocked, celery was the ONE unmocked external and no methodology rule\
+  \ asked\nthe question).\n\n**REPORT-ONLY — an authoring/declaration criterion, no\
+  \ gate, no scanner (the rule-16 subject-scoping\nsibling — X-0426).** The kernel\
+  \ does NOT time-profile a consumer's suite or scan for unmocked\nexternals — it\
+  \ judges STANCE + shape, never behaviour (rule 3). This criterion is the QUESTION\
+  \ an author\nanswers when declaring a class hermetic, and the doctrine an audit/review\
+  \ cites; it composes with the\nrule-24 last-successful-execution debt (a class that\
+  \ RAN green) and the rule-16 hermeticity contract (a\nclass hermetic in DATA). The\
+  \ DIAGNOSTIC SIGNATURE + triage recipe (uniform per-test durations clustering\n\
+  near a configured timeout ⇒ hidden external wait; `--durations=N` → confirm with\
+  \ a `faulthandler_timeout`\nstack dump; <project> worked example) travel as `patterns/hermetic-in-time-suite-latency-triage.md`\n\
+  — the hermetic-in-TIME half assumed by `patterns/consumer-suite-parallelization.md`'s\
+  \ \"hermetic first,\nparallel second\" precondition. Consumer-side fix worked example:\
+  \ <project> (celery\n`task_always_eager` + a short test-env broker timeout).\n\n\
+  ### 27. The `product_source:` section — what this repo SHIPS, declared SEPARATELY\
+  \ from what it VERIFIES (rule-4 section-add; / external audit ad-hoc 2026-09-01,\
+  \ MEDIUM)\nThe `product_source:` top-level section is the AUTHORITATIVE per-repo\
+  \ statement of WHICH code surfaces\nthis repo SHIPS — its product source. It exists\
+  \ because that question and rule 16's question are\nDIFFERENT questions that were\
+  \ being answered by ONE field, and this rule's whole job is to keep the\nnext reader\
+  \ from re-deriving that coupling from rule 16.\n\n**THE SPLIT, stated plainly —\
+  \ two fields, one purpose each:**\n- **`verify.layers[].covers` SCOPES VERIFICATION**\
+  \ (rule 16). It answers «which layer verifies this\n  surface?», and its incentive\
+  \ runs NARROW: fewer covered globs mean fewer layers run for a diff and\n  faster\
+  \ lands. Narrowing it is a legitimate, even desirable, act of project hygiene.\n\
+  - **`product_source.globs` DECLARES SHIPPED SOURCE** (this rule). It answers «what\
+  \ does this repo\n  ship?», and its incentive runs WIDE: every glob missing from\
+  \ it is product source that a governance\n  gate cannot recognise. Narrowing it\
+  \ is a loss of governance.\n- **The work-batch carrier gate (`bin/lib/worktree.py`)\
+  \ reads `product_source.globs`\n  and NEVER `verify.layers[].covers`** — under any\
+  \ condition, including when `product_source:` is\n  absent. That sentence is the\
+  \ rule; everything below is its shape and its consequences.\n\n**WHY the two must\
+  \ not share a field (the defect this replaces).** Until the carrier gate read\n\
+  `covers:` as its per-repo recognition set. One field then carried two purposes with\
+  \ OPPOSITE\nincentives, so a project that honestly optimised its verify time silently\
+  \ weakened its own governance\ngate, with no signal that it had. shipped a bounded\
+  \ kernel carrier floor which BOUNDED that\nblast radius; the external auditor's\
+  \ finding says in terms that a floor «does not actually decouple the\ntwo meanings»,\
+  \ and it does not — the inversion lives in the FIELD, so only separating the fields\
+  \ ends\nit. This is a P1 F3 REPLACEMENT: `bin/lib/worktree.py#_work_batch_declared_source_globs`,\
+  \ the reader\nthat made `covers:` load-bearing for governance, is DELETED, not deprecated.\
+  \ There is no fallback path\nand therefore no second live home (rule 5's never-two-live-homes\
+  \ discipline, applied to the new field).\n\n**DECLARE — `globs:`.** A list of non-empty,\
+  \ repo-relative PATH globs (`app/**`, `frontend/src/**`),\nshape-only and never\
+  \ judged for value (rule 3). A glob that is not a string, is blank, or escapes\n\
+  upward (`/…`, `../…`) is dropped — a malformed carrier NARROWS recognition and can\
+  \ never widen it.\n\n**WAIVE — `waiver: { reason: <why> }`**, for a repo that genuinely\
+  \ ships no product source of its own.\n\n**OPT-IN, NOT declare-or-waive, NOT fail-closed\
+  \ — the rule-15 `coverage:` model, reused deliberately\n(P1 F1/F2).** An ABSENT\
+  \ section is legitimate and is never an error: it means the repo has not\ndeclared,\
+  \ and recognition falls to the kernel carrier floor alone. This is NOT the rule-3\n\
+  declare-or-waive stance and MUST NOT become it: a fail-closed stance here would\
+  \ refuse every land in\nevery already-init'd consumer on the day it. For the same\
+  \ reason this section takes NO\n`concern:` registry block, so it changes no born\
+  \ template, no `init` sweep, and no existing carrier.\n\n**ABSENT AND WAIVED ARE\
+  \ IDENTICAL IN RECOGNITION AND DIFFERENT IN MEANING.** Both fall to the kernel\n\
+  floor: no glob either one names is recognised as product source. For RECOGNITION\
+  \ they differ ONLY in\nwhat may be SAID about them: a waiver is an answer somebody\
+  \ gave, an absence is a question nobody has\nbeen asked. That distinction is the\
+  \ waiver form's entire function — do not collapse the two, and do\nnot add an effect\
+  \ to the waiver to justify it. The ONE place the difference carries an effect is\
+  \ the\n§refusal-arm below, and the effect sits on the ABSENCE, never on the waiver:\
+  \ an unanswered\nrepo's uncarried covers-path batch is refused until it answers,\
+  \ and a waived repo lands it.\n\n**THE ABSENT-DECLARATION RULE IS A DECIDED FORK,\
+  \ AND ITS COST WAS MEASURED, NOT ASSUMED.** The\nalternative — an absent section\
+  \ falling back to the covers union — was migration-friendly and was\nrejected: it\
+  \ would have preserved the coupling permanently for every repo that never declares,\
+  \ which\non the evidence is every repo, since nothing would ever pull them. The\
+  \ accepted cost, swept across all\n10 registered v2 consumers at 2026-09-01 (`git\
+  \ ls-files` through the live recogniser, with covers vs\nwithout): <project> 692→138,\
+  \ <project> 234→51, <project> 238→63, <project> 164→7, <project>\n36→5 recognised\
+  \ paths; <project>, <project>, <project> and <project> are UNCHANGED (they\ndeclare\
+  \ no covers, or only `tests/**`, which the tests-segment subtraction already removed);\
+  \ <project>\nwas not git-readable and is REPORTED as unswept rather than counted\
+  \ as zero. So ~1100 application-tree\nfiles in 5 consumers stop being recognised\
+  \ until each declares. That loss is BOUNDED: this gate fires\nonly on a `work/<slug>`\
+  \ batch carrying NO card and NO emergency marker, so no task deliverable, no\ncarried\
+  \ batch, no verify layer and no audit changes.\n\n**THE NARROWING MUST NEVER BE\
+  \ SILENT — the report-only migration note.** When a repo's stance is\nABSENT and\
+  \ it still declares `verify.layers[].covers`, `land` prints ONE report-only note\
+  \ naming the\nglobs that are no longer recognised and both ways to answer. It is\
+  \ REPORT-ONLY in the rule-16\ndelegation/uncommitted-surface sense: no verdict,\
+  \ no refusal, no event, no stored state, and it prints\non the refusal path too.\
+  \ It is suppressed by a declaration or by a waiver, and by nothing else — an\nunanswered\
+  \ repo keeps being told. This is the DISCLOSURE, not the gate; the narrowing has\
+  \ already\nhappened by the time it prints.\n\n**THE REFUSAL ARM — what actually\
+  \ pulls an unanswered repo to answer.** The note alone did\nnot: MEASURED on <project>,\
+  \ the adoption ask went out as cross item X-1224 and stood unanswered 26\ndays,\
+  \ bc's `yitc-ops.yaml` still carried no `product_source:`, and bc commit f25d4ec\
+  \ (2026-09-16, a\n`frontend/package.json` + lockfile vite bump) landed as an uncarried\
+  \ work batch with no card and no\naudit while the note printed. So, for a repo whose\
+  \ stance is ABSENT, an UNCARRIED `work/<slug>` batch\n(no card, no emergency marker)\
+  \ is REFUSED at land with its own class\n`work-batch-product-source-unanswered`\
+  \ WHEN its diff touches a path the repo's own\n`verify.layers[].covers` recognised\
+  \ before — computed by re-running the SAME pure carrier\nverdict with the covers\
+  \ globs and the SAME carriers (`#_work_batch_unanswered_paths`). The refusal\nnames\
+  \ both answers (`globs:` / `waiver:`) plus the card and emergency routes. It keeps\
+  \ BOTH of this\nrule's constraints: it is NOT a covers fallback — covers only SELECT\
+  \ the refusal cohort, the\nrecognition verdict is never re-ruled, and `covers:`\
+  \ still declares nothing; and it is NOT\ndeclare-or-waive — a carried batch, a batch\
+  \ touching nothing covers named, and every repo that\nanswered (either form) are\
+  \ untouched, so no land in any consumer is refused merely for the absence.\nThe\
+  \ note stays REPORT-ONLY itself; its text now says the cohort is refused until the\
+  \ repo answers.\n\n**The kernel floor is unchanged and the fence is NOT re-litigated\
+  \ here.** Recognition stays\nPOSITIVE (an unrecognised path LANDS — the X-0857 decision),\
+  \ the tests-segment subtraction applies to\nthe declared globs exactly as it did\
+  \ to covers, `yitc-ops.yaml` stays excluded, and the principled\nboundary holds:\
+  \ the kernel MAY name cross-project build/deploy/container carrier surfaces and\
+  \ MUST NOT\nguess framework-specific application trees — which is precisely the\
+  \ job this section exists to do.\n\n**PURE per-project ops config the land verb\
+  \ READS** — never a kernel-read governance scalar, so this\nspec stays `consumed:\
+  \ false`.\n\n## Parameters\n\nAs SPEC-0093: the carrier's values are PER-PROJECT\
+  \ ops config (verify-layer commands, coverage\nglobs, startup-check commands) —\
+  \ NEVER kernel-read governance scalars (the <workshop-spec> §Parameters\nnon-whitelist).\
+  \ So this spec is `consumed: false`.\n\n## Rationale\n\nA SPEC-0120 §3 aggregate-neutral\
+  \ split (SPLIT-never-delete) of SPEC-0093, which reached 979 lines /\n80945 bytes\
+  \ — over BOTH the 800-line and 63000-byte one-bounded-read ceilings. The seam is\
+  \ by stable\nSURFACE (<workshop-spec> rule 6): the land-verify / coverage / startup\
+  \ cluster owns 6 of the carrier's 7\n`implements:` anchors (the 7th, `init.py#cmd_init`,\
+  \ is the generic seed/sweep and stays with the\ncore). Split under — its own card,\
+  \ decomposed off because it re-homes rule->code\nanchors, not a plain doc relocation.\n\
+  \nThe declared-share load reading of rule 16 was added by on the owner's decision\
+  \ of\n2026-10-12, answering a public report (GitHub issue 85). A project whose shares\
+  \ sum to 3.07 by its\nown decision went from about 40 to about 86 worker slots on\
+  \ a 32-core host when that host's\nper-verify ceiling was raised from 13 to 28;\
+  \ no line said so, and it was found three days later\nfrom the process table. The\
+  \ owner's design of 2026-09-16 — the sum is not checked — stays.\n\nThe root `bin/`\
+  \ member of the verify-infrastructure set was limited to the kernel's own repository\n\
+  by on the owner's decision of 2026-10-13. The set had been written from the kernel's\
+  \ own\nlayout, where `bin/` is the verifier. A replay of the full-run lands of two\
+  \ projects found that\n5 of 10 on one and 2 of 2 on the other had fired on product\
+  \ and operations scripts under the root\n`bin/` alone, none of them a check, and\
+  \ no declaration let a project change that. Recorded cost:\nin the recorded corpus\
+  \ of a third project one more land becomes a false skip — a product script\nunder\
+  \ its root `bin/` that no declaration named broke a layer the blanket member used\
+  \ to run.\nAdapter `sources:` entries at or under the root `bin/` joined the declared\
+  \ check surface in the\nsame change: the blanket member had been the only thing\
+  \ keeping them on the full run.\n gave the cost rank, the attribution and the replay\
+  \ that answer for root `bin/` paths\nonly; (a deviation triage of 2026-10-22) extended\
+  \ it to every path the contract names,\nafter a named `scripts/` check outside the\
+  \ root `bin/` was found running every layer at the\nskip while the attribution called\
+  \ a disjoint failing layer unreachable.\n\nThe `post_sync_set:` sub-field was added\
+  \ by on the owner's go of 2026-10-22, answering a\npublic report (GitHub issue 156).\
+  \ Over 51 task lands of one project, full Stage-6 re-runs after a\nsync were 24\
+  \ to 30 percent of runs; 26 of 49 sync-after-green episodes were eligible for a\
+  \ quick\nproof, and 5 eligible syncs still paid a full run because the step was\
+  \ left to the worker. The\nkernel charges nothing for a sync at `task close`, and\
+  \ its land re-verifies when `main` moved\nobservably, so the proof is a record the\
+  \ land does not yet read; teaching the land credit to read\nit is followup fu_ffe7c6b812b8.\n\
+  \n gave the engine's own repository the files form whatever layers it declares:\
+  \ since\ndeclared the engine's one suite layer, the layer form was the only one\
+  \ this rule left the engine,\nand SPEC-0186 rule 6 refuses a second engine layer,\
+  \ so the engine could declare no quick set at all.\n\n## Verification\n\n- the declared-share\
+  \ load reading (rule 16): a land of a fixture project whose shares times the\n \
+  \ published allotment exceed the processor count prints the one line and carries\
+  \ the same reading\n  on its row, a land within the bound or with no shares carries\
+  \ neither, the land's verdict and\n  its other row fields are the same with and\
+  \ without the reading, and setting the per-verify\n  ceiling prints the statement\
+  \ only on a change — checks in\n  tests/test_t12589_layer_worker_budget.py.\n- the\
+  \ `verify:` section (rule 16) is checked-if-present declare-or-waive: `init` on\
+  \ a fresh consumer\n  seeds it born declaring the `integrity` layer with `post_sync_set:\
+  \ [integrity]` (section-level WAIVED\n  only where tests exist that no seeded command\
+  \ runs); a non-empty `layers:` list passes when EVERY layer is declared\n  (`command:`)\
+  \ or waived (`waiver: {reason}`); an UNANSWERED layer (neither), a layer carrying\
+  \ BOTH, a\n  layer missing its `layer:` name, and a `layers:` + section-`waiver:`\
+  \ together each FAIL closed; a\n  pre-`verify:` carrier still passes; the report-only\
+  \ verify-layer coverage WARN fires at `graph build`\n  for a load-bearing surface\
+  \ covered by no declared layer (rule-15 `coverage:` shape reused) — state\n  checks\
+  \ in tests/test_t9718_verify_layers_carrier.py. A `tests.classes[].command` for\n\
+  \  `moment: verify` is REJECTED once a `verify:` section is present (the rule-10\
+  \ forbiddance\n  enforcement — no second command home; same test).\n- the `verify.layers[].prep`\
+  \ sub-field (rule 16 amend / X-0140) is checked-if-present\n  declare-or-waive:\
+  \ a DECLARED layer MAY carry `prep: { mode: npm-ci... }` and the land runner prepares\n\
+  \  that layer's deps from the lockfile INSIDE the worktree before running its `command:`;\
+  \ a `prep:`\n  carrying BOTH a `mode:` and a `waiver:`, or NEITHER, FAILS closed;\
+  \ a layer with no `prep:` prepares\n  nothing (backward-compat, checked-if-present).\
+  \ The runner records the `verify_layer_prep` state/event\n  (layer key + resolved\
+  \ lockfile hash + package-manager + runtime matched) — the executable land leg +\n\
+  \  fail-closed-on-mismatch + state-check tests ship in the sibling land-runner card\n\
+  \  (bin/lib/worktree.py); the events catalog is code-derived, so `verify_layer_prep`\
+  \ enters it at that\n  emit (no SPEC-0025 edit here).\n- the `verify.layers[].boundary`\
+  \ sub-field + OUTSIDE-EVERY-BOUNDARY WARN (rule 16 amend / X-0375)\n  is checked-if-present\
+  \ + opt-in report-only: `graph build` lists a `coverage.load_bearing` surface that\n\
+  \  falls outside every declared `boundary:` glob and is not `admitted:`; it no-ops\
+  \ unless BOTH\n  `coverage.load_bearing` AND ≥1 layer `boundary:` are declared (never\
+  \ a false 'everything outside'); a\n  zero-resolving `boundary:` glob folds into\
+  \ the zero-glob WARN — `bin/lib/graph.py#\n  _verify_layer_boundary_warnings`, tests/test_coverage_boundary.py.\n\
+  - the test-class last-successful-execution debt (rule 24 / X-0375) is journal-derived\
+  \ + zero\n  stored state: a declared `tests.classes[]` class with no COMPLETE `test_class_executed`\
+  \ (pass + a named\n  `evidence:`) surfaces `never`; one aged past `YITC_DEBT_TEST_CLASS_STALE_FLOOR_DAYS`\
+  \ surfaces `stale`; a\n  non-pass / under-evidenced record does NOT clear it; a\
+  \ waiver answers; a repo with no carrier owes\n  nothing — `bin/lib/debt_adoption.py#unexecuted_test_classes`,\
+  \ differential probes in tests/test_coverage_boundary.py.\n- the `product_source:`\
+  \ section (rule 27) is OPT-IN, checked-if-present: a declared\n  `globs:` list IS\
+  \ read by the work-batch carrier gate and DOES govern (an uncarried `work/<slug>`\n\
+  \  batch touching a declared glob refuses at land with `work-batch-uncarried-product-source`);\
+  \ a\n  `waiver: {reason}` and an ABSENT section both fall to the kernel carrier\
+  \ floor for RECOGNITION and\n  differ there only in whether the report-only migration\
+  \ note prints — the separate refusal arm\n  below is what distinguishes them in\
+  \ effect (absent refuses its uncarried covers-path batch, waived\n  lands it); a\
+  \ repo declaring `verify.layers[].covers` and NO\n  `product_source:` does NOT get\
+  \ those globs recognised (the `_work_batch_declared_product_source`\n  reader reads\
+  \ ABSENT); instead an uncarried batch touching them refuses with its own class\n\
+  \  `work-batch-product-source-unanswered` ( — the refusal arm), and lands again\
+  \ once the repo\n  declares `globs:` or a `waiver:`, is carried, or touches nothing\
+  \ covers named; malformed entries narrow and\n  never widen — `bin/lib/worktree.py#_work_batch_declared_product_source`\
+  \ +\n  `#_work_batch_product_source_migration_note` + `#_work_batch_unanswered_paths`,\
+  \ land-level differentials in\n  tests/test_work_batch_carrier_gate.py.\n- the section-aware\
+  \ ops-carrier arm of the `subject_globs` skip (rule 16 amend): a land\n  whose only\
+  \ carrier change is outside `verify` / `verify_policy` / `tests` records a layer\
+  \ whose\n  globs exclude `yitc-ops.yaml` as `skipped-disjoint-subject` (before the\
+  \ amend every layer ran — the\n  frozen pre-change predicate is the in-arm negative\
+  \ control); a layer listing the carrier, an edit\n  under any of the three sections,\
+  \ an anchor aliased into `verify`, a duplicate key at any depth, an\n  unparseable\
+  \ or absent carrier, a dirty carrier and a `verify.infra_globs` declaration over\
+  \ the\n  carrier each run every layer — tests/test_subject_scoping_would_skip.py;\
+  \ the attribution takes the\n  same answer — tests/test_t11464_failure_attribution.py;\
+  \ the replay does —\n  tests/test_surface4_detector.py; the pinned trigger is unchanged\
+  \ —\n  tests/test_verify_implementation_touch.py.\n- the Stage-6 seam of the `subject_globs`\
+  \ skip (rule 16 amend): on a consumer with two\n  layers, a `task test --run` whose\
+  \ working tree changes only one layer's subject runs that layer\n  and records the\
+  \ other `skipped-disjoint-subject` (before the amend both ran — the pre-change call\n\
+  \  shape is the in-arm control); a tracked-uncommitted, untracked, staged-only or\
+  \ committed change\n  inside the other layer's subject, no merge-base, a failed\
+  \ git read and an unclassifiable path\n  each run it — tests/test_task_test_run_consumer_parity.py;\
+  \ the Stage-6 answer equals the land's\n  on the same diff, committed or not, and\
+  \ an uncommitted carrier edit skips nothing —\n  tests/test_subject_scoping_would_skip.py.\n\
+  - the ownership-aware `tests/**` arm of the `subject_globs` skip (rule 16 amend):\
+  \ on a\n  consumer with two layers, a land whose only change is a declared test\
+  \ file inside one layer's\n  `subject_globs` runs that layer and records the other\
+  \ `skipped-disjoint-subject` (before the\n  amend both ran — the frozen pre-change\
+  \ predicate and the reader-withheld run are the in-arm\n  controls); a test file\
+  \ no layer claims, a shared test file, a test file both layers claim, the\n  same\
+  \ file in a project declaring no test-file globs, a path the declaration matches\
+  \ at one\n  revision only, a malformed layer declaration, a dirty or unparseable\
+  \ carrier and a root `bin/`\n  path the contract names beside it each run every\
+  \ layer —\n  tests/test_subject_scoping_would_skip.py; the attribution takes\n \
+  \ the same answer — tests/test_t11464_failure_attribution.py; the replay does —\n\
+  \  tests/test_surface4_detector.py; the shared edge, the engine's own build and\
+  \ the pinned trigger\n  are unchanged — tests/test_t11112_shared_fail_closed_edge.py\
+  \ and\n  tests/test_verify_implementation_touch.py.\n- the isolated re-run of a\
+  \ sole failed layer (rule 16 amend): in a sandbox consumer, a\n  layer that fails\
+  \ its first run and passes its second lands `LAND: OK` with a `flaky_retry` row\n\
+  \  naming the layer, `isolated: pass` and the first failure's excerpt, and with\
+  \ the retry bound at 0\n  the SAME sandbox aborts (the in-arm control); a layer\
+  \ failing both runs aborts naming both\n  attempts, its failure entry and outcome\
+  \ row unchanged from the pre-amend shape; an all-green land\n  carries no `flaky_retry`\
+  \ key; a Stage-6 run names the retried layer in its output and on its\n  `tests_passed`\
+  \ row; a timeout, a prep failure, two failed layers and the attribution re-run each\n\
+  \  re-run nothing — tests/test_t13545_consumer_layer_flaky_retry.py.\n- which members\
+  \ of the verify-infrastructure set hold in which repository (rule 16 amend):\n \
+  \ the one place answers the whole set for the kernel's own repository and the set\
+  \ without the root\n  `bin/` member for a project, and no other module holds a copy\
+  \ of either —\n  tests/test_verify_implementation_touch.py; on a consumer with two\
+  \ layers of disjoint\n  `subject_globs`, a land whose change holds a root `bin/`\
+  \ file nothing names skips both layers and\n  takes no full-run edge (before the\
+  \ amend both ran), while a file named by a layer's `command:`,\n  by `verify.infra_globs`\
+  \ or by an adapter's `sources:` runs every layer, each beside a control on\n  the\
+  \ same carrier — tests/test_subject_scoping_would_skip.py; an adapter-backed layer's\
+  \ selection\n  record answers the same, and the land's own predicate answers for\
+  \ a named root `bin/` path at\n  the cost rank — tests/test_verify_implementation_touch.py;\
+  \ the attribution takes the same\n  answer — tests/test_t11464_failure_attribution.py;\
+  \ the replay does —\n  tests/test_surface4_detector.py; for a path outside the root\
+  \ `bin/` that a layer's `command:`\n  or a `verify.infra_globs` entry names, the\
+  \ predicate, the attribution (a red in a disjoint\n  layer blames the branch) and\
+  \ the replay (no false skip) give the same answer, beside a control\n  path nothing\
+  \ names, in the same three files; the SPEC-0178 governance set keeps the root `bin/**`\
+  \ member in\n  the kernel's own repository and holds, for a project, the root `bin/`\
+  \ files its contract names —\n  tests/test_spec0178_rule3_governance_guard.py.\n\
+  - §post_sync_set: on a fixture consumer with three layers and `post_sync_set: [alpha]`,\
+  \ a card\n  green at Stage-6 and synced with another card's change runs alpha alone\
+  \ and records one\n  `post_sync_proof` passed; an own commit after the run, one\
+  \ made and reverted, a backdated one, a\n  hand-resolved merge and no run each record\
+  \ `ineligible` naming the full run; no declared set, an\n  already-current sync,\
+  \ a red quick layer and a git fault are told apart —\n  tests/test_t14060_post_sync_proof.py.\n\
+  - AC2 aggregate-neutrality : the concatenated SPEC-0093-remaining + SPEC-0152 `###\
+  \ N.` rule\n  blocks reproduce the pre-split rule text byte-for-byte (a reconstruction\
+  \ check, not an eyeball).\n"

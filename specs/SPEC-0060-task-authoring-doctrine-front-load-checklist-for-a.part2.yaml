@@ -44,7 +44,7 @@ body: "## Implementation notes\n\nNotes for the maintainer of the code, moved wo
   \ — filing not blocked)` | `_print_undercitation_preview` | | this spec (detailed\
   \ below) |\n| 7 | `in-flight intent overlap (advisory — not blocked)` | `_print_inflight_intent_overlap`\
   \ | | this spec |\n| 8 | `already-linked (advisory — filing not blocked)` | the\
-  \ `_auto_cross_pick_for_file` call-site | | **SPEC-0086** (the intake-hygiene rule\
+  \ `_cross_link_held_skips` call-site | | **SPEC-0086** (the intake-hygiene rule\
   \ — pointer) |\n| 9 | `AC test/waive status (advisory — filing not blocked)` | `_print_ac_test_waive_status`\
   \ (its `AC waive fields (advisory — filing not blocked)` block) | | this spec (item\
   \ 4 — each AC names a test or an explicit waive); the waive form is **SPEC-0165\

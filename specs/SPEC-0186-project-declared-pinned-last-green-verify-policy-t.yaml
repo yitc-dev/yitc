@@ -139,11 +139,13 @@ body: "## Scenario\n\nA project decides it will not pay the pinned last-green ve
   \ in its non-layer\nform (a list of test files), `sync_at_stage6_admission` and\
   \ `post_sync_set_first` (SPEC-1045); a\n`deploy:` whose `command:` is only the final\
   \ publication of a release already cut; ONE\n`verify.layers` entry, its whole suite;\
-  \ ONE `moment: pre-deploy` class in `tests.classes`; and its\nown `thresholds:`\
-  \ (SPEC-1031 rule 4). `init.engine_declaration_errors` is the one admission that\n\
-  judges which of these the file holds. The engine stays exempt from the consumer\
-  \ contract checks,\nso carrying these keys makes it no consumer of its ops contract.\
-  \ The engine is not a\nconsumer of its own ops contract, so every sweep that judges\
+  \ ONE `moment: pre-deploy` class in `tests.classes`; its\nown `thresholds:` (SPEC-1031\
+  \ rule 4); and a `verify.venue` mapping naming what its suite needs on a\nverify\
+  \ box (SPEC-1032 rules 1 and 6), which the engine's own Stage-6 and land routing\
+  \ do not read. `init.engine_declaration_errors` is the one admission that\njudges\
+  \ which of these the file holds. The engine stays exempt from the consumer contract\
+  \ checks,\nso carrying these keys makes it no consumer of its ops contract. The\
+  \ engine is not a\nconsumer of its own ops contract, so every sweep that judges\
   \ a repository AS a consumer of that\ncontract excludes the engine by IDENTITY,\
   \ never by whether a file exists. Wherever this corpus says\nthe engine has «no\
   \ carrier» or «no ops contract», it is the CONSUMER ops contract that is meant.\n\
@@ -314,4 +316,4 @@ implements_signature:
   bin/lib/init.py#engine_declaration_errors: c412ae20127e6e7f9c2feb2fe460f04a78f3a52cb008d1d1c16fd3763f5e05b1
   bin/lib/task.py#_verify_policy_pinned_last_green: f7933c835395922565bd80be492b09303a5a6ca362a7b04c7d3441219699f3dc
   bin/lib/task.py#_verify_policy_stage6_credit: c40c97aedbc5d0ef2b7d051528dce313b6c27284402d16107aef77673de3b74f
-  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
+  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663

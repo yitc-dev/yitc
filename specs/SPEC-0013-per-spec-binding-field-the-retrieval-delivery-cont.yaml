@@ -410,12 +410,12 @@ proposed_by: null
 implements_signature:
   bin/lib/cli.py#BINDING_QUERY_ONLY_TOKEN: 5f6b5370d89143db7c0bc900a10521ffeee721eef3ed504e46e143fb45e18783
   bin/lib/cli.py#BINDING_SEED_TOKEN: 7aada1e1acf49631333820170f41b09f999089d731efcecef3e1fa09dbb47f47
-  bin/lib/cli.py#BINDING_VERB_SURFACES: ec855422a56752fe8db2dac6292f09f1c393acf203f61831d26db1113494f5a6
+  bin/lib/cli.py#BINDING_VERB_SURFACES: 2217e1082178d72b822f4b4afdaf28fd264d030bbbbaa30b8575afa1bf5bdbd8
   bin/lib/cli.py#STAGE_AXIS_NAMES: 3d4fd0eb5f7aef35c3dded92047f55346b57c14f3aed26be3b1bc4cf2c42617f
   bin/lib/cli.py#SURFACE_TO_STAGE: a29540cd76e9a3ab5c292e2b09ce7cf3007bcfd367130e9ad7107b03886ad07f
   bin/lib/cli.py#_seed_howto: 8da1093da02842d2b58429c1aeb49677aa5488d7b13270e2efeb09464b178357
   bin/lib/graph.py#_build_binding_views: 4c015297df752835fad12861da7070cd2845b388134357c4660932af76065463
   bin/lib/graph.py#_is_valid_plan_stage_entry: 43a7a97650e342a684a76ad6656d8a92a932ee9855f234f37fa19663356153c8
   bin/lib/graph.py#_is_valid_stage_entry: 50a523c1942de7d1f9d3999efc0ac22d9ad4fb482cedfc36fece9869e9664940
-  bin/lib/graph.py#_render_floor_trigger_map: 749c26a8fe1a722ebf2008d2b6db7c8b00069b4071a0da46c3b0e5dc70bf77ac
+  bin/lib/graph.py#_render_floor_trigger_map: d6d168cff29f115884fb1b05a832198693baf043eb344a6751a8cac69b6159a6
   bin/lib/graph.py#cmd_graph_conformance: 692b91101d4de81e67b34c76effee977a1c3c4d93e789cae586deb6f500b7c0b

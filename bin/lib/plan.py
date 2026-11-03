@@ -284,7 +284,18 @@ def _plan_cut_cards(slug: str, *, TASKS_DIR, _read_yaml) -> list:
     return sorted(out)
 
 
-def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, _read_yaml) -> str:
+def _plan_cut_rows(slug: str, *, TASKS_DIR, _plan_cut_cards, _read_yaml) -> list:
+    """One read of a plan's cut: [{id, status, doc}] for `_plan_cut_cards(slug)`, a missing or unreadable
+    card reading as an empty doc."""
+    rows = []
+    for tid, st in _plan_cut_cards(slug):
+        p = next(TASKS_DIR.glob(f"{tid}-*.yaml"), None) or (TASKS_DIR / f"{tid}.yaml")
+        d = _read_yaml(p) if (p and p.exists()) else {}
+        rows.append({"id": tid, "status": st, "doc": d if isinstance(d, dict) else {}})
+    return rows
+
+
+def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, _read_yaml, PLANS_DIR=None, _carry=None) -> str:
     """Canonical fingerprint of a plan's CUT — the task-card SET + the spec-activation linkage — for the
     decomposition-fidelity verdict freshness contract (SPEC-0070 §4). The direct analog of the accept-gate
     _plan_content_hash / _plan_corpus_signature: the decomposition-fidelity verdict RECORDS this, and
@@ -303,13 +314,23 @@ def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_car
       - the plan's proposed-spec ACTIVATION mapping: sorted [(spec_id, activation_owner_task)] for every
         spec with `proposed_by == slug` — WHICH task activates each spec is a cut decision (re-pointing it
         re-fingerprints). (In V2 the activation owner is this spec→task pointer, not a per-card field.)
+      - T-14457 (SPEC-1058 §3), ONLY for a plan that opts into a prototype carry: each card's
+        `prototype_lines` plus the registry text and the pinned prototype pair. Any other plan's basis is
+        byte-identical, so its recorded verdicts stay fresh. `_carry` is the gate's (fm, body, rows) —
+        its one read of the cut; without it the plan and the cards are read here.
     Telemetry-grade: degrades to a stable error-hash on any read failure (must never crash the gate verb)."""
     try:
+        if _carry is not None:
+            fm, body, rows = _carry
+        else:
+            plan_path = (PLANS_DIR / f"{slug}.md") if PLANS_DIR is not None else None
+            fm, body = (state.split_frontmatter_text(plan_path.read_text(encoding="utf-8"))
+                        if plan_path is not None and plan_path.exists() else ({}, ""))
+            rows = _plan_cut_rows(slug, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml)
+        opted = _plan_is_prototype_opted_in(fm)
         cards = []
-        for tid, _st in _plan_cut_cards(slug):   # T-0694: cut MEMBER-set via decomposed_from, NOT cites:
-            p = next(TASKS_DIR.glob(f"{tid}-*.yaml"), None) or (TASKS_DIR / f"{tid}.yaml")
-            d = _read_yaml(p) if (p and p.exists()) else {}
-            d = d if isinstance(d, dict) else {}
+        for row in rows:   # T-0694: cut MEMBER-set via decomposed_from, NOT cites:
+            tid, d = row["id"], row["doc"]
             cards.append({
                 "id": tid,
                 "requires": sorted(d.get("requires") or []),
@@ -322,6 +343,10 @@ def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_car
                 "expected_touch": sorted(d.get("expected_touch") or []),
                 "title": d.get("title") or "",
             })
+            if opted:
+                lines = d.get("prototype_lines")
+                cards[-1]["prototype_lines"] = (sorted(str(x) for x in lines) if isinstance(lines, list)
+                                                else lines)
         cards.sort(key=lambda c: c["id"])
         spec_activation = []
         for sp in state.scan_specs(SPECS_DIR):   # SPEC-* glob excludes _template.yaml
@@ -329,11 +354,32 @@ def _plan_card_set_fingerprint(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_car
             if isinstance(d, dict) and d.get("proposed_by") == slug:
                 spec_activation.append([d.get("id") or sp.stem, d.get("activation_owner_task")])
         spec_activation.sort(key=lambda x: (x[0] or ""))
-        basis = json.dumps({"cards": cards, "spec_activation": spec_activation},
-                           sort_keys=True, ensure_ascii=False)
+        fp_input = {"cards": cards, "spec_activation": spec_activation}
+        if opted:
+            fp_input["prototype"] = {"ref": str(fm.get("prototype_ref") or "").strip(),
+                                     "tip": str(fm.get("prototype_tip") or "").strip(),
+                                     "base": str(fm.get("prototype_base") or "").strip(),
+                                     "registry": _plan_prototype_registry_section(body) or ""}
+        basis = json.dumps(fp_input, sort_keys=True, ensure_ascii=False)
         return hashlib.sha256(basis.encode("utf-8")).hexdigest()
     except Exception:
         return hashlib.sha256(b"<plan-card-set-fingerprint-error>").hexdigest()
+
+
+def _plan_section_text(body: str, name: str) -> "str | None":
+    """The AUTHOR text of the `## <name>` section: its body with the `<!-- ... -->` skeleton stub
+    comment(s) removed and outer whitespace stripped; None when the heading is absent or the section
+    carries no author text. Text only, never a semantic judgement (CHARTER non-goal #7). The ONE
+    section computation `_plan_section_filled` and the postcheck readiness view (T-14477) share.
+    Tolerant: an unreadable/empty body → None (a report helper must never crash the verb)."""
+    try:
+        m = re.search(r"^##\s+" + re.escape(name) + r"\s*$(.*?)(?=^##\s|\Z)",
+                      body or "", flags=re.MULTILINE | re.DOTALL)
+        if not m:
+            return None
+        return _HTML_COMMENT_RE.sub("", m.group(1)).strip() or None
+    except Exception:
+        return None
 
 
 def _plan_section_filled(body: str, name: str) -> bool:
@@ -343,14 +389,27 @@ def _plan_section_filled(body: str, name: str) -> bool:
     non-goal #7). Extracted from `_plan_draft_sections_filled`'s per-section body (T-10293) so the
     front-load advisory and `_postcheck_probe_block_declared` share ONE computation. Tolerant: an
     unreadable/empty body → False (a report helper must never crash the verb)."""
+    return _plan_section_text(body, name) is not None
+
+
+def _plan_realization_exit_criteria(body: str) -> "list | None":
+    """T-14477 — the realization-exit criteria the plan DECLARES, verbatim: the non-empty lines of the
+    first filled probe-block section (canonical `## Realization-exit criteria`, then the legacy
+    names). `[]` when such a heading is present but carries no author text (an empty or comment-only
+    stub); None when no such heading exists. Lists, never judges: whether a criterion is met is the
+    owner's call against its evidence-home (SPEC-0034 §postcheck)."""
+    names = (REALIZATION_EXIT_SECTION, *_PROBE_BLOCK_LEGACY_SECTIONS)
+    for name in names:
+        text = _plan_section_text(body, name)
+        if text:
+            return [ln.strip() for ln in text.splitlines() if ln.strip()]
     try:
-        m = re.search(r"^##\s+" + re.escape(name) + r"\s*$(.*?)(?=^##\s|\Z)",
-                      body or "", flags=re.MULTILINE | re.DOTALL)
-        if not m:
-            return False
-        return bool(_HTML_COMMENT_RE.sub("", m.group(1)).strip())
+        if any(re.search(r"^##\s+" + re.escape(n) + r"\s*$", body or "", flags=re.MULTILINE)
+               for n in names):
+            return []
     except Exception:
-        return False
+        pass
+    return None
 
 
 def _postcheck_probe_block_declared(body: str) -> bool:
@@ -881,7 +940,7 @@ def _emit_plan_stage_entered(slug: str, frm, to: str, *, extra=None, _append_eve
 
 
 def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool = False,
-                               _deliver_stage_bundle_contracts) -> None:
+                               _deliver_stage_bundle_contracts, homes=None) -> None:
     """SINGLE source for the plan-stage bundle delivery (the `delivered` spec ids), shared by
     `cmd_plan_stage` (every transition) AND `cmd_plan_file` (draft-entry, T-0416) so the delivery
     has ONE home — no mirror/copy of the print block (audit-pre F0). The slug→stage
@@ -892,10 +951,9 @@ def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool
     receipt the plan-stage read check credits, or as one pointer line while this context epoch
     already holds the same content. Before this the ids were printed and each contract was fetched
     by hand, as the full point-lookup render. The deliverer reads its first argument for ONE thing,
-    the realm map of a `-C` consumer's TASK-stage bundle; the name passed here is the plan-axis
-    binding token, which no task stage carries, so that map is empty and each id is fetched in the
-    bare form — the plan-axis bundle is own-corpus only and its read check credits by id (see
-    `_require_reads`). A delivery that fails leaves the transition as recorded and each contract one
+    the realm map of a `-C` consumer's bundle; for the plan-axis binding token passed here it reads
+    the plan-axis realms (T-14408), so a kernel-bound contract is fetched with `--kernel` and the
+    plan-stage read check credits it by that realm (see `_require_reads`). A delivery that fails leaves the transition as recorded and each contract one
     `graph query` away: the plan-stage read check then refuses with its ready commands."""
     if delivered:
         print(f"read before acting — plan-stage-entry:{stage} contract(s), rendered below as contract "
@@ -907,10 +965,11 @@ def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool
         except Exception:   # noqa: BLE001 — never break the verb whose transition is already recorded
             pass
     else:
-        # T-12988 — name the REAL homes, never the stale T-0317 promise. An empty bundle means THIS
-        # repo's spec corpus binds nothing here (typically a -C consumer: the plan lifecycle is kernel
-        # doctrine), so point at the kernel specs through the realm-aware hint (`--kernel` under -C).
-        homes = (["SPEC-0043"] if stage == "draft" else []) + ["SPEC-0034"]
+        # T-12988 — name the REAL homes, never the stale T-0317 promise. T-14408 — under -C the bundle
+        # already reads the kernel corpus, so an empty one means NO corpus read binds this stage; the
+        # homes named are the host's derivation from the plan-axis bindings (`homes`), and the fixed
+        # pair below only when those bindings are empty too.
+        homes = list(homes or []) or ((["SPEC-0043"] if stage == "draft" else []) + ["SPEC-0034"])
         hints = "; ".join(f"`{graph_lib.spec_query_hint(h, is_consumer=is_consumer, cli='yitc-v2')}`"
                           for h in homes)
         print(f"this repo's spec corpus binds no spec to plan-stage-entry:{stage} — the plan-stage "
@@ -939,6 +998,9 @@ def _plan_accept_core(path: Path, fm: dict, body: str, slug: str, *, AUDIT_VERDI
     if verdict not in AUDIT_VERDICT_CLOSURE_OK:   # GREEN | YELLOW
         _die(f"{slug}: last `plan check` verdict is {verdict or 'MISSING'} — accept needs GREEN/YELLOW. "
              f"Rework the plan, then re-run `yitc-v2 plan check {slug}`.")
+    # T-14456 (SPEC-1058 §2-§3) — an opted-in plan's registry + audited prototype pair, refused by name
+    # BEFORE the freshness checks and the spec birth; None (nothing read) for every other plan.
+    proto_pin = _require_plan_prototype_at_accept(slug, fm, body, av, REPO_ROOT=REPO_ROOT, _die=_die)
     checked_hash = av.get("content_hash")
     cur_hash = _plan_content_hash(body)
     if not checked_hash:
@@ -967,6 +1029,11 @@ def _plan_accept_core(path: Path, fm: dict, body: str, slug: str, *, AUDIT_VERDI
     event_data = {"slug": slug, "verdict_ref": str(audit_path.relative_to(REPO_ROOT)),
                   "checked_hash": cur_hash, "specs_born": specs_born,
                   "structural_findings_consumed": len(structural)}
+    if proto_pin:
+        # SPEC-1058 §2 — pin the audited pair; the caller's status write persists it, and every later
+        # registry check reads it instead of the moving tag. Additive event keys only on this path.
+        fm.update(proto_pin)
+        event_data.update(proto_pin)
     return verdict, specs_born, structural, event_data
 
 
@@ -1290,7 +1357,7 @@ def _plan_card_set_context(slug: str, *, SPECS_DIR, TASKS_DIR, _plan_cut_cards, 
 
 
 def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
-                                         *, owner_reset: bool = False, on_decisions: bool = False, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, _die, _plan_card_set_context, _plan_card_set_fingerprint, _plan_cut_cards, _read_yaml, _run_plan_gate_audit) -> None:
+                                         *, owner_reset: bool = False, on_decisions: bool = False, AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR, TASKS_DIR, _die, _plan_card_set_context, _plan_card_set_fingerprint, _plan_content_hash, _plan_cut_cards, _read_yaml, _run_plan_gate_audit) -> None:
     """The `decomposition → executing` entry gate (SPEC-0070 §3/§4 — the NEW mandatory gate added by
     T-0649): entry to `executing` REQUIRES a FRESH GREEN/YELLOW external **decomposition-fidelity**
     verdict over the task CARD SET whose recorded `card_set_fingerprint` MATCHES the current cut.
@@ -1303,7 +1370,22 @@ def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
       matching fingerprint, else refuse (stale-cut / mismatch).
     Editing any card after a GREEN verdict re-fingerprints the cut → no longer matches → re-audit
     (the freshness contract, the direct analog of the accept-gate `_plan_content_hash`)."""
-    fp = _plan_card_set_fingerprint(slug)
+    # T-14457 (SPEC-1058 §3): an opted-in plan's list checks run FIRST — a list fault refuses even beside
+    # a fresh fidelity verdict, and costs no audit. A plan without `prototype_ref` takes no branch here.
+    opted, rows = _plan_is_prototype_opted_in(fm), []
+    if opted:
+        rows = _plan_cut_rows(slug, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml)
+        accept_path = DECISIONS_DIR / f"{slug}-audit.yaml"
+        accept = (_read_yaml(accept_path) or {}) if accept_path.exists() else {}
+        faults = _plan_prototype_cut_faults(fm, body, rows, accept, _plan_content_hash=_plan_content_hash)
+        if faults:
+            listed = "".join(f"  - {f}\n" for f in faults)
+            _die(f"{slug}: `plan stage executing` blocked — the prototype carry cut (SPEC-1058 §3):\n{listed}"
+                 f"Repair the cards: `yitc-v2 task update T-XXXX --old 'cites:' --new "
+                 f"'prototype_lines: [R-1]\\ncites:'` adds an absent field, `yitc-v2 task update T-XXXX "
+                 f"--prototype-ref {fm.get('prototype_ref')}` names the prototype; a stale accept takes "
+                 f"`yitc-v2 plan check {slug}`. Then retry.")
+    fp = _plan_card_set_fingerprint(slug, _carry=(fm, body, rows)) if opted else _plan_card_set_fingerprint(slug)
     audit_path = DECISIONS_DIR / f"{slug}-audit-gate-executing.yaml"
     av = (_read_yaml(audit_path) or {}) if audit_path.exists() else {}
     if (str(av.get("verdict") or "").upper() in AUDIT_VERDICT_CLOSURE_OK
@@ -1338,7 +1420,8 @@ def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
     # run the gate-executing fidelity audit over the CARD SET (mandatory-
     # blocking: dies on RED/ABORT or — until T-0650 — a missing template; the safe fail-closed window).
     _run_plan_gate_audit(slug, fm, body, "gate-executing", "mandatory-blocking",
-                         blocking=True, card_set_fp=fp, extra_context=_plan_card_set_context(slug),
+                         blocking=True, card_set_fp=fp,
+                         extra_context=_plan_card_set_context(slug) + (_plan_prototype_cut_packet(body, rows) if opted else ""),
                          owner_reset=owner_reset, on_decisions=on_decisions)
     av = (_read_yaml(audit_path) or {}) if audit_path.exists() else {}
     if (str(av.get("verdict") or "").upper() not in AUDIT_VERDICT_CLOSURE_OK
@@ -2059,7 +2142,357 @@ def _plan_scenario_fidelity(fm: dict, *, _plan_scenario_roles, _scenario_index_n
     return {"medium": medium, "structural": structural, "fresh_inputs": "\n".join(fresh_parts)}
 
 
-def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UNSET, *, SPECS_DIR, _plan_active_proposed_corpus, _plan_content_hash, _plan_scenario_fidelity, _read_yaml, _spec_content_sans_status) -> str:
+# ── T-14456 (SPEC-1058 §1-§3) — the plan-side prototype carry registry ────────────────────────────
+# OPT-IN: every helper below is reached only when the plan frontmatter names `prototype_ref`; a plan
+# without it never enters this block, so its check prompt, verdict record, accept path and freshness
+# basis stay byte-identical (SPEC-1058 §1).
+PROTOTYPE_REGISTRY_SECTION = "Prototype registry"
+_PROTO_ITEM_ID_RE = re.compile(r"^R-[1-9][0-9]*$")
+_PROTO_KINDS = ("added", "changed", "removed", "supporting")
+_PROTO_DISPOSITIONS = ("carry", "not-carried")
+_PROTO_LOCATOR_RE = re.compile(r"^(?P<path>.+):(?P<a>[1-9][0-9]*)(?:-(?P<b>[1-9][0-9]*))?$")
+_PROTO_OWNER_READ_RE = re.compile(r"^owner_read:\s*(?P<ref>\S+)\s*$")
+_PROTO_OWNER_REF_RE = re.compile(r"^events\.jsonl#ts=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+_PROTO_FENCE_RE = re.compile(r"^```(?:ya?ml)?\s*$")
+
+
+def _plan_is_prototype_opted_in(fm) -> bool:
+    return isinstance(fm, dict) and bool(str(fm.get("prototype_ref") or "").strip())
+
+
+def _plan_prototype_registry_section(body: str) -> "str | None":
+    """The text of the `## Prototype registry` section (heading excluded), or None when absent."""
+    lines, out, inside = body.splitlines(), [], False
+    for ln in lines:
+        if ln.startswith("## "):
+            if inside:
+                break
+            inside = ln[3:].strip() == PROTOTYPE_REGISTRY_SECTION
+            continue
+        if inside:
+            out.append(ln)
+    return "\n".join(out) if inside or out else None
+
+
+def _plan_prototype_registry(body: str) -> "tuple[str | None, list, str | None]":
+    """SPEC-1058 §2 — read the registry: (owner_read, items, fault). `fault` names the FIRST defect;
+    when it is set the other two values are not to be trusted. The fenced list is read by the ONE
+    YAML parser (`state.load_str`)."""
+    sec = _plan_prototype_registry_section(body)
+    if sec is None:
+        return None, [], f"the plan has no `## {PROTOTYPE_REGISTRY_SECTION}` section"
+    lines = sec.splitlines()
+    start = next((i for i, ln in enumerate(lines) if _PROTO_FENCE_RE.match(ln.strip())), None)
+    if start is None:
+        return None, [], f"the `## {PROTOTYPE_REGISTRY_SECTION}` section carries no fenced yaml list"
+    end = next((j for j in range(start + 1, len(lines)) if lines[j].strip() == "```"), None)
+    if end is None:
+        return None, [], f"the fenced yaml list in `## {PROTOTYPE_REGISTRY_SECTION}` is not closed"
+    owner_read = None
+    for ln in lines[:start]:
+        m = _PROTO_OWNER_READ_RE.match(ln.strip())
+        if m:
+            owner_read = m.group("ref")
+            break
+    if owner_read is None:
+        return None, [], ("the registry has no owner read-back row — the section must open with "
+                          "`owner_read: events.jsonl#ts=<ISO>`")
+    if not _PROTO_OWNER_REF_RE.match(owner_read):
+        return None, [], f"owner_read `{owner_read}` is not an `events.jsonl#ts=<ISO>` locator"
+    try:
+        items = state.load_str("\n".join(lines[start + 1:end]))
+    except Exception as e:   # noqa: BLE001 — any parser failure is the named fault, never a traceback
+        return owner_read, [], f"the registry list does not parse as YAML: {str(e).splitlines()[0]}"
+    if not isinstance(items, list) or not items:
+        return owner_read, [], "the registry is not a non-empty YAML list of items"
+    seen = set()
+    for n, it in enumerate(items, 1):
+        if not isinstance(it, dict):
+            return owner_read, [], f"registry entry #{n} is not a mapping"
+        iid = str(it.get("id") or "")
+        where = f"registry item {iid or f'#{n}'}"
+        if not _PROTO_ITEM_ID_RE.match(iid):
+            return owner_read, [], f"{where}: id must be `R-<n>`"
+        if iid in seen:
+            return owner_read, [], f"{where}: duplicate id"
+        seen.add(iid)
+        if it.get("kind") not in _PROTO_KINDS:
+            return owner_read, [], f"{where}: kind must be one of {', '.join(_PROTO_KINDS)}"
+        for key in ("surface", "what"):
+            if not isinstance(it.get(key), str) or not it[key].strip():
+                return owner_read, [], f"{where}: `{key}` must be a non-empty string"
+        locs = it.get("locators")
+        if not isinstance(locs, list) or not locs:
+            return owner_read, [], f"{where}: `locators` must be a non-empty list of path:line"
+        for loc in locs:
+            if not isinstance(loc, str) or not _PROTO_LOCATOR_RE.match(loc.strip()):
+                return owner_read, [], f"{where}: locator `{loc}` is not `path:line` (or `path:a-b`)"
+        if it.get("disposition") not in _PROTO_DISPOSITIONS:
+            return owner_read, [], f"{where}: disposition must be one of {', '.join(_PROTO_DISPOSITIONS)}"
+        orow = it.get("owner_row")
+        if orow is not None and (not isinstance(orow, str) or not orow.strip()):
+            return owner_read, [], f"{where}: `owner_row` must be a non-empty locator when present"
+        if it["disposition"] == "not-carried" and orow is None:
+            return owner_read, [], f"{where}: a `not-carried` item must cite its `owner_row`"
+    return owner_read, items, None
+
+
+def _plan_prototype_git(repo_root, *args) -> "tuple[str | None, str | None]":
+    from lib import spike_identity as si   # noqa: PLC0415 — the one git runner
+    try:
+        return si._git(repo_root, *args).strip(), None
+    except RuntimeError as e:
+        return None, str(e)
+
+
+def _plan_prototype_commits(repo_root, fm: dict) -> "tuple[str | None, str | None, str | None]":
+    """(tip, base, fault). Once accept PINNED the pair (`prototype_tip` + `prototype_base`), it is read
+    from the frontmatter and NEITHER the tag NOR main is read again (SPEC-1058 §2 one prototype
+    commit). Before that: the tag's commit and its merge-base with main."""
+    ref = str(fm.get("prototype_ref") or "").strip()
+    tip, base = str(fm.get("prototype_tip") or "").strip(), str(fm.get("prototype_base") or "").strip()
+    if tip and base:
+        return tip, base, None
+    tip, err = _plan_prototype_git(repo_root, "rev-parse", "--verify", f"refs/tags/{ref}^{{commit}}")
+    if err:
+        return None, None, f"prototype_ref `{ref}` does not resolve to a commit ({err})"
+    base, err = _plan_prototype_git(repo_root, "merge-base", "main", tip)
+    if err or not base:
+        return tip, None, f"no merge-base between main and {ref} ({tip[:12]}): {err or 'empty'}"
+    return tip, base, None
+
+
+def _plan_prototype_changed_paths(repo_root, base: str, tip: str) -> "tuple[list, str | None]":
+    """The changed paths of `git diff <base>...<tip>`; a rename lists BOTH its paths (--no-renames),
+    since a `removed` item's locator points into the base."""
+    out, err = _plan_prototype_git(repo_root, "diff", "--name-only", "--no-renames", f"{base}...{tip}")
+    if err:
+        return [], f"git diff {base[:12]}...{tip[:12]} failed: {err}"
+    return sorted({p for p in out.splitlines() if p.strip()}), None
+
+
+def _plan_prototype_unlocated(items: list, paths: list) -> list:
+    """The changed paths no registry item locates (any kind, any disposition counts — SPEC-1058 §3)."""
+    located = set()
+    for it in items:
+        for loc in it.get("locators") or ():
+            m = _PROTO_LOCATOR_RE.match(str(loc).strip())
+            if m:
+                located.add(m.group("path"))
+    return [p for p in paths if p not in located]
+
+
+def _plan_prototype_read(repo_root, fm: dict, body: str, events_path=None) -> dict:
+    """The one reader both seams use (plan check, plan stage accepted): ref validation (only while
+    unpinned — a pinned plan no longer reads the tag), registry parse, commits, changed paths.
+    Returns {fault, owner_read, items, tip, base, paths, diff}; `fault` names the first defect — a
+    failed git read included, so no packet is ever built without its subject."""
+    from lib import task as task_lib   # noqa: PLC0415 — prototype_ref_error, SPEC-0205 rule 5
+    res = {"fault": None, "owner_read": None, "items": [], "tip": None, "base": None, "paths": [],
+           "diff": None}
+    ref = str(fm.get("prototype_ref") or "").strip()
+    if not str(fm.get("prototype_tip") or "").strip():
+        err = task_lib.prototype_ref_error(repo_root, ref, events_path)
+        if err:
+            res["fault"] = f"prototype_ref: {err}"
+            return res
+    res["owner_read"], res["items"], fault = _plan_prototype_registry(body)
+    if fault:
+        res["fault"] = fault
+        return res
+    res["tip"], res["base"], fault = _plan_prototype_commits(repo_root, fm)
+    if fault:
+        res["fault"] = fault
+        return res
+    res["paths"], res["fault"] = _plan_prototype_changed_paths(repo_root, res["base"], res["tip"])
+    if res["fault"]:
+        return res
+    diff, err = _plan_prototype_git(repo_root, "diff", "--no-ext-diff", "--no-renames",
+                                    f"{res['base']}...{res['tip']}")
+    if err is not None:
+        res["fault"] = f"git diff {res['base'][:12]}...{res['tip'][:12]} failed: {err}"
+        return res
+    res["diff"] = diff
+    return res
+
+
+def _plan_prototype_packet(repo_root, fm: dict, body: str, read: dict) -> str:
+    """The accept-check packet block: the base diff beside the registry and SPEC-1058 §3's question."""
+    diff = read["diff"]
+    sec = _plan_prototype_registry_section(body) or ""
+    missing = _plan_prototype_unlocated(read["items"], read["paths"])
+    floor = ("every changed path of the diff is a locator of some item" if not missing else
+             f"{len(missing)} changed path(s) are located by NO item ({', '.join(missing)}) — "
+             "`plan stage accepted` refuses until each is located")
+    return (
+        f"\n## Prototype carry registry (SPEC-1058 §2-§3 — the accept question)\n\n"
+        f"prototype_ref: {fm.get('prototype_ref')} · prototype commit {read['tip']} · "
+        f"base (merge-base with main) {read['base']}\n\n"
+        "Accept question — judge the registry against the base diff below, hunk by hunk: (1) every "
+        "owner-meaningful change of the diff has an item; (2) granularity — no item bundles two things "
+        "the owner could see or test separately, and a change no owner sees is a `supporting` item "
+        "naming the item it serves; (3) the section opens with the owner's read-back row "
+        "(`owner_read`) and it is cited; (4) every item added after that read-back, or changed in "
+        "`what`, `locators` or `disposition` after it, and every `not-carried` item, cites an "
+        f"`owner_row`. The kernel's list checks, computed for this packet: the list parses; {floor}. "
+        "The meaning is yours.\n\n"
+        f"### Registry (verbatim)\n\n{sec.strip()}\n\n"
+        f"### Base diff `git diff {read['base'][:12]}...{read['tip'][:12]}`\n\n```diff\n{diff}\n```\n")
+
+
+def _require_plan_prototype_at_accept(slug: str, fm: dict, body: str, av: dict, *, REPO_ROOT, _die) -> "dict | None":
+    """SPEC-1058 §2-§3 at `plan stage accepted` (inside `_plan_accept_core`, before the freshness
+    checks and the spec birth). None for a plan that does not opt in. Else refuses — naming the
+    fault — a malformed registry, a check that recorded no prototype commits, a tag or a base that
+    moved since that check, or a changed path no item locates; returns the audited pair to pin."""
+    if not _plan_is_prototype_opted_in(fm):
+        return None
+    read = _plan_prototype_read(REPO_ROOT, fm, body)
+    if read["fault"]:
+        _die(f"{slug}: plan stage accepted refused — the prototype carry registry: {read['fault']} "
+             f"(SPEC-1058 §2). Fix the plan, then re-run `yitc-v2 plan check {slug}`.")
+    rec_tip, rec_base = str(av.get("prototype_commit") or ""), str(av.get("prototype_base") or "")
+    if not rec_tip or not rec_base:
+        _die(f"{slug}: the recorded `plan check` verdict carries no prototype_commit/prototype_base — it "
+             f"predates the plan's prototype_ref or the carry registry (SPEC-1058 §2). Re-run "
+             f"`yitc-v2 plan check {slug}`.")
+    if read["tip"] != rec_tip:
+        _die(f"{slug}: the prototype tag {fm.get('prototype_ref')} moved since the accept check — the check "
+             f"audited {rec_tip[:12]}, the tag now names {read['tip'][:12]}. Accept pins exactly the "
+             f"audited commit (SPEC-1058 §2): re-run `yitc-v2 plan check {slug}`.")
+    if read["base"] != rec_base:
+        _die(f"{slug}: the prototype base moved since the accept check — the check audited "
+             f"{rec_base[:12]}...{rec_tip[:12]}, merge-base(main, tip) is now {read['base'][:12]} "
+             f"(main advanced into the prototype's history). Re-run `yitc-v2 plan check {slug}`.")
+    missing = _plan_prototype_unlocated(read["items"], read["paths"])
+    if missing:
+        _die(f"{slug}: plan stage accepted refused — {len(missing)} changed path(s) of "
+             f"`git diff {rec_base[:12]}...{rec_tip[:12]}` are located by NO registry item: "
+             f"{', '.join(missing)}. Add an item (a formatting-only change is a `supporting` item) or a "
+             f"`not-carried` item with its owner_row (SPEC-1058 §3), then re-run `yitc-v2 plan check {slug}`.")
+    return {"prototype_tip": rec_tip, "prototype_base": rec_base}
+
+
+def _plan_prototype_lines_error(value) -> "str | None":
+    """SPEC-1058 §3 — one `prototype_lines` value: `all` (the verifier), or a list of distinct `R-<n>`
+    item ids, `[]` being a card that builds no item. None when well-formed, else the fault."""
+    if value == "all":
+        return None
+    if not isinstance(value, list):
+        return f"`{value}` is neither `all` nor a list of item ids"
+    for rid in value:
+        if not isinstance(rid, str) or not _PROTO_ITEM_ID_RE.match(rid):
+            return f"`{rid}` is not an item id `R-<n>`"
+    if len(set(value)) != len(value):
+        return "an item id is listed twice"
+    return None
+
+
+def _proto_ids(ids) -> str:
+    """Item ids in registry order (R-2 before R-10), comma-joined."""
+    return ", ".join(sorted(ids, key=lambda rid: int(rid[2:])))
+
+
+def _plan_prototype_cut_faults(fm: dict, body: str, rows: list, accept: dict, *, _plan_content_hash) -> list:
+    """SPEC-1058 §3 at the gate to `executing`: every fault of the cut, by list comparison only. `rows`
+    is `_plan_cut_rows`; a `wont-do` card builds nothing and is out of the check (the picker reads a
+    wont-do `requires` target the same way). `accept` is the recorded accept `plan check` verdict."""
+    owner_read, items, fault = _plan_prototype_registry(body)
+    if fault:
+        return [f"the registry: {fault}"]
+    ref, faults = str(fm.get("prototype_ref") or "").strip(), []
+    tip, base = str(fm.get("prototype_tip") or "").strip(), str(fm.get("prototype_base") or "").strip()
+    if not tip or not base:
+        faults.append("the plan pins no prototype_tip/prototype_base — `plan stage accepted` writes them")
+    if accept.get("content_hash") != _plan_content_hash(body):
+        faults.append("the accept verdict is not fresh for the current plan body (registry included)")
+    if tip and base and (accept.get("prototype_commit") != tip or accept.get("prototype_base") != base):
+        faults.append(f"the accept verdict audited {accept.get('prototype_commit')}, not the pinned "
+                      f"prototype_tip {tip}")
+    live = [r for r in rows if r["status"] != "wont-do"]
+    if not live:
+        return faults + ["the cut is empty — no live task card carries `decomposed_from` this plan"]
+    by_id = {it["id"]: it for it in items}
+    owners, verifiers = {rid: [] for rid in by_id}, []
+    for r in live:
+        tid, lines = r["id"], r["doc"].get("prototype_lines")
+        card_ref = str(r["doc"].get("prototype_ref") or "").strip()
+        if card_ref != ref:
+            faults.append(f"{tid} names prototype `{card_ref or 'none'}`, the plan's is `{ref}`")
+        if lines is None:
+            faults.append(f"{tid} declares no prototype_lines")
+            continue
+        err = _plan_prototype_lines_error(lines)
+        if err:
+            faults.append(f"{tid} has malformed prototype_lines: {err}")
+        elif lines == "all":
+            verifiers.append(r)
+        else:
+            for rid in lines:
+                if rid not in by_id:
+                    faults.append(f"{tid} names unknown item {rid}")
+                elif by_id[rid]["disposition"] != "carry":
+                    faults.append(f"{tid} names not-carried item {rid}")
+                else:
+                    owners[rid].append(tid)
+    carry = [it for it in items if it["disposition"] == "carry"]
+    zero, many = set(), {}
+    for it in carry:
+        rid, who = it["id"], owners[it["id"]]
+        if not who and it["kind"] == "supporting":   # owned through the items it serves, or directly
+            served = set(re.findall(r"\bR-[1-9][0-9]*\b", it["what"])) - {rid}
+            who = sorted({t for s in served if s in by_id and by_id[s]["disposition"] == "carry"
+                          for t in owners[s]})
+        if not who:
+            zero.add(rid)
+        elif len(who) > 1:
+            many[rid] = who
+    if zero:
+        faults.append(f"carry item(s) owned by NO writer: {_proto_ids(zero)}")
+    if many:
+        faults.append(f"carry item(s) owned by TWO writers: {_proto_ids(many)} ("
+                      + "; ".join(f"{rid}: {', '.join(many[rid])}" for rid in many) + ")")
+    if len(verifiers) != 1:
+        faults.append(f"exactly one `all` card is required, the cut has {len(verifiers)}"
+                      + (f" ({', '.join(v['id'] for v in verifiers)})" if verifiers else ""))
+    else:
+        vid = verifiers[0]["id"]
+        needs = {str(x).strip() for x in verifiers[0]["doc"].get("requires") or []}
+        missing = sorted(r["id"] for r in live if r["id"] != vid and r["id"] not in needs)
+        if missing:
+            faults.append(f"the `all` card {vid} does not require: {', '.join(missing)}")
+        back = sorted(r["id"] for r in live if vid in {str(x).strip() for x in r["doc"].get("requires") or []})
+        if back:
+            faults.append(f"the `all` card {vid} must be the cut's last card, but it is required by: "
+                          f"{', '.join(back)}")
+    return faults
+
+
+def _plan_prototype_cut_packet(body: str, rows: list) -> str:
+    """The fidelity packet block of an opted-in plan: the registry verbatim, each card's declared lines
+    and SPEC-1058 §3's question about the verifier."""
+    lines = "\n".join(f"- {r['id']} ({r['status']}): {r['doc'].get('prototype_lines')!r}" for r in rows)
+    return (
+        "\n\n## Prototype carry registry (SPEC-1058 §3 — the fidelity question)\n\n"
+        "The kernel's list checks passed before this audit: lines, ownership, one prototype, the verifier "
+        "last. Judge the meaning: does the `all` card's acceptance walk and record EVERY registry item on "
+        "the acceptance stand over landed main, and route each failure under SPEC-1058 §3 — the SPEC-0205 "
+        "rule 7 acceptance-finding route or an owner settlement on the item?\n\n"
+        f"### prototype_lines per card\n\n{lines}\n\n"
+        f"### Registry (verbatim)\n\n{(_plan_prototype_registry_section(body) or '').strip()}\n")
+
+
+def _plan_prototype_freshness_suffix(repo_root, fm) -> str:
+    """'' for a plan that does not opt in (the basis is then byte-identical); else the pinned pair, or
+    — before accept — the tag commit and its merge-base. An unresolvable pair hashes as a marker, so
+    the gate still compares (and the accept refusal above names the cause first)."""
+    if not _plan_is_prototype_opted_in(fm) or repo_root is None:
+        return ""
+    tip, base, fault = _plan_prototype_commits(repo_root, fm)
+    return f"|PROTO {tip or '-'} {base or '-'}" + (" unresolved" if fault else "")
+
+
+def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UNSET, *, SPECS_DIR, _plan_active_proposed_corpus, _plan_content_hash, _plan_scenario_fidelity, _read_yaml, _spec_content_sans_status, REPO_ROOT=None) -> str:
     """T-0332 accept-gate freshness basis — sha256 over the plan body content_hash + the plan's
     OWN spec CONTENT + the EXTERNAL active+proposed corpus CONTENT. Mirrors `_plan_corpus_signature`
     (the close-gate basis) but binds the accept-relevant inputs so the draft→proposed BIRTH is
@@ -2095,16 +2528,22 @@ def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=_SF_UN
             sid = d.get("id") or p.stem
             own_ids.add(sid)
             own.append(f"OWN {sid}\n{_spec_content_sans_status(p.read_text(encoding='utf-8'))}\n")
+    # T-14456 (SPEC-1058 §2) — an opted-in plan's prototype pair joins the basis; '' otherwise, so
+    # every non-opted basis below is byte-identical to before.
+    proto = _plan_prototype_freshness_suffix(REPO_ROOT, fm)
     if not own_ids:
-        if not scen:
+        if not scen and not proto:
             return _plan_content_hash(body)   # NO plan-born specs + no scenario slice → legacy plan-body-only basis
-        return hashlib.sha256(f"{_plan_content_hash(body)}|SCEN\n{scen}".encode("utf-8")).hexdigest()
+        if not scen:
+            return hashlib.sha256(f"{_plan_content_hash(body)}{proto}".encode("utf-8")).hexdigest()
+        return hashlib.sha256(f"{_plan_content_hash(body)}|SCEN\n{scen}{proto}".encode("utf-8")).hexdigest()
     own_s = "".join(sorted(own))
     corpus = "".join(f"CORPUS {sid}:{st}\n{raw}\n"
                      for sid, st, _t, raw in _plan_active_proposed_corpus() if sid not in own_ids)
     basis = f"{_plan_content_hash(body)}|{own_s}|{corpus}"
     if scen:
         basis += f"|SCEN\n{scen}"
+    basis += proto
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()
 
 
@@ -2508,7 +2947,7 @@ def _plan_gate_template_text(template: str, *, _find_spec_path):
         return None
 
 
-def _plan_gate_decision_route(slug, gate_id, template) -> str:
+def _plan_gate_decision_route(slug, gate_id, template, keys=None) -> str:
     """The SPEC-0204 plan-gate decision route, spelled ONCE (T-12335).
 
     THREE sites print it — the retired `--owner-reset` shim, the ordinary ceiling refusal, and the
@@ -2517,14 +2956,27 @@ def _plan_gate_decision_route(slug, gate_id, template) -> str:
     T-11250 lesson is precisely that a refusal reached under pressure must print the EXACT invocation:
     the gate id and the template name are DIFFERENT identifiers and both are real, so both are named.
 
+    T-14409 (<project> X-2157) — with `keys` (the open finding keys the caller resolved) step 1 is
+    printed READY, one `audit decide` line per key; without them it keeps the `<fp>` placeholder.
+    The `plan stage` target is read off a `gate-<status>` template name (the gate guards the move
+    INTO `<status>`); any other template keeps `<NEXT>`.
+
     Pure f(args); never raises."""
     gate = gate_id or "<gate>"
+    tmpl = str(template or "")
+    nxt = tmpl[len("gate-"):] if tmpl.startswith("gate-") and len(tmpl) > len("gate-") else "<NEXT>"
+    tail = "--disposition fix|accept|defer --reason … --directive events.jsonl#ts=<ISO>"
+    if keys:
+        step1 = (f"  1) one decision per open finding ({len(keys)}):\n"
+                 + "".join(f"     yitc-v2 audit decide --plan {slug} --gate {gate} --finding {k} "
+                           f"{tail}\n" for k in keys))
+    else:
+        step1 = (f"  1) yitc-v2 audit decide --plan {slug} --gate {gate} --finding <fp> {tail}\n"
+                 f"     (ONCE PER RESIDUAL — the refusal above, or the `--on-decisions` run below, "
+                 f"names the undecided ones)\n")
     return ("Run, verbatim:\n"
-            f"  1) yitc-v2 audit decide --plan {slug} --gate {gate} --finding <fp> "
-            f"--disposition fix|accept|defer --reason … --directive events.jsonl#ts=<ISO>\n"
-            f"     (ONCE PER RESIDUAL — the refusal above, or the `--on-decisions` run below, names "
-            f"the undecided ones)\n"
-            f"  2) yitc-v2 plan stage <NEXT> {slug} --on-decisions\n"
+            + step1
+            + f"  2) yitc-v2 plan stage {nxt} {slug} --on-decisions\n"
             f"NOTE the two identifiers are DIFFERENT and both are real: `{template}` is the "
             f"audit-record/template name, `{gate}` is the value `--gate` takes (SPEC-1034 gate "
             f"identity). A plan-gate `fix` is a PLAN-BODY edit whose `--evidence` is the plan's "
@@ -2845,36 +3297,20 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
             # halt that names no fingerprint makes the Controller re-derive them by hand (the task-arm
             # rule-6 lesson). The two identifiers stay told apart: `{template}` is the audit-RECORD's
             # name, `{gate_id}` is the value `--gate` takes (SPEC-0124 gate identity).
-            _fps = []
-            _no_residual = False      # T-13860 — the row RESOLVED and names no residual
-            if gate_id:
-                _ceil = audit_lib._ceiling_row_of(_od_stage_rows) if _od_stage_rows else None
-                # T-13860 — the saved record answers for the read-time SYNTHETIC row only, exactly
-                # as in the admission above: a journal row is read from the row, so this refusal
-                # and that admission cannot disagree about which row is empty or unresolvable.
-                _ceil_record = None
-                if _ceil is None and isinstance(prior, dict) and prior:
-                    _ceil_record = prior
-                    _ceil = audit_lib.plan_gate_synthetic_ceiling_row(
-                        slug, gate_id, template, prior,
-                        saved_to=str(audit_path.relative_to(REPO_ROOT)))
-                if _ceil is not None:
-                    _r = audit_lib.on_decisions_residuals(
-                        _ceil, _od_stage_rows, slug, gate_id, repo_root=[REPO_ROOT],
-                        decisions_dir=DECISIONS_DIR, record=_ceil_record)
-                    if not _r.get("unresolvable"):
-                        _fps = list(_r.get("keys") or ())
-                        _no_residual = not _fps
+            _fps, _no_residual = _plan_gate_residual_keys(
+                slug, gate_id, template, _od_stage_rows, prior, audit_path,
+                REPO_ROOT=REPO_ROOT, DECISIONS_DIR=DECISIONS_DIR)
             if _worker_ref:
                 _append_event("bg_dispatch_halted", None, {
                     "kind": "plan_gate_audit_ceiling", "plan_slug": slug, "gate": gate_id,
                     "template": template, "prior_passes": prior_passes,
                     "residual_fingerprints": _fps, "worker_ref": _worker_ref,
                     "pass_ceiling": AUDIT_PASS_CEILING})
-            _die(f"{slug}: audit-loop ceiling reached at the {template} gate ({prior_passes} passes on "
-                 f"record in {audit_path.name}); pass {prior_passes + 1} is admitted ONLY by the "
-                 f"SPEC-1039 decision route — never a silent loop, and no longer a consult or an "
-                 f"owner reset (rule 6, plan-gate arm).\n"
+            _die(f"{slug}: the next round at the {template} gate is decision-bounded ({prior_passes} "
+                 f"passes on record in {audit_path.name}); a plan has NO pass-count ceiling, and pass "
+                 f"{prior_passes + 1} runs on recorded decisions, not on a plain re-run — record one "
+                 f"decision per open finding, then run `--on-decisions` (SPEC-1039 rule 9(f); no "
+                 f"consult or owner reset, rule 6, plan-gate arm).\n"
                  + (f"RESIDUAL FINGERPRINT(S) of this gate's ceiling row ({len(_fps)}): "
                     f"{', '.join(_fps)}\n" if _fps else
                     "This gate's ceiling row names NO residual: there is nothing to decide, and the "
@@ -2882,7 +3318,7 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
                     "`--on-decisions`.\n" if _no_residual else
                     "The residual fingerprints could not be resolved from this gate's ceiling row or "
                     "saved record — run the route below and it will name what is undecided.\n")
-                 + _plan_gate_decision_route(slug, gate_id, template)
+                 + _plan_gate_decision_route(slug, gate_id, template, keys=_fps)
                  + (("\nA DISPATCHED WORKER STOPS HERE too (SPEC-0103 §3): the halt row carries no "
                      "fingerprint because this row names no residual; the Controller re-runs this "
                      "command with `--on-decisions`." if _no_residual else
@@ -3166,7 +3602,9 @@ def _run_plan_gate_audit(slug: str, fm: dict, body: str, template: str, gate_pol
     if blocking and verdict in ("RED", "ABORT"):
         _die(f"{slug}: the {template} gate is MANDATORY-BLOCKING and the verdict is {verdict} — "
              f"the transition is held (status unchanged). "
-             + ((PLAN_GATE_RED_RETRY_NOTE
+             + ((_plan_gate_red_note(slug, gate_id, template, audit, audit_path, _folded_events,
+                                     AUDIT_PASS_CEILING=AUDIT_PASS_CEILING, REPO_ROOT=REPO_ROOT,
+                                     DECISIONS_DIR=DECISIONS_DIR)
                  if _od is None else
                  f"This WAS the SPEC-0204 rule-3 pass on {_od['ceiling_ref']}; the plan-gate budget is "
                  f"{audit_lib.PLAN_GATE_BUDGET} (rule 9(f), T-12505), so this RED is the gate's NEW "
@@ -3189,6 +3627,70 @@ PLAN_GATE_RED_RETRY_NOTE = (
     "Absorb the findings and re-run — a plan has NO pass-count ceiling "
     "(patterns/methodology-lessons.md Lesson 11); from the third round each round runs once every "
     "open finding carries a recorded decision (SPEC-0204 rule 9(f), budget: decision-bounded).")
+
+
+def _plan_gate_residual_keys(slug, gate_id, template, stage_rows, record, audit_path, *,
+                             REPO_ROOT, DECISIONS_DIR):
+    """The open finding keys of a plan gate's ceiling row → `(keys, no_residual)` (T-14409).
+
+    ONE reader for the two surfaces that print the decision route — the pass-2 RED note and the
+    pass-3 plain-run refusal — so both name the SAME keys (moved verbatim out of the refusal). The
+    journal ceiling row answers first; else the read-time SYNTHETIC row of the saved record
+    (T-13860). Unresolvable or no gate id → `([], False)`: nothing is invented.
+
+    Never raises past its own reads; a failing read yields `([], False)`."""
+    if not gate_id:
+        return [], False
+    try:
+        _ceil = audit_lib._ceiling_row_of(stage_rows) if stage_rows else None
+        _ceil_record = None
+        if _ceil is None and isinstance(record, dict) and record:
+            _ceil_record = record
+            _ceil = audit_lib.plan_gate_synthetic_ceiling_row(
+                slug, gate_id, template, record,
+                saved_to=str(audit_path.relative_to(REPO_ROOT)))
+        if _ceil is None:
+            return [], False
+        _r = audit_lib.on_decisions_residuals(
+            _ceil, stage_rows, slug, gate_id, repo_root=[REPO_ROOT],
+            decisions_dir=DECISIONS_DIR, record=_ceil_record)
+    except Exception:                       # noqa: BLE001 — a note never fails the verb
+        return [], False
+    if _r.get("unresolvable"):
+        return [], False
+    keys = list(_r.get("keys") or ())
+    return keys, not keys
+
+
+def _plan_gate_red_note(slug, gate_id, template, audit, audit_path, folded_events, *,
+                        AUDIT_PASS_CEILING, REPO_ROOT, DECISIONS_DIR) -> str:
+    """What a blocking plain-run plan-gate RED tells its reader to do next (T-14409, X-2157).
+
+    Below the TASK pass count the reader absorbs and re-runs (`PLAN_GATE_RED_RETRY_NOTE`, unchanged).
+    From that count on the NEXT round is decision-bounded (SPEC-1039 rule 9(f)), so the note LEADS
+    with the decision step and prints the ready commands with this gate's open finding keys — the
+    same keys and the same route the refused plain run prints."""
+    try:
+        passes = int((audit or {}).get("passes") or 0)
+    except (TypeError, ValueError):
+        passes = 0
+    if passes < AUDIT_PASS_CEILING:
+        return PLAN_GATE_RED_RETRY_NOTE
+    rows = []
+    if gate_id and folded_events is not None:
+        try:
+            rows = audit_lib._stage_audit_rows(list(folded_events()), slug, gate_id)
+        except Exception:                   # noqa: BLE001 — fall back to the saved record alone
+            rows = []
+    keys, _none = _plan_gate_residual_keys(slug, gate_id, template, rows, audit, audit_path,
+                                           REPO_ROOT=REPO_ROOT, DECISIONS_DIR=DECISIONS_DIR)
+    return (f"This RED is pass {passes}: the next round at this gate is decision-bounded — it runs "
+            f"once every open finding carries a recorded decision, not on a plain re-run (a plan "
+            f"has NO pass-count ceiling; SPEC-1039 rule 9(f), patterns/methodology-lessons.md "
+            f"Lesson 11). Next: record one decision per open finding, then run `--on-decisions`.\n"
+            + ("" if keys else "The open finding keys could not be read here — the `--on-decisions` "
+               "run names the undecided ones.\n")
+            + _plan_gate_decision_route(slug, gate_id, template, keys=keys))
 
 
 def _build_draft_check_prompt(slug: str, fm: dict, body: str, large: bool,
@@ -3434,6 +3936,20 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     prompt = _build_draft_check_prompt(slug, fm, body, large,
                                        template_name=stage_template, template_text=template_text,
                                        focus=focus, sf=sf, coverage_out=coverage)
+    # T-14456 (SPEC-1058 §2-§3) — an opted-in plan's accept packet carries the base diff beside the
+    # registry; a bad ref or a malformed list refuses HERE, before the auditor (no pass spent). A plan
+    # without prototype_ref takes no branch: prompt and record stay byte-identical.
+    proto_read = None
+    if _plan_is_prototype_opted_in(fm):
+        proto_read = _plan_prototype_read(REPO_ROOT, fm, body)
+        if proto_read["fault"]:
+            _append_event("read_gate_refused", None, {
+                "verb": "plan check", "action": "audit the plan accept gate", "target_kind": "plan",
+                "plan_slug": slug, "reason": "prototype-registry-fault", "fault": proto_read["fault"]})
+            _die(f"{slug}: plan check refused before the auditor — the prototype carry registry: "
+                 f"{proto_read['fault']} (SPEC-1058 §2). No pass spent; fix the plan, then re-run "
+                 f"`yitc-v2 plan check {slug}`.")
+        prompt += _plan_prototype_packet(REPO_ROOT, fm, body, proto_read)
     prompt_excerpt = prompt[:200]   # opens at the fixed lens — the focus block is unreachable (T-0350 F3)
     # T-12828 (X-1529) — REFUSE before the auditor when the block cannot carry its whole subject (a draft
     # over its pool, or a related comparand that no longer fits): no pass spent, sizes named.
@@ -3545,6 +4061,10 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     # verdict rests on a partial read; a full-reach gate writes no key (AC2 byte-identity).
     if corpus_coverage:
         audit["corpus_coverage"] = corpus_coverage
+    # T-14456 — the prototype + base commits THIS packet carried; `plan stage accepted` pins exactly them.
+    if proto_read is not None:
+        audit["prototype_commit"] = proto_read["tip"]
+        audit["prototype_base"] = proto_read["base"]
     # T-11299 (X-0999) — WAS THIS ABORT THE WALL-CLOCK BUDGET RUNNING OUT, or a governance stop?
     # `plan check` collapsed EVERY nonzero auditor rc into a bare ABORT, so the timeout cause survived
     # only as prose inside `notes:` ("auditor exit 124: timeout after 300s") — while LIFECYCLE Stage 4/8

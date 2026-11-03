@@ -711,24 +711,25 @@ body: "## Scenario\n\nThe owner opens ONE extra interactive session — the comp
   \ session** — an ordinary interactive Controller the\nowner starts, whose owner-authorized\
   \ standing batch is the land seam (`patterns/compute-controller-\nsession.md`).\
   \ Its verbs: **`venue raise`** (create from the snapshot, wait for ssh, run the\n\
-  readiness probe — fingerprint + `nofile` + the engine's test deps — and emit an\
-  \ `external_action`\n`from:` the session's card, <workshop-spec>), **`venue publish`**\
-  \ (mirror the host's main onto the box\nclone, THEN write rule 1's record; refused\
-  \ when the probe or the mirror failed), **`venue unpublish`** (remove the record\
-  \ — the explicit break-glass and the\nfirst step of every delete), **`venue delete`**\
-  \ (the whole teardown: unpublish, the refresh leg below by default, then destroy\
-  \ the box + its key; `external_action`).\n**`publish` ESTABLISHES the clone's main\
-  \ mirror before it publishes.** A clone main\nbehind the host's is not an unready\
-  \ box, but rule 3's per-request mirror heals it on the box's\nfirst request **ONLY\
-  \ while that delta push fits the 900 s transport ceiling** the push runs under\n\
-  \ — past it every request times out instead. So the heal is no longer left to the\
-  \ first\nland: `publish` runs rule 3's OWN mirror state machine (`remote_verify.mirror_main_to_box`,\n\
-  extracted from `ship_trees`, never a raw forced push) at the unpublished→published\
-  \ transition, and\nthe record exists only once the invariant holds. Rule 3's per-request\
-  \ mirror is UNCHANGED — host\nmain keeps advancing after publication.\n**THE STALENESS\
-  \ BOUNDS — two quantities on one axis (delta-push seconds), each with its\nderivation.**\
-  \ (i) **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose\
-  \ delta push takes longer is STALE and is refreshed at the next teardown (the refresh\
+  readiness probe — fingerprint + `nofile` + the test deps the kernel declares in\
+  \ its own `yitc-ops.yaml` (SPEC-1032 rules 1 and 6) — and emit an `external_action`\n\
+  `from:` the session's card, <workshop-spec>), **`venue publish`** (mirror the host's\
+  \ main onto the box\nclone, THEN write rule 1's record; refused when the probe or\
+  \ the mirror failed), **`venue unpublish`** (remove the record — the explicit break-glass\
+  \ and the\nfirst step of every delete), **`venue delete`** (the whole teardown:\
+  \ unpublish, the refresh leg below by default, then destroy the box + its key; `external_action`).\n\
+  **`publish` ESTABLISHES the clone's main mirror before it publishes.** A clone main\n\
+  behind the host's is not an unready box, but rule 3's per-request mirror heals it\
+  \ on the box's\nfirst request **ONLY while that delta push fits the 900 s transport\
+  \ ceiling** the push runs under\n — past it every request times out instead. So\
+  \ the heal is no longer left to the first\nland: `publish` runs rule 3's OWN mirror\
+  \ state machine (`remote_verify.mirror_main_to_box`,\nextracted from `ship_trees`,\
+  \ never a raw forced push) at the unpublished→published transition, and\nthe record\
+  \ exists only once the invariant holds. Rule 3's per-request mirror is UNCHANGED\
+  \ — host\nmain keeps advancing after publication.\n**THE STALENESS BOUNDS — two\
+  \ quantities on one axis (delta-push seconds), each with its\nderivation.** (i)\
+  \ **The ONE staleness bound is 120 s of delta push** — a seed snapshot\nwhose delta\
+  \ push takes longer is STALE and is refreshed at the next teardown (the refresh\
   \ leg\nbelow). It is a refresh TRIGGER, derived as ~2.5× the measured fresh-snapshot\
   \ band of 42–48 s\n(the AC2 ceiling), deliberately far below the point of failure\
   \ — 7.5× under the\ntransport ceiling. It is declared ONCE where it is measured\
@@ -1041,7 +1042,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/cli.py#cmd_venue_publish: f3499427484d6d84a3f064658da9b581d1f08798622595b11380da0545194e20
+  bin/lib/cli.py#cmd_venue_publish: 953dc19580c2dbaa96dd6d84f1c94c42c47dabb04f01def3499d617ec9d953b1
   bin/lib/remote_verify.py#ParkedPreship: 0faeee925227453f0ad571bcd11393c1729e55ad23ce78bff9819a8bcfbdb1ac
   bin/lib/remote_verify.py#SHIP_PUSH_TIMEOUT_S: 2c319cde46aece5469cebfff02bfbe21ddf7659aefe0dc7fb7065d49809596ef
   bin/lib/remote_verify.py#box_lease_prologue: 5519e46317f9b8cfae6bfc08efcf06a6c9708c3975f1043aea2e68104db6613a
@@ -1065,7 +1066,7 @@ implements_signature:
   bin/lib/task.py#_stage6_ordered_admission: b9861c0b99fe0833a5ace3165e621a5bdc41ef006b2f7a33f6e9bc743fa510a2
   bin/lib/task.py#_stage6_queue_jump: 219f2e29eab0f451cf8b2689b38189257ddf8382367db1bd6dbda40c4fd43e3b
   bin/lib/task.py#_stage6_waiters_ahead: e9825bcd04fd538bcbf8cadcfa9549d863b2bb7848f0ce1a9bdbf0cbe54e493a
-  bin/lib/task.py#cmd_task_test: 9e5675037a946920be9daa29fa40eedace95066ca25a4302a408e7724e2921ee
+  bin/lib/task.py#cmd_task_test: 6118eeaee705c3e0dfee4669c823bae571a74d797461ec3a0fb03b2b17c5568a
   bin/lib/venue.py#REFRESH_BOUND_S: c8723aa504fb57a7387f1d6a837427d98ef3495bd9c944fce04d22e87d451940
   bin/lib/venue.py#clear_record: cef96cf1dbd5b98ec316c54355c357428f4f437c3f70454967ac28a653bb4e5d
   bin/lib/venue.py#create_server: 8d4174362c414d091bb8acbe20d700fec83ee4c106280d14daba0af9fc0d67cd
@@ -1077,7 +1078,7 @@ implements_signature:
   bin/lib/venue.py#teardown_refresh: 3ef38e26cfece1075edaa9a19bccdbfc0176b990b6b15e1d79183968cb627d84
   bin/lib/venue.py#write_record: 4081dc2ee4b5a9e14c85d760564e3013d083bd364ac1a429951cc5ebadfcadc2
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
-  bin/lib/verify_runner.py#_run_verify_tests: 1db401a797ad3eb8e1ff4177c31dbf3338359dcec592c2f6dbdbabca0be7530c
+  bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731
   bin/lib/verify_runner.py#_verify_worker_governor: 65c9f0b77417e00edf2df29ebba5c02cb40678e3bb1718fb9adc031d5961fe68
-  bin/lib/worktree.py#_land_integrate: 23290c560206fe109a21c955e3aa24343079ddfc7b3aa2964c9d3814de277d84
+  bin/lib/worktree.py#_land_integrate: ed8dc83502e80c083a9153f5e7c4da9fbda4090cfb2cec7b69780468eedc1663

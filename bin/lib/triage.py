@@ -1164,10 +1164,15 @@ def cmd_triage_run(args: argparse.Namespace, *, ERRORS_DIR, EVENTS_PATH, _append
         # stay in the queue — a partial completion, not all-or-nothing.
         eo_fps = {fp for grp in (getattr(args, "event_only", None) or []) for fp in grp}
         eo_rest = bool(getattr(args, "event_only_rest", False))
-        for fp in sorted(eo_fps):
-            if not any(c["fp"] == fp for c in carrierless):
-                _die(f"triage run --complete --event-only: {fp!r} names no carrier-less capture in this "
-                     f"window — nothing to dispose (T-13015, fail-closed).")
+        # T-14474: collect EVERY unmatched name before refusing, so one call names them all (the
+        # die-on-first loop cost one full journal re-fold per carrier-held fingerprint).
+        unmatched = [fp for fp in sorted(eo_fps) if not any(c["fp"] == fp for c in carrierless)]
+        if unmatched:
+            _die(f"triage run --complete --event-only: {len(unmatched)} fingerprint(s) name no "
+                 f"carrier-less capture in this window (a carrier already routes it, or it has no "
+                 f"capture here) — nothing to dispose: {', '.join(repr(fp) for fp in unmatched)} "
+                 f"(T-13015, fail-closed; nothing was recorded). Drop them and re-run "
+                 f"`bin/yitc-v2 triage run --complete --event-only <the remaining fingerprints>`.")
         undispositioned = []
         for c in carrierless:
             if eo_rest or (c["fp"] and c["fp"] in eo_fps):
@@ -1783,30 +1788,12 @@ def cmd_triage_sweep(args: argparse.Namespace, *, DECISIONS_DIR, REPO_ROOT, SPEC
     previews (mutates nothing); a real run commits the move in a writing worktree. The fired-unacted
     CHECK half is the view: `yitc-v2 graph query displacement-retention`."""
     if getattr(args, "dry_run", False):
-        # preview: classify in place, move nothing (a plain rename closure that we DON'T call)
-        import yaml
-        preview = []
-        for tid in _closed_task_ids():
-            for src in sorted(DECISIONS_DIR.glob(f"{tid}-audit-*.yaml")):
-                try:
-                    rec = state.load_str(src.read_text(encoding="utf-8"))
-                except (yaml.YAMLError, OSError):
-                    rec = None
-                lane = "audit-escalation" if _audit_route_is_escalation(rec) else "audit-routine"
-                preview.append((str(src.relative_to(REPO_ROOT)), lane))
-        # T-9727 — also preview the NON-task-keyed adhoc/gate/consult YAMLs of TERMINAL targets.
-        for src in sorted(DECISIONS_DIR.glob("*-audit-*.yaml")):
-            try:
-                rec = state.load_str(src.read_text(encoding="utf-8"))
-            except (yaml.YAMLError, OSError):
-                rec = None
-            if not _audit_target_is_terminal(rec):
-                continue
-            lane = "audit-escalation" if _audit_route_is_escalation(rec) else "audit-routine"
-            preview.append((str(src.relative_to(REPO_ROOT)), lane))
+        # preview = the real sweep's own walk with every move withheld (T-14475): the count and the list
+        # are what the real run then moves, never a re-implemented approximation of it.
+        preview = _displacement_retention_sweep(plan_only=True)["moved"]
         print(f"# triage sweep --dry-run (SPEC-0052) — {len(preview)} audit YAML(s) would be archived")
-        for relsrc, lane in preview:
-            print(f"  {relsrc}  ->  decisions/archive/{lane}/")
+        for relsrc, reldst, _lane in preview:
+            print(f"  {relsrc}  ->  {reldst}")
         if not preview:
             print("  (none — every drainable audit YAML is already archived; idempotent no-op)")
         return

@@ -200,10 +200,12 @@ Default to the PLAIN register the owner otherwise has to request with an "explai
 
 **Keep technical identifiers EXACT — but always gloss them.** Never rename / translate / paraphrase the token itself: verb & command names (`bin/yitc-v2 land`), ids (`SPEC-XXXX` / `T-XXXX` / `E-XXXX` / `X-XXXX`), event names, field keys, file paths. Pair each with a plain gloss in the surrounding sentence (precise token, plain sentence). "Exact" ≠ "unexplained". This is a REGISTER rule, distinct from the LANGUAGE rule below (the user's language vs English) — it governs how plainly owner-facing prose is phrased, not which language.
 
+Evidence before claim: distinguish observations from explanations; label unverified causes as hypotheses and forecasts as estimates, stating their basis. Rule body: SPEC-0060 §Evidence before claim (`bin/yitc-v2 graph query SPEC-0060`).
+
 ## Language
 <!--AUDIENCE:core-->
 
-- **Person-facing communication** (chat replies, briefs, owner-directed messages / pings) — in **the user's language** (how it is determined: SPEC-0086 rule 6f(d)), never a fixed one.
+- **Person-facing communication** (chat replies, briefs, owner-directed messages / pings) — in **the user's language** (how it is determined: SPEC-0086 rule 6f(d)), never a fixed one. That includes interim lines between tool calls.
 - **Code, commits, and identifiers** (source, commit messages, task / decision / spec IDs, event & verb names, YAML field keys) — **English**.
 
 This is V2's OWN rule, no longer inherited from the non-normative global `<host-home>/<vendor-adapter>.md` : AGENTS-STARTUP.md is part of the always-loaded session seed, so a `/clear`'d V2 session that holds **zero** global context still has it. **Distinct concern** from CHARTER §Principle 4b (provider-neutral *methodology text* — no provider brand names in normative docs); see it there, this section does not restate it.

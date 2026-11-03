@@ -173,7 +173,8 @@ verify:
   # machine setting · default; a malformed value fails the land CLOSED. HOW TO CHOOSE THE NUMBER: SPEC-0208.
   # BORN LAYER `integrity` — the engine's corpus check over THIS checkout: spec binding
   # tokens + the derived graph files (`graph build` refreshes them). Hermetic and read-only, needs
-  # no test files. Add your own layers beside it; it is also the quick set `post_sync_set` names.
+  # no test files. Add layers with a per-test adapter (patterns/verify-layer-adapter-protocol.md)
+  # beside it; it is also the quick set `post_sync_set` names.
   # `--strict` also fails a dead implements anchor, a stale anchor signature, a stale index.
   layers:
     - layer: integrity
@@ -183,15 +184,10 @@ verify:
   # An OPT-IN key this section gates a kernel capability on. ABSENT is the fail-closed default, so
   # nothing below is engaged until you write it in — and leaving it commented is a legitimate answer,
   # as long as it is a KNOWING one. Uncomment and answer to make the choice; the kernel never infers it.
-  #
   # combined_candidate_safe: true # (SPEC-0152)
   # turns on: land-verify BATCHING — several queued lands verified TOGETHER, in ONE pass over a
-  # combined candidate, instead of a full verify per land. Declare it only if your layers
-  # isolate one change from another: a shared fixture, port, database or build cache can make
-  # one member's failure indistinguishable from a peer's, which is why the kernel cannot infer
-  # this.
+  # combined candidate, instead of a full verify per land.
   # while absent: every land is verified alone — batches of one, whatever the queue depth.
-  #
   # independent_layers: [static, frontend-unit] # (SPEC-0152)
   # turns on: CONCURRENT land-verify layers — the layers named here run OVERLAPPED in one land
   # instead of one after another (the wall drops from their sum towards their longest). YOU
@@ -205,25 +201,17 @@ verify:
   # land closed.
   # while absent: every declared layer runs serially, in declaration order — the verify wall is
   # their sum.
-  #
   # layer_worker_shares: {static: 0.1, frontend-unit: 0.6, stack: 0.2, sandbox: 0.1} # (SPEC-0152)
   # turns on: HOW YOU SPLIT the land's worker allotment across your layers — a mapping of layer
   # name to that layer's FRACTION (a number in (0, 1], never a core count, so a change to the
-  # kernel's allotment re-splits automatically and nothing here is rewritten). The kernel
-  # declares the form, validates it, records each share beside the CPU that layer actually
-  # consumed, and keeps publishing the WHOLE allotment in YITC_VERIFY_LAYER_WORKERS; it
-  # computes nothing and publishes no per-layer number. YOU split it and scale your own
-  # runners — only you know what your layers do. The sum is deliberately unchecked: there is
-  # no over-allocation guard, and a share that floors at one worker is your arithmetic.
+  # kernel's allotment re-splits automatically and nothing here is rewritten).
   # while absent: every layer reads the whole allotment — unsplit, as today.
-  #
   # decide_first: true # (SPEC-1046)
   # turns on: DECIDE FIRST, THEN RUN — every layer of a group the run starts together first
   # decides its units (prep, list, required checks, selection), the kernel waits until all
   # have decided and names ONE file with every layer's final list in
   # YITC_VERIFY_LAYER_DECIDED, and only then any layer runs; use it to size each layer's
-  # resources against the others'. A slow layer's decide step delays the others' start, inside
-  # their own bounds.
+  # resources against the others'.
   # while absent: every layer decides and runs in one pass, as today; no file is written.
 audit_scrutiny:
   # SPEC-0178. OPT-IN. Absent ⇒ every substantive task takes audit-post. A declared case closes

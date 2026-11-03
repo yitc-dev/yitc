@@ -90,6 +90,7 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   re-accretion (durable-form guard = external territory — route on the gate).
 
 - **G2 — stated-cwd resolution:** every command in /start, the session echo and its pointers resolves from its STATED cwd; echo self-attestation is checked against receipts; the read-only echo is exercised — `bin/yitc-v2 -C <repo> --read-only session start` vs `bin/yitc-v2 journal query --type seed_read`.
+- **2026-11 refresh — the two external-only T2 findings, made checklist items:** (a) **diff the dispatch preamble clause by clause against its rule homes** (the standing preamble the dispatch launcher injects, vs the specs/patterns each clause names) — a clause naming a RETIRED route, or one whose rule has no re-readable home in the worker-seed chain / floor map / a spec, is a finding (2026-11-01: the ceiling auto-consult clause; worktree-sync-before-first-land); (b) **a derived view's kind set equals the set its rule home enumerates** — `graph query discipline-ratio` against SPEC-0059's four ratios; a kind left as a raw `other_kinds` count is a finding; (c) `read_gate_refused` concentration: report the top verb × kind cells since the last T2 row, graded by T3's ≥3-session floor; (d) new delivery surfaces: the SPEC-1023 context-epoch reading and the SPEC-1024 restoration brief (`session start --print-only`) take the three-column delivery reconcile like any startup line.
 
 ### T4 — Outcome / cost-effectiveness (context-economy)
 
@@ -273,6 +274,7 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   the emitter, or move the item to (a).
 
 - **G4 — post-close census:** per episode count abort classes, verb-generated commits and audit passes after close; read every per-project nightly verdict (project_health, born_waivers), not only `seam_reads` — `bin/yitc-v2 journal query --type land_completed` + `bin/yitc-v2 nightly`.
+- **2026-11 refresh :** the four probes the 2026-11-01 T4 run left NOT RUN (production-adoption registry census, P2 bundle-dedup union, P3 `token-rollup`/`task-scorecard`, P4 cache share) have instruments; they fall under part 2's not-run rule, not a NO-DATA line.
 
 ### T5 — Meta-loop health (ceiling-mining, postcheck-aging, roster-currency, MEMORY GC)
 
@@ -303,12 +305,11 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   `audit_self_provider_used` + the saved YAML); **roster-currency lens** — «is the inspection list itself
   stale?»: (a) system delta since the last converged refresh (closed tasks / new specs / new verbs / new
   mechanisms read against the calibration point ~220 tasks / ~34 specs / 6 days = DUE (2026-05-31→06-06)
-  — report-only, the NEW-cycle cue is the owner's, (d)); **last converged refresh = the 2026-09 cycle
-  `plans/inspection-list-refresh-2026-09-delta-recalibratio.md`, its delta measured at cutoff
-  : 1807 closures (`journal query --type task_closed --since 2026-07-17`) / 47 new spec
-  files (`git log --diff-filter=A -- specs/`) / 66 days since 2026-07-17** (narrow fold precedent:
+  — report-only, the NEW-cycle cue is the owner's, (d)); **last converged refresh = (one card, owner go 2026-11-01), cutoff : 1476
+  closures (`journal query --type task_closed --since `) / 65 new spec files (`git log
+  --diff-filter=A -- specs/`) / 41 days since the 2026-09 cycle `plans/inspection-list-refresh-2026-09-delta-recalibratio.md`** (narrow fold precedent:
   2026-06-30, kept for small deltas)); (b) M4-failure (a surface covered by no theme); (c) age of the
-  living-criteria home (last commit per served part); (d) accumulated owner-named blind slices
+  living-criteria home (last commit per served part); (c2) a probe left NOT RUN in two consecutive runs of its theme (part 2 run-mode) — retire or re-point it at the next refresh (out of the list's reach at the 2026-11 refresh: the `audit adhoc` preamble overriding the read-permitted prompt template — a verb defect routed by triage — and the converged findings themselves); (d) accumulated owner-named blind slices
   (owner-worded `owner_directive` rows — covering/preamble rows excluded) → trigger → owner cue for a NEW
   refresh cycle (template = the `inspection-list-refresh` plan); **MEMORY.md buffer GC lens** — the same
   SPEC-0039 §5(c) sweep the weekly backstop runs (one rule, two cadences): flag
@@ -371,6 +372,7 @@ applies_to: PART 3 of the single living inspection home (SPEC-0057) — the fres
   byte-match); verify-package must RE-CARRY raw rows per claim (the auditor is stateless).
 
 - **G5 — autofile + cross + postcheck invariants:** autofile fires once per fingerprint; a cross row whose task is done but not closed; the postcheck window start is reachable — `bin/yitc-v2 journal query --type deviation_captured` + `bin/yitc-v2 cross outbox` + `bin/yitc-v2 debt`.
+- **2026-11 refresh — the two primary candidates the external track refuted, made checklist items:** (a) an E-case's `investigating` age is graded only after reading its adoption probe — a probe that needs an elapsed no-recurrence window is waiting by design, not stuck; (b) the consult-class ABORT partition reports deliberate owner-decision ABORTs (`audit consult --on-demand` returning the decision to the owner) APART, never inside the rate; (c) new surface: SPEC-1012 triage currency — a capture recurring after its fix's land reads against that land time.
 
 ## The other parts of this roster
 

@@ -941,7 +941,7 @@ def _cmd_task_file_batch(args: argparse.Namespace, _main_ev, docs: list) -> None
 
 
 def _cmd_task_file_body(args: argparse.Namespace, _main_ev, _append_event_fn=None) -> None:
-    return task_mod.cmd_task_file(args, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, TASKS_DIR=TASKS_DIR, _actor=_actor, _actor_vocabulary=_actor_vocabulary, _append_event=_append_event_fn or _append_event, _as_list=_as_list, _auto_cross_pick_for_file=_auto_cross_pick_for_file, _cross_overlap_inputs=_cross_overlap_inputs, _inflight_intent_scan=_inflight_intent_scan, _declared_surface_preview=_declared_surface_preview, _die=_die, _dump_state_yaml=_dump_state_yaml, _emit_task_skeleton=_emit_task_skeleton, _format_task_verdict_line=_format_task_verdict_line, _kernel_content_file=_kernel_content_file, _id_alloc_lock=_id_alloc_lock, _main_events_path=_main_ev, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_spike_mode_hint=_print_spike_mode_hint, _report_graft_parse_errors=_report_graft_parse_errors, _require_reads=_filing_read_gate, _require_writing_worktree=_require_writing_worktree, _slug=_slug, _utc_now_iso=_utc_now_iso, _with_live_nodes=_with_live_nodes, _work_batch_next_hint=_work_batch_next_hint, graph_build_index=graph_build_index, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _advisory_read_scope=_advisory_read_scope, _observed_event_types=_observed_event_types)
+    return task_mod.cmd_task_file(args, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, TASKS_DIR=TASKS_DIR, _actor=_actor, _actor_vocabulary=_actor_vocabulary, _append_event=_append_event_fn or _append_event, _as_list=_as_list, _cross_link_held_skips=_cross_link_held_skips, _cross_overlap_inputs=_cross_overlap_inputs, _inflight_intent_scan=_inflight_intent_scan, _declared_surface_preview=_declared_surface_preview, _die=_die, _dump_state_yaml=_dump_state_yaml, _emit_task_skeleton=_emit_task_skeleton, _format_task_verdict_line=_format_task_verdict_line, _kernel_content_file=_kernel_content_file, _id_alloc_lock=_id_alloc_lock, _main_events_path=_main_ev, _print_cross_territory_routing_hint=_print_cross_territory_routing_hint, _print_spike_mode_hint=_print_spike_mode_hint, _report_graft_parse_errors=_report_graft_parse_errors, _require_reads=_filing_read_gate, _require_writing_worktree=_require_writing_worktree, _slug=_slug, _utc_now_iso=_utc_now_iso, _with_live_nodes=_with_live_nodes, _work_batch_next_hint=_work_batch_next_hint, graph_build_index=graph_build_index, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build, _advisory_read_scope=_advisory_read_scope, _observed_event_types=_observed_event_types)
 
 
 def _deliver_filing_contracts(refused: bool = False) -> list:
@@ -999,7 +999,7 @@ def cmd_task_update(args: argparse.Namespace) -> None:
     # direct-to-main commit rather than stranding a dirty card that wedges every later land (X-0274).
     # T-13415 — and it writes that commit UNDER the land reservation, taken through the SAME wrapper
     # and precedence `cmd_venue_publish` uses (T-12991), so the mark never enters `main` mid-span.
-    return task_mod.cmd_task_update(args, _qj_take_land_reservation=_qj_take_land_reservation, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _author_post_verification=_author_post_verification, _commit_worktree=_commit_worktree, _die=_die, _in_writing_worktree=_in_writing_worktree, _load_task_for_transition=_load_task_for_transition, _post_verification_gap=_post_verification_gap, _require_writing_worktree=_require_writing_worktree, _utc_now_iso=_utc_now_iso, _worktree_dirty_paths=_worktree_dirty_paths, _write_task_state=_write_task_state, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _claim_task=_claim_task, _cross_overlap_inputs=_cross_overlap_inputs, _auto_cross_pick_for_file=_auto_cross_pick_for_file)   # T-13339: the shared-log fold + filing-seam auto-pick for `--set-field resolves_cross`. T-12486: `_claim_task` = the single claim mutator, used ONLY by the unpark-into-a-preserved-worktree re-entry. T-11458: _run_git_cap drives the done-but-UNLANDED closure determination for the post-close acceptance-amend carve-out. T-11413: `_live_probe_settled_unresolved` is the SAME resolver `cmd_task_close` gets — the settle's journal-resolution half, so `task update` refuses an unresolvable `settled_by` where the author can still fix it, never a second weaker copy.
+    return task_mod.cmd_task_update(args, _qj_take_land_reservation=_qj_take_land_reservation, PLANS_DIR=PLANS_DIR, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _author_post_verification=_author_post_verification, _commit_worktree=_commit_worktree, _die=_die, _in_writing_worktree=_in_writing_worktree, _load_task_for_transition=_load_task_for_transition, _post_verification_gap=_post_verification_gap, _require_writing_worktree=_require_writing_worktree, _utc_now_iso=_utc_now_iso, _worktree_dirty_paths=_worktree_dirty_paths, _write_task_state=_write_task_state, write_text_atomic=write_text_atomic, _run_git_cap=_run_git_cap, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _claim_task=_claim_task, _cross_overlap_inputs=_cross_overlap_inputs)   # T-13339: the shared-log fold for `--set-field resolves_cross`. T-12486: `_claim_task` = the single claim mutator, used ONLY by the unpark-into-a-preserved-worktree re-entry. T-11458: _run_git_cap drives the done-but-UNLANDED closure determination for the post-close acceptance-amend carve-out. T-11413: `_live_probe_settled_unresolved` is the SAME resolver `cmd_task_close` gets — the settle's journal-resolution half, so `task update` refuses an unresolvable `settled_by` where the author can still fix it, never a second weaker copy.
 def cmd_task_pause(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pause(args, REPO_ROOT=REPO_ROOT, _append_event=_append_event, _commit_worktree=_commit_worktree, _die=_die, _in_writing_worktree=_in_writing_worktree, _load_task_for_transition=_load_task_for_transition, _require_writing_worktree=_require_writing_worktree, _utc_now_iso=_utc_now_iso, _write_task_state=_write_task_state, _iter_events=_iter_events, EVENTS_PATH=EVENTS_PATH)  # T-13537: the terminal-ceiling read rides audit._decide_journal_view
 def cmd_task_resume(args: argparse.Namespace) -> None:
@@ -1289,10 +1289,8 @@ def _recover_close_tail(tid: str, task: dict, propagation_disposition: dict | No
     return task_mod._recover_close_tail(tid, task, propagation_disposition, tail_note=tail_note, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _governing_contract_for=_governing_contract_for, _infra_adoption_seen=_infra_adoption_seen, _post_verification_gap=_post_verification_gap, _task_closed_event_exists=_task_closed_event_exists)
 def _auto_cross_done_for_close(task: dict, tid: str) -> list:
     return task_mod._auto_cross_done_for_close(task, tid, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, _cross_emit=_cross_emit, _cross_self=_cross_self, _cross_peer_aliases=_cross_peer_aliases())
-def _auto_cross_pick_for_file(task: dict, tid: str) -> tuple:
-    # T-10636: returns (advanced, held_skips) — the second element carries the already-held double-intake
-    # skips so cmd_task_file can name the holder (X-0456); previously a bare advanced-ids list.
-    return task_mod._auto_cross_pick_for_file(task, tid, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, _cross_emit=_cross_emit, _cross_self=_cross_self, _cross_peer_aliases=_cross_peer_aliases())
+def _cross_link_held_skips(task: dict, tid: str) -> list:
+    return task_mod._cross_link_held_skips(task, tid, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, _cross_self=_cross_self, _cross_peer_aliases=_cross_peer_aliases())
 def _cross_inject(kw, name):
     """T-12708 (C11b) — supply a moved `_cross_*` body's host collaborators at CALL time (the
     inject-residue seam, `audit._packet_inject`'s C11b sibling). The leaf's `INJECTS[name]` is the
@@ -1465,15 +1463,29 @@ class _TaskFileReads:
     _KEEP_EXTRA = ("triage_run_completed",)   # beside journal.CAPTURE_EVENT_TYPES, read at call time (T-14032)
 
     def __init__(self, adv, main, sref):
-        self.adv, self.main, self.sref = adv, main, sref
+        self.adv, self.main = adv, main
+        self._bind(sref)
+        self.installed = None
+        self.scans: list = []
+
+    def _bind(self, sref) -> None:
         spellings: list = []
         if sref:
             for s in (sref, json.dumps(sref, ensure_ascii=False)[1:-1], json.dumps(sref)[1:-1]):
                 if s and s not in spellings:
                     spellings.append(s)
-        self.needles = tuple(spellings)
-        self.installed = None
-        self.scans: list = []
+        self.sref, self.needles = sref, tuple(spellings)
+
+    def rebind(self, sref) -> None:
+        """T-14405 — the scope was declared on the CARRIED ref before the ref was resolved (so the
+        resolution reads its rows from the walk); a different resolved ref is declared LATE on the
+        installed scope. If that scope already walked, the late needle is refused and each gate reader
+        then reads for itself (`session_rows` -> None), exactly the answer an unscoped read gives."""
+        if sref == self.sref:
+            return
+        self._bind(sref)
+        if self.installed is not None and self.needles:
+            self.installed.add_needles(*self.needles)
 
     def declaration(self) -> dict:
         return {"needles": self.needles, "keep": {t: None for t in (*journal_mod.CAPTURE_EVENT_TYPES, *self._KEEP_EXTRA)},
@@ -1574,10 +1586,14 @@ def _advisory_read_scope(main_events_path=None):
         yield
         return
     adv = task_mod._followup_overlap_events_path(REPO_ROOT)
-    st = _TaskFileReads(adv, main_events_path, _try_resolve_session_ref())
+    # T-14405 — declared on the CARRIED ref and resolved INSIDE the scope: the resolution's own backing
+    # read (`_carried_ref_backed`) is then served by the walk instead of folding the live segment first.
+    carried = _carried_session_refs()
+    st = _TaskFileReads(adv, main_events_path, carried[0] if carried else None)
     with journal_mod.scan_scope(adv, **st.declaration()) as scope, followup_mod.fold_memo(), \
             followup_mod.fold_provider(_task_file_fold_entry):
         st.installed = scope
+        st.rebind(_try_resolve_session_ref())
         _TASK_FILE_TLS.reads = st
         try:
             yield
@@ -1677,6 +1693,12 @@ def _invocation_read_scope(args):
     which read from the task floor this scope registers, so a finalize opens each in-horizon segment
     once."""
     verb = getattr(args, "cli_invoked_receipt", None)
+    if verb in _AUDIT_INVOCATION_SCOPE_VERBS:
+        return _audit_invocation_read_scope(args)
+    if verb == "task file" and not getattr(args, "skeleton", False):
+        # T-14405 — `task file`'s one-pass scope (T-13334) opened before the envelope's session reads;
+        # the wrapper's own `with` re-enters it (`_advisory_read_scope` yields an installed one).
+        return _advisory_read_scope(main_events_path=_main_events_path())
     if verb not in _INVOCATION_SCOPE_VERBS or not getattr(args, "task", None):
         return contextlib.nullcontext()
     try:
@@ -1706,6 +1728,43 @@ def _refuse_stage_without_horizon(task, tid) -> None:
 # The verbs whose WHOLE invocation is one task-horizon ReadScope: task close (T-13330), stage (T-13302),
 # task plan (T-13306).
 _INVOCATION_SCOPE_VERBS = frozenset({"task close", "stage", "task plan"})
+# T-14405 — the audit stages whose ONE-PASS ReadScope (`audit.audit_pre_read_scope`, T-13293 / T-13332)
+# is opened around the WHOLE invocation, so the dispatch envelope's seed-read gate reads its session
+# rows from the scope's walk instead of folding the live segment a second time.
+_AUDIT_INVOCATION_SCOPE_VERBS = frozenset({"audit pre", "audit post"})
+
+
+@contextlib.contextmanager
+def _audit_invocation_read_scope(args):
+    """T-14405 — audit pre/post's one-pass ReadScope, opened BEFORE the dispatch envelope's journal
+    reads (the seed-read gate, the receipt emit) and held to the end of the invocation, so the whole
+    invocation is one walk of the live segment. The SAME declaration `_cmd_audit_dispatch` installs
+    (`_audit_task_read_scope`); the body then finds `args._audit_scope_installed` and opens no second
+    one. A pass-through for every target the scope does not cover (a plan, a decision, no task)."""
+    with _audit_plan_read_scope(args), _audit_task_read_scope(args) as scope:
+        args._audit_scope_installed = True
+        yield scope
+
+
+def _audit_plan_read_scope(args):
+    """T-13420 — `audit post --plan`'s plan-horizon scope (the one `plan stage` installs, T-13298); a
+    null context for every other target. T-13844 — not when `plan stage postcheck --on-decisions` runs
+    this pass: that verb already holds this very scope for the same plan."""
+    if (getattr(args, "plan", None) and getattr(args, "audit_action", None) == "post"
+            and getattr(args, "plan_gate_on_decisions", None) is None):
+        return plan_mod.plan_stage_read_scope(
+            argparse.Namespace(slug=args.plan), events_path=EVENTS_PATH, load_draft=_load_draft,
+            plans_dir=PLANS_DIR, session_refs=_carried_session_refs(), verb="audit post --plan")
+    return contextlib.nullcontext()
+
+
+def _audit_task_read_scope(args, consult: bool = False):
+    """The audit seam's one-pass ReadScope declaration (T-13293 pre / T-13332 post / T-13459 consult)."""
+    return audit.audit_pre_read_scope(
+        args, events_path=EVENTS_PATH, find_task_yaml=_find_task_yaml,
+        session_refs=_carried_session_refs(), main_events_path=_main_events_path,
+        spike_journal=lambda: task_mod.prototype_main_journal(REPO_ROOT),
+        evidence_factory=evidence_reducer_factory, consult=consult)
 # T-13368 — the verbs whose receipt measures the WHOLE invocation scope rather than the body (T-12840's
 # default). Their one task-horizon walk runs in the envelope (the seed-read gate) before the body mark,
 # so a body span reads 0 folds / 0 segments_skipped however many segments the horizon left unopened;
@@ -1740,7 +1799,14 @@ def _pre_deploy_stand_seam(task: dict) -> "dict | None":
     def _ops_at(rev):
         r = _run_git_cap(["show", f"{rev}:yitc-ops.yaml"], REPO_ROOT) if rev else None
         try:
-            return state.load_ops_str(r.stdout) if r is not None and r.returncode == 0 else {}
+            if r is None or r.returncode != 0:
+                return {}
+
+            def _blob(name):                               # T-14448: a sibling of THIS revision
+                g = _run_git_cap(["show", f"{rev}:{name}"], REPO_ROOT)
+                return g.stdout if g is not None and g.returncode == 0 else None
+
+            return state.materialize_ops_units(state.load_ops_str(r.stdout), _blob)
         except Exception:                                  # noqa: BLE001 — unparseable = declares nothing
             return {}
 
@@ -1815,7 +1881,7 @@ def _warn_unanswered_issue_refs_after_close(tid) -> None:
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
     with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
-        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam)
+        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -1914,6 +1980,17 @@ def cmd_task_test(args: argparse.Namespace) -> None:
             # again after the wait (the card may move while queued): a run the stage refuses writes its
             # `read_gate_refused` and takes no ticket, slot, sync or quick set.
             _stage6_stage_decision(args.task)
+            # T-14483 (SPEC-1045 rule 2 (o)) — a card whose change carries no code owes no governed run
+            # (SPEC-1038 §Closure-time coverage), so its run takes no ticket and runs nothing.
+            why = None if any(getattr(args, f, False) for f in ("full", "whole", "exclusive")) \
+                else _stage6_run_not_owed(args.task)
+            if why:
+                print(f"task test --run: no governed run is owed for {args.task} — {why}. No ticket was "
+                      "taken, nothing ran, no tests_* row was written; Closure-time coverage asks no run "
+                      f"(SPEC-1038 §Tests). Next: `yitc-v2 task close {args.task}`. To run anyway: --full.")
+                print(task_mod._test_run_token(True, f"{args.task} no governed run owed (no substantive "
+                                               "commit, every changed path inert)", word="NONE"))
+                return
         with admission_mod.task_test_entry(
                 main=adm["main"], root=REPO_ROOT, task=args.task, form="own" if own else "run",
                 kernel=not _is_consumer_build(), append_event=_append_event, sweep=_admission_sweep_runs(),
@@ -2108,6 +2185,9 @@ def _admission_land_preview(tid, main) -> list:
         mod = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(mod)
         leaks, fail = _canary_watched_leaks(mod, W)
+        # T-14469: the land reconcile-commits a rebuilt graph/index.json (step 3) before its own host-leak
+        # snapshot, so a dirty index here is not a leak the land would see; every other watched path is.
+        leaks = [ln for ln in leaks if ln[3:].strip() != "graph/index.json"]
         return bool(fail or leaks), (fail or leaks)
 
     def any_author_floor():
@@ -3311,7 +3391,9 @@ def _session_start_identity(arg_value: "str | None" = None) -> "tuple[str, str]"
         return _resolve_session_ref_with_source(arg_value)
     if EXPECTED_SESSION_REF_ENV in os.environ or os.environ.get(SELF_REF_ENV, "").strip():
         return _resolve_session_ref_with_source()
-    stamp = _read_worktree_stamp(REPO_ROOT)
+    # T-14467: a fresh sub-environment (the external-auditor child) never adopts the stamp — it names
+    # the launcher; the child mints its own id below instead of stamping a receipt under the launcher's.
+    stamp = None if _in_fresh_subenv() else _read_worktree_stamp(REPO_ROOT)
     stamp_ref = (stamp or {}).get("session_ref")
     if stamp_ref:
         # FAIL CLOSED on POSITIVE evidence that this locus belongs to a DIFFERENT identity (SPEC-0137
@@ -3382,6 +3464,24 @@ def _isolated_verify_scenario_ref() -> "str | None":
     set, `_rediscover_session_ref` returns it BEFORE any record probe so a hermetic verify test resolves
     its OWN scenario identity, never the launcher's leaked one. DORMANT until T-10150 sets the env."""
     return os.environ.get(ISOLATED_VERIFY_ENV, "").strip() or None
+
+
+# T-14467: the mark the external-auditor spawn core (`audit.run_auditor_subprocess`) sets on its child
+# env beside the T-14066 carrier shed. The child runs with cwd = the audited checkout, so without the
+# mark the two worktree-stamp legs (`_session_start_identity` and rediscovery selector 2) handed the
+# shed identity straight back: the auditor's own `session start` stamped a seed receipt under the
+# LAUNCHING session's ref, stamped with the auditor's own transcript epoch, and the seed gate — which
+# credits only the session's newest receipt — refused the launcher's next governed verb
+# `seed_read_stale_epoch` with its compaction marker unchanged (deviation
+# seed-receipt-lost-after-land-in-next-work-worktree). A SCOPE CONDITION on the existing stamp selector
+# (the T-11911 analog), not a selector or store of its own.
+FRESH_SUBENV_ENV = "YITC_FRESH_SUBENV"
+
+
+def _in_fresh_subenv() -> bool:
+    """True iff this process runs in a fresh sub-environment (T-14467): the locus stamp names the
+    LAUNCHER, never this process, so neither stamp-adoption leg may adopt it."""
+    return bool(os.environ.get(FRESH_SUBENV_ENV, "").strip())
 
 
 def _pid_alive(pid: "int | None") -> bool:
@@ -3794,7 +3894,9 @@ def _try_rediscover_session_ref_with_source(*, allow_locus_stamp: bool = True, b
     # on the shared main checkout (no stamp there) → fall through. `allow_locus_stamp=False` SKIPS it
     # (T-11911): "by construction" holds only while the process RUNS in that instance, and `-C` breaks
     # exactly that — see `_repo_root_is_caller_locus`.
-    if allow_locus_stamp:
+    # T-14467: nor in a fresh sub-environment (the external-auditor child, `_in_fresh_subenv`) — the stamp
+    # there names the LAUNCHER, so adopting it would write the child's rows under the launcher's ref.
+    if allow_locus_stamp and not _in_fresh_subenv():
         stamp = _read_worktree_stamp(REPO_ROOT)
         if stamp and stamp.get("session_ref"):
             return stamp["session_ref"], "ok", "worktree_stamp"
@@ -4154,10 +4256,14 @@ def _check_reason_locators(args: argparse.Namespace) -> None:
         # T-12923 (X-1572): also resolve against main's journal (SPEC-0168 rule 1) — a worktree cut
         # before the Controller's directive row does not carry it. The git lookup runs only when a
         # value actually carries a locator claim.
-        main_path = (_main_events_path()
-                     if any(journal_mod.locator_claims(v) for v in values.values()) else None)
+        claims = [c for v in values.values() for c in journal_mod.locator_claims_with_peer(v)]
+        main_path = _main_events_path() if claims else None
+        # T-14479: a claim written `<peer> events.jsonl#ts=…` is resolved against that peer's journal.
+        # The registry is read only when some claim carries a preceding word at all.
+        peers = _peer_journal_paths() if any(c[2] for c in claims) else None
         findings = journal_mod.scan_governed_locators(values, EVENTS_PATH,
-                                                      main_journal_path=main_path)
+                                                      main_journal_path=main_path,
+                                                      peer_journal_paths=peers)
         if not findings:
             return
         _LOCATOR_FINDINGS.extend(findings)
@@ -4170,6 +4276,30 @@ def _check_reason_locators(args: argparse.Namespace) -> None:
                   f"`unresolved_locators` so the record says so.", file=sys.stderr)
     except Exception:                    # noqa: BLE001 — a WARN must never break the verb
         _LOCATOR_FINDINGS.clear()
+
+
+def _peer_journal_paths() -> dict:
+    """`{peer_word: <peer>/events.jsonl}` for every OTHER host-registry project (T-14479).
+
+    Keyed by the registry name AND the project directory's name (both lowercased), so
+    `<project> events.jsonl#ts=…` finds the <project> journal whichever one the note writes. Registry
+    names are entered FIRST and a directory name only where no project carries it as its name, so
+    a directory alias never shadows another project's registry name. This
+    repository itself is left out — its own claims keep the own/main lookup. Read-only over the
+    registry and the peer's journal (a peer READ, never a write). Any registry fault -> {}: the
+    locator WARN must never break a verb, and with no map a claim falls back to the prior lookup.
+    """
+    try:
+        own = REPO_ROOT.resolve()
+        peers = [(str(e["name"]).lower(), Path(e["path"]))
+                 for e in engine_route.registry_entries(REGISTRY_PATH)
+                 if e.get("path") is not None and Path(e["path"]).resolve() != own]
+        out = {name: p / "events.jsonl" for name, p in peers}
+        for _name, p in peers:
+            out.setdefault(p.name.lower(), p / "events.jsonl")
+        return out
+    except Exception:                    # noqa: BLE001 — a WARN's input must never break the verb
+        return {}
 
 
 def _append_event(
@@ -4715,6 +4845,55 @@ def _context_epoch_reading(transcript: "Path | None" = None, *, history: bool = 
                 "cause": f"the reading failed ({e.__class__.__name__})"}
 
 
+def _primary_ai_model() -> "str | None":
+    """T-14465 — the primary AI's model as the provider transcript TAIL reports it (the last assistant
+    entry's message.model), or None. Extracted VERBATIM from `_session_config_descriptor` (T-0376), which
+    still records it as its `model=` part — so the descriptor and the SPEC-0201 session-start hint read
+    the SAME value, and ONE bounded tail read serves both per transcript state (cached on the file's
+    path, size and mtime, so a changed transcript is read again). Best-effort: ANY failure is None (the
+    model is unknown), never an error — session start never fails on a log quirk."""
+    try:
+        # T-10152 (SPEC-0137 Rule 8b): the TRANSCRIPT is named by the PROVIDER carrier (D-0030), NOT the
+        # v2 identity. Resolve it via `_provider_session_ref` — the transcript-role resolver over
+        # PROVIDER_CARRIERS — NOT `_lookup_identity_env` (the identity registry, which the collapse reduced
+        # to the v2-own self-ref that names no `~/.claude/.../<id>.jsonl` transcript). Best-effort: None
+        # when no provider carrier is present (a scrubbed worker) → the model part is simply omitted.
+        ref = _provider_session_ref()
+        log = _session_log_path(ref) if ref else None
+        if log is None:
+            return None
+        st = os.stat(log)
+        return _transcript_tail_model(str(log), st.st_size, st.st_mtime_ns)
+    except Exception:
+        # best-effort: an unreadable/odd transcript never blocks session start. Narrowed to
+        # Exception (audit-post F1) — KeyboardInterrupt/SystemExit propagate, an intentional
+        # abort is never masked.
+        return None
+
+
+@functools.lru_cache(maxsize=8)
+def _transcript_tail_model(log: str, _size: int, _mtime_ns: int) -> "str | None":
+    """The bounded tail read behind `_primary_ai_model` (the size/mtime arguments are the cache key)."""
+    # bounded tail read (last ~64KB) — enough for the latest assistant entries
+    with open(log, "rb") as fh:
+        fh.seek(0, os.SEEK_END)
+        size = fh.tell()
+        fh.seek(max(0, size - 65536))
+        tail = fh.read().decode("utf-8", errors="replace")
+    model = None
+    for ln in tail.splitlines():
+        if '"model"' not in ln:
+            continue
+        try:
+            e = json.loads(ln)
+        except ValueError:
+            continue
+        m = (e.get("message") or {}).get("model") if isinstance(e.get("message"), dict) else None
+        if m:
+            model = str(m)
+    return model
+
+
 def _session_config_descriptor() -> str:
     """T-0376: ONE opaque, comparable descriptor of the primary-AI configuration, recorded
     VERBATIM from what the harness reports (plan observability-metrics PART-1, L3).
@@ -4729,39 +4908,9 @@ def _session_config_descriptor() -> str:
     # audit-post F0: TRULY verbatim — no strip/normalization of the value; skip only unset/empty keys.
     parts = [f"{k}={os.environ[k]}" for k in SESSION_CONFIG_ENV_KEYS
              if os.environ.get(k, "") != ""]
-    try:
-        # T-10152 (SPEC-0137 Rule 8b): the TRANSCRIPT is named by the PROVIDER carrier (D-0030), NOT the
-        # v2 identity. Resolve it via `_provider_session_ref` — the transcript-role resolver over
-        # PROVIDER_CARRIERS — NOT `_lookup_identity_env` (the identity registry, which the collapse reduced
-        # to the v2-own self-ref that names no `~/.claude/.../<id>.jsonl` transcript). Best-effort: None
-        # when no provider carrier is present (a scrubbed worker) → the model part is simply omitted.
-        ref = _provider_session_ref()
-        log = _session_log_path(ref) if ref else None
-        if log is not None:
-            # bounded tail read (last ~64KB) — enough for the latest assistant entries
-            with open(log, "rb") as fh:
-                fh.seek(0, os.SEEK_END)
-                size = fh.tell()
-                fh.seek(max(0, size - 65536))
-                tail = fh.read().decode("utf-8", errors="replace")
-            model = None
-            for ln in tail.splitlines():
-                if '"model"' not in ln:
-                    continue
-                try:
-                    e = json.loads(ln)
-                except ValueError:
-                    continue
-                m = (e.get("message") or {}).get("model") if isinstance(e.get("message"), dict) else None
-                if m:
-                    model = str(m)
-            if model:
-                parts.append(f"model={model}")
-    except Exception:
-        # best-effort: an unreadable/odd transcript never blocks session start. Narrowed to
-        # Exception (audit-post F1) — KeyboardInterrupt/SystemExit propagate, an intentional
-        # abort is never masked.
-        pass
+    model = _primary_ai_model()
+    if model:
+        parts.append(f"model={model}")
     return " ".join(parts) if parts else "unknown"
 
 
@@ -5640,14 +5789,25 @@ def cmd_session_start(args: argparse.Namespace) -> None:
         # `bin/yitc-v2 [-C <repo>] frontend-errors` (AGENTS §After-`/compact`), co-designed with it.
         for _fe_ln in _frontend_error_echo_lines():
             print(session.mark(_fe_ln, session.REPORT_ONLY))   # T-13435: every echo line states its class
+        # T-14492 (SPEC-1046): the consumer per-test report GAP — report-only, suppressed when clean,
+        # at this same post-anchor residue seam. Best-effort: [] on any failure, never breaks start.
+        for _pt_ln in _per_test_gap_echo_lines():
+            print(session.mark(_pt_ln, session.REPORT_ONLY))
         # T-12380 (SPEC-0201 rule 3 / SPEC-0202 rule 4): the external-auditor HINT — ONE report-only line
         # while no external provider resolves for the routine tier, silent otherwise — printed at this
         # SAME post-anchor residue seam (engine self-start AND -C: one residue, the consumer's journal
         # for the count, the engine-rebound AUDIT_CONFIG_PATH for the config). Session-start ONLY (owner
         # decision 2026-09-06 «только на старте»); the post-`/compact` re-fold is `bin/yitc-v2 audit
         # status` (AGENTS §After-`/compact`), co-designed with it. Best-effort: [] on any failure.
+        # T-14465: the hint is OWNER-CUED where the other owner-cued lines print — the interactive
+        # Controller's first start in a context (never a worker, never a same-epoch repeat, T-13580);
+        # report-only elsewhere. Its commands line is on-demand: an owner-cued line carries none (T-13503).
+        _ah_cued = (getattr(args, "type", None) != "build" and EXPECTED_SESSION_REF_ENV not in os.environ
+                    and _resolved_ref not in _seed_held_refs)
         for _ah_ln in _auditor_hint_lines():
-            print(session.mark(_ah_ln, session.REPORT_ONLY))
+            _ah_mark = (session.on_demand("binding an auditor") if _ah_ln.startswith(audit.AUDITOR_BIND_PREFIX)
+                        else session.OWNER_CUED if _ah_cued else session.REPORT_ONLY)
+            print(session.mark(_ah_ln, _ah_mark))
         # T-13251 (SPEC-1004 §4): the open session hand-offs — interactive Controller ONLY (never a
         # `--type build` / launcher-dispatched worker, SPEC-1004 §5), engine and -C alike, at this same
         # post-anchor residue seam. Owner-cued show-and-wait (T-13503: no runnable command on it),
@@ -6139,6 +6299,36 @@ def _brief_delivery_row(row, ref) -> None:
         pass
 
 
+def _brief_recorded_language_texts() -> list:
+    """T-14490 — the instruction texts a session loads, in order: the user-level files the AI tool list
+    names (`instructions_path`, where T-14463 records the person's language), then CLAUDE.md / AGENTS.md
+    of the project checkout and the working directory and their parents; a file that cannot be read, or
+    a list that cannot be loaded, is skipped — the brief never fails on it."""
+    from lib import init as init_mod
+    home = Path(os.environ.get("HOME") or Path.home())
+    import contextlib
+    import io
+    try:
+        with contextlib.redirect_stdout(io.StringIO()):   # its malformed-file notice must not enter the brief
+            tools = init_mod._load_ai_tools(ENGINE_ROOT, home)
+    except Exception:   # noqa: BLE001 — no recorded language; the conversation decides
+        return []
+    paths = [home / str(row.get("instructions_path")) for row in tools.values() if row.get("instructions_path")]
+    for start in (REPO_ROOT, Path.cwd()):   # the directory's and project's own instructions (6f(d) step 1)
+        for d in [Path(start).resolve(), *Path(start).resolve().parents]:
+            paths += [d / "CLAUDE.md", d / "AGENTS.md"]
+    texts, seen = [], set()
+    for p in paths:
+        if p in seen:
+            continue
+        seen.add(p)
+        try:
+            texts.append(p.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError):
+            continue
+    return texts
+
+
 def _restoration_brief(args, *, stream, delivery_point: str, reading=None) -> "tuple[str, int, str | None, dict | None]":
     """SPEC-1024 rules 1-7 — render the restoration brief ONCE and write it to `stream` (the print-only
     run's stdout; the rule-10 backstop's stderr). Returns `(text, line count, resolved ref, the delivery
@@ -6271,8 +6461,12 @@ def _restoration_brief(args, *, stream, delivery_point: str, reading=None) -> "t
                        f"`{cli} session start --print-only`; when you do not know it, `{cli} session start` "
                        "starts a NEW session identity — then re-read the seed first")
     tail += rows
+    cue = session.brief_language_cue(session.person_language(
+        _brief_recorded_language_texts(),
+        [t[1] for t in ([(scan or {}).get("owner_last")] + list(reversed((scan or {}).get("owner_after") or [])))
+         if t]))   # T-14490 — SPEC-0086 6f(d) order, from the brief's one transcript scan
     lines, meta = session.render_compaction_brief(
-        plain=session.brief_plain_line(print_cmd, reading.get("reading"), reading.get("marker")), head=head,
+        plain=session.brief_plain_line(print_cmd, reading.get("reading"), reading.get("marker"), cue), head=head,
         cuttable=cuttable, tail=tail, render=_consumer_render if consumer else None)   # kernel ids qualified under -C
     out = "\n".join(lines) + "\n"
     stream.write(out)
@@ -6442,7 +6636,9 @@ def _brief_held_and_directives(ref, worker, cli, transcript, kind, redact, gaps_
     if kind and kind not in journal_mod.ADAPTER_PROVIDER_KINDS:
         gap(sec4, "the owner decisions", f"no adapter for this provider ({kind})", d_cmd.split("` · `")[0], "adapter")
         return sec3, sec4
-    for e in reversed([e for e in rows if e.get("type") == "owner_directive"]):
+    # T-14468: a kernel-composed prompt recorded as an owner row is not an owner decision — skipped.
+    for e in reversed([e for e in rows if e.get("type") == "owner_directive"
+                       and not journal_mod.owner_authorship_unproven(e)]):
         d = e.get("data") if isinstance(e.get("data"), dict) else {}
         # a mid-turn row (SPEC-0204 rule 2) carries the owner's verbatim words in `owner_text`
         text = str(d.get("owner_text") or d.get("text") or "")
@@ -7455,7 +7651,8 @@ def _land_head_read_scope():
         EVENTS_PATH, keep={t: None for t in (*debt_mod._ABORT_BREADTH_EVENTS,
                                              *worktree_mod._land_read_types())},
         reducers={"spec0161_type_keys": debt_mod.debt_spec0161.TypeKeysReducer},
-        needles=worktree_mod._land_session_needles(), index=True, catch_up=True)
+        needles=worktree_mod._land_session_needles(), index=True, catch_up=True,
+        follow_live=True)   # T-14437 — keeps its live lines, so the land's later scopes are carried from it
 
 
 def _abort_cause_breadth_head_lines() -> list:
@@ -7895,6 +8092,33 @@ def _frontend_error_echo_lines() -> list:
         carrier_events_path=_carrier_events_path())
 
 
+def _per_test_gap_echo_lines() -> list:
+    """T-14492 (SPEC-1046): the declared verify layers of a CONSUMER whose red names no test — one
+    head line + one line per layer with the adapter block to add; `[]` in the engine's own checkout,
+    when clean, or on any failure (the `_frontend_error_echo_lines` precedent). The `script/1`
+    exemption reads the journal's `tests_failed` / `land_completed` rows through the declared-type
+    reader (SPEC-0190), never the live file alone."""
+    try:
+        if not _is_consumer_build():
+            return []
+        ops = _read_yaml(REPO_ROOT / "yitc-ops.yaml")
+        lvl = worktree_mod.land_verify_legs
+        gaps = lvl._per_test_report_gaps(ops)
+        if any(k == "file-grain" for _n, k in gaps):
+            gaps = lvl._per_test_report_gaps(ops, _per_test_named_by_layer())
+        return [_consumer_render(ln) for ln in lvl._per_test_gap_lines(gaps)]
+    except Exception:
+        return []
+
+
+def _per_test_named_by_layer() -> dict:
+    """T-14492 — `{layer: bool}`: whether each layer's NEWEST recorded failed adapter unit named its
+    tests, over the journal's `tests_failed` / `land_completed` rows read through the declared-type
+    reader (SPEC-0190 rule 4: every segment, journal order). Order-sensitive: the newest row wins."""
+    return worktree_mod.land_verify_legs._named_by_layer(
+        _iter_events(types=("tests_failed", "land_completed")))
+
+
 def _auditor_hint_scope():
     """T-13461 — the session-start hint's ONE indexed scope (SPEC-0190 rule 4 class 3; the
     `cmd_audit_status` / `_onboarding_history_rows` idiom): it declares the one type the hint counts
@@ -7920,7 +8144,8 @@ def _auditor_hint_lines() -> list:
                 config_path=AUDIT_CONFIG_PATH, hint_only=True,
                 iter_events=functools.partial(_iter_events, types=(audit.AUDITOR_SELF_PROVIDER_TYPE,)))
         # T-13013: kernel-authored text into a -C consumer realm-qualifies its bare kernel spec ids.
-        return [_consumer_render(ln) for ln in audit.auditor_hint_lines(st, cli_form=_cli_invocation_form())]
+        return [_consumer_render(ln) for ln in audit.auditor_hint_lines(
+            st, cli_form=_cli_invocation_form(), primary_model=_primary_ai_model())]
     except Exception:
         return []
 
@@ -8721,22 +8946,18 @@ _LEDGER_SECTION_RE = re.compile(r"^## ([A-Za-z])\. ")
 
 
 def _ledger_section_max(text: str, section: str) -> int:
-    """Highest row NUMBER in the ledger's `## <section>.` section, 0 if the section holds none.
+    """Highest row NUMBER carrying the `<section>` prefix ANYWHERE in the ledger, 0 if none does.
 
+    The floor is taken over the WHOLE file, not only the rows under the `## <section>.` heading
+    (T-14426): new rows are appended at the ledger's tail, under whatever heading is last, so a
+    heading-scoped scan missed them and could hand out a label already in use.
     A label counts when it is `<section><digits>` with an optional alpha suffix — `H5` and `A11d`
     both count (as 5 and 11); off-shape spellings that merely start with the letter (`A-FE38`,
     `Jx1`) are SKIPPED rather than mis-parsed, so they neither inflate the floor nor crash it. They
     are hand-assigned names, not points on this counter."""
     num_re = re.compile(rf"^{re.escape(section)}(\d+)[A-Za-z]*$")
-    in_section = False
     top = 0
     for line in text.splitlines():
-        head = _LEDGER_SECTION_RE.match(line)
-        if head:
-            in_section = head.group(1) == section
-            continue
-        if not in_section:
-            continue
         row = _LEDGER_ROW_LABEL_RE.match(line)
         if row and (m := num_re.match(row.group(1))):
             top = max(top, int(m.group(1)))
@@ -10775,16 +10996,27 @@ def _config_set_project(args: argparse.Namespace) -> None:
         print(f"  no branch to commit on (detached / non-git): {rel} is left uncommitted.")
 
 
-def _pre_deploy_units_edit(text: str, cls: str, units: "list[str]") -> str:
-    """T-14212 (SPEC-1051 rule 7) — `text` (a yitc-ops.yaml) with the `units:` list of the
-    `tests.classes[]` entry named `cls` replaced by `units`, every other byte kept. PURE. Where it edits
-    comes from the parser (the composed `units:` value node), never a line pattern — the
+def _pre_deploy_units_file_name(cls: str) -> str:
+    """T-14448 (SPEC-1051 rule 7) — the sibling file of class `cls`: `yitc-ops-units-<class>.txt`, each
+    character the name scheme (`state.OPS_UNITS_FILE_RE`) does not admit written `-`. PURE."""
+    return "yitc-ops-units-" + re.sub(r"[^A-Za-z0-9._-]", "-", cls).lstrip("._-") + ".txt"
+
+
+def _pre_deploy_units_text(cls: str, units: "list[str]") -> str:
+    """T-14448 (SPEC-1051 rule 7) — the sibling file's whole text: a generated header, one unit a line."""
+    head = (f"# GENERATED by `yitc-v2 pre-deploy list --write` (SPEC-1051 rule 7) — the units of class "
+            f"{cls}. DO NOT EDIT.\n")
+    return head + "".join(f"{u}\n" for u in units)
+
+
+def _pre_deploy_units_edit(text: str, cls: str, name: str) -> str:
+    """T-14212, T-14448 (SPEC-1051 rule 7) — `text` (a yitc-ops.yaml) with the inline `units:` of the
+    `tests.classes[]` entry named `cls` replaced by `units_file: <name>`, every other byte kept. PURE.
+    Where it edits comes from the parser (the composed `units:` nodes), never a line pattern — the
     `set_project_threshold` discipline; the result is then PROVED by parsing both texts: the new
-    carrier must equal the old one with that one list replaced, or the edit is refused (ValueError).
-    Refused too: an entry written as an alias, and a `units:` that is not a list of plain or quoted
-    one-line scalars."""
+    carrier must equal the old one with that one key replaced, or the edit is refused (ValueError).
+    Refused too: an entry written as an alias."""
     import yaml
-    eol = "\r\n" if "\r\n" in text else "\n"
     root = yaml.compose(text)
 
     def _get(node, key):
@@ -10806,33 +11038,17 @@ def _pre_deploy_units_edit(text: str, cls: str, units: "list[str]") -> str:
     if hit is None:
         raise ValueError(f"the class {cls!r} declares no `units:`")
     key, node = hit
-    if node.start_mark.index < key.end_mark.index or not isinstance(node, yaml.SequenceNode) \
-            or any(not isinstance(i, yaml.ScalarNode) or "\n" in text[i.start_mark.index:i.end_mark.index]
-                   for i in node.value):
-        raise ValueError(f"the class {cls!r} `units:` is not a list of one-line scalars written in place")
-
-    def _render(f):
-        return f if re.fullmatch(r"[A-Za-z0-9_][A-Za-z0-9_./-]*", f) else json.dumps(f)
-
-    if not units:
-        new = "[]"
-        s, e = node.start_mark.index, (node.end_mark.index if node.flow_style or not node.value
-                                       else node.value[-1].end_mark.index)
-    else:
-        indent = " " * (key.start_mark.column + 2)
-        body = (eol + indent).join(f"- {_render(f)}" for f in units)
-        if node.flow_style or not node.value:
-            s, e, new = node.start_mark.index, node.end_mark.index, eol + indent + body
-        else:
-            s, e = node.start_mark.index, node.value[-1].end_mark.index
-            new = (eol + " " * node.start_mark.column).join(f"- {_render(f)}" for f in units)
-    out = text[:s] + new + text[e:]
+    if node.start_mark.index < key.end_mark.index or not isinstance(node, yaml.SequenceNode):
+        raise ValueError(f"the class {cls!r} `units:` is not a list written in place")
+    end = node.end_mark.index if node.flow_style or not node.value else node.value[-1].end_mark.index
+    out = text[:key.start_mark.index] + f"units_file: {name}" + text[end:]
     old_doc, new_doc = yaml.safe_load(text), yaml.safe_load(out)
     for c in old_doc["tests"]["classes"]:
         if isinstance(c, dict) and c.get("class") == cls:
-            c["units"] = list(units)
+            del c["units"]
+            c["units_file"] = name
     if new_doc != old_doc:
-        raise ValueError("the edit would change more of yitc-ops.yaml than that one list")
+        raise ValueError("the edit would change more of yitc-ops.yaml than that one key")
     return out
 
 
@@ -10855,12 +11071,16 @@ def cmd_pre_deploy_list(args: argparse.Namespace) -> None:
 
     Refuses: no carrier, a pre-deploy declaration the contract read refuses, none or several classes
     declaring `units:` (naming them). `--write` is the scoped self-commit family's shape
-    (`_config_set_project`): from the main checkout the preflight refuses preexisting yitc-ops.yaml dirt
-    and an unsafe journal delta BEFORE the write, the write is refused when HEAD moved since the verb
-    computed (a re-run recomputes), and ONE commit carries yitc-ops.yaml + the journal row only; inside a
+    (`_config_set_project`): from the main checkout the preflight refuses preexisting dirt in yitc-ops.yaml
+    or the sibling file and an unsafe journal delta BEFORE the write, the write is refused when HEAD moved
+    since the verb computed (a re-run recomputes), and ONE commit carries the sibling file (T-14448),
+    yitc-ops.yaml when it still held the list, + the journal row only; inside a
     writing worktree it commits nothing; detached / non-git it leaves the write uncommitted. A list
     already in force changes nothing, journals nothing, commits nothing."""
     verb = "pre-deploy list" + (" --write" if args.write else "")
+    if args.move and not args.write:
+        _die("pre-deploy list: --move is a mode of --write; nothing was written. Run `bin/yitc-v2 pre-deploy list --write --move`.")
+        return
     lv = worktree_mod.land_verify_legs
     rel = "yitc-ops.yaml"
     ops_path = REPO_ROOT / rel
@@ -10929,7 +11149,8 @@ def cmd_pre_deploy_list(args: argparse.Namespace) -> None:
         min_task_lands=th["pre_deploy_move_min_task_lands"]["value"],
         never_move=decl.get("never_move") or (), always=always)
     current = [str(u).strip() for u in entry.get("units") or () if isinstance(u, str) and str(u).strip()]
-    new = res["listed"]
+    inline = "units_file" not in entry
+    new = list(current) if args.move else res["listed"]        # --move: the list in force, unjudged
     added, removed = sorted(set(new) - set(current)), sorted(set(current) - set(new))
     print(f"{verb}: class {cls!r} (SPEC-1051 rule 7) — "
           + ", ".join(f"{k} = {r['value']} ({r['source']})" for k, r in th.items())
@@ -10963,20 +11184,35 @@ def cmd_pre_deploy_list(args: argparse.Namespace) -> None:
         _pre_deploy_print_held(res, whole, recent, kernel=not _is_consumer_build())
         print(f"  shows only — `bin/yitc-v2 pre-deploy list --write` writes this list (the weekly review).")
         return
-    if not added and not removed and new == current:
+    if not inline and not added and not removed and new == current:
         print(f"{verb}: the list in force is already this list — nothing changed, nothing journalled, "
               f"nothing committed.")
         return
+    name = entry.get("units_file") if not inline else _pre_deploy_units_file_name(cls)
+    if not re.fullmatch(state.OPS_UNITS_FILE_RE, name):
+        _die(f"{verb}: the class {cls!r} gives no admitted file name ({name!r} leaves "
+             f"yitc-ops-units-<class>.txt) — nothing was written. Rename the class by a card, then re-run "
+             f"`bin/yitc-v2 pre-deploy list --write`.")
+        return
+    sibling = REPO_ROOT / name
+    new_text = None
     try:
-        text = ops_path.read_bytes().decode("utf-8")
-        new_text = _pre_deploy_units_edit(text, cls, new)
+        if inline:                                         # computed first: a refused edit writes nothing
+            new_text = _pre_deploy_units_edit(ops_path.read_bytes().decode("utf-8"), cls, name)
     except (OSError, UnicodeDecodeError, ValueError) as exc:
         _die(f"{verb}: {rel} cannot be edited safely ({exc}) — nothing was written. Fix the class entry by a "
              f"card, then re-run `bin/yitc-v2 pre-deploy list --write`.")
         return
     posture = _selfcommit_posture()
+    paths = [name] + ([rel] if inline else [])
     if posture == "main":
-        _scoped_selfcommit_preflight(verb, [rel])
+        _scoped_selfcommit_preflight(verb, [rel], cover=[name])
+        dirt = _run_git_cap(["status", "--porcelain", "--", name], REPO_ROOT)
+        if dirt is not None and (dirt.stdout or "").strip():
+            _selfcommit_window_close()
+            _die(f"{verb}: {name} carries uncommitted changes — nothing was written. Restore it, then re-run "
+                 f"`bin/yitc-v2 pre-deploy list --write`.")
+            return
     now_head = _run_git_cap(["rev-parse", "HEAD"], REPO_ROOT)
     if head0 is not None and (now_head is None or now_head.returncode != 0 or now_head.stdout.strip() != head0):
         _selfcommit_window_close()
@@ -10984,27 +11220,30 @@ def cmd_pre_deploy_list(args: argparse.Namespace) -> None:
              f"{(now_head.stdout.strip()[:12] if now_head is not None else '?')}) — nothing was written; "
              f"re-run `bin/yitc-v2 pre-deploy list --write` to recompute.")
         return
-    write_text_atomic(ops_path, new_text)
+    write_text_atomic(sibling, _pre_deploy_units_text(cls, new))   # first: the carrier never names a missing file
+    if new_text is not None:
+        write_text_atomic(ops_path, new_text)
     _append_event("pre_deploy_list_written", None, {
         "class": cls, "added": added, "removed": removed, "units": len(new), "head": head0,
         "thresholds": {k: {"value": r["value"], "source": r["source"]} for k, r in th.items()},
-        "path": rel})
-    print(f"{verb}: wrote {len(new)} unit(s) into class {cls!r} `units:` (+{len(added)} -{len(removed)})")
+        "path": name, "moved": inline})
+    print(f"{verb}: wrote {len(new)} unit(s) of class {cls!r} into {name} (+{len(added)} -{len(removed)})"
+          + (f"; {rel} now points at it" if inline else ""))
     if posture == "main":
         body = "\n".join([f"added: {f}" for f in added] + [f"removed: {f}" for f in removed])
-        short = _scoped_selfcommit(verb, [rel], (
+        short = _scoped_selfcommit(verb, paths, (
             f"chore(pre-deploy): write the units list of class {cls}\n\n"
-            f"Scoped direct-to-main self-commit by `pre-deploy list --write` (T-14212): the class\n"
-            f"`units:` list and its pre_deploy_list_written journal row ONLY, never `git add -A`.\n\n"
+            f"Scoped direct-to-main self-commit by `pre-deploy list --write` (T-14212, T-14448): the\n"
+            f"class units file and its pre_deploy_list_written journal row ONLY, never `git add -A`.\n\n"
             f"{body}\n\n"
             f"from: SPEC-1051 rule 7 + AGENTS §Writes-happen-in-a-worktree (the scoped\n"
             f"self-commit family)."))
-        print(f"  self-committed to main ({short}): {rel} + its journal row only.")
+        print(f"  self-committed to main ({short}): {' + '.join(paths)} + its journal row only.")
     elif posture == "worktree":
         print(f"  inside a writing worktree: not committed — the write rides this batch's own commit "
               f"and land.")
     else:
-        print(f"  no branch to commit on (detached / non-git): {rel} is left uncommitted.")
+        print(f"  no branch to commit on (detached / non-git): {' + '.join(paths)} left uncommitted.")
 
 
 def _pre_deploy_print_held(res: dict, whole: dict, recent: dict, *, kernel: bool) -> None:
@@ -11223,10 +11462,37 @@ def _venue_raise_once(args, image, t0, *, keep_box) -> tuple:
         _teardown("a fingerprint measurement failure")
         return None, server_id, ip, f"the fingerprint did not measure on the box ({exc})", False
     failures = venue.probe_readiness(fingerprint)
+    # T-14486 (SPEC-1032 rules 1 and 6): the repository's OWN declared box needs — the kernel's or a
+    # `-C` consumer's `verify.venue.environment` — are checked, a failing check that declares
+    # `install` is installed on the box and checked again, and a still-failing one refuses the box by
+    # name. Absent (or no checks): nothing below runs and the raise is as before.
+    declaration = venue.consumer_declaration_of(REPO_ROOT, init_mod.CONSUMER_OPS_CONTRACT)
+    if declaration.get("state") == "invalid":
+        failures = failures + [{"field": "verify.venue", "op": "valid", "expected": "",
+                                "actual": declaration.get("cause")}]
+    elif declaration.get("state") == "valid" and declaration.get("environment"):
+        def _on_install(name, command, rc):
+            _venue_external_action(
+                args, f"verify-box:{ip} (server {server_id})",
+                f"install declared check {name!r} (rc={rc}): {command}", channel="ssh:sudo")
+            print(f"  declared check {name!r} failed — ran its install (rc={rc})")
+        try:
+            measured, installs = venue.ensure_declared_environment(ip, declaration,
+                                                                   on_install=_on_install)
+        except Exception as exc:
+            _teardown("a declared-check measurement failure")
+            return (None, server_id, ip, f"the declared checks did not measure on the box ({exc})",
+                    False)
+        fingerprint = dict(fingerprint, consumer=measured)
+        failures = (failures + venue.declared_check_failures(fingerprint, declaration)
+                    + venue.install_failures(installs))
     print(f"  raise->ready {elapsed:.0f}s (ssh wait {waited:.0f}s)")
     if failures:
         for failure in failures:
             print(f"  readiness probe FAILED on {venue.describe_failure(failure)}", file=sys.stderr)
+        if any(str(f.get("field", "")).startswith("check:") for f in failures):
+            print("  a declared check failed: declare its `install` command in yitc-ops.yaml "
+                  "verify.venue.environment (SPEC-1032 rule 1), then raise again", file=sys.stderr)
         _teardown("a readiness-probe refusal")
         return (fingerprint, server_id, ip, f"the readiness probe REFUSED this box on "
                 f"{len(failures)} field(s) — nothing was published", False)
@@ -11435,7 +11701,7 @@ def cmd_venue_publish(args: argparse.Namespace) -> None:
     # T-13976 (SPEC-1032 rule 6) — `-C <consumer>` publishes the box for THAT repository: it must
     # declare `verify.venue`, the box must pass the consumer readiness (atomic admission, a full-history
     # clone, every declared check), and the record names the repository it serves.
-    declaration = serves = None
+    declaration = serves = kernel_declaration = None
     if _is_consumer_build():
         declaration = venue.consumer_declaration_of(REPO_ROOT, init_mod.CONSUMER_OPS_CONTRACT)
         if declaration.get("state") != "valid":
@@ -11453,18 +11719,32 @@ def cmd_venue_publish(args: argparse.Namespace) -> None:
                  "serves. NOTHING was written.")
             return
         serves = str(common)
+    else:
+        # T-14486 (SPEC-1032 rule 6): the kernel's own declared box needs are judged at publish too —
+        # the measured outputs ride the record's fingerprint into `venue_published`. An absent
+        # declaration (or one with no checks) reads nothing, so the kernel publish is as before.
+        kdecl = venue.consumer_declaration_of(REPO_ROOT, init_mod.CONSUMER_OPS_CONTRACT)
+        if kdecl.get("state") == "invalid":
+            _die(f"venue publish: REFUSED — this repository declares `verify.venue` invalidly "
+                 f"({kdecl.get('cause')}). Fix it as `bin/yitc-v2 graph query --kernel SPEC-1032` "
+                 f"rule 1 says, then publish again. NOTHING was written.")
+            return
+        if kdecl.get("state") == "valid" and kdecl.get("environment"):
+            kernel_declaration = kdecl
     if _venue_publish_existing(existing, args.box, serves):   # the cheap early exit; re-checked below
         return
     try:
         fingerprint = venue.measure_fingerprint(args.box)
-        if declaration is not None:
-            fingerprint = dict(fingerprint,
-                               consumer=venue.measure_consumer_environment(args.box, declaration))
+        if declaration is not None or kernel_declaration is not None:
+            fingerprint = dict(fingerprint, consumer=venue.measure_consumer_environment(
+                args.box, declaration if declaration is not None else kernel_declaration))
     except Exception as exc:
         _die(f"venue publish: the fingerprint did not measure on {args.box} ({exc}) — nothing written")
         return
     failures = (venue.probe_readiness(fingerprint) if declaration is None
                 else venue.probe_readiness(fingerprint, declaration))
+    if kernel_declaration is not None:
+        failures = failures + venue.declared_check_failures(fingerprint, kernel_declaration)
     if failures:
         for failure in failures:
             print(f"  readiness probe FAILED on {venue.describe_failure(failure)}", file=sys.stderr)
@@ -12267,7 +12547,8 @@ def cmd_audit_status(args: argparse.Namespace) -> None:
             yield from journal_mod.segment_rows(EVENTS_PATH, types=(self_type,))
             yield from journal_mod.segment_rows_since(EVENTS_PATH, floor, types=rate_types)
         return audit.cmd_audit_status(args, config_path=AUDIT_CONFIG_PATH, _iter_events=_rows,
-                                      _cli_form=_cli_invocation_form())
+                                      _cli_form=_cli_invocation_form(),
+                                      _primary_model=_primary_ai_model())
 
 
 def _canary_backstop_rows() -> list:
@@ -12695,7 +12976,7 @@ def _onboarding_repeat_lines(user: str, pointers: list, consumer: bool) -> list:
     now_iso = now.strftime("%Y-%m-%dT%H:%M:%SZ")
     due = memory_mod.repeat_due(rows, user, now_iso, params)
     recap = memory_mod.recap_stations(rows, user, now_iso, params)
-    line = memory_mod.repeat_digest(due, recap, [p["station"] for p in pointers], cli=_onboarding_cli(),
+    line = memory_mod.repeat_digest(due, recap, cli=_onboarding_cli(),
                                     sot=_onboarding_sot(), kernel_provided=consumer)
     return [line] if line else []
 
@@ -13165,7 +13446,8 @@ def cmd_memory_consume(args: argparse.Namespace) -> None:
     voiced" state, so its absence self-gates every later session with zero steady-state cost (§2).
 
     NO MASTERY STATE (SPEC-0147 §1 / CHARTER non-goal #7 — the load-bearing guard). The payload is
-    exactly {station, user}: no learned flag, no progress counter, not even a `remaining` pointer count
+    exactly {station, user, how} (+ `kind` on the rule-10 arms): `how` is the caller's own statement of
+    what happened (T-14464), never an inference. No learned flag, no progress counter, not even a `remaining` pointer count
     (derivable from the buffer at any time; persisting it would BE the forbidden progress state). A
     station retires because its juncture was reached and it was voiced once — never because anything
     inferred that the person understood it.
@@ -13210,16 +13492,22 @@ def cmd_memory_consume(args: argparse.Namespace) -> None:
     station = station_flag or args.station
     if not station:
         _die("memory consume: no station given — pass the station id whose pointer you just VOICED, "
-             "e.g. `memory consume --station A` (canonical form; the bare positional also works).")
+             "e.g. `memory consume --station A --voiced` (canonical form; the bare positional also works).")
+    # T-14464 (SPEC-0147 rule 5): the retire states what happened. Refused before any read or write.
+    if not any(getattr(args, flag, False) for flag in ("voiced", "known", "repeat")):
+        _die(f"memory consume: say what happened to station {station} — "
+             f"`bin/yitc-v2 memory consume --station {station} --voiced` (its body was told to the person in "
+             f"their language) or `... --known` (the person said they know it). Nothing recorded.")
     user = (args.user or memory_mod.current_user()).strip()
     if not user:
         _die("memory consume: no provisioned user identity for this session (and no --user given) — "
              "refusing (fail-closed: an unknown identity must never drain a recipient's pointer).")
     # T-13217 (SPEC-0147 rule 10): a REPEAT or an "I know it" is one journal row, never a buffer write.
     repeat, known = bool(getattr(args, "repeat", False)), bool(getattr(args, "known", False))
-    if repeat and known:
-        _die("memory consume: --repeat and --known are exclusive — record what actually happened, e.g. "
-             f"`bin/yitc-v2 memory consume --station {station} --known`.")
+    voiced = bool(getattr(args, "voiced", False))
+    if voiced + known + repeat > 1:
+        _die("memory consume: --voiced, --known and --repeat are exclusive — record what actually happened, "
+             f"e.g. `bin/yitc-v2 memory consume --station {station} --known`.")
     if (repeat or known) and not memory_mod.station_seams(station):
         _die(f"memory consume: unknown station '{station}' — refusing to record a repeat/ack for it. "
              f"Valid ids are the `## [X]` headings of {memory_mod.STATION_SOT}; retry e.g. "
@@ -13239,7 +13527,7 @@ def cmd_memory_consume(args: argparse.Namespace) -> None:
                  f"nothing recorded (voicing it on request is fine; only a DUE repeat is journaled). To stop its "
                  f"repeats: `bin/yitc-v2 memory consume --station {station} --known`.")
         _append_event("onboarding_station_consumed", None, {"station": station, "user": user,
-                                                            "kind": "repeat"})
+                                                            "how": "voiced", "kind": "repeat"})
         print(f"memory consume: [onboarding:{station}] repeat recorded for user({user})")
         return
     held_text = path.read_text(encoding="utf-8") if path.is_file() else ""
@@ -13249,7 +13537,7 @@ def cmd_memory_consume(args: argparse.Namespace) -> None:
             return
         if memory_mod.delete_pointer(held_text, station, user) == held_text:
             _append_event("onboarding_station_consumed", None, {"station": station, "user": user,
-                                                                "kind": "known"})
+                                                                "how": "known", "kind": "known"})
             print(f"memory consume: [onboarding:{station}] acknowledged («I know it») for user({user}) — "
                   f"no further repeats")
             return
@@ -13275,7 +13563,8 @@ def cmd_memory_consume(args: argparse.Namespace) -> None:
         _memory_consume_selfcommit_preflight(rel_memory)  # fail-closed BEFORE the write drains anything
     path.write_text(remaining_text, encoding="utf-8")
     _append_event("onboarding_station_consumed", None,
-                  {"station": station, "user": user, **({"kind": "known"} if known else {})})
+                  {"station": station, "user": user, "how": "known" if known else "voiced",
+                   **({"kind": "known"} if known else {})})
     if posture == "main":
         short = _memory_consume_selfcommit(rel_memory, station, user)
         print(f"memory consume: [onboarding:{station}] consumed for user({user}) — pointer deleted from "
@@ -16263,7 +16552,13 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
     doc_realms: dict = {}
     if _is_consumer_build():
         try:
-            _, doc_realms = _stage_bundle_specs(stage_name, include_kernel=True, with_realms=True)
+            if stage_name.startswith(PLAN_STAGE_ENTRY_PREFIX):
+                # T-14408 — a plan-axis bundle: its realms come from the plan-axis derivation, the
+                # same call `_require_reads` makes for `axis == "plan"`.
+                _, doc_realms = _plan_stage_bundle_specs(stage_name[len(PLAN_STAGE_ENTRY_PREFIX):],
+                                                         with_realms=True)
+            else:
+                _, doc_realms = _stage_bundle_specs(stage_name, include_kernel=True, with_realms=True)
         except Exception:
             doc_realms = {}   # unqualified → the bare form; a realm miss then fails CLOSED, never open
     ref, ref_source = _try_resolve_session_ref_with_source()   # NON-dying twin (T-10167/T-10318):
@@ -16978,13 +17273,17 @@ def _build_commit_body(from_ref: str, msg: str) -> str:
         still ends with exactly one `from:` (T-13179) — mid-sentence prose is untouched;
       - a caller's own Co-Authored-By trailer is KEPT verbatim (`--if-exists doNothing` for that
         trailer only — git applies each --if-exists to the --trailer args after it); the
-        placeholder is added only when none exists (SPEC-0014: substitute the actual model, T-13179).
+        placeholder is added only when none exists (SPEC-0014: substitute the actual model, T-13179);
+      - a line-initial Co-Authored-By OUTSIDE the trailer block is the caller's trailer too: it is
+        MOVED into the block with a stderr warning naming it, so no placeholder lands beside it
+        (T-14451).
     Reuses git's trailer engine (CHARTER §Principle 1 F1 — existing analog), no bespoke parser.
     `from_ref` is authoritative (the canonical task/decision ref the CLI computed), so it wins over
     any `from:` the caller embedded. interpret-trailers reads from stdin and writes the normalized
     message to stdout; our explicit --if-exists/--if-missing flags override any repo trailer.* config."""
     import subprocess
     coauthor = "Co-Authored-By: AI Agent <noreply@example.com>"
+    coauthor_line = r"(?i)co-authored-by\s*:\s*\S"  # the spellings git parses; a bare key has no value
     src = (msg or "").rstrip() + "\n"
     parsed = subprocess.run(["git", "-C", str(REPO_ROOT), "interpret-trailers", "--parse"],
                             input=src, text=True, capture_output=True, env=_git_child_env())
@@ -16995,17 +17294,25 @@ def _build_commit_body(from_ref: str, msg: str) -> str:
             block_start -= 1
     dropped = [ln.strip() for i, ln in enumerate(lines)
                if 0 < i < block_start and re.match(r"(?i)from:\s", ln)]
-    if dropped:
+    moved = [ln.strip() for i, ln in enumerate(lines)
+             if 0 < i < block_start and re.match(coauthor_line, ln)]
+    if dropped or moved:
         kept = [ln for i, ln in enumerate(lines)
-                if not (0 < i < block_start and re.match(r"(?i)from:\s", ln))]
+                if not (0 < i < block_start
+                        and (re.match(r"(?i)from:\s", ln) or re.match(coauthor_line, ln)))]
         src = re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).rstrip() + "\n"
         for d in dropped:
             print(f"yitc-v2: warning: dropped `{d}` — a from: line outside the trailer block; "
                   f"the commit carries the one from: trailer `from: {from_ref}` (T-13179)",
                   file=sys.stderr)
+        for m in moved:
+            print(f"yitc-v2: warning: moved `{m}` into the trailer block — a Co-Authored-By line "
+                  f"outside it; no placeholder is added beside it (T-14451)", file=sys.stderr)
+    moved_args = [a for m in moved for a in ("--trailer", m)]
     res = subprocess.run(
         ["git", "-C", str(REPO_ROOT), "interpret-trailers", "--if-missing", "add",
          "--if-exists", "replace", "--trailer", f"from: {from_ref}",
+         "--if-exists", "addIfDifferent", *moved_args,
          "--if-exists", "doNothing", "--trailer", coauthor],
         input=src, text=True, capture_output=True, env=_git_child_env())
     if res.returncode != 0:
@@ -18033,8 +18340,8 @@ def _plan_corpus_signature(slug: str, plan_body: str, lines=None) -> str:
     return hashlib.sha256(basis.encode("utf-8")).hexdigest()
 
 
-def _plan_card_set_fingerprint(slug: str) -> str:
-    return plan_mod._plan_card_set_fingerprint(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml)
+def _plan_card_set_fingerprint(slug: str, _carry=None) -> str:
+    return plan_mod._plan_card_set_fingerprint(slug, SPECS_DIR=SPECS_DIR, TASKS_DIR=TASKS_DIR, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, PLANS_DIR=PLANS_DIR, _carry=_carry)
 
 
 def _decision_realization_block(decision: dict) -> str:
@@ -18121,6 +18428,26 @@ def _commit_is_substantive(sha: str) -> bool:
         return True
     names = [n for n in (r.stdout or "").split("\0") if n]
     return bool(names) and _classify_inert_paths(names)[0] != "inert"
+
+
+def _stage6_run_not_owed(tid: str) -> "str | None":
+    """T-14483 (SPEC-1045 rule 2 (o)) — why `tid` owes no governed Stage-6 run, or None when it may owe
+    one: no `commit_landed` of the card is substantive (`gates._last_substantive_commit` with
+    `_commit_is_substantive` — the SAME fact Closure-time coverage reads) AND every path this checkout
+    changes against its merge-base with main — committed, uncommitted and untracked
+    (`task._stage6_changed_paths`) — is inert (`_classify_inert_paths`, the one SPEC-0064 authority), so
+    a code commit the journal never recorded still asks for the run. Any read that fails answers None:
+    the run queues as before."""
+    try:
+        if gates._last_substantive_commit(_task_pointer_rows(tid), _commit_is_substantive) is not None:
+            return None
+        names = task_mod._stage6_changed_paths(REPO_ROOT, _run_git_cap=_run_git_cap)
+        if names is None or (names and _classify_inert_paths(list(names))[0] != "inert"):
+            return None
+        return ("no commit of the card changes a path outside the inert bookkeeping paths, and the "
+                f"{len(names)} path(s) this checkout changes against main are all inert")
+    except Exception:                  # noqa: BLE001 — undecided: the run queues
+        return None
 
 
 def _closure_coverage_gap(tid: str) -> "str | None":
@@ -18466,6 +18793,7 @@ def _build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | N
                         readiness_sink=None, readiness_journal_silent: bool = False,
                         prototype_diff: "str | None" = None,
                         prototype_identity: "dict | None" = None,
+                        prototype_carry_block: "str | None" = None,   # T-14458 (SPEC-1058 §3)
                         cross_section_sink=None,
                         optin_excluded_sink=None,
                         zero_ship_diff: bool = False, evidence_locator: "str | None" = None) -> str:
@@ -18501,6 +18829,7 @@ def _build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | N
         readiness_sink=readiness_sink,
         readiness_journal_silent=readiness_journal_silent,
         prototype_diff=prototype_diff, prototype_identity=prototype_identity,   # T-12571 (SPEC-0205 r5/6)
+        prototype_carry_block=prototype_carry_block,
         repo_root=REPO_ROOT,   # T-11778: the checkout the collector-shape facts are read from
         yaml_dump_block=yaml_dump_block,
         latest_event_for=_latest_event_for,
@@ -18791,10 +19120,11 @@ def _audit_archive_escalation_dir() -> Path:
 _lazy_alias("_audit_route_is_escalation", "audit", "audit_route_is_escalation")
 
 
-def _archive_task_audits(tid: str, git_mv=None) -> list:
+def _archive_task_audits(tid: str, git_mv=None, plan_only: bool = False) -> list:
     """Thin host wrapper -> audit.archive_task_audits (T-9248). Injects DECISIONS_DIR + REPO_ROOT;
     git_mv (the real `git mv` callable) is still passed by the caller (close / sweep)."""
-    return audit.archive_task_audits(tid, git_mv=git_mv, decisions_dir=DECISIONS_DIR, repo_root=REPO_ROOT)
+    return audit.archive_task_audits(tid, git_mv=git_mv, decisions_dir=DECISIONS_DIR, repo_root=REPO_ROOT,
+                                     plan_only=plan_only)
 
 
 def _terminal_task_closures() -> dict:
@@ -18908,13 +19238,14 @@ def _closed_task_ids() -> list:
     return list(_terminal_task_closures())
 
 
-def _archive_terminal_nontask_audits(git_mv=None) -> list:
+def _archive_terminal_nontask_audits(git_mv=None, plan_only: bool = False, exclude=frozenset()) -> list:
     """Thin host wrapper -> audit.archive_terminal_nontask_audits (T-9727). Injects DECISIONS_DIR +
     REPO_ROOT + PLANS_DIR + PLAN_TERMINAL (the ONE plan-terminal-status truth from lib.plan, P5) —
     drains the adhoc/gate/consult audit YAMLs of TERMINAL targets the per-task drain never reaches."""
     return audit.archive_terminal_nontask_audits(
         git_mv=git_mv, decisions_dir=DECISIONS_DIR, repo_root=REPO_ROOT,
-        plans_dir=PLANS_DIR, terminal_statuses=plan_mod.PLAN_TERMINAL)
+        plans_dir=PLANS_DIR, terminal_statuses=plan_mod.PLAN_TERMINAL, plan_only=plan_only,
+        exclude=exclude)
 
 
 def _audit_target_is_terminal(rec) -> bool:
@@ -18923,22 +19254,27 @@ def _audit_target_is_terminal(rec) -> bool:
     return audit.audit_target_is_terminal(rec, plans_dir=PLANS_DIR, terminal_statuses=plan_mod.PLAN_TERMINAL)
 
 
-def _displacement_retention_sweep(git_mv=None) -> dict:
+def _displacement_retention_sweep(git_mv=None, plan_only: bool = False) -> dict:
     """BACKSTOP drain (SPEC-0052 rule 3): walk every CLOSED task and archive any audit YAMLs still in
     the active decisions/ lane, AND (T-9727) drain the NON-task-keyed adhoc/gate/consult audit YAMLs of
     TERMINAL targets the per-task glob never reaches. Idempotent (already-archived skipped). Returns a
     summary {tasks_swept, nontask_swept, moved:[...], routine, escalation}. The at-closure call
     (cmd_task_close) drains the just-closed task; this sweep is the eventual-consistency net for the
-    historical backlog + any task a transient at-closure move missed (audit-pre F0 resolution)."""
+    historical backlog + any task a transient at-closure move missed (audit-pre F0 resolution).
+
+    `plan_only` (T-14475) runs the SAME walk and returns the SAME summary while moving nothing — the
+    `triage sweep --dry-run` preview, so its count and list are the real run's by construction."""
     moved_all = []
     swept = 0
     for tid in _closed_task_ids():
-        m = _archive_task_audits(tid, git_mv=git_mv)
+        m = _archive_task_audits(tid, git_mv=git_mv, plan_only=plan_only)
         if m:
             swept += 1
             moved_all.extend(m)
     # T-9727 — also drain terminal adhoc/gate/consult audit YAMLs (plan-slug + free-slug keyed).
-    nontask = _archive_terminal_nontask_audits(git_mv=git_mv)
+    # The task pass's srcs are excluded so a file it took is never counted a second time (T-14475).
+    taken = frozenset(s for s, _d, _l in moved_all)
+    nontask = _archive_terminal_nontask_audits(git_mv=git_mv, plan_only=plan_only, exclude=taken)
     moved_all.extend(nontask)
     return {
         "tasks_swept": swept,
@@ -19113,18 +19449,12 @@ def _cmd_audit_dispatch(args: argparse.Namespace, consult: bool = False) -> None
     # this site, so its packet fold, followup fold, breaker read and journal state each folded for
     # themselves (measured 2026-10-02: 615 folds over 246 segments, 10.4 GB). It takes post's scope.
     with contextlib.ExitStack() as _scope_stack:
-        # T-13844 — not when `plan stage postcheck --on-decisions` runs this pass: that verb already
-        # holds this very scope for the same plan, and a second one would walk the journal again.
-        if (not consult and getattr(args, "plan", None) and getattr(args, "audit_action", None) == "post"
-                and getattr(args, "plan_gate_on_decisions", None) is None):
-            _scope_stack.enter_context(plan_mod.plan_stage_read_scope(
-                argparse.Namespace(slug=args.plan), events_path=EVENTS_PATH, load_draft=_load_draft,
-                plans_dir=PLANS_DIR, session_refs=_carried_session_refs(), verb="audit post --plan"))
-        _scope_stack.enter_context(audit.audit_pre_read_scope(
-            args, events_path=EVENTS_PATH, find_task_yaml=_find_task_yaml,
-            session_refs=_carried_session_refs(), main_events_path=_main_events_path,
-            spike_journal=lambda: task_mod.prototype_main_journal(REPO_ROOT),
-            evidence_factory=evidence_reducer_factory, consult=consult))
+        # The plan scope (`_audit_plan_read_scope`, T-13844 guard inside) then the task scope; T-14405 —
+        # both already open around the whole invocation when `_audit_invocation_read_scope` ran.
+        if consult or not getattr(args, "_audit_scope_installed", False):
+            if not consult:
+                _scope_stack.enter_context(_audit_plan_read_scope(args))
+            _scope_stack.enter_context(_audit_task_read_scope(args, consult=consult))
         if consult:
             return _cmd_audit_consult_scoped(args)
         # T-13542 — the SPEC-0168 main-journal resolver rides ONLY the --followup field edit that reads
@@ -19744,7 +20074,11 @@ GOVERNED_DOCS = (frozenset(CANONICAL_DOCS) | {"CLAUDE.md"}
 # Token and FLOOR_TRIGGERS row in ONE change: SPEC-1056 is activated by T-14378's own close, and the
 # final Stage-6 run verifies the tree with that activation applied (T-13982), so the row renders bound
 # there. BINDING_VERB_SURFACES membership IS the door.
-BINDING_VERB_SURFACES = ("commit", "close", "audit-pre", "audit-post", "spec-new", "spec-edit", "plan-close", "before-analysis", "before-authoring-interaction", "before-project-dimension-judgement", "before-deploy", "before-external-mutation", "before-mcp-use", "before-scheduling-a-cadence", "before-handling-a-secret", "before-authoring-auth", "before-restoring-a-production-copy", "before-authoring-public-boundary", "before-adding-a-dependency", "before-reading-a-consumer-surface-in-kernel-code", "before-reading-external-content")
+# T-14481 (<project> X-2194): `before-raising-a-sandbox` — the stage-agnostic moment a person asks for a
+# sandbox / stand, BEFORE any stack comes up. It carries SPEC-0205 (already ACTIVE, so its FLOOR_TRIGGERS
+# row renders bound in the same change), whose §Two modes choice — spike or acceptance — was reachable only
+# after a spike was opened. BINDING_VERB_SURFACES membership IS the door; the row is a pointer, never a gate.
+BINDING_VERB_SURFACES = ("commit", "close", "audit-pre", "audit-post", "spec-new", "spec-edit", "plan-close", "before-analysis", "before-authoring-interaction", "before-project-dimension-judgement", "before-deploy", "before-external-mutation", "before-mcp-use", "before-scheduling-a-cadence", "before-handling-a-secret", "before-authoring-auth", "before-restoring-a-production-copy", "before-authoring-public-boundary", "before-adding-a-dependency", "before-reading-a-consumer-surface-in-kernel-code", "before-reading-external-content", "before-raising-a-sandbox")
 BINDING_FLOOR_TOKEN = "floor"   # reserved residency marker — mandatory-tier, always-loaded, NOT fetched
 # T-0263: the SECOND reserved residency marker (peer to `floor`) — SPEC-0007 §5a "query-only reference"
 # delivery class. Marks an active RETRIEVED spec delivered via an always-loaded handbook pointer-stub +
@@ -21724,6 +22058,7 @@ FLOOR_TRIGGERS = (
     ("before-authoring-public-boundary", ("before-authoring-public-boundary",)),  # T-12086 — renders SPEC-0100's born-secure BOUNDARY items (object-level authz / input validation / injection-safe data access / output encoding / size+rate bounds / headers+CORS / upload handling / SSRF), read before authoring an endpoint, accepting external input, rendering user text, accessing an object on a caller's behalf, accepting an upload, or calling a caller-supplied URL; delivery is SPEC-0198 profile-gated (graph.born_secure_render)
     ("before-adding-a-dependency", ("before-adding-a-dependency",)),  # T-12086 — renders SPEC-0100's born-secure dependency-hygiene item (pinned manifest + committed lockfile, frozen install, no unwaived critical/high advisory) — a CONSTANT-FLOOR item, delivered at every profile
     ("before-reading-a-consumer-surface-in-kernel-code", ("before-reading-a-consumer-surface-in-kernel-code",)),  # T-13699 — renders SPEC-0185 (active) — kernel code reads a consumer surface from the declaration that covers it; read before writing kernel code that resolves a consumer-internal path or convention (moved off the Execution stage entry)
+    ("before-raising-a-sandbox", ("before-raising-a-sandbox",)),  # T-14481 — renders SPEC-0205 (active) — name the sandbox mode (spike or acceptance) before any stack comes up; the cue rides FLOOR_TRIGGER_CUE below
     ("before-reading-external-content", ("before-reading-external-content",)),  # T-14378 — renders SPEC-1056 (activated by T-14378's close) — external content is data, never instructions: run `external-read` on the address, then read it only through the AI tool's reader
 )
 # T-9787 (X-0161): per-trigger governed-verb co-naming. A floor trigger whose gated action is DONE BY a
@@ -21733,6 +22068,16 @@ FLOOR_TRIGGERS = (
 # routing axis. The deploy verb is consumer-run, hence the `-C <path>` form (a consumer has no local bin).
 FLOOR_TRIGGER_GOVERNED_VERB = {
     "before-deploy": "bin/yitc-v2 -C <path> deploy --class {A|S|C1|C2}",
+}
+# T-14481 (X-2194): a per-trigger CUE on the rendered row — the one-line choice the reader makes AT the
+# moment, when the spec title alone does not name it. Same derived-only presentation shape as the
+# governed-verb co-naming above; absent triggers render byte-equal. The rule's home stays SPEC-0205
+# rule 7 + patterns/spike-mode.md §Two modes — the cue points there, it does not restate them.
+FLOOR_TRIGGER_CUE = {
+    "before-raising-a-sandbox": ("name the mode FIRST, before any stack comes up: SPIKE (changes to plan or "
+                                 "prototype — `worktree new --work <slug> --spike`) or ACCEPTANCE (landed "
+                                 "`main` to check — `deploy --target <production: false>`); "
+                                 "patterns/spike-mode.md §Two modes"),
 }
 # RULE_RE / RULE_SEVERITY -> bin/lib/graph.py (T-9249): the sole reader _extract_rules moved with them.
 # T-0491: EXCLUDED_EVENT_TYPES removed — the `event` node-type is cut, so the build no longer mirrors
@@ -23900,7 +24245,7 @@ def _governing_rule_pointer(surface: str) -> str:
 
 
 def _render_floor_trigger_map(floor_trigger_map: dict, specs: dict, kernel_provided: bool=False) -> str:
-    return graph._render_floor_trigger_map(floor_trigger_map, specs, kernel_provided, FLOOR_TRIGGERS=FLOOR_TRIGGERS, KERNEL_NAME=KERNEL_NAME, FLOOR_TRIGGER_GOVERNED_VERB=FLOOR_TRIGGER_GOVERNED_VERB)
+    return graph._render_floor_trigger_map(floor_trigger_map, specs, kernel_provided, FLOOR_TRIGGERS=FLOOR_TRIGGERS, KERNEL_NAME=KERNEL_NAME, FLOOR_TRIGGER_GOVERNED_VERB=FLOOR_TRIGGER_GOVERNED_VERB, FLOOR_TRIGGER_CUE=FLOOR_TRIGGER_CUE)
 
 
 def _print_binding_report(report: dict, prefix: str = "") -> None:
@@ -25883,6 +26228,38 @@ def _scoped_session_window(path: Path, ref: str, settled, full: bool, horizon=No
     return _rows(day), not full
 
 
+def _scoped_needle_session_rows(path: Path, ref: str, settled, full: bool, horizon=None):
+    """T-14405 — `ref`'s rows served by the installed ONE-PASS scope (`journal.scan_scope`, not keep_all
+    — those take `_scoped_session_window`) that DECLARED `ref` as a needle, in `_iter_events_tail`'s
+    `(events, bounded)` contract; None when no such scope holds `path`, so the caller reads as before.
+
+    The credit rule is `_scoped_session_window`'s (and the read gate's `_attempt`, T-13995): a tail
+    request is credited on the scope's walked rows when `settled` holds and, given a `horizon`, the
+    scope's floor reaches back to the horizon's day; anything else is answered from the WHOLE history —
+    the scope's ONE remainder walk (`remainder=`) or an unfloored scope's rows — never a second fold. A
+    floored scope with no remainder walk cannot answer the whole history, so it returns None."""
+    scope = journal_mod._scope_for(path)
+    if (scope is None or getattr(scope, "_keep_all", False)
+            or ref not in (getattr(scope, "_needles", None) or ())):
+        return None
+    rows = journal_mod.scope_needle_rows(path, ref)
+    if rows is None:
+        return None
+    floor = journal_mod.scope_horizon(path)
+    if not full and settled is not None and settled(rows):
+        if floor is None:
+            return rows, False
+        day = horizon(rows) if horizon is not None else None
+        if horizon is None or (day is not None and floor <= day):
+            return rows, True
+    if floor is None:
+        return rows, False
+    if not getattr(scope, "remainder", False):
+        return None
+    whole = journal_mod.scope_needle_rows(path, ref, whole=True)
+    return (whole, False) if whole is not None else None
+
+
 def _iter_events_tail(events_path: "Path | None" = None, *, window_sec: int = _GATE_TAIL_WINDOW_SEC,
                       session_ref: "str | None" = None, settled=None, full: bool = False, horizon=None):
     """The tail-windowed twin of `_iter_events` — returns `(events, bounded)`.
@@ -25945,6 +26322,14 @@ def _iter_events_tail(events_path: "Path | None" = None, *, window_sec: int = _G
             if got is not None:
                 return got
         return list(_iter_events(events_path)), False
+    # T-14405 — a ONE-PASS scope (not keep_all) that declared this session's needle already holds every
+    # row naming the ref: answer from it, so a session read of the dispatch envelope (the compaction
+    # backstop's `_newest_seed_stamps`, the seed gate) inside audit pre/post's invocation scope folds no
+    # segment of its own. None (no such scope, or one that cannot prove the answer) reads as before.
+    if session_ref:
+        served = _scoped_needle_session_rows(path, session_ref, settled, full, horizon)
+        if served is not None:
+            return served
     # T-13289 — the SESSION HORIZON (see `_SessionWalk`). A ref the needle proof cannot cover keeps
     # the 24h window below, unchanged — and so does a history that fits in ONE walk block when no
     # preamble scope is installed: there is nothing to narrow and nothing to share, so the full reader
@@ -26520,29 +26905,96 @@ def _split_into(raw) -> list:
     return plan_mod._split_into(raw)
 
 
-def _plan_stage_bundle_specs(stage: str) -> list:
-    """Active spec IDs bound to `plan-stage-entry:<stage>` — the spec half of the bundle `plan stage`
-    delivers (T-0316), the plan-axis analog of `_stage_bundle_specs` (task `stage-entry:`). A DISTINCT
-    token from the task `stage-entry:` axis ON PURPOSE: the task conformance self-test restricts
-    `stage-entry:` to the 9 task stages (`_is_valid_stage_entry`), so binding a plan stage on it would
-    route to `bad_stage_entries` → `graph conformance` RED. REWIRED by T-0324 to read THROUGH the
-    derived `plan_stage_to_specs` view (`_build_binding_views` over the per-spec `binding:` field — the
-    SINGLE canonical derivation, P5) instead of its own ad-hoc scan: ONE parser path shared with the
-    task-axis bundle + the conformance door, no second hidden scan (external-consult verdict 2026-06-05).
-    Exactly mirrors `_stage_bundle_specs`. Degrades to [] on any read failure (telemetry helper — must
-    not crash the verb)."""
-    try:
-        import yaml
-        if not SPECS_DIR.is_dir():
-            return []
+def _plan_stage_maps() -> "tuple | None":
+    """The plan-axis binding maps `(own, kernel)` — each `{plan stage: [spec ids]}`, the derived
+    `plan_stage_to_specs` view (`_build_binding_views` over the per-spec `binding:` field — the SINGLE
+    canonical derivation, P5) of ONE corpus. `own` is this repo's specs/; `kernel` is the engine's
+    specs on a -C consumer build (`_kernel_overlay_files`, parts excluded) and `{}` on the engine's own
+    session, where own IS the kernel. The two corpora are derived SEPARATELY — the T-11077 shape of
+    `_stage_bundle_corpus` on the task axis — so a consumer-owned id cannot shadow a kernel binding.
+    None when the own corpus cannot be read (callers degrade to []); a kernel read failure leaves
+    `kernel` empty and the own side standing (T-14408)."""
+    def _map(paths):
         specs = {}
-        for p in state.scan_specs(SPECS_DIR):   # SPEC-* glob excludes _template.yaml
+        for p in paths:
             d = state.load_str(p.read_text(encoding="utf-8")) or {}
             sid = d.get("id")
             if sid:
                 specs[sid] = d
+        if not specs:
+            return {}
         _, _, report = _build_binding_views(specs)
-        return list((report.get("plan_stage_to_specs") or {}).get(stage, []))
+        return dict(report.get("plan_stage_to_specs") or {})
+    try:
+        own = _map(list(state.scan_specs(SPECS_DIR)) if SPECS_DIR.is_dir() else [])   # SPEC-* excludes _template.yaml
+    except Exception:
+        return None
+    kernel: dict = {}
+    if _is_consumer_build():
+        try:
+            kernel = _map([p for p in _kernel_overlay_files("specs", "SPEC-*.yaml")
+                           if not state.is_spec_part(p)])
+        except Exception:
+            kernel = {}
+    return own, kernel
+
+
+def _plan_stage_bundle_specs(stage: str, *, with_realms: bool = False):
+    """Active spec IDs bound to `plan-stage-entry:<stage>` — the spec half of the bundle `plan stage`
+    delivers (T-0316), the plan-axis analog of `_stage_bundle_specs` (task `stage-entry:`). A DISTINCT
+    token from the task `stage-entry:` axis ON PURPOSE: the task conformance self-test restricts
+    `stage-entry:` to the 9 task stages (`_is_valid_stage_entry`), so binding a plan stage on it would
+    route to `bad_stage_entries` → `graph conformance` RED. Reads THROUGH the derived
+    `plan_stage_to_specs` view (T-0324), via `_plan_stage_maps`.
+
+    T-14408 (X-2156) — under `-C` the KERNEL corpus is read too, exactly as the task axis already does:
+    a consumer whose own specs/ binds nothing at a plan stage was handed an EMPTY bundle although the
+    kernel binds that stage (<project>, `plan stage decomposition`: SPEC-0070 / SPEC-1025 never
+    delivered). The ids are own first, then the kernel ids own does not list — so the engine's own
+    list is byte-identical (kernel side empty there).
+
+    with_realms returns `(ids, realms)`: each id → the realm whose binding put it here, the receipt
+    realm the read check requires (SPEC-0050). The rule is the task axis's: an id the KERNEL binds at
+    this stage is realm "kernel" even when the consumer binds it too (a handbook pointer names the
+    kernel contract); an id only the consumer binds is "own". On the engine's own session the map is
+    EMPTY — nothing is realm-qualified, credit stays id-only. Degrades to [] / ([], {}) on any read
+    failure (a delivery helper must not crash the verb)."""
+    try:
+        maps = _plan_stage_maps()
+        if maps is None:
+            return ([], {}) if with_realms else []
+        own, kernel = maps
+        own_ids = list(own.get(stage, []))
+        kernel_ids = list(kernel.get(stage, []))
+        ids = own_ids + [i for i in kernel_ids if i not in own_ids]
+        if not with_realms:
+            return ids
+        if not _is_consumer_build():
+            return ids, {}
+        realms = {i: "own" for i in own_ids}
+        realms.update({i: "kernel" for i in kernel_ids})
+        return ids, realms
+    except Exception:
+        return ([], {}) if with_realms else []
+
+
+def _plan_axis_homes() -> list:
+    """The plan-axis doctrine home(s) the empty-bundle hint names (T-14408): the spec id(s) bound at
+    EVERY plan stage the corpora `_plan_stage_bundle_specs` reads bind (own, plus the kernel under
+    -C, merged per stage), sorted — derived from the bindings rather than a fixed list. [] when
+    nothing binds the plan axis, no spec is common to every bound stage, or the corpus cannot be
+    read; the hint then keeps its fixed fallback."""
+    try:
+        maps = _plan_stage_maps()
+        if maps is None:
+            return []
+        per_stage: dict = {}
+        for m in maps:
+            for st, ids in m.items():
+                per_stage.setdefault(st, set()).update(ids)
+        if not per_stage:
+            return []
+        return sorted(set.intersection(*per_stage.values()))
     except Exception:
         return []
 
@@ -26553,7 +27005,13 @@ def _emit_plan_stage_entered(slug: str, frm, to: str, *, extra=None) -> list:
 
 def _print_plan_stage_delivery(stage: str, delivered: list, *, is_consumer: bool = False) -> None:
     return plan_mod._print_plan_stage_delivery(stage, delivered, is_consumer=is_consumer,
-                                               _deliver_stage_bundle_contracts=_deliver_stage_bundle_contracts)
+                                               _deliver_stage_bundle_contracts=_deliver_stage_bundle_contracts,
+                                               # T-14408: derived homes for a LINEAR stage only — a
+                                               # terminal is no valid plan-stage-entry token, so its
+                                               # bindings have nothing to derive from.
+                                               homes=(_plan_axis_homes()
+                                                      if not delivered and stage in PLAN_STAGE_SEQUENCE
+                                                      else None))
 
 
 def _plan_accept_core(path: Path, fm: dict, body: str, slug: str):
@@ -26576,7 +27034,7 @@ def _plan_card_set_context(slug: str) -> str:
 def _require_plan_decomposition_fidelity(slug: str, fm: dict, body: str,
                                          *, owner_reset: bool = False,
                                          on_decisions: bool = False) -> None:
-    return plan_mod._require_plan_decomposition_fidelity(slug, fm, body, owner_reset=owner_reset, on_decisions=on_decisions, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, _die=_die, _plan_card_set_context=_plan_card_set_context, _plan_card_set_fingerprint=_plan_card_set_fingerprint, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _run_plan_gate_audit=_run_plan_gate_audit)
+    return plan_mod._require_plan_decomposition_fidelity(slug, fm, body, owner_reset=owner_reset, on_decisions=on_decisions, AUDIT_VERDICT_CLOSURE_OK=AUDIT_VERDICT_CLOSURE_OK, DECISIONS_DIR=DECISIONS_DIR, TASKS_DIR=TASKS_DIR, _die=_die, _plan_card_set_context=_plan_card_set_context, _plan_card_set_fingerprint=_plan_card_set_fingerprint, _plan_content_hash=_plan_content_hash, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _run_plan_gate_audit=_run_plan_gate_audit)
 
 
 def _plan_postcheck_exempt_specs(slug: str) -> frozenset:
@@ -26693,7 +27151,7 @@ def _plan_accept_freshness_hash(slug: str, body: str, fm: dict = None, sf=None) 
     # T-11320: `sf=None` stands for lib.plan's `_SF_UNSET` sentinel ("not precomputed by the caller"),
     # translated here — naming the sentinel in the signature would import lib.plan at def time.
     sf = plan_mod._SF_UNSET if sf is None else sf
-    return plan_mod._plan_accept_freshness_hash(slug, body, fm, sf, SPECS_DIR=SPECS_DIR, _plan_active_proposed_corpus=_plan_active_proposed_corpus, _plan_content_hash=_plan_content_hash, _plan_scenario_fidelity=_plan_scenario_fidelity, _read_yaml=_read_yaml, _spec_content_sans_status=_spec_content_sans_status)
+    return plan_mod._plan_accept_freshness_hash(slug, body, fm, sf, SPECS_DIR=SPECS_DIR, _plan_active_proposed_corpus=_plan_active_proposed_corpus, _plan_content_hash=_plan_content_hash, _plan_scenario_fidelity=_plan_scenario_fidelity, _read_yaml=_read_yaml, _spec_content_sans_status=_spec_content_sans_status, REPO_ROOT=REPO_ROOT)   # T-14456: the prototype pair
 
 
 def _plan_draft_corpus_audit_block(slug: str, coverage_out: "dict | None" = None) -> str:
@@ -31004,7 +31462,7 @@ def _seed_onboarding_for_init(memory_text: str) -> tuple:
     if held:
         print(f"onboarding: held unconsumed for user({user}), not re-seeded: {', '.join(held)} — "
               f"re-seed deliberately with `memory seed --user {user}`; to retire one, re-seed then "
-              f"`memory consume --station <id>`")
+              f"`memory consume --station <id> --voiced` or `--known`")
     return text, added, user
 
 

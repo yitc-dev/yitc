@@ -316,7 +316,49 @@ def load_ops(ops_path: Path):
     the parsed object (None for an empty carrier). The caller resolves the path under REPO_ROOT and
     keeps its OWN existence guard + fail-closed policy (die vs None vs False) — mirroring `load_str`'s
     raise-don't-swallow contract, of which this is the file-reading specialization."""
-    return load_ops_str(ops_path.read_text(encoding="utf-8"))
+    ops = load_ops_str(ops_path.read_text(encoding="utf-8"))
+
+    def _sibling(name):
+        try:
+            return (ops_path.parent / name).read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    return materialize_ops_units(ops, _sibling)
+
+
+#: T-14448 (SPEC-1051 rule 1) — the only name a class's `units_file:` may carry: a file beside the
+#: carrier, inside the verify-infrastructure glob `verify_wiring._VERIFY_IMPLEMENTATION_GLOBS` names.
+OPS_UNITS_FILE_RE = r"yitc-ops-units-[A-Za-z0-9][A-Za-z0-9._-]*\.txt"
+
+
+def materialize_ops_units(ops, read):
+    """T-14448 (SPEC-1051 rule 1) — fill each `tests.classes[]` entry declaring `units_file:` with its
+    `units:` list, read by `read(name) -> text | None` (the sibling beside the carrier, or a revision's
+    blob), so every reader keeps reading `units`. The file holds one path a line; a blank line and a
+    `#` line are not units. Any fault — a name outside the scheme, `units:` beside the pointer, a read
+    that answers None — leaves `units: None` and a `units_error` the contract read refuses
+    (`init._pre_deploy_entry_errors`): a refused class skips nothing, it is never read as «no units».
+    Returns `ops`; a carrier with no pointer is untouched."""
+    tests = ops.get("tests") if isinstance(ops, dict) else None
+    classes = tests.get("classes") if isinstance(tests, dict) else None
+    for c in classes if isinstance(classes, list) else ():
+        if not (isinstance(c, dict) and "units_file" in c):
+            continue
+        name = c.get("units_file")
+        if not (isinstance(name, str) and re.fullmatch(OPS_UNITS_FILE_RE, name)):
+            c["units"], c["units_error"] = None, f"{name!r} is not a yitc-ops-units-<class>.txt name"
+            continue
+        if "units" in c:
+            c["units"], c["units_error"] = None, "`units:` and `units_file:` are both declared"
+            continue
+        text = read(name)
+        if text is None:
+            c["units"], c["units_error"] = None, f"{name} cannot be read"
+            continue
+        c["units"] = [ln.strip() for ln in text.splitlines()
+                      if ln.strip() and not ln.strip().startswith("#")]
+    return ops
 
 
 def dump_state(obj) -> str:

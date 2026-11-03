@@ -57,6 +57,18 @@ _AUDIT_REVIEW_ONLY_CLAUSE = (
     "verdict + findings YAML specified under ## Output.\n"
 )
 
+# T-14429 — the ad-hoc consult variant: an open-form consult names surfaces the auditor must READ
+# (the inspection runbook's STEP-2 read-only template), so "do NOT run anything" starved it of its
+# subject. Read-only commands are permitted; every mutation stays forbidden. Pre/post keep the clause above.
+_AUDIT_ADHOC_REVIEW_ONLY_CLAUSE = (
+    "## Your role: REVIEW only — do NOT mutate\n\n"
+    "You are REVIEWING for judgement — you are NOT performing the work. You MAY run read-only commands\n"
+    "to inspect the surfaces the request names (read files, search, list directories, git log / show /\n"
+    "diff). Do NOT edit, write, create, delete, commit, or run anything that changes state. Being unable\n"
+    "to write in your sandbox is OUT OF SCOPE and is NEVER a finding. Return ONLY the verdict + findings\n"
+    "YAML specified under ## Output.\n"
+)
+
 _AUDIT_PRE_ABSORPTION_ROUTES = (
     "## Absorption discipline — how each finding will be absorbed (E-0008)\n\n"
     "The audit-loop ceiling counts RE-AUDIT passes (max 2 per task per stage). For EACH finding you\n"
@@ -168,6 +180,7 @@ _PACKET_PROTECTED_PREFIXES = (
     "### Implementation plan",
     "### Declared identical to the prototype",   # T-13856 — the card's own declaration, which this pass
                                                  # judges: a bounded packet must never drop an entry
+    "### Prototype carry items",   # T-14458 — the card's registry items and the question judged on them
     "### Stage-6 test evidence",
     "### Session resolution options",
 )
@@ -1371,6 +1384,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                        foreign_subject: "dict | None" = None,   # T-12737 — {commit, reason, land_evidence}
                        churn_tie: "dict | None" = None,
                        prototype_diff: "str | None" = None, prototype_identity: "dict | None" = None,
+                       prototype_carry_block: "str | None" = None,   # T-14458 (SPEC-1058 §3)
                        yaml_dump_block, latest_event_for, diff_touched_files,
                        norm_repo_path, ac_probe_evidence_events_for,
                        spec_coverage_section, build_referenced_files_section,
@@ -1504,7 +1518,7 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
     norm_repo_path, ac_probe_evidence_events_for, spec_coverage_section, build_referenced_files_section)
     are INJECTED by the bin/yitc-v2 wrapper (T-9248) — this module reads no host global."""
     lens = (
-        _AUDIT_REVIEW_ONLY_CLAUSE + "\n"
+        (_AUDIT_ADHOC_REVIEW_ONLY_CLAUSE if target_kind == "ad-hoc" else _AUDIT_REVIEW_ONLY_CLAUSE) + "\n"
         "## V2 evaluation lens\n\n"
         "CHARTER principles check: anti-complexity (4 filters) / Done = Adopted (probe evidence) /\n"
         "Documentation-first (`from:` chain + spec-coverage of touched code — see the coverage section) / Single SoT (no parallel storage) / AI Independence\n"
@@ -2695,8 +2709,11 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
         # T-13856 — the card's declared-identical paths, in a section of their own AHEAD of the diff
         # (the diff section may be bounded; this one is protected). '' when the card declares nothing.
         overlay += _si.declaration_packet_block(task)
+        overlay += prototype_carry_block or ""   # T-14458 — its overlay replaces rule 5's ask
         overlay += (f"\n### Prototype diff (the specification — prototype_ref: {task.get('prototype_ref')})\n"
-                    f"```diff\n{prototype_diff}\n```\n\n" + PROTOTYPE_PRE_OVERLAY)
+                    f"```diff\n{prototype_diff}\n```\n\n" + ("" if prototype_carry_block else PROTOTYPE_PRE_OVERLAY))
+    elif target_kind == "task" and stage == "pre" and prototype_carry_block:
+        overlay += prototype_carry_block
     if target_kind == "task" and stage == "post" and prototype_identity:
         _pi = prototype_identity
         overlay += (f"\nprototype_identity: prototype_ref {task.get('prototype_ref') or 'none declared (partial overlap reported, not refused)'} — whole-file hits "
@@ -2709,6 +2726,8 @@ def build_audit_prompt(task: dict, stage: str, diff: str | None, extra: str | No
                     f"cited from {_pi.get('source_type')} {_pi.get('source_row')} (a projection of that "
                     f"row, never recomputed; SPEC-0205 rule 6). Judge the derivation: the share is "
                     f"context, not a verdict.\n")
+    if target_kind == "task" and stage == "post" and prototype_carry_block:
+        overlay += prototype_carry_block   # T-14458 (SPEC-1058 §3)
     parts = [lens]
     _task_absorption =target_kind == "task" and stage in ("pre", "post")
     _later_pass = _task_absorption and int(prior_passes or 0) >= 1

@@ -39,6 +39,7 @@ as before.
 | `playwright/1` | `patterns/verify-layer-adapter-samples/playwright-adapter.py` | `list`, `related`, `run` |
 | `pytest/1` | `patterns/verify-layer-adapter-samples/pytest-adapter.py` | `list`, `related`, `run` |
 | `script/1` | `patterns/verify-layer-adapter-samples/script-adapter.py` | `list`, `run` |
+| `junit/1` | `patterns/verify-layer-adapter-samples/junit-adapter.py` | `list`, `run` |
 
 1. Copy the sample for your runner into your repository (for example to `tools/`).
 2. Edit the few values under `SETTINGS` at its top — where the runner's config lives and how
@@ -229,6 +230,7 @@ in the report differs from what the profile derives.
 | `playwright/1` | Playwright | the suite `name` plus its `hostname` (the project) | the unit's `file` | Playwright's JSON report | yes | yes | `--retries=0` | `worktree` |
 | `pytest/1` | pytest | the dotted module at the start of a test case's `classname` | the unit's `file` as a dotted module | none | no | yes | `no rerun plugin` | `kernel` |
 | `script/1` | one script per file | the suite `name` | the unit's `file` | none | no | no | `one process per file, no retry loop` | `kernel` |
+| `junit/1` | any runner that writes JUnit XML (pytest, jest, vitest, playwright, go via gotestsum, mocha, phpunit...) | a test case's own `file`, else its suite's `file`, else the suite `name` | the unit's `file` | none | no | yes | `the runner's own retry option off` | `kernel` |
 
 What `report_id` names, per profile:
 
@@ -250,6 +252,20 @@ What `report_id` names, per profile:
 - **`script/1`** — the suite name, which the adapter itself writes: one suite per file, named by
   the unit's `file`, holding one test case that carries a `failure` when the file exited nonzero.
   There are no per-case rows; the verdict is the file's.
+
+- **`junit/1`** — the test file the case lives in, as the case or its suite names it. The
+  generic route: a runner with no profile of its own declares this one. The sample makes every
+  case name its file before the kernel reads the report — for Go, whose report names the package,
+  it finds the package's `*_test.go` file that declares the test. A case that names no requested
+  file drops the report, so the layer's `command:` decides; a guess never names a file.
+
+### A runner that cannot write JUnit
+
+Wrap it in the `script/1` sample: one suite per file, one case per file. To keep a red per test,
+the adapter adds one `<property name="failed_test" value="<test name>"/>` per failed test to the
+failed case (or lets the runner print its own failure lines, which the kernel reads for pytest,
+unittest, go test and jest / vitest). A `script/1` layer whose failed units name no test is named
+at session start as a gap, with this route.
 
 The last column says whose diff a `related` answer speaks for: `kernel` — the adapter answers
 from the manifest's `changed` list; `merge-base` — the runner diffs `<base>...HEAD` plus staged,

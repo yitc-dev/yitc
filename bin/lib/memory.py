@@ -595,7 +595,8 @@ def _operator_sentence(sot_display: str, consume_cmd: str) -> str:
     rules, then retire it. Shared by both renderers so the two can never drift apart.
     """
     return (f"Read the station body from {sot_display}, voice it ONCE in the person's language "
-            f"without adding new rules (never show the raw body), then retire it via {consume_cmd}")
+            f"without adding new rules (never show the raw body), then retire it via {consume_cmd}; if the person said they already know it, "
+            f"skip the body and pass --known instead of --voiced")
 
 
 def seam_nudge(pointers: Iterable[dict], seam: str, *, cli: str = "bin/yitc-v2",
@@ -606,7 +607,7 @@ def seam_nudge(pointers: Iterable[dict], seam: str, *, cli: str = "bin/yitc-v2",
     seasoned user, or a person already past this station, sees no output at all. A RENDERER, not a
     gate: it returns text, decides nothing, blocks no verb, and writes nothing.
 
-    The emitted `memory consume --station <id>` is the ONE canonical printed form (T-10306 / X-0273):
+    The emitted `memory consume --station <id> --voiced` is the ONE canonical printed form (T-10306 / X-0273):
     the CLI accepts it verbatim, so a session obeying this hint literally succeeds. Keep it identical
     to `pointer_digest`'s — a hint the parser rejects leaves the station silently un-drained.
 
@@ -618,7 +619,7 @@ def seam_nudge(pointers: Iterable[dict], seam: str, *, cli: str = "bin/yitc-v2",
     if not due:
         return None
     parts = ", ".join(f"[{sid}] {station_title(sid)}" for sid in due)
-    cmds = " ; ".join(f"`{cli} memory consume --station {sid}`" for sid in due)
+    cmds = " ; ".join(f"`{cli} memory consume --station {sid} --voiced`" for sid in due)
     return (f"onboarding station due at seam `{seam}`: {parts} — "
             f"{_operator_sentence(_sot_display(sot, kernel_provided), cmds)} (SPEC-0147 §5/§6)")
 
@@ -630,7 +631,7 @@ def pointer_digest(pointers: Iterable[dict], *, cli: str = "bin/yitc-v2",
     Returns `None` when the session holds no pointers (zero footprint). Station A's OWN seam IS session
     start, so for a freshly-seeded person this digest is both the map and A's delivery moment.
 
-    Emits the same canonical `memory consume --station <id>` form as `seam_nudge` (T-10306 / X-0273) —
+    Emits the same canonical `memory consume --station <id> --voiced` form as `seam_nudge` (T-10306 / X-0273) —
     here with a literal `<id>` placeholder, since the digest names several stations and the AI picks the
     one whose seam it just crossed. Substituting a held id yields a verbatim-executable command.
 
@@ -642,7 +643,7 @@ def pointer_digest(pointers: Iterable[dict], *, cli: str = "bin/yitc-v2",
     known = [sid for sid, _q, _t in STATION_SEAMS if sid in held]
     rows = [f"{sid}({'/'.join(station_seams(sid))})" for sid in known]
     rows += [f"{s}(no bound seam)" for s in held if not station_seams(s)]
-    consume = f"`{cli} memory consume --station <id>`"
+    consume = f"`{cli} memory consume --station <id> --voiced`"
     return (f"onboarding pointers held by this person: {', '.join(rows)}. "
             f"{_operator_sentence(_sot_display(sot, kernel_provided), consume)}. "
             f"Voice a station ONLY when you next cross its seam (never all at once). These seams have "
@@ -782,7 +783,7 @@ def _is_pointer_for(line: str, station_id: str, user: str) -> bool:
 # A pointer serves a station's FIRST delivery only. Everything after it — a repeat of the full body
 # after a pause, the one-line recap at start, an "I know it" that stops further repeats — is DERIVED
 # from the `onboarding_station_consumed` rows the verbs already write, distinguished by `data.kind`:
-#   absent       — the first delivery by pointer (`memory consume --station X`)
+#   absent       — the first delivery by pointer (`memory consume --station X --voiced`)
 #   "first-start"— Station A voiced on a fresh project's first start, before any pointer existed
 #   "repeat"     — a full re-voicing (`memory consume --station X --repeat`)
 #   "known"      — the person said "I know it" (`memory consume --station X --known`)
@@ -874,9 +875,11 @@ def repeat_due(events: Iterable[dict], user: str, now: str, params: dict) -> lis
 
 
 def recap_stations(events: Iterable[dict], user: str, now: str, params: dict) -> list[str]:
-    """Stations `user` met (a delivery or an ack) within RECAP_DAYS of `now`, in table order."""
+    """Stations told to `user` within RECAP_DAYS of `now`, in table order. A `known` ack told nothing."""
     recent = set()
-    for s, ts, _k in _station_rows(events, user):
+    for s, ts, k in _station_rows(events, user):
+        if k == "known":
+            continue
         try:
             if _days_between(ts, now) <= params["ONBOARDING_RECAP_DAYS"]:
                 recent.add(s)
@@ -898,16 +901,15 @@ def first_start_digest(*, cli: str = "bin/yitc-v2", sot: str = STATION_SOT,
             f"(SPEC-0147 rules 8/10).")
 
 
-def repeat_digest(due: list[str], recap: list[str], held: Iterable[str], *,
+def repeat_digest(due: list[str], recap: list[str], *,
                   cli: str = "bin/yitc-v2", sot: str = STATION_SOT,
                   kernel_provided: bool = False) -> Optional[str]:
     """The ONE start line for repetition: due repeats (with their seam) + the recap. None when empty."""
     parts = []
     if recap:
-        nxt = [sid for sid, _s, _t in STATION_SEAMS if sid in set(held) and sid not in recap][:2]
+        # Only stations actually told, and never the unvoiced next ones (T-14464, SPEC-0147 rule 10).
         parts.append("recap for the person in one plain line — already met: "
-                     + ", ".join(f"[{s}] {station_title(s)}" for s in recap)
-                     + ("; next: " + ", ".join(f"[{s}] {station_title(s)}" for s in nxt) if nxt else ""))
+                     + ", ".join(f"[{s}] {station_title(s)}" for s in recap))
     # A station bound to `session start` (A) is crossing its seam RIGHT NOW — voice it in this start;
     # every other due station waits for its own next crossing, exactly like its first delivery.
     now = [s for s in due if "session start" in station_seams(s)]

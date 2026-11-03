@@ -138,7 +138,7 @@ cwd-independent verbs), not by removing isolation. So:
   once bootstrapped — rides the worktree→land path below. (Same capture-not-isolation rationale as the journal-append exception.)
 - **EXCEPTION (cont.) — the SCOPED SELF-COMMIT family: each of these verbs commits its OWN narrow
   record when run from the main checkout and rides the batch inside a writing worktree — never
-  hand-commit for one.** Members: `memory consume --station <id>` / `memory seed` (the
+  hand-commit for one.** Members: `memory consume --station <id> --voiced|--known` / `memory seed` (the
   onboarding-pointer MEMORY.md writes ONLY — every other buffer-entry write still takes a
   `work/<slug>` worktree→land; SPEC-0039 §5(b) / SPEC-0147 §7), `task claim-landed` (ONLY a card whose
   deliverable is derivably already on `main` — every ordinary card still claims via
@@ -146,7 +146,7 @@ cwd-independent verbs), not by removing isolation. So:
   (the SPEC-0184 rule-9 land-admission mark), `task update --note` on a terminal card, the
   `task close` settle arms `--settle-probe` (SPEC-1011) / `--settle-observation`,
   `config set --project` (one THRESHOLD value in the project's `thresholds:` — SPEC-1031 rule 7) and
-  `pre-deploy list --write` (the one pre-deploy class's `units:` list; its `--help` names its rule). From
+  `pre-deploy list --write` (the one pre-deploy class's units file beside yitc-ops.yaml, which it also commits on the move; its `--help` names its rule). From
   the **main checkout** each stages its one artifact (MEMORY.md, the card, or yitc-ops.yaml) + the
   journal receipt ONLY (never `git add -A`), refuses on preexisting dirt in that artifact, and is
   idempotent on re-run (a terminal-card note appends one entry per run). Inside a `task/` or `work/` **writing worktree**
@@ -192,6 +192,10 @@ cwd-independent verbs), not by removing isolation. So:
   **`bin/yitc-v2 worktree sync --resolved --task T-XXXX`** — it refuses a half-resolution, commits the
   merge, and records WHICH paths you resolved (`merge_resolved_by_hand`). Custody is UNCHANGED: a hand
   resolution is authored content, so SPEC-0077 §3a still requires the re-audit.
+- **Pre-flight your land :** once your work is committed, run
+  `bin/yitc-v2 worktree sync --task T-XXXX` (`--work <slug>` for a batch) BEFORE your first `land`, act
+  on what it reports, and only then `land`. Rule: `bin/yitc-v2 graph query SPEC-0051` §Sync before the
+  first land.
 - **Why `main` looks "stale" until land (isolation, NOT a bug):** a worktree is a branch off `main`, which
   advances ONLY via the ff at `land` — so every edit, the claim (`ready→in-progress`) and emitted events are
   INVISIBLE on `main` until you land, which is what lets concurrent sessions not collide. Corollary
@@ -311,6 +315,7 @@ rule: `graph query SPEC-0126`.
   launched with `bin/yitc-v2 dispatch`, never an in-process subagent (that would dissolve per-write
   worktree isolation, the independent-provider audit, and the 9-stage governance at once). Read-only / ephemeral helper
   subagents (search, analysis) stay legitimate — the ban is scoped to the WORKER role, not the tool.
+  The one carve-out: in a declared spike sandbox the Controller's in-session helpers make the edits by default — SPEC-0205 rule 13.
 - **(d) no cap/queue-state machinery, no liveness-arming infra, no role-taxonomy** — the controller is a
   selector+dispatcher on stateless reads, not a stateful orchestrator.
 - **(e) the worker stays a pure executor** — the cross-chain wait lives in the CONTROLLER, never a

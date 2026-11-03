@@ -7,6 +7,8 @@ travels: null
 consumed: false
 implements:
 - bin/lib/deploy.py#_classify_deploy_gate
+- bin/lib/deploy.py#_classify_deploy_classes
+- bin/lib/deploy.py#_deploy_class_list
 - bin/lib/deploy.py#_GateDecision
 - bin/lib/deploy.py#cmd_deploy
 - bin/lib/deploy.py#_backup_precondition
@@ -615,72 +617,93 @@ body: "## Scenario\n\nThe owner/AI deploying a consumer project sees this: when 
   reason, never silent. Deliberately NOT decided here: whether §6's build-source discipline\
   \ should be\nrelaxed so a sandbox may receive an unlanded branch. That is a rule\
   \ change with its own risk, and\nwidening a path is never a licence to weaken a\
-  \ gate along the way — it is filed, not absorbed.\n\n## Parameters\n\nNone `consumed`.\
-  \ The carrier's `policy:` values are PER-PROJECT ops config (the per-class commands\
-  \ +\nthe declared/waived stance), explicitly NOT kernel-read governance scalars\
-  \ (SPEC-0093 §Parameters /\n<workshop-spec> §Parameters whitelist forbids per-deploy\
-  \ / command / path values) — so `consumed: false`.\n\n## Rationale\n\nSPEC-0093\
-  \ §2 explicitly DEFERRED the A/S/C1/C2 reversibility classification out of the deploy\
-  \ carrier\nslice-1 to \"its own vetted step (plan tracked id)\"; this spec is that\
-  \ step. The reversibility/RTO-RPO\naxis (over \"data-touching\") and the C-class\
-  \ split by rollback-safety-by-design are the external-consult\nrefinement of the\
-  \ policy concept (the plan's Concept section carries the full deliberation, per\n\
-  <workshop-spec> rule 3 — not restated here). Real incident class: data-loss / exposure\
-  \ on an autonomous\ndeploy; the empty owner-rubber-stamp the policy removes (the\
-  \ <project> observation).\n\n### History moved from the rule body\n\nEach entry\
-  \ is a passage moved word for word out of the rule text of the section it names;\n\
-  the rule it explains stays there.\n\n- From «2a. Class S on a DOWN surface»: <project>\
-  \ hit this twice on 2026-07-16.\n- From «5. Per-class evidence gate (the close/adoption\
-  \ gate)»: Before the gate merely\n  SELECTED the `classes.S` block and dropped it,\
-  \ so a violated or un-probeable security property\n  still deployed autonomously\
-  \ — the same selected-then-dropped defect as the C1 `pg_dump`\n  (X-0261).\n- From\
-  \ «11. Convergence»: <project>'s deploy script did \"smart affected-service detection\"\
-  , skipped\n  `celery-worker-long`, and exited 0; the worker kept running its old\
-  \ source-mounted container and\n  kept printing the very credential the deploy had\
-  \ just claimed to redact — while\n  `deploy_completed` asserted the revision live.\n\
-  - From «11. Convergence»: <project>'s \"smart affected-service detection\" would\
-  \ have declared the\n  service it skipped out of scope and gone green on X-0374\
-  \ itself.\n- From «11. Convergence»: The reported workaround (delete the marker,\
-  \ force-recreate every\n  service) is what that property being absent looks like\
-  \ from the operator's side.\n\n## Implementation notes\n\nNotes for the maintainer\
-  \ of the code, moved word for word out of the rule text of the section\neach names.\n\
-  \n- From «8. This is a GATE, not an auto-trigger (the autonomy …»:\n  (`bin/lib/deploy.py#_classify_deploy_gate`)\n\
-  \n## Verification\n\n- Convergence probe (§11, the DIFFERENTIAL — SPEC-0156 §2 «would\
-  \ this still pass if the thing under\n  test were BROKEN?»): on a fixture whose\
-  \ deploy command updates one service and SKIPS another (the\n  X-0374 shape), the\
-  \ deploy exits non-zero, emits NO `deploy_completed`, and emits\n  `deploy_convergence_failed`\
-  \ naming the stale service; the converged fixture emits `deploy_completed`\n  carrying\
-  \ the verified set; a service that cannot be ASKED is NOT converged; a declared\
-  \ `out_of_scope`\n  service is never probed; and the SAME stale fixture run against\
-  \ the PRE-CHANGE verb emits\n  `deploy_completed` — the false green, reproduced\
-  \ against the real predecessor rather than described.\n  Probe: `tests/test_deploy_convergence.py`.\n\
-  - Scope-currency probe (§11 /, the DIFFERENTIAL): a frontend-only fixture whose\
-  \ backend service\n  keeps the prior sha CONVERGES with no service force-recreated,\
-  \ while the SAME situation refuses on the\n  §11-bearing predecessor in every declaration\
-  \ available to it; a targeted service whose own sources DID\n  move and was not\
-  \ rebuilt still FAILS (scoping is not silencing); a forced convergence failure leaves\n\
-  \  the live-revision marker at the prior revision and a plain re-run then proceeds;\
-  \ and a fixture\n  declaring no sources keeps today's verdict on both arms. Probe:\
-  \ `tests/test_deploy_convergence.py`.\n- Declared-path existence probe (§11 /, the\
-  \ DIFFERENTIAL): on the same two-source-tree fixture,\n  a service declaring a TYPO'd\
-  \ source path (`backendd` for the real `backend`) makes the deploy exit 5,\n  emit\
-  \ `deploy_convergence_failed` and NO `deploy_completed`, with the refusal text NAMING\
-  \ the offending\n  entry — while the identical situation with the CORRECT path still\
-  \ exits 0 and records that service\n  CURRENT on unchanged sources. The second arm\
-  \ is what makes the first mean something: it fails if the\n  refusal were satisfied\
-  \ by refusing every declaration. Probe: `tests/test_deploy_convergence.py`.\n- Behaviour\
-  \ probe (over the <project> soak): a Class-C1 deploy emits `live_probe_passed` carrying\
-  \ a\n  produced `pg_dump` + a restore-drill record + the delayed re-check; a Class-S\
-  \ deploy emits the\n  security live-probe asserting the property; a Class-C2 deploy\
-  \ does NOT emit an autonomous\n  `deploy_completed` — it escalates to the owner.\n\
-  - State-check: a deploying project's `yitc-ops.yaml` carries an explicit declared-or-waived\n\
-  \  `deploy.policy` block (declare-or-waive, SPEC-0093 rule 3).\n- Waiver fail-closed\
-  \ probe (§9): a project carrying a `deploy.policy.waiver` does NOT get the autonomous\n\
-  \  path — its `deploy` stays owner-gated (the AI asks the owner every deploy), confirmed\
-  \ by the absence of\n  an autonomous `deploy_completed` for it / an explicit owner-gated\
-  \ outcome.\n- Boundary probe: NO Class-C2 deploy fires autonomously; NO Class-A\
-  \ deploy is needlessly escalated.\n- Host-config class probe (§10): `_classify_deploy_gate(policy,\
-  \ \"host-config\", *)` returns\n  `proceed=False, mode=\"host-config\", deploy_class=\"\
+  \ gate along the way — it is filed, not absorbed.\n\n### 13. A deploy of several\
+  \ classes pays the evidence of each\nA deploy shipping changes of more than one\
+  \ class names every class: `deploy --class S --class C1`.\nNaming one class for\
+  \ a mixed revision drops the other class's evidence.\n\nEvery named class passes\
+  \ its own gate and owes its own evidence, unchanged:\n- **One refusal refuses the\
+  \ deploy.** All gates are read before any evidence runs, so a class that\n  escalates,\
+  \ is undeclared or is waived stops the deploy with nothing run and no deploy_completed.\n\
+  - **C2's owner gate dominates.** A deploy naming C2 needs `--owner-approved`, whatever\
+  \ else it names.\n  `--owner-approved` answers C2 only: it does not open another\
+  \ class's refusal.\n- **The evidence is the union.** C1's dump and S's probe both\
+  \ run before the deploy command; a failed\n  one refuses it. The one declared dump\
+  \ runs once, also when C1 and an owner-approved C2 both ask for it.\n- **The tightest\
+  \ declared recheck window binds the deploy** (SPEC-0149 §1). A malformed one refuses.\n\
+  - **The record names every class.** deploy_completed carries `deploy_classes`, dominant\
+  \ class first\n  in the order C2, C1, S, A. A one-class deploy carries no such field\
+  \ and reads as before. Where one\n  class is read, as `target.deploy_class` and\
+  \ the security gate's class are, it is the dominant one.\n\n§12 applies to each\
+  \ named class: a non-production target refuses them all.\n\n## Parameters\n\nNone\
+  \ `consumed`. The carrier's `policy:` values are PER-PROJECT ops config (the per-class\
+  \ commands +\nthe declared/waived stance), explicitly NOT kernel-read governance\
+  \ scalars (SPEC-0093 §Parameters /\n<workshop-spec> §Parameters whitelist forbids\
+  \ per-deploy / command / path values) — so `consumed: false`.\n\n## Rationale\n\n\
+  SPEC-0093 §2 explicitly DEFERRED the A/S/C1/C2 reversibility classification out\
+  \ of the deploy carrier\nslice-1 to \"its own vetted step (plan tracked id)\"; this\
+  \ spec is that step. The reversibility/RTO-RPO\naxis (over \"data-touching\") and\
+  \ the C-class split by rollback-safety-by-design are the external-consult\nrefinement\
+  \ of the policy concept (the plan's Concept section carries the full deliberation,\
+  \ per\n<workshop-spec> rule 3 — not restated here). Real incident class: data-loss\
+  \ / exposure on an autonomous\ndeploy; the empty owner-rubber-stamp the policy removes\
+  \ (the <project> observation).\n\n§13 was added, in place as an additive case: the\
+  \ spec had no rule for a mixed deploy.\n<project>'s main held a Class-C1 migration\
+  \ and Class-S authz changes at once, `--class` kept only the\nlast value, and the\
+  \ worker did not deploy (X-2173, 2026-11-02).\n\n### History moved from the rule\
+  \ body\n\nEach entry is a passage moved word for word out of the rule text of the\
+  \ section it names;\nthe rule it explains stays there.\n\n- From «2a. Class S on\
+  \ a DOWN surface»: <project> hit this twice on 2026-07-16.\n- From «5. Per-class\
+  \ evidence gate (the close/adoption gate)»: Before the gate merely\n  SELECTED the\
+  \ `classes.S` block and dropped it, so a violated or un-probeable security property\n\
+  \  still deployed autonomously — the same selected-then-dropped defect as the C1\
+  \ `pg_dump`\n  (X-0261).\n- From «11. Convergence»: <project>'s deploy script did\
+  \ \"smart affected-service detection\", skipped\n  `celery-worker-long`, and exited\
+  \ 0; the worker kept running its old source-mounted container and\n  kept printing\
+  \ the very credential the deploy had just claimed to redact — while\n  `deploy_completed`\
+  \ asserted the revision live.\n- From «11. Convergence»: <project>'s \"smart affected-service\
+  \ detection\" would have declared the\n  service it skipped out of scope and gone\
+  \ green on X-0374 itself.\n- From «11. Convergence»: The reported workaround (delete\
+  \ the marker, force-recreate every\n  service) is what that property being absent\
+  \ looks like from the operator's side.\n\n## Implementation notes\n\nNotes for the\
+  \ maintainer of the code, moved word for word out of the rule text of the section\n\
+  each names.\n\n- From «8. This is a GATE, not an auto-trigger (the autonomy …»:\n\
+  \  (`bin/lib/deploy.py#_classify_deploy_gate`)\n\n## Verification\n\n- Convergence\
+  \ probe (§11, the DIFFERENTIAL — SPEC-0156 §2 «would this still pass if the thing\
+  \ under\n  test were BROKEN?»): on a fixture whose deploy command updates one service\
+  \ and SKIPS another (the\n  X-0374 shape), the deploy exits non-zero, emits NO `deploy_completed`,\
+  \ and emits\n  `deploy_convergence_failed` naming the stale service; the converged\
+  \ fixture emits `deploy_completed`\n  carrying the verified set; a service that\
+  \ cannot be ASKED is NOT converged; a declared `out_of_scope`\n  service is never\
+  \ probed; and the SAME stale fixture run against the PRE-CHANGE verb emits\n  `deploy_completed`\
+  \ — the false green, reproduced against the real predecessor rather than described.\n\
+  \  Probe: `tests/test_deploy_convergence.py`.\n- Scope-currency probe (§11 /, the\
+  \ DIFFERENTIAL): a frontend-only fixture whose backend service\n  keeps the prior\
+  \ sha CONVERGES with no service force-recreated, while the SAME situation refuses\
+  \ on the\n  §11-bearing predecessor in every declaration available to it; a targeted\
+  \ service whose own sources DID\n  move and was not rebuilt still FAILS (scoping\
+  \ is not silencing); a forced convergence failure leaves\n  the live-revision marker\
+  \ at the prior revision and a plain re-run then proceeds; and a fixture\n  declaring\
+  \ no sources keeps today's verdict on both arms. Probe: `tests/test_deploy_convergence.py`.\n\
+  - Declared-path existence probe (§11 /, the DIFFERENTIAL): on the same two-source-tree\
+  \ fixture,\n  a service declaring a TYPO'd source path (`backendd` for the real\
+  \ `backend`) makes the deploy exit 5,\n  emit `deploy_convergence_failed` and NO\
+  \ `deploy_completed`, with the refusal text NAMING the offending\n  entry — while\
+  \ the identical situation with the CORRECT path still exits 0 and records that service\n\
+  \  CURRENT on unchanged sources. The second arm is what makes the first mean something:\
+  \ it fails if the\n  refusal were satisfied by refusing every declaration. Probe:\
+  \ `tests/test_deploy_convergence.py`.\n- Behaviour probe (over the <project> soak):\
+  \ a Class-C1 deploy emits `live_probe_passed` carrying a\n  produced `pg_dump` +\
+  \ a restore-drill record + the delayed re-check; a Class-S deploy emits the\n  security\
+  \ live-probe asserting the property; a Class-C2 deploy does NOT emit an autonomous\n\
+  \  `deploy_completed` — it escalates to the owner.\n- State-check: a deploying project's\
+  \ `yitc-ops.yaml` carries an explicit declared-or-waived\n  `deploy.policy` block\
+  \ (declare-or-waive, SPEC-0093 rule 3).\n- Waiver fail-closed probe (§9): a project\
+  \ carrying a `deploy.policy.waiver` does NOT get the autonomous\n  path — its `deploy`\
+  \ stays owner-gated (the AI asks the owner every deploy), confirmed by the absence\
+  \ of\n  an autonomous `deploy_completed` for it / an explicit owner-gated outcome.\n\
+  - Boundary probe: NO Class-C2 deploy fires autonomously; NO Class-A deploy is needlessly\
+  \ escalated.\n- Host-config class probe (§10): `_classify_deploy_gate(policy, \"\
+  host-config\", *)` returns\n  `proceed=False, mode=\"host-config\", deploy_class=\"\
   host-config\"` for ANY policy value (declared /\n  pre-policy / waived) — the image\
   \ verb never autonomously applies a host change; AND the A/S/C1/C2\n  classification\
   \ of every non-host change is byte-for-byte UNCHANGED (regression state-check).\n\
@@ -836,9 +859,11 @@ implements_signature:
   bin/lib/deploy.py#_ask_service_revision: d472c86ff636b1801ec616060a294d990d07931ccf7401aa55b677e8fbbf71e9
   bin/lib/deploy.py#_backup_precondition: bc89f9b5d9e4267df9316350dc81a98f00bd344e252e4ffca9a37d85857ffc37
   bin/lib/deploy.py#_class_s_down_surface_carve_out: 4160325632f62dbec8e48cebd2087d93accb6de2d6005dc91261e2fb527bc612
+  bin/lib/deploy.py#_classify_deploy_classes: 294c02ac4f3e728e530fb849bf1ad4ff5423320f3df4991e1075ea333482d9ce
   bin/lib/deploy.py#_classify_deploy_gate: 6868c1632ec5edae848dd09e54cf008311e853389ec60bcf4a10f2cf67639d51
   bin/lib/deploy.py#_convergence_precondition: 40041a01b19038d45ca6fb2badf915c33e6673bf5498338e4944063604918e5f
   bin/lib/deploy.py#_convergence_section_for_target: 19811be7febbc4637babcc178532bf34da645d4df67e4a5e49e098ddfe6cec82
+  bin/lib/deploy.py#_deploy_class_list: 7a89d001602d244ac65c37c62778d1b479f98554ab1a84bf6c23a09f83f36b4e
   bin/lib/deploy.py#_liveness_probe_precondition: 245c561e7726619d3536abcc82c6ad542e3d90f246e233710cd7ae0b53057e7e
   bin/lib/deploy.py#_liveness_verdict: 7c8e2df203a6707c70bf73a6ec2b8bc991a5b3b1fd4fcafa67a12370040aa1e4
   bin/lib/deploy.py#_normalize_pg_dump: 1658f51406e530252aac5d9b262f4e271417cced06eb0689cf29652328b1cb41
@@ -853,5 +878,5 @@ implements_signature:
   bin/lib/deploy.py#_security_probe_precondition: eefa57dbc4bd4e4f3aff2ded61d768e293ddce4400ec5bbafab9d92f9542e645
   bin/lib/deploy.py#_service_sources_unchanged: 47adfc5cbc3579e717e737c32abee8ca60c37268891aaf627133cbdd9538ad2c
   bin/lib/deploy.py#_verify_convergence: 1f5d3c2f268f3bcf83d79ecdc4f125f279427b6ee6989c03ed253824e8185a09
-  bin/lib/deploy.py#cmd_deploy: 761e4d0c638b1ce7c5c0dc772120d846980933ad28a10fee06496ff6730bf7f6
+  bin/lib/deploy.py#cmd_deploy: 65223e73776a8f397edea91d36567991ceba558f244c7463bd253efdc2a690f2
   bin/lib/init.py#_hook_deploy_policy: c57bb5dc865aaa77bbfe57fe5fccd1f963bd5dbb02895ef430137891263e2c1b

@@ -699,7 +699,7 @@ def local_account_names(*, _getpwall=None, _owner_uid=None) -> tuple:
       * a name shorter than `_ACCOUNT_NAME_MIN_LEN` — a one- or two-character token cannot be matched on
         word boundaries without firing across ordinary prose, and it identifies nobody.
 
-    Both are PINNED by tests/test_publish_surface_boundary.py at their measured counts, so an excluded
+    Both are PINNED in tests/_publish_surface_helpers.py at their measured counts, so an excluded
     class can shrink but never grow unseen, and a NEW short account name reddens the suite instead of
     silently widening what may travel.
     """
@@ -794,7 +794,7 @@ def owner_word_commit_notice(sha: str, hits) -> "str | None":
     lines += [f"  {rel}:{n}\n" for rel, n in hits]
     lines.append(
         "  That name is excluded from the publish refusal and held to a measured ceiling instead "
-        "(SPEC-0195 rule 1a), which only tests/test_publish_surface_boundary.py reads, at the full "
+        "(SPEC-0195 rule 1a), which only tests/test_publish_surface_boundary_cut.py reads, at the full "
         "Stage-6 run. Reword each line now: an intake repo slug copied from a card scope is written "
         "«public issue #N». Report-only — nothing was refused.\n")
     return "".join(lines)

@@ -729,10 +729,10 @@ your life: when you yield the turn, your process EXITS. Therefore:
      sequence your claim prints is your card's). The label alone decides nothing: that same section's
      eligibility rule holds — a change that touches a spec, a pinned-test surface or an always-loaded
      seed is NEVER hygiene and takes all 9 stages with both audits. At the audit-loop
-     CEILING the `audit post` verb ITSELF auto-drives the convergence consult (T-9712, SPEC-0036) and emits
-     any needed `bg_dispatch_halted` — so FOLLOW the verb's exit (GREEN → proceed; nonzero + bg_dispatch_halted
-     → escalate per point 4), and do NOT hand-emit `bg_dispatch_halted` out-of-band before letting `audit post`
-     run to its own exit. PREVIEW FIRST, and do NOT go shopping for a deferred-adoption overlay flag:
+     CEILING follow the SPEC-1039 route point 1 states (AUDIT-LOOP CEILING): `audit pre|post` ITSELF emits
+     the halt row naming the residual fingerprints, you `task pause <task> --reason audit-ceiling`, the
+     Controller records `audit decide`, and you resume with `--on-decisions` — and do NOT hand-emit
+     `bg_dispatch_halted` out-of-band before letting `audit pre|post` run to its own exit. PREVIEW FIRST, and do NOT go shopping for a deferred-adoption overlay flag:
      run `{invoke} audit pre|post --task <id> --preview` BEFORE each auditor pass, read the packet
      readiness block and fix what it names (report-only, T-11977) — a spent auditor pass is the
      expensive thing, reading the block is free. Before an `--on-decisions` pass the preview is
@@ -791,26 +791,11 @@ your life: when you yield the turn, your process EXITS. Therefore:
 names who may occupy it — being re-dispatched is not being granted the right). A stale-pause advisory means later events
    contradict the pause's next_action — the pause facts may be out of date.
 
-7. PRE-FLIGHT YOUR LAND — run `worktree sync` BEFORE your first `land` (T-11313). Your branch's land
-   can be refused for two reasons that are BOTH computable OFF the queue: a merge conflict with `main`,
-   and audit-currency. `land` computes them only at the FRONT of the queue — after your branch has
-   queued, waited for a SPEC-0132 verify-admission slot and taken a reservation — so a worker that goes
-   straight to `land` pays a full wait to be told something it could have known immediately. Instead,
-   once your work is committed and BEFORE the first `land`, run
-   `{invoke} worktree sync --task T-XXXX` (`--work <slug>` for a work batch). It merges `main` into
-   your worktree IN PLACE and reports the COMPLETE blocker set: no reservation, no verify slot, no
-   advance of `main`, worktree intact. ACT on whatever it reports while still OFF the queue — resolve
-   the conflict, take the re-audit — and only THEN call `land`. Re-running it is always safe (already
-   current = a clean no-op, never an error). READ BOTH PHASES, in the order the verb prints them: it
-   reports CONFLICTS first and CURRENCY second, because currency is judgeable only AFTER the merge —
-   so a clean conflict phase is NOT "all clear", and the currency line prints even on the
-   already-current no-op path. HONEST BOUND, so you do not over-trust a clean report: this removes the
-   SECOND wait — discovering at the front of the queue a blocker that was computable off-queue — but it
-   does NOT remove the race. While your branch re-audits, `main` keeps moving, and a FRESH conflict
-   raised by the land's own merge makes the branch dirty again (a CLEAN re-merge does not, so a
-   pre-flighted land is still the cheaper path). That residual is T-11333's and T-11332's, not yours.
-   Rule home: the `worktree sync` contract, `bin/lib/worktree.py#cmd_worktree_sync` (T-11313) — this
-   point carries the ORDERING only, never a second copy of the verb's contract.
+7. PRE-FLIGHT YOUR LAND (T-11313) — once your work is committed, run `{invoke} worktree sync --task T-XXXX`
+   (`--work <slug>` for a work batch) BEFORE your first `land`, act on what it reports, then `land`. The
+   rule lives in your seed (AGENTS-SESSIONS §Writes happen in a worktree, the «Pre-flight your land» cue)
+   and its body in `{invoke} graph query {kernel_flag}SPEC-0051` §Sync before the first land — read it there; this
+   point carries the ORDER only.
 
 8. EVERY READ YOU MAKE ABOUT YOUR OWN RUN IS SCOPED TO **THIS** RUN (T-12010) — a log, token or
    process that is not provably YOUR run's is a FOREIGN or PAST run, read as a false GREEN:
@@ -1442,6 +1427,8 @@ def _brief_owner_rules(directive_rows, task_id: str, plan_slug: "str | None" = N
     from lib import audit as _audit    # noqa: PLC0415 — lazy by design (leaf-order, see docstring)
     out = []
     for r in directive_rows or []:
+        if journal.owner_authorship_unproven(r):
+            continue                  # T-14468: a kernel-composed prompt is no owner rule
         data = r.get("data") if isinstance(r.get("data"), dict) else {}
         cards = data.get("cards") if isinstance(data.get("cards"), list) else []
         covered = (_BRIEF_RULE_WILDCARD in [str(c) for c in cards]
@@ -4323,6 +4310,97 @@ DEFER_REAP_WAIT_SECS = 5.0
 DEFER_REAP_POLL_SECS = 0.1
 
 
+def _pids_with_cwd_in(worktree, _proc_root="/proc") -> list:
+    """T-14466 — every live pid whose cwd resolves to `worktree` or below it. The path test carries the
+    separator, so a sibling worktree whose name merely EXTENDS this one (`.../T-1` vs `.../T-10`) never
+    matches. An entry that vanishes or cannot be read (another user's process, a zombie with no cwd) is
+    skipped: it is not provably this worktree's."""
+    if not worktree:
+        return []
+    root = os.path.realpath(str(worktree))
+    out = []
+    try:
+        names = os.listdir(_proc_root)
+    except OSError:
+        return []
+    for name in names:
+        if not name.isdigit():
+            continue
+        try:
+            cwd = os.path.realpath(os.readlink(os.path.join(_proc_root, name, "cwd")))
+        except OSError:
+            continue
+        if cwd == root or cwd.startswith(root + os.sep):
+            out.append(int(name))
+    return out
+
+
+def _stop_worktree_runs(worktree, *, wait_secs, _sleep=time.sleep, _proc_root="/proc") -> list:
+    """T-14466 — stop the deferred task's OWN detached runs: its `task test --run` (the SPEC-1028
+    held-turn recipe starts it under `setsid`, so it leads its own process group and outlives the
+    worker, reparented to init) and a run still WAITING in the admission queue (the same process,
+    not yet admitted). Identified from durable state — the process's cwd inside the task's own
+    worktree — never a name match, so a sibling task's run is never touched.
+
+    A group is signalled whole (SIGTERM via killpg) only when its LEADER's cwd is itself in the
+    worktree; otherwise only the matching pids are signalled. This process's own group is never
+    signalled. Then waits, bounded by `wait_secs`, for every signalled pid to leave the worktree
+    (exit). Returns one record per signalled unit: {pid, pgid, scope, result} with result
+    `signaled` / `gone` (exited before the signal) / `survived` (still there at the bound)."""
+    import signal as _signal
+    pids = _pids_with_cwd_in(worktree, _proc_root)
+    own_pgid = os.getpgrp()
+    in_wt = set(pids)
+    units, seen_groups = [], set()
+    for pid in sorted(pids):
+        try:
+            pgid = os.getpgid(pid)
+        except OSError:
+            continue
+        if pgid == own_pgid or pid == os.getpid():
+            continue
+        if pgid in in_wt:                     # the group's leader is itself in the worktree
+            if pgid in seen_groups:
+                continue
+            seen_groups.add(pgid)
+            unit = {"pid": pgid, "pgid": pgid, "scope": "group"}
+            try:
+                os.killpg(pgid, _signal.SIGTERM)
+                unit["result"] = "signaled"
+            except ProcessLookupError:
+                unit["result"] = "gone"
+            except OSError as e:
+                unit["result"] = f"not signaled ({type(e).__name__})"
+        else:
+            unit = {"pid": pid, "pgid": pgid, "scope": "pid"}
+            try:
+                os.kill(pid, _signal.SIGTERM)
+                unit["result"] = "signaled"
+            except ProcessLookupError:
+                unit["result"] = "gone"
+            except OSError as e:
+                unit["result"] = f"not signaled ({type(e).__name__})"
+        units.append(unit)
+    waited, deadline = 0.0, float(wait_secs or 0.0)
+    while units and waited < deadline and any(
+            p in in_wt for p in _pids_with_cwd_in(worktree, _proc_root)):
+        _sleep(DEFER_REAP_POLL_SECS)
+        waited += DEFER_REAP_POLL_SECS
+    left = set(_pids_with_cwd_in(worktree, _proc_root)) & in_wt
+    for unit in units:
+        if unit["result"] == "signaled" and (unit["pid"] in left or (
+                unit["scope"] == "group" and any(_pgid_of(p) == unit["pgid"] for p in left))):
+            unit["result"] = "survived"
+    return units
+
+
+def _pgid_of(pid):
+    try:
+        return os.getpgid(pid)
+    except OSError:
+        return None
+
+
 def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
                       _dispatch_status_events, _classify_dispatch, _live_task_worktrees,
                       _append_event, _run_git_cap, _pid_is_session, _utc_now_iso,
@@ -4521,6 +4599,14 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
                  f"claim). NOTHING was emitted, NOTHING was disposed, and the worktree at "
                  f"{live.get(task)} is UNTOUCHED. Re-invoke once the worker is down (this verb is safe "
                  f"to repeat), or let it finish and use the ordinary post-land path.")
+    # (4c) T-14466 — the deferred worker's OWN detached runs. Its `task test --run` (and a run still
+    # waiting for admission) leads its own process group and outlives the worker, so stopping the
+    # worker alone left them loading the host (deviation stop-defer-leaves-detached-stage6-runs).
+    # Scoped to THIS task's worktree as cwd — never another task's run. `--defer` only: a claim-less
+    # worker has no worktree, hence no scope that could tell its run from a sibling's.
+    stopped_runs = None
+    if defer:
+        stopped_runs = _stop_worktree_runs(live.get(task), wait_secs=_reap_wait_secs, _sleep=_sleep)
     # (5) evidence-first — capture ALL main dirt BEFORE any restore.
     porcelain = _run_git_cap(["status", "--porcelain"], main_wt)
     dirt_lines = [ln for ln in (porcelain.stdout or "").splitlines() if ln.strip()]
@@ -4590,6 +4676,9 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
                    "disposal": disposal, "redispatchable": redispatchable,
                    "preserved_why": preserved_why,
                    "reap_waited_secs": round(reap_waited, 1) if defer else None,
+                   # T-14466 — the detached runs the defer stopped (pid/pgid/scope/result each);
+                   # None on the claim-less arm, which scans for none.
+                   "stopped_runs": stopped_runs,
                    "pid": pid, "worker_ref": worker_ref, "prior_class": cls,
                    # T-11290 — WHICH axis resolved the target, and (for a warm chain) the card that
                    # worker was LAUNCHED with. Provenance only: the halt addresses the NAMED card.
@@ -4608,6 +4697,13 @@ def cmd_dispatch_stop(task, restore_paths, *, main_wt, _as_list, _die,
               f"{newest.get('task_id')} and moved on to {task} in its front-loaded chain; its launch "
               f"record carries the pid + assigned worker ref.")
     print(f"  proc:     {proc_result}")
+    if defer:
+        if stopped_runs:
+            print("  runs:     " + "; ".join(
+                f"{'group' if u['scope'] == 'group' else 'pid'} {u['pgid'] if u['scope'] == 'group' else u['pid']}"
+                f" (pid {u['pid']}, pgid {u['pgid']}) {u['result']}" for u in stopped_runs))
+        else:
+            print(f"  runs:     none found with cwd in {live.get(task)}")
     print(f"  evidence: {evidence_path if evidence_path else 'none (main checkout was clean)'}")
     if restored:
         print(f"  restored: {', '.join(restored)}")

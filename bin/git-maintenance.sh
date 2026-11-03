@@ -68,7 +68,7 @@
 # arm (the pre- behaviour); never set it in production.
 # YITC_GC_PRUNE_EXPIRE (default 7.days), YITC_GC_LOOSE_THRESHOLD (default 256 = one gc.auto quantum).
 # YITC_DISPATCH_LOG_RETENTION_DAYS (default 30) — REPORT-ONLY knob: files under
-# `<repo>/.yitc/dispatch-logs` older than this are removed each run and the value is printed (
+# `<repo>/.yitc/dispatch-logs` and `<repo>/.yitc/land-logs` older than this are removed each run and the value is printed (
 # measured 958 MB / 4105 files, 1876 past 30 days, 2026-09-13, with no retention rule at all).
 set -uo pipefail
 
@@ -85,7 +85,7 @@ done
 [ -n "$REPO" ] || REPO="$SCRIPT_ROOT"
 
 SCRIPT_ROOT="$SCRIPT_ROOT" REPO="$REPO" EMIT_TO="$EMIT_TO" python3 - <<'PY'
-import json, os, subprocess, sys, time
+import json, os, stat, subprocess, sys, time
 from pathlib import Path
 
 sys.path.insert(0, os.path.join(os.environ["SCRIPT_ROOT"], "bin"))
@@ -116,24 +116,53 @@ if r.returncode != 0:
 common = Path(r.stdout.strip())
 main_wt = common.parent
 
-# ── (a2) dispatch-log retention (T-12502) — plain files, no git objects, so it needs no lock ────────
-dispatch_logs = main_wt / ".yitc" / "dispatch-logs"
-horizon = time.time() - DISPATCH_LOG_DAYS * 86400
-pruned = 0
-pruned_bytes = 0
-if dispatch_logs.is_dir():
-    for f in dispatch_logs.rglob("*"):
-        try:
-            st = f.lstat()
-            if f.is_file() and not f.is_symlink() and st.st_mtime < horizon:
-                f.unlink()
+# ── (a2) .yitc scratch-log retention (T-12502, T-14480) — plain files, no git objects, no lock ─────
+# ONE helper serves every append-only log arm under the SAME horizon and knob. It never follows a
+# symlink (a symlinked root or .yitc parent is refused, os.walk(followlinks=False)), re-lstats each
+# file IMMEDIATELY before unlinking it so a file a writer refreshed after the walk listed it is kept,
+# and removes only directories it has emptied (os.rmdir; the root itself is never removed). Nothing
+# outside the named arms is read or touched.
+def _prune_scratch(root, horizon):
+    """Prune regular files under `root` older than `horizon`. Returns (files, bytes, failed, refused)."""
+    pruned = pruned_bytes = failed = 0
+    if os.path.islink(root) or os.path.islink(os.path.dirname(root)):
+        return 0, 0, 0, True
+    if not os.path.isdir(root):
+        return 0, 0, 0, False
+    for dirpath, dirnames, filenames in os.walk(root, topdown=False, followlinks=False):
+        for name in filenames:
+            path = os.path.join(dirpath, name)
+            try:
+                st = os.lstat(path)
+                if not stat.S_ISREG(st.st_mode) or st.st_mtime >= horizon:
+                    continue
+                os.unlink(path)
                 pruned += 1
                 pruned_bytes += st.st_size
-        except OSError:
-            pass
-print("git-maintenance: dispatch-log retention=%d days (report-only knob YITC_DISPATCH_LOG_RETENTION_DAYS)"
-      " — pruned %d file(s) / %.1f MiB from %s"
-      % (DISPATCH_LOG_DAYS, pruned, pruned_bytes / 1048576.0, dispatch_logs))
+            except FileNotFoundError:
+                pass                      # a concurrent maintenance run removed it first
+            except OSError:
+                failed += 1
+        if dirpath != root:
+            try:
+                os.rmdir(dirpath)         # ENOTEMPTY -> kept
+            except OSError:
+                pass
+    return pruned, pruned_bytes, failed, False
+
+
+horizon = time.time() - DISPATCH_LOG_DAYS * 86400
+for _arm, _label in (("dispatch-logs", "dispatch-log"), ("land-logs", "land-log")):
+    _root = str(main_wt / ".yitc" / _arm)
+    pruned, pruned_bytes, _failed, _refused = _prune_scratch(_root, horizon)
+    if _refused:
+        print("git-maintenance: %s retention REFUSED — %s or its .yitc parent is a symlink; nothing touched"
+              % (_label, _root))
+        continue
+    print("git-maintenance: %s retention=%d days (report-only knob YITC_DISPATCH_LOG_RETENTION_DAYS)"
+          " — pruned %d file(s) / %.1f MiB from %s%s"
+          % (_label, DISPATCH_LOG_DAYS, pruned, pruned_bytes / 1048576.0, _root,
+             (" (%d failed)" % _failed) if _failed else ""))
 
 
 def gitdirs():

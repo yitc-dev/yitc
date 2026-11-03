@@ -10,17 +10,10 @@ applies_to: the freshness-hashed LIVING CRITERIA of the inspection roster — th
 > **What this IS:** the freshness-hashed **living criteria** of the inspection roster — the
 > `CADENCE` cadence values, the **operational-hygiene weekly checklist**, and the **per-theme
 > lens-checklists for T1, T3, T7** (`bin/lib/inspection.py` hashes these three as the `criteria_ref` /
-> `--tier weekly` freshness subjects, SPEC-0057 §6). The umbrella **navigation map** — one row per
-> recurring check (check → theme → cadence → how-to-run → rule-home), across the continuous-reflex /
-> system-inspection index / anti-complexity-apex / consumer-local tiers — is the co-equal companion
-> **`patterns/inspection-criteria-roster-navigation-map.md`** (SPEC-0120 byte-axis split). The
-> run-mode + cross-theme method + foundations + architecture-drift lens are the co-equal **part 2**
-> (`patterns/inspection-criteria-roster-run-and-lenses.md`, SPEC-0120 split), and the
-> **T2 / T4 / T5** lens-checklists are the co-equal **part 3**
-> (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`,
-> SPEC-0120 split), **T6 / T8** the co-equal **part 5**, the **T9** lens-checklist the co-equal **part 4**
-> (`patterns/inspection-criteria-roster-portfolio-observation.md`,
-> SPEC-0120 split) and **T10** the co-equal **part 6** (`patterns/inspection-criteria-roster-real-work-observation.md`). It is a **non-FSM
+> `--tier weekly` freshness subjects, SPEC-0057 §6). Its co-equal companions — the navigation map
+> (`patterns/inspection-criteria-roster-navigation-map.md`), part 2 run-mode + method +
+> lenses, and the T2–T10 parts — are listed in the
+> `applies_to` header above. It is a **non-FSM
 > pattern** — it has no `draft→realized`
 > lifecycle, so it can host LIVING/durable content indefinitely without ever becoming a terminal
 > carrier. This is deliberately the home a PLAN's living criteria **drain into** at the plan's
@@ -35,16 +28,6 @@ applies_to: the freshness-hashed LIVING CRITERIA of the inspection roster — th
 > `inspection-revizia-concept`) carry only trial/calibration HISTORY (their living-home role drained
 > here). `SPEC-0057` stays the CONSTRUCT definition and points here; this roster never restates the
 > construct rules.
-
-> **The umbrella navigation map (check → theme → cadence → how-to-run → rule-home) → companion**
-> (`patterns/inspection-criteria-roster-navigation-map.md`, SPEC-0120 split). **Orientation,
-> run-mode, cross-theme method, foundations & the architecture-drift lens → part 2**
-> (`patterns/inspection-criteria-roster-run-and-lenses.md`, SPEC-0120 split).
-> **The T2 / T4 / T5 lens-checklists → part 3**
-> (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`,
-> SPEC-0120 split). **T6 / T8 → part 5** (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`). **The T9 lens-checklist → part 4**
-> (`patterns/inspection-criteria-roster-portfolio-observation.md`,
-> SPEC-0120 split); **T10 → part 6** (`patterns/inspection-criteria-roster-real-work-observation.md`).
 
 ## The cadence model (per SPEC-0057 §9 — pointer, not restated)
 
@@ -116,6 +99,7 @@ runs or gates an inspection (SPEC-0057 §2 manual-first is unchanged; surfacing 
 | Load-sensitive lane sequential tail — over bound? → dispose the global-rework question | T5 | weekly | `bin/yitc-v2 [-C <repo>] debt` — read the load-sensitive-lane line (count + serialized wall + which bound, if any, is crossed; never recompute it by hand). OVER EITHER BOUND record the disposition per §T5 → **load-sensitive lane over bound?** (part 3): a DATED line in this week's `inspect record --tier weekly` naming the two numbers and choosing (a) the global-rework card it files or (b) why not + a re-check date. Another per-file card is not a disposition; report-only | SPEC-0132 §3; SPEC-0119; / |
 | Parallel-landing blockage — one cause across branches · dead lands · branches ahead of main | T6 | weekly | `bin/yitc-v2 [-C <repo>] debt` — read the rule-26, rule-23 and rule-24 lines (cited, never re-implemented — see §T6 → **parallel-landing health**, part 5) | SPEC-0119 rules 23/24/26 |
 | Scheduled pre-deploy run: daily row matched to the scheduler's log | T6 | weekly | §T6 **scheduled-run days** (part 5) | SPEC-1047 |
+| Resource-admission queue — waits and `admission_left` reasons per repo | T6 | weekly | `bin/yitc-v2 journal query --type admission_left` (`admission_wait`) since the last weekly row; one reason across branches, or a rising wait share, is a finding; report-only | SPEC-1045; |
 | Exercise-the-gated-paths — dry-run the gated/rarely-walked paths that never fire (deploy guard shape · non-owner verify · onboarding-delivery seam) | T6 | monthly | run the 3 exercises in §T6 → **exercise-the-gated-paths** (part 5) (each NON-mutating: `deploy --print-guard` · a `verify.layers[]` layer as a non-owner · the onboarding-delivery seam render); report-only | SPEC-0057; plan `anti-false-green-doctrine-differential-proven-chec`; X-0366 |
 | Exemption-case revision — is the declared audit-post exemption still warranted, and is the feedback that would tell us alive? | T8 | monthly | `bin/yitc-v2 [-C <consumer>] inspect record --theme T8 --tracks primary,external` (the report-only `case_review` block: one four-field proposal per declared case + its covered share over the case's own `window_days`); see §T8 → **exemption-case revision** (part 5) | SPEC-0178 rules 7+9; SPEC-0057; |
 | Reverse-adoption — runtime-vs-shipped divergence (live code with no governed-deploy provenance · proof debt · live-probe vs declared surface · host reconciliation drift) | T8 | monthly | run the 4 probes in §T8 → **reverse-adoption (runtime-vs-)** (part 5) (each read-only); report-only; a probe that could not run reports **not-run**, never "clean" | SPEC-0057; X-0366 |
@@ -132,15 +116,9 @@ runs or gates an inspection (SPEC-0057 §2 manual-first is unchanged; surfacing 
 
 ## Per-theme lens-checklists (T1–T10) — the living criteria
 
-> **T1–T10 live across FIVE parts.** THIS part carries **T1, T3, T7**; **T2, T4, T5**
-> live in **part 3** (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`,
-> SPEC-0120 split), **T6, T8** in **part 5** (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`), **T9** in **part 4**
-> (`patterns/inspection-criteria-roster-portfolio-observation.md`, SPEC-0120 split) and
-> **T10** in **part 6** (`patterns/inspection-criteria-roster-real-work-observation.md`, SPEC-0120 split) — a
-> pointer line stands at each of their places below. All parts are
-> SERVED: `inspect record --theme T<n>` resolves the section in whichever part holds it and hashes
-> THAT part's bytes, so a moved checklist's `criteria_ref` names its part and stays as fresh
-> as one that never moved.
+> **T1–T10 live across FIVE parts.** THIS part carries **T1, T3, T7**; the others live in parts 3 (T2, T4, T5),
+> 5 (T6, T8), 4 (T9) and 6 (T10) — a pointer line stands at each of their places below. All parts are
+> SERVED: `inspect record --theme T<n>` hashes the part that holds the section.
 
 Surfaces (M4) + probes (event/state/measurable). Base definitions converged from the 2026-05-31
 dual-track calibration; the 2026-06 refresh (`inspection-list-refresh-…`, trial-converged) lens-deltas
@@ -150,9 +128,8 @@ realized plans (history, not a live list). Re-deepen each theme per run.
 ### Themes carried in parts 3 and 5 — T2 · T4 · T5 · T6 · T8
 
 T2 / T4 / T5 live in **part 3** (`patterns/inspection-criteria-roster-themes-delivery-outcome-adoption.md`, SPEC-0120 split), and
-T6 / T8 in **part 5** (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`), each moved VERBATIM at a
-one-bounded-read ceiling. `inspect record --theme T<n>` resolves each in the part holding it and hashes
-that part's bytes, so their freshness is unchanged by the move.
+T6 / T8 in **part 5** (`patterns/inspection-criteria-roster-themes-integrity-adoption.md`), each moved VERBATIM; each
+is hashed in the part holding it.
 
 - **T2** — Instruction↔doc fidelity + delivery/readiness
 - **T4** — Outcome / cost-effectiveness (context-economy)
@@ -359,6 +336,7 @@ data mutations → background jobs).
   roll-call carries the swept atom-set + the ledger revision as evidence, never a bare "none" (F-#2).
 
 - **G8 — instrument self-check:** an absent input is NO-DATA, not clean; each waiver's compensating-control name must exist; read ALL of the kernel `graph conformance` output incl. activation-checklist drift (<workshop-spec>).
+- **2026-11 refresh :** (a) when one pass cannot run every probe, the FSM-statement check, the invocation-shaped reference resolution and the drift-possibility walk run FIRST over specs and `--help` leaves new since the last T1 row — a budget cut skips old surface, never new; (b) read each roll-call defect row before reporting it: an explicit GAP row is no waive, a prose mention of an untracked fixture or an illustrative section is no dead link; (c) `NO-DATA: recheck currency at the SPEC-0165 §8 atom unit — instrument absent: no atom→spec-edit join` (the spec-level count is a CANDIDATE only); (d) the SPEC-1045 admission rows and SPEC-1057 `external_action` enter the event-catalog check.
 
 ### T3 — AI-execution fidelity (boundary-watch, output-quality)
 
@@ -435,6 +413,7 @@ data mutations → background jobs).
   `land_completed` carries no `consumer_verify` — B5 is N/A there (record it as such).
 
 - **G9 — owner-row provenance:** a cited owner row's source and timing are checked; machine rows in the owner carrier are a finding — `bin/yitc-v2 journal query --type owner_directive`.
+- **2026-11 refresh :** (a) machine-emitted captures carry no `captured_via`, so exclude them by EMITTER — the fingerprint literals `bin/lib` writes itself (rule B; e.g. `selection-omitted-a-test-naming-a-changed-path`, `land-verify-timeout`) — and state the excluded count; (b) grade every root count in the same pass (an ungraded count is a half-run); (c) a root caused by a verb's promised output (e.g. the `audit pre --preview` readiness block) is graded after running that verb once; (d) G9: `controller-delegated` rows without `mid_turn` before the land are left-censored, only later ones are a finding; (e) boundary-watch adds SPEC-1056 (`external-read` before a fetch) and SPEC-1057 (`external_action`) as fence carriers.
 
 ### T7 — Anti-complexity / bloat (doc/code layering, generalization)
 
@@ -592,6 +571,7 @@ pure teaching/judgment prose; any chunk ALREADY verb-delivered.
 
 - **Probe null ≠ clean (F-#2):** a clean result names the frequently-triggered prose homes walked and
   their declared triggers, never a bare "none found".
+- **2026-11 refresh :** (a) a size deferral is checked against what landed since it: «until the next substantive edit» is DUE once one landed (SPEC-0152); (b) a parked card whose `return_trigger` names a cancelled plan can never fire — a finding; (c) the must-split scan counts DELIVERED (active) specs only; (d) the external packet carries `graph_built.duration_ms` and the `bin/lib` size trend; (e) SPEC-1031: a tunable written in two homes is a duplication finding.
 
 ### Themes carried in part 4 — T9 · T10
 

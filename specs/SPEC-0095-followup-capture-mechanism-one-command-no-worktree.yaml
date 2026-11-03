@@ -255,17 +255,17 @@ body: "## Scenario\n\nMid-work the owner/AI notices a small follow-up (dodelka) 
   \ of `[A-Za-z0-9._:/-]` beginning with a letter\n    or a digit.\n  - **A DECLARED\
   \ set of classes.** The predicate is admitted only on the classes the parse home\n\
   \    declares (`followup.py#split_event_awaits`; today `consumer_read_evidence`,\n\
-  \    `live_trigger_evidence`, `release_tagged`, `deploy_completed` and `test_class_executed`),\
-  \ and\n    on any other class it is REFUSED naming that set — never admitted and\
-  \ left unfireable. The set\n    is declared because the fold cannot be told in advance\
-  \ which predicates are awaited: it marks\n    every matchable key of every row of\
-  \ a declared class, in the walk it was already making.\n    Widening the set is\
-  \ an edit to that one declaration.\n  - **The deploy target.** On `deploy_completed`\
-  \ the key `target` names the deploy surface:\n    `target=<name>` matches a deploy\
-  \ to that named target, and `target=production` matches a\n    PRODUCTION FORWARD\
-  \ deploy — one naming no target, or a target declared production — never a\n   \
-  \ rollback and never a row whose target is not a mapping. So a deferred probe needing\
-  \ the first\n    production deploy awaits `events.jsonl#type=deploy_completed&target=production@after=land`\n\
+  \    `live_trigger_evidence`, `release_tagged`, `deploy_completed`, `test_class_executed`,\n\
+  \    `inspection_completed` and `venue_seed_recorded`), and\n    on any other class\
+  \ it is REFUSED naming that set — never admitted and left unfireable. The set\n\
+  \    is declared because the fold cannot be told in advance which predicates are\
+  \ awaited: it marks\n    every matchable key of every row of a declared class, in\
+  \ the walk it was already making.\n    Widening the set is an edit to that one declaration.\n\
+  \  - **The deploy target.** On `deploy_completed` the key `target` names the deploy\
+  \ surface:\n    `target=<name>` matches a deploy to that named target, and `target=production`\
+  \ matches a\n    PRODUCTION FORWARD deploy — one naming no target, or a target declared\
+  \ production — never a\n    rollback and never a row whose target is not a mapping.\
+  \ So a deferred probe needing the first\n    production deploy awaits `events.jsonl#type=deploy_completed&target=production@after=land`\n\
   \    and is not due after a stand or sandbox deploy; a probe needing a stand pre-deploy\
   \ run awaits\n    `events.jsonl#type=test_class_executed&target=stand@after=land`,\
   \ which a land-time class row\n    (it names no target) never matches. Due is not\
@@ -773,4 +773,4 @@ implements_signature:
   bin/lib/followup.py#split_due_awaits: 91a9baf836def19f23a4aa62f674979d2679ed774ab3b4787f650a4ca4a3b7ef
   bin/lib/followup.py#split_event_awaits: a4941eda4fcf12b7aa53f9ce49de38163c99767d7aac16b848591d2565ceb8ff
   bin/lib/followup.py#validate_promotes: 8de620213caaf473ee2d8faf68b6f134d89bd0eaefd512e213dda256ff8cf185
-  bin/lib/task.py#cmd_task_file: 0a23cc073450036fffe93a5e9f92b5ffaee01272ce02ab0145e6d76ecfc79534
+  bin/lib/task.py#cmd_task_file: 2d2be4f3e850f7e0ba51960c01b3a82ef37fb828968b5255cc836de5a7b4e44d

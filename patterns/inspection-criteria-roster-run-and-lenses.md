@@ -108,6 +108,11 @@ The pinned discipline (the runbook STEP 2 chains it; this is its living home):
   the checklist) → amend the checklist HERE → re-run, until the finding sets converge.
 - **Editing a theme's checklist AFTER it converged returns the theme to re-run** — converged covers
   only the run checklist (F-#2 null≠clean).
+- **A declared probe left NOT RUN is named, then taken first.** A run that skips a probe its
+  checklist declares — for time, not for an absent instrument — names it in the `inspect record` notes as
+  `not run: <probe>`; the theme's NEXT run takes those probes first. A probe not run in two consecutive
+  runs is a T5 roster-currency input (part 3): retire it or re-point it. An absent instrument is the
+  `NO-DATA` line below, never `not run`.
 - Findings flow into the **one nonconformity sink** as real captures: `captured_via: inspection`, with
   `inspection_theme`, source-independent `fingerprint` (SPEC-0056). Each theme run emits exactly **one
   `inspection_completed`** event (`criteria_ref` = the run-checklist hash; SPEC-0025). Inspection is

@@ -254,84 +254,85 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ a plan that reduces to copying named paths from it is RED; the plan must state\
   \ its own\ndesign, its own tests, and which prototype findings it deliberately does\
   \ NOT carry». The overlay is\na per-case flag in the <workshop-spec> family, additive\
-  \ in place. Filing a card WITH a spike branch named\nin its scope but WITHOUT `prototype_ref`\
-  \ prints a report-only advisory at `task file`. **Required once\nan identity hit\
-  \ exists:** when the pre-land preview (rule 2a) reports an IDENTITY hit (rule 2's\
-  \ T1\nwhole-file or T3 hunk-subset) against a spike and the card carries no `prototype_ref`,\
-  \ `audit post`\nREFUSES (governed, naming the spike and the fix `task update --prototype-ref\
-  \ spike/<slug>`); a\nPARTIAL share (rule 2 verdict `report`) is never refused —\
-  \ it reaches the auditor as the rule-6\n`prototype_identity` context line; `land`\
-  \ stays report-only; a zero-overlap card is never\nasked to declare.\n**A file identical\
-  \ by construction is DECLARED, and judged before the work.** A card that names its\n\
-  prototype MAY declare, per path and with a reason, that a named file will come out\
-  \ byte-identical\nto the prototype's file at that path because any correct implementation\
-  \ yields those bytes — a\ngenerated or declarative file, never a convenience copy.\
-  \ The declaration has ONE governed write\nroute, which validates it, and no other;\
-  \ that write is REFUSED when the card names no prototype,\nwhen an entry carries\
-  \ no reason or a reason that is not one plain line, when the prototype holds no\n\
-  file at the declared path, and when the declaration is larger than the audit packet\
-  \ section that\nshows it whole (field catalog: SPEC-0028). Audit-pre shows every\
-  \ entry with its reason to the\nauditor under this overlay, and THE AUDITOR IS THE\
-  \ JUDGE — never `land`, never the author, and no\nflag: an entry whose reason does\
-  \ not show that the whole file is determined by the task is RED. The\nsaved audit-pre\
-  \ verdict states which entries its packet showed, and only a pass that handed the\n\
-  auditor that text states it; a re-run on an unchanged plan invokes no auditor, so\
-  \ a declaration\nwritten after the pass is judged only once the plan states the\
-  \ declared file and audit-pre runs\nagain. `land` admits exactly the shown entries\
-  \ against exactly that prototype (rule 2) and refuses\neverything else as before.\
-  \ Check\nlayer: KERNEL (packet assembly, the write refusals, the land's read) +\
-  \ the external auditor (the judgement).\n\n### 6. The identity line at audit-post\
-  \ — CONTEXT for the residue; the refusals live at `land`\nFor a card carrying `prototype_ref`,\
-  \ `audit post` adds `prototype_identity: {whole_file_hits,\nhunk_subset, verbatim_share,\
-  \ source_row}` to its packet: a PROJECTION of the latest `spike_content_previewed`\n\
-  row for the audited commit (rule 2a), LABELLED preview — CITED by ref, never recomputed\
-  \ by the packet;\na re-audit after land cites the final `spike_content_checked`\
-  \ row instead — plus the share of the ship's added lines found verbatim in the\n\
-  prototype diff, and which declared-identical paths (rule 5) that check admitted\
-  \ and which it did\nnot. It is context for the auditor and the owner over what rule\
-  \ 2\nREPORTED and did not refuse — partial overlap, copy-then-reformat, a legitimately\
-  \ repeated screen.\nThe auditor carries NO refusal arm and NO threshold of its own:\
-  \ exact identity was already refused\nat `land` (rule 2), and a gate here would\
-  \ false-block exactly the re-implementation this contract\nwants. Check layer: KERNEL\
-  \ (packet).\n\n### 7. Two stable stand roles, one doctrine — acceptance is a form\
-  \ of `postcheck`\nA project MAY give an existing non-production deploy target a\
-  \ stable ROLE: an OPTIONAL key\n`role: dev` or `role: acceptance` beside `production:\
-  \ false` on a `deploy.targets.<name>` entry in\n`yitc-ops.yaml`. The DEV stand (ДОРАБОТКА)\
-  \ serves the open spike (rule 3 source (b)). The ACCEPTANCE\nstand (ПРИЁМКА) serves\
-  \ landed `main` (rule 3 source (a)) and is raised on demand, not kept running;\n\
-  the no-container preview (`patterns/spike-mode.md` §Lightweight posture / §Acceptance\
-  \ preview\nWITHOUT containers) is a valid acceptance stand. The role is read by\
-  \ ONE pure, total reader over the\ndeploy section `deploy` has already parsed (no\
-  \ I/O of its own), tolerantly and SILENTLY: an absent\nsection, a non-mapping `targets`\
-  \ or target, an absent key or any value other than `dev` /\n`acceptance` reads as\
-  \ no role, with no fix line and no warning; a role on a `production: true` target\
-  \ is\nignored; the role never refuses anything. It is not a concern declaration:\
-  \ `init` never seeds or\nasks for it and the SPEC-0093 completeness sweep does not\
-  \ read it. The role feeds exactly two\nADVISORY `deploy` lines, both warn-only:\
-  \ B1 — an acceptance-role target built off anything but\nlanded `main` prints one\
-  \ warning and the deploy proceeds; B2 — a production deploy in a project that\n\
-  declares an acceptance-role target prints one reminder «was this shown on the acceptance\
-  \ stand?».\nNeither changes the exit code, the `deploy_completed` payload, the class\
-  \ gate, the lock or the\nrollback. RECOMMENDED order, not enforced: card → land\
-  \ → ACCEPTANCE stand → production; nothing\nchecks it — the discipline stays with\
-  \ the person and the AI. Recommendation, not a new rule: one\nprotection setup (cage\
-  \ + data handling) serves both stands, each with its own data store; an\nacceptance\
-  \ stand holding a restored production copy is treated as <workshop-spec> treats\
-  \ a spike copy.\nAcceptance mode (rule 3 source (a)) is the sandbox serving LANDED\
-  \ code to the owner. Findings are\ncaptured with the existing primitives — `followup\
-  \ add` for a small one, `task file` for a claim —\nand re-enter the lifecycle as\
-  \ POSTCHECK INPUTS, never with a `prototype_ref` (there is no prototype —\nthe served\
-  \ code is landed `main`); nothing is edited in the sandbox because nothing there\
-  \ is editable. For\na plan-sized feature this loop IS LIFECYCLE §Plan lifecycle\
-  \ `postcheck` («real-data soak ×N +\ncorrections»); for a card-sized one it is the\
-  \ card's Closure probe. When a finding cannot be stated\nwithout a probe, a DECLARED\
-  \ spike is opened for it (rule 1) and its prototype ref feeds the card\n(rule 5).\
-  \ Spike mode and acceptance mode never share a stack instance: a stack is one or\
-  \ the other\nby what it serves (rule 3). Runbook: `patterns/spike-mode.md` §Two\
-  \ modes.\n\n### 8. Legacy adoption — a pre-existing undeclared spike branch joins\
-  \ the set BEFORE enforcement, no grace\nAn OWNER-INVOKED step — `bin/yitc-v2 worktree\
-  \ park --work <slug> --declare-spike` on a branch that\nwas created without `--spike`\
-  \ (the September 2026 branches: <project> `spike-live-2026-09-01`,\n`spike-metrika-2026-09-08`;\
+  \ in place. A card of a plan opted in to the carry registry takes SPEC-1058 §3's\
+  \ overlay instead of the «does NOT carry» request. Filing a card WITH a spike branch\
+  \ named\nin its scope but WITHOUT `prototype_ref` prints a report-only advisory\
+  \ at `task file`. **Required once\nan identity hit exists:** when the pre-land preview\
+  \ (rule 2a) reports an IDENTITY hit (rule 2's T1\nwhole-file or T3 hunk-subset)\
+  \ against a spike and the card carries no `prototype_ref`, `audit post`\nREFUSES\
+  \ (governed, naming the spike and the fix `task update --prototype-ref spike/<slug>`);\
+  \ a\nPARTIAL share (rule 2 verdict `report`) is never refused — it reaches the auditor\
+  \ as the rule-6\n`prototype_identity` context line; `land` stays report-only; a\
+  \ zero-overlap card is never\nasked to declare.\n**A file identical by construction\
+  \ is DECLARED, and judged before the work.** A card that names its\nprototype MAY\
+  \ declare, per path and with a reason, that a named file will come out byte-identical\n\
+  to the prototype's file at that path because any correct implementation yields those\
+  \ bytes — a\ngenerated or declarative file, never a convenience copy. The declaration\
+  \ has ONE governed write\nroute, which validates it, and no other; that write is\
+  \ REFUSED when the card names no prototype,\nwhen an entry carries no reason or\
+  \ a reason that is not one plain line, when the prototype holds no\nfile at the\
+  \ declared path, and when the declaration is larger than the audit packet section\
+  \ that\nshows it whole (field catalog: SPEC-0028). Audit-pre shows every entry with\
+  \ its reason to the\nauditor under this overlay, and THE AUDITOR IS THE JUDGE —\
+  \ never `land`, never the author, and no\nflag: an entry whose reason does not show\
+  \ that the whole file is determined by the task is RED. The\nsaved audit-pre verdict\
+  \ states which entries its packet showed, and only a pass that handed the\nauditor\
+  \ that text states it; a re-run on an unchanged plan invokes no auditor, so a declaration\n\
+  written after the pass is judged only once the plan states the declared file and\
+  \ audit-pre runs\nagain. `land` admits exactly the shown entries against exactly\
+  \ that prototype (rule 2) and refuses\neverything else as before. Check\nlayer:\
+  \ KERNEL (packet assembly, the write refusals, the land's read) + the external auditor\
+  \ (the judgement).\n\n### 6. The identity line at audit-post — CONTEXT for the residue;\
+  \ the refusals live at `land`\nFor a card carrying `prototype_ref`, `audit post`\
+  \ adds `prototype_identity: {whole_file_hits,\nhunk_subset, verbatim_share, source_row}`\
+  \ to its packet: a PROJECTION of the latest `spike_content_previewed`\nrow for the\
+  \ audited commit (rule 2a), LABELLED preview — CITED by ref, never recomputed by\
+  \ the packet;\na re-audit after land cites the final `spike_content_checked` row\
+  \ instead — plus the share of the ship's added lines found verbatim in the\nprototype\
+  \ diff, and which declared-identical paths (rule 5) that check admitted and which\
+  \ it did\nnot. It is context for the auditor and the owner over what rule 2\nREPORTED\
+  \ and did not refuse — partial overlap, copy-then-reformat, a legitimately repeated\
+  \ screen.\nThe auditor carries NO refusal arm and NO threshold of its own: exact\
+  \ identity was already refused\nat `land` (rule 2), and a gate here would false-block\
+  \ exactly the re-implementation this contract\nwants. Check layer: KERNEL (packet).\n\
+  \n### 7. Two stable stand roles, one doctrine — acceptance is a form of `postcheck`\n\
+  A project MAY give an existing non-production deploy target a stable ROLE: an OPTIONAL\
+  \ key\n`role: dev` or `role: acceptance` beside `production: false` on a `deploy.targets.<name>`\
+  \ entry in\n`yitc-ops.yaml`. The DEV stand (ДОРАБОТКА) serves the open spike (rule\
+  \ 3 source (b)). The ACCEPTANCE\nstand (ПРИЁМКА) serves landed `main` (rule 3 source\
+  \ (a)) and is raised on demand, not kept running;\nthe no-container preview (`patterns/spike-mode.md`\
+  \ §Lightweight posture / §Acceptance preview\nWITHOUT containers) is a valid acceptance\
+  \ stand. The role is read by ONE pure, total reader over the\ndeploy section `deploy`\
+  \ has already parsed (no I/O of its own), tolerantly and SILENTLY: an absent\nsection,\
+  \ a non-mapping `targets` or target, an absent key or any value other than `dev`\
+  \ /\n`acceptance` reads as no role, with no fix line and no warning; a role on a\
+  \ `production: true` target is\nignored; the role never refuses anything. It is\
+  \ not a concern declaration: `init` never seeds or\nasks for it and the SPEC-0093\
+  \ completeness sweep does not read it. The role feeds exactly two\nADVISORY `deploy`\
+  \ lines, both warn-only: B1 — an acceptance-role target built off anything but\n\
+  landed `main` prints one warning and the deploy proceeds; B2 — a production deploy\
+  \ in a project that\ndeclares an acceptance-role target prints one reminder «was\
+  \ this shown on the acceptance stand?».\nNeither changes the exit code, the `deploy_completed`\
+  \ payload, the class gate, the lock or the\nrollback. RECOMMENDED order, not enforced:\
+  \ card → land → ACCEPTANCE stand → production; nothing\nchecks it — the discipline\
+  \ stays with the person and the AI. Recommendation, not a new rule: one\nprotection\
+  \ setup (cage + data handling) serves both stands, each with its own data store;\
+  \ an\nacceptance stand holding a restored production copy is treated as <workshop-spec>\
+  \ treats a spike copy.\nAcceptance mode (rule 3 source (a)) is the sandbox serving\
+  \ LANDED code to the owner. Findings are\ncaptured with the existing primitives\
+  \ — `followup add` for a small one, `task file` for a claim —\nand re-enter the\
+  \ lifecycle as POSTCHECK INPUTS, never with a `prototype_ref` (there is no prototype\
+  \ —\nthe served code is landed `main`); nothing is edited in the sandbox because\
+  \ nothing there is editable. For\na plan-sized feature this loop IS LIFECYCLE §Plan\
+  \ lifecycle `postcheck` («real-data soak ×N +\ncorrections»); for a card-sized one\
+  \ it is the card's Closure probe. When a finding cannot be stated\nwithout a probe,\
+  \ a DECLARED spike is opened for it (rule 1) and its prototype ref feeds the card\n\
+  (rule 5). Spike mode and acceptance mode never share a stack instance: a stack is\
+  \ one or the other\nby what it serves (rule 3). Runbook: `patterns/spike-mode.md`\
+  \ §Two modes.\n\n### 8. Legacy adoption — a pre-existing undeclared spike branch\
+  \ joins the set BEFORE enforcement, no grace\nAn OWNER-INVOKED step — `bin/yitc-v2\
+  \ worktree park --work <slug> --declare-spike` on a branch that\nwas created without\
+  \ `--spike` (the September 2026 branches: <project> `spike-live-2026-09-01`,\n`spike-metrika-2026-09-08`;\
   \ <project> `spike-otgruzki`, parked) — records the LATE declaration as a\njournal\
   \ row (`spike_declared_late`, naming the branch, its tip and the invoking owner\
   \ session) and\ntags `spike/<slug>` at the tip exactly as rule 4 does, then removes\
@@ -417,20 +418,23 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \ intact and the\nnext round open, and the command fails naming the way on (`worktree\
   \ park --work <served>` once the\nchange is carried). A park refusal of its own\
   \ (rule 3's served-tree refusal, an existing tag) is\nthe park's, unchanged.\nCheck\
-  \ layer: KERNEL.\n\n### 13. Helpers in a spike — the Controller may hand sandbox\
-  \ edits to in-session helper subagents\nThe one bounded exception to the CHARTER\
-  \ §6 fence against an in-process subagent (owner decision\n`events.jsonl#ts=`):\
-  \ in a declared spike session the Controller keeps talking\nwith the person while\
-  \ in-session helper subagents make the edits, several in parallel.\n- **Spike worktree\
-  \ only.** A helper edits inside the declared spike worktree (rule 1) and nowhere\
-  \ else.\n- **No land, no production.** A helper claims, lands, parks and deploys\
-  \ nothing, and reaches no production\n  resource; those acts stay outside it.\n\
-  - **Prototype only.** What a helper writes is spike content: rule 2 holds, and it\
-  \ reaches `main` only\n  through a `prototype_ref` card that pays all nine stages\
-  \ (rule 5).\n- **No parallel-edit guard.** By the owner's decision: it is a sandbox.\n\
-  A dispatched Worker and every card flow stay under the fence. Nothing enforces the\
-  \ fence on an in-process\nsubagent, so nothing is changed to admit a helper. Check\
-  \ layer: discipline.\n\n## Parameters\n\nNone consumed. The abort class `spike-content`,\
+  \ layer: KERNEL.\n\n### 13. Helpers in a spike — in-session helper subagents make\
+  \ the sandbox edits by default\nThe one bounded exception to the CHARTER §6 fence\
+  \ against an in-process subagent (owner decision\n`events.jsonl#ts=`): in a declared\
+  \ spike session the Controller hands the edits\nto in-session helper subagents by\
+  \ default, several in parallel, and keeps talking with the person —\nso its own\
+  \ context is kept for the conversation, not spent on edits (request X-2151). Asked\
+  \ who\nmakes the edits in a spike, the Controller answers «the helpers, by default»;\
+  \ it edits itself only\nwhen the person asks it to.\n- **Spike worktree only.**\
+  \ A helper edits inside the declared spike worktree (rule 1) and nowhere else.\n\
+  - **No land, no production.** A helper claims, lands, parks and deploys nothing,\
+  \ and reaches no production\n  resource; those acts stay outside it.\n- **Prototype\
+  \ only.** What a helper writes is spike content: rule 2 holds, and it reaches `main`\
+  \ only\n  through a `prototype_ref` card that pays all nine stages (rule 5).\n-\
+  \ **No parallel-edit guard.** By the owner's decision: it is a sandbox.\nA dispatched\
+  \ Worker and every card flow stay under the fence. Nothing enforces the fence on\
+  \ an in-process\nsubagent, so nothing is changed to admit a helper. Check layer:\
+  \ discipline.\n\n## Parameters\n\nNone consumed. The abort class `spike-content`,\
   \ the tag prefix `spike/` (annotated tags), the stamp key `spike`,\nthe journal\
   \ rows `spike_declared_late` / `spike_content_checked` / `spike_content_previewed`,\
   \ the report\nline prefix `spike-content:` and the packet field `prototype_identity`\
@@ -616,13 +620,14 @@ activation_owner_task: null
 proposed_by: prototype-never-a-transfer-close-every-path-by-whi
 binding:
 - code-enforced
+- before-raising-a-sandbox
 init_concern: null
 implements_signature:
   bin/lib/audit.py#prototype_post_context: 92acbe6e4759c28dd86d0c133daa57867e981087afb5b33f20decb80870c7b0f
-  bin/lib/audit_packet.py#build_audit_prompt: ecc337e59c9b18429fe3b297f55dfba1c1c16a9bd3d10d1ddd6b9bff96fed674
+  bin/lib/audit_packet.py#build_audit_prompt: 9a0ba133785757410d265707119816ad4b6fb47a6dc4148ed980e3dd0d117b65
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
-  bin/lib/deploy.py#cmd_deploy: 761e4d0c638b1ce7c5c0dc772120d846980933ad28a10fee06496ff6730bf7f6
+  bin/lib/deploy.py#cmd_deploy: 65223e73776a8f397edea91d36567991ceba558f244c7463bd253efdc2a690f2
   bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
   bin/lib/spike_identity.py#content_verdict: e9f58b40cce4e4975587853da212a180a5b4ee3af05616ee64465af96188e439
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
@@ -630,7 +635,7 @@ implements_signature:
   bin/lib/spike_identity.py#refusal_message: 1cc76242268d27b3004503ca514f0a10069e84635e506ebeab5bf151e24660c6
   bin/lib/task.py#prototype_identical_error: ba0adb9f28a6b50ebefef840452f26e583a54885fe37a90e93aca7c1da43338d
   bin/lib/task.py#prototype_ref_error: 976fed2553c45f8cb9ebee95330ccf5cb85028b1cfd3aaee1e8c21a99238bc05
-  bin/lib/worktree.py#cmd_land: 7adededea26109b72682d9198f9836794711cdf2f34fa10d1e1d0ee3497a112c
+  bin/lib/worktree.py#cmd_land: df7fe2aa7abe7cd34fa52151776180237eb12d295d404a5a208fa1e141f4d4ef
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_served_round_dirt: 7711c54aa7b9c64ff9793fb7592ac90819f1c20492eb435c441380f6229b32a5
   bin/lib/worktree_lifecycle.py#_spike_round_handover: 9559321ff7d38cd01c82320e237ed3fdac001ba615c75a5888e3c4b479f981a3

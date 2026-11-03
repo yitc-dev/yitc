@@ -1,0 +1,166 @@
+id: SPEC-1058
+title: Prototype carry registry - one numbered change list carries a prototype from
+  the sandbox to the deploy
+status: active
+created_at: 2026-11-02 14:20:34+00:00
+travels: kernel
+consumed: false
+extension: null
+implements:
+- bin/lib/plan.py#cmd_plan_stage
+body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spike,\
+  \ SPEC-0205), checks it there, and asks\nfor it in production. The carry must bring\
+  \ over everything the owner kept and nothing else.\n\nThe CARRY REGISTRY is one\
+  \ numbered list that runs from the sandbox to the deploy. The owner reads it\nonce.\
+  \ Every card of the carry names the lines it builds; one last card walks landed\
+  \ main against the\nwhole list before the deploy. The kernel checks only LISTS (who\
+  \ owns which line, one prototype for the\nwhole carry); the MEANING — is every change\
+  \ listed, is each line built as drawn, did anything extra\nship — is judged by the\
+  \ audits that already run, now given the registry to judge against.\n\n## Internal\n\
+  \n### 1. Applicability — a plan opts in; every card of its cut follows\nA plan opts\
+  \ in by naming its prototype in frontmatter, `prototype_ref: spike/<tag>` (the SPEC-0205\n\
+  rule 4 tag), and carrying a `## Prototype registry` section. Every card filed with\n\
+  `decomposed_from:` that plan is IN the carry: its `prototype_ref` is the plan's\
+  \ (`task file` fills it;\na different one is refused) and it must declare `prototype_lines`\
+  \ (§3). Plans without the\ndeclaration, and their cards, are unchanged (additive\
+  \ extension, SPEC-1037 in-place boundary). A\ncard-sized carry (one card, no plan)\
+  \ is out of scope by the owner's decision and keeps SPEC-0205\nrule 5 as it stands.\n\
+  \n### 2. The registry\nA fenced YAML list inside the `## Prototype registry` section,\
+  \ read by the existing YAML parser; a\nmalformed list refuses `plan stage accepted`\
+  \ naming the fault. One item per change:\n`id: R-<n>` (never renumbered) · `kind:\
+  \ added | changed | removed | supporting` · `surface` · `what` ·\n`locators: [path:line,\
+  \ …]` · `disposition: carry | not-carried` · `owner_row:` (required for `not-carried`,\
+  \ and for any item added, or changed in any field —\n`what`, `locators`, `disposition`\
+  \ — after the owner's read-back).\n- Granularity: one item never bundles two things\
+  \ the owner could see or test separately; a change no\n  owner sees (formatting,\
+  \ a helper) is a `supporting` item naming the item it serves in `what`.\n- The BASE\
+  \ is the merge-base of main and the prototype tag — defined from the moment the\
+  \ plan opts\n  in, and stable: the registry describes `git diff <base>...<prototype_ref>`.\
+  \ Locators point into the\n  prototype; a `removed` item's locator points into the\
+  \ base.\n- ONE PROTOTYPE COMMIT: the accept `plan check` records the prototype and\
+  \ base commits its packet\n  used; `plan stage accepted` pins exactly that prototype\
+  \ commit as `prototype_tip: <sha>` in the plan\n  frontmatter, refusing if the tag\
+  \ has moved since the check; every later check reads that sha,\n  never the moving\
+  \ tag. A newer prototype\n  is a registry amendment: re-point `prototype_tip` through\
+  \ a fresh accept check.\n- Expected state after the carry: a `carry` item as its\
+  \ CURRENT `what` states — the prototype's\n  drawing, unless the owner amended `what`\
+  \ by an `owner_row` (the amendment wins in every check:\n  audits, the verifier,\
+  \ the soak); a `not-carried` item is not applied by any card of the carry.\n- The\
+  \ section opens with the owner's read-back row (`owner_read: events.jsonl#ts=<ISO>`).\
+  \ The owner\n  reads the list once before the plan is accepted; this is where a\
+  \ sandbox change nobody meant to\n  keep becomes `not-carried`.\n\n### 3. The checks\
+  \ — lists by the kernel, meaning by the audits\n- **Plan accept.** MECHANICAL: the\
+  \ list parses, and every changed path of the base diff is a locator\n  of some item\
+  \ (a whole forgotten file refuses `plan stage accepted`, naming the paths). JUDGED:\
+  \ the\n  accept `plan check` packet carries the base diff beside the registry; the\
+  \ auditor checks, hunk by\n  hunk, that every owner-meaningful change has an item,\
+  \ the granularity, and that `owner_read` and\n  every later `owner_row` are cited.\
+  \ The registry is plan body text, so the existing content hash\n  makes any later\
+  \ change re-open the check.\n- **The cut (gate to `executing`, SPEC-0070).** MECHANICAL,\
+  \ naming the fault: every card of the cut\n  declares `prototype_lines` — a NON-EMPTY\
+  \ list of item ids (a WRITER), `[]` (a card that builds no\n  item — not a writer),\
+  \ or `all` (the VERIFIER); every `carry` item is owned by exactly one writer (a\n\
+  \  `supporting` item may be owned by the writer of the item it serves or directly);\
+  \ no card names an\n  unknown or a `not-carried` item; exactly one `all` card, which\
+  \ `requires:` every other card of the\n  cut, while no card of the cut requires\
+  \ it — the verifier is the cut's LAST card; and the accept\n  verdict is still fresh\
+  \ for the CURRENT plan body (registry included) and `prototype_tip` — a\n  registry\
+  \ changed after accept refuses here until `plan check` re-reconciles it. The card-set\n\
+  \  fingerprint covers each card's `prototype_lines`, the registry text and `prototype_tip`,\
+  \ so a\n  change to any re-opens the fidelity verdict. JUDGED: the fidelity audit\
+  \ packet carries the\n  registry; the auditor checks that the verifier's acceptance\
+  \ walks every item.\n- **Each writer card.** `audit pre` delivers its items in full\
+  \ beside the prototype diff; the\n  overlay: build exactly these items to their\
+  \ expected state; an unresolved departure from an item's expected state is a\n \
+  \ stop-and-ask — `task pause --reason controller-wait` naming the item — never a\
+  \ silent drop and\n  never «the card governs»; building an owner amendment\n  already\
+  \ cited on the item is not a departure and asks nothing. The verdict's reuse key\
+  \ covers `prototype_lines`, those items' text, and `prototype_tip`.\n  `audit post`\
+  \ carries the same items, every `not-carried` item on the same surfaces and the\n\
+  \  prototype hunks of their locators, and asks both ways: each item in its expected\
+  \ state; nothing\n  owner-visible shipped that no item names and no `not-carried`\
+  \ item applied. New implementation\n  and test files are the card's own design (SPEC-0205\
+  \ rule 5) and need no item. For an opted-in card\n  this replaces rule 5's per-card\
+  \ «which prototype findings it does NOT carry» request. A `[]` card's\n  `audit\
+  \ post` asks the forward half only: it changes no owner-visible behaviour on the\
+  \ registry's\n  surfaces.\n- **The verifier card — it walks and records; it does\
+  \ not repair.** An ordinary card, the last of\n  the cut. Its acceptance criteria:\
+  \ every registry item walked on the acceptance stand (SPEC-0205\n  rule 7) over\
+  \ landed main, and its state recorded — a `carry` item in its expected state or\
+  \ not, a\n  `not-carried` item applied or not — plus every owner-visible change\
+  \ in the commits of the other\n  cards of the cut that has no item, named by its\
+  \ surface and locator: reverting such a change needs\n  no item, keeping it needs\
+  \ an item added with an owner_row. Each failure is routed by the EXISTING acceptance-finding\n\
+  \  route of SPEC-0205 rule 7 (a `followup add`, or a card filed WITHOUT `prototype_ref`\
+  \ and outside\n  the cut, naming the registry item it fixes), or settled by the\
+  \ owner on the item — DROP (it\n  becomes `not-carried`) or ACCEPT AS SHIPPED (`what`\
+  \ rewritten) — by an `owner_row`. The verifier\n  closes when the walk is recorded\
+  \ and every failure is routed or settled: it is the list, not the\n  fix.\n- **After\
+  \ the verifier — the plan's `postcheck` (SPEC-0034), unchanged.** The routed findings\
+  \ are\n  postcheck inputs; the deploy follows the walk and the fixes, as the project\
+  \ deploys today; the\n  realization exit counts failures against the registry after\
+  \ the deploy. This rule adds no deploy\n  binding, no repair card and no re-run\
+  \ of the cut audit.\n\n### 4. What this rule does not do\nNo new artifact type,\
+  \ store, verb, record format or deploy gate. The kernel's mechanical part is\nthree\
+  \ list checks (parse + path floor at accept, ownership at the cut, one prototype\
+  \ per carry); the\nmeaning is judged by the accept check, the fidelity audit, each\
+  \ card's two audits and the verifier's\nown acceptance. Making the registry REQUIRED\
+  \ for every prototype carry is a later SPEC-0205 rule 5\nsupersede, decided at the\
+  \ plan's realized exit on soak evidence.\n\n## Rationale\nIncident: <project> `docs/carry/round11-inventory/divergence-2026-11-02.md`\
+  \ (35 rows, per-row cause:\n(a) no card named it; (b) a card named it, no criterion\
+  \ checked it; (c) a card excluded it alone;\n(a*) «the card governs»), plan round-6\
+  \ D-p (CSV export lost). Class (a) is caught by the ownership\nlist check; (b) by\
+  \ the writer's audit-post question and the verifier's per-item criteria; (c) and\n\
+  (a*) by the stop-and-ask overlay and the registry's owner-cited dispositions.\n\
+  Why lists only: the first two accept checks of the authoring plan found that each\
+  \ mechanical promise\nbeyond list comparison (walk records, owner-row binding, deploy\
+  \ predicates, freshness of every new\nrecord) needed its own signature and opened\
+  \ a new gap; meaning is what the auditors already judge.\nPrior art extended: SPEC-0205\
+  \ rules 4/5/7, SPEC-0070 fidelity gate and fingerprint, SPEC-0046 §A3,\nSPEC-0015\
+  \ closure. Owner: `events.jsonl#ts=`, `#ts=`,\n`#ts=`; a card-sized carry left out\
+  \ of scope: `#ts=`.\n\n## Verification\n- VP1: a malformed registry and a changed\
+  \ base-diff path that no item locates each refuse\n  `plan stage accepted`; a formatting-only\
+  \ path as a `supporting` item passes; the accept packet of\n  an opted-in plan carries\
+  \ the diff and the registry, of any other plan is byte-unchanged; a tag moved between\
+  \ the accept\n  `plan check` and `plan stage accepted` refuses the accept.\n- VP2:\
+  \ on the gate to `executing` — a card of the cut without `prototype_lines`, a card\
+  \ naming\n  another prototype, zero or two owners of a `carry` item, an unknown\
+  \ item, a writer naming a\n  `not-carried` item, two `all` cards, an `all` card\
+  \ missing one card it must require, a card that requires the `all` card, and a\n\
+  \  registry item changed after the accept verdict — each refuses naming the fault;\n\
+  \  a valid cut (writers, a `[]` card, one verifier last) passes; changing one card's\n\
+  \  `prototype_lines`, one registry item, or `prototype_tip` changes the card-set\
+  \ fingerprint.\n- VP3: the opted-in `audit pre` packet carries the card's items\
+  \ and the stop-and-ask overlay, and a\n  lines change defeats verdict reuse; the\
+  \ `audit post` packet carries the items, the surface's\n  `not-carried` items and\
+  \ their hunks, with negative examples: an element omitted from an\n  already-covered\
+  \ file, a shipped `not-carried` element; and a passing example with a new helper\
+  \ and\n  test file that no item names. A `[]` card's `audit post` packet asks the\
+  \ forward-only question; a\n  changed `prototype_tip` defeats audit-pre reuse. A\
+  \ card\n  building an owner amendment already cited on its item gets no stop-and-ask\
+  \ for it.\n- VP4: a card outside an opted-in plan gets packets byte-identical to\
+  \ before.\n- VP5: differential replay — the rounds 7-9 cut rebuilt read-only: items\
+  \ from the divergence table;\n  each historical card's `prototype_lines` mapped\
+  \ from the table's cause column (a (b), (c) or (a*)\n  row names the card it cites;\
+  \ an (a) row names none). A class-(a) row has no owner\n  even when it cites a card\
+  \ (the cited card did not name the element); a (b), (c) or (a*) row is\n  owned\
+  \ by every card it cites. The gate refuses with the expected set: zero owners =\
+  \ exactly the\n  21 (a) rows; two owners = exactly rows 10 and 15. With those resolved\
+  \ it passes.\n"
+cites:
+- SPEC-0205
+- SPEC-0070
+- SPEC-0046
+- SPEC-1040
+- SPEC-0028
+- SPEC-1011
+- CHARTER.md#principle-1
+requires: []
+supersedes: null
+activation_owner_task: null
+proposed_by: prototype-carry-registry-one-numbered-change-list-
+binding:
+- plan-stage-entry:specs
+- plan-stage-entry:decomposition
+- plan-stage-entry:postcheck
+init_concern: null

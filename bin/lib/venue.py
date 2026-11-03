@@ -33,6 +33,7 @@ import io
 import json
 import os
 import re
+import shlex
 import subprocess
 import tempfile
 import time
@@ -1498,14 +1499,14 @@ PROBE_EXPECTATIONS = (
     ("ram_mb", "ge", 32000),
     ("tmpfs_shm_mb", "ge", 1024),
     ("rsync", "true", None),
-    ("jq", "true", None),
     ("clone_present", "true", None),
     ("clone_main", "contains", "refs/heads/main"),
 )
 
-#: The extra reads the shared fingerprint does not measure: cloud-init completion, the seeded bare
-#: clone (rule 3) and `jq` — a host tool the suite needs (a recipe test sources the jq-using script);
-#: unmeasured, a jq-less snapshot probed GREEN and was published (T-12962). Measured in ONE ssh round beside `probe_fingerprint`, never a second probe.
+#: The extra reads the shared fingerprint does not measure: cloud-init completion and the seeded bare
+#: clone (rule 3). Measured in ONE ssh round beside `probe_fingerprint`, never a second probe. The
+#: table above is the generic floor the venue mechanism itself needs; a tool a project's suite needs
+#: (the kernel's own jq and npm included) is that project's declared check (SPEC-1032 rule 1, T-14486).
 _CLONE_SCRIPT = r"""python3 - <<'PY'
 import json, os, shutil, subprocess
 def sh(c):
@@ -1513,7 +1514,6 @@ def sh(c):
 clone = os.path.expanduser("~/venue/repo.git")
 print(json.dumps({
  "cloud_init_done": os.path.exists(os.path.expanduser("~/CLOUD-INIT-DONE")),
- "jq": shutil.which("jq") is not None,
  "clone_present": os.path.isdir(clone),
  "clone_main": sh("git -C %s for-each-ref --format='%%(refname)' refs/heads/main" % clone),
  "clone_main_sha": sh("git -C %s rev-parse refs/heads/main 2>/dev/null" % clone)}))
@@ -1682,11 +1682,12 @@ def consumer_declaration(ops) -> dict:
     the mapping; `stage6` (exactly `True` — YAML `on` — or the quoted string "on"; `1` is not on);
     `environment` (a list; an empty list is valid — what is not declared is not compared); then per
     check: a mapping, `name` / `cmd` / `expect` each present and a string, `name` and `cmd` non-blank
-    (`expect` may be "" — a command that prints nothing), and no repeated `name` (a check is refused
-    BY NAME at publish, rule 6); then the optional `width` (T-13994): absent reads `whole` and adds
+    (`expect` may be "" — a command that prints nothing), no repeated `name` (a check is refused
+    BY NAME at publish, rule 6), and the optional `install` (T-14486) a non-blank string when present;
+    then the optional `width` (T-13994): absent reads `whole` and adds
     no key, present it must be `whole` or `per-live-pass` and the valid result carries it as `width`.
-    Unknown keys are ignored; the valid result carries only the three fields of each check, values
-    verbatim.
+    Unknown keys are ignored; the valid result carries the three fields of each check, plus
+    `install` only where one is declared, values verbatim.
 
     Read by the Stage-6 seam (`task._stage6_consumer_venue`) and by `venue publish -C`, both since
     T-13976 activated SPEC-1032."""
@@ -1723,8 +1724,15 @@ def consumer_declaration(ops) -> dict:
                 return invalid(f"{at}.{field}", "empty")
         if entry["name"] in seen:
             return invalid(f"{at}.name", f"duplicate {entry['name']!r}")
+        # T-14486: the OPTIONAL install command — present, it is a non-blank string and travels as
+        # `install`; absent, the check keeps exactly its three fields (the check-only shape).
+        if "install" in entry and (not isinstance(entry["install"], str) or not entry["install"].strip()):
+            return invalid(f"{at}.install", f"{entry['install']!r} is not a non-empty string")
         seen.add(entry["name"])
-        checks.append({"name": entry["name"], "cmd": entry["cmd"], "expect": entry["expect"]})
+        check = {"name": entry["name"], "cmd": entry["cmd"], "expect": entry["expect"]}
+        if "install" in entry:
+            check["install"] = entry["install"]
+        checks.append(check)
     # T-13994 (SPEC-1032 rules 1 and 3) — the OPTIONAL width policy, checked last. Absent reads
     # `whole` and the valid result keeps exactly its three keys; present, it must be one of the two
     # policy names and the result carries it as `width`.
@@ -1910,7 +1918,20 @@ def consumer_readiness_failures(fingerprint: "dict | None", declaration: dict) -
     if measured.get("clone_shallow") != "false":
         failures.append({"field": "clone_shallow", "op": "eq", "expected": "false",
                          "actual": measured.get("clone_shallow")})
-    got = {}
+    return failures + declared_check_failures(fingerprint, declaration)
+
+
+def declared_check_failures(fingerprint: "dict | None", declaration: dict) -> list:
+    """T-14486 — the `check:<name>` rows alone, read off the fingerprint's `consumer` part: one per
+    declared check that did not exit 0 with stdout equal to `expect`, or has no measurement. The
+    consumer readiness adds them after its flock / clone rows; the kernel's own venue judges only
+    these (its box needs no consumer admission). A declaration that is not a valid one adds none —
+    its own refusal is the caller's."""
+    if not isinstance(declaration, dict) or declaration.get("state") != "valid":
+        return []
+    measured = (fingerprint or {}).get("consumer")
+    measured = measured if isinstance(measured, dict) else {}
+    failures, got = [], {}
     for m in measured.get("checks") or ():
         if isinstance(m, dict) and isinstance(m.get("name"), str):
             got.setdefault(m["name"], m)
@@ -1925,3 +1946,49 @@ def consumer_readiness_failures(fingerprint: "dict | None", declaration: dict) -
                              "rc": m.get("rc"), "stdout": str(m.get("stdout") or "")[:200],
                              "truncated": bool(m.get("truncated"))}})
     return failures
+
+
+# ── A project's declared box needs — check, then install (SPEC-1032 rules 1 and 6, T-14486) ─────────
+#: The bound on ONE declared install command on the box: an apt or vendor-repository install that
+#: outlives it is refused as a failed install (rc None), never waited on without end.
+INSTALL_TIMEOUT_S = 900
+
+
+def ensure_declared_environment(ip: str, declaration: dict, *, on_install=None,
+                                user: str = BOX_USER) -> tuple:
+    """Measure the declared checks on the box; for each failing check that declares `install`, run
+    that command on the box as root (`sudo -n bash -c`, the box user's passwordless sudo) and, when
+    any install ran, measure ONCE more. Returns `(measured, installs)`: `measured` is the fingerprint's
+    `consumer` part (`measure_consumer_environment`), `installs` one `{name, rc}` per install run (rc
+    None = the install did not finish within `INSTALL_TIMEOUT_S` or did not start). A passing check
+    issues no install; a failing one without `install` is left for `declared_check_failures` to refuse
+    by name, and an install that did not exit 0 for `install_failures`. `on_install(name, command, rc)` is called after each install, so the CLI host journals the
+    mutation (SPEC-1057). Raises `VenueError` when a measurement does not run."""
+    measured = measure_consumer_environment(ip, declaration, user=user)
+    failing = {f["field"][len("check:"):]
+               for f in declared_check_failures({"consumer": measured}, declaration)}
+    installs = []
+    for check in declaration.get("environment") or ():
+        command = check.get("install")
+        if check["name"] not in failing or not command:
+            continue
+        try:
+            r = remote_verify._ssh(ip, "sudo -n bash -c " + shlex.quote(command), user=user,
+                                   timeout=INSTALL_TIMEOUT_S, check=False)
+            rc = r.returncode
+        except (subprocess.TimeoutExpired, OSError):
+            rc = None
+        installs.append({"name": check["name"], "rc": rc})
+        if on_install is not None:
+            on_install(check["name"], command, rc)
+    if installs:
+        measured = measure_consumer_environment(ip, declaration, user=user)
+    return measured, installs
+
+
+def install_failures(installs) -> list:
+    """The readiness rows of the installs that did not exit 0 (rc None included), in the
+    `probe_readiness` shape and named `check:<name>`: an install that failed refuses the box even when
+    the check passes afterwards — a half-finished install is not a ready box (SPEC-1032 rule 6)."""
+    return [{"field": f"check:{i['name']}", "op": "install exit 0", "expected": 0, "actual": i["rc"]}
+            for i in installs or () if i["rc"] != 0]

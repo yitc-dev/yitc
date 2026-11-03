@@ -10,9 +10,8 @@ implements:
 - bin/lib/session.py#cmd_session_pick
 - bin/lib/cross.py#cmd_cross_pick
 - bin/lib/cross.py#describe_holder
-- bin/lib/task.py#_auto_cross_pick_for_file
+- bin/lib/task.py#_cross_link_held_skips
 - bin/lib/cross.py#intake_advisories
-- bin/lib/cross.py#cross_pick_for_file
 - bin/lib/cross.py#unanswered_cross_link_advice
 - bin/lib/cross.py#print_unanswered_cross_link_warns
 - bin/lib/task.py#cmd_task_file
@@ -84,29 +83,26 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ a second pick is\n    FSM-illegal regardless). A SETTLED (terminal) item is excluded\
   \ — that is the `already_addressed`\n    staleness case above, not a concurrent\
   \ double-intake.\n    **The `task file --resolves-cross` half of the same rule:**\
-  \ the auto-pick below SKIPS an item\n    it cannot advance; when the cause is `already_held`,\
-  \ the filing PRINTS an already-linked advisory\n    naming the holder + its existing\
-  \ task (report-only — it never blocks a filing, emits no event, and\n    never changes\
-  \ the exit code). Both surfaces render the holder through the ONE shared\n    `describe_holder`\
-  \ renderer, so the wording cannot drift between them (the `premise_review_cue`\n\
-  \    single-emitter precedent). Real incident: two live controllers both intook\
-  \ X-0452 while the filing\n    path skipped SILENTLY -> duplicate cards and a wasted\
-  \ dispatch cycle (a recurrence of\n    the X-0430 two-controllers-one-concern class).\n\
-  \    **Unanswered-link visibility (X-0943) — the file-side warn for EVERY link the\
-  \ auto-pick\n    could not advance.** The close-side auto-`cross_done` fires ONLY\
-  \ for an item self RECEIVES that is\n    EXACTLY `picked`, so PICKED is the discriminator\
-  \ and an UNPICKED linked item is silently NEVER\n    answered. The `already_held`\
-  \ advisory above covers ONE of the auto-pick's skips; the rest — a\n    non-pickable\
-  \ `note` kind, a wrong-role link, and a `parked`/`wont-do` filing that does not\
-  \ auto-pick\n    at all — emitted nothing. So `task file` PRINTS one WARN per link\
-  \ that will not be answered at\n    close, naming the item, its KIND and STATUS,\
-  \ and the next command that is CORRECT FOR THAT KIND: a\n    `note` is advised toward\
-  \ `cross ack` (its only receiver terminal — advising `cross pick`/`cross done`\n\
-  \    would name a command the verb REFUSES, which is worse than no warn), a pickable\
-  \ kind toward\n    `cross pick`, an item this side AUTHORED toward `cross close`.\
-  \ An item already `done`/terminal, or\n    one the close WILL answer, stays silent;\
-  \ ids the already-linked advisory just named are skipped so\n    one filing never\
-  \ double-signals one item. The \"will it answer?\" oracle is `cross_done_for_close`\n\
+  \ when a linked item is `already_held`,\n    the filing PRINTS an already-linked\
+  \ advisory\n    naming the holder + its existing task (report-only — it never blocks\
+  \ a filing, emits no event, and\n    never changes the exit code). Both surfaces\
+  \ render the holder through the ONE shared\n    `describe_holder` renderer, so the\
+  \ wording cannot drift between them (the `premise_review_cue`\n    single-emitter\
+  \ precedent). Real incident: two live controllers both intook X-0452 while the filing\n\
+  \    path skipped SILENTLY -> duplicate cards and a wasted dispatch cycle (a recurrence\
+  \ of\n    the X-0430 two-controllers-one-concern class).\n    **Unanswered-link\
+  \ visibility (X-0943) — the file-side warn for EVERY unpicked link.**\n    The close-side\
+  \ auto-`cross_done` fires ONLY for an item self RECEIVES that is\n    EXACTLY `picked`,\
+  \ so PICKED is the discriminator and an UNPICKED linked item is silently NEVER\n\
+  \    answered. So `task file` and a `--set-field resolves_cross` update PRINT one\
+  \ WARN per link that will not be answered at\n    close, naming the item, its KIND\
+  \ and STATUS, and the next command that is CORRECT FOR THAT KIND: a\n    `note`\
+  \ is advised toward `cross ack` (its only receiver terminal — advising `cross pick`/`cross\
+  \ done`\n    would name a command the verb REFUSES, which is worse than no warn),\
+  \ a pickable kind toward\n    `cross pick`, an item this side AUTHORED toward `cross\
+  \ close`. An item already `done`/terminal, or\n    one the close WILL answer, stays\
+  \ silent; ids the already-linked advisory just named are skipped so\n    one filing\
+  \ never double-signals one item. The \"will it answer?\" oracle is `cross_done_for_close`\n\
   \    ITSELF, not a re-derived copy of its conditions, so the warn and the emit cannot\
   \ drift apart. ADDS\n    NO GATE — report-only, no event, no status change, no exit-code\
   \ change, fail-open (making `close`\n    REFUSE would gate a card on a peer-log\
@@ -116,32 +112,28 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ `task: (none)` — three\n    surfaces, three different answers about one item;\
   \ their PICKED pair auto-closed correctly, which is\n    what isolates PICKED as\
   \ the cause. Pure renderer: `cross.unanswered_cross_link_advice`; the ONE print\n\
-  \    site `cross.print_unanswered_cross_link_warns`.\n    **Auto-pick on `task file`,\
-  \ the symmetric mirror of the close-side auto-`cross_done`:**\n    filing a READY\
-  \ local task that carries `resolves_cross:[X-NNNN]` auto-emits `cross_picked` for\
-  \ each\n    linked item self RECEIVES that is EXACTLY `requested` + a pickable kind\
-  \ (`task`/`bugfix`) — so the\n    normal flow (file → work → close) moves the item\
-  \ off the \"new inbound\" surface AND makes the\n    close-side auto-`cross_done`\
-  \ (which fires only from `picked`) reachable. Idempotent + fail-open\n    (pick\
-  \ ONLY when the item exists, `to==self`, kind pickable, status EXACTLY `requested`;\
-  \ else skip,\n    NEVER fail the `task file`). READY-only: a `parked`/`wont-do`\
-  \ filing does NOT auto-pick (not an\n    active-claim acceptance). REUSES the cross\
-  \ mechanism (a direct emit — no new event/verb/state); a\n    `cross_*` append needs\
-  \ no worktree. Pure FSM-legality: `cross.cross_pick_for_file`.\n  - **`cross done`**\
-  \ (#2+#3+#4) — receiver finishes (may carry the receiver's `T-NNNN`); emits `cross_done`.\n\
-  **The done MAY carry `--note <text>` : WHAT the receiver actually did, recorded\
-  \ on\n`cross_done.data.note` and surfaced by `cross show` as the item's resolution\
-  \ note** — the\nreceiver-side mirror of `cross close --note` below. A receiver whose\
-  \ outcome DIVERGES from the\nrequest needs a durable home ON the item to say so:\
-  \ X-0227 was closed with a bare `cross_done`\nafter the kernel retired the requested\
-  \ change (SPEC-0146), and the author, unable to\nlearn that outcome, re-filed the\
-  \ identical ask as X-0256. OPTIONAL — a bare done emits the same\n`{id, by}` (a\
-  \ REQUIRED flag would be a new gate, forbidden here by CHARTER §Principle 1). No\n\
-  read-side change: `resolution_note` already reads a `note` key off ANY accepted\
-  \ event, the LAST\none winning, so a later author-side `cross close --note` supersedes\
-  \ it.\n**The close-side AUTO-`cross_done` ( at `task close` / at land) DERIVES a\
-  \ resolution\ntext from the RESOLVING TASK — its title + closing commit sha (`cross.resolution_note_for_close`,\n\
-  the ONE emitter of the wording, so the two auto paths cannot drift) — so an auto-resolved\
+  \    site `cross.print_unanswered_cross_link_warns`.\n    **A pick states its triage\
+  \ (SPEC-1010 section 3):** `cross pick` takes `--class` + `--ownership`, or\n  \
+  \  `--exception` + `--reason`, refuses without them (`--force` does not cover this)\
+  \ and records them on\n    `cross_picked`; `--task` records the resolving card.\n\
+  \    **A filing never picks.** `task file` or `task update --set-field resolves_cross`\
+  \ leaves a linked\n    `requested` item unpicked and prints the unanswered-link\
+  \ warn above, which names `cross pick`; the\n    close-side auto-`cross_done` fires\
+  \ only from `picked`.\n  - **`cross done`** (#2+#3+#4) — receiver finishes (may\
+  \ carry the receiver's `T-NNNN`); emits `cross_done`.\n**The done MAY carry `--note\
+  \ <text>` : WHAT the receiver actually did, recorded on\n`cross_done.data.note`\
+  \ and surfaced by `cross show` as the item's resolution note** — the\nreceiver-side\
+  \ mirror of `cross close --note` below. A receiver whose outcome DIVERGES from the\n\
+  request needs a durable home ON the item to say so: X-0227 was closed with a bare\
+  \ `cross_done`\nafter the kernel retired the requested change (SPEC-0146), and the\
+  \ author, unable to\nlearn that outcome, re-filed the identical ask as X-0256. OPTIONAL\
+  \ — a bare done emits the same\n`{id, by}` (a REQUIRED flag would be a new gate,\
+  \ forbidden here by CHARTER §Principle 1). No\nread-side change: `resolution_note`\
+  \ already reads a `note` key off ANY accepted event, the LAST\none winning, so a\
+  \ later author-side `cross close --note` supersedes it.\n**The close-side AUTO-`cross_done`\
+  \ ( at `task close` / at land) DERIVES a resolution\ntext from the RESOLVING TASK\
+  \ — its title + closing commit sha (`cross.resolution_note_for_close`,\nthe ONE\
+  \ emitter of the wording, so the two auto paths cannot drift) — so an auto-resolved\
   \ item\nnever reaches its author bare (X-0356: X-0346 + X-0351 arrived bare and\
   \ the author had\nto re-ask).** The card already HOLDS the answer, so nothing is\
   \ stored anew and no receiver must\nremember to type it; a task too thin to say\
@@ -480,64 +472,65 @@ body: "## Scenario\n\nA session works the shared coordination log entirely throu
   \ nothing in a HOME outside them and says so in one line, for the same reason. Its\n\
   \      body runs `<engine-absolute>/bin/yitc-v2 session pick`, then the chosen project's\
   \ start in the same\n      session, tells the AI to answer in the user's language\
-  \ — determined in this order: the language the instructions already loaded in the\
-  \ session name (user-level, or the directory's or project's), else the language\
-  \ the person writes in; the command's own language only while neither names one\
-  \ and the person has not written (this order is the normative home of the person-facing\
-  \ language rule; AGENTS.md §Language carries its cue) — and ends with the start-line\
-  \ relay — it\n      does not repeat the return order at every run. The ONE start\
-  \ order stands:\n      to start, restart or come back, open the AI tool in any folder\
-  \ (or clear the open session) and\n      run the command again — never a relaunch\
-  \ in the project folder, which the engine does not need\n      (it finds the session\
-  \ record by session id in any folder); the person is told it once, at the\n    \
-  \  first start, by station [A] Start (SPEC-0147). The\n      non-interactive hint\
-  \ names the engine-absolute path. No in-project command, no hooks.\n\n### 7. Receiver-side\
-  \ premise review — before any pick / resolves_cross association\nHOMED in SPEC-1010\
-  \ §3 — the premise review, the default disposition, the ownership judgement,\nthe\
-  \ outcomes and the report-only cue — and NOT restated here (<workshop-spec> rule\
-  \ 8).\n\n## Parameters\n\nNone consumed.\n\n## Rationale\n\nThe pre-specs audit\
-  \ named the AUTHOR-side close-loop as the missing piece: `inbox` (receiver pickup)\n\
-  alone does not make the done-criterion (\"consumer sees fixed → verify at start\"\
-  ) provable, so an\nexplicit author-side `outbox` view + its session-start delivery\
-  \ (rule 4) is required, and — because it\nchanges a `session start` surface — it\
-  \ must co-design its post-`/compact` re-delivery (SPEC-0007 §5b).\nThe verb names\
-  \ are D3-pinned (owner-settled); each is checked against the verb-design rubric\
-  \ (the\ncontrol-chokepoint that makes the FSM role-guard + deterministic emit enforceable\
-  \ — verb-design #2/#3/\n#4/#5). Module-home-from-day-1 (rule 5) is the owner's scale-aware\
-  \ code-placement refinement. Anti-\ncomplexity: REUSES the existing `session start`\
-  \ surface slot + the `task file`-style id-allocation +\nthe fold (no stored status)\
-  \ — adds the verb group as the ONE governed write path, no new gate, no\nsecond\
-  \ state store. The deliberation lives in the plan (<workshop-spec> §3).\n\n## Verification\n\
-  \n- **VP1 (verbs are the only write path):** a raw append to the shared store is\
-  \ not the sanctioned path;\n  each `cross` mutating verb allocates/append/emits\
-  \ atomically and refuses a wrong-role/wrong-state\n  emit with a journal-observable\
-  \ refusal. (test at activation)\n- **VP2 (views derived, no stored status):** `cross\
-  \ inbox`/`outbox` fold the log at read time; a\n  terminal item is absent from both\
-  \ with no stored flag. (test)\n- **VP3 (outbox startup surface replaces the inbound\
-  \ count):** `session start` surfaces the outbox/inbox\n  count+pointer (report-only,\
-  \ no auto-pull); the <workshop-spec> per-repo inbound count is gone and cannot\n\
-  \  over-count (terminal items fold out). (test + grep AGENTS startup)\n- **VP4 (post-`/compact`\
-  \ re-delivery co-designed — D5 probe):** consumer-session journal/read evidence\n\
-  \  that `outbox` surfaced at session start, DROPPED from the view after `cross close`,\
-  \ and was\n  RE-DELIVERED correctly after `/compact` (by re-folding the log, not\
-  \ by re-running `session start`).\n  (the plan's startup-surface probe — D5)\n-\
-  \ **VP5 (module home):** the verbs live in `bin/lib/cross.py` with thin `bin/yitc-v2`\
-  \ dispatch, not in\n  the monolith body; classified kernel per SPEC-0073. (state-check\
-  \ at activation)\n- **VP6 (re-entry disposition, DIFFERENTIAL):** MOVED with `cross\
-  \ close` — its verification is\n  SPEC-1020 VP1.\n- **VP7 (re-entry disposition\
-  \ on the RECEIVER terminals, DIFFERENTIAL):** a `cross reject`\n  whose `--reason`\
-  \ NAMES a re-entry condition, declaring neither flag, EXITS NONZERO, emits no\n\
-  \  `cross_rejected` (the item stays non-terminal) and arms nothing; the SAME reject\
-  \ carrying\n  `--re-entry` succeeds and arms exactly ONE followup whose `relates_to`\
-  \ is that X-NNNN. COHORT\n  COMPLEMENT, in the same probe: a reject with an UNCONDITIONAL\
-  \ reason goes terminal cleanly,\n  refuses nothing and arms nothing — so forcing\
-  \ the predicate always-true turns the complement RED\n  and the guard cannot be\
-  \ green by construction. Second axis: the armed row lands in the journal of\n  the\
-  \ session that ran the REJECT (the RECEIVER's — the whose-echo decision above, asserted\
-  \ rather\n  than assumed) and names the AUTHOR as its counterparty. Third axis:\
-  \ the same guard holds on\n  `cross ack`, including the note-attach from `acked`.\
-  \ (test)\n- **VP8 (triage default disposition):** MOVED with rule 7 — its verification\
-  \ is\n  SPEC-1010 VP1.\n"
+  \ — every person-addressed line, interim progress messages between tool calls included\
+  \ (code, identifiers, commands and exact quotes keep their own rules) — determined\
+  \ in this order: the language the instructions already loaded in the session name\
+  \ (user-level, or the directory's or project's), else the language the person writes\
+  \ in; the command's own language only while neither names one and the person has\
+  \ not written (this order is the normative home of the person-facing language rule;\
+  \ AGENTS.md §Language carries its cue) — and ends with the start-line relay — it\n\
+  \      does not repeat the return order at every run. The ONE start order stands:\n\
+  \      to start, restart or come back, open the AI tool in any folder (or clear\
+  \ the open session) and\n      run the command again — never a relaunch in the project\
+  \ folder, which the engine does not need\n      (it finds the session record by\
+  \ session id in any folder); the person is told it once, at the\n      first start,\
+  \ by station [A] Start (SPEC-0147). The\n      non-interactive hint names the engine-absolute\
+  \ path. No in-project command, no hooks.\n\n### 7. Receiver-side premise review\
+  \ — before any pick / resolves_cross association\nHOMED in SPEC-1010 §3 — the premise\
+  \ review, the default disposition, the ownership judgement,\nthe outcomes and the\
+  \ report-only cue — and NOT restated here (<workshop-spec> rule 8).\n\n## Parameters\n\
+  \nNone consumed.\n\n## Rationale\n\nThe pre-specs audit named the AUTHOR-side close-loop\
+  \ as the missing piece: `inbox` (receiver pickup)\nalone does not make the done-criterion\
+  \ (\"consumer sees fixed → verify at start\") provable, so an\nexplicit author-side\
+  \ `outbox` view + its session-start delivery (rule 4) is required, and — because\
+  \ it\nchanges a `session start` surface — it must co-design its post-`/compact`\
+  \ re-delivery (SPEC-0007 §5b).\nThe verb names are D3-pinned (owner-settled); each\
+  \ is checked against the verb-design rubric (the\ncontrol-chokepoint that makes\
+  \ the FSM role-guard + deterministic emit enforceable — verb-design #2/#3/\n#4/#5).\
+  \ Module-home-from-day-1 (rule 5) is the owner's scale-aware code-placement refinement.\
+  \ Anti-\ncomplexity: REUSES the existing `session start` surface slot + the `task\
+  \ file`-style id-allocation +\nthe fold (no stored status) — adds the verb group\
+  \ as the ONE governed write path, no new gate, no\nsecond state store. The deliberation\
+  \ lives in the plan (<workshop-spec> §3).\n\n## Verification\n\n- **VP1 (verbs are\
+  \ the only write path):** a raw append to the shared store is not the sanctioned\
+  \ path;\n  each `cross` mutating verb allocates/append/emits atomically and refuses\
+  \ a wrong-role/wrong-state\n  emit with a journal-observable refusal. (test at activation)\n\
+  - **VP2 (views derived, no stored status):** `cross inbox`/`outbox` fold the log\
+  \ at read time; a\n  terminal item is absent from both with no stored flag. (test)\n\
+  - **VP3 (outbox startup surface replaces the inbound count):** `session start` surfaces\
+  \ the outbox/inbox\n  count+pointer (report-only, no auto-pull); the <workshop-spec>\
+  \ per-repo inbound count is gone and cannot\n  over-count (terminal items fold out).\
+  \ (test + grep AGENTS startup)\n- **VP4 (post-`/compact` re-delivery co-designed\
+  \ — D5 probe):** consumer-session journal/read evidence\n  that `outbox` surfaced\
+  \ at session start, DROPPED from the view after `cross close`, and was\n  RE-DELIVERED\
+  \ correctly after `/compact` (by re-folding the log, not by re-running `session\
+  \ start`).\n  (the plan's startup-surface probe — D5)\n- **VP5 (module home):**\
+  \ the verbs live in `bin/lib/cross.py` with thin `bin/yitc-v2` dispatch, not in\n\
+  \  the monolith body; classified kernel per SPEC-0073. (state-check at activation)\n\
+  - **VP6 (re-entry disposition, DIFFERENTIAL):** MOVED with `cross close` — its verification\
+  \ is\n  SPEC-1020 VP1.\n- **VP7 (re-entry disposition on the RECEIVER terminals,\
+  \ DIFFERENTIAL):** a `cross reject`\n  whose `--reason` NAMES a re-entry condition,\
+  \ declaring neither flag, EXITS NONZERO, emits no\n  `cross_rejected` (the item\
+  \ stays non-terminal) and arms nothing; the SAME reject carrying\n  `--re-entry`\
+  \ succeeds and arms exactly ONE followup whose `relates_to` is that X-NNNN. COHORT\n\
+  \  COMPLEMENT, in the same probe: a reject with an UNCONDITIONAL reason goes terminal\
+  \ cleanly,\n  refuses nothing and arms nothing — so forcing the predicate always-true\
+  \ turns the complement RED\n  and the guard cannot be green by construction. Second\
+  \ axis: the armed row lands in the journal of\n  the session that ran the REJECT\
+  \ (the RECEIVER's — the whose-echo decision above, asserted rather\n  than assumed)\
+  \ and names the AUTHOR as its counterparty. Third axis: the same guard holds on\n\
+  \  `cross ack`, including the note-attach from `acked`. (test)\n- **VP8 (triage\
+  \ default disposition):** MOVED with rule 7 — its verification is\n  SPEC-1010 VP1.\n"
 amends:
 - AGENTS.md (Three-phase startup + After /compact): the <workshop-spec> per-repo cross-log
     inbound-count session-start surface is replaced by the fold-derived outbox/inbox
@@ -571,19 +564,18 @@ implements_signature:
   bin/lib/cross.py#cmd_cross_done: abd54663b003b0d59da375e4b50b1a9d3e287e4a2a700d41488e357845f2b4f3
   bin/lib/cross.py#cmd_cross_inbox: 3202233cae4f0bcb170cc1959881af0cf3141caa3618ae89e066a65b769060f5
   bin/lib/cross.py#cmd_cross_outbox: 768329186f6a9e1778c7784850ee60347668bfe088072055a769dcf60e18cd32
-  bin/lib/cross.py#cmd_cross_pick: e5c7aa3e66f7ee791b718b9cec5c56c5f56c709fbcfa855a14cd5e64a8941640
+  bin/lib/cross.py#cmd_cross_pick: 4500510f5cfedffe1401296c84cef0ec0ee12cad9eb581b18ed2573bdc832944
   bin/lib/cross.py#cmd_cross_reject: fed19c84bdea293c673dc6ce7bda5f27d026306c9c44183cfd76f11ba8b5a247
-  bin/lib/cross.py#cross_pick_for_file: 422375b6b56a82e3fc6ee5c3a0d9d8b54708175e359b9b528ebd6e5d065011be
   bin/lib/cross.py#describe_holder: 2e292c3ec8b95b7774abd5208b4c75704e3d12bd02a37446e73a9d87008e6c63
   bin/lib/cross.py#inbox_picked_untracked_rows: 8231b1019f1af903d8b56b5ca538e0690b312d3b5247743ad1a76e8ff4b60354
   bin/lib/cross.py#intake_advisories: 7a65c857d69ceaa8dc02b4b01ec525af85bbd5c824356bb5be0ae0b7d95df05c
   bin/lib/cross.py#print_unanswered_cross_link_warns: 818ce3af4e1f8c274df488a2bd8290bc1e7f2bff480b736b97957aa1a675a193
   bin/lib/cross.py#read_events: f6b3e3604624a2b40c6b961c06bdd0918ef7752cf36c956a781f776a37169d9b
-  bin/lib/cross.py#unanswered_cross_link_advice: faf1084d8b2f53ea054697a9f36cce28ddfd35c8610c94eb8247c28914d53a36
+  bin/lib/cross.py#unanswered_cross_link_advice: 6414b6b0c9cfc05b6cadd2178ac997ec0e1e6bcb7ff30ab784a806cb6ed28b1d
   bin/lib/cross.py#unregistered_sender_rows: 7e5fd7f7c1f10e92a8140cebec1f7f0d6f70116728c6230dfac3a478b123ef2b
   bin/lib/cross.py#unroutable_rows: d464e658238a6da075c5cd81ef3607e4a11bd00d7590883715715b7d6c852ee8
   bin/lib/nightly.py#register_project: 3395a47dbab142e6e2163567cce2ce366b00dc7fdee0d1e9437731e00cf0ef2f
   bin/lib/session.py#cmd_session_pick: 71f4aa00368cee90587a968097653a668725d12104d4342edb54b8908bf4ba74
   bin/lib/session.py#cmd_session_start: 209518a0b12ba06d7ca13514a927034ad0d08c8cc5416340463977967526f8ee
-  bin/lib/task.py#_auto_cross_pick_for_file: 7ec08e2e7cc2ab9cc1959d08476bbab10176dcf91906541c7274acb97def07c2
-  bin/lib/task.py#cmd_task_file: 0a23cc073450036fffe93a5e9f92b5ffaee01272ce02ab0145e6d76ecfc79534
+  bin/lib/task.py#_cross_link_held_skips: 19ac0040010219ee8529feeba1dbd861965dc31dd0320832f3f03355a2ae85eb
+  bin/lib/task.py#cmd_task_file: 2d2be4f3e850f7e0ba51960c01b3a82ef37fb828968b5255cc836de5a7b4e44d

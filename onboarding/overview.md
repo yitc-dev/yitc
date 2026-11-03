@@ -107,8 +107,8 @@ What this method adds, one answer per failure:
 
 - **A card per task, with acceptance criteria** — every piece of work is written down with what
   "finished" must prove, so nothing depends on the agent remembering.
-- **A second opinion, twice** — the auditor (a second provider when you have one; else the same
-  provider, stamped as such) checks the plan before any code and the result after it ships.
+- **A second opinion, twice** — the auditor (a different provider: the norm, not an option; else the
+  same provider, stamped, and asked again) checks the plan before any code and the result after it ships.
 - **Done means proven working** — a task closes only with evidence that the thing actually ran,
   never on "the code is written".
 - **One journal** — `events.jsonl`, the single record of what each task set out to do and what was
@@ -117,10 +117,11 @@ What this method adds, one answer per failure:
   time cannot overwrite each other's work in progress, and your main copy only changes at `land`
   (where two changes to the same lines still have to be reconciled).
 
-**The cost, honestly.** Every task takes more steps and more time than just asking an agent: a card,
-a plan, two reviews, a test run, a land. For a five-minute edit that is overkill — for a change you
-could check at a glance, a bare agent is faster. The method pays off where the work matters: code
-you will keep, ship to real people, or come back to next month. Bounded examples: [`troubleshooting-and-updates.md`](troubleshooting-and-updates.md).
+**The cost, honestly.** Every task takes more steps and more time than just asking an agent: a card, a plan, two
+reviews, a test run, a land. For a five-minute edit that is overkill — for a change you could check at a glance,
+a bare agent is faster. At the start the work may be slower and use more of your limit than a bare agent, but in
+the end it saves you tokens, time and nerves. The method pays off where the work matters: code you will keep,
+ship to real people, or come back to next month. Bounded examples: [`troubleshooting-and-updates.md`](troubleshooting-and-updates.md).
 
 ## Where things live
 
@@ -172,10 +173,10 @@ When the kernel misbehaves, or you ask about an update or a rollback, your AI re
 **Do I need a key, an account or a licence?** No. The repository is public and the only extra piece
 is the public anchor fingerprint described above.
 
-**What if I have no second AI provider for the auditor?** Everything still works. Audits run on
-your one provider and each such verdict is stamped `same-provider`, so you can always tell whether
-a different mind checked the work. A reminder prints at each session start until you bind a second
-one; nothing waits and nothing is refused.
+**What if I have no second AI provider for the auditor?** A different provider is the norm, not an
+option, so at install the AI asks for one; on a no it binds at least a different model of your one
+provider and records your answer. Audits then run on your one provider, each verdict stamped
+`same-provider`, and at each start the AI asks again until you bind one; nothing is refused.
 
 **Can I use this for several projects?** Yes — that is what it is for. The engine is installed once
 on the machine; each project is its own directory with its own tasks, specs and log.

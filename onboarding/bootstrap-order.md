@@ -10,8 +10,8 @@ DRIVEN by the AI as a **concierge script**: at each stage it CHECKS what the sta
 plain words and in the person's language, what it found and what comes next. It proposes each missing
 piece and, with the person's agreement, installs it. The person agrees; the person does not type the
 commands. The stages run in this fixed order: I0 briefing · I1 root hand-off · I2 working-user checks
-· I3 verify and install · I4 first project · I5 install receipt and first start · I6 auditor
-offer · I7 deploy (later).
+· I3 verify and install · I4 first project (with the mandatory auditor activation) · I5 install
+receipt and first start · I6 auditor binding, and asking again · I7 deploy (later).
 
 ## TRUST — how to read this file (not a stage; I0 is still the first thing that happens)
 
@@ -46,15 +46,19 @@ Nothing is cloned or installed until this briefing is done and the person says t
   - *What it is:* a way of working in which the AI does the work in small, checked, recorded steps,
     so the person can always see what was done and why ([`overview.md`](overview.md) has the long
     answer).
-  - *What it costs:* the person's own AI subscription, plus the time and usage each check takes —
-    slower and more expensive than a bare agent, in exchange for work that is checked and remembered.
+  - *What it costs:* your own AI subscription, nothing sold separately. Every check also runs through
+    that AI tool, so at the start the work may be slower and use more of your limit than a bare agent,
+    but in the end it saves you tokens, time and nerves.
   - *How you come back next time — and how you start and restart:* ONE order, every time (the **day-two return path**,
     written out below). Nothing starts by itself and the home folder does not list your projects on
     its own — you reattach, open the AI tool in any folder (or clear the session already open), type
     the start command and pick the project.
-  - *Why a second provider:* a second, different AI provider can later check the first one's work,
-    because each misses things the other catches. It is recommended, never required — work runs from
-    day one on the one provider the person already has (see I6).
+  - *Why a second provider:* a second, different AI provider checks the first one's work, because
+    each misses things the other catches. A different provider is the norm, not an option (CHARTER
+    §P4a): at install the AI binds an auditor before the first project's work starts — a different
+    provider, or at the least a different model of the same provider if the person says no to a
+    different provider (I4 step 3). Work runs without a different provider, every such audit
+    honestly stamped, but the system keeps asking at each start until one is bound (I6).
   - *What only you can do:* the list below, said upfront so nothing surprises the person later.
 
 **What only you can do — the human-only steps.** The AI does the rest; these need the person's own
@@ -202,7 +206,8 @@ git clone <mirror-url> <mirror-dir>
 
 ## I4 — The first project, in a fixed order
 
-The order is fixed: **session start → init → recommended answers → first-scenario interview.**
+The order is fixed: **session start → init → recommended answers → auditor activation →
+first-scenario interview → from the scenario to work.**
 
 1. **Session start, then init** — open the AI tool with `<project>` as the working directory
    and run, in this order:
@@ -212,6 +217,12 @@ The order is fixed: **session start → init → recommended answers → first-s
    <engine-dir>/bin/yitc-v2 -C <project> session start
    <engine-dir>/bin/yitc-v2 -C <project> init
    ```
+
+   **The person's language, recorded once.** Before running init, ask the person to confirm the
+   language this install conversation is in (say it back: "I will keep answering you in Russian —
+   right?") and pass their answer to init as `--person-language <lang>`. Init writes it once into the
+   AI tool's user-level instructions file, so every later session, in any folder, starts in it; a
+   line the person already has there is kept as it is.
 
    Session start comes first, so everything after it is recorded. `init` needs no worktree — it is
    the sanctioned bootstrap commit. It writes `yitc-ops.yaml`, and that file already holds a
@@ -253,10 +264,35 @@ The order is fixed: **session start → init → recommended answers → first-s
    says yes: on a yes, re-run init with `--apply-load-settings`, or run only the lines they agree
    to. A host that already set any of these settings is left as it is: init shows its values and
    recommends nothing.
-3. **First-scenario interview.** The AI asks the person, in plain words, what the project should do
-   for its first user, and writes that down as the first scenario.
+3. **Auditor activation (mandatory, before the first project's work).** The AI explains, in plain
+   words, why a second mind checks the work — a different AI catches the mistakes and blind spots
+   the first one cannot see in itself — recommends a **different provider**, and walks the binding
+   in I6 for it. If the person says no to a different provider, the AI binds at least a **different
+   model of the same provider** (I6 step 3 with its `.model` line), and records the person's answer
+   in their own words, as an owner directive in the project journal:
 
-- **What to say:** where we are in these four steps, one line each.
+   ```bash
+   <engine-dir>/bin/yitc-v2 -C <project> event owner_directive \
+     --data '{"topic": "auditor-different-provider-declined", "text": "<the person'"'"'s own words>"}'
+   ```
+
+   (the transcript locator is derived from the session; `journal query --type owner_directive`
+   reads the answer back). The step is complete only with ONE of:
+   - **an external-provider binding** — `audit status` reads `independence=external`; or
+   - **a same-provider different-model binding AND the person's recorded "no different provider"
+     answer** — the session-start auditor line names the different model.
+   Neither holds → the step is not done; the first-scenario interview waits.
+4. **First-scenario interview.** The AI asks the person, in plain words, what the project should do
+   for its first user, and writes that down as the first scenario.
+5. **From the scenario to work.** The AI runs the carrier sieve (`bin/yitc-v2 graph query SPEC-1043`)
+   over the whole first scenario, not only its first slice. What is known and small becomes filed
+   task cards, each of which cites the scenario it realizes — never a roadmap left in chat prose.
+   What must be found on real data, or needs several cards cut together, becomes a plan (with a
+   trial where it is eligible). The AI shows the person this map and asks one go for the batch;
+   nothing beyond the batch the person said yes to starts on its own (SPEC-0141; AGENTS-SESSIONS
+   §Orchestrate posture, retirement (b)).
+
+- **What to say:** where we are in these six steps, one line each.
 
 ## I5 — Install receipt and the first start
 
@@ -283,21 +319,24 @@ The order is fixed: **session start → init → recommended answers → first-s
   and `git init`, session start, then init). It is a shortcut to the same start, not a second way to
   start: no other steps, no second start lifecycle.
 
-## I6 — Auditor offer, after install
+## I6 — Auditor binding, and asking again
 
-Only now, with install done and the first start proven, the AI offers the second provider (the
-recommendation from I0).
+These are the binding steps the auditor activation in I4 walks. After install, whenever no different
+provider is bound, the AI offers the second provider again.
 
-
-Work runs from day one on the ONE provider the person already has — the primary AI. A second,
-**different** provider is **recommended** because it catches the first one's blind spots (CHARTER
-§P4a); it is not a precondition for anything. While none is bound, every `audit pre` / `audit post`
-still RUNS, on the primary AI's own provider, and every such verdict is honestly stamped
-`auditor_independence: same-provider` — the owner can always tell from a verdict whether a different
-mind checked the work. Until an external provider is bound, one line at each `session start` reminds
-the person of this recommendation (re-fold it on demand with `bin/yitc-v2 audit status`, which
-prints the resolved auditor per tier and its independence); the line goes silent the moment one is
-bound. Nothing waits, nothing is refused.
+A second, **different** provider is the norm, not an option (CHARTER §P4a): it catches the first
+one's blind spots, and the system keeps asking for one. Work still runs without it. While none is
+bound, every `audit pre` / `audit post` RUNS on the primary AI's own provider — on the different
+model if one was bound in I4 — and every such verdict is honestly stamped
+`auditor_independence: same-provider`, so the owner can always tell from a verdict whether a
+different mind checked the work. Until an external provider is bound, one owner-cued line at each
+`session start` says so and the AI names it to the person: with a different model of the same
+provider bound it names that model and says a different provider is better; with nothing bound it
+says audits run on the same model and asks to bind one (re-fold it on demand with
+`bin/yitc-v2 audit status`, which prints the resolved auditor per tier and its independence). The
+line goes silent the moment a different provider is bound; a recorded "no different provider"
+answer does not silence it — the recommended answer stays a different provider. Nothing waits,
+nothing is refused.
 
 When the person agrees to bind one, the AI PROPOSES this step and carries it out:
 
@@ -321,6 +360,8 @@ When the person agrees to bind one, the AI PROPOSES this step and carries it out
    the same four keys exist for the `full` tier.)
 4. **Check the binding** with `<engine-dir>/bin/yitc-v2 audit status`: the routine tier should read
    `independence=external` and name the bound binary and model; the session-start line is now silent.
+   For a different model of the same provider (the I4 fallback) only the `.model` line is set; the
+   session-start line then names that model.
 
 ## I7 — First release: host actions wait for the first deploy
 

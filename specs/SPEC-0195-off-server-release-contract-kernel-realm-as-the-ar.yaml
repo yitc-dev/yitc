@@ -68,9 +68,9 @@ body: "## Scenario\n\nA machine that shares NO filesystem and NO `main` with the
   \ a release with nobody reading anything that said otherwise. This table is that\n\
   missing statement. It is MEASURED, not asserted: every row was read off the REAL\
   \ cut\n(`release.cut_release_tree` at the source ref, then `strip_published_text`,\
-  \ then both guards),\nand `tests/test_publish_surface_boundary.py` re-proves the\
-  \ whole table on every suite run.\n\n| surface | published? | what decides it |\
-  \ host-literal rule |\n|---|---|---|---|\n| `bin/**` (engine code) | YES | kernel\
+  \ then both guards),\nand `tests/test_publish_surface_boundary_cut.py` re-proves\
+  \ the whole table on every suite run.\n\n| surface | published? | what decides it\
+  \ | host-literal rule |\n|---|---|---|---|\n| `bin/**` (engine code) | YES | kernel\
   \ realm | REFUSED, never rewritten — `host_literal_violations`; a host path in a\
   \ NON-docstring string constant is a source DEFECT, derive it off `host_paths.host_home`.\
   \ A docstring/comment CITATION is provenance and stays |\n| `specs/**` | YES — ACTIVE\
@@ -146,7 +146,7 @@ body: "## Scenario\n\nA machine that shares NO filesystem and NO `main` with the
   \ same route as\nany collaborator's, since this exclusion is about a SERVICE account,\
   \ not about being the owner —\nand (b) a name under 3 characters, which identifies\
   \ nobody and cannot be word-boundary matched\nwithout firing across ordinary prose.\
-  \ Both are reported by the guard and pinned at their measured\ncounts in `tests/test_publish_surface_boundary.py`,\
+  \ Both are reported by the guard and pinned at their measured\ncounts in `tests/_publish_surface_helpers.py`,\
   \ so an excluded class can shrink but never grow\nunseen, and a NEW short account\
   \ name reddens the suite instead of quietly widening what travels.\nThe owning-account\
   \ ceiling was RE-DECIDED 400 -> 401 when this contract itself joined the published\n\
@@ -208,156 +208,159 @@ body: "## Scenario\n\nA machine that shares NO filesystem and NO `main` with the
   \ before the engine is used, and a\n  tree that fails resolves `pin-unresolved`.\
   \ A pin that declares no `anchor` resolves the tagged\n  commit's bytes without\
   \ that check: at this seam integrity follows the declaration, and the paths\n  that\
-  \ verify unconditionally are rule 6's enumerated entrypoints;\n- **the CONTENT pin**\
-  \ — the template dependency: the release the project's installed content was\n \
-  \ cut from. Its carrier is the installed tree's own signed manifest (`source_ref`),\
-  \ written by\n  `release install` and moved by `release update`, which merges template-owned\
-  \ files three ways,\n  never writes consumer-owned paths and reports divergence\
-  \ (rule 8). The `content:` mapping the\n  born `kernel:` section documents is the\
-  \ project's own RECORD of that pin — no kernel reader\n  consumes it, and no recorded-answers\
-  \ file takes part in an update.\nThe pin is declared in the consumer's ops contract\
-  \ carrier (`yitc-ops.yaml`, SPEC-0093) as ONE\n`kernel:` section whose declare key\
-  \ is `engine` — its shape and `concern:` registration are\ndeclared on this spec\
-  \ and go live at its activation (SPEC-0128 rule 2), not as a second config\nfile\
-  \ (SPEC-0093 rule 1).\n\n### 4. Engine-by-pin, not engine-by-host-path\nA `-C <project>`\
-  \ invocation of a project that DECLARES the engine pin (rule 3) resolves the engine\n\
-  root FROM that pin — the locally materialised release at the pinned commit — never\
-  \ from the path\nthe command happened to be invoked from, a launcher, a doc, or\
-  \ a default. A declared pin that does\nnot resolve REFUSES the command (`moving-ref`\
-  \ / `pin-unresolved`) rather than falling through to\nthe invoking engine; only\
-  \ the read-only `release check` reports those two states instead of\nrefusing. For\
-  \ a declaring project the absolute-path assumption in `-C` is RETIRED. A project\
-  \ that\ndeclares no pin — the born waiver of the `kernel:` section — runs the engine\
-  \ it was invoked with,\nunchanged. What the pin rebinds is the engine ROOT that\
-  \ every engine-owned read resolves through;\nthe running interpreter is not re-executed\
-  \ from the pinned tree. On the workshop machine the\nengine's own session (`REPO_ROOT\
-  \ == ENGINE_ROOT`) is unchanged.\n\n### 5. The release MANIFEST — provenance is\
-  \ a property of the RELEASE, not of one signed file\nEvery release publishes a manifest\
-  \ naming: the SOURCE ref it was cut from; the DIGEST of the\ngenerated artifact\
-  \ tree; the SIGNATURE target (what exactly is signed — the manifest itself); the\n\
-  REBUILD command that re-derives the artifact from the source ref; and the enumerated\n\
-  template-owned surface (rule 2). Rendering is DETERMINISTIC: the same source ref\
-  \ rebuilds to the\nsame digest. A published artifact whose bytes do not match its\
-  \ manifest's digest is not a release.\nTHE REBUILD INPUT, stated exactly : the CUT\
-  \ is a function of the source ref alone; the\npublished BYTES are a function of\
-  \ the source ref AND the workshop's two host-derived strip inputs\n— its home path\
-  \ (SPEC-0074 rule 5(a)) and its project registry (SPEC-0074 rule 4b). A rebuild\
-  \ is\ntherefore made on the workshop, with its registry; every `release_published`\
-  \ row journals the\nregistry operands' count and fingerprint (never the names),\
-  \ and a rebuild whose fingerprint\nmatches has supplied the same input.\n\n### 6.\
-  \ One strict signature policy — for everybody, ours included\nEvery release is SIGNED\
-  \ (the manifest is the signature target) and EVERY supported install or\nupdate\
-  \ entrypoint VERIFIES the signature against the trust root (rule 7) BEFORE any write.\
-  \ There is\nno internal shortcut: the workshop's own machines install through the\
-  \ same verifying path an\noutsider uses. The supported entrypoints are an ENUMERATED\
-  \ INVENTORY published with the release;\neach is driven with a tampered artifact\
-  \ in verification and must refuse — an unenumerated path is a\ngap in the inventory,\
-  \ which is findable.\n\n### 7. Key lifecycle — the signing key is not a single point\
-  \ of failure\n- **first-install trust ANCHOR (bootstrap)** — the mirror cannot vouch\
-  \ for itself at the first\n  install boundary, so the adopter pins an OUT-OF-BAND\
-  \ anchor first: the trust-root key\n  FINGERPRINT published on a channel independent\
-  \ of the artifact mirror (the release announcement\n  on a separate channel and\
-  \ the maintainer's stated fingerprint), entered by hand at install. The\n  mirror's\
-  \ trust-root file is then VERIFIED against that pinned anchor before anything else\
-  \ is\n  trusted; a mirror whose trust-root file is tampered at first install is\
-  \ REFUSED against the\n  anchor;\n- **trust root** — the set of currently valid\
-  \ public keys is published IN the mirror, verified\n  against the bootstrap anchor\
-  \ at first install and thereafter pinned by the consumer (subsequent\n  updates\
-  \ may only ROTATE it through a signed transition chained from a still-valid key,\
-  \ never\n  replace it silently);\n- **rotation** — a new key enters by a transition\
-  \ signed by a still-valid key; an overlap window is\n  declared; the retired key's\
-  \ validity END is recorded;\n- **revocation** — a revocation list is published beside\
-  \ the trust root; a release signed by a\n  revoked key is REFUSED on the ordinary\
-  \ install/update path, with the revocation named;\n- **loss recovery** — the procedure\
-  \ for a lost or compromised key (revoke → issue → re-sign the\n  current release\
-  \ → consumers re-pin) is WRITTEN in the mirror's contribution/security policy, not\n\
-  \  improvised.\n\n### 8. Update — never a silent overwrite\n`update` from version\
-  \ N to N+1: replaces upstream-owned files wholesale; re-scaffolds\ntemplate-owned\
-  \ files by three-way merge; NEVER touches consumer-owned paths; REPORTS every\n\
-  divergence — a registered override SURVIVES (and is re-checked against its ledger\
-  \ entry), an\nUNREGISTERED local edit of an upstream-owned file surfaces as a CONFLICT,\
-  \ never resolved silently\nin either direction. A path version N shipped that version\
-  \ N+1 no longer carries is REMOVED when\nthe installed copy is still version N's\
-  \ bytes — \"version N shipped it\" is read from the version-N\ntree verified against\
-  \ the same trust anchor (rules 6-7), never assumed — and is KEPT and reported\n\
-  by name when it was changed locally or version N cannot be verified; every removed\
-  \ or kept path\nis named in the update report. A path NO release shipped is consumer-owned\
-  \ and is never removed.\nFirst install and later back-fill of newly-added born-empty\
-  \ scaffolds both\nreuse the idempotent consumer bootstrap (`init`) — no second scaffold\
-  \ path.\nThe update report ENDS with the capabilities to consider: every kernel-realm\
-  \ spec active in version\nN+1 and not active in version N, each with where a project\
-  \ turns it on when the spec declares that\n(otherwise saying it is not declared,\
-  \ never that it applies on its own) and how to read its contract,\nderived from\
-  \ the two verified trees. It is one derivation with the release notes, which publish\
-  \ the\nsame list as their own section above the list of changes, both cuts taken\
-  \ by rule 1's own active-only\npredicate — so a new opt-in capability reaches an\
-  \ adopter through the update and the notes, without\na task list and without a message\
-  \ sent project by project.\n\n### 9. Compatibility declaration + version floor —\
-  \ refuse BEFORE any write\nThe CONTENT carries ONE canonical compatibility declaration\
-  \ naming the engine version range it\nrequires; the ENGINE performs ONE version\
-  \ check against it. An out-of-floor engine/content pair\nHARD-FAILS before any mutation,\
-  \ with an actionable message naming the required version and the\ncommand that satisfies\
-  \ it. Embedded-engine releases (engine + content at one tag) satisfy the\ncheck\
-  \ by construction; a mixed pair is where the floor bites. What this RETIRES: silent\
-  \ mixed\nengine/content compatibility drift — today a consumer runs whatever engine\
-  \ its absolute path names\nagainst whatever content it holds, undeclared and unchecked,\
-  \ so a mismatch corrupts a project with\nno message; the floor replaces that silence\
-  \ with the before-write refusal.\n\n### 10. Release version numbering — the number\
-  \ says what an update will do\nA release tag is `vA.B.C`, and the digit bumped is\
-  \ chosen by what the release asks of an adopter\n(owner decision, events.jsonl#ts=):\n\
-  - **LAST digit (C)** — fixes only; the adopter does nothing on update. Example:\
-  \ v2.1.0 → v2.1.1\n  for a release that only corrects a wrong refusal message.\n\
-  - **MIDDLE digit (B, C resets to 0)** — the release changes behaviour or what `init`\
-  \ writes into\n  a project, or asks the adopter to act on update. Example: v2.0.6\
-  \ → v2.1.0 for the newcomer soak\n  release, which changes what `init` scaffolds.\n\
-  - **FIRST digit (A, B and C reset to 0)** — a new methodology generation. Example:\
-  \ v1.x → v2.0.0.\nWhen a release qualifies for more than one digit, the highest\
-  \ one wins. WHO picks and where it is\nchecked: the release card's author records\
-  \ the chosen version on the release card; the release\ncard's audit checks that\
-  \ choice against this rule, and `work tag` then applies the tag. What this\nRETIRES:\
-  \ bumping only the last digit whatever a release carried (v2.0.0..v2.0.6), which\
-  \ made the\nnumber tell an adopter nothing.\n\n## Parameters\n\nNone consumed. The\
-  \ floor value per release and the rotation overlap window are RELEASE metadata\n\
-  carried in the manifest/trust-root files, never scalar params read from this spec.\n\
-  \n## Rationale\n\nReal driver: the engine could not leave this machine — consumers\
-  \ invoked it by absolute host path\nover a shared filesystem, so neither the owner's\
-  \ other servers nor an independent adopter could\nrun the methodology. Position\
-  \ and concept consults (both YELLOW, all findings absorbed) fixed the\nshape: one\
-  \ install/update mechanism for both audiences; one abstract pin with two carriers\n\
-  (executable code needs integrity, regenerable content needs merge-on-update semantics\
-  \ — the\nanswer-file half of that shape was not built, rule 3); provenance as\n\
-  a release property via a signed manifest; a version floor; a key lifecycle; and\
-  \ — owner-narrowed —\nONE strict signature policy rather than an own-vs-public split,\
-  \ because an easier internal path is\na path nobody tests. Prior-art (CHARTER §P1\
-  \ F1 — extended, not re-created): SPEC-0074 (the release\nview), SPEC-0073 (the\
-  \ kernel realm as the transport set), SPEC-0172 rule 3 + SPEC-0122 R2 (the pin\n\
-  discipline and resolver shape), SPEC-0093 (the ops carrier), `init` (bootstrap reuse);\
-  \ external:\nCopier/Cruft (pin + three-way update + skip-list), Debian upstream-first/DEP-3\
-  \ (divergence\ndiscipline), pre-commit (one-maintainer distribution by git refs,\
-  \ no registry).\n\n## Verification\n\n- **VP1 (install from the artifact alone):**\
-  \ a clean machine/container with ONLY the published\n  destination reachable and\
-  \ the workshop checkout path BLOCKED installs engine+content at a named\n  tag,\
-  \ runs `init` and one task through `land` green; the attempt to reach the workshop\
-  \ repository\n  is RECORDED as failing (an unattempted access proves nothing).\n\
-  - **VP2 (signature, same path):** on the ordinary install path a tampered artifact\
-  \ is REFUSED and\n  the genuine one PASSES; every entrypoint in the published inventory\
-  \ refuses the tampered artifact.\n- **VP3 (manifest provenance):** the published\
-  \ bytes match the signed manifest's digest, and the\n  manifest's rebuild command\
-  \ re-derives the artifact from the named source ref to the same digest.\n- **VP4\
-  \ (version floor before writes):** an out-of-floor engine/content pair hard-fails\
-  \ naming the\n  required version, and the refusal PRECEDES any mutation (state-check:\
-  \ no file written).\n- **VP5 (key lifecycle):** a release signed by a revoked key\
-  \ is refused; a release signed by a\n  rotated-in key is accepted; both on the ordinary\
-  \ path.\n- **VP6 (update honesty):** an update N→N+1 leaves consumer-owned files\
-  \ byte-identical, preserves a\n  registered override, and surfaces an unregistered\
-  \ edit as a conflict; it removes an unchanged\n  path N+1 dropped and names it,\
-  \ keeps and names a dropped path that was changed locally, and\n  removes nothing\
-  \ on the word of a version-N tree that does not verify.\n- **VP7 (engine-by-pin):**\
-  \ a `-C <project>` invocation on the second machine resolves the engine\n  from\
-  \ the project's pin; no absolute workshop host path is consulted (grep + trace).\n\
-  - **VP8 (identity-agnostic code, differential):** the publish step refuses to cut\
-  \ a release from a\n  tree seeded with a host literal in `bin/`, and cuts it from\
-  \ a clean tree.\n"
+  \ verify unconditionally are rule 6's enumerated entrypoints. The engine pin resolves\
+  \ alike for\n  every OS user that runs the consumer: the release repo's owner never\
+  \ decides it (the read-only\n  calls into the declared repo pass git's ownership\
+  \ check), and each OS user materialises the\n  release into a cache of its own,\
+  \ never one another user can write;\n- **the CONTENT pin** — the template dependency:\
+  \ the release the project's installed content was\n  cut from. Its carrier is the\
+  \ installed tree's own signed manifest (`source_ref`), written by\n  `release install`\
+  \ and moved by `release update`, which merges template-owned files three ways,\n\
+  \  never writes consumer-owned paths and reports divergence (rule 8). The `content:`\
+  \ mapping the\n  born `kernel:` section documents is the project's own RECORD of\
+  \ that pin — no kernel reader\n  consumes it, and no recorded-answers file takes\
+  \ part in an update.\nThe pin is declared in the consumer's ops contract carrier\
+  \ (`yitc-ops.yaml`, SPEC-0093) as ONE\n`kernel:` section whose declare key is `engine`\
+  \ — its shape and `concern:` registration are\ndeclared on this spec and go live\
+  \ at its activation (SPEC-0128 rule 2), not as a second config\nfile (SPEC-0093\
+  \ rule 1).\n\n### 4. Engine-by-pin, not engine-by-host-path\nA `-C <project>` invocation\
+  \ of a project that DECLARES the engine pin (rule 3) resolves the engine\nroot FROM\
+  \ that pin — the locally materialised release at the pinned commit — never from\
+  \ the path\nthe command happened to be invoked from, a launcher, a doc, or a default.\
+  \ A declared pin that does\nnot resolve REFUSES the command (`moving-ref` / `pin-unresolved`)\
+  \ rather than falling through to\nthe invoking engine; only the read-only `release\
+  \ check` reports those two states instead of\nrefusing. For a declaring project\
+  \ the absolute-path assumption in `-C` is RETIRED. A project that\ndeclares no pin\
+  \ — the born waiver of the `kernel:` section — runs the engine it was invoked with,\n\
+  unchanged. What the pin rebinds is the engine ROOT that every engine-owned read\
+  \ resolves through;\nthe running interpreter is not re-executed from the pinned\
+  \ tree. On the workshop machine the\nengine's own session (`REPO_ROOT == ENGINE_ROOT`)\
+  \ is unchanged.\n\n### 5. The release MANIFEST — provenance is a property of the\
+  \ RELEASE, not of one signed file\nEvery release publishes a manifest naming: the\
+  \ SOURCE ref it was cut from; the DIGEST of the\ngenerated artifact tree; the SIGNATURE\
+  \ target (what exactly is signed — the manifest itself); the\nREBUILD command that\
+  \ re-derives the artifact from the source ref; and the enumerated\ntemplate-owned\
+  \ surface (rule 2). Rendering is DETERMINISTIC: the same source ref rebuilds to\
+  \ the\nsame digest. A published artifact whose bytes do not match its manifest's\
+  \ digest is not a release.\nTHE REBUILD INPUT, stated exactly : the CUT is a function\
+  \ of the source ref alone; the\npublished BYTES are a function of the source ref\
+  \ AND the workshop's two host-derived strip inputs\n— its home path (SPEC-0074 rule\
+  \ 5(a)) and its project registry (SPEC-0074 rule 4b). A rebuild is\ntherefore made\
+  \ on the workshop, with its registry; every `release_published` row journals the\n\
+  registry operands' count and fingerprint (never the names), and a rebuild whose\
+  \ fingerprint\nmatches has supplied the same input.\n\n### 6. One strict signature\
+  \ policy — for everybody, ours included\nEvery release is SIGNED (the manifest is\
+  \ the signature target) and EVERY supported install or\nupdate entrypoint VERIFIES\
+  \ the signature against the trust root (rule 7) BEFORE any write. There is\nno internal\
+  \ shortcut: the workshop's own machines install through the same verifying path\
+  \ an\noutsider uses. The supported entrypoints are an ENUMERATED INVENTORY published\
+  \ with the release;\neach is driven with a tampered artifact in verification and\
+  \ must refuse — an unenumerated path is a\ngap in the inventory, which is findable.\n\
+  \n### 7. Key lifecycle — the signing key is not a single point of failure\n- **first-install\
+  \ trust ANCHOR (bootstrap)** — the mirror cannot vouch for itself at the first\n\
+  \  install boundary, so the adopter pins an OUT-OF-BAND anchor first: the trust-root\
+  \ key\n  FINGERPRINT published on a channel independent of the artifact mirror (the\
+  \ release announcement\n  on a separate channel and the maintainer's stated fingerprint),\
+  \ entered by hand at install. The\n  mirror's trust-root file is then VERIFIED against\
+  \ that pinned anchor before anything else is\n  trusted; a mirror whose trust-root\
+  \ file is tampered at first install is REFUSED against the\n  anchor;\n- **trust\
+  \ root** — the set of currently valid public keys is published IN the mirror, verified\n\
+  \  against the bootstrap anchor at first install and thereafter pinned by the consumer\
+  \ (subsequent\n  updates may only ROTATE it through a signed transition chained\
+  \ from a still-valid key, never\n  replace it silently);\n- **rotation** — a new\
+  \ key enters by a transition signed by a still-valid key; an overlap window is\n\
+  \  declared; the retired key's validity END is recorded;\n- **revocation** — a revocation\
+  \ list is published beside the trust root; a release signed by a\n  revoked key\
+  \ is REFUSED on the ordinary install/update path, with the revocation named;\n-\
+  \ **loss recovery** — the procedure for a lost or compromised key (revoke → issue\
+  \ → re-sign the\n  current release → consumers re-pin) is WRITTEN in the mirror's\
+  \ contribution/security policy, not\n  improvised.\n\n### 8. Update — never a silent\
+  \ overwrite\n`update` from version N to N+1: replaces upstream-owned files wholesale;\
+  \ re-scaffolds\ntemplate-owned files by three-way merge; NEVER touches consumer-owned\
+  \ paths; REPORTS every\ndivergence — a registered override SURVIVES (and is re-checked\
+  \ against its ledger entry), an\nUNREGISTERED local edit of an upstream-owned file\
+  \ surfaces as a CONFLICT, never resolved silently\nin either direction. A path version\
+  \ N shipped that version N+1 no longer carries is REMOVED when\nthe installed copy\
+  \ is still version N's bytes — \"version N shipped it\" is read from the version-N\n\
+  tree verified against the same trust anchor (rules 6-7), never assumed — and is\
+  \ KEPT and reported\nby name when it was changed locally or version N cannot be\
+  \ verified; every removed or kept path\nis named in the update report. A path NO\
+  \ release shipped is consumer-owned and is never removed.\nFirst install and later\
+  \ back-fill of newly-added born-empty scaffolds both\nreuse the idempotent consumer\
+  \ bootstrap (`init`) — no second scaffold path.\nThe update report ENDS with the\
+  \ capabilities to consider: every kernel-realm spec active in version\nN+1 and not\
+  \ active in version N, each with where a project turns it on when the spec declares\
+  \ that\n(otherwise saying it is not declared, never that it applies on its own)\
+  \ and how to read its contract,\nderived from the two verified trees. It is one\
+  \ derivation with the release notes, which publish the\nsame list as their own section\
+  \ above the list of changes, both cuts taken by rule 1's own active-only\npredicate\
+  \ — so a new opt-in capability reaches an adopter through the update and the notes,\
+  \ without\na task list and without a message sent project by project.\n\n### 9.\
+  \ Compatibility declaration + version floor — refuse BEFORE any write\nThe CONTENT\
+  \ carries ONE canonical compatibility declaration naming the engine version range\
+  \ it\nrequires; the ENGINE performs ONE version check against it. An out-of-floor\
+  \ engine/content pair\nHARD-FAILS before any mutation, with an actionable message\
+  \ naming the required version and the\ncommand that satisfies it. Embedded-engine\
+  \ releases (engine + content at one tag) satisfy the\ncheck by construction; a mixed\
+  \ pair is where the floor bites. What this RETIRES: silent mixed\nengine/content\
+  \ compatibility drift — today a consumer runs whatever engine its absolute path\
+  \ names\nagainst whatever content it holds, undeclared and unchecked, so a mismatch\
+  \ corrupts a project with\nno message; the floor replaces that silence with the\
+  \ before-write refusal.\n\n### 10. Release version numbering — the number says what\
+  \ an update will do\nA release tag is `vA.B.C`, and the digit bumped is chosen by\
+  \ what the release asks of an adopter\n(owner decision, events.jsonl#ts=):\n- **LAST\
+  \ digit (C)** — fixes only; the adopter does nothing on update. Example: v2.1.0\
+  \ → v2.1.1\n  for a release that only corrects a wrong refusal message.\n- **MIDDLE\
+  \ digit (B, C resets to 0)** — the release changes behaviour or what `init` writes\
+  \ into\n  a project, or asks the adopter to act on update. Example: v2.0.6 → v2.1.0\
+  \ for the newcomer soak\n  release, which changes what `init` scaffolds.\n- **FIRST\
+  \ digit (A, B and C reset to 0)** — a new methodology generation. Example: v1.x\
+  \ → v2.0.0.\nWhen a release qualifies for more than one digit, the highest one wins.\
+  \ WHO picks and where it is\nchecked: the release card's author records the chosen\
+  \ version on the release card; the release\ncard's audit checks that choice against\
+  \ this rule, and `work tag` then applies the tag. What this\nRETIRES: bumping only\
+  \ the last digit whatever a release carried (v2.0.0..v2.0.6), which made the\nnumber\
+  \ tell an adopter nothing.\n\n## Parameters\n\nNone consumed. The floor value per\
+  \ release and the rotation overlap window are RELEASE metadata\ncarried in the manifest/trust-root\
+  \ files, never scalar params read from this spec.\n\n## Rationale\n\nReal driver:\
+  \ the engine could not leave this machine — consumers invoked it by absolute host\
+  \ path\nover a shared filesystem, so neither the owner's other servers nor an independent\
+  \ adopter could\nrun the methodology. Position and concept consults (both YELLOW,\
+  \ all findings absorbed) fixed the\nshape: one install/update mechanism for both\
+  \ audiences; one abstract pin with two carriers\n(executable code needs integrity,\
+  \ regenerable content needs merge-on-update semantics — the\nanswer-file half of\
+  \ that shape was not built, rule 3); provenance as\na release property via a signed\
+  \ manifest; a version floor; a key lifecycle; and — owner-narrowed —\nONE strict\
+  \ signature policy rather than an own-vs-public split, because an easier internal\
+  \ path is\na path nobody tests. Prior-art (CHARTER §P1 F1 — extended, not re-created):\
+  \ SPEC-0074 (the release\nview), SPEC-0073 (the kernel realm as the transport set),\
+  \ SPEC-0172 rule 3 + SPEC-0122 R2 (the pin\ndiscipline and resolver shape), SPEC-0093\
+  \ (the ops carrier), `init` (bootstrap reuse); external:\nCopier/Cruft (pin + three-way\
+  \ update + skip-list), Debian upstream-first/DEP-3 (divergence\ndiscipline), pre-commit\
+  \ (one-maintainer distribution by git refs, no registry).\n\n## Verification\n\n\
+  - **VP1 (install from the artifact alone):** a clean machine/container with ONLY\
+  \ the published\n  destination reachable and the workshop checkout path BLOCKED\
+  \ installs engine+content at a named\n  tag, runs `init` and one task through `land`\
+  \ green; the attempt to reach the workshop repository\n  is RECORDED as failing\
+  \ (an unattempted access proves nothing).\n- **VP2 (signature, same path):** on\
+  \ the ordinary install path a tampered artifact is REFUSED and\n  the genuine one\
+  \ PASSES; every entrypoint in the published inventory refuses the tampered artifact.\n\
+  - **VP3 (manifest provenance):** the published bytes match the signed manifest's\
+  \ digest, and the\n  manifest's rebuild command re-derives the artifact from the\
+  \ named source ref to the same digest.\n- **VP4 (version floor before writes):**\
+  \ an out-of-floor engine/content pair hard-fails naming the\n  required version,\
+  \ and the refusal PRECEDES any mutation (state-check: no file written).\n- **VP5\
+  \ (key lifecycle):** a release signed by a revoked key is refused; a release signed\
+  \ by a\n  rotated-in key is accepted; both on the ordinary path.\n- **VP6 (update\
+  \ honesty):** an update N→N+1 leaves consumer-owned files byte-identical, preserves\
+  \ a\n  registered override, and surfaces an unregistered edit as a conflict; it\
+  \ removes an unchanged\n  path N+1 dropped and names it, keeps and names a dropped\
+  \ path that was changed locally, and\n  removes nothing on the word of a version-N\
+  \ tree that does not verify.\n- **VP7 (engine-by-pin):** a `-C <project>` invocation\
+  \ on the second machine resolves the engine\n  from the project's pin; no absolute\
+  \ workshop host path is consulted (grep + trace).\n- **VP8 (identity-agnostic code,\
+  \ differential):** the publish step refuses to cut a release from a\n  tree seeded\
+  \ with a host literal in `bin/`, and cuts it from a clean tree.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3

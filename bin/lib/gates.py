@@ -923,10 +923,14 @@ def _require_reads(kind: str, ctx: dict, *, _plan_stage_bundle_specs, _is_consum
     if not stage:
         docs = []
     elif axis == "plan":
-        # plan-axis own-only: `_plan_stage_bundle_specs` has no kernel-merge knob, so plan-stage
-        # delivery AND enforcement both stay own-only — already symmetric, not the F-016 asymmetry (T-9269).
-        # No kernel doc can enter this doc-set, so it is never realm-qualified (T-11077 leaves it as-is).
-        docs = _plan_stage_bundle_specs(stage)
+        # T-14408 (X-2156) — the plan-axis doc-set is what plan-stage delivery SHOWS: under -C it reads
+        # the kernel corpus too and is realm-qualified by the same rule as the task axis (a kernel-bound
+        # id requires the KERNEL receipt), so delivery and enforcement stay symmetric. Engine self-build:
+        # the plain own list, no realm qualification — byte-unchanged.
+        if _is_consumer_build():
+            docs, doc_realms = _plan_stage_bundle_specs(stage, with_realms=True)
+        else:
+            docs = _plan_stage_bundle_specs(stage)
     else:
         # T-9269 / F-016 — the TASK-axis read-gate DOC-SET is kernel-MERGED under -C
         # (`include_kernel=_is_consumer_build()`), SYMMETRIC with the `include_kernel=True` delivery

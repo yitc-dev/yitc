@@ -5952,9 +5952,12 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
         if ref and _session_proc_alive(ref):
             skipped.append((path, f"owner session {ref} still alive"))
             continue
-        if is_pinned_detached and _in_use(path):
+        if (is_pinned_detached or is_work_batch) and _in_use(path):
             # An UNSTAMPED temp worktree carries no session_ref, so the proc-alive check above cannot
-            # speak for it — the held-path probe is its only liveness signal (T-10855).
+            # speak for it — the held-path probe is its only liveness signal (T-10855). A work batch
+            # takes the SAME occupancy fence (SPEC-0051 §Automated worktree terminators (c), T-14425):
+            # a live process's cwd / open fd inside it keeps it, whatever its age, stamp or merge state.
+            # Asked before the git fences below, so an occupied batch costs no subprocess.
             skipped.append((path, "in use by a live process"))
             continue
         if is_work_batch:
@@ -6553,6 +6556,16 @@ def cmd_worktree_sweep(args: argparse.Namespace, *, _append_event, _live_claimed
                 errnos: list = []
                 if is_dir:
                     _rmtree_collect(path, errnos)
+                    # T-14438 — the T-11855 cure, on the same EACCES gate as the system-tempdir
+                    # loop: a self-owned directory deep in the entry that lost its own write bit
+                    # (a read-only promoted-engine copy left by a killed verify) fails with EACCES
+                    # then ENOTEMPTY. A cured entry is named and recorded in `cured`; anything still
+                    # present stays on the failure line below.
+                    if (os.path.lexists(path) and errno.EACCES in [e for e in errnos if e is not None]
+                            and _cure_removal(path, errnos, _rmtree_collect=_rmtree_collect, _euid=_euid)):
+                        cured.append(path)
+                        print(f"    CURED {path} — a self-owned directory had lost its own write bit "
+                              f"[{_errno_names(errnos)}]; owner write+execute restored and the removal retried")
                 else:
                     try:
                         os.unlink(path)   # a file or a symlink — the link itself, never its target.

@@ -40,9 +40,12 @@ start inside the project folder. Steps 3 and 4 show the AI tool form (clear with
 <external-auditor> the start command is `$yitc-projects` (clear with `/new`); every tool's two commands are in
 the AI-tool list `bin/ai-tools.yaml` (`invoke`, `clear_session`).
 
-**An optional second AI provider.** You can start with just the one AI tool. Adding a second,
-different AI provider as an auditor is recommended: it checks the first one's work and catches the
-blind spots the first one cannot see in itself.
+**A second AI provider as the auditor.** A second,
+different AI provider checks the first one's work and catches the blind spots the first one cannot
+see in itself — it is the norm, not an option. At install the AI binds an auditor before your first
+project's work: a different provider, or, if you say no to one, at least a different model of the same
+provider, with your answer recorded. Work runs without a different provider, every such check honestly
+marked, but the system keeps asking at each start until one is bound.
 
 **Two stands, when the product is iterated.** Not needed on day one. A project can keep two running
 copies besides production: the **DEV stand (ДОРАБОТКА)**, where an open spike — an experiment — is

@@ -180,4 +180,4 @@ implements_signature:
   bin/lib/debt.py#_definition_identity: d172419d6f8a6c5ce60de6456b05dfab4bf91cdaaaad7a02d4d5a25a0eb66539
   bin/lib/debt_adoption.py#declared_checks: 018ccc471ab12c6e72b929c438f56811c76ce635496f3cd80625d0f6043c2583
   bin/lib/debt_adoption.py#unproven_checks: 98a43409e07035b0a4f61ea5be9c3b2832381ab0f943e5f834faf84215a27e79
-  bin/lib/views.py#_render_debt_echo: 177f60d8bf56eb3d41ec9846af92956f7315eb1217158af97ccc0fe2b8224876
+  bin/lib/views.py#_render_debt_echo: b0f2d5d120498351a52423b2b7a32fe8b5af59f9afcc84bebd868959c7836378

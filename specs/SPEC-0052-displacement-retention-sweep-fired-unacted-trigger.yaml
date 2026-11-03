@@ -191,6 +191,6 @@ proposed_by: null
 binding:
 - query-only
 implements_signature:
-  bin/lib/audit.py#archive_terminal_nontask_audits: d9dd4e2d2d80c0589ac084215c446920be62edbec45c12f8b1dd32d9adfa0805
-  bin/lib/cli.py#_displacement_retention_sweep: 0b595e744dbc5cdea8665697c3cab853ea552f9c7375f6a7a66b4f5890e09267
+  bin/lib/audit.py#archive_terminal_nontask_audits: 080ff113903b8611f5fbe6dd14d37d243a7fb5968cb9021b56a920f99d7a95c2
+  bin/lib/cli.py#_displacement_retention_sweep: 750a5b92035c1c71877fc65c823f3b7d8ea39aabd70e9366381a8b5330a9dd54
   bin/lib/views.py#_view_displacement_retention: d9db5f2a4735c5654a3202f962f58066aae2a4024784792b0488050d87335ceb

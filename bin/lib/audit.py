@@ -480,6 +480,9 @@ def run_auditor_subprocess(cmd: list, prompt: str, *, run_env=None,
     _shed = set(_cli._SUBENV_SCRUB_CARRIERS) | {EXPECTED_SESSION_REF_ENV}
     child_env = {k: v for k, v in (run_env if run_env is not None else os.environ).items()
                  if k not in _shed}
+    # T-14467: and MARK it fresh — the child runs in the audited checkout, whose worktree stamp would
+    # otherwise hand the shed identity back (`cli._in_fresh_subenv` skips both stamp-adoption legs).
+    child_env[_cli.FRESH_SUBENV_ENV] = "1"
     if worker_ctx and hb_interval > 0:
         def _heartbeat():
             start = time.monotonic()
@@ -1306,9 +1309,70 @@ def _auditor_config_owner(full: bool, env=None) -> dict:
     return {"summary": kinds.pop() if len(kinds) == 1 else "mixed", "layers": layers}
 
 
+def _breaker_main_journal(events_path) -> "Path | None":
+    """T-14478 — the MAIN checkout's `events.jsonl`, the breaker's SHARED truth (SPEC-0202 rule 6): every
+    checkout of the repo reads it, so a trip journaled there is seen by an audit run from any worktree.
+    None — the breaker then reads and writes this checkout's journal alone, exactly as before — when
+    `events_path` is unset, its directory is not itself a checkout root (no `.git` entry: an isolated or
+    nested sandbox, the `cli._main_events_path` T-13329 guard), no worktree is on `main`, main's
+    journal is absent, or it IS `events_path` (the audit runs on main). Never raises."""
+    if events_path is None:
+        return None
+    try:
+        parent = Path(events_path).parent.resolve()
+        if not (parent / ".git").exists():
+            return None
+        root = _decide_main_checkout(parent)   # the worktree on refs/heads/main (D-0037)
+        if root is None:
+            return None
+        main = Path(root) / "events.jsonl"
+        if not main.is_file() or main.resolve() == Path(events_path).resolve():
+            return None
+        return main
+    except Exception:   # noqa: BLE001 — no second instance is ORDINARY, never a fault
+        return None
+
+
+def _breaker_main_rows(main, now=None, *, window_days: int = AUDITOR_NO_ANSWER_WINDOW_DAYS) -> list:
+    """MAIN's breaker-typed rows inside the breaker window — a FRESH windowed read of its segments
+    (`journal.segment_rows_since`, the segment-aware reader), so a peer's just-appended trip is seen.
+    [] on no main or any read failure (the breaker never breaks an audit)."""
+    if main is None:
+        return []
+    import datetime as _dt
+    try:
+        end = _dt.datetime.now(_dt.timezone.utc) if now is None else _dt.datetime.fromtimestamp(
+            now, _dt.timezone.utc)
+        floor = journal_mod._retention_floor(end, window_days)
+        return list(journal_mod.segment_rows_since(main, floor, types=BREAKER_READ_TYPES))
+    except Exception:   # noqa: BLE001
+        return []
+
+
+def _breaker_union(local_rows, main_rows) -> list:
+    """This checkout's rows, then main's rows it does not already hold. A worktree journal carries
+    copies of main's pre-branch rows, so a row present in both is counted ONCE (a doubled miss row
+    would inflate the streak)."""
+    def _key(e):
+        try:
+            return json.dumps(e, sort_keys=True, default=str)
+        except Exception:   # noqa: BLE001
+            return repr(e)
+    out = list(local_rows or ())
+    if not main_rows:
+        return out
+    seen = {_key(e) for e in out}
+    for e in main_rows:
+        k = _key(e)
+        if k not in seen:
+            seen.add(k)
+            out.append(e)
+    return out
+
+
 def _breaker_append(append_event, iter_events, events_path, transition_id: str, fingerprint: str,
                     impact: str, data: dict, *, open_trip_guard: bool = False,
-                    now: "float | None" = None) -> "str | None":
+                    now: "float | None" = None, main_events_path=None) -> "str | None":
     """Append ONE trip/reset row ATOMICALLY: under a discriminated `-breaker` sidecar flock over the
     LOGICAL journal (the `trail_lock` / `redact_lock` placement — NOT `journal_lock`, which
     `append_event` takes and is not re-entrant), RE-READ the journal and append only when that
@@ -1320,11 +1384,29 @@ def _breaker_append(append_event, iter_events, events_path, transition_id: str, 
 
     T-13450 `open_trip_guard` (a TRIP only): on the same fresh read, an un-reset in-window trip row for
     the same (tier, provider, primary pair) already IS the trip — nothing is appended and ITS id is
-    returned, so an at-miss trip and a fold-time trip (or two racing misses) journal ONE row."""
+    returned, so an at-miss trip and a fold-time trip (or two racing misses) journal ONE row.
+
+    T-14478 `main_events_path` (the shared truth, `_breaker_main_journal`): the row is journaled in
+    MAIN's journal, under MAIN's `-breaker` lock, and the fresh scan reads this checkout's rows AND
+    main's — so a transition derived in two checkouts is still journaled once, where every checkout
+    reads it. An `append_event` that cannot name a journal (`events_path`) appends here, as before."""
+    target = events_path
+    if main_events_path is not None:
+        try:
+            import inspect
+            _ps = inspect.signature(append_event).parameters
+            if "events_path" in _ps or any(p.kind is inspect.Parameter.VAR_KEYWORD for p in _ps.values()):
+                target = main_events_path
+        except (TypeError, ValueError):
+            pass
+
     def _scan() -> "tuple[bool, str | None]":
         present, open_trips = False, {}
         start = (time.time() if now is None else now) - AUDITOR_NO_ANSWER_WINDOW_DAYS * 86400
-        for e in iter_events():
+        rows = iter_events()
+        if target is not events_path:
+            rows = _breaker_union(rows, _breaker_main_rows(target, now))
+        for e in rows:
             if not isinstance(e, dict) or e.get("type") != "deviation_captured":
                 continue
             d = e.get("data") or {}
@@ -1347,7 +1429,7 @@ def _breaker_append(append_event, iter_events, events_path, transition_id: str, 
     try:
         import fcntl
         from lib import lockfile
-        resolved = events_mod.logical_journal(events_path).resolve()
+        resolved = events_mod.logical_journal(target).resolve()
         fd = lockfile.open_flock_target(
             events_mod._journal_lock_path(resolved, events_mod.journal_lock_key(resolved), "-breaker"))
         fcntl.flock(fd, fcntl.LOCK_EX)
@@ -1357,9 +1439,13 @@ def _breaker_append(append_event, iter_events, events_path, transition_id: str, 
         if open_trip:
             return open_trip
         from lib import journal as _journal   # T-13020: engine self-telemetry provenance stamp
-        append_event("deviation_captured", None, _journal.kernel_self_telemetry({
+        _row = _journal.kernel_self_telemetry({
             "relates_to": "audit-auditor-pair-resolution", "impact": impact,
-            "fingerprint": fingerprint, "transition_id": transition_id, **data}))
+            "fingerprint": fingerprint, "transition_id": transition_id, **data})
+        if target is not events_path:
+            append_event("deviation_captured", None, _row, events_path=target)
+        else:
+            append_event("deviation_captured", None, _row)
         return transition_id
     except Exception:   # noqa: BLE001 — journaling never changes the audit's outcome
         return None
@@ -1431,7 +1517,7 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
 
     # T-13109 — the BREAKER is consulted ONLY when the journal reader is injected, no env model pin is
     # set (it bypasses both pairs) and the tier declares a reserve. Any read/derive failure = OFF.
-    reserve = mode = st = None
+    reserve = mode = st = main_journal = None
     threshold = cooldown = _now = None
     if iter_events is not None and not (os.environ.get("YITC_AUDIT_MODEL") or "").strip():
         reserve = _reserve_pair()
@@ -1444,7 +1530,11 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
                 # form: served when a scope holding `events_path` covers the window, else `iter_events()`.
                 _rows = breaker_rows or (_scope_breaker_rows(events_path, iter_events)
                                          if events_path is not None else iter_events)
-                st = auditor_breaker_state(_rows(), tier=tier, provider=provider, model=model,
+                # T-14478 — the SHARED truth: main's rows too, so a trip journaled on main or by
+                # another checkout holds for THIS audit (a task audit runs in its own worktree)
+                main_journal = _breaker_main_journal(events_path)
+                st = auditor_breaker_state(_breaker_union(_rows(), _breaker_main_rows(main_journal, _now)),
+                                           tier=tier, provider=provider, model=model,
                                            effort=primary_effort, now=_now)
                 threshold, cooldown = auditor_breaker_threshold(full), auditor_breaker_cooldown_seconds()
                 if st["tripped_at"] is not None:
@@ -1485,7 +1575,8 @@ def invoke_auditor_tiered(invoke, provider: str, prompt: str, model: "str | None
             "reserve": {"model": r_model, "effort": r_effort},
             "window_count": st["window_count"], "threshold": threshold,
             "cooldown_seconds": cooldown, "window_days": AUDITOR_NO_ANSWER_WINDOW_DAYS,
-            "config_owner": _auditor_config_owner(full), **(extra or {})}, open_trip_guard=guard, now=_now)
+            "config_owner": _auditor_config_owner(full), **(extra or {})}, open_trip_guard=guard, now=_now,
+            main_events_path=main_journal)   # T-14478 — journaled where every checkout reads it
 
     def _reset(trip_id):
         _transition(AUDITOR_BREAKER_RESET_FINGERPRINT, _breaker_id(trip_id, "reset"),
@@ -1905,6 +1996,7 @@ def _configured_audit_provider(full: bool, *, config_path: Path, die) -> str:
 # decision 2026-09-06 «только на старте», events.jsonl#ts=2026-09-06T09:57:49Z; SPEC-0201 rule 3b
 # dropped). Provider-neutral: the line names adapters only through what resolved (CHARTER §P4b). ────
 AUDITOR_HINT_PREFIX = "external auditor: not bound"
+AUDITOR_BIND_PREFIX = "external auditor binding:"   # T-14465: the commands line beside the hint
 AUDITOR_TIERS = ("routine", "full")
 #: T-12651 (AC3) — the one caveat every reading of this view is qualified by. It names the exact
 #: misread X-1431 cost 40 minutes to: a model AT CAPACITY resolves perfectly (present, authenticated,
@@ -2192,27 +2284,42 @@ def _bound_vs_default(t: dict) -> str:
     return ""
 
 
-def auditor_hint_lines(status: dict, *, cli_form: str = "bin/yitc-v2") -> list:
-    """The SPEC-0201 rule-3 line — ONE report-only line whenever the ROUTINE tier's independence is
-    anything but `external`: `same-provider` (or undeterminable, fail-closed) AND — T-12943 — `none`,
-    a provider that is NOT FOUND (unregistered adapter / binary absent), which gets its own variant
-    naming why and what an audit will do. [] ONLY when an external provider resolves.
+def auditor_hint_lines(status: dict, *, cli_form: str = "bin/yitc-v2", primary_model: "str | None" = None) -> list:
+    """The SPEC-0201 rule-3 line — ONE line whenever the ROUTINE tier's independence is anything but
+    `external`: `same-provider` (or undeterminable, fail-closed) AND — T-12943 — `none`, a provider that
+    is NOT FOUND (unregistered adapter / binary absent), which gets its own variant naming why and what
+    an audit will do. [] ONLY when an external provider resolves.
+    T-14465 — the same-provider arm has TWO variants: a DIFFERENT MODEL of the same provider is bound
+    (the routine model comes from the binding or env layer, the primary AI's model is KNOWN, and the
+    two differ) → the line names that model and says a different provider is better; otherwise
+    (nothing bound, the bound model equals the primary's, or the primary's model is unknown —
+    fail-closed, as the rule-2 stamp) → the line says audits run on the same model as far as this
+    start can tell and asks to bind one. `primary_model` is the caller's read of the primary AI's model
+    (None = unknown). The plain-words line carries NO runnable command (an owner-cued line never does,
+    T-13503); the commands ride a SECOND line, `AUDITOR_BIND_PREFIX …`, that the caller marks on-demand.
     Printed at `session start` ONLY (engine and -C); re-folded on demand by `audit status`."""
     t = status["tiers"]["routine"]
     if t["independence"] == "external":
         return []
     n = status["same_provider_count"]
     prov = t["provider"] or "unresolved"
+    bind = [f"{AUDITOR_BIND_PREFIX} `{cli_form} config set auditor.routine.provider <adapter>` "
+            f"(+ .binary/.home/.model; SPEC-0202); re-fold: `{cli_form} audit status`"]
     if t.get("found") is False:
         return [f"{AUDITOR_HINT_PREFIX} — NO auditor resolves for the routine tier ({prov}: NOT FOUND — "
-                f"{t['not_found_why']}; an audit will {t['audit_will']}); bind one: "
-                f"`{cli_form} config set auditor.routine.provider <adapter>` (+ .binary/.home/.model; "
-                f"SPEC-0202); re-fold: `{cli_form} audit status`"]
-    return [f"{AUDITOR_HINT_PREFIX} — audits run on the same provider as the primary AI "
-            f"({prov}; {n} same-provider verdict{'s' if n != 1 else ''} so far{_bound_vs_default(t)}); "
-            f"a different provider catches this one's blind spots — bind one: "
-            f"`{cli_form} config set auditor.routine.provider <adapter>` (+ .binary/.home/.model; "
-            f"SPEC-0202); re-fold: `{cli_form} audit status`"]
+                f"{t['not_found_why']}; an audit will {t['audit_will']}); bind one (the binding line below)"] + bind
+    count = f"{n} same-provider verdict{'s' if n != 1 else ''} so far"
+    model = t.get("model")
+    if (model and t.get("model_layer") in ("binding", "env") and primary_model
+            and str(model) != str(primary_model)):
+        return [f"{AUDITOR_HINT_PREFIX} — audits run on a DIFFERENT MODEL of the same provider as the "
+                f"primary AI ({prov}, auditor model {model}, primary model {primary_model}; {count}); a "
+                f"different provider is better — it catches the blind spots this provider's models "
+                f"share; tell the person and offer to bind one (the binding line below)"] + bind
+    return [f"{AUDITOR_HINT_PREFIX} — audits run on the same provider as the primary AI and, as far as "
+            f"this start can tell, the same model ({prov}; {count}{_bound_vs_default(t)}); a different "
+            f"provider catches this one's blind spots — ask the person to bind one (a different "
+            f"provider, or at least a different model; the binding line below)"] + bind
 
 
 def _reserve_line(t: dict) -> str:
@@ -2244,7 +2351,8 @@ def _reserve_line(t: dict) -> str:
             f"used ONCE on the same packet if the primary returns no verdict")
 
 
-def cmd_audit_status(args, *, config_path: Path, _iter_events, _cli_form: str = "bin/yitc-v2") -> None:
+def cmd_audit_status(args, *, config_path: Path, _iter_events, _cli_form: str = "bin/yitc-v2",
+                     _primary_model: "str | None" = None) -> None:
     """`audit status` (read-only, T-12380 / SPEC-0202 rule 4): the resolved auditor per tier —
     provider / binary / home / model + WHICH LAYER answered — its independence, the bound-vs-default
     model, the same-provider verdict count, and (T-12651) each tier's RESERVE pair: the second
@@ -2287,9 +2395,9 @@ def cmd_audit_status(args, *, config_path: Path, _iter_events, _cli_form: str = 
         print(f"    {tier}: primary no-answers {r['no_answers']} of {r['attempts']} attempts "
               f"({100 * r['no_answers'] / r['attempts']:.0f}%) · answered by primary {answered}{routed} · "
               f"last no-answer {r['last_ts'] or '-'}")
-    hint = auditor_hint_lines(st, cli_form=_cli_form)
+    hint = auditor_hint_lines(st, cli_form=_cli_form, primary_model=_primary_model)
     if hint:
-        print(hint[0])
+        print("\n".join(hint))     # T-14465: the plain-words line and its binding-commands line
     else:
         print(f"{AUDITOR_HINT_PREFIX.split(':')[0]}: (silent) — an external provider resolves for the "
               f"routine tier; the session-start hint prints nothing")
@@ -2703,6 +2811,148 @@ def prototype_diff_text(repo_root, ref: str) -> "str | None":
         return r.stdout if r.returncode == 0 else None
     mb = (_g("merge-base", "main", f"refs/tags/{ref}") or "").strip()
     return _g("diff", f"{mb}..refs/tags/{ref}") if mb else None
+
+# ── T-14458 (SPEC-1058 §3, each writer card) — a carry card's registry items at its two audits ──
+# A view over the plan's `## Prototype registry`: no store, no card field beyond `prototype_lines`. The
+# plan is read at `main`, where an owner amendment lands, so the next audit sees it without a sync.
+PROTOTYPE_CARRY_ITEMS_HEADING = "### Prototype carry items"
+PROTOTYPE_CARRY_HUNKS_HEADING = "### Prototype carry hunks"
+PROTOTYPE_CARRY_PRE_OVERLAY = (
+    "PROTOTYPE CARRY (SPEC-1058 §3): the prototype diff is the SPECIFICATION, not the deliverable. A plan "
+    "that reduces to copying named paths from it is RED; state your own design and your own tests. Build "
+    "exactly the items above to their expected state. "
+)
+PROTOTYPE_CARRY_POST_QUESTION = (
+    "PROTOTYPE CARRY — judge the shipped diff both ways (SPEC-1058 §3). FORWARD: each item above is in "
+    "its expected state; an owner-amended `what` wins over the prototype drawing. REVERSE: nothing "
+    "owner-visible shipped that no item names, and no `not-carried` item was applied. New implementation "
+    "and test files are the card's own design and need no item.\n"
+    "- RED example: an element of an item is omitted from a file the card already covers.\n"
+    "- RED example: a `not-carried` element shipped.\n"
+    "- Passing example: a new helper and its test file that no item names.\n"
+)
+PROTOTYPE_CARRY_FORWARD_ONLY_QUESTION = (
+    "PROTOTYPE CARRY — this card declares `prototype_lines: []`: it builds no registry item (SPEC-1058 "
+    "§3). Judge the forward half only: it changes no owner-visible behaviour on the registry's "
+    "surfaces: {surfaces}.\n"
+)
+
+
+def prototype_carry_context(repo_root, task: dict) -> "dict | None":
+    """The card's reading of its plan's carry registry; None for every card outside a writer or `[]`
+    position of an opted-in plan (no git read unless the card declares a `prototype_lines` list, so
+    such a card's packets stay byte-unchanged; the `all` verifier keeps rule 5's). `{"fault": ...}` for
+    an opted-in plan whose reading fails: no carry packet is ever built without its subject."""
+    lines, slug = task.get("prototype_lines"), str(task.get("decomposed_from") or "").strip()
+    if not isinstance(lines, list) or not slug:
+        return None
+    from lib import plan as plan_lib, spike_identity as si   # noqa: PLC0415 — this arm only
+    try:
+        text = si._git(repo_root, "show", f"main:plans/{slug}.md")
+    except RuntimeError as e:
+        return {"fault": f"plan {slug} is not readable on main: {e}"} if task.get("prototype_ref") else None
+    try:
+        fm, body = state.split_frontmatter_text(text)
+    except ValueError as e:
+        return {"fault": f"plan {slug} has malformed frontmatter: {e}"}
+    if not plan_lib._plan_is_prototype_opted_in(fm):
+        return None
+    _owner_read, items, fault = plan_lib._plan_prototype_registry(body)
+    if fault:
+        return {"fault": fault}
+    tip, base, fault = plan_lib._plan_prototype_commits(repo_root, fm)
+    if fault:
+        return {"fault": fault}
+    by_id = {str(it["id"]): it for it in items}
+    for iid in map(str, lines):
+        if iid not in by_id:
+            return {"fault": f"prototype_lines names {iid}, which the registry does not carry"}
+        if by_id[iid]["disposition"] == "not-carried":
+            return {"fault": f"prototype_lines names {iid}, a `not-carried` item"}
+    own = [by_id[str(i)] for i in lines]
+    surfaces = {str(it["surface"]) for it in own}
+    return {
+        "fault": None, "lines": [str(i) for i in lines], "items": own, "tip": tip, "base": base,
+        "not_carried": [it for it in items if it["disposition"] == "not-carried"
+                        and str(it["surface"]) in surfaces],
+        "all_surfaces": sorted({str(it["surface"]) for it in items}),
+        "fingerprint": hashlib.sha256(json.dumps(
+            {"lines": sorted(str(i) for i in lines), "tip": tip, "items": own},
+            sort_keys=True, ensure_ascii=False, default=str).encode("utf-8")).hexdigest(),
+    }
+
+
+def prototype_carry_hunks(repo_root, ctx: dict, item: dict) -> "tuple[str, str | None]":
+    """The prototype hunks of one item's locators (text, fault): those overlapping the locator's range
+    on the new side, the old side for a `removed` item (its locator points into the base)."""
+    from lib import plan as plan_lib   # noqa: PLC0415
+    old_side, out = item.get("kind") == "removed", []
+    for loc in item.get("locators") or ():
+        m = plan_lib._PROTO_LOCATOR_RE.match(str(loc).strip())
+        path, a = m.group("path"), int(m.group("a"))
+        b = int(m.group("b") or a)
+        diff, err = plan_lib._plan_prototype_git(repo_root, "diff", "--no-ext-diff", "--no-renames",
+                                                 f"{ctx['base']}...{ctx['tip']}", "--", path)
+        if err:
+            return "", f"git diff of {path} failed: {err}"
+        hunks, cur = [], None
+        for ln in (diff or "").splitlines():
+            h = re.match(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@", ln)
+            if h:
+                start, count = ((h.group(1), h.group(2)) if old_side else (h.group(3), h.group(4)))
+                start, count = int(start), max(int(1 if count is None else count), 1)
+                cur = [ln] if start <= b and a < start + count else None
+                if cur:
+                    hunks.append(cur)
+            elif cur is not None:
+                cur.append(ln)
+        body = "\n".join("\n".join(h) for h in hunks) or "(no hunk at this locator)"
+        out.append(f"{item['id']} {loc}:\n```diff\n{body}\n```")
+    return "\n".join(out), None
+
+
+def prototype_carry_diff(repo_root, ctx: dict) -> "tuple[str | None, str | None]":
+    """The carry's specification diff (text, fault): the pinned pair, never the tag (SPEC-1058 §2)."""
+    from lib import plan as plan_lib   # noqa: PLC0415
+    return plan_lib._plan_prototype_git(repo_root, "diff", "--no-ext-diff", "--no-renames",
+                                        f"{ctx['base']}...{ctx['tip']}")
+
+
+def _prototype_carry_item_text(it: dict) -> str:
+    row = it.get("owner_row")
+    return (f"- {it['id']} [{it['kind']}, {it['disposition']}] surface: {it['surface']}\n"
+            f"  what: {it['what']}\n  locators: {', '.join(map(str, it['locators']))}\n"
+            + (f"  owner_row: {row} — this `what` is the owner-cited expected state; it wins over the "
+               f"prototype drawing and building it asks nothing\n" if row else ""))
+
+
+def prototype_carry_block(repo_root, stage: str, ctx: dict) -> "tuple[str | None, str | None]":
+    """The packet block of a carry card (block, fault). None at audit-pre for a `[]` card: it builds
+    no item, so rule 5's packet stands there."""
+    own = ctx["items"]
+    if stage == "post" and not own:
+        return (f"\n{PROTOTYPE_CARRY_ITEMS_HEADING} (SPEC-1058 §3)\n\n" + PROTOTYPE_CARRY_FORWARD_ONLY_QUESTION.format(
+            surfaces=", ".join(ctx["all_surfaces"]) or "none")), None
+    if not own:
+        return None, None
+    items = "".join(_prototype_carry_item_text(it) for it in own)
+    head = f"\n{PROTOTYPE_CARRY_ITEMS_HEADING} (SPEC-1058 §3 — prototype commit {ctx['tip']})\n\n{items}\n"
+    if stage == "pre":
+        open_ids = [str(it["id"]) for it in own if not it.get("owner_row")]
+        ask = (f"An unresolved departure from the expected state of {', '.join(open_ids)} is a stop-and-ask: "
+               f"`task pause --reason controller-wait` naming the item, never a silent drop and never «the "
+               f"card governs». " if open_ids else "No item here is open to a stop-and-ask: each carries a "
+               "cited owner amendment. ")
+        return head + PROTOTYPE_CARRY_PRE_OVERLAY + ask + "\n", None
+    nc = "".join(_prototype_carry_item_text(it) for it in ctx["not_carried"]) or "(none on these surfaces)\n"
+    hunks = []
+    for it in [*own, *ctx["not_carried"]]:
+        text, fault = prototype_carry_hunks(repo_root, ctx, it)
+        if fault:
+            return None, fault
+        hunks.append(text)
+    return (head + f"Not-carried items on the same surfaces:\n\n{nc}\n" + PROTOTYPE_CARRY_POST_QUESTION
+            + f"\n{PROTOTYPE_CARRY_HUNKS_HEADING}\n\n" + "\n".join(hunks) + "\n"), None
 
 
 def prototype_identical_shown_fields(pass_shown, prior_record, *, no_verdict: bool) -> dict:
@@ -6754,7 +7004,8 @@ def changed_audit_input_axes(stage: str, target_kind: str, prior_record: dict | 
                              plan_fp: "str | None" = None,
                              subject_sha: "str | None" = None,
                              cross_section_fp: "str | None" = None,
-                             stage6_evidence_fp: "str | None" = None) -> list:
+                             stage6_evidence_fp: "str | None" = None,
+                             prototype_registry_fp: "str | None" = None) -> list:
     """T-11412 — the AXES on which THIS TASK audit-post's inputs differ from the prior pass's recorded
     ones. Returns a sorted list (EMPTY = no exemption, which is also the falsy value the guard reads).
     A list rather than a bool so the durable marker can say WHICH input changed — a later reader must be
@@ -6846,6 +7097,16 @@ def changed_audit_input_axes(stage: str, target_kind: str, prior_record: dict | 
             and isinstance(subject_sha, str) and subject_sha
             and prior_sha == subject_sha):
         axes.append("cross_section")
+    # T-14458 (SPEC-1058 §3) — the `prototype_registry` axis: the registry block the auditor reads
+    # changed (an owner amended an item) on the same commit. Same conjuncts as `cross_section`.
+    prior_carry_fp = prior_record.get("prototype_carry_fingerprint")
+    if (isinstance(prior_carry_fp, str) and prior_carry_fp
+            and isinstance(prototype_registry_fp, str) and prototype_registry_fp
+            and prior_carry_fp != prototype_registry_fp
+            and isinstance(prior_sha, str) and prior_sha
+            and isinstance(subject_sha, str) and subject_sha
+            and prior_sha == subject_sha):
+        axes.append("prototype_registry")
     return sorted(axes)
 
 
@@ -8522,7 +8783,8 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
                                         spent_green=None,
                                         merge_integration_refusal=None,
                                         test_found_fix_open=False,
-                                        residual_records=None) -> "list[str]":
+                                        residual_records=None,
+                                        green_merge_route=False) -> "list[str]":
     """T-9618 / SPEC-0204 rule 6 — the audit-loop-ceiling halt of a DISPATCHED worker.
 
     A worker (`worker_ref` truthy = `YITC_EXPECTED_SESSION_REF` set) that reaches the ceiling emits a
@@ -8596,6 +8858,24 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
                 f"(blocked_on_land): audit-{stage} is GREEN at {_green} and HEAD {_head} moved past "
                 f"it; there is no residual for `audit decide`.{_mi} {_exits}. Every exit, with when it "
                 f"is admitted and its guard: {SPENT_GREEN_EXIT_TABLE}."]
+    # T-14449 (X-2160) — A GREEN ceiling row with NO residual while a governed hand-resolved merge in
+    # HEAD is refused as the merge-integration pass: nothing is decidable, so the halt carries WHY the
+    # route refused and names the merge audit, never a decision per residual.
+    if green_merge_route and merge_integration_refusal and not fingerprints:
+        data["merge_integration_refusal"] = str(merge_integration_refusal)
+        data["route"] = f"yitc-v2 audit post --task {tid}"
+        data["reason"] = (
+            f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land: the ceiling row "
+            f"is GREEN with NO residual to decide, and a governed `worktree sync --resolved` merge in "
+            f"HEAD is not admitted as the post-GREEN merge-integration audit — "
+            f"{merge_integration_refusal}. No `audit decide` is needed: fix that condition, then run "
+            f"`yitc-v2 audit post --task {tid}` — it audits the merged HEAD once "
+            f"({SPENT_GREEN_EXIT_TABLE}; SPEC-0103 §3)")
+        emit_fn("bg_dispatch_halted", tid, data)
+        return [f"# {tid} audit-{stage}: audit-loop ceiling reached — emitted bg_dispatch_halted "
+                f"(blocked_on_land): the ceiling row is GREEN with no residual for `audit decide`; the "
+                f"merge-integration audit is not admitted — {merge_integration_refusal}. Fix that "
+                f"condition, then run `yitc-v2 audit post --task {tid}` ({SPENT_GREEN_EXIT_TABLE})."]
     # The reason NAMES the route: this string is what a controller reading `--dispatch-status` sees
     # first. It states the fingerprint COUNT, not the list — the list is on the row, and a reason
     # inlining N hashes would be unreadable at the exact moment it is meant to be read.
@@ -9678,7 +9958,7 @@ def audit_route_is_escalation(record: "dict | None") -> bool:
 
 
 def _move_audit_to_archive(src: Path, rec: "dict | None", git_mv, *,
-                           decisions_dir: Path, repo_root: Path) -> list:
+                           decisions_dir: Path, repo_root: Path, plan_only: bool = False) -> list:
     """Move ONE active decisions/ audit YAML into its rule-4 lane archive (the shared mover behind
     both archive_task_audits and archive_terminal_nontask_audits — T-9727). `rec` is the file's
     already-parsed record (its own verdict routes it; mixed sets route per-file, SPEC-0052 rule 4).
@@ -9710,11 +9990,17 @@ def _move_audit_to_archive(src: Path, rec: "dict | None", git_mv, *,
         aside name has to be invented from bytes that were not read, and neither record is touched.
 
     Idempotency (SPEC-0052 / the sweep's contract) is unchanged and in fact stronger: after any of the
-    moving branches there is no `src` left, so a second consecutive run has nothing to move."""
+    moving branches there is no `src` left, so a second consecutive run has nothing to move.
+
+    `plan_only` (T-14475) returns the SAME list every branch above would return and touches nothing —
+    no mkdir, no rename, no `git mv`. It is what `triage sweep --dry-run` runs, so the preview IS the
+    real run's list (a re-implemented preview counted a divergent twin once where the run moves two
+    files, and listed an unreadable twin the run leaves in place)."""
     lane = "audit-escalation" if audit_route_is_escalation(rec) else "audit-routine"
     dst_dir = (audit_archive_escalation_dir(decisions_dir) if lane == "audit-escalation"
                else audit_archive_routine_dir(decisions_dir))
-    dst_dir.mkdir(parents=True, exist_ok=True)
+    if not plan_only:
+        dst_dir.mkdir(parents=True, exist_ok=True)
     dst = dst_dir / src.name
     rel = lambda p: str(p.relative_to(repo_root))
     if dst.exists():
@@ -9722,6 +10008,12 @@ def _move_audit_to_archive(src: Path, rec: "dict | None", git_mv, *,
             old_bytes, new_bytes = dst.read_bytes(), src.read_bytes()
         except OSError:
             return []          # unreadable either side — touch nothing, leave the surface lit
+        if plan_only:
+            if old_bytes == new_bytes:
+                return [(rel(src), rel(dst), lane)]
+            aside = dst.with_name(
+                f"{dst.stem}.superseded-{hashlib.sha256(old_bytes).hexdigest()[:12]}{dst.suffix}")
+            return [(rel(dst), rel(aside), lane), (rel(src), rel(dst), lane)]
         if old_bytes == new_bytes:
             # Truly already archived. Drain the redundant active duplicate onto its byte-identical
             # twin — `os.replace` because `git mv` refuses an existing destination; the destination
@@ -9745,6 +10037,8 @@ def _move_audit_to_archive(src: Path, rec: "dict | None", git_mv, *,
         else:
             src.rename(dst)
         return [aside_move, (rel(src), rel(dst), lane)]
+    if plan_only:
+        return [(rel(src), rel(dst), lane)]
     if git_mv is not None:
         git_mv(str(src), str(dst))
     else:
@@ -9752,7 +10046,8 @@ def _move_audit_to_archive(src: Path, rec: "dict | None", git_mv, *,
     return [(rel(src), rel(dst), lane)]
 
 
-def archive_task_audits(tid: str, git_mv=None, *, decisions_dir: Path, repo_root: Path) -> list:
+def archive_task_audits(tid: str, git_mv=None, *, decisions_dir: Path, repo_root: Path,
+                        plan_only: bool = False) -> list:
     """Move ONE closed task's active decisions/<tid>-audit-*.yaml into the routine/escalation archive
     per the rule-4 classifier. Idempotent: a YAML already under decisions/archive/ is skipped; only
     files currently in decisions/ (the active lane) are moved. Returns a list of
@@ -9772,7 +10067,7 @@ def archive_task_audits(tid: str, git_mv=None, *, decisions_dir: Path, repo_root
         except (yaml.YAMLError, OSError):
             rec = None
         moved.extend(_move_audit_to_archive(src, rec, git_mv, decisions_dir=decisions_dir,
-                                            repo_root=repo_root))
+                                            repo_root=repo_root, plan_only=plan_only))
     return moved
 
 
@@ -9826,7 +10121,8 @@ def audit_target_is_terminal(record: "dict | None", *, plans_dir: Path, terminal
 
 
 def archive_terminal_nontask_audits(git_mv=None, *, decisions_dir: Path, repo_root: Path,
-                                    plans_dir: Path, terminal_statuses) -> list:
+                                    plans_dir: Path, terminal_statuses, plan_only: bool = False,
+                                    exclude=frozenset()) -> list:
     """Drain the NON-task-keyed audit YAMLs of TERMINAL targets out of active decisions/ into the
     routine/escalation archives (SPEC-0052 rule 3, extended T-9727). Covers the adhoc (free-slug),
     plan gate, and plan consult surfaces the per-task drain (archive_task_audits) never reaches.
@@ -9837,6 +10133,10 @@ def archive_terminal_nontask_audits(git_mv=None, *, decisions_dir: Path, repo_ro
     import yaml
     moved = []
     for src in sorted(decisions_dir.glob("*-audit-*.yaml")):
+        # `exclude` (T-14475): srcs the task pass already took — moved in a real run (so already gone),
+        # only PLANNED under `plan_only` (still on disk), and never to be counted twice.
+        if str(src.relative_to(repo_root)) in exclude:
+            continue
         try:
             rec = state.load_str(src.read_text(encoding="utf-8"))
         except (yaml.YAMLError, OSError):
@@ -9844,7 +10144,7 @@ def archive_terminal_nontask_audits(git_mv=None, *, decisions_dir: Path, repo_ro
         if not audit_target_is_terminal(rec, plans_dir=plans_dir, terminal_statuses=terminal_statuses):
             continue
         moved.extend(_move_audit_to_archive(src, rec, git_mv, decisions_dir=decisions_dir,
-                                            repo_root=repo_root))
+                                            repo_root=repo_root, plan_only=plan_only))
     return moved
 
 
@@ -13247,6 +13547,8 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
             # tied to the audited card captured by the tid NEEDLE — so the answer is the fold's.
             main_keep = dict(spike_keep) if _same(spike, main) else {}
             main_keep.update({t: None for t in getattr(ev_factory(), "replay_types", ())})
+            for _t in BREAKER_READ_TYPES:   # T-14478 — the breaker's read of the shared truth, served here
+                main_keep.setdefault(_t, keep[_t])
 
             def _open_main():
                 return main_stack.enter_context(journal_mod.scan_scope(
@@ -13616,7 +13918,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                     # T-12614 redirect so its target is the SETTLED subject.
     merge_integration_reaudit = None   # T-13260 — the admitted post-GREEN merge-integration evidence
     merge_integration_refusal = None   # T-13260 — why it was NOT admitted (appended to the ceiling refusal)
-    od_merge_follows = None            # T-14330 — (evidence, refusal) of that route, asked on the `--on-decisions` leg
+    od_merge_follows = None            # T-14330 — (evidence, refusal, follows) of that route, asked on the `--on-decisions` leg
+    merge_follows_unadmitted = None    # T-14449 — the hand-resolved merge in HEAD past the recorded commit, when refused
     sync_merge_below_ceiling = None    # T-14181 — the same evidence, admitted BELOW the ceiling (ordinary pass)
     test_found_fix_reaudit = None      # T-14090 — the admitted test-found-fix evidence (SPEC-1041 «Rule 4»)
     test_found_fix_refusal = None      # T-14090 — why it was NOT admitted (appended to the ceiling refusal)
@@ -14506,37 +14809,12 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                             REPO_ROOT=REPO_ROOT),
                         # T-14375 — below the ceiling, a `--fix-red` re-audit whose merge followed the fix
                         red_fix_ok=not _mi_at_ceiling and not on_decisions))
-                if on_decisions:
-                    od_merge_follows = (_mi_ev, _mi_refusal)
-                elif _mi_at_ceiling:
-                    merge_integration_reaudit, merge_integration_refusal = _mi_ev, _mi_refusal
-                    if merge_integration_reaudit:
-                        print(f"# {tid} audit-post: POST-GREEN MERGE INTEGRATION — the GREEN at {sha[:12]} "
-                              f"is followed only by the governed `worktree sync` merge "
-                              f"{merge_integration_reaudit['merge_commit'][:12]} (conflict paths: "
-                              f"{', '.join(merge_integration_reaudit['conflict_paths'])}); auditing the "
-                              f"WHOLE merged HEAD ONCE past the ceiling (T-13260, SPEC-1034).",
-                              file=sys.stderr)
-                        _t13256_ship, sha, audited_span = sha, (merge_integration_reaudit.get("resign_commit")
-                                                                or merge_integration_reaudit["merge_commit"]), None
-                elif _mi_ev:
-                    sync_merge_below_ceiling = _mi_ev
-                    print(f"# {tid} audit-post: the "
-                          + ("`--fix-red` commit answering the RED" if _mi_ev.get("red_fix") else "GREEN")
-                          + f" at {sha[:12]} is followed only by the governed "
-                          f"`worktree sync --resolved` merge {_mi_ev['merge_commit'][:12]} (conflict paths: "
-                          f"{', '.join(_mi_ev['conflict_paths'])}); auditing the merged HEAD as an "
-                          f"ordinary pass (T-14181, SPEC-1018 «Exits from a spent GREEN»).",
-                          file=sys.stderr)
-                    _t13256_ship, sha, audited_span = sha, (_mi_ev.get("resign_commit")
-                                                            or _mi_ev["merge_commit"]), None
-                elif _mi_refusal:
-                    # T-14342 (yitc#214) — below the ceiling a refused admission was SILENT, so a pass
-                    # re-audited the pre-merge commit and the land refused the merge on SPEC-0077 §3a.
-                    # When the card's latest hand-resolved merge is in HEAD but not in the recorded
-                    # commit, refuse naming the failed condition instead (no auditor, no pass). A
-                    # recorded commit that already contains the merge, a sync no longer in HEAD, or an
-                    # unanswerable ancestry keeps the ordinary subject.
+                # T-14342 / T-14449 — when refused: the card's latest hand-resolved merge, if it is in
+                # HEAD but not in the recorded commit (auditing `sha` would leave it unaudited). Asked
+                # ONCE here; the below-ceiling refusal, the at-ceiling `--on-decisions` refusal and the
+                # ceiling halt all read it. A recorded commit that already contains the merge, a sync no
+                # longer in HEAD, or an unanswerable ancestry leaves None.
+                if _mi_refusal:
                     _mi_sync = None
                     for _r in _mi_view["rows"] or ():
                         if (isinstance(_r, dict) and _r.get("type") == "merge_resolved_by_hand"
@@ -14549,6 +14827,38 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                             and (_mi_m == _mi_head
                                  or _git_strict_descendant(_mi_m, _mi_head, repo_root=REPO_ROOT) is True)
                             and _git_strict_descendant(sha, _mi_m, repo_root=REPO_ROOT) is True):
+                        merge_follows_unadmitted = _mi_m
+                if on_decisions:
+                    od_merge_follows = (_mi_ev, _mi_refusal, merge_follows_unadmitted)
+                elif _mi_at_ceiling:
+                    merge_integration_reaudit, merge_integration_refusal = _mi_ev, _mi_refusal
+                    if merge_integration_reaudit:
+                        print(f"# {tid} audit-post: POST-GREEN MERGE INTEGRATION — the GREEN at {sha[:12]} "
+                              f"is followed only by the governed `worktree sync` merge "
+                              f"{merge_integration_reaudit['merge_commit'][:12]} (conflict paths: "
+                              f"{', '.join(merge_integration_reaudit['conflict_paths'])}); auditing the "
+                              f"WHOLE merged HEAD ONCE past the ceiling (T-13260, SPEC-1034).",
+                              file=sys.stderr)
+                        _t13256_ship, sha, audited_span = sha, audit_ceiling.merge_integration_subject(
+                            merge_integration_reaudit), None
+                elif _mi_ev:
+                    sync_merge_below_ceiling = _mi_ev
+                    print(f"# {tid} audit-post: the "
+                          + ("`--fix-red` commit answering the RED" if _mi_ev.get("red_fix") else "GREEN")
+                          + f" at {sha[:12]} is followed only by the governed "
+                          f"`worktree sync --resolved` merge {_mi_ev['merge_commit'][:12]} (conflict paths: "
+                          f"{', '.join(_mi_ev['conflict_paths'])}); auditing the merged HEAD as an "
+                          f"ordinary pass (T-14181, SPEC-1018 «Exits from a spent GREEN»).",
+                          file=sys.stderr)
+                    _t13256_ship, sha, audited_span = sha, audit_ceiling.merge_integration_subject(_mi_ev), None
+                elif _mi_refusal:
+                    # T-14342 (yitc#214) — below the ceiling a refused admission was SILENT, so a pass
+                    # re-audited the pre-merge commit and the land refused the merge on SPEC-0077 §3a.
+                    # When the card's latest hand-resolved merge is in HEAD but not in the recorded
+                    # commit (`merge_follows_unadmitted`, above), refuse naming the failed condition
+                    # instead (no auditor, no pass); otherwise the ordinary subject stands.
+                    _mi_m = merge_follows_unadmitted
+                    if _mi_m:
                         try:
                             _append_event("read_gate_refused", tid, {
                                 "verb": "audit post", "action": "audit the recorded commit",
@@ -14865,9 +15175,24 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     # current fp → normal counting; no prior record → no exemption.
     unchanged_fp_reaudit = False
     unchanged_fp_prior = None   # the prior audit-pre record carried forward (set only when exempt)
+    # T-14458 (SPEC-1058 §3) — a carry card's registry reading: one read per pass, its fault refuses
+    # before any auditor call. The digest keys the carry below and the post `prototype_registry` axis.
+    _carry = _carry_block = _carry_fp = None
+    if target_kind == "task" and stage in ("pre", "post"):
+        _carry = prototype_carry_context(REPO_ROOT, artifact)
+        _carry_fault = (_carry or {}).get("fault")
+        if _carry and not _carry_fault:
+            _carry_block, _carry_fault = prototype_carry_block(REPO_ROOT, stage, _carry)
+        if _carry_fault:
+            _die(f"audit {stage}: {tid}'s prototype carry registry cannot be read: {_carry_fault} (SPEC-1058 §3). "
+                 f"Fix the plan's registry or the card's prototype_lines, then re-run `yitc-v2 audit {stage} --task {tid}`.")
+        if _carry:
+            _carry_fp = (_carry["fingerprint"] if stage == "pre"
+                         else hashlib.sha256((_carry_block or "").encode("utf-8")).hexdigest())
     if target_kind == "task" and stage == "pre" and plan_fp:
         _prior_pre = _prior_audit_record(tid, "pre")
         if (_prior_pre is not None and _prior_pre.get("plan_fingerprint") == plan_fp
+                and (_carry_fp is None or _prior_pre.get("prototype_carry_fingerprint") == _carry_fp)
                 # FAIL-CLOSED: carry forward ONLY a real prior OUTCOME — GREEN / YELLOW / RED. An ABORT is
                 # NOT a real audit outcome (auditor unavailable / output malformed, often transient — cf.
                 # the T-0471 no-read-tooling flake): caching it would never re-audit, so an ABORT (and any
@@ -15104,6 +15429,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
     ceiling_spent_green = None
     ceiling_tff_open = False           # T-14178 — the test-found-fix window can still open (halt text only)
     ceiling_green_own_pass = False     # T-14191 — a GREEN ordinary ceiling row: the worker's own pass
+    ceiling_green_merge_route = False  # T-14449 — a GREEN zero-residual ceiling row, a refused merge in HEAD
     on_decisions_by_fp: dict = {}
     on_decisions_packet = None
     # T-12376 (SPEC-0204 rule 3, amended) — the ONE bounded ABSORPTION re-audit. Set at the
@@ -15284,6 +15610,22 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 and _git_strict_descendant(_gp_commit, _gp_head, repo_root=REPO_ROOT) is True)
         except Exception:   # noqa: BLE001 — a text refinement never masks the ceiling refusal
             ceiling_green_own_pass = False
+        # T-14449 (X-2160) — a GREEN ceiling row with NO residual, while a hand-resolved merge sits in
+        # HEAD past the recorded commit and the merge-integration route refused: nothing is decidable,
+        # and the empty-set pass would audit the pre-merge commit (refused above). The route out is the
+        # merge audit, so the halt and the refusal name it instead of a decision per residual.
+        try:
+            _gm_data = (_od_ceiling_row or {}).get("data") or {}
+            ceiling_green_merge_route = bool(
+                stage == "post" and not on_decisions and ceiling_spent_green is None
+                and merge_follows_unadmitted and merge_integration_refusal
+                and _od_res is not None and not _od_res.get("unresolvable")
+                and not (_od_res.get("keys") or ())
+                and str(_gm_data.get("verdict") or "").strip().upper() == "GREEN")
+        except Exception:   # noqa: BLE001 — a text refinement never masks the ceiling refusal
+            ceiling_green_merge_route = False
+        if ceiling_green_merge_route:
+            ceiling_green_own_pass = False
         # T-12376 — THE ABSORPTION GRANT, resolved ONCE here rather than inside the `else` arm that
         # consumes it. One derivation at the wiring site, never a reader per consumer (SPEC-0190
         # rule 10); a second call could disagree with this one. Only an ORDINARY pass can be the
@@ -15326,17 +15668,26 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             # T-14330 — a governed hand-resolved merge follows the recorded commit and its own route is
             # open (admitted, or waiting only on the Stage-6 run after the merge): this pass would judge
             # the pre-merge commit and leave the merge unaudited, so it is refused and the route named.
-            _od_mf_ev, _od_mf_why = od_merge_follows or (None, None)
-            if _od_mf_ev or str(_od_mf_why or "").startswith("stage6_evidence_predates_merge"):
+            _od_mf_ev, _od_mf_why, _od_mf_m = od_merge_follows or (None, None, None)
+            # T-14449 — and whenever a refused hand-resolved merge sits in HEAD past the recorded
+            # commit: the empty-set pass would audit the pre-merge commit, as T-14342 refuses below.
+            if (_od_mf_ev or _od_mf_m
+                    or str(_od_mf_why or "").startswith("stage6_evidence_predates_merge")):
                 _od_refuse("merge-follows", "merge_integration_route_open",
                            f"{tid} audit-{stage}: a governed `worktree sync --resolved` merge follows the "
                            f"recorded commit {sha[:12]} — an `--on-decisions` pass would judge the "
                            f"pre-merge commit and leave the merge unaudited (T-14330). Run the ordinary "
                            f"`yitc-v2 audit post --task {tid}`"
                            + (f" after `yitc-v2 task test {tid} --run --evidence` at the merge"
-                              if _od_mf_why else "")
-                           + " — it audits the merge (SPEC-1018 «Post-GREEN merge integration»).",
-                           {"merge_commit": (_od_mf_ev or {}).get("merge_commit")})
+                              if str(_od_mf_why or "").startswith("stage6_evidence_predates_merge")
+                              else "")
+                           + " — it audits the merge (SPEC-1018 «Post-GREEN merge integration»)."
+                           # T-14449 — a refusal for any other clause is named, so it can be fixed first
+                           + (f" The merge-integration route is not admitted yet — {_od_mf_why}; fix "
+                              f"that condition first."
+                              if _od_mf_why and not str(_od_mf_why).startswith(
+                                  "stage6_evidence_predates_merge") else ""),
+                           {"merge_commit": (_od_mf_ev or {}).get("merge_commit") or _od_mf_m})
             if _od_ceiling_row is None:
                 _od_refuse("below-ceiling", "no_completion_row",
                            f"{tid} audit-{stage} has no `external_audit_completed` row in the journal "
@@ -15807,6 +16158,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     # merge-integration route refused on the halt row, not only in this `_die`.
                     spent_green=ceiling_spent_green,
                     merge_integration_refusal=merge_integration_refusal,
+                    # T-14449 — a zero-residual GREEN row with a refused merge names the merge audit.
+                    green_merge_route=ceiling_green_merge_route,
                     # T-14178 — and names the test-found-fix exit while that window can still open.
                     test_found_fix_open=ceiling_tff_open,
                     # T-14356 — and which finding each fingerprint stands for, off the rows and the
@@ -15830,6 +16183,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 f"same defect class and what you found>'` — the ONE bounded pass (SPEC-1041 rule 3, "
                 f"the empty-set `--on-decisions` row of {SPENT_GREEN_EXIT_TABLE}).\n\n"
                 if ceiling_green_own_pass else
+                # T-14449 — the GREEN zero-residual row with a refused merge in HEAD: the merge audit.
+                f"the ceiling row is GREEN with NO residual to decide, and the governed `worktree sync "
+                f"--resolved` merge {str(merge_follows_unadmitted)[:12]} in HEAD is not yet admitted "
+                f"as the post-GREEN merge-integration pass. No `audit decide` is needed: fix the "
+                f"condition named below, then run `yitc-v2 audit post --task {tid}` — it audits the "
+                f"merged HEAD once ({SPENT_GREEN_EXIT_TABLE}).\n\n"
+                if ceiling_green_merge_route else
                 f"pass {prior_passes + 1} is admitted ONLY by the recorded ceiling decisions "
                 f"(SPEC-0204 rules 2-3).\n\n")
              # T-13953 — a spent GREEN: no residual exists, so say so before the decide pointer.
@@ -15843,7 +16203,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 f"test-found fix after a spent GREEN»). Every exit, with when it is admitted and its "
                 f"guard: {SPENT_GREEN_EXIT_TABLE}.\n\n"
                 if ceiling_spent_green else "")
-             + ("" if ceiling_green_own_pass else RETIRED_CEILING_POINTER)
+             + ("" if ceiling_green_own_pass or ceiling_green_merge_route else RETIRED_CEILING_POINTER)
              # T-10143 — the ask NAMES each residual's real severity + class, never softening a high
              # finding to a prose nit (X: T-10134).
              + _residual_suffix
@@ -16308,7 +16668,12 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 _silence = None    # an advisory must never break the look it is advising on
         # T-12571 (SPEC-0205 rules 5/6) — the prototype readings, TASK target only.
         _proto_diff = _proto_identity = None
-        if target_kind == "task" and stage == "pre" and artifact.get("prototype_ref"):
+        if target_kind == "task" and stage == "pre" and _carry:   # T-14458 — the pinned prototype commit
+            _proto_diff, _carry_diff_err = prototype_carry_diff(REPO_ROOT, _carry)
+            if _carry_diff_err:
+                _die(f"audit pre: {tid}'s pinned prototype diff cannot be read: {_carry_diff_err} (SPEC-1058 §2). "
+                     f"Fix the plan's prototype_tip through `yitc-v2 plan check`, then re-run `yitc-v2 audit pre --task {tid}`.")
+        elif target_kind == "task" and stage == "pre" and artifact.get("prototype_ref"):
             _proto_diff = prototype_diff_text(REPO_ROOT, str(artifact.get("prototype_ref")))
             if _proto_diff is None:
                 _die(f"audit pre: {tid} names prototype_ref {artifact.get('prototype_ref')}, which no longer "
@@ -16355,6 +16720,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 _die(_proto_refusal)
         prompt = _build_audit_prompt(artifact, stage, diff, extra, target_kind, focus=focus,
                                      prototype_diff=_proto_diff, prototype_identity=_proto_identity,
+                                     prototype_carry_block=_carry_block,   # T-14458
                                      event_emit_only=event_emit_only, serve_deploy=serve_deploy,
                                      reaudit_after_close=reaudit_after_close_flag,
                                      external_action=external_action, host_config=host_config,
@@ -17249,7 +17615,9 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                                   cross_section_fp=cross_section_fingerprint(
                                                       cross_section_sink),
                                                   # T-13361 — the Stage-6 row the packet rendered
-                                                  stage6_evidence_fp=_stage6_fp)
+                                                  stage6_evidence_fp=_stage6_fp,
+                                                  # T-14458 — the registry block the packet rendered
+                                                  prototype_registry_fp=_carry_fp)
     # T-11247 (AC3) — the ROUTE DISCRIMINATOR for the refusal text: is the PRIOR post record's residual
     # an ADOPTION-class finding (the class whose honest remedy IS a P8 event)? Reuses the existing
     # `prefers_deferred_adoption_overlay` classifier — no second taxonomy (CHARTER §P5). A NON-adoption
@@ -17873,6 +18241,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # T-12590 — the rendered rule-4 cross section's digest (the `cross_section` axis carrier).
         # Always present on a task record; None off task audit-post, which admits nothing.
         audit["cross_section_fingerprint"] = cross_section_fingerprint(cross_section_sink)
+        if _carry_fp:      # T-14458 — only on a carry card, so every other record stays unchanged
+            audit["prototype_carry_fingerprint"] = _carry_fp
         if stage == "post":
             # T-13361 — the Stage-6 carrier of the `evidence` axis. Always present on a task
             # audit-post (None = no row): presence is what lets no-row -> row admit next pass.

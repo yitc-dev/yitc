@@ -111,7 +111,7 @@ from lib import worktree as worktree_mod
 # repository only (the advisor through the residue below); in a project they take the project answer
 # of that home plus the check surface the project's contract declares
 # (`cli.py#_governance_pinned_test_globs`, T-13933), and the whole tuple as well on any doubt.
-_VERIFY_IMPLEMENTATION_GLOBS = ("bin/**", "tests/**", "yitc-ops.yaml")
+_VERIFY_IMPLEMENTATION_GLOBS = ("bin/**", "tests/**", "yitc-ops.yaml", "yitc-ops-units-*.txt")
 
 
 def _verify_infrastructure_globs(*, kernel_repo: bool) -> tuple:

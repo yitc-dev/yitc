@@ -358,10 +358,16 @@ AWAITS_AFTER_SEP = "@after="
 # THE VALUE SHAPE (`_AWAITS_PREDICATE_VALUE_RE`) is what makes the key unambiguous: 1-64 characters of
 # `[A-Za-z0-9._:/-]`, the first alphanumeric — so a value can hold no `&`, `=`, `@` or space, a second
 # predicate cannot hide inside one, and a row value outside the shape is simply never awaitable.
+#
+# T-14476 — `inspection_completed` (its `theme`) and `venue_seed_recorded` (its `promoted_from`) join
+# the set: deferred probes awaiting ONE inspection theme or a raise's candidate promotion read due on
+# any row of the class (deviation probe-moment-generic-type-fires-before-evidence). Both classes are a
+# few rows per week, so the added keys are negligible beside the walk already made.
 AWAITS_PREDICATE_SEP = "&"
 AWAITS_PREDICATE_TASK_KEY = "task_id"
 AWAITS_PREDICATE_TYPES = frozenset({"consumer_read_evidence", "live_trigger_evidence", "release_tagged",
-                                    "deploy_completed", "test_class_executed"})
+                                    "deploy_completed", "test_class_executed",
+                                    "inspection_completed", "venue_seed_recorded"})
 
 # ── T-14328 — THE DEPLOY TARGET as a predicate key: `deploy_completed&target=<name>|production` ──────
 # THE GAP (<project> X-2105). A deferred probe needing the first PRODUCTION deploy was written as

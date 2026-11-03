@@ -567,6 +567,64 @@ Undeclared, nothing project-specific runs, and the output says so. If the step f
 round changes while it runs, the served round is left UNPARKED and the next round stays open: fix it,
 then `bin/yitc-v2 worktree park --work spike-<served>`.
 
+### 5c. Carrying a prototype with a registry — a plan, one numbered list, one verifier
+
+When the owner wants a whole prototype carried to production — more than one card's worth — the plan
+carries a CARRY REGISTRY: one numbered list of every change, read by the owner once, built by the
+cards and walked against landed `main` at the end. The rules are SPEC-1058
+(`bin/yitc-v2 graph query SPEC-1058`); these are the steps. On any conflict the spec wins.
+
+**1. Write the registry and get the owner's read-back (SPEC-1058 §1-§2).** In the plan's frontmatter
+put `prototype_ref: spike/<slug>` (the tag §5 printed), and give the plan a `## Prototype registry`
+section. Read the prototype's diff against its base:
+
+```
+git diff "$(git merge-base main spike/<slug>)"...spike/<slug>
+```
+
+and write one fenced YAML item per change the owner could see or test separately — `id: R-<n>` (never
+renumbered), `kind`, `surface`, `what`, `locators`, `disposition: carry | not-carried`. A change no owner
+sees (formatting, a helper) is a `supporting` item naming the item it serves. Every changed path of
+that diff must be a locator of some item, or `plan stage accepted` refuses naming the path. Show the
+list to the owner BEFORE accept: this is where a sandbox change nobody meant to keep becomes
+`not-carried`. Record the read-back row as `owner_read: events.jsonl#ts=<ISO>` at the head of the
+section; an item added, or changed in any field after it, carries its own `owner_row`. Accept pins the
+prototype commit as `prototype_tip`; a newer prototype is a registry amendment through a fresh accept
+check.
+
+**2. Cut the cards (SPEC-1058 §3, the cut).** Every card of the cut declares `prototype_lines`:
+- a WRITER names the item ids it builds (each `carry` item has exactly one writer);
+- a card that builds no item declares `[]`;
+- ONE verifier declares `all`, `requires:` every other card of the cut, and no card requires it — it is
+  the cut's last card.
+
+The gate to `executing` refuses a cut that breaks any of these, naming the fault (an unowned item, two
+owners, an unknown or `not-carried` item, a second verifier).
+
+**3. Build — stop and ask on a departure (SPEC-1058 §3, each writer card).** A writer builds exactly its
+items to their expected state. When it cannot — the item's `what` does not fit the code, or an item looks
+wrong — it does NOT drop it silently and does NOT decide «the card governs»: it stops with
+`task pause --reason controller-wait` naming the item, and the owner decides. Building an owner
+amendment already cited on the item is not a departure. Its audits carry its items both ways: each item
+built, nothing owner-visible shipped that no item names.
+
+**4. The verifier walks and records; it does not repair (SPEC-1058 §3, the verifier card).** On the
+acceptance stand over landed `main` (§Two modes, ACCEPTANCE mode) it walks EVERY item and records its
+state — a `carry` item in its expected state or not, a `not-carried` item applied or not — and every
+owner-visible change in the other cards' commits that no item names. Name such an unregistered change
+by its surface and locator: reverting it needs no item; keeping it needs an item added with an
+`owner_row`. Each failure goes by the acceptance-finding route of SPEC-0205 rule 7 — a `followup add`,
+or a card filed WITHOUT `prototype_ref`, outside the cut, naming the item it fixes — or the owner
+settles it on the item by an `owner_row`: DROP (it becomes `not-carried`) or ACCEPT AS SHIPPED (`what`
+rewritten). The verifier closes when the walk is recorded and every failure is routed or settled.
+
+**5. Then the plan's `postcheck`, as today (SPEC-0034).** The routed findings are fixed, the project
+deploys as it always does, and the realization exit counts the failures against the registry after the
+deploy. The registry adds no deploy step.
+
+**Not this route: a card-sized carry.** One card with no plan is out of the registry's scope by the
+owner's decision; it keeps §5 and SPEC-0205 rule 5 as they stand.
+
 ### 6. Record the run
 
 Two lines in the journal, and they cost nothing:
@@ -902,6 +960,8 @@ channel** (§2 atom 4d — the pinned library enforces that order; a failed reco
   sources of served code (rule 3), the `spike/<slug>` tag (rule 4), `prototype_ref` and the audit
   overlay (rules 5/6), §Two modes with acceptance as a form of postcheck (rule 7), and legacy adoption
   (rule 8). On any conflict the spec wins.
+- **SPEC-1058** — the prototype carry registry: the normative home of §5c (the registry, its
+  checks at accept and at the cut, the writer and verifier cards). On any conflict the spec wins.
 - **SPEC-1054** — the spike-sandbox DATA floor (successor of <workshop-spec>), and the normative home of
   everything §The safety floor teaches: the live-system axis, the mechanism-vs-policy split, the
   actor split, the three strands and their verbs, the untreated-artifact window and its emission

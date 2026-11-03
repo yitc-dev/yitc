@@ -134,14 +134,18 @@ body: "## Scenario\n\nThe person says «ок, ставим внешнего». T
   \ trip is journaled AT the miss that reaches N,\nonce per open trip, so the next\
   \ audit of that tier runs the reserve first. N and the cool-down\n(`lib.audit.AUDITOR_BREAKER_COOLDOWN_SECONDS`)\
   \ are <workshop-spec> performance keys. The state is DERIVED from the journal rows\
-  \ the\nno-answer rate already counts — no store. The trip and the reset each journal\
-  \ ONE row per\ntransition (the deviation-capture carrier, a `transition_id` every\
-  \ racing audit derives identically — a reset\nnames the trip it clears in `trip_id`\
-  \ —\nappended under a lock), naming the tier, the window count and the owner of\
-  \ the auditor config — never\na row per audit; a trip that cannot be journaled exactly\
-  \ once is not acted on. Each completion row records THIS\ninvocation's tier and\
-  \ route (`auditor_tier`, `auditor_route`: primary | breaker), so the rule-4\nrate\
-  \ counts an audit the breaker routed to the reserve as neither a primary answer\
+  \ the\nno-answer rate already counts — no store. The journal is SHARED: the rows\
+  \ are read from the\ncheckout the audit runs in AND from the main checkout's journal\
+  \ (a row both hold counts once), and\na trip or reset row is journaled in the main\
+  \ checkout's journal, so a trip holds for an audit sent\nfrom any worktree of the\
+  \ repo at once, not after the tripping side lands. The trip and the reset\neach\
+  \ journal ONE row per\ntransition (the deviation-capture carrier, a `transition_id`\
+  \ every racing audit derives identically — a reset\nnames the trip it clears in\
+  \ `trip_id` —\nappended under a lock), naming the tier, the window count and the\
+  \ owner of the auditor config — never\na row per audit; a trip that cannot be journaled\
+  \ exactly once is not acted on. Each completion row records THIS\ninvocation's tier\
+  \ and route (`auditor_tier`, `auditor_route`: primary | breaker), so the rule-4\n\
+  rate counts an audit the breaker routed to the reserve as neither a primary answer\
   \ nor a miss, and a\nbreaker-routed audit neither pair answered as a primary miss.\
   \ A tier with NO reserve never trips: its wait above is unchanged. The environment\n\
   model override bypasses the breaker exactly as it bypasses both pairs.\n\nA SUBSTITUTION\
@@ -228,13 +232,13 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/audit.py#auditor_breaker_state: 5b2f450f764c274f3b637b088e7181dd303099b269d5aec6f85b0206ca3d2ee8
-  bin/lib/audit.py#cmd_audit_status: 7847174111fe7d58470e2f819fb2d18a7975b1badcffab2bd781ddd7e7346f37
-  bin/lib/audit.py#invoke_auditor_tiered: 54652afebb4e735edc99e11e462ecd6f905fad363ae35e36479746b0b33b1ff0
+  bin/lib/audit.py#cmd_audit_status: 223d58496a827d5a8307474c874995288fbcb2f1b7e8c7ea1daeca3f82a3ba03
+  bin/lib/audit.py#invoke_auditor_tiered: de3483ced207eca674caebf91a63d7ca227c0a0a56896f270db9f2a7a3b5047f
   bin/lib/audit.py#is_auditor_non_answer: 282c1f60c644dfad1ec00c5d2ec221f4e5bda0c7c5e9a6fa36143e07bca1d94c
   bin/lib/audit.py#resolve_audit_provider: 30abe5bd75660bb4925b7d9bdaf89deff28000a1e6cb4fdc77ffed1906ba228f
   bin/lib/audit.py#resolve_audit_reserve: f12a4953da99d5d394b2556a94172754e7e4f5fd08af2b27f4f9770fcf4758c2
   bin/lib/audit.py#resolve_codex_binary: 1ff787172d8394d20c09ae5243ab89a77b024aa5dc88627b5eae0c940d804785
   bin/lib/audit.py#stamp_auditor_verdict: 92795c18be5fbe2f22cb43c8cc1608872679d7934fe4d365e77451b972e31695
-  bin/lib/cli.py#cmd_session_start: c28c4c431b412463e6143b2637bdeabd34d860328b72de80df2c8bbbe707961c
-  bin/lib/machine_settings.py#INVENTORY: 817b7b99cefcfb6d705af69ac8f075b43f33b5cd8ed27ced1bfe36be9b53892e
+  bin/lib/cli.py#cmd_session_start: ae9d05e9937d230797c02085c66c212528a741f292b47a32af7175eae8e36357
+  bin/lib/machine_settings.py#INVENTORY: e2f11c2dfad077380db6917b19b7ab52dd3da1776505cb79db9be6cf951521f0
   bin/lib/observe.py#auditor_triple: 0b9260fb966c9a0e8113042276a9ded694e20b6c0ee2c5c6fc38143a9ef3c310

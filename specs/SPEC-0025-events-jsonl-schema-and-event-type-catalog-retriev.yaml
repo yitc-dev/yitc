@@ -43,13 +43,16 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ an empty list.** `why` distinguishes the\ntwo failures that both had to be caught:\
   \ `malformed` (the token is not a well-formed timestamp — the\n shape, which a resolve-only\
   \ check would have skipped entirely) and `no-row` (well-formed, but\nno journal\
-  \ row carries that ts). A locator that RESOLVES, and one whose lookup could not\
-  \ be decided\n(I/O failure), are both silent — the fail-SAFE direction, since a\
-  \ governance mark must never assert\nan offence it cannot prove.\n\n**Report-only\
-  \ by design.** The mark is paired with a stderr WARN and refuses nothing: the class\
-  \ it\naddresses is a defect that LANDED unnoticed, and a stderr line in a background\
-  \ worker is gone the\nmoment the process exits — so the ROW is the durable half,\
-  \ making the record self-describing and\ngreppable (`journal query --grep unresolved_locators`).\
+  \ row carries that ts). A claim written `<project> events.jsonl#ts=<ts>` (or `<project>/`\
+  \ / `<project>:`), where `<project>` names another host-registry project, is resolved\
+  \ in THAT project's journal only; any other claim in this repository's journal and\
+  \ its main checkout's. A locator that RESOLVES, and one whose lookup could not be\
+  \ decided\n(I/O failure), are both silent — the fail-SAFE direction, since a governance\
+  \ mark must never assert\nan offence it cannot prove.\n\n**Report-only by design.**\
+  \ The mark is paired with a stderr WARN and refuses nothing: the class it\naddresses\
+  \ is a defect that LANDED unnoticed, and a stderr line in a background worker is\
+  \ gone the\nmoment the process exits — so the ROW is the durable half, making the\
+  \ record self-describing and\ngreppable (`journal query --grep unresolved_locators`).\
   \ The key is derived at the write path, never\ncaller-supplied.\n\n### Required\
   \ `duration_ms` field set ( — the machine-readable roster)\n\nThe event types on\
   \ which `duration_ms` is a REQUIRED `data` field. This roster is the SINGLE source\n\
@@ -1379,60 +1382,72 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ the SOURCE key is ABSENT rather than fabricated\n when the ladder did not run\
   \ — an explicit caller-supplied `timeout=` was decided upstream\nand has no rung,\
   \ so the vocabulary stays exactly those four names. No land path supplies one.\n\
-  `per_file_outcomes` (dict, <workshop-spec> rule 4) = the LOCATOR of the COMPLETE\
-  \ per-file\noutcome list — `{path, sha256, count}`, and deliberately NOT the list\
-  \ itself. It is the answer to\nthe cost of the bound `per_file_durations` states\
-  \ below: that bound is right for the ROW, and it\nleft the whole system unable to\
-  \ NAME a failing file beyond the slowest ten (measured:\ncounted 92-94 failing files\
-  \ of 1387 on a rented box and could name ten, so its AC2 was discharged\nas unreachable).\
-  \ So the full list goes to a machine-readable sidecar on disk and the ROW carries\
-  \ a\nthree-field reference to it: `path` (absolute — the default is under the temp\
-  \ base, NEVER inside\nthe verified checkout, since an in-tree export is land-blocking\
-  \ dirt in any repo that does not\nignore it), `sha256` of the exported bytes (so\
-  \ a reader can prove the file it read is the file the\nrun wrote), and `count` (so\
-  \ completeness is assertable against the row rather than inferred). The\nrow's SIZE\
-  \ is therefore unchanged in kind — a locator is ~200 bytes, where the ~800-row list\
-  \ this\nspec's `per_file_durations` entry rejects would be ~45KB per land. PRESENT\
-  \ whenever the run\ndiscovered at least one test file AND the export succeeded;\
-  \ ABSENT — never empty, never fabricated\n — on a no-test-files run or when the\
-  \ export could not be written, because the export is\nfailure-INERT: it never raises\
-  \ into the run and never changes a verdict. The sidecar itself names\nevery DISCOVERED\
-  \ file (not only the started ones — a fail-fast tail is exported as `not-started`\n\
-  with a null wall) and carries its own outcome vocabulary, which is the runner's\
-  \ own `_record`\ntoken set: `passed` / `failed` / `timed-out` / `killed-fail-fast`\
-  \ / `launch-error` / `not-started`.\nReport-only, additive, on the `per_file_durations`\
-  \ precedent: no new event type, no second metrics\npath, no new store, and nothing\
-  \ gates on it.\n`flaky_retry` (dict|str, SPEC-0132 §Rule 2) = WHAT THE ISOLATED\
-  \ RE-RUN DID on this land.\nWhen a leg stopped on failures within `YITC_VERIFY_RETRY_MAX_FILES`,\
-  \ the runner re-ran each failing\nfile ONCE alone, on the same tree, outside the\
-  \ contended pool: `{rows: [{file, leg, isolated,\npool_tail, load1?}], resumed?}`,\
-  \ where `isolated` is `pass` / `fail` / `unrunnable` and `resumed`\n(the count of\
-  \ files the resume covered) is present ONLY when every named file passed and the\
-  \ leg\ntherefore resumed. When the plan DECLINED it records `{skipped: <reason>}`\
-  \ — `over-bound` (more\nfailing files than the bound, which is also how a bound\
-  \ of 0 disables the feature),\n`timeout-class` (SPEC-0071 makes a verify timeout\
-  \ non-retriable) or `no-failures`. A ROUTED land\nfolds the per-leg record onto\
-  \ this SAME unprefixed key from the venue envelope\n(`venue_flaky_retry` per leg),\
-  \ deliberately NOT under a `venue_` prefix — prefixing would put the\nrouted record\
-  \ on a different field from the local one and split the field in two. An envelope\n\
-  that never carried the key folds the STRING `\"unknown\"`, never `{}` and never\
-  \ absence, because\nboth of those read as \"no flakes anywhere\" (SPEC-0165 item\
-  \ 11). ABSENT — never an empty dict\n — when no retry was reached, so a green land\
-  \ never reports one it did not do and the\npre- payload of such a land is byte-unchanged\
-  \ (additive / P5-safe). Report-only, on the\n`per_file_durations` precedent: no\
-  \ new event type, no second metrics path, no new store. It gates\nNOTHING — a file\
-  \ is cleared only by PASSING alone, and this key merely records that it did.\n`flaky_retry`\
-  \ LAYER ROWS (SPEC-0152 rule 16 §THE ISOLATED RE-RUN) = the same field on a\nCONSUMER\
-  \ verify whose layer guard re-ran a sole failed verify layer. A row in `rows[]`\
-  \ then names a\n`layer` INSTEAD OF a `file`: `{layer, leg, isolated, load1?, first_exit,\
-  \ first_duration_ms?,\nfirst_failure_excerpt, first_output_log?, retry_files?, retry_outcome,\
-  \ retry_exit?, retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`.\
-  \ `retry_files` (`tests/<file>` names) is present only\nwhen the re-run was handed\
-  \ the files the first run named failing AND confirmed on its own output\nthat it\
-  \ ran exactly those (SPEC-0152 rule 16 §THE ISOLATED RE-RUN); absent, the re-run\
-  \ was the whole\nlayer. `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`;\
-  \ `load1` is the host 1-minute load read just before the re-run (ABSENT when unmeasurable,\n\
-  never a fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
+  `timeout_kill` (dict) = what a run KILLED on a per-file timeout knew at the kill,\
+  \ on the\nrow itself (the sidecar below may be pruned): `timed_out` (files killed\
+  \ on their own bound),\n`running_at_kill` (those plus every file stopped by the\
+  \ fail-fast kill), `failed` (files whose\nfinal verdict is a non-timeout failure),\
+  \ `passed`, `not_reached` (enumerated, never started) —\neach a name list capped\
+  \ at 50 with an exact `<name>_count` beside it, so a count above the list's\nlength\
+  \ says names were cut. PRESENT only when `fail_class` is `timeout`; ABSENT otherwise.\
+  \ A\nconsumer adapter pass whose `run` hit the layer's bound carries the same reading\
+  \ at unit\ngranularity as `timeout_kill` on its `adapter` record inside `consumer_verify_layers`:\
+  \ `finished`\n(status counts of the batches that completed), `passed`, `failed`,\
+  \ `running_at_kill` (the killed\nbatch's units), `not_reached` (later batches' units).\
+  \ Report-only: nothing gates on either.\n`per_file_outcomes` (dict, <workshop-spec>\
+  \ rule 4) = the LOCATOR of the COMPLETE per-file\noutcome list — `{path, sha256,\
+  \ count}`, and deliberately NOT the list itself. It is the answer to\nthe cost of\
+  \ the bound `per_file_durations` states below: that bound is right for the ROW,\
+  \ and it\nleft the whole system unable to NAME a failing file beyond the slowest\
+  \ ten (measured:\ncounted 92-94 failing files of 1387 on a rented box and could\
+  \ name ten, so its AC2 was discharged\nas unreachable). So the full list goes to\
+  \ a machine-readable sidecar on disk and the ROW carries a\nthree-field reference\
+  \ to it: `path` (absolute — the default is under the temp base, NEVER inside\nthe\
+  \ verified checkout, since an in-tree export is land-blocking dirt in any repo that\
+  \ does not\nignore it), `sha256` of the exported bytes (so a reader can prove the\
+  \ file it read is the file the\nrun wrote), and `count` (so completeness is assertable\
+  \ against the row rather than inferred). The\nrow's SIZE is therefore unchanged\
+  \ in kind — a locator is ~200 bytes, where the ~800-row list this\nspec's `per_file_durations`\
+  \ entry rejects would be ~45KB per land. PRESENT whenever the run\ndiscovered at\
+  \ least one test file AND the export succeeded; ABSENT — never empty, never fabricated\n\
+  \ — on a no-test-files run or when the export could not be written, because the\
+  \ export is\nfailure-INERT: it never raises into the run and never changes a verdict.\
+  \ The sidecar itself names\nevery DISCOVERED file (not only the started ones — a\
+  \ fail-fast tail is exported as `not-started`\nwith a null wall) and carries its\
+  \ own outcome vocabulary, which is the runner's own `_record`\ntoken set: `passed`\
+  \ / `failed` / `timed-out` / `killed-fail-fast` / `launch-error` / `not-started`.\n\
+  Report-only, additive, on the `per_file_durations` precedent: no new event type,\
+  \ no second metrics\npath, no new store, and nothing gates on it.\n`flaky_retry`\
+  \ (dict|str, SPEC-0132 §Rule 2) = WHAT THE ISOLATED RE-RUN DID on this land.\nWhen\
+  \ a leg stopped on failures within `YITC_VERIFY_RETRY_MAX_FILES`, the runner re-ran\
+  \ each failing\nfile ONCE alone, on the same tree, outside the contended pool: `{rows:\
+  \ [{file, leg, isolated,\npool_tail, load1?}], resumed?}`, where `isolated` is `pass`\
+  \ / `fail` / `unrunnable` and `resumed`\n(the count of files the resume covered)\
+  \ is present ONLY when every named file passed and the leg\ntherefore resumed. When\
+  \ the plan DECLINED it records `{skipped: <reason>}` — `over-bound` (more\nfailing\
+  \ files than the bound, which is also how a bound of 0 disables the feature),\n\
+  `timeout-class` (SPEC-0071 makes a verify timeout non-retriable) or `no-failures`.\
+  \ A ROUTED land\nfolds the per-leg record onto this SAME unprefixed key from the\
+  \ venue envelope\n(`venue_flaky_retry` per leg), deliberately NOT under a `venue_`\
+  \ prefix — prefixing would put the\nrouted record on a different field from the\
+  \ local one and split the field in two. An envelope\nthat never carried the key\
+  \ folds the STRING `\"unknown\"`, never `{}` and never absence, because\nboth of\
+  \ those read as \"no flakes anywhere\" (SPEC-0165 item 11). ABSENT — never an empty\
+  \ dict\n — when no retry was reached, so a green land never reports one it did not\
+  \ do and the\npre- payload of such a land is byte-unchanged (additive / P5-safe).\
+  \ Report-only, on the\n`per_file_durations` precedent: no new event type, no second\
+  \ metrics path, no new store. It gates\nNOTHING — a file is cleared only by PASSING\
+  \ alone, and this key merely records that it did.\n`flaky_retry` LAYER ROWS (SPEC-0152\
+  \ rule 16 §THE ISOLATED RE-RUN) = the same field on a\nCONSUMER verify whose layer\
+  \ guard re-ran a sole failed verify layer. A row in `rows[]` then names a\n`layer`\
+  \ INSTEAD OF a `file`: `{layer, leg, isolated, load1?, first_exit, first_duration_ms?,\n\
+  first_failure_excerpt, first_output_log?, retry_files?, retry_outcome, retry_exit?,\
+  \ retry_duration_ms?,\nretry_failure_excerpt?, retry_output_log?}`. `retry_files`\
+  \ (`tests/<file>` names) is present only\nwhen the re-run was handed the files the\
+  \ first run named failing AND confirmed on its own output\nthat it ran exactly those\
+  \ (SPEC-0152 rule 16 §THE ISOLATED RE-RUN); absent, the re-run was the whole\nlayer.\
+  \ `leg` is `cand` or `pinned`; `isolated` is `pass` /\n`fail`; `load1` is the host\
+  \ 1-minute load read just before the re-run (ABSENT when unmeasurable,\nnever a\
+  \ fabricated 0); `first_failure_excerpt` is the first attempt's failure excerpt\
   \ and is\npresent on a RESCUED row too, which is its purpose; `retry_outcome` is\
   \ the re-run's own outcome\n(`passed` / `failed` / `timed-out`). A DECLINED layer\
   \ plan records `layers_skipped: [{leg, reason,\nlayers, bound?}]`, `reason` being\
@@ -2258,49 +2273,55 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ (same rule). A record whose merge-base run happened also carries `base_sha` (the\
   \ tree that run used, when\na tree was checked out) and `at_base` (the ids that\
   \ run failed), which the ATTRIBUTION: MAIN line prints; both are absent from a record\n\
-  whose base run never happened. PRESENT ONLY on an abort whose probe\nproduced a\
-  \ record —\nadditive / P5-safe, guarded exactly as `verify_metrics` is, and an abort\
-  \ raised before the probe could\nrun carries none. The record is COMPLETE EVEN WHEN\
-  \ IT SAYS NOTHING (`undecidable` with a named reason),\nso \"the probe could not\
-  \ decide\" stays distinguishable from \"the probe never ran\". REPORT-ONLY: nothing\n\
-  gates on it, and an `outcome: main` land aborts exactly as loudly as any other.\
-  \ It became a PERSISTED\nkey at because it is the ESTABLISHING PAYLOAD of the known-broken-on-main\
-  \ fold\n(`debt.open_known_broken`, SPEC-0181): that fold reads `at_main` / `at_branch`\
-  \ from HERE and never the\nfirst-sight `failing_tests` / `failing_assertions` above,\
-  \ nor `verify_metrics.fail_class`. Before\n the record was computed on every red\
-  \ land and DROPPED by this emitter's key allow-list.\n`prequeue_known_broken` (dict,\
-  \ SPEC-0181 §Known-broken-on-main / SPEC-0119 rule 33) = the\nPRE-QUEUE KNOWN-BROKEN\
-  \ REFUSAL's own record — the COMPLEMENT of `failure_attribution` above, on the\n\
-  same row and by the same rules: that key records a land that DISCOVERED a break,\
-  \ this one a land\nREFUSED because of one already recorded.\n`{branch, pairs: [{pair,\
-  \ file, since, established_by, establishing_sha}], main, merge_base}` —\n`establishing_sha`\
-  \ is `null`, never a fabricated value, when main's history does not reach the\n\
-  establishing instant (the discipline). PRESENT ONLY on an abort raised by\n`_land_prequeue_known_broken_refusal`,\
-  \ guarded on presence exactly as `verify_metrics` is, so every\nother abort row\
-  \ is byte-unchanged (additive / P5-safe). It rides the EXISTING `corpus-integrity`\n\
-  abort_class and the EXISTING `abort_preflight` shape: **no new event type enters\
-  \ this catalog** —\nwhich is the point of the choice, since a dedicated type would\
-  \ first have to be catalogued here\nbefore any branch emitting it could land at\
-  \ all (the pre-queue uncatalogued-type refusal),\nand would create a SECOND land-outcome\
-  \ carrier beside `land_completed` that every existing reader\nof land outcomes would\
-  \ have to learn or silently under-count.\nWHY IT EXISTS AT ALL: this refusal is\
-  \ CHEAP — it fires above the attempt loop and takes nothing —\nso it never reaches\
-  \ the seam that publishes to main, and its abort row is written to the LANDING\n\
-  CHECKOUT's journal, which reaches main only if the refused branch eventually LANDS.\
-  \ A refused\nbranch very often never lands (discarded, parked, re-cut), so the record\
-  \ died with the worktree:\nmeasured 2026-08-28, main's journal named this refusal\
-  \ ZERO times in its whole history, and the\nrefused work/red-main-guard-and-repair-path's\
-  \ entire footprint was three rows, none of them the\nrefusal. The row is therefore\
-  \ additionally delivered to MAIN at the refusal, as a `ts`-pinned\nbyte-identical\
-  \ copy through the SAME / `clearing_copy_events_path` seam — so nothing\ndouble-records\
-  \ and the land-time dedup collapses the pair.\nREPORT-ONLY, and the fence is load-bearing:\
-  \ nothing gates on it, it waives no gate and excuses no\nred, and it is deliberately\
-  \ NOT shaped as a queue entry — no position, no ordering key, no retry\nhook. It\
-  \ makes a refusal VISIBLE; it makes nothing RESUME.\n**THE MAIN-SIDE COPY IS NOW\
-  \ GENERAL, and the three reasons above are each a special case of it\n.** An abort\
-  \ `land_completed` for ANY class outside the never-landing set\n(`worktree._LAND_NEVER_LANDING_ABORT_CLASSES`,\
-  \ whose members are RE-ROUTED to main instead) is\nadditionally delivered to MAIN\
-  \ through the SAME `clearing_copy_events_path` seam, as the same\n`ts`-pinned byte-identical\
+  whose base run never happened. `timed_out` (list) = the files of this red killed\
+  \ on their\nper-file timeout: they are the run's timeout cause, attributed to NOBODY\
+  \ and kept out of\n`failing` / `at_main` / `at_branch`; the finished failures beside\
+  \ them are split as above, so a red\nholding one timeout no longer declines whole.\
+  \ A red made ONLY of timeouts stays\n`undecidable`/`verify-timeout`. Present on\
+  \ every record (`[]` when none). PRESENT ONLY on an abort whose probe\nproduced\
+  \ a record —\nadditive / P5-safe, guarded exactly as `verify_metrics` is, and an\
+  \ abort raised before the probe could\nrun carries none. The record is COMPLETE\
+  \ EVEN WHEN IT SAYS NOTHING (`undecidable` with a named reason),\nso \"the probe\
+  \ could not decide\" stays distinguishable from \"the probe never ran\". REPORT-ONLY:\
+  \ nothing\ngates on it, and an `outcome: main` land aborts exactly as loudly as\
+  \ any other. It became a PERSISTED\nkey at because it is the ESTABLISHING PAYLOAD\
+  \ of the known-broken-on-main fold\n(`debt.open_known_broken`, SPEC-0181): that\
+  \ fold reads `at_main` / `at_branch` from HERE and never the\nfirst-sight `failing_tests`\
+  \ / `failing_assertions` above, nor `verify_metrics.fail_class`. Before\n the record\
+  \ was computed on every red land and DROPPED by this emitter's key allow-list.\n\
+  `prequeue_known_broken` (dict, SPEC-0181 §Known-broken-on-main / SPEC-0119 rule\
+  \ 33) = the\nPRE-QUEUE KNOWN-BROKEN REFUSAL's own record — the COMPLEMENT of `failure_attribution`\
+  \ above, on the\nsame row and by the same rules: that key records a land that DISCOVERED\
+  \ a break, this one a land\nREFUSED because of one already recorded.\n`{branch,\
+  \ pairs: [{pair, file, since, established_by, establishing_sha}], main, merge_base}`\
+  \ —\n`establishing_sha` is `null`, never a fabricated value, when main's history\
+  \ does not reach the\nestablishing instant (the discipline). PRESENT ONLY on an\
+  \ abort raised by\n`_land_prequeue_known_broken_refusal`, guarded on presence exactly\
+  \ as `verify_metrics` is, so every\nother abort row is byte-unchanged (additive\
+  \ / P5-safe). It rides the EXISTING `corpus-integrity`\nabort_class and the EXISTING\
+  \ `abort_preflight` shape: **no new event type enters this catalog** —\nwhich is\
+  \ the point of the choice, since a dedicated type would first have to be catalogued\
+  \ here\nbefore any branch emitting it could land at all (the pre-queue uncatalogued-type\
+  \ refusal),\nand would create a SECOND land-outcome carrier beside `land_completed`\
+  \ that every existing reader\nof land outcomes would have to learn or silently under-count.\n\
+  WHY IT EXISTS AT ALL: this refusal is CHEAP — it fires above the attempt loop and\
+  \ takes nothing —\nso it never reaches the seam that publishes to main, and its\
+  \ abort row is written to the LANDING\nCHECKOUT's journal, which reaches main only\
+  \ if the refused branch eventually LANDS. A refused\nbranch very often never lands\
+  \ (discarded, parked, re-cut), so the record died with the worktree:\nmeasured 2026-08-28,\
+  \ main's journal named this refusal ZERO times in its whole history, and the\nrefused\
+  \ work/red-main-guard-and-repair-path's entire footprint was three rows, none of\
+  \ them the\nrefusal. The row is therefore additionally delivered to MAIN at the\
+  \ refusal, as a `ts`-pinned\nbyte-identical copy through the SAME / `clearing_copy_events_path`\
+  \ seam — so nothing\ndouble-records and the land-time dedup collapses the pair.\n\
+  REPORT-ONLY, and the fence is load-bearing: nothing gates on it, it waives no gate\
+  \ and excuses no\nred, and it is deliberately NOT shaped as a queue entry — no position,\
+  \ no ordering key, no retry\nhook. It makes a refusal VISIBLE; it makes nothing\
+  \ RESUME.\n**THE MAIN-SIDE COPY IS NOW GENERAL, and the three reasons above are\
+  \ each a special case of it\n.** An abort `land_completed` for ANY class outside\
+  \ the never-landing set\n(`worktree._LAND_NEVER_LANDING_ABORT_CLASSES`, whose members\
+  \ are RE-ROUTED to main instead) is\nadditionally delivered to MAIN through the\
+  \ SAME `clearing_copy_events_path` seam, as the same\n`ts`-pinned byte-identical\
   \ copy — so nothing double-records, the land-time `_dedup_events`\ncollapses the\
   \ pair, and the LANDING CHECKOUT keeps its own row (a copy, never a re-route: the\n\
   \ repeated-abort backstop reads that checkout's journal before the land folds main\

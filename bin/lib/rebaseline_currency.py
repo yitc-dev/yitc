@@ -4902,10 +4902,12 @@ def _land_audited_footprint_lines(split: "dict | None", *, _AUDITED_FOOTPRINT_LI
 # returns to re-audit), `dropped` has no writer). Incident, predicate, fail-closed argument and the
 # refusal's two exits: the host comment above `worktree.py#cmd_land` (`_WONT_DO_UNAUDITED_SHIP_ABORT_CLASS`).
 
-def _wont_do_authored_paths(W, base: str, tid: str, *, _run_git_cap, _lifecycle_record_path) -> "list | None":
+def _wont_do_authored_paths(W, base: str, tid: str, *, _run_git_cap, _lifecycle_record_path,
+                            include_deletions: bool = False) -> "list | None":
     """The AUTHORED (non-lifecycle-record) paths in `base..HEAD` of worktree `W`, or None when git
-    could not answer (the caller's fail-closed direction). `D` paths are skipped (T-11668); a rename /
-    copy contributes BOTH endpoints (the T-10567 `-M` fence); an unclassifiable line answers None."""
+    could not answer (the caller's fail-closed direction). `D` paths are skipped (T-11668) unless
+    `include_deletions` (T-14407: a deleted product file on an OPEN card is work reaching main); a
+    rename / copy contributes BOTH endpoints (the T-10567 `-M` fence); an unclassifiable line answers None."""
     r = _run_git_cap(["diff", "--name-status", "-M", base, "HEAD"], W)
     if r.returncode != 0:
         return None
@@ -4918,12 +4920,66 @@ def _wont_do_authored_paths(W, base: str, tid: str, *, _run_git_cap, _lifecycle_
         paths = [q.strip().strip('"') for q in parts[1:] if q.strip()]
         if not paths:
             return None
-        if status[:1] == "D":
+        if status[:1] == "D" and not include_deletions:
             continue
         for q in paths:
             if q and not _lifecycle_record_path(q, tid):
                 out.add(q)
     return sorted(out)
+
+
+# ── T-14407 — LAND OF A TASK BRANCH WHOSE CARD IS STILL OPEN (X-2155) ──────────────────────────────
+# Closure precedes land (LIFECYCLE §The 9 stages). Incident: <project> T-1292 ran `task close` then `land`
+# in one shell command: the close was refused, the land still integrated the work with the card
+# in-progress. Admitted closed-or-carved-out statuses: `done` (closed), `wont-do` (owned by the T-12786
+# arm), `parked` (T-9622 lands a park-mid-audit ship). A branch with no card for its id, and
+# a bookkeeping-only branch (a pause record), land as before. Host comment: `worktree.py#cmd_land`.
+_UNCLOSED_CARD_ADMITTED_STATUSES = ("done", "wont-do", "parked")
+
+
+def _unclosed_card_ship_refusal(branch: str, W, *, _run_git_cap, _lifecycle_record_path) -> "str | None":
+    """The T-14407 refusal DETAIL (the `_die` site carries the head + route), or None when the land is
+    admitted on this axis. Pure of `_die`.
+    None on: not a `task/T-NNNN` branch; no card for the id on the branch; a card in an admitted
+    status; an open card whose branch carries bookkeeping only. FAIL-CLOSED: a card whose status
+    cannot be read, a git failure, or a missing classifier refuses."""
+    m = re.fullmatch(r"task/(T-\d{4,})", branch or "")
+    if not m:
+        return None
+    tid = m.group(1)
+    nxt0 = (f"  NEXT: make the branch's tasks/ directory readable, close the card (`bin/yitc-v2 task close "
+            f"{tid}`), then re-run `land`. Worktree intact, main untouched.")
+    try:
+        names = os.listdir(W / "tasks")
+    except FileNotFoundError:            # no tasks/ dir on the branch: no card — today's admit
+        names = []
+    except Exception as e:               # noqa: BLE001 — a FAILED lookup is not "no card" (fail closed)
+        return (f"{branch}: the card lookup for {tid} failed ({type(e).__name__}), so the card cannot be "
+                f"proven absent or closed (fails closed).\n" + nxt0)
+    if not any(n.startswith(f"{tid}-") and n.endswith(".yaml") for n in names):
+        return None
+    status = _branch_task_status(W, tid)
+    if status in _UNCLOSED_CARD_ADMITTED_STATUSES:
+        return None
+    shown = status if status else "unreadable (no top-level `status:` line)"
+    nxt = (f"  NEXT: close the card first — `bin/yitc-v2 task close {tid}` (in the worktree) — then re-run "
+           f"`land`. Closure precedes land (LIFECYCLE §The 9 stages; T-14407, X-2155). Worktree intact, "
+           f"main untouched.")
+    if _lifecycle_record_path is None:
+        return (f"{branch}: card {tid} has status {shown}, and the authored-path classifier "
+                f"was not supplied, so the branch cannot be proven bookkeeping-only (fails closed).\n" + nxt)
+    mb = _run_git_cap(["merge-base", "main", "HEAD"], W)
+    base = (mb.stdout or "").strip() if mb.returncode == 0 else ""
+    authored = _wont_do_authored_paths(W, base, tid, _run_git_cap=_run_git_cap,
+                                       _lifecycle_record_path=_lifecycle_record_path,
+                                       include_deletions=True) if base else None
+    if authored is None:
+        return (f"{branch}: card {tid} has status {shown}, and the branch diff vs main could "
+                f"not be read (git failed), so it cannot be proven bookkeeping-only (fails closed).\n" + nxt)
+    if not authored:
+        return None                      # bookkeeping-only open branch (e.g. a pause record) — lands as today
+    return (f"{branch}: card {tid} has status {shown} (not closed) and the branch carries "
+            f"authored work: " + ", ".join(authored) + "\n" + nxt)
 
 
 def _wont_do_unaudited_ship_refusal(branch: str, W, *, _run_git_cap, EVENTS_PATH, _read_land_events,

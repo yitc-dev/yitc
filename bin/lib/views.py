@@ -617,8 +617,12 @@ def _view_postcheck_plans_readiness(index: dict, *, AUDIT_VERDICT_CLOSURE_OK=Non
                                       `_require_captures_routed` reads). REPORTED, with `unrouted_captures`
                                       (the count), but NOT a realize_ready clause — the realize-EXIT gate
                                       WARNs, it no longer blocks (report-not-block, D-0040 / non-goal #7).
-    realize_ready = the TWO gating clauses (finalization_ready + retire_on_proof_resolved). `blockers` names
-    the failing gating clause(s) for the at-a-glance read. captures_routed + postcheck_probe_block_declared +
+    coded_clauses_pass = the TWO gating clauses (finalization_ready + retire_on_proof_resolved).
+    realize_ready = coded_clauses_pass AND the plan declares NO realization-exit criteria (T-14477): the
+    plan's own criteria are owner-judged (SPEC-0034 §postcheck) and no per-criterion evidence is recorded,
+    so the view never infers them met — `realization_exit` = {state: declared|stub|none|unreadable,
+    criteria: the declared lines verbatim, never judged}. `blockers` names the failing gating clause(s)
+    and the unproven exit for the at-a-glance read. captures_routed + postcheck_probe_block_declared +
     dispositionless_infra_closures (T-0670) are reported SEPARATELY as advisories and are NOT part of
     realize_ready (owner-judgement support, not gates).
       - dispositionless_infra_closures — ADVISORY (T-0670 backstop, SPEC-0034 §postcheck → SPEC-0053):
@@ -632,9 +636,10 @@ def _view_postcheck_plans_readiness(index: dict, *, AUDIT_VERDICT_CLOSURE_OK=Non
     Pure read, recomputed fresh, writes nothing (D-0053). The plan body (for the corpus signature + the
     advisory) is read from the canonical `plans/<slug>.md` via `_split_frontmatter`; a missing/malformed
     plan file is surfaced as `plan_file_readable: false` + a blocker rather than killing the listing
-    (tolerant, like the other views) — it is NOT a realize_ready gate (realize_ready = the 2 coded gating
-    clauses only — T-0644 dropped captures_routed to advisory). Output:
-      {postcheck_plans: {<slug>: {realize_ready, finalization_ready, retire_on_proof_resolved,
+    (tolerant, like the other views); its criteria then read `unreadable`, so it is not realize_ready
+    (T-14477). Output:
+      {postcheck_plans: {<slug>: {realize_ready, coded_clauses_pass, realization_exit,
+                                  finalization_ready, retire_on_proof_resolved,
                                   captures_routed (advisory), unrouted_captures (advisory count),
                                   plan_file_readable, postcheck_probe_block_declared (advisory),
                                   dispositionless_infra_closures (advisory, T-0670),
@@ -704,17 +709,26 @@ def _view_postcheck_plans_readiness(index: dict, *, AUDIT_VERDICT_CLOSURE_OK=Non
         unresolved = [f"{tid}({st})" for tid, st in retire_unresolved]
         retire_on_proof_resolved = not retire_unresolved
 
-        # `realize_ready` mirrors EXACTLY the 3 coded `plan stage realized` exit clauses — no hidden
-        # fourth gate (audit-post pass-2 F0). A missing/malformed plan file is surfaced as its OWN explicit
-        # `plan_file_readable: false` field + a blocker (loud, not hidden): for a spec-bearing plan it
-        # already fails finalization_ready (the signature can't be verified — "cannot verify
-        # corpus_signature (...)"), and for a task-only plan it shows as a visible non-readable flag the
-        # reader weighs, NOT a silent extra AND-term that contradicts the documented 3-clause contract.
-        # T-0644 / Option B: captures_routed is DEMOTED to an ADVISORY — it is NO LONGER one of the
-        # realize_ready clauses (the `_require_captures_routed` realize-EXIT gate now WARNs, does not
-        # block). realize_ready = the 2 CODED gating clauses only; captures_routed + its un-routed count
-        # stay REPORTED (like postcheck_probe_block_declared) so the COUNT is visible, but never gate.
-        rec["realize_ready"] = bool(finalization_ready and retire_on_proof_resolved)
+        # A missing/malformed plan file is surfaced as its OWN explicit `plan_file_readable: false` field
+        # + a blocker. T-0644 / Option B: captures_routed is an ADVISORY, never a realize_ready clause;
+        # its un-routed count stays REPORTED (like postcheck_probe_block_declared).
+        # T-14477: the plan's OWN realization-exit criteria are owner-judged (SPEC-0034 §postcheck) and
+        # the kernel records no per-criterion evidence, so the view never infers them met. It lists
+        # what the plan declares (verbatim, never judged) and says realize_ready only when the plan
+        # declares none. `coded_clauses_pass` keeps the 2-clause reading visible on its own.
+        coded_clauses_pass = bool(finalization_ready and retire_on_proof_resolved)
+        criteria = plan._plan_realization_exit_criteria(body) if read_error is None else None
+        if read_error is not None:
+            exit_state = "unreadable"
+        elif criteria:
+            exit_state = "declared"
+        elif criteria is not None or _postcheck_probe_block_declared(body):
+            exit_state = "stub"   # an empty/comment-only exit heading, or a marker phrase alone
+        else:
+            exit_state = "none"
+        rec["realize_ready"] = bool(coded_clauses_pass and exit_state == "none")
+        rec["coded_clauses_pass"] = coded_clauses_pass
+        rec["realization_exit"] = {"state": exit_state, "criteria": criteria or []}
         rec["finalization_ready"] = finalization_ready
         rec["retire_on_proof_resolved"] = retire_on_proof_resolved
         rec["captures_routed"] = captures_routed                       # ADVISORY (not a realize_ready gate)
@@ -732,6 +746,15 @@ def _view_postcheck_plans_readiness(index: dict, *, AUDIT_VERDICT_CLOSURE_OK=Non
             blockers.append("retire-on-proof not terminal (done|wont-do): " + ", ".join(unresolved))
         if read_error is not None:
             blockers.append(read_error)
+        if exit_state == "declared":
+            blockers.append(f"realization-exit: {len(criteria)} owner-judged criteria line(s), no recorded "
+                            "evidence — unknown; judge each against its evidence-home before "
+                            "`plan stage realized`")
+        elif exit_state == "stub":
+            blockers.append("realization-exit: declared (an empty heading or a marker phrase), but no "
+                            "filled `## Realization-exit criteria` section to list — criteria unknown")
+        elif exit_state == "unreadable":
+            blockers.append("realization-exit: plan file unreadable — criteria unknown")
         if blockers:
             rec["blockers"] = blockers
         out[slug] = rec
@@ -7658,7 +7681,8 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
                 f"waived or unreadable rows; and, since the window's first land, "
                 f"{_rs_norows} completed land(s) recorded no layer rows and {_rs_abort} land "
                 f"attempt(s) aborted. Report-only — no gate, no threshold; printed even at 0% so a "
-                f"dead view and a working one never look alike. See `bin/yitc-v2 debt`.")
+                f"dead view and a working one never look alike. Techniques that cut verify cost, each "
+                f"with its measured effect: `patterns/verify-cost-playbook.md`. See `bin/yitc-v2 debt`.")
     # SLOWEST-TEST-FILE-CHANGES view (SPEC-0119 rule 19, T-11125): the OPTIONAL injected fold over the
     # JOURNAL — what MOVED in the recorded slowest test files (T-11124's per-file duration series)
     # between the latest land and the median of the previous window. It reports the DELTA and NEVER the

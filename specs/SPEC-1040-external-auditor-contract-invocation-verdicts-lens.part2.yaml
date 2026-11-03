@@ -146,49 +146,50 @@ body: "### Task per-stage overlays\n\n- **audit-pre (Stage 4) — plan quality:*
   \ of the `spike_content_previewed` row this audit wrote (a `--reaudit-after-close`\
   \ cites the land's `spike_content_checked` row), whole-file hits / hunk-subset verdict\
   \ / verbatim share, CITED by `events.jsonl#ts=`, never recomputed; context for judging\
-  \ the derivation, never a verdict | a card built on a spike. **Refusal (governed,\
-  \ before any auditor call, no pass counted):** `audit post` on a card with NO `prototype_ref`\
-  \ whose preview reports an IDENTITY hit (verdict identity, a T1 whole-file hit or\
-  \ T3 identity) refuses, naming the spike and `task update <id> --prototype-ref spike/<slug>`;\
-  \ a partial share is context, never a refusal (SPEC-0205 rule 6), and a card with\
-  \ no identity hit and a preview that errored proceed and are never asked to declare.\
-  \ Content refusals live at `land` (SPEC-0205 rule 2), never at the auditor | the\
-  \ card's `prototype_ref:` (SPEC-0028); on audit-pre the saved verdict also states\
-  \ which declared-identical entries its packet showed (`prototype_identical_shown:`),\
-  \ written only by a pass that invoked the auditor |\n| `--post-ship-observation`\
-  \ (X-0710) | the acceptance-probe-not-satisfied / no-observation-result / adoption-missing\
-  \ category — judge ONLY diff-drift / non-deferred AC / coherence / whether the declared\
-  \ observation actually corresponds to the AC it defers | an acceptance whose probe\
-  \ is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION (<project> : «the daily count\
-  \ is flat or falling over 7 days»): the reading cannot exist at this pre-land diff-only\
-  \ audit-post because the observation WINDOW OPENS ONLY AFTER THE SHIP. **Guard (fail-closed)\
-  \ — this is what stops it being a blanket «my proof is in the future» excuse:**\
-  \ the overlay entry AND the `task close` seam both REFUSE (emitting the EXISTING\
-  \ `read_gate_refused`) unless the CARD declares a well-formed, UNSETTLED `post_ship_observation:\
-  \ {observation, due_by}` (SPEC-0028); an already-settled declaration is refused\
-  \ too (nothing left to defer). **The deferral is TRACKED, not waived:** that same\
-  \ declaration is folded by the `overdue-recheck` debt lens (SPEC-0094 §3, extended)\
-  \ from the moment it is declared until a `settled_by` locator names where the recorded\
-  \ reading landed — time passing moves it `pending` → `overdue`, and NOTHING but\
-  \ recording it clears it | `post_ship_observation: true` + `post_ship_observation_due_by:\
-  \ <ISO date>`. **SENSITIVITY (X-1126) — the declaration also names the historical\
-  \ evidence that its predicate FIRES when the defect IS present** (the OPTIONAL `sensitivity:`\
-  \ key, rule home SPEC-0028). An observation settles by READING A PREDICATE, and\
-  \ a predicate that can never match anything reads EMPTY — indistinguishable from\
-  \ «the defect is absent» — so a vacuous predicate settles on having measured nothing.\
-  \ This overlay CONSUMES the key: declared, it NAMES the evidence to the auditor\
-  \ alongside the observation and due window, to be weighed under judgement (4) —\
-  \ does the declared observation actually correspond to the AC it defers; undeclared,\
-  \ it SAYS SO and states in the same breath that the absence is an AUTHORING PROMPT,\
-  \ **never a finding and never a RED on its own**. The prompt for the author is printed\
-  \ report-only at the declaring seam (`_require_post_ship_observation`), which refuses\
-  \ nothing new and leaves its exit code unchanged. Deliberately NO gate and NO predicate\
-  \ analyser (CHARTER non-goals #2/#7) — a DISCIPLINE, not a validator |\n| `--activation-gated-radius`\
-  \ (SPEC-0176) | the missing-up-front-touched-file-forecast / unforecast-diff category,\
-  \ **for the reconciled paths ONLY** — judge every other touched path under ORDINARY\
-  \ scope fidelity against the card's still-required `expected_touch`, and judge a\
-  \ reconciliation entry that is plainly ordinary authored work as a FINDING | a card\
-  \ whose OWN CLOSURE flips a `proposed` spec carrying a `concern:`/`init_concern:`:\
+  \ the derivation, never a verdict. A card of a plan opted in to the carry registry:\
+  \ its registry items and question, SPEC-1058 §3 | a card built on a spike. **Refusal\
+  \ (governed, before any auditor call, no pass counted):** `audit post` on a card\
+  \ with NO `prototype_ref` whose preview reports an IDENTITY hit (verdict identity,\
+  \ a T1 whole-file hit or T3 identity) refuses, naming the spike and `task update\
+  \ <id> --prototype-ref spike/<slug>`; a partial share is context, never a refusal\
+  \ (SPEC-0205 rule 6), and a card with no identity hit and a preview that errored\
+  \ proceed and are never asked to declare. Content refusals live at `land` (SPEC-0205\
+  \ rule 2), never at the auditor | the card's `prototype_ref:` (SPEC-0028); on audit-pre\
+  \ the saved verdict also states which declared-identical entries its packet showed\
+  \ (`prototype_identical_shown:`), written only by a pass that invoked the auditor\
+  \ |\n| `--post-ship-observation` (X-0710) | the acceptance-probe-not-satisfied /\
+  \ no-observation-result / adoption-missing category — judge ONLY diff-drift / non-deferred\
+  \ AC / coherence / whether the declared observation actually corresponds to the\
+  \ AC it defers | an acceptance whose probe is a MULTI-DAY POST-SHIP PRODUCTION OBSERVATION\
+  \ (<project> : «the daily count is flat or falling over 7 days»): the reading cannot\
+  \ exist at this pre-land diff-only audit-post because the observation WINDOW OPENS\
+  \ ONLY AFTER THE SHIP. **Guard (fail-closed) — this is what stops it being a blanket\
+  \ «my proof is in the future» excuse:** the overlay entry AND the `task close` seam\
+  \ both REFUSE (emitting the EXISTING `read_gate_refused`) unless the CARD declares\
+  \ a well-formed, UNSETTLED `post_ship_observation: {observation, due_by}` (SPEC-0028);\
+  \ an already-settled declaration is refused too (nothing left to defer). **The deferral\
+  \ is TRACKED, not waived:** that same declaration is folded by the `overdue-recheck`\
+  \ debt lens (SPEC-0094 §3, extended) from the moment it is declared until a `settled_by`\
+  \ locator names where the recorded reading landed — time passing moves it `pending`\
+  \ → `overdue`, and NOTHING but recording it clears it | `post_ship_observation:\
+  \ true` + `post_ship_observation_due_by: <ISO date>`. **SENSITIVITY (X-1126) — the\
+  \ declaration also names the historical evidence that its predicate FIRES when the\
+  \ defect IS present** (the OPTIONAL `sensitivity:` key, rule home SPEC-0028). An\
+  \ observation settles by READING A PREDICATE, and a predicate that can never match\
+  \ anything reads EMPTY — indistinguishable from «the defect is absent» — so a vacuous\
+  \ predicate settles on having measured nothing. This overlay CONSUMES the key: declared,\
+  \ it NAMES the evidence to the auditor alongside the observation and due window,\
+  \ to be weighed under judgement (4) — does the declared observation actually correspond\
+  \ to the AC it defers; undeclared, it SAYS SO and states in the same breath that\
+  \ the absence is an AUTHORING PROMPT, **never a finding and never a RED on its own**.\
+  \ The prompt for the author is printed report-only at the declaring seam (`_require_post_ship_observation`),\
+  \ which refuses nothing new and leaves its exit code unchanged. Deliberately NO\
+  \ gate and NO predicate analyser (CHARTER non-goals #2/#7) — a DISCIPLINE, not a\
+  \ validator |\n| `--activation-gated-radius` (SPEC-0176) | the missing-up-front-touched-file-forecast\
+  \ / unforecast-diff category, **for the reconciled paths ONLY** — judge every other\
+  \ touched path under ORDINARY scope fidelity against the card's still-required `expected_touch`,\
+  \ and judge a reconciliation entry that is plainly ordinary authored work as a FINDING\
+  \ | a card whose OWN CLOSURE flips a `proposed` spec carrying a `concern:`/`init_concern:`:\
   \ the concern registry + activation checklist are gated LIVE-ACTIVE-ONLY, so the\
   \ fixtures the activation invalidates are structurally invisible until the flip\
   \ — and the flip is performed by the very closure that follows this audit, so no\

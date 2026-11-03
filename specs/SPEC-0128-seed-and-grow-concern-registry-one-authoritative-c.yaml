@@ -307,7 +307,7 @@ implements_signature:
   bin/lib/graph.py#_active_concern_blocks: 9ac9bb5283af5f45d56cf05ad3be662581975d51fb281a59e8ff2466b36fe973
   bin/lib/graph.py#_concern_registry_entries: 8cbb5047365eb996caca26b3f4de0fe175a42858b357f098818314c73946c35e
   bin/lib/graph.py#_concern_surface_warnings: d711ad358478503cf9d3afc110906e95935fa1616fbe05f00729b8378d74d5c6
-  bin/lib/graph.py#_gated_capability_disclosure: 2be477482f63b8be8f4ab636184270a1c3cc680a61dc22adc8cc8a5cecedb48e
+  bin/lib/graph.py#_gated_capability_disclosure: 7f30d45ee8bb74ef4068b5b01db93c67790d3b12bc7f0795fd95c75b987e8896
   bin/lib/graph.py#_render_born_ops: 6d5b4eb9f4517b003de1a04a66d1c64758bd63c04348fd38ced1c7419903d3ab
   bin/lib/graph.py#_render_concern_registry: 873be6ce321e47fd8b0f28128f986a4478fa59a8fe68a727f49176b8b958886a
   bin/lib/init.py#_load_concern_registry: 64298fe68b7d31c97239caaf25aee3fa331218faa8d29e68dfeba316002bce0e

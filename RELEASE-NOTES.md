@@ -1,6 +1,6 @@
-# Release v2.26.0
+# Release v2.27.0
 
-Source commit: `1e579e8fb0c67970604423b3884530100202925f`
+Source commit: `987ee216b6fb37fc85d6e4003d5be131f1a78c5d`
 
 ## Proposals this release answers
 
@@ -110,6 +110,7 @@ answers:
   - 'yitc-dev/yitc#229'
   - 'yitc-dev/yitc#23'
   - 'yitc-dev/yitc#230'
+  - 'yitc-dev/yitc#232'
   - 'yitc-dev/yitc#24'
   - 'yitc-dev/yitc#25'
   - 'yitc-dev/yitc#26'
@@ -240,20 +241,81 @@ See `CONTRIBUTING.md` for what happens to a proposal, and `release-manifest.yaml
 
 ## Capabilities to consider
 
-No kernel spec became active since the previous release tag. No opt-in key was added to a kernel spec's carrier section either.
+1 kernel spec(s) became active since the previous release tag — capabilities this release adds. Each names where a project turns it on and how to read its contract:
+
+- SPEC-1058 — Prototype carry registry - one numbered change list carries a prototype from the sandbox to the deploy
+  turn on: not declared by the spec — read its contract for whether and how a project opts in
+  read: `yitc-v2 graph query --kernel SPEC-1058`
 
 ## What changed
 
-8 task(s) closed since the previous release tag, in close order:
+65 task(s) closed since the previous release tag, in close order:
 
-- T-14383 — Add commons cue lines (1) and (5) at Analysis, plan draft and Closure (docs) — events.jsonl#ts=2026-10-31T21:03:41Z
-- T-14398 — A broken land floor still admits a filing-only work batch, and claim-landed accepts the work land that shipped the deliverable (fix) — events.jsonl#ts=2026-10-31T23:14:01Z
-- T-14397 — from-spike hand-over is not blocked by journal-only dirt in the spike worktree (fix) — events.jsonl#ts=2026-10-31T23:26:03Z
-- T-14402 — Spike-only carve-out — the Controller may hand sandbox edits to in-session helper subagents (feature) — events.jsonl#ts=2026-10-31T23:53:49Z
-- T-14401 — The mention-review snapshot is read from where it is recorded, not only from the analysis field (fix) — events.jsonl#ts=2026-11-01T01:30:29Z
-- T-14400 — The SPEC-0205 identity preview arrives before audit-pre for a tiny by-construction edit (fix) — events.jsonl#ts=2026-11-01T03:24:45Z
-- T-14403 — A declared standing consent for kernel-defect reports to the kernel's public tracker (SPEC-1057) (feature) — events.jsonl#ts=2026-11-01T06:02:41Z
-- T-14406 — The summary window resolves on a released tree, where the release serializer escapes the SPEC-0190 token line (fix) — events.jsonl#ts=2026-11-01T06:45:27Z
+- T-14407 — land of a task branch refuses while the task card is not closed (fix) — events.jsonl#ts=2026-11-01T13:50:34Z
+- T-14409 — The plan-gate RED note says plainly that the third round needs a recorded decision per finding (fix) — events.jsonl#ts=2026-11-01T19:34:23Z
+- T-14418 — Re-point the SPEC-0195 and release.py prose pointers to the split publish-surface tests (docs) — events.jsonl#ts=2026-11-01T21:14:30Z
+- T-14419 — Render the born template's declaration-gated capabilities compactly and lower its size bound (refactor) — events.jsonl#ts=2026-11-01T21:30:32Z
+- T-14408 — A consumer's plan-stage entry delivers the kernel specs bound to that stage (fix) — events.jsonl#ts=2026-11-01T21:52:29Z
+- T-14420 — Let --settle-observation settle a shipped wont-do card that overdue-recheck counts as owed (fix) — events.jsonl#ts=2026-11-01T22:14:53Z
+- T-14421 — Refresh the inspection criteria roster against what landed since 2026-09-21 (docs) — events.jsonl#ts=2026-11-01T23:20:08Z
+- T-14423 — Restore the independent_layers risk disclosure in the born template that the compact render cut (fix) — events.jsonl#ts=2026-11-02T06:44:11Z
+- T-14425 — Keep worktree sweep from removing a work batch a live process is in (fix) — events.jsonl#ts=2026-11-02T07:00:53Z
+- T-14426 — Make the ledger label allocator count every row of its prefix, not only rows under the section heading (fix) — events.jsonl#ts=2026-11-02T07:20:40Z
+- T-14429 — Let an audit adhoc consult run read-only commands, as the inspection runbook requires (fix) — events.jsonl#ts=2026-11-02T07:44:02Z
+- T-14427 — Refresh SPEC-0161's recorded payload-key candidate set back above its 80% floor (fix) — events.jsonl#ts=2026-11-02T08:03:30Z
+- T-14422 — Each consumer verify layer's outcome row records barrier_wait_ms, how long it waited at the decide-first barrier (feature) — events.jsonl#ts=2026-11-02T08:21:10Z
+- T-14424 — Make the over-bound verbs outside hold the SPEC-0190 one-read-scope bound (fix) — events.jsonl#ts=2026-11-02T08:39:30Z
+- T-14454 — Bind an audit decide on a late finding to the row the finding sits on, not the ceiling pass (fix) — events.jsonl#ts=2026-11-02T18:03:27Z
+- T-14455 — Resolve a pinned engine release for every OS user that runs the consumer (fix) — events.jsonl#ts=2026-11-02T18:51:28Z
+- T-14449 — Let the post-GREEN merge-integration exit survive a clean admission sync merge, and route its halt row to the merge audit (fix) — events.jsonl#ts=2026-11-02T21:20:45Z
+- T-14463 — Record the person's language once at install so every fresh session starts in it (fix) — events.jsonl#ts=2026-11-02T21:53:47Z
+- T-14438 — Let worktree sweep reap a stale /dev/shm/yitc-verify entry that fails with EACCES or ENOTEMPTY (fix) — events.jsonl#ts=2026-11-02T22:17:20Z
+- T-14462 — Give the first session a next step after the first scenario and a short map of how the work goes (docs) — events.jsonl#ts=2026-11-02T22:41:31Z
+- T-14432 — Find why graph builds miss the result cache, then fix the key or retire the cache (fix) — events.jsonl#ts=2026-11-02T22:53:01Z
+- T-14430 — Align the worker preamble's ceiling route with SPEC-1039 and give sync-before-first-land a seed home (fix) — events.jsonl#ts=2026-11-02T23:13:35Z
+- T-14405 — Make audit pre, audit post, task file and work commit hold the read contract and replace their exemptions with tripwire probes (fix) — events.jsonl#ts=2026-11-02T23:43:43Z
+- T-14456 — Read a plan's prototype carry registry and check it at plan accept (feature) — events.jsonl#ts=2026-11-02T23:58:37Z
+- T-14465 — Make auditor activation a mandatory install step (at least a different model), record the person's no to a different provider, show it as a start debt, and keep asking until the person binds it or says no (fix) — events.jsonl#ts=2026-11-03T00:15:09Z
+- T-14464 — Make retiring a newcomer station say what happened, and never show a person a station they were not told (fix) — events.jsonl#ts=2026-11-03T00:40:41Z
+- T-14451 — Keep a Co-Authored-By line written outside the trailer block and add no placeholder trailer beside it (fix) — events.jsonl#ts=2026-11-03T01:04:27Z
+- T-14486 — Let each project declare what its verify box needs - check plus install - with the kernel only guiding (infra) — events.jsonl#ts=2026-11-03T01:19:59Z
+- T-14457 — Check a prototype carry's cut: one prototype, declared lines, single ownership, one verifier (feature) — events.jsonl#ts=2026-11-03T01:44:11Z
+- T-14453 — Let one deploy declare several classes and pay the evidence of each (feature) — events.jsonl#ts=2026-11-03T02:12:21Z
+- T-14452 — Print the reason a script-style own test failed in task test --own (fix) — events.jsonl#ts=2026-11-03T02:26:18Z
+- T-14466 — Make dispatch --stop --defer also stop the deferred worker's detached task test --run processes (fix) — events.jsonl#ts=2026-11-03T04:08:06Z
+- T-14467 — Keep the seed_read receipt in a work worktree after a long external-auditor run when no compaction happened (fix) — events.jsonl#ts=2026-11-03T04:23:06Z
+- T-14460 — Keep the org page's start and cost text in step with the repo at every release, and soften the cost wording (fix) — events.jsonl#ts=2026-11-03T04:37:33Z
+- T-14458 — Give a carry card its registry items at audit pre and check its shipped change both ways at audit post (feature) — events.jsonl#ts=2026-11-03T05:01:38Z
+- T-14469 — Stop the land-preview host-leak check flagging a dirty graph/index.json as a leak (fix) — events.jsonl#ts=2026-11-03T05:19:58Z
+- T-14447 — Make cross pick require the SPEC-1010 triage class, or a named exception, and record it on cross_picked (feature) — events.jsonl#ts=2026-11-03T05:35:10Z
+- T-14468 — Keep a machine-authored audit prompt out of owner_directive rows (fix) — events.jsonl#ts=2026-11-03T05:51:45Z
+- T-14481 — Deliver the spike-or-acceptance sandbox mode choice at the moment the person asks for a sandbox, before any stack comes up (fix) — events.jsonl#ts=2026-11-03T06:08:50Z
+- T-14435 — Split SPEC-0152 below the one-read ceiling at its rule seams (docs) — events.jsonl#ts=2026-11-03T06:36:43Z
+- T-14448 — Move the pre-deploy class units list out of yitc-ops.yaml into a generated sibling file (refactor) — events.jsonl#ts=2026-11-03T07:10:44Z
+- T-14489 — Keep the stage6_run mark when the worker enters Closure while its own Stage-6 run is still in flight (fix) — events.jsonl#ts=2026-11-03T07:33:18Z
+- T-14485 — End a queue waiter on SIGTERM by unlinking its own ticket without taking the queue lock (fix) — events.jsonl#ts=2026-11-03T07:47:08Z
+- T-14494 — Make main green again - restate the always-run share in _selection_analyse's docstring and stop it drifting with suite growth (fix) — events.jsonl#ts=2026-11-03T07:58:38Z
+- T-14493 — Make a timed-out verify run record which tests passed, failed and were running when it was killed (fix) — events.jsonl#ts=2026-11-03T08:11:00Z
+- T-14470 — Make a scheduled pre-deploy run's verdict agree with its class rows (fix) — events.jsonl#ts=2026-11-03T08:50:29Z
+- T-14491 — Extend the observation-versus-hypothesis discipline to owner-facing reports with one cue in the Controller register rule (docs) — events.jsonl#ts=2026-11-03T09:11:33Z
+- T-14482 — Make in-session helpers the default way to edit in a spike sandbox, and name the carve-out where the helper ban is stated (fix) — events.jsonl#ts=2026-11-03T09:24:46Z
+- T-14437 — Find and cut the footprint_check and ff_cleanup growth in a credited land (fix) — events.jsonl#ts=2026-11-03T09:54:35Z
+- T-14492 — Make every consumer verify layer, of any runner type, report a red land per test so the kernel can tell whose failure it is (infra) — events.jsonl#ts=2026-11-03T10:37:14Z
+- T-14474 — Make triage run --complete --event-only name every carrier-held fingerprint in one refusal (fix) — events.jsonl#ts=2026-11-03T10:51:19Z
+- T-14459 — Publish the prototype carry registry runbook, place SPEC-1058 in the kernel and activate it (docs) — events.jsonl#ts=2026-11-03T11:03:19Z
+- T-14475 — Make triage sweep --dry-run count exactly what the real run archives (fix) — events.jsonl#ts=2026-11-03T11:34:15Z
+- T-14476 — Keep a probe moment from reading due on an unrelated row of a generic event type (fix) — events.jsonl#ts=2026-11-03T11:47:53Z
+- T-14472 — Make affected-test selection include the tests it missed for patterns/inspection-criteria-roster.md and for a bin/lib git-launch edit (fix) — events.jsonl#ts=2026-11-03T12:17:22Z
+- T-14473 — Make task close on a done card apply the --reverify its own cue names, or refuse naming why (fix) — events.jsonl#ts=2026-11-03T12:34:12Z
+- T-14477 — Make the postcheck-plans-readiness view read each plan's Realization-exit criteria before saying realize_ready (fix) — events.jsonl#ts=2026-11-03T12:49:38Z
+- T-14479 — Resolve a cross note's peer-journal locator against the peer's journal (fix) — events.jsonl#ts=2026-11-03T13:16:37Z
+- T-14490 — Keep person-facing prose in the person's language after a compaction - one cue in the restoration brief's plain line, and the rule names interim lines (fix) — events.jsonl#ts=2026-11-03T13:33:53Z
+- T-14436 — Split patterns/background-session-dispatch.md at a coherent seam below the byte ceiling (docs) — events.jsonl#ts=2026-11-03T13:48:42Z
+- T-14440 — Put the SPEC-1043 S1 carrier choice and the verify-cost playbook where they are used (docs) — events.jsonl#ts=2026-11-03T14:02:12Z
+- T-14480 — Give.yitc/ a retention rule - it grew 6.4 to 21 GB in 39 days with no governing trigger (infra) — events.jsonl#ts=2026-11-03T14:15:58Z
+- T-14441 — Add the in-flight-start worked example to SPEC-1021 - a first-N-after-land probe counts runs that started before the land (docs) — events.jsonl#ts=2026-11-03T14:28:17Z
+- T-14478 — Make the auditor primary breaker hold for task audits and across checkouts (fix) — events.jsonl#ts=2026-11-03T14:41:32Z
+- T-14483 — Release a run-queue green hold only when its holder is gone or stalled, and let a change with no code skip the full run (fix) — events.jsonl#ts=2026-11-03T15:14:02Z
 
 ## Trust surfaces
 

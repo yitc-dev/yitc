@@ -294,6 +294,23 @@ def _classify_deploy_gate(policy, deploy_class, owner_approved) -> _GateDecision
                          f"re-check are NOT executed by this verb — they stay operator-owned.")
 
 
+# The order a mixed deploy reads its classes in: the first is the DOMINANT class (SPEC-0097 §13).
+_DEPLOY_CLASS_ORDER = (HOST_CONFIG_CLASS, "C2", "C1", "S", "A")
+
+
+def _deploy_class_list(value) -> list:
+    """PURE — the classes `--class` named, in order, each once. None -> [], one class as a string -> [it]."""
+    named = [value] if isinstance(value, str) else (value or [])
+    return list(dict.fromkeys(named))
+
+
+def _classify_deploy_classes(policy, value, owner_approved) -> list:
+    """PURE — every named class passes its own `_classify_deploy_gate` (SPEC-0097 §13). Returns the
+    decisions, dominant class first; no class named -> the one decision for None, as a single call."""
+    named = sorted(_deploy_class_list(value), key=_DEPLOY_CLASS_ORDER.index)
+    return [_classify_deploy_gate(policy, c, owner_approved) for c in (named or [None])]
+
+
 def _expected_revision_precondition(raw) -> "tuple[str | None, str | None]":
     """PURE — read the `--expect-revision` value (T-13874, SPEC-0094 §6). Returns `(sha, None)` for a
     usable value, `(None, None)` when the flag was not given, `(None, why)` for a value that is refused.
@@ -3022,7 +3039,19 @@ def _pre_deploy_kernel_units(result, outcomes, listed) -> dict:
                       **({"duration_ms": ms} if isinstance(ms, int) and not isinstance(ms, bool) else {})})
     record = {"units": units, "pre_deploy": {"reason": "pre-deploy-run", "units": [
         {"file": f, "class": c} for f, c in sorted(listed.items())]}}
-    return {**res, "layers": [{**r, "adapter": record} if r is bare[0] else r for r in rows]}
+    out = {**res, "layers": [{**r, "adapter": record} if r is bare[0] else r for r in rows]}
+    # T-14470 (SPEC-1051 rule 3): a row that ended `passed` while the export names a file failed was
+    # cleared by the kernel runner's own isolated re-run — the only path that clears a failure (its
+    # isolated attempts record nothing in the export, which keeps the pool's first word). Such a file
+    # is a rescued unit: recorded as one, so the reading counts it passed and names it among the rescued.
+    saved = [u["file"] for u in units if u["status"] == "failed"] if bare[0].get("outcome") == "passed" else []
+    if saved:
+        retry = dict(res["flaky_retry"]) if isinstance(res.get("flaky_retry"), dict) else {}
+        retry["rows"] = [*(retry.get("rows") if isinstance(retry.get("rows"), list) else ()),
+                         *({"layer": bare[0].get("layer"), "unit": f, "rescued": True,
+                            "kernel_runner_isolated": True} for f in saved)]
+        out["flaky_retry"] = retry
+    return out
 
 
 def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
@@ -3033,7 +3062,8 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
        unattributed?}}}
 
     `run_outcome` is the land's own verdict: `passed` only when the runner ran its declared layers
-    (`mode: layers`) and returned no `bad` line — a layer's verdict as a land reads it, after the
+    (`mode: layers`), returned no `bad` line and no class owns a unit recorded not passed (T-14470:
+    one verdict for the run and its class rows; such a class adds a `bad` line naming it) — a layer's verdict as a land reads it, after the
     land's per-unit rescue, never a raw unit status. `failing` names every unit of every layer that
     FAILED (any outcome but `passed` / `passed-partial` and the land's non-failing `waived` /
     `skipped-disjoint-subject` / `credited-stage6-run`) — `{layer, file, project?}` for each unit
@@ -3083,7 +3113,11 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
         return {"layer": layer, "file": u.get("file"), **({"project": u["project"]} if u.get("project") else {})}
 
     failing: list = []
-    classes = {c: {"layers": [], "units": 0, "ok": True, "unattributed": []} for c in guarding}
+    classes = {c: {"layers": [], "units": 0, "ok": True, "unattributed": [], "down": []} for c in guarding}
+
+    def _down(layer, us):       # T-14470: own units whose RECORDED result is not a pass, after every rescue
+        return [_name(layer, u) for u in us if isinstance(u.get("status"), str)
+                and u["status"] not in ("skipped", "missing") and not _ok(layer, u)]
     for row in rows:
         layer = row.get("layer")
         adapter = row.get("adapter") if isinstance(row.get("adapter"), dict) else {}
@@ -3101,6 +3135,7 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
                                   **({"adapter": {"units": units}} if units else {})})
             got["units"] += max(1, len(units))
             got["ok"] = got["ok"] and passed and all(_ok(layer, u) for u in units)
+            got["down"] += _down(layer, units)
             continue
         pd = adapter.get("pre_deploy")
         if not isinstance(pd, dict):
@@ -3121,6 +3156,17 @@ def _pre_deploy_run_reading(result, guarding, whole_layers) -> dict:
             got["layers"].append({"layer": layer, "outcome": row.get("outcome"), "adapter": {"units": own}})
             got["units"] += len(own)
             got["ok"] = got["ok"] and all(_ok(layer, u) for u in own)
+            got["down"] += _down(layer, own)
+    # T-14470 — ONE verdict: a class that owns a unit whose RECORDED result is not a pass (failed, error —
+    # after every rescue) makes the run fail, so a run is never recorded `passed` beside a class row that
+    # records a failed unit of its own. A class failing only because something of it shows NO result
+    # (a unit skipped or missing, no own unit, a layer whose membership could not be read, which still
+    # ran whole) keeps the run as the layers read it: an absence is not a failure, and its row says why.
+    for c, got in classes.items():
+        if got["down"]:
+            bad.append(f"class {c} reads fail on its own units: "
+                       + ", ".join(f"{d['layer']} :: {d['file']}" for d in got["down"])
+                       + " did not pass — the run cannot pass beside it")
     run_passed = res.get("mode") == "layers" and not bad
     return {"run_outcome": "passed" if run_passed else "failed", "failing": failing, "rescued": rescued,
             "bad": bad,
@@ -4323,7 +4369,7 @@ def release_order_targets(args, *, REPO_ROOT) -> list:
             refuse(f"release-order target `{n}`: {t.error}")
         out.append((n, t.production))
     if getattr(args, "deploy_class", None) and not any(p is not False for _n, p in out):
-        refuse(f"`--class {args.deploy_class}` was given but no target of the order is a production target, "
+        refuse(f"`--class {' '.join(_deploy_class_list(args.deploy_class))}` was given but no target of the order is a production target, "
                f"so no target would read it")
     return out
 
@@ -4504,7 +4550,11 @@ def _scheduled_run_contract(candidate, *, REPO_ROOT, _run_git_cap, tmp) -> dict:
     path = Path(tmp) / CONSUMER_OPS_CONTRACT
     path.write_text(shown.stdout or "", encoding="utf-8")
     try:
-        ops = state.load_ops(path)
+        def _blob(name):                                   # T-14448: the candidate's OWN sibling
+            got = _run_git_cap(["show", f"{candidate}:{name}"], REPO_ROOT)
+            return got.stdout if got.returncode == 0 else None
+
+        ops = state.materialize_ops_units(state.load_ops_str(path.read_text(encoding="utf-8")), _blob)
     except Exception as exc:  # noqa: BLE001 — a carrier that cannot be read refuses, never reads as «no class»
         return {"ops": None, "classes": None, "refused": [], "error": f"{exc!r}"[:300]}
     verdict = land_verify_legs._pre_deploy_contract_verdict(ops)
@@ -5367,7 +5417,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
     # «worse than no record». Refusing the combination is what makes §12's answer EXPLICIT rather than
     # inherited: there is no way to assert a production class for a non-production target.
     if dtarget.production is False and getattr(args, "deploy_class", None):
-        print(f"deploy: REFUSED — `--class {args.deploy_class}` is not accepted with the "
+        print(f"deploy: REFUSED — `--class {' '.join(_deploy_class_list(args.deploy_class))}` is not accepted with the "
               f"non-production target `{dtarget.name}` (`targets.{dtarget.name}.production: false`). "
               f"The A/S/C1/C2 classes measure a PRODUCTION worst case (SPEC-0097 §1/§5); a "
               f"non-production deploy carries NO class, and its record says so "
@@ -5495,6 +5545,21 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                   f"{('branch ' + branch) if branch else 'a detached HEAD'}. The un-landed-RUNTIME-SOURCE "
                   f"half of §6 still refuses, as do the security-audit and convergence gates. The record "
                   f"carries `build_source` + the target's declared stance.")
+            # T-14481 (<project> X-2194) — name the MODE this non-production deploy runs in. Built from the
+            # landed `main` line it is an ACCEPTANCE stand (SPEC-0205 rule 7, patterns/spike-mode.md §Two
+            # modes): say so, and point at the spike route for a person who wanted to change or plan. Off
+            # the main line no mode is claimed. Advisory: computed under its own try, printing nothing on
+            # failure, touching neither the exit code nor the record — the same predicate B1 below reads.
+            try:
+                if not bad_source and not _build_source_violation(
+                        branch, (), _is_ignorable_dirt=_is_ignorable_dirt, require_main_line=True):
+                    print(f"deploy: MODE — ACCEPTANCE: this deploy builds landed `main` for target "
+                          f"`{dtarget.name}` (production: false); nothing it serves is editable. To change or "
+                          f"prototype instead, open a "
+                          f"declared SPIKE (`worktree new --work <slug> --spike`; patterns/spike-mode.md "
+                          f"§Two modes, SPEC-0205).")
+            except Exception:  # noqa: BLE001 — an advisory line never changes the deploy
+                pass
         if bad_source:
             print(f"deploy: REFUSED — unsafe build source (SPEC-0094 §6): {bad_source}. "
                   f"No deploy_completed emitted.", file=sys.stderr)
@@ -5556,9 +5621,13 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                   f"window) do not apply and are SKIPPED (SPEC-0097 §12). The build-source, "
                   f"security-audit and convergence gates still apply, unchanged.")
         else:
-            gate = _classify_deploy_gate(section.get("policy"),
-                                         getattr(args, "deploy_class", None),
-                                         bool(getattr(args, "owner_approved", False)))
+            # SPEC-0097 §13 — every named class passes its own gate before any side effect; one refusal
+            # refuses the deploy. `gate` is that refusal, else the dominant class.
+            gates = _classify_deploy_classes(section.get("policy"),
+                                             getattr(args, "deploy_class", None),
+                                             bool(getattr(args, "owner_approved", False)))
+            gate = next((g for g in gates if not g.proceed), gates[0])
+            by_class = {g.deploy_class: g for g in gates}
             if not gate.proceed:
                 print(f"deploy: GATE refused (class={gate.deploy_class}) — {gate.message}", file=sys.stderr)
                 # Surface the SELECTED concrete per-project risk to the owner (SPEC-0097 §2 "escalate with the
@@ -5571,7 +5640,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                     print(f"deploy:   concrete RTO/RPO risk (deploy.policy.classes.{gate.deploy_class}): {risk}",
                           file=sys.stderr)
                 sys.exit(3)
-            print(f"deploy: gate {gate.mode} (class={gate.deploy_class}) — {gate.message}")
+            for one in gates:
+                print(f"deploy: gate {one.mode} (class={one.deploy_class}) — {one.message}")
 
             # SPEC-0149 §1 — RESOLVE the proof-obligation window at the ONE boundary, BEFORE any side
             # effect (no dump, no probe, no deploy command has run yet). A DECLARED-BUT-MALFORMED window
@@ -5580,8 +5650,11 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # malformation: it simply owes nothing, and the deploy proceeds exactly as before this spec
             # (the reader owns that distinction, not the parser —
             # `lessons/fail-closed-belongs-to-the-reader-not-the-parser.md`).
-            recheck_seconds, recheck_raw, recheck_error = _recheck_window(section.get("policy"),
-                                                                          gate.evidence)
+            # A mixed deploy owes its tightest declared window (SPEC-0097 §13).
+            windows = [_recheck_window(section.get("policy"), one.evidence) for one in gates]
+            recheck_error = next((w[2] for w in windows if w[2]), None)
+            recheck_seconds, recheck_raw, _ = min((w for w in windows if w[0]), key=lambda w: w[0],
+                                                  default=windows[0])
             if recheck_error:
                 print(f"deploy: REFUSED — the declared post-deploy proof obligation is unreadable: "
                       f"{recheck_error} (SPEC-0149 §1). A corrupt obligation declaration must refuse, "
@@ -5597,7 +5670,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # operator to confirm the command APPLIES the migrations. It is ADVISORY ONLY — it does NOT
             # sys.exit, does NOT alter gate.proceed, and does NOT change the exit code (owner-approved SOFT
             # warn, NO hard gate). Rollback is never classified (never reaches this deploy-only block).
-            if gate.deploy_class == "C1":
+            c1_gate = by_class.get("C1")
+            if c1_gate is not None:
                 print("deploy: WARN — Class C1 (expand/contract migration): confirm this deploy command "
                       "APPLIES the DB migrations (e.g. `alembic upgrade head` / `python manage.py migrate`) — "
                       "shipping schema-dependent code without applying its migrations will break prod "
@@ -5622,8 +5696,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                 # block, refuse" when autonomous, "no autonomy stance declared, nothing to back up" when
                 # pre-policy — so the READER that knows the mode owns that judgement, not the shared
                 # precondition (lessons/fail-closed-belongs-to-the-reader-not-the-parser.md).
-                if gate.mode == "autonomous":
-                    backup = _backup_precondition(gate.evidence)
+                if c1_gate.mode == "autonomous":
+                    backup = _backup_precondition(c1_gate.evidence)
                     if backup.error:
                         print(f"deploy: REFUSED — a Class-C1 deploy needs a runnable pre-deploy backup, but "
                               f"{backup.error} (SPEC-0097 §4). Declare it under `deploy.policy.classes.C1`, or "
@@ -5631,7 +5705,8 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                               file=sys.stderr)
                         sys.exit(3)
                     _run_c1_backup(backup, revision=revision, project=project, REPO_ROOT=REPO_ROOT,
-                                   deploy_env=deploy_env, _append_event=_append_event)
+                                   deploy_env=deploy_env, _append_event=_append_event,
+                                   owner_approved_c2=gate.mode == "owner-approved")
 
             # The SAME dump on the OWNER-APPROVED Class-C2 path (SPEC-0097 §5, T-13514 / X-1856). Until
             # now this branch selected `classes.C2` and ran nothing: the destructive class proceeded
@@ -5645,7 +5720,9 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # C2 on a carrier that declared `classes:`. A pre-policy / waived carrier given the same flags
             # is `pre-policy` and proceeds exactly as before, no dump demanded (§8/§9, T-10284); C2
             # without --owner-approved was already refused at the gate above.
-            if gate.mode == "owner-approved":
+            #
+            # Beside a Class C1 the C1 branch above already ran this one dump (SPEC-0097 §13).
+            if gate.mode == "owner-approved" and c1_gate is None:
                 backup = _owner_approved_backup(section.get("policy").get("classes"))
                 if backup is None:
                     print("deploy: Class C2 (owner-approved) — NO pre-deploy backup is taken: this "
@@ -5678,8 +5755,9 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             # branch above once keyed on the class alone and so refused a pre-policy `--class C1` — the §9
             # divergence this branch deliberately did not reproduce; T-10284 closed it, and both evidence-
             # execution branches now carry the same mode guard.)
-            if gate.mode == "autonomous" and gate.deploy_class == "S":
-                probe = _security_probe_precondition(gate.evidence)
+            s_gate = by_class.get("S")
+            if s_gate is not None and s_gate.mode == "autonomous":
+                probe = _security_probe_precondition(s_gate.evidence)
                 if probe.unprobeable:
                     print(f"deploy: REFUSED — Class S, but the declared security property is NOT assertable "
                           f"by a read-only probe: {probe.unprobeable}. SPEC-0097 §2 routes an un-probeable "
@@ -5699,7 +5777,7 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
                 # below never runs.
                 down_surface = _run_class_s_security_probe(
                     probe, revision=revision, project=project, REPO_ROOT=REPO_ROOT, deploy_env=deploy_env,
-                    _append_event=_append_event, evidence=gate.evidence, ops=ops, _iter_events=_iter_events)
+                    _append_event=_append_event, evidence=s_gate.evidence, ops=ops, _iter_events=_iter_events)
 
         # SPEC-0155 rule 1 — the DEPLOY-SEAM SECURITY-PRODUCER RUN + the pre-deploy gate. Runs the
         # project's DECLARED `security.audit.runner` (SPEC-0145 §6) at the seam so the gate judges a
@@ -6166,6 +6244,11 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
             "production": dtarget.production,
             "deploy_class": (gate.deploy_class if kind == "deploy" and gate is not None else None),
         }
+
+    # SPEC-0097 §13 — every class of a mixed deploy, dominant first. Absent on a one-class deploy, so
+    # that record's shape does not move; `target.deploy_class` stays the dominant class.
+    if kind == "deploy" and gate is not None and len(gates) > 1:
+        payload["deploy_classes"] = [g.deploy_class for g in gates]
 
     # T-14105 / SPEC-1042 rule 4 — the pre-deploy run this gated deploy ran (absent on every other).
     if pre_deploy_run_ref is not None:

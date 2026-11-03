@@ -3878,6 +3878,52 @@ def _bounded_output_tail(entries: list, *, max_entries: int = 20) -> dict:
     return out
 
 
+_TIMEOUT_KILL_NAMES_MAX = 50
+
+
+def _timeout_kill_snapshot(file_durations: list, discovered: list, failures: list,
+                           timeout_marker: str) -> dict:
+    """T-14493 — what a run that was KILLED on a per-file timeout knew at the kill, for the abort
+    row. PURE: lists in, one bounded dict out; nothing is read, written or journaled.
+
+    It reads only what the runner already holds — `file_durations` ([(name, ms, outcome)], one row
+    per started execution, in order), `discovered` (every file the run enumerated) and the RETURNED
+    `failures` (the final verdicts, after any isolated retry cleared a file) — so it adds no read.
+      * `timed_out`       — files whose FINAL failure carries the timeout marker (killed on their bound);
+      * `running_at_kill` — those plus every file whose last execution was `killed-fail-fast`: they
+                            were running when the run was stopped;
+      * `failed`          — files whose FINAL failure is not a timeout (they ran to their own exit);
+      * `passed`          — files whose last execution passed and that are not in `failed`;
+      * `not_reached`     — discovered files that never started.
+    The last execution of a file decides (a pool + resume run records it twice). Each name list is
+    capped at `_TIMEOUT_KILL_NAMES_MAX`; the `*_count` keys stay exact, so the row stays bounded and
+    a reader is told how many were cut."""
+    marker = str(timeout_marker or "")
+    last: dict = {}
+    for row in file_durations or []:
+        if isinstance(row, (list, tuple)) and len(row) >= 3:
+            last[str(row[0])] = str(row[2])
+    timed, failed = [], []
+    for f in failures or []:
+        head = str(f).splitlines()[0].strip() if str(f).strip() else ""
+        if not head.startswith("test failed: "):
+            continue
+        name = head[len("test failed: "):].strip()
+        dst = timed if (marker and marker in str(f)) else failed
+        if name and name not in dst:
+            dst.append(name)
+    running = list(timed) + [n for n, o in last.items()
+                             if o == "killed-fail-fast" and n not in timed and n not in failed]
+    passed = [n for n, o in last.items() if o == "passed" and n not in failed and n not in timed]
+    not_reached = [str(n) for n in (discovered or []) if str(n) not in last]
+    cap = _TIMEOUT_KILL_NAMES_MAX
+    return {"timed_out": sorted(timed)[:cap], "timed_out_count": len(timed),
+            "running_at_kill": sorted(running)[:cap],
+            "running_at_kill_count": len(running), "failed": sorted(failed)[:cap],
+            "failed_count": len(failed), "passed": sorted(passed)[:cap], "passed_count": len(passed),
+            "not_reached": sorted(not_reached)[:cap], "not_reached_count": len(not_reached)}
+
+
 def _leg_failed_output_tail(result: dict) -> dict:
     """T-12447 — every leg's `venue_failed_output_tail` folded into ONE `{file: [lines]}` map.
 

@@ -18,6 +18,10 @@ NONE had its soak runs recorded/cited — so a naive realize would FALSELY final
 spec corpus) on an unmet criterion: the exact "shipped/closed-but-not-adopted" class V2 guards
 (CHARTER §P3/§P8).
 
+**Since ** the view no longer says `realize_ready: true` for a plan that declares
+realization-exit criteria: it lists them under `realization_exit` and keeps the two coded gates as
+`coded_clauses_pass`. The judgement below is still yours — the view lists, it never judges.
+
 ## Solution
 
 1. **`realize_ready: true` is NECESSARY, NOT SUFFICIENT.** Treat it as "the coded gates don't object",

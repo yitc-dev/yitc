@@ -983,6 +983,32 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                      "currency_count": len(currency_index),
                      "residual_fingerprints": decidable})
 
+        # (iv-b) T-14454 (<project> X-2175) — A LATE FINDING BINDS TO THE ROW IT SITS ON. Closure counts
+        # a late finding decided only at the ref of its OWN row (rule 8, `undecided_late_findings`),
+        # and the ladder below refuses any other ref; binding it at the ceiling ref therefore made a
+        # late finding on an earlier pass undecidable. `late_refs` is the closure's own derivation,
+        # read ONCE here and handed to the ladder. Of the finding's refs, the lowest pass not yet
+        # carrying a decision for it is bound, so a finding late on two rows is decided once per row;
+        # with every ref decided the first is bound and the duplicate refusal (ix) names it. Not
+        # rebound: a residual or currency finding of the ceiling row (it is the ceiling's to decide), a
+        # `fix` (verified only on the ONE rule-3 pass, which reads the ceiling ref alone — SPEC-1039
+        # rule 8, so it keeps the refusal below) and a plan target.
+        late_refs = (None if is_plan else late_finding_refs_by_fp(
+            rows, tid, stage, repo_root=[REPO_ROOT],
+            record_passes={stage: explicit_record_passes(local_record)}))
+        if (late_refs and finding_fp in late_index and finding_fp not in residual_keys
+                and finding_fp not in currency_index and disposition.lower() != "fix"):
+            def _pass_no(_ref):
+                _tail = str(_ref).rsplit("pass-", 1)[-1]
+                return int(_tail) if _tail.isdigit() else 0
+            _own = sorted((r for r in (late_refs.get(finding_fp) or ()) if r), key=_pass_no)
+            _taken = {(p.get("data") or {}).get("ceiling_ref") for p in view["decisions"]
+                      if isinstance(p.get("data"), dict)
+                      and p["data"].get("finding_fingerprint") == finding_fp
+                      and decision_names_subject(p["data"])}
+            if _own:
+                ceiling_ref = next((r for r in _own if r not in _taken), _own[0])
+
         # (v) A LATE FINDING ON THE RULE-3 PASS ADMITS accept/defer ONLY. Rule 8: «a `fix` of a late
         # finding is verified only on the ONE rule-3 pass» — one recorded ON that pass has no later pass
         # to be verified in, so a `fix` there would be a promise nothing can check.
@@ -1385,10 +1411,9 @@ def cmd_audit_decide(args, *, DECISIONS_DIR, EVENTS_PATH, REPO_ROOT, TASK_ID_RE,
                     strict_descendant=(lambda a, b: _git_strict_descendant(a, b, repo_root=REPO_ROOT)),
                     resolve_revision=_res,
                     # T-13471 — the SAME record read axis (ii) bound `ceiling_ref` from, so the ref
-                    # this verb binds and the ref closure requires come from one value.
-                    late_refs=late_finding_refs_by_fp(
-                        rows, tid, stage, repo_root=[REPO_ROOT],
-                        record_passes={stage: explicit_record_passes(local_record)}),
+                    # this verb binds and the ref closure requires come from one value; T-14454 —
+                    # the one read (iv-b) took to bind it.
+                    late_refs=late_refs,
                     subject_refusal=_subject_refusal, ship_of_record_only=_ship_reader,
                     sync_merges=(worktree_sync_merges(rows, tid, resolve=_git_resolve_sha)
                                  if stage == "post" else None))[1]
@@ -1652,6 +1677,14 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     them before G1/G3, and the evidence names them `trailing`. No predicate, an authored commit, or a
     merge keeps the `head_not_a_merge` refusal.
 
+    T-14449 — the walk-back also crosses CLEAN GOVERNED SYNC MERGES after M (the Stage-6 admission
+    sync): a two-parent commit no `merge_resolved_by_hand` row names, recorded by a non-noop
+    `worktree_synced` row of the card whose head_after / head_before / main_sha are that merge and its
+    parents, and whose tree differs from `git merge-tree` of its parents only on that row's `resolved`
+    paths. G6 then needs a `tests_passed` row after the newest such row too; the evidence names them
+    `synced` and the subject is the newest one (`merge_integration_subject`). A hand-resolved second
+    merge, or any merge the rows do not account for, keeps the refusal it had.
+
     T-14375 — ONE further prior state for G1, asked only when the caller passes `red_fix_ok` (the
     ordinary leg BELOW the ceiling): the latest real verdict is RED and the custody commit A is this
     card's `task commit --fix-red` commit — a `commit_landed` row of the card marked `red_fix`, naming
@@ -1739,22 +1772,63 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     # T-14330 — HEAD may sit on record-only NON-merge commits written AFTER the merge (the journal dedup
     # commit `worktree sync --resolved` folds on top of it, T-14101): walk back across them with the same
     # predicate, bounded and fail-closed; the commit the walk stops on stands in for HEAD below.
-    trailing = []
-    if callable(transparent):
-        cur = _r(head_sha)
-        while cur and len(trailing) < _MI_CROSS_MAX:
-            cl = _g(["rev-list", "--parents", "-n", "1", cur])
-            cp = cl[1].split() if cl is not None and cl[0] == 0 else []
-            try:
-                ok = len(cp) == 2 and transparent(cur, tid) is True
-            except Exception:      # noqa: BLE001 — an unverifiable crossing is not granted
-                ok = False
-            if not ok:
+    # T-14449 — the same walk also crosses CLEAN GOVERNED SYNC MERGES after M (the Stage-6 admission
+    # sync `worktree sync --task` makes whenever main moved during the queue wait): a two-parent commit
+    # that no `merge_resolved_by_hand` row names, recorded by a `worktree_synced` row of this card whose
+    # head_after/head_before/main_sha are the merge and its two parents, and whose tree differs from
+    # `git merge-tree` of those parents only on the paths that row says the verb resolved itself. The
+    # subject then stays the WHOLE HEAD; a hand-resolved second merge is never crossed.
+    trailing, synced, synced_rows = [], [], []
+
+    def _clean_sync_row(c, p1, p2):
+        for r in rows or ():
+            if (isinstance(r, dict) and r.get("type") == "merge_resolved_by_hand"
+                    and str(r.get("task_id") or "") == str(tid) and _r(_d(r).get("merge_commit")) == c):
+                return None
+        row = None
+        for r in rows or ():
+            d = _d(r)
+            if (isinstance(r, dict) and r.get("type") == "worktree_synced"
+                    and str(r.get("task_id") or "") == str(tid) and d.get("noop") is False
+                    and _r(d.get("head_after")) == c and _r(d.get("head_before")) == p1
+                    and _r(d.get("main_sha")) == p2):
+                row = r
+        if row is None:
+            return None
+        mt = _g(["merge-tree", "--write-tree", "--name-only", "-z", p1, p2])
+        tree = mt[1].split("\0")[0].strip() if mt is not None and mt[0] in (0, 1) else ""
+        if not tree:
+            return None
+        df = _g(["diff", "--name-only", "--no-renames", "-z", tree, c])
+        if df is None or df[0] != 0:
+            return None
+        allowed = {str(p) for p in (_d(row).get("resolved") or ()) if str(p or "").strip()}
+        if any(p not in allowed for p in df[1].split("\0") if p):
+            return None
+        return row
+
+    cur = _r(head_sha)
+    while cur and len(trailing) + len(synced) < _MI_CROSS_MAX:
+        cl = _g(["rev-list", "--parents", "-n", "1", cur])
+        cp = cl[1].split() if cl is not None and cl[0] == 0 else []
+        if len(cp) == 3:
+            srow = _clean_sync_row(cur, cp[1], cp[2])
+            if srow is None:
                 break
-            trailing.append(cur)
+            synced.append(cur)
+            synced_rows.append(srow)
             cur = cp[1]
-        if trailing:
-            head_sha = cur
+            continue
+        try:
+            ok = callable(transparent) and len(cp) == 2 and transparent(cur, tid) is True
+        except Exception:      # noqa: BLE001 — an unverifiable crossing is not granted
+            ok = False
+        if not ok:
+            break
+        trailing.append(cur)
+        cur = cp[1]
+    if (trailing or synced) and cur:
+        head_sha = cur
     # G1 — the latest real verdict is GREEN at A.
     a_sha = _r(custody_sha)
     if not a_sha:
@@ -1907,9 +1981,11 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     m_paths = sorted(outside)
     # G6 — Stage-6 proof postdates the sync.
     sync_ts = str(sync.get("ts") or "")
+    # T-14449 — and postdates the NEWEST crossed clean sync merge, so the run tested the audited HEAD
+    last_ts = max([sync_ts] + [str(r.get("ts") or "") for r in synced_rows])
     if not sync_ts or not any(isinstance(r, dict) and r.get("type") == "tests_passed"
                               and str(r.get("task_id") or "") == str(tid)
-                              and str(r.get("ts") or "") > sync_ts for r in rows or ()):
+                              and str(r.get("ts") or "") > last_ts for r in rows or ()):
         return None, (f"stage6_evidence_predates_merge: no `tests_passed` row of {tid} postdates the sync "
                       f"({sync_ts or 'no ts'}) — run `task test --run --evidence` at the merge first")
     # LITERAL pathspecs: a conflict path is a recorded file NAME, never pathspec magic (a file named
@@ -1949,7 +2025,16 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         ev["crossed"] = crossed
     if trailing:
         ev["trailing"] = trailing
+    if synced:
+        ev["synced"] = synced
     return ev, None
+
+
+def merge_integration_subject(evidence) -> "str | None":
+    """T-14449 — the commit an admitted merge-integration pass audits: the newest crossed clean sync
+    merge (the WHOLE HEAD), else the re-sign commit, else the merge M. Pure; never raises."""
+    ev = evidence if isinstance(evidence, dict) else {}
+    return ((ev.get("synced") or [None])[0] or ev.get("resign_commit") or ev.get("merge_commit"))
 
 
 def merge_integration_context(evidence, *, below_ceiling=False) -> str:
@@ -1975,7 +2060,9 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
            if ev.get("crossed") else "")
         + (f", followed by record-only commit(s) {', '.join(ev.get('trailing'))} (T-14330)"
            if ev.get("trailing") else "")
-        + f". The subject is the WHOLE merged HEAD {ev.get('merge_commit')}. "
+        + (f", then clean governed `worktree sync` merge(s) with main {', '.join(ev.get('synced'))} "
+           f"that no hand resolution touched (T-14449)" if ev.get("synced") else "")
+        + f". The subject is the WHOLE merged HEAD {merge_integration_subject(ev)}. "
         "Judge whether the merged result still meets the card's acceptance, with particular attention "
         "to the hand-resolved conflict paths below — every other path is byte-identical to git's "
         f"mechanical merge. {bound}\n\n"
@@ -2280,7 +2367,15 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
                         f"invoked and no pass was spent."),
             "collapsed": list(_collapsed),
         }
-    undecided = [k for k in _keys if k not in bound]
+    # T-14454 — a late finding that sits ONLY on rows other than the ceiling row is decided at THOSE
+    # rows' refs (SPEC-1039 rule 8, where `audit decide` binds it and `task close` reads it); a
+    # decision there counts as deciding it for this pass too, so the pass and closure ask one ref.
+    _late_elsewhere = {
+        k for k in _keys if k not in bound
+        and ceiling_ref not in set((late_refs or {}).get(k) or ())
+        and any(k in on_decisions_bind(decisions, r)
+                for r in ((late_refs or {}).get(k) or ()) if r)}
+    undecided = [k for k in _keys if k not in bound and k not in _late_elsewhere]
     if undecided:
         return None, {
             "kind": "residual-undecided",
@@ -2327,7 +2422,9 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
     # (every caller before T-12542) reads exactly as before.
     for _fp in (bound if late_refs else ()):
         _refs = set((late_refs or {}).get(_fp) or ())
-        if _refs and _refs != {ceiling_ref}:
+        # T-14454 — a finding late on SEVERAL rows needs one decision per row; a decision bound at
+        # ANY of them clears that row, so only a ref outside the set can never clear Closure.
+        if _refs and ceiling_ref not in _refs:
             _other = sorted(str(r) for r in _refs if r != ceiling_ref)
             return None, {
                 "kind": "residual-undecided",
@@ -4298,7 +4395,12 @@ def _locate_owner_directive(rows, locator, *, covers=None, diag=None) -> tuple:
     at_ts = [(i, r) for i, r in enumerate(corpus) if isinstance(r, dict) and r.get("ts") == ts]
     if not at_ts:
         return None, "directive-unresolved"
-    owner = [(i, r) for i, r in at_ts if r.get("type") == "owner_directive"]
+    # T-14468: a kernel-composed prompt recorded as an owner_directive row (or one whose check could
+    # not run) is not an owner directive — fail-closed, so such a row alone at the ts refuses
+    # `directive-wrong-type`, here and for the hostapply `--confirmed-by` consumer alike.
+    from lib import journal as _journal   # noqa: PLC0415 — lazy, keeps this module's import set
+    owner = [(i, r) for i, r in at_ts if r.get("type") == "owner_directive"
+             and not _journal.owner_authorship_unproven(r)]
     if not owner:
         return None, "directive-wrong-type"
     if covers is None:

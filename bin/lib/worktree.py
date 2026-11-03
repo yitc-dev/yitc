@@ -4362,6 +4362,18 @@ def _spec0161_land_preflight(W, *, _die, _append_event, _warn=None):
 _WONT_DO_UNAUDITED_SHIP_ABORT_CLASS = "wont-do-unaudited-ship"
 
 
+# T-14407 (X-2155) — the open-card ship refusal, the sixth P0 preflight sibling. Same row shape as
+# the wont-do arm above (`land_completed{abort, abort_preflight}`), unconditional over `--no-tests` /
+# `--rebaseline`. Predicate: `bin/lib/rebaseline_currency.py#_unclosed_card_ship_refusal`.
+_UNCLOSED_CARD_SHIP_ABORT_CLASS = "unclosed-card-ship"
+
+
+@functools.wraps(rebaseline_currency._unclosed_card_ship_refusal)
+def _unclosed_card_ship_refusal(*a, **kw):
+    """T-14407 host residue — the body lives in `bin/lib/rebaseline_currency.py#_unclosed_card_ship_refusal`."""
+    return rebaseline_currency._unclosed_card_ship_refusal(*a, **kw)
+
+
 @functools.wraps(rebaseline_currency._wont_do_authored_paths)
 def _wont_do_authored_paths(*a, **kw):
     """T-12786 host residue — the body lives in `bin/lib/rebaseline_currency.py#_wont_do_authored_paths`."""
@@ -4403,10 +4415,20 @@ def _wont_do_unaudited_ship_refusal(*a, **kw):
 # Every scope also declares the land's own session ref as a needle (`_land_session_needles`), so the
 # session-identity resolvers the land reaches are served instead of tail-scanning the live segment.
 # Each is `index=True` (T-13356: an archived segment whose summary covers the declaration is served,
-# never folded) and `catch_up=True` (T-13332: fresh across appends, STALE on a rewrite). A site asks
-# `use()`, which hands back its role's scope only while `JournalScan.fresh()` proves it still reads
-# the journal as it is NOW, and otherwise opens a new one — so a merge, an ff or a peer's rewrite costs
-# one more fold of that live segment, never a stale answer and never every reader's own whole walk.
+# never folded), `catch_up=True` (T-13332: fresh across appends) and `follow_live=True` (T-13846, widened
+# by T-14437: a REWRITTEN live segment is re-proved against the lines the scope read, the part that
+# differs taken back and read, instead of the scope going stale). A site asks `use()`, which hands back
+# its role's scope only while `JournalScan.fresh()` proves it still reads the journal as it is NOW.
+#
+# T-14437 — ONE WALK PER LAND: the four states are ONE scope lineage, CARRIED. A role that needs a new
+# scope (none held, or the held one could not follow) is first CARRIED (`JournalScan.carry`) from the
+# scope it replaces or the land's earlier scopes, newest first (`_lineage`): stores copied by reference,
+# the archives proven the same files (this journal's: unchanged on disk; the other checkout's: the
+# T-12494 git identity), and only the live segment's differing tail read. Measured on the kernel: a
+# walk 10.7-13.4 s, a carry + its follow 0.3 s; the old four walks were footprint_check's and
+# ff_cleanup's growth. A walk happens only where a copy could not be exact: the land's first scope, a
+# declaration needing a reducer (it cannot be split at a line), and a ROTATION (a new segment set — the
+# named residual: one more walk on a land whose rotation moves a day out).
 #
 # ONE request-scoped holder, installed by the decorator on `cmd_land` / `_land_integrate` (outermost
 # wins) and closed in its `finally`, so no abort path leaves a scope on the thread's stack. A caller
@@ -4449,6 +4471,7 @@ class _LandReadScopes:
     def __init__(self):
         self._held: dict = {}
         self._floors: dict = {}
+        self._lineage: list = []   # T-14437 — the land's scopes, newest last: what a new role carries from
 
     def _floor(self, tid, card_root):
         """The task horizon floor `tid`'s readers declare (`journal.task_floor`), from its card."""
@@ -4474,7 +4497,26 @@ class _LandReadScopes:
         if tid and card_root is not None and hasattr(scope, "task_floors"):
             scope.task_floors.setdefault(str(tid), self._floor(str(tid), card_root))
         self._held[role] = (stack, scope)
+        if callable(getattr(scope, "carry", None)):
+            self._lineage = [s for s in self._lineage if s is not scope] + [scope]
         return scope
+
+    def _carried(self, role, path, sources, tid, card_root):
+        """T-14437 — `role`'s scope for `path` CARRIED from the first of `sources` that can be
+        (`JournalScan.carry`: its stores copied, the live segment read only where it differs), or
+        None — then the caller walks."""
+        for src in sources:
+            if src is None or not getattr(src, "_ran", False) or getattr(src, "_stale", True):
+                continue
+            try:
+                new = src.carry(path, keep=_land_read_types(), needles=_land_session_needles(),
+                                shared=lambda s=src: journal_mod._archive_segments_identical_to_main(
+                                    path, s._path))
+            except Exception:                     # noqa: BLE001 — a read OPTIMISATION never refuses a land
+                new = None
+            if new is not None:
+                return self._hold(role, journal_mod.install_scope(new), tid, card_root)
+        return None
 
     def adopt(self, role, cm, tid=None, card_root=None):
         """Hold an already-built scope context manager (the injected head scope) under `role`."""
@@ -4482,8 +4524,10 @@ class _LandReadScopes:
         return self._hold(role, cm, tid, card_root)
 
     def use(self, role, path, *, reducers=None, tid=None, card_root=None):
-        """`role`'s scope for the journal at `path` while it is fresh, else a new one."""
+        """`role`'s scope for the journal at `path` while it is fresh (a rewrite is FOLLOWED, T-14437),
+        else one CARRIED from the scope it replaces or the land's newest one, else a new walk."""
         held = self._held.get(role)
+        old = None
         if held is not None:
             scope = held[1]
             try:
@@ -4492,10 +4536,15 @@ class _LandReadScopes:
                 ok = False
             if ok:
                 return scope
+            old = scope
             self.release(role)
+        if not reducers:
+            carried = self._carried(role, path, (old, *reversed(self._lineage)), tid, card_root)
+            if carried is not None:
+                return carried
         return self._hold(role, journal_mod.scan_scope(
             path, keep={t: None for t in _land_read_types()}, reducers=reducers,
-            needles=_land_session_needles(), index=True, catch_up=True), tid, card_root)
+            needles=_land_session_needles(), index=True, catch_up=True, follow_live=True), tid, card_root)
 
     def release(self, role) -> None:
         held = self._held.pop(role, None)
@@ -4505,6 +4554,7 @@ class _LandReadScopes:
     def close(self) -> None:
         for role in list(self._held):
             self.release(role)
+        self._lineage = []
 
 
 _LAND_SCOPES_TLS = threading.local()
@@ -5657,6 +5707,15 @@ def cmd_land(args: argparse.Namespace, *, _die, _main_worktree, _run_git_cap, _w
             _read_land_events=_read_land_events, _lifecycle_record_path=_lifecycle_record_path)
         if _wont_do_why:
             _die(_wont_do_why, abort_class=_WONT_DO_UNAUDITED_SHIP_ABORT_CLASS,
+                 abort_detail={"preflight": True})
+        # ── P0: THE OPEN-CARD SHIP REFUSAL (T-14407, X-2155) — closure precedes land. Same placement
+        # and posture as the wont-do arm above; predicate in `_unclosed_card_ship_refusal`.
+        _unclosed_why = _unclosed_card_ship_refusal(
+            branch, W, _run_git_cap=_run_git_cap, _lifecycle_record_path=_lifecycle_record_path)
+        if _unclosed_why:
+            _die(f"land: REFUSED — the task card on this branch is not closed; close it first with "
+                 f"`bin/yitc-v2 task close <T-NNNN>`, then re-run land — {_unclosed_why}",
+                 abort_class=_UNCLOSED_CARD_SHIP_ABORT_CLASS,
                  abort_detail={"preflight": True})
         # T-11226: route the restoration receipt to MAIN's journal, like every other batch row. A
         # land that ends without landing leaves its abort row in the LANDING checkout's journal
@@ -12268,6 +12327,20 @@ def _land_layer_red_id(*a, **kw):
     return batch_landing._land_layer_red_id(*a, **kw)
 
 
+@functools.wraps(batch_landing._layer_case_keys)
+def _layer_case_keys(*a, **kw):
+    """T-11524 host residue — the body lives in `bin/lib/batch_landing.py#_layer_case_keys`
+    (T-14492). Pure over its arguments, so it needs no host collaborator forwarding."""
+    return batch_landing._layer_case_keys(*a, **kw)
+
+
+@functools.wraps(batch_landing._layer_case_display)
+def _layer_case_display(*a, **kw):
+    """T-11524 host residue — the body lives in `bin/lib/batch_landing.py#_layer_case_display`
+    (T-14492). Pure over its arguments, so it needs no host collaborator forwarding."""
+    return batch_landing._layer_case_display(*a, **kw)
+
+
 @functools.wraps(batch_landing._land_red_isolation_entries)
 def _land_red_isolation_entries(*a, **kw):
     """T-11524 host residue — the body now lives in `bin/lib/batch_landing.py#_land_red_isolation_entries`.
@@ -16806,7 +16879,10 @@ def _consumer_zero_probe_guard(worktree: Path, base_ref: "str | None" = None, *,
         """One member's `_execute`; a member that ends without deciding leaves the barrier, so its
         peers are never held by a layer that will not decide."""
         try:
-            return _execute(*args, **kw, **({"barrier": bar} if bar is not None else {}))
+            res = _execute(*args, **kw, **({"barrier": bar} if bar is not None else {}))
+            if bar is not None and isinstance(res, dict) and isinstance(res.get("row"), dict):
+                res["row"].update(bar.wait_fields(args[2]))   # T-14422: the layer's wait at the barrier
+            return res
         finally:
             if bar is not None:
                 bar.leave(args[2])
@@ -22925,7 +23001,45 @@ def _trees_differ_by_journal_only(W, tree_a: str, tree_b: str, _run_git_cap) -> 
                for p in _diff_name_paths(W, tree_a, tree_b, _run_git_cap=_run_git_cap))
 
 
-def _stage6_run_record(W, tree_before, *, routed: bool, venue_tree, _run_git_cap) -> "tuple[dict | None, str]":
+def _inert_unread_delta(W, paths, *, _classify_inert_paths, resign_delta=None) -> str:
+    """T-14489 (SPEC-0065 §Bound condition (2)) — the ONE judgement of a tree delta the Stage-6 credit
+    may look past: `""` when `paths` are inert by the ONE SPEC-0064 authority and no declared test
+    file names a changed readable path (the T-12420 reader derivation); else the refusal —
+    `tree-differs:<class>` or `read-by:<reader>[+n]`. Both the land's credit check (2) and the
+    Stage-6 runner's own record (`_stage6_run_record`) ask it, so what the runner records and what
+    the land credits cannot drift apart. `resign_delta` is forwarded only when given (T-14275).
+    RAISES on a fault — every caller is fail-closed."""
+    verdict, cls = (_classify_inert_paths(paths, resign_delta=resign_delta) if resign_delta is not None
+                    else _classify_inert_paths(paths))
+    if verdict != "inert":
+        return f"tree-differs:{cls}"
+    artifacts = _reader_trigger_artifacts(paths)
+    readers = []
+    for test_dir in _declared_test_sweep_paths(Path(W)):
+        if Path(test_dir).is_dir():
+            readers += _land_tail_tripwire_readers(test_dir, artifacts)
+    if readers:
+        return f"read-by:{readers[0]}" + (f"+{len(readers) - 1}" if len(readers) > 1 else "")
+    return ""
+
+
+def _stage6_tree_residue(W, tree_a: str, tree_b: str, _run_git_cap, _classify_inert_paths) -> str:
+    """T-14489 — `""` when two trees differ by the journal alone or, given the inert authority, by
+    paths beyond the journal that `_inert_unread_delta` admits (a mid-run `stage <NAME>` write to
+    the card is the case this exists for); else that helper's refusal, or `"changed"` when no
+    authority is wired (the journal-only rule of T-13532, unchanged). RAISES on a git fault."""
+    if _trees_differ_by_journal_only(W, tree_a, tree_b, _run_git_cap):
+        return ""
+    if _classify_inert_paths is None:
+        return "changed"
+    journal = Path("events.jsonl")
+    residue = [p for p in _diff_name_paths(W, tree_a, tree_b, _run_git_cap=_run_git_cap)
+               if not (p == "events.jsonl" or events.is_archive_segment(Path(p), journal))]
+    return _inert_unread_delta(W, residue, _classify_inert_paths=_classify_inert_paths)
+
+
+def _stage6_run_record(W, tree_before, *, routed: bool, venue_tree, _run_git_cap,
+                       _classify_inert_paths=None) -> "tuple[dict | None, str]":
     """T-13532 (SPEC-0065 §Bound) — what the Stage-6 RUNNER may record about the green run it just
     made: `({"tree": T, "base": B}, "")`, or `(None, why)` when it cannot say which tree it tested.
 
@@ -22933,10 +23047,14 @@ def _stage6_run_record(W, tree_before, *, routed: bool, venue_tree, _run_git_cap
     files on disk — a Stage-6 worktree is dirty by construction, the work is not committed yet).
     It is recorded only when:
       • the same read taken AFTER the run differs from it by the journal alone — the run's own
-        appends; a run that wrote any other path tested a tree nobody can name;
+        appends — or (T-14489) also by paths the land's credit condition (2) would look past
+        (`_inert_unread_delta`, given `_classify_inert_paths`): a worker's mid-run `stage Closure`
+        writes `current_stage` on its card. Any other written path means a tree nobody can name;
       • on a venue-ROUTED run, the tree the box reports it tested (`venue_cand_tree`) differs from it
-        by the journal alone — a routed run with no envelope tree records nothing;
+        the same way — a routed run with no envelope tree records nothing;
       • `git merge-base HEAD main` names one commit: the `base` the land compares with main's tip.
+    The recorded tree stays `tree_before`; the land re-proves tree..HEAD with the same helper.
+    Without `_classify_inert_paths` the journal-only rule holds unchanged (fail-closed).
     Every doubt and every git failure answers None (absent, never a guess — T-0358)."""
     try:
         if not (isinstance(tree_before, str) and _STAGE6_SHA.fullmatch(tree_before)):
@@ -22944,12 +23062,15 @@ def _stage6_run_record(W, tree_before, *, routed: bool, venue_tree, _run_git_cap
         after = _worktree_disk_tree(W, _run_git_cap)
         if after is None:
             return None, "the tree on disk after the run could not be computed"
-        if not _trees_differ_by_journal_only(W, tree_before, after, _run_git_cap):
+        residue = _stage6_tree_residue(W, tree_before, after, _run_git_cap, _classify_inert_paths)
+        if residue.startswith("read-by:"):
+            return None, f"the run changed a path a declared test reads ({residue[len('read-by:'):]})"
+        if residue:
             return None, "the run changed files other than the journal"
         if routed:
             if not (isinstance(venue_tree, str) and _STAGE6_SHA.fullmatch(venue_tree)):
                 return None, "the venue pass reported no tested tree"
-            if not _trees_differ_by_journal_only(W, tree_before, venue_tree, _run_git_cap):
+            if _stage6_tree_residue(W, tree_before, venue_tree, _run_git_cap, _classify_inert_paths):
                 return None, "the tree the venue tested is not the tree on disk"
         mb = _run_git_cap(["merge-base", "HEAD", "main"], W)
         base = (mb.stdout or "").strip()
@@ -23986,9 +24107,11 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
         if t.returncode != 0 or (t.stdout or "").strip() != "tree":
             return False, "row-tree-unresolvable", None
         net = _diff_name_paths(W, tree, candidate, _run_git_cap=_run_git_cap)
-        # T-14275 (SPEC-0064 §2a): a verified re-sign since the run is inert; it stays in the reader check
-        verdict, cls = _classify_inert_paths(net, resign_delta=(W, tree, candidate))
-        if verdict != "inert":
+        # T-14275 (SPEC-0064 §2a): a verified re-sign since the run is inert; it stays in the reader check.
+        # T-14489: the ONE condition-(2) judgement, shared with the runner's own record.
+        same_tree = _inert_unread_delta(W, net, _classify_inert_paths=_classify_inert_paths,
+                                        resign_delta=(W, tree, candidate))
+        if same_tree.startswith("tree-differs:"):
             # T-13675: conditions (1) and (3) hold here, (2) does not — the per-layer case, when at
             # least one layer may take the run's verdict (passed there, subject disjoint from `net`).
             # The sweep is untouched; a land that takes such a verdict also runs every layer the run
@@ -24001,14 +24124,9 @@ def _land_stage6_credit(W, main_wt, merged_base, branch, *, _classify_inert_path
                 part = {"task": tid, "ts": newest.get("ts"), "tree": tree, "base": base, **split}
                 if main_delta is not None:
                     part["main_delta"] = main_delta
-            return False, f"tree-differs:{cls}", part
-        artifacts = _reader_trigger_artifacts(net)
-        readers = []
-        for test_dir in _declared_test_sweep_paths(Path(W)):
-            if Path(test_dir).is_dir():
-                readers += _land_tail_tripwire_readers(test_dir, artifacts)
-        if readers:
-            return False, f"read-by:{readers[0]}" + (f"+{len(readers) - 1}" if len(readers) > 1 else ""), None
+            return False, same_tree, part
+        if same_tree:
+            return False, same_tree, None
         partial: dict = {}                                 # T-13910: filled only for a row holding a partial layer run
         uncovered = _stage6_row_covers_land(
             W, merged_base, data, _run_git_cap=_run_git_cap, _is_consumer_build=_is_consumer_build,
@@ -31945,6 +32063,9 @@ def _land_integrate(W: Path, main_wt: Path, branch: str, run_tests: bool,
                         # head branch: the merge-base re-run cannot tell members apart.
                         batch_branches=[str((_m or {}).get("branch") or "") for _m in (batch_members or [])
                                         if isinstance(_m, dict)],
+                        # T-14492 — the candidate guard's own layer rows, so a layer red whose
+                        # adapter report names its failed cases is compared per (file, case).
+                        layer_rows=consumer_verify_layers,
                         # T-13449 — the candidate diff + the two authorities that say whether it can
                         # reach a failing layer at all; an unreadable diff exempts nothing.
                         diff_paths=_attr_diff_paths, diff_inert=_attr_diff_inert,

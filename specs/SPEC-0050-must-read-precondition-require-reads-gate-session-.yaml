@@ -144,41 +144,41 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ ONLY on a `-C` consumer build — the only place an id collision can\nexist (the\
   \ positive discriminator). On the engine's own session own IS the kernel (SPEC-0092),\
   \ so\nno doc is realm-qualified and credit stays id-only, byte-unchanged. The PLAN\
-  \ axis is own-only (no\nkernel doc can enter its doc-set) and is likewise never\
-  \ realm-qualified.\n- The refusal names the `--kernel` form for a kernel-realm doc\
-  \ — the bare form it would otherwise\nprint could not SATISFY the gate that printed\
-  \ it (the X-0416 self-defeating-instruction class, on\nthe realm axis) — and carries\
-  \ `missing_realms` in `read_gate_refused`. A SATISFIED gate prints ONE\nreport-only\
-  \ stderr line naming each credited doc + the realm that satisfied it, so a future\n\
-  mis-credit is not silent.\nThis EXTENDS the kernel-pin (which pinned the gate TEMPLATE\
-  \ resolution) to the READ-CREDIT\nhalf; it adds no store, event, flag, or parallel\
-  \ mechanism.\n\n### 3. Evidence locality (the authoritative source; explicit prerequisite)\n\
-  The authoritative evidence source = the CURRENT checkout's `events.jsonl` after\
-  \ FULL local\nmaterialization of the session transcript (per-checkout sync checkpoint)\
-  \ — pre-worktree\nreads are therefore locally visible. NOT a union-read across checkouts\
-  \ (single read-path, P5).\nPer-checkout materialization is an EXPLICIT PREREQUISITE\
-  \ DELIVERABLE, with its own probe (\"a\npre-worktree read is visible in the worktree\
-  \ journal\" — state-check) — RETAINED unchanged from\nthe <workshop-spec> model.\
-  \ Deadlock-free by construction for the pilot scope: the printed fail-commands\n\
-  execute IN the invoking checkout, so their evidence is local — the retry always\
-  \ passes (worst\ncase: one redundant re-fetch; never a deadlock).\n\n### 4. Refusal\
-  \ contract\nOn missing evidence the verb REFUSES (exit nonzero) and prints: one\
-  \ ready fetch command per\nmissing doc + the boundary line \"the gate checks delivery\
-  \ (fetch), not comprehension\". READY is\nload-bearing (X-0416): the printed command\
-  \ must land its `cli_invoked` receipt on the\nSAME corpus this gate reads, so the\
-  \ command form is corpus-aware — engine self-build prints the\nbare `bin/yitc-v2\
-  \ graph query <SPEC>`; a `-C` consumer prints\n`<ENGINE_ROOT>/bin/yitc-v2 -C <REPO_ROOT>\
-  \ graph query <SPEC>` (mirroring the X-0093\nforeign-corpus guard's refusal shape)\
-  \ plus one hint that a fetch run from the engine cwd WITHOUT\n`-C` records on the\
-  \ KERNEL journal and will not credit. A corpus-blind command cannot satisfy the\n\
-  gate that printed it: the identical list re-prints and the natural retry repeats\
-  \ the wrong-corpus\nfetch (a measured consumer loop — 3 duplicate calls per contract).\
-  \ The gate\nproves FETCH at the action moment — never understanding, and never post-compact/restart\n\
-  freshness (no /compact journal marker exists; the check is session-scoped; a future\
-  \ marker\nshifts the ts lower-bound from `session_started` to the last marker).\n\
-  \n**A DISCARDED FETCH DOES NOT GRANT A PASS (<project> X-1068).** The `cli_invoked`\
-  \ receipt\nrecords whether the fetched output was DELIVERED or went to the null\
-  \ device (the additive\n`stdout_delivered` field, `bin/lib/cli.py#_stdout_was_delivered`\
+  \ axis follows the same rule:\nunder `-C` its doc-set is the `plan-stage-entry:`\
+  \ bundle of BOTH corpora, realm-qualified as above.\n- The refusal names the `--kernel`\
+  \ form for a kernel-realm doc — the bare form it would otherwise\nprint could not\
+  \ SATISFY the gate that printed it (the X-0416 self-defeating-instruction class,\
+  \ on\nthe realm axis) — and carries `missing_realms` in `read_gate_refused`. A SATISFIED\
+  \ gate prints ONE\nreport-only stderr line naming each credited doc + the realm\
+  \ that satisfied it, so a future\nmis-credit is not silent.\nThis EXTENDS the kernel-pin\
+  \ (which pinned the gate TEMPLATE resolution) to the READ-CREDIT\nhalf; it adds\
+  \ no store, event, flag, or parallel mechanism.\n\n### 3. Evidence locality (the\
+  \ authoritative source; explicit prerequisite)\nThe authoritative evidence source\
+  \ = the CURRENT checkout's `events.jsonl` after FULL local\nmaterialization of the\
+  \ session transcript (per-checkout sync checkpoint) — pre-worktree\nreads are therefore\
+  \ locally visible. NOT a union-read across checkouts (single read-path, P5).\nPer-checkout\
+  \ materialization is an EXPLICIT PREREQUISITE DELIVERABLE, with its own probe (\"\
+  a\npre-worktree read is visible in the worktree journal\" — state-check) — RETAINED\
+  \ unchanged from\nthe <workshop-spec> model. Deadlock-free by construction for the\
+  \ pilot scope: the printed fail-commands\nexecute IN the invoking checkout, so their\
+  \ evidence is local — the retry always passes (worst\ncase: one redundant re-fetch;\
+  \ never a deadlock).\n\n### 4. Refusal contract\nOn missing evidence the verb REFUSES\
+  \ (exit nonzero) and prints: one ready fetch command per\nmissing doc + the boundary\
+  \ line \"the gate checks delivery (fetch), not comprehension\". READY is\nload-bearing\
+  \ (X-0416): the printed command must land its `cli_invoked` receipt on the\nSAME\
+  \ corpus this gate reads, so the command form is corpus-aware — engine self-build\
+  \ prints the\nbare `bin/yitc-v2 graph query <SPEC>`; a `-C` consumer prints\n`<ENGINE_ROOT>/bin/yitc-v2\
+  \ -C <REPO_ROOT> graph query <SPEC>` (mirroring the X-0093\nforeign-corpus guard's\
+  \ refusal shape) plus one hint that a fetch run from the engine cwd WITHOUT\n`-C`\
+  \ records on the KERNEL journal and will not credit. A corpus-blind command cannot\
+  \ satisfy the\ngate that printed it: the identical list re-prints and the natural\
+  \ retry repeats the wrong-corpus\nfetch (a measured consumer loop — 3 duplicate\
+  \ calls per contract). The gate\nproves FETCH at the action moment — never understanding,\
+  \ and never post-compact/restart\nfreshness (no /compact journal marker exists;\
+  \ the check is session-scoped; a future marker\nshifts the ts lower-bound from `session_started`\
+  \ to the last marker).\n\n**A DISCARDED FETCH DOES NOT GRANT A PASS (<project> X-1068).**\
+  \ The `cli_invoked` receipt\nrecords whether the fetched output was DELIVERED or\
+  \ went to the null device (the additive\n`stdout_delivered` field, `bin/lib/cli.py#_stdout_was_delivered`\
   \ / <project> X-0842), and a\nreceipt recorded NOT delivered — the form `graph query\
   \ <SPEC> >/dev/null 2>&1` — is EXCLUDED from\n§2's pass-granting evidence set by\
   \ `_fetched_spec_ids`. The gate still proves FETCH and NEVER\ncomprehension: this\
@@ -709,22 +709,22 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: c0e1eaa0b1ec9afda02abc98a3a14a0958273937f969fddee28176c6bdb29e33
+  bin/lib/audit.py#cmd_audit: 4f298c47fcbcfcfc91037a389c4e45a87eca21047c6550b3225ccf120d9ce8cf
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
-  bin/lib/cli.py#_deliver_stage_bundle_contracts: 6356353534842c736adbd8515eebcdd8ad5ad25be6ebbd8af67b14c14458fc76
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: 2830513e11dba924eccd0ac7a2e05012b0937016722616e7c78925394b13803e
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
   bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
   bin/lib/events.py#_emit_cli_invoked: 5d1e4ab8dc407eca56e3c449c39f841271d747ce1e789177fd14b1fec630425f
   bin/lib/gates.py#_fetched_spec_ids: 385cf31488d87631d178633790b44484f7d073963704783c745cf6e20ae1ca20
-  bin/lib/gates.py#_require_reads: ac08593a04786f860a54d8edc2d123df7f47d5c28f6ac7e4c27fa3e8086c97ee
+  bin/lib/gates.py#_require_reads: 009adc6432fa2b93db9e7bbaaf3e4e3d9e11d42250ed8912b54d77836fb10da8
   bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
   bin/lib/gates.py#_seed_receipt_epochs: c41d8270ea3553a47a8ed7a84959dde9aee36079b52e75637bc6ab2120b77af5
   bin/lib/gates.py#_session_started_lower_bound: b33e13a47bcb5aa7ad4cb3671878fdce453aa448bbdf3f75d09ff6e6ad359265
   bin/lib/gates.py#seed_stamp_credits: 22d380afb43a79df24c2d7dd63962d968316ee42f8bc3b3dbac69ef16b275b37
-  bin/lib/plan.py#_print_plan_stage_delivery: 870582bbd7b6b762af54e2458caa50825266b353b261fe86e1a5a2d207a676e5
-  bin/lib/plan.py#cmd_plan_check: cc9f1f071006c545d81ce60b81d3cb668d3fe0d12b840d38cadcee83843143f0
+  bin/lib/plan.py#_print_plan_stage_delivery: 2e17e8278a463eb6389bd7400a57e341ec2b2e116c51cdbf40830e49f1be95fa
+  bin/lib/plan.py#cmd_plan_check: 2c7e6ad86a7b76825b2eb3bc644fc8145a6e52b97bece79225f50730a7f5395a
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: 82d6fa48886117506a2185ef696441562db851d77d6fcf7d7fcb532310c192ab
+  bin/lib/task.py#cmd_task_close: 0e555ea51bcb3b9189529f95bf6fed69c2ebefc120a71042f38bd61991ebf2b7
   bin/lib/task.py#cmd_task_commit: 1b30e81218e26b333fb7fe1f26f3bc68766031ae17c16adf6c57957aa16f4540

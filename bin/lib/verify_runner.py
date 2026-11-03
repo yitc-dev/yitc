@@ -2684,6 +2684,12 @@ def _run_verify_tests(test_dir: "Path | list[Path]", cwd: Path, workers: int | N
         # exported, so a run that wrote no sidecar never reports one it does not have.
         if _outcomes_locator:
             metrics_out["per_file_outcomes"] = _outcomes_locator
+        # T-14493 — A RUN KILLED ON A PER-FILE TIMEOUT SAYS WHAT IT KNEW AT THE KILL: the files that
+        # finished with their verdict, the ones still running, the ones never reached. Same additive
+        # single-key shape (no new event, no store); ABSENT unless the run holds a timeout kill.
+        if _fail_class == "timeout":
+            metrics_out["timeout_kill"] = _tail_rv._timeout_kill_snapshot(
+                file_durations, [tf.name for tf in test_files], list(failures), _VERIFY_TIMEOUT_MARKER)
         # SPEC-0181 (T-10080) — the SHADOW selection record. Computed HERE, AFTER the executor has
         # already run, from the SAME `test_files` enumeration that executed: the ordering makes it
         # STRUCTURALLY impossible for the decision to influence what ran, which is the shadow
@@ -3381,10 +3387,12 @@ def _selection_analyse(src, strict=False, rel=None, *, _SELECTION_ANCHOR_ONLY=No
     class and ignored the helper propagation `_selection_derive_readers` applies a few lines below —
     understating the real outcome ~7x (the true figure then was 299 of 965, 31%). The line below is
     machine-checked against a real derivation over the live tests tree by
-    tests/test_t11475_hermetic_decidability.py, so the two can never drift apart again; the check
-    carries a stated tolerance because the tree grows between lands.
+    tests/test_t11475_hermetic_decidability.py, so the two can never drift apart again. The line
+    states the measurement it was taken at (K of M files, and the date); the check bounds the drift
+    from it by 1.0pp plus the most the tree's growth since M can move a share (T-14494), so the
+    suite growing between lands no longer reddens main, while a share no growth explains still does.
 
-    ALWAYS-RUN SHARE (of the tests tree, INCLUDING helper propagation): 11.1%
+    ALWAYS-RUN SHARE (of the tests tree, INCLUDING helper propagation): 10.0% (263 of 2620 files, measured 2026-11-03)
 
     THAT SHARE ROSE FROM 6.4% AT T-11848, AND THE RISE IS THE FIX WORKING. Resolving each file's OWN
     `Path(__file__)`-derived anchors (`_selection_file_anchors`) lets the scan SEE reads it was blind
@@ -3893,6 +3901,9 @@ _SELECTION_TRIPWIRE_KEEP_OUT_PAIRS = frozenset({
     ("patterns/inspection-criteria-roster.md", "test_t13944_inspection_probe_one_kind.py"),
     ("specs/SPEC-0119-proactive-debt-echo-3-derived-debt-views-surfaced-.yaml",
      "test_t11368_aborted_land_cost_view.py"),
+    # T-14472 — the same rule for the pair the 2026-11-01 capture named. Verdict and evidence:
+    # tests/test_t12497_selection_read_vs_mention_pairs.py.
+    ("patterns/inspection-criteria-roster.md", "test_t14297_inspection_distinct_second.py"),
 })
 
 def _selection_omission_tripwire(diff_paths, omitted_names, tests_dir, _read=None, *,
@@ -4182,6 +4193,38 @@ def _selection_file_anchors(src, rel, inline=None):
     base_parts = [p for p in str(rel).replace("\\", "/").split("/") if p and p != "."]
     if not base_parts:
         return out
+    # T-14472 (SPEC-0181) — MODULE-LEVEL STRING CONSTANTS, so `REPO / ROSTER_REL` folds like
+    # `REPO / "patterns/inspection-criteria-roster.md"`. test_t14111_verify_cost_reading.py reads the live
+    # roster through exactly that join (ROSTER_REL a module constant) and every selection for a roster
+    # change omitted it. Only a name bound ONCE in the whole module, by a top-level assignment of a relative
+    # str literal, counts: a rebound, a function-local or an absolute value is not statically one path, so it folds nothing
+    # (fewer anchors = today's classification, the fail-safe direction).
+    # Every binding of a name ANYWHERE in the module counts (T-14472 audit-post fp1:b69b793238c0867d): a
+    # Store/Del of any kind (`=`, `x: T = …`, `+=`, for/with/walrus targets), an import alias, a def/class
+    # name, an argument, a `global`/`nonlocal` declaration. Only a name bound exactly once — by the one
+    # top-level assignment below — is a constant.
+    _bound = {}
+    for _n in ast.walk(tree):
+        names = ()
+        if isinstance(_n, ast.Name) and not isinstance(_n.ctx, ast.Load):
+            names = (_n.id,)
+        elif isinstance(_n, ast.alias):
+            names = ((_n.asname or _n.name).split(".")[0],)
+        elif isinstance(_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names = (_n.name,)
+        elif isinstance(_n, ast.arg):
+            names = (_n.arg,)
+        elif isinstance(_n, (ast.Global, ast.Nonlocal)):
+            names = tuple(_n.names)
+        for _id in names:
+            _bound[_id] = _bound.get(_id, 0) + 1
+    str_consts = {}
+    for _st in tree.body:
+        if (isinstance(_st, ast.Assign) and len(_st.targets) == 1 and isinstance(_st.targets[0], ast.Name)
+                and _bound.get(_st.targets[0].id) == 1 and isinstance(_st.value, ast.Constant)
+                and isinstance(_st.value.value, str) and _st.value.value
+                and not _st.value.value.startswith(("/", "\\"))):
+            str_consts[_st.targets[0].id] = _st.value.value
 
     def _fold_path_expr(node):
         """The expression → repo-relative parts, or None when it is not statically foldable."""
@@ -4238,6 +4281,8 @@ def _selection_file_anchors(src, rel, inline=None):
             r = node.right
             if isinstance(r, ast.Constant) and isinstance(r.value, str):
                 return _selection_join_parts(b, r.value)
+            if isinstance(r, ast.Name) and r.id in str_consts:      # T-14472
+                return _selection_join_parts(b, str_consts[r.id])
             return None
         if isinstance(node, ast.Name):
             got = out.get(node.id)

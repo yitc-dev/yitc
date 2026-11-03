@@ -1588,16 +1588,99 @@ def _call_script(arguments) -> str:
     return ""
 
 
-def brief_plain_line(cli_cmd: str, reading: str, marker) -> str:
+# T-14490 — the person's language for the brief's cue, resolved in the SPEC-0086 rule 6f(d) order:
+# (1) the language recorded at install (T-14463's marked line), (2) the newest owner turn, where only
+# Russian is inferred, by its alphabet; anything else is unknown (None) and gets the neutral cue.
+PERSON_LANGUAGE_MARK = "<!-- yitc:person-language -->"
+_PERSON_LANGUAGE_LINE_RE = re.compile(r"answer the person in (.+?) — .*" + re.escape(PERSON_LANGUAGE_MARK))
+# An instruction that NAMES the reply language in plain words (a directory's or project's own file).
+_NAMED_LANGUAGE_RE = re.compile(
+    r"(?i)\b(?:answer|reply|respond)\b(?:(?: to)? (?:the|your) (?:person|user|owner))? in (english|russian)\b"
+    r"|\b(?:write|speak|talk)\b to (?:the|your) (?:person|user|owner) in (english|russian)\b"
+    r"|(?:отвечай|пиши)(?:те)? (по-русски|на русском|по-английски|на английском)")
+_NEGATION_RE = re.compile(r"(?i)\b(?:never|not|don't|do not|no)\b|\bне\b|никогда|нельзя")
+_RU_ALPHABET = set("абвгдеёжзийклмнопрстуфхцчшщъыьэюя")
+# Cyrillic alphabets that are NOT supersets of Russian: a turn whose letters also fit one is ambiguous.
+_OTHER_CYRILLIC = (
+    set("абвгґдеєжзиіїйклмнопрстуфхцчшщьюя"),        # Ukrainian
+    set("абвгдеёжзійклмнопрстуўфхцчшыьэюя"),          # Belarusian
+    set("абвгдежзийклмнопрстуфхцчшщъьюя"),            # Bulgarian
+    set("абвгдђежзијклљмнњопрстћуфхцчџш"),            # Serbian
+    set("абвгдѓежзѕијклљмнњопрстќуфхцчџш"),           # Macedonian
+)
+_RU_NAMES = {"ru", "russian", "русский", "рус", "ru-ru"}
+_EN_NAMES = {"en", "english", "английский", "en-us", "en-gb"}
+BRIEF_LANGUAGE_CUES = {
+    "ru": "пиши человеку по-русски — каждое сообщение, включая промежуточные строки между вызовами "
+          "инструментов (SPEC-0086 6f(d))",
+    "en": "write to the person in English — every message, interim lines between tool calls included "
+          "(SPEC-0086 6f(d))",
+}
+
+
+def _is_russian_text(text: str):
+    """True when the text's letters are mostly Cyrillic, fit the Russian alphabet, and fit none of the
+    other Cyrillic alphabets; None when it has no letters; False otherwise."""
+    letters = [c for c in text.lower() if c.isalpha()]
+    if not letters:
+        return None
+    cyr = {c for c in letters if "\u0400" <= c <= "\u04ff"}
+    if sum(1 for c in letters if "\u0400" <= c <= "\u04ff") * 2 <= len(letters):
+        return False
+    if not cyr <= _RU_ALPHABET:
+        return False
+    return not any(cyr <= other for other in _OTHER_CYRILLIC)
+
+
+def person_language(recorded_texts, owner_texts):
+    """SPEC-0086 rule 6f(d) for the restoration brief (T-14490): step 1 — the first loaded instruction
+    text that names the language, by the install line («ru» / «en», any other name verbatim) or in plain
+    words (Russian / English); else the newest owner turn with letters, Russian only, by its alphabet;
+    else None. `recorded_texts` are the loaded instruction files in order; `owner_texts` newest first."""
+    for text in recorded_texts or ():
+        for line in (text or "").splitlines():
+            m = _PERSON_LANGUAGE_LINE_RE.search(line)
+            if m:
+                name = m.group(1).strip()
+                low = name.lower()
+                return "ru" if low in _RU_NAMES else "en" if low in _EN_NAMES else name
+            n = _NAMED_LANGUAGE_RE.search(line)
+            if n and _NEGATION_RE.search(line[max(0, n.start() - 30):n.start()]):
+                n = None   # «never answer in English» forbids a language, it names none to use
+            if n:
+                said = next(g for g in n.groups() if g).lower()
+                return "ru" if ("russian" in said or "русск" in said) else "en"
+    for text in owner_texts or ():
+        verdict = _is_russian_text(text or "")
+        if verdict is None:
+            continue
+        return "ru" if verdict else None
+    return None
+
+
+def brief_language_cue(key) -> str:
+    """The one cue sentence: in the person's language where the engine carries its text, else neutral."""
+    if key in BRIEF_LANGUAGE_CUES:
+        return BRIEF_LANGUAGE_CUES[key]
+    if key:
+        return (f"write to the person in {key} — every message, interim lines between tool calls "
+                "included (SPEC-0086 6f(d))")
+    return ("write to the person in the language they write in — every message, interim lines between "
+            "tool calls included (SPEC-0086 6f(d))")
+
+
+def brief_plain_line(cli_cmd: str, reading: str, marker, cue=None) -> str:
     """The one plain line (rule 9 / rule 10), printed FIRST and LAST: the compaction state as the
-    SPEC-1023 reading states it (an unknown state is said, never read as «none») and the print-only command."""
+    SPEC-1023 reading states it (an unknown state is said, never read as «none») and the print-only
+    command; with `cue`, the person-language sentence (T-14490) closes it."""
     if reading == READING_LAST:
         what = f"context compacted (marker {marker})" if marker else "no compaction on record"
     elif reading == READING_NOT_EXPECTED:
         what = "no transcript expected — no compaction on record"
     else:
         what = "compaction state UNKNOWN (the reading cannot tell)"
-    return f"RESTORATION BRIEF — {what}; print it again: `{cli_cmd}` (SPEC-1024)"
+    line = f"RESTORATION BRIEF — {what}; print it again: `{cli_cmd}` (SPEC-1024)"
+    return f"{line} — {cue}" if cue else line
 
 
 def backstop_plain_line(case: str, mark, stamp, *, print_cmd: str, stamp_cmd: str, cause=None) -> str:

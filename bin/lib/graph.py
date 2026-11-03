@@ -1567,6 +1567,21 @@ INDEX_CACHE_NON_INPUTS = ("events.jsonl", ".yitc/events.jsonl")
 # logs, findings and sync cursors that no build pass reads. In a repo where it is not ignored its
 # churn would move the key for nothing. (The cache itself no longer lives there — see above.)
 INDEX_CACHE_NON_INPUT_DIRS = (".yitc/",)
+# T-14432 — the third named non-input class, on the same terms: the build's OWN OUTPUTS. Each is
+# written by `_write_graph_index` / `_write_audience_views` and read by no build pass:
+# `graph_build_index` takes no graph/ path among its kwargs, and its injected readers
+# (`_resolve_implements_anchor` / `_anchor_drift_warning`) read only `implements:`-anchored files.
+# Left in, a build's own write moved the key for the NEXT build on an unchanged checkout. Measured: an
+# input change cost three full builds (miss, miss, hit), and land's bookkeeping commit of the outputs
+# cost one more, 145 such misses in the engine journal. graph/activation-checklist.md is ALSO an output
+# but is deliberately NOT here: it is an implements anchor, so the build reads it. A named set, never
+# `graph/*`. Where a corpus (a -C consumer's included) DOES anchor a member, the build reads it while
+# the key does not cover it, so `index_cache_lookup` never serves that corpus's index
+# (`_index_anchors_an_own_output`): it falls to a full build, never to a stale hit.
+INDEX_CACHE_OWN_OUTPUTS = ("graph/index.json", "graph/floor-trigger-map.md", "graph/concern-registry.json",
+                           "graph/born-ops.yaml", "graph/controller-supplement.md",
+                           "graph/worker-startup-inventory.md")
+INDEX_CACHE_OWN_OUTPUT_PARTS = ("graph/worker-seed", ".md")   # graph/worker-seed.md, -2.md, …
 # T-14274 — how many OLDER trees the one document keeps beside its newest entry. Measured: a Stage-6
 # run flips the card's proposed spec active for its judgement and restores it after, at admission and
 # again for the full run, so its builds alternate between two trees (A', A, A', A) — and with one
@@ -1674,8 +1689,17 @@ def _shared_git_dir_file_mode(cache_dir, *, repo_root, run_git) -> "int | None":
     return (0o600 | granted) if granted else None
 
 
+def _is_index_cache_own_output(rel: str) -> bool:
+    """T-14432 — one of the build's own outputs (INDEX_CACHE_OWN_OUTPUTS + the worker-seed parts)."""
+    if rel in INDEX_CACHE_OWN_OUTPUTS:
+        return True
+    head, tail = INDEX_CACHE_OWN_OUTPUT_PARTS
+    return rel.startswith(head) and rel.endswith(tail) and "/" not in rel[len("graph/"):]
+
+
 def _is_index_cache_non_input(rel: str) -> bool:
-    return rel in INDEX_CACHE_NON_INPUTS or any(rel.startswith(x) for x in INDEX_CACHE_NON_INPUT_DIRS)
+    return (rel in INDEX_CACHE_NON_INPUTS or _is_index_cache_own_output(rel)
+            or any(rel.startswith(x) for x in INDEX_CACHE_NON_INPUT_DIRS))
 
 
 def _input_history_head(root, head: str, *, run_git) -> str:
@@ -1822,8 +1846,23 @@ def index_cache_lookup(repo_root, *, run_git, extra_terms=()) -> tuple:
             index = entry.get("index")
             if not isinstance(index, dict) or not index:
                 return None, key, True, key_ms
+            if _index_anchors_an_own_output(index):
+                return None, key, True, key_ms   # T-14432: that output is read here, and unkeyed
             return index, key, True, key_ms
     return None, key, True, key_ms
+
+
+def _index_anchors_an_own_output(index: dict) -> bool:
+    """T-14432 — True when this corpus anchors one of the excluded build outputs (an `implements:`
+    entry naming it), so the build READS that file while the key does not cover it. Such an index is
+    never served: the lookup falls to an ordinary full build. Read from the cached index itself, in
+    ANY corpus (a -C consumer's own specs included), which is sound because the anchor set lives in
+    specs, and specs are always in the key: a spec adding the anchor moves the key, so the index
+    matched here was built from the same anchors. A malformed `code_to_specs` answers True (a miss)."""
+    c2s = index.get("code_to_specs", {})
+    if not isinstance(c2s, dict):
+        return True
+    return any(isinstance(k, str) and _is_index_cache_own_output(k.split("#", 1)[0]) for k in c2s)
 
 
 def _index_cache_recent(doc) -> list:
@@ -3655,7 +3694,7 @@ def born_secure_render(body: str, root, *, events=(), ops=None) -> str:
 
 
 
-def _render_floor_trigger_map(floor_trigger_map: dict, specs: dict, kernel_provided: bool=False, *, FLOOR_TRIGGERS, KERNEL_NAME, FLOOR_TRIGGER_GOVERNED_VERB=None) -> str:
+def _render_floor_trigger_map(floor_trigger_map: dict, specs: dict, kernel_provided: bool=False, *, FLOOR_TRIGGERS, KERNEL_NAME, FLOOR_TRIGGER_GOVERNED_VERB=None, FLOOR_TRIGGER_CUE=None) -> str:
     """Render the always-loaded floor trigger-map (T-0230, Part I-A) → graph/floor-trigger-map.md.
     A GENERATED, derived-only committed artifact: regenerated every `graph build` from the single
     canonical carrier (the per-spec `binding:` field). Each line is KEYED by the verb surface so the
@@ -3723,12 +3762,15 @@ def _render_floor_trigger_map(floor_trigger_map: dict, specs: dict, kernel_provi
         # the policy spec that governs HOW (discoverability fix, e.g. before-deploy → `deploy --class`).
         gverb = (FLOOR_TRIGGER_GOVERNED_VERB or {}).get(trig)
         gsuffix = f" — done via `{gverb}`" if gverb else ""
+        # T-14481: an optional per-trigger cue (the choice to make at the moment) follows the title.
+        cue = (FLOOR_TRIGGER_CUE or {}).get(trig)
+        csuffix = f" — {cue}" if cue else ""
         for surface in surfaces:                     # one block PER individual verb surface (per-verb keying)
             sids = entry.get(surface) or []
             if sids:
                 for sid in sids:
                     title = (specs.get(sid) or {}).get("title", "")
-                    lines.append(f"- **{trig}** (`{surface}`) → read `{sid}` — {title}{gsuffix}")
+                    lines.append(f"- **{trig}** (`{surface}`) → read `{sid}` — {title}{csuffix}{gsuffix}")
             elif not kernel_provided:                # T-13012: a consumer's hollow row → the pointer above
                 lines.append(f"- **{trig}** (`{surface}`) → (no `retrieved` spec bound yet — see binding_report)")
     lines.append("")
@@ -4218,6 +4260,11 @@ def _gated_capability_entries(block) -> list:
     return out
 
 
+# T-14423: the gated keys whose born disclosure a spec requires IN FULL (SPEC-1007 rule 1, checked by
+# tests/test_spec0207_resource_ownership.py S-AC3); every other key renders compact (T-14419).
+_GATED_CAP_FULL_DISCLOSURE = frozenset({"independent_layers"})
+
+
 def _gated_capability_disclosure(caps: list, indent: str) -> str:
     """Render the UNIFORM commented disclosure stanza for one concern's gated capabilities (T-11366).
 
@@ -4239,15 +4286,29 @@ def _gated_capability_disclosure(caps: list, indent: str) -> str:
     lines = [indent + _GATED_CAP_MARKER]
     for ln in _GATED_CAP_PREAMBLE:
         lines.append(indent + "# " + ln)
+    # T-14419: COMPACT per capability — the key (commented, with its example and owning spec) plus the
+    # FIRST sentence of what it turns on and of what holds while absent. The rest of each declared text
+    # lives in the owning spec the key line names, so the born template stays under its size bound.
+    # T-14423: a key in _GATED_CAP_FULL_DISCLOSURE keeps its WHOLE `summary`, because a spec requires
+    # the born stanza itself to carry those statements (SPEC-1007 rule 1: the project decides and bears
+    # the risk, the kernel checks the shape only, and every resource class of rule 2).
     for cap in caps:
-        lines.append(indent + "#")
         owner = f"   # ({cap['spec']})" if cap.get("spec") else ""
         lines.append(f"{indent}# {cap['key']}: {cap['example']}{owner}")
         if cap.get("summary"):
-            lines.extend(_wrap(cap["summary"], "#   turns on: ", "#     "))
+            full = cap["key"] in _GATED_CAP_FULL_DISCLOSURE
+            lines.extend(_wrap(cap["summary"] if full else _first_sentence(cap["summary"]),
+                               "#   turns on: ", "#     "))
         if cap.get("absent"):
-            lines.extend(_wrap(cap["absent"], "#   while absent: ", "#     "))
+            lines.extend(_wrap(_first_sentence(cap["absent"]), "#   while absent: ", "#     "))
     return "\n".join(lines) + "\n"
+
+
+def _first_sentence(text: str) -> str:
+    """The text up to and including its first sentence-ending `. ` (T-14419); the whole text when it
+    has none. Pure; never returns empty for a non-empty input."""
+    m = re.search(r"[.!?](?=\s)", text)
+    return text[: m.end()] if m else text
 
 
 def _concern_born_entries(specs: dict) -> list:

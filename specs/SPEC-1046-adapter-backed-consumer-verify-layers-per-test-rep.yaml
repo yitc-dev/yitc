@@ -175,20 +175,24 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ (absent or `false`) the pass, its order, its timing\nand its environment are unchanged\
   \ and no file is written; a value that is not a boolean is malformed and\nfails\
   \ the run closed before any layer starts. A re-run and the merge-base attribution\
-  \ run take no barrier.\n\n### 4. Report profile — consistency, not authenticity\n\
-  OUTER FAILURES DECIDE FIRST. Before any report is read, the SPEC-0152 rule-16 classes\
-  \ decide exactly as they do\non a layer without an adapter: a layer whose `run`\
-  \ or full `command:` hit the layer's outer `timeout:` bound, or\nwhose `prep:` failed,\
-  \ FAILS — no report fallback, no whole-layer re-run, no per-unit re-run, no rescue\
-  \ (the\nDECLINED classes of SPEC-0152 rule 16; SPEC-0071 makes a verify timeout\
-  \ non-retriable). A test's OWN timeout\ninside the runner — a per-test or per-action\
-  \ timeout the runner records on the test case — is not an outer\ntimeout: it is\
-  \ that unit's failure under the rules below.\nThe report is a versioned profile\
-  \ (a JUnit XML subset) bound to the kernel's manifest (run id, requested\nunits,\
-  \ output path). The kernel writes it to a FRESH path per invocation and checks each\
-  \ suite's timestamp\nagainst the invocation's start (a runner that cannot start\
-  \ leaves an older report in place). The evidence is\nVOID when a requested unit\
-  \ has no record or only skipped records; an unrequested or duplicate unit appears;\n\
+  \ run take no barrier.\nEach layer that decided records on its outcome row `barrier_wait_ms`,\
+  \ the integer milliseconds from its own\ndecision to the moment it may start (or\
+  \ its wait ended), and, when the wait ended failed, `barrier_wait_end`\n(`expired`\
+  \ or `unpublished`); a layer that never decided, and every row of a run without\
+  \ the declaration,\ncarries neither key.\n\n### 4. Report profile — consistency,\
+  \ not authenticity\nOUTER FAILURES DECIDE FIRST. Before any report is read, the\
+  \ SPEC-0152 rule-16 classes decide exactly as they do\non a layer without an adapter:\
+  \ a layer whose `run` or full `command:` hit the layer's outer `timeout:` bound,\
+  \ or\nwhose `prep:` failed, FAILS — no report fallback, no whole-layer re-run, no\
+  \ per-unit re-run, no rescue (the\nDECLINED classes of SPEC-0152 rule 16; SPEC-0071\
+  \ makes a verify timeout non-retriable). A test's OWN timeout\ninside the runner\
+  \ — a per-test or per-action timeout the runner records on the test case — is not\
+  \ an outer\ntimeout: it is that unit's failure under the rules below.\nThe report\
+  \ is a versioned profile (a JUnit XML subset) bound to the kernel's manifest (run\
+  \ id, requested\nunits, output path). The kernel writes it to a FRESH path per invocation\
+  \ and checks each suite's timestamp\nagainst the invocation's start (a runner that\
+  \ cannot start leaves an older report in place). The evidence is\nVOID when a requested\
+  \ unit has no record or only skipped records; an unrequested or duplicate unit appears;\n\
   the report is missing, malformed or stale; a failure is recorded that is not a test\
   \ case's own (a collection,\nsetup or teardown failure that the runner marks APART\
   \ from a test's own failure — the profile names how each\nrunner marks one); an\
@@ -256,45 +260,57 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ condition a runner's report cannot reveal is named in\nthe report profile; while\
   \ the profile names any, the layer's verdict rests on the full `command:` and its\
   \ exit\ncode, and the per-test rows are report-only — no selection and no rescue\
-  \ rests on them.\n\n### 5. Non-test checks never ride the adapter\nA layer's mandatory\
-  \ non-test checks (typecheck, lint, build) are declared under `required:` and run\
-  \ on every\nland and Tests-stage run of that layer regardless of selection. Their\
-  \ failure fails the layer; no re-run ever\nrescues it.\n\n### 6. Selection ladder\
-  \ — the default is RUN\nFor each land and Tests-stage run, the kernel decides per\
-  \ layer, in order; every rung but the last runs the\nFULL layer. Under this contract\
-  \ the ladder's answer is RECORDED (rule 8) and never narrows what runs:\n  (a) a\
-  \ verify-infrastructure touch — the SPEC-0152 rule-16 edges (the pinned set, the\
-  \ land/verify\n      implementation, the ops carrier's verify section) and the layer's\
-  \ own `sources:` (rule 1).\n      THE PROJECT'S OWN TEST FILES: a `verify-implementation-touch`\
-  \ or\n      `declared-check-surface` edge made ONLY by the project's own test files\
-  \ does not answer here.\n      A path counts only on proof: it matches the declared\
-  \ `tests.classes[].globs` at the merge-base\n      AND in the candidate, it is no\
-  \ `verify.infra_globs` entry, no layer's adapter `sources:` path\n      and not\
-  \ the carrier, and THIS layer places it — a unit of its inventory, or deleted from\
-  \ the\n      candidate while inside its globs, which rung (d) then answers even\
-  \ where a trigger names it.\n      Every doubt — no inventory, a\n      path the\
-  \ edge does not name, a declared test file the adapter does not place (a conftest\
-  \ or\n      helper), any other edge — leaves rung (a) answering the full layer.\
-  \ The skip decision names\n      the declared check-surface paths of the same change\
-  \ beside the static ones, so a freed test\n      file never hides one. The freed\
-  \ files join the units of rung (f). It holds whatever\n      `verify_policy.pinned_last_green`\
-  \ says (SPEC-0186): it narrows the candidate leg's layer run\n      only, and where\
-  \ the policy runs the pinned leg, that leg still runs whole. The credit of a fix\n\
-  \      attempt (rule 14) is read without it;\n  (b) a changed dependency manifest,\
-  \ lockfile or toolchain / browser version;\n  (c) any `adapter.triggers` match (rule\
-  \ 7) that names the full layer;\n  (d) `related` failed, timed out, or any path\
-  \ is `unknown` (rule 3 — a deleted or renamed path always is);\n  (e) for a browser-class\
-  \ layer (`covers_classes` includes `e2e`), any change to application, server or\
-  \ asset\n      code, unless the adapter declares a conservative app-to-spec relation\
-  \ for that path;\n  (f) otherwise the selected units = `related` ∪ trigger-named\
-  \ units.\nELIGIBILITY FIRST — after the fail-closed exceptions: the SPEC-0152 rule-16\
-  \ skip is applied WHOLE, its own\nexception included — a change touching any verify-infrastructure\
-  \ surface it names runs every layer, whatever\nits globs, and on an adapter-backed\
-  \ layer that set also holds the layer's `sources:` (rule 1), so a changed\nadapter\
-  \ script or runner configuration runs that layer in full though no glob names it.\
-  \ Rung (b) is NOT such an\nexception: a lockfile change outside a layer's globs\
-  \ skips it as today. Then, on every layer, adapter-backed\nincluded, a change with\
-  \ NO path matching the layer's\n`subject_globs` skips the layer exactly as SPEC-0152\
+  \ rests on them.\nTHE GENERIC PROFILE. A runner that writes JUnit XML and has no\
+  \ profile of its own declares `junit/1`: a test\ncase's unit is its own `file` attribute,\
+  \ else its suite's `file`, else the suite name. A case whose unit is not\na requested\
+  \ unit voids the report (`unit-unrequested`), so the adapter — never the kernel\
+  \ — resolves a case to\nits file, and a case it cannot resolve leaves the layer's\
+  \ `command:` to decide. One test case recorded twice for\none unit is a native retry.\
+  \ The runner-to-profile table and the generic sample adapter:\n`patterns/verify-layer-adapter-protocol.md`.\n\
+  THE GAP LINE. In a consumer, `session start` names — report-only, and only when\
+  \ there is one — each declared\nlayer whose red names no test: a layer with no `adapter:`,\
+  \ or a `script/1` layer whose newest recorded failed\nunit named no test, each with\
+  \ the adapter block to add. A waived layer and the kernel's `graph conformance`\n\
+  layer are not named. It refuses nothing.\n\n### 5. Non-test checks never ride the\
+  \ adapter\nA layer's mandatory non-test checks (typecheck, lint, build) are declared\
+  \ under `required:` and run on every\nland and Tests-stage run of that layer regardless\
+  \ of selection. Their failure fails the layer; no re-run ever\nrescues it.\n\n###\
+  \ 6. Selection ladder — the default is RUN\nFor each land and Tests-stage run, the\
+  \ kernel decides per layer, in order; every rung but the last runs the\nFULL layer.\
+  \ Under this contract the ladder's answer is RECORDED (rule 8) and never narrows\
+  \ what runs:\n  (a) a verify-infrastructure touch — the SPEC-0152 rule-16 edges\
+  \ (the pinned set, the land/verify\n      implementation, the ops carrier's verify\
+  \ section) and the layer's own `sources:` (rule 1).\n      THE PROJECT'S OWN TEST\
+  \ FILES: a `verify-implementation-touch` or\n      `declared-check-surface` edge\
+  \ made ONLY by the project's own test files does not answer here.\n      A path\
+  \ counts only on proof: it matches the declared `tests.classes[].globs` at the merge-base\n\
+  \      AND in the candidate, it is no `verify.infra_globs` entry, no layer's adapter\
+  \ `sources:` path\n      and not the carrier, and THIS layer places it — a unit\
+  \ of its inventory, or deleted from the\n      candidate while inside its globs,\
+  \ which rung (d) then answers even where a trigger names it.\n      Every doubt\
+  \ — no inventory, a\n      path the edge does not name, a declared test file the\
+  \ adapter does not place (a conftest or\n      helper), any other edge — leaves\
+  \ rung (a) answering the full layer. The skip decision names\n      the declared\
+  \ check-surface paths of the same change beside the static ones, so a freed test\n\
+  \      file never hides one. The freed files join the units of rung (f). It holds\
+  \ whatever\n      `verify_policy.pinned_last_green` says (SPEC-0186): it narrows\
+  \ the candidate leg's layer run\n      only, and where the policy runs the pinned\
+  \ leg, that leg still runs whole. The credit of a fix\n      attempt (rule 14) is\
+  \ read without it;\n  (b) a changed dependency manifest, lockfile or toolchain /\
+  \ browser version;\n  (c) any `adapter.triggers` match (rule 7) that names the full\
+  \ layer;\n  (d) `related` failed, timed out, or any path is `unknown` (rule 3 —\
+  \ a deleted or renamed path always is);\n  (e) for a browser-class layer (`covers_classes`\
+  \ includes `e2e`), any change to application, server or asset\n      code, unless\
+  \ the adapter declares a conservative app-to-spec relation for that path;\n  (f)\
+  \ otherwise the selected units = `related` ∪ trigger-named units.\nELIGIBILITY FIRST\
+  \ — after the fail-closed exceptions: the SPEC-0152 rule-16 skip is applied WHOLE,\
+  \ its own\nexception included — a change touching any verify-infrastructure surface\
+  \ it names runs every layer, whatever\nits globs, and on an adapter-backed layer\
+  \ that set also holds the layer's `sources:` (rule 1), so a changed\nadapter script\
+  \ or runner configuration runs that layer in full though no glob names it. Rung\
+  \ (b) is NOT such an\nexception: a lockfile change outside a layer's globs skips\
+  \ it as today. Then, on every layer, adapter-backed\nincluded, a change with NO\
+  \ path matching the layer's\n`subject_globs` skips the layer exactly as SPEC-0152\
   \ rule 16 does today — an adapter-backed layer carries no\nmore stale-glob exposure\
   \ than today. A change with ANY matching path enters this ladder, which then decides\
   \ alone: within the layer a\nglob never subtracts. Because the globs keep their\
@@ -584,7 +600,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/land_verify_legs.py#_DecideBarrier: ab38b61b4da90316bd8643d53d218adc990a6b8f6bc7082e95eb5a1843ac7d62
+  bin/lib/land_verify_legs.py#_DecideBarrier: 57940938691c6e5d2fc39feaeac87a7df51c18edd720f4323236df317c6e4cc7
   bin/lib/land_verify_legs.py#_adapter_credit_decision: 0dce09c93705ed548d80642d06b6cb76e32f15f985225e0607b0d25aa108e430
   bin/lib/land_verify_legs.py#_adapter_lane_split: bf70597b1557d482e13844b149ef2121a06d701f6f7777844e1a2b94209fe285
   bin/lib/land_verify_legs.py#_adapter_rerun_entities: 0c5592301fbc482be625a131f5918101d5d68d9c23c1ac2a8b7cf77f5591aa52
@@ -592,15 +608,15 @@ implements_signature:
   bin/lib/land_verify_legs.py#_adapter_stamp_identity: f0f585104835bdc62a850a85d4205a22fcbdacd5f57b2f850a0acc2d6d965aa9
   bin/lib/land_verify_legs.py#_adapter_unit_medians: 810dd3026fce4aaff965182c1e5a0a4632cacb1413a4a43e4989d078fb351558
   bin/lib/land_verify_legs.py#_adapter_units_with_medians: 7bed152315540262997c4107bf465690b7de39af518f257af36c9eb2c696ac3f
-  bin/lib/land_verify_legs.py#_classify_adapter_report: 7fd8e9c2b7c857ef76f9cd07ebd6866946218f5fb8d968c8fb13a876e2c41624
+  bin/lib/land_verify_legs.py#_classify_adapter_report: 1bd3a30cf74b0b432b14130f09ad312fde73f5c5c6404274948f627f8a5ee91a
   bin/lib/land_verify_legs.py#_declared_layer_adapters: 2a39b7ac020431b16e1e97fef6e77ddc76a1b7cd971a0e2d10b85dc195891c7e
   bin/lib/land_verify_legs.py#_edge_own_test_paths: 14a48592aded032ae51476352f91add38f31c26f1adf62408dc68ac5521032c9
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: e90fc17683027c87c63dfb8d7781449f18670e8f84e2e288065fd5ae4efcc077
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 0c18393fd42993fd44982f9cec1893ca4e744cb6defd3018d7411619755d8e42
   bin/lib/land_verify_legs.py#_layer_unit_reruns: 14ad914b2b988883352e084260c43cae1fc3469cec05b247331260382a2dd69c
   bin/lib/land_verify_legs.py#_per_case_rescued_failures: 755af95c558362383831eb6dc412cfccd1b7b78bdb51e3999a574dded8c4482d
   bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 3d29311179a51d49011d79871b44b0154250788785629aee17ae63f59abcc378
   bin/lib/land_verify_legs.py#_unit_rescue_passes: d5d6e38e933a318ed909051ffbd4d294bc178afe2ef0b57cd68259d309e9d231
   bin/lib/views.py#_view_test_layout_hotspots: b5257fb40327e4498a3d2088769ee509c647de92e6bc843174ad272eb5a3b2af
-  bin/lib/worktree.py#_consumer_zero_probe_guard: c8e447eb926da4a578a9600ba3a74d3ed23aa0673ab20967ef527457d8668dbf
+  bin/lib/worktree.py#_consumer_zero_probe_guard: 1540c07971ea9f05ff70a2fb89449f5ca8d066e7adb66831c8fcc1cb0b7a2366
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37
   bin/lib/worktree.py#_unit_lane_entry_at_land_tail: d0a9deeb45664ebbb951750729f686d086018535acbcc4f05df30e2f0f38e322

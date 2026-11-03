@@ -107,6 +107,7 @@ _STDIN_INGESTED_KEYS = frozenset({
     "imported_from", "effort_tier", "resolves_cross", "promotes", "live_probe", "host_config",
     "host_config_kind", "post_ship_observation", "activation_gated_radius",
     "prototype_ref",            # T-12571 (SPEC-0205 rule 5) — the annotated spike/* tag this card builds on
+    "prototype_lines",          # T-14457 (SPEC-1058 §3) — the registry items a carry card builds
     "substituted_instrument",   # T-11761 (X-1166) — the OPTIONAL substituted-acceptance-
                                 # instrument declaration, authored at filing like every other
                                 # optional declaration above rather than falling through to the
@@ -328,6 +329,7 @@ STDIN_CONFLICTING_ARGV_FLAGS = (
     ("promotes",         "--promotes",         "promotes",         None),   # T-11056 declared fu link
     ("decomposed_from",  "--decomposed-from",  "decomposed_from",  None),
     ("prototype_ref",    "--prototype-ref",    "prototype_ref",    None),   # T-12571 spike/<slug> tag
+    ("prototype_lines",  "--prototype-lines",  "prototype_lines",  None),   # T-14457 registry items
     ("imported_from",   "--imported-from",    "imported_from",    None),   # T-10702 provenance ref
     ("effort_tier",      "--effort-tier",      "effort_tier",      None),
     ("critical",         "--critical",         "effort_tier",      False),
@@ -508,6 +510,40 @@ def _probe_moments_value_error(value, acceptance):
                           f"{', '.join(sorted(_followup_predicate_types()))})")
         out[label] = decl
     return out, None
+
+
+def _probe_moments_rearm_error(value, current, probes):
+    """T-14476: the done-card RE-ARM admission for a normalized `probe_moments` value. PURE.
+    Returns (value, None, rearmed_labels) or (None, reason, None). Fail-closed on three conditions:
+      (i)   every CHANGED label (a new key, or a moment that differs) names a criterion whose `probes:`
+            value is exactly `deferred` — a settled criterion has no moment left to wait for;
+      (ii)  no moment the card already carries is DROPPED — a dropped moment reads as a legacy
+            key-only deferral, due at once, which is not a re-arm;
+      (iii) something changes (an identical value is refused upstream as a no-op, kept here too).
+    `probes:` keys may carry the full recorded spelling (`AC2 (first T10 run)`); each is read by its
+    leading criterion id, the same reading the moment keys get."""
+    cur = {}
+    for k, v in (current or {}).items() if isinstance(current, dict) else ():
+        cid = _leading_criterion_id(k)
+        if cid is not None:
+            cur[f"{cid[0]}{cid[1]}"] = v
+    deferred = set()
+    for k, v in (probes or {}).items() if isinstance(probes, dict) else ():
+        cid = _leading_criterion_id(k)
+        if cid is not None and v == "deferred":
+            deferred.add(f"{cid[0]}{cid[1]}")
+    dropped = sorted(set(cur) - set(value))
+    if dropped:
+        return None, (f"it would drop the recorded moment of {', '.join(dropped)} — a re-arm restates "
+                      f"every moment the card carries and changes only the deferred ones"), None
+    changed = sorted(k for k in value if cur.get(k) != value[k])
+    if not changed:
+        return None, "the value leaves every recorded moment unchanged (no-op)", None
+    settled = [k for k in changed if k not in deferred]
+    if settled:
+        return None, (f"{', '.join(settled)} is not a `deferred` probe on this card — only a criterion "
+                      f"still awaiting its evidence has a moment to re-arm"), None
+    return value, None, changed
 
 
 def _answers_error(value):
@@ -1754,7 +1790,7 @@ def _name_created_card_on_failure(fn):
 
 
 @_name_created_card_on_failure
-def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, _append_event, _as_list, _auto_cross_pick_for_file, _cross_overlap_inputs, _declared_surface_preview, _die, _dump_state_yaml, _emit_task_skeleton, _format_task_verdict_line, _id_alloc_lock, _print_cross_territory_routing_hint, _report_graft_parse_errors, _require_reads, _require_writing_worktree, _slug, _utc_now_iso, _with_live_nodes, _work_batch_next_hint, graph_build_index, write_text_atomic, _actor=None, _actor_vocabulary=None, _inflight_intent_scan=None, _print_spike_mode_hint=lambda: None, _kernel_content_file=None, _main_events_path=None, _run_git_cap=None, _is_consumer_build=None, _advisory_read_scope=None, _observed_event_types=None, _created=None) -> None:
+def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, _append_event, _as_list, _cross_link_held_skips, _cross_overlap_inputs, _declared_surface_preview, _die, _dump_state_yaml, _emit_task_skeleton, _format_task_verdict_line, _id_alloc_lock, _print_cross_territory_routing_hint, _report_graft_parse_errors, _require_reads, _require_writing_worktree, _slug, _utc_now_iso, _with_live_nodes, _work_batch_next_hint, graph_build_index, write_text_atomic, _actor=None, _actor_vocabulary=None, _inflight_intent_scan=None, _print_spike_mode_hint=lambda: None, _kernel_content_file=None, _main_events_path=None, _run_git_cap=None, _is_consumer_build=None, _advisory_read_scope=None, _observed_event_types=None, _created=None) -> None:
     # T-0602 (SPEC-0060 §The fillable skeleton): `--skeleton` emits the fillable task-authoring
     # skeleton and exits — the AVAILABILITY/delivery leg (no gate, no worktree). It MUST short-circuit
     # at the ABSOLUTE TOP, before _require_writing_worktree AND before the handler-level required-field
@@ -1894,6 +1930,7 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
         # = not a cut card (the common case). Stdin key mirrors the --decomposed-from flag below.
         decomposed_from = fields.get("decomposed_from")
         prototype_ref = fields.get("prototype_ref")   # T-12571 — validated before any write, below
+        prototype_lines = fields.get("prototype_lines")   # T-14457 — validated before any write, below
         # T-10702 (SPEC-0028 / SPEC-0166): imported_from — the OPTIONAL migration-provenance ref (a
         # legacy-backlog id/link this card was imported FROM). Free scalar (NOT a plan slug, so no
         # existence check — unlike decomposed_from). Ingested from stdin so a filing-time provenance
@@ -1983,6 +2020,9 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
         promotes = getattr(args, "promotes", None) or []               # T-11056 task→followup link (fu_<hex>)
         decomposed_from = getattr(args, "decomposed_from", None)   # T-0685 cut-membership marker (scalar)
         prototype_ref = getattr(args, "prototype_ref", None)       # T-12571 annotated spike/* tag (scalar)
+        prototype_lines = getattr(args, "prototype_lines", None)   # T-14457 `all`, `R-1,R-2`, or '' = []
+        if isinstance(prototype_lines, str) and prototype_lines.strip() != "all":
+            prototype_lines = [x.strip() for x in prototype_lines.split(",")] if prototype_lines.strip() else []
         imported_from = getattr(args, "imported_from", None)       # T-10702 migration-provenance ref (scalar)
         # T-0733 (SPEC-0072): --critical is the shorthand for --effort-tier critical. The explicit
         # --effort-tier wins if both are given; getattr-defaulted so a hand-built Namespace stays valid.
@@ -2198,7 +2238,30 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
             _die(f"task file: --requires names {_rid}, which has no card in {TASKS_DIR.name}/ — a "
                  f"requires edge on a task that does not exist can never be satisfied. File {_rid} "
                  f"first, or drop the entry. Nothing was written.")
-    if prototype_ref:
+    # T-14457 (SPEC-1058 §1, §3): a card of an opted-in plan's cut takes the plan's prototype.
+    from lib import plan as plan_lib   # noqa: PLC0415 — plan.py imports this module lazily too
+    _carry_fm = {}
+    if decomposed_from:
+        _carry_fm = state.split_frontmatter_text((PLANS_DIR / f"{decomposed_from}.md").read_text(encoding="utf-8"))[0]
+    _carry_ref = str(_carry_fm.get("prototype_ref") or "").strip() if plan_lib._plan_is_prototype_opted_in(_carry_fm) else ""
+    if _carry_ref:
+        if prototype_ref and str(prototype_ref).strip() != _carry_ref:
+            _die(f"task file: plan {decomposed_from} carries prototype {_carry_ref}; a card of its cut "
+                 f"cannot name {str(prototype_ref).strip()} (SPEC-1058 §1). Nothing was written. Re-file without it: "
+                 f"`yitc-v2 task file --decomposed-from {decomposed_from}`.")
+        prototype_ref = _carry_ref
+    if prototype_lines is not None:
+        if not _carry_ref:
+            _die("task file: prototype_lines belongs to a card decomposed_from a plan that names a "
+                 "prototype_ref (SPEC-1058 §1). Nothing was written. Re-file on such a plan: `yitc-v2 task file "
+                 "--decomposed-from <plan> --prototype-lines R-1`, or drop the field.")
+        _pl_err = plan_lib._plan_prototype_lines_error(prototype_lines)
+        if _pl_err:
+            _die(f"task file: prototype_lines: {_pl_err} — use `all`, a list of `R-<n>`, or [] (SPEC-1058 §3). "
+                 f"Nothing was written. Re-file: `yitc-v2 task file --decomposed-from {decomposed_from} "
+                 f"--prototype-lines R-1,R-2`.")
+    # Once the plan pinned its prototype commit the tag is no longer read (SPEC-1058 §2).
+    if prototype_ref and not (_carry_ref and str(_carry_fm.get("prototype_tip") or "").strip()):
         _pr_err = prototype_ref_error(REPO_ROOT, prototype_ref, events_path=_main_events_path)
         if _pr_err:
             _die(f"task file: --prototype-ref {_pr_err}. Nothing was written.")
@@ -2319,6 +2382,8 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
         # write unless it is an annotated spike/* tag the canonical spike set folds as PARKED.
         if prototype_ref:
             task["prototype_ref"] = str(prototype_ref).strip()
+        if prototype_lines is not None:   # `[]` is a declaration, not absence (SPEC-1058 §3)
+            task["prototype_lines"] = prototype_lines
         # T-10702 (SPEC-0028): imported_from appears ONLY when given (absent key = not an imported card,
         # the common case). Same additive-optional shape as decomposed_from (no drift #10). The SPEC-0165
         # differential tripwire proves this round-trips (a filed value reads back; absent reads absent).
@@ -2486,24 +2551,14 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
         except Exception:  # noqa: BLE001 — advisory cue; never fatal to a completed filing
             pass
 
-    # T-9399 — receiver-side auto cross-PICK (the symmetric mirror of the T-9362 close-side auto-done):
-    # if this FILED task links coordination item(s) via `resolves_cross`, auto-emit cross_picked for each
-    # it RECEIVES that is EXACTLY `requested`, so filing a task for an inbound ask moves it off the "new
-    # inbound" startup surface automatically AND makes the close-side auto-`cross_done` (which fires only
-    # from `picked`) reachable. Gated to a READY filing (audit-pre F2 — only an active-claim acceptance
-    # auto-picks; a parked/wont-do filing must not lie about the item state). FAIL-OPEN + NON-SILENT
-    # (mirror the close-side): a cross-log hiccup must NEVER abort a completed filing. No worktree
-    # (D-0049 — cross_* append). The FSM/kind legality is upheld by cross.cross_pick_for_file.
     # T-11183: the ids the already-linked advisory below reports, so the unanswered-link warn after it
     # does not double-signal the same item. Bound HERE so it is always defined — the block below is
     # conditional AND may raise, and the later consumer must not depend on either going well.
     _held_skips_reported: list = []
     if resolves_cross and status == "ready":
         try:
-            _auto_picked_xids, _held_skips = _auto_cross_pick_for_file(task, tid)
+            _held_skips = _cross_link_held_skips(task, tid)
             _held_skips_reported = list(_held_skips or [])
-            for _xid in _auto_picked_xids:
-                print(f"  cross pick auto-emitted for {_xid} (receiver-side file-the-link, T-9399)")
             # T-10636 (X-0456) — the ALREADY-LINKED advisory: this filing links an X-item a peer ALREADY
             # holds, so it is a second concurrent intake of one ask. Previously the auto-pick skipped it
             # SILENTLY (fail-open "idempotent"), which is exactly how two controllers filed duplicate
@@ -2517,32 +2572,25 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
                       f"concurrent intake of one coordination item (X-0456)")
                 print(f"  check: is {tid} a duplicate of that holder's work? Coordinate with the holder, "
                       f"or drop the --resolves-cross link if this card is genuinely separate.")
-        except Exception as _exc:   # never let the coordination auto-pick break a completed filing
-            sys.stderr.write(
-                f"WARN: {tid} filed OK but the receiver-side auto cross-pick did not complete "
-                f"({_exc}); run `yitc-v2 cross pick <X-id>` manually if a linked item is still requested "
-                f"(non-fatal, T-9399).\n")
+        except Exception as _exc:   # never let a coordination-log read break a completed filing
+            sys.stderr.write(f"WARN: {tid} filed OK but its cross links could not be checked "
+                             f"({_exc}); see `yitc-v2 cross show <X-id>` (non-fatal).\n")
 
     # T-11183 (X-0943) — the UNANSWERED-LINK warn: this card names coordination item(s) in
     # `resolves_cross`, but the close-side auto `cross_done` (T-9362) fires ONLY for an item self
-    # RECEIVES that is EXACTLY `picked`. Every link the T-9399 auto-pick above could not advance is
-    # therefore a link that will be silently NEVER answered — and the auto-pick's skips are silent
-    # except the T-10636 already-held one (a `note` kind is unpickable, a wrong-role link is not
-    # ours, and a parked/wont-do filing does not auto-pick at all). Measured: <project>'s
+    # RECEIVES that is EXACTLY `picked`, and a filing does not pick (T-14447). So every link still
+    # unpicked here will not be answered until someone acts. Measured: <project>'s
     # X-0750 / X-0829 / X-0649 each stayed `[note/requested]` after the resolving task landed done,
     # while `cross pick` refused them naming that same done task and `cross show` printed
     # `task: (none)`. So say it HERE, at the moment the link is authored — the T-9441 precedent.
     #
-    # Re-folds the log so the warn sees the state AFTER any auto-pick above (a just-picked item
-    # must not warn). Skips ids the already-linked advisory just named — one filing never
+    # Skips ids the already-linked advisory just named — one filing never
     # double-signals one item. ADVISORY ONLY, exactly like every line around it: report-not-block
     # (CHARTER non-goal #7 — gating a card on a peer-log state is not ours to do), no event, no
     # status change, no exit-code change. Fail-open: the id is allocated and the YAML is on disk by
     # now, so an advisory error must NEVER break a completed filing.
     if resolves_cross:
         try:
-            # A FRESH fold — `_cross_overlap_inputs` re-reads the log, so this sees the state AFTER
-            # any auto-pick emitted above (a just-picked item correctly stays silent).
             _unans_items, _unans_self = _cross_overlap_inputs()
             cross.print_unanswered_cross_link_warns(
                 resolves_cross, _unans_items, _unans_self,
@@ -3236,7 +3284,7 @@ def _note_stands_alone(args) -> bool:
         for key, value in vars(args).items())
 
 
-def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_event, _author_post_verification, _commit_worktree, _die, _in_writing_worktree, _load_task_for_transition, _post_verification_gap, _require_writing_worktree, _utc_now_iso, _worktree_dirty_paths, _write_task_state, write_text_atomic, _run_git_cap=None, _live_probe_settled_unresolved=None, _selfcommit_posture=None, _scoped_selfcommit_preflight=None, _scoped_selfcommit=None, _claim_task=None, _cross_overlap_inputs=None, _auto_cross_pick_for_file=None, _qj_take_land_reservation=None) -> None:
+def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_event, _author_post_verification, _commit_worktree, _die, _in_writing_worktree, _load_task_for_transition, _post_verification_gap, _require_writing_worktree, _utc_now_iso, _worktree_dirty_paths, _write_task_state, write_text_atomic, _run_git_cap=None, _live_probe_settled_unresolved=None, _selfcommit_posture=None, _scoped_selfcommit_preflight=None, _scoped_selfcommit=None, _claim_task=None, _cross_overlap_inputs=None, _qj_take_land_reservation=None) -> None:
     """`task update T-XXXX [--status ready|parked|wont-do] [--reason] [--return-trigger] [--note]`
     (T-0368). Two modes:
       - STATUS TRANSITION (--status): park / unpark / wont-do per TASK_UPDATE_TRANSITIONS, with the
@@ -4595,7 +4643,10 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
             _die("task update: --replace-acceptance and --set-field are separate modes — run them as "
                  "separate calls. Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
         _mode = "--replace-acceptance" if _rep_ac is not None else "--set-field"
-        if (target is not None or note is not None or return_trigger is not None or reason is not None
+        # T-14476: `--reason` rides ONLY the done-card probe-moment RE-ARM below (it is that leg's
+        # mandatory record); with any other structured edit it stays refused here.
+        if (target is not None or note is not None or return_trigger is not None
+                or (reason is not None and _set_key != "probe_moments")
                 or _new_class_arg is not None or _effort_tier_arg is not None
                 or old is not None or new is not None or _add_ac_arg is not None):
             _die(f"task update: {_mode} is its own mode — do not combine with --status / --note / "
@@ -4629,7 +4680,21 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # is normally done before the release that ships it is cut — so --set-field answers (ONLY)
         # is admitted on a terminal card; its row carries post_close so the order stays visible.
         _answers_post_close = cur in ("done", "wont-do") and _set_key == "answers"
-        if cur in ("done", "wont-do") and not _answers_post_close:
+        # T-14476 — the RE-ARM of a DONE card's deferred-probe moment. A moment that fires on the wrong
+        # row (a class-only awaits met by an unrelated row of that class) left the probe due with no
+        # verb to correct it; the re-arm rewrites `probe_moments` ONLY, ONLY for criteria still
+        # `deferred`, never drops a moment, and records its mandatory `--reason` on the row (SPEC-1008).
+        _rearm_post_close = cur == "done" and _set_key == "probe_moments"
+        if reason is not None and not _rearm_post_close:
+            _die(f"task update: --reason with --set-field probe_moments is the RE-ARM of a DONE card's "
+                 f"deferred-probe moment; {tid} is {cur}, so there is nothing to re-arm — drop --reason "
+                 f"(a live card sets its moments without one). Nothing was written. See `bin/yitc-v2 "
+                 f"task update --help` (STRUCTURED-EDIT mode).")
+        if _rearm_post_close and not (reason or "").strip():
+            _die(f"task update: {tid} is done — re-arming its probe moment needs --reason '<why the "
+                 f"recorded moment was wrong>' (it is recorded on the task_amended row; SPEC-1008). "
+                 f"Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+        if cur in ("done", "wont-do") and not (_answers_post_close or _rearm_post_close):
             _die(f"{tid} is {cur} — a terminal card is frozen history, so {_mode} does not edit it. "
                  f"The terminal carve-outs (un-cut; post-close acceptance correction on a "
                  f"done-but-UNLANDED card) stay on `--old/--new`. Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
@@ -4717,6 +4782,14 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                 if _merr:
                     _die(f"task update: --set-field {_field} {_merr}. Nothing was written. See "
                          f"`bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+                if _rearm_post_close:
+                    _value, _rerr, _rearmed = _probe_moments_rearm_error(
+                        _value, task.get("probe_moments"), task.get("probes"))
+                    if _rerr:
+                        _die(f"task update: {tid} is done — the probe-moment re-arm is refused: {_rerr}. "
+                             f"Nothing was written. See `bin/yitc-v2 task update --help` "
+                             f"(STRUCTURED-EDIT mode).")
+                    _extra.update({"post_close": True, "rearmed": _rearmed, "reason": reason.strip()})
             elif _field in STRUCTURED_EDIT_DECLARATION_FIELDS:
                 _value, _derr = prototype_identical_error(REPO_ROOT, task, _value)   # T-13856
                 if _derr:
@@ -4740,19 +4813,17 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                   f"auditor: state the declared file(s) in the plan and run `bin/yitc-v2 audit pre --task "
                   f"{tid}` AFTER this write (a re-run on an unchanged plan invokes no auditor). Every other "
                   f"file stays refused on exact identity (SPEC-0205 rules 2 and 5).")
-        # T-13339: the filing-seam auto-pick (T-9399), reused for a link ADDED to a live card, so a
-        # still-`requested` item becomes reachable by the close-side auto cross_done. Fail-open: the
-        # governed write already landed.
+        # T-14447: a link added to a live card picks nothing either; the warn names the step.
+        # Fail-open: the governed write already landed.
         if (_field == "resolves_cross" and task.get("status") in ("ready", "in-progress")
-                and _auto_cross_pick_for_file is not None):
+                and _cross_overlap_inputs is not None):
             try:
-                _picked, _ = _auto_cross_pick_for_file(task, tid)
-                for _xid in _picked:
-                    print(f"  cross pick auto-emitted for {_xid} (receiver-side link, T-9399)")
+                _cross_items, _cross_self_name = _cross_overlap_inputs()
+                cross.print_unanswered_cross_link_warns(
+                    task.get("resolves_cross") or [], _cross_items, _cross_self_name)
             except Exception as _exc:                  # noqa: BLE001 — never undo a landed write
-                sys.stderr.write(f"WARN: {tid} linked OK but the auto cross-pick did not complete "
-                                 f"({_exc}); run `yitc-v2 cross pick <X-id>` if an item is still "
-                                 f"requested (non-fatal).\n")
+                sys.stderr.write(f"WARN: {tid} linked OK but its cross links could not be checked "
+                                 f"({_exc}); see `yitc-v2 cross show <X-id>` (non-fatal).\n")
         # The SAME fail-open advisories the --old/--new arm runs on these fields.
         try:
             if _field == "acceptance":
@@ -8295,57 +8366,18 @@ def _auto_cross_done_for_close(task: dict, tid: str, *, CROSS_LOG_PATH, _cross_e
         advanced.append(xid)
     return advanced
 
-def _auto_cross_pick_for_file(task: dict, tid: str, *, CROSS_LOG_PATH, _cross_emit, _cross_self,
-                              _cross_peer_aliases=None) -> list:
-    """T-9399 receiver-side auto-PICK — the symmetric MIRROR of _auto_cross_done_for_close: for each
-    X-NNNN in the FILED task's `resolves_cross` link, auto-emit `cross_picked` IF self is the receiver and
-    the item is EXACTLY `requested` + pickable kind (cross.cross_pick_for_file enforces the FSM legality).
-    Without this the normal flow (file a task for an inbound ask → work it → close) leaves the item stuck
-    at `requested` forever AND the close-side auto-`cross_done` (which fires only from `picked`) is
-    unreachable. REUSES the cross mechanism (a direct _cross_emit, like the close-side) — a cross_* append
-    needs NO worktree (D-0049 / SPEC-0084 r5), so it rides any file. Idempotent (already-picked/done/
-    terminal/never-requested/wrong-kind → skipped, no duplicate). FAIL-OPEN at the call-site (the caller
-    wraps this) — a coordination-log hiccup must NEVER abort a completed filing. The call-site gates this
-    to READY filings only (audit-pre F2 — a parked/wont-do filing is not an active-claim acceptance).
-
-    T-10636 (X-0456) — the skip is no longer SILENT. An already-picked item makes cross_pick_for_file
-    return None; previously the loop just `continue`d, so a filing that linked an X-item a PEER already
-    held emitted NO signal and the two cards diverged unseen (two controllers intook X-0452 → duplicate
-    T-0297 + T-0302, one wasted dispatch cycle). The skipped-because-already-HELD items are now collected
-    and returned alongside the advanced ids, so the caller can name the holder. Returns
-    (advanced, held_skips): advanced = X-ids advanced to `picked`; held_skips = [{id, item}] for each link
-    skipped because a live holder already has it (a never-requested / wrong-kind / terminal skip is NOT a
-    double-intake and is not reported)."""
+def _cross_link_held_skips(task: dict, tid: str, *, CROSS_LOG_PATH, _cross_self,
+                           _cross_peer_aliases=None) -> list:
+    """T-10636 (X-0456) — the links of this card a live holder already has, as [{id, item}], so the
+    caller can name the holder: two controllers once filed duplicate cards for X-0452 unseen. A link
+    never picks (T-14447: the pick states a triage, SPEC-1010 section 3)."""
     links = task.get("resolves_cross") or []
     if isinstance(links, str):
         links = [links]
-    if not links:
-        return [], []
-    # De-dup the link list, order-preserving (audit-post F1): the fold is snapshotted ONCE below, so a
-    # repeated X-id would re-emit a second cross_picked (the snapshot still reads `requested`). cmd_task_file
-    # already de-dups resolves_cross at file time, but the helper must not rely on a distant caller
-    # invariant — self-defend (mirror of the X-NNNN de-dup in cmd_task_file).
-    _seen: set = set()
-    links = [x for x in links if not (x in _seen or _seen.add(x))]
     self_name = _cross_self()
-    # T-10260 — same canonicalization as the close-side sibling (see _auto_cross_done_for_close).
-    items = cross.fold(cross.read_events(CROSS_LOG_PATH, _cross_peer_aliases))
-    advanced: list = []
-    held_skips: list = []
-    for xid in links:
-        item = items.get(xid)
-        payload = cross.cross_pick_for_file(item, self_name)
-        if payload is None:
-            # T-10636 (X-0456): distinguish the DOUBLE-INTAKE skip from every other benign one. Reuse
-            # the SAME `already_held` advisory the `cross pick` surface uses (cross.intake_advisories),
-            # so the two surfaces cannot disagree about what "already held" means.
-            if "already_held" in cross.intake_advisories(item, self_name):
-                held_skips.append({"id": xid, "item": item})
-            continue
-        payload = dict(payload, task=tid)   # the receiver's resolving task (provenance)
-        _cross_emit("cross_picked", payload)
-        advanced.append(xid)
-    return advanced, held_skips
+    items = cross.fold(cross.read_events(CROSS_LOG_PATH, _cross_peer_aliases)) if links else {}
+    return [{"id": xid, "item": items.get(xid)} for xid in dict.fromkeys(links)
+            if "already_held" in cross.intake_advisories(items.get(xid), self_name)]
 
 # ── T-9391: deploy-conditional live_probe DECLARATION gate (SPEC-0094 §3 / SPEC-0015) ──────────────
 # A DEPLOYING project's `task close` REFUSES unless the task DECLARES a `live_probe` (assertion OR a
@@ -10055,7 +10087,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                    _case_gate_spec_dirs=None, _main_worktree=None, _run_git_cap=None,
                    _BOOKKEEPING_ALLOWLIST=None, _worktree_dirty_paths=None,
                    _is_consumer_build=None, _main_events_path=None,
-                   _registry_peers=None, _pre_deploy_stand=None) -> None:
+                   _registry_peers=None, _pre_deploy_stand=None, _task_shipped=None) -> None:
     """Atomic Stage 9 closure. Per LIFECYCLE.md §Stage 9 + D-0015 + D-0019 + D-0082.
 
     `_governance_surface_globs_arg` (T-11156, SPEC-0178 rule 3) is OPTIONAL on the same precedent: the
@@ -10335,18 +10367,78 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     # the reading cannot exist before the ship, so a settleable observation sits on a card already closed
     # (all 37 cards carrying one in this checkout are `done`). On a still-open card there is nothing to
     # settle late — say so and name the ordinary path, rather than silently ignoring the flag.
-    if (pso_settle or pso_terminal) and current_status != "done":
+    # T-14420 — a `wont-do` card whose ship reached `main` carries an observation the overdue-recheck
+    # lens counts as OWED (the T-14073 ship reading), so it must be dischargeable: it is admitted to
+    # the late-linkage branch below exactly when that SAME reading (`_task_shipped`, injected — the
+    # one the lens uses) answers True. False (never shipped), None (could not tell), a raising or
+    # un-wired reading, and every other non-done status keep the T-11529 refusal. Only the settle leg
+    # runs for it: the branch returns before the close tail, so the card is never closed.
+    _wont_do_settle = False
+    _wont_do_note = ""
+    if (pso_settle or pso_terminal) and current_status == "wont-do":
+        _wont_do_reading = None
+        if _task_shipped is not None:
+            try:
+                _wont_do_reading = _task_shipped(tid)
+            except Exception:
+                _wont_do_reading = None
+        _wont_do_settle = _wont_do_reading is True
+        _wont_do_note = (
+            " A `wont-do` card is admitted only when its ship reached `main` (T-14420), and this one "
+            + ("never shipped — none of its `task commit` ship commits is reachable from `main`, so "
+               "its observation is not owed and the overdue-recheck lens reports it apart (T-13470)."
+               if _wont_do_reading is False else
+               "could not be read as shipped (no ship reading wired, or a journal / git read failed)."))
+    if (pso_settle or pso_terminal) and current_status != "done" and not _wont_do_settle:
         _die(f"{tid} status={current_status!r} — --settle-observation settles the "
              f"`post_ship_observation` of an ALREADY-DONE card (T-11529). This card is not closed yet, "
              f"so its observation window has not opened: declare "
              f"`post_ship_observation: {{observation: <what will be read>, due_by: <ISO-date>}}` on the "
              f"card and take the audit-post carve-out (`audit post --task {tid} "
-             f"--post-ship-observation`); settle it here once the reading is recorded.")
+             f"--post-ship-observation`); settle it here once the reading is recorded.{_wont_do_note}")
+    if _wont_do_settle:
+        # No other late-linkage or close flag applies to a terminal wont-do card, so one passed beside
+        # the settle would be dropped silently (E-0057): refuse before any write.
+        _wd_other = [f for f, v in (
+            ("--closes-fp", closes_fp), ("--prop-*", propagation_disposition),
+            ("--reverify", reverify_ids), ("--pv-criterion", getattr(args, "pv_criterion", None)),
+            ("--pv-signal", getattr(args, "pv_signal", None)),
+            ("--pv-waive", getattr(args, "pv_waive", None)), ("--probe", getattr(args, "probe", None)),
+            ("--probe-deferred", getattr(args, "probe_deferred", None)),
+            ("--hygiene-fast-path", getattr(args, "hygiene_fast_path", False)),
+            ("--batch-close", getattr(args, "batch_close", False)),
+            ("--settle-probe/--settle-evidence", settle_pairs),
+            ("--settle-live-probe-*", lp_settled), ("--live-probe-outcome-*", lp_outcome),
+            ("--settle-live-probe-attested", lp_attested)) if v]
+        if _wd_other:
+            _die(f"{tid} status='wont-do' — {', '.join(_wd_other)} cannot apply to a terminal wont-do "
+                 f"card and would be dropped silently (T-14420). Run the settle alone: "
+                 f"`bin/yitc-v2 task close {tid} --settle-observation <locator|unreachable|falsified>`. "
+                 f"Nothing was written.")
     # T-0203 — post-done recovery FIRST: a prior close persisted status:done (below) but then the
     # task_closed emit OR graph rebuild raised, stranding the closure tail with no normal re-run
     # (done ∉ TASK_CLOSEABLE_STATUSES). Complete the tail idempotently from the persisted closure
     # fields, then return — BEFORE the closeable-status gate (which still rejects parked/wont-do).
-    if current_status == "done":
+    if current_status == "done" or _wont_do_settle:
+        # T-14473 (E-0057 shape) — `--reverify` on an already-DONE card: REFUSE before any write,
+        # naming the route that does re-stamp. The flag folds the re-stamp INTO the closure-record
+        # commit, which on a done card already exists, and a spec commit past the pinned audit-post is
+        # the T-0267/E-0008 custody trap — so there is no honest place to apply it here. Before this,
+        # the flag fell through to `_recover_close_tail` at exit 0 and changed nothing, while the
+        # Stage-9 drift WARN below still named `task close <tid> --reverify` as the remedy.
+        # (The wont-do settle arm already refuses the flag above.) Runs FIRST, so a --reverify beside
+        # a late --closes-fp / --pv / --settle-* writes nothing at all.
+        if reverify_ids and current_status == "done":
+            _rv_flags = " ".join(f"--reverify {s}" for s in reverify_ids)
+            _rv_steps = "; ".join(f"`bin/yitc-v2 spec reverify {s} --anchor <anchor>`" for s in reverify_ids)
+            _die(f"{tid} is already done — `{_rv_flags}` cannot be applied: it folds the re-stamp into "
+                 f"the closure-record commit, which this card already has, and a spec commit after the "
+                 f"pinned audit-post is the T-0267/E-0008 chain-of-custody trap (T-14473; SPEC-0015 "
+                 f"§Reverify-at-close). Re-stamp in a work batch once this card's code is on main (after "
+                 f"`bin/yitc-v2 land --task {tid}`): `bin/yitc-v2 worktree new --work "
+                 f"reverify-{tid.lower()}`, then per drifted anchor {_rv_steps}, then `bin/yitc-v2 work "
+                 f"commit --from tasks/<this card>.yaml` and `bin/yitc-v2 land --branch "
+                 f"work/reverify-{tid.lower()}`. Nothing was written.")
         # T-11168 — the POSTURE FORK the settle leg got in T-11162, hoisted ONCE for the two SIBLING
         # late-linkage legs below (--closes-fp, --pv-*). Both wrote `tasks/T-XXXX.yaml` and committed it
         # only `if _in_writing_worktree()`, so a late assertion made FROM MAIN — always possible, since a
@@ -11102,7 +11194,7 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                 _incoming = pso_terminal if pso_terminal else pso_settle
                 if (_existing == _incoming
                         or (isinstance(_existing, str) and _existing.strip() == pso_settle)):
-                    print(f"{tid} (done) — post-ship observation already settled behind that exact "
+                    print(f"{tid} ({current_status}) — post-ship observation already settled behind that exact "
                           f"discharge (idempotent, no change)")
                 else:
                     _die(f"{tid}: this observation is ALREADY settled by "
@@ -11179,13 +11271,13 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                     # wording): the debt leaves the ACTIONABLE overdue set for a set of its own, and
                     # it is NOT adoption evidence. A print that read like the locator discharge below
                     # would sell a floor as a payment.
-                    print(f"{tid} (done) — discharged post-ship observation as "
+                    print(f"{tid} ({current_status}) — discharged post-ship observation as "
                           f"{pso_terminal['result'].upper()}: {pso_terminal['reason']} (T-11950; it "
                           f"leaves the ACTIONABLE overdue-recheck set for its own counted "
                           f"{'permanent-floor' if pso_terminal['result'] == 'unreachable' else 'negative-reading'} "
                           f"set and NEVER satisfies CHARTER Principle 8 adoption evidence)")
                 else:
-                    print(f"{tid} (done) — settled post-ship observation: {pso_settle} "
+                    print(f"{tid} ({current_status}) — settled post-ship observation: {pso_settle} "
                           f"(observation {str(_pso_new.get('observation') or '')!r}, due_by "
                           f"{_pso_new.get('due_by')}); the overdue-recheck lens clears")
                 # NO NEW EVENT TYPE (CHARTER §P1 F1/F3) — `task_amended(field_edit)` is the existing
@@ -11277,6 +11369,8 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                 settle_pairs or pso_settle or pso_terminal or lp_settled or lp_outcome or lp_attested):
             for _line in _remaining_carriers_report(tid, _view_overdue_recheck()):
                 print(_line)
+        if _wont_do_settle:
+            return          # T-14420 — a settled wont-do card has no close tail to complete.
         _recover_close_tail(tid, task, propagation_disposition, tail_note=late_tail_note)
         return
     # SPEC-0204 rule 8 (T-12288) — CLOSURE IS REFUSED WHILE A LATE FINDING IS UNDECIDED.
@@ -12505,10 +12599,16 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             f"{detail}\n"
             "`audit post` has already pinned custody to the recorded commit, so re-verify from INSIDE this "
             "closure. Re-read each spec against the new code, then:\n"
-            "  - body still accurate (the move was cosmetic/orthogonal)? assert it and re-close —\n"
+            "  - body still accurate (the move was cosmetic/orthogonal)? assert it on the close that "
+            "writes done —\n"
             f"      yitc-v2 task close {tid} {reverify_flags}\n"
             "    `--reverify` re-stamps the signature INTO this closure-record commit (SPEC-0015 "
-            "§Reverify-at-close), so no separate spec commit exists to shift custody.\n"
+            "§Reverify-at-close), so no separate spec commit exists to shift custody. It applies only "
+            "while the card is not yet done: THIS close proceeds to done, after which that re-close "
+            "REFUSES (T-14473). Once done, re-stamp after `land` in a work batch — `yitc-v2 worktree new "
+            f"--work reverify-{tid.lower()}`, then per anchor above `yitc-v2 spec reverify <SPEC> "
+            "--anchor <anchor>`, `work commit`, `land --branch` (next time: `task commit --reverify` "
+            "one seam earlier).\n"
             "  - behaviour genuinely changed? `--reverify` is the WRONG tool (it asserts the rule is "
             "UNCHANGED): the spec body must be edited (`yitc-v2 spec edit <SPEC>`, SPEC-0005 rule-7 "
             "in-place), which re-opens the audit chain — it is not a Stage-9 quick fix.\n"
@@ -15823,7 +15923,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                         from lib import worktree as _wt_s6
                         _s6_rec, _ = _wt_s6._stage6_run_record(
                             _s6_root, _s6_tree_before, routed=_s6_routed, venue_tree=_s6_venue_tree,
-                            _run_git_cap=_run_git_cap)
+                            _run_git_cap=_run_git_cap, _classify_inert_paths=_classify_inert_paths)
                         if _s6_rec:
                             _s6_red = {_wt_s6.STAGE6_RUN_KEY: _s6_rec}
                     except Exception:          # noqa: BLE001 — absent, never a guess
@@ -15892,7 +15992,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                         from lib import worktree as _wt_s6
                         _none_rec, _none_why = _wt_s6._stage6_run_record(
                             _s6_root, _s6_tree_before, routed=_s6_routed, venue_tree=_s6_venue_tree,
-                            _run_git_cap=_run_git_cap)
+                            _run_git_cap=_run_git_cap, _classify_inert_paths=_classify_inert_paths)
                         _none_key = _wt_s6.STAGE6_RUN_KEY
                     except Exception as _e:    # noqa: BLE001 — absent, never a guess
                         _none_rec, _none_why = None, f"the record could not be taken ({type(_e).__name__})"
@@ -16097,7 +16197,7 @@ def cmd_task_test(args: argparse.Namespace, *, _append_event, _die, _governing_r
                     from lib import worktree as _wt_s6
                     _s6_rec, _s6_why = _wt_s6._stage6_run_record(
                         _s6_root, _s6_tree_before, routed=_s6_routed, venue_tree=_s6_venue_tree,
-                        _run_git_cap=_run_git_cap)
+                        _run_git_cap=_run_git_cap, _classify_inert_paths=_classify_inert_paths)
                     _s6_key = _wt_s6.STAGE6_RUN_KEY
                 except Exception as _e:        # noqa: BLE001 — a recording fault never fails a green run
                     _s6_rec, _s6_why = None, f"the record could not be taken ({type(_e).__name__})"
@@ -17796,7 +17896,11 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
     trips one changes no test file and the check would otherwise run nothing. A member the diff does
     not change is listed with `always: true`; a changed member is an ordinary entry, never listed
     twice. A set that cannot be read gives that directory one not-determined `always` entry naming why,
-    never an empty green."""
+    never an empty green.
+
+    T-14452 — a script file marked failed keeps what the runner said after the entry's first line (a
+    zero-collect verdict, an assertion excerpt, a launch error, a timeout) as the entry's `reason`; an
+    entry with no such text has no `reason` key."""
     from lib import land_verify_legs as _lv, worktree as _wt
     root = Path(root)
     left = sorted(set(changed))
@@ -17840,17 +17944,20 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
         # The runner's one failure shape is a first line `test failed: <name>` (a launch error, a
         # timeout and a zero-collect file alike); attribute by that EXACT name, never a substring —
         # `test_a.py` is a substring of `test_test_a.py`. Any other entry names no file.
-        failed, unattributed = set(), False
+        failed, unattributed, reasons = set(), False, {}
         for entry in bad:
-            head = str(entry).splitlines()[0].strip() if str(entry).strip() else ""
+            head, _, rest = str(entry).strip().partition("\n")
+            head = head.strip()
             name = head[len("test failed: "):] if head.startswith("test failed: ") else None
             if name in mine:
                 failed.add(name)
+                if rest.strip():                           # T-14452: the first text a file got is its reason
+                    reasons.setdefault(name, rest.strip())
             else:
                 unattributed = True
         for name, rel in sorted(mine.items(), key=lambda kv: kv[1]):
             if name in failed:
-                res = {"result": "failed"}
+                res = {"result": "failed", **({"reason": reasons[name]} if name in reasons else {})}
             elif name in ran and not unattributed:
                 res = {"result": "passed"}
             else:
@@ -18101,8 +18208,12 @@ def cmd_task_test_own(args: argparse.Namespace, *, _append_event, _die, _load_ta
     for note in notes:
         print(note)
     for e in files:
+        failed_why = e.get("reason") if e["result"] == "failed" else None    # T-14452: a script failure's words
         print(f"own-tests: {e['file']} [{e['runner'] or 'no runner'}] -> {e['result']}"
-              + (f" ({e['reason']})" if e.get("reason") else ""))
+              + (f" ({e['reason']})" if e.get("reason") and not failed_why else ""))
+        for ln in str(failed_why or "").splitlines():
+            if ln.strip():
+                print(f"  {ln}")
     for fl in failures:
         print(f"own-tests: layer {fl['layer']} failed:")
         for ln in fl["lines"]:

@@ -1,13 +1,16 @@
 # YITC v2 — saved view (query-lens).
 # A view stores the QUERY, never a materialized output — the result is recomputed fresh on every run.
 name: postcheck-plans-readiness
-description: Postcheck plans + their realize-readiness against the 2 CODED realize-exit gating clauses (finalization-ready / retire-on-proof-resolved) + captures-routed, postcheck-probe-block-declared, and dispositionless-infra-closures ADVISORIES (T-0644 demoted captures-routed to advisory; T-0670 added the dispositionless-infra-closures backstop, SPEC-0053) — retires the manual grep, never a gate.
+description: Postcheck plans + their realize-readiness — the 2 CODED realize-exit gating clauses (finalization-ready / retire-on-proof-resolved, together coded_clauses_pass) AND the plan's own Realization-exit criteria, listed verbatim and never inferred met (realize_ready only when the plan declares none, T-14477) + captures-routed, postcheck-probe-block-declared, and dispositionless-infra-closures ADVISORIES (T-0644 demoted captures-routed to advisory; T-0670 added the dispositionless-infra-closures backstop, SPEC-0053) — retires the manual grep, never a gate.
 lens:
   kind: postcheck-plans-readiness   # pure f over committed artifacts: plans (index["plans"], kind:plan)
                                     # at status==postcheck, each scored against the 2 CODED realize-exit
                                     # GATING clauses RE-DERIVED from the SAME canonical helpers the gates read
                                     # (_plan_specs + the <slug>-audit-post.yaml verdict/signature/carrier
                                     # = finalization_ready; _plan_retire_on_proof = retire_on_proof_resolved).
+                                    # The plan's own Realization-exit criteria (owner-judged, SPEC-0034)
+                                    # are listed as realization_exit; declared criteria with no recorded
+                                    # evidence keep realize_ready false.
                                     # captures-routed (_last_triage_watermark + _scan_captures) is REPORTED
                                     # as an ADVISORY (the unrouted_captures count), NOT a gating clause —
                                     # / Option B demoted the realize-EXIT gate to a WARN. Recomputed

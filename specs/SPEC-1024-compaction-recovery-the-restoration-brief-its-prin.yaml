@@ -207,72 +207,75 @@ body: "## Scenario\n\nA session's context has just been compacted. What the sess
   \ shows part of the output (a tail of it) counts as\ndelivered — so the plain line\
   \ of rule 10 is printed both FIRST and LAST, and a view of the output's beginning\
   \ or of its end still\ncarries the cue and the print-only command; a view of only\
-  \ the middle carries neither (stated\nlimit). It records a\nrestoration DELIVERED;\
-  \ a compaction DETECTED is the transcript's record (SPEC-1023), and a session\n\
-  that never runs an engine verb after its compaction leaves no delivery row.\n\n\
-  ### 10. The backstop speaks plainly, once\nAny engine verb — a read-only one included\
-  \ — run by a session whose newest seed receipt does not name\nthe reading's mark\
-  \ (SPEC-1023 rule 6) FIRST prints one plain line on stderr, so the verb's own\n\
-  stdout stays whole for a machine that reads it, and repeats it as its LAST line\
-  \ (rule 9). The line\ntells THREE cases apart, from the reading and the receipt's\
-  \ stamp: a compaction DETECTED — the\nnewest compaction marker is not the one the\
-  \ receipt recorded: «context was compacted» and the\nprint-only command; a receipt\
-  \ in the OLD NUMERIC format — a refresh is required and NO compaction is\nclaimed:\
-  \ the stamping command; CANNOT TELL under a provider whose detection is observed\
-  \ — treat the\ncontext as compacted (SPEC-1023 rule 6a): the cause and the print-only\
-  \ command. A receipt naming a\nmarker while the reading names none (a cut or rewritten\
-  \ transcript — SPEC-1023 rule 5) is said as\nthat mismatch and claims no compaction,\
-  \ and is recovered from as one. For every case but the old\nformat, if no delivery\
-  \ row exists yet for that reading — one written after the session's last seed\n\
-  receipt of another reading (SPEC-1023 rule 6) — the full brief follows the first\
-  \ line once,\ndecided under one lock, and the delivery row lives in the main checkout's\
-  \ journal, which every\ncheckout of the project reads — so two verbs of the session\
-  \ started together, from one checkout or\nfrom two, print one brief and write one\
-  \ row; later\nverbs in the same epoch print the line alone, until the stamping run.\
-  \ Silent: `session start` (its\nprint-only run IS the brief, its stamping run IS\
-  \ the recovery), a run carrying no provider carrier\n(no conversation of its own\
-  \ to tell — the gate alone applies to it), a provider whose detection is\nnot observed,\
-  \ and a session with no seed receipt. This rule ships together with\nthe receipt's\
-  \ marker-identity record (SPEC-1023 rule 6), never before it: without that record\
-  \ a\nrecovered session would still read as compacted. Only a delivery row whose\n\
-  output was delivered counts as «already shown» (rule 9). A gated verb's stale-epoch\n\
-  refusal (SPEC-0050 §8) carries the same line and the same once-per-epoch brief.\
-  \ Deciding «already\nshown» reads the delivery row through the tail-first session\
-  \ walk the gate already uses — no\nfull-history scan is added to a read-only verb.\n\
-  \n### 11. The brief authorizes nothing\nThe brief is orientation. Showing it does\
-  \ not take a hand-off, relaunch or adopt a worker, retry a\nland, resume a plan\
-  \ stage or a task, or turn a pending question into a go. Each of those keeps its\n\
-  own rule and, where it needs one, its own live owner cue (SPEC-0141, SPEC-1004 §6,\
-  \ SPEC-0126).\n\n### 12. The cue before the first edit — declared per provider\n\
-  File edits are not engine verbs, so rule 10 cannot reach a session that edits before\
-  \ it runs one.\nFor each provider the engine declares one of: **cue DELIVERED**\
-  \ — a named existing entry point of\nthat provider was observed, on a live compaction,\
-  \ to put the engine's cue into the session's\ncontext before its next action; or\
-  \ **cue NOT GUARANTEED**. Admission is by live observation, as in\nSPEC-1023 rule\
-  \ 3, and the two declarations are independent of each other and of SPEC-1023's\n\
-  detection state. Under «not guaranteed», `session start` says so in one line at\
-  \ startup. A\ndeclaration covers exactly the combinations observed — launch shape\
-  \ (inside / outside the\nrepository), harness (interactive window / headless run)\
-  \ and compaction kind (user-issued /\nautomatic / idle) — and §Parameters lists\
-  \ them; an unobserved combination is NOT GUARANTEED until a\nlive observation admits\
-  \ it.\nThe cue is carried ONLY by surfaces inside the\nproject's own repository\
-  \ — per provider, an entry point the repository holds and the provider runs\nor\
-  \ re-sends after a compaction (§Parameters names it for each provider). A session\
-  \ launched\noutside the repository (the interactive Controller launched from the\
-  \ home directory) is declared\ncue NOT GUARANTEED: it gets the cue at its first\
-  \ engine verb (rule 10). Host-level settings are not\ntouched. The entry is the\
-  \ ONE named, narrow exception to the no-hooks non-goal, and its bounds are\npart\
-  \ of THIS rule: fixed engine-authored text; a bounded run time and\noutput size;\
-  \ it never blocks, delays or fails a compaction; it has no side effect beyond the\
-  \ writes\nrule 8 names for the print-only run (the invocation receipt, the SPEC-0010\
-  \ auto-sync's rows and its\nsync checkpoint, the delivery row) and may run the\n\
-  print-only mode only; nothing quoted from a journal or transcript is interpolated\
-  \ into a shell or\nphrased as an instruction.\n\n### 13. Every session kind, every\
-  \ invocation form\nA dispatched Worker gets the same brief: its section 6 prints\
-  \ its own start form (the worker\ntype), and the hand-off line is absent because\
-  \ a Worker never takes one (SPEC-1004 §5). In a `-C`\nconsumer session every command\
-  \ the brief prints is in the engine `-C` form.\n\nThe print-only mode's flag name\
-  \ is chosen by the activating card; it is a name, not a rule.\n\n## Parameters\n\
+  \ the middle carries neither (stated\nlimit). The brief's plain line also closes\
+  \ with ONE sentence in the person's language, resolved\nin the SPEC-0086 rule 6f(d)\
+  \ order, telling the session to write to the person in it, interim lines\nbetween\
+  \ tool calls included; a neutral cue when the language is unknown or the engine\
+  \ carries no\ntext for it. It records a\nrestoration DELIVERED; a compaction DETECTED\
+  \ is the transcript's record (SPEC-1023), and a session\nthat never runs an engine\
+  \ verb after its compaction leaves no delivery row.\n\n### 10. The backstop speaks\
+  \ plainly, once\nAny engine verb — a read-only one included — run by a session whose\
+  \ newest seed receipt does not name\nthe reading's mark (SPEC-1023 rule 6) FIRST\
+  \ prints one plain line on stderr, so the verb's own\nstdout stays whole for a machine\
+  \ that reads it, and repeats it as its LAST line (rule 9). The line\ntells THREE\
+  \ cases apart, from the reading and the receipt's stamp: a compaction DETECTED —\
+  \ the\nnewest compaction marker is not the one the receipt recorded: «context was\
+  \ compacted» and the\nprint-only command; a receipt in the OLD NUMERIC format —\
+  \ a refresh is required and NO compaction is\nclaimed: the stamping command; CANNOT\
+  \ TELL under a provider whose detection is observed — treat the\ncontext as compacted\
+  \ (SPEC-1023 rule 6a): the cause and the print-only command. A receipt naming a\n\
+  marker while the reading names none (a cut or rewritten transcript — SPEC-1023 rule\
+  \ 5) is said as\nthat mismatch and claims no compaction, and is recovered from as\
+  \ one. For every case but the old\nformat, if no delivery row exists yet for that\
+  \ reading — one written after the session's last seed\nreceipt of another reading\
+  \ (SPEC-1023 rule 6) — the full brief follows the first line once,\ndecided under\
+  \ one lock, and the delivery row lives in the main checkout's journal, which every\n\
+  checkout of the project reads — so two verbs of the session started together, from\
+  \ one checkout or\nfrom two, print one brief and write one row; later\nverbs in\
+  \ the same epoch print the line alone, until the stamping run. Silent: `session\
+  \ start` (its\nprint-only run IS the brief, its stamping run IS the recovery), a\
+  \ run carrying no provider carrier\n(no conversation of its own to tell — the gate\
+  \ alone applies to it), a provider whose detection is\nnot observed, and a session\
+  \ with no seed receipt. This rule ships together with\nthe receipt's marker-identity\
+  \ record (SPEC-1023 rule 6), never before it: without that record a\nrecovered session\
+  \ would still read as compacted. Only a delivery row whose\noutput was delivered\
+  \ counts as «already shown» (rule 9). A gated verb's stale-epoch\nrefusal (SPEC-0050\
+  \ §8) carries the same line and the same once-per-epoch brief. Deciding «already\n\
+  shown» reads the delivery row through the tail-first session walk the gate already\
+  \ uses — no\nfull-history scan is added to a read-only verb.\n\n### 11. The brief\
+  \ authorizes nothing\nThe brief is orientation. Showing it does not take a hand-off,\
+  \ relaunch or adopt a worker, retry a\nland, resume a plan stage or a task, or turn\
+  \ a pending question into a go. Each of those keeps its\nown rule and, where it\
+  \ needs one, its own live owner cue (SPEC-0141, SPEC-1004 §6, SPEC-0126).\n\n###\
+  \ 12. The cue before the first edit — declared per provider\nFile edits are not\
+  \ engine verbs, so rule 10 cannot reach a session that edits before it runs one.\n\
+  For each provider the engine declares one of: **cue DELIVERED** — a named existing\
+  \ entry point of\nthat provider was observed, on a live compaction, to put the engine's\
+  \ cue into the session's\ncontext before its next action; or **cue NOT GUARANTEED**.\
+  \ Admission is by live observation, as in\nSPEC-1023 rule 3, and the two declarations\
+  \ are independent of each other and of SPEC-1023's\ndetection state. Under «not\
+  \ guaranteed», `session start` says so in one line at startup. A\ndeclaration covers\
+  \ exactly the combinations observed — launch shape (inside / outside the\nrepository),\
+  \ harness (interactive window / headless run) and compaction kind (user-issued /\n\
+  automatic / idle) — and §Parameters lists them; an unobserved combination is NOT\
+  \ GUARANTEED until a\nlive observation admits it.\nThe cue is carried ONLY by surfaces\
+  \ inside the\nproject's own repository — per provider, an entry point the repository\
+  \ holds and the provider runs\nor re-sends after a compaction (§Parameters names\
+  \ it for each provider). A session launched\noutside the repository (the interactive\
+  \ Controller launched from the home directory) is declared\ncue NOT GUARANTEED:\
+  \ it gets the cue at its first engine verb (rule 10). Host-level settings are not\n\
+  touched. The entry is the ONE named, narrow exception to the no-hooks non-goal,\
+  \ and its bounds are\npart of THIS rule: fixed engine-authored text; a bounded run\
+  \ time and\noutput size; it never blocks, delays or fails a compaction; it has no\
+  \ side effect beyond the writes\nrule 8 names for the print-only run (the invocation\
+  \ receipt, the SPEC-0010 auto-sync's rows and its\nsync checkpoint, the delivery\
+  \ row) and may run the\nprint-only mode only; nothing quoted from a journal or transcript\
+  \ is interpolated into a shell or\nphrased as an instruction.\n\n### 13. Every session\
+  \ kind, every invocation form\nA dispatched Worker gets the same brief: its section\
+  \ 6 prints its own start form (the worker\ntype), and the hand-off line is absent\
+  \ because a Worker never takes one (SPEC-1004 §5). In a `-C`\nconsumer session every\
+  \ command the brief prints is in the engine `-C` form.\n\nThe print-only mode's\
+  \ flag name is chosen by the activating card; it is a name, not a rule.\n\n## Parameters\n\
   \nNot `consumed`. Governed code constants — values are set by the `trial` runs of\
   \ the authoring plan:\n\n| parameter | value | meaning |\n|---|---|---|\n| brief\
   \ total bound | 6000 bytes (~1500 tokens) | the bound everything except the mandatory\
@@ -452,9 +455,9 @@ init_concern: null
 implements_signature:
   bin/lib/cli.py#COMPACTION_CUE_DELIVERED: 45468c37dcfbc9d6ed7706dab43972278375b58cb09544075c21f05393d1372c
   bin/lib/cli.py#_compaction_backstop: f1104515f4aec4ee2d2374603119beebfe20321757f8dd3790a5e5d695dfa4ab
-  bin/lib/cli.py#_restoration_brief: 58fe2b2818d244de8dc280705f730c4770609861220e509594478e6579c39dc6
+  bin/lib/cli.py#_restoration_brief: c00a34f5b26c4c8ab28c06190157dc26a31fac9b8befb3bd32d8f9001c0bec3f
   bin/lib/cli.py#_session_start_print_only: e1c27fa58b8afced470f7ceec831cbf98d1f6eaac51ff237c207ae02622787e8
-  bin/lib/cli.py#cmd_session_start: c28c4c431b412463e6143b2637bdeabd34d860328b72de80df2c8bbbe707961c
+  bin/lib/cli.py#cmd_session_start: ae9d05e9937d230797c02085c66c212528a741f292b47a32af7175eae8e36357
   bin/lib/journal.py#conversation_entry: 5a51900cba11b61ec9dcbbc3293996bf383f56e9ed4a83151169477b7f70b48b
   bin/lib/session.py#backstop_plain_line: 86d3b5a98a8e9dd73cbafd85bba77a3e5f865be63777ffbf45c1a7ab33092a14
   bin/lib/session.py#cue_not_guaranteed_line: 23d0e6876b59b5ad32d509fb676b1c7ed3c130e42d2971866a443308172bf861

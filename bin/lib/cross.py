@@ -423,6 +423,11 @@ DONE_STDIN_CONFLICTING_ARGV_FLAGS = (
 )
 PROSE_BEARING_DONE_FIELDS = ("note",)
 DONE_STDIN_RECOGNISED_KEYS = tuple(k for _a, _f, k, _d in DONE_STDIN_CONFLICTING_ARGV_FLAGS)
+PICK_STDIN_CONFLICTING_ARGV_FLAGS = (
+    ("reason",          "--reason",          "reason",          None),
+)
+PROSE_BEARING_PICK_FIELDS = ("reason",)
+PICK_STDIN_RECOGNISED_KEYS = tuple(k for _a, _f, k, _d in PICK_STDIN_CONFLICTING_ARGV_FLAGS)
 ACK_STDIN_CONFLICTING_ARGV_FLAGS = (
     ("note",            "--note",            "note",            None),
     ("re_entry",        "--re-entry",        "re_entry",        None),
@@ -1877,26 +1882,72 @@ def cross_done_for_close(item: dict, self_name: str, *, task: dict = None, tid: 
     return payload
 
 
-def cross_pick_for_file(item: dict, self_name: str):
-    """PURE — the symmetric MIRROR of cross_done_for_close (T-9399): the `cross_picked` payload {id, by}
-    the RECEIVER should auto-emit when FILING a task that resolves `item`, or None when not applicable
-    (idempotent + fail-open). cross_picked is FSM-legal ONLY for the RECEIVER (`by == item.to`) from the
-    `requested` state and ONLY for a PICKABLE kind (`task`/`bugfix` — mirror cmd_cross_pick's kinds
-    guard), so the auto-emit fires EXACTLY there: self must be the receiver, the item EXACTLY `requested`,
-    and the kind pickable. Every other case — self is the author, a non-pickable `note` (which CAN sit at
-    `requested`, unlike a closed-side item — so the status check alone is not enough), the item already
-    `picked`/`done`/terminal — returns None (skip, never a duplicate, never raises). The host emits the
-    returned payload directly under the cross-log append (REUSING the cross mechanism, like the close-side
-    cross_done_for_close); the FSM legality the verb's _guard would check is upheld BY CONSTRUCTION here."""
-    if not isinstance(item, dict):
+# The triage vocabulary's ONE home is SPEC-1010 ## Parameters (the machine tokens below); no list here.
+_TRIAGE_TOKENS = ("TRIAGE_CLASSES", "OWNERSHIP_ANSWERS", "TRIAGE_EXCEPTIONS")
+
+
+def triage_vocabulary(spec_text: str) -> "dict | None":
+    """PURE — {token: [value, ...]} parsed from SPEC-1010's machine tokens, or None when any token is
+    absent or empty. Same idiom as a `consumed: true` spec's value token (SPEC-0190 GROWTH_WINDOW_DAYS)."""
+    vocab = {}
+    for token in _TRIAGE_TOKENS:
+        m = re.search(rf"^[ \t]*{token}:[ \t]*(.+?)[ \t]*$", spec_text or "", re.M)
+        values = [v.strip() for v in m.group(1).split("|") if v.strip()] if m else []
+        if not values:
+            return None
+        vocab[token] = values
+    return vocab
+
+
+def _read_triage_vocabulary() -> "dict | None":
+    """The vocabulary as THIS engine ships it: the file sits beside the running code, so a `-C` consumer
+    reads the kernel's spec, never a same-numbered spec of its own. None on any read failure."""
+    specs = Path(__file__).resolve().parents[2] / "specs"
+    try:
+        return triage_vocabulary(next(specs.glob("SPEC-1010-*.yaml")).read_text(encoding="utf-8"))
+    except (OSError, StopIteration, UnicodeDecodeError):
         return None
-    if item.get("kind") not in EVENT_KINDS["cross_picked"]:
-        return None                       # only task/bugfix are pickable → a note pick is wrong-kind (skip)
-    if item.get("to") != self_name:
-        return None                       # not the receiver → cross_picked is wrong-role (skip)
-    if item.get("status") != "requested":
-        return None                       # only requested → picked is FSM-legal (idempotent otherwise)
-    return {"id": item["id"], "by": self_name}
+
+
+def triage_choices_text(vocab: dict) -> str:
+    """The choices a refusal names — rendered from the vocabulary, restating nothing."""
+    return (f"--class {{{' | '.join(vocab['TRIAGE_CLASSES'])}}} with "
+            f"--ownership {{{' | '.join(vocab['OWNERSHIP_ANSWERS'])}}}, or "
+            f"--exception {{{' | '.join(vocab['TRIAGE_EXCEPTIONS'])}}} with --reason <why>")
+
+
+def triage_for_pick(args, vocab: dict):
+    """PURE — (fields, None) for the cross_picked row, or (None, refusal text). Checks only that the
+    receiver STATED a judgement in the SPEC-1010 words; it never judges the item."""
+    def _canon(value, token):
+        wanted = " ".join(str(value).split()).casefold()
+        return next((v for v in vocab[token] if v.casefold() == wanted), None)
+
+    def _text(name):
+        return str(getattr(args, name, None) or "").strip()
+
+    cls, own, exc, reason = _text("triage_class"), _text("ownership"), _text("exception"), _text("reason")
+    choices = triage_choices_text(vocab)
+    if exc and (cls or own):
+        return None, f"a named exception stands alone, without a class or an ownership answer: {choices}"
+    if exc:
+        canon = _canon(exc, "TRIAGE_EXCEPTIONS")
+        if canon is None:
+            return None, f"unknown exception {exc!r}: {choices}"
+        if not reason:
+            return None, f"exception {canon!r} needs its reason: {choices}"
+        return {"exception": canon, "reason": reason}, None
+    if not cls or not own:
+        return None, f"a pick states the SPEC-1010 section 3 triage: {choices}"
+    canon_cls, canon_own = _canon(cls, "TRIAGE_CLASSES"), _canon(own, "OWNERSHIP_ANSWERS")
+    if canon_cls is None:
+        return None, f"unknown class {cls!r}: {choices}"
+    if canon_own is None:
+        return None, f"unknown ownership answer {own!r}: {choices}"
+    fields = {"class": canon_cls, "ownership": canon_own}
+    if reason:
+        fields["reason"] = reason
+    return fields, None
 
 
 def intake_advisories(item: dict, self_name: str, *, resolved_by=None) -> list:
@@ -1945,10 +1996,10 @@ def unanswered_cross_link_advice(xid: str, item, self_name: str) -> "str | None"
 
     WHY (X-0943, measured by <project> on three items in one session): the close-side auto-emit
     `cross_done_for_close` fires ONLY when self is the receiver AND the item is EXACTLY `picked`. So
-    PICKED is the discriminator — an UNPICKED linked item is silently never answered. The T-9399
-    file-side auto-pick covers the happy path, but every case IT declines is silent except the
-    T-10636 `already_held` one: a non-pickable `note` kind, a wrong-role link, and a non-`ready`
-    filing all skip with no signal at all. Their three items stayed `[note/requested]` after the
+    PICKED is the discriminator — an UNPICKED linked item is silently never answered. A filing
+    never picks (T-14447: the pick states a triage, SPEC-1010 section 3), so this warn is what names
+    the step for a `requested` link, as it always did for a non-pickable `note` kind, a wrong-role
+    link and a non-`ready` filing. Their three items stayed `[note/requested]` after the
     resolving task landed done, `cross pick` then REFUSED them naming that same done task, and
     `cross show` printed `task: (none)` — three surfaces, three different answers about one item.
     Their PICKED pair auto-closed correctly, which is what isolates PICKED as the cause.
@@ -1994,8 +2045,8 @@ def unanswered_cross_link_advice(xid: str, item, self_name: str) -> "str | None"
                 f"`yitc-v2 cross ack {xid}` (add `--note <what you did>` to return a result on it). "
                 f"{tail}")
     return (f"{head} {where}: the close-side auto `cross_done` fires only from `picked`, and this "
-            f"item is `{status}`. Run `yitc-v2 cross pick {xid}` — then closing this card answers "
-            f"it automatically. {tail}")
+            f"item is `{status}`. Run `yitc-v2 cross pick {xid} --task <this card>` with its triage "
+            f"(`yitc-v2 cross pick --help`) — then closing this card answers it automatically. {tail}")
 
 
 def print_unanswered_cross_link_warns(xids, items, self_name: str, *, skip=()) -> list:
@@ -2462,6 +2513,9 @@ def cmd_cross_pick(args, *, cross_log_path, self_name, cross_emit, local_append,
     PREMISE REVIEW (T-10439, SPEC-0086 rule 7) — the intake hygiene above checks the request's SHAPE;
     the cue printed just before the emit reminds the receiver to check its CENTRAL CLAIM against current
     state. Report-only (a cue + a pointer, never a gate)."""
+    _stdin_prose_ingest(args, PICK_STDIN_CONFLICTING_ARGV_FLAGS, PROSE_BEARING_PICK_FIELDS,
+                        PICK_STDIN_RECOGNISED_KEYS, die=die, carries="the pick reason",
+                        verb="cross pick")
     item = _resolve_or_die(cross_log_path, args.id, die, aliases=aliases)
     force = bool(getattr(args, "force", False))
     advisories = intake_advisories(item, self_name, resolved_by=resolver_task)
@@ -2489,8 +2543,21 @@ def cmd_cross_pick(args, *, cross_log_path, self_name, cross_emit, local_append,
     # operations the rule fires before. Printed AFTER the guard passes (a refused pick creates no intake,
     # so it earns no cue) and BEFORE the emit. Report-only: it never blocks the pick (non-goal #7).
     # T-11992: `is_kernel` is already the realm this verb was handed — reuse it, no new plumbing.
+    # T-14447 (SPEC-1010 section 3): the pick states its triage. After the guards, so a pick refused for
+    # another reason keeps that reason; before the cue and the emit, so a refused pick writes no row.
+    vocab = _read_triage_vocabulary()
+    if vocab is None:
+        _refuse(local_append, die, item["id"], "pick", self_name,
+                "the triage vocabulary could not be read from this engine's SPEC-1010 ## Parameters")
+    triage, refusal = triage_for_pick(args, vocab)
+    if refusal:
+        _refuse(local_append, die, item["id"], "pick", self_name, refusal)
     print_premise_review_cue([item["id"]], self_name, is_consumer=not is_kernel)
-    cross_emit("cross_picked", {"id": item["id"], "by": self_name})
+    payload = {"id": item["id"], "by": self_name, **triage}
+    resolving_task = str(getattr(args, "task", None) or "").strip()
+    if resolving_task:
+        payload["task"] = resolving_task
+    cross_emit("cross_picked", payload)
     _mirror_on_intake(item, local_append, is_kernel=is_kernel)   # rule 6 — kernel bugfix intake only
     print(f"cross picked: {item['id']} by {self_name}")
 
@@ -3713,7 +3780,7 @@ INJECTS = {
 def _cross_overlap_inputs(*, _SELF, _cross_peer_aliases, _cross_self, cross) -> tuple:
     # T-10311 (X-0263): hand cmd_task_file's filing preview the folded coordination log + self id, so its
     # advisory can name the OPEN to:me cross items a card may duplicate. CROSS_LOG_PATH + _cross_self live
-    # here (out of task.py's scope), mirror of the _auto_cross_pick_for_file injection. The lib side wraps
+    # here (out of task.py's scope), mirror of the _cross_link_held_skips injection. The lib side wraps
     # this call fail-open — a cross-log hiccup must NEVER break a completed filing.
     return cross.fold(cross.read_events(_SELF.CROSS_LOG_PATH, _cross_peer_aliases())), _cross_self()
 

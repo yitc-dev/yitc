@@ -37,6 +37,8 @@ Default to the PLAIN register the owner otherwise has to request with an "explai
 
 **Keep technical identifiers EXACT — but always gloss them.** Never rename / translate / paraphrase the token itself: verb & command names (`bin/yitc-v2 land`), ids (`SPEC-XXXX` / `T-XXXX` / `E-XXXX` / `X-XXXX`), event names, field keys, file paths. Pair each with a plain gloss in the surrounding sentence (precise token, plain sentence). "Exact" ≠ "unexplained". This is a REGISTER rule, distinct from the LANGUAGE rule below (the user's language vs English) — it governs how plainly owner-facing prose is phrased, not which language.
 
+Evidence before claim: distinguish observations from explanations; label unverified causes as hypotheses and forecasts as estimates, stating their basis. Rule body: SPEC-0060 §Evidence before claim (`bin/yitc-v2 graph query SPEC-0060`).
+
 
 <!-- source: AGENTS-SESSIONS.md (controller supplement) -->
 
@@ -166,6 +168,7 @@ rule: `graph query SPEC-0126`.
   launched with `bin/yitc-v2 dispatch`, never an in-process subagent (that would dissolve per-write
   worktree isolation, the independent-provider audit, and the 9-stage governance at once). Read-only / ephemeral helper
   subagents (search, analysis) stay legitimate — the ban is scoped to the WORKER role, not the tool.
+  The one carve-out: in a declared spike sandbox the Controller's in-session helpers make the edits by default — SPEC-0205 rule 13.
 - **(d) no cap/queue-state machinery, no liveness-arming infra, no role-taxonomy** — the controller is a
   selector+dispatcher on stateless reads, not a stateful orchestrator.
 - **(e) the worker stays a pure executor** — the cross-chain wait lives in the CONTROLLER, never a
