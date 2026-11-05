@@ -397,44 +397,53 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   spike (rule 1) AT the served round's branch tip, not at `main`, then parks the served\
   \ round (rule 4 —\nits prototype tag `spike/<x>`). Every commit of the round continues\
   \ as itself, so nothing is carried\nand no partial commit exists; a part that IS\
-  \ handed off takes rule 11 instead.\n- **Order.** The next round's worktree is opened\
-  \ first; then the project's hand-over step, where one\nis declared; the served round\
-  \ is parked last, so the stand serving it is never torn down before\nthe next round\
-  \ can be served.\n- **The project's part is declared, never built in.** What a project\
-  \ does between two rounds —\ncopying build outputs, re-pointing its stand at the\
-  \ new worktree — is the project's own: it is\ndeclared as one shell command, `spike_sandbox.handover`\
-  \ in the project's `yitc-ops.yaml`, which the\nkernel runs inside the new worktree\
-  \ with the served and the new worktree and branch in its\nenvironment (runbook:\
-  \ `patterns/spike-mode.md` §5b). With no declaration nothing project-specific\n\
-  runs, and the output says so.\n- **Refused, creating nothing:** without `--work\
-  \ … --spike`; a served batch that is not a live\ndeclared spike; a served round\
-  \ with uncommitted changes (commit the round first; rows appended to its live journal\
-  \ are not round content, so here and at the park-time check below they do not count);\
-  \ a next-round\nslug that already exists or equals the served one; a declaration\
-  \ that is not one non-empty command\nor a carrier that cannot be read; and, with\
-  \ no step declared, a served round a cage still serves.\n- **The park is bound to\
-  \ the tip the next round inherited.** A failing step, or a served round whose\n\
-  tip moved or became dirty while the step ran, leaves the served round UNPARKED and\
-  \ intact and the\nnext round open, and the command fails naming the way on (`worktree\
-  \ park --work <served>` once the\nchange is carried). A park refusal of its own\
-  \ (rule 3's served-tree refusal, an existing tag) is\nthe park's, unchanged.\nCheck\
-  \ layer: KERNEL.\n\n### 13. Helpers in a spike — in-session helper subagents make\
-  \ the sandbox edits by default\nThe one bounded exception to the CHARTER §6 fence\
-  \ against an in-process subagent (owner decision\n`events.jsonl#ts=`): in a declared\
-  \ spike session the Controller hands the edits\nto in-session helper subagents by\
-  \ default, several in parallel, and keeps talking with the person —\nso its own\
-  \ context is kept for the conversation, not spent on edits (request X-2151). Asked\
-  \ who\nmakes the edits in a spike, the Controller answers «the helpers, by default»;\
-  \ it edits itself only\nwhen the person asks it to.\n- **Spike worktree only.**\
-  \ A helper edits inside the declared spike worktree (rule 1) and nowhere else.\n\
-  - **No land, no production.** A helper claims, lands, parks and deploys nothing,\
-  \ and reaches no production\n  resource; those acts stay outside it.\n- **Prototype\
-  \ only.** What a helper writes is spike content: rule 2 holds, and it reaches `main`\
-  \ only\n  through a `prototype_ref` card that pays all nine stages (rule 5).\n-\
-  \ **No parallel-edit guard.** By the owner's decision: it is a sandbox.\nA dispatched\
-  \ Worker and every card flow stay under the fence. Nothing enforces the fence on\
-  \ an in-process\nsubagent, so nothing is changed to admit a helper. Check layer:\
-  \ discipline.\n\n## Parameters\n\nNone consumed. The abort class `spike-content`,\
+  \ handed off takes rule 11 instead.\n- **A PARKED round continues from its tag.**\
+  \ When no batch `work/<served>` exists and the served\nround's annotated prototype\
+  \ tag `spike/<x>` does (rule 4's naming; `--from-spike` takes `<served>` or\n`spike/<x>`),\
+  \ the next round opens AT that tag's commit, through the same verb: its\n`worktree_created`\
+  \ row carries `spike: true` and `from: spike/<x>`, it is stamped with the opening\n\
+  session — so that session parks it without `--confirm-dead` — the declared step\
+  \ runs with\n`YITC_SPIKE_FROM_TAG` and no served worktree, and nothing is parked.\
+  \ A lightweight `spike/<x>` is no\nprototype and refuses. Never open such a round\
+  \ by raw `git worktree add`: it carries no stamp, so its\npark refuses it as foreign.\n\
+  - **Order.** The next round's worktree is opened first; then the project's hand-over\
+  \ step, where one\nis declared; the served round is parked last, so the stand serving\
+  \ it is never torn down before\nthe next round can be served.\n- **The project's\
+  \ part is declared, never built in.** What a project does between two rounds —\n\
+  copying build outputs, re-pointing its stand at the new worktree — is the project's\
+  \ own: it is\ndeclared as one shell command, `spike_sandbox.handover` in the project's\
+  \ `yitc-ops.yaml`, which the\nkernel runs inside the new worktree with the served\
+  \ and the new worktree and branch in its\nenvironment (runbook: `patterns/spike-mode.md`\
+  \ §5b). With no declaration nothing project-specific\nruns, and the output says\
+  \ so.\n- **Refused, creating nothing:** without `--work … --spike`; a served batch\
+  \ that is not a live\ndeclared spike with no parked prototype tag in its place;\
+  \ a served round with uncommitted changes (commit the round first; rows appended\
+  \ to its live journal are not round content, so here and at the park-time check\
+  \ below they do not count); a next-round\nslug that already exists or equals the\
+  \ served one; a declaration that is not one non-empty command\nor a carrier that\
+  \ cannot be read; and, with no step declared, a served round a cage still serves.\n\
+  - **The park is bound to the tip the next round inherited.** A failing step, or\
+  \ a served round whose\ntip moved or became dirty while the step ran, leaves the\
+  \ served round UNPARKED and intact and the\nnext round open, and the command fails\
+  \ naming the way on (`worktree park --work <served>` once the\nchange is carried).\
+  \ A park refusal of its own (rule 3's served-tree refusal, an existing tag) is\n\
+  the park's, unchanged.\nCheck layer: KERNEL.\n\n### 13. Helpers in a spike — in-session\
+  \ helper subagents make the sandbox edits by default\nThe one bounded exception\
+  \ to the CHARTER §6 fence against an in-process subagent (owner decision\n`events.jsonl#ts=`):\
+  \ in a declared spike session the Controller hands the edits\nto in-session helper\
+  \ subagents by default, several in parallel, and keeps talking with the person —\n\
+  so its own context is kept for the conversation, not spent on edits (request X-2151).\
+  \ Asked who\nmakes the edits in a spike, the Controller answers «the helpers, by\
+  \ default»; it edits itself only\nwhen the person asks it to.\n- **Spike worktree\
+  \ only.** A helper edits inside the declared spike worktree (rule 1) and nowhere\
+  \ else.\n- **No land, no production.** A helper claims, lands, parks and deploys\
+  \ nothing, and reaches no production\n  resource; those acts stay outside it.\n\
+  - **Prototype only.** What a helper writes is spike content: rule 2 holds, and it\
+  \ reaches `main` only\n  through a `prototype_ref` card that pays all nine stages\
+  \ (rule 5).\n- **No parallel-edit guard.** By the owner's decision: it is a sandbox.\n\
+  A dispatched Worker and every card flow stay under the fence. Nothing enforces the\
+  \ fence on an in-process\nsubagent, so nothing is changed to admit a helper. Check\
+  \ layer: discipline.\n\n## Parameters\n\nNone consumed. The abort class `spike-content`,\
   \ the tag prefix `spike/` (annotated tags), the stamp key `spike`,\nthe journal\
   \ rows `spike_declared_late` / `spike_content_checked` / `spike_content_previewed`,\
   \ the report\nline prefix `spike-content:` and the packet field `prototype_identity`\
@@ -604,7 +613,14 @@ body: "## Scenario\n\nA developer opens a sandbox for one of two reasons and say
   \  the park and an undeclared one prints that nothing project-specific ran; a failing\
   \ step, a tip moved\n  by the step, a dirty or undeclared served round, a malformed\
   \ declaration and a served-tree cage with\n  no step each leave the served round\
-  \ unparked (the refusals before the open create nothing).\n"
+  \ unparked (the refusals before the open create nothing).\n- **VP10b (rule 12, a\
+  \ PARKED round):** `tests/test_t14532_spike_round_from_parked_tag.py` — with only\n\
+  \  the annotated `spike/<x>` left, the next round's branch equals the tag's commit\
+  \ (not `main`), its\n  `worktree_created` row carries `spike: true` and `from: spike/<x>`,\
+  \ its stamp names the row's\n  session, and that session parks it without `--confirm-dead`;\
+  \ a lightweight tag refuses creating\n  nothing; the step sees `YITC_SPIKE_FROM_TAG`;\
+  \ a raw-git round's park refusal names this arm; and\n  this rule's text names the\
+  \ parked-tag start point.\n"
 cites:
 - CHARTER.md#principle-1
 - CHARTER.md#principle-3
@@ -627,7 +643,7 @@ implements_signature:
   bin/lib/audit_packet.py#build_audit_prompt: 9a0ba133785757410d265707119816ad4b6fb47a6dc4148ed980e3dd0d117b65
   bin/lib/cage.py#refusals: 4e7fc2e7ea56505577444b429e655c15fc22c4990554df7c3fd7aef89c35bbd3
   bin/lib/deploy.py#_stand_role: 45735e2ac724023874447ac286f752b13afdbcb77e056454b331d9f286c9ef05
-  bin/lib/deploy.py#cmd_deploy: 65223e73776a8f397edea91d36567991ceba558f244c7463bd253efdc2a690f2
+  bin/lib/deploy.py#cmd_deploy: b2726455fbe1306a8557abc99eff4a05f9c373bdf07135ded36d2f3ee81cbd12
   bin/lib/spike_identity.py#check_spike_content: 9deba2d94d2034dff3ab19dbfb23381b250b2810c0205fa6337990f0a0b911a8
   bin/lib/spike_identity.py#content_verdict: e9f58b40cce4e4975587853da212a180a5b4ee3af05616ee64465af96188e439
   bin/lib/spike_identity.py#fold_spike_set: 61e9f17f6d4f1c661a0f1c778947667794c672f343497c7082828ff901519e86
@@ -638,8 +654,8 @@ implements_signature:
   bin/lib/worktree.py#cmd_land: df7fe2aa7abe7cd34fa52151776180237eb12d295d404a5a208fa1e141f4d4ef
   bin/lib/worktree_lifecycle.py#_declare_spike_late: 1f4dac8aac6421c17a06077faddf7b0f9f14d7b9b3588e0073a5c5661f7e5822
   bin/lib/worktree_lifecycle.py#_served_round_dirt: 7711c54aa7b9c64ff9793fb7592ac90819f1c20492eb435c441380f6229b32a5
-  bin/lib/worktree_lifecycle.py#_spike_round_handover: 9559321ff7d38cd01c82320e237ed3fdac001ba615c75a5888e3c4b479f981a3
-  bin/lib/worktree_lifecycle.py#_spike_round_preflight: bb8e4b1a25568b1129a12e94ec49ffd20f1eaab3d3d3beddf7adfb136554d232
+  bin/lib/worktree_lifecycle.py#_spike_round_handover: 643ad7804c258af1619d2ca4030bfffa279f40e5d2e56fb06f7707b9b015c249
+  bin/lib/worktree_lifecycle.py#_spike_round_preflight: 481e9a56963f223879de9254c1437708b1f73a7eb2cf83d0b7361d642c1b8d26
   bin/lib/worktree_lifecycle.py#_tag_spike_prototype: 79b18db075e78c97159db879abce9a7ca37f0dc48e27b836bdb9830dfbe06799
   bin/lib/worktree_lifecycle.py#_write_worktree_stamp: 7d085295b99b08d0c1b210f684fb3f043232724a1c26346965579adff52ef78a
-  bin/lib/worktree_lifecycle.py#cmd_worktree_new: f24ce5352abb768ebe02c1ee07e1aba9aec00ffdfeecb9fe2eb847602abf54d3
+  bin/lib/worktree_lifecycle.py#cmd_worktree_new: 2eea33889dced63027f0701e2fb947373e502f34d81ed0782fc48cf079c24375

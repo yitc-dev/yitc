@@ -2118,6 +2118,12 @@ def cmd_task_file(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, TASKS_DIR, 
         _die("--scope requires ≥ 1 item")
     if not acceptance:
         _die("--acceptance requires ≥ 1 item")
+    # T-14516: label unlabelled items AC1..ACn here — after the stdin/argv merge, before any write —
+    # so every filed card carries the criterion ids `--set-field probe_moments` keys on.
+    acceptance, _label_err = _label_acceptance(acceptance)
+    if _label_err:
+        _die(f"{_label_err}: `bin/yitc-v2 task file --title ... --acceptance 'AC1: ...' "
+             f"--acceptance 'AC2: ...'`")
     # T-0404: expected_touch is OPTIONAL (absent/empty = no forecast), but every member MUST be a
     # non-empty string (audit-pre F1 absorption — reject silent garbage members).
     for et in expected_touch:
@@ -9421,6 +9427,31 @@ def _criterion_key_namespace(acceptance) -> "tuple[set, set]":
     return ids, {prefix for prefix, _ in ids}
 
 
+def _label_acceptance(acceptance) -> "tuple[list, str | None]":
+    """T-14516 — the acceptance list `task file` writes. PURE. Returns (items, None) or (None, reason).
+
+    No item led by a criterion id → each becomes `AC<i>: <text>` (1-based, in order). Every item led
+    by one, and the AC-prefixed ids read exactly AC1..ACk in order → the list unchanged (byte-identical).
+    Labelled = `_leading_criterion_id(item) is not None`, the parser the probe_moments writer reads, so
+    what filing calls labelled is what `--set-field probe_moments` admits. A MIXED list (some led, some
+    not) or a GAPPED one (a gap, a duplicate, AC0, out of order) is refused: nothing is written."""
+    route = ("re-file with every item labelled AC1: .. ACn: in order, or with none so filing "
+             "labels them — nothing was written")
+    ids = [_leading_criterion_id(item) for item in acceptance]
+    if all(cid is None for cid in ids):
+        return [f"AC{i}: {item}" for i, item in enumerate(acceptance, 1)], None
+    unlabelled = [i for i, cid in enumerate(ids, 1) if cid is None]
+    if unlabelled:
+        return None, (f"--acceptance mixes labelled and unlabelled items (unlabelled at position(s) "
+                      f"{', '.join(map(str, unlabelled))}); {route}")
+    ac_nums = [n for prefix, n in ids if prefix == "AC"]
+    if ac_nums != list(range(1, len(ac_nums) + 1)):
+        got = ", ".join(f"AC{n}" for n in ac_nums)
+        return None, (f"--acceptance AC labels are not AC1..AC{len(ac_nums)} in order (got {got}); "
+                      f"{route}")
+    return list(acceptance), None
+
+
 def _unknown_probe_key_error(probe_keys, acceptance) -> "str | None":
     """FAIL-CLOSED admission for the probe KEY set. Returns the refusal reason, else None.
 
@@ -10065,6 +10096,47 @@ def sync_merge_closure_custody(record, sha, *, _git_resolve_sha, repo_root) -> "
     except Exception:      # noqa: BLE001 — an unanswerable question never moves custody
         return None
     return None
+
+
+def preshipped_closure_custody(record, sha, tid, *, chain, authored_paths, _git_resolve_sha,
+                               ship_landed) -> "tuple[str | None, str]":
+    """T-14521 (public issue #233 finding 1, SPEC-0015 §Internal) — the PRE-SHIPPED DELIVERABLE an
+    audit-post record covers, when closure custody may move onto it; else (None, why).
+
+    `audit post --preshipped-deliverable --commit <ship>` pins the record's `commit:` to a ship that
+    landed BEFORE (or outside) the card — a `work/` batch, a prior session — while the card's recorded
+    commit is its own bookkeeping commit, so closure read its own GREEN as «for another commit» and the
+    only exit was a second auditor pass. The record's marker is a TRAIL, never trusted: every conjunct
+    is RE-DERIVED here, each a POSITIVE proof (`is True` / `== []`; an unanswered question refuses):
+      (1) the record marks `preshipped_deliverable: true` and its `commit:` resolves to the SAME sha as
+          its `preshipped_deliverable_commit` — the ship the overlay's own guard derived;
+      (2) that ship is not the custody `sha` (nothing to move otherwise);
+      (3) the ship is an ancestor of `main` — the fence the pre-card arm admitted it on (T-11403);
+      (4) the recorded `sha` and EVERY other commit this card recorded carries NO authored content, read
+          through the existing `_bookkeeping_commit_authored_paths` reader — so the ship the auditor
+          judged is the only authored content the card carries. Never raises."""
+    try:
+        if not isinstance(record, dict) or record.get("preshipped_deliverable") is not True or not sha:
+            return None, "the audit-post record carries no preshipped-deliverable marker"
+        commit = str(record.get("commit") or "").strip()
+        named = str(record.get("preshipped_deliverable_commit") or "").strip()
+        ship = _git_resolve_sha(commit) if commit else None
+        if not ship or not named or _git_resolve_sha(named) != ship:
+            return None, (f"the record's commit {commit[:12] or '(none)'} is not the preshipped "
+                          f"deliverable it names ({named[:12] or '(none)'})")
+        if ship == sha:
+            return None, "the preshipped deliverable already is the recorded commit"
+        if ship_landed(ship) is not True:
+            return None, f"the preshipped deliverable {ship[:12]} is not proven an ancestor of main"
+        others = [sha] + [s for s, _k in (chain or []) if s and _git_resolve_sha(s) not in (ship, sha)]
+        for s in others:
+            paths = authored_paths(s, tid)
+            if paths != []:
+                what = ", ".join(map(str, paths)) if paths else "unprovable (git could not answer)"
+                return None, f"card commit {str(s)[:12]} carries authored content: {what}"
+        return ship, ""
+    except Exception:      # noqa: BLE001 — an unanswerable question never moves custody
+        return None, "the custody question could not be answered"
 
 
 def _close_rebuilds_graph(in_writing_worktree: bool, *written) -> bool:
@@ -11877,6 +11949,23 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
                               f"recorded {ref[:12]} is a record-only revision that provably contains "
                               f"it, and the audit-post record covers the ship (T-12715).")
                         ref, sha = _ap_commit, _ap_sha
+                    elif _ap_r.get("preshipped_deliverable") is True and _task_commit_landed_chain is not None:
+                        # T-14521 (public issue #233) — the PRE-SHIPPED DELIVERABLE the record covers:
+                        # every conjunct re-derived in `preshipped_closure_custody`; fail-closed and SAID.
+                        _ps_ship, _ps_why = preshipped_closure_custody(
+                            _ap_r, sha, tid, chain=_task_commit_landed_chain(tid),
+                            authored_paths=_bookkeeping_commit_authored_paths,
+                            _git_resolve_sha=_git_resolve_sha,
+                            ship_landed=lambda s: audit._git_ship_landed(s, repo_root=REPO_ROOT))
+                        if _ps_ship:
+                            print(f"{tid}: closure custody → the preshipped deliverable {_ps_ship[:12]} "
+                                  f"the audit-post record covers — the recorded {ref[:12]} and every "
+                                  f"other card commit carry no authored content (T-14521).")
+                            ref, sha = _ps_ship, _ps_ship
+                        else:
+                            print(f"{tid}: the audit-post record is a preshipped-deliverable verdict, but "
+                                  f"closure custody stays on the recorded {ref[:12]} — {_ps_why} "
+                                  f"(T-14521 fail-closed).", file=sys.stderr)
             # T-13256 (SPEC-0204 rule 3) — THE ON-DECISIONS PASS AUDITED AT A `worktree sync` MERGE.
             # That pass pins its record's `commit:` to the merge and names the recorded commit it
             # descends from as `sync_merge_ship`. Honoured ONLY when that ship IS this card's custody
@@ -17888,7 +17977,8 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
     to `.yitc/land-logs/` under `root` (attempt `own`), and `failures_out`, when given, gets one
     `{layer, lines, log}` per such layer — `lines` the report's `FAILED <file>::<case> - <excerpt>`
     lines for the failed changed units, `log` the root-relative path or None when it could not be
-    written. A layer with no failed changed unit writes and hands back nothing.
+    written. A layer with no failed changed unit writes and hands back nothing, and
+    removes that layer's log from an earlier red run (T-14503).
 
     T-14082 — the (1) sweep also runs the directory's DECLARED always-run set, the SPEC-0181 R5
     consistency tripwires (`_selection_always_set`, the one reader of the `# yitc: selection: always`
@@ -18080,6 +18170,13 @@ def own_tests_run(root, changed, *, _run_verify_tests, _declared_test_sweep_path
                                               name, printed)
             rows = [r for r in rec.get("units") or () if isinstance(r, dict) and r.get("file") in failed_here]
             failures_out.append({"layer": name, "lines": _lv._adapter_unit_failure_lines(rows), "log": log})
+        elif failures_out is not None:
+            # T-14503: the log name depends on the layer only, so a run of this layer with no failed
+            # changed unit removes an earlier red run's log rather than leave it to be read as current.
+            try:
+                _wt._layer_output_log_path(root, "own-tests", name, "own").unlink(missing_ok=True)
+            except OSError:
+                pass
     globs =[g for g in declared_test_globs(root, ops) if isinstance(g, str) and g.strip()]
     for f in left:
         shaped = (any(fnmatch.fnmatchcase(f, g) for g in globs) if globs
@@ -18704,9 +18801,15 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                      f"with no shipped deliverable a custody-bearing commit. Refusing fail-closed — an "
                      f"unreadable verdict record, an unresolvable commit, and a git that could not "
                      f"answer all land here, because a discriminator that cannot verify must not "
-                     f"grant. If no commit of {tid} carries authored content, its RED is not a card-record "
-                     f"problem: STOP and escalate with `yitc-v2 blocked-on-land {tid} <reason>`, "
-                     f"worktree intact (SPEC-0103).")
+                     f"grant. If no commit of {tid} carries authored content (a zero-ship-diff card) "
+                     f"and the RED's only fix is {tid}'s OWN card or acceptance text, you need no "
+                     f"commit at all: correct the card in this worktree, leave it UNCOMMITTED, and "
+                     f"re-run `yitc-v2 audit post --task {tid}` on the SAME recorded commit — the "
+                     f"unchanged-commit guard admits that pass because the acceptance text the "
+                     f"auditor scores against changed (T-11412); `yitc-v2 task close` then folds "
+                     f"the corrected card into its closure record. A RED that is NOT about the "
+                     f"card is not a card-record problem: STOP and escalate with "
+                     f"`yitc-v2 blocked-on-land {tid} <reason>`, worktree intact (SPEC-0103).")
             # (C) THE RED'S CAUSE IS THIS CARD'S OWN RECORD — T-12026 (X-1251). Until this card
             #     the arm never asked this at ALL: it proved the staged set was a card repair and
             #     that a real ship existed, but not that the RED it supersedes was ABOUT the card.
@@ -18819,8 +18922,11 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                  f"on the RED pass. It refuses if the staged set carries authored content (then drop "
                  f"--card-repair — THIS leg already admits you), and it refuses if the commit the RED "
                  f"verdict covers resolves to no authored content — neither itself nor any earlier "
-                 f"card-repair it folded (then no commit of this card carries authored content and "
-                 f"route (3) is yours). A correction that instead rides a commit that ALSO carries "
+                 f"card-repair it folded (then no commit of this card carries authored content: when "
+                 f"the RED's only fix is the card's own acceptance text, correct the card, leave it "
+                 f"UNCOMMITTED and re-run `yitc-v2 audit post --task {tid}` on the SAME recorded "
+                 f"commit — admitted because the acceptance text changed, T-11412 — and "
+                 f"`task close` folds the card; otherwise route (3) is yours). A correction that instead rides a commit that ALSO carries "
                  f"authored work is equally fine, exactly as the mode-a cycle folds its superseded "
                  f"verdict alongside the fix; (3) the cause is "
                  f"OUTSIDE {tid}'s declared scope, is environmental, or has no shipping fix — STOP "
@@ -19059,7 +19165,7 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
         # notion), plus the superseded record's pin resolving to that GREEN commit; the follow-up
         # `audit post --commit <new>` is the ONE test-found-fix pass, admitted once. Rows come from the
         # injected single fold (`_task_events_for`); with it or the resolver unwired, nothing opens.
-        _tff_why = None
+        _tff_why, _tff_facts = None, None
         if prior_reship >= AUDIT_PASS_CEILING + 1:
             try:
                 _tff_rows = (_task_events_for(tid, audit.TEST_FOUND_FIX_ROW_TYPES)
@@ -19082,7 +19188,15 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                    f"one-pass-wide arm — the reset such an arm would depend on is retired.\n\n"
                  + audit.RETIRED_CEILING_POINTER
                  + f"\n\nTest-found fix (T-14090) not admitted — {_tff_why}.")
-        if prior_reship >= AUDIT_PASS_CEILING + 1:
+        if prior_reship >= AUDIT_PASS_CEILING + 1 and _tff_facts and _tff_facts.get("ordinary"):
+            # T-14529 (<project> X-2249) — the GREEN is the ORDINARY ceiling row: its audit is the row's
+            # empty-set `--on-decisions` pass (SPEC-1041 «Rule 3», T-14191), never a test-found-fix pass.
+            print(f"# --reship past the ceiling: a governed Tests run went red after {tid}'s GREEN "
+                  f"ORDINARY ceiling row (T-14529); REQUIRED next: `yitc-v2 audit post --task {tid} "
+                  f"--on-decisions --sweep '<where you looked for the same defect class and what you "
+                  f"found>'`, the row's ONE bounded empty-set pass on this fix (SPEC-1041 «Rule 3»).",
+                  file=sys.stderr)
+        elif prior_reship >= AUDIT_PASS_CEILING + 1:
             print(f"# --reship past the ceiling: TEST-FOUND FIX (T-14090) — a governed Tests run went "
                   f"red after {tid}'s GREEN `--on-decisions` pass; REQUIRED next: `yitc-v2 audit post "
                   f"--task {tid} --commit <new>`, the ONE test-found-fix pass (SPEC-1041 «Rule 4 — "

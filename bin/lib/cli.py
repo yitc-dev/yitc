@@ -2000,8 +2000,13 @@ def cmd_task_test(args: argparse.Namespace) -> None:
             # T-14197 (SPEC-1045 rule 2 (a), (d), (m)) — THE ADMISSION STEPS, after the pass and BEFORE
             # `_admitted`, so the temporary activation's snapshot is taken after the sync; a stop code ends
             # the run with no full verify, 0 ends it on the sync's proof.
+            _LAST_SCREEN.clear()
+            _t0 = time.time()
             code = None if own else _admission_run_steps(args, adm["main"])
             if code is not None:
+                if code == admission_mod.QUICK_STOPPED:
+                    _record_screen_red(args.task, dict(_LAST_SCREEN), time.time() - _t0,
+                                       admission_mod.stamping(_append_event, admitted))
                 if code:
                     raise SystemExit(code)
                 # T-14361 — the sync's proof ended the run: still end stdout with the terminal TEST: token
@@ -2101,6 +2106,29 @@ def _admission_run_set_files(W, names) -> list:
     return bad
 
 
+#: T-14529 — the quick-first screen's last (word, detail), written by `_admission_run_steps`' screen and
+#: read by `cmd_task_test` for the stop's `tests_failed` row. Cleared before each admission's steps.
+_LAST_SCREEN: dict = {}
+
+
+def _record_screen_red(tid, seen, secs, append) -> None:
+    """T-14529 (SPEC-1045 rule 2 (d)) — a quick-first screen (or post-sync proof) that stops the run RED
+    records the card's `tests_failed` row, `leg: candidate` + `screen: quick-first`, on the card's journal
+    through the run's own writer: a red governed run like any other, so the test-found-fix window
+    (`gates.governed_run_verdict`) and the `return` move read it. Never raises; the exit is unchanged."""
+    try:
+        detail = str((seen or {}).get("detail") or "sync-proof")
+        yaml_mod, _path, card = _load_task_for_transition(tid)
+        append("tests_failed", tid, {
+            "current_stage": (card or {}).get("current_stage"), "failed": 1, "layers": [],
+            "evidence": detail[:2000], "duration_ms": int(max(0.0, secs) * 1000),
+            "counts_source": "harness_measured", "leg": "candidate", "screen": "quick-first"})
+        print(f"{tid} tests_failed recorded (quick-first screen RED) — `yitc-v2 journal query --type "
+              f"tests_failed --task {tid}` reads it back")
+    except (Exception, SystemExit) as e:     # noqa: BLE001 — never mask the stop
+        print(f"{tid}: note — the screen's red run could not be recorded ({e!r})", file=sys.stderr)
+
+
 def _admission_run_steps(args, main) -> "int | None":
     """T-14197 — THE ADMISSION STEPS of this admitted Stage-6 run (`admission.admission_steps`), wired to
     the engine's own sync verb, its post-sync proof's set and runners, task close's Closure-time coverage
@@ -2117,7 +2145,9 @@ def _admission_run_steps(args, main) -> "int | None":
         # window is closed again before the full run opens its own.
         with contextlib.redirect_stdout(sys.stderr), _stage6_prepared_tree(tid) as prepare:
             prepare()
-            return _screen_set()
+            word, detail = _screen_set()
+        _LAST_SCREEN["detail"] = detail      # T-14529: the stop's evidence for its `tests_failed` row
+        return word, detail
 
     def _screen_set():
         form, why = worktree_mod._post_sync_set_form(W, names)
@@ -4511,8 +4541,8 @@ def _warn_dropped_yaml_comments(path: Path, content: str) -> None:
     lifecycle verb on them. Scoped to `.yaml`/`.yml` targets that ALREADY EXIST: a YAML comment is a
     YAML-file concept, which keeps `graph/index.json` (also written through this helper) out of scope,
     and a brand-new file has nothing to lose. Any read failure is swallowed — a warning must never
-    break a write. The comparison lives in `state.dropped_comment_lines` (which states its own bound:
-    full-line comments only; a block-scalar `#` line survives the dump, so it never reports).
+    break a write. The comparison lives in `state.dropped_comment_lines`, which states its own bound
+    (full-line comments only, block-scalar content excluded on both sides — T-11930).
     """
     try:
         if path.suffix not in (".yaml", ".yml") or not path.is_file():
@@ -9151,7 +9181,7 @@ def _realm_labelled(ids, realms, *, is_consumer: bool) -> str:
                      for i in ids)
 
 
-def _analysis_procedure_reminder(tid=None, card: "dict | None" = None) -> str:
+def _analysis_procedure_reminder(tid=None, card: "dict | None" = None, *, root=None) -> str:
     """The ordered Stage-1 (Analysis) procedure SURFACED at the claim moment (`worktree new --task` —
     the claim IS Analysis-entry, so it delivers the Analysis stage bundle; T-0279, axis migrated to
     stage-entry by T-0289). Report-not-block surfacing: the rule
@@ -9163,7 +9193,11 @@ def _analysis_procedure_reminder(tid=None, card: "dict | None" = None) -> str:
     T-9741: ALSO appends the per-stage command-sequence skeleton (`_stage_sequence_skeleton`) — the SAME
     claim-moment delivery, extended so the whole ENTER→FETCH→WORK→FINALIZE path is surfaced ONCE (`tid`
     substituted when known, else the `T-XXXX` placeholder for the no-arg callers). T-13872: the claimed
-    `card` is handed on so that sequence lists the stages of the card's own class."""
+    `card` is handed on so that sequence lists the stages of the card's own class.
+
+    T-14523: `root` is the checkout the printed commands must name. The claim (`worktree new --task`)
+    passes its NEW worktree: the claim lives only there until `land`, so a `-C <main checkout>` command
+    refuses on the still-`ready` card. None keeps the (possibly rebound) REPO_ROOT."""
     corpus = _stage_bundle_corpus(include_kernel=True)   # T-13550: ONE corpus read for this echo — the Analysis pointer and the skeleton below
     analysis_specs, realms = _stage_bundle_specs("Analysis", include_kernel=True, with_realms=True, corpus=corpus)   # T-0865: DELIVERY surfacing → expose kernel Analysis specs on a -C consumer
     try:
@@ -9200,7 +9234,7 @@ def _analysis_procedure_reminder(tid=None, card: "dict | None" = None) -> str:
         , is_consumer=is_consumer)
         + ptr
         + "\n" + _stage_sequence_skeleton(tid or "T-XXXX", corpus=corpus, is_consumer=is_consumer, card=card),   # T-9741: surface the whole per-stage sequence once
-        qualify_specs=False)
+        root=root, qualify_specs=False)
 
 
 def _scenario_spec_view(spec_ids, index=None, *, stale_only=False):
@@ -12116,6 +12150,12 @@ def _engine_journal_path() -> Path:
     return _engine_live_root() / "events.jsonl"
 
 
+def _in_release_cache(path) -> bool:
+    """T-14514 — is `path` a tree in this user's pinned release cache (`init._TAG_RELEASE_CACHE`)? A pure
+    path test: the cache keys every tree as `<cache dir>/<repo>-<sha>`, so its parent carries the name."""
+    return Path(os.path.realpath(str(path))).parent.name == init_mod._TAG_RELEASE_CACHE
+
+
 def _engine_live_root() -> Path:
     """ENGINE_LIVE_ROOT derived at CALL time from ENGINE_ROOT (T-13192, SPEC-1003 rule 4) — so every
     state site follows a later ENGINE_ROOT rebind (the SPEC-0195 pin branch, a test harness) exactly as
@@ -12125,6 +12165,14 @@ def _engine_live_root() -> Path:
     the live root is the INVOKED engine's. Deriving it from the pinned tree wrote runtime state (a
     `--read-only` receipt) INTO the anchored cache, whose next integrity check then failed — every
     later `-C` verb died `pin-unresolved` until someone deleted the cache by hand."""
+    # T-14514 — the SAME exclusion when the INVOKED engine is itself a pinned release cache (a `-C` verb
+    # run with `<cache>/bin/yitc-v2`): ENGINE_LIVE_ROOT is the cache, and no live engine exists outside
+    # it, so runtime state goes to the `-C` target, the project the verb operates on (under
+    # `--read-only` the T-13007 receipt skip then applies). A pure path test: the invoked root's parent
+    # carries the per-user release-cache name.
+    if (_in_release_cache(ENGINE_LIVE_ROOT)
+            and Path(os.path.realpath(str(REPO_ROOT))) != Path(os.path.realpath(str(ENGINE_LIVE_ROOT)))):
+        return REPO_ROOT
     if _PINNED_ENGINE_ROOT is not None and ENGINE_ROOT == _PINNED_ENGINE_ROOT:
         return ENGINE_LIVE_ROOT
     return engine_route.live_engine_root(ENGINE_ROOT)
@@ -16038,7 +16086,7 @@ def _held_receipt_index(ref, epoch, rows, held: dict, doc_realms=None) -> dict:
         if e.get("type") != "cli_invoked" or e.get("session_ref") != ref or (e.get("ts") or "") < lb:
             continue
         data = e.get("data") or {}
-        sid, sha = data.get("node_id"), data.get("content_sha")
+        sid, sha = data.get("node_id"), data.get("content_sha") or data.get("view_sha")   # T-14522
         if (sha not in held.get(sid, ()) or data.get("stdout_delivered") is False or data.get("as_of")
                 or gates._receipt_stamp(data) != epoch
                 or (doc_realms or {}).get(sid) not in (None, data.get("node_realm") or None)):
@@ -16596,6 +16644,9 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
             sys.stdout = real_out  # RESTORE before the emit: `stdout_delivered` is computed off the
                                    # real stream.
         view = _stage_contract_view(buf.getvalue()) if ok else ""
+        # T-14522: the fingerprint a HAND `graph query` of this contract records (`view_sha`) — the
+        # contract view BEFORE the maintainer sections are cut; a reader holding it holds this view.
+        hand_sha = hashlib.sha256(view.encode("utf-8")).hexdigest() if ok else ""
         if ok:                     # T-13660: the maintainer sections stay one command away
             view = _stage_view_without_maintainer_sections(view, _consumer_render(
                 f"`yitc-v2 {' '.join(argv)}`", qualify_specs=False))
@@ -16603,8 +16654,9 @@ def _deliver_stage_bundle_contracts(stage_name: str, delivered: list, bodies_out
         tee.write(view)
         if ok:
             try:
-                if held.get(sid) and tee.hexdigest() in held[sid]:
-                    r_ts, r_ref = held_receipts.get((sid, tee.hexdigest())) or ("", "")
+                match = next((s for s in (tee.hexdigest(), hand_sha) if s in held.get(sid, ())), None)
+                if match:
+                    r_ts, r_ref = held_receipts.get((sid, match)) or ("", "")
                     receipt = f"; receipt {r_ts} by session {r_ref}" if r_ts else ""
                     print(_consumer_render(
                         f"{sid} — {_rendered_spec_title(view)} — already delivered in this "
@@ -27515,8 +27567,38 @@ def _plan_body_title(body: str) -> str:
     return plan_mod._plan_body_title(body)
 
 
+def _session_transcript_paths(session_ref: str) -> list:
+    """T-14520 (SPEC-1058 §2): the transcript file(s) of ANOTHER session's ref, by the kernel's existing
+    resolution — `_session_log_path` on the ref itself, then on the provider id that session RECORDED at
+    its birth (the runtime record; the second leg of `_provider_transcript_ref`, without its live-carrier
+    leg, which names THIS session's own transcript whatever ref is asked). [] when neither resolves."""
+    out = []
+    p = _session_log_path(session_ref) if session_ref else None
+    if p is not None:
+        out.append(p)
+    try:
+        rec = _read_runtime_record(_runtime_record_path(session_ref)) if session_ref else None
+    except Exception:   # noqa: BLE001 — best-effort, as every transcript join is
+        rec = None
+    recorded = ((rec or {}).get("provider_session_id") or "").strip()
+    if recorded and recorded != session_ref:
+        q = _session_log_path(recorded)
+        if q is not None:
+            out.append(q)
+    return out
+
+
+def _plan_owner_words(slug, fm, body) -> dict:
+    """T-14520 — the `plan show --owner-words` view's one composition site (main's journal + the
+    transcript resolver above)."""
+    from lib import task as task_lib   # noqa: PLC0415 — prototype_main_journal
+    return plan_mod.owner_words_reconciliation(REPO_ROOT, slug, fm, body,
+                                               events_path=task_lib.prototype_main_journal(REPO_ROOT),
+                                               resolve_transcript=_session_transcript_paths)
+
+
 def cmd_plan_show(args: argparse.Namespace) -> None:
-    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build)
+    return plan_mod.cmd_plan_show(args, IDEAS_DIR=IDEAS_DIR, PLANS_DIR=PLANS_DIR, PLAN_STAGE_SEQUENCE=PLAN_STAGE_SEQUENCE, TASKS_DIR=TASKS_DIR, _load_draft=_load_draft, _plan_body_title=_plan_body_title, _plan_next_stage=_plan_next_stage, _plan_stage_bundle_specs=_plan_stage_bundle_specs, _plan_cut_cards=_plan_cut_cards, _read_yaml=_read_yaml, _is_consumer_build=_is_consumer_build, _owner_words=_plan_owner_words)
 
 
 def cmd_scenario_new(args: argparse.Namespace) -> None:
@@ -33119,6 +33201,35 @@ class _HashingTee(_CountingTee):
         return self._h.hexdigest()
 
 
+class _CapturingTee(_CountingTee):
+    """`_CountingTee` that also keeps the text it passed through (T-14522) — used for a `graph query`
+    point lookup only, so its receipt can fingerprint the contract view of what the reader got."""
+
+    def __init__(self, target):
+        super().__init__(target)
+        self._parts: list = []
+
+    def write(self, s):
+        self._parts.append(s)
+        return super().write(s)
+
+    def text(self) -> str:
+        return "".join(self._parts)
+
+
+def _point_lookup_view_sha(printed: str) -> "str | None":
+    """T-14522 — the `view_sha` of a hand `graph query <SPEC>`: sha256 of the CONTRACT VIEW of what it
+    printed (`_stage_contract_view`, the derived header cut — the header moves with every graph
+    rebuild, the contract does not). None when the output carries no source line (not a spec render)
+    or the cut fails: such a read holds nothing, so the deliverer renders in full."""
+    try:
+        if not _CONTRACT_VIEW_SOURCE_LINE.search(printed):
+            return None
+        return hashlib.sha256(_stage_contract_view(printed).encode("utf-8")).hexdigest()
+    except Exception:   # noqa: BLE001 — a receipt helper never breaks its verb
+        return None
+
+
 def _stdout_was_delivered(stream) -> bool:
     """T-11010 (<project> X-0842) — did this verb's stdout reach a reader, or the null device?
 
@@ -33890,6 +34001,13 @@ def main(argv: list[str] | None = None) -> None:
         _die("--read-only requires -C <path>: it is the READ mode of an explicit `-C` target "
              "(SPEC-0078 §5). Without -C there is no foreign checkout to protect.")
     else:
+        # T-14514: a BARE invocation of a pinned release cache's own binary would make the cache its
+        # repo and write runtime state into it — the next pin resolve then fails integrity. A cache
+        # holds code only: refuse before any write and name the `-C` form.
+        if _in_release_cache(REPO_ROOT):
+            _die(f"{REPO_ROOT} is a pinned release cache (SPEC-0195 rule 3) — it holds code, never "
+                 f"runtime state, so a verb does not run with it as its repo. Run it against a project: "
+                 f"`bin/yitc-v2 -C <project> <verb>`, with this cache's binary {REPO_ROOT}/bin/yitc-v2")
         # T-9577 (X-0093): a BARE invocation (no -C) from inside a FOREIGN yitc corpus would resolve
         # REPO_ROOT to the engine + pollute the kernel journal — REFUSE before _auto_sync touches it.
         # T-13485: the release verbs that NAME their targets are admitted (and recorded, so their
@@ -33960,7 +34078,10 @@ def main(argv: list[str] | None = None) -> None:
             return
 
         real_stdout = sys.stdout
-        tee = _CountingTee(real_stdout)
+        # T-14522: a `graph query` point lookup keeps what it printed, so its receipt can carry the
+        # contract view's fingerprint (`view_sha`) the stage deliverer holds a contract by.
+        _point_lookup = verb_label == "graph query" and bool(getattr(args, "id", None))
+        tee = (_CapturingTee if _point_lookup else _CountingTee)(real_stdout)
         exit_code = 0
         sys.stdout = tee
         t0 = time.monotonic()  # T-0358: verb wall-clock start — the verb's OWN execution (not _auto_sync's)
@@ -33999,4 +34120,6 @@ def main(argv: list[str] | None = None) -> None:
                                   duration_ms=int((time.monotonic() - t0) * 1000),
                                   reads_since=(_invocation_mark if verb_label in _INVOCATION_SPAN_VERBS
                                                else _body_mark),
-                                  events_path=_receipt_path)
+                                  events_path=_receipt_path,
+                                  view_sha=(_point_lookup_view_sha(tee.text())
+                                            if _point_lookup and exit_code == 0 else None))

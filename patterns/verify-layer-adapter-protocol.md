@@ -86,6 +86,7 @@ wanted. The key set is closed — an unknown key fails the declaration before an
 | `credit` | `off` (default), `shadow` or `deciding`. `shadow` records which passes a fix attempt could reuse; the full layer still runs. `deciding` reuses them: after a failed run and a fix, the next attempt runs the files that failed and the files the fix reaches. |
 | `credit_deciding_reason` | Written with `credit: deciding`, and only with it: who accepted the risk of that mode, and why. |
 | `rescue` | `on` (default) or `off`. Whether a file that fails and then passes alone keeps the verdict green. |
+| `names_tests` | `true` or `false` (default). For a `script/1` layer: your adapter names each failed test (below, «A runner that cannot write JUnit»). The session-start per-test gap line reads this declaration. |
 
 What each key *means* for the verdict is <workshop-spec> rule 1 and the rules it names; the two
 `deciding` modes, their reasons and what makes such a declaration malformed are SPEC-1030.
@@ -264,8 +265,9 @@ What `report_id` names, per profile:
 Wrap it in the `script/1` sample: one suite per file, one case per file. To keep a red per test,
 the adapter adds one `<property name="failed_test" value="<test name>"/>` per failed test to the
 failed case (or lets the runner print its own failure lines, which the kernel reads for pytest,
-unittest, go test and jest / vitest). A `script/1` layer whose failed units name no test is named
-at session start as a gap, with this route.
+unittest, go test and jest / vitest), and declares `names_tests: true`. A `script/1` layer whose
+adapter does not declare it is named at session start as a gap, with this route; a recorded red that
+already named its tests only changes what that line says (SPEC-1046 §4).
 
 The last column says whose diff a `related` answer speaks for: `kernel` — the adapter answers
 from the manifest's `changed` list; `merge-base` — the runner diffs `<base>...HEAD` plus staged,

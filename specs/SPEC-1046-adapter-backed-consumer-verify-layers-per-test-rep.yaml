@@ -269,11 +269,13 @@ body: "## Scenario\n\nA consumer project whose tests live inside its own runners
   \ The runner-to-profile table and the generic sample adapter:\n`patterns/verify-layer-adapter-protocol.md`.\n\
   THE GAP LINE. In a consumer, `session start` names — report-only, and only when\
   \ there is one — each declared\nlayer whose red names no test: a layer with no `adapter:`,\
-  \ or a `script/1` layer whose newest recorded failed\nunit named no test, each with\
-  \ the adapter block to add. A waived layer and the kernel's `graph conformance`\n\
-  layer are not named. It refuses nothing.\n\n### 5. Non-test checks never ride the\
-  \ adapter\nA layer's mandatory non-test checks (typecheck, lint, build) are declared\
-  \ under `required:` and run on every\nland and Tests-stage run of that layer regardless\
+  \ or a `script/1` layer whose adapter does not declare\n`names_tests: true` (its\
+  \ adapter names each failed test), each with the adapter block to add. The journal\
+  \ does\nnot decide it: a recorded red of the layer that named its tests only changes\
+  \ what the line says. A waived layer\nand the kernel's `graph conformance` layer\
+  \ are not named. It refuses nothing.\n\n### 5. Non-test checks never ride the adapter\n\
+  A layer's mandatory non-test checks (typecheck, lint, build) are declared under\
+  \ `required:` and run on every\nland and Tests-stage run of that layer regardless\
   \ of selection. Their failure fails the layer; no re-run ever\nrescues it.\n\n###\
   \ 6. Selection ladder — the default is RUN\nFor each land and Tests-stage run, the\
   \ kernel decides per layer, in order; every rung but the last runs the\nFULL layer.\
@@ -601,21 +603,21 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/land_verify_legs.py#_DecideBarrier: 57940938691c6e5d2fc39feaeac87a7df51c18edd720f4323236df317c6e4cc7
-  bin/lib/land_verify_legs.py#_adapter_credit_decision: 0dce09c93705ed548d80642d06b6cb76e32f15f985225e0607b0d25aa108e430
-  bin/lib/land_verify_legs.py#_adapter_lane_split: bf70597b1557d482e13844b149ef2121a06d701f6f7777844e1a2b94209fe285
-  bin/lib/land_verify_legs.py#_adapter_rerun_entities: 0c5592301fbc482be625a131f5918101d5d68d9c23c1ac2a8b7cf77f5591aa52
-  bin/lib/land_verify_legs.py#_adapter_shadow_decision: 12c2088af134217d4d25221116e1ac2ccbc87270170a1633846f3e762e87fc3f
-  bin/lib/land_verify_legs.py#_adapter_stamp_identity: f0f585104835bdc62a850a85d4205a22fcbdacd5f57b2f850a0acc2d6d965aa9
+  bin/lib/land_verify_legs.py#_adapter_credit_decision: 6ef97820a22b92616064c849530c8825543fc0d855ec21c17cba31f32fc7cd1b
+  bin/lib/land_verify_legs.py#_adapter_lane_split: 90e4a4b6fa079e9263e9765732e99d885fb678d030c27a069210a54ceb3ad70a
+  bin/lib/land_verify_legs.py#_adapter_rerun_entities: e2e9b90f598432b445fddfae8769e65066ce9a85dc92be9060ca5f385a786f52
+  bin/lib/land_verify_legs.py#_adapter_shadow_decision: e6b6fabf9d7e948efc746d1db93d071eb09a9245486a10d80a28c7fdc624a00f
+  bin/lib/land_verify_legs.py#_adapter_stamp_identity: 4df2f30deaa76d32fad70b047fdf841af2fbbb0c7199ff361359763e9ab85115
   bin/lib/land_verify_legs.py#_adapter_unit_medians: 810dd3026fce4aaff965182c1e5a0a4632cacb1413a4a43e4989d078fb351558
   bin/lib/land_verify_legs.py#_adapter_units_with_medians: 7bed152315540262997c4107bf465690b7de39af518f257af36c9eb2c696ac3f
-  bin/lib/land_verify_legs.py#_classify_adapter_report: 1bd3a30cf74b0b432b14130f09ad312fde73f5c5c6404274948f627f8a5ee91a
-  bin/lib/land_verify_legs.py#_declared_layer_adapters: 2a39b7ac020431b16e1e97fef6e77ddc76a1b7cd971a0e2d10b85dc195891c7e
-  bin/lib/land_verify_legs.py#_edge_own_test_paths: 14a48592aded032ae51476352f91add38f31c26f1adf62408dc68ac5521032c9
-  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 0c18393fd42993fd44982f9cec1893ca4e744cb6defd3018d7411619755d8e42
-  bin/lib/land_verify_legs.py#_layer_unit_reruns: 14ad914b2b988883352e084260c43cae1fc3469cec05b247331260382a2dd69c
-  bin/lib/land_verify_legs.py#_per_case_rescued_failures: 755af95c558362383831eb6dc412cfccd1b7b78bdb51e3999a574dded8c4482d
-  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 3d29311179a51d49011d79871b44b0154250788785629aee17ae63f59abcc378
-  bin/lib/land_verify_legs.py#_unit_rescue_passes: d5d6e38e933a318ed909051ffbd4d294bc178afe2ef0b57cd68259d309e9d231
+  bin/lib/land_verify_legs.py#_classify_adapter_report: 549fb71fad5111c5d988210823dc062b9b1e3c25ca033e70f8b78bb17e9dcd01
+  bin/lib/land_verify_legs.py#_declared_layer_adapters: 045f4089bf0259cd760f6475fd47d7588c91712b89e6b50e472602412fb65de5
+  bin/lib/land_verify_legs.py#_edge_own_test_paths: f19a0157335b9b5c8b89e29f63e271015642a51b84605ba2706a2932f1cc044f
+  bin/lib/land_verify_legs.py#_layer_adapter_report_pass: 22f66fb42c2a1f4fd5afe57ded15877e0c6f668fd760d1e13826a2aedf22df77
+  bin/lib/land_verify_legs.py#_layer_unit_reruns: a119ac5544fca2c0a6a02c11ad3dd64e18fa2f7371537473f0d40a35347ff1be
+  bin/lib/land_verify_legs.py#_per_case_rescued_failures: bf391f01b74b85655dd12c83efa722ae09651d1943fc42a9864f648a3c48daa3
+  bin/lib/land_verify_legs.py#_per_unit_flaky_rate: 38310b7bec2f5d55f0a1a8064fb4d99bdbdac95c124ffc1b8f6bb1d2d5810afe
+  bin/lib/land_verify_legs.py#_unit_rescue_passes: cfe7f7f93256db11e215a7ab227cdcd7da8c37aa57d7acf8006122ab89c61463
   bin/lib/views.py#_view_test_layout_hotspots: b5257fb40327e4498a3d2088769ee509c647de92e6bc843174ad272eb5a3b2af
   bin/lib/worktree.py#_consumer_zero_probe_guard: 1540c07971ea9f05ff70a2fb89449f5ca8d066e7adb66831c8fcc1cb0b7a2366
   bin/lib/worktree.py#_fold_layer_flaky_retry: f690868857d71575f16c2db213bed8050b95ab0e88c1f37c9a6a8066e5c0da37

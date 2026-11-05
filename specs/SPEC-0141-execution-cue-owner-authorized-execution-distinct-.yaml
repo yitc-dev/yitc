@@ -19,7 +19,9 @@ binding:
 - seed
 seed_cue: 'Agreeing a design is not permission to execute: claim, open a worktree,
   edit or land only on a live owner execution-cue in the current session, and ask
-  when it is unclear which one the owner gave.'
+  when it is unclear which one the owner gave; a read-only analysis — even one the
+  owner picks from your options — is answered in chat or by a read-only helper subagent,
+  never filed as a card or dispatched.'
 init_concern: null
 amends:
 - AGENTS-SESSIONS.md §Startup picker (the owner-say-so self-execution fallback): the
@@ -72,38 +74,46 @@ body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES
   \ / \"run it in this session\". A cue that authorizes the *work*\n  (a batch cue,\
   \ a \"go ahead\", a \"take T-XXXX\") authorizes THAT the work happens; it does NOT\n\
   \  select self-execute over dispatch. Absent an explicit self-execute say-so, the\
-  \ mode is dispatch.\n\n### 3. What does NOT satisfy an execution-cue (the SPEC-0039\
-  \ §4 generalization)\nA session NEVER treats any of these as a go-to-execute:\n\
-  - a prior DESIGN agreement (the core X-0212 confusion);\n- a stored/self-claimed\
-  \ \"owner-authorized\" mandate — a MEMORY continuation-seed / `[instruction]`\n\
-  \  entry (SPEC-0039 §4: the narrow MEMORY instance of this same rule) — even one\
-  \ dated/marked;\n- a task merely existing/`ready` in the queue (the picker never\
-  \ auto-picks — QUEUE §Picker);\n- the AI's own inference that \"we clearly agreed,\
-  \ so surely I should start now\".\nUnder uncertainty the default is STOP-and-ASK\
-  \ (P7), never assume-go.\n\n### 3a. What does NOT ground SELF-EXECUTION (the mode-choice\
-  \ NOT-grounds)\nEven when the work IS authorized (§2), NONE of these is a ground\
-  \ for the Controller to\nself-execute instead of dispatch — the ONLY valid ground\
-  \ is a live explicit owner say-so (\"do it\nyourself\"). Each of the following is\
-  \ a rationalization, not a ground:\n- \"I already hold the context\" — dispatch\
-  \ carries the task card; context is not a mode-permission;\n- \"the fix is small\
-  \ / quick\" — size is a scope judgement, not a mode-permission;\n- \"dispatch has\
-  \ round-trip overhead\" — the cost of the default is not a licence to skip it;\n\
-  - \"I need to verify inline\" — verification is the Worker's own lifecycle, not\
-  \ a self-execute reason;\n- \"autonomy / the batch was authorized\" — that authorizes\
-  \ WHAT happens, not the MODE (§2); an\nauthorized plan/batch is executed BY DISPATCH\
-  \ unless the owner said self-execute.\n- \"nothing to parallelize — the chain is\
-  \ strictly sequential\" / \"the owner sees results at once\" —\nparallelism is NOT\
-  \ the reason to dispatch. The PRIMARY reason is preserving the Controller's context\n\
-  for coordination: every self-executed task spends a full per-task protocol read\
-  \ inside it. A clear,\nsequential, non-parallelizable chain is therefore dispatched\
-  \ too — one Worker per card, chained in\norder (or one warm Worker carrying the\
-  \ chain).\n**Duty — name the context cost when recommending a mode.** Whenever the\
-  \ Controller recommends\ndispatch vs self-execute to the owner, it states the cost\
-  \ in context: the current `session context`\nreading (SPEC-0115) against the per-task\
-  \ protocol weight the self-executed work would add. A mode\nrecommendation that\
-  \ omits that cost is incomplete.\nPointer (<workshop-spec> S0): an S0 record (`event`\
-  \ / `followup` / a probe or observation settle) run by\nthe Controller is NOT self-execution\
-  \ of a task and needs no self-execute say-so; this grants\nnothing beyond S0 records.\n\
+  \ mode is dispatch.\n- **The mode choice is about TASK CARDS — a read-only analysis\
+  \ is neither mode.** Work that only\n  READS what exists (code, data, the journal,\
+  \ logs) to give an answer or a recommendation and\n  authors no repo artifact is\
+  \ not a task (SPEC-1043 S0a): it is not filed, not claimed, not\n  dispatched to\
+  \ a Worker, and running it needs no self-execute say-so. When the Controller wants\n\
+  \  to keep its own context while such an analysis runs, the mode is a **read-only\
+  \ helper\n  subagent** (AGENTS-SESSIONS §Orchestrate posture, retirement (c)), never\
+  \ a Worker and never a\n  card. It turns into a card only on the SPEC-1043 S0a exit\
+  \ (3).\n\n### 3. What does NOT satisfy an execution-cue (the SPEC-0039 §4 generalization)\n\
+  A session NEVER treats any of these as a go-to-execute:\n- a prior DESIGN agreement\
+  \ (the core X-0212 confusion);\n- a stored/self-claimed \"owner-authorized\" mandate\
+  \ — a MEMORY continuation-seed / `[instruction]`\n  entry (SPEC-0039 §4: the narrow\
+  \ MEMORY instance of this same rule) — even one dated/marked;\n- a task merely existing/`ready`\
+  \ in the queue (the picker never auto-picks — QUEUE §Picker);\n- the AI's own inference\
+  \ that \"we clearly agreed, so surely I should start now\".\nUnder uncertainty the\
+  \ default is STOP-and-ASK (P7), never assume-go.\n\n### 3a. What does NOT ground\
+  \ SELF-EXECUTION (the mode-choice NOT-grounds)\nEven when the work IS authorized\
+  \ (§2), NONE of these is a ground for the Controller to\nself-execute instead of\
+  \ dispatch — the ONLY valid ground is a live explicit owner say-so (\"do it\nyourself\"\
+  ). Each of the following is a rationalization, not a ground:\n- \"I already hold\
+  \ the context\" — dispatch carries the task card; context is not a mode-permission;\n\
+  - \"the fix is small / quick\" — size is a scope judgement, not a mode-permission;\n\
+  - \"dispatch has round-trip overhead\" — the cost of the default is not a licence\
+  \ to skip it;\n- \"I need to verify inline\" — verification is the Worker's own\
+  \ lifecycle, not a self-execute reason;\n- \"autonomy / the batch was authorized\"\
+  \ — that authorizes WHAT happens, not the MODE (§2); an\nauthorized plan/batch is\
+  \ executed BY DISPATCH unless the owner said self-execute.\n- \"nothing to parallelize\
+  \ — the chain is strictly sequential\" / \"the owner sees results at once\" —\n\
+  parallelism is NOT the reason to dispatch. The PRIMARY reason is preserving the\
+  \ Controller's context\nfor coordination: every self-executed task spends a full\
+  \ per-task protocol read inside it. A clear,\nsequential, non-parallelizable chain\
+  \ is therefore dispatched too — one Worker per card, chained in\norder (or one warm\
+  \ Worker carrying the chain).\n**Duty — name the context cost when recommending\
+  \ a mode.** Whenever the Controller recommends\ndispatch vs self-execute to the\
+  \ owner, it states the cost in context: the current `session context`\nreading (SPEC-0115)\
+  \ against the per-task protocol weight the self-executed work would add. A mode\n\
+  recommendation that omits that cost is incomplete.\nPointer (SPEC-1043 S0, S0a):\
+  \ an S0 record (`event` / `followup` / a probe or observation settle)\nand a read-only\
+  \ analysis (§2) run by the Controller are NOT self-execution of a task and need\
+  \ no\nself-execute say-so; this grants nothing beyond S0 records and read-only analysis.\n\
   \n### 3b. Stop-and-name-the-ground reflex\nThe FELT PULL to just-do-it-myself IS\
   \ the trigger to STOP and name the ground aloud. Say which\nground authorizes self-execution\
   \ here. If the named ground is anything other than \"the owner said\ndo it yourself\"\
@@ -136,6 +146,13 @@ body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES
   \ confirm —\n  e.g. «ставлю то-то, так?» (I'll put in X — ok?) — and let the owner's\
   \ reply be the execution-cue.\n  The confirm is the seam-crossing checkpoint (§2's\
   \ filing→claim checkpoint, applied to the\n  discussion that produced the intent).\n\
+  - **(e) The reading follows the WORK, not only the owner's verb.** When the AI offers\
+  \ options and\n  one of them is an ANALYSIS (measure, check, look into the existing\
+  \ data), the owner's pick of\n  that option is a cue to run the ANALYSIS — it stays\
+  \ analysis-in-chat under (a), and (b)/(d) do\n  not turn it into a card or a dispatch:\
+  \ a pick authorizes the work the option names, and that\n  work authors nothing.\
+  \ The AI does not frame an analysis option as «a card» / «a task» / «one\n  small\
+  \ card»; it names it as an analysis with its answer in the chat (SPEC-1043 S0a).\n\
   \n### 6. Session ownership of a cue\n§1-§5 settle WHAT counts as an execution-cue;\
   \ this section settles WHOSE. Concurrent Controller\nsessions share ONE journal\
   \ (CHARTER §P5), so every owner reply in ANY session lands as an\n`owner_directive`\
@@ -188,21 +205,34 @@ body: "## Scenario\n\nThe owner and the AI discuss a change and the owner AGREES
   \ cue can still be\nmis-read as execution when it was only a request to THINK. §5\
   \ makes the discussion-vs-execution\nreading a verb-level check, with a subject-based\
   \ tiebreak for ambiguity and a confirm-line at the\ndiscussion->execution seam.\n\
-  \n### History moved from the rule body\n\nEach entry is a passage moved word for\
-  \ word out of the rule text of the section it names;\nthe rule it explains stays\
-  \ there.\n\n- From «3b. Stop-and-name-the-ground reflex»: (Real incident: deviation\n\
-  \  `controller-self-executes-instead-of-dispatch`, 2026-07-08.)\n\n## Verification\n\
-  - State probe: this spec exists at `active` after close and is cited.\n- State probe:\
-  \ AGENTS-SESSIONS.md (the always-loaded filing->claim picker seam) references the\n\
-  \  execution-cue requirement + this spec id in the shipped diff.\n- State probe:\
-  \ the body (active) carries §2's MODE-vs-THAT distinction (default mode = dispatch;\n\
-  \  self-execution needs its own owner say-so), the §3a self-execution NOT-grounds\
-  \ list, and the\n  §3b stop-and-name-the-ground reflex; the AGENTS-SESSIONS self-execute/dispatch\
-  \ seam points to them.\n- State probe: the body (active) carries §5's discussion-cue\
-  \ vs execution-cue vocabulary — all four\n  clauses (a) discussion markers → analysis-in-chat,\
-  \ (b) execution markers → file-and-run,\n  (c) ambiguous → by-subject tiebreak,\
-  \ (d) decision-emerging → confirm-line — each with RU-verbatim\n  markers + EN gloss\
-  \ (`graph query SPEC-0141` renders §5).\n- State probe: the `binding:[seed]` line\
-  \ is UNCHANGED by this amendment — the always-loaded seed\n  does not grow (the\
-  \ existing SPEC-0141 pointer covers §5); seed diff is zero.\n- `graph query SPEC-0141`\
-  \ resolves; the session-start seed echo carries its `binding:[seed]` line.\n"
+  \nReal incident <project> X-2237 (2026-11-04, deviation `read-only-research-filed-as-full-card`,\n\
+  owner-surfaced; fixed): the owner picked «first measure whether we have the\nstraggler-layer\
+  \ bottleneck» from options the Controller offered; the Controller called it «one\n\
+  small card», filed it and dispatched a Worker to read existing rows and logs and\
+  \ write a report.\n§5(a) keyed only on the owner's verb, so an AI-proposed analysis\
+  \ the owner picked read as an\nexecution pick, and §2/§3a named only dispatch or\
+  \ self-execute — the read-only helper subagent\nAGENTS-SESSIONS already allowed\
+  \ was not named at the mode choice. §2's read-only bullet and §5(e)\nclose both\
+  \ gaps; SPEC-1043 S0a gives the work its no-carrier route.\n\n### History moved\
+  \ from the rule body\n\nEach entry is a passage moved word for word out of the rule\
+  \ text of the section it names;\nthe rule it explains stays there.\n\n- From «3b.\
+  \ Stop-and-name-the-ground reflex»: (Real incident: deviation\n  `controller-self-executes-instead-of-dispatch`,\
+  \ 2026-07-08.)\n\n## Verification\n- State probe: this spec exists at `active` after\
+  \ close and is cited.\n- State probe: AGENTS-SESSIONS.md (the always-loaded filing->claim\
+  \ picker seam) references the\n  execution-cue requirement + this spec id in the\
+  \ shipped diff.\n- State probe: the body (active) carries §2's MODE-vs-THAT distinction\
+  \ (default mode = dispatch;\n  self-execution needs its own owner say-so), the §3a\
+  \ self-execution NOT-grounds list, and the\n  §3b stop-and-name-the-ground reflex;\
+  \ the AGENTS-SESSIONS self-execute/dispatch seam points to them.\n- State probe:\
+  \ the body (active) carries §5's discussion-cue vs execution-cue vocabulary — all\
+  \ four\n  clauses (a) discussion markers → analysis-in-chat, (b) execution markers\
+  \ → file-and-run,\n  (c) ambiguous → by-subject tiebreak, (d) decision-emerging\
+  \ → confirm-line — each with RU-verbatim\n  markers + EN gloss (`graph query SPEC-0141`\
+  \ renders §5).\n- State probe: the §5 (a)-(d) amendment left the `binding:[seed]`\
+  \ line unchanged; extends\n  the `seed_cue` so the generated seed line names the\
+  \ read-only route (no card, no dispatch).\n- State probe: §2 carries the read-only-analysis\
+  \ bullet (not a task, no self-execute say-so,\n  context-saving mode = read-only\
+  \ helper subagent) and §5 carries (e) (the reading follows the\n  WORK; an AI-proposed\
+  \ analysis option stays analysis) — `tests/test_t14525_read_only_analysis_route.py`.\n\
+  - `graph query SPEC-0141` resolves; the session-start seed echo carries its `binding:[seed]`\
+  \ line.\n"

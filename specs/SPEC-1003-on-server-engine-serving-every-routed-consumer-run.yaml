@@ -163,7 +163,7 @@ binding:
 init_concern: null
 implements_signature:
   bin/lib/cli.py#ENGINE_LIVE_ROOT: 3450c9ece8371ef165242058c35caaf47eda729cfa2840eb1d32e84d01917cf5
-  bin/lib/cli.py#_engine_live_root: 866410823df602c7bea0d64e077919c0b50c131d6408bdc4424da40cc5636b63
+  bin/lib/cli.py#_engine_live_root: 4647f62c81988ad7ae146d488b67fdce9ce9b9d62f68735e7d477f1187e1f12c
   bin/lib/engine_route.py#canary_served: 46782b91ba7f442466264d4c9f9c78a831399015e55cc77507fd35a5813a41a1
   bin/lib/engine_route.py#live_engine_root: 9f81f1f9d0705d3b6981e3eeb98625882ba56fff4001726460bbd3d5c422dc13
   bin/lib/engine_route.py#prepare_checkout: 1c798fec9bcb4eedcae53b950f55fb0f4e5ca36a9365a5be2ea2bc327fa007da
@@ -171,6 +171,6 @@ implements_signature:
   bin/lib/engine_route.py#running_served_sha: 4a01375d979143f9cc87f868a4a1a5042e62fe1d3e491f722ab6687cd4cdd8c3
   bin/lib/engine_route.py#served_sha: ac50b6264776d86f71be4d47d5e90d503c00130877f82813204f54b424a3fa32
   bin/lib/engine_route.py#swap_pointer: 9644c2fa81e7c9bdfd7af2a3dce6900fc2b65cb55f680737af5b4add9976a7b9
-  bin/lib/events.py#_emit_cli_invoked: 5d1e4ab8dc407eca56e3c449c39f841271d747ce1e789177fd14b1fec630425f
+  bin/lib/events.py#_emit_cli_invoked: ebb505c9b2d3b4f08b802c3dfb1f0a70a6554f95ed3bc877c322ace6f3e3fada
   bin/lib/worktree.py#cmd_work_tag: 0501242bd8ccef8794459fd8bf5b9d0875fb44082abf57986c705e4ded71b9ac
   bin/yitc-v2: bc82663b10bb4ad4808258a23c22aab938e60e91a77cf74a461c2ee48e7ed3d0

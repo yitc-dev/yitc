@@ -8,6 +8,8 @@ consumed: false
 extension: null
 implements:
 - bin/lib/plan.py#cmd_plan_stage
+- bin/lib/plan.py#owner_words_reconciliation
+- bin/lib/plan.py#cmd_plan_show
 body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spike,\
   \ SPEC-0205), checks it there, and asks\nfor it in production. The carry must bring\
   \ over everything the owner kept and nothing else.\n\nThe CARRY REGISTRY is one\
@@ -48,19 +50,54 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ the soak); a `not-carried` item is not applied by any card of the carry.\n- The\
   \ section opens with the owner's read-back row (`owner_read: events.jsonl#ts=<ISO>`).\
   \ The owner\n  reads the list once before the plan is accepted; this is where a\
-  \ sandbox change nobody meant to\n  keep becomes `not-carried`.\n\n### 3. The checks\
-  \ — lists by the kernel, meaning by the audits\n- **Plan accept.** MECHANICAL: the\
-  \ list parses, and every changed path of the base diff is a locator\n  of some item\
-  \ (a whole forgotten file refuses `plan stage accepted`, naming the paths). JUDGED:\
-  \ the\n  accept `plan check` packet carries the base diff beside the registry; the\
-  \ auditor checks, hunk by\n  hunk, that every owner-meaningful change has an item,\
-  \ the granularity, and that `owner_read` and\n  every later `owner_row` are cited.\
-  \ The registry is plan body text, so the existing content hash\n  makes any later\
-  \ change re-open the check.\n- **The cut (gate to `executing`, SPEC-0070).** MECHANICAL,\
-  \ naming the fault: every card of the cut\n  declares `prototype_lines` — a NON-EMPTY\
-  \ list of item ids (a WRITER), `[]` (a card that builds no\n  item — not a writer),\
-  \ or `all` (the VERIFIER); every `carry` item is owned by exactly one writer (a\n\
-  \  `supporting` item may be owned by the writer of the item it serves or directly);\
+  \ sandbox change nobody meant to\n  keep becomes `not-carried`.\n- **Before the\
+  \ read-back — the owner-words reconciliation.** Right before the owner reads the\
+  \ list,\n  the Controller runs `bin/yitc-v2 plan show <slug> --owner-words` and\
+  \ shows its output to the owner\n  beside the registry. Source rule: never the session's\
+  \ memory — the journal plus EVERY transcript\n  of the sessions that worked the\
+  \ spike: the prototype's declaring session (SPEC-0205 rule 4), the\n  sessions of\
+  \ the plan's `trial_run` rows, and those whose `owner_directive` names the plan,\
+  \ the\n  prototype or its branch, over the spike's life (its declaring row to the\
+  \ park that tagged the\n  prototype); a spike tag inside the prototype's history\
+  \ and absent from `main` is listed as not\n  read, for the owner to decide, since\
+  \ no row links it as a round. Each session ref is mapped to its transcript\n  file(s)\
+  \ by the kernel's transcript resolution, and the output names which transcripts\
+  \ were read\n  and which refs had no transcript file. Every owner word is read through\
+  \ the redacting owner-text\n  path (SPEC-0163 §4e) and shown with a candidate registry\
+  \ item or plan rule; the read-back shows the\n  owner the unmapped words and the\
+  \ reversals (a later word turning an earlier one) beside the\n  registry, so a decision\
+  \ visible only as an absence in code gets an item or an owner-cited\n  `not-carried`\
+  \ line. The matching is a candidate the owner judges: the step writes neither the\n\
+  \  registry nor the plan and never blocks the accept (SPEC-0142 §2).\n\n### 3. The\
+  \ checks — lists by the kernel, meaning by the audits\n- **Plan accept.** MECHANICAL:\
+  \ the list parses, and every changed path of the base diff is a locator\n  of some\
+  \ item (a whole forgotten file refuses `plan stage accepted`, naming the paths).\
+  \ JUDGED: the\n  accept `plan check` packet carries the base diff beside the registry;\
+  \ the auditor checks, hunk by\n  hunk, that every owner-meaningful change has an\
+  \ item, the granularity, and that `owner_read` and\n  every later `owner_row` are\
+  \ cited. The registry is plan body text, so the existing content hash\n  makes any\
+  \ later change re-open the check.\n- **The accept packet within the auditor's input\
+  \ budget.** The packet points at the registry in the\n  plan body instead of copying\
+  \ it, and renders the base diff by a fixed path rule, never a model's\n  judgement:\
+  \ test files are listed with their line counts, and lockfiles, generated, vendored\
+  \ or\n  minified files, test snapshots and binary files are listed with their size,\
+  \ each with its class;\n  a moved file reads `moved A -> B, N% similar` with only\
+  \ its differing hunks; every other path —\n  source, styles, migrations, configs,\
+  \ every deleted file — is rendered in full with its context\n  lines. Every path\
+  \ sent by reference is listed, so none disappears silently. When the packet still\n\
+  \  exceeds the budget, the check is split by surface: one auditor call per surface\
+  \ slice, each with\n  the registry items whose locators fall in it (an item spanning\
+  \ two slices goes to both), then one\n  whole pass over the registry and the full\
+  \ path list without code (coverage and granularity), and\n  ONE recorded verdict\
+  \ — GREEN only when every part is GREEN, otherwise the worst. `plan check`\n  refuses\
+  \ before the auditor, naming the sizes, only when the subject cannot be split (one\
+  \ file\n  alone over the budget, or the whole pass itself); no pass is spent. The\
+  \ plan stays one plan:\n  splitting a plan is the owner's choice on meaning, never\
+  \ on size.\n- **The cut (gate to `executing`, SPEC-0070).** MECHANICAL, naming the\
+  \ fault: every card of the cut\n  declares `prototype_lines` — a NON-EMPTY list\
+  \ of item ids (a WRITER), `[]` (a card that builds no\n  item — not a writer), or\
+  \ `all` (the VERIFIER); every `carry` item is owned by exactly one writer (a\n \
+  \ `supporting` item may be owned by the writer of the item it serves or directly);\
   \ no card names an\n  unknown or a `not-carried` item; exactly one `all` card, which\
   \ `requires:` every other card of the\n  cut, while no card of the cut requires\
   \ it — the verifier is the cut's LAST card; and the accept\n  verdict is still fresh\
@@ -118,35 +155,47 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ a new gap; meaning is what the auditors already judge.\nPrior art extended: SPEC-0205\
   \ rules 4/5/7, SPEC-0070 fidelity gate and fingerprint, SPEC-0046 §A3,\nSPEC-0015\
   \ closure. Owner: `events.jsonl#ts=`, `#ts=`,\n`#ts=`; a card-sized carry left out\
-  \ of scope: `#ts=`.\n\n## Verification\n- VP1: a malformed registry and a changed\
-  \ base-diff path that no item locates each refuse\n  `plan stage accepted`; a formatting-only\
-  \ path as a `supporting` item passes; the accept packet of\n  an opted-in plan carries\
-  \ the diff and the registry, of any other plan is byte-unchanged; a tag moved between\
-  \ the accept\n  `plan check` and `plan stage accepted` refuses the accept.\n- VP2:\
-  \ on the gate to `executing` — a card of the cut without `prototype_lines`, a card\
-  \ naming\n  another prototype, zero or two owners of a `carry` item, an unknown\
-  \ item, a writer naming a\n  `not-carried` item, two `all` cards, an `all` card\
-  \ missing one card it must require, a card that requires the `all` card, and a\n\
-  \  registry item changed after the accept verdict — each refuses naming the fault;\n\
-  \  a valid cut (writers, a `[]` card, one verifier last) passes; changing one card's\n\
-  \  `prototype_lines`, one registry item, or `prototype_tip` changes the card-set\
-  \ fingerprint.\n- VP3: the opted-in `audit pre` packet carries the card's items\
-  \ and the stop-and-ask overlay, and a\n  lines change defeats verdict reuse; the\
-  \ `audit post` packet carries the items, the surface's\n  `not-carried` items and\
-  \ their hunks, with negative examples: an element omitted from an\n  already-covered\
-  \ file, a shipped `not-carried` element; and a passing example with a new helper\
-  \ and\n  test file that no item names. A `[]` card's `audit post` packet asks the\
-  \ forward-only question; a\n  changed `prototype_tip` defeats audit-pre reuse. A\
-  \ card\n  building an owner amendment already cited on its item gets no stop-and-ask\
-  \ for it.\n- VP4: a card outside an opted-in plan gets packets byte-identical to\
-  \ before.\n- VP5: differential replay — the rounds 7-9 cut rebuilt read-only: items\
-  \ from the divergence table;\n  each historical card's `prototype_lines` mapped\
-  \ from the table's cause column (a (b), (c) or (a*)\n  row names the card it cites;\
-  \ an (a) row names none). A class-(a) row has no owner\n  even when it cites a card\
-  \ (the cited card did not name the element); a (b), (c) or (a*) row is\n  owned\
-  \ by every card it cites. The gate refuses with the expected set: zero owners =\
-  \ exactly the\n  21 (a) rows; two owners = exactly rows 10 and 15. With those resolved\
-  \ it passes.\n"
+  \ of scope: `#ts=`.\nThe §2 owner-words reconciliation was added in place by as\
+  \ an additive step (no\nalready-covered case changes, nothing refuses): <project>\
+  \ X-2234 (plan\ncreator-cabinet-a-creator-as-a-system-participant-, 132 registry\
+  \ items) — a registry built from the\nbase diff missed 15 trial runs and 13 owner\
+  \ decisions of the spike period, decisions visible only as\nan absence in code,\
+  \ and 8 reversals. Owner: `events.jsonl#ts=`.\n\n## Verification\n- VP1: a malformed\
+  \ registry and a changed base-diff path that no item locates each refuse\n  `plan\
+  \ stage accepted`; a formatting-only path as a `supporting` item passes; the accept\
+  \ packet of\n  an opted-in plan carries the diff and the registry, of any other\
+  \ plan is byte-unchanged; a tag moved between the accept\n  `plan check` and `plan\
+  \ stage accepted` refuses the accept.\n- VP2: on the gate to `executing` — a card\
+  \ of the cut without `prototype_lines`, a card naming\n  another prototype, zero\
+  \ or two owners of a `carry` item, an unknown item, a writer naming a\n  `not-carried`\
+  \ item, two `all` cards, an `all` card missing one card it must require, a card\
+  \ that requires the `all` card, and a\n  registry item changed after the accept\
+  \ verdict — each refuses naming the fault;\n  a valid cut (writers, a `[]` card,\
+  \ one verifier last) passes; changing one card's\n  `prototype_lines`, one registry\
+  \ item, or `prototype_tip` changes the card-set fingerprint.\n- VP3: the opted-in\
+  \ `audit pre` packet carries the card's items and the stop-and-ask overlay, and\
+  \ a\n  lines change defeats verdict reuse; the `audit post` packet carries the items,\
+  \ the surface's\n  `not-carried` items and their hunks, with negative examples:\
+  \ an element omitted from an\n  already-covered file, a shipped `not-carried` element;\
+  \ and a passing example with a new helper and\n  test file that no item names. A\
+  \ `[]` card's `audit post` packet asks the forward-only question; a\n  changed `prototype_tip`\
+  \ defeats audit-pre reuse. A card\n  building an owner amendment already cited on\
+  \ its item gets no stop-and-ask for it.\n- VP4: a card outside an opted-in plan\
+  \ gets packets byte-identical to before.\n- VP5: differential replay — the rounds\
+  \ 7-9 cut rebuilt read-only: items from the divergence table;\n  each historical\
+  \ card's `prototype_lines` mapped from the table's cause column (a (b), (c) or (a*)\n\
+  \  row names the card it cites; an (a) row names none). A class-(a) row has no owner\n\
+  \  even when it cites a card (the cited card did not name the element); a (b), (c)\
+  \ or (a*) row is\n  owned by every card it cites. The gate refuses with the expected\
+  \ set: zero owners = exactly the\n  21 (a) rows; two owners = exactly rows 10 and\
+  \ 15. With those resolved it passes.\n- VP6 (§2 owner-words reconciliation): on\
+  \ a fixture spike — a declaring row, a transcript filed under\n  another id and\
+  \ found through its `owner_directive` row, a ref with no file — `plan show <slug>\n\
+  \  --owner-words` lists the read transcript and the ref with no file, maps a decision\
+  \ to its registry\n  item and another to a plan rule, surfaces the unmapped decision\
+  \ and the reversal, drops a word after\n  the park, redacts a credential, exits\
+  \ 0 and leaves the plan file byte-identical; without the step no\n  reconciliation\
+  \ is shown (tests/test_t14520_spike_owner_words.py).\n"
 cites:
 - SPEC-0205
 - SPEC-0070
@@ -164,3 +213,6 @@ binding:
 - plan-stage-entry:decomposition
 - plan-stage-entry:postcheck
 init_concern: null
+implements_signature:
+  bin/lib/plan.py#cmd_plan_show: e82d693ed198a51c0ad3642df617f07a84c90df80ef7ba7149234944186bf52f
+  bin/lib/plan.py#owner_words_reconciliation: 080d8530478bf5939ca8ddd9633d24d322d36c4a151d6eab4a8bec2c3cf116eb

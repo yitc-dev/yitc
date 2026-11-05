@@ -47,7 +47,7 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
    "spec": "SPEC-0034",
-   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (2c7e6ad86) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (be1dace22) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/plan.py#cmd_plan_stage",
@@ -57,7 +57,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0038",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (0e555ea51) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (866f91d43) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "tasks/_template.yaml",
@@ -67,27 +67,27 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
    "spec": "SPEC-0046",
-   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (2c7e6ad86) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (be1dace22) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0046",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (2d2be4f3e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (b9ee6578e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (4f298c47f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (09545ebbb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/events.py#_emit_cli_invoked: content changed since last verified-accurate signature (5d1e4ab8d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/events.py#_emit_cli_invoked: content changed since last verified-accurate signature (ebb505c9b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#_fetched_spec_ids",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/gates.py#_fetched_spec_ids: content changed since last verified-accurate signature (385cf3148) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/gates.py#_fetched_spec_ids: content changed since last verified-accurate signature (6acc09b57) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#_require_reads",
@@ -102,7 +102,7 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (2c7e6ad86) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (be1dace22) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/spec.py#cmd_spec_new",
@@ -112,12 +112,12 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (0e555ea51) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (866f91d43) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_commit",
    "spec": "SPEC-0050",
-   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (1b30e8121) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (929703dc4) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/triage.py#cmd_triage_run",
@@ -137,7 +137,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0060",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (2d2be4f3e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (b9ee6578e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/triage.py#cmd_triage_run",
@@ -157,7 +157,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0069",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (0e555ea51) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (866f91d43) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/effort-routing-config.yaml",
@@ -177,7 +177,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0072",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (2d2be4f3e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (b9ee6578e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_update",
@@ -197,7 +197,7 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
    "spec": "SPEC-0082",
-   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (2c7e6ad86) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (be1dace22) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/plan.py#_plan_gate_template_text",
@@ -257,7 +257,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0086",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (2d2be4f3e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (b9ee6578e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/cli.py#_file_has_symbol_space",
@@ -282,12 +282,12 @@
   {
    "anchor": "bin/lib/init.py#cmd_init",
    "spec": "SPEC-0093",
-   "warn": "bin/lib/init.py#cmd_init: content changed since last verified-accurate signature (c74aac182) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/init.py#cmd_init: content changed since last verified-accurate signature (b3f20b0d8) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (4f298c47f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (09545ebbb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#_DeployRunRecorder",
@@ -297,7 +297,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0094",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (65223e737) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (b2726455f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/live_probe.py#cmd_live_probe",
@@ -327,7 +327,7 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_file",
    "spec": "SPEC-0095",
-   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (2d2be4f3e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_file: content changed since last verified-accurate signature (b9ee6578e) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "graph/activation-checklist.md#Activation",
@@ -357,7 +357,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0097",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (65223e737) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (b2726455f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#graph_build_index",
@@ -632,12 +632,12 @@
   {
    "anchor": "bin/lib/init.py#cmd_init",
    "spec": "SPEC-0147",
-   "warn": "bin/lib/init.py#cmd_init: content changed since last verified-accurate signature (c74aac182) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/init.py#cmd_init: content changed since last verified-accurate signature (b3f20b0d8) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0149",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (65223e737) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (b2726455f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/events.py#cmd_event",
@@ -692,7 +692,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0155",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (65223e737) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (b2726455f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/security-audit",
@@ -762,17 +762,17 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-0176",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (4f298c47f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (09545ebbb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0177",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (0e555ea51) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (866f91d43) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-0178",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (0e555ea51) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (866f91d43) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/debt_adoption.py#open_known_broken",
@@ -837,7 +837,7 @@
   {
    "anchor": "bin/lib/deploy.py#cmd_deploy",
    "spec": "SPEC-0205",
-   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (65223e737) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/deploy.py#cmd_deploy: content changed since last verified-accurate signature (b2726455f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_land",
@@ -847,7 +847,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-0209",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (b4e651284) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (db4491887) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/textutil.py#ARGV_PROSE_SEAMS",
@@ -857,7 +857,7 @@
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
    "spec": "SPEC-1003",
-   "warn": "bin/lib/events.py#_emit_cli_invoked: content changed since last verified-accurate signature (5d1e4ab8d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/events.py#_emit_cli_invoked: content changed since last verified-accurate signature (ebb505c9b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#cmd_work_tag",
@@ -892,7 +892,7 @@
   {
    "anchor": "bin/lib/events.py#_emit_cli_invoked",
    "spec": "SPEC-1023",
-   "warn": "bin/lib/events.py#_emit_cli_invoked: content changed since last verified-accurate signature (5d1e4ab8d) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/events.py#_emit_cli_invoked: content changed since last verified-accurate signature (ebb505c9b) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#_require_seed_read",
@@ -927,12 +927,12 @@
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1034",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (4f298c47f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (09545ebbb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (4f298c47f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (09545ebbb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/gates.py#advance_stage_pointer",
@@ -942,12 +942,12 @@
   {
    "anchor": "bin/lib/task.py#cmd_task_close",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (0e555ea51) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_close: content changed since last verified-accurate signature (866f91d43) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_commit",
    "spec": "SPEC-1038",
-   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (1b30e8121) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/task.py#cmd_task_commit: content changed since last verified-accurate signature (929703dc4) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/task.py#cmd_task_plan",
@@ -962,12 +962,12 @@
   {
    "anchor": "bin/lib/audit.py#blocked_on_land_ceiling_disposition",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit.py#blocked_on_land_ceiling_disposition: content changed since last verified-accurate signature (5b7b91f07) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#blocked_on_land_ceiling_disposition: content changed since last verified-accurate signature (f516edad1) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#cmd_audit",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (4f298c47f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit.py#cmd_audit: content changed since last verified-accurate signature (09545ebbb) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit.py#contentless_findings",
@@ -987,7 +987,7 @@
   {
    "anchor": "bin/lib/audit_ceiling.py#on_decisions_admission",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/audit_ceiling.py#on_decisions_admission: content changed since last verified-accurate signature (56b2d2235) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/audit_ceiling.py#on_decisions_admission: content changed since last verified-accurate signature (ab0e1dd50) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/audit_ceiling.py#on_decisions_matrix",
@@ -1005,6 +1005,11 @@
    "warn": "bin/lib/audit_ceiling.py#row_residual_fingerprints: content changed since last verified-accurate signature (8dc0ced2f) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
+   "anchor": "bin/lib/audit_ceiling.py#test_found_fix_window",
+   "spec": "SPEC-1039",
+   "warn": "bin/lib/audit_ceiling.py#test_found_fix_window: content changed since last verified-accurate signature (0976ca4da) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
    "anchor": "bin/lib/audit_consult.py#_consult_basis",
    "spec": "SPEC-1039",
    "warn": "bin/lib/audit_consult.py#_consult_basis: content changed since last verified-accurate signature (94464619a) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
@@ -1017,7 +1022,7 @@
   {
    "anchor": "bin/lib/cli_parser.py#build_parser",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (b4e651284) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/cli_parser.py#build_parser: content changed since last verified-accurate signature (db4491887) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/graph.py#retired_plan_gate_terminal_violations",
@@ -1032,7 +1037,7 @@
   {
    "anchor": "bin/lib/plan.py#cmd_plan_check",
    "spec": "SPEC-1039",
-   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (2c7e6ad86) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+   "warn": "bin/lib/plan.py#cmd_plan_check: content changed since last verified-accurate signature (be1dace22) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   },
   {
    "anchor": "bin/lib/worktree.py#_consumer_zero_probe_guard",
@@ -1043,6 +1048,11 @@
    "anchor": "bin/lib/events.py#cmd_event",
    "spec": "SPEC-1057",
    "warn": "bin/lib/events.py#cmd_event: content changed since last verified-accurate signature (eff51c136) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
+  },
+  {
+   "anchor": "bin/lib/plan.py#cmd_plan_show",
+   "spec": "SPEC-1058",
+   "warn": "bin/lib/plan.py#cmd_plan_show: content changed since last verified-accurate signature (e82d693ed) — re-verify the spec vs the code, then `yitc-v2 spec reverify`"
   }
  ],
  "_implements_warnings": [
@@ -6885,121 +6895,121 @@
   },
   {
    "content": "governs ONLY the must-read entry-gate PROLOGUE of that verb (the `_require_reads(\"stage\", …)`",
-   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:297:must",
+   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:301:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 297,
+   "source_line": 301,
    "source_section": "6-pilot-scope-normative-kind-stage-only-",
    "status": "active"
   },
   {
    "content": "governs ONLY its must-read entry-gate PROLOGUE (the `_require_reads(\"stage\", …)` call + its refusal),",
-   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:322:must",
+   "id": "rule:spec-0050:6-pilot-scope-normative-kind-stage-only-:326:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 322,
+   "source_line": 326,
    "source_section": "6-pilot-scope-normative-kind-stage-only-",
    "status": "active"
   },
   {
    "content": "present but pre-compact — §epoch below), or `context_epoch_unknown` (the context epoch cannot be read",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:422:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:426:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 422,
+   "source_line": 426,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "`seed_read_unfetched`), and on CANNOT TELL under a provider whose detection is observed refuses",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:458:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:462:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 458,
+   "source_line": 462,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "FETCHES must be made in THAT checkout, but a session already anchored on MAIN need NOT re-anchor it:",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:476:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:480:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 476,
+   "source_line": 480,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "and is still required where the session has no anchor on main. ** note:** the broadened",
-   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:479:must",
+   "id": "rule:spec-0050:8-the-audience-seed-read-gate-require-se:483:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 479,
+   "source_line": 483,
    "source_section": "8-the-audience-seed-read-gate-require-se",
    "status": "active"
   },
   {
    "content": "required session-less consumer seam») and decided under the owner's standing authorization. Every",
-   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:515:must",
+   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:519:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 515,
+   "source_line": 519,
    "source_section": "8a-the-bounded-read-tolerance-exception-",
    "status": "active"
   },
   {
    "content": "controller MUST NOT base an out-of-band decision on it before hitting a strict verb.",
-   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:537:must",
+   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:541:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 537,
+   "source_line": 541,
    "source_section": "8a-the-bounded-read-tolerance-exception-",
    "status": "active"
   },
   {
    "content": "necessarily changes that anchor's content signature and trips spec-freshness; the bound cannot drift",
-   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:550:must",
+   "id": "rule:spec-0050:8a-the-bounded-read-tolerance-exception-:554:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 550,
+   "source_line": 554,
    "source_section": "8a-the-bounded-read-tolerance-exception-",
    "status": "active"
   },
   {
    "content": "redirect) records delivered, IS credited, and the gate PASSES. Both directions are required — a",
-   "id": "rule:spec-0050:verification:598:must",
+   "id": "rule:spec-0050:verification:602:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 598,
+   "source_line": 602,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "required: after one delivery, a second delivery call in the SAME established epoch prints a pointer",
-   "id": "rule:spec-0050:verification:605:must",
+   "id": "rule:spec-0050:verification:609:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 605,
+   "source_line": 609,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "Plus the three fail-toward-delivering bounds, each with its own failing input: an epoch that cannot",
-   "id": "rule:spec-0050:verification:608:must",
+   "id": "rule:spec-0050:verification:612:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0050-must-read-precondition-require-reads-gate-session-.yaml",
    "source_domain": "spec",
-   "source_line": 608,
+   "source_line": 612,
    "source_section": "verification",
    "status": "active"
   },
@@ -9024,27 +9034,17 @@
    "status": "active"
   },
   {
+   "content": "short-summary discriminator REQUIRED a ` - <msg>` half, but under `--tb=no` — an ordinary consumer",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1001:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
+   "source_domain": "spec",
+   "source_line": 1001,
+   "source_section": "3a-the-standing-re-baseline-path-in-plac",
+   "status": "active"
+  },
+  {
    "content": "outcome when the tie cannot be made. No gate, flag, or abort-class changes — SPEC-0077 remains the",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1078:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
-   "source_domain": "spec",
-   "source_line": 1078,
-   "source_section": "3a-the-standing-re-baseline-path-in-plac",
-   "status": "active"
-  },
-  {
-   "content": "change — a NEW required module under `bin/` the candidate's own (green) verify already covers (the",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1084:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
-   "source_domain": "spec",
-   "source_line": 1084,
-   "source_section": "3a-the-standing-re-baseline-path-in-plac",
-   "status": "active"
-  },
-  {
-   "content": "`No module named '<new-module>'`, because it cannot provision a module that did not exist when it was",
    "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1086:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
@@ -9054,12 +9054,32 @@
    "status": "active"
   },
   {
-   "content": "written. That is a fixture LAYOUT-MISMATCH, NOT a check-relaxation, so it MUST NOT force an",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1087:must",
+   "content": "change — a NEW required module under `bin/` the candidate's own (green) verify already covers (the",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1092:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1087,
+   "source_line": 1092,
+   "source_section": "3a-the-standing-re-baseline-path-in-plac",
+   "status": "active"
+  },
+  {
+   "content": "`No module named '<new-module>'`, because it cannot provision a module that did not exist when it was",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1094:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
+   "source_domain": "spec",
+   "source_line": 1094,
+   "source_section": "3a-the-standing-re-baseline-path-in-plac",
+   "status": "active"
+  },
+  {
+   "content": "written. That is a fixture LAYOUT-MISMATCH, NOT a check-relaxation, so it MUST NOT force an",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:1095:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
+   "source_domain": "spec",
+   "source_line": 1095,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
@@ -9365,421 +9385,411 @@
   },
   {
    "content": "stay verify-OBSERVABLE there (a test may assert their content), exactly as kept them; the",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:556:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:564:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 556,
+   "source_line": 564,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "and a governed instruction must not be refused by the governed verb that follows it. And it does NOT",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:565:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:573:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 565,
+   "source_line": 573,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "same SHAPE as the closure exemption's: the merge the lifecycle REQUIRES cannot be the thing that makes",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:580:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:588:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 580,
+   "source_line": 588,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "`merge_inherited` or the reserved did-not-answer bucket, which must never be re-classified by a helper",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:607:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:615:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 607,
+   "source_line": 615,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "CONSTRUCTION, so `--rebaseline-waive` (REQUIRED with `--rebaseline` since) could never",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:667:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:675:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 667,
+   "source_line": 675,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "run-varying SUBSET and the required declaration MOVED between attempts — a coin flip no quiescence",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:684:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:692:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 684,
+   "source_line": 692,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "SPEC-0160 rule 10) — so a reader of this paragraph alone should not read it as a whole-spec",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:698:should",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:706:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 698,
+   "source_line": 706,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "MUST bind the entry it was suggested for. It did not — the paste was composed inline in the refusal",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:709:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:717:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 709,
+   "source_line": 717,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "was rejected `no-match` by the very message that offered it. With `--rebaseline-waive` REQUIRED",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:712:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:720:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 712,
+   "source_line": 720,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "since, an operator who cannot form a binding token has NO sanctioned path at all: <project>,",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:713:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:721:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 713,
+   "source_line": 721,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "token that cannot be written before the run and differs on every retry — X-0683, where a fully",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:723:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:731:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 723,
+   "source_line": 731,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "is what keeps an assertion's own numeric VALUE exact — and that exactness must not be traded away.",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:732:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:740:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 732,
+   "source_line": 740,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "in ONE place and cannot drift. FIRST run, not longest: the leading run is the assertion's identifying",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:748:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:756:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 748,
+   "source_line": 756,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "an assertion-bearing entry, the mechanical tie required of `--rebaseline-reason`, the fresh",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:759:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:767:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 759,
+   "source_line": 767,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "TEXT identifies a failure, never WHO may clear it or WHEN. Binding is guaranteed BY CONSTRUCTION",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:761:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:769:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 761,
+   "source_line": 769,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "waived because it is HEALTHY BUT CANNOT RUN here landed in the identical `rebaselined: true`",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:782:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:790:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 782,
+   "source_line": 790,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "heavy full-stack script cannot satisfy the §3 two-leg verify AT ALL once its diff touches",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:785:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:793:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 785,
+   "source_line": 793,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "DECLARES the kind, alongside the per-assertion declaration it already must pass:",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:788:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:796:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 788,
+   "source_line": 796,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "- `--rebaseline-kind unrunnable-here` — the pinned check is HEALTHY but cannot RUN in this",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:792:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:800:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 792,
+   "source_line": 800,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "has always required.",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:810:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:818:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 810,
+   "source_line": 818,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "locator, and a grant made on it would record a `waive_binding` that cannot be traced back to the",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:830:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:838:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 830,
+   "source_line": 838,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "unchanged — this arm may make a refusal reachable or cheaper, never invent one from an",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:842:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:850:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 842,
+   "source_line": 850,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "**REQUIRED at grant, NEVER inferred.** A `--rebaseline` with no kind is REFUSED on the EXISTING",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:858:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:866:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 858,
+   "source_line": 866,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "by both required-at-grant refusals and by the record, so prose and code cannot drift (the §1",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:863:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:871:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 863,
+   "source_line": 871,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "may bind to. Naming that plainly is the point — the clause forbade *reading* the old text as",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:875:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:883:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 875,
+   "source_line": 883,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "**What NO kind may do, including this one — the surviving force of this clause.** WHO may",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:884:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:892:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 884,
+   "source_line": 892,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "change that let a declared kind widen WHO MAY WAIVE, or that let one waive an assertion no",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:888:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:896:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 888,
+   "source_line": 896,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "reading of this §. A future value that widens the binding mode must, like this one, amend this",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:890:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:898:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 890,
+   "source_line": 898,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "clause explicitly and carry its own fail-closed conjunction — it may not arrive by reading the",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:891:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:899:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 891,
+   "source_line": 899,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "is left exactly as it was: absence means *nothing was declared*, and MUST NOT be read as",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:895:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:903:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 895,
+   "source_line": 903,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "or re-interprets an existing row (the shape — a fix must not reach backwards). The same",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:897:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:905:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 897,
+   "source_line": 905,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "cannot satisfy the §3 two-leg verify and still needs the waiver; what changes is that the waiver",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:902:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:910:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 902,
+   "source_line": 910,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "answer there, and the oracle still declines. **Qualified by — the count-only header may",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:965:may",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:973:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 965,
+   "source_line": 973,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "fallback and a log line cannot reach the assertion position however the tail ends.",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:975:must",
+   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:983:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 975,
-   "source_section": "3a-the-standing-re-baseline-path-in-plac",
-   "status": "active"
-  },
-  {
-   "content": "short-summary discriminator REQUIRED a ` - <msg>` half, but under `--tb=no` — an ordinary consumer",
-   "id": "rule:spec-0077:3a-the-standing-re-baseline-path-in-plac:993:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
-   "source_domain": "spec",
-   "source_line": 993,
+   "source_line": 983,
    "source_section": "3a-the-standing-re-baseline-path-in-plac",
    "status": "active"
   },
   {
    "content": "A pinned check may assert anything EXCEPT elapsed WALL TIME. An assertion whose SUBJECT is a",
-   "id": "rule:spec-0077:3b-a-wall-clock-timing-instrument-is-not:1102:may",
+   "id": "rule:spec-0077:3b-a-wall-clock-timing-instrument-is-not:1110:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1102,
+   "source_line": 1110,
    "source_section": "3b-a-wall-clock-timing-instrument-is-not",
    "status": "active"
   },
   {
    "content": "the one outcome this rule must not produce.",
-   "id": "rule:spec-0077:3b-a-wall-clock-timing-instrument-is-not:1130:must",
+   "id": "rule:spec-0077:3b-a-wall-clock-timing-instrument-is-not:1138:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1130,
+   "source_line": 1138,
    "source_section": "3b-a-wall-clock-timing-instrument-is-not",
    "status": "active"
   },
   {
    "content": "**The candidate leg's verdict may be a CREDITED Stage-6 run — the pinned leg is untouched.**",
-   "id": "rule:spec-0077:4-scope-guard-the-negative-contract:1136:may",
+   "id": "rule:spec-0077:4-scope-guard-the-negative-contract:1144:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1136,
+   "source_line": 1144,
    "source_section": "4-scope-guard-the-negative-contract",
    "status": "active"
   },
   {
    "content": "nor written by the credit; §2's source and §3's both-must-pass are unchanged; and a",
-   "id": "rule:spec-0077:4-scope-guard-the-negative-contract:1150:must",
+   "id": "rule:spec-0077:4-scope-guard-the-negative-contract:1158:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1150,
+   "source_line": 1158,
    "source_section": "4-scope-guard-the-negative-contract",
    "status": "active"
   },
   {
    "content": "adoption probe — the deliberately-weakened-verifier test must FAIL that pre-mode verifier on the",
-   "id": "rule:spec-0077:5-bootstrap-cutover-the-trusted-starting:1161:must",
+   "id": "rule:spec-0077:5-bootstrap-cutover-the-trusted-starting:1169:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1161,
+   "source_line": 1169,
    "source_section": "5-bootstrap-cutover-the-trusted-starting",
    "status": "active"
   },
   {
    "content": "§P2, `--no-tests`) — the rule cannot retroactively detect a pre-mode compromise or re-judge an",
-   "id": "rule:spec-0077:5-bootstrap-cutover-the-trusted-starting:1170:must",
+   "id": "rule:spec-0077:5-bootstrap-cutover-the-trusted-starting:1178:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1170,
+   "source_line": 1178,
    "source_section": "5-bootstrap-cutover-the-trusted-starting",
    "status": "active"
   },
   {
    "content": "the project's own test files may select units on the CANDIDATE leg — rule home <workshop-spec> rule 6 (a).",
-   "id": "rule:spec-0077:6-consumer-surfaces-no-hidden-second-mod:1183:may",
+   "id": "rule:spec-0077:6-consumer-surfaces-no-hidden-second-mod:1191:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1183,
+   "source_line": 1191,
    "source_section": "6-consumer-surfaces-no-hidden-second-mod",
    "status": "active"
   },
@@ -9795,41 +9805,41 @@
   },
   {
    "content": "other land (the negative probe — proves no blanket-gate scope creep). A terminal stdout marker MAY",
-   "id": "rule:spec-0077:verification:1207:may",
+   "id": "rule:spec-0077:verification:1219:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1207,
+   "source_line": 1219,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "required `bin/` module the candidate's own verify covers) whose STALE last-green fixture fails with",
-   "id": "rule:spec-0077:verification:1210:must",
+   "id": "rule:spec-0077:verification:1222:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1210,
+   "source_line": 1222,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "(silently defaulted); OR `broken` / `unrunnable-here` change ANY eligibility outcome — who may",
-   "id": "rule:spec-0077:verification:1229:may",
+   "id": "rule:spec-0077:verification:1241:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1229,
+   "source_line": 1241,
    "source_section": "verification",
    "status": "active"
   },
   {
    "content": "`environmental` widens anything BEYOND its declared two-part binding — it changes who may",
-   "id": "rule:spec-0077:verification:1233:may",
+   "id": "rule:spec-0077:verification:1245:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0077-pinned-last-green-verify-for-verify-path-touching-.yaml",
    "source_domain": "spec",
-   "source_line": 1233,
+   "source_line": 1245,
    "source_section": "verification",
    "status": "active"
   },
@@ -11654,22 +11664,32 @@
    "status": "active"
   },
   {
+   "content": "`deploy:` section that waives its top-level `command:` (declare-or-waive, SPEC-0093 rule 3) MAY",
+   "id": "rule:spec-0094:1-the-deploy-verb-the-deploy-completed-e:143:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 143,
+   "source_section": "1-the-deploy-verb-the-deploy-completed-e",
+   "status": "active"
+  },
+  {
    "content": "omitted: an omitted class cannot be told from a forgotten one, while a null class states that none was",
-   "id": "rule:spec-0094:1-the-deploy-verb-the-deploy-completed-e:147:must",
+   "id": "rule:spec-0094:1-the-deploy-verb-the-deploy-completed-e:154:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 147,
+   "source_line": 154,
    "source_section": "1-the-deploy-verb-the-deploy-completed-e",
    "status": "active"
   },
   {
    "content": "without a literal `production: true` is not a production record. The verb cannot write one; a",
-   "id": "rule:spec-0094:1-the-deploy-verb-the-deploy-completed-e:161:must",
+   "id": "rule:spec-0094:1-the-deploy-verb-the-deploy-completed-e:168:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 161,
+   "source_line": 168,
    "source_section": "1-the-deploy-verb-the-deploy-completed-e",
    "status": "active"
   },
@@ -11695,58 +11715,48 @@
   },
   {
    "content": "commit walk and counts everything: a broken classifier must never present itself as \"nothing to",
-   "id": "rule:spec-0094:2-not-adopted-surface-derived-never-stor:222:must",
+   "id": "rule:spec-0094:2-not-adopted-surface-derived-never-stor:229:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 222,
+   "source_line": 229,
    "source_section": "2-not-adopted-surface-derived-never-stor",
    "status": "active"
   },
   {
    "content": "probe\" gate: that would dead-end legitimate deploys whose probe cannot run at close (feature-flag still",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:237:must",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:244:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 237,
+   "source_line": 244,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "honesty floor turned into a lie generator. So a waiver MAY carry `settled_by: {evidence, probed_at,",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:282:may",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:289:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 282,
+   "source_line": 289,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "the defect in a new spelling: `evidence` MUST be the MATERIALIZED-JOURNAL locator of the probe run",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:285:must",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:292:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 285,
+   "source_line": 292,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "`user_facing: false`. So a waiver MAY INSTEAD carry `settled_by: {result, reason}` where `result` is",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:309:may",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:316:may",
    "severity": "may",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 309,
-   "source_section": "3-close-gate-a-declaration-gate-not-an-e",
-   "status": "active"
-  },
-  {
-   "content": "it cannot at once name the run that proved the debt and record that no such run can exist. A terminal",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:316:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
    "source_line": 316,
@@ -11754,77 +11764,67 @@
    "status": "active"
   },
   {
-   "content": "evidence required by that change's host-surface KIND (`host_config_kind`, SPEC-0028) has been recorded,",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:349:must",
+   "content": "it cannot at once name the run that proved the debt and record that no such run can exist. A terminal",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:323:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 349,
+   "source_line": 323,
+   "source_section": "3-close-gate-a-declaration-gate-not-an-e",
+   "status": "active"
+  },
+  {
+   "content": "evidence required by that change's host-surface KIND (`host_config_kind`, SPEC-0028) has been recorded,",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:356:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 356,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "buys a leaner gate — and `task close` REFUSES an unrecognized kind outright. The refusal message MUST",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:368:must",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:375:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 368,
+   "source_line": 375,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "name the kind and the evidence that kind expects, and MUST route a mis-kinded card to `task update`,",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:369:must",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:376:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 369,
+   "source_line": 376,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "Guarantee, stated to the actual trust model: a host-config task CANNOT close on ABSENT or INCIDENTAL",
-   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:371:must",
+   "id": "rule:spec-0094:3-close-gate-a-declaration-gate-not-an-e:378:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 371,
+   "source_line": 378,
    "source_section": "3-close-gate-a-declaration-gate-not-an-e",
    "status": "active"
   },
   {
    "content": "so: a consumer deploy may be governed by a KERNEL task card (the <project> migration-day prod deploy, run",
-   "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:408:may",
+   "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:415:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 408,
+   "source_line": 415,
    "source_section": "4-declarative-read-only-live-probe-runne",
    "status": "active"
   },
   {
    "content": "(REQUIRED — the event label) + any of `assert_header_present: <name | [name]>` (a required security",
-   "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:442:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 442,
-   "source_section": "4-declarative-read-only-live-probe-runne",
-   "status": "active"
-  },
-  {
-   "content": "<name | [name]>` (a header must be ABSENT, e.g. no `Access-Control-Allow-Origin` leaked), or",
-   "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:444:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 444,
-   "source_section": "4-declarative-read-only-live-probe-runne",
-   "status": "active"
-  },
-  {
-   "content": "`{property: <name>, unprobeable: <reason>}` — declares a property the seam CANNOT assert read-only: the",
    "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:449:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
@@ -11834,39 +11834,39 @@
    "status": "active"
   },
   {
-   "content": "MUST exercise the project's CRITICAL USER PATH: the one user flow whose failure means the product is",
-   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:603:must",
+   "content": "<name | [name]>` (a header must be ABSENT, e.g. no `Access-Control-Allow-Origin` leaked), or",
+   "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:451:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 603,
+   "source_line": 451,
+   "source_section": "4-declarative-read-only-live-probe-runne",
+   "status": "active"
+  },
+  {
+   "content": "`{property: <name>, unprobeable: <reason>}` — declares a property the seam CANNOT assert read-only: the",
+   "id": "rule:spec-0094:4-declarative-read-only-live-probe-runne:456:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 456,
+   "source_section": "4-declarative-read-only-live-probe-runne",
+   "status": "active"
+  },
+  {
+   "content": "MUST exercise the project's CRITICAL USER PATH: the one user flow whose failure means the product is",
+   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:610:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 610,
    "source_section": "4a-critical-user-path-leg-healthz-is-pro",
    "status": "active"
   },
   {
    "content": "ping MAY be declared as a supplementary liveness leg, but it can never STAND IN for the critical-user-path",
-   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:608:may",
+   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:615:may",
    "severity": "may",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 608,
-   "source_section": "4a-critical-user-path-leg-healthz-is-pro",
-   "status": "active"
-  },
-  {
-   "content": "probe must be SEEN to go RED, journaled once as `check_admission_demonstrated` (outcome `red`, against a",
-   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:613:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 613,
-   "source_section": "4a-critical-user-path-leg-healthz-is-pro",
-   "status": "active"
-  },
-  {
-   "content": "test were BROKEN?\" — made concrete for the probe. A /healthz probe CANNOT honestly produce that RED (a",
-   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:615:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
    "source_line": 615,
@@ -11874,67 +11874,67 @@
    "status": "active"
   },
   {
-   "content": "**Un-probeable routes per the EXISTING rule.** A change whose critical user path genuinely cannot be",
-   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:618:must",
+   "content": "probe must be SEEN to go RED, journaled once as `check_admission_demonstrated` (outcome `red`, against a",
+   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:620:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 618,
+   "source_line": 620,
+   "source_section": "4a-critical-user-path-leg-healthz-is-pro",
+   "status": "active"
+  },
+  {
+   "content": "test were BROKEN?\" — made concrete for the probe. A /healthz probe CANNOT honestly produce that RED (a",
+   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:622:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 622,
+   "source_section": "4a-critical-user-path-leg-healthz-is-pro",
+   "status": "active"
+  },
+  {
+   "content": "**Un-probeable routes per the EXISTING rule.** A change whose critical user path genuinely cannot be",
+   "id": "rule:spec-0094:4a-critical-user-path-leg-healthz-is-pro:625:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 625,
    "source_section": "4a-critical-user-path-leg-healthz-is-pro",
    "status": "active"
   },
   {
    "content": "at closure. Meanwhile a REAL live proof may already run at that project's own deploy gate — an",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:471:may",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:478:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 471,
+   "source_line": 478,
    "source_section": "4b-attested-form-the-kernel-grades-a-liv",
    "status": "active"
   },
   {
    "content": "asserts (`asserts`) — all three REQUIRED and non-empty, because a declaration that names none of",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:480:must",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:487:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 480,
+   "source_line": 487,
    "source_section": "4b-attested-form-the-kernel-grades-a-liv",
    "status": "active"
   },
   {
    "content": "assertion. Type-matching alone is likewise insufficient: the resolving row MUST be a REPORTED one, MUST",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:515:must",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:522:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 515,
+   "source_line": 522,
    "source_section": "4b-attested-form-the-kernel-grades-a-liv",
    "status": "active"
   },
   {
    "content": "ECHO this declaration's instrument, gate and assertion, and MUST BELONG TO THIS CARD. The echo is",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:516:must",
-   "severity": "must",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 516,
-   "source_section": "4b-attested-form-the-kernel-grades-a-liv",
-   "status": "active"
-  },
-  {
-   "content": "needed because a `live_probe_passed` also comes from the §4 kernel-GET path and a card may carry",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:517:may",
-   "severity": "may",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 517,
-   "source_section": "4b-attested-form-the-kernel-grades-a-liv",
-   "status": "active"
-  },
-  {
-   "content": "cannot honestly certify either card. The check FAILS CLOSED in all three directions: a contradictory",
    "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:523:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
@@ -11944,119 +11944,129 @@
    "status": "active"
   },
   {
-   "content": "outcome citing a pass row likewise — a failure may never certify a pass, and a pass may never stand",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:528:may",
+   "content": "needed because a `live_probe_passed` also comes from the §4 kernel-GET path and a card may carry",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:524:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 528,
+   "source_line": 524,
+   "source_section": "4b-attested-form-the-kernel-grades-a-liv",
+   "status": "active"
+  },
+  {
+   "content": "cannot honestly certify either card. The check FAILS CLOSED in all three directions: a contradictory",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:530:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 530,
+   "source_section": "4b-attested-form-the-kernel-grades-a-liv",
+   "status": "active"
+  },
+  {
+   "content": "outcome citing a pass row likewise — a failure may never certify a pass, and a pass may never stand",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:535:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 535,
    "source_section": "4b-attested-form-the-kernel-grades-a-liv",
    "status": "active"
   },
   {
    "content": "**WHICH PRIOR FORM MAY BE REPLACED — enumerated, because this arm REPLACES a form rather than",
-   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:581:may",
+   "id": "rule:spec-0094:4b-attested-form-the-kernel-grades-a-liv:588:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 581,
+   "source_line": 588,
    "source_section": "4b-attested-form-the-kernel-grades-a-liv",
    "status": "active"
   },
   {
    "content": "A live deploy is an ACTION, not a code diff, so the diff-only audit-post must NOT RED-flag \"adoption",
-   "id": "rule:spec-0094:5-audit-post-live-path-adoption-deferred:623:must",
+   "id": "rule:spec-0094:5-audit-post-live-path-adoption-deferred:630:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 623,
+   "source_line": 630,
    "source_section": "5-audit-post-live-path-adoption-deferred",
    "status": "active"
   },
   {
    "content": "A forward `deploy` builds the WORKING TREE, so that tree MUST be the landed+audited `main` line. Before",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:630:must",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:637:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 630,
+   "source_line": 637,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "**An EXPECTED REVISION — a forward deploy MAY be told which commit it is expected to ship.** The",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:645:may",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:652:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 645,
+   "source_line": 652,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "assertion above says which LINE is built; the caller MAY add WHICH COMMIT of it, by an option the",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:646:may",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:653:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 646,
+   "source_line": 653,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "before anything runs, because either is resolved when the verb runs and so cannot pin the commit the",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:648:must",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:655:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 648,
+   "source_line": 655,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "non-convergence uses), and the run's one terminal row is a `deploy_failed` (§1). The command may",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:657:may",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:664:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 657,
+   "source_line": 664,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "`targets.<name>.production: false` (§1) it is SKIPPED, and the deploy may build the branch it exists",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:669:may",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:676:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 669,
+   "source_line": 676,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "deploy always takes the unscoped assertion, so it cannot have built anything but `main` or it",
-   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:690:must",
+   "id": "rule:spec-0094:6-build-source-discipline-a-forward-depl:697:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 690,
+   "source_line": 697,
    "source_section": "6-build-source-discipline-a-forward-depl",
    "status": "active"
   },
   {
    "content": "closure record of the proof, not merely the audit verdict YAML. It MAY additionally be backed by a",
-   "id": "rule:spec-0094:7-audit-post-external-action-path-owner-:719:may",
+   "id": "rule:spec-0094:7-audit-post-external-action-path-owner-:726:may",
    "severity": "may",
-   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
-   "source_domain": "spec",
-   "source_line": 719,
-   "source_section": "7-audit-post-external-action-path-owner-",
-   "status": "active"
-  },
-  {
-   "content": "**Filing-time hint (no new gate).** Such a task's acceptance criteria MUST NOT assume a host artifact",
-   "id": "rule:spec-0094:7-audit-post-external-action-path-owner-:726:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
    "source_line": 726,
@@ -12064,82 +12074,92 @@
    "status": "active"
   },
   {
-   "content": "consumer-side flock in its own `deploy.sh` cannot cover the pre/post phases for ANY consumer, because",
-   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:736:must",
+   "content": "**Filing-time hint (no new gate).** Such a task's acceptance criteria MUST NOT assume a host artifact",
+   "id": "rule:spec-0094:7-audit-post-external-action-path-owner-:733:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 736,
+   "source_line": 733,
+   "source_section": "7-audit-post-external-action-path-owner-",
+   "status": "active"
+  },
+  {
+   "content": "consumer-side flock in its own `deploy.sh` cannot cover the pre/post phases for ANY consumer, because",
+   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:743:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
+   "source_domain": "spec",
+   "source_line": 743,
    "source_section": "8-concurrent-deploy-invocations-against-",
    "status": "active"
   },
   {
    "content": "that was working correctly. What the operator must see is «another deploy is running».",
-   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:750:must",
+   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:757:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 750,
+   "source_line": 757,
    "source_section": "8-concurrent-deploy-invocations-against-",
    "status": "active"
   },
   {
    "content": "fsynced, so a contender cannot even attempt the deploy lock (`L_run`) until that record exists. The",
-   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:758:must",
+   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:765:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 758,
+   "source_line": 765,
    "source_section": "8-concurrent-deploy-invocations-against-",
    "status": "active"
   },
   {
    "content": "during the deploy, so it cannot become a second serialization point.",
-   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:761:must",
+   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:768:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 761,
+   "source_line": 768,
    "source_section": "8-concurrent-deploy-invocations-against-",
    "status": "active"
   },
   {
    "content": "is targeted: two deploys of DIFFERENT projects append to ONE file, which a per-project lock cannot",
-   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:776:must",
+   "id": "rule:spec-0094:8-concurrent-deploy-invocations-against-:783:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 776,
+   "source_line": 783,
    "source_section": "8-concurrent-deploy-invocations-against-",
    "status": "active"
   },
   {
    "content": "omission: `requires:` encodes an ACTIVATION/BUILD-ORDER prerequisite (the carrier SPEC-0093 must exist",
-   "id": "rule:spec-0094:amends-explicit-replacement-map-plan-che:812:must",
+   "id": "rule:spec-0094:amends-explicit-replacement-map-plan-che:819:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 812,
+   "source_line": 819,
    "source_section": "amends-explicit-replacement-map-plan-che",
    "status": "active"
   },
   {
    "content": "REQUIRED when the change is user-facing, §3). Additive optional — a non-deploying project's tasks never carry it.",
-   "id": "rule:spec-0094:amends-explicit-replacement-map-plan-che:832:must",
+   "id": "rule:spec-0094:amends-explicit-replacement-map-plan-che:839:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 832,
+   "source_line": 839,
    "source_section": "amends-explicit-replacement-map-plan-che",
    "status": "active"
   },
   {
    "content": "the proof at the wrong seam, (ii) dead-end legitimate deploys whose probe cannot run at close (flag-off,",
-   "id": "rule:spec-0094:amends-explicit-replacement-map-plan-che:850:must",
+   "id": "rule:spec-0094:amends-explicit-replacement-map-plan-che:857:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0094-deploy-adoption-mechanism-deploy-verb-deploy-event.yaml",
    "source_domain": "spec",
-   "source_line": 850,
+   "source_line": 857,
    "source_section": "amends-explicit-replacement-map-plan-che",
    "status": "active"
   },
@@ -17375,41 +17395,41 @@
   },
   {
    "content": "- the AI's own inference that \"we clearly agreed, so surely I should start now\".",
-   "id": "rule:spec-0141:3-what-does-not-satisfy-an-execution-cue:53:should",
+   "id": "rule:spec-0141:3-what-does-not-satisfy-an-execution-cue:60:should",
    "severity": "should",
    "source_doc": "specs/SPEC-0141-execution-cue-owner-authorized-execution-distinct-.yaml",
    "source_domain": "spec",
-   "source_line": 53,
+   "source_line": 60,
    "source_section": "3-what-does-not-satisfy-an-execution-cue",
    "status": "active"
   },
   {
    "content": "seed line. It NEVER weakens any existing gate; it only clarifies WHEN execution may begin.",
-   "id": "rule:spec-0141:4-authority-ceiling:88:may",
+   "id": "rule:spec-0141:4-authority-ceiling:95:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0141-execution-cue-owner-authorized-execution-distinct-.yaml",
    "source_domain": "spec",
-   "source_line": 88,
+   "source_line": 95,
    "source_section": "4-authority-ceiling",
    "status": "active"
   },
   {
    "content": "(§5(a)-class reading), not cue-taking; §6 changes what a foreign row MAY START, not what it may",
-   "id": "rule:spec-0141:6-session-ownership-of-a-cue:129:may",
+   "id": "rule:spec-0141:6-session-ownership-of-a-cue:142:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0141-execution-cue-owner-authorized-execution-distinct-.yaml",
    "source_domain": "spec",
-   "source_line": 129,
+   "source_line": 142,
    "source_section": "6-session-ownership-of-a-cue",
    "status": "active"
   },
   {
    "content": "whose it must be, and the reader showed no session. §6 names the ownership rule where the cue",
-   "id": "rule:spec-0141:rationale:138:must",
+   "id": "rule:spec-0141:rationale:151:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0141-execution-cue-owner-authorized-execution-distinct-.yaml",
    "source_domain": "spec",
-   "source_line": 138,
+   "source_line": 151,
    "source_section": "rationale",
    "status": "active"
   },
@@ -26725,11 +26745,11 @@
   },
   {
    "content": "or a carrier that cannot be read; and, with no step declared, a served round a cage still serves.",
-   "id": "rule:spec-0205:12-next-round-the-whole-served-spike-con:346:must",
+   "id": "rule:spec-0205:12-next-round-the-whole-served-spike-con:354:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0205-prototype-contract-the-spike-s-exit-and-the-lifecy.yaml",
    "source_domain": "spec",
-   "source_line": 346,
+   "source_line": 354,
    "source_section": "12-next-round-the-whole-served-spike-con",
    "status": "active"
   },
@@ -26895,21 +26915,21 @@
   },
   {
    "content": "stripping/collapsing, no blank-line dropping: a formatting-only variant must never hash-identical, it",
-   "id": "rule:spec-0205:moved-from-the-rule-text:445:must",
+   "id": "rule:spec-0205:moved-from-the-rule-text:453:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0205-prototype-contract-the-spike-s-exit-and-the-lifecy.yaml",
    "source_domain": "spec",
-   "source_line": 445,
+   "source_line": 453,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
   {
    "content": "is REPORTED); order kept. KEY = the FULL sha256 over an explicitly framed BYTE encoding of the two lists (per-line length prefix + distinct list/line separators — not JSON/text); a valid-UTF-8 line is",
-   "id": "rule:spec-0205:moved-from-the-rule-text:446:may",
+   "id": "rule:spec-0205:moved-from-the-rule-text:454:may",
    "severity": "may",
    "source_doc": "specs/SPEC-0205-prototype-contract-the-spike-s-exit-and-the-lifecy.yaml",
    "source_domain": "spec",
-   "source_line": 446,
+   "source_line": 454,
    "source_section": "moved-from-the-rule-text",
    "status": "active"
   },
@@ -26925,11 +26945,11 @@
   },
   {
    "content": "- **Why the plan must change for a late declaration.** The saved verdict is bound to the plan's",
-   "id": "rule:spec-0205:the-declared-identical-path:500:must",
+   "id": "rule:spec-0205:the-declared-identical-path:508:must",
    "severity": "must",
    "source_doc": "specs/SPEC-0205-prototype-contract-the-spike-s-exit-and-the-lifecy.yaml",
    "source_domain": "spec",
-   "source_line": 500,
+   "source_line": 508,
    "source_section": "the-declared-identical-path",
    "status": "active"
   },
@@ -27955,21 +27975,21 @@
   },
   {
    "content": ": the shared consult continuation semantics must already be safe before this entry shares the",
-   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:111:must",
+   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:113:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1018-audit-loop-ceiling-rare-ledger-skip-axis-clauses-o.yaml",
    "source_domain": "spec",
-   "source_line": 111,
+   "source_line": 113,
    "source_section": "on-demand-technical-fork-consult-mechani",
    "status": "active"
   },
   {
    "content": "- **Each call keeps its own record.** A card may run several on-demand consults; none replaces an",
-   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:120:may",
+   "id": "rule:spec-1018:on-demand-technical-fork-consult-mechani:122:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1018-audit-loop-ceiling-rare-ledger-skip-axis-clauses-o.yaml",
    "source_domain": "spec",
-   "source_line": 120,
+   "source_line": 122,
    "source_section": "on-demand-technical-fork-consult-mechani",
    "status": "active"
   },
@@ -30765,41 +30785,41 @@
   },
   {
    "content": "(a) **design-convergence on real data** — the answer is not yet known and must be found by",
-   "id": "rule:spec-1043:internal:35:must",
+   "id": "rule:spec-1043:internal:46:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
    "source_domain": "spec",
-   "source_line": 35,
+   "source_line": 46,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "changed standing rules define a shared contract and must agree before implementation;",
-   "id": "rule:spec-1043:internal:38:must",
+   "id": "rule:spec-1043:internal:49:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
    "source_domain": "spec",
-   "source_line": 38,
+   "source_line": 49,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "(c) a **coordinated multi-task cut whose slicing must be fidelity-audited** (SPEC-0070 /",
-   "id": "rule:spec-1043:internal:40:must",
+   "id": "rule:spec-1043:internal:51:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
    "source_domain": "spec",
-   "source_line": 40,
+   "source_line": 51,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "SPEC-0034 / SPEC-0046) — the allocation of scope and cross-card obligations must be",
-   "id": "rule:spec-1043:internal:41:must",
+   "id": "rule:spec-1043:internal:52:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
    "source_domain": "spec",
-   "source_line": 41,
+   "source_line": 52,
    "source_section": "internal",
    "status": "active"
   },
@@ -30815,21 +30835,21 @@
   },
   {
    "content": "override all three. Read literally, every card edits its own spec and any two cards may be",
-   "id": "rule:spec-1043:successor-of-workshop-spec:91:may",
+   "id": "rule:spec-1043:successor-of-workshop-spec:102:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1043-self-applied-carrier-decision-procedure-route-a-ch.yaml",
    "source_domain": "spec",
-   "source_line": 91,
+   "source_line": 102,
    "source_section": "successor-of-workshop-spec",
    "status": "active"
   },
   {
    "content": "pass it holds: no new ticket, no second sync, its BUSY held throughout. A re-exec that cannot start",
-   "id": "rule:spec-1045:internal:127:must",
+   "id": "rule:spec-1045:internal:129:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 127,
+   "source_line": 129,
    "source_section": "internal",
    "status": "active"
   },
@@ -30845,11 +30865,11 @@
   },
   {
    "content": "section it cannot port unchanged records why and stops for the Controller.",
-   "id": "rule:spec-1045:internal:145:must",
+   "id": "rule:spec-1045:internal:147:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 145,
+   "source_line": 147,
    "source_section": "internal",
    "status": "active"
   },
@@ -30865,21 +30885,21 @@
   },
   {
    "content": "that cannot be written (the write fails, or the journal writer's own lock wait runs out) is said once",
-   "id": "rule:spec-1045:internal:72:must",
+   "id": "rule:spec-1045:internal:74:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 72,
+   "source_line": 74,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "the CPUs the process may use;",
-   "id": "rule:spec-1045:internal:91:may",
+   "id": "rule:spec-1045:internal:93:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1045-resource-admission-one-bounded-queue-per-repo-for-.yaml",
    "source_domain": "spec",
-   "source_line": 91,
+   "source_line": 93,
    "source_section": "internal",
    "status": "active"
   },
@@ -30905,28 +30925,18 @@
   },
   {
    "content": "pass — the engine suite's shape. Re-runs of several failed units MAY share one invocation that runs",
-   "id": "rule:spec-1046:10-re-run-rescue-and-accounting-per-test:278:may",
+   "id": "rule:spec-1046:10-re-run-rescue-and-accounting-per-test:279:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 278,
+   "source_line": 279,
    "source_section": "10-re-run-rescue-and-accounting-per-test",
    "status": "active"
   },
   {
    "content": "but does not block, and no artifact may claim a rescue proves the first failure harmless. No rescue when more than M units failed in the batch (a",
-   "id": "rule:spec-1046:10-re-run-rescue-and-accounting-per-test:286:may",
+   "id": "rule:spec-1046:10-re-run-rescue-and-accounting-per-test:287:may",
    "severity": "may",
-   "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
-   "source_domain": "spec",
-   "source_line": 286,
-   "source_section": "10-re-run-rescue-and-accounting-per-test",
-   "status": "active"
-  },
-  {
-   "content": "systemic failure), for a `required:` check (rule 5), and no per-unit rescue rests on a report voided by rule 4",
-   "id": "rule:spec-1046:10-re-run-rescue-and-accounting-per-test:287:must",
-   "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
    "source_line": 287,
@@ -30934,42 +30944,52 @@
    "status": "active"
   },
   {
-   "content": "land recorded it, must contain the newest commit of the main line that changed the unit's file;",
-   "id": "rule:spec-1046:11-the-per-test-load-sensitive-lane:313:must",
+   "content": "systemic failure), for a `required:` check (rule 5), and no per-unit rescue rests on a report voided by rule 4",
+   "id": "rule:spec-1046:10-re-run-rescue-and-accounting-per-test:288:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 313,
+   "source_line": 288,
+   "source_section": "10-re-run-rescue-and-accounting-per-test",
+   "status": "active"
+  },
+  {
+   "content": "land recorded it, must contain the newest commit of the main line that changed the unit's file;",
+   "id": "rule:spec-1046:11-the-per-test-load-sensitive-lane:314:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
+   "source_domain": "spec",
+   "source_line": 314,
    "source_section": "11-the-per-test-load-sensitive-lane",
    "status": "active"
   },
   {
    "content": "on a commit whose ancestry the repository cannot answer, or whose leg recorded no commit at all (a row written",
-   "id": "rule:spec-1046:11-the-per-test-load-sensitive-lane:315:must",
+   "id": "rule:spec-1046:11-the-per-test-load-sensitive-lane:316:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 315,
+   "source_line": 316,
    "source_section": "11-the-per-test-load-sensitive-lane",
    "status": "active"
   },
   {
    "content": "prevent. When the repository cannot name that newest change, the unit is not entered. A declared group is",
-   "id": "rule:spec-1046:11-the-per-test-load-sensitive-lane:318:must",
+   "id": "rule:spec-1046:11-the-per-test-load-sensitive-lane:319:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 318,
+   "source_line": 319,
    "source_section": "11-the-per-test-load-sensitive-lane",
    "status": "active"
   },
   {
    "content": "fix. Each case is recorded with its reason. `required:` checks (rule 5) run on every attempt; a unit that fails",
-   "id": "rule:spec-1046:14-re-verify-after-a-fix-the-would-be-cr:357:must",
+   "id": "rule:spec-1046:14-re-verify-after-a-fix-the-would-be-cr:358:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 357,
+   "source_line": 358,
    "source_section": "14-re-verify-after-a-fix-the-would-be-cr",
    "status": "active"
   },
@@ -31115,38 +31135,28 @@
   },
   {
    "content": "A layer's mandatory non-test checks (typecheck, lint, build) are declared under `required:` and run on every",
-   "id": "rule:spec-1046:5-non-test-checks-never-ride-the-adapter:205:must",
+   "id": "rule:spec-1046:5-non-test-checks-never-ride-the-adapter:206:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 205,
+   "source_line": 206,
    "source_section": "5-non-test-checks-never-ride-the-adapter",
    "status": "active"
   },
   {
    "content": "`adapter.triggers` maps globs the import graph cannot see (data and fixture files a test reads, configs,",
-   "id": "rule:spec-1046:7-additive-triggers-they-only-widen:250:must",
+   "id": "rule:spec-1046:7-additive-triggers-they-only-widen:251:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 250,
+   "source_line": 251,
    "source_section": "7-additive-triggers-they-only-widen",
    "status": "active"
   },
   {
    "content": "`rescue:`, `required:`) are outside it. Nothing in this contract reads the identity to decide anything; when a",
-   "id": "rule:spec-1046:8-shadow-only-this-contract-records-it-n:265:must",
+   "id": "rule:spec-1046:8-shadow-only-this-contract-records-it-n:266:must",
    "severity": "must",
-   "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
-   "source_domain": "spec",
-   "source_line": 265,
-   "source_section": "8-shadow-only-this-contract-records-it-n",
-   "status": "active"
-  },
-  {
-   "content": "selection or a credit may start to DECIDE is an admission contract's question (plan",
-   "id": "rule:spec-1046:8-shadow-only-this-contract-records-it-n:266:may",
-   "severity": "may",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
    "source_line": 266,
@@ -31154,22 +31164,32 @@
    "status": "active"
   },
   {
+   "content": "selection or a credit may start to DECIDE is an admission contract's question (plan",
+   "id": "rule:spec-1046:8-shadow-only-this-contract-records-it-n:267:may",
+   "severity": "may",
+   "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
+   "source_domain": "spec",
+   "source_line": 267,
+   "source_section": "8-shadow-only-this-contract-records-it-n",
+   "status": "active"
+  },
+  {
    "content": "over titles that carry its metacharacters: the kernel therefore hands identities, and an adapter that cannot",
-   "id": "rule:spec-1046:rationale:390:must",
+   "id": "rule:spec-1046:rationale:391:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 390,
+   "source_line": 391,
    "source_section": "rationale",
    "status": "active"
   },
   {
    "content": "- A failing `required:` check fails the layer and is never re-run.",
-   "id": "rule:spec-1046:verification:433:must",
+   "id": "rule:spec-1046:verification:434:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1046-adapter-backed-consumer-verify-layers-per-test-rep.yaml",
    "source_domain": "spec",
-   "source_line": 433,
+   "source_line": 434,
    "source_section": "verification",
    "status": "active"
   },
@@ -31965,81 +31985,81 @@
   },
   {
    "content": "- **Standing consent.** A project may declare, in `publication.standing_consent` of its `yitc-ops.yaml`,",
-   "id": "rule:spec-1057:internal:49:may",
+   "id": "rule:spec-1057:internal:56:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 49,
+   "source_line": 56,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "address and the consent it rides on. A refusal or a failed post leaves no row, and no other route may",
-   "id": "rule:spec-1057:internal:57:may",
+   "id": "rule:spec-1057:internal:64:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 57,
+   "source_line": 64,
    "source_section": "internal",
    "status": "active"
   },
   {
    "content": "§7). The verb is the post because audit-pre showed that a check beside a separate post cannot bind the",
-   "id": "rule:spec-1057:rationale:85:must",
+   "id": "rule:spec-1057:rationale:92:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 85,
+   "source_line": 92,
    "source_section": "rationale",
    "status": "active"
   },
   {
    "content": "length-prefixed, so no two packages share a form (an attachment name holding LF cannot imitate a",
-   "id": "rule:spec-1057:the-canonical-form-byte-for-byte:115:must",
+   "id": "rule:spec-1057:the-canonical-form-byte-for-byte:128:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 115,
+   "source_line": 128,
    "source_section": "the-canonical-form-byte-for-byte",
    "status": "active"
   },
   {
    "content": "private paths, the project's names unless the person chose to name it), the split of what cannot",
-   "id": "rule:spec-1057:the-canonical-form-byte-for-byte:125:must",
+   "id": "rule:spec-1057:the-canonical-form-byte-for-byte:138:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 125,
+   "source_line": 138,
    "source_section": "the-canonical-form-byte-for-byte",
    "status": "active"
   },
   {
    "content": "it. The metadata must be plain JSON (objects with string keys, arrays, strings, numbers, booleans,",
-   "id": "rule:spec-1057:the-canonical-form-byte-for-byte:134:must",
+   "id": "rule:spec-1057:the-canonical-form-byte-for-byte:147:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 134,
+   "source_line": 147,
    "source_section": "the-canonical-form-byte-for-byte",
    "status": "active"
   },
   {
    "content": "existing copy is reused only when it rehashes. `--check` stops before the freeze and the post. The session-start list reads the summary window (SPEC-0190), and when that window holds no Controller sta",
-   "id": "rule:spec-1057:the-standing-post:95:may",
+   "id": "rule:spec-1057:the-standing-post:108:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 95,
+   "source_line": 108,
    "source_section": "the-standing-post",
    "status": "active"
   },
   {
    "content": "shape or a private path is refused before the consent text is shown; content that cannot be",
-   "id": "rule:spec-1057:verification:166:must",
+   "id": "rule:spec-1057:verification:183:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1057-external-mutation-capture-and-the-publication-pack.yaml",
    "source_domain": "spec",
-   "source_line": 166,
+   "source_line": 183,
    "source_section": "verification",
    "status": "active"
   },
@@ -32064,22 +32084,32 @@
    "status": "active"
   },
   {
+   "content": "refuses before the auditor, naming the sizes, only when the subject cannot be split (one file",
+   "id": "rule:spec-1058:3-the-checks-lists-by-the-kernel-meaning:79:must",
+   "severity": "must",
+   "source_doc": "specs/SPEC-1058-prototype-carry-registry-one-numbered-change-list-.yaml",
+   "source_domain": "spec",
+   "source_line": 79,
+   "source_section": "3-the-checks-lists-by-the-kernel-meaning",
+   "status": "active"
+  },
+  {
    "content": "`supporting` item may be owned by the writer of the item it serves or directly); no card names an",
-   "id": "rule:spec-1058:3-the-checks-lists-by-the-kernel-meaning:56:may",
+   "id": "rule:spec-1058:3-the-checks-lists-by-the-kernel-meaning:85:may",
    "severity": "may",
    "source_doc": "specs/SPEC-1058-prototype-carry-registry-one-numbered-change-list-.yaml",
    "source_domain": "spec",
-   "source_line": 56,
+   "source_line": 85,
    "source_section": "3-the-checks-lists-by-the-kernel-meaning",
    "status": "active"
   },
   {
    "content": "own acceptance. Making the registry REQUIRED for every prototype carry is a later SPEC-0205 rule 5",
-   "id": "rule:spec-1058:4-what-this-rule-does-not-do:96:must",
+   "id": "rule:spec-1058:4-what-this-rule-does-not-do:125:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1058-prototype-carry-registry-one-numbered-change-list-.yaml",
    "source_domain": "spec",
-   "source_line": 96,
+   "source_line": 125,
    "source_section": "4-what-this-rule-does-not-do",
    "status": "active"
   },
@@ -32095,11 +32125,11 @@
   },
   {
    "content": "`not-carried` item, two `all` cards, an `all` card missing one card it must require, a card that requires the `all` card, and a",
-   "id": "rule:spec-1058:verification:119:must",
+   "id": "rule:spec-1058:verification:153:must",
    "severity": "must",
    "source_doc": "specs/SPEC-1058-prototype-carry-registry-one-numbered-change-list-.yaml",
    "source_domain": "spec",
-   "source_line": 119,
+   "source_line": 153,
    "source_section": "verification",
    "status": "active"
   }
@@ -35380,7 +35410,7 @@
    "init_concern": null,
    "proposed_by": null,
    "requires": [],
-   "seed_cue": "Agreeing a design is not permission to execute: claim, open a worktree, edit or land only on a live owner execution-cue in the current session, and ask when it is unclear which one the owner gave.",
+   "seed_cue": "Agreeing a design is not permission to execute: claim, open a worktree, edit or land only on a live owner execution-cue in the current session, and ask when it is unclear which one the owner gave; a read-only analysis — even one the owner picks from your options — is answered in chat or by a read-only helper subagent, never filed as a card or dispatched.",
    "status": "active",
    "supersedes": null,
    "title": "execution-cue: owner-authorized EXECUTION distinct from design-agreement + the filing->claim owner-say-so checkpoint"
@@ -38381,7 +38411,8 @@
    "cites_unresolved": [],
    "concern": null,
    "implements": [
-    "bin/lib/init.py#_provider_memory_off_delivery"
+    "bin/lib/init.py#_provider_memory_off_delivery",
+    "bin/lib/init.py#_user_memory_off_state"
    ],
    "init_concern": null,
    "proposed_by": null,
@@ -38480,7 +38511,9 @@
    "cites_unresolved": [],
    "concern": null,
    "implements": [
-    "bin/lib/plan.py#cmd_plan_stage"
+    "bin/lib/plan.py#cmd_plan_show",
+    "bin/lib/plan.py#cmd_plan_stage",
+    "bin/lib/plan.py#owner_words_reconciliation"
    ],
    "init_concern": null,
    "proposed_by": "prototype-carry-registry-one-numbered-change-list-",

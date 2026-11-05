@@ -2404,7 +2404,12 @@ def _discard_work_batch(slug: str, reason: "str | None", *, force: bool, confirm
             _docker_client_holders=_docker_client_holders, _resolve_holder_sessions=_resolve_holder_sessions)
         _die(f"worktree park: REFUSED — {branch} is held by session {holder}, not THIS session. A foreign "
              f"worktree is never auto-torn-down (T-0362). If the original owner is CONFIRMED DEAD, "
-             f"re-invoke with --confirm-dead; otherwise leave it for the live session." + _detail)
+             f"re-invoke with --confirm-dead; otherwise leave it for the live session."
+             + ("" if stamp else
+                " If THIS session opened it by raw `git worktree add` (no stamp — e.g. a spike round off a "
+                "parked spike/<x> tag), --confirm-dead is the way to park it now; open the next such round "
+                "with `bin/yitc-v2 worktree new --work <next> --spike --from-spike <x>`, which stamps it "
+                "(SPEC-0205 rule 12).") + _detail)
     # LIVE-HOLDER GATE (T-10885) — the park sibling, on the SAME terms: `--confirm-dead` is re-verified
     # in code before any destructive step. A batch's uncommitted work is protected by the dirt gate
     # below, but its UNTRACKED work under a LIVE holder is what the dirt gate cannot save from a
@@ -6981,7 +6986,10 @@ def _served_round_dirt(wt: Path, _run_git_cap) -> str:
 def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _read_worktree_stamp,
                            _run_git_cap, _worktree_path_for_branch) -> dict:
     """T-14374 (SPEC-0205 rule 12) — every refusal of `worktree new --from-spike`, BEFORE any row, branch
-    or worktree exists. Returns the served round: {branch, wt, tip, step}."""
+    or worktree exists. Returns the served round: {branch, wt, tip, step}; for a PARKED round (T-14532 —
+    no live batch, its prototype tag `spike/<x>` present) {branch: None, wt: None, tag, tip, step}."""
+    if (served or "").startswith("spike/"):
+        served = "spike-" + served[len("spike/"):]     # T-14532: the tag form names the parked round
     if not re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*", served or ""):
         _die(f"worktree new: --from-spike must be a kebab-case batch slug, got {served!r}. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
     if served == new_slug:
@@ -6989,10 +6997,25 @@ def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _
              f"its own slug. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
     sbranch = f"work/{served}"
     swt = _worktree_path_for_branch(sbranch)
+    if not swt and not _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/{sbranch}"], main_wt).stdout.strip():
+        # T-14532 (SPEC-0205 rule 12): no live batch at all — a PARKED round continues from its
+        # prototype tag (the park's naming: a leading `spike-` of the slug is dropped). Annotated only:
+        # the park writes nothing else, so a lightweight `spike/*` ref is not a parked prototype.
+        tag = f"spike/{served[len('spike-'):] if served.startswith('spike-') and len(served) > len('spike-') else served}"
+        if _run_git_cap(["cat-file", "-t", f"refs/tags/{tag}"], main_wt).stdout.strip() == "tag":
+            if _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/work/{new_slug}"], main_wt).stdout.strip():
+                _die(f"worktree new: --from-spike opens a NEW round, but work/{new_slug} already exists — choose "
+                     f"the next round's slug. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+            tip = _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}"], main_wt).stdout.strip()
+            if not tip:
+                _die(f"worktree new: --from-spike {served} — the commit of the parked prototype {tag} could not "
+                     f"be resolved. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+            return {"branch": None, "wt": None, "tag": tag, "tip": tip, "step": _spike_handover_command(main_wt, _die=_die)}
     if not swt or not Path(swt).exists() or not (_read_worktree_stamp(swt) or {}).get("spike"):
         _die(f"worktree new: --from-spike {served} — {sbranch} is not a live DECLARED spike (no worktree, "
              f"or its stamp does not carry spike: true). Only a served spike round hands over "
-             f"(SPEC-0205 rule 12). Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
+             f"(SPEC-0205 rule 12), or a PARKED one from its annotated prototype tag spike/<x> when no "
+             f"batch {sbranch} exists. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
     if _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/work/{new_slug}"], main_wt).stdout.strip():
         _die(f"worktree new: --from-spike opens a NEW round, but work/{new_slug} already exists — choose "
              f"the next round's slug. Nothing was created. Re-run: `bin/yitc-v2 worktree new --work <next> --spike --from-spike <served>`.")
@@ -7022,22 +7045,36 @@ def _spike_round_preflight(served: str, new_slug: str, main_wt: Path, *, _die, _
 def _spike_round_handover(served: dict, branch: str, path: Path, main_wt: Path, *, _die, _run_git_cap,
                           _park_spike_round) -> None:
     """T-14374 (SPEC-0205 rule 12) — after the next round opened at the served tip: run the project's
-    step (if declared) in the new worktree, then park the served round bound to the captured tip."""
-    print(f"  next round: opened at the served round's tip {served['tip'][:12]} ({served['branch']})")
+    step (if declared) in the new worktree, then park the served round bound to the captured tip. A PARKED
+    round (T-14532) runs the step with no served worktree and parks nothing: it is already parked."""
+    parked = served.get("tag") is not None
+    if parked:
+        print(f"  next round: opened at the parked prototype {served['tag']} ({served['tip'][:12]}) — "
+              f"nothing to park, the round is already parked")
+    else:
+        print(f"  next round: opened at the served round's tip {served['tip'][:12]} ({served['branch']})")
     step = served["step"]
     if step is None:
         print("  hand-over step: none declared (spike_sandbox.handover) — nothing project-specific ran")
     else:
         print(f"  hand-over step (spike_sandbox.handover): {step}")
         sys.stdout.flush()
-        env = dict(os.environ, YITC_SPIKE_FROM_WORKTREE=str(served["wt"]), YITC_SPIKE_TO_WORKTREE=str(path),
-                   YITC_SPIKE_FROM_BRANCH=served["branch"], YITC_SPIKE_TO_BRANCH=branch)
+        env = dict(os.environ, YITC_SPIKE_FROM_WORKTREE=str(served["wt"] or ""), YITC_SPIKE_TO_WORKTREE=str(path),
+                   YITC_SPIKE_FROM_BRANCH=served["branch"] or "", YITC_SPIKE_TO_BRANCH=branch,
+                   YITC_SPIKE_FROM_TAG=served.get("tag") or "")
         rc = subprocess.run(step, shell=True, cwd=str(path), env=env).returncode
+        if rc != 0 and parked:
+            _die(f"worktree new: the hand-over step exited {rc}. The next round {branch} is OPEN at "
+                 f"{path}, opened from the parked prototype {served['tag']} (nothing was parked). Fix the "
+                 f"step and run it by hand in {path}, or drop the round: `bin/yitc-v2 worktree park --work "
+                 f"{branch[len('work/'):]}`.")
         if rc != 0:
             _die(f"worktree new: the hand-over step exited {rc}. The next round {branch} is OPEN at "
                  f"{path}; the served round {served['branch']} is NOT parked (worktree + branch intact). "
                  f"Fix the step, run it by hand, then `bin/yitc-v2 worktree park --work "
                  f"{served['branch'][len('work/'):]}`.")
+    if parked:
+        return
     # Bind the park to the tip the next round inherited: a commit or an edit in the served tree while
     # the step ran would be parked into the prototype but not continued (audit-pre fp1:5fe86014afac53f6).
     now = _run_git_cap(["rev-parse", "--verify", "--quiet", f"refs/heads/{served['branch']}"], main_wt).stdout.strip()
@@ -7296,7 +7333,9 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
             _decl_ref = _resolve_session_ref()
             _witness = _append_event("worktree_created", None,
                                      {"branch": branch, "path": str(path), "leaf": leaf,
-                                      "session_ref": _decl_ref, "spike": True},
+                                      "session_ref": _decl_ref, "spike": True,
+                                      **({"from": served_round.get("tag") or served_round["branch"]}
+                                         if served_round else {})},
                                      events_path=main_wt / "events.jsonl")
             _decl_ts = (_witness or {}).get("ts")
             if not _decl_ts:
@@ -7415,7 +7454,7 @@ def cmd_worktree_new(args: argparse.Namespace, *, _analysis_procedure_reminder, 
         # moment (replaces the 2 ad-hoc hint lines) + run the EXISTING structural pre-pass over the
         # claimed task's scope+acceptance — the decomposition step's mechanical half (reuse, NOT a
         # parallel validator — CHARTER §1 F1). Report-not-block: surfaces + reports, never gates.
-        print(_analysis_procedure_reminder(task, card=claimed))   # T-9741: pass the real tid so the per-stage sequence shows concrete commands; T-13872: and the claimed card, so it lists the stages of the card's class
+        print(_analysis_procedure_reminder(task, card=claimed, root=path))   # T-9741: pass the real tid so the per-stage sequence shows concrete commands; T-13872: and the claimed card, so it lists the stages of the card's class; T-14523: and the worktree, so a consumer's printed `-C` names the checkout that holds the claim
         # T-1050 (SPEC-0076 §6c): Analysis impact-WARN — scenarios passing through the specs this
         # task touches. Read-only, never blocks (the claim already happened above).
         _print_scenario_impact_warn(claimed)

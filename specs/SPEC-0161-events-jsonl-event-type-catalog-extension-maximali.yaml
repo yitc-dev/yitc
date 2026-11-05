@@ -931,7 +931,7 @@ body: "## Scenario\n\nOne SPEC-0025 event-schema section, re-homed VERBATIM: **�
   \ ·\n`audit_post_completed.final_verdict` · `audit_pre_completed.final_verdict`\
   \ ·\n`audit_yamls_archived.nontask_swept|tasks_swept` ·\n`authorization_decided.identity_source|rights_held`\
   \ ·\n`bg_dispatch_halted.confirmed_death_basis|log_tail|redispatchable` ·\n`bg_dispatch_launched.source_tier|land_regime|session_id_argv`\
-  \ · `canary_backstop_ran.partial_coverage|verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|content_sha|peak_rss_kb`\
+  \ · `canary_backstop_ran.partial_coverage|verdict_class` ·\n`cli_invoked.carried_session_ref_unbacked|content_sha|peak_rss_kb|view_sha`\
   \ ·\n`consumer_read_evidence.cost_usd|evidence_events|failing_input|halt_ts|no_split_n|plan_slug|split_n`\
   \ ·\n`deviation_captured.evidence_events` · `dispatch_outcome.land_sha` ·\n`draft_closed.reverse_linked`\
   \ · `error_reopened.reopen_count` ·\n`error_residual_recurrence.reopen_count` ·\

@@ -48,9 +48,17 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ the ship it names IS the record's `commit:`; an unverifiable or non-containing\
   \ recorded revision leaves custody untouched and `_require_audit_post_for_commit`\
   \ refuses exactly as before. Below the ceiling nothing moves: the mandated re-audit\
-  \ pins the GREEN to the repair commit itself and custody matches without this leg.\n\
-  **AN AMBIGUOUS RECORDED PREFIX IS RESOLVED ONLY THROUGH A FULL SHA EXTENDING IT.**\n\
-  Where the recorded value does not resolve AND names two or more objects, `resolve_recorded_commit`\n\
+  \ pins the GREEN to the repair commit itself and custody matches without this leg.\
+  \ AND `task close` closes ON THE PRE-SHIPPED DELIVERABLE an `audit post --preshipped-deliverable`\
+  \ record covers: when the record marks `preshipped_deliverable: true`, its `commit:`\
+  \ is the same commit as its `preshipped_deliverable_commit`, that commit is an ancestor\
+  \ of `main`, and the recorded commit and every other commit the card recorded carry\
+  \ no authored content through the SAME `_bookkeeping_commit_authored_paths` reader\
+  \ (an unanswerable read is not proof), closure custody moves to that ship and `_require_audit_post_for_commit`\
+  \ compares against it; any conjunct unproven leaves custody on the recorded commit,\
+  \ the close names the failed conjunct, and the refusal is unchanged.\n**AN AMBIGUOUS\
+  \ RECORDED PREFIX IS RESOLVED ONLY THROUGH A FULL SHA EXTENDING IT.**\nWhere the\
+  \ recorded value does not resolve AND names two or more objects, `resolve_recorded_commit`\n\
   admits the full sha of a commit that EXTENDS it, and nothing else: `audit post --commit\
   \ <full sha>`\npasses the equality guard, and `task close` pins to `--commit`, else\
   \ to the audit-post\nrecord's own full `commit:`. A bare `audit post` over such\
@@ -338,9 +346,9 @@ body: "### Audit-stage YAMLs are committed BY `task close`, never a standalone `
   \ clauses moved word for word out of rule sentences, in body order; the rule\ninventory\
   \ committed with names the sentence each stood in.\n\n · · · · · · · · ·\n · · ·\
   \ · · · · before\n only the command counted, and such a ship had no resolvable reference\
-  \ · ·\n · · (E-0007) · · E-0008 · · · ·\n · (<project> X-1482) · · · · ·\n · · ·\
-  \ · · · (E-0030) · ·\n · · · · (X-1251) · by · (since) ·\n(X-1240) · · (E-0030)\
-  \ · · · · · ·\n · · the zero-ship-diff two-point precedent\n\n## Implementation\
+  \ · ·\n · · (E-0007) · · E-0008 · · · ·\n · (<project> X-1482) · (public issue #233)\
+  \ · · · · ·\n · · · · · · (E-0030) · ·\n · · · · (X-1251) · by · (since) ·\n(X-1240)\
+  \ · · (E-0030) · · · · · ·\n · · the zero-ship-diff two-point precedent\n\n## Implementation\
   \ notes\n\nNotes for the maintainer of the code, moved word for word out of the\
   \ rule text of the section\neach names.\n\n- From «#### THE EVIDENCE-LOCATOR ADDRESS\
   \ SPACE — EXTENSION RULE»: A differential test pins the two\n  halves together (every\

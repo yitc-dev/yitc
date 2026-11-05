@@ -68,130 +68,147 @@ body: "## Scenario\n\nWhen a session does something that changes the world OUTSI
   \ is told, and the matter goes to the\n  installation's internal channel (the cross\
   \ log, SPEC-0084) only as a description and a pointer,\n  after the kernel's redaction\
   \ — the uncleanable part itself is written to no journal. An agent\n  never posts\
-  \ on its own, except under a standing consent.\n- **Standing consent.** A project\
-  \ may declare, in `publication.standing_consent` of its `yitc-ops.yaml`,\n  a standing\
-  \ consent naming its basis. It covers ONE class: a kernel-defect report or a method\
-  \ proposal to\n  the kernel's public tracker, public, the project unnamed, with\
-  \ no attachment, no raw log and no\n  third-party code. The poster attests to those\
-  \ last two inside the hashed package, because neither can\n  be detected mechanically;\
-  \ a project name in the package refuses whatever the attestation says. Such a\n\
-  \  post needs no per-post stop, and it is made only by `bin/yitc-v2 event external_action\
-  \ --package\n  <manifest> --standing-consent`: one run checks the package against\
-  \ the class and the scrub, freezes it\n  as an immutable content-addressed copy,\
-  \ posts that copy's bytes and records that copy's hash, the issue\n  address and\
-  \ the consent it rides on. A refusal or a failed post leaves no row, and no other\
-  \ route may\n  claim the consent. Anything outside the class still needs consent\
-  \ to the whole package. Deleting the\n  entry revokes the consent. Session start\
-  \ lists the posts made under it since the last Controller start.\n- **Territory\
-  \ composition:** an external-service write is OUTSIDE every repo, so it is NOT a\n\
-  \  cross-repo write — the SAME legality basis as the SPEC-0084 shared-store carve-out.\
-  \ The capture\n  obligation therefore does not conflict with the scope-boundary\
-  \ discipline (it neither writes nor\n  probes another project's repo).\n- **Channel-agnostic:**\
-  \ the obligation is INDEPENDENT of transport — an MCP tool, a harness-native\n \
-  \ tool, or a raw `curl`/API call in Bash all incur it equally. (MCP transport specifics:\
-  \ the\n  \"working with MCP in v2\" pattern, which POINTS here for capture — it\
-  \ does not restate this rule.)\n\n## Parameters\n\nNone consumed. The `data` field\
-  \ set above is the event PAYLOAD contract (channel/target/action/from),\nnot a code-read\
-  \ scalar governance param — so `consumed: false`.\n\n## Rationale\n\nSuccessor of\
-  \ <workshop-spec> (its rationale: `graph query <workshop-spec>`). This version adds\
-  \ the publication\npackage: a post to a public forge, already covered by the capture\
-  \ floor, now also names the consented\npackage and its hash — a changed obligation\
-  \ for an already-covered case, so a successor rather than an\nin-place amendment\
-  \ (SPEC-1037 §7; plan community-commons-kernel-keeps-principles-and-exch, plan check\n\
-  #7 F3). Outbound safety of the community commons (Level-1: publication only with\
-  \ the person's consent\nto the whole package, sensitive matters to the internal\
-  \ channel, agents never post on their own) is\nthe reason; the consult on that plan\
-  \ named the consent-then-change gap (finding 4).\n\nThe standing consent (owner\
-  \ decision events.jsonl#ts=) is\nan additive case: every post already covered keeps\
-  \ its obligation, so it is an in-place edit (SPEC-1037\n§7). The verb is the post\
-  \ because audit-pre showed that a check beside a separate post cannot bind the\n\
-  hash to the bytes sent (events.jsonl#ts=).\n\n## Implementation notes\n\n### The\
-  \ standing post\n\nThe entry is `{class: kernel-defect-report, from: <basis>, project_names:\
-  \ [...]}`. Metadata holds exactly\n`title`, `report_kind` (`kernel-defect` or `method-proposal`)\
-  \ and `name_project`, `raw_logs` and\n`third_party_code`, each false. The frozen\
-  \ copy sits at `<git-common-dir>/yitc/publication/<sha>/`; an\nexisting copy is\
-  \ reused only when it rehashes. `--check` stops before the freeze and the post.\
-  \ The session-start list reads the summary window (SPEC-0190), and when that window\
-  \ holds no Controller start the list says older posts may be missing and points\
-  \ at `journal query`. A post whose\nrow could not be appended prints its address;\
-  \ the row is then recorded by hand and the post is not repeated.\n\n### Moved from\
-  \ the rule text\n\nReference and maintainer passages moved word for word out of\
-  \ the rule text of the section\neach names; no rule an acting reader applies moved\
-  \ with them.\n\nFrom «Internal»:\n\n`package_sha256` is the SHA-256 of the package's\
-  \ canonical form: the five parts in a fixed order —\ncontent, each attachment, published\
-  \ metadata, destination, visibility — each written as its name, its\nbyte length\
-  \ and its bytes, attachments sorted by name; so a change to any part changes the\
-  \ hash.\n\n### The canonical form, byte for byte\n\nEnough to reimplement the hash\
-  \ from these notes alone. The parts, in this order: `content`; one\n`attachment/<name>`\
-  \ per attachment, sorted by name (byte order of the UTF-8 name); `metadata`;\n`destination`;\
-  \ `visibility`. Each part is written as: the decimal ASCII byte length of its name,\
-  \ LF,\nthe name in UTF-8, LF, the decimal ASCII byte length of its data, LF, the\
-  \ data, LF. Every field is\nlength-prefixed, so no two packages share a form (an\
-  \ attachment name holding LF cannot imitate a\npart boundary). The data: the content\
-  \ and each attachment as their raw bytes; the metadata as\n`json.dumps(metadata,\
-  \ sort_keys=True, separators=(\",\", \":\"), ensure_ascii=False)` encoded UTF-8;\n\
-  the destination and the visibility as UTF-8. `package_sha256` is the lowercase hex\
-  \ SHA-256 of the\nconcatenation. Known vector: content `hi`, one attachment `a.txt`\
-  \ = `xyz`, metadata `{\"k\":\"v\"}`,\ndestination `d`, visibility `public` give\
-  \ the form\n`7\\ncontent\\n2\\nhi\\n16\\nattachment/a.txt\\n3\\nxyz\\n8\\nmetadata\\\
-  n9\\n{\"k\":\"v\"}\\n11\\ndestination\\n1\\nd\\n10\\nvisibility\\n6\\npublic\\n`.\n\
-  \nThe code: `bin/lib/publication.py` — the canonical form and hash, the manifest\
-  \ loader, the scrub\nfindings (the journal's write-time redaction for secret shapes,\
-  \ the release host-leak pattern for\nprivate paths, the project's names unless the\
-  \ person chose to name it), the split of what cannot\nbe cleaned, the consent text\
-  \ and the consent check, and `prepare_publication`, which routes the\ndescription\
-  \ of what was cut through `cross request --kind note`. What the scrub identifies\
-  \ as\nuncleanable, mechanically: bytes that are not UTF-8; an opaque run of 32 or\
-  \ more base64 / hex\ncharacters with a segment of 8 or more mixing letters and digits,\
-  \ except the 43-character base64 body\nof an OpenSSH key fingerprint written `SHA256:<body>`,\
-  \ a public value read as text; and a whole content, attachment\nor metadata string\
-  \ value that is nothing but base64 / hex characters at any length and holds a\n\
-  digit or one of `+ / =` (a word of letters, `-` and `_` is text). A short encoded\
-  \ token inside prose\nis not cut: the consent text shows every remaining byte in\
-  \ full, so the person sees and classifies\nit. The metadata must be plain JSON (objects\
-  \ with string keys, arrays, strings, numbers, booleans,\nnull) or the package is\
-  \ refused, so every string the canonical form serializes is one the scan and\nthe\
-  \ scrub walk. A finding, a description, a removal notice and the internal-channel\
-  \ brief name a part\nby its position in the draft (`attachment 2`, `metadata[1]`),\
-  \ never by its text, so none of them can\nre-publish a name, a key or a destination.\
-  \ Two attachment names or metadata keys that become the same\nafter cleaning are\
-  \ refused, never merged; a project name is never matched inside a placeholder the\n\
-  scrub wrote. `bin/yitc-v2 event external_action --package <manifest>` computes the\
-  \ hash from the files it\nreads at that moment and records `package_sha256`, the\
-  \ part sizes, the destination and the\nvisibility; a supplied `package_sha256` that\
-  \ differs is refused.\n\n`external_action` is a NEW event type added to the events\
-  \ catalog (SPEC-0025 / extension) —\nadditive to the one journal (CHARTER §P5),\
-  \ no new store/parser/format.\n\n## Verification\n\n- **Probe (behavioral):** after\
-  \ a substantive un-verbed external mutation, `bin/yitc-v2 journal query\n  --type\
-  \ external_action` (the segment-aware reader, SPEC-0190) shows the event carrying\
-  \ `channel` /\n  `target` / `action` / `from`.\n- **Negative probe (reads):** a\
-  \ READ-only external call emits NO `external_action` event (reads excluded).\n-\
-  \ **Negative probe (no verb bypass):** an action that a DEDICATED verb covers (a\
-  \ deploy, a `cross`\n  request) emitted via a hand `external_action` event INSTEAD\
-  \ of its verb is a VIOLATION, not\n  compliance — the §Verb-execution discipline\
-  \ holds; this floor is the fallback for the un-verbed\n  remainder only, never an\
-  \ escape from a covering verb.\n- **Probe (standing consent):** under a declared\
-  \ entry a post in the class reaches the tracker with the\n  frozen bytes and its\
-  \ row names their hash and the consent; another destination, a named project, an\n\
-  \  attachment, a missing attestation, a deleted entry or an unreadable contract\
+  \ on its own, except under a standing consent.\n  A post that is a git commit publishes\
+  \ its author and committer as metadata: its package names\n  `commit_identity`,\
+  \ the release identity the engine declares, and the push goes through a committed\n\
+  \  step that refuses, before pushing, any commit in the pushed range whose author\
+  \ or committer is\n  another identity, whatever card makes it — the release check\
+  \ script `org_step.py` for a\n  release's org entry, its sibling `public_push.py`\
+  \ for any other public commit,\n  which also pushes only the change, the repository\
+  \ and the branch the consented package names.\n  A hand push of a public commit\
+  \ is not admitted.\n- **Standing consent.** A project may declare, in `publication.standing_consent`\
+  \ of its `yitc-ops.yaml`,\n  a standing consent naming its basis. It covers ONE\
+  \ class: a kernel-defect report or a method proposal to\n  the kernel's public tracker,\
+  \ public, the project unnamed, with no attachment, no raw log and no\n  third-party\
+  \ code. The poster attests to those last two inside the hashed package, because\
+  \ neither can\n  be detected mechanically; a project name in the package refuses\
+  \ whatever the attestation says. Such a\n  post needs no per-post stop, and it is\
+  \ made only by `bin/yitc-v2 event external_action --package\n  <manifest> --standing-consent`:\
+  \ one run checks the package against the class and the scrub, freezes it\n  as an\
+  \ immutable content-addressed copy, posts that copy's bytes and records that copy's\
+  \ hash, the issue\n  address and the consent it rides on. A refusal or a failed\
+  \ post leaves no row, and no other route may\n  claim the consent. Anything outside\
+  \ the class still needs consent to the whole package. Deleting the\n  entry revokes\
+  \ the consent. Session start lists the posts made under it since the last Controller\
+  \ start.\n- **Territory composition:** an external-service write is OUTSIDE every\
+  \ repo, so it is NOT a\n  cross-repo write — the SAME legality basis as the SPEC-0084\
+  \ shared-store carve-out. The capture\n  obligation therefore does not conflict\
+  \ with the scope-boundary discipline (it neither writes nor\n  probes another project's\
+  \ repo).\n- **Channel-agnostic:** the obligation is INDEPENDENT of transport — an\
+  \ MCP tool, a harness-native\n  tool, or a raw `curl`/API call in Bash all incur\
+  \ it equally. (MCP transport specifics: the\n  \"working with MCP in v2\" pattern,\
+  \ which POINTS here for capture — it does not restate this rule.)\n\n## Parameters\n\
+  \nNone consumed. The `data` field set above is the event PAYLOAD contract (channel/target/action/from),\n\
+  not a code-read scalar governance param — so `consumed: false`.\n\n## Rationale\n\
+  \nSuccessor of <workshop-spec> (its rationale: `graph query <workshop-spec>`). This\
+  \ version adds the publication\npackage: a post to a public forge, already covered\
+  \ by the capture floor, now also names the consented\npackage and its hash — a changed\
+  \ obligation for an already-covered case, so a successor rather than an\nin-place\
+  \ amendment (SPEC-1037 §7; plan community-commons-kernel-keeps-principles-and-exch,\
+  \ plan check\n#7 F3). Outbound safety of the community commons (Level-1: publication\
+  \ only with the person's consent\nto the whole package, sensitive matters to the\
+  \ internal channel, agents never post on their own) is\nthe reason; the consult\
+  \ on that plan named the consent-then-change gap (finding 4).\n\nThe standing consent\
+  \ (owner decision events.jsonl#ts=) is\nan additive case: every post already covered\
+  \ keeps its obligation, so it is an in-place edit (SPEC-1037\n§7). The verb is the\
+  \ post because audit-pre showed that a check beside a separate post cannot bind\
+  \ the\nhash to the bytes sent (events.jsonl#ts=).\n\nThe commit identity is an in-place\
+  \ clarification: a commit's author and committer were\nalready published metadata\
+  \ under the disclosure boundary above, which a commit carrying the host's\nname\
+  \ and project domain broke (the org page commit 690f8c6 of, rewritten on the owner's\n\
+  choice, external_action events.jsonl#ts=). The release cards kept the identity\n\
+  rule in their own scope only; the rule now sits with the package and the committed\
+  \ push steps.\n\n## Implementation notes\n\n### The standing post\n\nThe entry is\
+  \ `{class: kernel-defect-report, from: <basis>, project_names: [...]}`. Metadata\
+  \ holds exactly\n`title`, `report_kind` (`kernel-defect` or `method-proposal`) and\
+  \ `name_project`, `raw_logs` and\n`third_party_code`, each false. The frozen copy\
+  \ sits at `<git-common-dir>/yitc/publication/<sha>/`; an\nexisting copy is reused\
+  \ only when it rehashes. `--check` stops before the freeze and the post. The session-start\
+  \ list reads the summary window (SPEC-0190), and when that window holds no Controller\
+  \ start the list says older posts may be missing and points at `journal query`.\
+  \ A post whose\nrow could not be appended prints its address; the row is then recorded\
+  \ by hand and the post is not repeated.\n\n### Moved from the rule text\n\nReference\
+  \ and maintainer passages moved word for word out of the rule text of the section\n\
+  each names; no rule an acting reader applies moved with them.\n\nFrom «Internal»:\n\
+  \n`package_sha256` is the SHA-256 of the package's canonical form: the five parts\
+  \ in a fixed order —\ncontent, each attachment, published metadata, destination,\
+  \ visibility — each written as its name, its\nbyte length and its bytes, attachments\
+  \ sorted by name; so a change to any part changes the hash.\n\n### The canonical\
+  \ form, byte for byte\n\nEnough to reimplement the hash from these notes alone.\
+  \ The parts, in this order: `content`; one\n`attachment/<name>` per attachment,\
+  \ sorted by name (byte order of the UTF-8 name); `metadata`;\n`destination`; `visibility`.\
+  \ Each part is written as: the decimal ASCII byte length of its name, LF,\nthe name\
+  \ in UTF-8, LF, the decimal ASCII byte length of its data, LF, the data, LF. Every\
+  \ field is\nlength-prefixed, so no two packages share a form (an attachment name\
+  \ holding LF cannot imitate a\npart boundary). The data: the content and each attachment\
+  \ as their raw bytes; the metadata as\n`json.dumps(metadata, sort_keys=True, separators=(\"\
+  ,\", \":\"), ensure_ascii=False)` encoded UTF-8;\nthe destination and the visibility\
+  \ as UTF-8. `package_sha256` is the lowercase hex SHA-256 of the\nconcatenation.\
+  \ Known vector: content `hi`, one attachment `a.txt` = `xyz`, metadata `{\"k\":\"\
+  v\"}`,\ndestination `d`, visibility `public` give the form\n`7\\ncontent\\n2\\nhi\\\
+  n16\\nattachment/a.txt\\n3\\nxyz\\n8\\nmetadata\\n9\\n{\"k\":\"v\"}\\n11\\ndestination\\\
+  n1\\nd\\n10\\nvisibility\\n6\\npublic\\n`.\n\nThe code: `bin/lib/publication.py`\
+  \ — the canonical form and hash, the manifest loader, the scrub\nfindings (the journal's\
+  \ write-time redaction for secret shapes, the release host-leak pattern for\nprivate\
+  \ paths, the project's names unless the person chose to name it), the split of what\
+  \ cannot\nbe cleaned, the consent text and the consent check, and `prepare_publication`,\
+  \ which routes the\ndescription of what was cut through `cross request --kind note`.\
+  \ What the scrub identifies as\nuncleanable, mechanically: bytes that are not UTF-8;\
+  \ an opaque run of 32 or more base64 / hex\ncharacters with a segment of 8 or more\
+  \ mixing letters and digits, except the 43-character base64 body\nof an OpenSSH\
+  \ key fingerprint written `SHA256:<body>`, a public value read as text; and a whole\
+  \ content, attachment\nor metadata string value that is nothing but base64 / hex\
+  \ characters at any length and holds a\ndigit or one of `+ / =` (a word of letters,\
+  \ `-` and `_` is text). A short encoded token inside prose\nis not cut: the consent\
+  \ text shows every remaining byte in full, so the person sees and classifies\nit.\
+  \ The metadata must be plain JSON (objects with string keys, arrays, strings, numbers,\
+  \ booleans,\nnull) or the package is refused, so every string the canonical form\
+  \ serializes is one the scan and\nthe scrub walk. A finding, a description, a removal\
+  \ notice and the internal-channel brief name a part\nby its position in the draft\
+  \ (`attachment 2`, `metadata[1]`), never by its text, so none of them can\nre-publish\
+  \ a name, a key or a destination. Two attachment names or metadata keys that become\
+  \ the same\nafter cleaning are refused, never merged; a project name is never matched\
+  \ inside a placeholder the\nscrub wrote. `bin/yitc-v2 event external_action --package\
+  \ <manifest>` computes the hash from the files it\nreads at that moment and records\
+  \ `package_sha256`, the part sizes, the destination and the\nvisibility; a supplied\
+  \ `package_sha256` that differs is refused.\n\n`external_action` is a NEW event\
+  \ type added to the events catalog (SPEC-0025 / extension) —\nadditive to the one\
+  \ journal (CHARTER §P5), no new store/parser/format.\n\n## Verification\n\n- **Probe\
+  \ (behavioral):** after a substantive un-verbed external mutation, `bin/yitc-v2\
+  \ journal query\n  --type external_action` (the segment-aware reader, SPEC-0190)\
+  \ shows the event carrying `channel` /\n  `target` / `action` / `from`.\n- **Negative\
+  \ probe (reads):** a READ-only external call emits NO `external_action` event (reads\
+  \ excluded).\n- **Negative probe (no verb bypass):** an action that a DEDICATED\
+  \ verb covers (a deploy, a `cross`\n  request) emitted via a hand `external_action`\
+  \ event INSTEAD of its verb is a VIOLATION, not\n  compliance — the §Verb-execution\
+  \ discipline holds; this floor is the fallback for the un-verbed\n  remainder only,\
+  \ never an escape from a covering verb.\n- **Probe (standing consent):** under a\
+  \ declared entry a post in the class reaches the tracker with the\n  frozen bytes\
+  \ and its row names their hash and the consent; another destination, a named project,\
+  \ an\n  attachment, a missing attestation, a deleted entry or an unreadable contract\
   \ refuses with nothing posted;\n  session start lists the post once (`tests/test_t14403_standing_consent.py`).\n\
-  - **Probe (package):** a post to the commons or a public forge — un-verbed or through\
-  \ a dedicated verb\n  — has a row (its `external_action` row or that verb's own\
-  \ row) whose `package_sha256` equals the\n  hash of the package the consent named;\
-  \ a post naming the project without the person's explicit\n  choice is refused;\
-  \ a package changed after consent\n  (an attachment or a metadata field) is refused\
-  \ until fresh consent; a draft holding a credential\n  shape or a private path is\
-  \ refused before the consent text is shown; content that cannot be\n  cleaned is\
-  \ routed to the cross log and not posted.\n- **Adoption (P8), in two parts.** The\
-  \ carried rule: the event fires for ≥1 real (PIGGYBACKED on an\n  already-authorized)\
-  \ external mutation — its rows already exist from <workshop-spec>'s life (e.g. the\
-  \ forge\n  comments and release pushes of 2026-10-29/30), read by `journal query\
-  \ --type external_action`. The\n  package: at the activating card's close, an end-to-end\
-  \ synthetic publication record — the real event\n  verb, in a scratch checkout,\
-  \ writes an `external_action` row whose `package_sha256` the shipped code\n  computed\
-  \ and an independent reimplementation of the canonical form reproduces; the first\
-  \ real\n  publication's row, its hash recomputed over the approved package, is checked\
-  \ by the card that\n  publishes. Graph presence is not adoption.\n"
+  - **Probe (commit identity):** the org page package names `commit_identity`; a commit\
+  \ made as\n  another author or committer is refused before the push by the org page\
+  \ step and by the generic\n  step, as is another repository, branch or change than\
+  \ the package names; the consented commit\n  made as the release identity is pushed\
+  \ (`tests/test_t14497_public_commit_identity.py`).\n- **Probe (package):** a post\
+  \ to the commons or a public forge — un-verbed or through a dedicated verb\n  —\
+  \ has a row (its `external_action` row or that verb's own row) whose `package_sha256`\
+  \ equals the\n  hash of the package the consent named; a post naming the project\
+  \ without the person's explicit\n  choice is refused; a package changed after consent\n\
+  \  (an attachment or a metadata field) is refused until fresh consent; a draft holding\
+  \ a credential\n  shape or a private path is refused before the consent text is\
+  \ shown; content that cannot be\n  cleaned is routed to the cross log and not posted.\n\
+  - **Adoption (P8), in two parts.** The carried rule: the event fires for ≥1 real\
+  \ (PIGGYBACKED on an\n  already-authorized) external mutation — its rows already\
+  \ exist from <workshop-spec>'s life (e.g. the forge\n  comments and release pushes\
+  \ of 2026-10-29/30), read by `journal query --type external_action`. The\n  package:\
+  \ at the activating card's close, an end-to-end synthetic publication record — the\
+  \ real event\n  verb, in a scratch checkout, writes an `external_action` row whose\
+  \ `package_sha256` the shipped code\n  computed and an independent reimplementation\
+  \ of the canonical form reproduces; the first real\n  publication's row, its hash\
+  \ recomputed over the approved package, is checked by the card that\n  publishes.\
+  \ Graph presence is not adoption.\n"
 cites:
 - CHARTER.md#principle-2
 - CHARTER.md#principle-5

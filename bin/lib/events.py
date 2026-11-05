@@ -2814,6 +2814,7 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
                       source_kind: "str | None" = None, reads_since: "dict | None" = None,
                       events_path: "Path | None" = None,
                       content_sha: "str | None" = None, epoch: "int | None" = None,
+                      view_sha: "str | None" = None,
                       *, EVENTS_PATH, KERNEL_NAME, REPO_ROOT, SELF_REF_ENV, TASKS_DIR, _append_event, _cli_invoked_shape, _cross_self, _is_consumer_build, _lookup_identity_env, _resolve_session_ref_for_envelope_with_source, _session_epoch, _stdout_was_delivered, _try_resolve_session_ref, _try_resolve_session_ref_with_source, _warn_stdout_discarded, events, gates, journal_mod, state) -> None:
     """Emit the cli_invoked observability event for one of the 6 read/query verbs (T-0113, draft §3).
     Append-only, D-0009-safe; task_id=null. session_ref is resolved upstream by _auto_sync, but since
@@ -2988,6 +2989,12 @@ def _emit_cli_invoked(verb_label: str, argv: list[str], nbytes: int, nlines: int
                          else _session_epoch())
         if content_sha:
             data["content_sha"] = content_sha
+        # T-14522: a HAND `graph query <SPEC>` records the fingerprint of the CONTRACT VIEW of what it
+        # printed (the derived header cut) — a key of its own, so `content_sha` keeps meaning "the
+        # bytes a deliverer delivered". The stage deliverer reads either to hold a contract once per
+        # context epoch (`gates._fetched_spec_ids(deliveries_out=)`).
+        if view_sha:
+            data["view_sha"] = view_sha
     # T-10081 (SPEC-0042 §seed floor): `session start` records the audience-seed READ receipt the SAME
     # ADDITIVE way — a cli_invoked row whose node_id is the seed sentinel, so `_require_seed_read` credits
     # it via the existing `_fetched_spec_ids` reader (NO new event/store, P1 F1; the exact analog of the

@@ -181,7 +181,15 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ true` target is refused too: a production rollback has exactly ONE governed path,\n\
   \   the unflagged `deploy --rollback <rev>`, which this property leaves unchanged.\
   \ The record is a\n   `kind: rollback` `deploy_completed` carrying the same `target`\
-  \ field below.\n\n**The `deploy_completed` payload gains an OPTIONAL `target` field**\
+  \ field below.\n5. **A named NON-PRODUCTION target runs while the production deploy\
+  \ is still WAIVED.** A\n   `deploy:` section that waives its top-level `command:`\
+  \ (declare-or-waive, SPEC-0093 rule 3) MAY\n   still declare `targets:` beside the\
+  \ waiver. Then `deploy --target <name>` resolves and runs a\n   target positively\
+  \ declared `production: false` (properties 2-3 unchanged); the bare `deploy`\n \
+  \  and a named `production: true` target REFUSE, naming the waiver, before any side\
+  \ effect and with\n   no `deploy_completed`. The waiver keeps answering for production\
+  \ only: to deploy production,\n   declare the top-level `command:` and drop the\
+  \ waiver.\n\n**The `deploy_completed` payload gains an OPTIONAL `target` field**\
   \ — `{name, production,\ndeploy_class}` — present only when a target was named,\
   \ absent entirely otherwise (a payload FIELD on\nthe existing event, never a second\
   \ success event — CHARTER §P1 F2). `deploy_class` is the SPEC-0097\nclass this deploy\
@@ -1016,7 +1024,11 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ other terminal row was written leaves exactly ONE `deploy_failed` (revision +\
   \ exit code or signal) and NO `deploy_completed`; a signal inside a terminal write\
   \ is deferred, never lost or doubled; a deploy refused before its launch leaves\
-  \ none (§1, `tests/test_t13398_deploy_failed_row.py`).\n"
+  \ none (§1, `tests/test_t13398_deploy_failed_row.py`).\n- on a `deploy:` section\
+  \ that waives its top-level `command:` beside `targets:`, `deploy --target <a production:\
+  \ false target>` runs that target's command and records it; the bare `deploy` and\
+  \ a named `production: true` target refuse naming the waiver and run nothing; the\
+  \ carrier check accepts the section (§1 property 5, `tests/test_t14515_deploy_target_beside_waived_production.py`).\n"
 cites:
 - CHARTER.md#principle-3
 - CHARTER.md#principle-8
@@ -1087,12 +1099,12 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 4f298c47fcbcfcfc91037a389c4e45a87eca21047c6550b3225ccf120d9ce8cf
+  bin/lib/audit.py#cmd_audit: 09545ebbbf9e7ba4edfe479df9e713145ca5ac05f96d753631ee83bbddd9b1bf
   bin/lib/deploy.py#_DeployRunRecorder: d60a058fb838f0ae96577f169d36259c210c8620698a0ed5f42e4e35c1acd2ec
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7
   bin/lib/deploy.py#_resolve_rollback_target: 783479b12cb944fb6d24607a4fe5ebd926ee6e75d00a8732eedeed345a51e22b
-  bin/lib/deploy.py#cmd_deploy: 65223e73776a8f397edea91d36567991ceba558f244c7463bd253efdc2a690f2
+  bin/lib/deploy.py#cmd_deploy: b2726455fbe1306a8557abc99eff4a05f9c373bdf07135ded36d2f3ee81cbd12
   bin/lib/deploy.py#is_production_live_record: d1d46285eb3e2f980f40a5b941ea0a9448a6408e7f83e19ef2b464c6c6229142
   bin/lib/live_probe.py#cmd_live_probe: e63237018f5d25654b86ff07dc741d8cbae85eb164d30077d30a3c5b932c4ef4
   bin/lib/task.py#_all_touched_non_runtime_surface: dd0302b43fedfff3b4325000a9c7a59b52e41d0c991ffed0e2488f284eedd2f9

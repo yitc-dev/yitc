@@ -6044,11 +6044,13 @@ def _test_found_fix_inputs(tid, rows):
 
 def test_found_fix_window_for(tid, rows, *, resolve) -> tuple:
     """T-14090 — the host binding of `audit_ceiling.test_found_fix_window` (the COMMIT door: `task
-    commit --reship` past the ceiling), over the card's rows of `TEST_FOUND_FIX_ROW_TYPES`."""
+    commit --reship` past the ceiling), over the card's rows of `TEST_FOUND_FIX_ROW_TYPES`. T-14529: a
+    GREEN ORDINARY latest verdict opens it too (`ordinary_opens`) — the commit door only."""
     rows, real = _test_found_fix_inputs(tid, rows)
     return _test_found_fix_window(
         tid, rows=rows, stage_rows=real, resolve=resolve, run_verdict=gates.governed_run_verdict,
-        rule3_bases=(ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS), currency_basis=CURRENCY_BASIS)
+        rule3_bases=(ON_DECISIONS_BASIS, ON_DECISIONS_ABSORPTION_BASIS), currency_basis=CURRENCY_BASIS,
+        ordinary_opens=True)
 
 
 #: T-14178 — the window refusals a LATER governed run can still turn into an admission: no run yet, or a
@@ -8756,7 +8758,7 @@ def ceiling_decide_route(tid, stage, worktree) -> str:
     wt = shlex.quote(str(worktree))
     route = (f"{_decide_verb_prefix(worktree)} --task {tid} --stage {stage} --finding <fp> "
              f"--disposition <fix|accept|...> --evidence <ev> --reason <why> "
-             f"--directive events.jsonl#ts=<ISO>")
+             f"{audit_ceiling.DECIDE_DIRECTIVE_ARG}")
     if stage == "pre":
         card = shlex.quote(f"{worktree}/tasks/{tid}-*.yaml")
         ev = ("for `fix`, <ev> = the CURRENT plan fingerprint: python3 -c 'import glob,hashlib,sys,"
@@ -8879,21 +8881,31 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
     # The reason NAMES the route: this string is what a controller reading `--dispatch-status` sees
     # first. It states the fingerprint COUNT, not the list — the list is on the row, and a reason
     # inlining N hashes would be unreadable at the exact moment it is meant to be read.
-    _fp_clause = (f"{len(fingerprints)} residual fingerprint(s) on the ceiling row "
-                  f"(`residual_fingerprints`)" if fingerprints else
-                  "NO resolvable residual fingerprints on the ceiling row — resolve them from the "
-                  "recorded verdict before deciding")
-    data["reason"] = (
-        f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land, needs a CONTROLLER "
-        f"DECISION per residual: {_fp_clause}. Record one `yitc-v2 audit decide` per fingerprint, then "
-        f"re-dispatch; the worker resumes with `audit {stage} --task {tid} --on-decisions "
-        f"--sweep '<where you looked for the same defect class and what you found>'` "
-        f"(SPEC-0204 rules 2-3, SPEC-0103 §3)"
-        # T-13448: a post `fix` evidence must be a STRICT descendant of the audited commit.
-        + (". For a residual the worker fixes in scope it commits the fix FIRST (`task commit "
-           "--fix-red`) and names that sha in its pause next_action — `audit decide --disposition "
-           "fix --evidence` must be a strict descendant of the audited commit" if stage == "post" else "")
-        + _residual_suffix)
+    _directive = audit_ceiling.DECIDE_DIRECTIVE_ARG   # T-14501 — one copy, shared with the route
+    if fingerprints:
+        data["reason"] = (
+            f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land, needs a "
+            f"CONTROLLER DECISION per residual: {len(fingerprints)} residual fingerprint(s) on the "
+            f"ceiling row (`residual_fingerprints`). Record one `yitc-v2 audit decide {_directive}` "
+            f"per fingerprint, then re-dispatch; the worker resumes with `audit {stage} --task {tid} "
+            f"--on-decisions --sweep '<where you looked for the same defect class and what you "
+            f"found>'` (SPEC-0204 rules 2-3, SPEC-0103 §3)"
+            # T-13448: a post `fix` evidence must be a STRICT descendant of the audited commit.
+            + (". For a residual the worker fixes in scope it commits the fix FIRST (`task commit "
+               "--fix-red`) and names that sha in its pause next_action — `audit decide --disposition "
+               "fix --evidence` must be a strict descendant of the audited commit"
+               if stage == "post" else "")
+            + _residual_suffix)
+    else:
+        # T-14501 — ZERO fingerprints (a RED/ABORT/YELLOW row with no findings): no decide route is
+        # named at all, since there is no fingerprint for `audit decide --finding` to match.
+        data["reason"] = (
+            f"audit-loop ceiling ({prior_passes} passes) at {stage} — blocked-on-land, needs a "
+            f"CONTROLLER DECISION: NO resolvable residual fingerprints on the ceiling row, so "
+            f"`audit decide --finding` has nothing to match. The Controller reads this task's "
+            f"recorded audit-{stage} verdict, if one is recorded, and resolves the halt "
+            f"(SPEC-1039 rule 6, SPEC-0103 §3)"
+            + _residual_suffix)
     emit_fn("bg_dispatch_halted", tid, data)
     # T-12647 (X-1458) — THE STDERR LINE NAMES THE IDS, from `fingerprints`: the SAME list object the
     # payload above got, which the caller folded ONCE from the ceiling row's audit record. Until this
@@ -8928,8 +8940,12 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
         f"(blocked_on_land, needs-decision) carrying {len(fingerprints)} residual fingerprint(s)."
         + _fp_render + " "
         f"The controller\'s dispatch-status reads it as awaiting a DECISION, NOT a hang/orphan: the "
-        f"Controller records one `yitc-v2 audit decide` per fingerprint and re-dispatches "
-        f"(SPEC-0204 rule 6 / SPEC-0103 §3)."
+        + (f"Controller records one `yitc-v2 audit decide` per fingerprint and re-dispatches "
+           f"(SPEC-0204 rule 6 / SPEC-0103 §3)."
+           if fingerprints else
+           # T-14501 — zero fingerprints: no per-fingerprint route, no runnable decide form below.
+           f"Controller reads the recorded verdict and resolves the halt (SPEC-1039 rule 6 / "
+           f"SPEC-0103 §3).")
         # T-12401 (X-1369): the marker named the decide route but never the ONE precondition that
         # blocks it — `audit decide` refuses without an owner directive that COVERS this card, and a
         # verbatim owner cue that does not name it needs a controller-delegated capture first.
@@ -8938,11 +8954,12 @@ def blocked_on_land_ceiling_disposition(tid, stage, prior_passes, worker_ref, em
         # `test_helper_emits_in_worker_context`), and a docs card does not get to relax it. The
         # `bg_dispatch_halted` PAYLOAD is untouched either way, so `journal.py`'s needs-owner
         # classification (which keys on payload SHAPE, T-12290) reads this halt exactly as before.
-        f" Each `audit decide` needs a COVERING owner directive (`--directive "
-        f"events.jsonl#ts=<ISO>`) — `yitc-v2 audit decide --help` names the three admitting shapes "
-        f"and the controller-delegated route (SPEC-0204 rule 2)."
+        + (f" Each `audit decide` needs a COVERING owner directive (`{_directive}`) — "
+           f"`yitc-v2 audit decide --help` names the three admitting shapes and the "
+           f"controller-delegated route (SPEC-0204 rule 2)." if fingerprints else "")
         # T-13211 — the runnable form, rooted where the evidence lives (single line kept).
-        + (f" Run it as: {ceiling_decide_route(tid, stage, worktree)}." if worktree else "")
+        + (f" Run it as: {ceiling_decide_route(tid, stage, worktree)}."
+           if worktree and fingerprints else "")
         + _residual_suffix
     ]
 
@@ -13522,8 +13539,15 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
                 # T-13459 — walked under MAIN's SPEC-0168 rule-6 lock: the `--on-decisions` admission
                 # reads the card's `ceiling_decision` rows from it (`cli._ceiling_decision_events_for`).
                 stack.enter_context(journal_mod.scan_scope(main, needles=refs, index=True, lock=True))
+            # T-14519 (X-2232) — `catch_up`: this scope is held across the whole invocation (T-14405),
+            # so the worker ceiling continuation's re-entry (T-9712) reads through it AFTER pass N
+            # appended its completion row. Without catch-up that re-entry selected the PREVIOUS
+            # pass's row as the ceiling row and the halt row named that pass's findings, while
+            # `audit decide` (a fresh read) bound to pass N's. The same opt-in audit post's scope
+            # carries (T-13332): the run's own appends are streamed in, no segment re-folded.
             scope = stack.enter_context(journal_mod.scan_scope(
-                events_path, keep=keep, needles=needles, since=since, remainder=refs or False))
+                events_path, keep=keep, needles=needles, since=since, remainder=refs or False,
+                catch_up=True))
             scope.audit_pre_main = main   # T-13419 — `_scoped_ceiling_decisions` reads MAIN's leg
             yield scope
         return
@@ -15592,7 +15616,7 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             ceiling_spent_green = None
             ceiling_tff_open = False
         # T-14191 (public intake #196) — a GREEN ORDINARY ceiling row with an EMPTY resolved residual
-        # set, and a subject strictly past its commit: the SPEC-1041 rule-3 empty-set pass (T-12434) is
+        # set, and a subject at or past its commit: the SPEC-1041 rule-3 empty-set pass (T-12434) is
         # the next step and needs no `audit decide`, so the ceiling block emits no needs-controller
         # halt and names that pass instead. A RED/ABORT row, an unresolvable or non-empty set, or a
         # final/spent basis keeps today's halt. Fail-soft: any doubt leaves False.
@@ -15607,7 +15631,12 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 and str(_gp_data.get("verdict") or "").strip().upper() == "GREEN"
                 and str(_gp_data.get("basis") or "") not in CEILING_TERMINAL_HALT_BASES
                 and _gp_commit and _gp_head
-                and _git_strict_descendant(_gp_commit, _gp_head, repo_root=REPO_ROOT) is True)
+                # T-14501 (X-2190 / X-2192) — the subject AT the ceiling commit counts too: a sync
+                # merge is no ship, so the subject stays the GREEN commit, and the admission
+                # (`on_decisions_admission` arm 1) lets the empty-set pass in there. One predicate.
+                and audit_ceiling.subject_at_or_past(
+                    _gp_commit, _gp_head,
+                    lambda a, d: _git_strict_descendant(a, d, repo_root=REPO_ROOT)) is not None)
         except Exception:   # noqa: BLE001 — a text refinement never masks the ceiling refusal
             ceiling_green_own_pass = False
         # T-14449 (X-2160) — a GREEN ceiling row with NO residual, while a hand-resolved merge sits in

@@ -285,8 +285,8 @@ means works, not "tests are green". I do all of this.
 
 The first release is two walks, in order: first an acceptance address — a non-production copy serving
 the landed code, which you open in your own browser to check the result; then production — your domain,
-DNS and HTTPS, after you write the deploy permission line by hand and I read it back
-(bootstrap-order.md §I7). Production counts as durable once an off-server copy has been restored once.
+DNS and HTTPS, where I read back the working rights you wrote by hand right after init
+(bootstrap-order.md §I4 step 1, §I7). Production counts as durable once an off-server copy has been restored once.
 
 -> You say: "merge it" -> I do land; "ship it" -> I do deploy (I'll ask for confirmation).
 

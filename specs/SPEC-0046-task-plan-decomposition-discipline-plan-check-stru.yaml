@@ -444,5 +444,5 @@ activation_owner_task: null
 proposed_by: null
 implements_signature:
   bin/lib/cli.py#_plan_structural_findings: 9afdf2e9ea36a531fbe8f716a73914a810affe6531d04cad8a91606af2a84fa5
-  bin/lib/plan.py#cmd_plan_check: 2c7e6ad86a7b76825b2eb3bc644fc8145a6e52b97bece79225f50730a7f5395a
-  bin/lib/task.py#cmd_task_file: 2d2be4f3e850f7e0ba51960c01b3a82ef37fb828968b5255cc836de5a7b4e44d
+  bin/lib/plan.py#cmd_plan_check: be1dace2208f1558777a8f8bf1aae5c52cdac9e97e1e39e55db2a8d19029936e
+  bin/lib/task.py#cmd_task_file: b9ee6578eb887d349a20e75ddfe1acd8a9e4534002b80ce03eae14340c8fde9a

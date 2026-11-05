@@ -59,6 +59,31 @@ _ACCEPT_QUOTE_RE = re.compile("«([^»]+)»|\u201c([^\u201d]+)\u201d|\"([^\"]+)\
 
 _CONTROLLER_DELEGATED = "controller-delegated"
 
+#: T-14501 — the owner-directive argument every `audit decide` needs (SPEC-1039 rule 2), written ONCE:
+#: the runnable route, the ceiling halt row and the dispatched-worker preamble all read this string.
+DECIDE_DIRECTIVE_ARG = "--directive events.jsonl#ts=<ISO>"
+
+
+def subject_at_or_past(anchor, subject, descends=None) -> "str | None":
+    """T-14501 — ONE predicate for «the audited subject is the anchor revision or past it».
+
+    Returns "equal" when `subject` IS `anchor` (both compared as strings, so two empty values are
+    equal — the arm-1 equality it replaces), "descendant" when `descends(anchor, subject)` is
+    exactly True, else None. `descends` is the caller's strict-descent reader (`_git_strict_descendant`
+    at audit-post); None or a reader that raises or answers anything but True reads as None, so an
+    unanswerable ancestry never admits. Read by `on_decisions_admission` arm 1 (which admits
+    "equal" at both stages and "descendant" at post) and by the T-14191 halt suppression in
+    `cmd_audit`, so the pass the admission lets in and the halt the suppression withholds cannot
+    disagree about an unmoved subject (<project> X-2190 / X-2192). Pure f(args); never raises."""
+    if str(anchor or "") == str(subject or ""):
+        return "equal"
+    if descends is None or not anchor or not subject:
+        return None
+    try:
+        return "descendant" if descends(anchor, subject) is True else None
+    except Exception:      # noqa: BLE001 — a reader that raises answered nothing
+        return None
+
 DIRECTIVE_COVERAGE_HELP = (
     "\n\nHOW A DIRECTIVE COVERS A TASK — three admitting shapes, and no fourth (SPEC-0204 rule 2):\n"
     "  (1) BATCH  — the task id is an element of the row's `data.cards` list;\n"
@@ -1685,6 +1710,10 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
     `synced` and the subject is the newest one (`merge_integration_subject`). A hand-resolved second
     merge, or any merge the rows do not account for, keeps the refusal it had.
 
+    T-14500 — the G3 walk from p1 back to A also crosses CLEAN GOVERNED SYNC MERGES BEFORE M (a
+    pre-flight `worktree sync` merge), by the same `_clean_sync_row` test as T-14449; the evidence names
+    them `presynced`. A hand-resolved or unrecorded merge before M keeps `first_parent_not_prior_green`.
+
     T-14375 — ONE further prior state for G1, asked only when the caller passes `red_fix_ok` (the
     ordinary leg BELOW the ceiling): the latest real verdict is RED and the custody commit A is this
     card's `task commit --fix-red` commit — a `commit_landed` row of the card marked `red_fix`, naming
@@ -1904,14 +1933,22 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         return None, (f"head_not_a_merge: HEAD {m_sha[:12]} has {max(len(parts) - 1, 0)} parent(s) — "
                       f"exactly one two-parent merge over the GREEN commit is admitted")
     p1, p2 = parts[1], parts[2]
-    crossed = []
-    # T-14301 — walk p1 back to A across record-only non-merge commits only (bounded, fail-closed).
+    crossed, presynced = [], []
+    # T-14301 — walk p1 back to A across record-only non-merge commits (bounded, fail-closed).
+    # T-14500 — and across CLEAN GOVERNED SYNC MERGES before M (a pre-flight `worktree sync` merge the
+    # same `_clean_sync_row` test accepts); a hand-resolved or unrecorded merge stops the walk.
     cur = p1
-    while cur != a_sha and callable(transparent) and len(crossed) < _MI_CROSS_MAX:
+    while cur != a_sha and len(crossed) + len(presynced) < _MI_CROSS_MAX:
         cl = _g(["rev-list", "--parents", "-n", "1", cur])
         cp = cl[1].split() if cl is not None and cl[0] == 0 else []
+        if len(cp) == 3:
+            if _clean_sync_row(cur, cp[1], cp[2]) is None:
+                break
+            presynced.append(cur)
+            cur = cp[1]
+            continue
         try:
-            ok = len(cp) == 2 and transparent(cur, tid) is True
+            ok = callable(transparent) and len(cp) == 2 and transparent(cur, tid) is True
         except Exception:      # noqa: BLE001 — an unverifiable crossing is not granted
             ok = False
         if not ok:
@@ -2023,6 +2060,8 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
         ev["resign_commit"] = r_sha
     if crossed:
         ev["crossed"] = crossed
+    if presynced:
+        ev["presynced"] = presynced
     if trailing:
         ev["trailing"] = trailing
     if synced:
@@ -2058,6 +2097,8 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
         f"at {ev.get('sync_evidence')}"
         + (f", after record-only bookkeeping commit(s) {', '.join(ev.get('crossed'))} (T-14301)"
            if ev.get("crossed") else "")
+        + (f", after clean governed `worktree sync` merge(s) with main {', '.join(ev.get('presynced'))} "
+           f"before it that no hand resolution touched (T-14500)" if ev.get("presynced") else "")
         + (f", followed by record-only commit(s) {', '.join(ev.get('trailing'))} (T-14330)"
            if ev.get("trailing") else "")
         + (f", then clean governed `worktree sync` merge(s) with main {', '.join(ev.get('synced'))} "
@@ -2102,12 +2143,14 @@ def test_found_fix_row(stage_rows) -> "dict | None":
 
 
 def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_bases,
-                          currency_basis, until=None) -> tuple:
+                          currency_basis, until=None, ordinary_opens=False) -> tuple:
     """T-14090 (SPEC-1041 «Rule 4 — custody») — is this card inside the ONE test-found-fix window?
 
     The window is the state yitc#168 measured: the card's audit-post converged on a GREEN rule-3 pass
-    (`--on-decisions`, or its one absorption re-audit) past the ceiling, and the NEXT governed Tests run
-    went red. No residual exists for `audit decide`, the row's one bounded pass is spent, and before this
+    (`--on-decisions`, or its one absorption re-audit) past the ceiling — or, T-14529 (<project> X-2249),
+    on a GREEN ORDINARY pass at the ceiling, read only where the caller passes `ordinary_opens` (the
+    COMMIT door; the audit of that fix is then the row's empty-set `--on-decisions` pass, T-14191) — and
+    the NEXT governed Tests run went red. No residual exists for `audit decide`, the row's one bounded pass is spent, and before this
     the only exits were park / wont-do / re-file.
 
     `rows` are the card's rows in JOURNAL ORDER (SPEC-1038 «Order of journal rows» — positions in this
@@ -2120,9 +2163,9 @@ def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_
     reader, `gates.governed_run_verdict`) are injected; `rule3_bases` / `currency_basis` are the host's
     basis constants. Pure f(args); fail-closed on every unreadable input.
 
-    Returns `({"prior_commit", "red_run"}, None)` inside the window, else `(None, reason)`, the reason
+    Returns `({"prior_commit", "red_run", "ordinary"}, None)` inside the window, else `(None, reason)`, the reason
     NAMED. Checked in this order: spent (a test-found row exists) · merge-integration final · no prior
-    verdict · the latest real verdict is not a GREEN rule-3 pass · its commit unresolvable · its row not
+    verdict · the latest real verdict is not a GREEN rule-3 pass (or ordinary, `ordinary_opens`) · its commit unresolvable · its row not
     in `rows` · no governed run after it · the newest such run is green."""
     def _d(row):
         return row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
@@ -2144,8 +2187,13 @@ def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_
             return None, "no_prior_verdict: no recorded audit-post verdict for this card"
         latest = real[-1]
         ld = _d(latest)
+        # T-14529 (<project> X-2249) — an ORDINARY GREEN (no basis) opens the window for the COMMIT door
+        # (`ordinary_opens`): a GREEN ordinary ceiling row past ceiling+1 followed by a red governed run had
+        # no door to commit the fix. Its audit stays the row's empty-set `--on-decisions` pass (T-14191),
+        # so the audit door never passes it. Every other basis and every non-GREEN verdict refuses.
+        _ordinary = bool(ordinary_opens) and not str(ld.get("basis") or "")
         if (str(ld.get("verdict") or "").strip().upper() != "GREEN"
-                or str(ld.get("basis") or "") not in tuple(rule3_bases or ())):
+                or (str(ld.get("basis") or "") not in tuple(rule3_bases or ()) and not _ordinary)):
             return None, (f"prior_not_spent_green: the latest audit-post verdict is "
                           f"{str(ld.get('verdict') or '').upper() or '(none)'} with basis "
                           f"{ld.get('basis') or 'ordinary'}, not a GREEN `--on-decisions` pass (a GREEN "
@@ -2169,7 +2217,7 @@ def test_found_fix_window(tid, *, rows, stage_rows, resolve, run_verdict, rule3_
         if v != "red":
             return None, (f"newest_governed_run_green: the newest governed Tests run after the GREEN pass "
                           f"at {prior[:12]} is green — a green run admits nothing")
-        return {"prior_commit": prior,
+        return {"prior_commit": prior, "ordinary": _ordinary,
                 "red_run": f"events.jsonl#ts={rows[i].get('ts')}"}, None
     except Exception as exc:      # noqa: BLE001 — an unreadable input is «not admitted», never a crash
         return None, f"window_unreadable: {type(exc).__name__}"
@@ -2500,12 +2548,11 @@ def on_decisions_admission(*, tid, stage, residual_keys, decisions, ceiling_ref,
         except Exception:      # noqa: BLE001 — a reader that raises is an unanswered question
             return None
 
-    arm1_equality = (str(current_subject or "") != str(named_revision or ""))
-    arm1_admitted_by_descent = False
-    if (arm1_equality and stage == "post" and current_subject and named_revision
-            and _descends(named_revision, current_subject) is True):
-        arm1_equality = False
-        arm1_admitted_by_descent = True
+    # T-14501 — the SAME predicate the T-14191 halt suppression reads; descent is asked at post only.
+    _arm1_at = subject_at_or_past(named_revision, current_subject,
+                                  _descends if stage == "post" else None)
+    arm1_admitted_by_descent = (_arm1_at == "descendant")
+    arm1_equality = _arm1_at is None
     # T-12504 — AT TASK AUDIT-PRE AN ALL-`accept`/`defer` SET IS PLAN-FINGERPRINT-AGNOSTIC. Such a set
     # names no revision of its own (no `fix`, so no `evidence_revision`): the residual stands whatever
     # the plan text now says, and the pass audits the CURRENT plan, where anything new counts NEW.

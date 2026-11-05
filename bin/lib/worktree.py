@@ -26796,6 +26796,9 @@ def _land_audited_footprint_split(*a, **kw):
                        ("_read_land_events", _read_land_events),
                        # T-12992 — the row-append ledger audited-row-delta proof.
                        ("_row_ledger_delta_is_audited", _row_ledger_delta_is_audited),
+                       # T-14502 — the T-14275 verified re-sign proof: a post-audit re-sign is a
+                       # closure side-effect, not a refusal.
+                       ("_resign_only_spec_paths", _resign_only_spec_paths),
     ):
         kw.setdefault(_k, _v)
     return rebaseline_currency._land_audited_footprint_split(*a, **kw)

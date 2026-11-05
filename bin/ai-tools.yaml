@@ -20,9 +20,16 @@
 # skill = the same text under a `name` + `description` front matter block
 # invoke what the person types in the tool to run the command
 # clear_session what the person types to clear an open session before starting
+# no_ask_launch the command that launches the tool in its run-without-asking mode (no confirmation
+# per command); the mode is picked at launch, so the I0 briefing names this command
+#. For the working user only — never as root
 # instructions_path the tool's user-level instructions file, relative to HOME, which every session
 # loads in any folder; `init --person-language` records the person's language there
 # once (a file that already speaks of the reply language is left as is)
+# memory_settings_path the tool's user-level settings file (JSON), relative to HOME, which every session
+# reads in any folder; with memory_off_key, where `init --apply-user-memory-off` switches
+# the tool's own assistant memory off for sessions started outside a project (# SPEC-1055 rule 2). A row without the pair has no such setting: init reports it, never fakes it
+# memory_off_key the key in that file whose value `false` switches the memory off
 # prerequisites host programs the tool needs: {command, platform (optional), note};
 # a missing one is reported at install, never fatal
 # default true on the one row written when no tool is detected
@@ -35,7 +42,10 @@ tools:
     format: markdown
     invoke: /{name}
     clear_session: /clear
+    no_ask_launch: claude --dangerously-skip-permissions
     instructions_path: .claude/CLAUDE.md
+    memory_settings_path: .claude/settings.json
+    memory_off_key: autoMemoryEnabled
     prerequisites: []
     default: true
   codex:
@@ -47,6 +57,7 @@ tools:
     format: skill
     invoke: ${name}
     clear_session: /new
+    no_ask_launch: codex --dangerously-bypass-approvals-and-sandbox
     instructions_path: .codex/AGENTS.md
     prerequisites:
       - command: bwrap

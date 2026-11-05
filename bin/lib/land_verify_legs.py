@@ -374,7 +374,7 @@ def _declared_check_surface_touch(changed_files, W: Path, merged_base: str, *, _
     leaving the established predicate exactly as it was.
 
     `matched` (T-13916) — an OUT list for the one caller that records WHICH paths made the answer
-    (the per-layer skip decision, for the selection record of SPEC-1006 rule 6): when a list is
+    (the per-layer skip decision, for the selection record of SPEC-1046 rule 6): when a list is
     passed, the answer is taken path by path with the same matcher over the same globs — so it is
     the answer the one call below gives — and every changed path that matched is appended, under
     the name it was given. With `matched=None` (every other caller) nothing changes."""
@@ -845,7 +845,7 @@ def _owned_test_verify_freed(worktree: Path, base_ref: str, diff_paths, *, _run_
 
 def _edge_own_test_paths(edge_paths, base_text, cand_text, *, CONSUMER_OPS_CONTRACT,
                          _declared_verify_infra_globs, _declared_test_globs) -> "frozenset | None":
-    """T-13964 (SPEC-1006 rule 6, rung (a)) — the paths among `edge_paths` that are the project's OWN
+    """T-13964 (SPEC-1046 rule 6, rung (a)) — the paths among `edge_paths` that are the project's OWN
     test files, or None. `edge_paths` are the changed paths that made the SPEC-0152 rule-16 skip
     decision answer `verify-implementation-touch` / `declared-check-surface`; the adapter ladder
     lets such an edge pass ONLY when every one of them is in this set AND its own layer places it
@@ -3820,7 +3820,7 @@ def _flaky_retry_isolated_passes(journal_path, since: str, until: str, *,
 
 def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None" = None,
                         stage6_commits: "dict | None" = None) -> dict:
-    """T-13609 (SPEC-1006 rule 11) — `{(<layer>, <kind>, <project>, <name>): [<locator>, ...]}` of
+    """T-13609 (SPEC-1046 rule 11) — `{(<layer>, <kind>, <project>, <name>): [<locator>, ...]}` of
     every RESCUED per-unit `flaky_retry` row on a `land_completed` row (and, T-14169, on a governed
     Stage-6 row) of `rows` whose `ts` lies in
     `[since, until]` — the fold the per-unit lane entry is decided on. `kind` is `unit` (name = the
@@ -3912,7 +3912,7 @@ def _unit_rescue_passes(rows, since: str, until: str, *, heads_out: "dict | None
 
 def _per_unit_flaky_rate(events_path, since=None, until=None, *, _iter_events, _ev_dt,
                          joined_out: "list | None" = None) -> dict:
-    """T-13608 (SPEC-1006 rule 13) — the PER-UNIT FLAKY RATE of adapter-backed consumer verify
+    """T-13608 (SPEC-1046 rule 13) — the PER-UNIT FLAKY RATE of adapter-backed consumer verify
     layers: for each unit, the first-attempt failures a re-run rescued, over the unit's runs.
     DERIVED at read time from the rows T-13606 / T-13607 already write (SPEC-0025) — it stores
     nothing, and a second run over the same rows returns the same answer.
@@ -3920,7 +3920,7 @@ def _per_unit_flaky_rate(events_path, since=None, until=None, *, _iter_events, _
     WHAT IS READ, per verify record — a `land_completed` row (landed or aborted) and a Stage-6
     `tests_passed` / `tests_failed` row:
       * the RUNS — `data.consumer_verify_layers[].adapter.units` of every layer whose adapter
-        record is `usable: true` (a void report's rows decide nothing, SPEC-1006 rule 4, so they
+        record is `usable: true` (a void report's rows decide nothing, SPEC-1046 rule 4, so they
         count nothing here; such records are counted under `records.not_usable`). A unit row
         whose `status` is `passed`, `failed` or `error` is one run of that unit; `failed` /
         `error` is a first-attempt failure;
@@ -3930,7 +3930,7 @@ def _per_unit_flaky_rate(events_path, since=None, until=None, *, _iter_events, _
         never passed (`isolated: fail`) is counted beside it (`passed_alone_unrescued`,
         `failed_alone`) and never in the rate.
 
-    THE UNIT is SPEC-1006 rule 2's: `(layer, runner project, file)`. A declared group is counted
+    THE UNIT is SPEC-1046 rule 2's: `(layer, runner project, file)`. A declared group is counted
     WHOLE, as it is re-run — one entity `(layer, project, group)`, one run per record in which any
     member ran, a first-attempt failure when any member failed.
 
@@ -4079,7 +4079,7 @@ def _per_unit_flaky_rate(events_path, since=None, until=None, *, _iter_events, _
 
 
 def _per_case_rescued_failures(events_path, since=None, until=None, *, _iter_events, _ev_dt) -> dict:
-    """T-13615 (SPEC-1006 rule 13, GRANULARITY) — the PER-CASE reading of adapter-backed consumer
+    """T-13615 (SPEC-1046 rule 13, GRANULARITY) — the PER-CASE reading of adapter-backed consumer
     verify layers: for each test case, how often it failed on a first attempt that a re-run of its
     unit then rescued. It names WHICH test in a file is flaky. DERIVED at read time from the rows
     T-13607 already writes (SPEC-0025); it stores nothing and decides nothing.
@@ -4403,7 +4403,7 @@ def _verify_layer_duration_drift_signals(series: "list", *, window: int = _VERIF
 
 
 def _layer_slowest_unit(row) -> "list | None":
-    """T-13645 — `[name, duration_ms]` of the slowest SPEC-1006 unit on ONE guard layer row (its
+    """T-13645 — `[name, duration_ms]` of the slowest SPEC-1046 unit on ONE guard layer row (its
     `adapter.units[]`, each `{file, project?, duration_ms}`), or None when the row carries no usable
     unit. A unit with no positive int `duration_ms` or no `file` is skipped; ties go to the name
     that sorts first, so the answer does not depend on the report's order. PURE."""
@@ -4462,7 +4462,7 @@ def _verify_layer_duration_step_signals(series: "list", *, current=None,
     rows — each yields nothing. On the land tail the step is reported only while its land is the
     NEWEST land of any kind: a later land that ran no layer does not re-print an earlier land's step
     (the creep reading, a trend, keeps speaking there). The line cites the first and last baseline row by locator and, when
-    the observation carries SPEC-1006 unit rows (`_layer_slowest_unit`; on a land, the projection's
+    the observation carries SPEC-1046 unit rows (`_layer_slowest_unit`; on a land, the projection's
     `_slowest_units`), names the slowest unit.
 
     Returns a list of `str`, one per stepped layer, in layer-name order. PURE: nothing is mutated."""
@@ -4653,7 +4653,7 @@ def _scaling_series_projection(d, ts=None):
         out["verify_duration_ms"] = d["verify_duration_ms"]
     if "stage6_credit" in d:   # T-14243: a credited land's own wall is never read (`_verify_scaling_signals`)
         out["stage6_credit"] = d["stage6_credit"]
-    # T-13645: each layer's slowest SPEC-1006 unit, the only part of the land's layer rows the step
+    # T-13645: each layer's slowest SPEC-1046 unit, the only part of the land's layer rows the step
     # reading names — `{layer: [unit, ms]}`, ABSENT when no row carries a usable unit (so a land with
     # no adapter-backed layer projects exactly as before). A layer named twice is left out.
     rows = d.get("consumer_verify_layers")
@@ -4855,7 +4855,7 @@ def _pinned_recovery_hint(*, REBASELINE_KINDS) -> str:
 
 
 # ───────── T-13606 — adapter-backed verify layers: the declaration, the report profiles and the
-# REPORT-ONLY pass (SPEC-1006 rules 1-4; the contract is `proposed` until its activation card) ─────────
+# REPORT-ONLY pass (SPEC-1046 rules 1-4) ─────────
 #
 # A declared `verify.layers[]` entry (SPEC-0152 rule 16) MAY carry `adapter:` — three project-owned
 # commands that let the kernel see the layer's tests one by one. THIS SLICE IS REPORT-ONLY: the
@@ -4880,7 +4880,7 @@ def _pinned_recovery_hint(*, REBASELINE_KINDS) -> str:
 # everything the layer runs) and makes the runner write its native JUnit report to `report` and,
 # where the profile names one, its second report to `second_report`.
 #
-# T-13610 EXTENDS the protocol, additively (SPEC-1006 rules 3, 8): `list`'s answer MAY carry
+# T-13610 EXTENDS the protocol, additively (SPEC-1046 rules 3, 8): `list`'s answer MAY carry
 # `versions` — `{name: version}` strings, the resolved versions of the runner and of any dependency
 # tracker it uses, an input of the layer's recorded identity. A THIRD action, `related`, is invoked
 # only on a layer declaring `selection: shadow`: its manifest carries `units` (the whole inventory)
@@ -4891,7 +4891,7 @@ def _pinned_recovery_hint(*, REBASELINE_KINDS) -> str:
 # shadow` whose previous attempt failed — the same manifest, with `base` the previous attempt's
 # recorded tree (or a commit over it) and `changed` the paths between that tree and the candidate's.
 #
-# T-13607 (SPEC-1006 rule 10) — ONE additive manifest key, present only on a re-run invocation:
+# T-13607 (SPEC-1046 rule 10) — ONE additive manifest key, present only on a re-run invocation:
 # `isolated: true` asks `run` to execute the named units ONE AT A TIME (no file parallelism), so
 # several failed units share one invocation and a layer's setup is paid once per attempt. A first
 # attempt's manifest is byte-identical to the one above.
@@ -4969,12 +4969,12 @@ def _adapter_units_with_medians(layer: str, units, project, medians) -> "list | 
 # reads `deciding`, refused beside any other value of that mode.
 _ADAPTER_REASON_KEYS = {"selection": "selection_deciding_reason", "credit": "credit_deciding_reason"}
 _ADAPTER_KEYS = ("list", "related", "run", "report_profile", "sources", "required", "modelled",
-                 "triggers", "selection", "credit", "rescue", *_ADAPTER_REASON_KEYS.values())
+                 "triggers", "selection", "credit", "rescue", "names_tests", *_ADAPTER_REASON_KEYS.values())
 # The operating modes and their DEFAULT (first value). `deciding` is the mode in which the
-# decision SPEC-1006 records ACTS; its admission contract is SPEC-1030.
+# decision SPEC-1046 records ACTS; its admission contract is SPEC-1030.
 _ADAPTER_MODES = {"selection": ("off", "shadow", "deciding"), "credit": ("off", "shadow", "deciding"),
                   "rescue": ("on", "off")}
-# The versioned report profiles — how each runner's NATIVE report reads (SPEC-1006 rule 4). One
+# The versioned report profiles — how each runner's NATIVE report reads (SPEC-1046 rule 4). One
 # entry per runner family; `vitest/1` covers Vitest 4 and 5 (their JUnit reports matched on every
 # planted case of the trial). Per profile:
 #   unit_from          where a record names its unit: the suite `name`, the suite `name` plus its
@@ -5078,7 +5078,7 @@ def _adapter_shell_words(text: str, depth: int = 0) -> list:
 
 def _adapter_command_repo_paths(command: str, repo_files, repo_dirs=None) -> list:
     """The repo files an adapter command NAMES — the decidable reading of «a command that invokes a
-    tracked repo file» (SPEC-1006 rule 1).
+    tracked repo file» (SPEC-1046 rule 1).
 
     CANDIDATE WORDS are read off the command TEXT three ways and united, so the reading only ever
     widens: (1) its quote-aware words (`_adapter_shell_words` — a quoted name with a space is one
@@ -5109,7 +5109,7 @@ def _adapter_command_repo_paths(command: str, repo_files, repo_dirs=None) -> lis
     errs toward listing more under `sources:`. NARROWER in one stated way: a file the text never
     SPELLS — produced by a glob or brace pattern, or reached through an interpreter's module
     lookup, a package script or `PATH` — is not seen; the adapter is project-authored, and
-    SPEC-1006 rule 4's LIMIT says what that means. Pure; sorted, no duplicates."""
+    SPEC-1046 rule 4's LIMIT says what that means. Pure; sorted, no duplicates."""
     import posixpath
     text = str(command or "")
     if repo_dirs is None:
@@ -5161,7 +5161,7 @@ def _adapter_command_repo_paths(command: str, repo_files, repo_dirs=None) -> lis
 
 
 def _adapter_dependency_manifest(path: str) -> bool:
-    """SPEC-1006 rule 6 rung (b) — is `path` a dependency manifest, a lockfile or a toolchain /
+    """SPEC-1046 rule 6 rung (b) — is `path` a dependency manifest, a lockfile or a toolchain /
     browser version pin? Judged by the file's NAME alone, in any directory, against the names the
     package managers and version managers in common use give such files, plus three SHAPES every
     one of them shares (a `.lock` family, `*-lock.json|yaml|yml`, a dot-file ending in `version`). The
@@ -5245,7 +5245,7 @@ def _adapter_file_digest(path) -> "str | None":
 
 
 def _adapter_sources_snapshot(worktree, decl: dict, *, _run_git_cap) -> "str | None":
-    """SPEC-1006 rule 8 — ONE reading of what a layer's `sources:` hold AT THIS MOMENT: a digest
+    """SPEC-1046 rule 8 — ONE reading of what a layer's `sources:` hold AT THIS MOMENT: a digest
     over the complete content of every repository file under them. The file set is asked of git
     each time (tracked plus untracked-and-not-ignored, by LITERAL pathspec — a source's name is
     never read as a glob), so a file the layer's command or its adapter created under a source is
@@ -5280,7 +5280,7 @@ def _adapter_sources_snapshot(worktree, decl: dict, *, _run_git_cap) -> "str | N
 
 
 def _adapter_identity_static(decl: dict) -> str:
-    """SPEC-1006 rule 8 — the hash over the DECLARED identity inputs: the layer's `command:`,
+    """SPEC-1046 rule 8 — the hash over the DECLARED identity inputs: the layer's `command:`,
     `subject_globs` and `covers_classes`, the adapter's three commands, its report profile,
     `modelled:` and triggers. The operating modes (`selection`, `credit`, `rescue`) and
     `required:` are NOT inputs. The content of its `sources:` and the versions the runner reports
@@ -5298,7 +5298,7 @@ def _adapter_identity_static(decl: dict) -> str:
 
 
 def _adapter_stamp_identity(rec: dict, decl: dict, before: "str | None", after: "str | None") -> dict:
-    """SPEC-1006 rule 8 — write the layer's IDENTITY onto an adapter record, or say why there is
+    """SPEC-1046 rule 8 — write the layer's IDENTITY onto an adapter record, or say why there is
     none. `before` / `after` are the two `_adapter_sources_snapshot` readings taken around the
     adapter pass that produced `rec`.
 
@@ -5340,7 +5340,7 @@ def _adapter_stamp_identity(rec: dict, decl: dict, before: "str | None", after: 
 
 
 def _declared_layer_adapters(layers, *, repo_files) -> dict:
-    """SPEC-1006 rule 1 — read every declared `verify.layers[].adapter`. Returns `{layer index:
+    """SPEC-1046 rule 1 — read every declared `verify.layers[].adapter`. Returns `{layer index:
     normalized declaration}` for the layers that carry the key (EMPTY when none does — a layer
     without `adapter:` is not touched by anything in this block); raises ValueError on a
     PRESENT-but-malformed declaration so the caller fails CLOSED before any layer runs (the
@@ -5422,6 +5422,13 @@ def _declared_layer_adapters(layers, *, repo_files) -> dict:
             raise ValueError(f"{where} `report_profile:` = {profile!r} is not a known profile "
                              f"({', '.join(sorted(_ADAPTER_REPORT_PROFILES))})")
         decl["report_profile"] = profile
+        # T-14530 (SPEC-1046 rule 4, the gap line): `names_tests:` — the adapter's own statement that
+        # each failed unit names its failed tests. A boolean or nothing; the session-start gap line
+        # reads it, no verdict does.
+        names_tests = raw.get("names_tests", False)
+        if not isinstance(names_tests, bool):
+            raise ValueError(f"{where} `names_tests:` = {names_tests!r} is not `true` or `false`")
+        decl["names_tests"] = names_tests
         for key in ("sources", "required", "modelled"):
             val = raw.get(key, [])
             if not (isinstance(val, list) and all(isinstance(x, str) and x.strip() for x in val)):
@@ -5537,7 +5544,7 @@ def _declared_layer_adapters(layers, *, repo_files) -> dict:
     return out
 
 
-# ───────── T-13610 — the SHADOW selection decision (SPEC-1006 rules 3, 6-9) ─────────
+# ───────── T-13610 — the SHADOW selection decision (SPEC-1046 rules 3, 6-9) ─────────
 #
 # On a layer declaring `selection: shadow` the FULL layer runs exactly as on any adapter-backed
 # layer and the decision the rule-6 ladder gives for this change is RECORDED beside it: the rung,
@@ -5547,7 +5554,7 @@ def _declared_layer_adapters(layers, *, repo_files) -> dict:
 #   `_adapter_shadow_decision`  the ladder — pure over the declaration, the change and the inventory;
 #   `_layer_adapter_report_pass` invokes `related` where the ladder asks, and compares.
 def _adapter_change_facts(worktree, base_ref: str, forms, *, _run_git_cap) -> dict:
-    """SPEC-1006 rule 3 (iii) — the paths each runner's OWN diff contains, derived with git so that
+    """SPEC-1046 rule 3 (iii) — the paths each runner's OWN diff contains, derived with git so that
     no `related` answer is trusted for a path its runner never looked at. `forms` names the diff
     forms wanted (`related_diff` of the report profiles in play); returns `{form: frozenset | None}`:
 
@@ -5610,7 +5617,7 @@ def _related_changed_paths(paths) -> list:
 
 def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, exists=None, *,
                              _subject_globs_would_skip) -> dict:
-    """SPEC-1006 rule 6 — the selection ladder for ONE layer and ONE change, in the rule's order.
+    """SPEC-1046 rule 6 — the selection ladder for ONE layer and ONE change, in the rule's order.
     Returns the record that rides the adapter record as `selection` (registered in SPEC-0025).
     PURE apart from two callables: `ask_related()` (invoked at most once, and only when the ladder
     reaches the `related` answer) and `exists(path)` (is the changed path still a file of the
@@ -5820,7 +5827,7 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
     return sel
 
 
-# ───────── T-13612 — the would-be CREDIT of a fix attempt (SPEC-1006 rule 14) ─────────
+# ───────── T-13612 — the would-be CREDIT of a fix attempt (SPEC-1046 rule 14) ─────────
 #
 # On a layer declaring `credit: shadow` the FULL layer runs, as on every adapter-backed layer, and
 # two things are recorded on its adapter record. `attempt` says WHICH run this was — the tree it
@@ -5835,7 +5842,7 @@ def _adapter_shadow_decision(decl: dict, change: dict, inventory, ask_related, e
 #   `_adapter_credit_basis`      what that row allows before any diff is read;
 #   `_adapter_credit_decision`   the decision — the rule-6 ladder over the fix's own diff.
 def _adapter_previous_attempt(journals, layer: str, branch, *, whole: bool = False) -> "dict | None":
-    """SPEC-1006 rule 14 — the PREVIOUS attempt of ONE layer, read from its record alone.
+    """SPEC-1046 rule 14 — the PREVIOUS attempt of ONE layer, read from its record alone.
     `journals` is one list of parsed rows PER JOURNAL FILE read, each in that file's own order (a
     journal is append-only, so the order of two rows inside one file is the order they were
     written in). A row is read when it
@@ -5934,7 +5941,7 @@ def _adapter_previous_attempt(journals, layer: str, branch, *, whole: bool = Fal
 
 
 def _adapter_credit_basis(previous, base, *, deciding: bool = False) -> dict:
-    """SPEC-1006 rule 14 — what the PREVIOUS attempt's record (`_adapter_previous_attempt`) allows
+    """SPEC-1046 rule 14 — what the PREVIOUS attempt's record (`_adapter_previous_attempt`) allows
     a run on `base` (a full commit id) to credit, decided BEFORE any diff is read. Returns
     `{record, units, change}`: `record` is the credit record so far (`{schema: 1, mode: "shadow",
     decision, reason, previous?}`), `units` the previous attempt's `{(project, file): status}`
@@ -6023,7 +6030,7 @@ def _adapter_credit_basis(previous, base, *, deciding: bool = False) -> dict:
 
 def _adapter_credit_decision(decl: dict, basis: dict, inventory, ask_related, exists=None, *,
                              _subject_globs_would_skip) -> dict:
-    """SPEC-1006 rule 14 — the would-be credit of ONE layer's fix attempt. Returns the record that
+    """SPEC-1046 rule 14 — the would-be credit of ONE layer's fix attempt. Returns the record that
     rides the adapter record as `credit` (registered in SPEC-0025). PURE apart from the two
     callables of `_adapter_shadow_decision`, which it hands on unchanged.
 
@@ -6295,20 +6302,26 @@ def _failure_excerpt(text: str, budget: int, block_text: "str | None" = None) ->
 _PER_TEST_GAP_BLOCK = ("adapter: {run: <a command writing the runner's JUnit XML to the manifest's "
                        "`report` path>, report_profile: junit/1}")
 _PER_TEST_GAP_SCRIPT = ("name each failed test as <property name=\"failed_test\" value=...> on the "
-                        "failed case (or print the runner's own failure lines), or move the layer to "
+                        "failed case (or print the runner's own failure lines) and declare "
+                        "`names_tests: true` in the adapter, or move the layer to "
                         "`report_profile: junit/1`")
 
 
 def _per_test_report_gaps(ops_doc, named_by_layer=None) -> list:
-    """T-14492 (SPEC-1046) — the declared verify layers whose red cannot be told apart from main's
-    per test. PURE. Returns `[(layer, kind)]` in declaration order, `kind` one of:
-      `no-adapter`  the layer declares no `adapter:` — its red is the whole layer's;
-      `file-grain`  its profile has no case rows (`script/1`) AND its newest recorded failed unit
-                    did not read `named: true` (`named_by_layer[layer]` is not True) — a red names
-                    the file only. A script layer whose adapter names its failed tests is no gap.
-    Skipped: a layer carrying a `waiver:` (it runs nothing), and a layer whose command is the
-    kernel's own `graph conformance` corpus check (no tests of the project's). A malformed or
-    absent `verify:` section yields `[]` — this reports, it never judges a declaration."""
+    """T-14492 / T-14530 (SPEC-1046) — the declared verify layers whose red cannot be told apart from
+    main's per test, read off the DECLARATION. PURE. Returns `[(layer, kind)]` in declaration order,
+    `kind` one of:
+      `no-adapter`        the layer declares no `adapter:` — its red is the whole layer's;
+      `file-grain`        its profile has no case rows (`script/1`) and its adapter does not declare
+                          `names_tests: true` — a red names the file only;
+      `file-grain-named`  the same, while the layer's newest recorded failed unit DID name its tests
+                          (`named_by_layer[layer] is True`) — supporting evidence only: the line
+                          stays, and says the declaration is what is missing.
+    A script layer whose adapter declares `names_tests: true` is no gap, whatever the journal holds
+    (T-14530: a later unnamed red of an unrelated unit, or a layer that never runs before a deploy,
+    no longer decides it). Skipped: a layer carrying a `waiver:` (it runs nothing), and a layer whose
+    command is the kernel's own `graph conformance` corpus check (no tests of the project's). A
+    malformed or absent `verify:` section yields `[]` — this reports, it never judges a declaration."""
     named_by_layer = named_by_layer if isinstance(named_by_layer, dict) else {}
     verify = ops_doc.get("verify") if isinstance(ops_doc, dict) else None
     layers = verify.get("layers") if isinstance(verify, dict) else None
@@ -6325,8 +6338,9 @@ def _per_test_report_gaps(ops_doc, named_by_layer=None) -> list:
             out.append((name, "no-adapter"))
             continue
         prof = _ADAPTER_REPORT_PROFILES.get(str(adapter.get("report_profile") or ""))
-        if prof is not None and not prof["cases"] and named_by_layer.get(name) is not True:
-            out.append((name, "file-grain"))
+        if prof is None or prof["cases"] or adapter.get("names_tests") is True:
+            continue
+        out.append((name, "file-grain-named" if named_by_layer.get(name) is True else "file-grain"))
     return out
 
 
@@ -6341,6 +6355,9 @@ def _per_test_gap_lines(gaps) -> list:
     for name, kind in gaps:
         if kind == "no-adapter":
             lines.append(f"  layer `{name}`: no adapter — add {_PER_TEST_GAP_BLOCK}")
+        elif kind == "file-grain-named":
+            lines.append(f"  layer `{name}`: script/1 reports by file — its newest recorded red already "
+                         "named its tests; declare `names_tests: true` in the adapter")
         else:
             lines.append(f"  layer `{name}`: script/1 reports by file — {_PER_TEST_GAP_SCRIPT}")
     return lines
@@ -6368,7 +6385,7 @@ def _classify_adapter_report(profile_id: str, *, requested, exit_code, report_te
                              started_at=None, project=None, outer=None, checkpoint=None,
                              excerpt_chars: int = 300, max_failed_cases: int = 20,
                              texts_out=None) -> dict:
-    """SPEC-1006 rule 4 — read ONE adapter `run` invocation's native report against the kernel's
+    """SPEC-1046 rule 4 — read ONE adapter `run` invocation's native report against the kernel's
     manifest. PURE (texts in, a dict out; no I/O, no clock of its own). Returns `{void: [reason,
     ...], units: [row, ...]}`, or `{outer, void: [], units: []}` when an outer failure decided first.
 
@@ -6793,7 +6810,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                                change=None, _subject_globs_would_skip=None, credit=None,
                                lane=None, one_card_candidate: bool = False, shipped=None,
                                pre_deploy=None, unit_medians=None, decided=None) -> dict:
-    """SPEC-1006 rules 3-4 — the REPORT-ONLY adapter pass of ONE layer: `list`, then `run`, inside
+    """SPEC-1046 rules 3-4 — the REPORT-ONLY adapter pass of ONE layer: `list`, then `run`, inside
     the layer's prepared worktree, read through the layer's report profile. Returns the record that
     rides the layer's outcome row as `adapter` (registered in SPEC-0025):
 
@@ -6839,7 +6856,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     a `run` report records `outer: timed-out` at `report`, and no rows are kept. What cannot be
     interrupted is one such step, or one decode of a document already bounded in size.
 
-    T-13607 (SPEC-1006 rules 4, 5, 10) — THE SAME PASS, THREE KEYWORD-ONLY EXTENSIONS. With none of
+    T-13607 (SPEC-1046 rules 4, 5, 10) — THE SAME PASS, THREE KEYWORD-ONLY EXTENSIONS. With none of
     them given the pass is the one described above, byte for byte.
       first_attempt  the pass IS the layer's first attempt (the caller reads the verdict off the
                      record with `_adapter_first_attempt`): after a usable `list` the declaration's
@@ -6864,14 +6881,14 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                      cause) under a first line saying how many earlier characters were not
                      kept — so what the pass holds is bounded per invocation, never silently.
 
-    THE REPORTED VERSIONS (T-13610 — SPEC-1006 rule 8). When `list` answers and reports
+    THE REPORTED VERSIONS (T-13610 — SPEC-1046 rule 8). When `list` answers and reports
     `versions` — `{name: version}` strings for the runner and any dependency tracker — the record
     carries them (project-reported, as `list` and `run` are: rule 4's LIMIT). They are an input of
     the layer's IDENTITY, which the caller writes onto this record AFTER the pass
     (`_adapter_stamp_identity`), because one of its inputs — what the layer's `sources:` hold — has
     to be read on both sides of the adapter's own execution.
 
-    THE SHADOW SELECTION (T-13610 — SPEC-1006 rules 3, 6-9). With `change` given — the caller
+    THE SHADOW SELECTION (T-13610 — SPEC-1046 rules 3, 6-9). With `change` given — the caller
     passes it for a layer declaring `selection: shadow` and for no other, together with the
     rule-16 subject judge `_subject_globs_would_skip` the ladder needs — the pass ALSO records
     `selection`: the decision of `_adapter_shadow_decision` for this change, taken after the
@@ -6895,7 +6912,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     first has no change to decide over (its caller passes none) and the second invoked no
     `run`, so there is no full run to hold the decision against.
 
-    THE WOULD-BE CREDIT (T-13612 — SPEC-1006 rule 14). With `credit` given — the caller passes
+    THE WOULD-BE CREDIT (T-13612 — SPEC-1046 rule 14). With `credit` given — the caller passes
     `_adapter_credit_basis`'s answer, with the fix's own diff on it, for a layer declaring
     `credit: shadow` and for no other — the pass ALSO records `credit`: the decision of
     `_adapter_credit_decision`, taken where the selection is and on its terms. `run` was invoked
@@ -6915,7 +6932,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
     selection stand in both. Recorded exactly where a selection would be: not on an outer failure,
     a passed bound, a failed `required:` check or a re-run pass.
 
-    THE LOAD-SENSITIVE LANE (T-13609 — SPEC-1006 rule 11). `lane` is the layer's declared
+    THE LOAD-SENSITIVE LANE (T-13609 — SPEC-1046 rule 11). `lane` is the layer's declared
     load-sensitive list — a set of `(kind, project, name)` entries, `kind` being `unit` or `group`
     (`_unit_lane_set`) — or None. Where the pass has an inventory (`list`
     answered) and is not a re-run, `_adapter_lane_split` takes the listed units OUT of the batch:
@@ -7540,7 +7557,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                         sink["memberships"] = memberships
         if first_attempt and rerun is None and decl.get("required") \
                 and (units is not None or deciding or crediting):
-            # T-13607 (SPEC-1006 rule 5): the layer's mandatory non-test checks. They run on every
+            # T-13607 (SPEC-1046 rule 5): the layer's mandatory non-test checks. They run on every
             # first attempt the adapter's `run` stands in for the full `command:`, and a failing
             # one fails the layer where it stands — `run` is not invoked and nothing re-runs it.
             for j, check in enumerate(decl["required"]):
@@ -7703,7 +7720,7 @@ def _layer_adapter_report_pass(worktree, layer: str, decl: dict, *, timeout, env
                 by_project.setdefault(u["project"], []).append(u)
             return list(by_project.items())
 
-        # T-13609 (SPEC-1006 rule 11): the layer's listed units leave the batch and run after it,
+        # T-13609 (SPEC-1046 rule 11): the layer's listed units leave the batch and run after it,
         # one at a time. Only a pass with an inventory has units to move; a re-run is alone already.
         laned: list = []
         if lane and units is not None and rerun is None:
@@ -7840,7 +7857,7 @@ def _adapter_timeout_kill(rows, running, later, *, cap: int = 50) -> dict:
             "not_reached": not_reached[:cap], "not_reached_count": len(not_reached)}
 
 
-#: T-13609 (SPEC-1006 rule 11) — the PER-UNIT sibling of the engine suite's load-sensitive carrier
+#: T-13609 (SPEC-1046 rule 11) — the PER-UNIT sibling of the engine suite's load-sensitive carrier
 #: (`verify_runner._LOAD_SENSITIVE_FILE`): the load-sensitive list of a consumer's adapter-backed verify
 #: layers, one committed file at the repository root beside the ops carrier. It lives here, beside the
 #: adapter pass that reads it, not in the runner module, whose membership is the runner's own reach. Entries are APPENDED by the land tail
@@ -7871,7 +7888,7 @@ def _unit_lane_parse(text) -> dict:
 
 
 def _unit_lane_set(root) -> dict:
-    """T-13609 (SPEC-1006 rule 11) — the declared per-unit load-sensitive lists of the checkout at
+    """T-13609 (SPEC-1046 rule 11) — the declared per-unit load-sensitive lists of the checkout at
     `root`, by layer (`_unit_lane_parse` over `<root>/yitc-load-sensitive-units.txt`).
 
     FAIL-SAFE IN THE DIRECTION OF TODAY, as `verify_runner._load_sensitive_set`: a missing or unreadable
@@ -7885,7 +7902,7 @@ def _unit_lane_set(root) -> dict:
 
 
 def _adapter_lane_split(units, lane) -> tuple:
-    """SPEC-1006 rule 11 — WHICH units of a layer's inventory run in its load-sensitive lane.
+    """SPEC-1046 rule 11 — WHICH units of a layer's inventory run in its load-sensitive lane.
     `units` are the listed inventory entries (`{project, file, report_id?, group?}`), `lane` the
     layer's declared entries — `(kind, project, name)`, `kind` `unit` (name = the file) or `group`
     (name = the group's label). Returns `(batch, laned, unmatched)`: the inventory split in two,
@@ -7915,7 +7932,7 @@ def _adapter_lane_split(units, lane) -> tuple:
 
 
 # ───────── T-13607 — the adapter's `run` as the layer's FIRST ATTEMPT, and the per-unit re-run
-# (SPEC-1006 rules 4, 5, 10; the contract is `proposed` until its activation card) ─────────
+# (SPEC-1046 rules 4, 5, 10) ─────────
 #
 # T-13606 recorded the per-unit report beside a verdict the layer's `command:` had already given.
 # This slice lets a USABLE report decide: on a layer whose adapter declares `list`, the pass above
@@ -9072,7 +9089,7 @@ def _adapter_full_command_ran(rec):
 
 
 def _adapter_first_attempt(rec) -> str:
-    """SPEC-1006 rule 4 — what ONE first-attempt adapter record (`_layer_adapter_report_pass(...,
+    """SPEC-1046 rule 4 — what ONE first-attempt adapter record (`_layer_adapter_report_pass(...,
     first_attempt=True)`) says about its layer. PURE; first match wins:
 
       command          the record decides NOTHING and the layer's full `command:` runs and decides
@@ -9243,7 +9260,7 @@ def _adapter_unit_failure_lines(rows, max_lines: int = 20) -> list:
 
 
 def _adapter_rerun_entities(units, inventory) -> list:
-    """SPEC-1006 rules 2, 10 — WHAT is re-run for the failed units of a usable first attempt. A
+    """SPEC-1046 rules 2, 10 — WHAT is re-run for the failed units of a usable first attempt. A
     unit that belongs to no declared group is re-run alone; a unit of a declared indivisible group
     takes its WHOLE group with it (every inventory unit of the same runner project carrying the
     same `group` label), and the group is re-run and counted as ONE. Returns one entity per failed
@@ -9306,7 +9323,7 @@ def _adapter_rerun_entities(units, inventory) -> list:
 def _layer_unit_reruns(worktree, layer: str, decl: dict, entities, *, timeout, env=None,
                        _run_layer_command, _load_avg=None, _monotonic=None, attempts: int = 2,
                        max_failed_cases: int = 20, outputs=None, unit_medians=None) -> list:
-    """SPEC-1006 rule 10 — re-run the failed units of ONE layer's usable first attempt, alone
+    """SPEC-1046 rule 10 — re-run the failed units of ONE layer's usable first attempt, alone
     within this verify (the caller runs this after every layer has finished), up to `attempts`
     (R) times, stopping per unit at its first pass. Returns one `flaky_retry` row per entity
     (`_adapter_rerun_entities`), registered in SPEC-0025:

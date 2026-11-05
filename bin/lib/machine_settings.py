@@ -1100,6 +1100,10 @@ INVENTORY: "tuple[Knob, ...]" = (
        "NOT an input the kernel reads: the served round's branch, WRITTEN into the env of the project's declared "
        "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "
        "never read back. GATE by the fail-closed default"),
+    _g("YITC_SPIKE_FROM_TAG", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
+       "NOT an input the kernel reads: the parked prototype tag a next round opened from, WRITTEN into the env of the "
+       "project's declared `spike_sandbox.handover` step by `worktree new --from-spike` (T-14532, SPEC-0205 rule 12) "
+       "and never read back. GATE by the fail-closed default"),
     _g("YITC_SPIKE_TO_BRANCH", "str", None, "bin/lib/worktree_lifecycle.py#_spike_round_handover",
        "NOT an input the kernel reads: the next round's branch, WRITTEN into the env of the project's declared "
        "`spike_sandbox.handover` step by `worktree new --from-spike` (T-14374, SPEC-0205 rule 12) and "

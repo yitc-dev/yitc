@@ -148,6 +148,9 @@ class _HelpInventoryAction(argparse.Action):
                 emit_ok = True
         except Exception:
             pass
+        if not getattr(namespace, "directory", None) and _resolve_host("_in_release_cache")(
+                _resolve_host("REPO_ROOT")):
+            emit_ok = False  # T-14514: a pinned release cache holds no runtime state — print, record nothing
         # Tee print_help so the receipt records the inventory's real stdout size (parity with the T-0113
         # read-verb path), then emit the fetch-receipt (best-effort — help has already printed, so a
         # journal hiccup must not turn a --help into a non-zero exit).
@@ -353,6 +356,15 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                             "settings file. This flag is the person's yes: without it init only prints "
                             "the recommended lines and writes none of them. A setting this host already "
                             "set is kept as it is.")
+    # T-14517 (SPEC-1055 rule 2) — the person's YES to switching the AI tool's own memory off at user
+    # level, for sessions started outside a project folder. Without it init only prints the offer.
+    initp.add_argument("--apply-user-memory-off", dest="apply_user_memory_off", action="store_true",
+                       help="switch the AI tool's own assistant memory off in its USER-level settings "
+                            "file (path and key from bin/ai-tools.yaml), so a session started outside a "
+                            "project folder runs with it off too. This flag is the person's yes: without "
+                            "it init only prints the recommendation. Every other setting in that file is "
+                            "kept; a file that is not a JSON object, or that sets the key itself, is "
+                            "never touched.")
     # T-14463 (SPEC-0086 rule 6f(d) step 1) — the person's language, recorded once so a fresh session
     # in any folder starts in it.
     def _person_language(v):   # the rule's one home is init._person_language_arg (imported at use)
@@ -3611,6 +3623,12 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
              "stage + its entry-gate + the spec bundle bound to it, and (at decomposition) the cut "
              "task cards. A VIEW re-derived from existing state — mutates nothing.")
     dsh.add_argument("slug", help="plan (or idea) slug")
+    dsh.add_argument("--owner-words", action="store_true",
+                     help="SPEC-1058 §2 (T-14520): before the owner's read-back of a carry registry, list "
+                          "every owner word of the spike's life from the journal and the transcripts of the "
+                          "sessions that worked it — which transcripts were read, which refs had no file — "
+                          "each mapped to a registry item or a plan rule as a CANDIDATE, with the unmapped "
+                          "words and the reversals. Read-only: writes nothing, refuses nothing.")
     dsh.set_defaults(func=cmd_plan_show)
 
     # T-1134 — scenario authoring verb-namespace (the analog of `spec new` / `plan file` + `plan show`

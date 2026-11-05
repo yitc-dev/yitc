@@ -5350,14 +5350,19 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
               f"{_vhosts}; host live_base_url: {host_config.get('live_base_url')} (apply via the "
               f"host-config seam, SPEC-0111 — NOT performed by this verb).")
     command = section.get("command")
-    # A NAMED rollback runs its target's own command (resolved below), so the top-level `rollback:`
-    # command — production's — is neither needed nor run on that leg; the section check above stays.
-    if not named_rollback and (not command or not str(command).strip()):
-        # A waived section (declare-or-waive) has no command — there is nothing to run.
-        reason = ""
+    # A NAMED target runs its target's own command (resolved below), so the top-level command —
+    # production's — is neither needed nor run on that leg; the section check above stays. That holds
+    # for a named rollback (T-13340) and for a named deploy target (T-14515, SPEC-0094 §1 property 5):
+    # a project whose production deploy is still waived can deploy its acceptance target first.
+    top_level_waived = not command or not str(command).strip()
+    waived_reason = ""
+    if top_level_waived:
         waiver = section.get("waiver")
         if isinstance(waiver, dict) and waiver.get("reason"):
-            reason = f" (waived: {str(waiver['reason']).strip()})"
+            waived_reason = f" (waived: {str(waiver['reason']).strip()})"
+    if deploy_target_name is None and top_level_waived:
+        # A waived section (declare-or-waive) has no command — there is nothing to run.
+        reason = waived_reason
         _die(f"deploy: `{kind}:` declares no `command:`{reason} — nothing to run. Declare a "
              f"`command:` in {CONSUMER_OPS_CONTRACT} (SPEC-0093) to enable `{kind}`.")
 
@@ -5375,6 +5380,14 @@ def cmd_deploy(args: argparse.Namespace, *, REPO_ROOT, _append_event, _main_work
         print(f"deploy: REFUSED — {dtarget.error}. The {kind} did NOT run; no deploy_completed "
               f"emitted.", file=sys.stderr)
         sys.exit(3)
+    if kind == "deploy" and top_level_waived and dtarget.production is True:
+        # T-14515 — the production deploy stays waived whether it is reached bare or by a named
+        # `production: true` target: only a positively-declared non-production target runs beside it.
+        _die(f"deploy: `deploy:` declares no `command:`{waived_reason} — the production deploy is "
+             f"waived, so `--target {deploy_target_name}` (production: true) does not run. Declare the "
+             f"top-level `command:` in {CONSUMER_OPS_CONTRACT} (SPEC-0093) to enable production, or "
+             f"deploy a non-production target: `bin/yitc-v2 deploy --target <a production: false "
+             f"target>` (SPEC-0094 §1 property 5).")
     command = dtarget.command
     # T-14105 / SPEC-1042 rule 3 — a deploy to a target a pre-deploy class guards runs the full verify
     # on the revision it ships, so it must be TOLD that revision: refused without `--expect-revision`

@@ -240,5 +240,5 @@ implements_signature:
   bin/lib/audit.py#resolve_codex_binary: 1ff787172d8394d20c09ae5243ab89a77b024aa5dc88627b5eae0c940d804785
   bin/lib/audit.py#stamp_auditor_verdict: 92795c18be5fbe2f22cb43c8cc1608872679d7934fe4d365e77451b972e31695
   bin/lib/cli.py#cmd_session_start: ae9d05e9937d230797c02085c66c212528a741f292b47a32af7175eae8e36357
-  bin/lib/machine_settings.py#INVENTORY: e2f11c2dfad077380db6917b19b7ab52dd3da1776505cb79db9be6cf951521f0
+  bin/lib/machine_settings.py#INVENTORY: 8a36ea3caf13c023572239f0b692ba619e0c7ff6649c1bcc9f863586685bb62f
   bin/lib/observe.py#auditor_triple: 0b9260fb966c9a0e8113042276a9ded694e20b6c0ee2c5c6fc38143a9ef3c310

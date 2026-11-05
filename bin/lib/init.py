@@ -460,8 +460,8 @@ def _no_write_tail(main_root, args, *, diverged, engine_cli, _append_event) -> N
     Nothing in the repository is written; the journal row a setting write appends is D-0049's."""
     import sys
     registry_failed = False if diverged else _register_in_host_registry(main_root)
+    from pathlib import Path as _P
     if not diverged:
-        from pathlib import Path as _P
         _record_person_language_if_asked(args, _P(__file__).resolve().parents[2], _P.home())
     _ls_failure = None
     if getattr(args, "apply_load_settings", False) and not (diverged or registry_failed):
@@ -472,7 +472,9 @@ def _no_write_tail(main_root, args, *, diverged, engine_cli, _append_event) -> N
                                                 applied=_ls_applied, failure=_ls_failure)
             if block:
                 print(block)
-    if diverged or registry_failed or _ls_failure:
+    _um_failed = _offer_user_memory_off(args, _P(__file__).resolve().parents[2], _P.home(),
+                                        withheld=bool(diverged or registry_failed))   # T-14517
+    if diverged or registry_failed or _ls_failure or _um_failed:
         sys.exit(1)
 
 
@@ -8109,20 +8111,82 @@ def _all_tests_script_runnable(test_dir) -> bool:
     return True
 
 
-def _pytest_importable() -> bool:
+def _pytest_importable(python: str = "python3") -> bool:
     """Can the interpreter that will RUN the seeded command actually import pytest? (T-10531, audit-pre F2)
 
-    The command `init` seeds is `python3 -m pytest …`, so the only proof that it will run is that `python3`
+    The command `init` seeds is `<python> -m pytest …`, so the only proof that it will run is that `python`
     can import pytest RIGHT HERE. A pyproject/requirements MENTION is not an installation (audit-pre F2) —
     seeding a command we cannot show is runnable would trade the wedge for a permanently-broken gate, which
-    is worse. False => seed nothing. Never raises."""
+    is worse. False => seed nothing. Never raises. `python` is the interpreter `_project_python` names
+    (T-14513: the project's own venv, else the system `python3`)."""
     import subprocess
 
     try:
-        return subprocess.run(["python3", "-c", "import pytest"],
+        return subprocess.run([python, "-c", "import pytest"],
                               capture_output=True, timeout=30).returncode == 0
     except (OSError, subprocess.SubprocessError):
         return False
+
+
+def _project_venv_python(repo_root) -> str:
+    """T-14513 — the interpreter of the project's own venv: `~/.venvs/<project>/bin/python`, the place
+    onboarding/bootstrap-order.md I4 step 5 has the AI create it (outside the repository, so it is never
+    worktree dirt and every land worktree reaches it by the same absolute path). `<project>` is the name
+    of the project's main checkout (`_project_root` — a work batch worktree names the project too)."""
+    from pathlib import Path   # function-local, matching this module's import idiom
+
+    return str(Path.home() / ".venvs" / Path(_project_root(repo_root)).name / "bin" / "python")
+
+
+def _project_python(repo_root) -> "str | None":
+    """T-14513 — the interpreter the seeded pytest layer runs under, or None when none can import pytest:
+    the system `python3` when IT imports pytest — so a project with system pytest is seeded exactly as
+    before (T-10531, T-14279 byte-identical), a venv beside it or not — else the project's own venv
+    (`_project_venv_python`) when it exists and imports pytest. Stock Ubuntu 24.04 installs pytest into
+    the venv only (PEP 668), which is the case this closes. Never raises."""
+    import os
+    if _pytest_importable():
+        return "python3"
+    venv = _project_venv_python(repo_root)
+    if os.path.isfile(venv) and os.access(venv, os.X_OK) and _pytest_importable(venv):
+        return venv
+    return None
+
+
+def _born_tests_layer(repo_root) -> "dict | None":
+    """The adapter-backed `tests` layer `init` seeds for a ROOT tests/test_*.py pytest layout, or None —
+    shared by the birth seed (`_born_verify_layers_seed`) and the first-tests re-run offer
+    (`_first_tests_layer_offer`, T-14513), so both write the same layer. None when: no root test file;
+    every test file is script-runnable (the bare sweep is a valid verify there); no interpreter can import
+    pytest (`_project_python`). The layer command and the adapter's commands use that interpreter."""
+    from pathlib import Path   # function-local, matching this module's import idiom
+
+    test_dir = "tests"                                # the guard's own predicate — see the seed's SCOPED note
+    root_tests = Path(repo_root) / test_dir
+    try:
+        from lib import test_discovery   # stdlib-only leaf — the ONE discovery home (T-12694)
+        if not test_discovery.test_files(root_tests):
+            return None                               # the bare sweep never fires here — nothing to fix
+    except OSError:
+        return None
+    if _all_tests_script_runnable(root_tests):
+        return None                                   # the bare sweep is a valid verify here — leave it
+    python = _project_python(repo_root)
+    if python is None:
+        return None                                   # cannot prove the command runs — seed nothing
+    import shlex
+    python = shlex.quote(python)   # layer commands run under a shell; a no-op for `python3` and safe paths
+    layer = {
+        "layer": "tests",
+        "command": f"{python} -m pytest {test_dir}/ -q",
+        "covers": [f"{test_dir}/**"],
+    }
+    # T-14279: the layer is born adapter-backed when the kernel's pytest sample reads (the copy init
+    # writes is named by `sources:`); the runner config files present ride `sources:` beside it.
+    if _born_adapter_sample("pytest") is not None:
+        layer["adapter"] = _born_adapter_block("pytest", [
+            c for c in _PYTEST_CONFIG_FILES if (Path(repo_root) / c).is_file()], python=python)
+    return layer
 
 
 def _born_verify_layers_seed(repo_root, ops_verify) -> "dict | None":
@@ -8161,18 +8225,6 @@ def _born_verify_layers_seed(repo_root, ops_verify) -> "dict | None":
         placeholder this seed legitimately replaces (waiver XOR layers — the init sweep enforces
         exclusivity, so the placeholder is REPLACED, never left alongside).
     """
-    from pathlib import Path   # function-local, matching this module's import idiom
-
-    test_dir = "tests"                                # the guard's own predicate — see SCOPED, above
-    root_tests = Path(repo_root) / test_dir
-    try:
-        from lib import test_discovery   # stdlib-only leaf — the ONE discovery home (T-12694)
-        if not test_discovery.test_files(root_tests):
-            return None                               # the bare sweep never fires here — nothing to fix
-    except OSError:
-        return None
-    if _all_tests_script_runnable(root_tests):
-        return None                                   # the bare sweep is a valid verify here — leave it
     if isinstance(ops_verify, dict):
         if ops_verify.get("layers"):                  # the consumer already declared its layers
             return None
@@ -8181,19 +8233,8 @@ def _born_verify_layers_seed(repo_root, ops_verify) -> "dict | None":
             reason = str(waiver.get("reason") or "")
             if BORN_WAIVER_MARKER not in reason:      # a CONSUMER-AUTHORED waiver — never overwrite
                 return None
-    if not _pytest_importable():
-        return None                                   # cannot prove the command runs — seed nothing
-    layer = {
-        "layer": "tests",
-        "command": f"python3 -m pytest {test_dir}/ -q",
-        "covers": [f"{test_dir}/**"],
-    }
-    # T-14279: the layer is born adapter-backed when the kernel's pytest sample reads (the copy init
-    # writes is named by `sources:`); the runner config files present ride `sources:` beside it.
-    if _born_adapter_sample("pytest") is not None:
-        layer["adapter"] = _born_adapter_block("pytest", [
-            c for c in _PYTEST_CONFIG_FILES if (Path(repo_root) / c).is_file()])
-    return {"layers": [layer]}
+    layer = _born_tests_layer(repo_root)   # T-14513: the tests, sweep and interpreter conjuncts
+    return None if layer is None else {"layers": [layer]}
 
 
 # ── T-14279 — born adapter-backed layers with deciding selection and credit ─────────────────────────
@@ -8254,14 +8295,15 @@ def _born_adapter_sample(kind: str) -> "str | None":
     return text
 
 
-def _born_adapter_block(kind: str, config_sources: list) -> dict:
+def _born_adapter_block(kind: str, config_sources: list, *, python: str = "python3") -> dict:
     """The `adapter:` block of a born layer (patterns/verify-layer-adapter-protocol.md §The declaration):
     both deciding modes with their reasons; `rescue` left at its default (on). Both samples answer
     `related` (T-14313: the pytest one from a static import graph); a pytest block declares
     `modelled: [.py]`, without which the kernel counts every changed .py path as unknown (SPEC-1046
-    rule 3) and selection never narrows."""
+    rule 3) and selection never narrows. `python` runs the adapter, whose pytest calls use the
+    interpreter that runs it (T-14513: the project's own venv, `_project_python`)."""
     path = _born_adapter_path(kind)
-    cmd = f"python3 {path}"
+    cmd = f"{python} {path}"
     block = {"list": cmd, "related": cmd, "run": cmd, "report_profile": f"{kind}/1"}
     if kind == "pytest":
         block["modelled"] = [".py"]
@@ -8369,6 +8411,69 @@ def _swap_born_verify_waiver_for_layers(body: str, seed: dict) -> str:
             "_BORN_VERIFY_POST_SYNC_SET — cannot born the dependency floor safely (T-14319).")
         body = body.replace(_BORN_VERIFY_POST_SYNC_SET, _BORN_VERIFY_POST_SYNC_SET + _BORN_FRONTEND_FLOOR)
     return body
+
+
+# T-14513 — the born `integrity` layer as it stands in a carrier on disk: its `command:` is rendered
+# (`__YITC_CLI__` → the CLI form of THAT birth), so the line is matched by shape, never by value.
+_CARRIER_INTEGRITY_LAYER_RE = r"(?m)^  layers:\n    - layer: integrity\n      command: [^\n]*\n"
+
+# T-14513 — what the first-tests offer prints when it writes the layer: the subject_globs ask.
+FIRST_TESTS_SUBJECT_GLOBS_HINT = (
+    "init: added the `tests` verify layer for the project's first tests (T-14513) — now author its "
+    "`subject_globs` in yitc-ops.yaml from a dependency audit of tests/ (the source paths those tests "
+    "import or read), in this same step; a layer without them runs on every change.")
+
+
+def _first_tests_layer_offer(repo_root, ops_text: str) -> "tuple[str | None, dict | None]":
+    """T-14513 — the born `tests` layer offered on an init RE-RUN once a project born without tests has
+    its first root tests: `(new carrier text, layer)`, or `(None, None)` to leave the carrier byte-identical.
+
+    The SAME layer the birth seeds (`_born_tests_layer` — adapter-backed, selection and credit deciding,
+    run by the project's own interpreter); the caller offers it only under this run's `verify`
+    confirmation (SPEC-0189 rule 8), exactly as the birth path writes it. Offered only where the carrier's
+    `verify:` is the born one with no tests answer yet: a mapping with NO `waiver` (a section waiver is an
+    answer — born or consumer-authored — and is left), a `layers:` list holding no layer named `tests` and
+    none whose `covers:` names the tests/ directory (`tests`, `tests/`, `tests/...` — never a mere
+    `tests` prefix such as `testsupport/**`), and the born `integrity` layer text present exactly once
+    (the insertion anchor). Text insertion right after that layer keeps every other byte of the carrier
+    (a born `frontend` layer after it included); the result is re-parsed and must read as the old layers
+    with this one right after `integrity`, else nothing is written."""
+    import re as _re
+
+    from lib import state  # CHARTER §P5 one parser library — the ops-carrier reader (T-9740)
+    try:
+        ops = state.load_str(ops_text or "")
+    except Exception:  # noqa: BLE001 — an unreadable carrier is left to the sweep
+        return None, None
+    ver = ops.get("verify") if isinstance(ops, dict) else None
+    if not isinstance(ver, dict) or "waiver" in ver or not isinstance(ver.get("layers"), list):
+        return None, None
+    for ly in ver["layers"]:
+        if not isinstance(ly, dict):
+            return None, None
+        covers = ly.get("covers") if isinstance(ly.get("covers"), list) else []
+        if ly.get("layer") == "tests" or any(isinstance(g, str) and (g.strip().rstrip("/") == "tests"
+                                                                     or g.strip().startswith("tests/"))
+                                             for g in covers):
+            return None, None                         # the project already answers for tests/
+    if len(_re.findall(_CARRIER_INTEGRITY_LAYER_RE, ops_text)) != 1:
+        return None, None                             # not the born shape — no guessed insertion point
+    layer = _born_tests_layer(repo_root)
+    if layer is None:
+        return None, None
+    import yaml
+
+    dumped = yaml.safe_dump([layer], sort_keys=False, default_flow_style=False, width=4096)
+    block = "".join("    " + ln + "\n" for ln in dumped.splitlines())
+    new_text = _re.sub(_CARRIER_INTEGRITY_LAYER_RE, lambda m: m.group(0) + block, ops_text, count=1)
+    try:
+        new_ver = (state.load_str(new_text) or {}).get("verify") or {}
+    except Exception:  # noqa: BLE001 — a candidate that breaks the YAML is dropped
+        return None, None
+    at = next((i for i, ly in enumerate(ver["layers"]) if ly.get("layer") == "integrity"), None)
+    if at is None or new_ver.get("layers") != [*ver["layers"][:at + 1], layer, *ver["layers"][at + 1:]]:
+        return None, None                             # the insertion did not land right after integrity
+    return new_text, layer
 
 
 def born_verify_seed(repo_root) -> "dict | None":
@@ -9913,6 +10018,7 @@ def _pinned_tree_drift(repo, sha, root, limit=10):
     directory in a `git archive`, so it is never read as a file. Every on-disk entry that is not a
     directory and not in the tree is EXTRA. It writes nothing."""
     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
+    from lib import release  # T-14514 — the digest's own ignore set (`_is_non_artifact`)
     import hashlib
     import os
     import subprocess
@@ -9955,7 +10061,8 @@ def _pinned_tree_drift(repo, sha, root, limit=10):
                 dirnames.remove(name)     # a symlink to a directory: never walk through it
             seen.add(rel)
             if rel not in expected:
-                extra.append(rel)
+                if not release._is_non_artifact(rel):   # T-14514: what the digest ignores is no drift
+                    extra.append(rel)
                 continue
             mode, oid = expected[rel]
             try:
@@ -11752,7 +11859,8 @@ def _check_ai_tool_row(key, row: dict) -> None:
         v = row.get(f)
         if v is not None and not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
             raise ValueError(f"tool {key}: `{f}` must be a list of strings")
-    for f in ("label", "command_path", "format", "invoke", "clear_session", "instructions_path"):
+    for f in ("label", "command_path", "format", "invoke", "clear_session", "no_ask_launch",
+              "instructions_path", "memory_settings_path", "memory_off_key"):
         if row.get(f) is not None and not isinstance(row.get(f), str):
             raise ValueError(f"tool {key}: `{f}` must be a string")
     reqs = row.get("prerequisites")
@@ -11962,6 +12070,184 @@ def _record_person_language_if_asked(args, engine_root, home) -> list:
     if not lang or getattr(args, "dry_run", False):
         return []
     return _record_person_language(engine_root, home, lang)
+
+
+# T-14517 (SPEC-1055 rule 2) — the provider's own assistant memory, switched off at USER level for the
+# sessions a person starts outside any project folder (the home folder, then /yitc-projects): the
+# project's committed switch (`_provider_memory_off_delivery`) does not reach them. The binding — the
+# user-level settings file and its key — is implementation config: `memory_settings_path` +
+# `memory_off_key` in bin/ai-tools.yaml (CHARTER §P4b). Offered on every init, written ONLY on
+# `init --apply-user-memory-off` (the person's yes), never on a dry run, never by a refused run.
+_USER_MEMORY_OFF_WHY = ("a session started outside a project folder (the home folder, then /yitc-projects) "
+                        "is not covered by the project's own switch, so the tool would keep and load its "
+                        "own memory there (SPEC-1055)")
+# The bound the compare-then-rename write does NOT close, printed with every write (audit-pre T-14517).
+_USER_MEMORY_OFF_BOUND = ("the tool saves this file without a lock init can share: a save landing between "
+                          "init's last compare and its rename (microseconds) would be lost")
+
+
+def _user_memory_off_state(engine_root, home) -> list:
+    """Read-only: one row per present AI tool (none detected: the `default` row) —
+    `{label, path, state, old, new}`. `state`: `current` (the key is already false) · `kept` (the key is
+    set to another value — the person's own choice, never overwritten) · `pending` (the key is absent
+    and the file is absent or a JSON object; `new` is the text to write) · `unparseable` (not a readable
+    JSON object — never touched) · `no-setting` (the tool's row names no such setting). `old` is the
+    exact bytes read (None when the file is absent), the base the write compares against."""
+    import json
+    from pathlib import Path
+    home = Path(home)
+    tools = _load_ai_tools(engine_root, home)
+    chosen = [(k, r) for k, r in tools.items() if _ai_tool_present(r, home)] \
+        or [(k, r) for k, r in tools.items() if r.get("default")]
+    rows = []
+    for key, row in chosen:
+        label = row.get("label") or key
+        rel, mkey = row.get("memory_settings_path"), row.get("memory_off_key")
+        if not rel or not mkey:
+            rows.append({"label": label, "path": None, "state": "no-setting", "old": None, "new": None})
+            continue
+        path = home / rel
+        r = {"label": label, "path": path, "key": mkey, "state": "unparseable", "old": None, "new": None}
+        rows.append(r)
+        try:
+            old = path.read_bytes() if path.exists() else None
+        except OSError as e:
+            r["error"] = str(e)
+            continue
+        r["old"] = old
+        if old is None:
+            r["state"], r["new"] = "pending", (json.dumps({mkey: False}, indent=2) + "\n").encode()
+            continue
+        try:
+            text = old.decode("utf-8")
+            data = json.loads(text)
+        except (UnicodeDecodeError, ValueError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        if mkey in data:
+            r["state"] = "current" if data[mkey] is False else "kept"
+            continue
+        # Insert the key TEXTUALLY right after the opening brace: every other byte stays as it was.
+        i = text.index("{")
+        ins = f'\n  {json.dumps(mkey)}: false' + ("," if data else "\n")
+        out = text[:i + 1] + ins + text[i + 1:]
+        try:
+            ok = json.loads(out) == {mkey: False, **data}
+        except ValueError:
+            ok = False
+        if ok:
+            r["state"], r["new"] = "pending", out.encode("utf-8")
+    return rows
+
+
+def _apply_user_memory_off(rows, *, _before_replace=None) -> list:
+    """Write every `pending` row (the person's yes). Compare-then-rename: the new text is written to a
+    temp file beside the target, the target is re-read and compared byte-for-byte with the bytes the
+    state read saw, and only an unchanged file is replaced (os.replace, atomic). A file changed since
+    the read is left as it is and reported. `_USER_MEMORY_OFF_BOUND` names the window this does not
+    close. Returns `[(label, path, outcome, detail)]`, outcome `written` / `changed` / `failed`.
+    `_before_replace` is the test seam between the last compare and the rename."""
+    import os
+    import tempfile
+    from pathlib import Path
+    if os.environ.get("YITC_TEST_JOURNAL_GUARD"):
+        tmp_root = Path(tempfile.gettempdir()).resolve()
+    else:
+        tmp_root = None
+    done = []
+    for r in rows:
+        if r["state"] != "pending":
+            continue
+        target = Path(os.path.realpath(r["path"]))
+        if tmp_root is not None and tmp_root not in target.parents:
+            done.append((r["label"], target, "failed", "test harness: a HOME outside the temp dir is never written"))
+            continue
+        tmp = None
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            fd, tmp = tempfile.mkstemp(prefix=".yitc-settings.", dir=str(target.parent))
+            with os.fdopen(fd, "wb") as fh:
+                fh.write(r["new"])
+            if target.exists():
+                os.chmod(tmp, target.stat().st_mode & 0o7777)
+            now = target.read_bytes() if target.exists() else None
+            if now != r["old"]:
+                done.append((r["label"], target, "changed", "the file changed since init read it"))
+                continue
+            if _before_replace is not None:
+                _before_replace(target)
+            os.replace(tmp, target)
+            tmp = None
+            done.append((r["label"], target, "written", ""))
+        except OSError as e:
+            done.append((r["label"], target, "failed", str(e)))
+        finally:
+            if tmp is not None:
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+    return done
+
+
+def _render_user_memory_off(rows, *, asked: bool, applied=None, dry: bool = False,
+                            withheld: bool = False) -> str:
+    """The user-level memory part of init's recommended answers (same shape as the load settings)."""
+    import os
+    if not rows:
+        return ""
+    out = ["", "AI tool memory for sessions started outside a project folder:", f"  why: {_USER_MEMORY_OFF_WHY}"]
+    res = {str(p): (o, d) for _l, p, o, d in (applied or [])}
+    any_pending = False
+    for r in rows:
+        lab, st = r["label"], r["state"]
+        if st == "no-setting":
+            out.append(f"  - {lab}: this tool has no user-level memory switch known to the engine — nothing to set")
+        elif st == "unparseable":
+            out.append(f"  ! {lab}: {r['path']} is not a readable JSON object"
+                       + (f" ({r['error']})" if r.get("error") else "")
+                       + f" — NOT touched; add `\"{r['key']}\": false` by hand")
+        elif st == "current":
+            out.append(f"  = {lab}: already off in {r['path']}")
+        elif st == "kept":
+            out.append(f"  = {lab}: {r['path']} sets `{r['key']}` itself — the person's own choice is kept")
+        else:
+            any_pending = True
+            o = res.get(str(os.path.realpath(r["path"]))) if applied is not None else None
+            line = f"set `\"{r['key']}\": false` in {r['path']} (every other setting kept)"
+            if o and o[0] == "written":
+                out.append(f"  + {lab}: APPLIED (the person's yes, --apply-user-memory-off) — {line}; "
+                           f"bound: {_USER_MEMORY_OFF_BOUND}")
+            elif o:
+                out.append(f"  ! {lab}: NOT applied — {o[1]}; re-run init with --apply-user-memory-off")
+            elif asked and dry:
+                out.append(f"  ~ {lab}: WOULD BE APPLIED by a writing run (this is a --dry-run) — {line}")
+            elif asked and withheld:
+                out.append(f"  ~ {lab}: NOT applied — this init run refused (see above) — {line}")
+            else:
+                out.append(f"  ~ {lab}: recommended, NOT applied — nothing is written without the person's yes — {line}")
+    if any_pending and not asked:
+        out.append("  An AI running init: relay this to the person. On their yes, re-run init with "
+                   "--apply-user-memory-off.")
+    return "\n".join(out)
+
+
+def _offer_user_memory_off(args, engine_root, home, *, withheld: bool) -> bool:
+    """The init call site: show the offer, write only on the yes (never on --dry-run, never on a
+    refused run). Returns True when a yes'd write failed (init then exits non-zero)."""
+    dry = bool(getattr(args, "dry_run", False))
+    asked = bool(getattr(args, "apply_user_memory_off", False))
+    try:
+        rows = _user_memory_off_state(engine_root, home)
+    except Exception as e:  # noqa: BLE001 — a bad tool list must not stop init
+        print(f"\nAI tool memory: not checked — {e}")
+        return False
+    applied = _apply_user_memory_off(rows) if (asked and not dry and not withheld) else None
+    block = _render_user_memory_off(rows, asked=asked, applied=applied, dry=dry, withheld=withheld)
+    if block:
+        print(block)
+    return any(o != "written" for _l, _p, o, _d in (applied or []))
 
 
 # T-14221 — the born `integrity` layer screens the derived graph files a consumer `graph build` writes
@@ -12540,6 +12826,26 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                 _apath.parent.mkdir(parents=True, exist_ok=True)
             write_text_atomic(_apath, _text)
             created.append(_rel)
+    # T-14513: a project born without tests gets the SAME adapter-backed `tests` layer on a re-run once
+    # its first root tests exist — under this run's `verify` confirmation only (SPEC-0189 rule 8), the
+    # adapter copy beside it if-absent. Unconfirmed, or the carrier already answers for tests/: nothing.
+    first_tests_layer_added: list = []
+    if (CONSUMER_OPS_CONTRACT not in created and _bp_confirmations.get("verify") and _is_consumer_build()
+            and ops_path.exists()):
+        _ft_text, _ft_layer = _first_tests_layer_offer(REPO_ROOT, ops_path.read_text(encoding="utf-8"))
+        if _ft_text is not None:
+            write_text_atomic(ops_path, _ft_text)
+            first_tests_layer_added.append("tests")
+            for _rel, _text in _born_adapter_files({"layers": [_ft_layer]}).items():
+                _apath = REPO_ROOT / _rel
+                if _apath.exists():
+                    skipped.append(_rel)
+                    continue
+                if not dry:
+                    _apath.parent.mkdir(parents=True, exist_ok=True)
+                write_text_atomic(_apath, _text)
+                created.append(_rel)
+            print(FIRST_TESTS_SUBJECT_GLOBS_HINT, file=sys.stderr)
 
     # T-10275 (SPEC-0147 §7): seed the project OWNER's onboarding station pointers into the buffer.
     # COMPUTE-ONLY HERE — the WRITE + EMIT are DEFERRED to the bootstrap-commit seam below (T-10470).
@@ -12649,7 +12955,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
         ops_path, _bp_confirmations, _bp_sources, write_text_atomic,
         (lambda _etype, _task, _data: _bp_pending_rows.append((_etype, _task, _data))),
         fresh_carrier=(CONSUMER_OPS_CONTRACT in created),
-        pulled_sections=ops_sections_pulled)
+        pulled_sections=[*ops_sections_pulled, *(["verify"] if first_tests_layer_added else [])])
 
     # NOTE — extension ADOPTION (`--adopt-extension`, SPEC-0093 rule 13 / SPEC-0101 §4) is NOT recorded
     # here any more (T-11189 / X-0941). It used to be: the flag had no early return, so it reached
@@ -13115,7 +13421,8 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                              or concerns_preseeded or retired_surfaces_swept
                              or legacy_verify_migrated or onboarding_seeded or cadence_updated
                              or refreshed or adapter_restamped
-                             or kernel_themes_seeded or kernel_themes_upgraded)   # T-13059
+                             or kernel_themes_seeded or kernel_themes_upgraded   # T-13059
+                             or first_tests_layer_added)                         # T-14513
     # T-13181 (SPEC-0163 §4e) — RE-RUN HEAL. A bootstrap REFUSED on a staged credential (below) leaves
     # its scaffolds STAGED and uncommitted; a re-run finds them all present, so nothing above counts as
     # delivered and the bootstrap would never reach main (the T-9458 stranding). Derived, no new state:
@@ -13235,6 +13542,10 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                                                 asked=_ls_asked, dry=True)
         if _ls_block:
             print(_ls_block)
+        # T-14517 — the user-level memory offer on the preview seam too; `_offer_user_memory_off`
+        # writes nothing on a dry run.
+        from pathlib import Path as _P
+        _offer_user_memory_off(args, ENGINE_ROOT, _P.home(), withheld=False)
         # T-12632 (X-1004) — the sandbox-runbook pointer rides the SAME two seams as the sweep
         # above, for the same T-12094/X-1267 reason: a read-only preview that disagrees with the
         # writing run is how a surface goes unread. Unconditional + report-only (see the renderer).
@@ -13555,6 +13866,10 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
                                            withheld=_ls_withheld)
     if ls_block:
         print(ls_block)
+    # T-14517 — the user-level switch of the AI tool's own memory (see `_offer_user_memory_off`):
+    # shown on every init, written only under `--apply-user-memory-off`, never by a refused run.
+    from pathlib import Path as _P
+    _um_failed = _offer_user_memory_off(args, ENGINE_ROOT, _P.home(), withheld=_ls_withheld)
 
     # T-12632 (X-1004) — the sandbox-runbook pointer. Printed on every init (incl. the no-op
     # re-init), UNCONDITIONALLY: the project that has never declared a sandbox concern is exactly
@@ -13566,7 +13881,7 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # Placed LAST on purpose: everything additive above already ran, printed and committed, so the
     # non-zero exit reports the withheld half WITHOUT taking the safe half down with it. The notice
     # itself was printed with the other scaffold signals; this is only the exit code.
-    if diverged_scaffolds or registry_failed or bootstrap_refused or _ls_failure:   # T-13831: a yes whose write failed is not a completed init
+    if diverged_scaffolds or registry_failed or bootstrap_refused or _ls_failure or _um_failed:   # T-13831 / T-14517: a yes whose write failed is not a completed init
         import sys   # module-local idiom: init.py imports sys per-function, never at module level
         sys.exit(1)
 

@@ -15,7 +15,9 @@ environment variable YITC_VERIFY_ADAPTER_MANIFEST; the manifest's `action` says 
   related — the test files the manifest's `changed` paths reach, WITHOUT starting pytest: a static
       import graph over the .py files under RUNNER_DIR (see «How `related` decides» below).
   run — exactly the requested files in ONE pytest run, with no rerun plugin, the JUnit report
-      written where the manifest says. On a re-run the manifest carries `isolated`, and the
+      written where the manifest says. When the request is most of TEST_PATHS, pytest is handed
+      the TEST_PATHS directories with an `--ignore` for what was left out, not the file list:
+      the same files run, faster (see `as_directories`). On a re-run the manifest carries `isolated`, and the
       files then run one at a time: pytest does that by itself unless the pytest-xdist plugin is
       loaded and the project's own options start workers, so in that case the run ends with
       `-n 0`, which overrides those options. A re-run unit that carries `cases` runs as those
@@ -315,6 +317,55 @@ def related(units, changed):
             if closures[u["file"]][1] or closures[u["file"]][0] & set(changed)]
 
 
+def as_directories(files):
+    """Requested files -> what pytest is handed. pytest runs a long list of file arguments
+    measurably slower than the directories holding the same files (T-14531: 400 files, -n 6,
+    5.1 s against 2.9 s; a project reported 957 files, 394 s against 232 s). So when the request
+    is most of TEST_PATHS this returns TEST_PATHS with an `--ignore` for each file and directory
+    under them that holds no requested file — the same files run, and the same conftest.py files
+    load (an unrequested conftest.py or __init__.py is loaded but its own tests are deselected). A smaller request, one naming a file outside a TEST_PATHS directory, or a tree holding a
+    linked directory stays a file list."""
+    wanted = set(files)
+    roots = [p for p in TEST_PATHS if os.path.isdir(os.path.join(HOME, p))]
+    if len(roots) != len(TEST_PATHS) or not all(
+            any(f.startswith(r.rstrip("/") + "/") for r in roots) for f in wanted):
+        return files
+    keep = {"conftest.py", "__init__.py"}
+    holding = {os.path.dirname(f) for f in wanted}
+    holding |= {d for f in wanted for d in _parents(os.path.dirname(f))}
+    ignores, others = [], 0
+    for root in roots:
+        for top, dirs, names in os.walk(os.path.join(HOME, root)):
+            if any(os.path.islink(os.path.join(top, d)) for d in dirs):
+                return files          # a linked directory may loop or hide files: keep the list
+            rel_top = os.path.relpath(top, HOME).replace(os.sep, "/")
+            for d in sorted(dirs):
+                sub = rel_top + "/" + d
+                if sub not in holding:
+                    ignores.append("--ignore=" + sub)
+            dirs[:] = sorted(d for d in dirs if rel_top + "/" + d in holding)
+            for n in sorted(names):
+                name = rel_top + "/" + n
+                if name in wanted:
+                    continue
+                if n in keep:
+                    # still loaded for its role, but a project whose python_files names it
+                    # would collect its tests: deselect them by node-id prefix
+                    ignores.append("--deselect=" + name)
+                else:
+                    ignores.append("--ignore=" + name)
+                    others += n.endswith(".py")
+    if len(wanted) <= others:
+        return files
+    return [*ignores, *TEST_PATHS]
+
+
+def _parents(path):
+    while path:
+        yield path
+        path = os.path.dirname(path)
+
+
 def main(argv):
     with open(os.environ["YITC_VERIFY_ADAPTER_MANIFEST"], encoding="utf-8") as handle:
         manifest = json.load(handle)
@@ -336,6 +387,8 @@ def main(argv):
     if action == "run":
         units = manifest.get("units")
         files = TEST_PATHS if units is None else [node for u in units for node in node_ids(u)]
+        if units and not manifest.get("isolated") and not any(u.get("cases") for u in units):
+            files = as_directories(files)
         cmd = [*PYTEST, *BASE, "-o", "junit_family=xunit2", "--junitxml=" + manifest["report"]]
         if manifest.get("isolated") and knows("--numprocesses"):
             # a re-run with pytest-xdist loaded: no workers, the files one at a time

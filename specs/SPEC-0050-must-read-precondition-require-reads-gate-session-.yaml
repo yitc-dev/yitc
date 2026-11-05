@@ -241,13 +241,16 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ and the pointer names that\nreceipt — its ts and session ref — so a reader can\
   \ check whose delivery it rests on. To make (b) decidable, a\npoint-lookup receipt\
   \ carries the epoch stamp the seed receipt already has (an absent stamp reads as\n\
-  NONE), and a stage-delivered one also carries the fingerprint; a hand `graph query`\
-  \ receipt has\nnone and therefore never suppresses a body. NOTHING ABOVE CHANGES:\
-  \ §2's credit stays SESSION-scoped\nand reads neither field — the epoch decides\
-  \ RE-RENDERING, never credit — and every doubt (no anchor,\nan unreadable journal,\
-  \ a comparison that fails) falls toward delivering the body. A `/compact`\nadvances\
-  \ the epoch, so the SPEC-0007 §5a re-run of `stage <current_stage>` delivers in\
-  \ full again.\nThe pointer is an EMISSION optimization that ASSUMES the earlier\
+  NONE), and a stage-delivered one also carries the fingerprint. A hand `graph query\
+  \ <SPEC>` receipt\ncarries the fingerprint of the contract view cut from what it\
+  \ printed, so a contract the\nreader fetched by hand in the same session, epoch\
+  \ and checkout is printed as the pointer line too;\nthe derived header of that render,\
+  \ which moves with every graph rebuild, never enters the\ncomparison. NOTHING ABOVE\
+  \ CHANGES: §2's credit stays SESSION-scoped\nand reads neither field — the epoch\
+  \ decides RE-RENDERING, never credit — and every doubt (no anchor,\nan unreadable\
+  \ journal, a comparison that fails) falls toward delivering the body. A `/compact`\n\
+  advances the epoch, so the SPEC-0007 §5a re-run of `stage <current_stage>` delivers\
+  \ in full again.\nThe pointer is an EMISSION optimization that ASSUMES the earlier\
   \ delivery was consumed complete:\ncondition (b) reads an emission receipt, and\
   \ a filtered run writes the same receipt (HONEST BOUND\nabove). So after a stage\
   \ bundle piped through `| tail`, a re-entry in the same epoch prints the\npointer\
@@ -298,19 +301,21 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ deliverer's own field list (`_stage_contract_view`); a field it does not name\
   \ is\ndelivered. An explicit `graph query <SPEC>` stays the full render, so every\
   \ omitted field is one\ncommand away. The fingerprint in (b) and (c) is taken over\
-  \ the bytes DELIVERED, and a hand lookup's\nreceipt carries none, so a full lookup\
-  \ neither suppresses nor forces a delivered body. Credit (§2)\nis unchanged.\nThe\
-  \ view also leaves out the body sections a spec's maintainer reads rather than an\
-  \ agent\nacting in the stage — its rationale, its verification contract, its implementation\n\
-  notes, and its drift review, the record of past amendments and re-verifications\
-  \ — and\nsays so inside\nthe body, once per contract, where the first of them stood:\
-  \ one line naming each section left out\nand the command that prints the full text.\
-  \ A rule an agent applies at a stage belongs in the\nspec's rule text; one found\
-  \ only in such a section is re-homed there, never left behind the\nomission. How\
-  \ a section is recognised is the deliverer's own reading\n(`_stage_view_without_maintainer_sections`);\
-  \ a body holding a line that reading does not decide\nis delivered whole, those\
-  \ sections included. What the external auditor is handed is not built\nfrom this\
-  \ view and keeps the whole spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
+  \ the bytes DELIVERED; a hand lookup's\nreceipt carries the fingerprint of the contract\
+  \ view cut from its full render, before the\nmaintainer sections below are left\
+  \ out, so a full lookup in the same epoch holds the contract and\nnever forces a\
+  \ body. Credit (§2) is unchanged.\nThe view also leaves out the body sections a\
+  \ spec's maintainer reads rather than an agent\nacting in the stage — its rationale,\
+  \ its verification contract, its implementation\nnotes, and its drift review, the\
+  \ record of past amendments and re-verifications — and\nsays so inside\nthe body,\
+  \ once per contract, where the first of them stood: one line naming each section\
+  \ left out\nand the command that prints the full text. A rule an agent applies at\
+  \ a stage belongs in the\nspec's rule text; one found only in such a section is\
+  \ re-homed there, never left behind the\nomission. How a section is recognised is\
+  \ the deliverer's own reading\n(`_stage_view_without_maintainer_sections`); a body\
+  \ holding a line that reading does not decide\nis delivered whole, those sections\
+  \ included. What the external auditor is handed is not built\nfrom this view and\
+  \ keeps the whole spec.\n\n### 5. Bypass\nEmergency mode ONLY (`patterns/error-friction-tracking.md`\
   \ analog — `patterns/emergency-mode.md`\nentry). No dedicated `--force` flag.\n\n\
   ### 6. Pilot scope — NORMATIVE = kind=stage only; seed/action RESERVED\nNORMATIVE:\
   \ `kind=stage` — wired first as the pilot on `task close` (Closure contracts) and\
@@ -682,8 +687,16 @@ body: "## Scenario\n\nWhen the AI invokes a work verb whose action is governed b
   \ with no carry whose ref\nresolves from the worktree stamp to that first session\
   \ receives every body again, while the first\nsession's own re-run still gets pointers,\
   \ each naming the receipt's ts and session ref. Covered by\n`tests/test_t14172_held_receipt_own_session.py`.\n\
-  \n## Drift review\n\n (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`.\
-  \ edited only\nthe spec-drift-attribution block of `cmd_task_close` (added `_task_diff_range`\
+  (11) HAND-READ hold (§4 (b)) — a DIFFERENTIAL over the real CLI entry: after a hand\n\
+  `graph query --kernel` (and a bare one) of every `spec new` contract, `spec new`\
+  \ in the same session,\nepoch and checkout prints a pointer per contract and no\
+  \ body, red on the pre-change tree; after an\nepoch change, from another checkout's\
+  \ journal, under another session, after a changed contract, with\nno establishable\
+  \ epoch, or after a hand read sent to the null device, every affected body is printed\n\
+  again; a change in the derived header alone does not move the fingerprint. Covered\
+  \ by\n`tests/test_t14522_hand_graph_query_counts_as_delivered.py`.\n\n## Drift review\n\
+  \n (2026-06-09): re-verified this body against `bin/yitc-v2#cmd_task_close`. edited\
+  \ only\nthe spec-drift-attribution block of `cmd_task_close` (added `_task_diff_range`\
   \ scoping for the\nWARN) — it does NOT touch the `_require_reads` precondition /\
   \ `_fetched_spec_ids` pass-granting gate\nthis spec governs. The graph last-touch\
   \ flag was a region shift only; no semantic drift. This\nre-touch clears the possibly-stale\
@@ -709,22 +722,22 @@ proposed_by: null
 binding:
 - code-enforced
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 4f298c47fcbcfcfc91037a389c4e45a87eca21047c6550b3225ccf120d9ce8cf
+  bin/lib/audit.py#cmd_audit: 09545ebbbf9e7ba4edfe479df9e713145ca5ac05f96d753631ee83bbddd9b1bf
   bin/lib/cli.py#_deliver_before_rule_change: 080b01280f7d162503e2efcf993a5755f531caeb0eb4224a761cb7e0635b690a
-  bin/lib/cli.py#_deliver_stage_bundle_contracts: 2830513e11dba924eccd0ac7a2e05012b0937016722616e7c78925394b13803e
+  bin/lib/cli.py#_deliver_stage_bundle_contracts: 882621ed5157845039974c46f6f077708e15e1aa99a3e20a3b21ac5a21983bfb
   bin/lib/cli.py#_stage_contract_view: 0a5f9f53b1a0fd4f9be2349000656ccad0ab2a7334f558c2e986a1a29a8b546c
   bin/lib/cli.py#_stage_view_without_maintainer_sections: 7aca40f964ea46ed458704950cb0b89904dca367f117b64698f3da86614014b2
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
-  bin/lib/events.py#_emit_cli_invoked: 5d1e4ab8dc407eca56e3c449c39f841271d747ce1e789177fd14b1fec630425f
-  bin/lib/gates.py#_fetched_spec_ids: 385cf31488d87631d178633790b44484f7d073963704783c745cf6e20ae1ca20
+  bin/lib/events.py#_emit_cli_invoked: ebb505c9b2d3b4f08b802c3dfb1f0a70a6554f95ed3bc877c322ace6f3e3fada
+  bin/lib/gates.py#_fetched_spec_ids: 6acc09b57677575216b62d505a8f268d40afd8d530e1f928196686ae8898ede2
   bin/lib/gates.py#_require_reads: 009adc6432fa2b93db9e7bbaaf3e4e3d9e11d42250ed8912b54d77836fb10da8
   bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
   bin/lib/gates.py#_seed_receipt_epochs: c41d8270ea3553a47a8ed7a84959dde9aee36079b52e75637bc6ab2120b77af5
   bin/lib/gates.py#_session_started_lower_bound: b33e13a47bcb5aa7ad4cb3671878fdce453aa448bbdf3f75d09ff6e6ad359265
   bin/lib/gates.py#seed_stamp_credits: 22d380afb43a79df24c2d7dd63962d968316ee42f8bc3b3dbac69ef16b275b37
   bin/lib/plan.py#_print_plan_stage_delivery: 2e17e8278a463eb6389bd7400a57e341ec2b2e116c51cdbf40830e49f1be95fa
-  bin/lib/plan.py#cmd_plan_check: 2c7e6ad86a7b76825b2eb3bc644fc8145a6e52b97bece79225f50730a7f5395a
+  bin/lib/plan.py#cmd_plan_check: be1dace2208f1558777a8f8bf1aae5c52cdac9e97e1e39e55db2a8d19029936e
   bin/lib/session.py#reading_mark: 2de0c2040f252c6509fe681330e5f037806c0c188f58625ad50198ce54ce36e0
   bin/lib/spec.py#cmd_spec_new: 1590f0b7f3f0a1a8e7a96edfe359bb1d4713961b851ee80b6f98b556d1172875
-  bin/lib/task.py#cmd_task_close: 0e555ea51bcb3b9189529f95bf6fed69c2ebefc120a71042f38bd61991ebf2b7
-  bin/lib/task.py#cmd_task_commit: 1b30e81218e26b333fb7fe1f26f3bc68766031ae17c16adf6c57957aa16f4540
+  bin/lib/task.py#cmd_task_close: 866f91d43ac93a5926bc3f821035385ac2e6a946ab74a332b4e367d018b47d45
+  bin/lib/task.py#cmd_task_commit: 929703dc445022e5b6497aa1aa38ada860f3e4c491d87e6c432ccfb878b5e51f

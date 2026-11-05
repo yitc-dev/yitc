@@ -76,6 +76,14 @@ The anchor and the three install commands live in **one place only**: the organi
 **<https://github.com/yitc-dev/.github>** (sections **Trust anchor** and **Install**). Take them
 from there, never from this mirror, and do not continue past a refusal.
 
+**Run the AI tool without asking per command — your choice, at launch.** The system runs many commands
+by itself (checks, tests, merging into main), so in the AI tool's normal mode you confirm each one. Most
+tools have a mode that skips those confirmations; it is picked when the tool is launched — for the AI tool: `the AI provider --dangerously-skip-permissions`. Use it on a server or account kept for this work, as the
+working user, never as root (the AI tool refuses this mode there), and not on a machine holding personal
+data you would not let the AI touch. The command for each tool is in `bin/ai-tools.yaml`
+(`no_ask_launch`); the install briefing ([`onboarding/bootstrap-order.md`](onboarding/bootstrap-order.md)
+§I0) says the same.
+
 The full order — prerequisites, the project directory, `init`, the kernel pin, the external
 auditor, the first session — is [`onboarding/bootstrap-order.md`](onboarding/bootstrap-order.md).
 When something misbehaves, or to update or roll back, read

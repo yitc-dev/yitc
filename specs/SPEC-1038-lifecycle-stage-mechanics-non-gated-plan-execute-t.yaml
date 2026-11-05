@@ -672,11 +672,11 @@ supersedes: null
 activation_owner_task: null
 proposed_by: run-the-full-governed-test-stage-after-audit-post-
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 4f298c47fcbcfcfc91037a389c4e45a87eca21047c6550b3225ccf120d9ce8cf
+  bin/lib/audit.py#cmd_audit: 09545ebbbf9e7ba4edfe479df9e713145ca5ac05f96d753631ee83bbddd9b1bf
   bin/lib/gates.py#advance_stage_pointer: f2c4432ca2437c59d0d708dc73e7fb9f64d57d610427925044db52f8a0c05089
   bin/lib/gates.py#stage_pointer_move: a4d7b90fa1c95f4ce44d604dcaa78fd898bbcb079543dcf990c91e7efc7e76a3
-  bin/lib/task.py#cmd_task_close: 0e555ea51bcb3b9189529f95bf6fed69c2ebefc120a71042f38bd61991ebf2b7
-  bin/lib/task.py#cmd_task_commit: 1b30e81218e26b333fb7fe1f26f3bc68766031ae17c16adf6c57957aa16f4540
+  bin/lib/task.py#cmd_task_close: 866f91d43ac93a5926bc3f821035385ac2e6a946ab74a332b4e367d018b47d45
+  bin/lib/task.py#cmd_task_commit: 929703dc445022e5b6497aa1aa38ada860f3e4c491d87e6c432ccfb878b5e51f
   bin/lib/task.py#cmd_task_execute: 4225ae0b14b8ec73a437a9b17928457f0f6e2328b283985b8deb2351926fb2da
   bin/lib/task.py#cmd_task_plan: e09dfcb6b7f11da65776a123d8d8b0f0420054a5f9614167aad6c1265fd143c3
   bin/lib/task.py#cmd_task_test: 6118eeaee705c3e0dfee4669c823bae571a74d797461ec3a0fb03b2b17c5568a

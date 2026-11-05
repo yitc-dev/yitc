@@ -134,4 +134,4 @@ binding:
 - code-enforced
 implements_signature:
   bin/lib/cli.py#_fingerprint_cites_index: 3f30981c3d380305279328bd5ad08a21303ad341cf88c773b5d6c668eb55b4d4
-  bin/lib/task.py#cmd_task_close: 0e555ea51bcb3b9189529f95bf6fed69c2ebefc120a71042f38bd61991ebf2b7
+  bin/lib/task.py#cmd_task_close: 866f91d43ac93a5926bc3f821035385ac2e6a946ab74a332b4e367d018b47d45

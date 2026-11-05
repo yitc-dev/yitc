@@ -67,13 +67,20 @@ hands, eyes or accounts:
 1. **Log in to your AI tool — twice:** once as root (for I1 only) and once as the working user
    (from I2 on). Each account signs in to the AI tool separately.
 2. **Open a second SSH window** when asked, to prove the new login works before root is left.
-3. **Approve commands** the AI proposes, once, when the AI tool asks for its permission setting.
+3. **Approve commands — or let the AI tool run without asking.** Most AI tools have a mode in which they do
+   not ask you to confirm every command. The system runs many commands by itself — checks, tests,
+   merging the work into main — so without that mode you confirm each one. It is safe on a server or
+   user account kept for this work, as the working user (from I2 on); never as root — some AI tools
+   refuse to start this mode there, and none should run that way — and not on a machine holding
+   personal data you would not let the AI touch. The mode is picked when the tool is launched, not
+   inside an open session, so the AI names the exact launch command for your tool, read from the
+   AI-tool list `bin/ai-tools.yaml` (`no_ask_launch`).
 4. **The sudo password — decide at I1.** Say whether the working user gets `sudo` (admin rights) and,
    if so, keep its password yourself; the AI never asks for it in chat.
 5. **A password-only server:** if you log in with a password today, the AI sets up an SSH key for the
    working user at I1 — you keep the key file on your own computer.
-6. **The deploy permission:** before the first production deploy you write one line by hand in the
-   server's host registry, granting yourself the deploy right (I7). The AI may never write it.
+6. **Your working rights:** right after init you write one block by hand in the server's host
+   registry, giving yourself the working rights on the project (I4 step 1). The AI may never write it.
 7. **Secrets:** tokens and passwords go in by the safe hand-over below (§Secrets — how to hand one
    over safely), never typed into the chat.
 8. **Reconnect:** when the connection drops, you log in again and reattach (the day-two return path).
@@ -250,6 +257,35 @@ first-scenario interview → from the scenario to work.**
 
    `<owner>` is the short name of the person who decided to pin — the same kind of name the
    `--confirm-born-permissive` flag in step 2 takes.
+
+   **Your working rights — written by you, right after init.** Init has put the project into the
+   server's host registry (`~/registry.yaml`). A clean system is starting work, so nothing needs
+   narrowing yet: the person gives their own working user the full working set for this project now,
+   so the first deploy (the acceptance address in I7 Walk A included) does not stop on a missing
+   right. The AI shows this block, with `<user>` and `<project>` filled in:
+
+   ```yaml
+   users:
+     <user>:
+       projects: [<project>]
+       rights:
+         <project>: [deploy-code, apply-prod-data, dry-run-readonly]
+   ```
+
+   One line per right, in plain words:
+   - `deploy-code` — put new code on a running copy, the acceptance copy or production.
+   - `apply-prod-data` — turn a checked change into writes to the live production data.
+   - `dry-run-readonly` — run the same path as a rehearsal that writes nothing.
+
+   Each right is taken back by deleting its word from that list. The fourth right,
+   `decide-authority`, is left out on purpose: it hands decisions reserved to the owner to another
+   person, and nobody else is working here yet. If `users.<user>:` already exists, add the project to
+   its `projects:` and the `rights:` line under it. **The person writes it** — in their own terminal,
+   or by running a command themselves — never the AI: the system that checks rights must not write
+   them (SPEC-0169). The AI then reads it back with `<engine-dir>/bin/yitc-v2 grants report` and
+   shows the person the line for this project. Whether these rights still fit later — for example
+   once production holds real users' data — is a question the monthly production-readiness review
+   asks (`patterns/inspection-criteria-roster.md`); the person decides, and edits the registry.
 2. **Recommended answers.** Where init asks questions, the AI offers the recommended answer for each,
    in plain words, and the person agrees or changes it. An AI has no terminal to answer prompts in,
    so init asks nothing: it prints a **born-permissive block** instead — each concern that starts
@@ -288,7 +324,28 @@ first-scenario interview → from the scenario to work.**
    over the whole first scenario, not only its first slice. What is known and small becomes filed
    task cards, each of which cites the scenario it realizes — never a roadmap left in chat prose.
    What must be found on real data, or needs several cards cut together, becomes a plan (with a
-   trial where it is eligible). The AI shows the person this map and asks one go for the batch;
+   trial where it is eligible).
+   **Probe the chosen stack before the go.** Once the stack is chosen, and before the person is asked
+   for the go, the AI checks as the working user that the stack's system tools actually work — by a
+   real run, not by their presence alone: for Python, create and remove a throwaway venv and run its
+   pip; for Node, `node --version` and `npm --version`; for any compiled dependency, the compiler. A
+   stock server often lacks these (stock Ubuntu 24.04 has no `python3-venv` and no pip), and a first
+   worker that finds one missing stops and pulls the person back mid-work. Everything missing is handed
+   to the person as ONE block of commands, with the reason beside each line, to run in their own
+   second terminal window (see §What you may run into, «A command that needs sudo»). After they say
+   it is done, the AI runs the probe again; it asks the go and dispatches the first batch only on a
+   clean probe.
+   **A Python project keeps its venv at `~/.venvs/<project>`** (outside the repository, so no land
+   worktree sees it as a change), with pytest installed there. **Once the first tests exist** — the
+   first stack task's root `tests/test_*.py` — the AI re-runs init with the verify confirmation,
+   `<engine-dir>/bin/yitc-v2 -C <project> init --confirm-born-permissive verify:<owner>`: on a project
+   born without tests it adds the same adapter-backed `tests` layer a birth with tests gets, run by
+   that venv's interpreter when the system `python3` has no pytest, plus `tools/pytest-adapter.py`,
+   and it reaches main by the land it names. In the same step the AI writes that layer's
+   `subject_globs` in `yitc-ops.yaml` from a dependency audit of the tests (the source paths they
+   import or read). A tests layer written by hand carries `covers: [tests/**]`, so `task test --own`
+   and the land run the tests through it, never as bare scripts under the system `python3`.
+   The AI shows the person this map and asks one go for the batch;
    nothing beyond the batch the person said yes to starts on its own (SPEC-0141; AGENTS-SESSIONS
    §Orchestrate posture, retirement (b)).
 
@@ -390,10 +447,11 @@ Only after Walk A is accepted:
 
 1. **Domain and DNS.** The person owns (or buys) the domain; the AI says which DNS record to create
    and checks it resolves to the server before going on.
-2. **The deploy permission — written by the person, then read back.** The server registry must name
-   the working user under `users.<user>:` with that project in `projects:` and the `deploy-code`
-   right in `rights:`. The person writes that line **by hand** — never the AI (SPEC-0169). The AI
-   then reads it back and shows it; without it deploy is refused as `project-not-scoped`.
+2. **The rights, read back.** The person wrote their working rights right after init (I4 step 1).
+   Before the production deploy the AI reads it back with `grants report` and shows the line for
+   this project; deploy needs `deploy-code` there, and is refused as `project-not-scoped` without it.
+   If the line is missing or was narrowed, the AI points the person back to I4 step 1 — the person
+   writes it, never the AI (SPEC-0169).
 3. **Passwordless `sudo nginx -T`.** The host-apply step reads the live web-server configuration with
    `sudo nginx -T` and cannot type a password. The person (or the server administrator) allows that one
    command without a password for the working user; if nobody knows the sudo password, arrange it with
@@ -433,8 +491,11 @@ with the right move. None of it is a new step: the stages above stay the order.
 - **The second-provider auditor.** Test it with a question whose answer cannot be guessed (one it must read a
   file to answer), never with a trivial smoke that answers GREEN without reading. On stock Ubuntu
   24.04 an auditor that sandboxes with bubblewrap fails because the system has none: say the plain cause and give the fix
-  for the person to run in their own terminal — `sudo apt install bubblewrap` — because sudo does not
-  work from the chat and you never ask for a password in chat.
+  for the person to run in their own terminal — `sudo apt install bubblewrap` — as the next item says.
+- **A command that needs sudo.** Give it, every time, for the person to run in their own terminal
+  window — a second SSH window to the server — never as a command in the chat and never as a
+  bang-prefixed line the AI tool runs for them: sudo asks for its password only in a real terminal,
+  and you never ask for a password in chat. Several such commands go to the person as one block.
 - **Reading the handbook.** Read each handbook file whole — page through a long file to its end, never
   stop at the first part — and scan `--help` right after `session start`, not later in the session.
 - **Asking questions.** Ask in plain text, in the person's language, never a form or a set of buttons.

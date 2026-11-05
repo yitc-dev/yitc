@@ -3504,24 +3504,36 @@ def segment_lines(path, *, encoding="utf-8", errors=None, _chunk=_SEGMENT_CHUNK_
         if rows_memo_holds(seg):
             yield from _rows_memo_current().lines(seg)
             continue
-        t0 = time.monotonic()
-        try:
+        yield from _segment_file_lines(seg, encoding=encoding, errors=errors, _chunk=_chunk)
+
+
+def _segment_file_lines(seg, *, encoding="utf-8", errors=None, _chunk=_SEGMENT_CHUNK_BYTES, data=None):
+    """ONE segment's lines as `segment_lines` yields them — the physical read of its loop body,
+    extracted unchanged (T-14512) so the grep reader shares it. `data` (T-14512): the segment's bytes,
+    already read once by the caller, are split instead of opening the file — the same text handle
+    over them, so the same lines."""
+    t0 = time.monotonic()
+    try:
+        if data is not None:
+            import io
+            fh = io.TextIOWrapper(io.BytesIO(data), encoding=encoding, errors=errors)
+        else:
             fh = Path(seg).open("r", encoding=encoding, errors=errors)
-        except OSError:
-            continue
-        seen = 0
-        try:
-            with fh:
-                # The block-and-carry splitter itself is `stream_lines` (T-12226) — shared with the
-                # kernel-floor secrets reader, so the two cannot disagree about where a line ends.
-                # The count is accumulated HERE, as it yields, because the counter is this reader's
-                # own accounting and not the splitter's concern.
-                for line in stream_lines(fh, _chunk=_chunk):
-                    seen += 1
-                    yield line
-        finally:
-            # `finally`, so an abandoned generator (GeneratorExit) still records the read it paid for.
-            note_fold(seg, seen, time.monotonic() - t0)
+    except OSError:
+        return
+    seen = 0
+    try:
+        with fh:
+            # The block-and-carry splitter itself is `stream_lines` (T-12226) — shared with the
+            # kernel-floor secrets reader, so the two cannot disagree about where a line ends.
+            # The count is accumulated HERE, as it yields, because the counter is this reader's
+            # own accounting and not the splitter's concern.
+            for line in stream_lines(fh, _chunk=_chunk):
+                seen += 1
+                yield line
+    finally:
+        # `finally`, so an abandoned generator (GeneratorExit) still records the read it paid for.
+        note_fold(seg, seen, time.monotonic() - t0)
 
 
 def _linked_worktree_of(leg_root, main_root):
@@ -4332,6 +4344,153 @@ def _needle_absent(needle, hexruns) -> bool:
     """True iff `needle` provably occurs in no line of the segment whose `hexruns` record is given."""
     return (isinstance(hexruns, str) and _HEX_RUN.fullmatch(needle or "") is not None
             and needle not in hexruns)
+
+
+# T-14512 — FREE-TEXT ABSENCE for `journal query --grep`, the analog of hexruns for that verb's filter:
+# it keeps a row when the lowered needle is a substring of `json.dumps(row, ensure_ascii=False).lower()`.
+# The WORD-RUNS record of an archived segment is the distinct maximal `\w+` runs of exactly that
+# haystack over every dict row the query's own line source (`segment_lines`) admits from the segment,
+# "\n"-joined. Every occurrence of an all-`\w` piece of the needle lies inside one maximal run of the
+# haystack, so a needle one of whose own maximal `\w` pieces is a substring of no run occurs in no row.
+# A needle with no `\w` character, or a segment without a record, proves nothing (the segment is read).
+#
+# WHERE — a SIBLING record kind of the T-13356 store, the T-13423 land-proof precedent: `<store>/text/
+# <content id>`, never inside the summary document. Measured 2026-11-04: the 155 summary HEADERS hold
+# ~550 MB of reducer state, so a proof read off them cost 4.3 s — as much as the fold it replaced.
+# Same home, same content-id key, same git-vouched lookup (`_verified_archive_blobs`), same
+# temp+replace publish, same `_index_forget` purge (SPEC-0163 rule 4c), same YITC_JOURNAL_INDEX switch.
+# BUILT BY ITS READER, from the one read the query pays anyway: a vouched archive with no record is read
+# once, its bytes hashed to the key, the record published, and those same bytes are the segment's lines
+# for this query (`grep_segment_lines`) — no segment is opened twice.
+_WORD_RUN = re.compile(r"\w+")
+_WR_DIRNAME = "text"
+_WR_MAGIC = b"YJW1 "
+
+
+def _text_absent(needle, wordruns) -> bool:
+    """True iff the (already lowered) free-text `needle` provably occurs in no row's grep haystack of
+    the segment whose `wordruns` record is given."""
+    if not isinstance(wordruns, str):
+        return False
+    return any(p not in wordruns for p in _WORD_RUN.findall(needle or ""))
+
+
+def _segment_wordruns(data) -> "str | None":
+    """The word-runs record of segment bytes `data`, read EXACTLY as `segment_lines` reads them (a
+    utf-8 strict text handle, `stream_lines`, strip, `json.loads`, dict rows only) — None when the
+    bytes do not decode (that reader raises there, so nothing is proven)."""
+    import io
+    runs = set()
+    try:
+        with io.TextIOWrapper(io.BytesIO(data), encoding="utf-8") as fh:
+            for line in stream_lines(fh):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except ValueError:
+                    continue
+                if isinstance(row, dict):
+                    runs.update(_WORD_RUN.findall(json.dumps(row, ensure_ascii=False).lower()))
+    except UnicodeDecodeError:
+        return None
+    return "\n".join(sorted(runs))
+
+
+def _wordruns_load(store, key, size) -> "str | None":
+    """The word-runs record filed under content id `key` for a segment of `size` bytes, or None."""
+    try:
+        data = store["dir"].joinpath(_WR_DIRNAME, key).read_bytes()
+        if not data.startswith(_WR_MAGIC):
+            return None
+        rec = json.loads(zlib.decompress(data[len(_WR_MAGIC):]).decode("utf-8"))
+    except (OSError, ValueError, zlib.error, UnicodeDecodeError):
+        return None
+    if (isinstance(rec, dict) and rec.get("v") == 1 and rec.get("key") == key and rec.get("size") == size
+            and isinstance(rec.get("wordruns"), str)):
+        return rec["wordruns"]
+    return None
+
+
+def _wordruns_publish(store, key, size, runs) -> None:
+    """Publish the record ATOMICALLY (unique temp, O_EXCL|O_NOFOLLOW, os.replace) — best-effort."""
+    d = store["dir"].joinpath(_WR_DIRNAME)
+    tmp = None
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+        if d.parent.is_symlink() or d.is_symlink():
+            return
+        body = _WR_MAGIC + zlib.compress(json.dumps(
+            {"v": 1, "key": key, "size": size, "wordruns": runs}, ensure_ascii=False).encode("utf-8"), 6)
+        tmp = d / f".{key}.{os.getpid()}.{threading.get_ident()}.{time.monotonic_ns()}.tmp"
+        fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0), 0o666)
+        with os.fdopen(fd, "wb") as fh:
+            fh.write(body)
+        os.replace(tmp, d / key)
+    except OSError:
+        if tmp is not None:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+
+
+def _read_vouched(seg, key, algo) -> "bytes | None":
+    """The bytes of archived segment `seg`, read once — None unless they hash to content id `key`."""
+    try:
+        with Path(seg).open("rb") as fh:
+            src = _HashingRead(fh, os.fstat(fh.fileno()).st_size, algo)
+            data = src.read()
+    except OSError:
+        return None
+    return data if src.blob_id() == key else None
+
+
+def grep_segment_lines(path, needle, *, skip=()):
+    """`segment_lines(path, skip=skip)` for a `journal query --grep <needle>` (lowered) — identical
+    lines, minus every ARCHIVED segment the word-runs record proves holds no row that grep keeps
+    (counted in `reads.segments_skipped`, never opened). A vouched archive without a record is read
+    once, the record built from those bytes and published, and the same bytes are split as its lines.
+    Inert — plain `segment_lines` — with the store off (`YITC_JOURNAL_INDEX=0`, no git), inside a
+    keep_all scope, or for a needle with no word character."""
+    store = None
+    if _keep_all_scope_for(path) is None and _WORD_RUN.search(needle or ""):
+        store = _index_store(path)
+    if store is None:
+        yield from (segment_lines(path, skip=skip) if skip else segment_lines(path))
+        return
+    _note_undeclared("segment_lines", path)
+    blobs = _verified_archive_blobs(path)
+    for seg in events.segment_paths(path):
+        if skip and seg in skip:
+            _READ_COUNTERS["segments_skipped"] += 1
+            continue
+        if rows_memo_holds(seg):
+            yield from _rows_memo_current().lines(seg)
+            continue
+        key = blobs.get(Path(seg).name)
+        data = None
+        if key is not None:
+            try:
+                size = Path(seg).stat().st_size
+            except OSError:
+                size = None
+            runs = _wordruns_load(store, key, size) if size is not None else None
+            if runs is None and size is not None:
+                t0 = time.monotonic()
+                data = _read_vouched(seg, key, store["algo"])
+                if data is not None:
+                    runs = _segment_wordruns(data)
+                    if runs is not None:
+                        _wordruns_publish(store, key, len(data), runs)
+                    if _text_absent(needle, runs):
+                        note_fold(seg, 0, time.monotonic() - t0)     # read to build, no line served
+                        continue
+            elif _text_absent(needle, runs):
+                _READ_COUNTERS["segments_skipped"] += 1
+                continue
+        yield from _segment_file_lines(seg, data=data)
 # git is made to VERIFY every entry itself: no fsmonitor answer, the full stat comparison, ctime trusted.
 _INDEX_GIT_CONFIG = ("-c", "core.fsmonitor=false", "-c", "core.checkStat=default",
                      "-c", "core.trustctime=true")
@@ -4486,7 +4645,9 @@ def _index_forget(journal_path, data) -> None:
     h.update(data)
     # T-13423: the LAND PROOF filed under the same content id goes with it — its digests are of the
     # pre-redaction rows (SPEC-0163 rule 4c).
-    for doc in (store["dir"].joinpath(h.hexdigest()), store["dir"].joinpath(_LP_DIRNAME, h.hexdigest())):
+    # T-14512: so does the WORD-RUNS record (`_WR_DIRNAME`) — its runs are words of those rows.
+    for doc in (store["dir"].joinpath(h.hexdigest()), store["dir"].joinpath(_LP_DIRNAME, h.hexdigest()),
+                store["dir"].joinpath(_WR_DIRNAME, h.hexdigest())):
         try:
             doc.unlink()
         except OSError:
@@ -14220,7 +14381,13 @@ def cmd_journal_query(args: argparse.Namespace, *, CROSS_LOG_PATH, EVENTS_PATH, 
         if floor or args.until:
             keep = set(events.segment_paths_since(src, floor, until=args.until))
             skip = frozenset(s for s in events.segment_paths(src) if s not in keep)
-        if skip or sess is not None:
+        if grep:
+            # T-14512 (SPEC-0190 rule 4 class 3) — a whole-history free-text grep is answered through
+            # the index: an archived segment whose word-runs record PROVES the needle absent from every
+            # row's haystack is left unopened (reads.segments_skipped). The row filters above stay the
+            # sole membership decider; every other segment yields exactly `segment_lines`' lines.
+            lines = (s for s in (raw.strip() for raw in grep_segment_lines(src, grep, skip=skip)) if s)
+        elif skip or sess is not None:
             lines = (s for s in (raw.strip() for raw in segment_lines(src, skip=skip)) if s)
         if sess is not None:
             lines = sess.watch(lines)

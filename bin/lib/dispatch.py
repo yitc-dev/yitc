@@ -36,6 +36,7 @@ from pathlib import Path
 
 from lib import events   # the `_byte_tail` bound the watcher's premature_exit row uses (T-12896)
 from lib import journal  # lower extracted leaf — the DISPATCH_CLASS_VOCAB carrier (T-10253)
+from lib import audit_ceiling  # stdlib-only leaf — DECIDE_DIRECTIVE_ARG, one copy (T-14501)
 from lib import gates    # lower leaf — the stage row the brief's order line is read from (T-14037)
 from lib import task as task_mod  # SPEC-0166: the pure `_premise_dispatch_block` predicate (single
                                   # home in task.py) the dispatch preflight refuses on (acyclic)
@@ -464,14 +465,15 @@ def _build_sync_to_land_rule(land_log: str = "", *, controller_lands: bool = Fal
     "PAUSE-SHAPE FORK (SPEC-0103 §5): a BOOKKEEPING-ONLY pause commits+lands its record (re-enter via "
     "`worktree new --task`); a WORK-CARRYING pause keeps the worktree INTACT (re-enter via `task "
     "resume`). "
-    "AUDIT-LOOP CEILING (SPEC-1039 rule 6 / T-12679): at the ceiling `audit pre|post` ITSELF emits "
+    "AUDIT-LOOP CEILING (SPEC-1039 rule 6): at the ceiling `audit pre|post` ITSELF emits "
     "the bg_dispatch_halted(blocked_on_land) row carrying residual_fingerprints; you halt with "
     "`task pause <task> --reason audit-ceiling` INSIDE the worktree; the Controller records `audit "
-    "decide` per fingerprint and you resume with `task resume` + `audit pre|post --on-decisions "
+    f"decide` per fingerprint (`{audit_ceiling.DECIDE_DIRECTIVE_ARG}`) and you resume with `task "
+    "resume` + `audit pre|post --on-decisions "
     "--sweep '<where you looked for the same defect class and what you found>'`. A GREEN "
-    "audit-post ceiling row has nothing to decide (T-14191): NO halt row — run the `--on-decisions` "
+    "audit-post ceiling row has nothing to decide: NO halt row — run the `--on-decisions` "
     "pass the verb names yourself, no pause, no Controller cue. At "
-    "audit-POST, for a residual you fix in scope: `task commit --fix-red` FIRST and name its sha in "
+    "audit-POST, for an in-scope fix: `task commit --fix-red` FIRST and name its sha in "
     "the pause next_action. TERMINAL RED (SPEC-1039 rules 3-4 / T-13537): when the `--on-decisions` "
     "pass (or its one absorption re-audit) is RED, the stage is OVER — the verb's halt row names the "
     "terminal exits (`task update --status parked|wont-do`, `worktree park`, or a new card) and NO "

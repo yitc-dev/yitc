@@ -323,7 +323,7 @@ implements_signature:
   bin/lib/cli.py#_context_epoch_reading: 69bcb0dae5e86de343149fd4fc995122d94ced49f04624cb110e18ea71ed03a7
   bin/lib/cli.py#_session_epoch_reading: 7b824ff186def65176e07c9bd657a8d6247d0e41a95fd33a34d0fbff3c4626d6
   bin/lib/dispatch.py#_worker_seed_bootstrap_events: 4ae07cd714177a276469e37a3db31c90ba6a40edd3d27aa0372bfcb663a2ede4
-  bin/lib/events.py#_emit_cli_invoked: 5d1e4ab8dc407eca56e3c449c39f841271d747ce1e789177fd14b1fec630425f
+  bin/lib/events.py#_emit_cli_invoked: ebb505c9b2d3b4f08b802c3dfb1f0a70a6554f95ed3bc877c322ace6f3e3fada
   bin/lib/gates.py#_receipt_stamp: 16f59f33227b06611ecf98e9d307a45c0e27d208db3b97120c30a9296029de73
   bin/lib/gates.py#_require_seed_read: 944b67852c304acd01e48e2e93add695d4bd5cc8edd75bec92e3616e2ad2e0e4
   bin/lib/gates.py#seed_stamp_credits: 22d380afb43a79df24c2d7dd63962d968316ee42f8bc3b3dbac69ef16b275b37

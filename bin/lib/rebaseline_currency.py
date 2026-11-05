@@ -4526,7 +4526,8 @@ def _land_audited_footprint_split(W: Path, branch: str, merged_base: "str | None
                                   observable_footprint: "list | None", *,
                                   _run_git_cap, EVENTS_PATH, merged_delta: "list | None" = None,
                                   _DERIVED_MERGE_ARTIFACTS=None,
-                                  _anchor_signature_of_text=None, _AUDITED_FOOTPRINT_LIST_CAP=None, _governed_closure_side_effects=None, _last_audit_post_for_task=None, _mechanically_resolved_conflicts=None, _uncovered_path_provenance=None, _read_land_events=None, _row_ledger_delta_is_audited=None) -> "dict | None":
+                                  _anchor_signature_of_text=None, _AUDITED_FOOTPRINT_LIST_CAP=None, _governed_closure_side_effects=None, _last_audit_post_for_task=None, _mechanically_resolved_conflicts=None, _uncovered_path_provenance=None, _read_land_events=None, _row_ledger_delta_is_audited=None,
+                                  _resign_only_spec_paths=None) -> "dict | None":
     """T-10896 (X-0738 / X-0696) — PARTITION the branch's OBSERVABLE footprint by PROVENANCE against
     the commit its own audit-post reviewed. This is the primitive both halves of the card need: the
     footprint was computed as a FLAT path set, so nothing could say which part of what is about to
@@ -4723,6 +4724,20 @@ def _land_audited_footprint_split(W: Path, branch: str, merged_base: "str | None
         closure = _governed_closure_side_effects(own, W, commit, tid,
                                                  _run_git_cap=_run_git_cap, EVENTS_PATH=EVENTS_PATH,
                                                  _main_point=merged_base)   # T-13954
+        # T-14502 (X-2204) — a VERIFIED RE-SIGN after the audit is the write `task close --reverify`
+        # performs (T-1177), so it joins the closure side-effects. The proof is the T-14275 fact
+        # `_resign_only_spec_paths`, reused unchanged: the spec differs from the clean re-merge `tree`
+        # ONLY in `implements_signature:` values, each EQUAL to the engine signature of its anchor over
+        # HEAD's code. Measured against `tree`, never the audited commit alone, so a spec main also
+        # changed is judged against the merged content. Same subset-never-a-verdict shape: an empty or
+        # un-injected answer leaves every path in `own_post_audit` exactly as before.
+        if _resign_only_spec_paths is not None:
+            _rs_cand = [p for p in own if p not in closure and str(p).startswith("specs/")]
+            if _rs_cand:
+                _rs_kw = {"_run_git_cap": _run_git_cap}
+                if _anchor_signature_of_text is not None:
+                    _rs_kw["_anchor_signature_of_text"] = _anchor_signature_of_text
+                closure = set(closure) | set(_resign_only_spec_paths(W, tree, "HEAD", _rs_cand, **_rs_kw))
         # T-11332 — the OTHER proven-exempt class, on the SAME standard and with the same
         # subset-never-a-verdict shape: content the merge classifier itself produces, re-derived here
         # and compared byte-for-byte. Partitioned out of `own_post_audit` ONLY, for the identical

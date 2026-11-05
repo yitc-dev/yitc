@@ -641,59 +641,67 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \      such a row never proves an activation (the status flip and a binding declaration\
   \ still\n          need the close's own row), and the head's flip is proven by its\
   \ `supersedes` /\n          `supersedes_status` pair exactly as a close's target\
-  \ flip is.\n\n  WHAT THIS IS NOT. It does NOT widen the SPEC-0064 global inert allowlist\
-  \ — `specs/**` and `lessons/**`\n  stay verify-OBSERVABLE there (a test may assert\
-  \ their content), exactly as kept them; the\n  subtraction is LOCAL to the currency\
-  \ consumers, which then re-classify the REDUCED path set through\n  the ONE classifier\
-  \ (the one-authority invariant holds). It adds NO closure mode, flag or waive\n\
-  \  to `land`. Its binding-token boundary is PRECISE (narrowing this sentence rather\
-  \ than deleting\n  it): admitted is a binding declaration on a spec THIS close ACTIVATED\
-  \ — proven by the `spec_activated`\n  row in this task's id slot — whose whole file\
-  \ change is confined to the declaration (plus at most that\n  close's own proposed→active\
-  \ flip). Any OTHER binding edit still refuses: a binding change to a spec this\n\
-  \  close did not activate, one riding with a body/rule edit, or one carrying any\
-  \ other content. The point\n  is not that binding tokens are harmless; it is that\
-  \ this exact edit is the one closure ITSELF prescribes,\n  and a governed instruction\
-  \ must not be refused by the governed verb that follows it. And it does NOT\n  touch\
-  \ `merge_inherited`, which still never refuses\n  on its own (the position, preserved).\
-  \ Every other observable post-audit path — bin / tests /\n  patterns / root-md,\
-  \ and any `specs/**` path failing (ii) or (iii) — stays observable → still REFUSED.\n\
-  \n  **PROVEN MECHANICAL CONFLICT-RESOLUTION exemption (the SECOND exemption at this\
-  \ seam, on the\n  SAME conjunction standard).** The footprint clause above covers\
-  \ \"conflict-resolution edits made in the\n  update-from-main merge commit\" — and\
-  \ that read every resolution, HAND-made or MECHANICAL, as content\n  the audit never\
-  \ saw. But `_classify_land_merge_conflicts` is the ONE admission authority for what\n\
-  \  `update-from-main` resolves WITHOUT a human, and its output is a DETERMINISTIC\
-  \ FUNCTION of the two\n  sides. So the gate demanded that an external auditor review\
-  \ a string the tool itself produced and can\n  re-derive — and the auditor is a\
-  \ system-wide single point of failure, so every avoidable re-audit is an\n  avoidable\
-  \ dependency on it. On a hot file the chain does not converge at all: a fresh conflict\n\
-  \  re-authors content on every attempt (measured 2026-08-19 — task/ needed five\
-  \ land attempts over\n  ~3h, task/ walked conflict → resolution → currency refusal\
-  \ → re-audit → land). The claim is the\n  same SHAPE as the closure exemption's:\
-  \ the merge the lifecycle REQUIRES cannot be the thing that makes\n  the lifecycle\
-  \ unauditable.\n\n  PROVEN means a CONJUNCTION of three axes, each carrying positive\
-  \ evidence; no axis is sufficient alone\n  and a failure on any axis leaves the\
-  \ path REFUSED:\n    (i) CONFLICT-MARKED in `merge-tree --write-tree <audit_commit>\
-  \ <merged_base>` — the gate's OWN\n          comparison, so no second oracle is\
-  \ introduced. This is positive evidence that a conflict\n          existed AT ALL:\
-  \ a path whose re-merge is CLEAN and whose HEAD nevertheless differs is a\n    \
-  \      post-audit EDIT, never a resolution.\n    (ii) RESOLVED BY THE ONE AUTHORITY\
-  \ to a TEXT payload — `_classify_land_merge_conflicts`, asked over\n          that\
-  \ same stream through the index-free stage-read seam built. Two ways to fail: the\n\
-  \          authority leaves the path unresolved, or it returns a kind carrying NO\
-  \ text payload, which\n          means \"resolvable\" to the merge path but \"no\
-  \ content to compare\" to THIS reader. That\n          missing-value judgement is\
-  \ made at the use site, never pushed into the shared authority.\n    (iii) CONTENT\
-  \ IDENTITY — HEAD's content for the path is BYTE-IDENTICAL to that re-derived text.\
-  \ THE\n          LABEL IS NEVER TRUSTED: no marker, commit subject or recorded claim\
-  \ that a resolution happened\n          is read. This axis is also what makes a\
-  \ separate hand-made EXCLUSION unnecessary and unsound to\n          add — a hand-typed\
-  \ string byte-equal to the mechanical output IS the mechanical output, and any\n\
-  \          hand resolution differing by one byte fails here.\n\n  THE DID-NOT-ANSWER\
-  \ VALUE IS A REFUSAL, STRUCTURALLY. The subtraction is computed as a SUBSET of the\n\
-  \  already-blocking set, so \"did not answer\" and \"no\" are the same value and\
-  \ there is no third value to\n  route (`lessons/carving-an-exception-into-a-fail-closed-gate`\
+  \ flip is.\n\n  **The verified RE-SIGN — admitted on its own proof.** A `specs/SPEC-*.yaml`\
+  \ path whose whole\n  change against the clean re-merge of the audited commit with\
+  \ the merged `main` tip is a verified\n  re-sign by the SPEC-0064 §2a fact — only\
+  \ `implements_signature:` values moved, each equal to the\n  engine signature of\
+  \ its anchor over HEAD's code — is a closure side-effect as well: it is the write\n\
+  \  `task close --reverify` makes after audit-post. That proof depends on HEAD's\
+  \ code alone, so axes\n  (i)-(iii) are not asked of it; a re-sign beside any other\
+  \ change to the file, a value that is not\n  the live signature, or an added or\
+  \ deleted spec stays REFUSED.\n\n  WHAT THIS IS NOT. It does NOT widen the SPEC-0064\
+  \ global inert allowlist — `specs/**` and `lessons/**`\n  stay verify-OBSERVABLE\
+  \ there (a test may assert their content), exactly as kept them; the\n  subtraction\
+  \ is LOCAL to the currency consumers, which then re-classify the REDUCED path set\
+  \ through\n  the ONE classifier (the one-authority invariant holds). It adds NO\
+  \ closure mode, flag or waive\n  to `land`. Its binding-token boundary is PRECISE\
+  \ (narrowing this sentence rather than deleting\n  it): admitted is a binding declaration\
+  \ on a spec THIS close ACTIVATED — proven by the `spec_activated`\n  row in this\
+  \ task's id slot — whose whole file change is confined to the declaration (plus\
+  \ at most that\n  close's own proposed→active flip). Any OTHER binding edit still\
+  \ refuses: a binding change to a spec this\n  close did not activate, one riding\
+  \ with a body/rule edit, or one carrying any other content. The point\n  is not\
+  \ that binding tokens are harmless; it is that this exact edit is the one closure\
+  \ ITSELF prescribes,\n  and a governed instruction must not be refused by the governed\
+  \ verb that follows it. And it does NOT\n  touch `merge_inherited`, which still\
+  \ never refuses\n  on its own (the position, preserved). Every other observable\
+  \ post-audit path — bin / tests /\n  patterns / root-md, and any `specs/**` path\
+  \ failing (ii) or (iii) — stays observable → still REFUSED.\n\n  **PROVEN MECHANICAL\
+  \ CONFLICT-RESOLUTION exemption (the SECOND exemption at this seam, on the\n  SAME\
+  \ conjunction standard).** The footprint clause above covers \"conflict-resolution\
+  \ edits made in the\n  update-from-main merge commit\" — and that read every resolution,\
+  \ HAND-made or MECHANICAL, as content\n  the audit never saw. But `_classify_land_merge_conflicts`\
+  \ is the ONE admission authority for what\n  `update-from-main` resolves WITHOUT\
+  \ a human, and its output is a DETERMINISTIC FUNCTION of the two\n  sides. So the\
+  \ gate demanded that an external auditor review a string the tool itself produced\
+  \ and can\n  re-derive — and the auditor is a system-wide single point of failure,\
+  \ so every avoidable re-audit is an\n  avoidable dependency on it. On a hot file\
+  \ the chain does not converge at all: a fresh conflict\n  re-authors content on\
+  \ every attempt (measured 2026-08-19 — task/ needed five land attempts over\n  ~3h,\
+  \ task/ walked conflict → resolution → currency refusal → re-audit → land). The\
+  \ claim is the\n  same SHAPE as the closure exemption's: the merge the lifecycle\
+  \ REQUIRES cannot be the thing that makes\n  the lifecycle unauditable.\n\n  PROVEN\
+  \ means a CONJUNCTION of three axes, each carrying positive evidence; no axis is\
+  \ sufficient alone\n  and a failure on any axis leaves the path REFUSED:\n    (i)\
+  \ CONFLICT-MARKED in `merge-tree --write-tree <audit_commit> <merged_base>` — the\
+  \ gate's OWN\n          comparison, so no second oracle is introduced. This is positive\
+  \ evidence that a conflict\n          existed AT ALL: a path whose re-merge is CLEAN\
+  \ and whose HEAD nevertheless differs is a\n          post-audit EDIT, never a resolution.\n\
+  \    (ii) RESOLVED BY THE ONE AUTHORITY to a TEXT payload — `_classify_land_merge_conflicts`,\
+  \ asked over\n          that same stream through the index-free stage-read seam\
+  \ built. Two ways to fail: the\n          authority leaves the path unresolved,\
+  \ or it returns a kind carrying NO text payload, which\n          means \"resolvable\"\
+  \ to the merge path but \"no content to compare\" to THIS reader. That\n       \
+  \   missing-value judgement is made at the use site, never pushed into the shared\
+  \ authority.\n    (iii) CONTENT IDENTITY — HEAD's content for the path is BYTE-IDENTICAL\
+  \ to that re-derived text. THE\n          LABEL IS NEVER TRUSTED: no marker, commit\
+  \ subject or recorded claim that a resolution happened\n          is read. This\
+  \ axis is also what makes a separate hand-made EXCLUSION unnecessary and unsound\
+  \ to\n          add — a hand-typed string byte-equal to the mechanical output IS\
+  \ the mechanical output, and any\n          hand resolution differing by one byte\
+  \ fails here.\n\n  THE DID-NOT-ANSWER VALUE IS A REFUSAL, STRUCTURALLY. The subtraction\
+  \ is computed as a SUBSET of the\n  already-blocking set, so \"did not answer\"\
+  \ and \"no\" are the same value and there is no third value to\n  route (`lessons/carving-an-exception-into-a-fail-closed-gate`\
   \ §1). An un-runnable git, an unparsable\n  merge-tree stream, an authority that\
   \ raised, an absent injection, an unreadable HEAD blob — each leaves\n  the path\
   \ exactly where the pre-exemption code left it.\n\n  WHAT THIS IS NOT. It does not\
@@ -1363,7 +1371,10 @@ body: "## Scenario\n\nWhen a session lands a change whose diff touches the **ver
   \ verifier, the SAME risk at the project level. Source: the\nexternal consult `decisions/kernel-protection-recovery-set-audit-adhoc.yaml`\
   \ (finding 2, HIGH,\n4-filter-passed). Classic bootstrap / verifier self-hosting\
   \ risk (incident count zero;\nprior-art-grounded). EXTENDS the existing `land` chokepoint\
-  \ + the SPEC-0064/SPEC-0065\nre-verify machinery; adds no new subsystem.\n\n## Verification\n\
+  \ + the SPEC-0064/SPEC-0065\nre-verify machinery; adds no new subsystem.\n\nThe\
+  \ verified re-sign case of §3a was added by (<project> X-2204): the Stage-9 drift\
+  \ warning\nsent the author to `task close --reverify`, and the land then refused\
+  \ the re-signed spec as\n`audited-diff-stale [branch-authored]`.\n\n## Verification\n\
   \n- **observed:** a deliberately-weakened verifier change FAILS the pinned (last-green)\
   \ verify even\n  though it would pass its own candidate verify — on BOTH an engine\
   \ land and a `-C` consumer land.\n- **observed (one authoritative adoption signal):**\

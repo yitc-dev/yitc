@@ -80,36 +80,39 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ ABORT spends nothing and a retry\n  is admitted. Every guard is fail-closed and\
   \ NAMES itself on the ceiling refusal: a missing or\n  inexact sync record, the\
   \ GREEN commit as the SECOND parent, an authored commit or a merge between A\n \
-  \ and M or after M (save the clean governed sync merges after M below), a\n  wrong\
-  \ main parent, a hand edit of ANY non-conflict path (no inert exemption — `merge-tree`\
-  \ already\n  applies the journal's `merge=union` driver), a recorded conflict set\
-  \ wider than git's, a non-GREEN\n  or superseded prior verdict, and no Stage-6 proof\
-  \ after the merge all leave the ceiling standing. The\n  auditor judges the WHOLE\
-  \ merged HEAD, with the prior GREEN and the resolution diff as context. The\n  pass\
-  \ is FINAL: a RED is TERMINAL for audit-post by the <workshop-spec> rule-4 reading\n\
-  \  (`terminal_ceiling_row`, reason `merge_integration_pass_returned_red`); after\
-  \ ANY verdict no\n  `--on-decisions` pass and no `audit decide` follow it (`merge_integration_pass_is_final`),\
-  \ so a\n  YELLOW takes only the ordinary Stage-8 followup route. Record-only non-merge\
-  \ commits are crossed on\n  both sides of the merge — the bookkeeping `worktree\
-  \ sync` folds before it and the journal dedup\n  commit `worktree sync --resolved`\
-  \ writes after it — and the subject stays the merge. A CLEAN governed\n`worktree\
-  \ sync` merge after M (the Stage-6 admission sync's, when main moved during the\
-  \ queue wait)\nis crossed too: no `merge_resolved_by_hand` row names it, a `worktree_synced`\
-  \ row of the card names it\nas `head_after` with its two parents as `head_before`\
-  \ and `main_sha`, and it differs from git's\nmechanical merge only on the paths\
-  \ that row records the verb resolved; the Stage-6 proof must then\npostdate that\
-  \ row too, and the subject is the WHOLE HEAD. A hand-resolved merge after M, or\
-  \ one no\nsuch row accounts for, still refuses. While this\n  route is open (admitted,\
-  \ or waiting only on the Stage-6 proof after the merge), an `--on-decisions`\n \
-  \ audit-post pass is refused (`merge_integration_route_open`): it would judge the\
-  \ pre-merge commit;\n  run the ordinary `audit post` instead.\n\n#### On-demand\
-  \ technical-fork consult — mechanics\n\n- **SCOPED TO TECHNICAL FORKS.** The prompt\
-  \ asks the auditor FIRST to classify the fork: a\n  TECHNICAL-MERIT fork (the better\
-  \ variant is decidable on engineering merit — correctness, simplicity,\n  coherence,\
-  \ anti-complexity, reuse) → name survivors + one recommendation; a VALUE / DRAFT-AUTHORITY\n\
-  \  fork (the choice turns on product value, owner preference, or scope authority)\
-  \ → return `verdict:\n  ABORT` with `survivors: []` and ESCALATE to the owner. The\
-  \ auditor judges technical merit ONLY — the\n  owner decides value/draft.\n- **DECOUPLED\
+  \ and M or after M (save the clean governed sync merges before M and after M below),\
+  \ a\n  wrong main parent, a hand edit of ANY non-conflict path (no inert exemption\
+  \ — `merge-tree` already\n  applies the journal's `merge=union` driver), a recorded\
+  \ conflict set wider than git's, a non-GREEN\n  or superseded prior verdict, and\
+  \ no Stage-6 proof after the merge all leave the ceiling standing. The\n  auditor\
+  \ judges the WHOLE merged HEAD, with the prior GREEN and the resolution diff as\
+  \ context. The\n  pass is FINAL: a RED is TERMINAL for audit-post by the <workshop-spec>\
+  \ rule-4 reading\n  (`terminal_ceiling_row`, reason `merge_integration_pass_returned_red`);\
+  \ after ANY verdict no\n  `--on-decisions` pass and no `audit decide` follow it\
+  \ (`merge_integration_pass_is_final`), so a\n  YELLOW takes only the ordinary Stage-8\
+  \ followup route. Record-only non-merge commits are crossed on\n  both sides of\
+  \ the merge — the bookkeeping `worktree sync` folds before it and the journal dedup\n\
+  \  commit `worktree sync --resolved` writes after it — and the subject stays the\
+  \ merge. A CLEAN governed\n`worktree sync` merge after M (the Stage-6 admission\
+  \ sync's, when main moved during the queue wait)\nis crossed too: no `merge_resolved_by_hand`\
+  \ row names it, a `worktree_synced` row of the card names it\nas `head_after` with\
+  \ its two parents as `head_before` and `main_sha`, and it differs from git's\nmechanical\
+  \ merge only on the paths that row records the verb resolved; the Stage-6 proof\
+  \ must then\npostdate that row too, and the subject is the WHOLE HEAD. A hand-resolved\
+  \ merge after M, or one no\nsuch row accounts for, still refuses. A clean governed\
+  \ sync merge between A and M (a pre-flight\n`worktree sync`) is crossed by the same\
+  \ test and named `presynced`; a hand-resolved one,\nor one no such row accounts\
+  \ for, still refuses. While this\n  route is open (admitted, or waiting only on\
+  \ the Stage-6 proof after the merge), an `--on-decisions`\n  audit-post pass is\
+  \ refused (`merge_integration_route_open`): it would judge the pre-merge commit;\n\
+  \  run the ordinary `audit post` instead.\n\n#### On-demand technical-fork consult\
+  \ — mechanics\n\n- **SCOPED TO TECHNICAL FORKS.** The prompt asks the auditor FIRST\
+  \ to classify the fork: a\n  TECHNICAL-MERIT fork (the better variant is decidable\
+  \ on engineering merit — correctness, simplicity,\n  coherence, anti-complexity,\
+  \ reuse) → name survivors + one recommendation; a VALUE / DRAFT-AUTHORITY\n  fork\
+  \ (the choice turns on product value, owner preference, or scope authority) → return\
+  \ `verdict:\n  ABORT` with `survivors: []` and ESCALATE to the owner. The auditor\
+  \ judges technical merit ONLY — the\n  owner decides value/draft.\n- **DECOUPLED\
   \ from the `--owner-reset` basis.** The on-demand consult saves to a DISTINCT key,\n\
   \  `decisions/<tid>-audit-consult-on-demand.yaml`, records `passes: 0`, and persists\
   \ NO\n  `basis_fingerprint` — so `_consult_basis` (which reads `<tid>-audit-consult-{pre,post}.yaml`)\
@@ -209,14 +212,15 @@ body: "## Scenario\n\nA session is about to run a re-audit that the audit-loop c
   \ | one counted pass, final for the stage | `audit_ceiling.test_found_fix_window`\
   \ (commit door), `audit_ceiling.test_found_fix_admission` (audit door) |\n| **Empty-set\
   \ `--on-decisions`** | the ceiling row is an ORDINARY GREEN pass (no rule-3 pass\
-  \ yet) and the subject strictly descends from its commit — SPEC-1041 «Rule 3» |\
-  \ `audit post --task <T> --on-decisions --sweep '<…>'`, no `audit decide`; at the\
-  \ ceiling `audit post` names this pass and emits no halt row, so the worker runs\
-  \ it itself, no pause and no Controller cue | the ONE bounded rule-3 pass; after\
-  \ it this row is closed | `audit_ceiling.on_decisions_admission` |\n| **Return to\
-  \ the GREEN commit** | always: the GREEN covers its own commit | drop the commits\
-  \ after the GREEN in the task worktree → `task test --run` → `task close` → `land`\
-  \ | no pass; the later change leaves this card | `gates._require_audit_post_for_commit`\
+  \ yet) and the subject is its commit or strictly descends from it — SPEC-1041 «Rule\
+  \ 3» | `audit post --task <T> --on-decisions --sweep '<…>'`, no `audit decide` (a\
+  \ fix after a red governed Tests run past ceiling+1 is committed first with `task\
+  \ commit --reship`); at the ceiling `audit post` names this pass and emits no halt\
+  \ row, so the worker runs it itself, no pause and no Controller cue | the ONE bounded\
+  \ rule-3 pass; after it this row is closed | `audit_ceiling.on_decisions_admission`\
+  \ |\n| **Return to the GREEN commit** | always: the GREEN covers its own commit\
+  \ | drop the commits after the GREEN in the task worktree → `task test --run` →\
+  \ `task close` → `land` | no pass; the later change leaves this card | `gates._require_audit_post_for_commit`\
   \ (closure needs an audit-post of the recorded commit) |\n| **Re-cut on a new card**\
   \ | always: the later change is carried by a new card with its own audits | file\
   \ the new card; this card returns to its GREEN and closes, or ends `task update\

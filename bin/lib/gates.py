@@ -560,7 +560,7 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
     filled `node_id -> [{"epoch", "content_sha", "node_realm"}]`, one entry per CREDITING receipt — the
     facts the stage deliverer needs to tell "this context epoch already holds this exact render" from
     "deliver it". `epoch` is read as `_seed_receipt_epochs` reads it (`_receipt_stamp`: the stamped
-    context-epoch mark, T-13789 — an absent stamp reads `none`, a pre-change number equals no mark); `content_sha` / `node_realm` are the receipt's own values or None. A receipt
+    context-epoch mark, T-13789 — an absent stamp reads `none`, a pre-change number equals no mark); `content_sha` / `node_realm` are the receipt's own values or None — `content_sha` falls back to the receipt's `view_sha`, the fingerprint a hand `graph query` records (T-14522). A receipt
     this scan SKIPS (`stdout_delivered is False`) never enters it. It REPORTS, it grants nothing: the
     returned set still decides credit alone, and that credit stays SESSION-scoped — the epoch decides
     re-RENDERING only (SPEC-0050 §2). Default None keeps every existing caller byte-identical."""
@@ -593,7 +593,9 @@ def _fetched_spec_ids(session_ref: str, lower_bound: str, *, _iter_events, event
             if deliveries_out is not None:
                 deliveries_out.setdefault(nid, []).append({
                     "epoch": _receipt_stamp(data),
-                    "content_sha": data.get("content_sha") or None,
+                    # T-14522: a hand `graph query` carries `view_sha` (the contract view of what
+                    # it printed) where a delivery carries `content_sha`; either is the fingerprint.
+                    "content_sha": data.get("content_sha") or data.get("view_sha") or None,
                     "node_realm": data.get("node_realm") or None})
     return fetched
 

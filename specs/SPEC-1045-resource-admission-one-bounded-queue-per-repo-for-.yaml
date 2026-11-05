@@ -158,107 +158,109 @@ body: "## Scenario\nA project switches on the engine's admission queue in its ow
   \ prior green run already satisfies SPEC-1038's Closure-time coverage (else the\
   \ full run\n      follows), and RED stops it with no full verify; if the sync ran\
   \ none, the queue runs the set once as a screen — RED stops\n      the run, GREEN\
-  \ starts the full run, and the screen is never a proof. With the pre-check on and\
-  \ the sync\n      off, the screen runs once before the full run. With the pre-check\
-  \ off, the full run always follows. A\n      full-reading run of (a) never ends\
-  \ on a proof and runs no screen. The quick set is the project's\n      `verify.post_sync_set`\
-  \ — its layers, or a list of test files the engine's runner runs where SPEC-0152\n\
-  \      rule 16 takes that form (a project that declares no `verify.layers`, and\
-  \ the engine's own repository)\n      — for the proof and the screen alike. While\
-  \ switched on, a hand\n      `worktree sync`'s set run holds BUSY shared. No quick\
-  \ set declared = no quick step. A run whose sync at admission stops on a merge conflict\
-  \ keeps its place: the card's next run ticket takes the stopped ticket's arrival,\
-  \ read from the card's admission rows on the main journal since the card was filed;\
-  \ a stop for any other cause releases the place;\n  (e) EVIDENCE IN THE JOURNAL:\
-  \ every pass and every step (sync, quick-first, hold, land-set) is a row on the\n\
-  \      MAIN checkout's journal, carrying the source's pass-log fields and the FULL\
-  \ applied queue configuration\n      — every key, its value and its source. Filing\
-  \ a ticket writes a `wait` row (class, arrival, what it\n      stands behind) and\
-  \ every ticket ends in exactly one terminal row: its pass, or `left` with the reason\n\
-  \      before any pass — a land the queue's merge or land-set check refuses writes\
-  \ `left` and no\n      `land_completed`; what follows a pass is recorded as step\
-  \ rows of that pass. A waiting run or\n      land ends on SIGTERM, SIGINT or SIGHUP:\
-  \ it removes its own ticket WITHOUT taking the queue lock —\n      whoever holds\
-  \ that lock, another process or its own interrupted check — then writes `left` with\n\
-  \      reason `signal` and exits 128+signal; every reader of the queue takes a vanished\
-  \ ticket as gone.\n      `journal query --admission` reads the queue's state while\
-  \ switched on. While switched on, every\n      `land_completed` and every Stage-6\
-  \ result row carries `admission: engine`, the queue revision (a content\n      hash\
-  \ of the queue module and the credit code it calls), the hash of the full applied\
-  \ configuration and\n      the timestamp of the pass that admitted it. Every queue\
-  \ row above is a write ATTEMPT, made once: a row\n      that cannot be written (the\
-  \ write fails, or the journal writer's own lock wait runs out) is said once\n  \
-  \    and the work goes on — the queue retries nothing of its own, so \"exactly one\
-  \ terminal row\" reads \"at\n      most one\". The pass timestamp on a result row\
-  \ names the queue's decision; whether that pass row exists\n      is established\
-  \ from the journal, never assumed. Verification, its verdict and the Stage-6 credit\n\
-  \      (SPEC-0065 §Bound) never read an `admission_pass` row, so a lost row changes\
-  \ neither. The soak reader\n      (rule 5's comparison) reads a `land_completed`\
-  \ or Stage-6 result row — a land's credited run included —\n      that carries `admission:\
-  \ engine` and a pass timestamp with no `admission_pass` row at it as UNKNOWN: the\n\
-  \      window holding it is unfit and does not count, and `journal query --admission`\
-  \ names each such gap.\n      The limit, stated: work that wrote no ticket, no pass\
-  \ and no result row leaves the journal nothing to\n      find, so the journal's\
-  \ accounting of the queue is complete only up to the rows that were written;\n \
-  \ (f) PROJECT VALUES ARE SETTINGS: the source's paths, layer names, branch prefixes,\
-  \ CPU sets and numbers are\n      declarations or machine settings (rule 4);\n \
-  \ (g) WORK IS ALIVE WHILE ITS FLOCK IS HELD: every admitted run on this host and\
-  \ every own-tests check holds\n      BUSY shared, every admitted land the land hold;\
-  \ the work's children inherit them; whatever waits for\n      work to end reads\
-  \ those flocks, never a pid entry;\n  (h) THE KERNEL'S OWN PLACEMENT: THE PLACES\
-  \ ask the routing decision with the repo's real identity; a\n      kernel run is\
-  \ never forced to `--placement local` (SPEC-1032) — with the box full it waits for\
-  \ a box\n      slot;\n  (i) NO CPU SET: an empty run or light CPU set means no pinning\
-  \ — no affinity call — and THE WINDOW reads\n      the CPUs the process may use;\n\
-  \  (j) THE SWITCH, READ ONCE: a process reads the switch at its start and keeps\
-  \ that path; a project switches\n      once its tasks are finished; there is no\
-  \ ungated-work scan and no transition step;\n  (k) A BOUND THAT STOPS STARTED WORK\
-  \ IS A BUDGET: the sync bound, the quick-run bound, the land-set file\n      bound\
-  \ and the land-set whole bound are SPEC-1031 BUDGET keys; a bound that only bounds\
-  \ a wait is\n      PERFORMANCE;\n  (l) PLANNING LANDS: `admission.planning_lands:\
-  \ after-run` is the source's planning land — a queued land held\n      by another\
-  \ card's unit and green hold. `immediately` lets a planning land pass another card's\
-  \ unit and\n      green hold; it still waits for a land in flight and its merge\
-  \ checks, and the held card's land then\n      takes what SPEC-0065 §Bound decides\
-  \ for that tree difference — the per-layer case where it applies,\n      else a\
-  \ full re-verify. Default: `immediately` when `yitc-ops.yaml` declares a non-empty\n\
-  \      `verify.layers`, else `after-run`;\n  (m) THE LAND'S PREVIEW BEFORE THE RUN:\
-  \ at run admission, after the sync, the land's own predicates that can\n      stop\
-  \ a land after a green run and need no run — the merge-conflict check, a known-broken\
-  \ `main` record,\n      the decisions content-freeze, the spec hand-edit guard,\
-  \ the won't-do rationale guard, the host-leak check\n      and, in a consumer, the\
-  \ any-author floor — are called in-process and what each would say is recorded on\n\
-  \      a report-only `land-preview` step row; the run is not stopped. After a green\
-  \ run the credit answer is\n      recorded the same way;\n  (o) «RUNS NOTHING» IS\
-  \ THE WHOLE VERIFY: a run is a no-layer run, and a land a bookkeeping land, only\
-  \ when the\n      engine's own decision of what it would execute — its layers and\
-  \ the engine's test sweep — runs nothing;\n      and a run is a light run by its\
-  \ layers (A LIGHT RUN's first basis), and a land a light land, only when that\n\
-  \      decision runs at least one layer, every one of them light, and no test sweep.\
-  \ A card's Stage-6 run\n      when none of the card's commits is substantive (the\
-  \ Closure-time coverage fact of SPEC-1038 §Tests)\n      and every path its checkout\
-  \ changes against main, committed or not, is in the SPEC-0064 inert set\n      owes\
-  \ nothing: without --full,\n      --whole or --exclusive it takes no ticket, runs\
-  \ nothing, writes no tests_* row and ends `TEST: NONE`;\n  (p) A SCHEDULED PRE-DEPLOY\
-  \ RUN (SPEC-1047) files its ticket at its own start and is admitted as a run in\
-  \ the\n      declared order. It is tied to no card, so it takes none of the card\
-  \ steps — no sync at admission and no\n      quick step whatever the two verify\
-  \ switches say, no land preview, no green hold, no run-plus-land unit,\n      no\
-  \ credit answer — and it runs what SPEC-1047 rule 4 names (every verify layer whole\
-  \ plus the pre-deploy\n      classes), in a scratch checkout on this host: its place\
-  \ is the local place, never a venue. It holds BUSY\n      shared while it runs and\
-  \ its rows carry the (e) fields;\n  (q) A RUN EXECUTES THE ENGINE ITS SYNC LEFT:\
-  \ when the sync of (d) at a run's admission merged commits that\n      change the\
-  \ engine's own directory in the checkout the run executes the engine from (the engine's\
-  \ own\n      repository; a consumer's sync never moves the engine it runs), the\
-  \ run writes one `engine-reexec` step\n      row and re-executes its command in\
-  \ place — the same process, arguments and environment — keeping the\n      pass\
-  \ it holds: no new ticket, no second sync, its BUSY held throughout. A re-exec that\
-  \ cannot start\n      leaves the run on the code it started with. This is not the\
-  \ source's script-changed-on-disk step: a\n      waiter keeps its place and its\
-  \ code until its pass;\n  (r) A GATED DEPLOY'S PRE-DEPLOY RUN (SPEC-1051 rule 3)\
-  \ files its ticket before its run starts, of its own\n      class `deploy`, which\
-  \ comes FIRST in the order whatever `admission.order` declares — a fixed rule,\n\
+  \ starts the full run, and the screen is never a proof; a RED screen or a RED proof\n\
+  \      that stops the run records the card's `tests_failed` row (`leg: candidate`,\
+  \ `screen: quick-first`) on\n      the card's journal, a red governed run as a full\
+  \ run's red is. With the pre-check on and the sync\n      off, the screen runs once\
+  \ before the full run. With the pre-check off, the full run always follows. A\n\
+  \      full-reading run of (a) never ends on a proof and runs no screen. The quick\
+  \ set is the project's\n      `verify.post_sync_set` — its layers, or a list of\
+  \ test files the engine's runner runs where SPEC-0152\n      rule 16 takes that\
+  \ form (a project that declares no `verify.layers`, and the engine's own repository)\n\
+  \      — for the proof and the screen alike. While switched on, a hand\n      `worktree\
+  \ sync`'s set run holds BUSY shared. No quick set declared = no quick step. A run\
+  \ whose sync at admission stops on a merge conflict keeps its place: the card's\
+  \ next run ticket takes the stopped ticket's arrival, read from the card's admission\
+  \ rows on the main journal since the card was filed; a stop for any other cause\
+  \ releases the place;\n  (e) EVIDENCE IN THE JOURNAL: every pass and every step\
+  \ (sync, quick-first, hold, land-set) is a row on the\n      MAIN checkout's journal,\
+  \ carrying the source's pass-log fields and the FULL applied queue configuration\n\
+  \      — every key, its value and its source. Filing a ticket writes a `wait` row\
+  \ (class, arrival, what it\n      stands behind) and every ticket ends in exactly\
+  \ one terminal row: its pass, or `left` with the reason\n      before any pass —\
+  \ a land the queue's merge or land-set check refuses writes `left` and no\n    \
+  \  `land_completed`; what follows a pass is recorded as step rows of that pass.\
+  \ A waiting run or\n      land ends on SIGTERM, SIGINT or SIGHUP: it removes its\
+  \ own ticket WITHOUT taking the queue lock —\n      whoever holds that lock, another\
+  \ process or its own interrupted check — then writes `left` with\n      reason `signal`\
+  \ and exits 128+signal; every reader of the queue takes a vanished ticket as gone.\n\
+  \      `journal query --admission` reads the queue's state while switched on. While\
+  \ switched on, every\n      `land_completed` and every Stage-6 result row carries\
+  \ `admission: engine`, the queue revision (a content\n      hash of the queue module\
+  \ and the credit code it calls), the hash of the full applied configuration and\n\
+  \      the timestamp of the pass that admitted it. Every queue row above is a write\
+  \ ATTEMPT, made once: a row\n      that cannot be written (the write fails, or the\
+  \ journal writer's own lock wait runs out) is said once\n      and the work goes\
+  \ on — the queue retries nothing of its own, so \"exactly one terminal row\" reads\
+  \ \"at\n      most one\". The pass timestamp on a result row names the queue's decision;\
+  \ whether that pass row exists\n      is established from the journal, never assumed.\
+  \ Verification, its verdict and the Stage-6 credit\n      (SPEC-0065 §Bound) never\
+  \ read an `admission_pass` row, so a lost row changes neither. The soak reader\n\
+  \      (rule 5's comparison) reads a `land_completed` or Stage-6 result row — a\
+  \ land's credited run included —\n      that carries `admission: engine` and a pass\
+  \ timestamp with no `admission_pass` row at it as UNKNOWN: the\n      window holding\
+  \ it is unfit and does not count, and `journal query --admission` names each such\
+  \ gap.\n      The limit, stated: work that wrote no ticket, no pass and no result\
+  \ row leaves the journal nothing to\n      find, so the journal's accounting of\
+  \ the queue is complete only up to the rows that were written;\n  (f) PROJECT VALUES\
+  \ ARE SETTINGS: the source's paths, layer names, branch prefixes, CPU sets and numbers\
+  \ are\n      declarations or machine settings (rule 4);\n  (g) WORK IS ALIVE WHILE\
+  \ ITS FLOCK IS HELD: every admitted run on this host and every own-tests check holds\n\
+  \      BUSY shared, every admitted land the land hold; the work's children inherit\
+  \ them; whatever waits for\n      work to end reads those flocks, never a pid entry;\n\
+  \  (h) THE KERNEL'S OWN PLACEMENT: THE PLACES ask the routing decision with the\
+  \ repo's real identity; a\n      kernel run is never forced to `--placement local`\
+  \ (SPEC-1032) — with the box full it waits for a box\n      slot;\n  (i) NO CPU\
+  \ SET: an empty run or light CPU set means no pinning — no affinity call — and THE\
+  \ WINDOW reads\n      the CPUs the process may use;\n  (j) THE SWITCH, READ ONCE:\
+  \ a process reads the switch at its start and keeps that path; a project switches\n\
+  \      once its tasks are finished; there is no ungated-work scan and no transition\
+  \ step;\n  (k) A BOUND THAT STOPS STARTED WORK IS A BUDGET: the sync bound, the\
+  \ quick-run bound, the land-set file\n      bound and the land-set whole bound are\
+  \ SPEC-1031 BUDGET keys; a bound that only bounds a wait is\n      PERFORMANCE;\n\
+  \  (l) PLANNING LANDS: `admission.planning_lands: after-run` is the source's planning\
+  \ land — a queued land held\n      by another card's unit and green hold. `immediately`\
+  \ lets a planning land pass another card's unit and\n      green hold; it still\
+  \ waits for a land in flight and its merge checks, and the held card's land then\n\
+  \      takes what SPEC-0065 §Bound decides for that tree difference — the per-layer\
+  \ case where it applies,\n      else a full re-verify. Default: `immediately` when\
+  \ `yitc-ops.yaml` declares a non-empty\n      `verify.layers`, else `after-run`;\n\
+  \  (m) THE LAND'S PREVIEW BEFORE THE RUN: at run admission, after the sync, the\
+  \ land's own predicates that can\n      stop a land after a green run and need no\
+  \ run — the merge-conflict check, a known-broken `main` record,\n      the decisions\
+  \ content-freeze, the spec hand-edit guard, the won't-do rationale guard, the host-leak\
+  \ check\n      and, in a consumer, the any-author floor — are called in-process\
+  \ and what each would say is recorded on\n      a report-only `land-preview` step\
+  \ row; the run is not stopped. After a green run the credit answer is\n      recorded\
+  \ the same way;\n  (o) «RUNS NOTHING» IS THE WHOLE VERIFY: a run is a no-layer run,\
+  \ and a land a bookkeeping land, only when the\n      engine's own decision of what\
+  \ it would execute — its layers and the engine's test sweep — runs nothing;\n  \
+  \    and a run is a light run by its layers (A LIGHT RUN's first basis), and a land\
+  \ a light land, only when that\n      decision runs at least one layer, every one\
+  \ of them light, and no test sweep. A card's Stage-6 run\n      when none of the\
+  \ card's commits is substantive (the Closure-time coverage fact of SPEC-1038 §Tests)\n\
+  \      and every path its checkout changes against main, committed or not, is in\
+  \ the SPEC-0064 inert set\n      owes nothing: without --full,\n      --whole or\
+  \ --exclusive it takes no ticket, runs nothing, writes no tests_* row and ends `TEST:\
+  \ NONE`;\n  (p) A SCHEDULED PRE-DEPLOY RUN (SPEC-1047) files its ticket at its own\
+  \ start and is admitted as a run in the\n      declared order. It is tied to no\
+  \ card, so it takes none of the card steps — no sync at admission and no\n     \
+  \ quick step whatever the two verify switches say, no land preview, no green hold,\
+  \ no run-plus-land unit,\n      no credit answer — and it runs what SPEC-1047 rule\
+  \ 4 names (every verify layer whole plus the pre-deploy\n      classes), in a scratch\
+  \ checkout on this host: its place is the local place, never a venue. It holds BUSY\n\
+  \      shared while it runs and its rows carry the (e) fields;\n  (q) A RUN EXECUTES\
+  \ THE ENGINE ITS SYNC LEFT: when the sync of (d) at a run's admission merged commits\
+  \ that\n      change the engine's own directory in the checkout the run executes\
+  \ the engine from (the engine's own\n      repository; a consumer's sync never moves\
+  \ the engine it runs), the run writes one `engine-reexec` step\n      row and re-executes\
+  \ its command in place — the same process, arguments and environment — keeping the\n\
+  \      pass it holds: no new ticket, no second sync, its BUSY held throughout. A\
+  \ re-exec that cannot start\n      leaves the run on the code it started with. This\
+  \ is not the source's script-changed-on-disk step: a\n      waiter keeps its place\
+  \ and its code until its pass;\n  (r) A GATED DEPLOY'S PRE-DEPLOY RUN (SPEC-1051\
+  \ rule 3) files its ticket before its run starts, of its own\n      class `deploy`,\
+  \ which comes FIRST in the order whatever `admission.order` declares — a fixed rule,\n\
   \      not a setting — and passes alone at the head: before every queued land, Stage-6\
   \ run, own-tests check\n      and scheduled run of the repo. While a land holds,\
   \ it passes when that land ends. Otherwise it is\n      admitted as (p) admits a\
@@ -443,8 +445,8 @@ implements_signature:
   bin/lib/cli.py#_admission_after_run: cb40e51ea8a8053797ecc03e0d4eaeb29f36be58a84bc1bc82a13167f043814d
   bin/lib/cli.py#_admission_land_preview: 2dc9bd074fcce1f949dff0d7ff3a89b06b43156266617264b08cb9687c54790d
   bin/lib/cli.py#_admission_land_target: d3dfe9fbb3cc5ff9c149595831f4ca3db6982b5eb9ce0c0b0dd191e09a796c16
-  bin/lib/cli.py#_admission_run_steps: 433376b352a891a1992f8ad89d9dd8c66ea618885f4285382ede322a9693ad19
+  bin/lib/cli.py#_admission_run_steps: e3297d69bd8fadf9aaf07e647457f90a76780e79530f26ccc56367a0cf6dcea1
   bin/lib/cli.py#_stage6_run_not_owed: c17cef181f2d2aeaf566a1483cbec956efd2dd29910484f1400076e9933ed7ff
   bin/lib/cli.py#cmd_land: 700c1141b013b648582540b61e426c2462c0ead4137f1aae9b46e2b7fba8364f
-  bin/lib/cli.py#cmd_task_test: 9ea30b13cd7f3789372f153585d2f5af3cdf1d06d69384401af90a42c470d094
+  bin/lib/cli.py#cmd_task_test: 8b4eb3df13df1c79ea5ead1fa2dada2291503d4aefd34d30470549d418fbf5b6
   bin/lib/machine_settings.py#admission_from_main: e2e5b3d225958b6387482fbc3c56b459fb9c2ef37138da7870f29eaf36e368ca

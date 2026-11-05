@@ -2245,6 +2245,310 @@ def _plan_prototype_git(repo_root, *args) -> "tuple[str | None, str | None]":
         return None, str(e)
 
 
+# ── SPEC-1058 §2 — the owner-words reconciliation before the read-back (T-14520) ─────────────────
+# A read-only VIEW over the journal and the transcripts of the sessions that worked the spike. It
+# never writes the plan or the registry and never refuses: the matching is a CANDIDATE shown to the
+# owner (SPEC-0142 §2 — AI judgement separable and non-gating).
+_OW_ROW_TYPES = frozenset({"worktree_created", "spike_declared_late", "session_started",
+                           "owner_directive", "trial_run"})
+_OW_STEM_RE = re.compile(r"\w{4,}", re.UNICODE)
+_OW_STOP = frozenset({"this", "that", "with", "from", "have", "will", "into", "only", "also", "then",
+                      "there", "here", "what", "when", "which", "where", "should", "would", "could",
+                      "make", "just", "like", "need", "want", "keep", "that's", "этот", "чтобы",
+                      "будет", "можно", "нужно", "тоже", "только", "когда", "сейчас", "давай",
+                      "пока", "потом", "здесь", "там", "надо", "есть", "просто", "очень"})
+_OW_REVERSAL_RE = re.compile(
+    r"\b(?:not|no|don't|dont|instead|cancel\w*|revert\w*|undo|actually|rather|drop)\b"
+    r"|(?:^|\s)(?:не|нет)(?=\s|$|[,.!?])|отмен|вместо|передума|вс[её]-таки|убра|убер",
+    re.IGNORECASE | re.UNICODE)
+
+
+def _ow_stems(text: str) -> set:
+    return {w.lower()[:5] for w in _OW_STEM_RE.findall(text or "") if w.lower() not in _OW_STOP}
+
+
+def _ow_ts(raw) -> str:
+    """A row/entry timestamp converted to UTC `YYYY-MM-DDTHH:MM:SSZ` ('' when absent or unreadable).
+    An offset is honoured (`+02:00` is converted, never dropped); a value with no offset reads as UTC."""
+    import datetime as _dt   # noqa: PLC0415
+    s = str(raw or "").strip()
+    if not s:
+        return ""
+    try:
+        t = _dt.datetime.fromisoformat(s[:-1] + "+00:00" if s.endswith(("Z", "z")) else s)
+    except ValueError:
+        return ""
+    if t.tzinfo is None:
+        t = t.replace(tzinfo=_dt.timezone.utc)
+    return t.astimezone(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _ow_registry_items(body: str) -> "tuple[list, str | None]":
+    """The registry items read LENIENTLY — the step runs BEFORE the owner's read-back, so no
+    `owner_read` row is required. (items, fault); a fault leaves every word unmapped."""
+    sec = _plan_prototype_registry_section(body)
+    if sec is None:
+        return [], f"the plan has no `## {PROTOTYPE_REGISTRY_SECTION}` section"
+    lines = sec.splitlines()
+    start = next((i for i, ln in enumerate(lines) if _PROTO_FENCE_RE.match(ln.strip())), None)
+    end = (next((j for j in range(start + 1, len(lines)) if lines[j].strip() == "```"), None)
+           if start is not None else None)
+    if start is None or end is None:
+        return [], f"the `## {PROTOTYPE_REGISTRY_SECTION}` section carries no closed fenced yaml list"
+    try:
+        items = state.load_str("\n".join(lines[start + 1:end]))
+    except Exception as e:   # noqa: BLE001 — a parse failure is named, never a traceback
+        return [], f"the registry list does not parse as YAML: {str(e).splitlines()[0]}"
+    if not isinstance(items, list):
+        return [], "the registry is not a YAML list"
+    return [it for it in items if isinstance(it, dict) and it.get("id")], None
+
+
+def _ow_plan_rules(body: str) -> list:
+    """The plan's own rules as mapping targets: every bullet, numbered line or paragraph line of the
+    body OUTSIDE the `## Prototype registry` section and outside fenced blocks."""
+    rules, inside_reg, fenced = [], False, False
+    for ln in body.splitlines():
+        s = ln.strip()
+        if ln.startswith("## "):
+            inside_reg = ln[3:].strip() == PROTOTYPE_REGISTRY_SECTION
+            continue
+        if s.startswith("```"):
+            fenced = not fenced
+            continue
+        if inside_reg or fenced or not s or s.startswith("#"):
+            continue
+        rules.append(re.sub(r"^(?:[-*]|\d+[.)])\s+", "", s))
+    return rules
+
+
+def _ow_annotation_commit(repo_root, tag) -> "tuple[dict | None, str | None, str]":
+    """(annotation, tag commit, tagger date) of an annotated spike tag; (None, None, '') if unreadable."""
+    from lib import spike_identity as si   # noqa: PLC0415
+    ann = si._tag_annotation(repo_root, tag)
+    commit = si._git(repo_root, "rev-parse", "--verify", "--quiet", f"refs/tags/{tag}^{{commit}}",
+                     check=False).strip()
+    date = si._git(repo_root, "for-each-ref", "--format=%(taggerdate:iso-strict)", f"refs/tags/{tag}",
+                   check=False).strip()
+    if date:
+        try:
+            import datetime as _dt   # noqa: PLC0415
+            date = _dt.datetime.fromisoformat(date).astimezone(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            date = ""
+    return ann, (commit or None), date
+
+
+def _ow_transcript_turns(path) -> "tuple[list, str | None]":
+    """The owner turns of one transcript file: [(ts, text, uuid)], or ([], why) when unreadable."""
+    from lib import textutil   # noqa: PLC0415
+    out = []
+    try:
+        fh = open(path, encoding="utf-8", errors="replace")
+    except OSError as e:
+        return [], f"unreadable: {e.strerror or e}"
+    with fh:
+        for line in fh:
+            try:
+                e = json.loads(line)
+            except (ValueError, TypeError):
+                continue                     # a corrupt line is skipped, the rest still read
+            if not isinstance(e, dict):
+                continue
+            turn = journal_mod.conversation_turn(e, _extract_text=textutil.extract_text)
+            if turn and turn[0] == "owner" and turn[1]:
+                out.append((_ow_ts(e.get("timestamp")), turn[1], turn[2]))
+    return out, None
+
+
+def _ow_period_rows(events_path, start: str, end: str) -> list:
+    """The spike-life rows of the owner-words view: every `_OW_ROW_TYPES` row of the WHOLE logical
+    journal (the segment-aware fold, SPEC-0190 rule 4) with start <= ts <= end (an empty `end` = no
+    upper bound), sorted by (ts, type, session_ref) so neither segmentation nor physical order changes
+    the answer."""
+    def _key(r):
+        return (_ow_ts(r.get("ts")), str(r.get("type") or ""), str(r.get("session_ref") or ""),
+                json.dumps(r, sort_keys=True, default=str))
+    out = []
+    for r in journal_mod.segment_rows(events_path, types=_OW_ROW_TYPES, min_ts=start or None):
+        ts = _ow_ts(r.get("ts"))
+        if ts and ts >= start and (not end or ts <= end):
+            out.append(r)
+    return sorted(out, key=_key)
+
+
+def owner_words_reconciliation(repo_root, slug: str, fm: dict, body: str, *, events_path,
+                               resolve_transcript) -> dict:
+    """SPEC-1058 §2 — the read-only owner-words reconciliation for a plan opted in to the carry
+    registry. `resolve_transcript(ref) -> [Path]` is the kernel's existing transcript resolution (the
+    cli seam injects it). Returns a dict the renderer prints; writes nothing, raises nothing on an
+    unmapped word or a missing file."""
+    from lib import spike_identity as si   # noqa: PLC0415
+    rec = {"slug": slug, "opted_in": _plan_is_prototype_opted_in(fm), "faults": [], "rounds": [],
+           "unfollowed": [],
+           "start": "", "end": "", "refs": [], "read": [], "no_file": [], "words": [],
+           "mapped": [], "unmapped": [], "reversals": [], "trials": []}
+    if not rec["opted_in"]:
+        return rec
+    tag = str(fm.get("prototype_ref") or "").strip()
+    rec["prototype_ref"] = tag
+    ann, tip, end = _ow_annotation_commit(repo_root, tag)
+    if not ann or not ann.get("declared_row_ts") or not tip:
+        rec["faults"].append(f"`{tag}` has no readable declaring-row annotation — no spike life is "
+                             "derived and no session is read (nothing is guessed)")
+        return rec
+    rounds = [(ann.get("declared_row_ts", ""), ann.get("declared_session_ref", ""),
+               ann.get("branch", ""), tag)]
+    # Only the prototype's OWN declaring row is followed: no journal row links one spike round to the
+    # next, and commit ancestry cannot tell a continued round from a spike merged into the branch. An
+    # ancestral spike tag absent from `main` is therefore LISTED for the owner, never read.
+    rec["unfollowed"] = []
+    for other in si._git(repo_root, "for-each-ref", "--format=%(refname:short)", "refs/tags/spike/",
+                         check=False).split():
+        if other == tag:
+            continue
+        _oann, ocommit, _ = _ow_annotation_commit(repo_root, other)
+        if not ocommit:
+            continue
+        on_tip = si._git(repo_root, "merge-base", ocommit, tip, check=False).strip() == ocommit
+        on_main = si._git(repo_root, "merge-base", ocommit, "main", check=False).strip() == ocommit
+        if on_tip and not on_main:
+            rec["unfollowed"].append(other)
+    rec["rounds"] = sorted(rounds)
+    start = _ow_ts(min(r[0] for r in rounds))
+    rec["start"], rec["end"] = start, end
+    branches = {r[2] for r in rounds if r[2]}
+    names = {slug, tag} | branches
+
+    def _in_life(ts):
+        return bool(ts) and ts >= start and (not end or ts <= end)
+
+    rows = _ow_period_rows(events_path, start, end)
+    refs = [r[1] for r in rec["rounds"] if r[1]]
+    for r in rows:
+        d = r.get("data") if isinstance(r.get("data"), dict) else {}
+        ref = str(r.get("session_ref") or "")
+        if not ref:
+            continue
+        if r.get("type") == "trial_run" and str(d.get("plan") or "") == slug:
+            refs.append(ref)
+        elif r.get("type") == "owner_directive":
+            blob = " ".join([str(d.get("text") or ""), str(d.get("owner_text") or ""),
+                             " ".join(str(c) for c in (d.get("cards") or []))])
+            if any(n and n in blob for n in names):
+                refs.append(ref)
+    rec["refs"] = list(dict.fromkeys(refs))
+    part = set(rec["refs"])
+    words, seen_uuid = [], set()
+    for ref in rec["refs"]:
+        files = list(resolve_transcript(ref) or [])
+        for r in rows:
+            sr = str(r.get("source_ref") or "")
+            if str(r.get("session_ref") or "") == ref and sr and not sr.startswith("events.jsonl"):
+                files.append(Path(sr.split("#", 1)[0]))
+        files = [p for p in dict.fromkeys(Path(f) for f in files) if p.is_file()]
+        if not files:
+            rec["no_file"].append(ref)
+            continue
+        for p in files:
+            turns, why = _ow_transcript_turns(p)
+            rec["read"].append((ref, str(p), why or f"read ({len(turns)} owner turn(s))"))
+            for ts, text, uuid in turns:
+                if not _in_life(ts) or (uuid and uuid in seen_uuid):
+                    continue
+                seen_uuid.add(uuid) if uuid else None
+                words.append({"ts": ts, "text": text, "source": f"{p.name}#uuid:{uuid}"})
+    for r in rows:
+        d = r.get("data") if isinstance(r.get("data"), dict) else {}
+        if r.get("type") == "trial_run" and str(d.get("plan") or "") == slug:
+            rec["trials"].append({"ts": _ow_ts(r.get("ts")), "cycle": d.get("cycle"),
+                                  "scenario": str(d.get("scenario") or ""),
+                                  "observed": str(d.get("observed") or "")})
+        if r.get("type") != "owner_directive" or str(r.get("session_ref") or "") not in part:
+            continue
+        m = re.search(r"#uuid:(\S+)$", str(r.get("source_ref") or ""))
+        if m and m.group(1) in seen_uuid:
+            continue                         # the same turn, already read from its transcript
+        text = str(d.get("owner_text") or d.get("text") or "").strip()
+        if text:
+            if m:
+                seen_uuid.add(m.group(1))
+            words.append({"ts": _ow_ts(r.get("ts")), "text": text,
+                          "source": f"events.jsonl#ts={r.get('ts')}"})
+    for w in words:
+        w["text"] = journal_mod.redact_owner_text(w["text"])
+    words.sort(key=lambda w: w["ts"])
+    rec["words"] = words
+    items, fault = _ow_registry_items(body)
+    if fault:
+        rec["faults"].append(fault)
+    ids = {str(it["id"]) for it in items}
+    rules = _ow_plan_rules(body)
+    for w in words:
+        st = _ow_stems(w["text"])
+        named = [i for i in re.findall(r"\bR-[1-9][0-9]*\b", w["text"]) if i in ids]
+        target = None
+        if named:
+            target = f"registry {named[0]}"
+        else:
+            best = max(((len(st & _ow_stems(f"{it.get('what', '')} {it.get('surface', '')}")), str(it["id"]))
+                        for it in items), default=(0, ""))
+            if best[0] >= 2:
+                target = f"registry {best[1]}"
+            else:
+                rb = max(((len(st & _ow_stems(r)), r) for r in rules), default=(0, ""))
+                if rb[0] >= 2:
+                    target = f"plan rule: {rb[1][:80]}"
+        (rec["mapped"] if target else rec["unmapped"]).append((w, target))
+    for i, later in enumerate(words):
+        if not _OW_REVERSAL_RE.search(later["text"]):
+            continue
+        ls = _ow_stems(later["text"])
+        for earlier in words[:i]:
+            if len(ls & _ow_stems(earlier["text"])) >= 2 and earlier["text"] != later["text"]:
+                rec["reversals"].append((earlier, later))
+    return rec
+
+
+def render_owner_words(rec: dict) -> str:
+    """The owner-facing text of the reconciliation, shown beside the registry at the read-back."""
+    out = [f"owner words of the spike period — plan {rec['slug']} (SPEC-1058 §2; read-only: writes "
+           "nothing, refuses nothing; every mapping is a CANDIDATE — the owner decides)"]
+    if not rec["opted_in"]:
+        out.append("  the plan does not opt in to the carry registry (no prototype_ref, SPEC-1058 §1) — "
+                   "nothing to reconcile")
+        return "\n".join(out) + "\n"
+    for f in rec["faults"]:
+        out.append(f"  ! {f}")
+    if rec["rounds"]:
+        out.append(f"  spike life: {rec['start']} .. {rec['end'] or 'now'} — "
+                   + ", ".join(f"{r[3]} (declared {r[0]} by {r[1]})" for r in rec["rounds"]))
+        out.append("  sessions read: the prototype's declaring session, the sessions of this plan's "
+                   "trial_run rows, and those whose owner_directive names the plan, the prototype or "
+                   "its branch")
+    if rec.get("unfollowed"):
+        out.append("  NOT READ — spike tags inside the prototype's history and absent from main (an earlier "
+                   "round or a merged spike; no row links them, so the owner decides whether to read them "
+                   "with their own plan): " + ", ".join(rec["unfollowed"]))
+    out.append("  transcripts read:")
+    out += [f"    - {ref}: {path} — {how}" for ref, path, how in rec["read"]] or ["    (none)"]
+    out.append("  refs with no transcript file:")
+    out += [f"    - {ref}" for ref in rec["no_file"]] or ["    (none)"]
+    out.append(f"  owner words: {len(rec['words'])}")
+    out.append("  mapped (candidate):")
+    out += [f"    - [{w['ts']}] {w['text']!r} -> {t}  ({w['source']})" for w, t in rec["mapped"]] \
+        or ["    (none)"]
+    out.append("  UNMAPPED — no registry item and no plan rule (show the owner):")
+    out += [f"    - [{w['ts']}] {w['text']!r}  ({w['source']})" for w, _ in rec["unmapped"]] \
+        or ["    (none)"]
+    out.append("  REVERSALS (candidate — a later word turning an earlier one):")
+    out += [f"    - [{a['ts']}] {a['text']!r}  ->  [{b['ts']}] {b['text']!r}"
+            for a, b in rec["reversals"]] or ["    (none)"]
+    out.append("  trial_run rows of this plan in the spike life (SPEC-0035):")
+    out += [f"    - [{t['ts']}] cycle {t['cycle']}: {t['scenario']} — {t['observed']}"
+            for t in rec["trials"]] or ["    (none)"]
+    return "\n".join(out) + "\n"
+
 def _plan_prototype_commits(repo_root, fm: dict) -> "tuple[str | None, str | None, str | None]":
     """(tip, base, fault). Once accept PINNED the pair (`prototype_tip` + `prototype_base`), it is read
     from the frontmatter and NEITHER the tag NOR main is read again (SPEC-1058 §2 one prototype
@@ -2307,27 +2611,147 @@ def _plan_prototype_read(repo_root, fm: dict, body: str, events_path=None) -> di
     res["paths"], res["fault"] = _plan_prototype_changed_paths(repo_root, res["base"], res["tip"])
     if res["fault"]:
         return res
-    diff, err = _plan_prototype_git(repo_root, "diff", "--no-ext-diff", "--no-renames",
-                                    f"{res['base']}...{res['tip']}")
+    rng = f"{res['base']}...{res['tip']}"
+    diff, err = _plan_prototype_git(repo_root, "diff", "--no-ext-diff", "-M", rng)
     if err is not None:
         res["fault"] = f"git diff {res['base'][:12]}...{res['tip'][:12]} failed: {err}"
         return res
     res["diff"] = diff
+    # T-14528 — the per-path entries the packet renders by the mechanical reference rule (rename
+    # detection ON for the packet only; the path floor above keeps --no-renames, both paths of a move).
+    res["entries"], fault = _plan_prototype_entries(repo_root, rng, diff)
+    if fault:
+        res["fault"] = fault
     return res
 
 
-def _plan_prototype_packet(repo_root, fm: dict, body: str, read: dict) -> str:
-    """The accept-check packet block: the base diff beside the registry and SPEC-1058 §3's question."""
-    diff = read["diff"]
-    sec = _plan_prototype_registry_section(body) or ""
+# ── T-14528 (<project> X-2241) — the accept packet within the auditor's input budget ─────────────
+# The provider refused a 1,279,908-char prompt (limit 1,048,576); the budget keeps a margin for the
+# invoker's own wrapper. Owner rule events.jsonl#ts=2026-11-05T05:25:12Z: send by REFERENCE by a
+# MECHANICAL path/kind rule; over budget after that, the per-surface SPLIT of the check is the standard
+# path (events.jsonl#ts=2026-11-05T05:33:21Z); a refusal only for what cannot be split.
+_AUDITOR_INPUT_BUDGET = 1_000_000
+_PROTO_TEST_DIRS = frozenset({"tests", "test", "__tests__"})   # never `spec(s)/`: specs are source
+_PROTO_GENERATED_DIRS = frozenset({"vendor", "node_modules", "third_party", "dist"})
+_PROTO_LOCKFILES = frozenset({"package-lock.json", "yarn.lock", "pnpm-lock.yaml", "poetry.lock",
+                              "Pipfile.lock", "Cargo.lock", "Gemfile.lock", "composer.lock", "go.sum",
+                              "uv.lock", "bun.lockb", "npm-shrinkwrap.json"})
+
+
+def _plan_prototype_path_class(path: str, status: str, binary: bool) -> str:
+    """'full', or the reference class of a changed path — a fixed path/kind rule, never a judgement.
+    A deleted path is always 'full' (a removed feature is owner-meaningful)."""
+    if status.startswith("D"):
+        return "full"
+    parts = path.split("/")
+    name = parts[-1]
+    dirs = set(parts[:-1])
+    if binary:
+        return "binary"
+    if "__snapshots__" in dirs or name.endswith(".snap"):
+        return "snapshot"
+    if name in _PROTO_LOCKFILES:
+        return "lockfile"
+    if (dirs & _PROTO_GENERATED_DIRS or name.endswith((".min.js", ".min.css", ".map"))):
+        return "generated"
+    if (dirs & _PROTO_TEST_DIRS or (name.startswith("test_") and name.endswith(".py"))
+            or re.search(r"(_test|\.test|\.spec)\.[A-Za-z0-9]+$", name)):
+        return "test"
+    return "full"
+
+
+def _plan_prototype_entries(repo_root, rng: str, diff: str) -> "tuple[list, str | None]":
+    """One entry per changed path of the -M diff: {path, old, status, similarity, added, deleted,
+    cls, text}. The chunks of the diff are zipped with -M name-status/numstat (same order); a count
+    mismatch is a fault — never a silently dropped path."""
+    ns, err = _plan_prototype_git(repo_root, "diff", "--name-status", "-M", "-z", rng)
+    if err is not None:
+        return [], f"git diff --name-status {rng} failed: {err}"
+    nm, err = _plan_prototype_git(repo_root, "diff", "--numstat", "-M", "-z", rng)
+    if err is not None:
+        return [], f"git diff --numstat {rng} failed: {err}"
+    toks = [t for t in (ns or "").split("\0")]
+    while toks and toks[-1] == "":
+        toks.pop()
+    rows, i = [], 0
+    while i < len(toks):
+        st = toks[i].strip()
+        if st[:1] in ("R", "C"):
+            rows.append((st, toks[i + 1], toks[i + 2]))
+            i += 3
+        else:
+            rows.append((st, None, toks[i + 1]))
+            i += 2
+    ntoks = (nm or "").split("\0")
+    stats, j = [], 0
+    while j < len(ntoks):
+        t = ntoks[j]
+        if not t.strip():
+            j += 1
+            continue
+        a, d, rest = (t.split("\t", 2) + ["", ""])[:3]
+        if rest == "":   # a rename: the two paths follow as their own tokens
+            j += 3
+        else:
+            j += 1
+        stats.append((a, d))
+    chunks = [c for c in re.split(r"(?m)^(?=diff --git )", diff or "") if c.startswith("diff --git ")]
+    if not (len(rows) == len(stats) == len(chunks)):
+        return [], (f"the base diff could not be split per path ({len(rows)} paths, {len(stats)} stat "
+                    f"rows, {len(chunks)} diff chunks) — refused rather than render a partial subject")
+    out = []
+    for (st, old, path), (a, d), text in zip(rows, stats, chunks):
+        binary = a == "-" and d == "-"
+        sim = int(st[1:]) if st[:1] in ("R", "C") and st[1:].isdigit() else None
+        out.append({"path": path, "old": old, "status": st[:1], "similarity": sim,
+                    "added": None if binary else int(a or 0), "deleted": None if binary else int(d or 0),
+                    "cls": _plan_prototype_path_class(path, st, binary), "text": text.rstrip("\n") + "\n"})
+    return out, None
+
+
+def _proto_entry_line(e: dict) -> str:
+    lines = "binary" if e["added"] is None else f"+{e['added']}/-{e['deleted']} lines"
+    move = f"moved {e['old']} -> {e['path']}, {e['similarity']}% similar; " if e["old"] else ""
+    return f"- `{e['path']}` — {move}{e['cls']}, {lines}, {len(e['text'])} chars of diff"
+
+
+def _proto_surface(path: str) -> str:
+    parts = path.split("/")
+    if len(parts) == 1:
+        return "(root)"
+    return "/".join(parts[:2]) if len(parts) > 2 else parts[0]
+
+
+def _proto_items_for(items: list, paths: set) -> list:
+    hit = []
+    for it in items:
+        for loc in it.get("locators") or ():
+            m = _PROTO_LOCATOR_RE.match(str(loc).strip())
+            if m and m.group("path") in paths:
+                hit.append(it)
+                break
+    return hit
+
+
+def _plan_prototype_packet(repo_root, fm: dict, body: str, read: dict, *, entries=None, part=None,
+                           items=None) -> str:
+    """The accept-check packet block: the base diff beside the registry and SPEC-1058 §3's question.
+    T-14528: the registry is a POINTER to the plan body above (never a verbatim second copy); the diff
+    renders per path by the mechanical reference rule — reference-only paths are LISTED with their
+    class and size. `entries`/`part`/`items` render one surface slice of a split check; `part` =
+    "whole" renders the final whole pass (the full path list, no code)."""
+    import yaml   # noqa: PLC0415
+    all_entries = read.get("entries") or []
+    sec_note = ("The registry is the `## Prototype registry` section of the plan body above "
+                "(not repeated here).")
     missing = _plan_prototype_unlocated(read["items"], read["paths"])
     floor = ("every changed path of the diff is a locator of some item" if not missing else
              f"{len(missing)} changed path(s) are located by NO item ({', '.join(missing)}) — "
              "`plan stage accepted` refuses until each is located")
-    return (
-        f"\n## Prototype carry registry (SPEC-1058 §2-§3 — the accept question)\n\n"
-        f"prototype_ref: {fm.get('prototype_ref')} · prototype commit {read['tip']} · "
-        f"base (merge-base with main) {read['base']}\n\n"
+    head = (f"\n## Prototype carry registry (SPEC-1058 §2-§3 — the accept question)\n\n"
+            f"prototype_ref: {fm.get('prototype_ref')} · prototype commit {read['tip']} · "
+            f"base (merge-base with main) {read['base']}\n\n")
+    question = (
         "Accept question — judge the registry against the base diff below, hunk by hunk: (1) every "
         "owner-meaningful change of the diff has an item; (2) granularity — no item bundles two things "
         "the owner could see or test separately, and a change no owner sees is a `supporting` item "
@@ -2335,9 +2759,81 @@ def _plan_prototype_packet(repo_root, fm: dict, body: str, read: dict) -> str:
         "(`owner_read`) and it is cited; (4) every item added after that read-back, or changed in "
         "`what`, `locators` or `disposition` after it, and every `not-carried` item, cites an "
         f"`owner_row`. The kernel's list checks, computed for this packet: the list parses; {floor}. "
-        "The meaning is yours.\n\n"
-        f"### Registry (verbatim)\n\n{sec.strip()}\n\n"
-        f"### Base diff `git diff {read['base'][:12]}...{read['tip'][:12]}`\n\n```diff\n{diff}\n```\n")
+        "The meaning is yours.\n\n")
+    rng = f"`git diff -M {read['base'][:12]}...{read['tip'][:12]}`"
+    if part == "whole":
+        listing = "\n".join(_proto_entry_line(e) for e in all_entries) or "(no changed paths)"
+        return (head + "WHOLE PASS of a check split by surface (T-14528): the code was judged in the "
+                "surface slices; judge here ONLY coverage and granularity of the whole registry against "
+                "the full path list below — (1) and (2) of the question across slices, plus (3) and (4). "
+                + question + f"### Registry\n\n{sec_note}\n\n### Every changed path of {rng}\n\n"
+                + listing + "\n")
+    ents = all_entries if entries is None else entries
+    full = [e for e in ents if e["cls"] == "full"]
+    refs = [e for e in ents if e["cls"] != "full"]
+    moves = [e for e in full if e["old"]]
+    out = head
+    if part:
+        out += (f"SURFACE SLICE {part} of a check split by surface (T-14528): judge the question for THIS "
+                "slice's paths and the registry items located in them; one final whole pass judges "
+                "coverage across slices.\n\n")
+    out += question + f"### Registry\n\n{sec_note}\n\n"
+    if items is not None:
+        out += ("Items located in this slice (verbatim from the registry):\n\n```yaml\n"
+                + (yaml.safe_dump(items, sort_keys=False, allow_unicode=True) if items else "[]\n")
+                + "```\n\n")
+    if refs:
+        out += ("### Sent by reference (T-14528 mechanical rule: tests, lockfiles, generated/vendored/"
+                "minified, snapshots, binary) — listed, not rendered\n\n"
+                + "\n".join(_proto_entry_line(e) for e in refs) + "\n\n")
+    if moves:
+        out += ("### Moved files (rename detection; only the differing hunks below)\n\n"
+                + "\n".join(_proto_entry_line(e) for e in moves) + "\n\n")
+    body_diff = "".join(e["text"] for e in full)
+    out += f"### Base diff {rng} (every path not listed above, in full)\n\n```diff\n{body_diff}```\n"
+    return out
+
+
+def _plan_prototype_slices(read: dict, room: int, fm: dict) -> "tuple[list, str | None]":
+    """T-14528 — cut the full-rendered paths into surface slices whose packet fits `room` chars.
+    Surface = the first two path components (one for a two-part path). A surface too big alone is cut
+    per file; one file too big alone is the fault (unsplittable). Returns [(label, entries, items)]."""
+    ents = [e for e in (read.get("entries") or []) if e["cls"] == "full"]
+    items = read.get("items") or []
+
+    def _cost(es, label):
+        ps = {p for e in es for p in (e["path"], e["old"]) if p}
+        return len(_plan_prototype_packet(None, fm, "", read, entries=es, part=label,
+                                          items=_proto_items_for(items, ps)))
+    _LBL = "9999/9999"   # the widest label a packet carries (`k/N` only — surfaces stay in the record)
+    groups: dict = {}
+    for e in ents:
+        groups.setdefault(_proto_surface(e["path"]), []).append(e)
+    units = []
+    for surf, es in groups.items():
+        if _cost(es, _LBL) <= room:
+            units.append((surf, es))
+            continue
+        for e in es:
+            if _cost([e], _LBL) > room:
+                return [], (f"`{e['path']}` alone renders {len(e['text'])} chars of diff — its slice "
+                            f"exceeds the {room}-char room a slice has under the auditor budget, so it "
+                            "cannot be split further")
+            units.append((surf, [e]))
+    slices, cur_s, cur_e = [], [], []
+    for surf, es in units:
+        if cur_e and _cost(cur_e + es, _LBL) > room:
+            slices.append((cur_s, cur_e))
+            cur_s, cur_e = [], []
+        cur_s.append(surf)
+        cur_e = cur_e + es
+    if cur_e:
+        slices.append((cur_s, cur_e))
+    out = []
+    for surfs, es in slices:
+        ps = {p for e in es for p in (e["path"], e["old"]) if p}
+        out.append((", ".join(dict.fromkeys(surfs)), es, _proto_items_for(items, ps)))
+    return out, None
 
 
 def _require_plan_prototype_at_accept(slug: str, fm: dict, body: str, av: dict, *, REPO_ROOT, _die) -> "dict | None":
@@ -3940,6 +4436,7 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     # registry; a bad ref or a malformed list refuses HERE, before the auditor (no pass spent). A plan
     # without prototype_ref takes no branch: prompt and record stay byte-identical.
     proto_read = None
+    proto_split = None   # T-14528 — [(label, prompt, paths, item ids)] when the check is split by surface
     if _plan_is_prototype_opted_in(fm):
         proto_read = _plan_prototype_read(REPO_ROOT, fm, body)
         if proto_read["fault"]:
@@ -3949,7 +4446,48 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
             _die(f"{slug}: plan check refused before the auditor — the prototype carry registry: "
                  f"{proto_read['fault']} (SPEC-1058 §2). No pass spent; fix the plan, then re-run "
                  f"`yitc-v2 plan check {slug}`.")
+        _base_prompt = prompt
         prompt += _plan_prototype_packet(REPO_ROOT, fm, body, proto_read)
+        if len(prompt) > _AUDITOR_INPUT_BUDGET:
+            # T-14528 — over budget after the reference rule: the per-surface SPLIT of the check
+            # (owner events.jsonl#ts=2026-11-05T05:33:21Z), refused before the auditor only when the
+            # subject cannot be split — sizes named, no pass spent (the T-12828 shape).
+            _room = _AUDITOR_INPUT_BUDGET - len(_base_prompt)
+            _whole = _plan_prototype_packet(REPO_ROOT, fm, body, proto_read, part="whole")
+            _slices = []
+            if len(_base_prompt) + len(_whole) > _AUDITOR_INPUT_BUDGET:
+                _sfault = (f"the whole pass alone (the plan prompt {len(_base_prompt)} chars + the path "
+                           f"list {len(_whole)} chars) exceeds the budget")
+            else:
+                _slices, _sfault = _plan_prototype_slices(proto_read, _room, fm)
+            proto_split = []
+            if not _sfault:
+                _n = len(_slices)
+                proto_split = [(f"{k}/{_n} ({lab})", _base_prompt + _plan_prototype_packet(
+                    REPO_ROOT, fm, body, proto_read, entries=es, part=f"{k}/{_n}", items=its),
+                    [e["path"] for e in es], [str(it.get("id")) for it in its])
+                    for k, (lab, es, its) in enumerate(_slices, 1)]
+                proto_split.append(("whole pass", _base_prompt + _whole,
+                                    [e["path"] for e in proto_read.get("entries") or []],
+                                    [str(it.get("id")) for it in proto_read.get("items") or []]))
+                # fail closed: EVERY prompt actually sent is measured, never only the packing estimate
+                _over = [(lab, len(pp)) for lab, pp, _a, _b in proto_split if len(pp) > _AUDITOR_INPUT_BUDGET]
+                if _over:
+                    _sfault = "part(s) " + ", ".join(f"{lab} = {n} chars" for lab, n in _over) + \
+                              " still exceed the budget after slicing"
+            if _sfault:
+                _append_event("read_gate_refused", None, {
+                    "verb": "plan check", "action": "audit the plan accept gate", "target_kind": "plan",
+                    "plan_slug": slug, "reason": "prototype-packet-exceeds-auditor-budget",
+                    "budget": _AUDITOR_INPUT_BUDGET, "prompt_chars": len(prompt),
+                    "base_prompt_chars": len(_base_prompt), "fault": _sfault})
+                _die(f"{slug}: plan check REFUSED before the auditor — the accept packet is "
+                     f"{len(prompt)} chars against the {_AUDITOR_INPUT_BUDGET}-char auditor budget "
+                     f"(plan prompt {len(_base_prompt)}, prototype packet {len(prompt) - len(_base_prompt)}) "
+                     f"after the send-by-reference rule, and the check cannot be split by surface: "
+                     f"{_sfault}. No audit pass was spent. Route: shrink that file in the prototype or "
+                     f"the plan body, then re-run `yitc-v2 plan check {slug}` (T-14528 / SPEC-1058 §3).")
+            prompt = proto_split[0][1]
     prompt_excerpt = prompt[:200]   # opens at the fixed lens — the focus block is unreachable (T-0350 F3)
     # T-12828 (X-1529) — REFUSE before the auditor when the block cannot carry its whole subject (a draft
     # over its pool, or a related comparand that no longer fits): no pass spent, sizes named.
@@ -3975,11 +4513,46 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
         structural += sf["structural"]
     _answered_pair: dict = {}      # T-12606 — INVOCATION-scoped: which pair answered THIS gate audit
     _check_t0 = time.monotonic()   # T-13574 — the prompt hand-off: the row's duration anchor
-    rc, stdout, stderr = audit_lib.invoke_auditor_tiered(
-        _invoke_auditor, provider, prompt, model, full=full, effort=effort,   # T-12350 / T-12606
-        _resolve_audit_reserve=_resolve_audit_reserve, append_event=_append_event,   # T-12606
-        answered_out=_answered_pair, iter_events=_iter_events, events_path=EVENTS_PATH)   # T-13109
-    if rc != 0:
+    def _ask(_p):
+        return audit_lib.invoke_auditor_tiered(
+            _invoke_auditor, provider, _p, model, full=full, effort=effort,   # T-12350 / T-12606
+            _resolve_audit_reserve=_resolve_audit_reserve, append_event=_append_event,   # T-12606
+            answered_out=_answered_pair, iter_events=_iter_events, events_path=EVENTS_PATH)   # T-13109
+    slice_records = None
+    if proto_split:
+        # T-14528 — one auditor call per surface slice, then the whole pass; ONE verdict: the worst
+        # (an ABORT anywhere is the run's ABORT; GREEN only when every part is GREEN).
+        rc, stdout, stderr, verdict, findings, parse_notes = 0, "", "", "GREEN", [], ""
+        slice_records, _outs, _notes = [], [], []
+        _rank = {"GREEN": 0, "YELLOW": 1, "RED": 2, "ABORT": 3}
+        for _lab, _p, _paths, _ids in proto_split:
+            _rc, _out, _err = _ask(_p)
+            _outs.append(f"### check part {_lab}\n{_out}")
+            if _rc != 0:
+                rc, stderr = _rc, _err
+                verdict, findings = "ABORT", []
+                parse_notes = audit_lib.auditor_failure_cause(_rc, _err, label=f"auditor ({provider}) on part {_lab}")
+                slice_records.append({"part": _lab, "paths": _paths, "items": _ids, "verdict": "ABORT"})
+                break
+            _v, _f, _n2 = _parse_audit_verdict(_out)
+            for _fi in _f or []:
+                if isinstance(_fi, dict):
+                    _fi.setdefault("slice", _lab)
+            findings += list(_f or [])
+            if _n2:
+                _notes.append(f"[{_lab}] {_n2}")
+            slice_records.append({"part": _lab, "paths": _paths, "items": _ids, "verdict": _v,
+                                  "findings": len(_f or [])})
+            if _rank.get(_v, 3) > _rank.get(verdict, 3):
+                verdict = _v if _v in _rank else "ABORT"
+        stdout = "\n\n".join(_outs)
+        if rc == 0:
+            parse_notes = "\n".join(_notes)
+    else:
+        rc, stdout, stderr = _ask(prompt)
+    if slice_records is not None:
+        pass   # the split run above already set verdict / findings / parse_notes
+    elif rc != 0:
         # T-12739 — the cause through the ONE shared T-12582 extractor (tail-first: the provider's
         # terminal ERROR, never its startup banner), the last plan-gate site still saving `stderr[:500]`.
         verdict, findings = "ABORT", []
@@ -4065,6 +4638,8 @@ def cmd_plan_check(args: argparse.Namespace, *, DECISIONS_DIR, PLANS_DIR, REPO_R
     if proto_read is not None:
         audit["prototype_commit"] = proto_read["tip"]
         audit["prototype_base"] = proto_read["base"]
+    if slice_records is not None:   # T-14528 — only a split check carries the key
+        audit["prototype_check_slices"] = slice_records
     # T-11299 (X-0999) — WAS THIS ABORT THE WALL-CLOCK BUDGET RUNNING OUT, or a governance stop?
     # `plan check` collapsed EVERY nonzero auditor rc into a bare ABORT, so the timeout cause survived
     # only as prose inside `notes:` ("auditor exit 124: timeout after 300s") — while LIFECYCLE Stage 4/8
@@ -4413,7 +4988,7 @@ def _plan_body_title(body: str) -> str:
     return "(no title)"
 
 
-def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_SEQUENCE, TASKS_DIR, _load_draft, _plan_body_title, _plan_next_stage, _plan_stage_bundle_specs, _plan_cut_cards, _read_yaml, _is_consumer_build=None) -> None:
+def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_SEQUENCE, TASKS_DIR, _load_draft, _plan_body_title, _plan_next_stage, _plan_stage_bundle_specs, _plan_cut_cards, _read_yaml, _is_consumer_build=None, _owner_words=None) -> None:
     """`plan show <slug>` (T-0682) — the read-only PLAN re-orientation surface; the plan analog of the
     task resume-contract print (`_print_task_resume` / SPEC-0027). A pure VIEW re-derived from the plan
     artifact + PLAN_STAGE_SEQUENCE + the plan-stage-entry bindings (CHARTER §P1 F2 — a view, not a new
@@ -4439,6 +5014,10 @@ def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_
         print(f"idea {slug} — {title}")
         print("  ideas/ are flat forward-looking notes — no FSM, no stages, no next gate (D-0034). "
               "Promote to a plan (`yitc-v2 plan file`) to enter the lifecycle.")
+        return
+    if getattr(args, "owner_words", False):
+        # T-14520 (SPEC-1058 §2): the owner-words reconciliation before the read-back — a view only.
+        sys.stdout.write(render_owner_words(_owner_words(slug, fm, body)))
         return
     status = fm.get("status") or "draft"
     print(f"plan {slug} — {title}")
