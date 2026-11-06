@@ -147,4 +147,4 @@ implements_signature:
   bin/lib/deploy.py#_recheck_window: a195dbbff318ac6cce847a753e7e7722ace7967420fc82aab101eba34ba2b544
   bin/lib/deploy.py#cmd_deploy: b2726455fbe1306a8557abc99eff4a05f9c373bdf07135ded36d2f3ee81cbd12
   bin/lib/events.py#cmd_event: eff51c13629aad9ecb24b3079331bb7ae63b252200f4d8533c6e15f6c278eac1
-  bin/lib/views.py#_render_debt_echo: b0f2d5d120498351a52423b2b7a32fe8b5af59f9afcc84bebd868959c7836378
+  bin/lib/views.py#_render_debt_echo: b04fc58a17b449e9f9faab3b326db0b20d9e2a4673337f25c688d2e2ec8204e4

@@ -505,34 +505,36 @@ body: "**Successor of <workshop-spec> (plan `run-the-full-governed-test-stage-af
   \ (SPEC-1039 rule 4, the same refusal as a rule-3 RED); on any verdict it is\nFINAL\
   \ for the stage — no `--on-decisions` pass, no absorption re-audit, no post-GREEN\n\
   merge-integration pass and no `audit decide` follows it, and its own allowance is\
-  \ spent — so a second\nred Tests run after it ends at the existing terminals. The\
-  \ freshness re-audits of the ledger-skip axes\n(SPEC-1034 / SPEC-1018: lens version,\
-  \ audit currency, ship-custody re-pin) read it as they read every\nother final or\
-  \ terminal pass, unchanged. A GREEN ordinary ceiling row takes the empty-set\n`--on-decisions`\
-  \ route («Rule 3» above), never this pass; when a red governed run follows that\
-  \ row\npast ceiling+1, `task commit --reship` is admitted on the same red-run fact\
-  \ so the fix is that\npass's subject. A GREEN newest run, a non-descendant subject\
-  \ or an unreadable journal\nadmits nothing. Nothing in SPEC-1039 rule 6 moves: no\
-  \ owner reset, no consult, no decision is\nwritten for it.\nEvery exit from a spent\
-  \ GREEN, this pass among them, is one row of the table in SPEC-1018 «Exits\nfrom\
-  \ a spent GREEN» (`graph query SPEC-1018`).\n\n## Parameters\n\nNone consumed.\n\
-  \n## Rationale\n\nA minority of cards reach the audit-loop ceiling, and each case\
-  \ above arises for a minority of those.\nRendered inside <workshop-spec> this detail\
-  \ reached every session entering Audit-pre or Audit-post; as a\nreference behind\
-  \ one index line and the head of the deciding verb's help it is met by the session\n\
-  that is at a ceiling (<workshop-spec> §6, the rare-case option).\n\n«A test-found\
-  \ fix after a spent GREEN» is ADDITIVE (public intake #168 — cryptochart card\n\
-  \ on engine v2.19.0): after its GREEN `--on-decisions` pass a governed Tests run\
-  \ went red, and\nno commit or audit route admitted the in-scope fix. It sits in\
-  \ its own section because\n§At-ceiling edge cases holds the blocks moved there whole\
-  \ (VP1). (<project> X-2249, card\n) added, in place, the `--reship` admission after\
-  \ a GREEN ORDINARY ceiling row: an ordinary\nGREEN pass 3 was followed by a red\
-  \ governed run and no door could commit the fix.\n\n## Verification\n\n- VP1 (one\
-  \ home): every block of §At-ceiling edge cases is present in this spec and absent\
-  \ from\n  SPEC-1039, and SPEC-1039 carries exactly one index line naming this spec\
-  \ and the heading to search.\n- VP2 (reachable from the verb): the first lines of\
-  \ the `audit decide` help name this spec.\n- VP3 (no stage render): no stage entry\
-  \ delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n\
+  \ spent — so a second\nred Tests run after it ends at the existing terminals. One\
+  \ exception: after a GREEN test-found-fix\npass, a chain of admission merges takes\
+  \ the one pass of SPEC-1018 «Post-GREEN merge integration»\nat or past the ceiling.\
+  \ The freshness re-audits of the ledger-skip axes\n(SPEC-1034 / SPEC-1018: lens\
+  \ version, audit currency, ship-custody re-pin) read it as they read every\nother\
+  \ final or terminal pass, unchanged. A GREEN ordinary ceiling row takes the empty-set\n\
+  `--on-decisions` route («Rule 3» above), never this pass; when a red governed run\
+  \ follows that row\npast ceiling+1, `task commit --reship` is admitted on the same\
+  \ red-run fact so the fix is that\npass's subject. A GREEN newest run, a non-descendant\
+  \ subject or an unreadable journal\nadmits nothing. Nothing in SPEC-1039 rule 6\
+  \ moves: no owner reset, no consult, no decision is\nwritten for it.\nEvery exit\
+  \ from a spent GREEN, this pass among them, is one row of the table in SPEC-1018\
+  \ «Exits\nfrom a spent GREEN» (`graph query SPEC-1018`).\n\n## Parameters\n\nNone\
+  \ consumed.\n\n## Rationale\n\nA minority of cards reach the audit-loop ceiling,\
+  \ and each case above arises for a minority of those.\nRendered inside <workshop-spec>\
+  \ this detail reached every session entering Audit-pre or Audit-post; as a\nreference\
+  \ behind one index line and the head of the deciding verb's help it is met by the\
+  \ session\nthat is at a ceiling (<workshop-spec> §6, the rare-case option).\n\n\
+  «A test-found fix after a spent GREEN» is ADDITIVE (public intake #168 — cryptochart\
+  \ card\n on engine v2.19.0): after its GREEN `--on-decisions` pass a governed Tests\
+  \ run went red, and\nno commit or audit route admitted the in-scope fix. It sits\
+  \ in its own section because\n§At-ceiling edge cases holds the blocks moved there\
+  \ whole (VP1). (<project> X-2249, card\n) added, in place, the `--reship` admission\
+  \ after a GREEN ORDINARY ceiling row: an ordinary\nGREEN pass 3 was followed by\
+  \ a red governed run and no door could commit the fix.\n\n## Verification\n\n- VP1\
+  \ (one home): every block of §At-ceiling edge cases is present in this spec and\
+  \ absent from\n  SPEC-1039, and SPEC-1039 carries exactly one index line naming\
+  \ this spec and the heading to search.\n- VP2 (reachable from the verb): the first\
+  \ lines of the `audit decide` help name this spec.\n- VP3 (no stage render): no\
+  \ stage entry delivers this spec.\nThe executable form of VP1-VP3 is `tests/test_t13692_ceiling_edge_cases_reference.py`.\n\
   - VP4 (the test-found-fix pass, Rule 4): on a real-git replay of the yitc#168 card\
   \ the fix's\n  `audit post` runs ONE pass recorded `basis: test-found-fix` and `--reship`\
   \ is admitted; a second red\n  run after it, a green newest run, a non-descendant\

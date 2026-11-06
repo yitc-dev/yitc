@@ -252,7 +252,7 @@ that task and the batch goes on — the route is stated in AGENTS-SESSIONS §Orc
 ## When NOT to add a mechanism
 
 If you find yourself wanting to add:
-- A new hook (ONE named exception: the in-repository post-compaction entry — print-only brief, bounded time and output, never blocks a compaction)
+- A new hook (ONE named exception: the post-compaction entry, in the repository and, on the person's yes, in the user-level settings — print-only brief, bounded time and output, never blocks a compaction)
 - A new pre-commit gate
 - A new file format
 - A new parser path

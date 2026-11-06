@@ -2923,7 +2923,12 @@ def _prototype_carry_item_text(it: dict) -> str:
     return (f"- {it['id']} [{it['kind']}, {it['disposition']}] surface: {it['surface']}\n"
             f"  what: {it['what']}\n  locators: {', '.join(map(str, it['locators']))}\n"
             + (f"  owner_row: {row} — this `what` is the owner-cited expected state; it wins over the "
-               f"prototype drawing and building it asks nothing\n" if row else ""))
+               f"prototype drawing and building it asks nothing\n" if row else "")
+            + (f"  owner_risk: {it['owner_risk']} — an owner-risk item (SPEC-1058 §2; its owner row was "
+               f"resolved by `plan stage accepted` and its words judged by the accept check): its open "
+               f"detail is decided while building on main and the owner checks it in a sandbox raised "
+               f"from landed main; build a reasonable resolution, do not re-open it, and the absence of "
+               f"trial evidence for it is not a finding\n" if it.get("owner_risk") else ""))
 
 
 def prototype_carry_block(repo_root, stage: str, ctx: dict) -> "tuple[str | None, str | None]":
@@ -2938,11 +2943,12 @@ def prototype_carry_block(repo_root, stage: str, ctx: dict) -> "tuple[str | None
     items = "".join(_prototype_carry_item_text(it) for it in own)
     head = f"\n{PROTOTYPE_CARRY_ITEMS_HEADING} (SPEC-1058 §3 — prototype commit {ctx['tip']})\n\n{items}\n"
     if stage == "pre":
-        open_ids = [str(it["id"]) for it in own if not it.get("owner_row")]
+        open_ids = [str(it["id"]) for it in own if not it.get("owner_row") and not it.get("owner_risk")]
         ask = (f"An unresolved departure from the expected state of {', '.join(open_ids)} is a stop-and-ask: "
                f"`task pause --reason controller-wait` naming the item, never a silent drop and never «the "
                f"card governs». " if open_ids else "No item here is open to a stop-and-ask: each carries a "
-               "cited owner amendment. ")
+               + ("cited owner amendment or an owner-risk marker. " if any(it.get("owner_risk") for it in own)
+                  else "cited owner amendment. "))
         return head + PROTOTYPE_CARRY_PRE_OVERLAY + ask + "\n", None
     nc = "".join(_prototype_carry_item_text(it) for it in ctx["not_carried"]) or "(none on these surfaces)\n"
     hunks = []
@@ -6125,6 +6131,10 @@ def _on_decisions_row_is_real(*a, **kw):
 
 
 DECIDE_ROW_TYPES = audit_ceiling.DECIDE_ROW_TYPES  # T-13364 — the ladder's declared row types; the body lives in `bin/lib/audit_ceiling.py#DECIDE_ROW_TYPES` (re-export alias)
+
+
+# T-14534 — the row types the merge-integration admission reads from the main checkout journal.
+_MI_MAIN_SYNC_TYPES = frozenset({"worktree_synced", "merge_resolved_by_hand"})
 
 
 def _decide_journal_view(tid, stage, *, _iter_events, events_path=None,
@@ -9902,6 +9912,28 @@ def reship_opens_new_ceiling_row(recorded_commit_landed, prior_record, subject_s
     return subject
 
 
+#: T-14543 — the A6 row types `reship_opens_new_ceiling_row`'s `run_since_audit` is read from (the
+#: audit door's own tuple), named once so the commit-time WARN reads the same rows.
+RESHIP_A6_ROW_TYPES = ("audit_post_completed", "tests_passed", "tests_failed")
+
+
+def reship_reaudit_opens_new_row(prior_record, a6_rows) -> bool:
+    """T-14543 (X-2279) — will the REQUIRED re-audit of the reship being committed NOW open a new
+    ceiling row? Asked by `task commit --reship` BEFORE its commit exists, so the WARN it prints names
+    the step the audit door will actually admit.
+
+    It asks `reship_opens_new_ceiling_row` itself — never a restatement — with the row this commit is
+    about to record: `reship: true` and a commit that resolves to the subject (a placeholder both
+    sides, identity resolver), so conjuncts (a)/(b) hold by construction, (d) cannot match a subject
+    that does not exist yet, and the answer turns on (c) the prior record's verdict and the A6 fact.
+    `a6_rows` None (the journal could not be read) is treated as a run since — the audit door's own
+    fail-closed direction — so the WARN then names the decisions route."""
+    placeholder = "<reship-commit>"
+    run_since = True if a6_rows is None else gates.run_since_newest_audit_post(a6_rows)
+    return reship_opens_new_ceiling_row({"reship": True, "commit": placeholder}, prior_record,
+                                        placeholder, lambda s: s, run_since_audit=run_since) is not None
+
+
 def normalized_verdict(rec) -> str:
     """T-11573 — the ONE way a saved audit/gate record's verdict VALUE is read.
 
@@ -13599,6 +13631,7 @@ def audit_pre_read_scope(args, *, events_path, find_task_yaml, session_refs=(), 
                 main_stack.close()
                 return _open_main()
             scope.audit_main_renew = _renew_main
+            scope.audit_post_main = main   # T-14534 — `_scoped_main_task_rows` reads MAIN's leg
         yield scope
 
 
@@ -13608,6 +13641,20 @@ def _scope_task_rows(events_path, tid) -> "list | None":
     if events_path is None or not journal_mod.scan_scope_holds(events_path):
         return None
     return journal_mod.scope_needle_rows(events_path, str(tid))
+
+
+def _scoped_main_task_rows(events_path, tid) -> "list | None":
+    """T-14534 — MAIN's rows naming task `tid`, served from audit post's one-pass scope (MAIN's leg is
+    walked with the task needle, `audit_pre_read_scope`); None when no audit-post scope holds a MAIN leg
+    (no second instance, or the audit runs on main) — the caller then reads nothing more."""
+    scope = journal_mod.scope_of(events_path) if events_path is not None else None
+    main = getattr(scope, "audit_post_main", None) if scope is not None else None
+    if main is None:
+        return None
+    renew = getattr(scope, "audit_main_renew", None)
+    if callable(renew):
+        renew()
+    return journal_mod.scope_needle_rows(main, str(tid))
 
 
 def _scoped_ceiling_decisions(events_path, tid, event_task_id) -> "list | None":
@@ -14801,8 +14848,11 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                 def _mi_git(_args):
                     from lib import git_env as _git_env  # T-13587 — the git child env policy (SPEC-0188 rule 7)
                     _p = subprocess.run(["git", "-C", str(REPO_ROOT), *_args], capture_output=True,
-                                        text=True, errors="replace", check=False, env=_git_env._git_child_env())
-                    return _p.returncode, _p.stdout
+                                        check=False, env=_git_env._git_child_env())
+                    try:   # T-14544 — output that is not UTF-8 cannot be rendered whole: an explicit
+                        return _p.returncode, _p.stdout.decode("utf-8")   # decode failure, never a
+                    except UnicodeDecodeError:                            # replacement character
+                        return audit_ceiling.MI_UNDECODABLE_RC, ""
                 def _mi_spec_parts(_text):
                     # T-14180 — the T-10548 body / `implements_signature` split of a spec record
                     _rec = state.load_str(_text)
@@ -14815,10 +14865,17 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                     from lib import cli as _cli  # local import: `lib.cli` imports this module
                     _rc, _out = _mi_git(["show", f"{_rev}:{textutil.anchor_file(_anchor)}"])
                     return _cli._anchor_signature_of_text(_anchor, _out) if _rc == 0 else None
+                def _mi_tested_is_head(_tree, _subject):
+                    # T-14544 — the run's `stage6_run.tree` differs from the subject only by inert
+                    # paths (the SPEC-0064 taxonomy the land's Stage-6 credit reads); fail-closed
+                    from lib import cli as _cli  # local import: `lib.cli` imports this module
+                    _rc, _out = _mi_git(["diff", "--name-only", "--no-renames", "-z", _tree, _subject])
+                    return _rc == 0 and all(_cli._inert_path_class(_p) == "inert"
+                                            for _p in _out.split("\0") if _p)
                 _mi_view = _decide_journal_view(   # T-13332: the scope's task rows when held
                     tid, "post", _iter_events=_scoped_task_iter(EVENTS_PATH, tid, _iter_events),
                     events_path=EVENTS_PATH)
-                _mi_ev, _mi_refusal = (
+                _mi_admit = lambda: (   # noqa: E731 — asked again below (T-14534) on the widened rows
                     audit_ceiling.merge_integration_admission(
                         tid, prior_record=_prior_audit_record(tid, "post"), custody_sha=sha,
                         head_sha=_git_resolve_sha("HEAD"), rows=_mi_view["rows"],
@@ -14832,7 +14889,46 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                             _c, _t, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths,
                             REPO_ROOT=REPO_ROOT),
                         # T-14375 — below the ceiling, a `--fix-red` re-audit whose merge followed the fix
-                        red_fix_ok=not _mi_at_ceiling and not on_decisions))
+                        red_fix_ok=not _mi_at_ceiling and not on_decisions,
+                        # T-14542 — at/past the ceiling, a hand-resolved merge after a spent GREEN (incl.
+                        # a GREEN test-found-fix pass) gets its one pass with the hand edits shown
+                        hand_merge_ok=_mi_at_ceiling and not on_decisions,
+                        # T-14544 — the newest green Tests run tested the subject, apart from inert paths
+                        tested_is_head=_mi_tested_is_head,
+                        # T-14545 (X-2291) — the final-delta context leaves out record-only paths
+                        inert=lambda _p: __import__("lib.cli", fromlist=["_inert_path_class"])
+                        ._inert_path_class(_p) == "inert"))
+                _mi_ev, _mi_refusal = _mi_admit()
+                # T-14534 — the land Stage-6 admission sync runs `worktree sync --task` FROM THE MAIN
+                # CHECKOUT, so the `worktree_synced` row of that clean merge sits in main's journal and
+                # not in this worktree's until the land folds it. When refused, read THIS card's sync rows
+                # (`worktree_synced` + `merge_resolved_by_hand`, the verbs' own rows — nothing is copied
+                # into any journal) from MAIN's leg of this verb's one-pass read scope (its task needle,
+                # `_scoped_main_task_rows`) and ask once more.
+                # Only widens what the T-14449 walk may match: a hand-resolved merge still has no clean
+                # row and a `merge_resolved_by_hand` row from main still refuses it. No MAIN leg (no second
+                # instance, the audit running on main, no scope): the first answer stands (fail-closed).
+                if _mi_refusal:
+                    _mi_extra = [_r for _r in (_scoped_main_task_rows(EVENTS_PATH, tid) or ())
+                                 if isinstance(_r, dict) and _r.get("type") in _MI_MAIN_SYNC_TYPES
+                                 and str(_r.get("task_id") or "") == str(tid)]
+                    _mi_have = {json.dumps(_r, sort_keys=True, default=str)
+                                for _r in _mi_view["rows"] or () if isinstance(_r, dict)}
+                    _mi_extra = [_r for _r in _mi_extra
+                                 if json.dumps(_r, sort_keys=True, default=str) not in _mi_have]
+                    if _mi_extra:
+                        # T-14544 — the predicate reads journal ORDER; rows of a second instance have no
+                        # position in this one, so each is placed by its `ts` before the first row of
+                        # this journal that is later (stable: same-second rows of this journal first)
+                        _mi_rows = list(_mi_view["rows"] or ())
+                        for _x in sorted(_mi_extra, key=lambda _e: str(_e.get("ts") or "")):
+                            _xt = str(_x.get("ts") or "")
+                            _at = next((_i for _i, _e in enumerate(_mi_rows)
+                                        if isinstance(_e, dict) and str(_e.get("ts") or "") > _xt),
+                                       len(_mi_rows))
+                            _mi_rows.insert(_at, _x)
+                        _mi_view["rows"] = _mi_rows
+                        _mi_ev, _mi_refusal = _mi_admit()
                 # T-14342 / T-14449 — when refused: the card's latest hand-resolved merge, if it is in
                 # HEAD but not in the recorded commit (auditing `sha` would leave it unaudited). Asked
                 # ONCE here; the below-ceiling refusal, the at-ceiling `--on-decisions` refusal and the
@@ -14852,6 +14948,13 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
                                  or _git_strict_descendant(_mi_m, _mi_head, repo_root=REPO_ROOT) is True)
                             and _git_strict_descendant(sha, _mi_m, repo_root=REPO_ROOT) is True):
                         merge_follows_unadmitted = _mi_m
+                # T-14552 (X-2295) — the preview states THIS run's admission answer first, from the same
+                # `_mi_ev` / `_mi_refusal` the real verb acts on below, so a refusal QUOTED from history
+                # further down the packet cannot be read as the current answer. Report-only, stderr.
+                if preview:
+                    print(f"# {tid} audit-post --preview: merge-integration admission (live, this run): "
+                          + (f"admitted: merge {_mi_ev['merge_commit']}" if _mi_ev
+                             else f"refused: {_mi_refusal}"), file=sys.stderr)
                 if on_decisions:
                     od_merge_follows = (_mi_ev, _mi_refusal, merge_follows_unadmitted)
                 elif _mi_at_ceiling:
@@ -16791,6 +16894,32 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
             print("# audit packet BOUNDED — sections shown only in part (named in-packet too): "
                   + ", ".join(f"{e['label'][:48]} kept {e['kept_bytes']}/{e['total_bytes']}B"
                               for e in packet_elisions), file=sys.stderr)
+        # T-14544 (consult x2284 finding 1) — a merge-integration packet is COMPLETE or it is not sent:
+        # when the assembled packet is over the whole-packet ceiling, or the context block carrying the
+        # ordered resolution diffs is not wholly in it, refuse by name BEFORE `audit_prompt_sent` (no
+        # auditor, no pass). A preview reports the same line and stops as previews do.
+        _mi_packet_ev = merge_integration_reaudit or sync_merge_below_ceiling
+        if _mi_packet_ev:
+            _mi_block = audit_ceiling.merge_integration_context(
+                _mi_packet_ev, below_ceiling=not merge_integration_reaudit)
+            _mi_short = (packet_bytes > AUDIT_MAX_PACKET_BYTES) or (_mi_block not in prompt)
+            if _mi_short:
+                _mi_line = (f"merge_integration_packet_incomplete: the assembled packet ({packet_bytes} "
+                            f"bytes, ceiling {AUDIT_MAX_PACKET_BYTES}) does not carry the whole ordered "
+                            f"resolution of the merge chain — nothing is truncated and no pass is spent")
+                if preview:
+                    print(f"# {_mi_line}", file=sys.stderr)
+                else:
+                    try:
+                        _append_event("read_gate_refused", tid, {
+                            "verb": f"audit {stage}", "action": "send the merge-integration packet",
+                            "kind": "merge-integration-packet", "stage": stage,
+                            "reason": "merge_integration_packet_incomplete"})
+                    except (Exception, SystemExit):     # noqa: BLE001 — never mask the refusal
+                        pass
+                    _die(f"audit {stage}: {tid}: {_mi_line}. Read the packet with `yitc-v2 audit "
+                         f"{stage} --task {tid} --preview`; return to the GREEN commit or re-cut the "
+                         f"merges onto a new card (SPEC-1018 «Exits from a spent GREEN»).")
         # T-13508 — NAME the task-tied event types the packet excluded by the card opt-in, in ONE
         # line. Above the preview return on purpose: a preview and the real run both say it, and the
         # preview is where it is still free to act on. STDERR, like the report lines above — stdout
@@ -18098,7 +18227,8 @@ def cmd_audit(args: argparse.Namespace, *, _bookkeeping_commit_authored_paths, _
         # the sync evidence, on the row AND the saved record. Only a REAL verdict carries it: that is
         # what spends the one-shot allowance (a no-verdict ABORT leaves a retry admitted) and what the
         # rule-4 terminal reading matches on a RED. The packet-only resolution diff is not recorded.
-        _mi_marker = {k: v for k, v in merge_integration_reaudit.items() if k != "resolution_diff"}
+        _mi_marker = {k: v for k, v in merge_integration_reaudit.items()
+                      if k not in audit_ceiling.MERGE_INTEGRATION_PACKET_ONLY}
         on_decisions_row_fields = {"basis": audit_ceiling.MERGE_INTEGRATION_BASIS,
                                    audit_ceiling.MERGE_INTEGRATION_MARKER: _mi_marker}
         on_decisions_yaml_fields = dict(on_decisions_row_fields)

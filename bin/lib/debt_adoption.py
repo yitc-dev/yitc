@@ -1383,7 +1383,7 @@ def _unexecuted_result(now, classes: list, floor: int, near_misses: list = None)
 
 
 
-def unexecuted_subject_files(ops_path, repo_root=None, *, _is_waived=None, _unexecuted_subject_result=None) -> dict:
+def unexecuted_subject_files(ops_path, repo_root=None, *, _is_waived=None, _unexecuted_subject_result=None, _adapter_list_answers=None) -> dict:
     """Fold the ops carrier + the repo → the suite files that sit inside an EXECUTABLE verify layer's
     declared `subject_globs:` while NO executable layer's execution registry names them
     (SPEC-0119 rule 35 / SPEC-0152 rule 16 subject_globs, T-11886 — the X-0860 shape).
@@ -1415,6 +1415,14 @@ def unexecuted_subject_files(ops_path, repo_root=None, *, _is_waived=None, _unex
     decision with its own evidence, not a quiet widening smuggled in here. `tests/test_t11886_*.py`
     measures this bound rather than avoiding it.
 
+    AN ADAPTER LAYER'S SUBJECT IS WHAT ITS `list` ENUMERATES (T-14539, X-2255). A layer that declares
+    a verify adapter selects its files itself — by name or by a marker inside the file — so its
+    command text need not name them (<project>: 145 of 255 files found by a first-line marker, all
+    reported as run by nothing). For such a layer the registry text is the unit `file` paths its
+    adapter's `list` answers (`_adapter_list_answers`, the host's list-only runner: it enumerates, it
+    runs no test). A layer with no adapter, or whose `list` does not answer, keeps the command-text
+    walk; with no collaborator supplied every layer keeps it, which is the pre-T-14539 reading.
+
     NO ADEQUACY JUDGEMENT IS POSSIBLE HERE (the card's AC2), and that is structural rather than
     promised: the fold's only inputs are the carrier and the file NAMES, so it holds no coverage
     figure, assertion count or size to judge thinness by.
@@ -1444,15 +1452,16 @@ def unexecuted_subject_files(ops_path, repo_root=None, *, _is_waived=None, _unex
         return _unexecuted_subject_result([])   # no verify section, or the whole concern waived
 
     globs: list = []
-    commands: list = []
+    commands: list = []                         # (layer name as the list runner keys it, command)
     declared = node.get("layers")
-    for entry in (declared if isinstance(declared, list) else []):
+    for idx, entry in enumerate(declared if isinstance(declared, list) else []):
         if not isinstance(entry, dict) or _is_waived(entry):
             continue                            # a waived layer neither runs nor absolves
         command = entry.get("command")
         if not (isinstance(command, str) and command.strip()):
             continue                            # not an EXECUTABLE layer (no real land command)
-        commands.append(command.strip())
+        commands.append((str(entry.get("layer") or "").strip() or f"layer-{idx}", command.strip(),
+                         isinstance(entry.get("adapter"), dict)))
         subject = entry.get("subject_globs")
         if isinstance(subject, list):
             globs += [g.strip() for g in subject if isinstance(g, str) and g.strip()]
@@ -1479,7 +1488,21 @@ def unexecuted_subject_files(ops_path, repo_root=None, *, _is_waived=None, _unex
             return _unexecuted_subject_result([])
         # Each layer gets its OWN bounded walk, joined by a NEWLINE so no cross-layer adjacency can
         # forge a token-boundary match.
-        text = "\n".join(worktree_mod._registry_text(root, c) for c in commands)
+        # T-14539: an adapter layer whose `list` answered reads its listed unit files instead.
+        listed: dict = {}
+        if callable(_adapter_list_answers) and any(has for _n, _c, has in commands):
+            try:
+                answers = _adapter_list_answers(
+                    root, node, [ly if isinstance(ly, dict) else {} for ly in declared])
+            except Exception:
+                answers = None                  # an unanswered list keeps the command-text walk
+            for name, ans in (answers.items() if isinstance(answers, dict) else ()):
+                inv = ans.get("inventory") if isinstance(ans, dict) else None
+                if isinstance(inv, list):
+                    listed[name] = "\n".join(str(u["file"]) for u in inv
+                                             if isinstance(u, dict) and isinstance(u.get("file"), str))
+        text = "\n".join(listed[n] if has and n in listed else worktree_mod._registry_text(root, c)
+                         for n, c, has in commands)
         named = [rel for rel in candidates
                  if worktree_mod._registry_names_file(text, Path(rel).name)]
         if not named:

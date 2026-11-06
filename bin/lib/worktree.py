@@ -26380,7 +26380,7 @@ def _apply_land_merge_resolution(W: Path, unmerged, resolved, *, _run_git_cap,
 def _update_from_main(W: Path, *, label: str, _run_git_cap, _die, _DERIVED_MERGE_ARTIFACTS,
                       _dedup_events, write_text_atomic,
                       _anchor_signature_of_text=None, _resolved_out=None, source=None,
-                      _leave_conflict_open: bool = False) -> None:
+                      _leave_conflict_open: bool = False, _hold_clean: bool = False) -> None:
     """THE update-from-main step — `git merge --no-edit main` into the writing worktree `W`, with the
     fail-closed per-path auto-resolve classification, else a clean `merge --abort`. Extracted VERBATIM
     from `_land_integrate` step 2 by T-10821 (X-0681) so `worktree sync` can run the SAME step
@@ -26436,7 +26436,13 @@ def _update_from_main(W: Path, *, label: str, _run_git_cap, _die, _DERIVED_MERGE
     # merge, passed to the resolution commit otherwise.
     trailer_args = _merge_from_trailer_args(W, _run_git_cap=_run_git_cap)
     head_before = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
-    mg = _run_git_cap(["merge", "--no-edit", source or "main"], W)
+    # T-14545 — `_hold_clean` (DEFAULT False: every pre-existing caller is byte-identical): `worktree
+    # sync --hold` merges with --no-commit, so a CLEAN merge stays OPEN for an integration edit that
+    # `--resolved` then commits; the from-trailer rides that commit instead of a stamp here.
+    mg = _run_git_cap(["merge", "--no-edit", *(["--no-commit", "--no-ff"] if _hold_clean else []),
+                       source or "main"], W)
+    if mg.returncode == 0 and _hold_clean:
+        return
     if mg.returncode == 0:
         _stamp_merge_from_trailer(W, head_before, trailer_args, _run_git_cap=_run_git_cap)
     if mg.returncode != 0:
@@ -26482,10 +26488,13 @@ def _update_from_main(W: Path, *, label: str, _run_git_cap, _die, _DERIVED_MERGE
             _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
             _merged_anchor_signature=_sig, _reasons_out=reasons)
         if unmerged and not unresolved:
+            # T-14545 — under `_hold_clean` the mechanical resolution is staged and the merge stays OPEN
             cc = _apply_land_merge_resolution(
                 W, unmerged, resolved, _run_git_cap=_run_git_cap,
                 _dedup_events=_dedup_events, write_text_atomic=write_text_atomic,
-                trailer_args=trailer_args)
+                trailer_args=trailer_args, **({"commit": False} if _hold_clean else {}))
+            if cc is None:
+                return                         # T-14545 — staged, merge held open for `--resolved`
             if cc.returncode != 0:
                 _run_git_cap(["merge", "--abort"], W)
                 _die(f"{label}: could not auto-resolve derived/session-state merge conflict "

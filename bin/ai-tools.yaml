@@ -30,6 +30,10 @@
 # reads in any folder; with memory_off_key, where `init --apply-user-memory-off` switches
 # the tool's own assistant memory off for sessions started outside a project (# SPEC-1055 rule 2). A row without the pair has no such setting: init reports it, never fakes it
 # memory_off_key the key in that file whose value `false` switches the memory off
+# compaction_hook_event / compaction_hook_matcher the hook event and matcher in that same user-level
+# settings file under which the tool runs a command right after a compaction; with
+# them `init --apply-user-compaction-cue` adds the restoration-brief entry for sessions
+# started in any folder (SPEC-1024 rule 12). A row without the pair: reported
 # prerequisites host programs the tool needs: {command, platform (optional), note};
 # a missing one is reported at install, never fatal
 # default true on the one row written when no tool is detected
@@ -46,6 +50,8 @@ tools:
     instructions_path: .claude/CLAUDE.md
     memory_settings_path: .claude/settings.json
     memory_off_key: autoMemoryEnabled
+    compaction_hook_event: SessionStart
+    compaction_hook_matcher: compact
     prerequisites: []
     default: true
   codex:

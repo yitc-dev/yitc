@@ -245,14 +245,19 @@ body: "## Scenario\n\nWhen an audit RED/YELLOWs, the AI absorbs findings and re-
   \ second bound | none new — the existing `custody_repin_from` provenance already\
   \ identifies the route | TASK `audit post --repin-ship` only |\n| **Post-GREEN merge\
   \ integration** | an ORDINARY TASK `audit post` at/past the cap whose only delta\
-  \ since a GREEN is ONE governed merge with main: the latest recorded audit-post\
-  \ verdict (journal order; the saved record agreeing) is GREEN at the custody commit\
-  \ A; HEAD is a two-parent merge M whose FIRST parent is A exactly (no commit before\
-  \ or after it); a `merge_resolved_by_hand` row of the card names M with `head_before`\
-  \ = A, `main_sha` = M's second parent and `resolved_source: merge-msg` (git's conflict-time\
-  \ `# Conflicts:` record); every path where M differs from `git merge-tree --write-tree\
-  \ A <main parent>` is one of those recorded conflict paths, which must themselves\
-  \ be conflicts git re-derives; and a `tests_passed` row postdates the sync (`audit_ceiling.merge_integration_admission`)\
+  \ since a GREEN is a chain of the card's own governed sync merges with main: the\
+  \ latest recorded audit-post verdict (journal order; the saved record agreeing)\
+  \ is GREEN at the custody commit A; one first-parent walk from HEAD reaches A through\
+  \ two-parent merges, record-only commits and at most the one verified re-sign commit;\
+  \ each merge is named by a row of the card (`merge_resolved_by_hand` with `resolved_source:\
+  \ merge-msg` and a conflict set `git merge-tree` re-derives, `merge_resolved_by_hand`\
+  \ in mode `clean-edit` with `resolved: []` from `merge-tree-clean` over parents\
+  \ `git merge-tree` merges with no conflict, or a clean non-noop `worktree_synced`)\
+  \ whose recorded parents are its parents; each merge differs from `git merge-tree\
+  \ --write-tree` of its parents only on that row's paths (at/past the cap a hand\
+  \ edit beyond them is shown, not refused); the packet carries every merge's whole\
+  \ resolution diff or the pass is refused; and the newest governed Tests run after\
+  \ the last merge's row is green at the subject's tree (`audit_ceiling.merge_integration_admission`)\
   \ | YES — the ONE pass SPEC-0077 §3a demands for a hand resolution; a GREEN ceiling\
   \ row has no residual for `audit decide` to bind, so without this axis no governed\
   \ route re-audits it | YES — the pass COUNTS (the re-pin posture); ONE-SHOT is the\
@@ -455,6 +460,6 @@ activation_owner_task: null
 proposed_by: null
 init_concern: null
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 09545ebbbf9e7ba4edfe479df9e713145ca5ac05f96d753631ee83bbddd9b1bf
+  bin/lib/audit.py#cmd_audit: 2c33013c50799f3ffae4ee4a7763c43b57efb37e149278d556e8d81d8fd5396f
   bin/lib/audit.py#is_trend_convergence_grant: b49015c43bf99062f0bec7752fa349d1ef1cb6505d2f4cba8bbc0a524fd757d0
   bin/lib/audit.py#trend_grant_subject_changed: c6c5d13d826fb0bf818c557b7d20803cc950ae9e28195dd43caeefc61fac965f

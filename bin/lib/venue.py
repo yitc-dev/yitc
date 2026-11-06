@@ -280,18 +280,24 @@ def record_transition_lock(env=None):
 
 def write_record(record: dict, env=None) -> Path:
     """Atomic (tmp + os.replace) and 0600 — the record carries an ssh identity and a box address."""
-    return _write_json_0600(resolve_record_path(env), record)
+    return _write_json(resolve_record_path(env), record, 0o600)
 
 
-def _write_json_0600(path: Path, obj: dict) -> Path:
-    """The ONE atomic 0600 JSON writer both machine-scoped venue files use (tmp + os.replace)."""
+def _write_json(path: Path, obj: dict, mode: int) -> Path:
+    """The ONE atomic JSON writer the machine-scoped venue files use (tmp + os.replace).
+
+    `mode` is set on the tmp before the swap, so a rewrite never keeps an older file's mode. The
+    seed files take the coordination store's shared file mode (`cross.SHARED_FILE_MODE`, T-14536):
+    the store is shared by its OS group, and a file only its writer can read breaks every other
+    reader of the store (the host backup among them). Only the record stays 0600 — see `write_record`.
+    """
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".venue-", suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(obj, fh, indent=2, sort_keys=True)
             fh.write("\n")
-        os.chmod(tmp, 0o600)
+        os.chmod(tmp, mode)
         os.replace(tmp, path)
     except BaseException:
         try:
@@ -405,7 +411,8 @@ def write_seed(seed: dict, env=None) -> Path:
     defect = _seed_defect(seed)
     if defect:
         raise VenueError(f"refusing to write a seed record that {defect}")
-    return _write_json_0600(resolve_seed_path(env), seed)
+    from lib import cross   # deferred, as this module's other lib reads
+    return _write_json(resolve_seed_path(env), seed, cross.SHARED_FILE_MODE)
 
 
 # ── The seed CANDIDATE (T-12885) ──────────────────────────────────────────────────────────────
@@ -429,7 +436,8 @@ def write_seed_candidate(seed: dict, env=None) -> Path:
     defect = _seed_defect(seed)
     if defect:
         raise VenueError(f"refusing to write a seed candidate that {defect}")
-    return _write_json_0600(resolve_seed_candidate_path(env), seed)
+    from lib import cross   # deferred, as this module's other lib reads
+    return _write_json(resolve_seed_candidate_path(env), seed, cross.SHARED_FILE_MODE)
 
 
 def clear_seed_candidate(env=None) -> bool:

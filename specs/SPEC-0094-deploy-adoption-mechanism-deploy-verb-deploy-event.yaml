@@ -759,27 +759,33 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ have changed production, so the verb states the record as fact and the runtime\
   \ as\n    unknown, as §1's gate-failure message does. The SPEC-0097 §2a post-deploy\
   \ probe, where one is\n    owed, still runs first; the SPEC-0097 §11 convergence\
-  \ verification is not reached.\nA deploy that names NO expected revision makes none\
-  \ of these comparisons and behaves exactly as\nbefore. An expected revision is REFUSED\
-  \ on a rollback: a rollback already names the revision it goes\nTO, and that is\
-  \ the one its `deploy_completed` records. This is not an override: it admits nothing\n\
-  the assertion above refuses, and a non-production target keeps the scoping below.\n\
-  \n**The MAIN-LINE half is scoped BY DEPLOY TARGET (X-1261) — the DIRT half is not.**\
-  \ The\nlanded-`main`-line assertion above states a PRODUCTION discipline, and it\
-  \ is asserted for a\nPRODUCTION target and for a target-less deploy only. For a\
-  \ target positively declared\n`targets.<name>.production: false` (§1) it is SKIPPED,\
-  \ and the deploy may build the branch it exists\nto prove. This is not a licence:\
-  \ it is the resolution of a standing contradiction — a non-production\ntarget exists\
-  \ precisely to exercise code that is not yet on `main`, while <workshop-spec> rule\
-  \ 3 requires\nthat sandbox be deployed THROUGH this governed verb, so the two rules\
-  \ together made a change\nunprovable end-to-end before landing (measured on <project>:\
-  \ closed with both live probes\nDEFERRED for exactly this reason).\nThree bounds,\
-  \ all load-bearing:\n(i) The discriminator is POSITIVELY DECLARED and never inferred\
-  \ — `production:` is a mandatory\n    boolean on every target entry, so an absent\
-  \ or non-boolean value REFUSES at target resolution\n    rather than reading as\
-  \ non-production, and a deploy with no `--target` (stance undeclared) keeps\n  \
-  \  the assertion VERBATIM. Nothing that refused before this scoping is admitted\
-  \ by an omission.\n(ii) ONLY the main-line half is scoped. The un-landed-RUNTIME-SOURCE\
+  \ verification is not reached.\nAt (b) and (c) a HEAD that moved from the expected\
+  \ revision by bookkeeping paths ONLY — the diff\nbetween them is non-empty and every\
+  \ path in it is a record `land` treats as bookkeeping for a\nrecord-only branch\
+  \ (the journal, the derived graph views, a direct task or decision record) — is\n\
+  NOT a move: such a land changes nothing the command builds, and the deploy records\
+  \ the expected\nrevision. An empty diff, an unreadable diff or any other path is\
+  \ a move, as above; (a) is unchanged.\nA deploy that names NO expected revision\
+  \ makes none of these comparisons and behaves exactly as\nbefore. An expected revision\
+  \ is REFUSED on a rollback: a rollback already names the revision it goes\nTO, and\
+  \ that is the one its `deploy_completed` records. This is not an override: it admits\
+  \ nothing\nthe assertion above refuses, and a non-production target keeps the scoping\
+  \ below.\n\n**The MAIN-LINE half is scoped BY DEPLOY TARGET (X-1261) — the DIRT\
+  \ half is not.** The\nlanded-`main`-line assertion above states a PRODUCTION discipline,\
+  \ and it is asserted for a\nPRODUCTION target and for a target-less deploy only.\
+  \ For a target positively declared\n`targets.<name>.production: false` (§1) it is\
+  \ SKIPPED, and the deploy may build the branch it exists\nto prove. This is not\
+  \ a licence: it is the resolution of a standing contradiction — a non-production\n\
+  target exists precisely to exercise code that is not yet on `main`, while <workshop-spec>\
+  \ rule 3 requires\nthat sandbox be deployed THROUGH this governed verb, so the two\
+  \ rules together made a change\nunprovable end-to-end before landing (measured on\
+  \ <project>: closed with both live probes\nDEFERRED for exactly this reason).\n\
+  Three bounds, all load-bearing:\n(i) The discriminator is POSITIVELY DECLARED and\
+  \ never inferred — `production:` is a mandatory\n    boolean on every target entry,\
+  \ so an absent or non-boolean value REFUSES at target resolution\n    rather than\
+  \ reading as non-production, and a deploy with no `--target` (stance undeclared)\
+  \ keeps\n    the assertion VERBATIM. Nothing that refused before this scoping is\
+  \ admitted by an omission.\n(ii) ONLY the main-line half is scoped. The un-landed-RUNTIME-SOURCE\
   \ dirt half of this section still\n    refuses on a non-production target, as do\
   \ every other gate (the SPEC-0155 security-audit gate,\n    the SPEC-0097 §11 convergence\
   \ verification, the close-gate of §3). An un-landed COMMIT is the\n    reviewable\
@@ -1018,7 +1024,9 @@ body: "## Scenario\n\nA deploying project ships a change and then makes it LIVE 
   \ the deploy with one `deploy_failed` and no `deploy_completed`, and the recovery\
   \ command that failure prints runs as printed; a ref name, an abbreviated id, a\
   \ blank value and an expected revision on a rollback are refused; a deploy given\
-  \ no expected revision is unchanged (§6, `tests/test_t13874_deploy_expected_revision.py`).\n\
+  \ no expected revision is unchanged (§6, `tests/test_t13874_deploy_expected_revision.py`);\
+  \ a move by bookkeeping paths only while the command runs records the expected revision,\
+  \ one that adds a code path still fails naming the commit (§6, `tests/test_t14537_deploy_bookkeeping_move.py`).\n\
   - a STARTED deploy leaves exactly ONE terminal row: one whose command exits non-zero,\
   \ dies by a signal, or whose verb is interrupted by a catchable signal before any\
   \ other terminal row was written leaves exactly ONE `deploy_failed` (revision +\
@@ -1099,7 +1107,7 @@ init_concern:
     each carries the declaration, or a `waiver: {reason: <why>}`.'
   tier: universal
 implements_signature:
-  bin/lib/audit.py#cmd_audit: 09545ebbbf9e7ba4edfe479df9e713145ca5ac05f96d753631ee83bbddd9b1bf
+  bin/lib/audit.py#cmd_audit: 2c33013c50799f3ffae4ee4a7763c43b57efb37e149278d556e8d81d8fd5396f
   bin/lib/deploy.py#_DeployRunRecorder: d60a058fb838f0ae96577f169d36259c210c8620698a0ed5f42e4e35c1acd2ec
   bin/lib/deploy.py#_DeployTarget: 59475579d7ffed178cde1737d0b6f7ca9c4d6803e472554f5bc0dbc0829b0f1d
   bin/lib/deploy.py#_resolve_deploy_target: da1a3e13bc39966522a10d8ab97c4be87bff5ce90cb55b0b1c5ad33a5575f7c7

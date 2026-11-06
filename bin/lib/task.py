@@ -170,7 +170,11 @@ _STDIN_EXTRA_SCHEMA_KEYS = frozenset({"analysis", "premise", "product_dispatch_o
                                       # the resolving session like `analysis`, and admitted here so
                                       # a filer who already knows the limitation is not refused it
                                       # as an unknown key. No verb owns the field.
-                                      "resolution_excludes"})
+                                      "resolution_excludes",
+                                      # T-14550 — the peer's next step (SPEC-0028 `peer_next_step`),
+                                      # authored on the card the same way; `task close` requires it
+                                      # for a held picked task|bugfix link.
+                                      "peer_next_step"})
 
 # T-11657 — the two HONEST NON-PASS TERMINALS a deferred probe can reach.
 #
@@ -544,6 +548,39 @@ def _probe_moments_rearm_error(value, current, probes):
         return None, (f"{', '.join(settled)} is not a `deferred` probe on this card — only a criterion "
                       f"still awaiting its evidence has a moment to re-arm"), None
     return value, None, changed
+
+
+def _probe_moments_withdraw_error(value, current):
+    """T-14541 (<project> X-2259): the LIVE-card WITHDRAWAL of `probe_moments` entries — a moment made
+    conditional in the plan whose condition failed. PURE. `value` is the raw mapping the caller states
+    (an empty one withdraws every entry). Returns (normalized, None, withdrawn_labels) or
+    (None, reason, None). Fail-closed: every kept criterion must already be on the card with its moment
+    UNCHANGED (a withdrawal never adds or re-arms), and at least one recorded criterion must be dropped."""
+    cur = {}
+    for k, v in (current or {}).items() if isinstance(current, dict) else ():
+        cid = _leading_criterion_id(k)
+        if cid is not None:
+            cur[f"{cid[0]}{cid[1]}"] = v
+    if not cur:
+        return None, "the card records no probe_moments, so there is nothing to withdraw", None
+    if not isinstance(value, dict):
+        return None, (f"needs a YAML MAPPING of the moments to KEEP (`{{}}` withdraws all; got "
+                      f"{type(value).__name__})"), None
+    kept = {}
+    for k, v in value.items():
+        cid = _leading_criterion_id(k)
+        label = f"{cid[0]}{cid[1]}" if cid is not None else str(k)
+        if label not in cur:
+            return None, (f"{label} has no recorded moment — a withdrawal only drops entries, it never "
+                          f"adds one"), None
+        if v != cur[label]:
+            return None, (f"{label}'s moment differs from the recorded one — a withdrawal keeps every "
+                          f"other entry unchanged"), None
+        kept[label] = cur[label]
+    withdrawn = sorted(set(cur) - set(kept))
+    if not withdrawn:
+        return None, "the value withdraws no recorded moment (no-op)", None
+    return kept, None, withdrawn
 
 
 def _answers_error(value):
@@ -4691,7 +4728,14 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
         # verb to correct it; the re-arm rewrites `probe_moments` ONLY, ONLY for criteria still
         # `deferred`, never drops a moment, and records its mandatory `--reason` on the row (SPEC-1008).
         _rearm_post_close = cur == "done" and _set_key == "probe_moments"
-        if reason is not None and not _rearm_post_close:
+        # T-14541 (X-2259): `--reason` on a LIVE card is the WITHDRAWAL of probe_moments entries.
+        _withdraw_live = (cur in ("ready", "in-progress") and _set_key == "probe_moments"
+                          and reason is not None)
+        if _withdraw_live and not reason.strip():
+            _die(f"task update: withdrawing a probe moment of {tid} needs a non-empty --reason '<why the "
+                 f"moment no longer applies>' (it is recorded on the task_amended row). Nothing was "
+                 f"written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
+        if reason is not None and not (_rearm_post_close or _withdraw_live):
             _die(f"task update: --reason with --set-field probe_moments is the RE-ARM of a DONE card's "
                  f"deferred-probe moment; {tid} is {cur}, so there is nothing to re-arm — drop --reason "
                  f"(a live card sets its moments without one). Nothing was written. See `bin/yitc-v2 "
@@ -4784,7 +4828,15 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                          f"See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
                 _extra["added_resolves_cross"] = list(_rc_added)
             elif _field in STRUCTURED_EDIT_MAP_FIELDS:
-                _value, _merr = _probe_moments_value_error(_value, task.get("acceptance") or [])
+                if _withdraw_live and isinstance(_value, dict) and not _value:
+                    _merr = None             # T-14541: `{}` withdraws every entry — only on this arm
+                else:
+                    _value, _merr = _probe_moments_value_error(_value, task.get("acceptance") or [])
+                if not _merr and _withdraw_live:
+                    _value, _merr, _withdrawn = _probe_moments_withdraw_error(
+                        _value, task.get("probe_moments"))
+                    if not _merr:
+                        _extra.update({"withdrawn": _withdrawn, "reason": reason.strip()})
                 if _merr:
                     _die(f"task update: --set-field {_field} {_merr}. Nothing was written. See "
                          f"`bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
@@ -4807,7 +4859,10 @@ def cmd_task_update(args: argparse.Namespace, *, PLANS_DIR, REPO_ROOT, _append_e
                      f"block for multiline text). Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
         if task.get(_field) == _value:
             _die(f"task update: {_mode} leaves `{_field}` unchanged (no-op). Nothing was written. See `bin/yitc-v2 task update --help` (STRUCTURED-EDIT mode).")
-        task[_field] = _value
+        if _field == "probe_moments" and _value == {}:
+            task.pop(_field, None)           # T-14541: every moment withdrawn — the card lists none
+        else:
+            task[_field] = _value
         _write_task_state(yaml, path, task)
         _append_event("task_amended", tid, {"field_edit": True, "field": _field, "fields": [_field],
                                             **_extra})
@@ -7115,7 +7170,8 @@ def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_ya
         if not _path_tracked_at_head(rel):
             return None
         fold = _record_fold_commit(rel)
-        if not fold or _commit_landed_kind(tid, fold) != "pause":
+        fold_kind = _commit_landed_kind(tid, fold) if fold else None
+        if fold_kind not in ("pause", "red_fix"):
             return None
         ad = _read_yaml(REPO_ROOT / rel)
         if not isinstance(ad, dict):
@@ -7128,7 +7184,19 @@ def _folded_audit_post_hazard(tid: str, *, REPO_ROOT, _git_resolve_sha, _read_ya
             return None
         custody = _audited_custody_sha(tid)
         custody_full = _git_resolve_sha(custody) if custody else None
-        if not custody_full or custody_full != ac_full:
+        if fold_kind == "red_fix":
+            # T-14546 (<project> X-2287) — the RED-FIX-FOLDED shape: an earlier `--fix-red` commit
+            # folded the RED record and no re-audit has run since, so the RED is still the standing
+            # verdict and SPEC-0015 §Internal admits a further in-scope fix (at the ceiling row until
+            # a rule-3 pass runs — `audit.ceiling_fix_commit_open` asks that at the door). Admitted
+            # only when that fold commit still HOLDS custody (nothing recorded after it), the record
+            # is pinned to an EARLIER commit, and it is RED and standing. A re-audit of the fold (a
+            # rule-3 pass among them) supersedes the record and the standing check below refuses.
+            fold_full = _git_resolve_sha(fold)
+            if (not custody_full or not fold_full or custody_full != fold_full or ac_full == fold_full
+                    or str(ad.get("verdict") or "").strip().upper() != "RED"):
+                return None
+        elif not custody_full or custody_full != ac_full:
             # T-13348 — the FOLDED re-pinned shape (<project> T-0686, X-1690 dispute): a pause
             # self-commit folded a RED record pinned to a RE-PINNED ship, so custody resolves to the
             # pause, not the ship. Asked through the SAME re-pin resolver as the dirty arm.
@@ -8344,7 +8412,7 @@ def _recover_close_tail(tid: str, task: dict, propagation_disposition: dict | No
           + (f" — {tail_note}" if tail_note else ""))
 
 def _auto_cross_done_for_close(task: dict, tid: str, *, CROSS_LOG_PATH, _cross_emit, _cross_self,
-                               _cross_peer_aliases=None) -> list:
+                               _cross_peer_aliases=None, require_next_step: bool = False) -> list:
     """T-9362 receiver-side auto-close: for each X-NNNN in the closing task's `resolves_cross` link,
     auto-emit `cross_done` IF self is the receiver and the item is `picked` (cross.cross_done_for_close
     enforces the FSM legality). REUSES the cross mechanism (a direct _cross_emit, like the T-9353 land
@@ -8365,6 +8433,12 @@ def _auto_cross_done_for_close(task: dict, tid: str, *, CROSS_LOG_PATH, _cross_e
     for xid in links:
         # T-10496: the resolving task goes IN, so the payload comes out carrying both the `task`
         # provenance and the derived resolution `note` (one emitter owns the wording — cross.py).
+        # T-14550: with require_next_step (the host wiring) a picked task|bugfix item is never
+        # auto-closed without the card's `peer_next_step` — judged on THIS fold, the same snapshot
+        # the payload is built from, so no read between a guard and the emit can let a bare one by.
+        if require_next_step and cross.close_missing_peer_next_step(
+                task, {xid: items.get(xid)}, self_name):
+            continue
         payload = cross.cross_done_for_close(items.get(xid), self_name, task=task, tid=tid)
         if payload is None:
             continue
@@ -10149,7 +10223,7 @@ def _close_rebuilds_graph(in_writing_worktree: bool, *written) -> bool:
     return not in_writing_worktree or any(written)
 
 
-def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _unflippable_supersedes_targets=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
+def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set_read_horizon=None, REPO_ROOT, STAGE_ENTRY_PREFIX, _activate_task_proposed_specs, _append_event, _archive_close_audits, _author_post_verification, _auto_cross_done_for_close, _auto_rebuild_graph, _build_propagation_disposition, _changed_anchor_spec_drift, _closes_fp_candidates, _closing_task_pending_finalization_plans, _commit_worktree, _dangling_activated_specs, _die, _emit_read_gate_refused, _dump_state_yaml, _find_task_yaml, _fold_closes_fp_into_cites, _git_resolve_sha, _governing_contract_for, _host_config_evidence_missing, _in_writing_worktree, _infra_adoption_seen, _parse_probe, _post_verification_gap, _print_scenario_staleness_warn, _recorded_commit_sha, _recover_close_tail, _undecided_late_findings_host=None, _lifecycle_record_path=None, _unconfirmed_travels_specs=None, _unflippable_supersedes_targets=None, _view_overdue_recheck=None, _cross_filed_for_ids=None, _cross_self_held_ids=None, _cross_next_step_missing=None, _require_audit_post_for_commit, _require_batch_born, _require_clean_batch_for_close, _require_commit_recorded, _require_reads, _require_ship_custody_repin, _require_stage_correspondence, _require_verification_artifact, _require_work_batch_worktree, _require_zero_ship_diff, _requires_incomplete, _reverify_spec_signature, _task_closed_event_exists, _task_diff_files, _task_diff_range, _utc_now_iso, _validate_closes_fp, _write_task_transition, write_text_atomic,
                    _task_commit_landed_chain=None,
                    _bookkeeping_commit_authored_paths=None, _BOOKKEEPING_COMMIT_KINDS=None,
                    _live_probe_settled_unresolved=None, _require_post_ship_observation=None,
@@ -11801,6 +11875,25 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
     if _ss_missing:
         _die(_shared_store_evidence_refusal(tid, _ss_triggers, _ss_missing))
 
+    # T-14550 — a peer's bugfix/task item is never auto-closed with machine provenance alone: the
+    # card declares the peer's next step (SPEC-0028 `peer_next_step`), which the auto-`cross_done`
+    # carries on `note`. Refused BEFORE any write; a store that cannot be read refuses too.
+    if _cross_next_step_missing is not None:
+        try:
+            _bare_x = list(_cross_next_step_missing(task) or [])
+        except Exception as _exc:   # noqa: BLE001
+            _die(f"task close {tid}: refused — the coordination store could not be read ({_exc}), so "
+                 f"it is unknown whether a resolves_cross item would be closed without the peer's "
+                 f"next step. Re-run `yitc-v2 task close {tid}` once the store reads, or add a `peer_next_step:` "
+                 f"line to the card (SPEC-0028), which needs no store read. Nothing was written.")
+        if _bare_x:
+            _die(f"task close {tid}: refused — the peer's item(s) {', '.join(_bare_x)} would be "
+                 f"closed (auto cross_done) with machine provenance only. Add the peer's next step "
+                 f"to the card as `peer_next_step` (SPEC-0028), authored in this task's worktree, "
+                 f"e.g.\n  peer_next_step: 'Re-run `task close T-1424` in your checkout; the guard "
+                 f"now admits it.'\nthen re-run `yitc-v2 task close {tid}`. It rides `note` of the "
+                 f"cross_done; a note item is unaffected. Nothing was written.")
+
     # T-0409 — author the SPEC-0038 post_verification field IN the close command (the moment of best
     # understanding) via --pv-criterion/--pv-signal or --pv-waive. Refuses misuse LOUDLY before any
     # write; writes into the in-memory `task` so the closure write below persists it (atomic) and the
@@ -12918,6 +13011,9 @@ def cmd_task_close(args: argparse.Namespace, *, _closure_coverage_gap=None, _set
             _auto_done_xids = _auto_cross_done_for_close(task, tid)
             for _xid in _auto_done_xids:
                 print(f"  cross done auto-emitted for {_xid} (receiver-side close-the-loop, T-9362; direct-to-main close)")
+            for _xid in ((_cross_next_step_missing or (lambda _t: []))(task) or []):
+                print(f"  cross done NOT auto-emitted for {_xid}: {tid} carries no peer_next_step; run "
+                      f"`yitc-v2 cross done {_xid} --note '<the peer's next step>'` (T-14550)")
         except Exception as _exc:   # never let the coordination auto-close break a completed closure
             sys.stderr.write(
                 f"WARN: {tid} closed OK but the receiver-side auto cross-done did not complete "
@@ -19203,15 +19299,37 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
                   f"custody»). A RED there, or a further red Tests run after it, ends audit-post.",
                   file=sys.stderr)
         if AUDIT_PASS_CEILING <= prior_reship < AUDIT_PASS_CEILING + 1:   # T-14090: past it, the banner above
-            # The WARN's job is to say plainly that the REQUIRED re-audit is past the ceiling and
-            # closure deadlocks without one, and to name the route that now admits it. Naming a
-            # retired flag here would send the reader to a refusal (SPEC-0204 rule 6).
-            print(f"# WARN --reship at {prior_reship} passes: the REQUIRED re-audit is pass "
-                  f"{prior_reship + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
-                  f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
-                  f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
-                  f"{tid} --on-decisions --sweep '<where you looked for the same defect class and what you found>'` runs it (SPEC-0204 rules 2-3). Without that, closure "
-                  f"deadlocks (E-0008).", file=sys.stderr)
+            # T-14543 (X-2279) — which step the audit door will ADMIT is decided by the SAME predicate
+            # that opens a reship ceiling row (T-12444 / A6), asked here before the commit exists; the
+            # WARN used to read the pass count alone and named the decisions route on a state whose
+            # re-audit opens a new row (where `--on-decisions` then refuses as below the ceiling).
+            # Unreadable journal or record → the decisions text (the door's own fail-closed direction).
+            try:
+                _a6_rows = (_task_events_for(tid, audit.RESHIP_A6_ROW_TYPES)
+                            if _task_events_for is not None else None)
+            except Exception:      # noqa: BLE001 — an unreadable journal opens nothing (fail-closed)
+                _a6_rows = None
+            try:
+                _rs_prior = _prior_audit_record(tid, "post") if _prior_audit_record is not None else None
+            except Exception:      # noqa: BLE001 — an unreadable record opens nothing (fail-closed)
+                _rs_prior = None
+            if audit.reship_reaudit_opens_new_row(_rs_prior, _a6_rows):
+                print(f"# --reship at {prior_reship} passes: the REQUIRED re-audit opens a NEW ceiling "
+                      f"row — it is pass 1 of that row, an ORDINARY pass (no governed Tests run is "
+                      f"recorded since the GREEN audit-post; T-12444, SPEC-1039 §4 A6). REQUIRED next: "
+                      f"`yitc-v2 audit post --task {tid} --commit <new>` — no `ceiling_decision` is "
+                      f"needed, and `--on-decisions` would refuse as below the ceiling.",
+                      file=sys.stderr)
+            else:
+                # The WARN's job is to say plainly that the REQUIRED re-audit is past the ceiling and
+                # closure deadlocks without one, and to name the route that now admits it. Naming a
+                # retired flag here would send the reader to a refusal (SPEC-0204 rule 6).
+                print(f"# WARN --reship at {prior_reship} passes: the REQUIRED re-audit is pass "
+                      f"{prior_reship + 1}, past the {AUDIT_PASS_CEILING}-pass ceiling. It is admitted "
+                      f"ONLY once the CONTROLLER has recorded a `ceiling_decision` for every residual of "
+                      f"the ceiling row (`yitc-v2 audit decide`), after which `yitc-v2 audit post --task "
+                      f"{tid} --on-decisions --sweep '<where you looked for the same defect class and what you found>'` runs it (SPEC-0204 rules 2-3). Without that, closure "
+                      f"deadlocks (E-0008).", file=sys.stderr)
         print(f"# --reship: committing a FURTHER in-scope ship for {tid} over its GREEN audit-post "
               f"({len(authored)} authored path(s): {', '.join(authored[:5])}"
               f"{' …' if len(authored) > 5 else ''}). The superseded GREEN verdict is "
@@ -19422,7 +19540,9 @@ def cmd_task_commit(args: argparse.Namespace, *, AUDIT_PASS_CEILING, REPO_ROOT, 
              f"dirty {tid}-audit-post.yaml pinned to the audited commit (the T-0275 hazard state) — "
              f"OR that same record COMMITTED on this branch by a `task pause` self-commit fold "
              f"(T-9320) and still the standing verdict, i.e. the last audit_post_completed for "
-             f"{tid} names that commit and verdict (T-12719; EITHER shape admits) — neither "
+             f"{tid} names that commit and verdict (T-12719; EITHER shape admits; a RED record "
+             f"folded by an earlier `--fix-red` commit that still holds custody admits the same way, "
+             f"T-14546) — neither "
              f"found, so there is no RED verdict this commit would supersede. If audit-post has not "
              f"run for the recorded commit, run it first; otherwise commit normally without "
              f"--fix-red.")

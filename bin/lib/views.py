@@ -7079,6 +7079,14 @@ def _render_debt_echo(*, _view_not_adopted, _view_overdue_recheck, _open_followu
     # NAMED remedy. Naming the remedy is the whole of it: neither remedy is run, scheduled or offered.
     if _nightly_verdict_changes is not None:
         _nv = _nightly_verdict_changes() or {}
+        if isinstance(_nv, dict) and isinstance(_nv.get("stale"), dict):
+            # T-14540: the newest nightly row is old — say so, and print no stale pair as "last night".
+            lines.append(
+                f"debt: nightly STALE — the newest `nightly_run_completed` row is from "
+                f"{str(_nv['stale'].get('latest') or '')[:10]} ({_nv['stale'].get('days')} day(s) ago): "
+                f"the nightly has stopped writing the engine journal, so any CHANGED / CHRONIC line "
+                f"here is that old night's, not last night's. Check its cron and the last run's log. Report-only "
+                f"(SPEC-0119 rule 38 / SPEC-0105). See `bin/yitc-v2 debt`.")
         if isinstance(_nv, dict):
             _nights = _nv.get("nights") if isinstance(_nv.get("nights"), dict) else {}
             _prev_n, _last_n = (str(_nights.get("previous") or "")[:10],

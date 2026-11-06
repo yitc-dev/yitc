@@ -10,6 +10,9 @@ implements:
 - bin/lib/plan.py#cmd_plan_stage
 - bin/lib/plan.py#owner_words_reconciliation
 - bin/lib/plan.py#cmd_plan_show
+- bin/lib/plan.py#_plan_prototype_owner_risk_rows
+- bin/lib/plan.py#_plan_prototype_owner_risk_block
+- bin/lib/audit.py#prototype_carry_block
 body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spike,\
   \ SPEC-0205), checks it there, and asks\nfor it in production. The carry must bring\
   \ over everything the owner kept and nothing else.\n\nThe CARRY REGISTRY is one\
@@ -50,17 +53,32 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ the soak); a `not-carried` item is not applied by any card of the carry.\n- The\
   \ section opens with the owner's read-back row (`owner_read: events.jsonl#ts=<ISO>`).\
   \ The owner\n  reads the list once before the plan is accepted; this is where a\
-  \ sandbox change nobody meant to\n  keep becomes `not-carried`.\n- **Before the\
-  \ read-back — the owner-words reconciliation.** Right before the owner reads the\
-  \ list,\n  the Controller runs `bin/yitc-v2 plan show <slug> --owner-words` and\
-  \ shows its output to the owner\n  beside the registry. Source rule: never the session's\
-  \ memory — the journal plus EVERY transcript\n  of the sessions that worked the\
-  \ spike: the prototype's declaring session (SPEC-0205 rule 4), the\n  sessions of\
-  \ the plan's `trial_run` rows, and those whose `owner_directive` names the plan,\
+  \ sandbox change nobody meant to\n  keep becomes `not-carried`.\n- **Owner-risk\
+  \ item.** At the sandbox exit the owner may take a `carry` item on their own\n \
+  \ responsibility: its open detail is settled while building on main, and its acceptance\
+  \ is the\n  owner's check in a sandbox raised from landed main (SPEC-0205, ACCEPTANCE\
+  \ mode), any fix riding\n  the verifier walk and the SPEC-0205 rule 7 acceptance-finding\
+  \ route (§3). The item carries\n  `owner_risk: events.jsonl#ts=<ISO>` — the locator\
+  \ of the owner's own `owner_directive` row that\n  takes that item's risk, never\
+  \ the AI's own decision; the AI offers the marker when the owner says\n  «decide\
+  \ it, check on main». It is the owner's explicit decision, not an absorption: SPEC-0035\n\
+  \  rule 5 is unchanged. A marker on a `not-carried` item, or one that is not such\
+  \ a locator, refuses\n  `plan stage accepted` through the registry parse, naming\
+  \ the item; a marker whose locator resolves\n  to no `owner_directive` row refuses\
+  \ `plan stage accepted`, naming the item. The marker changes no\n  other gate.\n\
+  - **Before the read-back — the owner-words reconciliation.** Right before the owner\
+  \ reads the list,\n  the Controller runs `bin/yitc-v2 plan show <slug> --owner-words`\
+  \ and shows its output to the owner\n  beside the registry. Source rule: never the\
+  \ session's memory — the journal plus EVERY transcript\n  of the sessions that worked\
+  \ the spike: the prototype's declaring session (SPEC-0205 rule 4), the\n  sessions\
+  \ of the plan's `trial_run` rows, and those whose `owner_directive` names the plan,\
   \ the\n  prototype or its branch, over the spike's life (its declaring row to the\
   \ park that tagged the\n  prototype); a spike tag inside the prototype's history\
   \ and absent from `main` is listed as not\n  read, for the owner to decide, since\
-  \ no row links it as a round. Each session ref is mapped to its transcript\n  file(s)\
+  \ no row links it as a round; a tag the owner names with `--earlier-tag <tag>` (the\
+  \ prototype was copied from it) is read as a round of the same life — its declaring\
+  \ session, its branch, and the life from its declaring row — and every tag read\
+  \ is named in the output. Each session ref is mapped to its transcript\n  file(s)\
   \ by the kernel's transcript resolution, and the output names which transcripts\
   \ were read\n  and which refs had no transcript file. Every owner word is read through\
   \ the redacting owner-text\n  path (SPEC-0163 §4e) and shown with a candidate registry\
@@ -75,47 +93,55 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ JUDGED: the\n  accept `plan check` packet carries the base diff beside the registry;\
   \ the auditor checks, hunk by\n  hunk, that every owner-meaningful change has an\
   \ item, the granularity, and that `owner_read` and\n  every later `owner_row` are\
-  \ cited. The registry is plan body text, so the existing content hash\n  makes any\
-  \ later change re-open the check.\n- **The accept packet within the auditor's input\
-  \ budget.** The packet points at the registry in the\n  plan body instead of copying\
-  \ it, and renders the base diff by a fixed path rule, never a model's\n  judgement:\
-  \ test files are listed with their line counts, and lockfiles, generated, vendored\
-  \ or\n  minified files, test snapshots and binary files are listed with their size,\
-  \ each with its class;\n  a moved file reads `moved A -> B, N% similar` with only\
-  \ its differing hunks; every other path —\n  source, styles, migrations, configs,\
-  \ every deleted file — is rendered in full with its context\n  lines. Every path\
-  \ sent by reference is listed, so none disappears silently. When the packet still\n\
-  \  exceeds the budget, the check is split by surface: one auditor call per surface\
-  \ slice, each with\n  the registry items whose locators fall in it (an item spanning\
-  \ two slices goes to both), then one\n  whole pass over the registry and the full\
-  \ path list without code (coverage and granularity), and\n  ONE recorded verdict\
-  \ — GREEN only when every part is GREEN, otherwise the worst. `plan check`\n  refuses\
-  \ before the auditor, naming the sizes, only when the subject cannot be split (one\
-  \ file\n  alone over the budget, or the whole pass itself); no pass is spent. The\
-  \ plan stays one plan:\n  splitting a plan is the owner's choice on meaning, never\
-  \ on size.\n- **The cut (gate to `executing`, SPEC-0070).** MECHANICAL, naming the\
-  \ fault: every card of the cut\n  declares `prototype_lines` — a NON-EMPTY list\
-  \ of item ids (a WRITER), `[]` (a card that builds no\n  item — not a writer), or\
-  \ `all` (the VERIFIER); every `carry` item is owned by exactly one writer (a\n \
-  \ `supporting` item may be owned by the writer of the item it serves or directly);\
-  \ no card names an\n  unknown or a `not-carried` item; exactly one `all` card, which\
-  \ `requires:` every other card of the\n  cut, while no card of the cut requires\
-  \ it — the verifier is the cut's LAST card; and the accept\n  verdict is still fresh\
-  \ for the CURRENT plan body (registry included) and `prototype_tip` — a\n  registry\
-  \ changed after accept refuses here until `plan check` re-reconciles it. The card-set\n\
-  \  fingerprint covers each card's `prototype_lines`, the registry text and `prototype_tip`,\
-  \ so a\n  change to any re-opens the fidelity verdict. JUDGED: the fidelity audit\
-  \ packet carries the\n  registry; the auditor checks that the verifier's acceptance\
-  \ walks every item.\n- **Each writer card.** `audit pre` delivers its items in full\
-  \ beside the prototype diff; the\n  overlay: build exactly these items to their\
-  \ expected state; an unresolved departure from an item's expected state is a\n \
-  \ stop-and-ask — `task pause --reason controller-wait` naming the item — never a\
-  \ silent drop and\n  never «the card governs»; building an owner amendment\n  already\
-  \ cited on the item is not a departure and asks nothing. The verdict's reuse key\
-  \ covers `prototype_lines`, those items' text, and `prototype_tip`.\n  `audit post`\
-  \ carries the same items, every `not-carried` item on the same surfaces and the\n\
-  \  prototype hunks of their locators, and asks both ways: each item in its expected\
-  \ state; nothing\n  owner-visible shipped that no item names and no `not-carried`\
+  \ cited. For an owner-risk item the packet carries the owner's words of\n  its row,\
+  \ or names it unresolved; the absence of trial evidence and its undecided detail\
+  \ are then\n  expected and never a finding or a RED, and the auditor judges the\
+  \ declaration instead: the item\n  is named, the cited words accept that risk for\
+  \ that item, and its verification after land is the\n  verifier's walk. Words that\
+  \ do not make the marker a finding, and the item is judged as unmarked.\n  The registry\
+  \ is plan body text, so the existing content hash\n  makes any later change re-open\
+  \ the check.\n- **The accept packet within the auditor's input budget.** The packet\
+  \ points at the registry in the\n  plan body instead of copying it, and renders\
+  \ the base diff by a fixed path rule, never a model's\n  judgement: test files are\
+  \ listed with their line counts, and lockfiles, generated, vendored or\n  minified\
+  \ files, test snapshots and binary files are listed with their size, each with its\
+  \ class;\n  a moved file reads `moved A -> B, N% similar` with only its differing\
+  \ hunks; every other path —\n  source, styles, migrations, configs, every deleted\
+  \ file — is rendered in full with its context\n  lines. Every path sent by reference\
+  \ is listed, so none disappears silently. When the packet still\n  exceeds the budget,\
+  \ the check is split by surface: one auditor call per surface slice, each with\n\
+  \  the registry items whose locators fall in it (an item spanning two slices goes\
+  \ to both), then one\n  whole pass over the registry and the full path list without\
+  \ code (coverage and granularity), and\n  ONE recorded verdict — GREEN only when\
+  \ every part is GREEN, otherwise the worst. `plan check`\n  refuses before the auditor,\
+  \ naming the sizes, only when the subject cannot be split (one file\n  alone over\
+  \ the budget, or the whole pass itself); no pass is spent. The plan stays one plan:\n\
+  \  splitting a plan is the owner's choice on meaning, never on size.\n- **The cut\
+  \ (gate to `executing`, SPEC-0070).** MECHANICAL, naming the fault: every card of\
+  \ the cut\n  declares `prototype_lines` — a NON-EMPTY list of item ids (a WRITER),\
+  \ `[]` (a card that builds no\n  item — not a writer), or `all` (the VERIFIER);\
+  \ every `carry` item is owned by exactly one writer (a\n  `supporting` item may\
+  \ be owned by the writer of the item it serves or directly); no card names an\n\
+  \  unknown or a `not-carried` item; exactly one `all` card, which `requires:` every\
+  \ other card of the\n  cut, while no card of the cut requires it — the verifier\
+  \ is the cut's LAST card; and the accept\n  verdict is still fresh for the CURRENT\
+  \ plan body (registry included) and `prototype_tip` — a\n  registry changed after\
+  \ accept refuses here until `plan check` re-reconciles it. The card-set\n  fingerprint\
+  \ covers each card's `prototype_lines`, the registry text and `prototype_tip`, so\
+  \ a\n  change to any re-opens the fidelity verdict. JUDGED: the fidelity audit packet\
+  \ carries the\n  registry; the auditor checks that the verifier's acceptance walks\
+  \ every item.\n- **Each writer card.** `audit pre` delivers its items in full beside\
+  \ the prototype diff; the\n  overlay: build exactly these items to their expected\
+  \ state; an unresolved departure from an item's expected state is a\n  stop-and-ask\
+  \ — `task pause --reason controller-wait` naming the item — never a silent drop\
+  \ and\n  never «the card governs»; building an owner amendment\n  already cited\
+  \ on the item is not a departure and asks nothing. An owner-risk item is no\n  stop-and-ask\
+  \ either: the card builds a reasonable resolution of its open detail, its audits\
+  \ do\n  not re-open it, and the verifier walks it like any item. The verdict's reuse\
+  \ key covers `prototype_lines`, those items' text, and `prototype_tip`.\n  `audit\
+  \ post` carries the same items, every `not-carried` item on the same surfaces and\
+  \ the\n  prototype hunks of their locators, and asks both ways: each item in its\
+  \ expected state; nothing\n  owner-visible shipped that no item names and no `not-carried`\
   \ item applied. New implementation\n  and test files are the card's own design (SPEC-0205\
   \ rule 5) and need no item. For an opted-in card\n  this replaces rule 5's per-card\
   \ «which prototype findings it does NOT carry» request. A `[]` card's\n  `audit\
@@ -160,14 +186,22 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ X-2234 (plan\ncreator-cabinet-a-creator-as-a-system-participant-, 132 registry\
   \ items) — a registry built from the\nbase diff missed 15 trial runs and 13 owner\
   \ decisions of the spike period, decisions visible only as\nan absence in code,\
-  \ and 8 reversals. Owner: `events.jsonl#ts=`.\n\n## Verification\n- VP1: a malformed\
-  \ registry and a changed base-diff path that no item locates each refuse\n  `plan\
-  \ stage accepted`; a formatting-only path as a `supporting` item passes; the accept\
-  \ packet of\n  an opted-in plan carries the diff and the registry, of any other\
-  \ plan is byte-unchanged; a tag moved between the accept\n  `plan check` and `plan\
-  \ stage accepted` refuses the accept.\n- VP2: on the gate to `executing` — a card\
-  \ of the cut without `prototype_lines`, a card naming\n  another prototype, zero\
-  \ or two owners of a `carry` item, an unknown item, a writer naming a\n  `not-carried`\
+  \ and 8 reversals. Owner: `events.jsonl#ts=`.\n added `--earlier-tag` in place (additive:\
+  \ without it nothing changes): <project> X-2258 —\na plan re-pointed to a slim late-declared\
+  \ copy read a one-second life, 0 owner words, while the\ncopied-from round held\
+  \ the spike period; the declaring row records no parent tag.\nThe §2 owner-risk\
+  \ item was added in place by as an additive extension (an unmarked item is\njudged\
+  \ exactly as before): <project> X-2262 — plan creator-cabinet-a-creator-as-a-system-participant-\n\
+  failed its accept check seven to eight times on 2026-11-05 on criteria the trial\
+  \ cannot settle,\nwhich the owner had decided to settle on main and check in a sandbox\
+  \ raised from main. Owner:\n`events.jsonl#ts=` (kernel).\n\n## Verification\n- VP1:\
+  \ a malformed registry and a changed base-diff path that no item locates each refuse\n\
+  \  `plan stage accepted`; a formatting-only path as a `supporting` item passes;\
+  \ the accept packet of\n  an opted-in plan carries the diff and the registry, of\
+  \ any other plan is byte-unchanged; a tag moved between the accept\n  `plan check`\
+  \ and `plan stage accepted` refuses the accept.\n- VP2: on the gate to `executing`\
+  \ — a card of the cut without `prototype_lines`, a card naming\n  another prototype,\
+  \ zero or two owners of a `carry` item, an unknown item, a writer naming a\n  `not-carried`\
   \ item, two `all` cards, an `all` card missing one card it must require, a card\
   \ that requires the `all` card, and a\n  registry item changed after the accept\
   \ verdict — each refuses naming the fault;\n  a valid cut (writers, a `[]` card,\
@@ -195,7 +229,13 @@ body: "## Scenario\n\nThe owner changes a screen in the sandbox (a declared spik
   \ to its registry\n  item and another to a plan rule, surfaces the unmapped decision\
   \ and the reversal, drops a word after\n  the park, redacts a credential, exits\
   \ 0 and leaves the plan file byte-identical; without the step no\n  reconciliation\
-  \ is shown (tests/test_t14520_spike_owner_words.py).\n"
+  \ is shown (tests/test_t14520_spike_owner_words.py).\n- VP7 (§2-§3 owner-risk item):\
+  \ the accept packet of a registry with one marked item carries the\n  binding paragraph\
+  \ naming that item with its owner's words, and an unresolved marker as UNRESOLVED;\n\
+  \  without a marker the packet and a writer item's text are byte-unchanged; a marked\
+  \ item is no\n  stop-and-ask; a marker with no `owner_directive` row at its ts refuses\
+  \ `plan stage accepted`\n  naming the item, and a malformed or `not-carried` marker\
+  \ is refused by the parse\n  (tests/test_t14533_owner_risk_items.py).\n"
 cites:
 - SPEC-0205
 - SPEC-0070
@@ -214,5 +254,8 @@ binding:
 - plan-stage-entry:postcheck
 init_concern: null
 implements_signature:
-  bin/lib/plan.py#cmd_plan_show: e82d693ed198a51c0ad3642df617f07a84c90df80ef7ba7149234944186bf52f
-  bin/lib/plan.py#owner_words_reconciliation: 080d8530478bf5939ca8ddd9633d24d322d36c4a151d6eab4a8bec2c3cf116eb
+  bin/lib/audit.py#prototype_carry_block: f7791789b51edc036e83095e9c8e6d67b90efc245e33866f1ab1c31b5fb4f861
+  bin/lib/plan.py#_plan_prototype_owner_risk_block: 5ca4d4e9397b75c4b3f72b0c76432d233228fc58883cdc0e8738e0db703f0cdd
+  bin/lib/plan.py#_plan_prototype_owner_risk_rows: 36695c96f2b015f573e26d5a4dc93273893fdd373f53e8d9fa336eb8f9e4977e
+  bin/lib/plan.py#cmd_plan_show: 5c1b1bbdc5e6d7aaebb167f55eb011af61c8b569bb397694aa9c173447ac6f11
+  bin/lib/plan.py#owner_words_reconciliation: 598f222ba9f67f2c124a2580d00eb00077dbb2e0cc7fe8ea644741bea8373c3e

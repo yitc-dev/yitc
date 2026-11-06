@@ -174,12 +174,14 @@ body: "## Scenario\n\nA session needs to route a cross-project item — a bug fo
   \ SPEC-0086's; this spec owns the data model only.\n**Placement invariant — a GENERATED\
   \ text never occupies the receiver's return slot.** Machine-\nderived resolution\
   \ provenance (the close-side auto-`cross_done`'s derived one-liner) is carried on\n\
-  `auto_note`; the `note` key stays the receiver's OWN substantive words. Keeping\
-  \ both on one key\nmade the auto-emit at land silently truncate every delegated\
-  \ return that had not been written yet\n— the item read as a completed handoff while\
-  \ the payload was a stub (X-0618).\n\n### 3. Per-kind protocol shapes — one log\
-  \ shape, kind drives the path\n`kind` drives the protocol; the same entry shape\
-  \ carries every situation:\n  - **`note`** (one-way info): `requested → acked` (terminal).\
+  `auto_note`; the `note` key stays the receiver's OWN substantive words — including\
+  \ a next step for\nthe author that the resolving card declares in advance (SPEC-0028\
+  \ `peer_next_step`), which the\nauto-`cross_done` carries on `note`. Keeping both\
+  \ on one key\nmade the auto-emit at land silently truncate every delegated return\
+  \ that had not been written yet\n— the item read as a completed handoff while the\
+  \ payload was a stub (X-0618).\n\n### 3. Per-kind protocol shapes — one log shape,\
+  \ kind drives the path\n`kind` drives the protocol; the same entry shape carries\
+  \ every situation:\n  - **`note`** (one-way info): `requested → acked` (terminal).\
   \ Receiver read it; no work. **A note has\nTWO honest terminals, one per party :**\
   \ `acked` is the RECEIVER's, and the AUTHOR's is\n`closed` via the OUT-OF-BAND MODE\
   \ ONLY (`cross close --out-of-band --reason <why>`) — because an\ninformational\
@@ -527,7 +529,7 @@ implements_signature:
   bin/lib/cross.py#_mirror_on_intake: 78f1aedf4b9e0c0283b1d012d18a5afc95962171112ca94f4080bdc8e655aa25
   bin/lib/cross.py#auto_file_kernel_cross_requests: 0bafc8176ba011d9b2bde3a9d5aa4d18207e8d27e87cc3bc31bc42ae71645c0a
   bin/lib/cross.py#cmd_cross_dispute: 6a9f944a5b9b42af581f8c4049eaa5d2dc99372acfb93a8694b3969d152e4609
-  bin/lib/cross.py#cross_done_for_close: 8c01ea405fb4c1c4103ad59e7c7b7b4a0e401909e204bcc39e4178684f79ac73
+  bin/lib/cross.py#cross_done_for_close: c50bf9008cb104885f3654a440793c58335062aea9e3e29e91938755c083c693
   bin/lib/cross.py#deviation_realm: 73fd37872ee599340a536bb9b3725da098128a7b125f97f4d023d702afc054fb
   bin/lib/cross.py#fold: b6bf2781ec523440d40d3067a996d4b6118df4721bb05fe95fe25f69a7d18e2b
   bin/lib/cross.py#kernel_near_miss_deviations: 16274824196853151d2cf72f65df718a30a1152802e06af298332972189be0aa

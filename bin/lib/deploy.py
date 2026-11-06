@@ -361,9 +361,21 @@ def _revision_recheck(expected, *, main_line_required, REPO_ROOT, _run_git_cap, 
     if status.returncode != 0:
         problems.append("the working tree is UNREADABLE (`git status` failed) — that is not a clean tree")
     head = _git_resolve_sha("HEAD")
-    if head != expected:
+    if head != expected and not (head and _bookkeeping_only_move(expected, REPO_ROOT, _run_git_cap)):
         problems.append(f"HEAD is {head if head else 'UNREADABLE'}, not the expected {expected}")
     return "; ".join(problems)
+
+
+def _bookkeeping_only_move(expected, REPO_ROOT, _run_git_cap) -> bool:
+    """T-14537 (X-2268, SPEC-0094 §6) — did main move from `expected` by bookkeeping paths ONLY (a
+    card-filing or closure land: tasks/, decisions/, the journal, the derived graph views)? Such a move
+    changes nothing a deploy builds, so it is not a move. The predicate is the one `land` uses for a
+    record-only branch (`land_floors._floor_diff_bookkeeping_only`), never a second list: an empty
+    diff, a failed git read or any other path is False, and the check fails as before."""
+    from lib import land_floors
+    from lib.cli import _BOOKKEEPING_ALLOWLIST
+    return land_floors._floor_diff_bookkeeping_only(Path(REPO_ROOT), expected, _run_git_cap,
+                                                    _BOOKKEEPING_ALLOWLIST)
 
 
 def _build_source_violation(branch, dirty_paths, *, _is_ignorable_dirt, require_main_line=True) -> str:

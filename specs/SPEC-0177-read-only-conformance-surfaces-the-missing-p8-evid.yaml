@@ -83,7 +83,7 @@ init_concern: null
 implements_signature:
   bin/lib/nightly.py#_check_conformance_surfaces: 569e9c802b9999b1cbd60b8dec3ae653f4ab1b5dd875ba83c59cf1d71e7f777e
   bin/lib/task.py#_infra_adoption_seen: 0748114aafe6969e92860df047ae55c6266f82029083450503a419618d35172b
-  bin/lib/task.py#cmd_task_close: 866f91d43ac93a5926bc3f821035385ac2e6a946ab74a332b4e367d018b47d45
+  bin/lib/task.py#cmd_task_close: e99f65b3c341f14eb1a08e79aceab2186911076b79265fb79b83951da171169a
   bin/lib/task_closure_evidence.py#_READ_ONLY_CONFORMANCE_SURFACES: c00e8b292d6d0c54739a030151785112b63b81d05ff99574a036e5178765cf1c
   bin/lib/task_closure_evidence.py#_p8_adoption_verdict: 09f9a0f81c96bd9de12fbc202b1524d56a69b4ad9c6d612c6cafc66ff93abbc5
   bin/lib/task_closure_evidence.py#_resolve_exit_status_evidence_ref: 479927d513753038ce8898a0f00ede032dd09e70ab02b85097434be8045ab29c

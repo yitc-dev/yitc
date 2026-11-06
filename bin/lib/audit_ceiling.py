@@ -1645,87 +1645,79 @@ def merge_integration_row(stage_rows) -> "dict | None":
     return found
 
 
-# T-14301 — how many record-only commits G3 may cross between the GREEN commit and the merge.
-_MI_CROSS_MAX = 16
+#: T-14544 — the return code the injected `git` reader answers when git's output is not UTF-8: such a
+#: patch cannot be rendered to the auditor whole, so every caller reads it as «git could not answer».
+MI_UNDECODABLE_RC = 125
+
+# T-14544 — how many first-parent steps the ONE chain walk from HEAD back to the GREEN commit may take
+# before it refuses (`merge_chain_budget_exhausted`). A step is one commit: a merge, a record-only commit
+# or the one re-sign commit. The number of merges is not capped; the walk is (fail-closed on a runaway).
+_MI_CROSS_MAX = 64
 
 
 def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, rows, stage_rows,
                                 git, resolve, diff_cap=None, spec_parts=None, sign_at=None,
-                                transparent=None, red_fix_ok=False) -> tuple:
-    """T-13260 (SPEC-0124 §Ledger-skip axes, «Post-GREEN merge integration») — may ONE ordinary
-    audit-post run past the ceiling because the only thing since a GREEN is a merge with main?
+                                transparent=None, red_fix_ok=False, hand_merge_ok=False,
+                                tested_is_head=None, inert=None) -> tuple:
+    """T-13260 / T-14544 (SPEC-1018 «Exits from a spent GREEN», «Post-GREEN merge integration») — may
+    ONE audit-post judge HEAD because everything since the card's GREEN commit A is a chain of its own
+    governed sync merges with main?
 
     Returns `(evidence, None)` when admitted, else `(None, reason)` with a NAMED reason. Decided BEFORE
     any auditor runs, from the saved record + git + the journal rows the caller already folded
     (SPEC-0190 rule 10 — this opens nothing). `git(args) -> (returncode, stdout)` and `resolve(ref) ->
     full sha | None` are injected, so the predicate is pure; ANY git failure or unreadable input is
-    «not admitted» (fail-closed — the ceiling refusal is the safe direction).
+    «not admitted» (fail-closed).
 
-    THE SIX GUARDS, all must hold:
-      G2 one-shot — no merge-integration row with a real verdict exists (checked first: once spent,
-         nothing else is worth asking).
-         T-14090: nor a test-found-fix row — that pass is FINAL for the stage (SPEC-1041 «A test-found
-         fix after a spent GREEN»), so it refuses `test_found_fix_pass_is_final` right after G2.
-      G1 the LATEST real post verdict in the journal is GREEN and pins the custody commit A; the saved
-         record, when it carries a real verdict, agrees. Latest by journal ORDER, not by `passes`: a
-         GREEN row with no findings carries no `passes` key, so ranking by it would pick an older RED.
-      G3 HEAD is M, a TWO-parent merge whose FIRST parent is A exactly — so A as the second parent, a
-         commit between A and M, and a commit after M (HEAD is then not that merge) all refuse.
-      G4 a `merge_resolved_by_hand` row of this card names M, with `head_before` = A, `main_sha` = M's
-         second parent, `resolved_source` = `merge-msg` (git's own conflict-time `# Conflicts:`
-         record, never the staged-delta superset) and a non-empty `resolved` list.
-      G5 every path where M's tree differs from the MECHANICAL merge of (A, main) — `git merge-tree`,
-         which applies the repo's merge drivers (the journal's `merge=union` included) — is a recorded
-         conflict path, and the recorded set is inside the set `merge-tree` re-derives, so a hand-edited
-         MERGE_MSG cannot widen it. No inert exemption.
-      G6 a `tests_passed` row of this card postdates the sync row (the pass is terminal-bearing, the
-         T-12642 posture).
+    THE GUARDS, in order:
+      BOUND  one real-verdict merge-integration row per (task, post) — when spent, a chain whose
+             subject differs from the one that verdict judged is refused
+             `merge_after_merge_integration_verdict`, else `merge_integration_allowance_spent`. A
+             test-found-fix row is final too (`test_found_fix_pass_is_final`), save a GREEN one under
+             `hand_merge_ok` (T-14542 — SPEC-1041 names that exception).
+      PRIOR  the latest real post verdict (journal order) is GREEN at A — or, under `red_fix_ok`
+             (T-14375), RED answered by the card's `--fix-red` commit A recorded after it; the saved
+             record agrees. When custody is not A, custody must be the chain's ONE re-sign commit
+             (T-14180), else `prior_green_not_at_custody`.
+      CHAIN  ONE first-parent walk from HEAD to A, bounded by `_MI_CROSS_MAX` steps. Each step is
+             (a) a two-parent merge, (b) a NON-merge commit the injected `transparent(sha, tid)` proves
+             record-only (T-12436 — sync bookkeeping, dedup, pause records), or (c) custody itself as
+             a re-sign-only commit on a merge (T-14180). Anything else refuses —
+             `head_not_a_merge` above every merge, `first_parent_not_prior_green` below one (A merged
+             in as a second parent never reaches A along first parents, and refuses the same way).
+      MERGE  every merge M_i of the chain is accounted for by ONE row of THIS card, read from an index
+             built once by merge sha: a `merge_resolved_by_hand` row (head_before = M_i's first parent,
+             main_sha = its second, resolved_source `merge-msg`, a non-empty recorded conflict set that
+             `git merge-tree` re-derives), a `merge_resolved_by_hand` row in mode `clean-edit` (T-14545
+             — `worktree sync --hold` then `--resolved`: same parents, `resolved` exactly [] from
+             `merge-tree-clean`, and merge-tree of the parents exits 0 with a readable tree — a
+             conflict refuses `clean_edit_parents_conflict`, no answer `mechanical_merge_unreadable`)
+             or a clean non-noop `worktree_synced` row (head_after = M_i, same main parent; its
+             head_before the first parent or below it across record-only commits only — T-14549). Every path where M_i differs
+             from the mechanical merge T_i = merge-tree(parents) is a recorded path of its row, or a
+             verified re-sign (T-14180), or — under `hand_merge_ok` only — a hand edit, named per merge;
+             else `resolution_outside_conflict_paths`. A chain of clean merges alone is admitted too.
+      PACKET for each merge, oldest first, the COMPLETE `git diff --binary -M T_i M_i` (every entry:
+             edits outside conflicts, additions, deletions, renames, mode changes, a binary change as its
+             byte-complete patch — never a «Binary files differ» summary; no external diff driver and no
+             textconv, so a configured driver cannot hide content), attributed to its parents
+             and row; the re-sign commit's and the `--fix-red` commit's own diffs; and the final task
+             delta from the last imported main tip to the subject, marked as CONTEXT. Ordered and
+             attributed — no union, no subtraction. When the sections together exceed `diff_cap` the
+             pass is REFUSED `merge_integration_packet_incomplete` — never truncated. The cap counts
+             UTF-8 bytes.
+      TESTS  the newest governed Tests row of the card recorded after the newest merge's row (journal
+             ORDER — `rows` positions, never `ts`) is
+             `tests_passed` (`stage6_evidence_predates_merge` otherwise); with `tested_is_head(tree,
+             subject)` injected, that row's runner-marked `stage6_run.tree` is the subject apart from
+             inert paths (`stage6_evidence_not_at_head` otherwise).
 
-    T-14180 — ONE further case, the engine-verified anchor RE-SIGN (SPEC-1018 «Exits from a spent
-    GREEN»): a `specs/SPEC-*.yaml` change whose body is untouched, that removes no signature key, and
-    whose every changed `implements_signature` value EQUALS `sign_at(HEAD, anchor)` for an anchor whose
-    signature at A is readable and differs from HEAD's. G5 admits such a path outside the conflict set inside M; G1/G3
-    admit ONE such re-sign-only commit R directly on M when custody is R (it was recorded by `task
-    commit`) — then M is R's parent and the subject is R. `spec_parts(text) -> (body, {anchor: value})
-    | None` and `sign_at(rev, anchor) -> sha256 | None` are injected; either absent, nothing new is
-    admitted. Every other shape keeps the refusal it had.
-
-    T-14301 — G3/G4 may CROSS record-only commits between A and M: M's first parent p1 may reach A along
-    the first-parent chain through NON-merge commits the injected `transparent(sha, tid)` predicate
-    proves carry no authored path (audit_packet.py#_card_repair_chain_transparent, T-12436 — the
-    `worktree sync: bookkeeping` commit a sync folds before its merge). G4 then reads `head_before` =
-    p1 (what `worktree sync --resolved` records) and G5 merges (p1, main). No predicate injected, or
-    any commit it does not prove transparent, keeps the `first_parent_not_prior_green` refusal.
-
-    T-14330 — the same predicate also crosses record-only NON-merge commits AFTER M (the journal dedup
-    commit `worktree sync --resolved` writes on top of its merge, T-14101): HEAD is walked back across
-    them before G1/G3, and the evidence names them `trailing`. No predicate, an authored commit, or a
-    merge keeps the `head_not_a_merge` refusal.
-
-    T-14449 — the walk-back also crosses CLEAN GOVERNED SYNC MERGES after M (the Stage-6 admission
-    sync): a two-parent commit no `merge_resolved_by_hand` row names, recorded by a non-noop
-    `worktree_synced` row of the card whose head_after / head_before / main_sha are that merge and its
-    parents, and whose tree differs from `git merge-tree` of its parents only on that row's `resolved`
-    paths. G6 then needs a `tests_passed` row after the newest such row too; the evidence names them
-    `synced` and the subject is the newest one (`merge_integration_subject`). A hand-resolved second
-    merge, or any merge the rows do not account for, keeps the refusal it had.
-
-    T-14500 — the G3 walk from p1 back to A also crosses CLEAN GOVERNED SYNC MERGES BEFORE M (a
-    pre-flight `worktree sync` merge), by the same `_clean_sync_row` test as T-14449; the evidence names
-    them `presynced`. A hand-resolved or unrecorded merge before M keeps `first_parent_not_prior_green`.
-
-    T-14375 — ONE further prior state for G1, asked only when the caller passes `red_fix_ok` (the
-    ordinary leg BELOW the ceiling): the latest real verdict is RED and the custody commit A is this
-    card's `task commit --fix-red` commit — a `commit_landed` row of the card marked `red_fix`, naming
-    A, recorded AFTER that RED in journal order. The saved record must then read RED (not yet re-pinned).
-    G2-G6 are unchanged, so a commit after the fix carrying authored content beyond the governed merge
-    is refused exactly as after a GREEN. The evidence then carries `red_fix` and `fix_diff` (A's own
-    diff), so the packet shows the fix beside the resolution.
-
-    The evidence is the marker the pass records (merge / prior / main shas, the conflict paths, the
-    sync row locator; `resigned` + `resign_commit` only when a re-sign was admitted); `resolution_diff`
-    rides beside it for the PACKET only and is never recorded, bounded by the host's existing packet
-    diff cap (`diff_cap`, the caller's `AUDIT_MAX_DIFF_BYTES`)."""
+    The evidence is the marker the pass records — `merge_commit` (the newest merge), `prior_commit`,
+    `main_sha` (the last imported main tip), `conflict_paths`, `sync_evidence`, `merges` (per merge:
+    its parents, kind, row locator, conflict paths, hand edits, re-signs), `subject`, and `crossed` /
+    `trailing` / `hand_edited` / `resigned` / `resign_commit` / `red_fix` / `after_test_found_fix`
+    when they apply; `resolution_diff`, `final_delta` and `fix_diff` ride beside it for the PACKET only
+    and are never recorded."""
     def _g(args):
         try:
             rc, out = git(list(args))
@@ -1743,6 +1735,10 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
 
     def _d(row):
         return row.get("data") if isinstance(row, dict) and isinstance(row.get("data"), dict) else {}
+
+    def _parents(c):
+        pl = _g(["rev-list", "--parents", "-n", "1", c])
+        return pl[1].split()[1:] if pl is not None and pl[0] == 0 and pl[1].split() else None
 
     def _resign_only(path, old_rev, new_rev, head, green):
         """T-14180 — None when `path` from `old_rev` to `new_rev` is a verified re-sign, else the cause."""
@@ -1787,91 +1783,105 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
                 return f"resign_anchor_unchanged_by_merge: {path} {k}"
         return None
 
-    # G2 — ONE-SHOT.
+    # ── BOUND — one verdict per (task, post) ──
     spent = merge_integration_row(stage_rows)
-    if spent is not None:
-        return None, (f"merge_integration_allowance_spent: the post-GREEN merge-integration pass already "
-                      f"ran for {tid} ({spent.get('ts')}, {_d(spent).get('verdict')}) — it is admitted once")
-    # T-14090 — a recorded test-found-fix pass is FINAL for the stage: no merge-integration pass follows
-    # it either (the window refuses the converse, `merge_integration_pass_is_final`).
     tff = test_found_fix_row(stage_rows)
-    if tff is not None:
+    tff_green = (tff is not None and hand_merge_ok
+                 and str(_d(tff).get("verdict") or "").strip().upper() == "GREEN")
+    if tff is not None and not tff_green and spent is None:
         return None, (f"test_found_fix_pass_is_final: the test-found-fix pass ran for {tid} "
                       f"({tff.get('ts')}, {_d(tff).get('verdict')}) and no further audit-post pass follows it")
-    # T-14330 — HEAD may sit on record-only NON-merge commits written AFTER the merge (the journal dedup
-    # commit `worktree sync --resolved` folds on top of it, T-14101): walk back across them with the same
-    # predicate, bounded and fail-closed; the commit the walk stops on stands in for HEAD below.
-    # T-14449 — the same walk also crosses CLEAN GOVERNED SYNC MERGES after M (the Stage-6 admission
-    # sync `worktree sync --task` makes whenever main moved during the queue wait): a two-parent commit
-    # that no `merge_resolved_by_hand` row names, recorded by a `worktree_synced` row of this card whose
-    # head_after/head_before/main_sha are the merge and its two parents, and whose tree differs from
-    # `git merge-tree` of those parents only on the paths that row says the verb resolved itself. The
-    # subject then stays the WHOLE HEAD; a hand-resolved second merge is never crossed.
-    trailing, synced, synced_rows = [], [], []
 
-    def _clean_sync_row(c, p1, p2):
-        for r in rows or ():
-            if (isinstance(r, dict) and r.get("type") == "merge_resolved_by_hand"
-                    and str(r.get("task_id") or "") == str(tid) and _r(_d(r).get("merge_commit")) == c):
-                return None
-        row = None
-        for r in rows or ():
-            d = _d(r)
-            if (isinstance(r, dict) and r.get("type") == "worktree_synced"
-                    and str(r.get("task_id") or "") == str(tid) and d.get("noop") is False
-                    and _r(d.get("head_after")) == c and _r(d.get("head_before")) == p1
-                    and _r(d.get("main_sha")) == p2):
-                row = r
-        if row is None:
-            return None
-        mt = _g(["merge-tree", "--write-tree", "--name-only", "-z", p1, p2])
-        tree = mt[1].split("\0")[0].strip() if mt is not None and mt[0] in (0, 1) else ""
-        if not tree:
-            return None
-        df = _g(["diff", "--name-only", "--no-renames", "-z", tree, c])
-        if df is None or df[0] != 0:
-            return None
-        allowed = {str(p) for p in (_d(row).get("resolved") or ()) if str(p or "").strip()}
-        if any(p not in allowed for p in df[1].split("\0") if p):
-            return None
-        return row
-
-    cur = _r(head_sha)
-    while cur and len(trailing) + len(synced) < _MI_CROSS_MAX:
-        cl = _g(["rev-list", "--parents", "-n", "1", cur])
-        cp = cl[1].split() if cl is not None and cl[0] == 0 else []
-        if len(cp) == 3:
-            srow = _clean_sync_row(cur, cp[1], cp[2])
-            if srow is None:
-                break
-            synced.append(cur)
-            synced_rows.append(srow)
-            cur = cp[1]
-            continue
-        try:
-            ok = callable(transparent) and len(cp) == 2 and transparent(cur, tid) is True
-        except Exception:      # noqa: BLE001 — an unverifiable crossing is not granted
-            ok = False
-        if not ok:
-            break
-        trailing.append(cur)
-        cur = cp[1]
-    if (trailing or synced) and cur:
-        head_sha = cur
-    # G1 — the latest real verdict is GREEN at A.
+    # ── CHAIN, phase 1 — the structural first-parent walk from HEAD (no rows read yet) ──
     a_sha = _r(custody_sha)
     if not a_sha:
         return None, "custody_unresolved: the recorded commit does not resolve"
     real = [r for r in (stage_rows or ())
             if str(_d(r).get("basis") or "") != "currency"
             and str(_d(r).get("verdict") or "").strip().upper() in _MI_REAL_VERDICTS]
+    green = None
+    if real and str(_d(real[-1]).get("verdict") or "").strip().upper() == "GREEN":
+        green = _r(_d(real[-1]).get("commit"))
+    # the walk ends at A: the GREEN commit, or custody (the --fix-red commit / no GREEN read yet)
+    stop = green if green and green != a_sha else a_sha
+    head = _r(head_sha)
+    if not head:
+        return None, "head_unresolved: HEAD does not resolve"
+    steps = []                  # (sha, parents) top-down, A excluded
+    cur = head
+    while cur != stop:
+        if len(steps) >= _MI_CROSS_MAX:
+            return None, (f"merge_chain_budget_exhausted: the first-parent walk from HEAD {head[:12]} "
+                          f"did not reach the GREEN commit {stop[:12]} within {_MI_CROSS_MAX} commits")
+        ps = _parents(cur)
+        if ps is None:
+            return None, (f"head_parents_unreadable: git could not list the parents of {cur[:12]}")
+        if not ps:
+            break               # a root commit: the walk never met A
+        steps.append((cur, ps))
+        cur = ps[0]
+    seen_merge = False
+    crossed, trailing, resign_c, top, walk_err = [], [], None, None, None
+    for c, ps in steps:
+        if len(ps) == 2:
+            seen_merge = True
+            top = top or c
+            continue
+        if len(ps) == 1:
+            try:
+                ok = callable(transparent) and transparent(c, tid) is True
+            except Exception:  # noqa: BLE001 — an unverifiable crossing is not granted
+                ok = False
+            if ok:
+                (crossed if top else trailing).append(c)
+                continue
+            if (c == a_sha and top is None and green and green != a_sha
+                    and len(_parents(ps[0]) or ()) == 2):
+                resign_c = top = c   # T-14180 — custody as the one re-sign commit on a merge (verified below)
+                continue
+        walk_err = ((f"head_not_a_merge: {c[:12]} above the merges has {len(ps)} parent(s) and is "
+                     f"neither a record-only commit nor the recorded re-sign commit — only governed "
+                     f"sync merges of {tid} are admitted after the GREEN commit") if not seen_merge else
+                    (f"first_parent_not_prior_green: {c[:12]} sits between the GREEN-pinned {stop[:12]} "
+                     f"and HEAD and is not a governed sync merge, a record-only commit or the re-sign "
+                     f"commit (or the GREEN commit was merged in as a second parent)"))
+        break
+    merges = [(c, ps) for c, ps in reversed(steps) if len(ps) == 2]     # oldest first
+    if walk_err is None and cur != stop:
+        walk_err = (f"first_parent_not_prior_green: HEAD's first-parent chain never reaches the "
+                    f"GREEN-pinned {stop[:12]} (the GREEN commit merged in as a second parent, or an "
+                    f"unrelated history)")
+    if walk_err is None and not merges:
+        walk_err = (f"head_not_a_merge: HEAD {head[:12]} carries no merge since the GREEN commit "
+                    f"{stop[:12]} — exactly a chain of governed sync merges is admitted")
+    subject = (resign_c or merges[-1][0]) if merges else None
+
+    # ── BOUND, the spent arm — the chain moved after the one verdict ──
+    if spent is not None:
+        mk = _d(spent).get(MERGE_INTEGRATION_MARKER) or {}
+        judged = _r(mk.get("subject") or (mk.get("synced") or [None])[0] or mk.get("resign_commit")
+                    or mk.get("merge_commit") or _d(spent).get("commit"))
+        if walk_err is None and judged and judged != subject:
+            return None, (f"merge_after_merge_integration_verdict: the merge-integration verdict of {tid} "
+                          f"({spent.get('ts')}, {_d(spent).get('verdict')}) judged {judged[:12]}, and the "
+                          f"branch now carries {subject[:12]} — a merge recorded after that verdict is not "
+                          f"covered by it and no further pass is admitted")
+        return None, (f"merge_integration_allowance_spent: the post-GREEN merge-integration pass already "
+                      f"ran for {tid} ({spent.get('ts')}, {_d(spent).get('verdict')}) — it is admitted once")
+    if green and green != a_sha and resign_c is None and not (real and red_fix_ok
+            and str(_d(real[-1]).get("verdict") or "").strip().upper() == "RED"):
+        return None, (f"prior_green_not_at_custody: the latest GREEN pins {_d(real[-1]).get('commit')}, "
+                      f"not the recorded commit {a_sha[:12]}")
+    if walk_err:
+        return None, walk_err
+
+    # ── PRIOR — the latest real verdict is GREEN at A (or a RED answered by the --fix-red commit A) ──
     if not real:
         return None, "no_prior_verdict: no recorded audit-post verdict for this card"
     latest = real[-1]
     lv = str(_d(latest).get("verdict") or "").strip().upper()
     red_fix = False
     if lv == "RED" and red_fix_ok:
-        # T-14375 — a RED answered by this card's `--fix-red` commit A, recorded after the RED
         seen_red = False
         for r in rows or ():
             if r is latest or r == latest:
@@ -1886,227 +1896,289 @@ def merge_integration_admission(tid, *, prior_record, custody_sha, head_sha, row
                           f"recorded after it")
     elif lv != "GREEN":
         return None, f"prior_verdict_not_green: the latest recorded audit-post verdict is {lv}"
-    r_sha, r_paths = None, []
-    if red_fix:
-        pass   # the RED pins the pre-fix ship; custody A is the fix, proven above
-    elif _r(_d(latest).get("commit")) != a_sha:
-        # T-14180 — the ONE admitted exception: custody is HEAD, a re-sign-only commit R recorded on
-        # the merge M over the GREEN commit. Then A is the GREEN's commit and M stands in for HEAD.
+    r_paths = []
+    if not red_fix and green != a_sha:
         why = None
-        green = _r(_d(latest).get("commit"))
-        rl = _g(["rev-list", "--parents", "-n", "1", a_sha]) if green and a_sha == _r(head_sha) else None
-        rp = rl[1].split() if rl is not None and rl[0] == 0 else []
-        if len(rp) == 2:
-            ml = _g(["rev-list", "--parents", "-n", "1", rp[1]])
-            mp = ml[1].split() if ml is not None and ml[0] == 0 else []
-            nd = _g(["diff", "--name-only", "--no-renames", "-z", rp[1], a_sha])
-            paths = sorted({p for p in nd[1].split("\0") if p}) if nd is not None and nd[0] == 0 else []
-            if len(mp) == 3 and mp[1] == green and paths:
-                why = next((w for w in (_resign_only(p, rp[1], a_sha, a_sha, green) for p in paths) if w),
-                           None)
-                if why is None:
-                    r_sha, r_paths, head_sha, a_sha = a_sha, paths, rp[1], green
-        if r_sha is None:
+        if resign_c:
+            nd = _g(["diff", "--name-only", "--no-renames", "-z", f"{resign_c}^", resign_c])
+            r_paths = sorted({p for p in nd[1].split("\0") if p}) if nd is not None and nd[0] == 0 else []
+            why = (next((w for w in (_resign_only(p, f"{resign_c}^", resign_c, resign_c, green)
+                                     for p in r_paths) if w), None) if r_paths else "resign_changes_nothing")
+        if not resign_c or why is not None:
             return None, (f"prior_green_not_at_custody: the latest GREEN pins {_d(latest).get('commit')}, "
                           f"not the recorded commit {a_sha[:12]}"
                           + (f" ({why})" if why and why not in ("resign_unverifiable", "not_a_spec_record")
                              else ""))
-    if isinstance(prior_record, dict) and red_fix:
+        a_sha = green
+    if isinstance(prior_record, dict):
         pv = str(prior_record.get("verdict") or "").strip().upper()
-        if pv in _MI_REAL_VERDICTS and pv != "RED":
+        if red_fix and pv in _MI_REAL_VERDICTS and pv != "RED":
             return None, (f"saved_record_disagrees: the saved audit-post record reads {pv}, not the RED "
                           f"the fix at {a_sha[:12]} answers")
-    elif isinstance(prior_record, dict):
-        pv = str(prior_record.get("verdict") or "").strip().upper()
-        if pv in _MI_REAL_VERDICTS and (pv != "GREEN" or _r(prior_record.get("commit")) != a_sha):
+        if not red_fix and pv in _MI_REAL_VERDICTS and (pv != "GREEN"
+                                                        or _r(prior_record.get("commit")) != a_sha):
             return None, (f"saved_record_disagrees: the saved audit-post record reads {pv} at "
                           f"{prior_record.get('commit')}, not GREEN at {a_sha[:12]}")
-    # G3 — HEAD is exactly one merge M over A.
-    m_sha = _r(head_sha)
-    if not m_sha:
-        return None, "head_unresolved: HEAD does not resolve"
-    rl = _g(["rev-list", "--parents", "-n", "1", m_sha])
-    if rl is None or rl[0] != 0:
-        return None, "head_parents_unreadable: git could not list HEAD's parents"
-    parts = rl[1].split()
-    if len(parts) != 3:
-        return None, (f"head_not_a_merge: HEAD {m_sha[:12]} has {max(len(parts) - 1, 0)} parent(s) — "
-                      f"exactly one two-parent merge over the GREEN commit is admitted")
-    p1, p2 = parts[1], parts[2]
-    crossed, presynced = [], []
-    # T-14301 — walk p1 back to A across record-only non-merge commits (bounded, fail-closed).
-    # T-14500 — and across CLEAN GOVERNED SYNC MERGES before M (a pre-flight `worktree sync` merge the
-    # same `_clean_sync_row` test accepts); a hand-resolved or unrecorded merge stops the walk.
-    cur = p1
-    while cur != a_sha and len(crossed) + len(presynced) < _MI_CROSS_MAX:
-        cl = _g(["rev-list", "--parents", "-n", "1", cur])
-        cp = cl[1].split() if cl is not None and cl[0] == 0 else []
-        if len(cp) == 3:
-            if _clean_sync_row(cur, cp[1], cp[2]) is None:
-                break
-            presynced.append(cur)
-            cur = cp[1]
+
+    # ── MERGE — every merge accounted for by one row of THIS card (rows indexed ONCE by merge sha) ──
+    hand_by, clean_by, row_at = {}, {}, {}
+    for i, r in enumerate(rows or ()):
+        row_at[id(r)] = i      # journal ORDER (SPEC-1038 «Order of journal rows»), never `ts`
+        if not isinstance(r, dict) or str(r.get("task_id") or "") != str(tid):
             continue
-        try:
-            ok = callable(transparent) and len(cp) == 2 and transparent(cur, tid) is True
-        except Exception:      # noqa: BLE001 — an unverifiable crossing is not granted
-            ok = False
-        if not ok:
-            break
-        crossed.append(cur)
-        cur = cp[1]
-    if cur != a_sha:
-        return None, (f"first_parent_not_prior_green: HEAD's first parent is {p1[:12]}, not the "
-                      f"GREEN-pinned {a_sha[:12]} (a commit before/after the merge, or the GREEN commit "
-                      f"merged in as the second parent)"
-                      + (" — only record-only bookkeeping commits are crossed (T-14301)"
-                         if callable(transparent) else ""))
-    # G4 — governed sync provenance.
-    sync = None
-    for r in rows or ():
-        if (isinstance(r, dict) and r.get("type") == "merge_resolved_by_hand"
-                and str(r.get("task_id") or "") == str(tid)
-                and _r(_d(r).get("merge_commit")) == m_sha):
-            sync = r
-    if sync is None:
-        return None, (f"sync_provenance_missing: no `merge_resolved_by_hand` row of {tid} names the merge "
-                      f"{m_sha[:12]} (resolve through `worktree sync --resolved`)")
-    sd = _d(sync)
-    if _r(sd.get("head_before")) != p1:
-        return None, f"sync_head_before_mismatch: the sync row's head_before is {sd.get('head_before')}"
-    if _r(sd.get("main_sha")) != p2:
-        return None, (f"sync_main_parent_mismatch: the sync row's main_sha {sd.get('main_sha')} is not "
-                      f"the merge's second parent {p2[:12]}")
-    if sd.get("resolved_source") != "merge-msg":
-        return None, (f"sync_conflict_record_inexact: resolved_source is {sd.get('resolved_source')!r}, "
-                      f"not git's conflict-time `merge-msg` record")
-    recorded = sd.get("resolved")
-    if not isinstance(recorded, list) or not [p for p in recorded if str(p or "").strip()]:
-        return None, "sync_conflict_paths_empty: the sync row records no conflict path"
-    recorded = sorted({str(p).strip() for p in recorded if str(p or "").strip()})
-    # G5 — the resolution is confined to the conflict paths.
-    mt = _g(["merge-tree", "--write-tree", "--name-only", "-z", p1, p2])
-    if mt is None or mt[0] != 1:
-        return None, ("mechanical_merge_not_conflicting: `git merge-tree` of the GREEN commit and main "
-                      "did not report a conflict (or could not run)")
-    fields = mt[1].split("\0")
-    mech_tree = fields[0].strip()
-    derived = set()
-    for f in fields[1:]:
-        if not f:
-            break
-        derived.add(f)
-    if not mech_tree or not derived:
-        return None, "mechanical_merge_unreadable: `git merge-tree` output could not be parsed"
-    widened = [p for p in recorded if p not in derived]
-    if widened:
-        return None, (f"sync_conflict_set_widened: recorded conflict path(s) git does not re-derive: "
-                      f"{', '.join(widened)}")
-    df = _g(["diff", "--name-only", "--no-renames", "-z", mech_tree, m_sha])
-    if df is None or df[0] != 0:
-        return None, "resolution_diff_unreadable: git could not diff the merge against the mechanical merge"
-    changed = sorted({p for p in df[1].split("\0") if p})
-    outside = [p for p in changed if p not in recorded]
-    # T-14180 — a non-conflict spec path the merge re-signed, verified against the merged tree.
-    causes = {p: _resign_only(p, mech_tree, m_sha, r_sha or m_sha, a_sha) for p in outside}
-    if any(causes.values()):
+        d = _d(r)
+        if r.get("type") == "merge_resolved_by_hand":
+            k = _r(d.get("merge_commit"))
+            if k:
+                hand_by[k] = r
+        elif (r.get("type") == "worktree_synced" and d.get("noop") is False
+              and str(d.get("head_after") or "").strip()
+              and str(d.get("head_after") or "").strip() != str(d.get("head_before") or "").strip()):
+            k = _r(d.get("head_after"))
+            if k:
+                clean_by[k] = r
+    # T-14549 — a sync that first commits its own record-only bookkeeping records head_before BELOW
+    # it, so a clean row's head_before reaches the merge's first parent along first parents through
+    # commits this walk already proved record-only (`crossed`), never through anything else.
+    fp_of, crossed_set = {c: ps[0] for c, ps in steps}, set(crossed)
+
+    def _reaches(hb, p1):
+        x = p1
+        while hb and x != hb and x in crossed_set:
+            x = fp_of[x]
+        return bool(hb) and x == hb
+    detail, sections, conflict_all, hand_all, resigned_all, last_row_at = [], [], [], [], [], -1
+    for c, (p1, p2) in merges:
+        row = hand_by.get(c)
+        kind = "hand" if row is not None else None
+        if row is not None and _d(row).get("mode") == "clean-edit":
+            kind = "clean-edit"    # T-14545 — a held clean merge finished with an integration edit
+        if row is None:
+            crow = clean_by.get(c)
+            if crow is not None and _reaches(_r(_d(crow).get("head_before")), p1) and _r(_d(crow).get("main_sha")) == p2:
+                row, kind = crow, "clean"
+        if row is None:
+            return None, (f"sync_provenance_missing: no `merge_resolved_by_hand` or clean `worktree_synced` "
+                          f"row of {tid} accounts for the merge {c[:12]} (resolve through "
+                          f"`worktree sync --resolved`)")
+        sd = _d(row)
+        if kind in ("hand", "clean-edit"):
+            if _r(sd.get("head_before")) != p1:
+                return None, (f"sync_head_before_mismatch: the sync row of {c[:12]} has head_before "
+                              f"{sd.get('head_before')}, not the merge's first parent {p1[:12]}")
+            if _r(sd.get("main_sha")) != p2:
+                return None, (f"sync_main_parent_mismatch: the sync row's main_sha {sd.get('main_sha')} is "
+                              f"not the merge's second parent {p2[:12]}")
+            if kind == "hand" and sd.get("resolved_source") != "merge-msg":
+                return None, (f"sync_conflict_record_inexact: resolved_source is {sd.get('resolved_source')!r}, "
+                              f"not git's conflict-time `merge-msg` record")
+        recorded = sd.get("resolved")
+        # T-14545 — the clean-edit row claims a POSITIVELY established empty conflict set: exactly [],
+        # from git's merge-tree, never a merge-msg source (re-checked against git just below)
+        if kind == "clean-edit" and (recorded != [] or sd.get("resolved_source") != "merge-tree-clean"):
+            return None, (f"clean_edit_record_inexact: the clean-edit row of {c[:12]} must record resolved: [] "
+                          f"from `merge-tree-clean`; it records resolved {recorded!r} from "
+                          f"{sd.get('resolved_source')!r}")
+        if kind == "hand" and (not isinstance(recorded, list) or not [p for p in recorded if str(p or "").strip()]):
+            return None, "sync_conflict_paths_empty: the sync row records no conflict path"
+        recorded = sorted({str(p).strip() for p in (recorded or ()) if str(p or "").strip()})
+        mt = _g(["merge-tree", "--write-tree", "--name-only", "-z", p1, p2])
+        if kind == "clean-edit" and mt is not None and mt[0] == 1:
+            return None, (f"clean_edit_parents_conflict: the row of {c[:12]} claims a clean merge, but `git "
+                          f"merge-tree` of its parents {p1[:12]} and {p2[:12]} reports a conflict")
+        if kind == "clean-edit" and (mt is None or mt[0] != 0
+                                     or not re.fullmatch(r"[0-9a-f]{40,64}", mt[1].split("\0")[0].strip())):
+            return None, (f"mechanical_merge_unreadable: `git merge-tree` of the parents of {c[:12]} did not "
+                          f"answer with a clean tree — a clean-edit merge is admitted only on git's positive answer")
+        if mt is None or mt[0] not in (0, 1) or (kind == "hand" and mt[0] != 1):
+            return None, (f"mechanical_merge_not_conflicting: `git merge-tree` of the parents of {c[:12]} "
+                          f"did not report a conflict (or could not run)")
+        fields = mt[1].split("\0")
+        mech_tree = fields[0].strip()
+        derived = set()
+        for f in fields[1:]:
+            if not f:
+                break
+            derived.add(f)
+        if not mech_tree or (kind == "hand" and not derived):
+            return None, "mechanical_merge_unreadable: `git merge-tree` output could not be parsed"
+        if kind == "hand":
+            widened = [p for p in recorded if p not in derived]
+            if widened:
+                return None, (f"sync_conflict_set_widened: recorded conflict path(s) git does not re-derive: "
+                              f"{', '.join(widened)}")
+        df = _g(["diff", "--name-only", "--no-renames", "-z", mech_tree, c])
+        if df is None or df[0] != 0:
+            return None, "resolution_diff_unreadable: git could not diff the merge against the mechanical merge"
+        outside = [p for p in sorted({p for p in df[1].split("\0") if p}) if p not in recorded]
+        causes = {p: _resign_only(p, mech_tree, c, subject, a_sha) for p in outside}
         bad = [p for p in outside if causes[p]]
-        tried = [causes[p] for p in bad if causes[p] not in ("resign_unverifiable", "not_a_spec_record")]
-        return None, (f"resolution_outside_conflict_paths: the merge changes non-conflict path(s) "
-                      f"relative to the mechanical merge: {', '.join(bad)}"
-                      + (f" ({'; '.join(tried)})" if tried else ""))
-    m_paths = sorted(outside)
-    # G6 — Stage-6 proof postdates the sync.
-    sync_ts = str(sync.get("ts") or "")
-    # T-14449 — and postdates the NEWEST crossed clean sync merge, so the run tested the audited HEAD
-    last_ts = max([sync_ts] + [str(r.get("ts") or "") for r in synced_rows])
-    if not sync_ts or not any(isinstance(r, dict) and r.get("type") == "tests_passed"
-                              and str(r.get("task_id") or "") == str(tid)
-                              and str(r.get("ts") or "") > last_ts for r in rows or ()):
-        return None, (f"stage6_evidence_predates_merge: no `tests_passed` row of {tid} postdates the sync "
-                      f"({sync_ts or 'no ts'}) — run `task test --run --evidence` at the merge first")
-    # LITERAL pathspecs: a conflict path is a recorded file NAME, never pathspec magic (a file named
-    # `:(literal)f.txt` must not select `f.txt`). A diff git could not produce REFUSES — an empty
-    # stand-in would admit a pass whose packet silently lacks the resolution it exists to show.
-    rd = _g(["--literal-pathspecs", "diff", mech_tree, m_sha, "--", *recorded, *m_paths])
-    if rd is None or rd[0] != 0:
-        return None, ("resolution_patch_unreadable: git could not produce the resolution diff of the "
-                      "conflict paths")
-    res_diff = rd[1]
-    if r_sha:
-        rr = _g(["diff", m_sha, r_sha])
+        if bad and not hand_merge_ok:
+            tried = [causes[p] for p in bad if causes[p] not in ("resign_unverifiable", "not_a_spec_record")]
+            return None, (f"resolution_outside_conflict_paths: the merge {c[:12]} changes non-conflict "
+                          f"path(s) relative to the mechanical merge: {', '.join(bad)}"
+                          + (f" ({'; '.join(tried)})" if tried else ""))
+        rd = _g(["--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--binary", "-M", mech_tree, c])
+        if rd is None or rd[0] != 0:
+            return None, (f"resolution_patch_unreadable: git could not produce the resolution diff of "
+                          f"the merge {c[:12]}"
+                          + (" as text the packet can carry whole (it is not UTF-8 — e.g. an entry a diff "
+                             "driver forces to text); nothing is sent and no pass is spent"
+                             if rd is not None and rd[0] == MI_UNDECODABLE_RC else ""))
+        loc = f"events.jsonl#ts={row.get('ts')}"
+        last_row_at = max(last_row_at, row_at.get(id(row), -1))
+        detail.append({"merge": c, "first_parent": p1, "main_sha": p2, "kind": kind, "row": loc,
+                       "conflict_paths": recorded if kind == "hand" else [],
+                       "hand_edited": sorted(bad), "resigned": sorted(p for p in outside if p not in bad)})
+        sections.append((f"merge {c} ({kind}: first parent {p1}, main {p2}, row {loc}) — mechanical "
+                         f"merge -> merge", rd[1]))
+        conflict_all += [p for p in (recorded if kind == "hand" else []) if p not in conflict_all]
+        hand_all += [p for p in bad if p not in hand_all]
+        resigned_all += [p for p in outside if p not in bad and p not in resigned_all]
+    if resign_c:
+        rr = _g(["--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--binary", "-M", f"{resign_c}^", resign_c])
         if rr is None or rr[0] != 0:
             return None, "resolution_patch_unreadable: git could not produce the re-sign commit's diff"
-        res_diff += rr[1]
-    if isinstance(diff_cap, int) and diff_cap > 0 and len(res_diff) > diff_cap:
-        res_diff = res_diff[:diff_cap] + f"\n... [truncated at {diff_cap} bytes]\n"
+        sections.append((f"re-sign commit {resign_c} — its own diff", rr[1]))
     fix_diff = None
     if red_fix:
-        fd = _g(["diff", f"{a_sha}^", a_sha])
+        fd = _g(["diff", "--no-ext-diff", "--no-textconv", "--binary", f"{a_sha}^", a_sha])
         if fd is None or fd[0] != 0:
             return None, "fix_patch_unreadable: git could not produce the `--fix-red` commit's diff"
         fix_diff = fd[1]
-        if isinstance(diff_cap, int) and diff_cap > 0 and len(fix_diff) > diff_cap:
-            fix_diff = fix_diff[:diff_cap] + f"\n... [truncated at {diff_cap} bytes]\n"
-    ev = {"merge_commit": m_sha, "prior_commit": a_sha, "main_sha": p2,
-          "conflict_paths": recorded, "sync_evidence": f"events.jsonl#ts={sync_ts}",
-          "resolution_diff": res_diff}
+    last_main = merges[-1][1][1]
+    # T-14545 (X-2291) — the final task delta is CONTEXT for the auditor: with `inert(path)` injected (the
+    # SPEC-0064 record-only classification land and sync read), the journal, card and audit-record
+    # paths are left out of it, so a chain whose delta is mostly journal rows fits the cap. The per-merge
+    # resolution diffs above stay complete; an unreadable path list refuses (fail-closed).
+    excluded, fd_paths = [], None
+    if inert is not None:
+        nm = _g(["diff", "--name-only", "--no-renames", "-z", last_main, subject])
+        if nm is None or nm[0] != 0:
+            return None, "resolution_patch_unreadable: git could not list the final task delta's paths"
+        names = sorted({q for q in nm[1].split("\0") if q})
+        try:
+            excluded = [q for q in names if inert(q) is True]
+        except Exception:      # noqa: BLE001 — an unanswered classification excludes nothing
+            excluded = []
+        fd_paths = [q for q in names if q not in excluded]
+    if fd_paths == []:
+        fdl = (0, "")
+    else:
+        # with paths left out, NO rename pairing: an authored path renamed onto an excluded one stays a
+        # visible deletion, never folded into a rename whose other side is hidden
+        fdl = _g(["--literal-pathspecs", "diff", "--no-ext-diff", "--no-textconv", "--binary",
+                  *(["--no-renames"] if excluded else ["-M"]), last_main, subject,
+                  *(["--", *fd_paths] if excluded else [])])
+    if fdl is None or fdl[0] != 0:
+        return None, "resolution_patch_unreadable: git could not produce the final task delta"
+    res_diff = "".join(f"\n#### {label}\n```diff\n{body}```\n" for label, body in sections)
+    # the cap is a BYTE bound: measure the UTF-8 encoding, never the character count
+    total = sum(len(str(x).encode("utf-8", "replace")) for x in (res_diff, fdl[1], fix_diff or ""))
+    if isinstance(diff_cap, int) and diff_cap > 0 and total > diff_cap:
+        return None, (f"merge_integration_packet_incomplete: the ordered resolution diffs of "
+                      f"{len(merges)} merge(s) and the final task delta need {total} bytes, over the "
+                      f"packet diff cap {diff_cap} — the pass would not show the auditor the whole "
+                      f"resolution; nothing is truncated and no pass is spent")
+
+    # ── TESTS — the newest governed Tests row after the newest merge's row is green, at the subject ──
+    newest_row_ts = detail[-1]["row"].split("=", 1)[-1] if detail else ""
+    runs = [r for i, r in enumerate(rows or ())
+            if i > last_row_at and isinstance(r, dict) and r.get("type") in ("tests_passed", "tests_failed")
+            and str(r.get("task_id") or "") == str(tid)]
+    newest = runs[-1] if runs else None
+    if last_row_at < 0 or newest is None or newest.get("type") != "tests_passed":
+        return None, (f"stage6_evidence_predates_merge: no green governed Tests run of {tid} is the newest "
+                      f"after the last sync row ({newest_row_ts or 'no ts'}) in journal order — run "
+                      f"`task test --run --evidence` at the merged HEAD first")
+    if tested_is_head is not None:
+        s6 = _d(newest).get("stage6_run")
+        tree = str((s6 or {}).get("tree") or "") if isinstance(s6, dict) else ""
+        try:
+            at_head = bool(tree) and tested_is_head(tree, subject) is True
+        except Exception:      # noqa: BLE001 — an unanswered tree question is a refusal
+            at_head = False
+        if not at_head:
+            return None, (f"stage6_evidence_not_at_head: the newest green Tests run of {tid} "
+                          f"({newest.get('ts')}) tested tree {tree[:12] or '<none>'}, which is not the "
+                          f"subject {subject[:12]} apart from inert paths — commit or drop what it tested "
+                          f"beyond the subject and run `task test --run --evidence` again")
+
+    newest_m, newest_d = merges[-1][0], detail[-1]
+    ev = {"merge_commit": newest_m, "prior_commit": a_sha, "main_sha": last_main,
+          "conflict_paths": conflict_all, "sync_evidence": newest_d["row"], "subject": subject,
+          "merges": detail, "resolution_diff": res_diff, "final_delta": fdl[1]}
+    if excluded:
+        ev["final_delta_excluded"] = excluded
     if red_fix:
         ev["red_fix"] = True
         ev["fix_diff"] = fix_diff
-    if m_paths or r_paths:
-        ev["resigned"] = sorted(set(m_paths) | set(r_paths))
-    if r_sha:
-        ev["resign_commit"] = r_sha
+    if resigned_all or r_paths:
+        ev["resigned"] = sorted(set(resigned_all) | set(r_paths))
+    if hand_all:
+        ev["hand_edited"] = sorted(hand_all)
+    if tff_green:
+        ev["after_test_found_fix"] = str(tff.get("ts") or "")
+    if resign_c:
+        ev["resign_commit"] = resign_c
     if crossed:
         ev["crossed"] = crossed
-    if presynced:
-        ev["presynced"] = presynced
     if trailing:
         ev["trailing"] = trailing
-    if synced:
-        ev["synced"] = synced
     return ev, None
 
 
+#: T-14544 — the evidence keys that ride the PACKET only and are never recorded in the marker.
+MERGE_INTEGRATION_PACKET_ONLY = ("resolution_diff", "final_delta", "fix_diff")
+
+
 def merge_integration_subject(evidence) -> "str | None":
-    """T-14449 — the commit an admitted merge-integration pass audits: the newest crossed clean sync
-    merge (the WHOLE HEAD), else the re-sign commit, else the merge M. Pure; never raises."""
+    """T-14449 / T-14544 — the commit an admitted merge-integration pass audits: the chain's re-sign
+    commit, else its newest merge. Pure; never raises."""
     ev = evidence if isinstance(evidence, dict) else {}
-    return ((ev.get("synced") or [None])[0] or ev.get("resign_commit") or ev.get("merge_commit"))
+    return ev.get("subject") or ev.get("resign_commit") or ev.get("merge_commit")
+
+
+#: T-14545 — how the packet names each merge kind of the chain.
+_MI_KIND_LABEL = {"hand": "hand-resolved", "clean": "clean",
+                  "clean-edit": "held clean merge with an integration edit (git reported NO conflict; "
+                                "every path it changes is listed as a hand edit)"}
 
 
 def merge_integration_context(evidence, *, below_ceiling=False) -> str:
-    """T-13260 — the packet CONTEXT block for an admitted merge-integration pass: what was GREEN, what
-    was merged, which paths were hand-resolved, and the resolution itself. T-14181: `below_ceiling`
-    states the ordinary below-ceiling pass instead of the one-shot, final one. Pure; never raises."""
+    """T-13260 / T-14544 — the packet CONTEXT block for an admitted merge-integration pass: what was
+    GREEN, every merge of the chain in order with its parents and row, each merge's COMPLETE resolution
+    diff, and the final task delta as context. T-14181: `below_ceiling` states the ordinary
+    below-ceiling pass instead of the one-shot, final one. Pure; never raises."""
     ev = evidence if isinstance(evidence, dict) else {}
     bound = ("This is an ordinary counted pass below the audit-loop ceiling (T-14181)."
              if below_ceiling else "This pass is admitted ONCE; a RED here ENDS audit-post for this card.")
+    merges = [m for m in (ev.get("merges") or []) if isinstance(m, dict)]
     lead = (
         "## RED fix, then merge integration (T-14375, SPEC-1018 «Exits from a spent GREEN»)\n\n"
         f"This card's latest audit-post was RED. Its in-scope fix {ev.get('prior_commit')} was committed "
-        "with `task commit --fix-red`; this pass is that fix's required re-audit. Since the fix its "
-        "branch took ONE "
+        "with `task commit --fix-red`; this pass is that fix's required re-audit."
         if ev.get("red_fix") else
-        "## Post-GREEN merge integration (T-13260, SPEC-1034 §Ledger-skip axes)\n\n"
-        f"This card's audit-post was GREEN at {ev.get('prior_commit')}. Since then its branch took ONE ")
+        "## Post-GREEN merge integration (T-13260, T-14544, SPEC-1018 «Exits from a spent GREEN»)\n\n"
+        f"This card's audit-post was GREEN at {ev.get('prior_commit')}"
+        + (f" (its test-found-fix pass, {ev.get('after_test_found_fix')}, T-14542)"
+           if ev.get("after_test_found_fix") else "") + ".")
+    hand = list(ev.get("hand_edited") or [])
     return (
         lead
-        + f"merge with main ({ev.get('main_sha')}) via the governed `worktree sync --resolved`, recorded "
-        f"at {ev.get('sync_evidence')}"
-        + (f", after record-only bookkeeping commit(s) {', '.join(ev.get('crossed'))} (T-14301)"
-           if ev.get("crossed") else "")
-        + (f", after clean governed `worktree sync` merge(s) with main {', '.join(ev.get('presynced'))} "
-           f"before it that no hand resolution touched (T-14500)" if ev.get("presynced") else "")
-        + (f", followed by record-only commit(s) {', '.join(ev.get('trailing'))} (T-14330)"
-           if ev.get("trailing") else "")
-        + (f", then clean governed `worktree sync` merge(s) with main {', '.join(ev.get('synced'))} "
-           f"that no hand resolution touched (T-14449)" if ev.get("synced") else "")
-        + f". The subject is the WHOLE merged HEAD {merge_integration_subject(ev)}. "
-        "Judge whether the merged result still meets the card's acceptance, with particular attention "
-        "to the hand-resolved conflict paths below — every other path is byte-identical to git's "
-        f"mechanical merge. {bound}\n\n"
+        + f" Since then its branch took {len(merges)} governed `worktree sync` merge(s) with main, in "
+        "this order:\n"
+        + "".join(f"- {m.get('merge')} — {_MI_KIND_LABEL.get(m.get('kind'), 'clean')}, first "
+                  f"parent {m.get('first_parent')}, main {m.get('main_sha')}, recorded at {m.get('row')}"
+                  + (f"; conflict paths: {', '.join(m.get('conflict_paths'))}" if m.get("conflict_paths") else "")
+                  + (f"; hand edits outside them: {', '.join(m.get('hand_edited'))}" if m.get("hand_edited") else "")
+                  + "\n" for m in merges)
+        + (f"Record-only commits crossed: {', '.join(ev.get('crossed'))}.\n" if ev.get("crossed") else "")
+        + (f"Record-only commits above the subject: {', '.join(ev.get('trailing'))}.\n" if ev.get("trailing") else "")
+        + f"The subject is the WHOLE merged HEAD {merge_integration_subject(ev)}. Judge whether the merged "
+        "result still meets the card's acceptance, with particular attention to each merge's resolution "
+        "below — every path not shown in a merge's diff is byte-identical to git's mechanical merge. A "
+        f"mechanically clean merge can still be semantically incompatible. {bound}\n\n"
         "Hand-resolved conflict paths:\n"
         + "".join(f"- {p}\n" for p in (ev.get("conflict_paths") or []))
         + ("".join(["\nEngine-verified anchor re-sign (T-14180) — each value equals the engine's own "
@@ -2114,10 +2186,23 @@ def merge_integration_context(evidence, *, below_ceiling=False) -> str:
                     + (f", committed on the merge as {ev.get('resign_commit')}" if ev.get("resign_commit")
                        else "") + ":\n"] + [f"- {p}\n" for p in ev.get("resigned")])
            if ev.get("resigned") else "")
+        + ("".join(["\nHand edits OUTSIDE the conflict set (T-14542) — the resolution changed these paths "
+                    "although git reported no conflict in them (a renumbered migration, a moved reference, "
+                    "an unverified re-sign). They are NOT verified by the engine: judge each one in the "
+                    "diff below:\n"] + [f"- {p}\n" for p in hand]) if hand else "")
         + ("\nThe `--fix-red` commit's own diff (judge whether it resolves the RED's findings):\n```diff\n"
            + str(ev.get("fix_diff") or "(empty)") + "\n```\n" if ev.get("red_fix") else "")
-        + "\nResolution diff (mechanical merge -> merged HEAD, conflict paths only):\n```diff\n"
-        + str(ev.get("resolution_diff") or "(empty)") + "\n```\n")
+        + "\nResolution diff of each merge, oldest first (mechanical merge -> merge, COMPLETE — every "
+        "entry, not only the conflict paths):\n"
+        + str(ev.get("resolution_diff") or "(empty)")
+        + "\nCONTEXT — the final task delta against the last imported main tip "
+        f"({ev.get('main_sha')}); it includes the previously reviewed task work, not only new hand "
+        "edits"
+        + (f" (record-only bookkeeping paths left out of this context, T-14545: "
+           f"{', '.join(ev.get('final_delta_excluded')[:20])}"
+           + (f" and {len(ev.get('final_delta_excluded')) - 20} more" if len(ev.get('final_delta_excluded')) > 20 else "")
+           + ")" if ev.get("final_delta_excluded") else "")
+        + ":\n```diff\n" + str(ev.get("final_delta") or "(empty)") + "\n```\n")
 
 
 #: T-14090 (SPEC-1041 «Rule 4 — custody», «A test-found fix after a spent GREEN») — the `basis` the ONE

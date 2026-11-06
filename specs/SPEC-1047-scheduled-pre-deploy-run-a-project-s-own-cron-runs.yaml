@@ -105,18 +105,37 @@ body: "## Scenario\nA project that declares pre-deploy classes (SPEC-1051) adds 
   \ result; where two runs tie for last, the line shows\n  if either is red; the physical\
   \ order of journal rows is never read.\n- Only `test_class_executed` rows are results:\
   \ a `pre_deploy_run_started` row with no class rows after\n  it is never a run,\
-  \ and a deploy's rows (no `run_kind`) neither show nor clear the line.\n- The line\
-  \ shows at a session start in the project's MAIN checkout and on an explicit\n \
-  \ `bin/yitc-v2 debt`; a session start in a worktree skips the debt echo, as it does\
-  \ for every line.\n- The line clears when the current scheduled run reads `passed`.\
-  \ Nothing refuses on it. A window with\n  no scheduled row gives no line.\n\n###\
-  \ 7. Scope\n- Opt-in: a project without the cron line runs, lands and deploys exactly\
-  \ as before.\n- Unchanged: every gated deploy runs its own pre-deploy run (or the\
-  \ SPEC-1051 opt-in reuse of a\n  deploy's run); the deploy-time run's own admission\
-  \ stays as SPEC-1051 rule 3 states.\n- Not here: a monitor that notices the cron\
-  \ stopped or never fired — the weekly inspection roster\n  checks that every day\
-  \ had a scheduled row matched to the scheduler's own log\n  (`patterns/inspection-criteria-roster.md`),\
-  \ and the SPEC-0119 class-staleness fold names a pre-deploy\n  class no run executed\
+  \ and a deploy's rows (no `run_kind`) never show the line.\n- A gated deploy's own\
+  \ pre-deploy run CLEARS the line, read as a derived view over the journal (no\n\
+  \  `run_kind` rewritten, no scheduled row made, no cleared flag stored, no deploy\
+  \ reuse broadened),\n  only when it is a FULL passed run on a LATER candidate: every\
+  \ one of its class rows reads\n  `run_outcome: passed`; it carries every class the\
+  \ red run carries (a deploy runs the classes\n  gating its target, so a narrower\
+  \ target shows as a missing class); per class, every verify layer\n  the red run's\
+  \ row names is in its row with outcome `passed` or `passed-partial` (the outcomes\
+  \ a\n  passed scheduled run reads), and every unit file the red run's row lists\
+  \ for that layer is listed\n  for it too; its candidate is on `main`'s history and\
+  \ STRICTLY descends from the red run's\n  candidate (the same ancestry question;\
+  \ an equal, older or unorderable candidate never clears, and\n  a newer red scheduled\
+  \ run is a new current run, shown). A `deploy_completed` row is not read. The\n\
+  \  readers that need a SCHEDULED run are unchanged: the «cards since the last passed\
+  \ run» keeps its\n  scheduled-only baseline, the SPEC-1051 rule-7 view and weekly\
+  \ reading keep the failure, and the\n  cron-liveness inspection still needs real\
+  \ scheduled rows.\n- The line shows at a session start in the project's MAIN checkout\
+  \ and on an explicit\n  `bin/yitc-v2 debt`; a session start in a worktree skips\
+  \ the debt echo, as it does for every line.\n- The line clears when the current\
+  \ scheduled run reads `passed`, or as the deploy arm above states.\n  While it shows,\
+  \ it names the next step: after the fix lands, re-run `deploy --scheduled-run` from\n\
+  \  `main` (or a gated deploy's full pre-deploy run on a descendant candidate); a\
+  \ passing current run\n  clears it — no hook, no polling, no enqueue. Nothing refuses\
+  \ on it. A window with no scheduled row\n  gives no line.\n\n### 7. Scope\n- Opt-in:\
+  \ a project without the cron line runs, lands and deploys exactly as before.\n-\
+  \ Unchanged: every gated deploy runs its own pre-deploy run (or the SPEC-1051 opt-in\
+  \ reuse of a\n  deploy's run); the deploy-time run's own admission stays as SPEC-1051\
+  \ rule 3 states.\n- Not here: a monitor that notices the cron stopped or never fired\
+  \ — the weekly inspection roster\n  checks that every day had a scheduled row matched\
+  \ to the scheduler's own log\n  (`patterns/inspection-criteria-roster.md`), and\
+  \ the SPEC-0119 class-staleness fold names a pre-deploy\n  class no run executed\
   \ within its floor; the cron entry itself (the project's own file); a release\n\
   \  lock; land batching.\n\n## Parameters\nNone. The read horizon is SPEC-0190's\
   \ summary window; no key is opened.\n\n## Rationale\nPlan `scheduled-run-of-a-project-s-pre-deploy-class-on-m`.\
@@ -184,7 +203,7 @@ binding:
 - code-enforced
 init_concern: null
 implements_signature:
-  bin/lib/debt.py#red_scheduled_run: 177b987b26a9ce1ae1d8de54d678b8162abc8195ef6afae319632feff68d3aa3
+  bin/lib/debt.py#red_scheduled_run: 48d48c95d31d088c3fbb49504afec8ca11b2b217e48d4cbbba059e62c594a375
   bin/lib/deploy.py#_pre_deploy_deploy_rows: 3ae4e06e9f54e29fe2c017ac87bf4858024a4d40576a20683e00cb36c3056ad5
   bin/lib/deploy.py#_pre_deploy_scheduled_history: 3cf19bd3228b69c71a054b4faa151a89c8e8a54bb54b9cdc7b3a84d4857992d9
   bin/lib/deploy.py#_scheduled_run: f1c4b5d3419c76ebf6c22544bad08dc9f467e9d7f3f2b8f25e863b6679bb4797

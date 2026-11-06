@@ -3787,7 +3787,12 @@ body: "## Scenario\n\nAny session — the engine's own or a `-C` consumer's — 
   \ RUNNING therefore keeps reporting the\n    last real comparison rather than going\
   \ quiet exactly when something is wrong; a 7-day window\n    would convert a broken\
   \ scheduler into silence, which is the failure mode this rule exists to\n    end\
-  \ rather than to reproduce.\n    **A `failed` ENGINE QUIET-LANE READING GETS A DATED\
+  \ rather than to reproduce.\n    **A STALE NEWEST NIGHT IS NAMED, AND THE PAIR STAYS.**\
+  \ The rows are read from the journal the\n    nightly writes — the ENGINE's, in\
+  \ a consumer session too — and the last two are taken in `ts`\n    order, never\
+  \ segment order. When the newest row is older than `NIGHTLY_STALE_DAYS`\n    (`bin/lib/debt.py`),\
+  \ one more report-only line names its date and age, so the kept pair is\n    never\
+  \ read as last night's.\n    **A `failed` ENGINE QUIET-LANE READING GETS A DATED\
   \ LINE OF ITS OWN (ADDITIVE).**\n    The same row carries the engine quiet lane's\
   \ readings (SPEC-0105 §2c — the wall-clock\n    instruments SPEC-0077 §3b moved\
   \ off the per-land verify), and that block had no reader either:\n    the nightly\
@@ -4278,7 +4283,7 @@ implements_signature:
   bin/lib/debt.py#TERMINAL_CARD_STATUSES: f472f016b1315de1cc8056ac14203b7667c2a72b993dcdd862bdf7c156433f26
   bin/lib/debt.py#_compose_paths: abcc02849f9b3e111e8698453243e4c600ac1a4d979d3969660aa50324999bae
   bin/lib/debt.py#_debt_echo_compact: e941b54796a1c92b203449ea1e153015f223f0c9f572028e8609f1021d6a11fa
-  bin/lib/debt.py#_debt_echo_lines: f8ce9e7a7bfd445c947390c7582359f7368e84e2c3b441e95cd794a48966b481
+  bin/lib/debt.py#_debt_echo_lines: 74211c93c63a5dc21c0d7659667b4a53b6e95f4618f3dc63d456faecb201cc2a
   bin/lib/debt.py#_declared_prod_composes: 66d056b701f5c05669907450cf9670a8086160485879d8e49be04b091078b312
   bin/lib/debt.py#_nightly_chronic_detail: 917bf8a300125bd8ba361cab50943ba7bb839c4b9395254c69d3f230499baf2b
   bin/lib/debt.py#_nightly_chronic_spell: 77785f8526ba82307c862fb1d321648d9a594be895015678218532ab1d3eeeb7
@@ -4308,7 +4313,7 @@ implements_signature:
   bin/lib/debt.py#load_sensitive_ratification: b23f594e4b0fb5ac7fdf9e030e3bcb18067d4798af1cf647eeb8ef5282dff365
   bin/lib/debt.py#load_sensitive_uncarded: 554997a6b5a9e9534052076c41d0cdec027e571d73ececa9db194b2f930302cc
   bin/lib/debt.py#load_sensitive_waiting: a7d206556af63456264328409220f2a9b9582416660589e0a44054634210c2a6
-  bin/lib/debt.py#nightly_verdict_changes: 3abef6813f2bdad9ce9bd6fe2afa5c814553dea15563f303225ddec7b08247f9
+  bin/lib/debt.py#nightly_verdict_changes: b1cdeceef5f25ac09a64be4a0f82f645069520e6bda56a16b0342e2d1c4cf987
   bin/lib/debt.py#nonterminal_plan_census: 90a7ab1c1ec320c616ecc84f0a8ecaeef2c758d51d3a95599d0ffa4fc439d704
   bin/lib/debt.py#prequeue_known_broken_refusals: 650d18dd78a57e07aede37209820c72e1e3e4da30857eb99c266a2fa2ce8144d
   bin/lib/debt.py#probes_awaiting_first_check: a76519dd660e599af512d66e10493f79ddf90e384de8e7963f542392c7994741
@@ -4335,7 +4340,7 @@ implements_signature:
   bin/lib/debt_adoption.py#open_subcritical_findings: 0305df9e23683084a6d3967440e6482f7ae01900459800b54126e8d9a8647a4a
   bin/lib/debt_adoption.py#p8_carrier_followups: e2698a024c0101d29e9d11452007fa35c3aa71ed30a5a1f9e26026d25282b8c7
   bin/lib/debt_adoption.py#uncarried_p8_warns: 74e469fe3b704777d896e73981629e42e3369c0ceffa7213cc8e335768c21116
-  bin/lib/debt_adoption.py#unexecuted_subject_files: a1ea354b46ac32ac9747fdb5943ee566c1bb41678c4e9eb786748071ca3ec78a
+  bin/lib/debt_adoption.py#unexecuted_subject_files: 0621f7d5a79d65cbaafa0e0ac1839699665f46460ec89b2b52909ebc81509743
   bin/lib/debt_adoption.py#unresolved_worker_halts: a14fcd9a6710ec8109c2bc1e169883a9e6aae1080fae9793401d4a0c9399243b
   bin/lib/debt_landing.py#ABORT_CLASS_PARK_LIMIT_EVICTION: 9e95d5f31ba6804f9532e78cff031ba18806fb99d68dd18a67a2b7a6eee36990
   bin/lib/debt_landing.py#ABORT_COST_MATERIAL_MS: 64a2c55d7e9524685d42f99be9b89ae556e08ccc965a590986bfbff4e11870d7
@@ -4391,12 +4396,12 @@ implements_signature:
   bin/lib/session.py#capability_preflight_lines: 700adad3b78c4057e61336745686cfc6b5ac6ef233b8403bfe11b829606ba175
   bin/lib/session.py#cmd_session_start: 209518a0b12ba06d7ca13514a927034ad0d08c8cc5416340463977967526f8ee
   bin/lib/task.py#_render_live_dependents: 02e538bf32a90192c8b9f576da4fbde037c70ebd8d3eab47cb21286e5fc53aa7
-  bin/lib/task.py#cmd_task_update: c999bbc22cfd85dfe28ed5858249cdd743c178fb4058c7fc3e9655adfe4ee05e
+  bin/lib/task.py#cmd_task_update: 655eb7d34a2bb3e8ff32d3461fa61acecfb881b8bea00149c677b612cc09b215
   bin/lib/task_closure_evidence.py#_live_dependents: 5bde8190aa7da842febb2a2047aa4ceb8ced46afef4319a88990e52b21647d47
   bin/lib/views.py#_abort_named_rows: 2b394ae6ee9cd85a1162453b26df7701a3c38637ffc1d81734faea1aa4cd306c
   bin/lib/views.py#_actionable: 06c2271217838edf925819df0fcdebbb92609539e22e11539f73343b5ede3bae
   bin/lib/views.py#_mount_clause: 0f3483b566bfa0078946e04695f659b53c049b45f4143e55c8a565b3e1ce5c12
-  bin/lib/views.py#_render_debt_echo: b0f2d5d120498351a52423b2b7a32fe8b5af59f9afcc84bebd868959c7836378
+  bin/lib/views.py#_render_debt_echo: b04fc58a17b449e9f9faab3b326db0b20d9e2a4673337f25c688d2e2ec8204e4
   bin/lib/views.py#_view_review_due: f1efb474b4f0bc28d340a470de0570354194cbc621ddef92c3534abb6cbb388d
   bin/lib/views.py#abort_cause_breadth_cause_line: 2446c52626cb9a38e4e225a7117464c641f5212323c798462b80fb40b18fca68
   bin/lib/views.py#abort_cause_breadth_land_head_lines: 5dae1988d457c09478858d536e9113a553a53188b62961dac739db7df42affb6

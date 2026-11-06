@@ -1100,13 +1100,31 @@ def _folded_audit_post_hazard(tid: str):
 
     def _kind_of(t: str, sha: str):
         """The journal's `kind` for THIS task's commit_landed naming `sha` (prefix-wise, the chain
-        records short shas); None when no row of this task names it."""
+        records short shas); None when no row of this task names it. T-14546: a kind-less row the
+        `--fix-red` leg marked `red_fix: true` answers "red_fix" (the RED-fix-folded arm)."""
         full = str(sha or "")
+        if len(full) < 7:
+            return None
+        hit = None
         for rec_sha, kind in _task_commit_landed_chain(t):
             rs = str(rec_sha or "")
             if len(rs) >= 7 and (full.startswith(rs) or rs.startswith(full)):
-                return kind
-        return None
+                hit = (kind,)
+                break
+        if hit is None:
+            return None
+        if hit[0] is None and _commit_is_red_fix(t, full):
+            return "red_fix"
+        return hit[0]
+
+    def _commit_is_red_fix(t: str, full: str) -> bool:
+        # No reader of its own: the task-scoped multi-row fold `_task_events_for` (T-13538).
+        for e in _task_events_for(t, ("commit_landed",)):
+            d = (e.get("data") if isinstance(e, dict) else None) or {}
+            rs = str(d.get("commit") or "")
+            if len(rs) >= 7 and (full.startswith(rs) or rs.startswith(full)) and d.get("red_fix") is True:
+                return True
+        return False
 
     return task_mod._folded_audit_post_hazard(
         tid, REPO_ROOT=REPO_ROOT, _git_resolve_sha=_git_resolve_sha, _read_yaml=_read_yaml,
@@ -1281,6 +1299,16 @@ def _cross_self_held_ids(task: dict) -> list:
             self_name=_cross_self())
     except Exception:      # noqa: BLE001
         return []
+def _cross_next_step_missing(task: dict) -> list:
+    # T-14550: the held picked task|bugfix links this card would auto-close with no `peer_next_step`.
+    # No store read when the card links nothing or carries the field. FAIL-CLOSED: a store error
+    # RAISES — eligibility that cannot be read is never assumed absent (audit-pre F1).
+    rc = task.get("resolves_cross") or []
+    if not rc or cross.peer_next_step_of(task):
+        return []
+    return cross.close_missing_peer_next_step(
+        task, cross.fold(cross.read_events(_SELF.CROSS_LOG_PATH, _cross_peer_aliases())),
+        self_name=_cross_self())
 def _post_verification_gap(task: dict) -> bool:
     return task_mod._post_verification_gap(task)
 def _author_post_verification(task: dict, args: argparse.Namespace) -> None:
@@ -1288,7 +1316,8 @@ def _author_post_verification(task: dict, args: argparse.Namespace) -> None:
 def _recover_close_tail(tid: str, task: dict, propagation_disposition: dict | None = None, *, tail_note: str | None = None) -> None:
     return task_mod._recover_close_tail(tid, task, propagation_disposition, tail_note=tail_note, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _auto_rebuild_graph=_auto_rebuild_graph, _die=_die, _governing_contract_for=_governing_contract_for, _infra_adoption_seen=_infra_adoption_seen, _post_verification_gap=_post_verification_gap, _task_closed_event_exists=_task_closed_event_exists)
 def _auto_cross_done_for_close(task: dict, tid: str) -> list:
-    return task_mod._auto_cross_done_for_close(task, tid, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, _cross_emit=_cross_emit, _cross_self=_cross_self, _cross_peer_aliases=_cross_peer_aliases())
+    # T-14550: require_next_step — the emitter itself never auto-closes a picked task|bugfix item bare.
+    return task_mod._auto_cross_done_for_close(task, tid, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, _cross_emit=_cross_emit, _cross_self=_cross_self, _cross_peer_aliases=_cross_peer_aliases(), require_next_step=True)
 def _cross_link_held_skips(task: dict, tid: str) -> list:
     return task_mod._cross_link_held_skips(task, tid, CROSS_LOG_PATH=_SELF.CROSS_LOG_PATH, _cross_self=_cross_self, _cross_peer_aliases=_cross_peer_aliases())
 def _cross_inject(kw, name):
@@ -1881,7 +1910,7 @@ def _warn_unanswered_issue_refs_after_close(tid) -> None:
 
 def _cmd_task_close_body(args: argparse.Namespace, _set_read_horizon=None) -> None:
     with task_mod._stage6_activation_guard(REPO_ROOT):   # T-13982: close flips from the real proposed bytes
-        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped)
+        task_mod.cmd_task_close(args, _closure_coverage_gap=_closure_coverage_gap, _set_read_horizon=_set_read_horizon, REPO_ROOT=REPO_ROOT, _lifecycle_record_path=_lifecycle_record_path, STAGE_ENTRY_PREFIX=STAGE_ENTRY_PREFIX, _activate_task_proposed_specs=_activate_task_proposed_specs, _append_event=_append_event, _emit_read_gate_refused=_emit_read_gate_refused, _archive_close_audits=_archive_close_audits, _author_post_verification=_author_post_verification, _auto_cross_done_for_close=_auto_cross_done_for_close, _auto_rebuild_graph=_auto_rebuild_graph, _build_propagation_disposition=_build_propagation_disposition, _changed_anchor_spec_drift=_changed_anchor_spec_drift, _closes_fp_candidates=_closes_fp_candidates, _closing_task_pending_finalization_plans=_closing_task_pending_finalization_plans, _commit_worktree=_commit_worktree, _dangling_activated_specs=_dangling_activated_specs, _die=_die, _dump_state_yaml=_dump_state_yaml, _find_task_yaml=_find_task_yaml, _fold_closes_fp_into_cites=_fold_closes_fp_into_cites, _git_resolve_sha=_git_resolve_sha, _governing_contract_for=_governing_contract_for, _host_config_evidence_missing=_host_config_evidence_missing, _in_writing_worktree=_in_writing_worktree, _infra_adoption_seen=_infra_adoption_seen, _p8_exit_status_only_surface=_p8_exit_status_only_surface, _live_probe_settled_unresolved=_live_probe_settled_unresolved, _settle_evidence_unresolved_host=_settle_evidence_unresolved, _selfcommit_posture=_selfcommit_posture, _scoped_selfcommit_preflight=_scoped_selfcommit_preflight, _scoped_selfcommit=_scoped_selfcommit, _parse_probe=_parse_probe, _post_verification_gap=_post_verification_gap, _print_scenario_staleness_warn=_print_scenario_staleness_warn, _recorded_commit_sha=_recorded_commit_sha, _recover_close_tail=_recover_close_tail, _undecided_late_findings_host=_undecided_late_findings, _unconfirmed_travels_specs=_unconfirmed_travels_specs, _unflippable_supersedes_targets=_unflippable_supersedes_targets, _cross_filed_for_ids=_cross_filed_for_ids, _cross_self_held_ids=_cross_self_held_ids, _cross_next_step_missing=_cross_next_step_missing, _view_overdue_recheck=_view_overdue_recheck, _require_audit_post_for_commit=_require_audit_post_for_commit, _require_batch_born=_require_batch_born, _require_clean_batch_for_close=_require_clean_batch_for_close, _require_commit_recorded=_require_commit_recorded, _require_reads=_require_reads, _require_ship_custody_repin=_require_ship_custody_repin, _require_post_ship_observation=_require_post_ship_observation, _require_stage_correspondence=_require_stage_correspondence, _require_verification_artifact=_require_verification_artifact, _require_work_batch_worktree=_require_work_batch_worktree, _require_zero_ship_diff=_require_zero_ship_diff, _requires_incomplete=_requires_incomplete, _reverify_spec_signature=_reverify_spec_signature, _task_closed_event_exists=_task_closed_event_exists, _task_commit_landed_chain=_task_commit_landed_chain, _bookkeeping_commit_authored_paths=_bookkeeping_commit_authored_paths, _BOOKKEEPING_COMMIT_KINDS=_BOOKKEEPING_COMMIT_KINDS, _task_diff_files=_task_diff_files, _task_diff_range=_task_diff_range, _utc_now_iso=_utc_now_iso, _validate_closes_fp=_validate_closes_fp, _write_task_transition=_write_task_transition, write_text_atomic=write_text_atomic, _governance_surface_globs_arg=_governance_surface_globs_value(), _case_gate_spec_dirs=(SPECS_DIR, ENGINE_ROOT / "specs"), _main_worktree=_main_worktree, _run_git_cap=_run_git_cap, _BOOKKEEPING_ALLOWLIST=_BOOKKEEPING_ALLOWLIST, _worktree_dirty_paths=_worktree_dirty_paths, _is_consumer_build=_is_consumer_build, _main_events_path=_main_events_path(), _registry_peers=_p8_carrier_consumer_peers, _pre_deploy_stand=_pre_deploy_stand_seam, _task_shipped=_wont_do_task_shipped)
 def cmd_task_pick(args: argparse.Namespace) -> None:
     return task_mod.cmd_task_pick(args, REPO_ROOT=REPO_ROOT, _die=_die, _foreign_hold_report=_foreign_hold_report, _format_task_verdict_line=_format_task_verdict_line, _live_claimed_task_ids=_live_claimed_task_ids, _load_task_for_transition=_load_task_for_transition, _main_worktree=_main_worktree, _read_worktree_stamp=_read_worktree_stamp, _report_graft_parse_errors=_report_graft_parse_errors, _requires_incomplete=_requires_incomplete, _stamp_is_own=_stamp_is_own, _task_safety_verdict=_task_safety_verdict, _task_decomposed_from_pre_executing_plan=_task_decomposed_from_pre_executing_plan, _with_live_nodes=_with_live_nodes, _worktree_path_for_branch=_worktree_path_for_branch, graph_build_index=graph_build_index)
 def cmd_task_claim_landed(args: argparse.Namespace) -> None:
@@ -6049,11 +6078,35 @@ def _compaction_cue_start_line() -> "str | None":
             return None
         path = _session_log_path(_provider_session_ref() or "", provider_kind=kind)
         launch, harness = _transcript_launch_shape(path, kind) if path else (None, None)
-        line = session.cue_not_guaranteed_line(kind, launch, harness, COMPACTION_CUE_DELIVERED,
-                                               f"{_cli_invocation_form()} session start --print-only")
+        line = _compaction_cue_line(kind, launch, harness, Path.home())
         return _consumer_render(line) if line else None
     except Exception:   # noqa: BLE001 — a report line never breaks the start
         return None
+
+
+def _compaction_cue_line(kind, launch, harness, home) -> "str | None":
+    """The rule-12 line for one launch shape. For a launch OUTSIDE the repository it also reads the
+    user-level post-compaction entry in `home` (T-14548): installed for THIS engine — the line says so,
+    not yet observed (§Parameters keeps it unobserved), with no NOT GUARANTEED wording; missing — the
+    NOT GUARANTEED line names the init flag that installs it; a tool with no such entry — unchanged."""
+    cli = _cli_invocation_form()
+    brief = f"{cli} session start --print-only"
+    line = session.cue_not_guaranteed_line(kind, launch, harness, COMPACTION_CUE_DELIVERED, brief)
+    if not line or launch != "outside":
+        return line
+    from lib import init as _init
+    try:
+        installed = _init.user_compaction_entry_installed(ENGINE_ROOT, home, kind)
+    except Exception:   # noqa: BLE001 — an unreadable tool list leaves the line as it was
+        installed = None
+    if installed:
+        return (f"compaction cue: the user-level post-compaction entry for {kind} is installed (launched "
+                f"outside the repository) — not yet observed delivering (SPEC-1024 rule 12); if no "
+                f"RESTORATION BRIEF appears after a compaction, run `{brief}` first")
+    if installed is False:
+        return (f"{line}; to install the user-level post-compaction entry, on the person's yes: "
+                f"`{cli} init --apply-user-compaction-cue`")
+    return line
 
 
 def _ref_anchored(ref: str) -> bool:
@@ -6161,6 +6214,132 @@ def _brief_compact_row(row: str) -> str:
     if not m or m.group(1) not in _BRIEF_COMMAND_ONLY_ROWS or not cmds:
         return row
     return f"  - {m.group(1)}: " + " · ".join(f"`{c}`" for c in cmds)
+
+
+# T-14535 (SPEC-1024 rule 12) — the user-level post-compaction entry (`session start --print-only
+# --from-hook`, written by `init --apply-user-compaction-cue`). The provider runs it for EVERY session of
+# the person, in any folder, with its hook input (JSON) on stdin. Only this Python reads that input —
+# never a shell. Bounds: the input read is capped, the transcript tail is capped, git gets a timeout.
+_HOOK_INPUT_MAX = 64 * 1024
+_HOOK_TRANSCRIPT_TAIL = 256 * 1024
+_HOOK_PROVIDER_CARRIER = "CLAUDE_CODE_SESSION_ID"   # the provider whose hook input this is (bin/ai-tools.yaml binding)
+
+
+def _hook_project_root(cand) -> "Path | None":
+    """The yitc-v2 project whose checkout holds `cand` (its git top level carrying a journal and either
+    an ops contract or the engine itself), or None."""
+    if not isinstance(cand, str) or not cand.startswith("/") or not os.path.isdir(cand):
+        return None
+    try:
+        r = subprocess.run(["git", "-C", cand, "rev-parse", "--show-toplevel"], capture_output=True,
+                           text=True, timeout=5, stdin=subprocess.DEVNULL, env=_git_child_env())
+    except (OSError, subprocess.SubprocessError):
+        return None
+    top = Path(r.stdout.strip()) if r.returncode == 0 and r.stdout.strip() else None
+    if top is None or not (top / "events.jsonl").is_file():
+        return None
+    if (top / "yitc-ops.yaml").is_file() or (top / "bin" / "yitc-v2").is_file():
+        return top
+    return None
+
+
+def _hook_transcript_cwd(path) -> "str | None":
+    """The newest `cwd` the provider transcript at `path` records (its last 256 KiB only), or None."""
+    if not isinstance(path, str) or not path.startswith("/"):
+        return None
+    try:
+        with open(path, "rb") as fh:
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            fh.seek(max(0, size - _HOOK_TRANSCRIPT_TAIL))
+            tail = fh.read()
+    except OSError:
+        return None
+    for line in reversed(tail.splitlines()):
+        try:
+            row = json.loads(line)
+        except ValueError:
+            continue
+        if isinstance(row, dict) and isinstance(row.get("cwd"), str):
+            return row["cwd"]
+    return None
+
+
+def _compaction_hook_target(environ, stdin) -> "tuple":
+    """(project root, provider session id) for the session the hook input names, or (None, None) when
+    it is not a yitc-v2 session, the input is unreadable, or — for the user-level entry — the
+    provider's project settings already hold a post-compaction entry (it delivers; no second brief)."""
+    from lib import init as _init
+    if environ.get("YITC_COMPACTION_ENTRY") == "user":
+        proj = environ.get("CLAUDE_PROJECT_DIR") or ""
+        if proj and _init.settings_have_compaction_entry(Path(proj) / _init.PROVIDER_SETTINGS_REL,
+                                                          restoration_only=True):
+            return None, None
+    if stdin is None or stdin.isatty():
+        return None, None
+    raw = stdin.buffer.read(_HOOK_INPUT_MAX)
+    try:
+        data = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return None, None
+    if not isinstance(data, dict):
+        return None, None
+    sid = data.get("session_id") if isinstance(data.get("session_id"), str) else None
+    for cand in (data.get("cwd"), _hook_transcript_cwd(data.get("transcript_path"))):
+        root = _hook_project_root(cand)
+        if root is not None:
+            return root, sid
+    root = _hook_started_root(data.get("transcript_path"))
+    return (root, sid) if root is not None else (None, None)
+
+
+def _hook_started_root(path) -> "Path | None":
+    """The checkout the session's NEWEST start report names — the `session_started emitted: ...
+    anchored-in=<root>` line `session start` prints (the line `session.start_block_in_context` reads) —
+    searched over the WHOLE provider transcript at `path`, so it holds however long ago the session
+    started and from whatever folder it was launched (the picker's home-folder launch, `-C` calls).
+    None when the transcript holds no start report or cannot be read."""
+    import mmap
+    if not isinstance(path, str) or not path.startswith("/"):
+        return None
+    head, key = b"session_started emitted: ", b"anchored-in="
+    try:
+        with open(path, "rb") as fh, mmap.mmap(fh.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            end = len(mm)
+            while True:
+                i = mm.rfind(head, 0, end)
+                if i < 0:
+                    return None
+                j = mm.find(key, i, i + 400)
+                if j >= 0:
+                    raw = bytes(mm[j + len(key):j + len(key) + 4096])
+                    root = re.split(rb"[\s\\\"]", raw, maxsplit=1)[0].decode("utf-8", "replace")
+                    found = _hook_project_root(root)
+                    if found is not None:
+                        return found
+                end = i
+    except (OSError, ValueError):
+        return None
+
+
+def _compaction_hook_entry() -> None:
+    """Re-exec the running engine as `-C <project> session start --print-only` for the session the hook
+    input names; otherwise exit 0 with no output. Never raises past here: a hook never fails."""
+    try:
+        target, sid = _compaction_hook_target(os.environ, sys.stdin)
+    except Exception:   # noqa: BLE001 — a cue never fails the compaction it rides on
+        target, sid = None, None
+    if target is None:
+        raise SystemExit(0)
+    env = dict(os.environ)
+    if sid and not env.get(_HOOK_PROVIDER_CARRIER):
+        env[_HOOK_PROVIDER_CARRIER] = sid
+    engine = Path(__file__).resolve().parent.parent / "yitc-v2"
+    try:
+        os.execve(sys.executable, [sys.executable, str(engine), "-C", str(target),
+                                   "session", "start", "--print-only"], env)
+    except OSError:
+        raise SystemExit(0)
 
 
 def _session_start_print_only(args) -> None:
@@ -17386,6 +17565,12 @@ def _from_ref_unresolved(from_ref: str, flag: str = "--from") -> "str | None":
     ref = (from_ref or "").strip()
     if task_mod._journal_locator(ref) is not None:
         return _settle_evidence_unresolved(ref, flag=flag)
+    # T-14541 (<project> X-2263): `events.jsonl#ts=` with an EMPTY (or malformed) value parses as no
+    # locator, and the repo-path arm below then found `events.jsonl` staged and let it through.
+    _jl = re.match(r"events\.jsonl#(ts|source_ref)=", ref)
+    if _jl:
+        return (f"the journal locator names no row — its `{_jl.group(1)}=` value is empty or malformed; "
+                f"cite an existing row as events.jsonl#{_jl.group(1)}=<value>")
     if not ref or any(c.isspace() for c in ref) or "://" in ref:
         return None
     path = re.split(r"[#§]", ref, maxsplit=1)[0].rstrip("/")
@@ -27588,13 +27773,14 @@ def _session_transcript_paths(session_ref: str) -> list:
     return out
 
 
-def _plan_owner_words(slug, fm, body) -> dict:
+def _plan_owner_words(slug, fm, body, earlier_tags=()) -> dict:
     """T-14520 — the `plan show --owner-words` view's one composition site (main's journal + the
     transcript resolver above)."""
     from lib import task as task_lib   # noqa: PLC0415 — prototype_main_journal
     return plan_mod.owner_words_reconciliation(REPO_ROOT, slug, fm, body,
                                                events_path=task_lib.prototype_main_journal(REPO_ROOT),
-                                               resolve_transcript=_session_transcript_paths)
+                                               resolve_transcript=_session_transcript_paths,
+                                               earlier_tags=earlier_tags)
 
 
 def cmd_plan_show(args: argparse.Namespace) -> None:
@@ -32538,7 +32724,25 @@ def _auto_cross_done_for_landed_closes(main_wt: Path, closed_tids: list) -> list
             task = state.load_str(matches[0].read_text(encoding="utf-8")) or {}
         except Exception:
             continue
-        for _xid in _auto_cross_done_for_close(task, tid):
+        # T-14550: the emitter skips a picked task|bugfix link the card gives no peer_next_step
+        # (judged on its own fold — audit-post fp1:dead41090211b5be); the lines below only NAME
+        # what it left, read after the emit, so they decide nothing.
+        try:
+            _emitted = _auto_cross_done_for_close(task, tid)
+        except Exception as _exc:   # noqa: BLE001 — store unreadable: nothing emitted for this card
+            lines.append(f"land: cross done NOT auto-emitted for {tid}'s resolves_cross links: the "
+                         f"coordination store could not be read ({_exc}); run `yitc-v2 cross done "
+                         f"<X-id> --note '<next step>'` (T-14550)")
+            continue
+        try:
+            _bare = _cross_next_step_missing(task)
+        except Exception:   # noqa: BLE001 — naming only; the emit already decided
+            _bare = []
+        for _xid in _bare:
+            lines.append(f"land: cross done NOT auto-emitted for {_xid}: {tid} carries no "
+                         f"peer_next_step; run `yitc-v2 cross done {_xid} --note '<the peer's next "
+                         f"step>'` (T-14550)")
+        for _xid in _emitted:
             lines.append(f"land: cross done auto-emitted for {_xid} (receiver-side, resolving task "
                          f"{tid} landed — close-the-loop at LAND, T-9588)")
     return lines
@@ -33919,6 +34123,12 @@ def main(argv: list[str] | None = None) -> None:
     # the refusal would then be argparse's, not ours. Non-gated verbs are untouched (the helper
     # returns immediately). Full placement rationale: `_gate_actor_provenance`.
     _raw_argv = list(sys.argv[1:] if argv is None else argv)
+    # T-14535 (SPEC-1024 rule 12) — the USER-level post-compaction entry: resolved over raw argv BEFORE
+    # any parse, auto-sync or write, so a session that is not a yitc-v2 one costs nothing and leaves no
+    # row anywhere. It finds the session's project from the hook input and re-execs the print-only brief
+    # there, or exits 0 silently (`_compaction_hook_entry`).
+    if "--from-hook" in _raw_argv and _raw_argv[:3] == ["session", "start", "--print-only"]:
+        _compaction_hook_entry()
     # T-12621 (SPEC-0094 §8) — the PER-PROJECT DEPLOY MUTUAL EXCLUSION, above the provenance gate,
     # which is the whole point: that gate's `append_trail_record` is the read-modify-write X-1437's two
     # deploys collided on, so a lock taken any later cannot cover it. The engine lives in

@@ -674,25 +674,30 @@ body: "## Scenario\n\nWhen the AI emits a journal event — or reasons about wha
   \ names WHERE that list came from: `merge-msg`\n(git's own `# Conflicts:` record\
   \ for this merge — the exact set) or `staged-delta` (the fallback\nsuperset, every\
   \ path the merge staged). A reader MUST honour that distinction rather than treating\n\
-  every list as exact.\nWHY IT EXISTS: `land` refuses before the queue on a non-union\
-  \ conflict and `worktree sync` stops on\nthe same class, but the RESOLUTION was\
-  \ raw git — three hand merges on 2026-09-10 alone, each\nleaving the journal no\
-  \ record of what a human changed. AGENTS §Verb-execution discipline forbids\nhand-doing\
-  \ what a verb covers; this row is what makes the covering verb's work visible.\n\
-  WHAT A READER MAY CONCLUDE: that these paths were resolved by a human, in that merge,\
-  \ by that\nsession. **What it is NOT:** it is NOT evidence the resolution is CORRECT\
-  \ (no verb judges that), and\nit is explicitly NOT an audit-currency exemption —\
-  \ a hand resolution is authored content, so\nSPEC-0077 §3a demands the re-audit\
-  \ exactly as before (`_offending_drift_is_merge_produced` names\nthis case as precisely\
-  \ what the rule exists to refuse). The row makes the shift ATTRIBUTABLE, and\n`_land_audited_footprint_split`\
-  \ CITES it report-only for that reason; a consumer that read it to\nADMIT such a\
-  \ path would invert the rule. No checker/gate is wired (Principle 1 F4). Append-only,\n\
-  P5-safe (consumers ignore unknown keys).\n**worktree_children_reaped** — emitted\
-  \ by `bin/yitc-v2 worktree park --confirm-dead`\n(the shared `_assert_no_live_holder`\
-  \ gate), bound to the MAIN checkout's journal; `task_id` = the\nparked task where\
-  \ there is one. Records the teardown of a DEAD holder session's ORPHAN processes:\
-  \ the\nlive-cwd guard refuses while ANYTHING holds the worktree as its working directory,\
-  \ which is\nright for a mid-Stage-6 holder and wrong for an orphan — X-1350 (<project>,\
+  every list as exact. A held clean merge (`worktree sync --hold`) finished by this\
+  \ verb adds\n`mode: clean-edit`, `mechanical_tree` and `edited` (the staged paths\
+  \ that differ from it): there\n`resolved: []` with `resolved_source: merge-tree-clean`\
+  \ is an ESTABLISHED empty set — `git merge-tree`\nof the merge's parents answered\
+  \ with no conflict — never a missing answer.\nWHY IT EXISTS: `land` refuses before\
+  \ the queue on a non-union conflict and `worktree sync` stops on\nthe same class,\
+  \ but the RESOLUTION was raw git — three hand merges on 2026-09-10 alone, each\n\
+  leaving the journal no record of what a human changed. AGENTS §Verb-execution discipline\
+  \ forbids\nhand-doing what a verb covers; this row is what makes the covering verb's\
+  \ work visible.\nWHAT A READER MAY CONCLUDE: that these paths were resolved by a\
+  \ human, in that merge, by that\nsession. **What it is NOT:** it is NOT evidence\
+  \ the resolution is CORRECT (no verb judges that), and\nit is explicitly NOT an\
+  \ audit-currency exemption — a hand resolution is authored content, so\nSPEC-0077\
+  \ §3a demands the re-audit exactly as before (`_offending_drift_is_merge_produced`\
+  \ names\nthis case as precisely what the rule exists to refuse). The row makes the\
+  \ shift ATTRIBUTABLE, and\n`_land_audited_footprint_split` CITES it report-only\
+  \ for that reason; a consumer that read it to\nADMIT such a path would invert the\
+  \ rule. No checker/gate is wired (Principle 1 F4). Append-only,\nP5-safe (consumers\
+  \ ignore unknown keys).\n**worktree_children_reaped** — emitted by `bin/yitc-v2\
+  \ worktree park --confirm-dead`\n(the shared `_assert_no_live_holder` gate), bound\
+  \ to the MAIN checkout's journal; `task_id` = the\nparked task where there is one.\
+  \ Records the teardown of a DEAD holder session's ORPHAN processes: the\nlive-cwd\
+  \ guard refuses while ANYTHING holds the worktree as its working directory, which\
+  \ is\nright for a mid-Stage-6 holder and wrong for an orphan — X-1350 (<project>,\
   \ 2026-09-09) left two\n`docker run` land-verify containers on a confirmed-dead\
   \ worker's worktree and X-1346 (<project>)\ntwo leaked node processes, and in BOTH\
   \ the only lever was a hand kill. `data: {path, kind,\ndead_session_ref, holder_verdict,\

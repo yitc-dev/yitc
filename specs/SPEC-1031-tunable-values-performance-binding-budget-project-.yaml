@@ -303,5 +303,5 @@ implements_signature:
   bin/lib/machine_settings.py#resolve_settings_path: 5031380a4b5d8cf3f1624798cc7d1b8047ef1371f96169ebd5ea8caf11890307
   bin/lib/machine_settings.py#say_notes: 29f7cd98e2e92d966f0bb000379ebfe8ee248ec033bcc0948c01849948daba5e
   bin/lib/machine_settings.py#set_project_threshold: 537fe9f67ce7392e401f4c4cdc5045b88b5f1ce9be4c3811e3db715be1c84fa9
-  bin/lib/machine_settings.py#set_value: e9927af8f088dfeb745a9ac44bc5c020f7b93cea517f561195e2f825e64c158f
+  bin/lib/machine_settings.py#set_value: 52386632d39333e8a14c7fee20921939a25b47c3e5a85a33853de327adb707aa
   bin/lib/machine_settings.py#verify_switches: 543327fb2009086ffb9f64cc8ef0f895b949d789ae796170dc23d2036bada695

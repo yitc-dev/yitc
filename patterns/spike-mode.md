@@ -592,6 +592,13 @@ section; an item added, or changed in any field after it, carries its own `owner
 prototype commit as `prototype_tip`; a newer prototype is a registry amendment through a fresh accept
 check.
 
+Not everything can be settled in the sandbox. When the owner says of an item «decide it, we build it on
+main, raise the sandbox again with the new code, I check, we fix if bad», offer to mark it OWNER-RISK:
+record the owner's words as an `owner_directive` row, then give the `carry` item
+`owner_risk: events.jsonl#ts=<that row>`. Only the owner's own row marks an item — never your decision.
+The accept check then judges the marker, not the missing trial evidence, and the verifier walks the
+item on landed `main` like any other (step 4). The rule: SPEC-1058 §2 «Owner-risk item».
+
 **2. Cut the cards (SPEC-1058 §3, the cut).** Every card of the cut declares `prototype_lines`:
 - a WRITER names the item ids it builds (each `carry` item has exactly one writer);
 - a card that builds no item declares `[]`;

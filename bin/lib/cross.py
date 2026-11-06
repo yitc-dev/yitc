@@ -1879,7 +1879,46 @@ def cross_done_for_close(item: dict, self_name: str, *, task: dict = None, tid: 
         note = resolution_note_for_close(task, tid)
         if note:
             payload["auto_note"] = note   # DERIVED provenance — never `note`, the receiver's return slot
+        # T-14550: the resolver's OWN words for the peer — the declared next step (SPEC-0028
+        # `peer_next_step`) — ride `note`, the receiver's return slot; `auto_note` keeps the provenance.
+        step = peer_next_step_of(task)
+        if step:
+            payload["note"] = step
     return payload
+
+
+def peer_next_step_of(task) -> str:
+    """PURE — the card's declared `peer_next_step` (SPEC-0028), stripped; "" when absent, blank or
+    not a string (a non-string is not a sentence the peer can act on, so it counts as absent)."""
+    if not isinstance(task, dict):
+        return ""
+    step = task.get("peer_next_step")
+    return step.strip() if isinstance(step, str) else ""
+
+
+def close_missing_peer_next_step(task: dict, items: dict, self_name) -> list:
+    """PURE (T-14550) — the `resolves_cross` ids a close would auto-`cross_done` with no peer-facing
+    next step: the item is addressed to self, `picked`, of kind task|bugfix (the only kinds a
+    cross_done is legal for), and the card carries no non-blank `peer_next_step`. [] when the field is
+    set or the card links nothing. An id the store does not carry, or one not picked, yields nothing:
+    no auto-emit fires for it, so nothing reaches the peer bare."""
+    if peer_next_step_of(task):
+        return []
+    rc = (task or {}).get("resolves_cross") or []
+    if isinstance(rc, str):
+        rc = [rc]
+    me = str(self_name or "").strip()
+    out: list = []
+    for x in rc:
+        x = str(x).strip()
+        it = (items or {}).get(x)
+        if not isinstance(it, dict) or str(it.get("to") or "").strip() != me:
+            continue
+        if it.get("status") != "picked" or it.get("kind") not in ("task", "bugfix"):
+            continue
+        if x not in out:
+            out.append(x)
+    return out
 
 
 # The triage vocabulary's ONE home is SPEC-1010 ## Parameters (the machine tokens below); no list here.

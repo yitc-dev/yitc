@@ -375,11 +375,30 @@ body: "## Scenario\n\nWhen the AI files or edits a task, it needs the exact fiel
   \  # reach the reported instance emits the identical note it always did, with no\n\
   \                               # added ceremony. Taxing every closure to describe\
   \ the rare one is exactly\n                               # what this field exists\
-  \ to avoid. Additive + optional (no drift #10).\n\nsubstituted_instrument: # OPTIONAL\
-  \ declaration (X-1166) — an acceptance differential\n                          \
-  \     # that was MEASURED ANOTHER WAY because the instrument the card planned\n\
-  \                               # could not run before the ship landed. Rendered\
-  \ to the auditor by the\n                               # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
+  \ to avoid. Additive + optional (no drift #10).\n\npeer_next_step: # OPTIONAL, REQUIRED\
+  \ in one case — the peer's next step, in the resolver's\n                      \
+  \         # own words, for a coordination item this card resolves. Read by the\n\
+  \                               # receiver's auto-`cross_done` (`bin/lib/cross.py#cross_done_for_close`),\n\
+  \                               # which puts it on `note` (the receiver's return\
+  \ slot) beside the derived\n                               # `auto_note` provenance.\
+  \ Form — a plain string:\n                               # peer_next_step: 'Re-run\
+  \ `task close ` in your checkout; the guard now admits it.'\n                  \
+  \             # REQUIRED when a `resolves_cross` item is addressed to this project,\n\
+  \                               # `picked`, and of kind task|bugfix: `task close`\
+  \ refuses without it,\n                               # naming the item, before\
+  \ anything is written, and refuses when the\n                               # coordination\
+  \ store cannot be read; at land an item picked after the\n                     \
+  \          # close is not auto-closed without it — the land names the manual\n \
+  \                              # `cross done <X> --note` route. A note item, or\
+  \ a card with no such\n                               # link, needs none. WRITTEN\
+  \ like `resolution_excludes` — authored on the\n                               #\
+  \ card in its worktree (no verb owns it) and admitted by `task file\n          \
+  \                     # --from-stdin`. A later manual `cross done --note` stays\
+  \ possible.\n\nsubstituted_instrument: # OPTIONAL declaration (X-1166) — an acceptance\
+  \ differential\n                               # that was MEASURED ANOTHER WAY because\
+  \ the instrument the card planned\n                               # could not run\
+  \ before the ship landed. Rendered to the auditor by the\n                     \
+  \          # Stage-8 task packet (`bin/lib/audit_packet.py#build_audit_prompt`)\
   \ so evidence\n                               # taken by the substitute is not read\
   \ as evidence MISSING. ONE form, both\n                               # keys REQUIRED:\n\
   \                               # substituted_instrument: {instrument: <what was\

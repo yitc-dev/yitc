@@ -3854,6 +3854,17 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
             _die(f"worktree sync --from: no local branch {from_branch!r} — nothing was changed. List the "
                  f"local ones with `git branch --list 'task/*' 'work/*'`.")
 
+    # T-14545 — `--hold`: the clean merge from main is left OPEN for an integration edit. Validated here,
+    # before anything is changed.
+    hold = bool(getattr(args, "hold", False))
+    if hold and getattr(args, "resolved", False):
+        _die(f"worktree sync: --hold and --resolved do not combine — `--hold` OPENS the merge, `--resolved` "
+             f"finishes it. Run `yitc-v2 worktree sync --hold {('--task ' + task) if task else ('--work ' + str(work))}`, "
+             f"make the integration edit, `git add` it, then `yitc-v2 worktree sync --resolved` with the same target.")
+    if hold and from_branch is not None:
+        _die(f"worktree sync: --hold merges main only — it does not combine with --from. Run `yitc-v2 worktree "
+             f"sync --hold {('--task ' + task) if task else ('--work ' + str(work))}` (no --from).")
+
     def _dedup_journal_commit(what: str) -> int:
         """T-14101 — after a merge, drop journal rows the union driver kept twice (a row BOTH sides
         carry, at different places on each) with land's own keep-first dedup, committed alone.
@@ -3904,6 +3915,31 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         merge_head = _run_git_cap(["rev-parse", "MERGE_HEAD"], W).stdout.strip()
         head_before = _run_git_cap(["rev-parse", "HEAD"], W).stdout.strip()
         conflicted, conflicted_source = _hand_resolved_merge_paths(W, _run_git_cap=_run_git_cap)
+        # T-14545 — THE CLEAN-EDIT MODE, established POSITIVELY from git and never from a missing answer:
+        # `git merge-tree` of the merge's own parents exits 0 (no conflict) with a readable tree, and
+        # git recorded no conflict block in MERGE_MSG. Then the conflict set is an established EMPTY set
+        # and the authored paths are the staged ones that differ from that mechanical tree. Any other
+        # answer (a conflict, an unreadable merge-tree) keeps today's row: no clean-edit claim.
+        clean_edit, mech_tree, edited = False, None, []
+        if conflicted_source != "merge-msg" and merge_head and head_before:
+            try:
+                _mt = _run_git_cap(["merge-tree", "--write-tree", "--name-only", "-z", head_before,
+                                    merge_head], W)
+            except Exception:                  # noqa: BLE001 — unanswered: not a clean-edit claim
+                _mt = None
+            _tree = ((_mt.stdout or "").split("\0")[0].strip() if _mt is not None else "")
+            if _mt is not None and _mt.returncode == 0 and re.fullmatch(r"[0-9a-f]{40,64}", _tree):
+                _ed = _run_git_cap(["diff", "--cached", "--name-only", "--no-renames", "-z", _tree], W)
+                if _ed.returncode != 0:
+                    _die("worktree sync --resolved: git merged the parents cleanly, but the paths you edited "
+                         "on top of that clean merge could not be read — refusing rather than recording an "
+                         "unknown edit set. Nothing was committed and no `merge_resolved_by_hand` row was "
+                         "written; your merge and your edits are intact. Check `git status`, then re-run "
+                         "`yitc-v2 worktree sync --resolved`.",
+                         abort_class="hand-resolution-incomplete")
+                clean_edit, mech_tree = True, _tree
+                edited = sorted({q for q in (_ed.stdout or "").split("\0") if q.strip()})
+                conflicted, conflicted_source = [], "merge-tree-clean"
 
         # ── THE FAIL-CLOSED SET. Every check runs BEFORE the commit and before any emit, so a refusal
         # here commits nothing and emits nothing (AC2). None of them runs `merge --abort`: the
@@ -3918,7 +3954,9 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                  + "\nNothing was committed and no `merge_resolved_by_hand` row was written; your "
                    "merge and your resolution are intact.",
                  abort_class="hand-resolution-incomplete")
-        marked = _staged_conflict_marker_paths(W, conflicted, _run_git_cap=_run_git_cap)
+        # T-14545 — the checks cover the authored edit paths too: an empty conflict set never skips them
+        checked = sorted(set(conflicted) | set(edited))
+        marked = _staged_conflict_marker_paths(W, checked, _run_git_cap=_run_git_cap)
         if marked:
             _die("worktree sync --resolved: a CONFLICT MARKER is still present in the STAGED content "
                  "of these path(s) — they were staged mid-resolution (edit them, then `git add` "
@@ -3929,9 +3967,9 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         # An UNSTAGED edit sitting on top of a staged resolution would silently commit LESS than the
         # operator resolved. Scoped to the previously-conflicted paths ONLY — an unrelated dirty file
         # is none of this arm's business and must never block it.
-        if conflicted:
+        if checked:
             dirty = [q.strip() for q in
-                     (_run_git_cap(["diff", "--name-only", "-z", "--", *conflicted], W).stdout or "")
+                     (_run_git_cap(["diff", "--name-only", "-z", "--", *checked], W).stdout or "")
                      .split("\0") if q.strip()]
             if dirty:
                 _die("worktree sync --resolved: these resolved path(s) carry UNSTAGED changes on top "
@@ -3940,6 +3978,13 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                      + "\nNothing was committed and no `merge_resolved_by_hand` row was written; your "
                        "merge and your resolution are intact.",
                      abort_class="hand-resolution-incomplete")
+
+        if clean_edit:   # T-14545 — report-only: an un-added new file is not part of this commit
+            _ut = _run_git_cap(["ls-files", "--others", "--exclude-standard", "-z"], W)
+            _ut = sorted(q for q in (_ut.stdout or "").split("\0") if q.strip()) if _ut.returncode == 0 else []
+            if _ut:
+                print("  note: these UNTRACKED file(s) are NOT in the merge commit (`git add` them first if "
+                      "they belong to the integration edit): " + ", ".join(_ut[:20]))
 
         # ── THE COMMIT — the LAST act that can strand state (STEP 3a(a)). `--no-edit` takes the
         # message git ITSELF prepared for this merge, which is the same message the mechanical
@@ -3957,6 +4002,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         payload = {"branch": branch, "main_sha": merge_head, "merge_commit": merge_commit,
                    "head_before": head_before, "resolved": conflicted,
                    "resolved_source": conflicted_source, "worktree": str(W)}
+        if clean_edit:   # T-14545 — the held clean merge: the empty set is git's answer, not a gap
+            payload.update({"mode": "clean-edit", "mechanical_tree": mech_tree, "edited": edited})
         # T-14355 — into the WORKTREE's journal, whichever checkout ran the verb: `audit post` and the
         # land read the branch's rows there, and under `-C <main>` the default target is main's journal.
         _row_journal = _branch_journal(W, None)
@@ -3985,7 +4032,13 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         print(f"worktree sync --resolved: merge from main COMMITTED as {merge_commit[:12]} on "
               f"{branch} (main {merge_head[:12]}). Worktree intact at {W}; main was NOT advanced — "
               f"this is a SYNC, not a land.")
-        if conflicted:
+        if clean_edit:
+            print(f"  mode clean-edit: git merged the parents with NO conflict (merge-tree "
+                  f"{(mech_tree or '')[:12]}); your integration edit on top of it, recorded on this run's "
+                  f"`merge_resolved_by_hand` row ({len(edited)} path(s)):")
+            for _p in edited:
+                print(f"    {_p}")
+        elif conflicted:
             print(f"  resolved BY HAND ({len(conflicted)} path(s), recorded on this run's "
                   f"`merge_resolved_by_hand` row, source: {conflicted_source}):")
             for _p in conflicted:
@@ -4065,6 +4118,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         # row, same path, same exit code; only its position relative to stdout moved.
         print(f"worktree sync: {branch} is already current with main (0 commits behind) — nothing to "
               f"sync. Worktree intact at {W}.")
+        if hold:
+            print("  --hold: there is no merge to hold open — main has nothing this branch lacks.")
         # T-11349 — SAY WHICH SILENCE THIS IS. `_land_preflight_currency_lines` returns `[]` when
         # nothing is reportable, and `_currency_phase`'s guard skips the phase outright when an injection
         # is absent: both rendered as the ABSENCE of a line, so "measured and clean" and "never ran"
@@ -4112,6 +4167,25 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                                  _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
                                _is_yitc_session_state=_is_yitc_session_state,
                                _nonfoldable_out=dirt_sink)
+    if hold:
+        # T-14545 — measured AFTER the fold, so a dirty journal (committed by it) never trips this: an
+        # uncommitted tracked path main also changed would make git refuse the merge, and `--hold` does
+        # not carry changes across it (an open merge cannot survive putting them back).
+        def _names(a):
+            r = _run_git_cap(a, W)
+            return ({q for q in (r.stdout or "").split("\0") if q.strip()} if r.returncode == 0 else None)
+        _dirty, _incoming = (_names(["diff", "--name-only", "-z", "HEAD"]),
+                             _names(["diff", "--name-only", "-z", "HEAD...main"]))
+        if _dirty is None or _incoming is None:
+            _die("worktree sync --hold: could not read the uncommitted or incoming paths — nothing was "
+                 "changed (worktree intact, main untouched). Check `git status` in the worktree, then re-run.")
+        if _dirty & _incoming:
+            _ov = "\n  ".join(sorted(_dirty & _incoming))
+            _die(f"worktree sync --hold: these uncommitted path(s) are also changed by main, and --hold does "
+                 f"not carry uncommitted changes across the merge:\n  {_ov}\nCommit them or move them aside "
+                 f"(`git diff --binary HEAD -- <path> > <file>`), then re-run `yitc-v2 worktree sync --hold`. "
+                 f"Nothing was changed (worktree intact, main untouched).",
+                 abort_class="hold-uncommitted-overlap")
     conflict_sink: dict = {}                   # T-11697 — stays {} when the probe could not answer
     # T-14101 — the pre-flight predicts the merge with MAIN; a --from merge has its own outcome below.
     for ln in ([] if from_sha else
@@ -4131,7 +4205,7 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
     # and re-applied after it; on ANY refusal of the merge they are put back on the unmerged branch
     # before the refusal propagates. `carried_sink` names what rode the merge on the row below.
     carried_sink: dict = {}
-    carry = _carry_out_local_changes(W, _run_git_cap=_run_git_cap, source=src)
+    carry = None if hold else _carry_out_local_changes(W, _run_git_cap=_run_git_cap, source=src)
     try:
         _update_from_main(W, label="worktree sync", _run_git_cap=_run_git_cap, _die=_die,
                           _DERIVED_MERGE_ARTIFACTS=_DERIVED_MERGE_ARTIFACTS,
@@ -4142,7 +4216,8 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
                           # T-13890 — a non-union conflict stays OPEN for `--resolved`. Not when
                           # changes were carried out: putting them back resets the worktree to its
                           # pre-merge commit, which an open merge could not survive.
-                          _leave_conflict_open=carry is None)
+                          _leave_conflict_open=carry is None,
+                          **({"_hold_clean": True} if hold else {}))   # T-14545
     except SystemExit as stop:
         if carry is not None:
             _put_back_carried(W, carry, _run_git_cap=_run_git_cap)
@@ -4157,6 +4232,31 @@ def cmd_worktree_sync(args: argparse.Namespace, *, _append_event, _die, _main_wo
         _carry_back_local_changes(W, carry, "worktree sync", _run_git_cap=_run_git_cap,
                                   _die=_die, _carried_out=carried_sink,
                                   _anchor_signature_of_text=_anchor_signature_of_text)
+
+    if hold:
+        # T-14545 — TERMINAL: the merge is open and nothing is committed, so the post-merge phases (which
+        # measure a committed HEAD) do not run; `--resolved` commits, records and re-proves it.
+        held = _run_git_cap(["rev-parse", "-q", "--verify", "MERGE_HEAD"], W)
+        merge_head = (held.stdout or "").strip() if held.returncode == 0 else ""
+        if not merge_head:
+            _die("worktree sync --hold: the merge did not stay open (no MERGE_HEAD) — nothing is held. "
+                 "Inspect `git log -1` and `git status` in the worktree before re-running.")
+        tk = ("--task " + task) if task else ("--work " + str(work))
+        print(f"worktree sync --hold: merge from main ({merge_head[:12]}) is OPEN on {branch} — nothing was "
+              f"committed. Worktree intact at {W}; main was NOT advanced.")
+        for _p in resolved_sink.get("paths", []):
+            print(f"  resolved mechanically and staged: {_p}  [{resolved_sink['kinds'][_p]}]")
+        print(f"  next: make the integration edit, `git add` every changed path (new files too), then "
+              f"`yitc-v2 worktree sync --resolved {tk}` — it commits the merge and records it "
+              f"(mode clean-edit when git found no conflict). To abandon: `git merge --abort`.")
+        _append_event("worktree_synced", task,
+                      {"branch": branch, "behind_before": behind, "noop": False, "held": True,
+                       "main_sha": merge_head, "merge_head": merge_head, "head_before": head_before,
+                       "head_after": head_before, "worktree": str(W),
+                       "resolved": resolved_sink.get("paths", []),
+                       "resolved_kinds": resolved_sink.get("kinds", {}), "carried": [],
+                       "preflight": None})
+        return None
 
     # T-14101 — the journal dedup runs AFTER carried changes are back (audit-post r1): a refused dedup
     # commit must not strand them; the commit is pathspec-limited to the rewritten segments.

@@ -4552,8 +4552,13 @@ def _undeclared_subject_result(layers: list) -> dict:
 # one false accusation gets the whole echo skimmed, while a missed detection only leaves the silence
 # that already existed. Hence the DISCOVERY shape below, and hence a swallowed exception yielding 0.
 
+# T-14539 — the host list-only runner is handed in by the caller (`_debt_echo_lines`); None here keeps
+# the command-text reading for a direct call, and keeps the fold's public signature unchanged.
+_adapter_list_answers = None
+
+
 @functools.wraps(debt_adoption.unexecuted_subject_files)
-def unexecuted_subject_files(*a, _inj=("_is_waived", "_unexecuted_subject_result",), **kw):
+def unexecuted_subject_files(*a, _inj=("_is_waived", "_unexecuted_subject_result", "_adapter_list_answers",), **kw):
     """T-12707 host residue — body in `bin/lib/debt_adoption.py#unexecuted_subject_files`; host names read HERE at call time."""
     for _k in _inj:
         kw.setdefault(_k, globals()[_k])
@@ -8744,6 +8749,11 @@ def _nightly_quiet_lane_failed(lanes, reasons) -> list:
     return out
 
 
+# T-14540: past this age the newest nightly row is not "last night" — the fold says so instead of
+# printing a stale pair. Two days: one missed run is tolerated, two are a stopped nightly.
+NIGHTLY_STALE_DAYS = 2
+
+
 def nightly_verdict_changes(events_path, *, now=None) -> dict:
     """Fold the journal → what the LAST nightly said that the one before it did not (SPEC-0119 r38).
 
@@ -8800,10 +8810,16 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
     fleet where nothing moved but the chronic conditions persist still says so.
 
     REPORT-ONLY. Suppressed-when-clean, ZERO stored state, no new store, no new event type, no new
-    verb, no new seam, no knob, no exit code, no gate. `now` is accepted for signature parity with
-    the windowed siblings and is deliberately UNUSED: this fold has no window — it compares the last
-    two rows whenever they were written, so a fleet whose nightly stopped running keeps reporting the
-    last real comparison rather than going quiet exactly when something is wrong.
+    verb, no new seam, no knob, no exit code, no gate.
+
+    THE TWO NEWEST NIGHTS, BY `ts` (T-14540). Segment order is not chronology (SPEC-0002 union-merge,
+    SPEC-0190 rule 5), so the nights are SORTED by `ts` before the last two are taken. The comparison
+    itself keeps NO window (SPEC-0119 rule 38): a stopped nightly keeps its last real pair. When `now`
+    is given and the newest night is older than `NIGHTLY_STALE_DAYS`, the result ALSO carries
+    `stale: {latest, days}`, which the render states as one line, so the old pair is never read as
+    last night. The defect behind it (<project> X-2257): a consumer fold read the consumer's own
+    journal, which holds seven stray rows from 2026-08-27..09-04, while the nightly writes the ENGINE's
+    journal only — the wiring now runs this fold in the kernel's own session only (owner choice (A)).
 
     Never raises: an unreadable / missing / malformed journal folds to the empty shape, which IS the
     nothing-to-report shape — a report-only surface must never nag on, or die of, an unknown."""
@@ -8824,18 +8840,31 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
             lanes.append({"ts": str(event.get("ts") or ""), "map": lane_map})
             vmap = _nightly_verdict_map(event)
             if vmap:
-                # The verdict MAP for every night, and the RAW `results` for the latest night only —
-                # the chronic DETAIL (`stale_root`, the placeholder counts) lives outside the verdict
-                # and is read off the row itself. Holding the raw results of ALL 111 nights to answer
-                # a question about the last one would be the amplification the sibling rule 37 reports.
+                # The verdict MAP for every night, and a REFERENCE to the row's `results` — the
+                # chronic DETAIL (`stale_root`, the placeholder counts) lives outside the verdict and
+                # is read off the newest row only, once the nights are sorted below.
                 nights.append({"ts": str(event.get("ts") or ""), "map": vmap,
                                "results": (event.get("data") or {}).get("results") or []})
-                if len(nights) > 2:
-                    nights[-3]["results"] = None        # only the last two rows keep their payload
     except Exception:                      # noqa: BLE001 — see docstring
         return empty
+    # T-14540: chronology by `ts`, never segment order (stable: equal-ts rows keep their order).
+    lanes.sort(key=lambda n: n["ts"])
+    nights.sort(key=lambda n: n["ts"])
+    for night in nights[:-2]:
+        night["results"] = None                 # only the last two rows keep their payload
     quiet_lane = _nightly_quiet_lane_failed(lanes, lane_reasons)
+    stale = None
+    if nights and now is not None:
+        try:
+            newest = datetime.fromisoformat(nights[-1]["ts"].replace("Z", "+00:00"))
+            age_days = (now - newest).total_seconds() / 86400.0
+        except (TypeError, ValueError):        # an unparseable ts claims no staleness
+            age_days = None
+        if age_days is not None and age_days > NIGHTLY_STALE_DAYS:
+            stale = {"latest": nights[-1]["ts"], "days": int(age_days)}
     if len(nights) < 2:
+        if stale:
+            return {**empty, "quiet_lane": quiet_lane, "stale": stale}
         # A first night (or none) has no yesterday. Silence, never "everything changed" — for the
         # CHANGE and chronic lines. A `failed` quiet-lane reading is not a comparison and still reports.
         return {**empty, "quiet_lane": quiet_lane}
@@ -8868,7 +8897,7 @@ def nightly_verdict_changes(events_path, *, now=None) -> dict:
 
     return {"lens": _nightly_changes_lens(), "count": len(changed), "projects": changed,
             "nights": {"previous": prev["ts"], "latest": latest["ts"]}, "chronic": chronic,
-            "quiet_lane": quiet_lane}
+            "quiet_lane": quiet_lane, **({"stale": stale} if stale else {})}
 
 
 def _nightly_changes_lens() -> str:
@@ -10061,6 +10090,11 @@ def uncovered_surface_debt_lines(REPO_ROOT, _read_yaml) -> list:
 # candidates inside the SPEC-0190 summary window, the one no other candidate descends from; of its
 # runs, the last by (stamp, attempt), a tie for last shown when either is red. Physical row order is
 # never read. The line names the run and its log and nothing about the cause (SPEC-1047 rule 6).
+#
+# T-14551 (SPEC-1047 rule 6, amended): a gated deploy's own pre-deploy run (rows with a `run_ref` and
+# no `run_kind`) never SHOWS the line but CLEARS a red run when it is a FULL passed run on a candidate
+# on main's history that strictly descends from the red run's (`_deploy_run_clears`). Read in the same
+# pass over the same rows; nothing is written. The line also names the next step.
 
 def _git_is_ancestor(repo_root, older, newer) -> "bool | None":
     """True/False from `git merge-base --is-ancestor older newer` in `repo_root`; None when git cannot
@@ -10086,11 +10120,12 @@ def red_scheduled_run(events_path, repo_root, now=None, *, _is_ancestor=None) ->
     from lib import events as _events   # SPEC-0190 summary window — its one home
     floor = _events.summary_window_floor(now)
     runs: dict = {}
+    deploys: dict = {}
     for event in journal.segment_rows(events_path, types=(EXECUTION_EVENT,), min_ts=floor):
         if not isinstance(event, dict) or event.get("type") != EXECUTION_EVENT:
             continue
         data = event.get("data")
-        if not isinstance(data, dict) or data.get("run_kind") != "scheduled":
+        if not isinstance(data, dict) or data.get("run_kind") not in ("scheduled", None):
             continue
         ts = event.get("ts")
         cand, ref = data.get("candidate"), data.get("run_ref")
@@ -10102,7 +10137,14 @@ def red_scheduled_run(events_path, repo_root, now=None, *, _is_ancestor=None) ->
         attempt = data.get("attempt")
         attempt = attempt if isinstance(attempt, int) and not isinstance(attempt, bool) else 0
         key = (cand.strip(), ref.strip(), attempt)
-        run = runs.setdefault(key, {"stamp": ts, "red": False, "outcome": "passed", "evidence": ""})
+        if data.get("run_kind") is None:           # T-14551: a gated deploy's pre-deploy run
+            dep = deploys.setdefault(key, {"classes": {}, "passed": True})
+            dep["passed"] = dep["passed"] and data.get("run_outcome") == "passed"
+            _scheduled_run_class(dep, data)
+            continue
+        run = runs.setdefault(key, {"stamp": ts, "red": False, "outcome": "passed", "evidence": "",
+                                    "classes": {}})
+        _scheduled_run_class(run, data)
         run["stamp"] = max(run["stamp"], ts)
         if data.get("run_outcome") != "passed":
             run["red"] = True
@@ -10120,11 +10162,53 @@ def red_scheduled_run(events_path, repo_root, now=None, *, _is_ancestor=None) ->
         mine = {k: v for k, v in runs.items() if k[0] == c}
         last = max((v["stamp"], k[2]) for k, v in mine.items())
         reds += [(k, v) for k, v in mine.items() if (v["stamp"], k[2]) == last and v["red"]]
+    if reds and deploys:                           # T-14551: a full passed deploy run on a later candidate
+        reds = [(k, v) for k, v in reds
+                if not any(_deploy_run_clears(v, k[0], dep, dk[0], is_anc) for dk, dep in deploys.items())]
     if not reds:
         return None
     (cand, ref, attempt), run = max(reds, key=lambda kv: (kv[1]["stamp"], kv[0]))
     return {"date": run["stamp"][:10], "candidate": cand, "run_ref": ref, "attempt": attempt,
             "run_outcome": run["outcome"], "evidence": run["evidence"] or "(no evidence recorded)"}
+
+
+def _scheduled_run_class(run, data) -> None:
+    """Fold one class row into `run["classes"]`: {class: {layer: (outcome, {unit files})}}. A class seen
+    twice in one run keeps the first row's layers (a run writes one row per class). PURE."""
+    cls = data.get("class")
+    if not isinstance(cls, str) or cls in run["classes"]:
+        return
+    layers = {}
+    for row in data.get("consumer_verify_layers") or []:
+        if not isinstance(row, dict) or not isinstance(row.get("layer"), str):
+            continue
+        adapter = row.get("adapter") if isinstance(row.get("adapter"), dict) else {}
+        units = {u.get("file") for u in adapter.get("units") or []
+                 if isinstance(u, dict) and isinstance(u.get("file"), str)}
+        layers[row["layer"]] = (row.get("outcome"), units)
+    run["classes"][cls] = layers
+
+
+def _deploy_run_clears(red, red_cand, dep, dep_cand, is_anc) -> bool:
+    """SPEC-1047 rule 6 (amended, T-14551) — does the gated deploy's pre-deploy run `dep` on `dep_cand`
+    clear the red scheduled run `red` on `red_cand`? Only a FULL passed run on a later candidate does:
+    every row `run_outcome: passed`; every class of the red run present; per class every layer the red
+    row names present `passed`/`passed-partial` with every unit file the red row listed; `dep_cand` on
+    main's history and strictly descending from `red_cand`. Every undecidable answer is False, so a
+    doubt shows the line rather than hiding it."""
+    if not dep["passed"] or dep_cand == red_cand:
+        return False
+    for cls, layers in red["classes"].items():
+        mine = dep["classes"].get(cls)
+        if mine is None:
+            return False
+        for layer, (_outcome, units) in layers.items():
+            got = mine.get(layer)
+            if got is None or got[0] not in ("passed", "passed-partial") or not units <= got[1]:
+                return False
+    if not red["classes"]:
+        return False
+    return is_anc(red_cand, dep_cand) is True and is_anc(dep_cand, "main") is True
 
 
 def red_scheduled_run_lines(events_path, repo_root, *, views) -> list:
@@ -10139,13 +10223,15 @@ def red_scheduled_run_lines(events_path, repo_root, *, views) -> list:
     text = (f"debt: scheduled pre-deploy run red [{red['date']} {red['candidate'][:12]} "
             f"{red['run_ref']}] — the current scheduled run (candidate {red['candidate']}, run_ref "
             f"{red['run_ref']}, attempt {red['attempt']}) reads run_outcome {red['run_outcome']}; its "
-            f"log: {red['evidence']} — read the log and file what it finds as ordinary work "
+            f"log: {red['evidence']} — read the log and file what it finds as ordinary work; after "
+            f"the fix lands, re-run `deploy --scheduled-run` from main (or a gated deploy's full "
+            f"pre-deploy run on a descendant candidate) — a passing current run clears this line "
             f"(report-only, SPEC-1047 rule 6)")
     return [views._actionable(text, "scheduled pre-deploy run red")]
 
 
 INJECTS = {
-    "_debt_echo_lines": ('DISPATCH_WAVE_WINDOW_SEC', 'ENGINE_ROOT', 'EVENTS_PATH', 'READ_ONLY_ROOT', 'REPO_ROOT', '_abort_cause_breadth_view', '_ahead_branch_view', '_behind_branch_view', '_born_permissive_concerns_for_echo', '_branch_attempt_burn_view', '_carried_session_refs', '_dead_land_view', '_debt_followup_floor', '_debt_prequeue_refusal_window_days', '_debt_security_finding_floor_days', '_debt_test_class_stale_floor_days', '_dispatch_events_memo', '_gap_ops_carrier', '_gap_register_view', '_is_consumer_build', '_load_sensitive_uncarded_view', '_open_followup_counts', '_profile_gap_autofile', '_profile_resolution', '_profile_snapshot_record', '_project_growth_reading', '_read_yaml', '_reads_exemptions', '_recorded_measurement_view', '_review_due_view', '_self_project_aliases', '_uncarried_p8_view', '_unmonitored_dispatch_view', '_unpickable_ready_view', '_unresolved_halt_view', '_view_not_adopted', '_view_overdue_recheck', '_worker_session_ref', 'audit', 'debt_mod', 'followup_mod', 'init_mod', 'journal_mod', 'profile_mod', 'session', 'views', 'worktree_mod'),
+    "_debt_echo_lines": ('DISPATCH_WAVE_WINDOW_SEC', 'ENGINE_ROOT', 'EVENTS_PATH', 'READ_ONLY_ROOT', 'REPO_ROOT', '_abort_cause_breadth_view', '_adapter_list_answers', '_ahead_branch_view', '_behind_branch_view', '_born_permissive_concerns_for_echo', '_branch_attempt_burn_view', '_carried_session_refs', '_dead_land_view', '_debt_followup_floor', '_debt_prequeue_refusal_window_days', '_debt_security_finding_floor_days', '_debt_test_class_stale_floor_days', '_dispatch_events_memo', '_gap_ops_carrier', '_gap_register_view', '_is_consumer_build', '_load_sensitive_uncarded_view', '_open_followup_counts', '_profile_gap_autofile', '_profile_resolution', '_profile_snapshot_record', '_project_growth_reading', '_read_yaml', '_reads_exemptions', '_recorded_measurement_view', '_review_due_view', '_self_project_aliases', '_uncarried_p8_view', '_unmonitored_dispatch_view', '_unpickable_ready_view', '_unresolved_halt_view', '_view_not_adopted', '_view_overdue_recheck', '_worker_session_ref', 'audit', 'debt_mod', 'followup_mod', 'init_mod', 'journal_mod', 'profile_mod', 'session', 'views', 'worktree_mod'),
     "_debt_echo_compact": ('_cli_invocation_form', 'debt_mod'),
 }
 
@@ -10276,7 +10362,7 @@ def _seam_audience(is_consumer) -> dict:
         return {}
 
 
-def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDOW_SEC, ENGINE_ROOT, EVENTS_PATH, READ_ONLY_ROOT, REPO_ROOT, _abort_cause_breadth_view, _ahead_branch_view, _behind_branch_view, _born_permissive_concerns_for_echo, _branch_attempt_burn_view, _carried_session_refs, _dead_land_view, _debt_followup_floor, _debt_prequeue_refusal_window_days, _debt_security_finding_floor_days, _debt_test_class_stale_floor_days, _dispatch_events_memo, _gap_ops_carrier, _gap_register_view, _is_consumer_build, _load_sensitive_uncarded_view, _open_followup_counts, _profile_gap_autofile, _profile_resolution, _profile_snapshot_record, _project_growth_reading, _read_yaml, _reads_exemptions, _recorded_measurement_view, _review_due_view, _self_project_aliases, _uncarried_p8_view, _unmonitored_dispatch_view, _unpickable_ready_view, _unresolved_halt_view, _view_not_adopted, _view_overdue_recheck, _worker_session_ref, audit, debt_mod, followup_mod, init_mod, journal_mod, profile_mod, session, views, worktree_mod) -> list:
+def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDOW_SEC, ENGINE_ROOT, EVENTS_PATH, READ_ONLY_ROOT, REPO_ROOT, _abort_cause_breadth_view, _adapter_list_answers, _ahead_branch_view, _behind_branch_view, _born_permissive_concerns_for_echo, _branch_attempt_burn_view, _carried_session_refs, _dead_land_view, _debt_followup_floor, _debt_prequeue_refusal_window_days, _debt_security_finding_floor_days, _debt_test_class_stale_floor_days, _dispatch_events_memo, _gap_ops_carrier, _gap_register_view, _is_consumer_build, _load_sensitive_uncarded_view, _open_followup_counts, _profile_gap_autofile, _profile_resolution, _profile_snapshot_record, _project_growth_reading, _read_yaml, _reads_exemptions, _recorded_measurement_view, _review_due_view, _self_project_aliases, _uncarried_p8_view, _unmonitored_dispatch_view, _unpickable_ready_view, _unresolved_halt_view, _view_not_adopted, _view_overdue_recheck, _worker_session_ref, audit, debt_mod, followup_mod, init_mod, journal_mod, profile_mod, session, views, worktree_mod) -> list:
     """SPEC-0119 / T-9754: the SHARED proactive-debt echo — the 3 DERIVED debt counts (not-adopted /
     open-followups / overdue-rechecks) rendered as REPORT-ONLY lines, SUPPRESSED-WHEN-CLEAN (an empty
     list when clean). Injects the 3 existing view collaborators into the leaf `views._render_debt_echo`,
@@ -10565,7 +10651,13 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # so the reader of a fleet-wide nightly costs no physical read of its own (SPEC-0190
                 # rule 10 — ONE request-scoped ReadScope at the wiring site, never a per-view cache).
                 # A repo whose journal holds fewer than two nightly rows folds to nothing → silent.
-                _nightly_verdict_changes=lambda: debt_mod.nightly_verdict_changes(EVENTS_PATH),
+                # T-14540 (owner choice (A), events.jsonl#ts=2026-11-06T05:59:06Z): the fleet line is
+                # the KERNEL's — the nightly writes only the engine journal, so a consumer session does
+                # not fold it (its own journal may hold stray old rows; folding the engine's would cost
+                # every consumer start the whole engine journal, SPEC-0190 rule 10). A consumer reads
+                # its own verdict via `nightly --status`. `now` makes a stopped nightly read as stale.
+                _nightly_verdict_changes=lambda: debt_mod.nightly_verdict_changes(
+                    EVENTS_PATH, now=datetime.now(timezone.utc)) if not _is_consumer_build() else None,
                 # T-11486 (SPEC-0119 rule 30 / SPEC-0181): the rolled-back-selection fold — has the
                 # auto-rollback taken governing affected-test selection OFF? The GOVERNOR ITSELF is
                 # injected, so the fold counts nothing of its own and this view can never disagree with
@@ -10690,8 +10782,9 @@ def _debt_echo_lines(_plan_census=None, _concurrent=None, *, DISPATCH_WAVE_WINDO
                 # repo's carrier AND its checkout, because the question spans both (what is declared vs
                 # what the commands name). The engine kernel's own file declares none of it → count 0 → suppressed,
                 # so history is never retro-charged (the SPEC-0149 lesson).
+                # T-14539: an adapter layer's subject is what its `list` enumerates (marker-found files).
                 _unexecuted_subject_files=lambda: debt_mod.unexecuted_subject_files(
-                    REPO_ROOT / "yitc-ops.yaml", REPO_ROOT),
+                    REPO_ROOT / "yitc-ops.yaml", REPO_ROOT, _adapter_list_answers=_adapter_list_answers),
                 # T-11080 (SPEC-0119 / SPEC-0152 rule 16 subject_globs): the OBSERVED half of the line above —
                 # the executable layers whose skip rate over the recent-lands window is 0%, read from the
                 # per-layer `{layer, outcome}` rows `land` ALREADY writes onto land_completed (T-9719/T-10573).

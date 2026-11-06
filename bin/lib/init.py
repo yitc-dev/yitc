@@ -474,6 +474,8 @@ def _no_write_tail(main_root, args, *, diverged, engine_cli, _append_event) -> N
                 print(block)
     _um_failed = _offer_user_memory_off(args, _P(__file__).resolve().parents[2], _P.home(),
                                         withheld=bool(diverged or registry_failed))   # T-14517
+    _um_failed = _offer_user_compaction_cue(args, _P(__file__).resolve().parents[2], _P.home(),
+                                            withheld=bool(diverged or registry_failed)) or _um_failed   # T-14535
     if diverged or registry_failed or _ls_failure or _um_failed:
         sys.exit(1)
 
@@ -9156,7 +9158,8 @@ ADAPTER_REWRITE_CAUSES = {
     "title-placeholder": "title placeholder replaced with the real project name",
     "start-block-inserted": "start-on-entry block inserted",
     "start-block-replaced": "stale start-on-entry block replaced",
-    "auto-memory-off": "provider auto-memory switched off (SPEC-1055), every other setting kept",
+    "auto-memory-off": ("provider auto-memory switched off (SPEC-1055) and the post-compaction entry "
+                        "present (SPEC-1024 rule 12), every other setting kept"),
     "auto-memory-off-unparseable": ("provider auto-memory switch NOT added — the file is not a JSON "
                                     "object; add `\"autoMemoryEnabled\": false` by hand (SPEC-1055)"),
 }
@@ -9167,29 +9170,59 @@ PROVIDER_SETTINGS_REL = ".claude/settings.json"
 _PROVIDER_MEMORY_OFF_KEY = "autoMemoryEnabled"
 
 
-def _provider_memory_off_delivery(REPO_ROOT, refresh: bool) -> tuple:
-    """T-14289 (SPEC-1055 rule 2) — what init delivers at the committed provider config.
+def _repo_compaction_entry_command(cli_form: str) -> str:
+    """T-14535 — the consumer's committed post-compaction entry: the kernel entry's shape (T-13790,
+    stdin closed, bounded, always exit 0) run through the engine binary on the provider's project dir."""
+    import shlex
+    engine = cli_form.split(" -C ", 1)[0]
+    import os
+    null = os.devnull
+    return (f"exec <{null}; YITC_COMPACTION_ENTRY=1 timeout -k 2 15 {shlex.quote(engine)} "
+            f"-C \"$CLAUDE_PROJECT_DIR\" session start --print-only 2>{null} | head -c 8192; exit 0")
 
-    Returns `(action, text)`: `("born", text)` when the file is absent (a fresh file carrying only the
-    switch); `("current", None)` when it already carries the switch off; `("rewrite", text)` under
-    `refresh` for a JSON object lacking it (every other key kept, the switch added); `("pending", None)`
-    for the same file without `refresh` (the born-vs-present boundary: PRESENT is never auto-healed
-    silently); `("unparseable", None)` for a file that is not a readable JSON object — never touched."""
+
+def _provider_memory_off_delivery(REPO_ROOT, refresh: bool, entry_cmd: "str | None" = None) -> tuple:
+    """T-14289 (SPEC-1055 rule 2) + T-14535 (SPEC-1024 rule 12) — what init delivers at the committed
+    provider config: the memory switch AND the post-compaction entry (`entry_cmd`; None = report only).
+
+    Returns `(action, text)`: `("born", text)` when the file is absent (a fresh file carrying the
+    switch and, given `entry_cmd`, the entry); `("current", None)` when it already carries the switch
+    off and a compaction group running the restoration brief; `("rewrite", text)` under `refresh` for a
+    JSON object lacking either (every other key and hook kept, what is missing added); `("pending",
+    None)` for the same file without `refresh` (the born-vs-present boundary: PRESENT is never
+    auto-healed silently); `("unparseable", None)` for a file that is not a readable JSON object, or
+    whose hooks are not of the shape the provider reads — never touched."""
     import json
     path = REPO_ROOT / PROVIDER_SETTINGS_REL
+    ev, mt = "SessionStart", "compact"
+
+    def _with_entry(data: dict) -> dict:
+        if entry_cmd is None:
+            return data
+        hooks = dict(data.get("hooks") or {})
+        hooks[ev] = list(hooks.get(ev) or []) + [_compaction_hook_group(mt, entry_cmd)]
+        data["hooks"] = hooks
+        return data
+
     if not path.exists():
-        return "born", json.dumps({_PROVIDER_MEMORY_OFF_KEY: False}, indent=2) + "\n"
+        return "born", json.dumps(_with_entry({_PROVIDER_MEMORY_OFF_KEY: False}), indent=2) + "\n"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError):
         return "unparseable", None
     if not isinstance(data, dict):
         return "unparseable", None
-    if data.get(_PROVIDER_MEMORY_OFF_KEY) is False:
+    groups = _compaction_groups(data, ev, mt)
+    if groups is None:
+        return "unparseable", None
+    has_entry = _groups_run_restoration(groups)
+    if data.get(_PROVIDER_MEMORY_OFF_KEY) is False and has_entry:
         return "current", None
     if not refresh:
         return "pending", None
     data[_PROVIDER_MEMORY_OFF_KEY] = False
+    if not has_entry:
+        data = _with_entry(data)
     return "rewrite", json.dumps(data, indent=2, ensure_ascii=False) + "\n"
 
 
@@ -9299,7 +9332,8 @@ def _ensure_consumer_vendor_adapter(REPO_ROOT, cli_form, write_text_atomic,
     # absent, added under `refresh` when present without it, else reported pending; never a rewrite of a
     # file that is not a JSON object.
     settings_path = REPO_ROOT / PROVIDER_SETTINGS_REL
-    action, text = _provider_memory_off_delivery(REPO_ROOT, refresh)
+    action, text = _provider_memory_off_delivery(REPO_ROOT, refresh,
+                                                 entry_cmd=_repo_compaction_entry_command(cli_form))
     if action == "born":
         settings_path.parent.mkdir(parents=True, exist_ok=True)
         write_text_atomic(settings_path, text)
@@ -11860,7 +11894,8 @@ def _check_ai_tool_row(key, row: dict) -> None:
         if v is not None and not (isinstance(v, list) and all(isinstance(x, str) for x in v)):
             raise ValueError(f"tool {key}: `{f}` must be a list of strings")
     for f in ("label", "command_path", "format", "invoke", "clear_session", "no_ask_launch",
-              "instructions_path", "memory_settings_path", "memory_off_key"):
+              "instructions_path", "memory_settings_path", "memory_off_key",
+              "compaction_hook_event", "compaction_hook_matcher"):
         if row.get(f) is not None and not isinstance(row.get(f), str):
             raise ValueError(f"tool {key}: `{f}` must be a string")
     reqs = row.get("prerequisites")
@@ -12245,6 +12280,218 @@ def _offer_user_memory_off(args, engine_root, home, *, withheld: bool) -> bool:
         return False
     applied = _apply_user_memory_off(rows) if (asked and not dry and not withheld) else None
     block = _render_user_memory_off(rows, asked=asked, applied=applied, dry=dry, withheld=withheld)
+    if block:
+        print(block)
+    return any(o != "written" for _l, _p, o, _d in (applied or []))
+
+
+# T-14535 (SPEC-1024 rule 12) — the post-compaction entry at USER level, for every session the person
+# starts in any folder (the home folder, then /yitc-projects, included): the repository's own entry does
+# not reach a session launched outside the repository. The binding — the user-level settings file and
+# the hook event + matcher — is implementation config in bin/ai-tools.yaml (`memory_settings_path`,
+# `compaction_hook_event`, `compaction_hook_matcher`; CHARTER §P4b). Offered on every init, written ONLY
+# on `init --apply-user-compaction-cue` (the person's yes) by the T-14517 compare-then-rename writer.
+_USER_COMPACTION_CUE_WHY = ("a session started outside a project folder (the home folder, then /yitc-projects) "
+                            "reads no project settings, so after a compaction it gets no restoration brief "
+                            "before its next action (SPEC-1024 rule 12)")
+_COMPACTION_HOOK_MARK = "--from-hook"
+
+
+def _compaction_groups(data, event: str, matcher: str):
+    """The hook groups of `data[hooks][event]` on `matcher`, or None when the shape is not a JSON
+    object / list the provider reads (then the file is never touched)."""
+    hooks = data.get("hooks", {})
+    if not isinstance(hooks, dict):
+        return None
+    groups = hooks.get(event, [])
+    if not isinstance(groups, list):
+        return None
+    return [g for g in groups if isinstance(g, dict) and g.get("matcher") == matcher]
+
+
+
+
+# The entry shape the engine writes (T-13790 kernel, T-14535 consumer + user level): the command STARTS
+# by running the engine binary on the restoration brief — a mention of the words elsewhere in a
+# command (an `echo`, a notification text) is not a delivery (audit-post fp1:00d72bb6d0604394).
+_RESTORATION_ENTRY_RE = __import__("re").compile(
+    r"""^\s*(?:exec\s+<\S+;\s*)?YITC_COMPACTION_ENTRY=\S+\s+timeout\s+(?:-k\s+\d+\s+)?\d+\s+"""
+    r"""(?:"[^"]*/yitc-v2"|'[^']*/yitc-v2'|\S*/yitc-v2)"""
+    r"""(?:\s+-C\s+(?:"[^"]*"|'[^']*'|\S+))?\s+session\s+start\s+--print-only(?:\s|$)""")
+
+
+def _groups_run_restoration(groups) -> bool:
+    """True when one of the hook groups runs the engine's restoration brief, by the entry's own
+    executable shape (not just any hook on the compaction matcher, and not a command that merely
+    mentions the brief — a person's own notification hook there prints no brief)."""
+    return any(_RESTORATION_ENTRY_RE.match(str(h.get("command", ""))) for g in groups
+               for h in (g.get("hooks") or []) if isinstance(h, dict))
+
+
+def settings_have_compaction_entry(path, event: str = "SessionStart", matcher: str = "compact",
+                                   restoration_only: bool = True) -> bool:
+    """True when the settings file at `path` is a JSON object whose hook groups on `matcher` under
+    `event` run the restoration brief (`restoration_only`, the default) — or hold any group there
+    when it is False. Any read/parse failure answers False."""
+    from pathlib import Path
+    import json
+    try:
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    groups = _compaction_groups(data, event, matcher) or []
+    return _groups_run_restoration(groups) if restoration_only else bool(groups)
+
+
+def user_compaction_entry_installed(engine_root, home, kind: str) -> "bool | None":
+    """T-14548 (SPEC-1024 rule 12): is the user-level post-compaction entry for AI tool `kind` installed
+    in HOME's settings AND does it run THIS engine's restoration brief? None when the tool has no
+    user-level entry known to the engine (no row, or the row lacks the settings path / hook pair);
+    False on any read/parse failure or a shape the tool does not read. Read-only."""
+    from pathlib import Path
+    import json
+    row = _load_ai_tools(engine_root, home).get(kind) or {}
+    rel, ev, mt = (row.get("memory_settings_path"), row.get("compaction_hook_event"),
+                   row.get("compaction_hook_matcher"))
+    if not rel or not ev or not mt:
+        return None
+    try:
+        data = json.loads((Path(home) / rel).read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    import re
+    eng = re.compile(r"""(?:^|[\s'"])""" + re.escape(str(Path(engine_root).resolve() / "bin" / "yitc-v2"))
+                     + r"""(?:[\s'"]|$)""")
+    return any(_RESTORATION_ENTRY_RE.match(str(h.get("command", ""))) and eng.search(str(h.get("command", "")))
+               for g in (_compaction_groups(data, ev, mt) or []) for h in (g.get("hooks") or [])
+               if isinstance(h, dict))
+
+
+def _compaction_hook_group(matcher: str, command: str) -> dict:
+    """One hook group in the provider's settings shape — the kernel entry's bounds (T-13790)."""
+    return {"matcher": matcher, "hooks": [{"type": "command", "timeout": 30, "command": command}]}
+
+
+def _user_compaction_cue_command(engine_root) -> str:
+    """The user-level entry command: the engine finds the session's project from the hook input on
+    stdin (Python only, never a shell), bounded in time and output, always exit 0."""
+    from pathlib import Path
+    import os
+    import shlex
+    eng = shlex.quote(str(Path(engine_root).resolve() / "bin" / "yitc-v2"))
+    return (f"YITC_COMPACTION_ENTRY=user timeout -k 2 15 {eng} session start --print-only "
+            f"{_COMPACTION_HOOK_MARK} 2>{os.devnull} | head -c 8192; exit 0")
+
+
+def _user_compaction_cue_state(engine_root, home) -> list:
+    """Read-only: one row per present AI tool (none detected: the `default` row), in the
+    `_user_memory_off_state` shape. `state`: `current` (a group on the compaction matcher already runs
+    the restoration brief) · `pending` (`new` = the object with the entry's group appended beside any
+    other hook there, every other key kept) · `unparseable` · `no-setting`."""
+    from pathlib import Path
+    import json
+    home = Path(home)
+    tools = _load_ai_tools(engine_root, home)
+    chosen = [(k, r) for k, r in tools.items() if _ai_tool_present(r, home)] \
+        or [(k, r) for k, r in tools.items() if r.get("default")]
+    cmd = _user_compaction_cue_command(engine_root)
+    rows = []
+    for key, row in chosen:
+        label = row.get("label") or key
+        rel, ev, mt = (row.get("memory_settings_path"), row.get("compaction_hook_event"),
+                       row.get("compaction_hook_matcher"))
+        if not rel or not ev or not mt:
+            rows.append({"label": label, "path": None, "state": "no-setting", "old": None, "new": None})
+            continue
+        path = home / rel
+        r = {"label": label, "path": path, "key": f"hooks.{ev}[{mt}]", "state": "unparseable",
+             "old": None, "new": None}
+        rows.append(r)
+        try:
+            old = path.read_bytes() if path.exists() else None
+        except OSError as e:
+            r["error"] = str(e)
+            continue
+        r["old"] = old
+        data = {}
+        if old is not None:
+            try:
+                data = json.loads(old.decode("utf-8"))
+            except (UnicodeDecodeError, ValueError):
+                continue
+            if not isinstance(data, dict):
+                continue
+        groups = _compaction_groups(data, ev, mt)
+        if groups is None:
+            continue
+        if _groups_run_restoration(groups):
+            r["state"] = "current"
+            continue
+        hooks = dict(data.get("hooks") or {})
+        hooks[ev] = list(hooks.get(ev) or []) + [_compaction_hook_group(mt, cmd)]
+        out = dict(data)
+        out["hooks"] = hooks
+        r["state"], r["new"] = "pending", (json.dumps(out, indent=2, ensure_ascii=False) + "\n").encode("utf-8")
+    return rows
+
+
+def _render_user_compaction_cue(rows, *, asked: bool, applied=None, dry: bool = False,
+                                withheld: bool = False) -> str:
+    """The user-level post-compaction part of init's recommended answers (the T-14517 shape)."""
+    import os
+    if not rows:
+        return ""
+    out = ["", "Restoration brief after a compaction, for sessions started in any folder:",
+           f"  why: {_USER_COMPACTION_CUE_WHY}"]
+    res = {str(p): (o, d) for _l, p, o, d in (applied or [])}
+    any_pending = False
+    for r in rows:
+        lab, st = r["label"], r["state"]
+        if st == "no-setting":
+            out.append(f"  - {lab}: this tool has no user-level post-compaction entry known to the engine — nothing to set")
+        elif st == "unparseable":
+            out.append(f"  ! {lab}: {r['path']} is not a JSON object whose hooks the tool reads"
+                       + (f" ({r['error']})" if r.get("error") else "") + " — NOT touched")
+        elif st == "current":
+            out.append(f"  = {lab}: already set in {r['path']}")
+        else:
+            any_pending = True
+            o = res.get(str(os.path.realpath(r["path"]))) if applied is not None else None
+            line = (f"add the {r['key']} entry running `session start --print-only {_COMPACTION_HOOK_MARK}` "
+                    f"to {r['path']} (every other setting kept; the file is re-written as indented JSON)")
+            if o and o[0] == "written":
+                out.append(f"  + {lab}: APPLIED (the person's yes, --apply-user-compaction-cue) — {line}; "
+                           f"bound: {_USER_MEMORY_OFF_BOUND}")
+            elif o:
+                out.append(f"  ! {lab}: NOT applied — {o[1]}; re-run init with --apply-user-compaction-cue")
+            elif asked and dry:
+                out.append(f"  ~ {lab}: WOULD BE APPLIED by a writing run (this is a --dry-run) — {line}")
+            elif asked and withheld:
+                out.append(f"  ~ {lab}: NOT applied — this init run refused (see above) — {line}")
+            else:
+                out.append(f"  ~ {lab}: recommended, NOT applied — nothing is written without the person's yes — {line}")
+    if any_pending and not asked:
+        out.append("  An AI running init: relay this to the person. On their yes, re-run init with "
+                   "--apply-user-compaction-cue.")
+    return "\n".join(out)
+
+
+def _offer_user_compaction_cue(args, engine_root, home, *, withheld: bool) -> bool:
+    """The init call site (beside `_offer_user_memory_off`): show the offer, write only on the yes.
+    Returns True when a yes'd write failed (init then exits non-zero)."""
+    dry = bool(getattr(args, "dry_run", False))
+    asked = bool(getattr(args, "apply_user_compaction_cue", False))
+    try:
+        rows = _user_compaction_cue_state(engine_root, home)
+    except Exception as e:  # noqa: BLE001 — a bad tool list must not stop init
+        print(f"\nPost-compaction entry: not checked — {e}")
+        return False
+    applied = _apply_user_memory_off(rows) if (asked and not dry and not withheld) else None
+    block = _render_user_compaction_cue(rows, asked=asked, applied=applied, dry=dry, withheld=withheld)
     if block:
         print(block)
     return any(o != "written" for _l, _p, o, _d in (applied or []))
@@ -13870,6 +14117,8 @@ def cmd_init(args: argparse.Namespace, *, CONSUMER_VERIFY_CONTRACT, ENGINE_ROOT,
     # shown on every init, written only under `--apply-user-memory-off`, never by a refused run.
     from pathlib import Path as _P
     _um_failed = _offer_user_memory_off(args, ENGINE_ROOT, _P.home(), withheld=_ls_withheld)
+    # T-14535 — the user-level post-compaction entry, the same offer shape.
+    _um_failed = _offer_user_compaction_cue(args, ENGINE_ROOT, _P.home(), withheld=_ls_withheld) or _um_failed
 
     # T-12632 (X-1004) — the sandbox-runbook pointer. Printed on every init (incl. the no-op
     # re-init), UNCONDITIONALLY: the project that has never declared a sandbox concern is exactly

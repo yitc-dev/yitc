@@ -300,6 +300,13 @@ first-scenario interview → from the scenario to work.**
    says yes: on a yes, re-run init with `--apply-load-settings`, or run only the lines they agree
    to. A host that already set any of these settings is left as it is: init shows its values and
    recommends nothing.
+   The same output also carries two offers for the person's user-level AI tool settings, which every
+   session reads in any folder: switching the tool's own assistant memory off for sessions started
+   outside a project (`--apply-user-memory-off`, SPEC-1055 rule 2), and the restoration brief after a
+   compaction for sessions started in any folder, such as the home folder and the project picker
+   (`--apply-user-compaction-cue`, SPEC-1024 rule 12). Relay each offer to the person with the reason
+   init prints for it. Nothing is written until the person says yes: on a yes, re-run init with that
+   offer's flag. An offer already in place is shown as already set.
 3. **Auditor activation (mandatory, before the first project's work).** The AI explains, in plain
    words, why a second mind checks the work — a different AI catches the mistakes and blind spots
    the first one cannot see in itself — recommends a **different provider**, and walks the binding

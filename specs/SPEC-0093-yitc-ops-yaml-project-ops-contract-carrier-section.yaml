@@ -1291,5 +1291,5 @@ implements_signature:
   bin/lib/init.py#_inject_nested_subfield: 105851197d6f39cf750d5575a3d752f05406947e932653f130297c1ac40b8a42
   bin/lib/init.py#_integrity_graph_for_commit: 10ed757dd5ca1c461a0922f799e12994807de506e6a23b764b3f1b750d449b63
   bin/lib/init.py#_ops_born_nested_fragment: 259256bb15f73001855dccabc0bd46ff906869e09131f1d852a6398ecb91d8d7
-  bin/lib/init.py#cmd_init: b3f20b0d831604a66942c4225d7ec67a357fbcf9e1bf8af9a469e4e4ca9974bc
+  bin/lib/init.py#cmd_init: dfd018d07767dad02fc48b3ed2532315cb1f12f7f67355d95f4e973c5f4b213c
   bin/lib/worktree.py#_any_author_land_floor: 0043829235509924a5949f7b0b03d611b3ebdc978311a2aa22d78172cc1372cc

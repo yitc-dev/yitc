@@ -1076,7 +1076,7 @@ implements_signature:
   bin/lib/venue.py#read_record: f1629b1c5e2e8add73bf1e067b15eef287a1c96a45b0c7322e85800b3e49e01f
   bin/lib/venue.py#resolve_record_path: 231f50071cfee672ad49319cf14cc522e92e7513c49953e5b588350662a0b64b
   bin/lib/venue.py#teardown_refresh: 3ef38e26cfece1075edaa9a19bccdbfc0176b990b6b15e1d79183968cb627d84
-  bin/lib/venue.py#write_record: 4081dc2ee4b5a9e14c85d760564e3013d083bd364ac1a429951cc5ebadfcadc2
+  bin/lib/venue.py#write_record: 7912907c3306fb349ce5bfb0ebf1ffcc198646ed643abc23c8c163afc54e074e
   bin/lib/verify_runner.py#_land_overlap_seconds: 5a7e9378c9c153cb27517ec615e6214f9460b2dd8cc300def6d93a80b4cdd6de
   bin/lib/verify_runner.py#_run_verify_tests: 229f02797e7a9da0c793733501d7565ac3283a02bde52335426fca6de4f622e5
   bin/lib/verify_runner.py#_verify_child_nice: bd6501ab38d4dc8c8fbdf9a4eeab9e01b6ad05d703e24f01dda86402a3f22731

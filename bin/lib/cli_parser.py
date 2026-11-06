@@ -365,6 +365,14 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                             "it init only prints the recommendation. Every other setting in that file is "
                             "kept; a file that is not a JSON object, or that sets the key itself, is "
                             "never touched.")
+    # T-14535 (SPEC-1024 rule 12) — the person's YES to the user-level post-compaction entry.
+    initp.add_argument("--apply-user-compaction-cue", dest="apply_user_compaction_cue", action="store_true",
+                       help="add the post-compaction entry to the AI tool's USER-level settings file "
+                            "(event and matcher from bin/ai-tools.yaml), so a session started in any "
+                            "folder gets its restoration brief after a compaction. This flag is the "
+                            "person's yes: without it init only prints the recommendation. Every other "
+                            "setting is kept; a file that is not a JSON object, or that holds its own "
+                            "post-compaction entry, is never touched.")
     # T-14463 (SPEC-0086 rule 6f(d) step 1) — the person's language, recorded once so a fresh session
     # in any folder starts in it.
     def _person_language(v):   # the rule's one home is init._person_language_arg (imported at use)
@@ -1649,7 +1657,10 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "route is the --old/--new superset above. Emits ONE task_amended(field_edit). Its own "
                          "mode; refused on done/wont-do cards EXCEPT for answers, and probe_moments on a DONE card "
                          "as a RE-ARM: only criteria whose probe is still `deferred` may change, no "
-                         "recorded moment may be dropped, --reason is required (T-14476, SPEC-1008).")
+                         "recorded moment may be dropped, --reason is required (T-14476, SPEC-1008). On a "
+                         "LIVE card, probe_moments with --reason is a WITHDRAWAL: the value keeps the moments to "
+                         "keep, unchanged, and drops at least one (`{}` drops all and removes the field); the "
+                         "reason and the withdrawn criteria ride the task_amended row (T-14541).")
     tu.add_argument("--from-file", dest="from_file", metavar="PATH",
                     help="with --replace-acceptance / --set-field ONLY: read the value from PATH "
                          "(`-` = stdin), so argv quoting never touches it; "
@@ -3454,6 +3465,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "(what you were, what you hold, what was pending, what to do now — SPEC-1024) "
                          "and stop. It stamps NOTHING — no seed receipt, no session_started anchor; the "
                          "stamping `session start` still follows your seed re-read.")
+    ss.add_argument("--from-hook", dest="from_hook", action="store_true",
+                    help="with --print-only, for the USER-level post-compaction entry only (T-14535, "
+                         "SPEC-1024 rule 12): read the provider's hook input on stdin, find the "
+                         "session's yitc-v2 project from it, and print that project's brief; print "
+                         "nothing and exit 0 for a session that is not a yitc-v2 one.")
     # T-13371: `cli_invoked_self` — the verb writes its OWN measured invocation record (the `cli:seed`
     # receipt, `cmd_session_start`), so `main` adds none; the read-contract tripwire reads the marker.
     ss.set_defaults(func=cmd_session_start, read_only_admit=RO_EVIDENCE,   # D-0049: auto-syncs (default-on)
@@ -3629,6 +3645,11 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                           "sessions that worked it — which transcripts were read, which refs had no file — "
                           "each mapped to a registry item or a plan rule as a CANDIDATE, with the unmapped "
                           "words and the reversals. Read-only: writes nothing, refuses nothing.")
+    dsh.add_argument("--earlier-tag", action="append", default=[], metavar="TAG",
+                     help="T-14538 (SPEC-1058 §2): with --owner-words, also read the life of an earlier "
+                          "spike tag the prototype was copied from (repeatable) — its declaring session, "
+                          "its branch and its period. Needed because a declaring row records no tag it "
+                          "was copied from; each tag read is named in the output.")
     dsh.set_defaults(func=cmd_plan_show)
 
     # T-1134 — scenario authoring verb-namespace (the analog of `spec new` / `plan file` + `plan show`
@@ -4232,6 +4253,17 @@ def build_parser(*, EFFORT_TIERS, PAUSE_REASONS, PLACEMENT_REALMS, PLAN_CONSULT_
                          "journal rows with land's dedup. A non-union conflict stays open for "
                          "`--resolved`. The main-measured pre-flight phases do not run; a plain "
                          "`worktree sync` or `land` still runs them. Not combinable with --resolved.")
+    wy.add_argument("--hold", action="store_true",
+                    help="HOLD A CLEAN MERGE OPEN (T-14545, SPEC-1018 «Post-GREEN merge integration»). "
+                         "Merges main without committing: when git finds no conflict the merge is LEFT "
+                         "IN PROGRESS and nothing is committed, so an integration edit the clean merge "
+                         "needs (a re-chained migration, a moved reference) goes INTO the merge. Edit, "
+                         "`git add`, then finish with `worktree sync --resolved`, which records a "
+                         "`merge_resolved_by_hand` row in mode clean-edit (resolved: [] proved by "
+                         "`git merge-tree`). A conflicting merge stays open exactly as without --hold. "
+                         "Refuses uncommitted changes main also touched (they are not carried). Not "
+                         "combinable with --resolved or --from. Replaying an already-committed clean "
+                         "merge: `graph query rare-task-recovery-recipes`.")
     wy.set_defaults(func=cmd_worktree_sync, cli_invoked_receipt="worktree sync")  # T-13071: attempt receipt
 
     work = sub.add_parser("work", help="Non-task work-batch operations (D-0051)")

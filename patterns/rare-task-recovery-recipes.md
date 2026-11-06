@@ -2,22 +2,23 @@
 name: rare-task-recovery-recipes
 class: discipline
 sourced_from: 'QUEUE.md §State transitions, moved here verbatim by under patterns/methodology-lessons.md Lesson 13 (a relocated rare branch keeps an index line and a help-head pointer)'
-applies_to: 'two rare task states — the owner parks a task whose Stage-8 audit-post is RED; a task was closed before its land-verify passed, so its closure sits on an un-integrated branch'
+applies_to: 'three rare task states — the owner parks a task whose Stage-8 audit-post is RED; a task was closed before its land-verify passed, so its closure sits on an un-integrated branch; a clean sync merge was committed before the integration edit it needed '
 ---
 
-# Rare task recovery recipes — parking on a RED audit-post, and a task closed before its land
+# Rare task recovery recipes — parking on a RED audit-post, a task closed before its land, and replaying a clean merge
 
 > **How-to, not a rule.** The task state model — the transitions, the verb routes, waiting on the
 > owner, «a LANDED done card has no reopen — file a new task» and the ban on hand-editing a done
 > card's status — stays in `QUEUE.md` §State transitions. This file carries the two recipes that
-> section names by its cue lines; each reuses existing verbs and adds no gate. A session meets a
+> section names by its cue lines, plus the replay recipe `worktree sync --hold` points at; each reuses
+> existing verbs and adds no gate. A session meets a
 > pointer here at the moment of need: the QUEUE cue line, the refusal of the verb that blocked it
 > (`task commit` on a done card or over a dirty audit-post record, `worktree park` over a closed
 > branch), and the first lines of the acting verb's help. Search this file for the bold lead the
 > pointer names. «points here» in the rework recipe means this file. A new edge case of either
 > recipe is written here.
 
-## The two recipes
+## The recipes
 
 **Park-mid-audit land path (X-0118):** when a task is parked mid-audit — its Stage-8 audit-post is RED (e.g. a kernel-gap false-RED) and the owner parks it rather than forcing a GREEN that does not exist — closure is unavailable (`task close` is RED-blocked) and a standalone `task commit` is refused (`_audit_commit_shift_hazard`). So `bin/yitc-v2 task update --status parked`, when run inside a writing worktree that carries a dirty RED audit record, **self-commits its park record and folds the dirty `decisions/<tid>-audit-(post|consult-*).yaml`** (scoped staging — task YAML + events.jsonl + the task's own audit/consult records only). That leaves the worktree land-clean, so `bin/yitc-v2 land --task T-XXXX` integrates the parked bookkeeping to main with `status: parked` intact (land has no audit/closure RED-gate for a NON-terminal card — the GREEN-gate lives only in `task close`; the ONE exception is a TERMINAL `status: wont-do` card whose branch carries authored content no GREEN/YELLOW audit-post covers: `land` refuses it `wont-do-unaudited-ship` — revert the ship on the branch, or `worktree park` + a new card — because nothing returns to re-audit what a wont-do card ships / <project>). This is the park sibling of the `task pause` and `task update --status wont-do` self-commits. A plain park with no dirty audit record is unchanged (NON-terminal — it rides a later/batch commit).
 
@@ -26,3 +27,11 @@ applies_to: 'two rare task states — the owner parks a task whose Stage-8 audit
 - **DISCARD + RE-CLAIM (when the branch is not worth keeping):** **`worktree park`** (tears down branch+worktree, discarding the premature closure) then **re-claim via `worktree new --task`** — chain-of-custody stays clean.
 
 **Leaving a spent GREEN at the audit-loop ceiling** is not a recipe of this file: every exit, with when it is admitted and its guard, is one row of the table in SPEC-1018 «Exits from a spent GREEN» (`bin/yitc-v2 graph query SPEC-1018`).
+
+**Replay an already-committed clean sync merge through the held-clean path (X-2289):** a plain `worktree sync` committed a CLEAN merge from main at once, and the merge needed an integration edit git could not see (two parallel migrations, each its own file, now two heads), so the edit sits uncommitted on top and has no door: `--resolved` needs an open merge, a later commit is refused `head_not_a_merge`. While that merge is NOT on `main` (unpublished), re-do it through `worktree sync --hold` without losing the edit or a journal row. In the worktree, with no merge in progress (`M` = the clean merge, `P1` = `M^1`, `S` = your session scratch dir, `<edit paths>` = every path of the integration edit, new files included):
+1. `git merge-base --is-ancestor $M main` must FAIL (published → stop, file a card instead); `git update-ref refs/yitc/replay/<T> HEAD` keeps the old line reachable.
+2. `git rev-list --reverse $M..HEAD` lists the commits ABOVE the merge; each must be record-only (card, its own audit records, `events.jsonl`) — anything else → stop.
+3. The replay saves only the edit and the journal, so it STOPS unless nothing else is local. `git add -N <new edit files>`; then `git diff --name-only HEAD` must list only `<edit paths>` and `events.jsonl` (any other dirty tracked path — the card, an audit record: commit it with its own verb or set it aside first), and `git status --porcelain --ignored --untracked-files=all | grep -E '^(\?\?|!!) '` must print NOTHING: every untracked or ignored path left — a local config, a cache, a whole directory — is at the reset's mercy, so move it out of the worktree first (a regenerable cache may simply be deleted). Then `git diff --binary HEAD -- <edit paths> > $S/edit.patch`; `cp events.jsonl $S/events.jsonl`.
+4. `git reset -q --hard $P1`; `rm -f <new edit files>`; `git cherry-pick <each commit of step 2, oldest first>`; `cp $S/events.jsonl events.jsonl` (every row kept; the hold's fold commits it, main's rows union-merge).
+5. `yitc-v2 worktree sync --hold --task <T>` (the merge is open, nothing committed); `git apply --index --3way $S/edit.patch`; `yitc-v2 worktree sync --resolved --task <T>` — the merge is recorded in mode clean-edit.
+6. Continue the card's own route: `task test --run --evidence` at the new HEAD, then `audit post --task <T>` (SPEC-1018 «Exits from a spent GREEN»). The old merge's `worktree_synced` row stays in the journal as history; the walk reads only the merges in HEAD. A NEXT clean merge that needs an edit skips steps 1-4: `worktree sync --hold`, edit, `git add`, `--resolved`. Proof: `tests/test_t14545_clean_edit_merge.py`.

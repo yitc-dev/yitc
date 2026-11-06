@@ -2234,7 +2234,37 @@ def _plan_prototype_registry(body: str) -> "tuple[str | None, list, str | None]"
             return owner_read, [], f"{where}: `owner_row` must be a non-empty locator when present"
         if it["disposition"] == "not-carried" and orow is None:
             return owner_read, [], f"{where}: a `not-carried` item must cite its `owner_row`"
+        if "owner_risk" in it:   # T-14533 — the owner-risk marker IS its own owner row (SPEC-1058 §2)
+            risk = it.get("owner_risk")
+            if not isinstance(risk, str) or not _PROTO_OWNER_REF_RE.match(risk.strip()):
+                return owner_read, [], (f"{where}: `owner_risk` must be the owner's row, an "
+                                        f"`events.jsonl#ts=<ISO>` locator")
+            if it["disposition"] != "carry":
+                return owner_read, [], f"{where}: `owner_risk` marks a `carry` item only"
     return owner_read, items, None
+
+
+def _plan_prototype_owner_risk_rows(items: list, events_path) -> dict:
+    """T-14533 (SPEC-1058 §2) — resolve every owner-risk marker: {item id: {"loc", "row_text"}}, where
+    `row_text` is the owner's verbatim words of the `owner_directive` row at the locator's ts (redacted
+    at write, SPEC-0163 §4e) or None when no such row exists. The kernel checks only that the row is
+    real; whether its words accept THIS item's risk is the accept check's judgement. Reads the journal
+    once, through the segment-aware reader, and only when some item is marked."""
+    marked = [(str(it["id"]), str(it["owner_risk"]).strip()) for it in items
+              if isinstance(it, dict) and it.get("owner_risk")]
+    if not marked:
+        return {}
+    texts: dict = {}
+    tss = sorted(loc.split("#ts=", 1)[1] for _iid, loc in marked)
+    if events_path is not None and Path(events_path).exists():
+        # the owner-words view's own segment-aware reader (SPEC-0190 rule 4), bounded to the markers' span
+        for r in _ow_period_rows(events_path, tss[0], tss[-1]):
+            if r.get("type") != "owner_directive":
+                continue
+            d = r.get("data") if isinstance(r.get("data"), dict) else {}
+            words = str(d.get("owner_text") or d.get("text") or "").strip()
+            texts.setdefault(_ow_ts(r.get("ts")), words or "(the owner row carries no words)")
+    return {iid: {"loc": loc, "row_text": texts.get(loc.split("#ts=", 1)[1])} for iid, loc in marked}
 
 
 def _plan_prototype_git(repo_root, *args) -> "tuple[str | None, str | None]":
@@ -2378,7 +2408,7 @@ def _ow_period_rows(events_path, start: str, end: str) -> list:
 
 
 def owner_words_reconciliation(repo_root, slug: str, fm: dict, body: str, *, events_path,
-                               resolve_transcript) -> dict:
+                               resolve_transcript, earlier_tags=()) -> dict:
     """SPEC-1058 §2 — the read-only owner-words reconciliation for a plan opted in to the carry
     registry. `resolve_transcript(ref) -> [Path]` is the kernel's existing transcript resolution (the
     cli seam injects it). Returns a dict the renderer prints; writes nothing, raises nothing on an
@@ -2399,13 +2429,29 @@ def owner_words_reconciliation(repo_root, slug: str, fm: dict, body: str, *, eve
         return rec
     rounds = [(ann.get("declared_row_ts", ""), ann.get("declared_session_ref", ""),
                ann.get("branch", ""), tag)]
+    # T-14538: a declaring row records no tag it was copied from, so an earlier round the owner NAMES
+    # (`--earlier-tag`) is read as a round of the same life: its declaring session, its branch, and the
+    # life from its declaring row. Only named tags are followed; a tag with no readable declaring-row
+    # annotation is a fault, never guessed.
+    named = []
+    for et in dict.fromkeys(str(t).strip() for t in (earlier_tags or ()) if str(t).strip()):
+        if et == tag:
+            continue
+        eann, ecommit, _ = _ow_annotation_commit(repo_root, et)
+        if not eann or not eann.get("declared_row_ts") or not ecommit:
+            rec["faults"].append(f"--earlier-tag `{et}` has no readable declaring-row annotation — "
+                                 "not read (nothing is guessed)")
+            continue
+        named.append(et)
+        rounds.append((eann.get("declared_row_ts", ""), eann.get("declared_session_ref", ""),
+                       eann.get("branch", ""), et))
     # Only the prototype's OWN declaring row is followed: no journal row links one spike round to the
     # next, and commit ancestry cannot tell a continued round from a spike merged into the branch. An
     # ancestral spike tag absent from `main` is therefore LISTED for the owner, never read.
     rec["unfollowed"] = []
     for other in si._git(repo_root, "for-each-ref", "--format=%(refname:short)", "refs/tags/spike/",
                          check=False).split():
-        if other == tag:
+        if other == tag or other in named:
             continue
         _oann, ocommit, _ = _ow_annotation_commit(repo_root, other)
         if not ocommit:
@@ -2529,7 +2575,7 @@ def render_owner_words(rec: dict) -> str:
     if rec.get("unfollowed"):
         out.append("  NOT READ — spike tags inside the prototype's history and absent from main (an earlier "
                    "round or a merged spike; no row links them, so the owner decides whether to read them "
-                   "with their own plan): " + ", ".join(rec["unfollowed"]))
+                   "with their own plan, or name it with `--earlier-tag <tag>`): " + ", ".join(rec["unfollowed"]))
     out.append("  transcripts read:")
     out += [f"    - {ref}: {path} — {how}" for ref, path, how in rec["read"]] or ["    (none)"]
     out.append("  refs with no transcript file:")
@@ -2604,6 +2650,8 @@ def _plan_prototype_read(repo_root, fm: dict, body: str, events_path=None) -> di
     if fault:
         res["fault"] = fault
         return res
+    res["owner_risk"] = _plan_prototype_owner_risk_rows(
+        res["items"], events_path if events_path is not None else Path(repo_root) / "events.jsonl")
     res["tip"], res["base"], fault = _plan_prototype_commits(repo_root, fm)
     if fault:
         res["fault"] = fault
@@ -2760,6 +2808,7 @@ def _plan_prototype_packet(repo_root, fm: dict, body: str, read: dict, *, entrie
         "`what`, `locators` or `disposition` after it, and every `not-carried` item, cites an "
         f"`owner_row`. The kernel's list checks, computed for this packet: the list parses; {floor}. "
         "The meaning is yours.\n\n")
+    question += _plan_prototype_owner_risk_block(read.get("owner_risk") or {})
     rng = f"`git diff -M {read['base'][:12]}...{read['tip'][:12]}`"
     if part == "whole":
         listing = "\n".join(_proto_entry_line(e) for e in all_entries) or "(no changed paths)"
@@ -2792,6 +2841,30 @@ def _plan_prototype_packet(repo_root, fm: dict, body: str, read: dict, *, entrie
     body_diff = "".join(e["text"] for e in full)
     out += f"### Base diff {rng} (every path not listed above, in full)\n\n```diff\n{body_diff}```\n"
     return out
+
+
+def _plan_prototype_owner_risk_block(risk: dict) -> str:
+    """T-14533 (SPEC-1058 §2-§3) — the accept question's binding paragraph for owner-risk items, with
+    the owner's own words of each cited row. Empty for a registry with no marked item, so that packet
+    stays byte-identical."""
+    if not risk:
+        return ""
+    rows = []
+    for iid in sorted(risk, key=lambda rid: int(rid[2:])):
+        r = risk[iid]
+        words = (f"owner's words: «{r['row_text']}»" if r["row_text"] is not None else
+                 "UNRESOLVED — no `owner_directive` row at this ts; `plan stage accepted` refuses it")
+        rows.append(f"- {iid} · owner_risk {r['loc']} · {words}")
+    return ("Owner-risk items (SPEC-1058 §2 — the owner's own decision; binding on this verdict):\n\n"
+            + "\n".join(rows) + "\n\n"
+            "For an item whose cited owner words accept, for THAT item, that its open detail is decided "
+            "while building on main and checked by the owner in a sandbox raised from landed main, the "
+            "absence of trial evidence and the undecided detail are EXPECTED and are NEVER a finding or a "
+            "RED. Judge the DECLARATION instead: (a) the item is named; (b) the cited owner words really "
+            "accept that risk for that item — words about another subject, a mere preference, no words or "
+            "an UNRESOLVED row make the marker a finding, and the item is then judged as unmarked; (c) the "
+            "verification route after land is the verifier's walk on landed main with any fix by the "
+            "SPEC-0205 rule 7 acceptance-finding route. An unmarked item is judged exactly as before.\n\n")
 
 
 def _plan_prototype_slices(read: dict, room: int, fm: dict) -> "tuple[list, str | None]":
@@ -2847,6 +2920,13 @@ def _require_plan_prototype_at_accept(slug: str, fm: dict, body: str, av: dict, 
     if read["fault"]:
         _die(f"{slug}: plan stage accepted refused — the prototype carry registry: {read['fault']} "
              f"(SPEC-1058 §2). Fix the plan, then re-run `yitc-v2 plan check {slug}`.")
+    unresolved = [f"{iid} (owner_risk {r['loc']})" for iid, r in (read.get("owner_risk") or {}).items()
+                  if r["row_text"] is None]
+    if unresolved:
+        _die(f"{slug}: plan stage accepted refused — owner-risk item(s) whose owner_risk resolves to no "
+             f"`owner_directive` row in the journal: {', '.join(unresolved)}. Only the owner's own row "
+             f"marks an item owner-risk (SPEC-1058 §2): record it, or drop the marker, then re-run "
+             f"`yitc-v2 plan check {slug}`.")
     rec_tip, rec_base = str(av.get("prototype_commit") or ""), str(av.get("prototype_base") or "")
     if not rec_tip or not rec_base:
         _die(f"{slug}: the recorded `plan check` verdict carries no prototype_commit/prototype_base — it "
@@ -5017,7 +5097,8 @@ def cmd_plan_show(args: argparse.Namespace, *, IDEAS_DIR, PLANS_DIR, PLAN_STAGE_
         return
     if getattr(args, "owner_words", False):
         # T-14520 (SPEC-1058 §2): the owner-words reconciliation before the read-back — a view only.
-        sys.stdout.write(render_owner_words(_owner_words(slug, fm, body)))
+        sys.stdout.write(render_owner_words(_owner_words(slug, fm, body,
+                                                         getattr(args, "earlier_tag", None) or [])))
         return
     status = fm.get("status") or "draft"
     print(f"plan {slug} — {title}")

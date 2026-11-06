@@ -151,6 +151,6 @@ proposed_by: task-burn-in-soak-period-post-closure-observation-
 binding:
 - stage-entry:Closure
 implements_signature:
-  bin/lib/task.py#cmd_task_close: 866f91d43ac93a5926bc3f821035385ac2e6a946ab74a332b4e367d018b47d45
+  bin/lib/task.py#cmd_task_close: e99f65b3c341f14eb1a08e79aceab2186911076b79265fb79b83951da171169a
   bin/lib/task_closure_evidence.py#_post_verification_gap: 80836ae11dd9ceadd8a1fbc5a57cca0ea0f8b888e45b447f49c843aeed3df502
   tasks/_template.yaml: e0581df32a513ee7d63a42cc789597adc4b7395ed4a2f54db8ada1a39d80380c

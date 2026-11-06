@@ -1,6 +1,6 @@
-# Release v2.28.0
+# Release v2.29.0
 
-Source commit: `d0661c55fa7523a0fc803ee21e826b651ffd7840`
+Source commit: `b91aea9677cc0beee11d71d6251710500e1c66fa`
 
 ## Proposals this release answers
 
@@ -246,34 +246,27 @@ No kernel spec became active since the previous release tag. No opt-in key was a
 
 ## What changed
 
-26 task(s) closed since the previous release tag, in close order:
+19 task(s) closed since the previous release tag, in close order:
 
-- T-14498 — Tell the person at the install briefing that the AI tool can run without asking per command, why, when it is safe, and the exact launch command (docs) — events.jsonl#ts=2026-11-04T08:42:52Z
-- T-14499 — Check the chosen project stack's system packages before the first dispatch and hand the person every sudo install as one terminal block (docs) — events.jsonl#ts=2026-11-04T09:13:18Z
-- T-14510 — Have the person grant their own full working rights right after init, and let the monthly production-readiness review propose what to take back (docs) — events.jsonl#ts=2026-11-04T10:44:02Z
-- T-14504 — Name the same-commit re-audit route in the card-repair refusal for a zero-ship-diff card (fix) — events.jsonl#ts=2026-11-04T17:09:12Z
-- T-14500 — Admit a clean governed sync merge between the GREEN and the hand-resolved merge in the merge-integration re-audit (fix) — events.jsonl#ts=2026-11-04T17:30:53Z
-- T-14502 — Make the spec re-sign that task close offers custody-safe at land, or stop offering it after the audit (fix) — events.jsonl#ts=2026-11-04T18:05:38Z
-- T-14515 — Let a project declare deploy targets (acceptance first) while its production deploy stays waived (fix) — events.jsonl#ts=2026-11-04T18:20:08Z
-- T-14503 — Stop a green own-tests run from leaving an earlier red layer log under the same name (fix) — events.jsonl#ts=2026-11-04T18:37:50Z
-- T-14513 — Give a project that is born without tests its adapter-backed tests layer when its first tests land, run by the project's own interpreter (fix) — events.jsonl#ts=2026-11-04T19:07:05Z
-- T-14512 — Serve free-text journal query --grep from the per-segment journal index instead of folding every segment (infra) — events.jsonl#ts=2026-11-04T19:21:41Z
-- T-14497 — Make every public commit the kernel pushes carry the release identity, and put that identity in the consented publication package (fix) — events.jsonl#ts=2026-11-04T19:37:30Z
-- T-14516 — Label acceptance items AC1..ACn at task file so a closed card can still get its deferred probe moment (fix) — events.jsonl#ts=2026-11-04T20:14:53Z
-- T-14517 — Switch the AI tool's own memory off for sessions started outside the project folder, by a user-level setting offered at install (fix) — events.jsonl#ts=2026-11-04T20:33:59Z
-- T-14501 — Emit no needs-decision halt for a GREEN ceiling row whose audited subject did not move, and name --directive wherever the ceiling route is printed (fix) — events.jsonl#ts=2026-11-04T21:10:19Z
-- T-14519 — Make the ceiling halt row name the ceiling row's own residuals, not an earlier pass's findings (fix) — events.jsonl#ts=2026-11-04T22:07:47Z
-- T-14521 — Let task close accept the audit-post custody a preshipped-deliverable overlay recorded on a work/ ship (fix) — events.jsonl#ts=2026-11-04T22:35:22Z
-- T-14525 — Give a read-only investigation its own no-carrier route in the carrier sieve and the execution-cue rule (docs) — events.jsonl#ts=2026-11-04T23:56:55Z
-- T-14514 — Keep runtime state out of the pinned release cache when a verb is invoked from the cache itself, so the next verb does not die pin-unresolved (fix) — events.jsonl#ts=2026-11-05T04:27:47Z
-- T-14520 — At spike exit, reconcile the carry registry with every owner word of the spike period before the owner read-back (feature) — events.jsonl#ts=2026-11-05T04:47:40Z
-- T-14523 — Fix three misleading outputs reported on v2.27.0 - the per-stage sequence path, the comment-drop warning on block-scalar lines, the SPEC-1006 citations (fix) — events.jsonl#ts=2026-11-05T05:07:14Z
-- T-14522 — Count a same-epoch graph query --kernel read as delivered so spec new does not re-print the before-rule-change contracts (fix) — events.jsonl#ts=2026-11-05T05:29:13Z
-- T-14530 — Derive the per-test gap line from what a layer's adapter can do, not from the newest red of the layer (fix) — events.jsonl#ts=2026-11-05T06:11:25Z
-- T-14531 — Measure whether the sample pytest adapter's explicit file list is slower than handing pytest the directory, and switch the sample if so (fix) — events.jsonl#ts=2026-11-05T06:24:32Z
-- T-14529 — Give a GREEN ordinary ceiling row followed by a red governed Tests run an admitting door to commit the in-scope fix (fix) — events.jsonl#ts=2026-11-05T06:51:01Z
-- T-14528 — Keep the SPEC-1058 accept check reachable for a large prototype - a pre-auditor size budget on the base diff (fix) — events.jsonl#ts=2026-11-05T07:06:46Z
-- T-14532 — Let worktree new --spike reopen a round from a PARKED spike tag, stamped and journaled, so no raw git and no confirm-dead is needed (fix) — events.jsonl#ts=2026-11-05T07:22:30Z
+- T-14533 — Let the owner take a sandbox-exit item on their own responsibility (decide on main, check in a sandbox raised from main) and make the accept-gate auditor honour it (fix) — events.jsonl#ts=2026-11-05T12:04:20Z
+- T-14536 — Keep files the engine writes into the shared coordination store readable by the dev group (fix) — events.jsonl#ts=2026-11-05T19:07:14Z
+- T-14534 — Let audit post admit a clean Stage-6 sync merge whose worktree_synced row sits in the main checkout journal (fix) — events.jsonl#ts=2026-11-05T19:25:54Z
+- T-14537 — Do not fail a governed deploy because a bookkeeping-only land moved main while it ran (fix) — events.jsonl#ts=2026-11-05T19:42:10Z
+- T-14538 — Read the owner words of a spike across its whole lineage, not only the slim tag the plan points at now (fix) — events.jsonl#ts=2026-11-05T20:04:56Z
+- T-14539 — Make the suite-file subject check read what a verify layer really selects, including marker discovery (fix) — events.jsonl#ts=2026-11-05T20:26:37Z
+- T-14541 — Fix three small verb input gaps reported by <project> and <project> (empty from locator, probe_moments withdraw, forecast amend after Plan) (fix) — events.jsonl#ts=2026-11-05T21:00:46Z
+- T-14535 — Deliver the post-compaction restoration cue to every session, kernel and consumer, wherever it was started (fix) — events.jsonl#ts=2026-11-05T22:41:50Z
+- T-14540 — Make the nightly verdict-changes debt line compare the last two nights, not two nights from September (fix) — events.jsonl#ts=2026-11-06T06:32:13Z
+- T-14542 — Give a spent audit-post GREEN an admitted route through a hand-resolved admission merge (fix) — events.jsonl#ts=2026-11-06T06:49:59Z
+- T-14543 — Make the task commit --reship ceiling warning say what the command will actually open (fix) — events.jsonl#ts=2026-11-06T07:06:58Z
+- T-14544 — Admit a spent audit-post GREEN through any chain of its own sync merges with one complete merge-integration pass, and hold the reviewed candidate to land (fix) — events.jsonl#ts=2026-11-06T10:13:11Z
+- T-14546 — Admit the second --fix-red at the post ceiling that SPEC-0015 allows when the first fix folded the RED record (fix) — events.jsonl#ts=2026-11-06T12:10:33Z
+- T-14547 — Re-cut of : hold a clean sync merge open for a semantic edit (X-2289) and keep journal rows out of the merge-integration packet (X-2291) (fix) — events.jsonl#ts=2026-11-06T13:54:12Z
+- T-14548 — Name the user-level compaction cue in onboarding and stop printing cue NOT GUARANTEED when that entry is installed (fix) — events.jsonl#ts=2026-11-06T14:45:00Z
+- T-14549 — Make the merge-integration admission find a clean sync row that sits only in the main checkout journal again (regression after) (fix) — events.jsonl#ts=2026-11-06T15:13:45Z
+- T-14551 — Clear the scheduled pre-deploy red line on a passed full gated-deploy run of a descendant candidate, and name the re-run in the line (fix) — events.jsonl#ts=2026-11-06T16:07:42Z
+- T-14550 — Do not close a peer's bugfix or task cross item with only machine provenance; the resolving card carries the peer's next step (fix) — events.jsonl#ts=2026-11-06T16:33:25Z
+- T-14552 — Make audit post --preview answer the merge-integration admission exactly as the real verb does (fix) — events.jsonl#ts=2026-11-06T17:25:05Z
 
 ## Trust surfaces
 

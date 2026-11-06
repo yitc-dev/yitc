@@ -1529,12 +1529,17 @@ def set_value(name, raw, env=None):
                      if k != name and (k not in BY_NAME or not BY_NAME[k].is_settable))
     data = {k: v for k, v in data.items() if k not in dropped}
     data[name] = value
+    from lib import cross      # deferred, as in resolve_settings_path: the store's shared file mode
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=".machine-settings-")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2, sort_keys=True)
             fh.write("\n")
+        # The store is shared by its OS group: keep group read+write (T-14536). mkstemp makes the
+        # tmp 0600, and os.replace carries the tmp's mode, so without this every write -- a rewrite
+        # of a group-readable file included -- leaves a file only its writer can read.
+        os.chmod(tmp, cross.SHARED_FILE_MODE)
         os.replace(tmp, path)
     except BaseException:
         try:

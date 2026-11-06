@@ -88,5 +88,5 @@ binding:
 - query-only
 init_concern: null
 implements_signature:
-  bin/lib/init.py#_provider_memory_off_delivery: 90fa7b86c935a2feb54a06a44730ebd4556727ce749f4c3b90d8732058c19b96
+  bin/lib/init.py#_provider_memory_off_delivery: f7857bd18a9251859bac5293e8d4d6c0d1f4dbb927cd7d7e7c6454a5a4c1a4c4
   bin/lib/init.py#_user_memory_off_state: 8eea4c29ce852c495e6e5b8dee5cd94d3c35307ff6694f84780741165e2ee094
